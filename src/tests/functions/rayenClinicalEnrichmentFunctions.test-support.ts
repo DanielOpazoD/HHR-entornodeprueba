@@ -24,6 +24,8 @@ const {
   parseClinicalEnrichmentPayload,
 } = require('../../../functions/lib/rayenClinicalEnrichmentPolicy.js');
 
+export { parseClinicalEnrichmentPayload };
+
 export const makeClinicalRecord = () => ({
   date: '2026-07-28',
   lastUpdated: '2026-07-28T10:00:00.000Z',

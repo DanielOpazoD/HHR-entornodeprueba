@@ -118,6 +118,32 @@ describe('applyClinicalEnrichmentBatch', () => {
     expect(result).toEqual({ patientWrites: 1, historySnapshots: 1, retries: 0 });
   });
 
+  it('does not count an idempotent replay as a committed write or snapshot', async () => {
+    const deps = dependencies();
+    deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
+      success: true,
+      authorityStatus: 'idempotent' as const,
+      date: payload.date,
+      mode: payload.mode,
+      targetCount: payload.patches.length,
+      fieldCount: payload.patches.reduce(
+        (total, patch) => total + Object.keys(patch.fields).length,
+        0
+      ),
+    }));
+
+    const result = await applyClinicalEnrichmentBatch({
+      mode: 'enforced',
+      record,
+      runId: 'run-1',
+      operations,
+      ...deps,
+    });
+
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ patientWrites: 0, historySnapshots: 0, retries: 0 });
+  });
+
   it('rejects a resolved response that does not confirm the requested batch', async () => {
     const deps = dependencies();
     deps.invoke.mockResolvedValue({ success: false });

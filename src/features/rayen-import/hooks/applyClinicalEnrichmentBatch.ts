@@ -210,9 +210,12 @@ export const applyClinicalEnrichmentBatch = async ({
   if (!payload) {
     return applyLegacyOperations(operations, applyPatch);
   }
-  const invokeChecked = async (): Promise<void> => {
+  const invokeChecked = async (): Promise<
+    Awaited<ReturnType<typeof callRayenClinicalEnrichmentBatch>>
+  > => {
     const response = await invoke(payload);
     assertCommittedResponse(response, payload);
+    return response;
   };
 
   if (mode === 'shadow') {
@@ -228,19 +231,25 @@ export const applyClinicalEnrichmentBatch = async ({
 
   let retries = 0;
   try {
+    let response: Awaited<ReturnType<typeof callRayenClinicalEnrichmentBatch>>;
     try {
-      await invokeChecked();
+      response = await invokeChecked();
     } catch (error) {
       if (!isClinicalBatchRetryableError(error)) throw error;
       retries = 1;
-      await invokeChecked();
+      response = await invokeChecked();
     }
     try {
       await refreshRecord();
     } catch (error) {
       console.warn('[rayen-import] lote aplicado; hidratación local diferida:', errorCode(error));
     }
-    return { patientWrites: 1, historySnapshots: 1, retries };
+    const committed = response.authorityStatus === 'ok';
+    return {
+      patientWrites: committed ? 1 : 0,
+      historySnapshots: committed ? 1 : 0,
+      retries,
+    };
   } catch (error) {
     if (retries > 0) throw withRetryCount(error, retries);
     if (!isClinicalBatchFallbackError(error)) throw error;

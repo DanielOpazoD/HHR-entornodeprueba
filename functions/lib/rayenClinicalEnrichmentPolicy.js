@@ -18,6 +18,8 @@ const ALLOWED_FIELDS = new Set([
 
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
+const compareCodeUnits = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
+
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 const clonePlainValue = value => {
@@ -70,7 +72,7 @@ const canonicalize = value => {
   if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
   return `{${Object.entries(value)
     .filter(([, nested]) => nested !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => compareCodeUnits(left, right))
     .map(([key, nested]) => `${JSON.stringify(key)}:${canonicalize(nested)}`)
     .join(',')}}`;
 };
@@ -182,7 +184,7 @@ const parseClinicalEnrichmentPayload = data => {
     dryRun,
     patches: patches.sort(
       (left, right) =>
-        left.bedId.localeCompare(right.bedId) ||
+        compareCodeUnits(left.bedId, right.bedId) ||
         Number(left.clinicalCrib) - Number(right.clinicalCrib)
     ),
     expectedLastUpdated,

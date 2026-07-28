@@ -6,6 +6,7 @@ import {
   makeClinicalRecord,
   makeContext,
   makePayload,
+  parseClinicalEnrichmentPayload,
 } from './rayenClinicalEnrichmentFunctions.test-support';
 
 const createApi = (admin: ReturnType<typeof createClinicalAdminMock>, role = 'nurse_hospital') =>
@@ -81,6 +82,19 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
 
     expect(result).toMatchObject({ authorityStatus: 'idempotent' });
     expect(admin.set).not.toHaveBeenCalled();
+  });
+
+  it('orders digest targets with deterministic UTF-16 code units', () => {
+    const payload = makePayload();
+    payload.patches = [
+      { ...payload.patches[0], bedId: 'á' },
+      { ...payload.patches[0], bedId: 'Z' },
+    ];
+
+    expect(parseClinicalEnrichmentPayload(payload).patches).toMatchObject([
+      { bedId: 'Z' },
+      { bedId: 'á' },
+    ]);
   });
 
   it('keeps one snapshot when the same run is retried with a new mutation id', async () => {
@@ -266,5 +280,16 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.telemetryAdd).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'failure', errorCode: 'permission-denied' })
     );
+  });
+
+  it('rejects unauthenticated callers without emitting telemetry', async () => {
+    const admin = createClinicalAdminMock();
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(makePayload(), {})
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+    expect(admin.get).not.toHaveBeenCalled();
+    expect(admin.set).not.toHaveBeenCalled();
+    expect(admin.telemetryAdd).not.toHaveBeenCalled();
   });
 });
