@@ -273,6 +273,35 @@ describe('inferNursingShifts', () => {
     expect(proposal.tensNight?.names).toEqual([]);
   });
 
+  it('allows the same TENS in the long and night shifts when both have valid evidence', () => {
+    const proposal = inferNursingShifts(
+      [
+        activity('Jimena Yáñez', '2026-07-20T10:00:00', 'DAY-1', {
+          role: 'Paramédico',
+          source: 'vital-signs',
+        }),
+        activity('Jimena Yáñez', '2026-07-20T15:00:00', 'DAY-2', {
+          role: 'Paramédico',
+          source: 'medication-administration',
+        }),
+        activity('Jimena Yáñez', '2026-07-20T22:00:00', 'NIGHT-1', {
+          role: 'Paramédico',
+          source: 'vital-signs',
+        }),
+        activity('Jimena Yáñez', '2026-07-21T02:00:00', 'NIGHT-2', {
+          role: 'Paramédico',
+          source: 'medication-administration',
+        }),
+      ],
+      '2026-07-20'
+    );
+
+    expect(proposal.tensDay?.names).toEqual(['Jimena Yáñez']);
+    expect(proposal.tensNight?.names).toEqual(['Jimena Yáñez']);
+    expect(proposal.tensDay?.ambiguous).toBe(false);
+    expect(proposal.tensNight?.ambiguous).toBe(false);
+  });
+
   it('recognizes a catalogued TENS from one authoritative medication or vital-sign activity', () => {
     const proposal = inferNursingShifts(
       [

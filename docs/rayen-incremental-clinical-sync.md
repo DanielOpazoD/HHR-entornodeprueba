@@ -37,6 +37,27 @@ TENS. No introduce _event sourcing_, infraestructura nueva ni escrituras paralel
 - CUDYR, D-7, zona `Pacific/Easter`, doble fuente de escalas, vínculo madre-cuna y trazabilidad de cama
   mantienen sus reglas existentes.
 
+## Destilación del flujo
+
+La sincronización conserva sólo los pasos que agregan evidencia o protegen consistencia:
+
+1. captura atómica del censo de Ficha Médico y el reporte administrativo de Gestión de Camas;
+2. conciliación del censo y consulta de evidencia individual únicamente cuando una cama, un egreso o
+   un ingreso nocturno lo requiere;
+3. aplicación del cambio confirmado y enriquecimiento clínico independiente;
+4. persistencia granular sólo de hechos nuevos o corregidos.
+
+Dentro de una ejecución, las consultas repetidas del mismo informe oficial de trazabilidad se
+coalescen por `ENC_ID`. Una respuesta válida puede alimentar tanto la reconstrucción histórica como
+la verificación del ingreso nocturno sin volver a descargar el PDF. La caché vive sólo durante esa
+sincronización y descarta respuestas vacías, errores y excepciones para conservar el reintento. No se
+comparte entre ejecuciones: una sincronización posterior siempre puede observar movimientos nuevos.
+
+No se eliminan las lecturas completas de signos vitales, escalas o actividad clínica porque Eloísa no
+ofrece todavía un cursor remoto que permita demostrar que una lectura parcial contiene correcciones
+y elementos archivados. Tampoco se paralelizan escrituras del mismo censo ni se eleva la concurrencia
+remota sin evidencia de capacidad; ambos atajos reducen tiempo a costa de consistencia o estabilidad.
+
 ## Reanudación y recuperación
 
 - Sólo existe una ejecución clínica activa y una pendiente. Solicitudes repetidas del mismo `runId`

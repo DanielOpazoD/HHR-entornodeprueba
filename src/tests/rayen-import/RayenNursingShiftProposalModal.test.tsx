@@ -80,10 +80,10 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.getByText('Berta Soto')).toBeInTheDocument();
     expect(screen.getByText(/4 registros · 3 pacientes/)).toBeInTheDocument();
     expect(screen.getByText(/coincide con nómina HHR/)).toBeInTheDocument();
-    expect(screen.getByText(/Se excluyeron 2 registros cercanos al relevo/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Ver quiénes fueron excluidos (2)'));
+    expect(screen.getByText(/HHR conservó 2 firmas cercanas al relevo/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Ver actividad cercana al relevo (2)'));
     expect(screen.getByText(/Claudia Saliente · 20-07 08:35/)).toBeVisible();
-    expect(screen.getAllByText(/Motivo: primeros 60 min del turno día/)).toHaveLength(2);
+    expect(screen.getAllByText(/Ventana de relevo: primeros 60 min del turno día/)).toHaveLength(2);
 
     expect(screen.getByRole('dialog', { name: 'Dotación clínica identificada' })).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar propuesta' }));
@@ -183,7 +183,7 @@ describe('RayenNursingShiftProposalModal', () => {
     });
 
     expect(screen.getByTestId('rayen-nursing-shift-proposal')).toBeVisible();
-    expect(screen.getByText(/Se excluyeron 2 registros cercanos al relevo/)).toBeVisible();
+    expect(screen.getByText(/HHR conservó 2 firmas cercanas al relevo/)).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Aplicar propuesta' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entendido' })).toBeVisible();
   });

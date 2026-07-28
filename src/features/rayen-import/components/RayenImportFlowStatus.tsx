@@ -48,7 +48,8 @@ const persistedClinicalSyncHasIssues = (
 const persistedSyncHasIssues = (
   persistedSync: RayenImportFlowStatusProps['persistedSync']
 ): boolean =>
-  persistedClinicalSyncHasIssues(persistedSync) || Boolean(persistedSync?.staffingObservation);
+  persistedClinicalSyncHasIssues(persistedSync) ||
+  Boolean(persistedSync?.staffingObservation?.ambiguousSections.length);
 
 const persistedSyncIsComplete = ({
   hasPersistedSync,

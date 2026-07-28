@@ -75,8 +75,9 @@ const ShiftSuggestion: React.FC<{
       {suggestion.ignoredBoundaryRecords > 0 && (
         <>
           <p className="mt-2 text-xs text-slate-500">
-            Se excluyeron {suggestion.ignoredBoundaryRecords} registros cercanos al relevo por ser
-            temporalmente ambiguos.
+            HHR conservó {suggestion.ignoredBoundaryRecords}{' '}
+            {suggestion.ignoredBoundaryRecords === 1 ? 'firma' : 'firmas'} cercanas al relevo como
+            trazabilidad, sin usarlas para cambiar la dotación.
           </p>
           <StaffingBoundaryExclusions
             total={suggestion.ignoredBoundaryRecords}
