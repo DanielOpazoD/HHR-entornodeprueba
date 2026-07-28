@@ -11,7 +11,10 @@ export interface ClinicalFillDeps {
   tensCatalog?: string[];
   fetchDeviceReport: (encId: string, fecha: string) => Promise<{ base64: string; error?: string }>;
   extractDeviceItems: (base64: string) => Promise<DeviceTextItem[]>;
-  fetchHistoryScales: (encId: string) => Promise<{
+  fetchHistoryScales: (
+    encId: string,
+    censusDate: string
+  ) => Promise<{
     events: RayenHistoryScaleEvent[];
     nursingActivity?: RayenNursingActivity[];
     error?: string;

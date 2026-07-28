@@ -161,7 +161,9 @@ export const runClinicalFill = async (
         }
         return base64 ? deps.extractDeviceItems(base64) : [];
       }),
-      withHistoryReadSlot(() => performance.trackRequest(() => deps.fetchHistoryScales(encId))),
+      withHistoryReadSlot(() =>
+        performance.trackRequest(() => deps.fetchHistoryScales(encId, fecha))
+      ),
       withFormsReadSlot(() => performance.trackRequest(() => deps.fetchScalesForms(encId))),
     ]);
 

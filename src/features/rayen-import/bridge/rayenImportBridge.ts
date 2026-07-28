@@ -265,7 +265,9 @@ export const requestScalesReport = (
 
 /**
  * Ask the extension for one patient's evaluation scales (Braden/Downton) as clinical-history events
- * from Ficha Médico's "panel de historial" (`getPatientEncounterHistoryReportServer`). Each event's
+ * from Ficha Médico's "panel de historial" (`getPatientEncounterHistoryReportServer`). The census
+ * date lets the extension bound the remote history window without losing D-7 or its morning handoff.
+ * Each event's
  * `publishDatetime` is the real application timestamp, so HHR (`parseHistoryScales`) can select the
  * last score applied ON the census day — including past days and same-day re-applications that
  * encounterFormEntry misses. Resolves to `{ events: [] }` if the extension / Ficha Médico tab is
@@ -273,6 +275,7 @@ export const requestScalesReport = (
  */
 export const requestHistoryScales = (
   encId: string,
+  censusDate: string,
   timeoutMs = 30000
 ): Promise<{
   events: RayenHistoryScaleEvent[];
@@ -309,7 +312,7 @@ export const requestHistoryScales = (
 
     window.addEventListener('message', onMessage);
     window.postMessage(
-      { type: RAYEN_HISTORY_SCALES_REQUEST_TYPE, reqId, encId },
+      { type: RAYEN_HISTORY_SCALES_REQUEST_TYPE, reqId, encId, censusDate },
       window.location.origin
     );
     setTimeout(() => {

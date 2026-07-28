@@ -16,6 +16,7 @@ import {
   RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
   requestEgresoReport,
   requestEgresoLookup,
+  requestHistoryScales,
   subscribeToRayenImportErrors,
   subscribeToRayenSnapshots,
 } from '@/features/rayen-import/bridge/rayenImportBridge';
@@ -266,6 +267,29 @@ describe('patient-flow report bridge', () => {
       error: 'El episodio clínico no es válido.',
     });
     expect(postMessage).not.toHaveBeenCalled();
+    postMessage.mockRestore();
+  });
+});
+
+describe('bounded clinical-history bridge', () => {
+  it('carries the requested census day through the correlated extension request', async () => {
+    const postMessage = vi.spyOn(window, 'postMessage');
+    const pending = requestHistoryScales('142040', '2026-07-21', 1000);
+    const request = postMessage.mock.calls[0]?.[0] as { reqId: string };
+
+    expect(request).toMatchObject({
+      type: 'HHR_RAYEN_HISTORY_SCALES_REQUEST',
+      encId: '142040',
+      censusDate: '2026-07-21',
+    });
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: { type: 'HHR_RAYEN_HISTORY_SCALES_RESULT', reqId: request.reqId, events: [] },
+      })
+    );
+
+    await expect(pending).resolves.toEqual({ events: [], nursingActivity: [], error: undefined });
     postMessage.mockRestore();
   });
 });

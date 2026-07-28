@@ -2,8 +2,11 @@
  * Parser for the nursing risk scales (Braden UPP + Downton falls) as exposed by Ficha Médico's
  * clinical-history report ("panel de historial"):
  *
- *   GET {apiOrigin}/api/encounter/{encId}/getPatientEncounterHistoryReportServer/false/0/0/-14
+ *   GET {apiOrigin}/api/encounter/{encId}/getPatientEncounterHistoryReportServer/false/0/0/-N
  *   headers: { Authorization: 'HSP <token>' }, credentials: 'omit'
+ *
+ * `N` is bounded from the requested census day (2..14 days), preserving D-7 and its next-morning
+ * handoff while avoiding an unconditional 14-day response for current-day synchronization.
  *
  * WHY THIS SOURCE (not encounterFormEntry). The encounter-form-entry endpoint we used before returns
  * a form's `startDateTime`, which goes STALE on a redo (keeps the original day) and — worse — misses

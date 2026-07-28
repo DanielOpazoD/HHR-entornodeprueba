@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/clinical-day-runtime.js';
 import '../../../extension/fichamedico-history-read-model.js';
 import '../../../extension/fichamedico-clinical-client.js';
 
@@ -35,6 +36,7 @@ type ClinicalClient = {
   }) => Promise<{ buffer?: ArrayBuffer; error?: string }>;
   fetchHistoryScales: (input: {
     encId: string;
+    censusDate?: string;
     info?: SessionInfo;
   }) => Promise<{ events?: unknown[]; nursingActivity?: unknown[]; error?: string }>;
   fetchScalesReportWithInfo: (
@@ -93,6 +95,25 @@ describe('Ficha Médico read-only clinical client', () => {
       fetchWithTimeout: fetchWithTimeout as (...args: unknown[]) => Promise<unknown>,
       defaultTimeoutMs: 45_000,
     });
+  });
+
+  it('uses the metric-guided history window in the authenticated endpoint', async () => {
+    fetchWithTimeout.mockResolvedValueOnce(response({ json: async () => [] }));
+
+    await client.fetchHistoryScales({
+      encId: '141336',
+      censusDate: new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Pacific/Easter',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date()),
+      info: session,
+    });
+
+    expect(fetchWithTimeout.mock.calls[0][0]).toContain(
+      'getPatientEncounterHistoryReportServer/false/0/0/-2'
+    );
   });
 
   it('fails closed when required dependencies or timeout are invalid', () => {
