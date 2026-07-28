@@ -27,6 +27,9 @@ import type { RayenImportMode } from '../settings/rayenImportSettings';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import { syncReportRange, toIsoReportDate } from './reportDateHelpers';
 import { resolveCensusSyncTarget, type CensusSyncTarget } from '../domain/historicalCensusSync';
+import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
+import type { RayenSyncRun } from '../domain/rayenSyncHistory';
+import { elapsedMilliseconds, isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
 
 interface UseRayenSnapshotPreviewInput {
   currentRecord: DailyRecord | null | undefined;
@@ -39,6 +42,8 @@ interface UseRayenSnapshotPreviewInput {
   persistAppliedRun: (record: DailyRecord, diff: CensusImportDiff) => Promise<DailyRecord>;
   fillDevicesInBackground: (record: DailyRecord) => Promise<void>;
   failRun: (reason: 'apply_failed') => Promise<void>;
+  ensureRun: () => RayenSyncRun;
+  recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
   syncTargetRef: RefObject<CensusSyncTarget | null>;
 }
 
@@ -53,6 +58,8 @@ export const useRayenSnapshotPreview = ({
   persistAppliedRun,
   fillDevicesInBackground,
   failRun,
+  ensureRun,
+  recordRunPerformance,
   syncTargetRef,
 }: UseRayenSnapshotPreviewInput) => {
   const autoApplyingRef = useRef(false);
@@ -69,6 +76,22 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
+      const run = ensureRun();
+      recordRunPerformance(
+        { stagesMs: { dualCapture: elapsedMilliseconds(Date.parse(run.startedAt)) } },
+        run.id
+      );
+      const reconciliationStartedAt = Date.now();
+      let historicalEvidenceMs = 0;
+      const counters = { requests: 0, cacheHits: 0, timeouts: 0 };
+      const measureEvidence = async <T>(operation: () => Promise<T>): Promise<T> => {
+        const startedAt = Date.now();
+        try {
+          return await operation();
+        } finally {
+          historicalEvidenceMs += elapsedMilliseconds(startedAt);
+        }
+      };
       const reportDate = toIsoReportDate(currentRecord);
       const requestedTarget = syncTargetRef.current;
       syncTargetRef.current = null;
@@ -111,19 +134,32 @@ export const useRayenSnapshotPreview = ({
       }
       let extensionHealth: ReturnType<typeof requestRayenExtensionHealth> | null = null;
       const getExtensionHealth = () => {
-        extensionHealth ??= requestRayenExtensionHealth();
+        if (!extensionHealth) {
+          counters.requests += 1;
+          extensionHealth = requestRayenExtensionHealth();
+        }
         return extensionHealth;
       };
-      const fetchPatientFlowReport = createPatientFlowRequestCache(async encId => {
-        const health = await getExtensionHealth();
-        if (!supportsPatientFlowReport(health.report)) {
-          return {
-            base64: '',
-            error: 'La extensión instalada no admite trazabilidad de camas.',
-          };
+      const fetchPatientFlowReport = createPatientFlowRequestCache(
+        async encId => {
+          const health = await getExtensionHealth();
+          if (!supportsPatientFlowReport(health.report)) {
+            return {
+              base64: '',
+              error: 'La extensión instalada no admite trazabilidad de camas.',
+            };
+          }
+          counters.requests += 1;
+          const result = await requestPatientFlowReport(encId, isHistoricalDay ? 15_000 : 30_000);
+          if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
+          return result;
+        },
+        {
+          onHit: () => {
+            counters.cacheHits += 1;
+          },
         }
-        return requestPatientFlowReport(encId, isHistoricalDay ? 15_000 : 30_000);
-      });
+      );
       const fetchStatisticalDischarge = async (encId: string) => {
         const health = await getExtensionHealth();
         if (!supportsStatisticalDischargeEvidence(health.report)) {
@@ -132,20 +168,30 @@ export const useRayenSnapshotPreview = ({
             error: 'La extensión instalada no admite lectura del egreso individual.',
           };
         }
-        return requestStatisticalDischargeEvidence(encId);
+        counters.requests += 1;
+        const result = await requestStatisticalDischargeEvidence(encId);
+        if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
+        return result;
+      };
+      const lookupEgresos = async (targets: Parameters<typeof requestEgresoLookup>[0]) => {
+        if (targets.length === 0) return [];
+        counters.requests += 1;
+        return requestEgresoLookup(targets);
       };
       let diff: CensusImportDiff;
       if (isHistoricalDay) {
-        const reconstruction = await reconstructHistoricalSnapshotAtClose(
-          reportDate,
-          snapshot,
-          currentRecord,
-          bundle.egresoRows,
-          {
-            fetchReport: fetchPatientFlowReport,
-            lookupEgresos: targets => requestEgresoLookup(targets),
-            fetchDischargeReport: fetchStatisticalDischarge,
-          }
+        const reconstruction = await measureEvidence(() =>
+          reconstructHistoricalSnapshotAtClose(
+            reportDate,
+            snapshot,
+            currentRecord,
+            bundle.egresoRows,
+            {
+              fetchReport: fetchPatientFlowReport,
+              lookupEgresos,
+              fetchDischargeReport: fetchStatisticalDischarge,
+            }
+          )
         );
         diff = planRayenCensusImport({
           current: currentRecord,
@@ -163,12 +209,14 @@ export const useRayenSnapshotPreview = ({
         }
       } else {
         diff = planRayenCensusImport({ current: currentRecord, snapshot }).diff;
-        const traceability = await resolveOccupiedBedTraceabilityChain(
-          currentRecord,
-          snapshot,
-          diff,
-          { fetchReport: fetchPatientFlowReport },
-          verified => planRayenCensusImport({ current: currentRecord, snapshot: verified }).diff
+        const traceability = await measureEvidence(() =>
+          resolveOccupiedBedTraceabilityChain(
+            currentRecord,
+            snapshot,
+            diff,
+            { fetchReport: fetchPatientFlowReport },
+            verified => planRayenCensusImport({ current: currentRecord, snapshot: verified }).diff
+          )
         );
         diff = traceability.diff;
       }
@@ -179,19 +227,33 @@ export const useRayenSnapshotPreview = ({
         .filter(entry => entry.rut && entry.encounterId)
         .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
       if (lookupTargets.length > 0) {
-        const lookupResults = await requestEgresoLookup(lookupTargets);
+        const lookupResults = await measureEvidence(() => lookupEgresos(lookupTargets));
         diff = applyEgresoLookupFallback(diff, lookupResults, currentRecord);
       }
 
-      diff = await verifyPreviousDayAdmissionPlacements(diff, reportDate, {
-        fetchReport: fetchPatientFlowReport,
-        snapshot,
-        currentRecord,
-      });
-      const previousDayPlan = await computePreviousDayEdits(dailyRecord, diff, reportDate, isAdmin);
+      diff = await measureEvidence(() =>
+        verifyPreviousDayAdmissionPlacements(diff, reportDate, {
+          fetchReport: fetchPatientFlowReport,
+          snapshot,
+          currentRecord,
+        })
+      );
+      const previousDayPlan = await measureEvidence(() =>
+        computePreviousDayEdits(dailyRecord, diff, reportDate, isAdmin)
+      );
       const previousDayEdits = previousDayPlan.edits;
       diff = { ...diff, reportEgresos: previousDayPlan.reportEgresos };
       if (previousDayEdits.length > 0) diff = { ...diff, previousDayEdits };
+      recordRunPerformance(
+        {
+          stagesMs: {
+            reconciliation: elapsedMilliseconds(reconciliationStartedAt),
+            historicalEvidence: historicalEvidenceMs,
+          },
+          counters,
+        },
+        run.id
+      );
 
       const needsReview = requiresReview(diff) || previousDayEdits.length > 0;
       const canAutoApply = mode === 'auto' && !needsReview;
@@ -278,6 +340,8 @@ export const useRayenSnapshotPreview = ({
       isAdmin,
       persistAppliedRun,
       failRun,
+      ensureRun,
+      recordRunPerformance,
       setState,
       syncTargetRef,
     ]

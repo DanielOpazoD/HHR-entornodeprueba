@@ -10,14 +10,19 @@ type PatientFlowReportReader = (encounterId: string) => Promise<PatientFlowRepor
  * movement from Eloisa.
  */
 export const createPatientFlowRequestCache = (
-  readReport: PatientFlowReportReader
+  readReport: PatientFlowReportReader,
+  observers: { onHit?: () => void; onMiss?: () => void } = {}
 ): PatientFlowReportReader => {
   const requests = new Map<string, Promise<PatientFlowReportResult>>();
 
   return encounterId => {
     const existing = requests.get(encounterId);
-    if (existing) return existing;
+    if (existing) {
+      observers.onHit?.();
+      return existing;
+    }
 
+    observers.onMiss?.();
     const request = readReport(encounterId).then(
       result => {
         if (!result.base64 || result.error) requests.delete(encounterId);

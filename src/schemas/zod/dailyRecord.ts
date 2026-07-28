@@ -127,6 +127,25 @@ const RayenSyncStaffingObservationSchema = z.object({
   ),
 });
 
+const RayenSyncPerformanceSchema = z.object({
+  stagesMs: z.object({
+    preflight: nullableOptional(z.number().int().nonnegative()),
+    dualCapture: nullableOptional(z.number().int().nonnegative()),
+    reconciliation: nullableOptional(z.number().int().nonnegative()),
+    historicalEvidence: nullableOptional(z.number().int().nonnegative()),
+    clinicalReads: nullableOptional(z.number().int().nonnegative()),
+    writeQueueWait: nullableOptional(z.number().int().nonnegative()),
+    persistence: nullableOptional(z.number().int().nonnegative()),
+  }),
+  counters: z.object({
+    requests: z.number().int().nonnegative(),
+    cacheHits: z.number().int().nonnegative(),
+    patches: z.number().int().nonnegative(),
+    retries: z.number().int().nonnegative(),
+    timeouts: z.number().int().nonnegative(),
+  }),
+});
+
 const RayenSyncEventSchema = z.object({
   id: z.string(),
   startedAt: z.string(),
@@ -137,6 +156,7 @@ const RayenSyncEventSchema = z.object({
   changes: nullableOptional(RayenSyncChangesSchema),
   source: nullableOptional(RayenSyncSourceSchema),
   staffingObservation: nullableOptional(RayenSyncStaffingObservationSchema),
+  performance: nullableOptional(RayenSyncPerformanceSchema),
   failureReason: nullableOptional(
     z.enum([
       'extension_unavailable',

@@ -4,6 +4,7 @@ import type { ClinicalIncrementalMetrics } from '../domain/clinicalIncrementalSy
 import type { DeviceTextItem } from '../mapping/parseInvasiveDevices';
 import type { RayenCudyrCategory, RayenHistoryScaleEvent } from '../bridge/rayenImportBridge';
 import type { NursingStaffingProposal, RayenNursingActivity } from './nursingShiftInference';
+import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
 
 export interface ClinicalFillDeps {
   nurseCatalog?: string[];
@@ -25,6 +26,7 @@ export interface ClinicalFillDeps {
   applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
   now: () => Date;
   createId: () => string;
+  monotonicNow?: () => number;
 }
 
 export interface ClinicalFillPatchTarget {
@@ -56,6 +58,7 @@ export interface ClinicalFillSummary {
     patientWrites: number;
     historySnapshots: number;
   };
+  performance?: RayenSyncPerformance;
 }
 
 export interface ClinicalFillProgress {

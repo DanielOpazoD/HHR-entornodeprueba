@@ -41,6 +41,7 @@ import type {
   ClinicalFillSummary,
 } from './contracts/clinicalFillContracts';
 import type { RayenCudyrCategory } from './bridge/rayenImportBridge';
+import { createClinicalFillPerformance } from './domain/clinicalFillPerformance';
 
 export type {
   ClinicalFillDeps,
@@ -85,7 +86,11 @@ export const runClinicalFill = async (
       deps.tensCatalog ?? []
     ),
   };
-  if (eligible.length === 0) return summary;
+  const performance = createClinicalFillPerformance(deps.monotonicNow);
+  if (eligible.length === 0) {
+    summary.performance = performance.finish(summary.incremental!);
+    return summary;
+  }
   const nursingObservations: NursingActivityObservation[] = [];
   // Each source gets independent backpressure. A slow device PDF must not consume the slots used
   // by history/forms, while every Eloisa endpoint still stays below the same conservative limit.
@@ -96,14 +101,15 @@ export const runClinicalFill = async (
   // Patient reports are fetched concurrently, but all record writes are serialized. Parallel
   // writes share one census version and can otherwise conflict with another write from this same
   // synchronization, producing a false "modified by another user" result.
-  const writes = createClinicalWriteCoordinator(summary.incremental!);
+  const writes = createClinicalWriteCoordinator(summary.incremental!, performance.writeObserver);
 
   // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source. `ok`
   // marks the read as authoritative — only then may a stale stored category be removed.
-  const cudyrPromise: Promise<{ map: Map<string, RayenCudyrCategory>; ok: boolean }> = deps
-    .fetchCudyrCategories()
+  const cudyrPromise: Promise<{ map: Map<string, RayenCudyrCategory>; ok: boolean }> = performance
+    .trackRequest(() => deps.fetchCudyrCategories())
     .then(({ items, error }) => {
       if (error) {
+        performance.recordTimeout(error);
         summary.errors.push({ bedId: '*', source: 'cudyr', message: error });
         return { map: new Map<string, RayenCudyrCategory>(), ok: false };
       }
@@ -141,12 +147,17 @@ export const runClinicalFill = async (
     // blocking: four slow PDFs no longer prevent another patient's history/forms from starting.
     const [deviceResult, historyResult, formsResult] = await Promise.allSettled([
       withDeviceReadSlot(async () => {
-        const { base64, error } = await deps.fetchDeviceReport(encId, fecha);
-        if (error) throw new Error(error);
+        const { base64, error } = await performance.trackRequest(() =>
+          deps.fetchDeviceReport(encId, fecha)
+        );
+        if (error) {
+          performance.recordTimeout(error);
+          throw new Error(error);
+        }
         return base64 ? deps.extractDeviceItems(base64) : [];
       }),
-      withHistoryReadSlot(() => deps.fetchHistoryScales(encId)),
-      withFormsReadSlot(() => deps.fetchScalesForms(encId)),
+      withHistoryReadSlot(() => performance.trackRequest(() => deps.fetchHistoryScales(encId))),
+      withFormsReadSlot(() => performance.trackRequest(() => deps.fetchScalesForms(encId))),
     ]);
 
     if (deviceResult.status === 'rejected') {
@@ -170,6 +181,7 @@ export const runClinicalFill = async (
     // forms in one call. Promise.allSettled isolates every source failure.
     const formsReadError =
       formsResult.status === 'rejected' ? message(formsResult.reason) : formsResult.value.error;
+    if (formsResult.status === 'fulfilled') performance.recordTimeout(formsResult.value.error);
     if (formsReadError) {
       summary.errors.push({ bedId, source: 'scales', message: formsReadError });
       summary.errors.push({ bedId, source: 'vitals', message: formsReadError });
@@ -180,6 +192,7 @@ export const runClinicalFill = async (
       historyResult.status === 'rejected'
         ? message(historyResult.reason)
         : historyResult.value.error;
+    if (historyResult.status === 'fulfilled') performance.recordTimeout(historyResult.value.error);
     if (historyReadError) {
       summary.errors.push({ bedId, source: 'scales', message: historyReadError });
       summary.errors.push({ bedId, source: 'staffing', message: historyReadError });
@@ -256,6 +269,7 @@ export const runClinicalFill = async (
           const historicalNotApplicable = historicalResult.applicable === false;
           priorCudyrPersisted = historicalResult.persisted || historicalNotApplicable;
           historicalCudyrPatched = historicalResult.changed;
+          if (historicalResult.changed) performance.recordHistoricalPatch();
           if (!historicalResult.persisted && !historicalNotApplicable) {
             summary.errors.push({
               bedId,
@@ -344,6 +358,7 @@ export const runClinicalFill = async (
     deps.nurseCatalog ?? [],
     deps.tensCatalog ?? []
   );
+  summary.performance = performance.finish(summary.incremental!);
 
   return summary;
 };

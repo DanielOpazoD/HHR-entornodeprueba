@@ -10,7 +10,6 @@ import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
-import { applyCensusImportDiff, type ApplyResult } from '../domain/applyCensusImportDiff';
 import { ensureFreshDailyRecordQuery } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import {
   subscribeToRayenSnapshots,
@@ -25,7 +24,6 @@ import {
 import { failureReasonFromHealth, useRayenSyncAudit } from './useRayenSyncAudit';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import { useRayenClinicalFill } from './useRayenClinicalFill';
-import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import { applyHistoricalCudyr as applyHistoricalCudyrToRecord } from './applyHistoricalCudyr';
 import { applyConfirmedRayenImport, hasSkippedPreviousDayCorrections } from './confirmRayenImport';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
@@ -46,6 +44,8 @@ import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal'
 import { useRayenClinicalFillRetry } from './useRayenClinicalFillRetry';
 import { patchFreshClinicalRecord } from './patchFreshClinicalRecord';
 import type { ClinicalFillPatchTarget } from '../contracts/clinicalFillContracts';
+import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
+import { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
 export const useRayenImport = () => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
@@ -84,26 +84,19 @@ export const useRayenImport = () => {
   const {
     startRun,
     ensureRun,
+    recordRunPerformance,
     applyRunToRecord,
     persistAppliedRun,
     completeRun,
     failRun,
     cancelRun,
   } = useRayenSyncAudit({ currentRecordRef, patchDailyRecord, actor: syncActor });
-  const applyDiff = useCallback(
-    async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
-      const run = ensureRun();
-      const result = applyCensusImportDiff(record, diff, {
-        idFactory: () => crypto.randomUUID(),
-        actor: run.by,
-        syncRunId: run.id,
-      });
-      const stamped = applyRunToRecord(result.record, diff).record;
-      await saveDailyRecord(stamped);
-      return { ...result, record: stamped };
-    },
-    [applyRunToRecord, ensureRun, saveDailyRecord]
-  );
+  const applyDiff = useRayenCensusDiffApplication({
+    ensureRun,
+    applyRunToRecord,
+    saveDailyRecord,
+    recordRunPerformance,
+  });
   const finishSyncing = useCallback(() => {
     setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
   }, []);
@@ -159,6 +152,8 @@ export const useRayenImport = () => {
     persistAppliedRun,
     fillDevicesInBackground,
     failRun,
+    ensureRun,
+    recordRunPerformance,
     syncTargetRef,
   });
   useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
@@ -180,7 +175,7 @@ export const useRayenImport = () => {
     [clearSyncTimeout, failRun]
   );
   const triggerImport = useCallback(
-    (health: RayenExtensionHealthState) => {
+    (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
       clearSyncTimeout();
       if (!resetRayenFillProgress()) {
         setState(prev => ({
@@ -195,7 +190,7 @@ export const useRayenImport = () => {
       }
       setStaffingProposal(null);
       setStaffingProposalError(null);
-      startRun(health);
+      const run = startRun(health, performance);
       if (!health.canSync) {
         void failRun(failureReasonFromHealth(health));
         setState(prev => ({
@@ -243,6 +238,7 @@ export const useRayenImport = () => {
       }));
       syncRequestController.start(syncRequest.range.dateStart, syncRequest.range.dateEnd, () => {
         syncTargetRef.current = null;
+        recordRunPerformance({ counters: { timeouts: 1 } }, run.id);
         void failRun('snapshot_timeout');
         setState(prev =>
           prev.isSyncing
@@ -255,8 +251,16 @@ export const useRayenImport = () => {
             : prev
         );
       });
+      recordRunPerformance({ counters: { requests: 1 } }, run.id);
     },
-    [clearSyncTimeout, currentRecord, failRun, startRun, syncRequestController]
+    [
+      clearSyncTimeout,
+      currentRecord,
+      failRun,
+      recordRunPerformance,
+      startRun,
+      syncRequestController,
+    ]
   );
 
   const retryClinicalFill = useRayenClinicalFillRetry({
@@ -310,6 +314,7 @@ export const useRayenImport = () => {
               )
             ).record,
           createId: () => crypto.randomUUID(),
+          onRetry: () => recordRunPerformance({ counters: { retries: 1 } }),
         });
         setState(prev => ({
           ...prev,
@@ -339,6 +344,7 @@ export const useRayenImport = () => {
       isAdmin,
       ensureRun,
       failRun,
+      recordRunPerformance,
       queryClient,
     ]
   );

@@ -1,7 +1,11 @@
 import { useCallback, useRef, type MutableRefObject } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { RayenSyncFailureReason, RayenSyncSource } from '@/types/domain/rayenSync';
+import type {
+  RayenSyncFailureReason,
+  RayenSyncPerformanceDelta,
+  RayenSyncSource,
+} from '@/types/domain/rayenSync';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { ClinicalFillSummary } from '../clinicalFillRunner';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
@@ -16,6 +20,7 @@ import {
   upsertRayenSyncEvent,
   type RayenSyncRun,
 } from '../domain/rayenSyncHistory';
+import { elapsedMilliseconds, mergeRayenSyncPerformance } from '../domain/rayenSyncPerformance';
 
 interface UseRayenSyncAuditInput {
   currentRecordRef: MutableRefObject<DailyRecord | null | undefined>;
@@ -23,6 +28,7 @@ interface UseRayenSyncAuditInput {
   actor: string;
   now?: () => Date;
   createId?: () => string;
+  monotonicNow?: () => number;
 }
 
 const defaultNow = (): Date => new Date();
@@ -56,18 +62,31 @@ export const useRayenSyncAudit = ({
   actor,
   now = defaultNow,
   createId = defaultCreateId,
+  monotonicNow = Date.now,
 }: UseRayenSyncAuditInput) => {
   const activeRunRef = useRef<RayenSyncRun | null>(null);
+  const runsRef = useRef(new Map<string, RayenSyncRun>());
+
+  const recordRunPerformance = useCallback(
+    (delta: RayenSyncPerformanceDelta, runId = activeRunRef.current?.id): void => {
+      if (!runId) return;
+      const run = runsRef.current.get(runId);
+      if (run) run.performance = mergeRayenSyncPerformance(run.performance, delta);
+    },
+    []
+  );
 
   const startRun = useCallback(
-    (health?: RayenExtensionHealthState): RayenSyncRun => {
+    (health?: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta): RayenSyncRun => {
       const run: RayenSyncRun = {
         id: createId(),
         startedAt: now().toISOString(),
         by: actor,
         source: sourceFromHealth(health),
+        performance: mergeRayenSyncPerformance(undefined, performance),
       };
       activeRunRef.current = run;
+      runsRef.current.set(run.id, run);
       return run;
     },
     [actor, createId, now]
@@ -92,13 +111,21 @@ export const useRayenSyncAudit = ({
   const persistAppliedRun = useCallback(
     async (record: DailyRecord, diff: CensusImportDiff): Promise<DailyRecord> => {
       const stamped = applyRunToRecord(record, diff).record;
+      const startedAt = monotonicNow();
       await patchDailyRecord({
         rayenSync: stamped.rayenSync,
         rayenSyncHistory: stamped.rayenSyncHistory,
       });
+      recordRunPerformance(
+        {
+          stagesMs: { persistence: elapsedMilliseconds(startedAt, monotonicNow()) },
+          counters: { patches: 1 },
+        },
+        stamped.rayenSync?.runId
+      );
       return stamped;
     },
-    [applyRunToRecord, patchDailyRecord]
+    [applyRunToRecord, monotonicNow, patchDailyRecord, recordRunPerformance]
   );
 
   const completeRun = useCallback(
@@ -118,6 +145,7 @@ export const useRayenSyncAudit = ({
       const appliedEvent = base.rayenSyncHistory?.find(event => event.id === runId);
       if (!appliedEvent) {
         if (activeRunRef.current?.id === runId) activeRunRef.current = null;
+        runsRef.current.delete(runId);
         return;
       }
       const coverage = buildRayenSyncCoverage(summary.total, summary.errors, now().toISOString());
@@ -125,7 +153,11 @@ export const useRayenSyncAudit = ({
       const completedEvent = completeRayenSyncEvent(
         appliedEvent,
         coverage,
-        buildRayenStaffingObservation(staffingProposal)
+        buildRayenStaffingObservation(staffingProposal),
+        mergeRayenSyncPerformance(
+          runsRef.current.get(runId)?.performance ?? appliedEvent.performance,
+          summary.performance
+        )
       );
       const history = upsertRayenSyncEvent(base.rayenSyncHistory, completedEvent);
       const patch: DailyRecordPatch = { rayenSyncHistory: history };
@@ -133,6 +165,7 @@ export const useRayenSyncAudit = ({
         patch.rayenSync = rayenSyncMetaFromEvent(completedEvent);
       }
       if (activeRunRef.current?.id === runId) activeRunRef.current = null;
+      runsRef.current.delete(runId);
       await patchDailyRecord(patch);
     },
     [currentRecordRef, now, patchDailyRecord]
@@ -144,6 +177,7 @@ export const useRayenSyncAudit = ({
       const record = currentRecordRef.current;
       if (!run) return;
       activeRunRef.current = null;
+      runsRef.current.delete(run.id);
       if (!record) return;
       const event = buildFailedRayenSyncEvent(run, reason, now().toISOString());
       await patchDailyRecord({
@@ -154,12 +188,14 @@ export const useRayenSyncAudit = ({
   );
 
   const cancelRun = useCallback(() => {
+    if (activeRunRef.current) runsRef.current.delete(activeRunRef.current.id);
     activeRunRef.current = null;
   }, []);
 
   return {
     startRun,
     ensureRun,
+    recordRunPerformance,
     applyRunToRecord,
     persistAppliedRun,
     completeRun,

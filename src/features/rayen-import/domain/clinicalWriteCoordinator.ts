@@ -3,11 +3,29 @@ export interface ClinicalWriteMetrics {
   historySnapshots: number;
 }
 
-export const createClinicalWriteCoordinator = (metrics: ClinicalWriteMetrics) => {
+export interface ClinicalWritePerformanceObserver {
+  now: () => number;
+  onWait: (durationMs: number) => void;
+  onPersistence: (durationMs: number) => void;
+}
+
+export const createClinicalWriteCoordinator = (
+  metrics: ClinicalWriteMetrics,
+  observer?: ClinicalWritePerformanceObserver
+) => {
   let queue: Promise<void> = Promise.resolve();
   let historySnapshotCaptured = false;
   const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
-    const pending = queue.then(operation);
+    const queuedAt = observer?.now();
+    const pending = queue.then(async () => {
+      if (queuedAt != null) observer?.onWait(observer.now() - queuedAt);
+      const startedAt = observer?.now();
+      try {
+        return await operation();
+      } finally {
+        if (startedAt != null) observer?.onPersistence(observer.now() - startedAt);
+      }
+    });
     queue = pending.then(
       () => undefined,
       () => undefined

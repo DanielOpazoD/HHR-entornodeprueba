@@ -9,6 +9,7 @@ import type {
   RayenSyncIssueReason,
   RayenSyncStaffingObservation,
   RayenStaffingSection,
+  RayenSyncPerformance,
 } from '@/types/domain/rayenSync';
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
@@ -23,6 +24,7 @@ export interface RayenSyncRun {
   startedAt: string;
   by: string;
   source?: RayenSyncSource;
+  performance?: RayenSyncPerformance;
 }
 
 export const upsertRayenSyncEvent = (
@@ -56,6 +58,7 @@ export const buildAppliedRayenSyncEvent = (
   status: 'applied',
   changes: buildRayenSyncChanges(diff),
   source: run.source,
+  performance: run.performance,
 });
 
 export const buildFailedRayenSyncEvent = (
@@ -69,6 +72,7 @@ export const buildFailedRayenSyncEvent = (
   by: run.by,
   status: 'failed',
   source: run.source,
+  performance: run.performance,
   failureReason: reason,
 });
 
@@ -169,7 +173,8 @@ export const buildRayenStaffingObservation = (
 export const completeRayenSyncEvent = (
   event: RayenSyncEvent,
   coverage: RayenSyncCoverage,
-  staffingObservation?: RayenSyncStaffingObservation
+  staffingObservation?: RayenSyncStaffingObservation,
+  performance?: RayenSyncPerformance
 ): RayenSyncEvent => ({
   ...event,
   completedAt: coverage.completedAt,
@@ -180,6 +185,7 @@ export const completeRayenSyncEvent = (
       : 'complete',
   coverage,
   staffingObservation,
+  performance: performance ?? event.performance,
   failureReason: undefined,
 });
 

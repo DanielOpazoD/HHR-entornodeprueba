@@ -195,7 +195,11 @@ describe('RayenImportButton', () => {
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
     expect(mocks.triggerImport).toHaveBeenCalledWith(
-      expect.objectContaining({ connection: 'ready', canSync: true })
+      expect.objectContaining({ connection: 'ready', canSync: true }),
+      expect.objectContaining({
+        stagesMs: { preflight: expect.any(Number) },
+        counters: { requests: 1 },
+      })
     );
   });
 
@@ -245,7 +249,10 @@ describe('RayenImportButton', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Revisar conexión' }));
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
-    expect(mocks.triggerImport).toHaveBeenCalledWith(expect.objectContaining({ canSync: false }));
+    expect(mocks.triggerImport).toHaveBeenCalledWith(
+      expect.objectContaining({ canSync: false }),
+      expect.objectContaining({ counters: { requests: 1 } })
+    );
   });
 
   it('records the deliberate attempt when Ficha Médico is unavailable', async () => {
@@ -272,7 +279,10 @@ describe('RayenImportButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revisar conexión' }));
 
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
-    expect(mocks.triggerImport).toHaveBeenCalledWith(blockedHealth);
+    expect(mocks.triggerImport).toHaveBeenCalledWith(
+      blockedHealth,
+      expect.objectContaining({ counters: { requests: 1 } })
+    );
   });
 
   it('explains a partial result and retries through the existing reviewed flow', async () => {
@@ -337,7 +347,8 @@ describe('RayenImportButton', () => {
     expect(screen.getByRole('button', { name: 'Sincronizando…' })).toBeDisabled();
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
     expect(mocks.triggerImport).toHaveBeenCalledWith(
-      expect.objectContaining({ connection: 'ready', canSync: true })
+      expect.objectContaining({ connection: 'ready', canSync: true }),
+      expect.objectContaining({ counters: { requests: 1 } })
     );
   });
 

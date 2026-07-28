@@ -209,6 +209,12 @@ describe('zod daily record schemas', () => {
             by: 'Operador HHR',
             status: 'complete',
             changes: { admissions: 0, updates: 1, moves: 0, discharges: 0, unchanged: 1 },
+            performance: {
+              stagesMs: { preflight: 120, dualCapture: 900, clinicalReads: 2_500 },
+              counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },
+              rut: '11.111.111-1',
+              patientName: 'Paciente no persistible',
+            },
           },
         ],
       });
@@ -223,6 +229,13 @@ describe('zod daily record schemas', () => {
         ignoredBoundaryRecords: 2,
       });
       expect(record.rayenSyncHistory?.[0]).toMatchObject({ id: 'run-1', status: 'complete' });
+      expect(record.rayenSyncHistory?.[0].performance).toEqual({
+        stagesMs: { preflight: 120, dualCapture: 900, clinicalReads: 2_500 },
+        counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },
+      });
+      expect(JSON.stringify(record.rayenSyncHistory?.[0].performance)).not.toContain(
+        'Paciente no persistible'
+      );
     });
   });
 
