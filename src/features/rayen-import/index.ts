@@ -208,8 +208,10 @@ export {
 
 // Clinical fill runner (devices + scales + CUDYR via granular patches)
 export type {
+  ClinicalFillBatchApplyResult,
   ClinicalFillDeps,
   ClinicalFillError,
+  ClinicalFillPatchOperation,
   ClinicalFillProgress,
   ClinicalFillSummary,
 } from './clinicalFillRunner';

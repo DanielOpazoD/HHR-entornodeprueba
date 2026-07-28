@@ -13,6 +13,7 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
   let writeQueueWaitMs = 0;
   let persistenceMs = 0;
   let historicalPatches = 0;
+  let retries = 0;
   let timeouts = 0;
 
   const recordTimeout = (value: unknown): void => {
@@ -46,6 +47,10 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     historicalPatches += 1;
   };
 
+  const recordRetries = (count: number): void => {
+    if (Number.isFinite(count) && count > 0) retries += Math.floor(count);
+  };
+
   const finish = (writeMetrics: ClinicalWriteMetrics): RayenSyncPerformance => ({
     stagesMs: {
       clinicalReads: clinicalReadsMs,
@@ -56,10 +61,17 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
       requests,
       cacheHits: 0,
       patches: writeMetrics.patientWrites + historicalPatches,
-      retries: 0,
+      retries,
       timeouts,
     },
   });
 
-  return { trackRequest, recordTimeout, writeObserver, recordHistoricalPatch, finish };
+  return {
+    trackRequest,
+    recordTimeout,
+    writeObserver,
+    recordHistoricalPatch,
+    recordRetries,
+    finish,
+  };
 };

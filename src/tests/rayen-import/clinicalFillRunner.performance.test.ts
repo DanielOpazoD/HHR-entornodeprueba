@@ -162,6 +162,87 @@ describe('runClinicalFill performance pipeline', () => {
     expect(applyPatch).toHaveBeenCalledTimes(5);
   });
 
+  it('persists all prepared patients through one optional transactional batch', async () => {
+    const applyBatch = vi.fn().mockResolvedValue({
+      patientWrites: 1,
+      historySnapshots: 1,
+      retries: 1,
+    });
+    const dependencies = deps({ applyBatch });
+
+    const summary = await runClinicalFill(record(5), '2026-07-10', dependencies);
+
+    expect(applyBatch).toHaveBeenCalledTimes(1);
+    expect(applyBatch.mock.calls[0]?.[0]).toHaveLength(5);
+    expect(dependencies.applyPatch).not.toHaveBeenCalled();
+    expect(summary).toMatchObject({
+      total: 5,
+      patched: 5,
+      errors: [],
+      incremental: {
+        patientWrites: 1,
+        historySnapshots: 1,
+      },
+      performance: {
+        counters: { patches: 1, retries: 1 },
+      },
+    });
+  });
+
+  it('reports only the patients that fail on the established fallback path', async () => {
+    const applyBatch = vi.fn().mockResolvedValue({
+      patientWrites: 4,
+      historySnapshots: 1,
+      failures: [{ index: 1, message: 'conflicto paciente 2' }],
+    });
+
+    const summary = await runClinicalFill(record(5), '2026-07-10', deps({ applyBatch }));
+
+    expect(summary).toMatchObject({
+      total: 5,
+      patched: 4,
+      errors: [{ bedId: 'R2', source: 'patch', message: 'conflicto paciente 2' }],
+      incremental: { patientWrites: 4, historySnapshots: 1 },
+    });
+  });
+
+  it('counts a failed transactional retry in aggregate performance', async () => {
+    const failure = Object.assign(new Error('backend no disponible'), {
+      clinicalBatchRetries: 1,
+    });
+    const applyBatch = vi.fn().mockRejectedValue(failure);
+
+    const summary = await runClinicalFill(record(2), '2026-07-10', deps({ applyBatch }));
+
+    expect(summary).toMatchObject({
+      total: 2,
+      patched: 0,
+      performance: { counters: { retries: 1 } },
+    });
+    expect(summary.errors).toHaveLength(2);
+  });
+
+  it('keeps shadow persistence per patient and observes the collected batch afterwards', async () => {
+    const observeBatch = vi.fn().mockResolvedValue(undefined);
+    const dependencies = deps({ observeBatch });
+
+    const summary = await runClinicalFill(record(5), '2026-07-10', dependencies);
+
+    expect(dependencies.applyPatch).toHaveBeenCalledTimes(5);
+    expect(observeBatch).toHaveBeenCalledTimes(1);
+    expect(observeBatch.mock.calls[0]?.[0]).toHaveLength(5);
+    expect(summary).toMatchObject({ total: 5, patched: 5, errors: [] });
+  });
+
+  it('does not keep clinical fill waiting for a slow shadow observer', async () => {
+    const observeBatch = vi.fn(() => new Promise<void>(() => undefined));
+
+    await expect(
+      runClinicalFill(record(1), '2026-07-10', deps({ observeBatch }))
+    ).resolves.toMatchObject({ total: 1, patched: 1, errors: [] });
+    expect(observeBatch).toHaveBeenCalledTimes(1);
+  });
+
   it('bounds each source independently so slow PDFs do not block history or forms', async () => {
     const releaseReads: Array<() => void> = [];
     const fetchDeviceReport = vi.fn(

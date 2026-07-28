@@ -24,6 +24,15 @@
 - Ninguna Function Netlify debe depender de `firebase-functions/v1`.
 - Toda Function Netlify sensible que dependa del rol del usuario debe converger con el callable `checkUserRole`, no con una lectura paralela de `config/roles`.
 
+## Firebase callable clínico
+
+| Endpoint                            | Auth               | Roles                                                                      | Autoridad                                                                  |
+| ----------------------------------- | ------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `applyRayenClinicalEnrichmentBatch` | Firebase requerida | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor` | allowlist de campos, episodio y revisión verificados dentro de transacción |
+
+Este callable recibe un lote acotado, no acepta rutas arbitrarias y registra únicamente
+telemetría agregada sin identificadores de pacientes ni valores clínicos.
+
 ## Convergencia obligatoria de rol
 
 Para `syslab-proxy` y `mmrad-search`:

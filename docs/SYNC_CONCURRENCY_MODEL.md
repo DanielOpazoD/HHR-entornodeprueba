@@ -15,14 +15,15 @@ also carry a nested `clinicalCrib` patient). History snapshots are written to th
 
 ## Write paths
 
-There are exactly four ways that document is written. Three are client-side.
+There are five governed ways that document is written. Three are client-side.
 
-| Path                          | Entry                                                             | Mechanism                             | Atomic?                        |
-| ----------------------------- | ----------------------------------------------------------------- | ------------------------------------- | ------------------------------ |
-| **Full save**                 | `saveDetailed` → `saveRecordToFirestore` → `saveRecordAtomically` | `runTransaction`, full-replace `set`  | ✅ yes                         |
-| **Partial update**            | `updatePartialDetailed` → `updateRecordPartial`                   | `updateDoc` with dot-path fields      | ❌ no (field-scoped merge)     |
-| **Sync queue**                | `syncDailyRecord` (outbox)                                        | `setDoc(..., { merge: true })`        | ❌ no (read→write, but merges) |
-| **Callable** (off by default) | `saveDailyRecordWithClinicalAuthority` Cloud Function             | server `runTransaction`, full-replace | ✅ yes                         |
+| Path                          | Entry                                                             | Mechanism                                            | Atomic?                        |
+| ----------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------ |
+| **Full save**                 | `saveDetailed` → `saveRecordToFirestore` → `saveRecordAtomically` | `runTransaction`, full-replace `set`                 | ✅ yes                         |
+| **Partial update**            | `updatePartialDetailed` → `updateRecordPartial`                   | `updateDoc` with dot-path fields                     | ❌ no (field-scoped merge)     |
+| **Sync queue**                | `syncDailyRecord` (outbox)                                        | `setDoc(..., { merge: true })`                       | ❌ no (read→write, but merges) |
+| **Callable** (off by default) | `saveDailyRecordWithClinicalAuthority` Cloud Function             | server `runTransaction`, full-replace                | ✅ yes                         |
+| **Rayen clinical batch**      | `applyRayenClinicalEnrichmentBatch` Cloud Function                | server `runTransaction`, allowlisted clinical fields | ✅ yes                         |
 
 ## Guards, by path
 
@@ -69,6 +70,16 @@ idempotency, a history snapshot, and the same patient-erasure guard
 (`functions/lib/dailyRecordErasureGuard.js`, a server mirror of `findPatientErasures`, throwing
 `failed-precondition`). **Disabled by default** (`resolveDailyRecordAuthorityMode` → `client_only`).
 
+### Rayen clinical batch — `rayenClinicalEnrichmentFunctions.js`
+
+One transaction reads the current census once and verifies exact `lastUpdated`, optional
+`meta.revision`, bed/cuna location and `clinicalEpisodeId` for every target. Only devices, scales,
+vital signs, their histories and `clinicalSyncCheckpoint` are accepted. The transaction writes one
+deterministic history snapshot per `runId`, the enriched record and a bounded idempotency receipt.
+`shadow` is always dry-run; `enforced` retries availability failures with the same `mutationId` and
+falls back to the established per-patient path only for infrastructure failures, never for authority
+or concurrency rejections.
+
 ## Known limitations
 
 - **Internal bed move ⇒ false-positive block.** Relocating a patient to another bed without a
@@ -92,6 +103,9 @@ idempotency, a history snapshot, and the same patient-erasure guard
 - Server guard: `src/tests/functions/dailyRecordErasureGuard.test.ts` (pure helper) and
   `dailyRecordWriteAuthorityErasure.test.ts` (handler blocks the write); client/server parity is
   enforced by `dailyRecordErasureGuardParity.test.ts`.
+- Rayen batch: `rayenClinicalEnrichmentFunctions.test.ts` covers one-read atomic persistence,
+  allowlist, episode/cuna identity, revisions, idempotency and shadow; the client rollout/fallback is
+  covered by `applyClinicalEnrichmentBatch.test.ts`.
 - Real engine: `src/tests/emulator/atomic-write-guards.emulator.test.ts` runs against the Firestore
   emulator — two concurrent saves on the same base (one wins, one `ConcurrencyError`) and the
   in-transaction erasure backstop. Run via `npm run test:emulator:sync:ci`.

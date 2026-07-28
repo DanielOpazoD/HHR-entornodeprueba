@@ -15,6 +15,9 @@ const {
 const {
   createDailyRecordWriteAuthorityFunctions,
 } = require('./lib/dailyRecordWriteAuthorityFunctions');
+const {
+  createRayenClinicalEnrichmentFunctions,
+} = require('./lib/rayenClinicalEnrichmentFunctions');
 const { createClinicalDocumentExportFunctions } = require('./lib/clinicalDocumentExportFunctions');
 const {
   createClinicalDocumentPdfRenderFunctions,
@@ -49,6 +52,11 @@ module.exports = {
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createDailyRecordWriteAuthorityFunctions({
+    firestore,
+    Timestamp,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
+  ...createRayenClinicalEnrichmentFunctions({
     firestore,
     Timestamp,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,

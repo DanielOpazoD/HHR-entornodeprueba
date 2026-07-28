@@ -2,14 +2,14 @@
  * Orchestrates the Rayen clinical fill (invasive devices + evaluation scales + CUDYR) as an
  * INDEPENDENT, testable unit. All IO goes through injected ports, and results are applied as
  * GRANULAR PER-PATIENT PATCHES (`beds.{bedId}.devices`, `beds.{bedId}.evaluationScores`, …) instead
- * of full-record saves — so the fill can never clobber (or be blocked by) a concurrent census
- * confirm, and each patient's data appears as soon as it arrives.
+ * of full-record saves. The established mode applies each patch as it arrives; the optional batch
+ * port accumulates the same allowlisted patches for one backend transaction.
  *
  * Independence guarantees:
  * - Each SOURCE (devices / scales / CUDYR) is best-effort per patient; one failing never blocks
  *   the others. Failures are collected into the summary, not thrown.
- * - Each PATIENT is independent: their patch is applied as soon as their data is ready; a failure
- *   in one bed never blocks another.
+ * - Each PATIENT read is independent. Per-patient persistence remains isolated in the established
+ *   mode; transactional mode deliberately accepts or rejects the complete bounded batch.
  * - The CUDYR bulk read runs in parallel and is awaited per patient with everything else — an
  *   extension without the CUDYR relay only costs its own timeout, not the fill.
  *
@@ -37,15 +37,19 @@ import { createClinicalCheckpointAccumulator } from './domain/clinicalCheckpoint
 import { createClinicalWriteCoordinator } from './domain/clinicalWriteCoordinator';
 import type {
   ClinicalFillDeps,
+  ClinicalFillPatchOperation,
   ClinicalFillProgress,
   ClinicalFillSummary,
 } from './contracts/clinicalFillContracts';
 import type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 import { createClinicalFillPerformance } from './domain/clinicalFillPerformance';
+import { persistClinicalBatch } from './domain/clinicalBatchPersistence';
 
 export type {
   ClinicalFillDeps,
+  ClinicalFillBatchApplyResult,
   ClinicalFillError,
+  ClinicalFillPatchOperation,
   ClinicalFillPatchTarget,
   ClinicalFillProgress,
   ClinicalFillSummary,
@@ -102,6 +106,7 @@ export const runClinicalFill = async (
   // writes share one census version and can otherwise conflict with another write from this same
   // synchronization, producing a false "modified by another user" result.
   const writes = createClinicalWriteCoordinator(summary.incremental!, performance.writeObserver);
+  const pendingBatch: ClinicalFillPatchOperation[] = [];
 
   // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source. `ok`
   // marks the read as authoritative — only then may a stale stored category be removed.
@@ -327,6 +332,19 @@ export const runClinicalFill = async (
       patch[`${patchPrefix}.clinicalSyncCheckpoint`] = merged.clinicalSyncCheckpoint;
     if (Object.keys(patch).length === 0) return;
 
+    if (deps.applyBatch || deps.observeBatch) {
+      pendingBatch.push({
+        patch,
+        target: {
+          censusDate: fecha,
+          bedId,
+          clinicalEpisodeId: encId,
+          ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
+        },
+      });
+      if (deps.applyBatch) return;
+    }
+
     try {
       await writes.applyPatientPatch(async captureHistorySnapshot => {
         await deps.applyPatch(patch, {
@@ -351,6 +369,16 @@ export const runClinicalFill = async (
       fillPatient(bedId, patient, clinicalCrib).finally(report)
     )
   );
+
+  const batchPersistence = await persistClinicalBatch({
+    operations: pendingBatch,
+    applyBatch: deps.applyBatch,
+    observeBatch: deps.observeBatch,
+    applyWithMetrics: writes.applyBatch,
+    recordRetries: performance.recordRetries,
+  });
+  summary.patched += batchPersistence.patched;
+  summary.errors.push(...batchPersistence.errors);
 
   summary.staffingProposal = inferNursingShifts(
     nursingObservations,
