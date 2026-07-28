@@ -182,7 +182,7 @@
     if (data.type === 'HHR_RAYEN_HISTORY_SCALES_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: runtimeMessages.HISTORY_SCALES_REQUEST, encId: data.encId })
+        .sendMessage({ type: runtimeMessages.HISTORY_SCALES_REQUEST, encId: data.encId, censusDate: data.censusDate })
         .then(response => {
           post({
             type: 'HHR_RAYEN_HISTORY_SCALES_RESULT',

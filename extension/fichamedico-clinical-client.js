@@ -164,7 +164,7 @@
       }
     };
 
-    const fetchHistoryScales = async ({ encId, info }) => {
+    const fetchHistoryScales = async ({ encId, censusDate, info }) => {
       if (!encId) return { error: 'Falta enc_id para el historial de escalas.' };
       const session = await resolveSession({ info });
       if (session.error) return session;
@@ -173,7 +173,7 @@
           info: session.info,
           path:
             `/api/encounter/${encodeURIComponent(encId)}/` +
-            'getPatientEncounterHistoryReportServer/false/0/0/-14',
+            `getPatientEncounterHistoryReportServer/false/0/0/-${root.HhrClinicalDayRuntime.historyLookbackDays(censusDate)}`,
         });
         const projection = root.HhrFichaMedicoHistoryReadModel.project(result.data);
         return { ok: true, ...projection };

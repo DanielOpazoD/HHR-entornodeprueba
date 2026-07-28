@@ -505,11 +505,11 @@ const handleImagingFormPrintRequest = async ({ encId, doc, physician, marks, sen
 // that carry an evaluation-instruments resume (Braden/Downton), slimmed to the fields HHR needs.
 // Unlike encounterFormEntry (which returns stale startDateTimes and misses same-day re-applications),
 // each history event's `publishDatetime` is the real application timestamp — so HHR can pick the last
-// score APPLIED ON the census day being synced. The trailing `/false/0/0/-14` is the 14-day lookback.
-const handleHistoryScalesRequest = async ({ encId }) => {
+// score APPLIED ON the census day being synced. The client bounds the lookback from that census day.
+const handleHistoryScalesRequest = async ({ encId, censusDate }) => {
   const infoResult = await resolveFichaClinicalSession();
   if (infoResult.error) return infoResult;
-  return fetchHistoryScales({ encId, info: infoResult.info });
+  return fetchHistoryScales({ encId, censusDate, info: infoResult.info });
 };
 
 // Fetch medication indication history and keep it inside the extension. The page UI receives only
@@ -1228,7 +1228,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo imprimir el formulario de imagenología.'
   ),
   [RUNTIME_MESSAGES.HISTORY_SCALES_REQUEST]: runtimeRoute(
-    message => handleHistoryScalesRequest({ encId: message.encId }),
+    message => handleHistoryScalesRequest({ encId: message.encId, censusDate: message.censusDate }),
     'No se pudo leer el historial de escalas.'
   ),
   [RUNTIME_MESSAGES.CLINICAL_PANEL_REQUEST]: runtimeRoute(

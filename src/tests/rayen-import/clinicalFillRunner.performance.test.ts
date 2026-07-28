@@ -62,6 +62,7 @@ describe('runClinicalFill performance pipeline', () => {
     await vi.waitFor(() => {
       expect(fetchDeviceReport).toHaveBeenCalledTimes(1);
       expect(fetchHistoryScales).toHaveBeenCalledTimes(1);
+      expect(fetchHistoryScales).toHaveBeenCalledWith('E1', '2026-07-10');
       expect(fetchScalesForms).toHaveBeenCalledTimes(1);
     });
     releaseDevice?.({ base64: '' });
