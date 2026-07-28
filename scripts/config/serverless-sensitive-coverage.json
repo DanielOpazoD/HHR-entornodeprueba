@@ -31,6 +31,12 @@
       "functionFile": "netlify/functions/whatsapp-proxy.ts",
       "endpoint": "whatsapp-proxy",
       "testFiles": ["src/tests/security/whatsappProxy.test.ts"]
+    },
+    {
+      "id": "rayen_clinical_enrichment_batch",
+      "functionFile": "functions/lib/rayenClinicalEnrichmentFunctions.js",
+      "endpoint": "applyRayenClinicalEnrichmentBatch",
+      "testFiles": ["src/tests/functions/rayenClinicalEnrichmentFunctions.test.ts"]
     }
   ]
 }

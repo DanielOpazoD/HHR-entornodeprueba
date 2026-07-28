@@ -485,7 +485,11 @@ const assertNoPatientErasures = ({ snapshot, record }) => {
   );
 };
 
-const createDailyRecordWriteAuthorityFunctions = ({ firestore, Timestamp, resolveRoleForEmail }) => ({
+const createDailyRecordWriteAuthorityFunctions = ({
+  firestore,
+  Timestamp,
+  resolveRoleForEmail,
+}) => ({
   saveDailyRecordWithClinicalAuthority: functions.https.onCall(async (data, context) => {
     const startedAt = Date.now();
     const email = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
@@ -726,5 +730,6 @@ const createDailyRecordWriteAuthorityFunctions = ({ firestore, Timestamp, resolv
 });
 
 module.exports = {
+  assertAuthorizedDailyRecordWriter,
   createDailyRecordWriteAuthorityFunctions,
 };

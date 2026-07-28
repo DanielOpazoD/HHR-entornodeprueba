@@ -24,9 +24,30 @@ export interface ClinicalFillDeps {
     cudyr: ImportedCudyr
   ) => Promise<HistoricalCudyrApplyResult>;
   applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
+  /** Optional request-scoped atomic persistence. Omit to preserve the established per-patient path. */
+  applyBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
+  /** Optional shadow observer; never owns or delays the established per-patient persistence. */
+  observeBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<void>;
   now: () => Date;
   createId: () => string;
   monotonicNow?: () => number;
+}
+
+export interface ClinicalFillPatchOperation {
+  patch: DailyRecordPatch;
+  target: ClinicalFillPatchTarget;
+}
+
+export interface ClinicalFillBatchApplyResult {
+  patientWrites: number;
+  historySnapshots: number;
+  retries?: number;
+  failures?: ClinicalFillBatchApplyFailure[];
+}
+
+export interface ClinicalFillBatchApplyFailure {
+  index: number;
+  message: string;
 }
 
 export interface ClinicalFillPatchTarget {

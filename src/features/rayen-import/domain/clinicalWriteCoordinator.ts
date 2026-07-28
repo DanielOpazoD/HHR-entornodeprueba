@@ -3,6 +3,11 @@ export interface ClinicalWriteMetrics {
   historySnapshots: number;
 }
 
+interface ClinicalBatchWriteMetrics {
+  patientWrites: number;
+  historySnapshots: number;
+}
+
 export interface ClinicalWritePerformanceObserver {
   now: () => number;
   onWait: (durationMs: number) => void;
@@ -44,5 +49,13 @@ export const createClinicalWriteCoordinator = (
       metrics.patientWrites += 1;
     });
 
-  return { enqueue, applyPatientPatch };
+  const applyBatch = <T extends ClinicalBatchWriteMetrics>(operation: () => Promise<T>) =>
+    enqueue(async () => {
+      const result = await operation();
+      metrics.patientWrites += result.patientWrites;
+      metrics.historySnapshots += result.historySnapshots;
+      return result;
+    });
+
+  return { enqueue, applyPatientPatch, applyBatch };
 };
