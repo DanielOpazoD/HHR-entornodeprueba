@@ -175,11 +175,11 @@
       if (!encId) return { error: 'Falta enc_id para el historial de escalas.' };
       const session = await resolveSession({ info });
       if (session.error) return session;
+      const requestedLookback = Number(lookbackDays);
+      const boundedLookback = Number.isFinite(requestedLookback)
+        ? Math.min(180, Math.max(1, Math.floor(requestedLookback)))
+        : root.HhrClinicalDayRuntime.historyLookbackDays(censusDate);
       try {
-        const requestedLookback = Number(lookbackDays);
-        const boundedLookback = Number.isFinite(requestedLookback)
-          ? Math.min(180, Math.max(1, Math.floor(requestedLookback)))
-          : root.HhrClinicalDayRuntime.historyLookbackDays(censusDate);
         const result = await readJson({
           info: session.info,
           path:

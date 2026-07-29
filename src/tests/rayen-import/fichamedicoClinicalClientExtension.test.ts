@@ -126,6 +126,24 @@ describe('Ficha Médico read-only clinical client', () => {
     }
   });
 
+  it('preserves the effective window when history returns an empty 204 response', async () => {
+    fetchWithTimeout.mockResolvedValueOnce(response({ status: 204, json: async () => [] }));
+
+    const result = await client.fetchHistoryScales({
+      encId: '141336',
+      censusDate: '2026-07-28',
+      lookbackDays: 14,
+      info: session,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      events: [],
+      nursingActivity: [],
+      effectiveLookbackDays: 14,
+    });
+  });
+
   it('fails closed when required dependencies or timeout are invalid', () => {
     expect(() => factory.create({} as never)).toThrow('Falta la dependencia resolveFetchInfo.');
     expect(() =>
