@@ -102,7 +102,11 @@ const assertCommittedResponse = (
       : countsMatch && response.resultParity === 'matched'
         ? 'matched'
         : 'mismatch';
-  if (payload.mode === 'enforced' && parity !== 'matched') {
+  // The first deployed callable predates resultParity but already committed atomically and
+  // returned exact target/field counts. Accept that narrow success shape during rolling deploys;
+  // explicit mismatches and incomplete counts remain fail-closed.
+  const legacyCommittedResponse = response.resultParity == null && countsMatch;
+  if (payload.mode === 'enforced' && parity !== 'matched' && !legacyCommittedResponse) {
     throw new Error('El backend no confirmó paridad para el lote clínico aplicado.');
   }
   return {

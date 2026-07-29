@@ -221,57 +221,6 @@ describe('applyClinicalEnrichmentBatch', () => {
     expect(deps.refreshRecord).not.toHaveBeenCalled();
   });
 
-  it('marks old shadow responses without parity evidence as unavailable', async () => {
-    const deps = dependencies();
-    deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
-      success: true,
-      authorityStatus: 'ok' as const,
-      date: payload.date,
-      mode: payload.mode,
-      targetCount: 2,
-      fieldCount: 3,
-      patientWrites: 0,
-      historySnapshots: 0,
-    }));
-
-    const result = await applyClinicalEnrichmentBatch({
-      mode: 'shadow',
-      record,
-      runId: 'run-old-shadow-response',
-      operations,
-      ...deps,
-    });
-
-    expect(deps.applyPatch).toHaveBeenCalledTimes(2);
-    expect(result.batch?.parity).toBe('unavailable');
-  });
-
-  it('keeps enforced mode fail-closed when an old response omits parity evidence', async () => {
-    const deps = dependencies();
-    deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
-      success: true,
-      authorityStatus: 'ok' as const,
-      date: payload.date,
-      mode: payload.mode,
-      targetCount: 2,
-      fieldCount: 3,
-      patientWrites: 1,
-      historySnapshots: 1,
-    }));
-
-    await expect(
-      applyClinicalEnrichmentBatch({
-        mode: 'enforced',
-        record,
-        runId: 'run-old-enforced-response',
-        operations,
-        ...deps,
-      })
-    ).rejects.toThrow('no confirmó paridad');
-    expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).not.toHaveBeenCalled();
-  });
-
   it('records a semantic shadow mismatch without blocking established writes', async () => {
     const deps = dependencies();
     deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({

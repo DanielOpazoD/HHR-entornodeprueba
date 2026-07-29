@@ -249,12 +249,11 @@ const parseClinicalEnrichmentPayload = data => {
       `Clinical enrichment exceeds ${MAX_BATCH_TARGETS} unique targets.`
     );
   }
-  if (
-    Buffer.byteLength(
-      JSON.stringify({ patches: clinicalPatches, checkpoints: [...checkpointsByTarget.values()] }),
-      'utf8'
-    ) > MAX_BATCH_BYTES
-  ) {
+  const receivedSections = {
+    patches: rawPatches,
+    ...(rawCheckpoints.length > 0 ? { checkpoints: rawCheckpoints } : {}),
+  };
+  if (Buffer.byteLength(JSON.stringify(receivedSections), 'utf8') > MAX_BATCH_BYTES) {
     throw new functions.https.HttpsError(
       'invalid-argument',
       'Clinical enrichment batch exceeds the allowed payload size.'
