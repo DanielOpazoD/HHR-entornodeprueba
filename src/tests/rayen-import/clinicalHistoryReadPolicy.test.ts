@@ -88,7 +88,18 @@ describe('resolveClinicalHistoryReadPolicy', () => {
   it('does not certify a full validation beyond the endpoint history limit', () => {
     expect(resolveClinicalHistoryReadPolicy(checkpoint(), '2025-12-01', now)).toEqual({
       lookbackDays: CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
+      fullValidationAttemptAt: now.toISOString(),
     });
+  });
+
+  it('throttles a recent capped attempt without certifying a full baseline', () => {
+    const cappedAttempt = checkpoint();
+    cappedAttempt.sources.scales = {
+      facts: [],
+      lastFullValidationAttemptAt: '2026-07-29T07:00:00.000Z',
+    };
+
+    expect(resolveClinicalHistoryReadPolicy(cappedAttempt, '2025-12-01', now)).toEqual({});
   });
 
   it('confirms a baseline only when the extension covered the requested window', () => {

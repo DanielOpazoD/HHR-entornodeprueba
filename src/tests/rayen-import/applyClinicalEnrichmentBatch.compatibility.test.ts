@@ -50,6 +50,38 @@ const preParityResponse = (
 });
 
 describe('applyClinicalEnrichmentBatch rolling compatibility', () => {
+  it('preserves requested counts when a shadow batch exceeds the target limit', async () => {
+    const deps = dependencies();
+    const oversizedOperations = Array.from(
+      { length: 33 },
+      (_, index) =>
+        ({
+          target: {
+            censusDate: record.date,
+            bedId: `H${index + 1}`,
+            clinicalEpisodeId: `episode-${index + 1}`,
+          },
+          patch: { [`beds.H${index + 1}.vitalSigns`]: { systolic: 120 } },
+        }) as ClinicalFillPatchOperation
+    );
+
+    const result = await applyClinicalEnrichmentBatch({
+      mode: 'shadow',
+      record,
+      runId: 'run-shadow-too-large',
+      operations: oversizedOperations,
+      invoke: vi.fn(),
+      ...deps,
+    });
+
+    expect(result.batch).toMatchObject({
+      parity: 'unavailable',
+      clinicalTargets: 33,
+      checkpointTargets: 0,
+      requestedFields: 33,
+    });
+  });
+
   it('marks old shadow responses without parity evidence as unavailable', async () => {
     const deps = dependencies();
     const invoke = vi.fn(async (payload: RayenClinicalEnrichmentBatchPayload) =>

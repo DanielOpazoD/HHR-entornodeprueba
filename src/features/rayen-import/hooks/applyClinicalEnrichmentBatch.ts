@@ -158,6 +158,30 @@ const toCheckpointTarget = (operation: ClinicalFillPatchOperation) => {
   };
 };
 
+const unavailableBatchEvidence = (
+  operations: ClinicalFillPatchOperation[]
+): ClinicalFillBatchEvidence => {
+  const targets = operations.map(toCallableTarget);
+  const clinicalKeys = new Set<string>();
+  const checkpointKeys = new Set<string>();
+  let requestedFields = 0;
+  targets.forEach(target => {
+    const key = `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`;
+    const fields = Object.keys(target.fields);
+    requestedFields += fields.length;
+    if (fields.includes('clinicalSyncCheckpoint')) checkpointKeys.add(key);
+    if (fields.some(field => field !== 'clinicalSyncCheckpoint')) clinicalKeys.add(key);
+  });
+  return {
+    mode: 'shadow',
+    parity: 'unavailable',
+    clinicalTargets: clinicalKeys.size,
+    checkpointTargets: checkpointKeys.size,
+    checkpointOnlyTargets: [...checkpointKeys].filter(key => !clinicalKeys.has(key)).length,
+    requestedFields,
+  };
+};
+
 const resolveBaseRevision = (record: DailyRecord): number | undefined => {
   const revision = Number(
     (record as DailyRecord & { meta?: { revision?: unknown } }).meta?.revision
@@ -261,14 +285,7 @@ export const observeClinicalEnrichmentBatch = async ({
     createMutationId,
   });
   if (!payload) {
-    return {
-      mode: 'shadow',
-      parity: 'unavailable',
-      clinicalTargets: 0,
-      checkpointTargets: 0,
-      checkpointOnlyTargets: 0,
-      requestedFields: 0,
-    };
+    return unavailableBatchEvidence(operations);
   }
   const response = await invoke(payload);
   return assertCommittedResponse(response, payload);
@@ -315,7 +332,7 @@ export const applyClinicalEnrichmentBatch = async ({
       operations,
       createMutationId,
     });
-    if (!shadowPayload) return legacy;
+    if (!shadowPayload) return { ...legacy, batch: unavailableBatchEvidence(operations) };
     const batch = await invokeChecked(shadowPayload)
       .then(result => result.batch)
       .catch(error => {
@@ -323,20 +340,7 @@ export const applyClinicalEnrichmentBatch = async ({
           '[rayen-import] validación shadow del lote clínico no disponible:',
           errorCode(error)
         );
-        return {
-          mode: 'shadow' as const,
-          parity: 'unavailable' as const,
-          clinicalTargets: operations.filter(item => (item.clinicalFieldCount ?? 1) > 0).length,
-          checkpointTargets: operations.filter(item => item.checkpointChanged).length,
-          checkpointOnlyTargets: operations.filter(
-            item => (item.clinicalFieldCount ?? 1) === 0 && item.checkpointChanged
-          ).length,
-          requestedFields: operations.reduce(
-            (total, item) =>
-              total + (item.clinicalFieldCount ?? 1) + Number(item.checkpointChanged),
-            0
-          ),
-        };
+        return unavailableBatchEvidence(operations);
       });
     return { ...legacy, batch };
   }

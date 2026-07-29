@@ -7,6 +7,7 @@ export const CLINICAL_MAX_HISTORY_LOOKBACK_DAYS = 180;
 export interface ClinicalHistoryReadPolicy {
   lookbackDays?: number;
   fullValidationAt?: string;
+  fullValidationAttemptAt?: string;
 }
 
 export const confirmFullWindow = (
@@ -30,7 +31,13 @@ export const resolveClinicalHistoryReadPolicy = (
 ): ClinicalHistoryReadPolicy => {
   if (!checkpoint) return {};
   const validations = ['scales', 'staffing']
-    .map(source => checkpoint?.sources[source as 'scales' | 'staffing']?.lastFullValidationAt)
+    .flatMap(source => {
+      const sourceCheckpoint = checkpoint?.sources[source as 'scales' | 'staffing'];
+      return [
+        sourceCheckpoint?.lastFullValidationAt,
+        sourceCheckpoint?.lastFullValidationAttemptAt,
+      ];
+    })
     .filter((value): value is string => Boolean(value))
     .map(value => Date.parse(value))
     .filter(Number.isFinite);
@@ -53,7 +60,7 @@ export const resolveClinicalHistoryReadPolicy = (
       // Do not certify an incomplete baseline when the requested census exceeds endpoint support.
       ...(requestedLookback <= CLINICAL_MAX_HISTORY_LOOKBACK_DAYS
         ? { fullValidationAt: now.toISOString() }
-        : {}),
+        : { fullValidationAttemptAt: now.toISOString() }),
     };
   }
   return {};

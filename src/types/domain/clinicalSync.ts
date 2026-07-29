@@ -21,6 +21,8 @@ export interface ClinicalSyncSourceCheckpoint {
   watermark?: string;
   /** Last bounded full revalidation; updated at most once per day. */
   lastFullValidationAt?: string;
+  /** Last successful capped attempt; throttles reads that cannot cover the entire census age. */
+  lastFullValidationAttemptAt?: string;
   /** Bounded overlap window used to recognize retries and late corrections. */
   facts: ClinicalSyncFactCheckpoint[];
 }

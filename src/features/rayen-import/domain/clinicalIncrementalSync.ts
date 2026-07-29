@@ -87,6 +87,7 @@ const sameSourceCheckpoint = (
 ): boolean =>
   left?.watermark === right.watermark &&
   left?.lastFullValidationAt === right.lastFullValidationAt &&
+  left?.lastFullValidationAttemptAt === right.lastFullValidationAttemptAt &&
   left?.facts.length === right.facts.length &&
   left.facts.every(
     (fact, index) =>
@@ -98,7 +99,7 @@ export const mergeClinicalSourceCheckpoint = (
   checkpoint: ClinicalSyncCheckpoint | undefined,
   source: ClinicalSyncSource,
   facts: ClinicalSourceFact[],
-  options: { fullValidationAt?: string } = {}
+  options: { fullValidationAt?: string; fullValidationAttemptAt?: string } = {}
 ): {
   checkpoint: ClinicalSyncCheckpoint;
   changed: boolean;
@@ -145,6 +146,12 @@ export const mergeClinicalSourceCheckpoint = (
     ...(latestWatermark ? { watermark: latestWatermark } : {}),
     ...(options.fullValidationAt || previous?.lastFullValidationAt
       ? { lastFullValidationAt: options.fullValidationAt ?? previous?.lastFullValidationAt }
+      : {}),
+    ...(options.fullValidationAttemptAt || previous?.lastFullValidationAttemptAt
+      ? {
+          lastFullValidationAttemptAt:
+            options.fullValidationAttemptAt ?? previous?.lastFullValidationAttemptAt,
+        }
       : {}),
     facts: retainedFacts,
   };

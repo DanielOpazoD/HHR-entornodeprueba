@@ -82,11 +82,9 @@ export const runClinicalFill = async (
   const withDeviceReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   const withHistoryReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   const withFormsReadSlot = createConcurrencyGate(READ_CONCURRENCY);
-
   // Reads are concurrent; writes are serialized to preserve the census revision contract.
   const writes = createClinicalWriteCoordinator(summary.incremental!, performance.writeObserver);
   const pendingBatch: ClinicalFillPatchOperation[] = [];
-
   // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source. `ok`
   // marks the read as authoritative — only then may a stale stored category be removed.
   const cudyrPromise: Promise<{ map: Map<string, RayenCudyrCategory>; ok: boolean }> = performance
@@ -103,13 +101,11 @@ export const runClinicalFill = async (
       summary.errors.push({ bedId: '*', source: 'cudyr', message: message(error) });
       return { map: new Map<string, RayenCudyrCategory>(), ok: false };
     });
-
   let done = 0;
   const report = (): void => {
     done += 1;
     onProgress?.({ done, total: eligible.length });
   };
-
   const fillPatient = async (
     bedId: string,
     patient: PatientData,
@@ -131,7 +127,6 @@ export const runClinicalFill = async (
       fecha,
       deps.now()
     );
-
     const [deviceResult, historyResult, formsResult] = await Promise.allSettled([
       withDeviceReadSlot(async () => {
         const { entries, base64, error, source } = await performance.trackRequest(() =>
@@ -163,7 +158,6 @@ export const runClinicalFill = async (
       ),
       withFormsReadSlot(() => performance.trackRequest(() => deps.fetchScalesForms(encId))),
     ]);
-
     if (deviceResult.status === 'rejected') {
       summary.errors.push({ bedId, source: 'devices', message: message(deviceResult.reason) });
     } else {
@@ -184,7 +178,6 @@ export const runClinicalFill = async (
         summary.errors.push({ bedId, source: 'devices', message: message(error) });
       }
     }
-
     // One forms read supplies both scales and vital signs.
     const formsReadError =
       formsResult.status === 'rejected' ? message(formsResult.reason) : formsResult.value.error;
@@ -220,7 +213,10 @@ export const runClinicalFill = async (
           watermark: activity.recordedAt,
           value: activity,
         })),
-        { fullValidationAt: historyFullValidationAt }
+        {
+          fullValidationAt: historyFullValidationAt,
+          fullValidationAttemptAt: historyReadPolicy.fullValidationAttemptAt,
+        }
       );
     }
 
@@ -243,7 +239,10 @@ export const runClinicalFill = async (
             watermark: scale.encounterEventId,
             value: scale,
           })),
-          { fullValidationAt: scalesFullValidationAt }
+          {
+            fullValidationAt: scalesFullValidationAt,
+            fullValidationAttemptAt: historyReadPolicy.fullValidationAttemptAt,
+          }
         );
       }
     } catch (error) {
