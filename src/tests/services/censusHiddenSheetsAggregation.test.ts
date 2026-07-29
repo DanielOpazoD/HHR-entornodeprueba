@@ -98,6 +98,7 @@ describe('censusHiddenSheetsAggregation', () => {
         discharges: [
           { status: 'Vivo' } as DailyRecord['discharges'][number],
           { status: 'Fallecido' } as DailyRecord['discharges'][number],
+          { status: 'Vivo', isNested: true } as DailyRecord['discharges'][number],
         ],
         transfers: [{ id: 't1' } as DailyRecord['transfers'][number]],
         cma: [{ id: 'c1' } as DailyRecord['cma'][number]],

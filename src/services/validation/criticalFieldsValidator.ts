@@ -93,7 +93,7 @@ export const validateCriticalFields = (
       if (missing.length > 0) {
         issues.push({
           bedId: `${bed.id}-crib`,
-          bedName: `${bed.name} (Cuna Clínica)`,
+          bedName: `${bed.name} (Cuna RN)`,
           patientName: patient.clinicalCrib.patientName,
           missingFields: missing,
           isCrib: true,

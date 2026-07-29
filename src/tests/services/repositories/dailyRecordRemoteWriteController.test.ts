@@ -176,7 +176,7 @@ describe('dailyRecordRemoteWriteController', () => {
       await expect(assertRemoteSaveCompatibility('2026-06-25', local)).resolves.toBeUndefined();
     });
 
-    it('blocks erasure of a nested clinical-crib (cuna clínica) occupant', async () => {
+    it('blocks erasure of a nested Cuna RN occupant', async () => {
       const remote = recordWith({
         ...fillerBeds(4),
         H4C1: occupiedBed('Madre Galaz', 'Recién Nacido Galaz'),
@@ -186,7 +186,7 @@ describe('dailyRecordRemoteWriteController', () => {
       vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
 
       await expect(assertRemoteSaveCompatibility('2026-06-25', local)).rejects.toThrow(
-        /H4C1 \(cuna clínica\) \(Recién Nacido Galaz\)/
+        /H4C1 \(cuna RN\) \(Recién Nacido Galaz\)/
       );
     });
 
@@ -218,9 +218,7 @@ describe('dailyRecordRemoteWriteController', () => {
 
       vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(remote);
 
-      await expect(assertRemoteSaveCompatibility('2026-06-25', local)).rejects.toThrow(
-        /cuna clínica/
-      );
+      await expect(assertRemoteSaveCompatibility('2026-06-25', local)).rejects.toThrow(/cuna RN/);
     });
   });
 

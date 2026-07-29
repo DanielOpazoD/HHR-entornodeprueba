@@ -71,29 +71,33 @@ export const buildDischarge = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
-  ctx: ResolvedApplyContext
+  ctx: ResolvedApplyContext,
+  isNested = false
 ): DischargeData => {
   const id = ctx.idFactory();
   return {
     id,
     movementDate: record.date,
     admissionDate: patient.admissionDate || undefined,
-    bedName: BED_NAME.get(entry.bedId) ?? entry.bedId,
+    bedName: isNested
+      ? `${BED_NAME.get(entry.bedId) ?? entry.bedId} (Cuna RN)`
+      : (BED_NAME.get(entry.bedId) ?? entry.bedId),
     bedId: entry.bedId,
-    bedType: BED_TYPE.get(entry.bedId) ?? '',
+    bedType: isNested ? 'Cuna' : (BED_TYPE.get(entry.bedId) ?? ''),
     patientName: patient.patientName,
     rut: patient.rut,
     diagnosis: patient.pathology,
     specialty: asSpecialty(patient.specialty),
     time: entry.correctedTime || hhmm(ctx.now),
     status: entry.status,
-    dischargeType: entry.status === 'Vivo' ? 'Domicilio (Habitual)' : undefined,
+    dischargeType: !isNested && entry.status === 'Vivo' ? 'Domicilio (Habitual)' : undefined,
     age: patient.age || undefined,
     insurance: patient.insurance,
     origin: patient.origin,
     isRapanui: patient.isRapanui,
     originalData: { ...patient },
     clinicalEpisodeId: patient.clinicalEpisodeId,
+    isNested,
     movementProvenance: buildMovementProvenance({
       movementId: id,
       source: 'gestion_camas',
@@ -102,6 +106,11 @@ export const buildDischarge = (
       syncRunId: ctx.syncRunId,
     }),
   };
+};
+
+const matchesAssociatedCrib = (patient: PatientData, entry: DischargeEntry): boolean => {
+  const expectedEpisode = entry.associatedClinicalCrib?.clinicalEpisodeId;
+  return Boolean(expectedEpisode && patient.clinicalCrib?.clinicalEpisodeId === expectedEpisode);
 };
 
 export const buildTransfer = (
@@ -283,7 +292,18 @@ export const applyCensusImportDiff = (
     }
     if (entry.kind === 'cma') cma.push(buildCma(subject, entry, ctx));
     else if (entry.kind === 'traslado') transfers.push(buildTransfer(subject, entry, current, ctx));
-    else discharges.push(buildDischarge(subject, entry, current, ctx));
+    else {
+      const associatedCrib = matchesAssociatedCrib(subject, entry)
+        ? subject.clinicalCrib
+        : undefined;
+      // The newborn gets its own reversible movement. Keeping it in the mother's originalData too
+      // would make either undo order fail because both rows would try to restore the same crib.
+      const principalSnapshot = associatedCrib ? { ...subject, clinicalCrib: undefined } : subject;
+      discharges.push(buildDischarge(principalSnapshot, entry, current, ctx));
+      if (associatedCrib) {
+        discharges.push(buildDischarge(associatedCrib, entry, current, ctx, true));
+      }
+    }
     applied.discharges += 1;
   }
 

@@ -2,6 +2,7 @@ import type { Worksheet } from 'exceljs';
 import { CMAData } from '@/types/domain/movements';
 import { TITLE_STYLE, HEADER_FILL, BORDER_THIN } from '../styles';
 import { formatAge } from '../formatters';
+import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 
 export function addCMATable(sheet: Worksheet, cma: CMAData[], startRow: number): number {
   const titleRow = sheet.getRow(startRow);
@@ -43,7 +44,7 @@ export function addCMATable(sheet: Worksheet, cma: CMAData[], startRow: number):
     const row = sheet.getRow(currentRow);
     const values = [
       idx + 1,
-      c.bedName || '',
+      normalizeCribDisplayText(c.bedName),
       'MEDIA',
       c.patientName || '',
       c.rut || '',

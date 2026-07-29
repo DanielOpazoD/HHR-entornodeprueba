@@ -202,6 +202,31 @@ describe('buildNursingShiftProposalPatch', () => {
     expect(buildNursingShiftProposalPatch(oneVacancy, tiedProposal)).toBeNull();
   });
 
+  it('persists the clear nurses while leaving only the tied remaining slot unresolved', () => {
+    const partialProposal = {
+      ...proposal,
+      day: {
+        ...suggestion(['Camila Soto', 'Pedro Moreno']),
+        ambiguous: true,
+        candidates: [
+          ...suggestion(['Camila Soto', 'Pedro Moreno']).candidates,
+          {
+            ...suggestion(['Tercera Candidata']).candidates[0],
+            score: 15,
+          },
+        ],
+      },
+      night: suggestion([]),
+    };
+
+    expect(
+      buildNursingShiftProposalPatch(
+        record({ nursesDayShift: ['', ''], nursesNightShift: ['', ''] }),
+        partialProposal
+      )?.nursesDayShift
+    ).toEqual(['Camila Soto', 'Pedro Moreno']);
+  });
+
   it('does not duplicate a nurse assigned in an additional staffing slot', () => {
     const withExtra = record({ nursesDayShift: ['', ''] });
     withExtra.staffingDetailsV1 = resolveDetailedStaffingState(withExtra, withExtra.date);

@@ -41,11 +41,9 @@ const matchesMutation = (task: SyncTask, mutationId?: string): boolean =>
   !mutationId || task.syncContract?.mutationId === mutationId;
 
 const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
-  if (isE2ERuntimeEnabled() && typeof window !== 'undefined') {
+  if (isE2ERuntimeEnabled() && typeof window !== 'undefined' && window.__HHR_E2E_OVERRIDE__) {
     localPersistence.records.save(record);
-    if (window.__HHR_E2E_OVERRIDE__) {
-      window.__HHR_E2E_OVERRIDE__[record.date] = record;
-    }
+    window.__HHR_E2E_OVERRIDE__[record.date] = record;
   }
 
   dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });

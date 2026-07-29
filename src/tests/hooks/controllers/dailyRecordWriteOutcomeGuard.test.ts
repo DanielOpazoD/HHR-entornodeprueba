@@ -82,4 +82,19 @@ describe('dailyRecordWriteOutcomeGuard', () => {
       );
     }
   );
+
+  it('rejects an unrecoverable result instead of reporting a successful mutation', () => {
+    const result = buildSaveResult({
+      outcome: 'unrecoverable',
+      savedLocally: false,
+      savedRemotely: false,
+      consistencyState: 'unrecoverable',
+      sourceOfTruth: 'none',
+      userSafeMessage: 'La persistencia local no pudo confirmarse.',
+    });
+
+    expect(() => assertDailyRecordWriteAccepted(result)).toThrow(
+      DailyRecordWriteBlockedOutcomeError
+    );
+  });
 });

@@ -22,6 +22,14 @@ export const getActiveDischarges = (
   movements: readonly DischargeData[] | null | undefined
 ): DischargeData[] => getActiveMovements(movements);
 
+/**
+ * Egresos that consume a statistical bed departure. Nested clinical-crib movements remain visible
+ * in the census and exports as traceability, but are excluded because they share the principal bed.
+ */
+export const getStatisticalDischarges = (
+  movements: readonly DischargeData[] | null | undefined
+): DischargeData[] => getActiveDischarges(movements).filter(movement => movement.isNested !== true);
+
 export const getActiveTransfers = (
   movements: readonly TransferData[] | null | undefined
 ): TransferData[] => getActiveMovements(movements);

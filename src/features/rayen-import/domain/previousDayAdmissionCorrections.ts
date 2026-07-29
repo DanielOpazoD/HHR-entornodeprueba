@@ -207,7 +207,7 @@ export const applyHistoricalAdmissions = (
     const [bedId, principal] = principalBed;
     if (!mapRayenBed({ clinicalCribParentBedId: bedId }).isClinicalCrib) {
       throw new Error(
-        `No se aplicó la cuna histórica de ${subject.patient.patientName}: ${bedId} no admite una cuna clínica.`
+        `No se aplicó la cuna histórica de ${subject.patient.patientName}: ${bedId} no admite una cuna RN.`
       );
     }
     if (principal.clinicalCrib && !samePatient(principal.clinicalCrib, subject.patient)) {

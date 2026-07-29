@@ -16,6 +16,10 @@ import {
   MAX_RAYEN_SYNC_HISTORY,
 } from '@/types/domain/rayenSync';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
+import {
+  hasUnresolvedStaffingAmbiguity,
+  NURSING_STAFFING_STANDARD_SLOTS,
+} from './staffingSlotPolicy';
 
 export { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 
@@ -125,11 +129,12 @@ export const buildRayenSyncCoverage = (
 const STAFFING_SECTIONS: ReadonlyArray<{
   key: keyof Pick<NursingStaffingProposal, 'day' | 'night' | 'tensDay' | 'tensNight'>;
   code: RayenStaffingSection;
+  slots: number;
 }> = [
-  { key: 'day', code: 'nurse_day' },
-  { key: 'night', code: 'nurse_night' },
-  { key: 'tensDay', code: 'tens_day' },
-  { key: 'tensNight', code: 'tens_night' },
+  { key: 'day', code: 'nurse_day', slots: NURSING_STAFFING_STANDARD_SLOTS.day },
+  { key: 'night', code: 'nurse_night', slots: NURSING_STAFFING_STANDARD_SLOTS.night },
+  { key: 'tensDay', code: 'tens_day', slots: NURSING_STAFFING_STANDARD_SLOTS.tensDay },
+  { key: 'tensNight', code: 'tens_night', slots: NURSING_STAFFING_STANDARD_SLOTS.tensNight },
 ];
 
 export const buildRayenStaffingObservation = (
@@ -145,7 +150,9 @@ export const buildRayenStaffingObservation = (
   for (const section of STAFFING_SECTIONS) {
     const suggestion = proposal[section.key];
     if (!suggestion) continue;
-    if (suggestion.ambiguous) ambiguousSections.push(section.code);
+    if (hasUnresolvedStaffingAmbiguity(suggestion, section.slots)) {
+      ambiguousSections.push(section.code);
+    }
     ignoredBoundaryRecords += suggestion.ignoredBoundaryRecords;
     for (const evidence of suggestion.ignoredBoundaryEvidence ?? []) {
       const item = { ...evidence, section: section.code };

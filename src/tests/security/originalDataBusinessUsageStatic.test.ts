@@ -24,6 +24,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/features/rayen-import/domain/applyCensusImportDiff.ts',
   'src/domain/CensusManager.ts',
   'src/services/admin/admissionDateBackfillPlanner.ts',
+  // Integrity scoring recognizes a newly persisted movement snapshot as evidence that a
+  // vacated patient was preserved rather than erased during a multi-discharge sync.
+  'src/utils/integrityGuard.ts',
   'src/types/virtual-minsal-shared.d.ts',
 ];
 

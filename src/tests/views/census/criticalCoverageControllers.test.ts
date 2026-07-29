@@ -203,7 +203,7 @@ describe('criticalCoverageControllers', () => {
       );
       expect(
         getUndoMovementErrorMessage('discharge', 'CLINICAL_CRIB_OCCUPIED', descriptor)
-      ).toContain('ya existe una cuna clínica ocupada');
+      ).toContain('ya existe una cuna RN ocupada');
       expect(getUndoMovementErrorMessage('discharge', 'BED_NOT_FOUND', descriptor)).toContain(
         'cama asociada ya no existe'
       );
@@ -224,7 +224,7 @@ describe('criticalCoverageControllers', () => {
       );
       expect(
         getUndoMovementErrorMessage('transfer', 'CLINICAL_CRIB_OCCUPIED', descriptor)
-      ).toContain('ya existe una cuna clínica ocupada.');
+      ).toContain('ya existe una cuna RN ocupada.');
       expect(getUndoMovementErrorMessage('transfer', 'BED_NOT_FOUND', descriptor)).toContain(
         'cama asociada ya no existe'
       );

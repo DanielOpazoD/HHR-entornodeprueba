@@ -65,7 +65,7 @@ if (
 ) {
   throw new Error('No se pudo cargar el runtime del reporte de egresos.');
 }
-if (!self.HhrGestionCamasClinicalCribs) throw new Error('No se pudo cargar el mapeo de cunas clínicas.');
+if (!self.HhrGestionCamasClinicalCribs) throw new Error('No se pudo cargar el mapeo de cunas RN.');
 if (
   !self.HhrGestionCamasDischargeReportRuntime ||
   typeof self.HhrGestionCamasDischargeReportRuntime.create !== 'function'

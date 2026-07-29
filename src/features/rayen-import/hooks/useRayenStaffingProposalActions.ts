@@ -5,10 +5,13 @@ import {
   ensureFreshDailyRecordQuery,
   patchDailyRecordWithCompatibility,
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import { buildNursingShiftProposalPatch } from '../domain/applyNursingShiftProposal';
+import {
+  buildNursingShiftProposalPatch,
+  reconcileNursingShiftProposal,
+} from '../domain/applyNursingShiftProposal';
 import { canWritePreviousDay } from '../domain/previousDayCorrections';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { reportRayenStaffingOutcome } from './useRayenFillStatus';
@@ -65,8 +68,23 @@ export const useRayenStaffingProposalActions = ({
         'clinical_patch'
       );
       if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
-      const patch = buildNursingShiftProposalPatch(fresh.record, proposal);
+      // Reconcile once more against the freshly loaded roster. Clinical enrichment may have
+      // updated the record while the modal was open, but an unrelated/already-resolved shift
+      // must not block a still-valid nursing assignment.
+      const freshProposal = reconcileNursingShiftProposal(fresh.record, proposal);
+      const patch = buildNursingShiftProposalPatch(fresh.record, freshProposal);
       if (!patch) {
+        const hasActionableNames = [
+          freshProposal.day,
+          freshProposal.night,
+          freshProposal.tensDay,
+          freshProposal.tensNight,
+        ].some(suggestion => (suggestion?.names.length ?? 0) > 0);
+        if (!hasActionableNames) {
+          setProposal(null);
+          reportRayenStaffingOutcome('resolved');
+          return;
+        }
         throw new Error(
           'La dotación clínica ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.'
         );
@@ -78,7 +96,7 @@ export const useRayenStaffingProposalActions = ({
         { baseRecord: fresh.record }
       );
       if (result?.blockingError) throw result.blockingError;
-      if (isDailyRecordWriteBlockedResult(result)) {
+      if (isDailyRecordWriteRejectedResult(result)) {
         throw new Error(result?.userSafeMessage || 'El guardado fue bloqueado.');
       }
       await ensureFreshDailyRecordQuery(

@@ -71,7 +71,7 @@ const collectLocalPatientIdentities = local => {
 /**
  * Returns the beds where the cloud copy holds a patient the incoming record dropped without a
  * movement accounting for it. Checks both the main bed occupant and the nested clinical-crib
- * occupant ("cuna clínica").
+ * occupant (cuna RN anidada).
  *
  * @param {Record<string, unknown>} remote The current remote record (e.g. snapshot.data()).
  * @param {Record<string, unknown>} local The incoming record about to be written.
@@ -114,7 +114,7 @@ const findPatientErasures = (remote, local) => {
       !movementAccountsForBed(movements, bedId, remoteCribName) &&
       !stillPresentLocally(remoteBed && remoteBed.clinicalCrib)
     ) {
-      erasures.push({ bedId: `${bedId} (cuna clínica)`, remotePatientName: remoteCribName });
+      erasures.push({ bedId: `${bedId} (cuna RN)`, remotePatientName: remoteCribName });
     }
   }
 

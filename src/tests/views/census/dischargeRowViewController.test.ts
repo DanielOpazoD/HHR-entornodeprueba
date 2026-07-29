@@ -46,4 +46,24 @@ describe('dischargeRowViewController', () => {
     expect(openHospitalizationReports).toHaveBeenCalledWith(discharge);
     expect(convertDischargeToCma).toHaveBeenCalledWith('d-1');
   });
+
+  it('labels a Cuna RN departure as associated and normalizes its historical bed label', () => {
+    const discharge = DataFactory.createMockDischarge({
+      isNested: true,
+      bedName: 'H4C1 (Cuna clínica)',
+    });
+    const noop = vi.fn();
+    const viewModel = resolveDischargeRowViewModel(discharge, {
+      undoDischarge: noop,
+      viewClinicalDocuments: noop,
+      openHospitalizationReports: noop,
+      editDischarge: noop,
+      deleteDischarge: noop,
+      convertDischargeToCma: noop,
+    });
+
+    expect(viewModel.isAssociatedClinicalCrib).toBe(true);
+    expect(viewModel.bedName).toBe('H4C1 (Cuna RN)');
+    expect(viewModel.dischargeTypeLabel).toBe('Alta asociada · no suma egreso');
+  });
 });

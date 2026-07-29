@@ -2,6 +2,7 @@ import type { Worksheet } from 'exceljs';
 import { TransferData } from '@/types/domain/movements';
 import { TITLE_STYLE, HEADER_FILL, BORDER_THIN } from '../styles';
 import { formatAge } from '../formatters';
+import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 
 export function addTransfersTable(
   sheet: Worksheet,
@@ -48,7 +49,7 @@ export function addTransfersTable(
     const row = sheet.getRow(currentRow);
     const values = [
       idx + 1,
-      t.bedName || t.bedId || '',
+      normalizeCribDisplayText(t.bedName || t.bedId),
       t.bedType || '',
       t.patientName || '',
       t.rut || '',

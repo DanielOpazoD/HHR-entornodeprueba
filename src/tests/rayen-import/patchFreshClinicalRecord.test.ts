@@ -64,4 +64,69 @@ describe('patchFreshClinicalRecord', () => {
       expect.objectContaining({ historyPolicy: 'skip' })
     );
   });
+
+  it('retries one concurrent clinical write against freshly hydrated census truth', async () => {
+    const conflict = new Error('Remote is newer');
+    conflict.name = 'ConcurrencyError';
+    mocks.patchDailyRecordWithCompatibility
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce(undefined);
+
+    await patchFreshClinicalRecord(repository, { 'beds.R1.vitalSigns': { heartRate: 70 } }, target);
+
+    expect(repository.getForDateWithMeta).toHaveBeenCalledTimes(2);
+    expect(mocks.assertClinicalFillPatchTarget).toHaveBeenCalledTimes(2);
+    expect(mocks.patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a structured concurrency rejection even when its blocking error has another name', async () => {
+    const blockingError = new Error('Remote is newer');
+    blockingError.name = 'VersionMismatchError';
+    mocks.patchDailyRecordWithCompatibility
+      .mockResolvedValueOnce({
+        outcome: 'unrecoverable',
+        blockingError,
+        conflictSummary: { kind: 'concurrency' },
+      } as never)
+      .mockResolvedValueOnce(undefined);
+
+    await patchFreshClinicalRecord(repository, { 'beds.R1.vitalSigns': { heartRate: 70 } }, target);
+
+    expect(repository.getForDateWithMeta).toHaveBeenCalledTimes(2);
+    expect(mocks.patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a non-concurrent clinical write failure', async () => {
+    mocks.patchDailyRecordWithCompatibility.mockRejectedValueOnce(new Error('permission-denied'));
+
+    await expect(
+      patchFreshClinicalRecord(repository, { 'beds.R1.vitalSigns': { heartRate: 70 } }, target)
+    ).rejects.toThrow('permission-denied');
+
+    expect(repository.getForDateWithMeta).toHaveBeenCalledTimes(1);
+    expect(mocks.patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the retry if the patient moved before the fresh attempt', async () => {
+    const conflict = new Error('Remote is newer');
+    conflict.name = 'ConcurrencyError';
+    const movedRecord = {
+      ...record,
+      beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'another-episode' } },
+    };
+    vi.mocked(repository.getForDateWithMeta)
+      .mockResolvedValueOnce({ record } as never)
+      .mockResolvedValueOnce({ record: movedRecord } as never);
+    mocks.patchDailyRecordWithCompatibility.mockRejectedValueOnce(conflict);
+    mocks.assertClinicalFillPatchTarget.mockImplementationOnce(() => undefined);
+    mocks.assertClinicalFillPatchTarget.mockImplementationOnce(() => {
+      throw new Error('El episodio cambió de cama.');
+    });
+
+    await expect(
+      patchFreshClinicalRecord(repository, { 'beds.R1.vitalSigns': { heartRate: 70 } }, target)
+    ).rejects.toThrow('El episodio cambió de cama.');
+
+    expect(mocks.patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(1);
+  });
 });

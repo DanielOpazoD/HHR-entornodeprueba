@@ -26,6 +26,7 @@ describe('indexedDBService', () => {
     await idbService.clearAuditLogs();
     localStorage.clear();
     sessionStorage.clear();
+    window.__HHR_E2E_OVERRIDE__ = undefined;
     vi.clearAllMocks();
   });
 
@@ -43,6 +44,16 @@ describe('indexedDBService', () => {
         store: 'indexeddb',
         dates: ['2025-01-01'],
       });
+      await expect(idbService.getRecordForDate('2025-01-01')).resolves.toMatchObject({
+        date: '2025-01-01',
+      });
+    });
+
+    it('does not mirror regular localhost writes into legacy localStorage', async () => {
+      const result = await idbService.saveRecordStrict(mockRecord);
+
+      expect(result.ok).toBe(true);
+      expect(localStorage.getItem('hanga_roa_hospital_data')).toBeNull();
       await expect(idbService.getRecordForDate('2025-01-01')).resolves.toMatchObject({
         date: '2025-01-01',
       });

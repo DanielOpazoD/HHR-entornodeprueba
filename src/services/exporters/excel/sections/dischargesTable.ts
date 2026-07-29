@@ -2,6 +2,7 @@ import type { Worksheet } from 'exceljs';
 import { DischargeData } from '@/types/domain/movements';
 import { TITLE_STYLE, HEADER_FILL, BORDER_THIN } from '../styles';
 import { formatAge } from '../formatters';
+import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 
 export function addDischargesTable(
   sheet: Worksheet,
@@ -47,14 +48,16 @@ export function addDischargesTable(
     const row = sheet.getRow(currentRow);
     const values = [
       idx + 1,
-      d.bedName || d.bedId || '',
+      normalizeCribDisplayText(d.bedName || d.bedId),
       d.bedType || '',
       d.patientName || '',
       d.rut || '',
       formatAge(d.age),
       d.diagnosis || '',
       d.status || '',
-      d.dischargeTypeOther || d.dischargeType || 'N/A',
+      d.isNested
+        ? 'Alta asociada (cuna RN; no suma egreso)'
+        : d.dischargeTypeOther || d.dischargeType || 'N/A',
     ];
 
     values.forEach((value, cellIdx) => {

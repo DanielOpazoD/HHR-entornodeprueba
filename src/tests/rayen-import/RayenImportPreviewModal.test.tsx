@@ -139,9 +139,42 @@ describe('Rayen synchronization decisions and pulse', () => {
       screen.getByText(
         (_content, element) =>
           element?.tagName === 'DIV' &&
-          element.textContent === '↳ Cuna clínica — RN de Maeva Tuki Garcia'
+          element.textContent === '↳ Cuna RN — RN de Maeva Tuki Garcia'
       )
     ).toBeVisible();
+  });
+
+  it('shows the newborn as an associated non-statistical discharge under the mother', () => {
+    const associatedDiff: CensusImportDiff = {
+      ...diff,
+      discharges: [
+        {
+          ...diff.discharges[0],
+          patientName: 'Maeva Tuki Garcia',
+          associatedClinicalCrib: {
+            clinicalEpisodeId: '143101',
+            patientName: 'RN de Maeva Tuki Garcia',
+            rut: '',
+          },
+        },
+      ],
+      pendingAdministrativeDischarges: [],
+      summary: { ...diff.summary, pendingAdministrativeDischarges: 0 },
+    };
+
+    render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={associatedDiff}
+        isBusy={false}
+        error={null}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Alta asociada — RN de Maeva Tuki Garcia/)).toBeVisible();
+    expect(screen.getByText(/cuna RN; no suma egreso/)).toBeVisible();
   });
 
   it('shows independent document evidence in the review decision', () => {
@@ -349,7 +382,7 @@ describe('Rayen synchronization decisions and pulse', () => {
       conflicts: [
         {
           bedId: 'H5C1',
-          reason: 'La identidad de la cuna clínica requiere revisión manual.',
+          reason: 'La identidad de la cuna RN requiere revisión manual.',
         },
       ],
       summary: {
@@ -374,7 +407,7 @@ describe('Rayen synchronization decisions and pulse', () => {
     );
 
     expect(
-      screen.getByText('H5C1: La identidad de la cuna clínica requiere revisión manual.')
+      screen.getByText('H5C1: La identidad de la cuna RN requiere revisión manual.')
     ).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Confirmar e importar' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Listo' })).toBeVisible();

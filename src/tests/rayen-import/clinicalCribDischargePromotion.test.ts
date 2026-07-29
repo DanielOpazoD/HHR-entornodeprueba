@@ -10,6 +10,8 @@ import {
 } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
+import { findPatientErasures } from '@/services/repositories/dailyRecordErasureGuard';
+import { attachAssociatedClinicalCribDischarges } from '@/features/rayen-import/domain/associatedClinicalCribDischarge';
 
 const REFERENCE = new Date(2026, 6, 8);
 
@@ -27,18 +29,18 @@ const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => (
   ...overrides,
 });
 
-const newborn = (): RayenEncounter => encounter({
-  encounterId: 'NEWBORN',
-  run: '',
-  firstGivenName: 'RN de Ana',
-  birthDate: '2026-07-08',
-  room: 'Cunas',
-  bed: 'CH5C1',
-  clinicalCribParentBedId: 'H5C1',
-});
+const newborn = (): RayenEncounter =>
+  encounter({
+    encounterId: 'NEWBORN',
+    run: '',
+    firstGivenName: 'RN de Ana',
+    birthDate: '2026-07-08',
+    room: 'Cunas',
+    bed: 'CH5C1',
+    clinicalCribParentBedId: 'H5C1',
+  });
 
-const seed = (source: RayenEncounter): PatientData =>
-  rayenToPatientData(source, REFERENCE).patient;
+const seed = (source: RayenEncounter): PatientData => rayenToPatientData(source, REFERENCE).patient;
 
 const recordWith = (mother: RayenEncounter, child: RayenEncounter): DailyRecord => ({
   date: '2026-07-08',
@@ -80,6 +82,111 @@ const apply = (current: DailyRecord, rows: EgresoReportRow[], encounters: RayenE
 };
 
 describe('clinical crib discharge promotion', () => {
+  it('records a RUN-less newborn as an associated non-statistical discharge with its mother', () => {
+    const mother = encounter();
+    const child = newborn();
+    const current = recordWith(mother, child);
+    const completeEmptySnapshot = { ...snapshotOf([]), isComplete: true };
+    const diff = reconcileCensus(current, completeEmptySnapshot, { reference: REFERENCE });
+    const enriched = applyEgresoReport(diff, [dischargeRow(mother)], current);
+    let sequence = 0;
+    const applied = applyCensusImportDiff(current, enriched, {
+      idFactory: () => `movement-${++sequence}`,
+      now: REFERENCE,
+      syncRunId: 'mother-newborn-associated-discharge',
+    });
+
+    expect(enriched.discharges).toEqual([
+      expect.objectContaining({
+        encounterId: 'MOTHER',
+        associatedClinicalCrib: {
+          clinicalEpisodeId: 'NEWBORN',
+          patientName: 'Rn De Ana Perez',
+          rut: '',
+        },
+      }),
+    ]);
+    expect(applied.applied.discharges).toBe(1);
+    expect(applied.record.beds.H5C1).toBeUndefined();
+    expect(applied.record.discharges).toEqual([
+      expect.objectContaining({ clinicalEpisodeId: 'MOTHER', isNested: false }),
+      expect.objectContaining({
+        clinicalEpisodeId: 'NEWBORN',
+        isNested: true,
+        patientName: 'Rn De Ana Perez',
+        rut: '',
+      }),
+    ]);
+    expect(findPatientErasures(current, applied.record)).toEqual([]);
+  });
+
+  it('does not infer an associated newborn discharge from a partial snapshot', () => {
+    const mother = encounter();
+    const child = newborn();
+    const current = recordWith(mother, child);
+    const diff = reconcileCensus(current, snapshotOf([]), { reference: REFERENCE });
+    const enriched = applyEgresoReport(diff, [dischargeRow(mother)], current);
+
+    expect(enriched.discharges[0]?.associatedClinicalCrib).toBeUndefined();
+  });
+
+  it('resolves the associated newborn from the pre-move maternal bed', () => {
+    const mother = encounter();
+    const child = newborn();
+    const current = recordWith(mother, child);
+    const source = encounter({ room: 'H6', bed: 'C1' });
+    const diff = reconcileCensus(
+      current,
+      { ...snapshotOf([source]), isComplete: true },
+      {
+        reference: REFERENCE,
+      }
+    );
+    const relocatedDischarge = {
+      bedId: 'H6C1',
+      rut: seed(mother).rut,
+      patientName: seed(mother).patientName,
+      kind: 'alta' as const,
+      status: 'Vivo' as const,
+      reason: 'administrative-discharge' as const,
+      encounterId: 'MOTHER',
+    };
+
+    expect(attachAssociatedClinicalCribDischarges(diff, [relocatedDischarge], current)).toEqual([
+      expect.objectContaining({
+        bedId: 'H6C1',
+        associatedClinicalCrib: expect.objectContaining({ clinicalEpisodeId: 'NEWBORN' }),
+      }),
+    ]);
+  });
+
+  it('does not discharge the nested newborn while its episode remains active elsewhere', () => {
+    const mother = encounter();
+    const child = newborn();
+    const current = recordWith(mother, child);
+    const diff = reconcileCensus(
+      current,
+      { ...snapshotOf([]), isComplete: true },
+      {
+        reference: REFERENCE,
+      }
+    );
+    diff.activeClinicalEpisodeIds = ['NEWBORN'];
+    const maternalDischarge = {
+      bedId: 'H5C1',
+      rut: seed(mother).rut,
+      patientName: seed(mother).patientName,
+      kind: 'alta' as const,
+      status: 'Vivo' as const,
+      reason: 'administrative-discharge' as const,
+      encounterId: 'MOTHER',
+    };
+
+    expect(attachAssociatedClinicalCribDischarges(diff, [maternalDischarge], current)).toEqual([
+      maternalDischarge,
+    ]);
+  });
+
   it('promotes an active attached newborn when the mother is discharged first', () => {
     const mother = encounter();
     const child = newborn();
@@ -152,7 +259,11 @@ describe('clinical crib discharge promotion', () => {
     expect(enriched.admissions).toEqual([
       expect.objectContaining({
         bedId: 'H5C1',
-        patient: expect.objectContaining({ clinicalEpisodeId: 'NEWBORN', rut: '', bedMode: 'Cuna' }),
+        patient: expect.objectContaining({
+          clinicalEpisodeId: 'NEWBORN',
+          rut: '',
+          bedMode: 'Cuna',
+        }),
       }),
     ]);
     expect(enriched.summary.unchanged).toBe(0);
@@ -167,7 +278,10 @@ describe('clinical crib discharge promotion', () => {
     const mother = encounter();
     const child = newborn();
     const other = encounter({
-      encounterId: 'OTHER', run: '999999999', firstGivenName: 'Otra', room: 'H4',
+      encounterId: 'OTHER',
+      run: '999999999',
+      firstGivenName: 'Otra',
+      room: 'H4',
     });
     const current: DailyRecord = {
       ...recordWith(mother, child),
@@ -181,7 +295,9 @@ describe('clinical crib discharge promotion', () => {
 
     expect(applied.record.beds.H4C1).toMatchObject({ clinicalEpisodeId: 'OTHER' });
     expect(applied.record.beds.H5C1).toMatchObject({
-      clinicalEpisodeId: 'NEWBORN', rut: '', bedMode: 'Cuna',
+      clinicalEpisodeId: 'NEWBORN',
+      rut: '',
+      bedMode: 'Cuna',
     });
   });
 
@@ -209,11 +325,7 @@ describe('clinical crib discharge promotion', () => {
     const incomingMother = encounter();
     const child = newborn();
     const current = recordWith(outgoingMother, child);
-    const { enriched } = apply(
-      current,
-      [dischargeRow(outgoingMother)],
-      [incomingMother, child]
-    );
+    const { enriched } = apply(current, [dischargeRow(outgoingMother)], [incomingMother, child]);
 
     expect(enriched.activeClinicalCribs).toEqual([
       expect.objectContaining({ parentBedId: 'H5C1', principalRut: incomingMother.run }),
@@ -230,11 +342,7 @@ describe('clinical crib discharge promotion', () => {
       ...recordWith(mother, child),
       discharges: [{ rut: mother.run, clinicalEpisodeId: 'MOTHER-OLD' } as never],
     };
-    const { enriched, applied } = apply(
-      current,
-      [dischargeRow(oldMother)],
-      [mother, child]
-    );
+    const { enriched, applied } = apply(current, [dischargeRow(oldMother)], [mother, child]);
 
     expect(enriched.admissions).toHaveLength(0);
     expect(enriched.discharges).toHaveLength(0);
@@ -254,15 +362,11 @@ describe('clinical crib discharge promotion', () => {
       firstGivenName: 'Otro bebe',
     };
     const current = recordWith(mother, child);
-    const { enriched } = apply(
-      current,
-      [dischargeRow(mother)],
-      [mother, child, competingChild]
-    );
+    const { enriched } = apply(current, [dischargeRow(mother)], [mother, child, competingChild]);
 
-    expect(enriched.conflicts).toEqual(expect.arrayContaining([
-      expect.objectContaining({ bedId: 'H5C1', scope: 'clinical-crib' }),
-    ]));
+    expect(enriched.conflicts).toEqual(
+      expect.arrayContaining([expect.objectContaining({ bedId: 'H5C1', scope: 'clinical-crib' })])
+    );
     expect(enriched.admissions).toHaveLength(0);
   });
 
@@ -307,11 +411,7 @@ describe('clinical crib discharge promotion', () => {
     const child = newborn();
     const closedChild = { ...child, hasMedicalDischarge: true };
     const current = recordWith(mother, child);
-    const { enriched, applied } = apply(
-      current,
-      [dischargeRow(child)],
-      [mother, closedChild]
-    );
+    const { enriched, applied } = apply(current, [dischargeRow(child)], [mother, closedChild]);
 
     expect(enriched.pendingAdministrativeDischarges).toHaveLength(0);
     expect(enriched.summary.unchanged).toBe(1);
@@ -388,11 +488,7 @@ describe('clinical crib discharge promotion', () => {
     const child = newborn();
     const closedChild = { ...child, hasMedicalDischarge: true };
     const current = recordWith(mother, child);
-    const { enriched, applied } = apply(
-      current,
-      [dischargeRow(mother)],
-      [mother, closedChild]
-    );
+    const { enriched, applied } = apply(current, [dischargeRow(mother)], [mother, closedChild]);
 
     expect(enriched.admissions).toEqual([
       expect.objectContaining({

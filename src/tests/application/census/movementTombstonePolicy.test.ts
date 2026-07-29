@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getActiveCma,
   getActiveDischarges,
+  getStatisticalDischarges,
   getActiveTransfers,
   isMovementDeleted,
   tombstoneMovementById,
@@ -30,6 +31,14 @@ describe('movement tombstone policy', () => {
     expect(getActiveDischarges([activeDischarge, deletedDischarge])).toEqual([activeDischarge]);
     expect(getActiveTransfers([activeTransfer, deletedTransfer])).toEqual([activeTransfer]);
     expect(getActiveCma([activeCma, deletedCma])).toEqual([activeCma]);
+  });
+
+  it('keeps associated clinical-crib discharges visible but excludes them from statistics', () => {
+    const activeDischarge = DataFactory.createMockDischarge({ id: 'principal' });
+    const associated = { ...activeDischarge, id: 'crib', isNested: true };
+
+    expect(getActiveDischarges([activeDischarge, associated])).toHaveLength(2);
+    expect(getStatisticalDischarges([activeDischarge, associated])).toEqual([activeDischarge]);
   });
 
   it('marks a movement as deleted without removing it from the persisted list', () => {

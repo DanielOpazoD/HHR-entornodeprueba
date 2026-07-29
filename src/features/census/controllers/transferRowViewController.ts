@@ -5,6 +5,7 @@ import {
   getTransferCenterLabel,
   getTransferEscortLabel,
 } from '@/features/census/controllers/censusTransfersTableController';
+import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 
 interface TransferRowActionHandlers {
   undoTransfer: (id: string) => void | Promise<void>;
@@ -20,7 +21,7 @@ export const resolveTransferRowViewModel = (
 ): TransferRowViewModel => ({
   kind: 'transfer',
   id: item.id,
-  bedName: item.bedName,
+  bedName: normalizeCribDisplayText(item.bedName),
   bedType: item.bedType,
   patientName: item.patientName,
   rut: item.rut,

@@ -51,7 +51,7 @@ export const buildCudyrRowViewModel = ({
     patientTitle: eligibilityBlockedReason ?? patient?.patientName,
     showBlockedLabel: eligibilityBlocked,
     blockedLabel: 'Bloqueado CUDYR',
-    emptyStateLabel: isCrib ? 'Cuna clínica sin paciente' : 'Cama disponible',
+    emptyStateLabel: isCrib ? 'Cuna RN sin paciente' : 'Cama disponible',
     finalCat,
     badgeColor,
     displayedDepScore: eligibilityBlocked ? '' : depScore,

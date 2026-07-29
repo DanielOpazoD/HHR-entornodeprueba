@@ -3,7 +3,7 @@ import { BEDS, HOSPITAL_CAPACITY } from '@/constants/beds';
 import { DailyStatsSnapshot } from '@/types/minsalTypes';
 import type { MinsalDailyRecord } from './minsalRecordContracts';
 import {
-  getActiveDischarges,
+  getStatisticalDischarges,
   getActiveTransfers,
 } from '@/application/census/movementTombstonePolicy';
 
@@ -34,7 +34,7 @@ export function calculateDailySnapshot(record: MinsalDailyRecord): DailyStatsSna
   const bloqueadas = countBlockedBeds(record.beds);
   const disponibles = HOSPITAL_CAPACITY - bloqueadas;
 
-  const discharges = getActiveDischarges(record.discharges);
+  const discharges = getStatisticalDischarges(record.discharges);
   const transfers = getActiveTransfers(record.transfers);
   const fallecidos = discharges.filter(d => d.status === 'Fallecido').length;
   const egresos = discharges.length + transfers.length;

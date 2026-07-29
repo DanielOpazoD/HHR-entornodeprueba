@@ -57,10 +57,10 @@ export const BedSummaryCard: React.FC<{ stats: Statistics }> = ({ stats }) => {
 };
 
 export const CribSummaryCard: React.FC<{ stats: Statistics }> = ({ stats }) => (
-  <BaseSummaryCard title="Recursos Cuna" icon={<Baby size={12} className="text-accent-500" />}>
+  <BaseSummaryCard title="Cunas RN" icon={<Baby size={12} className="text-accent-500" />}>
     <div className="space-y-1">
       <div className="flex justify-between items-center px-1">
-        <span className="text-slate-500 text-[10px]">Clínicas</span>
+        <span className="text-slate-500 text-[10px]">Con ficha</span>
         <span className="font-bold text-accent-600 text-[11px]">{stats.clinicalCribsCount}</span>
       </div>
       <div className="flex justify-between items-center mt-1 px-1 pt-1 border-t border-slate-200/50 border-dashed">
@@ -182,18 +182,18 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
       {/* Vertical Separator */}
       <div className="w-px bg-slate-200/60 mx-2 self-stretch" />
 
-      {/* Section 2: Recursos Cuna */}
+      {/* Section 2: Cunas RN */}
       <div className="px-3 flex flex-col gap-0.5">
         <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
           <Baby size={11} className="text-accent-500" />
           <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.08em]">
-            Recursos Cuna
+            Cunas RN
           </span>
         </div>
-        {/* Row 1: cunas clínicas con registro electrónico */}
+        {/* Row 1: cunas RN con registro electrónico */}
         <div className="flex items-center gap-3 mt-0.5">
           <div className="flex items-center gap-1">
-            <span className="text-slate-500 text-[9px]">Clínicas</span>
+            <span className="text-slate-500 text-[9px]">Con ficha</span>
             <span className="font-bold text-accent-600 text-[10px]">
               {stats.clinicalCribsCount}
             </span>

@@ -3,7 +3,7 @@ import type { CensusExportRecord } from '@/services/contracts/censusExportServic
 import { CensusStatistics } from '../../../calculations/statsCalculator';
 import {
   getActiveCma,
-  getActiveDischarges,
+  getStatisticalDischarges,
   getActiveTransfers,
 } from '@/application/census/movementTombstonePolicy';
 
@@ -14,7 +14,7 @@ export function addSummarySection(
   startRow: number
 ): number {
   // Calculate movement counts
-  const discharges = getActiveDischarges(record.discharges);
+  const discharges = getStatisticalDischarges(record.discharges);
   const transfers = getActiveTransfers(record.transfers);
   const cma = getActiveCma(record.cma);
   const deceased = discharges.filter(d => d.status === 'Fallecido').length;
@@ -37,7 +37,7 @@ export function addSummarySection(
   labelRow.getCell(1).value = 'Ocupadas';
   labelRow.getCell(2).value = 'Libres';
   labelRow.getCell(3).value = 'Bloqueadas';
-  labelRow.getCell(4).value = 'Cunas';
+  labelRow.getCell(4).value = 'Cunas RN';
   labelRow.getCell(5).value = 'Altas';
   labelRow.getCell(6).value = 'Traslados';
   labelRow.getCell(7).value = 'Hosp. Diurna';

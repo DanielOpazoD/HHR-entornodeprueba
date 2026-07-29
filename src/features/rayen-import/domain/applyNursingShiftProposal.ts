@@ -15,6 +15,7 @@ import {
   hasAmbiguousOccupiedStaffAlias,
   namesReferToSameStaffMember,
 } from './staffIdentityReconciliation';
+import { NURSING_STAFFING_STANDARD_SLOTS } from './staffingSlotPolicy';
 
 type StaffingRole = 'nurse' | 'tens';
 type ProposalKey = 'day' | 'night' | 'tensDay' | 'tensNight';
@@ -26,10 +27,34 @@ const STAFFING_TARGETS: ReadonlyArray<{
   slots: number;
   allowReplacement: boolean;
 }> = [
-  { key: 'day', shift: 'day', role: 'nurse', slots: 2, allowReplacement: true },
-  { key: 'night', shift: 'night', role: 'nurse', slots: 2, allowReplacement: true },
-  { key: 'tensDay', shift: 'day', role: 'tens', slots: 3, allowReplacement: false },
-  { key: 'tensNight', shift: 'night', role: 'tens', slots: 3, allowReplacement: false },
+  {
+    key: 'day',
+    shift: 'day',
+    role: 'nurse',
+    slots: NURSING_STAFFING_STANDARD_SLOTS.day,
+    allowReplacement: true,
+  },
+  {
+    key: 'night',
+    shift: 'night',
+    role: 'nurse',
+    slots: NURSING_STAFFING_STANDARD_SLOTS.night,
+    allowReplacement: true,
+  },
+  {
+    key: 'tensDay',
+    shift: 'day',
+    role: 'tens',
+    slots: NURSING_STAFFING_STANDARD_SLOTS.tensDay,
+    allowReplacement: false,
+  },
+  {
+    key: 'tensNight',
+    shift: 'night',
+    role: 'tens',
+    slots: NURSING_STAFFING_STANDARD_SLOTS.tensNight,
+    allowReplacement: false,
+  },
 ];
 
 const isVacant = (value: string | undefined): boolean => {
@@ -215,9 +240,12 @@ export const buildNursingShiftProposalPatch = (
     const effectiveSuggestion: NursingShiftSuggestion = {
       ...suggestion,
       names: identityResolution.names,
-      ambiguous: suggestion.ambiguous || identityResolution.ambiguous,
+      ambiguous: identityResolution.ambiguous,
     };
-    if (effectiveSuggestion.ambiguous) continue;
+    // `suggestion.ambiguous` may describe only an unresolved remaining slot. The names
+    // emitted by inference/reconciliation before that tie are still safe to persist.
+    // Only quarantine the actionable subset when its own identity resolution is ambiguous.
+    if (identityResolution.ambiguous) continue;
     // Detailed staffing is the canonical source when present; its legacy arrays can briefly lag.
     const currentNames = resolveCurrentNames(detail, target.shift, target.role, target.slots);
     const occupiedNames = resolveOccupiedNames(detail, target.shift, target.role).filter(

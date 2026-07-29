@@ -57,7 +57,10 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
       </button>
 
       {showLegacyCompanionCleanup && (
-        <button onClick={onClearLegacyCompanion} className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+        <button
+          onClick={onClearLegacyCompanion}
+          className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+        >
           <span>Quitar dato RN sano antiguo</span>
           <span aria-hidden="true">×</span>
         </button>
@@ -67,7 +70,7 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
         <button onClick={onToggleClinicalCrib} className={clinicalCribModel.className}>
           <div className="flex items-center gap-2">
             <span className="text-sm">➕</span>
-            <span>Agregar Cuna Clínica</span>
+            <span>Agregar Cuna RN</span>
           </div>
           <div className={clinicalCribModel.dotClassName} />
         </button>

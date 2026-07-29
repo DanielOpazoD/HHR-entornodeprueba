@@ -21,7 +21,7 @@ import {
   markDailyRecordTabVisible,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { registerPendingDailyRecordPatch } from '@/hooks/controllers/dailyRecordPendingPatchController';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 import {
@@ -200,10 +200,11 @@ export const useSaveDailyRecordMutation = () => {
       }
     },
     onSuccess: (payload, _newRecord, context) => {
-      if (isDailyRecordWriteBlockedResult(payload.result)) {
+      if (isDailyRecordWriteRejectedResult(payload.result)) {
         setDailyRecordQueryData(queryClient, payload.record.date, context?.previousRecord ?? null);
         return;
       }
+      if (!payload.result?.savedRemotely) return;
       markDailyRecordRemoteConfirmed(payload.record.date, {
         source: 'write',
         remoteLastUpdated: payload.record.lastUpdated,
@@ -279,10 +280,11 @@ export const usePatchDailyRecordMutation = (date: string) => {
       }
     },
     onSuccess: (payload, _partial, context) => {
-      if (isDailyRecordWriteBlockedResult(payload.result)) {
+      if (isDailyRecordWriteRejectedResult(payload.result)) {
         setDailyRecordQueryData(queryClient, date, context?.previousRecord ?? null);
         return;
       }
+      if (!payload.result?.updatedRemotely) return;
       const current = queryClient.getQueryData<DailyRecordQueryResult>(
         getDailyRecordQueryKey(date)
       )?.record;
@@ -299,7 +301,7 @@ export const usePatchDailyRecordMutation = (date: string) => {
       if (!context?.unregisterPendingPatch) {
         return;
       }
-      if (error || isDailyRecordWriteBlockedResult(payload?.result)) {
+      if (error || isDailyRecordWriteRejectedResult(payload?.result)) {
         context.unregisterPendingPatch();
         forgetDailyRecordPatchBaseRecord(patchBaseRecords, partial);
         return;

@@ -33,7 +33,7 @@ export const resolvePatientBedIndicators = ({
     indicators.push({
       key: 'cc',
       label: '+CC',
-      title: 'Cuna Clínica',
+      title: 'Cuna RN',
       className:
         'text-[8px] bg-slate-100 text-slate-600 font-bold px-1 rounded-sm border border-slate-200',
     });
@@ -44,7 +44,7 @@ export const resolvePatientBedIndicators = ({
 
 export const resolveBedModeButtonModel = (isCunaMode: boolean) => ({
   emoji: isCunaMode ? '🛏️' : '👶',
-  label: isCunaMode ? 'Cambiar a Cama' : 'Cambiar a Cuna Clínica',
+  label: isCunaMode ? 'Cambiar a Cama' : 'Cambiar a Cuna RN',
   className: clsx(
     'text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item',
     isCunaMode

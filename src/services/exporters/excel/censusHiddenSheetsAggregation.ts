@@ -5,7 +5,7 @@ import type { CensusExportRecord } from '@/services/contracts/censusExportServic
 import type { PatientData } from '@/services/contracts/patientServiceContracts';
 import {
   getActiveCma,
-  getActiveDischarges,
+  getStatisticalDischarges,
   getActiveTransfers,
 } from '@/application/census/movementTombstonePolicy';
 
@@ -154,7 +154,7 @@ export const buildSummaryRows = (sheets: CensusLogicalSnapshotSheet[]): SummaryD
     });
 
     const denominator = stats.occupiedBeds + stats.availableCapacity;
-    const discharges = getActiveDischarges(sheet.record.discharges);
+    const discharges = getStatisticalDischarges(sheet.record.discharges);
     const transfers = getActiveTransfers(sheet.record.transfers);
     const cma = getActiveCma(sheet.record.cma);
 

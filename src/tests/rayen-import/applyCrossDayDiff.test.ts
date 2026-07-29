@@ -133,6 +133,182 @@ describe('applyCrossDayDiff', () => {
     expect(result.record.transfers[0]).toMatchObject({ time: '18:00', movementDate: '2026-07-11' });
     expect(result.record.discharges).toHaveLength(0);
   });
+
+  it('files an associated RUN-less newborn on the same historical day without adding an egreso count', () => {
+    const patient = haggen({
+      clinicalCrib: {
+        ...EMPTY_PATIENT,
+        bedId: 'NEO1',
+        patientName: 'RN de Haggen',
+        rut: '',
+        clinicalEpisodeId: 'NEWBORN-EPISODE',
+      },
+    });
+    const result = applyCrossDayDiff(
+      makeRecord('2026-07-11'),
+      [
+        {
+          entry: entry({
+            associatedClinicalCrib: {
+              patientName: 'RN de Haggen',
+              rut: '',
+              clinicalEpisodeId: 'NEWBORN-EPISODE',
+            },
+          }),
+          patient,
+        },
+      ],
+      ctx
+    );
+
+    expect(result.applied).toBe(1);
+    expect(result.record.discharges).toEqual([
+      expect.objectContaining({ id: 'rayen-egreso:193385419:2026-07-11', isNested: false }),
+      expect.objectContaining({
+        id: 'rayen-egreso:episode-NEWBORN-EPISODE:2026-07-11',
+        patientName: 'RN de Haggen',
+        isNested: true,
+      }),
+    ]);
+    expect(result.record.discharges[0].originalData?.clinicalCrib).toBeUndefined();
+  });
+
+  it('keeps numeric RUT and encounter identifiers in separate id namespaces', () => {
+    const result = applyCrossDayDiff(
+      makeRecord('2026-07-11'),
+      [
+        {
+          entry: entry({ rut: '123', bedId: 'NEO1' }),
+          patient: haggen({ rut: '123', patientName: 'Paciente con RUT' }),
+        },
+        {
+          entry: entry({ rut: '', encounterId: '123', bedId: 'NEO2' }),
+          patient: haggen({ rut: '', patientName: 'Paciente sin RUT', clinicalEpisodeId: '123' }),
+        },
+      ],
+      ctx
+    );
+
+    expect(result.applied).toBe(2);
+    expect(result.record.discharges.map(discharge => discharge.id)).toEqual([
+      'rayen-egreso:123:2026-07-11',
+      'rayen-egreso:episode-123:2026-07-11',
+    ]);
+  });
+
+  it('recognizes the legacy bed-based id for a RUN-less episode after upgrading', () => {
+    const legacyMovement = {
+      id: 'rayen-egreso:bed-NEO1:2026-07-11',
+      clinicalEpisodeId: 'NEWBORN-EPISODE',
+      rut: '',
+      patientName: 'RN de Haggen',
+      bedId: 'NEO1',
+      movementDate: '2026-07-11',
+    } as unknown as DailyRecord['discharges'][number];
+    const result = applyCrossDayDiff(
+      makeRecord('2026-07-11', { discharges: [legacyMovement] }),
+      [
+        {
+          entry: entry({ rut: '', encounterId: 'NEWBORN-EPISODE' }),
+          patient: haggen({ rut: '', clinicalEpisodeId: 'NEWBORN-EPISODE' }),
+        },
+      ],
+      ctx
+    );
+
+    expect(result.applied).toBe(0);
+    expect(result.record.discharges).toEqual([legacyMovement]);
+  });
+
+  it('does not duplicate an associated newborn already recorded under a manual id', () => {
+    const existingNewborn = {
+      id: 'manual-newborn-discharge',
+      clinicalEpisodeId: 'NEWBORN-EPISODE',
+      rut: '',
+      patientName: 'RN de Haggen',
+      bedId: 'NEO1',
+      movementDate: '2026-07-11',
+      isNested: true,
+    } as unknown as DailyRecord['discharges'][number];
+    const patient = haggen({
+      clinicalCrib: {
+        ...EMPTY_PATIENT,
+        bedId: 'NEO1',
+        patientName: 'RN de Haggen',
+        rut: '',
+        clinicalEpisodeId: 'NEWBORN-EPISODE',
+      },
+    });
+    const result = applyCrossDayDiff(
+      makeRecord('2026-07-11', { discharges: [existingNewborn] }),
+      [
+        {
+          entry: entry({
+            associatedClinicalCrib: {
+              patientName: 'RN de Haggen',
+              rut: '',
+              clinicalEpisodeId: 'NEWBORN-EPISODE',
+            },
+          }),
+          patient,
+        },
+      ],
+      ctx
+    );
+
+    expect(result.applied).toBe(1);
+    expect(result.record.discharges).toHaveLength(2);
+    expect(result.record.discharges.filter(movement => movement.isNested)).toEqual([
+      existingNewborn,
+    ]);
+  });
+
+  it('backfills the associated newborn when the maternal discharge already exists', () => {
+    const existingMother = {
+      id: 'manual-maternal-discharge',
+      clinicalEpisodeId: 'MOTHER-EPISODE',
+      rut: '19.338.541-9',
+      patientName: 'Haggen Estefanis Roe',
+      bedId: 'NEO1',
+      movementDate: '2026-07-11',
+    } as unknown as DailyRecord['discharges'][number];
+    const patient = haggen({
+      clinicalEpisodeId: 'MOTHER-EPISODE',
+      clinicalCrib: {
+        ...EMPTY_PATIENT,
+        bedId: 'NEO1',
+        patientName: 'RN de Haggen',
+        rut: '',
+        clinicalEpisodeId: 'NEWBORN-EPISODE',
+      },
+    });
+    const result = applyCrossDayDiff(
+      makeRecord('2026-07-11', { discharges: [existingMother] }),
+      [
+        {
+          entry: entry({
+            encounterId: 'MOTHER-EPISODE',
+            associatedClinicalCrib: {
+              patientName: 'RN de Haggen',
+              rut: '',
+              clinicalEpisodeId: 'NEWBORN-EPISODE',
+            },
+          }),
+          patient,
+        },
+      ],
+      ctx
+    );
+
+    expect(result.applied).toBe(1);
+    expect(result.record.discharges).toEqual([
+      existingMother,
+      expect.objectContaining({
+        id: 'rayen-egreso:episode-NEWBORN-EPISODE:2026-07-11',
+        isNested: true,
+      }),
+    ]);
+  });
 });
 
 describe('planPreviousDayEdits', () => {
