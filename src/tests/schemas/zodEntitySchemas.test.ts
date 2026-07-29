@@ -148,6 +148,25 @@ describe('zod entity schemas', () => {
       expect(patient.secondLastName).toBe('Tuki');
     });
 
+    it('preserves capped clinical history attempt timestamps', () => {
+      const patient = PatientDataSchema.parse({
+        clinicalSyncCheckpoint: {
+          version: 2,
+          fingerprintVersion: 1,
+          sources: {
+            scales: {
+              facts: [],
+              lastFullValidationAttemptAt: '2026-07-29T07:00:00.000Z',
+            },
+          },
+        },
+      });
+
+      expect(patient.clinicalSyncCheckpoint?.sources.scales?.lastFullValidationAttemptAt).toBe(
+        '2026-07-29T07:00:00.000Z'
+      );
+    });
+
     it('should apply defaults for missing fields', () => {
       const patient = PatientDataSchema.parse({});
       expect(patient.bedId).toBe('');

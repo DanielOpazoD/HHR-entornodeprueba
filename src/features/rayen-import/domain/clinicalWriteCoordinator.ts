@@ -38,9 +38,12 @@ export const createClinicalWriteCoordinator = (
     return pending;
   };
 
-  const applyPatientPatch = (operation: (captureHistorySnapshot: boolean) => Promise<void>) =>
+  const applyPatientPatch = (
+    operation: (captureHistorySnapshot: boolean) => Promise<void>,
+    options: { clinicalChange?: boolean } = {}
+  ) =>
     enqueue(async () => {
-      const captureHistorySnapshot = !historySnapshotCaptured;
+      const captureHistorySnapshot = options.clinicalChange !== false && !historySnapshotCaptured;
       await operation(captureHistorySnapshot);
       if (captureHistorySnapshot) {
         historySnapshotCaptured = true;

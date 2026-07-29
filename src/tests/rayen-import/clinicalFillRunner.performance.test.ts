@@ -62,7 +62,9 @@ describe('runClinicalFill performance pipeline', () => {
     await vi.waitFor(() => {
       expect(fetchDeviceReport).toHaveBeenCalledTimes(1);
       expect(fetchHistoryScales).toHaveBeenCalledTimes(1);
-      expect(fetchHistoryScales).toHaveBeenCalledWith('E1', '2026-07-10');
+      expect(fetchHistoryScales).toHaveBeenCalledWith('E1', '2026-07-10', {
+        lookbackDays: undefined,
+      });
       expect(fetchScalesForms).toHaveBeenCalledTimes(1);
     });
     releaseDevice?.({ base64: '' });
@@ -224,7 +226,16 @@ describe('runClinicalFill performance pipeline', () => {
   });
 
   it('keeps shadow persistence per patient and observes the collected batch afterwards', async () => {
-    const observeBatch = vi.fn().mockResolvedValue(undefined);
+    const observeBatch = vi.fn().mockResolvedValue({
+      mode: 'shadow',
+      parity: 'matched',
+      clinicalTargets: 5,
+      checkpointTargets: 5,
+      checkpointOnlyTargets: 0,
+      requestedFields: 10,
+      backendTargets: 5,
+      backendFields: 10,
+    });
     const dependencies = deps({ observeBatch });
 
     const summary = await runClinicalFill(record(5), '2026-07-10', dependencies);
@@ -232,16 +243,44 @@ describe('runClinicalFill performance pipeline', () => {
     expect(dependencies.applyPatch).toHaveBeenCalledTimes(5);
     expect(observeBatch).toHaveBeenCalledTimes(1);
     expect(observeBatch.mock.calls[0]?.[0]).toHaveLength(5);
-    expect(summary).toMatchObject({ total: 5, patched: 5, errors: [] });
+    expect(summary).toMatchObject({
+      total: 5,
+      patched: 5,
+      errors: [],
+      incremental: { batch: { parity: 'matched', clinicalTargets: 5 } },
+    });
   });
 
-  it('does not keep clinical fill waiting for a slow shadow observer', async () => {
-    const observeBatch = vi.fn(() => new Promise<void>(() => undefined));
+  it('persists legacy patches before waiting for the bounded shadow parity result', async () => {
+    let releaseObservation: (() => void) | undefined;
+    const observeBatch = vi.fn(
+      () =>
+        new Promise<{
+          mode: 'shadow';
+          parity: 'matched';
+          clinicalTargets: number;
+          checkpointTargets: number;
+          checkpointOnlyTargets: number;
+          requestedFields: number;
+        }>(resolve => {
+          releaseObservation = () =>
+            resolve({
+              mode: 'shadow',
+              parity: 'matched',
+              clinicalTargets: 1,
+              checkpointTargets: 1,
+              checkpointOnlyTargets: 0,
+              requestedFields: 2,
+            });
+        })
+    );
 
-    await expect(
-      runClinicalFill(record(1), '2026-07-10', deps({ observeBatch }))
-    ).resolves.toMatchObject({ total: 1, patched: 1, errors: [] });
+    const dependencies = deps({ observeBatch });
+    const pending = runClinicalFill(record(1), '2026-07-10', dependencies);
+    await vi.waitFor(() => expect(dependencies.applyPatch).toHaveBeenCalledTimes(1));
     expect(observeBatch).toHaveBeenCalledTimes(1);
+    releaseObservation?.();
+    await expect(pending).resolves.toMatchObject({ total: 1, patched: 1, errors: [] });
   });
 
   it('bounds each source independently so slow PDFs do not block history or forms', async () => {

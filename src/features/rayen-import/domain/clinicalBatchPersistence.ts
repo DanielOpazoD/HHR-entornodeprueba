@@ -1,5 +1,6 @@
 import type {
   ClinicalFillBatchApplyResult,
+  ClinicalFillBatchEvidence,
   ClinicalFillError,
   ClinicalFillPatchOperation,
 } from '../contracts/clinicalFillContracts';
@@ -7,7 +8,7 @@ import type {
 interface PersistClinicalBatchInput {
   operations: ClinicalFillPatchOperation[];
   applyBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
-  observeBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<void>;
+  observeBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchEvidence>;
   applyWithMetrics: (
     operation: () => Promise<ClinicalFillBatchApplyResult>
   ) => Promise<ClinicalFillBatchApplyResult>;
@@ -17,6 +18,7 @@ interface PersistClinicalBatchInput {
 interface PersistClinicalBatchResult {
   patched: number;
   errors: ClinicalFillError[];
+  batch?: ClinicalFillBatchEvidence;
 }
 
 const message = (error: unknown): string =>
@@ -40,14 +42,18 @@ export const persistClinicalBatch = async ({
       const result = await applyWithMetrics(() => applyBatch(operations));
       recordRetries(result.retries ?? 0);
       const failedIndexes = new Set((result.failures ?? []).map(failure => failure.index));
+      const clinicalTargets = operations.filter(
+        (operation, index) => !failedIndexes.has(index) && (operation.clinicalFieldCount ?? 1) > 0
+      ).length;
       return {
-        patched: operations.length - failedIndexes.size,
+        patched: clinicalTargets,
         errors: (result.failures ?? []).flatMap(failure => {
           const operation = operations[failure.index];
           return operation
             ? [{ bedId: operation.target.bedId, source: 'patch', message: failure.message }]
             : [];
         }),
+        batch: result.batch,
       };
     } catch (error) {
       recordRetries(retryCount(error));
@@ -63,12 +69,33 @@ export const persistClinicalBatch = async ({
   }
 
   if (observeBatch && operations.length > 0) {
-    void observeBatch(operations).catch(error => {
+    try {
+      const batch = await observeBatch(operations);
+      return { patched: 0, errors: [], batch };
+    } catch (error) {
       console.warn(
         '[rayen-import] observación shadow del lote clínico no disponible:',
         message(error)
       );
-    });
+      return {
+        patched: 0,
+        errors: [],
+        batch: {
+          mode: 'shadow',
+          parity: 'unavailable',
+          clinicalTargets: operations.filter(item => (item.clinicalFieldCount ?? 1) > 0).length,
+          checkpointTargets: operations.filter(item => item.checkpointChanged).length,
+          checkpointOnlyTargets: operations.filter(
+            item => (item.clinicalFieldCount ?? 1) === 0 && item.checkpointChanged
+          ).length,
+          requestedFields: operations.reduce(
+            (total, item) =>
+              total + (item.clinicalFieldCount ?? 1) + Number(item.checkpointChanged),
+            0
+          ),
+        },
+      };
+    }
   }
   return { patched: 0, errors: [] };
 };

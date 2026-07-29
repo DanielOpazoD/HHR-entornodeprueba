@@ -53,6 +53,18 @@ export interface RayenSyncCoverage {
     corrections: number;
     patientWrites: number;
     historySnapshots: number;
+    clinicalTargets?: number;
+    checkpointOnlyTargets?: number;
+    batch?: {
+      mode: 'shadow' | 'enforced';
+      parity: 'matched' | 'mismatch' | 'unavailable';
+      clinicalTargets: number;
+      checkpointOnlyTargets: number;
+      checkpointTargets: number;
+      requestedFields: number;
+      backendTargets?: number;
+      backendFields?: number;
+    };
   };
   completedAt: string;
 }

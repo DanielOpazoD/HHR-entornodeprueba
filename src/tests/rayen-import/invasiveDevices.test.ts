@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseInvasiveDevices,
   mapInvasiveDevices,
+  mapRayenInvasiveDeviceEntries,
   type DeviceTextItem,
   type InvasiveDeviceRow,
 } from '@/features/rayen-import';
@@ -91,6 +92,32 @@ describe('mapInvasiveDevices', () => {
         installationTime: '10:32',
         location: 'Zona genital',
         note: 'Vence: 9/08/26 0:00',
+      },
+    ]);
+  });
+
+  it('maps active JSON entries and excludes archived or removed devices', () => {
+    expect(
+      mapRayenInvasiveDeviceEntries([
+        {
+          name: 'Vía venosa periférica',
+          location: 'Antebrazo D',
+          installationDatetime: '2026-07-28T09:15:00-06:00',
+          expirationDatetime: '2026-08-01T09:15:00-06:00',
+        },
+        {
+          name: 'Sonda vesical permanente',
+          installationDatetime: '2026-07-27T08:00:00-06:00',
+          removedDatetime: '2026-07-28T08:00:00-06:00',
+        },
+      ])
+    ).toEqual([
+      {
+        type: 'VVP#1',
+        installationDate: '2026-07-28',
+        installationTime: '09:15',
+        location: 'Antebrazo D',
+        note: 'Vence: 2026-08-01T09:15:00-06:00',
       },
     ]);
   });

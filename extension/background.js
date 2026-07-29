@@ -21,7 +21,7 @@ importScripts(
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js', 'clinical-day-runtime.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js',
-  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
+  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',
   'gestion-camas-runtime.js',
@@ -103,7 +103,7 @@ if (
 ) {
   throw new Error('No se pudo cargar el runtime de transporte de Ficha Médico.');
 }
-if (typeof self.HhrFichaMedicoHistoryReadModel?.project !== 'function') throw new Error('No se pudo cargar el modelo de historial clínico de Ficha Médico.');
+if (typeof self.HhrFichaMedicoHistoryReadModel?.project !== 'function' || typeof self.HhrFichaMedicoDeviceEvidenceRuntime?.create !== 'function') throw new Error('No se pudieron cargar los modelos de lectura clínica de Ficha Médico.');
 if (
   !self.HhrFichaMedicoClinicalClient ||
   typeof self.HhrFichaMedicoClinicalClient.create !== 'function'
@@ -196,6 +196,7 @@ const {
   nursingWorklists: fichaMedicoNursingWorklists,
   resolveSession: resolveFichaClinicalSession,
   fetchDeviceReportBuffer,
+  fetchDeviceEvidence,
   fetchScalesReportWithInfo,
   fetchHistoryScales,
   fetchPrescriptionEvents,
@@ -386,11 +387,12 @@ const handleSyncBundleRequest = (message, sender) =>
     })
   );
 
-// Fetch + return the device-report PDF as base64 (for HHR to parse) plus size/first bytes so a
-// diagnostic can confirm the fetch without dumping the whole blob.
 const handleDeviceReportRequest = async args => {
-  const result = await fetchDeviceReportBuffer(args);
+  const result = await fetchDeviceEvidence(args);
   if (result.error) return { error: result.error };
+  if (Array.isArray(result.entries)) {
+    return { ok: true, entries: result.entries, source: 'json' };
+  }
   const bytes = new Uint8Array(result.buffer);
   const firstHex = Array.from(bytes.slice(0, 8))
     .map(b => b.toString(16).padStart(2, '0'))
@@ -400,6 +402,7 @@ const handleDeviceReportRequest = async args => {
     length: result.buffer.byteLength,
     firstHex,
     base64: bufferToBase64(result.buffer),
+    source: 'pdf',
   };
 };
 
@@ -506,10 +509,10 @@ const handleImagingFormPrintRequest = async ({ encId, doc, physician, marks, sen
 // Unlike encounterFormEntry (which returns stale startDateTimes and misses same-day re-applications),
 // each history event's `publishDatetime` is the real application timestamp — so HHR can pick the last
 // score APPLIED ON the census day being synced. The client bounds the lookback from that census day.
-const handleHistoryScalesRequest = async ({ encId, censusDate }) => {
+const handleHistoryScalesRequest = async ({ encId, censusDate, lookbackDays }) => {
   const infoResult = await resolveFichaClinicalSession();
   if (infoResult.error) return infoResult;
-  return fetchHistoryScales({ encId, censusDate, info: infoResult.info });
+  return fetchHistoryScales({ encId, censusDate, lookbackDays, info: infoResult.info });
 };
 
 // Fetch medication indication history and keep it inside the extension. The page UI receives only
@@ -1228,7 +1231,12 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo imprimir el formulario de imagenología.'
   ),
   [RUNTIME_MESSAGES.HISTORY_SCALES_REQUEST]: runtimeRoute(
-    message => handleHistoryScalesRequest({ encId: message.encId, censusDate: message.censusDate }),
+    message =>
+      handleHistoryScalesRequest({
+        encId: message.encId,
+        censusDate: message.censusDate,
+        lookbackDays: message.lookbackDays,
+      }),
     'No se pudo leer el historial de escalas.'
   ),
   [RUNTIME_MESSAGES.CLINICAL_PANEL_REQUEST]: runtimeRoute(

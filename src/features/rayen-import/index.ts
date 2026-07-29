@@ -101,8 +101,8 @@ export { parseVitalSigns, latestVitalsAsOf } from './mapping/parseVitalSigns';
 export { mergeReportVitals } from './domain/mergeReportVitals';
 export type { MergeScalesContext } from './domain/mergeReportScales';
 export { mergeReportScales } from './domain/mergeReportScales';
-export type { MappedDevice } from './mapping/mapDeviceToInstance';
-export { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
+export type { MappedDevice, RayenInvasiveDeviceEntry } from './mapping/mapDeviceToInstance';
+export { mapInvasiveDevices, mapRayenInvasiveDeviceEntries } from './mapping/mapDeviceToInstance';
 export { extractDeviceTextItems } from './mapping/extractDeviceTextItems';
 export type { PatientBedMovement, PatientFlowTimeWindow } from './mapping/parsePatientFlow';
 export {

@@ -169,6 +169,10 @@
         "iife>variable:create>variable:request": 17
       }
     },
+    "fichamedico-device-evidence-runtime.js": {
+      "maxLines": 70,
+      "hotspots": {}
+    },
     "fichamedico-history-read-model.js": {
       "maxLines": 88,
       "hotspots": {}

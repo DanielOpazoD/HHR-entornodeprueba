@@ -12,6 +12,7 @@ export const RAYEN_CLINICAL_ENRICHMENT_FIELDS = [
 ] as const;
 
 export const RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES = 500_000;
+export const RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS = 20_000;
 
 export type RayenClinicalEnrichmentField = (typeof RAYEN_CLINICAL_ENRICHMENT_FIELDS)[number];
 
@@ -20,6 +21,13 @@ export interface RayenClinicalEnrichmentTarget {
   clinicalEpisodeId: string;
   clinicalCrib?: true;
   fields: Partial<Record<RayenClinicalEnrichmentField, unknown>>;
+}
+
+export interface RayenClinicalCheckpointTarget {
+  bedId: string;
+  clinicalEpisodeId: string;
+  clinicalCrib?: true;
+  checkpoint: unknown;
 }
 
 export interface RayenClinicalEnrichmentBatchPayload {
@@ -31,6 +39,7 @@ export interface RayenClinicalEnrichmentBatchPayload {
   mode: 'shadow' | 'enforced';
   dryRun?: boolean;
   patches: RayenClinicalEnrichmentTarget[];
+  checkpoints?: RayenClinicalCheckpointTarget[];
 }
 
 export interface RayenClinicalEnrichmentBatchResponse {
@@ -41,6 +50,12 @@ export interface RayenClinicalEnrichmentBatchResponse {
   revision?: number;
   targetCount: number;
   fieldCount: number;
+  clinicalTargetCount?: number;
+  checkpointTargetCount?: number;
+  checkpointOnlyTargetCount?: number;
+  resultParity?: 'matched' | 'mismatch';
+  patientWrites?: number;
+  historySnapshots?: number;
 }
 
 export const callRayenClinicalEnrichmentBatch = async (
@@ -50,7 +65,9 @@ export const callRayenClinicalEnrichmentBatch = async (
   const callable = httpsCallable<
     RayenClinicalEnrichmentBatchPayload,
     RayenClinicalEnrichmentBatchResponse
-  >(functions, 'applyRayenClinicalEnrichmentBatch');
+  >(functions, 'applyRayenClinicalEnrichmentBatch', {
+    timeout: RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS,
+  });
   const result = await callable(payload);
   return result.data;
 };

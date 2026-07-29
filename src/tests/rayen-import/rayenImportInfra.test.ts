@@ -285,11 +285,21 @@ describe('bounded clinical-history bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
-        data: { type: 'HHR_RAYEN_HISTORY_SCALES_RESULT', reqId: request.reqId, events: [] },
+        data: {
+          type: 'HHR_RAYEN_HISTORY_SCALES_RESULT',
+          reqId: request.reqId,
+          events: [],
+          effectiveLookbackDays: 14,
+        },
       })
     );
 
-    await expect(pending).resolves.toEqual({ events: [], nursingActivity: [], error: undefined });
+    await expect(pending).resolves.toEqual({
+      events: [],
+      nursingActivity: [],
+      effectiveLookbackDays: 14,
+      error: undefined,
+    });
     postMessage.mockRestore();
   });
 });

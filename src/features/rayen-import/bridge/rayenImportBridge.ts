@@ -11,6 +11,7 @@
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { RayenNursingActivity } from '../contracts/nursingShiftInference';
+import type { RayenInvasiveDeviceEntry } from '../mapping/mapDeviceToInstance';
 
 export {
   RAYEN_IMPORT_MESSAGE_TYPE,
@@ -180,7 +181,12 @@ export const requestDeviceReport = (
   encId: string,
   fecha: string,
   timeoutMs = 30000
-): Promise<{ base64: string; error?: string }> =>
+): Promise<{
+  entries?: RayenInvasiveDeviceEntry[];
+  base64: string;
+  source?: 'json' | 'pdf';
+  error?: string;
+}> =>
   new Promise(resolve => {
     if (typeof window === 'undefined' || !encId || !fecha) {
       resolve({ base64: '' });
@@ -201,14 +207,18 @@ export const requestDeviceReport = (
       if (!data || data.type !== RAYEN_DEVICE_REPORT_RESULT_TYPE || data.reqId !== reqId) return;
       cleanup();
       resolve({
+        entries: Array.isArray(data.entries)
+          ? (data.entries as RayenInvasiveDeviceEntry[])
+          : undefined,
         base64: typeof data.base64 === 'string' ? data.base64 : '',
+        source: data.source === 'json' || data.source === 'pdf' ? data.source : undefined,
         error: typeof data.error === 'string' ? data.error : undefined,
       });
     };
 
     window.addEventListener('message', onMessage);
     window.postMessage(
-      { type: RAYEN_DEVICE_REPORT_REQUEST_TYPE, reqId, encId, fecha },
+      { type: RAYEN_DEVICE_REPORT_REQUEST_TYPE, reqId, encId, fecha, acceptEntries: true },
       window.location.origin
     );
     setTimeout(() => {
@@ -276,13 +286,17 @@ export const requestScalesReport = (
 export const requestHistoryScales = (
   encId: string,
   censusDate: string,
-  timeoutMs = 30000
+  optionsOrTimeout: { lookbackDays?: number } | number = {},
+  explicitTimeoutMs = 30000
 ): Promise<{
   events: RayenHistoryScaleEvent[];
   nursingActivity: RayenNursingActivity[];
+  effectiveLookbackDays?: number;
   error?: string;
 }> =>
   new Promise(resolve => {
+    const options = typeof optionsOrTimeout === 'number' ? {} : optionsOrTimeout;
+    const timeoutMs = typeof optionsOrTimeout === 'number' ? optionsOrTimeout : explicitTimeoutMs;
     if (typeof window === 'undefined' || !encId) {
       resolve({ events: [], nursingActivity: [] });
       return;
@@ -306,13 +320,22 @@ export const requestHistoryScales = (
         nursingActivity: Array.isArray(data.nursingActivity)
           ? (data.nursingActivity as RayenNursingActivity[])
           : [],
+        effectiveLookbackDays: Number.isFinite(Number(data.effectiveLookbackDays))
+          ? Number(data.effectiveLookbackDays)
+          : undefined,
         error: typeof data.error === 'string' ? data.error : undefined,
       });
     };
 
     window.addEventListener('message', onMessage);
     window.postMessage(
-      { type: RAYEN_HISTORY_SCALES_REQUEST_TYPE, reqId, encId, censusDate },
+      {
+        type: RAYEN_HISTORY_SCALES_REQUEST_TYPE,
+        reqId,
+        encId,
+        censusDate,
+        lookbackDays: options.lookbackDays,
+      },
       window.location.origin
     );
     setTimeout(() => {

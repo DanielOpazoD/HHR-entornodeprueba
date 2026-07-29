@@ -12,9 +12,12 @@ export const createClinicalCheckpointAccumulator = (
   onChange: (checkpoint: NonNullable<PatientData['clinicalSyncCheckpoint']>) => void
 ) => {
   let checkpoint = patient.clinicalSyncCheckpoint;
-  return (source: ClinicalSyncSource, facts: ClinicalSourceFact[]): void => {
-    if (facts.length === 0 && !checkpoint?.sources[source]) return;
-    const result = mergeClinicalSourceCheckpoint(checkpoint, source, facts);
+  return (
+    source: ClinicalSyncSource,
+    facts: ClinicalSourceFact[],
+    options: { fullValidationAt?: string; fullValidationAttemptAt?: string } = {}
+  ): void => {
+    const result = mergeClinicalSourceCheckpoint(checkpoint, source, facts, options);
     checkpoint = result.checkpoint;
     metrics.received += result.metrics.received;
     metrics.newFacts += result.metrics.newFacts;

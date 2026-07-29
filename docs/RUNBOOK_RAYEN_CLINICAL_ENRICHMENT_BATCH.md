@@ -6,17 +6,20 @@ Reducir las K hidrataciones, verificaciones y escrituras clínicas por paciente 
 por sincronización, sin cambiar la captura de Eloísa ni relajar la autoridad del censo.
 
 El callable `applyRayenClinicalEnrichmentBatch` admite exclusivamente dispositivos, escalas,
-signos vitales, sus historiales y `clinicalSyncCheckpoint`. Verifica en una transacción la fecha,
-revisión, cama, `clinicalEpisodeId` y cuna RN antes de escribir. Cada `runId` genera como
-máximo un snapshot histórico y `runId`/`mutationId` hacen el reintento idempotente.
+signos vitales, sus historiales y `clinicalSyncCheckpoint`. Los cambios clínicos y los avances del
+checkpoint viajan separados: un lote que solo avanza el checkpoint no crea una versión clínica
+idéntica. Verifica en una transacción la fecha, revisión, cama, `clinicalEpisodeId` y cuna RN antes
+de escribir. Cada `runId` genera como máximo un snapshot histórico y `runId`/`mutationId` hacen el
+reintento idempotente.
 El `runId` pertenece a una ejecución de enriquecimiento, no al ciclo de sincronización del censo;
 solo el `mutationId` se conserva entre reintentos de transporte de esa misma ejecución.
 
 ## Modos
 
-- `off` (por defecto): conserva íntegramente las escrituras por paciente.
+- `off`: conserva íntegramente las escrituras por paciente.
 - `shadow`: las escrituras por paciente continúan apenas quedan listas; al final se observa el mismo
-  lote en backend con `dryRun`. Un fallo o demora del observador no retrasa la persistencia clínica.
+  lote en backend con `dryRun`. Es el modo predeterminado mientras se reúne evidencia de paridad.
+  Un fallo del observador no revierte la persistencia clínica y la llamada queda acotada a 20 s.
 - `enforced`: el callable aplica el lote. Los errores transitorios tienen un reintento idempotente,
   pero nunca hacen fallback porque su resultado puede ser ambiguo. El flujo actual se usa como
   fallback solo si el callable no existe o aún no está implementado. Rechazos de autenticación,
@@ -26,14 +29,31 @@ Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
 
 ## Secuencia operativa
 
-1. Mantener `off` hasta confirmar en `rayenSyncHistory.performance` que `persistence` domina la
-   duración clínica y que `patientWrites` crece con el número de pacientes.
-2. Desplegar `shadow` durante al menos dos turnos y revisar `functionsTelemetry` con
+1. Desplegar `shadow` durante varias ejecuciones y al menos dos turnos; revisar
+   `functionsTelemetry` con
    `service = rayenClinicalEnrichment`.
-3. Exigir cero rechazos inesperados de `permission-denied`, `failed-precondition` y `aborted`.
-4. Comparar `targetCount`, `fieldCount`, duración y cobertura con el flujo actual. La telemetría no
+2. Exigir paridad `matched`, cero rechazos inesperados de `permission-denied`,
+   `failed-precondition` y `aborted`, y ausencia de degradación clínica.
+3. Comparar `targetCount`, `fieldCount`, duración y cobertura con el flujo actual. La telemetría no
    contiene RUT, nombres, camas, ENC_ID ni valores clínicos.
-5. Activar `enforced` y vigilar reintentos/fallbacks. Volver a `off` ante errores sostenidos.
+4. Activar `enforced` mediante configuración explícita; no existe promoción automática. Vigilar
+   reintentos/fallbacks y volver a `off` ante errores sostenidos.
+
+## Incrementalidad de lectura y escritura
+
+- El cliente compara el contenido clínico canónico y excluye del lote todo paciente sin un cambio
+  clínico efectivo ni avance de checkpoint.
+- Un target que solo cambia `clinicalSyncCheckpoint` se persiste en la misma transacción, pero no
+  cuenta como parche clínico ni genera snapshot en `history/`.
+- Signos vitales, escalas y actividad de dotación conservan identidades/fingerprints acotados y un
+  watermark por fuente. La ruta histórica actual de Ficha Médico no acepta un watermark explícito:
+  se mantiene su ventana adaptativa normal y se realiza como máximo una revalidación completa cada
+  24 horas. La ventana base es de 14 días y se extiende cuando sea necesario para incluir la fecha
+  del censo histórico solicitado, hasta el máximo operativo de 180 días del endpoint. Una fecha que
+  exceda ese límite no se marca como revalidación completa.
+- Para el censo clínico vigente, dispositivos usa primero la respuesta JSON estructurada de Ficha
+  Médico. Los censos históricos conservan el PDF fechado como autoridad; el PDF también permanece
+  como fallback de compatibilidad cuando el endpoint JSON no está disponible.
 
 ## Invariantes
 

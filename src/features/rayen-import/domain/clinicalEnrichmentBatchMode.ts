@@ -8,6 +8,7 @@ export const resolveClinicalEnrichmentBatchMode = (
       .trim()
       .toLowerCase()
   ) {
+    case '':
     case 'shadow':
       return 'shadow';
     case 'enforced':

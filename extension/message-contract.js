@@ -67,7 +67,7 @@
     [types.EGRESO_REPORT_SAVE]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.STATISTICAL_DISCHARGE_REPORT_REQUEST]: { encId: 'id' },
     [types.STATISTICAL_DISCHARGE_EVIDENCE_REQUEST]: { encId: 'id' },
-    [types.DEVICE_REPORT_REQUEST]: { encId: 'id', fecha: 'string?' },
+    [types.DEVICE_REPORT_REQUEST]: { encId: 'id', fecha: 'string?', acceptEntries: 'boolean?' },
     [types.PATIENT_FLOW_REPORT_REQUEST]: { encId: 'id' },
     [types.DEVICE_REPORT_SAVE]: { encId: 'id', fecha: 'string?' },
     [types.SCALES_REPORT_REQUEST]: { encId: 'id' },
@@ -80,7 +80,7 @@
       physician: 'string?',
       marks: 'array?',
     },
-    [types.HISTORY_SCALES_REQUEST]: { encId: 'id' },
+    [types.HISTORY_SCALES_REQUEST]: { encId: 'id', censusDate: 'string?', lookbackDays: 'number?' },
     [types.CLINICAL_PANEL_REQUEST]: { encId: 'id' },
     [types.LAB_SEARCH_REQUEST]: { rutBody: 'rut-body' },
     [types.SYSLAB_LOGIN_REQUEST]: { username: 'string', password: 'string' },
@@ -144,6 +144,7 @@
   });
   const knownTypes = new Set(Object.values(types));
   const cleanMessage = value => String(value || '').replace(/\s+/g, ' ').trim();
+  const scalarRules = Object.freeze({ string: value => typeof value === 'string', number: value => typeof value === 'number' && Number.isFinite(value), boolean: value => typeof value === 'boolean' });
   const responses = Object.freeze({
     success: data => ({ ...(data && typeof data === 'object' ? data : {}), ok: true }),
     error: (message, code = '', data) => ({
@@ -170,8 +171,7 @@
     if (value == null) return optional;
     if (kind === 'array') return Array.isArray(value);
     if (kind === 'object') return typeof value === 'object' && !Array.isArray(value);
-    if (kind === 'string') return typeof value === 'string';
-    if (kind === 'boolean') return typeof value === 'boolean';
+    if (scalarRules[kind]) return scalarRules[kind](value);
     if (kind === 'rut-body') return typeof value === 'string' && /^\d{5,9}$/.test(value);
     if (kind === 'id') {
       const normalized = cleanMessage(value);

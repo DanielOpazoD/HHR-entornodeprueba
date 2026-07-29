@@ -62,15 +62,15 @@
   "missingShardIndices": [],
   "unexpectedShardJobs": [],
   "recommendation": "Observed CI unit shard spread is within observed tolerance; keep monitoring trend data.",
-  "generatedAt": "2026-07-17T06:06:33.210Z",
-  "gitSha": "0b730214",
+  "generatedAt": "2026-07-29T16:17:43.225Z",
+  "gitSha": "744d125f",
   "gitDirty": true,
   "source": {
     "provider": "github-actions",
     "repository": "DanielOpazoD/HHR-ServicioHospitalizados",
     "runId": "28767128242",
     "status": "collected",
-    "inputPath": "/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/ci-runtime-observed-54e18e7e-50ad-4b4e-bee3-cc0e0c8d1ecb.json",
+    "inputPath": "/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/ci-runtime-observed-20bd56e1-2fa0-4708-80f5-676723551dce.json",
     "hasInput": true
   },
   "comparison": {
