@@ -6,6 +6,7 @@ import type {
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import { dispatchDailyRecordStoreChanged } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
+import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
@@ -41,10 +42,18 @@ const matchesMutation = (task: SyncTask, mutationId?: string): boolean =>
   !mutationId || task.syncContract?.mutationId === mutationId;
 
 const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
-  if (isE2ERuntimeEnabled() && typeof window !== 'undefined') {
-    localPersistence.records.save(record);
-    if (window.__HHR_E2E_OVERRIDE__) {
+  if (isE2ERuntimeEnabled() && typeof window !== 'undefined' && window.__HHR_E2E_OVERRIDE__) {
+    try {
+      localPersistence.records.save(record);
       window.__HHR_E2E_OVERRIDE__[record.date] = record;
+    } catch (error) {
+      recordOperationalErrorTelemetry('indexeddb', 'sync_outbox_record_mirror_failed', error, {
+        code: 'sync_outbox_record_mirror_failed',
+        message: 'La transacción quedó guardada, pero falló su espejo local de pruebas.',
+        severity: 'warning',
+        userSafeMessage: 'La transacción principal quedó guardada.',
+        context: { date: record.date },
+      });
     }
   }
 

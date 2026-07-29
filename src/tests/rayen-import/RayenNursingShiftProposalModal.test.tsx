@@ -169,6 +169,59 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('does not report a vacant nurse slot when both standard slots are covered', () => {
+    renderProposal({
+      proposal: {
+        ...proposal,
+        day: {
+          ...proposal.day,
+          names: ['Camila Soto', 'Pedro Moreno'],
+          ambiguous: true,
+        },
+        night: { ...proposal.night, names: [], candidates: [] },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(screen.queryByText(/Un cupo quedó sin sugerencia/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Aplicar propuesta' })).toBeEnabled();
+  });
+
+  it('keeps the warning when two displayed labels resolve to the same nurse', () => {
+    renderProposal({
+      proposal: {
+        ...proposal,
+        day: {
+          ...proposal.day,
+          names: ['María Pérez', 'Maria Perez'],
+          candidates: [
+            {
+              name: 'María Pérez',
+              observedNames: ['María Pérez', 'Maria Perez'],
+              records: 4,
+              patients: 3,
+              activeHours: 3,
+              score: 25,
+              hasShiftChange: false,
+              catalogMatched: true,
+            },
+          ],
+          ambiguous: true,
+        },
+        night: { ...proposal.night, names: [], candidates: [] },
+      },
+      isBusy: false,
+      error: null,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    });
+
+    expect(screen.getByText(/Un cupo quedó sin sugerencia/)).toBeVisible();
+  });
+
   it('keeps exclusion-only evidence visible without offering a write', () => {
     renderProposal({
       proposal: {

@@ -6,7 +6,7 @@ import { createEpisodeAdmissionTracker } from './episodeTracker';
 import type { MinsalDailyRecord } from './minsalRecordContracts';
 import { normalizeMovementReportingSnapshot } from './movementCompatibility';
 import {
-  getActiveDischarges,
+  getStatisticalDischarges,
   getActiveTransfers,
 } from '@/application/census/movementTombstonePolicy';
 
@@ -82,7 +82,7 @@ export function buildSpecialtyTraceability(
     }
 
     if (type === 'egresos' || type === 'fallecidos') {
-      getActiveDischarges(record.discharges).forEach(discharge => {
+      getStatisticalDischarges(record.discharges).forEach(discharge => {
         const normalizedDischarge = normalizeMovementReportingSnapshot(discharge);
         if (resolveMovementSpecialty(normalizedDischarge) !== normalizedSpecialty) return;
         if (type === 'fallecidos' && discharge.status !== 'Fallecido') return;

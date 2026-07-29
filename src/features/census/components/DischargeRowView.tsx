@@ -28,7 +28,12 @@ export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
 
   return (
     <>
-      <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-300">
+      <tr
+        className={clsx(
+          'border-b border-slate-100 last:border-0 hover:bg-slate-50 print:border-slate-300',
+          viewModel.isAssociatedClinicalCrib && 'bg-sky-50/40'
+        )}
+      >
         <CensusMovementPrimaryCells viewModel={viewModel} showBedType={false} />
         <td className="p-2 text-xs text-slate-500">{viewModel.dischargeTypeLabel}</td>
         <td className="p-2">

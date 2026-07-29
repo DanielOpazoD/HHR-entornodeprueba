@@ -236,6 +236,21 @@ describe('rayen sync history', () => {
     expect(JSON.stringify(completed.staffingObservation)).not.toMatch(/patient|rut|diagn/i);
   });
 
+  it('does not mark nursing as incomplete when both standard slots are covered', () => {
+    const observation = buildRayenStaffingObservation({
+      censusDate: '2026-07-25',
+      day: {
+        names: ['Camila Soto', 'Pedro Moreno'],
+        candidates: [],
+        ignoredBoundaryRecords: 0,
+        ambiguous: true,
+      },
+      night: { names: [], candidates: [], ignoredBoundaryRecords: 0, ambiguous: false },
+    });
+
+    expect(observation).toBeUndefined();
+  });
+
   it('stores failed attempts with a sanitized reason and without replacing last-sync metadata', () => {
     const failed = buildFailedRayenSyncEvent(
       run(),

@@ -123,7 +123,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                       </div>
                       {entry.patient.clinicalCrib?.patientName && (
                         <div className="ml-4 text-gray-600">
-                          ↳ Cuna clínica — {entry.patient.clinicalCrib.patientName}
+                          ↳ Cuna RN — {entry.patient.clinicalCrib.patientName}
                         </div>
                       )}
                     </li>
@@ -169,6 +169,12 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                       </div>
                       {entry.verification && (
                         <VerificationBadges verification={entry.verification} />
+                      )}
+                      {entry.associatedClinicalCrib && (
+                        <div className="ml-4 text-gray-600">
+                          ↳ Alta asociada — {entry.associatedClinicalCrib.patientName}{' '}
+                          <span className="text-gray-400">(cuna RN; no suma egreso)</span>
+                        </div>
                       )}
                     </li>
                   ))}

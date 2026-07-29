@@ -62,7 +62,7 @@ const collectLocalPatientIdentities = (local: DailyRecord): Set<string> => {
 /**
  * Returns the beds where the cloud copy holds a patient the incoming record dropped without a
  * movement accounting for it. Checks both the main bed occupant and the nested clinical-crib
- * occupant ("cuna clínica").
+ * occupant (cuna RN anidada).
  *
  * IMPORTANT: this is mirrored on the server in `functions/lib/dailyRecordErasureGuard.js`. Keep
  * the two in sync — `src/tests/functions/dailyRecordErasureGuardParity.test.ts` enforces it.
@@ -100,7 +100,7 @@ export const findPatientErasures = (
       erasures.push({ bedId, remotePatientName });
     }
 
-    // 2. Nested clinical-crib occupant ("cuna clínica" — e.g. a sick newborn whose record is
+    // 2. Nested RN-crib occupant (e.g. a newborn whose record is
     //    attached to the bed independently of the main occupant). It can be erased on its own. A
     //    crib discharge records the host bed in `bedId`, so the same patient+bed check applies and
     //    a discharge of the main occupant (different name) cannot mask an erased crib baby.
@@ -111,7 +111,7 @@ export const findPatientErasures = (
       !movementAccountsForBed(allLocalMovements, bedId, remoteCribName) &&
       !stillPresentLocally(remoteBed?.clinicalCrib)
     ) {
-      erasures.push({ bedId: `${bedId} (cuna clínica)`, remotePatientName: remoteCribName });
+      erasures.push({ bedId: `${bedId} (cuna RN)`, remotePatientName: remoteCribName });
     }
   }
 

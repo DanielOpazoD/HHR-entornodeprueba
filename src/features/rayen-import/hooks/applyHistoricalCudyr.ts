@@ -1,6 +1,6 @@
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type { HistoricalCudyrApplyResult } from '../clinicalFillRunner';
 import { resolveHistoricalCudyrPatch } from '../domain/historicalCudyrPatch';
@@ -31,7 +31,7 @@ export const applyHistoricalCudyr = async ({
     baseRecord: historicalRecord,
   });
   if (result?.blockingError) throw result.blockingError;
-  if (isDailyRecordWriteBlockedResult(result)) {
+  if (isDailyRecordWriteRejectedResult(result)) {
     throw new Error(result?.userSafeMessage || 'El guardado histórico del CUDYR fue bloqueado.');
   }
   return { persisted: true, changed: true };

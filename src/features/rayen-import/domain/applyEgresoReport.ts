@@ -25,6 +25,10 @@ import { resolveReleasedBedPlacements } from './resolveReleasedBedPlacements';
 import { markReportChecked } from './egresoReportConflicts';
 import { normalizeRut } from '@/utils/rutUtils';
 import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoReportEligibility';
+import {
+  attachAssociatedClinicalCribDischarges,
+  buildClinicalCribPromotionCandidates,
+} from './associatedClinicalCribDischarge';
 export { collectRecordedMovementRuns } from './egresoReportPolicy';
 export { markEgresoReportUnavailable } from './egresoReportConflicts';
 export const applyEgresoReport = (
@@ -53,23 +57,7 @@ export const applyEgresoReport = (
   );
   if (byRun.size === 0) return diffWithReportConflicts;
   const reportConfirmsEpisode = createReportEpisodeMatcher(byRun);
-  const activeCribsByParent = new Map<string, PromotionCandidate>();
-  for (const crib of checkedDiff.activeClinicalCribs ?? []) {
-    activeCribsByParent.set(crib.parentBedId, crib);
-  }
-  for (const crib of occupiedCribs.values()) {
-    const parentRun = normalizeRut(crib.parent?.rut);
-    const parentMove = checkedDiff.moves.find(
-      entry => entry.fromBedId === crib.parentBedId && normalizeRut(entry.rut) === parentRun
-    );
-    const effectiveParentBedId = parentMove?.toBedId ?? crib.parentBedId;
-    if (!activeCribsByParent.has(effectiveParentBedId)) {
-      activeCribsByParent.set(effectiveParentBedId, {
-        principalRut: crib.parent.rut,
-        patient: crib.patient,
-      });
-    }
-  }
+  const activeCribsByParent = buildClinicalCribPromotionCandidates(checkedDiff, occupiedCribs);
   const principalBedByRun = indexPrincipalBeds(checkedDiff, occupied);
   const conflictedCribParents = clinicalCribConflictBeds(checkedDiff);
   const promotedCribs = new Map<string, PromotionCandidate>();
@@ -375,12 +363,17 @@ export const applyEgresoReport = (
       : normalizeRut(move.rut) === normalizeRut(entry.rut);
     return samePatient ? { ...entry, bedId: move.toBedId } : entry;
   });
+  const dischargesWithAssociatedCribs = attachAssociatedClinicalCribDischarges(
+    checkedDiff,
+    discharges,
+    record
+  );
   return {
     ...checkedDiff,
     admissions: releasedBeds.admissions,
     updates,
     moves: releasedBeds.moves,
-    discharges,
+    discharges: dischargesWithAssociatedCribs,
     pendingAdministrativeDischarges: relocatedPendingDischarges,
     conflicts: releasedBeds.conflicts,
     reportEgresos,
@@ -390,7 +383,7 @@ export const applyEgresoReport = (
       admissions: releasedBeds.admissions.length,
       updates: updates.length,
       moves: releasedBeds.moves.length,
-      discharges: discharges.length,
+      discharges: dischargesWithAssociatedCribs.length,
       pendingAdministrativeDischarges: relocatedPendingDischarges.length,
       conflicts: releasedBeds.conflicts.length,
       unchanged: Math.max(0, checkedDiff.summary.unchanged - overriddenUnchanged),

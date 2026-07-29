@@ -277,3 +277,14 @@ export const isDailyRecordWriteBlockedResult = (
       result.consistencyState === 'blocked_version_mismatch' ||
       result.consistencyState === 'blocked_validation')
   );
+
+/** A write that cannot safely continue the caller's workflow, even if it returned a result. */
+export const isDailyRecordWriteRejectedResult = (
+  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null | undefined
+): boolean =>
+  Boolean(
+    result &&
+    (result.outcome === 'blocked' ||
+      result.outcome === 'unrecoverable' ||
+      isDailyRecordWriteBlockedResult(result))
+  );

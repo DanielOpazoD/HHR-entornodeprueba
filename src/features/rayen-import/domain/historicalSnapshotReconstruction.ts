@@ -167,7 +167,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
       unresolvedConflict(
         occupant.encounter,
         occupant.isClinicalCrib
-          ? 'la cuna clínica requiere conservar su vínculo materno.'
+          ? 'la cuna RN requiere conservar su vínculo materno.'
           : occupant.encounter.encounterId
             ? 'el episodio local no aparece en Ficha Médico ni en el reporte administrativo.'
             : 'el ocupante local no tiene un episodio clínico verificable.'
@@ -223,7 +223,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
     if (encounter.clinicalCribParentBedId) {
       if (!liveEncounterIds.has(encounter.encounterId)) {
         conflicts.push(
-          unresolvedConflict(encounter, 'la cuna clínica requiere conservar su vínculo materno.')
+          unresolvedConflict(encounter, 'la cuna RN requiere conservar su vínculo materno.')
         );
         continue;
       }
@@ -329,7 +329,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
       conflicts.push(
         unresolvedConflict(
           encounter,
-          `la cuna clínica no identifica de forma inequívoca a su madre en ${currentParentBedId}.`
+          `la cuna RN no identifica de forma inequívoca a su madre en ${currentParentBedId}.`
         )
       );
       continue;
@@ -354,7 +354,7 @@ export const reconstructHistoricalSnapshotAtClose = async (
       conflicts.push(
         unresolvedConflict(
           encounter,
-          'la cama histórica de la madre no admite una cuna clínica vinculada.'
+          'la cama histórica de la madre no admite una cuna RN vinculada.'
         )
       );
       continue;

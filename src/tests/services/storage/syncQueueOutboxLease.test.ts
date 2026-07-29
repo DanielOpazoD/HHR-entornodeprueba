@@ -24,9 +24,16 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
 
+vi.mock('@/shared/runtime/e2eRuntime', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/shared/runtime/e2eRuntime')>()),
+  isE2ERuntimeEnabled: () => true,
+}));
+
 import { getDoc, setDoc } from 'firebase/firestore';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
+import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 import {
   processSyncQueue,
   queueDailyRecordSyncTaskWithLocalRecord,
@@ -54,6 +61,8 @@ describe('sync queue transactional outbox and leases', () => {
   beforeEach(async () => {
     await hospitalDB.dailyRecords.clear();
     await hospitalDB.syncQueue.clear();
+    localStorage.clear();
+    window.__HHR_E2E_OVERRIDE__ = undefined;
     vi.clearAllMocks();
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => false,
@@ -83,6 +92,41 @@ describe('sync queue transactional outbox and leases', () => {
       lastUpdated: '2025-01-16T10:00:00.000Z',
     });
     await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(1);
+  });
+
+  it('keeps IndexedDB persistence successful when the legacy mirror is over quota', async () => {
+    const record = makeRecord('2025-01-26', '2025-01-26T10:00:00.000Z');
+    window.__HHR_E2E_OVERRIDE__ = {};
+    const mirrorSaveSpy = vi.spyOn(localPersistence.records, 'save').mockImplementationOnce(() => {
+      throw new DOMException('Legacy mirror quota exceeded', 'QuotaExceededError');
+    });
+    const storeChanges: Array<{ operation: string; dates?: string[] }> = [];
+    const onStoreChange = (event: Event) => {
+      storeChanges.push((event as CustomEvent<{ operation: string; dates?: string[] }>).detail);
+    };
+
+    window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, onStoreChange);
+    try {
+      const result = await queueDailyRecordSyncTaskWithLocalRecord(record, {
+        contexts: ['clinical'],
+        origin: 'partial_update_retry',
+        syncContract: {
+          changedPaths: ['beds.R1.pathology'],
+        },
+      });
+
+      expect(result).toMatchObject({ accepted: true, mode: 'created' });
+      await expect(hospitalDB.dailyRecords.get(record.date)).resolves.toMatchObject({
+        lastUpdated: record.lastUpdated,
+      });
+      await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(1);
+      expect(storeChanges).toContainEqual({ operation: 'save', dates: [record.date] });
+      expect(mirrorSaveSpy).toHaveBeenCalledWith(record);
+    } finally {
+      window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, onStoreChange);
+      window.__HHR_E2E_OVERRIDE__ = undefined;
+      mirrorSaveSpy.mockRestore();
+    }
   });
 
   it('rolls back the outbox task when the local record write fails', async () => {

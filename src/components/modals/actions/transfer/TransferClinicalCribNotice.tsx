@@ -12,7 +12,7 @@ export const TransferClinicalCribNotice: React.FC<TransferClinicalCribNoticeProp
     <Baby className="text-blue-500 mt-0.5 shrink-0" size={14} />
     <div className="space-y-0.5">
       <p className="text-[9px] font-bold text-blue-900 uppercase tracking-tight">
-        Cuna Clínica Detectada
+        Cuna RN detectada
       </p>
       <p className="text-[10px] text-blue-800/80 leading-tight">
         Se generará un traslado adicional para {clinicalCribName || 'RN'}.

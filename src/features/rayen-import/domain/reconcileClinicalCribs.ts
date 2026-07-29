@@ -113,7 +113,7 @@ export const reconcileClinicalCribs = (
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
         scope: 'clinical-crib',
-        reason: `Dos recién nacidos de Rayen apuntan a la cuna clínica de ${parentBedId}.`,
+        reason: `Dos recién nacidos de Rayen apuntan a la cuna RN de ${parentBedId}.`,
         source: encounter,
       });
       continue;
@@ -154,7 +154,7 @@ export const reconcileClinicalCribs = (
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
         scope: 'clinical-crib',
-        reason: `La cuna clínica ya está asociada a ${existingCrib.parentBedId}; el cambio requiere revisión.`,
+        reason: `La cuna RN ya está asociada a ${existingCrib.parentBedId}; el cambio requiere revisión.`,
         source: encounter,
       });
       continue;
@@ -180,7 +180,7 @@ export const reconcileClinicalCribs = (
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
         scope: 'clinical-crib',
-        reason: `La cama principal ${parentBedId} no está ocupada por una madre compatible con la cuna clínica.`,
+        reason: `La cama principal ${parentBedId} no está ocupada por una madre compatible con la cuna RN.`,
         source: encounter,
       });
       continue;
@@ -222,7 +222,7 @@ export const reconcileClinicalCribs = (
           rut: incomingCrib.rut,
           patientName: incomingCrib.patientName,
           scope: 'clinical-crib',
-          reason: `La cuna clínica de ${parentBedId} no tiene una cama principal ocupada en HHR.`,
+          reason: `La cuna RN de ${parentBedId} no tiene una cama principal ocupada en HHR.`,
           source: encounter,
         });
         continue;
@@ -290,7 +290,7 @@ export const reconcileClinicalCribs = (
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
         scope: 'clinical-crib',
-        reason: `La cuna clínica ${parentBedId} no tiene una cama principal ocupada en HHR.`,
+        reason: `La cuna RN ${parentBedId} no tiene una cama principal ocupada en HHR.`,
         source: encounter,
       });
       continue;
@@ -301,7 +301,7 @@ export const reconcileClinicalCribs = (
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
         scope: 'clinical-crib',
-        reason: `La cuna clínica de ${parentBedId} ya está ocupada por ${effectiveParent.clinicalCrib.patientName}.`,
+        reason: `La cuna RN de ${parentBedId} ya está ocupada por ${effectiveParent.clinicalCrib.patientName}.`,
         source: encounter,
       });
       continue;

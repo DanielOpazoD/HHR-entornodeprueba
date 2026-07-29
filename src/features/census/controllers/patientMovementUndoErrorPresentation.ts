@@ -15,9 +15,9 @@ const dischargeErrorMessageByCode = (
     case 'MAIN_BED_OCCUPIED':
       return `No se puede deshacer el alta de ${descriptor.patientName} porque la cama ${descriptor.bedName} ya está ocupada por otro paciente.`;
     case 'MAIN_BED_EMPTY':
-      return 'Para restaurar la cuna clínica, primero debe estar ocupada la cama principal(Madre / Tutor).';
+      return 'Para restaurar la cuna RN, primero debe estar ocupada la cama principal (madre/tutor).';
     case 'CLINICAL_CRIB_OCCUPIED':
-      return `No se puede deshacer el alta de ${descriptor.patientName} porque ya existe una cuna clínica ocupada en esta cama.`;
+      return `No se puede deshacer el alta de ${descriptor.patientName} porque ya existe una cuna RN ocupada en esta cama.`;
     case 'BED_NOT_FOUND':
       return 'No se pudo restaurar el alta porque la cama asociada ya no existe en el registro.';
     case 'ORIGINAL_DATA_MISSING':
@@ -36,9 +36,9 @@ const transferErrorMessageByCode = (
     case 'MAIN_BED_OCCUPIED':
       return `No se puede deshacer el traslado de ${descriptor.patientName} porque la cama ${descriptor.bedName} ya está ocupada.`;
     case 'MAIN_BED_EMPTY':
-      return 'Para restaurar la cuna clínica, primero debe estar ocupada la cama principal.';
+      return 'Para restaurar la cuna RN, primero debe estar ocupada la cama principal.';
     case 'CLINICAL_CRIB_OCCUPIED':
-      return `No se puede deshacer el traslado de ${descriptor.patientName} porque ya existe una cuna clínica ocupada.`;
+      return `No se puede deshacer el traslado de ${descriptor.patientName} porque ya existe una cuna RN ocupada.`;
     case 'BED_NOT_FOUND':
       return 'No se pudo restaurar el traslado porque la cama asociada ya no existe en el registro.';
     case 'ORIGINAL_DATA_MISSING':

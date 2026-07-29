@@ -111,7 +111,7 @@ export const HandoffCudyrPrintTable: React.FC<{
                       colSpan={16}
                       className="border-r border-slate-300 p-1 text-center text-[10px] italic text-slate-400 print:text-[8px]"
                     >
-                      {isCrib ? 'Cuna clínica sin paciente' : 'Cama disponible'}
+                      {isCrib ? 'Cuna RN sin paciente' : 'Cama disponible'}
                     </td>
                     <td className="p-1 text-center font-semibold">-</td>
                   </tr>

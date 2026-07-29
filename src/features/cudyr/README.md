@@ -7,14 +7,14 @@ Feature de categorización CUDYR para enfermería, con vista web, exportación y
 ## Contratos relevantes
 
 - `cudyrUpdatedAt`
-  Último timestamp persistido cuando se modifica un puntaje CUDYR principal o de cuna clínica.
+  Último timestamp persistido cuando se modifica un puntaje CUDYR principal o de cuna RN.
 
 ## Regla de presentación del tiempo CUDYR
 
 - La web muestra `Últ. mod.` usando `cudyrUpdatedAt`.
 - La web muestra además `cudyrUpdatedBy`; al completarse, conserva responsable y hora de cierre.
 - El PDF de entrega de turno nocturno debe usar la fecha/hora fija de aplicación del instrumento nocturno (`día siguiente, 1:00 AM`).
-- La tabla CUDYR incluida al final de la entrega de turno nocturna debe respetar la misma elegibilidad clínica, excluir cálculos para filas bloqueadas y reflejar también cunas clínicas elegibles.
+- La tabla CUDYR incluida al final de la entrega de turno nocturna debe respetar la misma elegibilidad clínica, excluir cálculos para filas bloqueadas y reflejar también cunas RN elegibles.
 - El formateo horario compartido se resuelve vía `formatTimeHHMM` en `src/utils/dateUtils.ts`.
 
 ## Regla de elegibilidad nocturna

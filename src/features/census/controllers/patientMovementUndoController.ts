@@ -69,12 +69,12 @@ export const resolveUndoPatientMovement = ({
   if (!bedData.patientName) {
     return failWithCode(
       'MAIN_BED_EMPTY',
-      'La cama principal debe estar ocupada para restaurar una cuna clínica.'
+      'La cama principal debe estar ocupada para restaurar una cuna RN.'
     );
   }
 
   if (bedData.clinicalCrib?.patientName) {
-    return failWithCode('CLINICAL_CRIB_OCCUPIED', 'Ya existe una cuna clínica ocupada en la cama.');
+    return failWithCode('CLINICAL_CRIB_OCCUPIED', 'Ya existe una cuna RN ocupada en la cama.');
   }
 
   return ok({

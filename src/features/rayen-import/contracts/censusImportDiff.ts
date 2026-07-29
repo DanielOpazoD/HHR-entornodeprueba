@@ -97,6 +97,16 @@ export interface DischargeEntry {
   correctedTime?: string;
   /** Independent evidence for the three documents that participate in the discharge workflow. */
   verification?: DischargeVerification;
+  /**
+   * Healthy newborn attached to the principal bed that leaves with the discharged mother.
+   * It is persisted as a nested/associated movement for traceability, but never contributes to
+   * the statistical egreso count because the newborn did not occupy an independent bed.
+   */
+  associatedClinicalCrib?: {
+    clinicalEpisodeId: string;
+    patientName: string;
+    rut: string;
+  };
 }
 
 /** One previous clinical day the sync would touch after explicit operator confirmation. */
@@ -187,6 +197,10 @@ export interface CensusImportDiff {
    * this evidence to promote a newborn to the physical bed when its mother leaves first.
    */
   activeClinicalCribs?: ActiveClinicalCribEntry[];
+  /** Every active hospitalization episode present in the captured Ficha snapshot. */
+  activeClinicalEpisodeIds?: string[];
+  /** Whether absence from the captured Ficha census is safe to use as evidence. */
+  snapshotComplete?: boolean;
   /**
    * Egresos from the bulk "Alta Administrativa" report whose RUN is unknown to HHR (patients
    * admitted and discharged between two syncs, so they never occupied an HHR bed). Informational

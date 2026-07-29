@@ -6,11 +6,15 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
+import {
+  assertRayenCensusPersistenceConfirmed,
+  type RayenCensusPersistencePayload,
+} from './rayenCensusPersistenceGuard';
 
 interface RayenCensusDiffApplicationInput {
   ensureRun: () => RayenSyncRun;
   applyRunToRecord: (record: DailyRecord, diff: CensusImportDiff) => { record: DailyRecord };
-  saveDailyRecord: (record: DailyRecord) => Promise<unknown>;
+  saveDailyRecord: (record: DailyRecord) => Promise<RayenCensusPersistencePayload>;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
 }
 
@@ -31,7 +35,8 @@ export const useRayenCensusDiffApplication = ({
       });
       const stamped = applyRunToRecord(result.record, diff).record;
       const startedAt = Date.now();
-      await saveDailyRecord(stamped);
+      const persistence = await saveDailyRecord(stamped);
+      assertRayenCensusPersistenceConfirmed(persistence);
       recordRunPerformance(
         {
           stagesMs: { persistence: elapsedMilliseconds(startedAt) },

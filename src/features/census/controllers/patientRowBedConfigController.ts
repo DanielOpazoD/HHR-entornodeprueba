@@ -61,7 +61,7 @@ export const resolveToggleBedModeCommand = ({
       confirm: {
         title: 'Cambiar a modo Cuna',
         message:
-          'Se eliminará la configuración neonatal heredada antes de cambiar a Cuna clínica. ¿Desea continuar?',
+          'Se eliminará la configuración neonatal heredada antes de cambiar a Cuna RN. ¿Desea continuar?',
         confirmText: 'Sí, continuar',
         cancelText: 'Cancelar',
         variant: 'warning',
@@ -83,8 +83,7 @@ export const resolveToggleCompanionCribCommand = ({
     return fail({
       code: 'COMPANION_NOT_ALLOWED_IN_CUNA',
       title: 'Acción no permitida',
-      message:
-        'La configuración neonatal heredada no está disponible en modo Cuna clínica.',
+      message: 'La configuración neonatal heredada no está disponible en modo Cuna RN.',
     });
   }
 

@@ -41,7 +41,7 @@ describe('SummaryCard Components', () => {
   describe('CribSummaryCard', () => {
     it('renders only clinical-crib statistics', () => {
       render(<CribSummaryCard stats={mockStats} />);
-      expect(screen.getByText('Recursos Cuna')).toBeInTheDocument();
+      expect(screen.getByText('Cunas RN')).toBeInTheDocument();
       expect(screen.getByText('5')).toBeInTheDocument(); // Clinical
       expect(screen.queryByText('RN sano')).not.toBeInTheDocument();
     });
@@ -101,7 +101,7 @@ describe('SummaryCard Components', () => {
       );
 
       expect(screen.getByText('Censo Camas')).toBeInTheDocument();
-      expect(screen.getByText('Recursos Cuna')).toBeInTheDocument();
+      expect(screen.getByText('Cunas RN')).toBeInTheDocument();
       expect(screen.getByText('Movimientos')).toBeInTheDocument();
       expect(screen.getByText('Ingresos')).toBeInTheDocument();
       const ingresos = screen.getByText('Ingresos').nextElementSibling;

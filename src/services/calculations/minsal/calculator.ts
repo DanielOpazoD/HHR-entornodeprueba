@@ -15,7 +15,7 @@ import { createEpisodeAdmissionTracker } from './episodeTracker';
 import type { MinsalDailyRecord } from './minsalRecordContracts';
 import { normalizeMovementReportingSnapshot } from './movementCompatibility';
 import {
-  getActiveDischarges,
+  getStatisticalDischarges,
   getActiveTransfers,
 } from '@/application/census/movementTombstonePolicy';
 import {
@@ -143,7 +143,7 @@ export function calculateMinsalStats(
   // Pre-calculate discharge/transfer dates
   const dischargeDates = new Map<string, string>();
   orderedRecords.forEach(r => {
-    getActiveDischarges(r.discharges).forEach(d => dischargeDates.set(d.rut, r.date));
+    getStatisticalDischarges(r.discharges).forEach(d => dischargeDates.set(d.rut, r.date));
     getActiveTransfers(r.transfers).forEach(t => dischargeDates.set(t.rut, r.date));
   });
 
@@ -164,7 +164,7 @@ export function calculateMinsalStats(
     totalDiasCamaDisponibles += disponibles;
     totalDiasCamaOcupados += ocupadas;
 
-    const activeDischarges = getActiveDischarges(record.discharges);
+    const activeDischarges = getStatisticalDischarges(record.discharges);
     const activeTransfers = getActiveTransfers(record.transfers);
 
     activeDischarges.forEach(d => {

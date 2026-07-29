@@ -4,6 +4,7 @@ import {
   buildDischargeRowActions,
   getDischargeStatusBadgeClassName,
 } from '@/features/census/controllers/censusDischargesTableController';
+import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
 
 interface DischargeRowActionHandlers {
   undoDischarge: (id: string) => void | Promise<void>;
@@ -21,7 +22,7 @@ export const resolveDischargeRowViewModel = (
 ): DischargeRowViewModel => ({
   kind: 'discharge',
   id: item.id,
-  bedName: item.bedName,
+  bedName: normalizeCribDisplayText(item.bedName),
   bedType: item.bedType,
   patientName: item.patientName,
   rut: item.rut,
@@ -29,7 +30,9 @@ export const resolveDischargeRowViewModel = (
   movementDate: item.movementDate,
   movementTime: item.time,
   movementProvenance: item.movementProvenance,
-  dischargeTypeLabel: item.dischargeType || '-',
+  isAssociatedClinicalCrib: item.isNested === true,
+  dischargeTypeLabel:
+    item.isNested === true ? 'Alta asociada · no suma egreso' : item.dischargeType || '-',
   statusLabel: item.status,
   statusBadgeClassName: getDischargeStatusBadgeClassName(item.status),
   actions: buildDischargeRowActions(item, handlers),

@@ -74,6 +74,7 @@ export const reconcileCensus = (
     discharges: [],
     pendingAdministrativeDischarges: [],
     conflicts: [],
+    snapshotComplete: snapshot.isComplete === true,
     unchangedCount: 0,
     summary: {
       admissions: 0,
@@ -124,6 +125,9 @@ export const reconcileCensus = (
   };
   const active = snapshot.encounters.filter(encounter => !isDischarged(encounter));
   const discharged = snapshot.encounters.filter(isDischarged);
+  diff.activeClinicalEpisodeIds = active
+    .map(encounter => String(encounter.encounterId ?? '').trim())
+    .filter(Boolean);
   const activeMapped = prepareActiveClinicalPlacements(
     current,
     active,

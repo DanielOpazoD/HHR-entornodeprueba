@@ -4,7 +4,7 @@
  * Unifica las antiguas columnas Nombre / RUT / Edad en un solo <td>:
  * - Fila 1: nombre + edad inline inmediatamente después, como una sola línea
  *   visual "Daniel Opazo (35a)"; la edad abre datos demográficos. El nombre
- *   solo es editable (input real) para cuna clínica provisional y camas
+ *   solo es editable (input real) para cuna RN provisional y camas
  *   vacías (el selector de activación necesita input[name="patientName"]).
  * - Fila 2: RUT en letra pequeña gris, solo lectura, con check de validación
  *   y copia al portapapeles (comportamiento heredado de RutPassportInput).

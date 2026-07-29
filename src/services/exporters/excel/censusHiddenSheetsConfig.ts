@@ -16,7 +16,7 @@ export const SUMMARY_HEADERS = [
   'Ocupadas',
   'Libres',
   'Bloq.',
-  'Cunas',
+  'Cunas RN',
   '% Ocup.',
   'Altas',
   'Traslados',

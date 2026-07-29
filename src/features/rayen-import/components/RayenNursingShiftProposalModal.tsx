@@ -7,6 +7,10 @@ import type {
   NursingShiftSuggestion,
 } from '../contracts/nursingShiftInference';
 import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
+import {
+  hasUnresolvedStaffingAmbiguity,
+  NURSING_STAFFING_STANDARD_SLOTS,
+} from '../domain/staffingSlotPolicy';
 
 interface RayenNursingShiftProposalModalProps {
   proposal: NursingStaffingProposal | null;
@@ -27,12 +31,14 @@ const ShiftSuggestion: React.FC<{
   suggestion: NursingShiftSuggestion;
   icon: React.ReactNode;
   roleLabel: string;
-}> = ({ label, suggestion, icon, roleLabel }) => {
+  standardSlots: number;
+}> = ({ label, suggestion, icon, roleLabel, standardSlots }) => {
   const alreadyAssigned = suggestion.alreadyAssigned ?? [];
+  const hasUnresolvedAmbiguity = hasUnresolvedStaffingAmbiguity(suggestion, standardSlots);
   if (
     suggestion.names.length === 0 &&
     alreadyAssigned.length === 0 &&
-    !suggestion.ambiguous &&
+    !hasUnresolvedAmbiguity &&
     suggestion.ignoredBoundaryRecords === 0
   )
     return null;
@@ -85,7 +91,7 @@ const ShiftSuggestion: React.FC<{
           />
         </>
       )}
-      {suggestion.ambiguous && (
+      {hasUnresolvedAmbiguity && (
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           Un cupo quedó sin sugerencia porque hay profesionales con la misma evidencia.
         </p>
@@ -109,9 +115,18 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
   );
   const hasAmbiguousSuggestions = Boolean(
     proposal &&
-    [proposal.day, proposal.night, proposal.tensDay, proposal.tensNight].some(
-      suggestion => suggestion?.ambiguous
-    )
+    (hasUnresolvedStaffingAmbiguity(proposal.day, NURSING_STAFFING_STANDARD_SLOTS.day) ||
+      hasUnresolvedStaffingAmbiguity(proposal.night, NURSING_STAFFING_STANDARD_SLOTS.night) ||
+      (proposal.tensDay != null &&
+        hasUnresolvedStaffingAmbiguity(
+          proposal.tensDay,
+          NURSING_STAFFING_STANDARD_SLOTS.tensDay
+        )) ||
+      (proposal.tensNight != null &&
+        hasUnresolvedStaffingAmbiguity(
+          proposal.tensNight,
+          NURSING_STAFFING_STANDARD_SLOTS.tensNight
+        )))
   );
   const hasBoundaryExclusions = Boolean(
     proposal &&
@@ -161,12 +176,14 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
           label="Turno largo"
           roleLabel="Enfermería"
           suggestion={proposal.day}
+          standardSlots={NURSING_STAFFING_STANDARD_SLOTS.day}
           icon={<Sun size={16} className="text-amber-500" aria-hidden="true" />}
         />
         <ShiftSuggestion
           label="Turno noche"
           roleLabel="Enfermería"
           suggestion={proposal.night}
+          standardSlots={NURSING_STAFFING_STANDARD_SLOTS.night}
           icon={<Moon size={16} className="text-slate-500" aria-hidden="true" />}
         />
         {proposal.tensDay && (
@@ -174,6 +191,7 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
             label="Turno largo"
             roleLabel="TENS"
             suggestion={proposal.tensDay}
+            standardSlots={NURSING_STAFFING_STANDARD_SLOTS.tensDay}
             icon={<UsersRound size={16} className="text-amber-600" aria-hidden="true" />}
           />
         )}
@@ -182,6 +200,7 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
             label="Turno noche"
             roleLabel="TENS"
             suggestion={proposal.tensNight}
+            standardSlots={NURSING_STAFFING_STANDARD_SLOTS.tensNight}
             icon={<UsersRound size={16} className="text-slate-600" aria-hidden="true" />}
           />
         )}

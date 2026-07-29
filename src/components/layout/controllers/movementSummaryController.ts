@@ -1,4 +1,5 @@
 import type { DischargeData, TransferData } from '@/types/domain/movements';
+import { getStatisticalDischarges } from '@/application/census/movementTombstonePolicy';
 
 export interface MovementSummaryModel {
   totalDeaths: number;
@@ -13,10 +14,13 @@ export const buildMovementSummaryModel = (
   transfers: TransferData[] = [],
   cmaCount: number = 0,
   newAdmissions: number = 0
-): MovementSummaryModel => ({
-  totalDeaths: discharges.filter(discharge => discharge.status === 'Fallecido').length,
-  totalDischarges: discharges.length,
-  totalTransfers: transfers.length,
-  cmaCount,
-  newAdmissions,
-});
+): MovementSummaryModel => {
+  const statisticalDischarges = getStatisticalDischarges(discharges);
+  return {
+    totalDeaths: statisticalDischarges.filter(discharge => discharge.status === 'Fallecido').length,
+    totalDischarges: statisticalDischarges.length,
+    totalTransfers: transfers.length,
+    cmaCount,
+    newAdmissions,
+  };
+};

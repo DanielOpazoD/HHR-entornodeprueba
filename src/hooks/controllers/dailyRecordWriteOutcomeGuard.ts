@@ -2,7 +2,7 @@ import type {
   SaveDailyRecordResult,
   UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 
 type DailyRecordWriteResult =
@@ -31,7 +31,7 @@ export const assertDailyRecordWriteAccepted = (result: DailyRecordWriteResult): 
     return;
   }
 
-  if (result.outcome === 'blocked' || isDailyRecordWriteBlockedResult(result)) {
+  if (isDailyRecordWriteRejectedResult(result)) {
     throw new DailyRecordWriteBlockedOutcomeError(result);
   }
 };

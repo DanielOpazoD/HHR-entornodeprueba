@@ -52,7 +52,7 @@ describe('dailyRecordErasureGuard.findPatientErasures (server mirror of the clie
     const local = { beds: { R1: bed('Madre') } };
 
     expect(findPatientErasures(remote, local)).toEqual([
-      { bedId: 'R1 (cuna clínica)', remotePatientName: 'Recién Nacido' },
+      { bedId: 'R1 (cuna RN)', remotePatientName: 'Recién Nacido' },
     ]);
   });
 

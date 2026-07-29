@@ -67,7 +67,8 @@ export const DischargeTargetSelector: React.FC<DischargeTargetSelectorProps> = (
     )}
     {target === 'baby' && (
       <p className="text-[10px] text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">
-        La madre permanecerá en la cama. La cuna clínica se eliminará.
+        La madre permanecerá en la cama. La Cuna RN se retirará de esta cama y quedará registrada
+        como alta asociada.
       </p>
     )}
   </fieldset>

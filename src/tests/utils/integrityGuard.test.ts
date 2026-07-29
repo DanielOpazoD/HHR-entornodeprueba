@@ -118,5 +118,192 @@ describe('IntegrityGuard', () => {
       expect(result.isSuspicious).toBe(true);
       expect(result.dropPercentage).toBe(80);
     });
+
+    it('accepts several discharges when each vacated patient is preserved in its movement', () => {
+      const patient = (index: number): BedValue =>
+        ({
+          bedId: `BED_${index}`,
+          patientName: `Patient ${index}`,
+          rut: `${index + 1}`,
+          handoffNote: 'Evolución vigente',
+          handoffNoteDayShift: 'Turno día',
+          handoffNoteNightShift: 'Turno noche',
+        }) as unknown as BedValue;
+      const oldRecord = createEmptyRecord('2024-01-01');
+      for (let index = 0; index < 10; index += 1) {
+        oldRecord.beds[`BED_${index}`] = patient(index);
+      }
+
+      const newRecord = createEmptyRecord('2024-01-01');
+      for (let index = 0; index < 6; index += 1) {
+        newRecord.beds[`BED_${index}`] = patient(index);
+      }
+      newRecord.discharges = [6, 7, 8, 9].map(
+        index =>
+          ({
+            id: `discharge-${index}`,
+            bedId: `BED_${index}`,
+            patientName: `Patient ${index}`,
+            originalData: patient(index),
+          }) as unknown as DailyRecord['discharges'][number]
+      );
+
+      expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(false);
+    });
+
+    it('still flags the same bed loss when movements do not preserve patient snapshots', () => {
+      const oldRecord = createEmptyRecord('2024-01-01');
+      const newRecord = createEmptyRecord('2024-01-01');
+      for (let index = 0; index < 10; index += 1) {
+        const bed = {
+          patientName: `Patient ${index}`,
+          handoffNote: 'Evolución vigente',
+          handoffNoteDayShift: 'Turno día',
+          handoffNoteNightShift: 'Turno noche',
+        } as unknown as BedValue;
+        oldRecord.beds[`BED_${index}`] = bed;
+        if (index < 6) newRecord.beds[`BED_${index}`] = bed;
+      }
+      newRecord.discharges = [6, 7, 8, 9].map(
+        index =>
+          ({
+            id: `discharge-${index}`,
+            bedId: `BED_${index}`,
+            patientName: `Patient ${index}`,
+          }) as unknown as DailyRecord['discharges'][number]
+      );
+
+      expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(true);
+    });
+
+    it('reports a visible positive loss when a historical movement is replaced one-for-one', () => {
+      const oldRecord = createDenseRecord('2024-01-01');
+      const newRecord = createDenseRecord('2024-01-01');
+      oldRecord.discharges = [
+        { id: 'movement-old', bedId: 'BED_01', patientName: 'Historical' },
+      ] as unknown as DailyRecord['discharges'];
+      newRecord.discharges = [
+        { id: 'movement-new', bedId: 'BED_01', patientName: 'Historical' },
+      ] as unknown as DailyRecord['discharges'];
+
+      expect(checkRegression(oldRecord, newRecord)).toEqual({
+        isSuspicious: true,
+        dropPercentage: 0.1,
+      });
+    });
+
+    it('does not let unrelated new movement snapshots compensate removed patients', () => {
+      const oldRecord = createEmptyRecord('2024-01-01');
+      const newRecord = createEmptyRecord('2024-01-01');
+      for (let index = 0; index < 10; index += 1) {
+        const bed = {
+          bedId: `BED_${index}`,
+          patientName: `Patient ${index}`,
+          rut: `${index + 1}`,
+          handoffNote: 'Evolución vigente',
+          handoffNoteDayShift: 'Turno día',
+          handoffNoteNightShift: 'Turno noche',
+        } as unknown as BedValue;
+        oldRecord.beds[`BED_${index}`] = bed;
+        if (index < 6) newRecord.beds[`BED_${index}`] = bed;
+      }
+      newRecord.discharges = [6, 7, 8, 9].map(
+        index =>
+          ({
+            id: `unrelated-${index}`,
+            bedId: `OTHER_${index}`,
+            patientName: `Other ${index}`,
+            rut: `OTHER-${index}`,
+            originalData: {
+              bedId: `OTHER_${index}`,
+              patientName: `Other ${index}`,
+              rut: `OTHER-${index}`,
+              handoffNote: 'Registro ajeno',
+            },
+          }) as unknown as DailyRecord['discharges'][number]
+      );
+
+      expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(true);
+    });
+
+    it('does not let accumulated movement history hide a new destructive bed loss', () => {
+      const oldRecord = createEmptyRecord('2024-01-01');
+      const newRecord = createEmptyRecord('2024-01-01');
+      for (let index = 0; index < 10; index += 1) {
+        const bed = {
+          patientName: `Patient ${index}`,
+          handoffNote: 'Evolución vigente',
+        } as unknown as BedValue;
+        oldRecord.beds[`BED_${index}`] = bed;
+        if (index < 2) newRecord.beds[`BED_${index}`] = bed;
+      }
+      const historical = Array.from({ length: 60 }, (_, index) => ({
+        id: `historical-${index}`,
+        bedId: `OLD_${index}`,
+        patientName: `Historical ${index}`,
+        originalData: { patientName: `Historical ${index}` },
+      })) as unknown as DailyRecord['discharges'];
+      oldRecord.discharges = historical;
+      newRecord.discharges = historical;
+
+      expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(true);
+    });
+
+    it('does not credit retained legacy movements without ids as new persistence evidence', () => {
+      const oldRecord = createEmptyRecord('2024-01-01');
+      const newRecord = createEmptyRecord('2024-01-01');
+      for (let index = 0; index < 10; index += 1) {
+        const bed = { patientName: `Patient ${index}` } as unknown as BedValue;
+        oldRecord.beds[`BED_${index}`] = bed;
+        if (index < 2) newRecord.beds[`BED_${index}`] = bed;
+      }
+      const legacy = Array.from({ length: 60 }, (_, index) => ({
+        bedId: `OLD_${index}`,
+        patientName: `Legacy ${index}`,
+        originalData: { patientName: `Legacy ${index}` },
+      })) as unknown as DailyRecord['discharges'];
+      oldRecord.discharges = legacy;
+      newRecord.discharges = legacy;
+
+      expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(true);
+    });
+
+    it('allows editing mutable fields on a legacy movement without an id', () => {
+      const oldRecord = createDenseRecord('2024-01-01');
+      const newRecord = createDenseRecord('2024-01-01');
+      oldRecord.discharges = [
+        {
+          bedId: 'BED_01',
+          patientName: 'Nombre anterior',
+          time: '08:00',
+          originalData: { patientName: 'Nombre anterior' },
+        },
+      ] as unknown as DailyRecord['discharges'];
+      newRecord.discharges = [
+        {
+          bedId: 'BED_02',
+          patientName: 'Nombre corregido',
+          time: '08:15',
+          originalData: { patientName: 'Nombre anterior' },
+        },
+      ] as unknown as DailyRecord['discharges'];
+
+      expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(false);
+    });
+
+    it('flags deletion of historical movements even when current beds are preserved', () => {
+      const oldRecord = createDenseRecord('2024-01-01');
+      const newRecord = createDenseRecord('2024-01-01');
+      oldRecord.discharges = Array.from({ length: 10 }, (_, index) => ({
+        id: `movement-${index}`,
+        bedId: `OLD_${index}`,
+        patientName: `Historical ${index}`,
+      })) as unknown as DailyRecord['discharges'];
+
+      expect(checkRegression(oldRecord, newRecord)).toEqual({
+        isSuspicious: true,
+        dropPercentage: 100,
+      });
+    });
   });
 });

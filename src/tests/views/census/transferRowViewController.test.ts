@@ -35,4 +35,17 @@ describe('transferRowViewController', () => {
     expect(editTransfer).toHaveBeenCalledWith(transfer);
     expect(deleteTransfer).toHaveBeenCalledWith('t-1');
   });
+
+  it('normalizes the retired Cuna clínica label in historical transfers', () => {
+    const noop = vi.fn();
+    const transfer = DataFactory.createMockTransfer({ bedName: 'H4C1 (Cuna clínica)' });
+
+    const viewModel = resolveTransferRowViewModel(transfer, {
+      undoTransfer: noop,
+      editTransfer: noop,
+      deleteTransfer: noop,
+    });
+
+    expect(viewModel.bedName).toBe('H4C1 (Cuna RN)');
+  });
 });

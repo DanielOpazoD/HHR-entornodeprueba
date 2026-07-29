@@ -36,7 +36,7 @@ describe('cudyrRowViewController', () => {
     });
 
     expect(viewModel.isOccupied).toBe(false);
-    expect(viewModel.emptyStateLabel).toBe('Cuna clínica sin paciente');
+    expect(viewModel.emptyStateLabel).toBe('Cuna RN sin paciente');
     expect(viewModel.rowBgClass).toContain('bg-purple-50/60');
     expect(viewModel.bedTextClass).toContain('text-purple-700');
   });

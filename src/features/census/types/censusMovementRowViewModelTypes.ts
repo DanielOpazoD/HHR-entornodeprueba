@@ -16,6 +16,7 @@ export interface CensusMovementRowBaseViewModel {
 
 export interface DischargeRowViewModel extends CensusMovementRowBaseViewModel {
   kind: 'discharge';
+  isAssociatedClinicalCrib?: boolean;
   dischargeTypeLabel: string;
   statusLabel: string;
   statusBadgeClassName: string;

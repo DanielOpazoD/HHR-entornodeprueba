@@ -7,7 +7,7 @@ por sincronización, sin cambiar la captura de Eloísa ni relajar la autoridad d
 
 El callable `applyRayenClinicalEnrichmentBatch` admite exclusivamente dispositivos, escalas,
 signos vitales, sus historiales y `clinicalSyncCheckpoint`. Verifica en una transacción la fecha,
-revisión, cama, `clinicalEpisodeId` y cuna clínica antes de escribir. Cada `runId` genera como
+revisión, cama, `clinicalEpisodeId` y cuna RN antes de escribir. Cada `runId` genera como
 máximo un snapshot histórico y `runId`/`mutationId` hacen el reintento idempotente.
 El `runId` pertenece a una ejecución de enriquecimiento, no al ciclo de sincronización del censo;
 solo el `mutationId` se conserva entre reintentos de transporte de esa misma ejecución.

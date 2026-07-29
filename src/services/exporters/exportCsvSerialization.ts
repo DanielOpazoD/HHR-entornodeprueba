@@ -155,7 +155,7 @@ export const buildDailyRecordCsv = (record: DailyRecordCsvExportState): string =
         generatePatientRow(
           record,
           `${bed.id}-C`,
-          `${bed.name} (Cuna Clínica)`,
+          `${bed.name} (Cuna RN)`,
           'Cuna',
           patient.clinicalCrib,
           patient.location

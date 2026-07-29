@@ -89,7 +89,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByText(/Cambiar a Cuna Clínica/i));
+    fireEvent.click(screen.getByText(/Cambiar a Cuna RN/i));
 
     expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'bedMode', 'Cuna');
   });
@@ -113,7 +113,7 @@ describe('PatientRow crib and demographics', () => {
     expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
   });
 
-  it('toggles clinical crib when Cuna Clínica button is clicked', () => {
+  it('toggles the RN crib when the Cuna RN button is clicked', () => {
     const { mockContext } = render(
       <table>
         <tbody>
@@ -129,7 +129,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByText(/Agregar Cuna Clínica/i));
+    fireEvent.click(screen.getByText(/Agregar Cuna RN/i));
 
     expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith('R1', 'create');
   });
@@ -150,10 +150,10 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    expect(screen.getByText(/Agregar Cuna Clínica/i)).toBeInTheDocument();
+    expect(screen.getByText(/Agregar Cuna RN/i)).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByText(/Agregar Cuna Clínica/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Agregar Cuna RN/i)).not.toBeInTheDocument();
   });
 
   it('opens demographics modal and saves changes', async () => {

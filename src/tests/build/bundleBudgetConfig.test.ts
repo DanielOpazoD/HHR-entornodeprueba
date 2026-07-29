@@ -88,6 +88,7 @@ describe('bundle budget config', () => {
         '^assets/fonasaDatabase-.*\\.js$',
         '^assets/clinicalDocumentTemplateEditorController-.*\\.js$',
         '^assets/vendor-heic2any-.*\\.js$',
+        '^assets/applyClinicalEnrichmentBatch-.*\\.js$',
       ])
     );
   });

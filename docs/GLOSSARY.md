@@ -28,19 +28,19 @@
 
 ## Pacientes y movimientos
 
-| Concepto                                       | UI (es)            | Código (en/identificador)       | Prohibido / sinónimo legacy                 |
-| ---------------------------------------------- | ------------------ | ------------------------------- | ------------------------------------------- |
-| Persona hospitalizada                          | Paciente           | `patient`, `patientName`, `rut` | "person", "user clínico"                    |
-| Cama del hospital                              | Cama               | `bed`, `bedId`, `bedName`       | "slot", "espacio"                           |
-| Catre adicional dentro de una cama (puerperio) | Cuna clínica       | `clinicalCrib`                  | "baby", "infant"                            |
-| Ingreso de un paciente a una cama              | Admisión / Ingreso | `admission`, `admissionDate`    | "intake"                                    |
-| Egreso definitivo                              | Alta               | `discharge`, `dischargeDate`    | "egreso" (en código nuevo); "release"       |
-| Cambio de cama dentro del hospital             | Movimiento         | `bedMovement`, `moveOrCopy`     | "swap"                                      |
-| Derivación a otro centro                       | Traslado           | `transfer`, `transferDate`      | "derivación" (en código)                    |
-| Diagnóstico clínico de la cama                 | Diagnóstico        | `pathology`                     | "diagnosis" en código nuevo (ya hay legacy) |
-| Código CIE-10 asociado al diagnóstico          | CIE-10             | `cie10Code`, `cie10Description` | —                                           |
-| Estado clínico de gravedad                     | Estado             | `status`                        | "condition", "severity"                     |
-| Especialidad médica que atiende                | Especialidad       | `specialty`                     | "service line"                              |
+| Concepto                                  | UI (es)            | Código (en/identificador)       | Prohibido / sinónimo legacy                 |
+| ----------------------------------------- | ------------------ | ------------------------------- | ------------------------------------------- |
+| Persona hospitalizada                     | Paciente           | `patient`, `patientName`, `rut` | "person", "user clínico"                    |
+| Cama del hospital                         | Cama               | `bed`, `bedId`, `bedName`       | "slot", "espacio"                           |
+| Cuna de recién nacido asociada a una cama | Cuna RN            | `clinicalCrib` (compatibilidad) | "baby", "infant"                            |
+| Ingreso de un paciente a una cama         | Admisión / Ingreso | `admission`, `admissionDate`    | "intake"                                    |
+| Egreso definitivo                         | Alta               | `discharge`, `dischargeDate`    | "egreso" (en código nuevo); "release"       |
+| Cambio de cama dentro del hospital        | Movimiento         | `bedMovement`, `moveOrCopy`     | "swap"                                      |
+| Derivación a otro centro                  | Traslado           | `transfer`, `transferDate`      | "derivación" (en código)                    |
+| Diagnóstico clínico de la cama            | Diagnóstico        | `pathology`                     | "diagnosis" en código nuevo (ya hay legacy) |
+| Código CIE-10 asociado al diagnóstico     | CIE-10             | `cie10Code`, `cie10Description` | —                                           |
+| Estado clínico de gravedad                | Estado             | `status`                        | "condition", "severity"                     |
+| Especialidad médica que atiende           | Especialidad       | `specialty`                     | "service line"                              |
 
 ## Documentación clínica
 

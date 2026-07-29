@@ -5,7 +5,11 @@ import type { DischargeData, TransferData } from '@/types/domain/movements';
 
 describe('movementSummaryController', () => {
   it('aggregates movement counts for UI consumption', () => {
-    const discharges = [{ status: 'Alta' }, { status: 'Fallecido' }] as DischargeData[];
+    const discharges = [
+      { status: 'Alta' },
+      { status: 'Fallecido' },
+      { status: 'Vivo', isNested: true },
+    ] as DischargeData[];
     const transfers = [{ id: 't1' }, { id: 't2' }] as TransferData[];
 
     expect(buildMovementSummaryModel(discharges, transfers, 3, 4)).toEqual({
