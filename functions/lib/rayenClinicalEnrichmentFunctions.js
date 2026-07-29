@@ -191,7 +191,9 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         nextRecord.meta = buildClinicalEnrichmentMeta({
           record: remoteData,
           payload,
-          batchDigest,
+          // Keep the receipt readable by the previous callable while instances overlap. The
+          // legacy digest still covers every clinical field and embedded checkpoint.
+          batchDigest: legacyBatchDigest,
           now,
         });
         // The established authority path also stores a Firestore Timestamp; firestoreShared

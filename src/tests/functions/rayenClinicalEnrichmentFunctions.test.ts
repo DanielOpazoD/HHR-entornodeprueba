@@ -89,10 +89,12 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       targetCount: 1,
       fieldCount: 3,
     });
+    expect(admin.set.mock.calls[0]?.[1]?.meta?.clinicalEnrichmentReceipts?.[0]?.digest).toBe(
+      buildLegacyClinicalEnrichmentDigest(parseClinicalEnrichmentPayload(makePayload()))
+    );
     const telemetry = JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0]);
     expect(telemetry).not.toMatch(/H2C1|episode-secret|Paciente reservado|11\.111|braden|120/);
   });
-
   it('returns idempotent success before revision checks for the same run and mutation', async () => {
     const remote = makeClinicalRecord();
     const payload = makePayload();
