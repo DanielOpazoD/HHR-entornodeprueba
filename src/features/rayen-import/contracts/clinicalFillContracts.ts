@@ -2,6 +2,7 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type { ClinicalIncrementalMetrics } from '../domain/clinicalIncrementalSync';
 import type { DeviceTextItem } from '../mapping/parseInvasiveDevices';
+import type { RayenInvasiveDeviceEntry } from '../mapping/mapDeviceToInstance';
 import type { RayenCudyrCategory, RayenHistoryScaleEvent } from '../bridge/rayenImportBridge';
 import type { NursingStaffingProposal, RayenNursingActivity } from './nursingShiftInference';
 import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
@@ -9,11 +10,20 @@ import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
 export interface ClinicalFillDeps {
   nurseCatalog?: string[];
   tensCatalog?: string[];
-  fetchDeviceReport: (encId: string, fecha: string) => Promise<{ base64: string; error?: string }>;
+  fetchDeviceReport: (
+    encId: string,
+    fecha: string
+  ) => Promise<{
+    entries?: RayenInvasiveDeviceEntry[];
+    base64: string;
+    source?: 'json' | 'pdf';
+    error?: string;
+  }>;
   extractDeviceItems: (base64: string) => Promise<DeviceTextItem[]>;
   fetchHistoryScales: (
     encId: string,
-    censusDate: string
+    censusDate: string,
+    options?: { lookbackDays?: number }
   ) => Promise<{
     events: RayenHistoryScaleEvent[];
     nursingActivity?: RayenNursingActivity[];
@@ -30,7 +40,7 @@ export interface ClinicalFillDeps {
   /** Optional request-scoped atomic persistence. Omit to preserve the established per-patient path. */
   applyBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
   /** Optional shadow observer; never owns or delays the established per-patient persistence. */
-  observeBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<void>;
+  observeBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchEvidence>;
   now: () => Date;
   createId: () => string;
   monotonicNow?: () => number;
@@ -39,6 +49,20 @@ export interface ClinicalFillDeps {
 export interface ClinicalFillPatchOperation {
   patch: DailyRecordPatch;
   target: ClinicalFillPatchTarget;
+  /** Number of effective clinical fields, excluding the incremental checkpoint. */
+  clinicalFieldCount?: number;
+  checkpointChanged?: boolean;
+}
+
+export interface ClinicalFillBatchEvidence {
+  mode: 'shadow' | 'enforced';
+  parity: 'matched' | 'mismatch' | 'unavailable';
+  clinicalTargets: number;
+  checkpointOnlyTargets: number;
+  checkpointTargets: number;
+  requestedFields: number;
+  backendTargets?: number;
+  backendFields?: number;
 }
 
 export interface ClinicalFillBatchApplyResult {
@@ -46,6 +70,7 @@ export interface ClinicalFillBatchApplyResult {
   historySnapshots: number;
   retries?: number;
   failures?: ClinicalFillBatchApplyFailure[];
+  batch?: ClinicalFillBatchEvidence;
 }
 
 export interface ClinicalFillBatchApplyFailure {
@@ -81,6 +106,9 @@ export interface ClinicalFillSummary {
   incremental?: ClinicalIncrementalMetrics & {
     patientWrites: number;
     historySnapshots: number;
+    clinicalTargets?: number;
+    checkpointOnlyTargets?: number;
+    batch?: ClinicalFillBatchEvidence;
   };
   performance?: RayenSyncPerformance;
 }

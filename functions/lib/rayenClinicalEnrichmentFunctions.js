@@ -9,6 +9,8 @@ const {
   assertRecordRevision,
   buildClinicalEnrichmentMeta,
   buildHistorySnapshotId,
+  buildLegacyClinicalEnrichmentDigest,
+  clinicalEnrichmentMatches,
   classifyIdempotency,
   digestValue,
   parseClinicalEnrichmentPayload,
@@ -22,6 +24,19 @@ const countFields = patches =>
 
 const summarizeRequest = data => {
   const patches = Array.isArray(data?.patches) ? data.patches : [];
+  const checkpoints = Array.isArray(data?.checkpoints) ? data.checkpoints : [];
+  const targetKeys = new Set(
+    [...patches, ...checkpoints].map(
+      target =>
+        `${String(target?.bedId || '')}|${target?.clinicalCrib === true ? 'crib' : 'patient'}`
+    )
+  );
+  const clinicalKeys = new Set(
+    patches.map(
+      target =>
+        `${String(target?.bedId || '')}|${target?.clinicalCrib === true ? 'crib' : 'patient'}`
+    )
+  );
   const date =
     typeof data?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date : null;
   const mode = data?.mode === 'shadow' || data?.mode === 'enforced' ? data.mode : 'invalid';
@@ -29,15 +44,19 @@ const summarizeRequest = data => {
     date,
     mode,
     dryRun: mode === 'shadow',
-    targetCount: patches.length,
-    fieldCount: patches.reduce(
-      (total, target) =>
-        total +
-        (target?.fields && typeof target.fields === 'object' && !Array.isArray(target.fields)
-          ? Object.keys(target.fields).length
-          : 0),
-      0
-    ),
+    targetCount: targetKeys.size,
+    clinicalTargetCount: clinicalKeys.size,
+    checkpointTargetCount: checkpoints.length,
+    checkpointOnlyTargetCount: [...targetKeys].filter(key => !clinicalKeys.has(key)).length,
+    fieldCount:
+      patches.reduce(
+        (total, target) =>
+          total +
+          (target?.fields && typeof target.fields === 'object' && !Array.isArray(target.fields)
+            ? Object.keys(target.fields).length
+            : 0),
+        0
+      ) + checkpoints.length,
     clinicalCribCount: patches.filter(target => target?.clinicalCrib === true).length,
     hasExpectedVersion: typeof data?.expectedLastUpdated === 'string',
     hasBaseRevision: data?.baseRevision !== undefined,
@@ -49,9 +68,17 @@ const summarizePayload = payload => ({
   date: payload.date,
   mode: payload.mode,
   dryRun: payload.dryRun,
-  targetCount: payload.patches.length,
-  fieldCount: countFields(payload.patches),
-  clinicalCribCount: payload.patches.filter(target => target.clinicalCrib).length,
+  targetCount: payload.targets.length,
+  clinicalTargetCount: payload.patches.length,
+  checkpointTargetCount: payload.checkpoints.length,
+  checkpointOnlyTargetCount: payload.checkpoints.filter(
+    target =>
+      !payload.patches.some(
+        patch => patch.bedId === target.bedId && patch.clinicalCrib === target.clinicalCrib
+      )
+  ).length,
+  fieldCount: countFields(payload.targets),
+  clinicalCribCount: payload.targets.filter(target => target.clinicalCrib).length,
   hasExpectedVersion: Boolean(payload.expectedLastUpdated),
   hasBaseRevision: payload.baseRevision !== undefined,
   versionGuardEnforced: payload.mode === 'enforced',
@@ -100,13 +127,19 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
     const startedAt = Date.now();
     let requestSummary = summarizeRequest(data);
     let authorityStatus = 'ok';
+    let resultParity = 'matched';
     let revision;
 
     try {
       await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
       const payload = parseClinicalEnrichmentPayload(data);
       requestSummary = summarizePayload(payload);
-      const batchDigest = digestValue({ date: payload.date, patches: payload.patches });
+      const batchDigest = digestValue({
+        date: payload.date,
+        patches: payload.patches,
+        checkpoints: payload.checkpoints,
+      });
+      const legacyBatchDigest = buildLegacyClinicalEnrichmentDigest(payload);
       const docRef = firestore
         .collection('hospitals')
         .doc(HOSPITAL_ID)
@@ -121,7 +154,9 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           );
         }
         const remoteData = snapshot.data() || {};
-        const idempotency = classifyIdempotency(remoteData, payload, batchDigest);
+        const idempotency = classifyIdempotency(remoteData, payload, batchDigest, [
+          legacyBatchDigest,
+        ]);
         if (idempotency === 'idempotent') {
           authorityStatus = 'idempotent';
           revision = resolveRecordRevision(remoteData);
@@ -129,7 +164,21 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         }
 
         revision = assertRecordRevision(remoteData, payload);
-        const nextRecord = applyClinicalEnrichment(remoteData, payload.patches);
+        const nextRecord = applyClinicalEnrichment(remoteData, payload.targets);
+        // Shadow runs after the established per-patient writes. Compare against that independently
+        // persisted record; comparing with our own projection would certify the request tautologically.
+        resultParity = clinicalEnrichmentMatches(
+          payload.dryRun ? remoteData : nextRecord,
+          payload.targets
+        )
+          ? 'matched'
+          : 'mismatch';
+        if (resultParity !== 'matched' && !payload.dryRun) {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Clinical enrichment result did not match the requested batch.'
+          );
+        }
         const authority = evaluateDailyRecordClinicalAuthority(nextRecord);
         if (authority.status !== 'ok') {
           throw new functions.https.HttpsError(
@@ -158,8 +207,12 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         if (payload.dryRun) return;
 
         revision = nextRecord.meta.revision;
-        const historyRef = docRef.collection('history').doc(buildHistorySnapshotId(payload.runId));
-        transaction.create(historyRef, historySnapshot);
+        if (payload.patches.length > 0) {
+          const historyRef = docRef
+            .collection('history')
+            .doc(buildHistorySnapshotId(payload.runId));
+          transaction.create(historyRef, historySnapshot);
+        }
         transaction.set(docRef, nextRecord);
       });
 
@@ -177,8 +230,15 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         mode: payload.mode,
         authorityStatus,
         revision,
-        targetCount: payload.patches.length,
-        fieldCount: countFields(payload.patches),
+        targetCount: payload.targets.length,
+        clinicalTargetCount: payload.patches.length,
+        checkpointTargetCount: payload.checkpoints.length,
+        checkpointOnlyTargetCount: requestSummary.checkpointOnlyTargetCount,
+        fieldCount: countFields(payload.targets),
+        resultParity,
+        patientWrites: authorityStatus === 'ok' && !payload.dryRun ? 1 : 0,
+        historySnapshots:
+          authorityStatus === 'ok' && !payload.dryRun && payload.patches.length > 0 ? 1 : 0,
       };
     } catch (error) {
       if (context.auth) {

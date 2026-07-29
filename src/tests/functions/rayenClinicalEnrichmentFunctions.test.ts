@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  buildLegacyClinicalEnrichmentDigest,
+  clinicalEnrichmentMatches,
   createClinicalAdminMock,
   createRayenClinicalEnrichmentFunctions,
   digestPayload,
@@ -18,6 +20,37 @@ const createApi = (admin: ReturnType<typeof createClinicalAdminMock>, role = 'nu
 
 describe('applyRayenClinicalEnrichmentBatch', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('compares the requested values with the independently projected batch result', () => {
+    const record = makeClinicalRecord();
+    const payload = parseClinicalEnrichmentPayload(makePayload());
+    const matching = {
+      ...record,
+      beds: {
+        ...record.beds,
+        H2C1: {
+          ...record.beds.H2C1,
+          evaluationScores: { braden: { total: 17 } },
+          vitalSigns: { systolic: 120 },
+          clinicalSyncCheckpoint: { version: 1, sources: {} },
+        },
+      },
+    };
+
+    expect(clinicalEnrichmentMatches(matching, payload.targets)).toBe(true);
+    expect(
+      clinicalEnrichmentMatches(
+        {
+          ...matching,
+          beds: {
+            ...matching.beds,
+            H2C1: { ...matching.beds.H2C1, vitalSigns: { systolic: 119 } },
+          },
+        },
+        payload.targets
+      )
+    ).toBe(false);
+  });
 
   it('applies all allowlisted patient fields with one census read and one run snapshot', async () => {
     const admin = createClinicalAdminMock();
@@ -82,6 +115,61 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
 
     expect(result).toMatchObject({ authorityStatus: 'idempotent' });
     expect(admin.set).not.toHaveBeenCalled();
+  });
+
+  it('accepts the pre-deployment digest during an idempotent rolling retry', async () => {
+    const remote = makeClinicalRecord();
+    const payload = makePayload();
+    const parsed = parseClinicalEnrichmentPayload(payload);
+    remote.meta = {
+      revision: 5,
+      clinicalEnrichmentReceipts: [
+        {
+          runId: payload.runId,
+          mutationId: payload.mutationId,
+          digest: buildLegacyClinicalEnrichmentDigest(parsed),
+        },
+      ],
+    } as never;
+    const admin = createClinicalAdminMock(remote);
+
+    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+      payload,
+      makeContext()
+    );
+
+    expect(result).toMatchObject({ authorityStatus: 'idempotent', patientWrites: 0 });
+    expect(admin.set).not.toHaveBeenCalled();
+    expect(admin.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts a pre-deployment digest for a checkpoint-only rolling retry', async () => {
+    const remote = makeClinicalRecord();
+    const payload = makePayload();
+    payload.patches[0].fields = {
+      clinicalSyncCheckpoint: { version: 1, sources: {} },
+    } as never;
+    const parsed = parseClinicalEnrichmentPayload(payload);
+    remote.meta = {
+      revision: 5,
+      clinicalEnrichmentReceipts: [
+        {
+          runId: payload.runId,
+          mutationId: payload.mutationId,
+          digest: buildLegacyClinicalEnrichmentDigest(parsed),
+        },
+      ],
+    } as never;
+    const admin = createClinicalAdminMock(remote);
+
+    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+      payload,
+      makeContext()
+    );
+
+    expect(result).toMatchObject({ authorityStatus: 'idempotent', patientWrites: 0 });
+    expect(admin.set).not.toHaveBeenCalled();
+    expect(admin.create).not.toHaveBeenCalled();
   });
 
   it('orders digest targets with deterministic UTF-16 code units', () => {
@@ -211,6 +299,47 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0])).not.toContain('Nombre alterado');
   });
 
+  it('rejects duplicate checkpoint targets embedded in legacy patches', async () => {
+    const admin = createClinicalAdminMock();
+    const payload = makePayload();
+    payload.patches = [
+      {
+        ...payload.patches[0],
+        fields: { clinicalSyncCheckpoint: { version: 1, sources: {} } },
+      },
+      {
+        ...payload.patches[0],
+        fields: { clinicalSyncCheckpoint: { version: 2, sources: {} } },
+      },
+    ] as never;
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(admin.get).not.toHaveBeenCalled();
+    expect(admin.set).not.toHaveBeenCalled();
+  });
+
+  it('rejects clinical and checkpoint sections that reference different episodes', async () => {
+    const admin = createClinicalAdminMock();
+    const payload = makePayload();
+    Object.assign(payload, {
+      checkpoints: [
+        {
+          bedId: 'H2C1',
+          clinicalEpisodeId: 'another-episode',
+          checkpoint: { version: 1, fingerprintVersion: 1, sources: {} },
+        },
+      ],
+    });
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(admin.get).not.toHaveBeenCalled();
+    expect(admin.set).not.toHaveBeenCalled();
+  });
+
   it('requires an expected record timestamp before reading the census', async () => {
     const admin = createClinicalAdminMock();
     const payload = { ...makePayload(), expectedLastUpdated: undefined };
@@ -238,7 +367,14 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
   });
 
   it('forces shadow requests to dry-run without creating a snapshot', async () => {
-    const admin = createClinicalAdminMock();
+    const remote = makeClinicalRecord();
+    remote.beds.H2C1 = {
+      ...remote.beds.H2C1,
+      evaluationScores: { braden: { total: 17 } },
+      vitalSigns: { systolic: 120 },
+      clinicalSyncCheckpoint: { version: 1, sources: {} },
+    } as never;
+    const admin = createClinicalAdminMock(remote);
     const payload = {
       ...makePayload(),
       mode: 'shadow',
@@ -251,8 +387,74 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       makeContext()
     );
 
-    expect(result).toMatchObject({ success: true, mode: 'shadow', authorityStatus: 'ok' });
+    expect(result).toMatchObject({
+      success: true,
+      mode: 'shadow',
+      authorityStatus: 'ok',
+      resultParity: 'matched',
+      patientWrites: 0,
+      historySnapshots: 0,
+    });
     expect(admin.set).not.toHaveBeenCalled();
+  });
+
+  it('reports a shadow mismatch when established persistence differs from the batch', async () => {
+    const admin = createClinicalAdminMock();
+    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+      { ...makePayload(), mode: 'shadow' },
+      makeContext()
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      mode: 'shadow',
+      resultParity: 'mismatch',
+      patientWrites: 0,
+      historySnapshots: 0,
+    });
+    expect(admin.set).not.toHaveBeenCalled();
+  });
+
+  it('persists a checkpoint-only batch without creating a clinical history snapshot', async () => {
+    const admin = createClinicalAdminMock();
+    const payload = makePayload();
+    payload.patches = [];
+    Object.assign(payload, {
+      checkpoints: [
+        {
+          bedId: 'H2C1',
+          clinicalEpisodeId: 'episode-secret-1',
+          checkpoint: { version: 1, fingerprintVersion: 1, sources: {} },
+        },
+      ],
+    });
+
+    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+      payload,
+      makeContext()
+    );
+
+    expect(admin.get).toHaveBeenCalledTimes(1);
+    expect(admin.historyDoc).not.toHaveBeenCalled();
+    expect(admin.create).not.toHaveBeenCalled();
+    expect(admin.set).toHaveBeenCalledTimes(1);
+    expect(admin.set).toHaveBeenCalledWith(
+      admin.docRef,
+      expect.objectContaining({
+        beds: expect.objectContaining({
+          H2C1: expect.objectContaining({
+            clinicalSyncCheckpoint: expect.objectContaining({ version: 1 }),
+          }),
+        }),
+      })
+    );
+    expect(result).toMatchObject({
+      targetCount: 1,
+      clinicalTargetCount: 0,
+      checkpointOnlyTargetCount: 1,
+      patientWrites: 1,
+      historySnapshots: 0,
+    });
   });
 
   it('ignores a caller dry-run override when enforced mode is requested', async () => {

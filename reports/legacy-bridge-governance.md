@@ -27,13 +27,11 @@
 
 - `hospitals/hanga_roa/dailyRecords/:date`
 - `hospitals/hhr/dailyRecords/:date`
-- `hospitals/hospital-hanga-roa/dailyRecords/:date`
 - `dailyRecords/:date`
 - `records/:date`
 - `hospitals/hanga_roa/dailyRecords`
 - `hospitals/hhr/dailyRecords`
 - `dailyRecords`
-- `hospitals/hospital-hanga-roa/dailyRecords`
 
 ## Retirement Phases
 

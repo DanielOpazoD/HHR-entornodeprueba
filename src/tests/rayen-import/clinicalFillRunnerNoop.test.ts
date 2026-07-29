@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
+import { buildClinicalPatientPatch } from '@/features/rayen-import/domain/clinicalPatientPatch';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { PatientData } from '@/features/rayen-import/contracts/rayenDomainContracts';
 
 /** Real-shaped Braden 17 (07-10) as a slimmed clinical-history event from the panel de historial. */
 const BRADEN_HISTORY_EVENT = {
@@ -46,7 +48,25 @@ const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
 });
 
 describe('runClinicalFill no-op behavior', () => {
-  it('patients with nothing new produce no patch at all', async () => {
+  it('excludes reconstructed clinical collections whose canonical content is unchanged', () => {
+    const patient = {
+      devices: [{ id: 'device-1', type: 'VVP', location: 'Brazo derecho' }],
+      evaluationScores: { braden: { score: 17, recordedAt: '2026-07-10T08:00:00' } },
+    } as unknown as PatientData;
+    const merged = {
+      ...patient,
+      devices: [{ location: 'Brazo derecho', type: 'VVP', id: 'device-1' }],
+      evaluationScores: { braden: { recordedAt: '2026-07-10T08:00:00', score: 17 } },
+    } as unknown as PatientData;
+
+    expect(buildClinicalPatientPatch(patient, merged, 'H1C2', false)).toEqual({
+      patch: {},
+      checkpointChanged: false,
+      clinicalFieldCount: 0,
+    });
+  });
+
+  it('persists a checkpoint-only patch after the first authoritative empty read', async () => {
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
       fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
@@ -54,10 +74,13 @@ describe('runClinicalFill no-op behavior', () => {
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
 
     expect(summary).toMatchObject({ total: 1, patched: 0, errors: [] });
-    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expect(deps.applyPatch).toHaveBeenCalledTimes(1);
+    const [patch, target] = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(Object.keys(patch)).toEqual(['beds.H1C2.clinicalSyncCheckpoint']);
+    expect(target).toMatchObject({ captureHistorySnapshot: false });
   });
 
-  it('writes nothing per patient when a second synchronization receives the same clinical facts', async () => {
+  it('persists only the daily checkpoint when repeated clinical facts do not change the patient', async () => {
     const firstRecord = record({ H1C2: { encId: 'E1' } });
     const firstDeps = okDeps();
     const firstSummary = await runClinicalFill(firstRecord, '2026-07-10', firstDeps);
@@ -77,14 +100,50 @@ describe('runClinicalFill no-op behavior', () => {
     expect(summary.incremental).toMatchObject({
       newFacts: 0,
       duplicates: 1,
-      patientWrites: 0,
+      patientWrites: 1,
       historySnapshots: 0,
     });
-    expect(retryDeps.applyPatch).not.toHaveBeenCalled();
+    expect(retryDeps.applyPatch).toHaveBeenCalledTimes(1);
+    expect((retryDeps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]).toMatchObject({
+      captureHistorySnapshot: false,
+    });
 
-    const firstWriteBytes = JSON.stringify(firstPatch).length;
-    const retryWriteBytes = 0;
-    const reduction = 1 - retryWriteBytes / firstWriteBytes;
-    expect(reduction).toBeGreaterThanOrEqual(0.8);
+    const retryPatch = (retryDeps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
+    expect(Object.keys(retryPatch)).toEqual(['beds.H1C2.clinicalSyncCheckpoint']);
+    expect(JSON.stringify(retryPatch).length).toBeLessThan(JSON.stringify(firstPatch).length);
+
+    storedPatient.clinicalSyncCheckpoint = retryPatch['beds.H1C2.clinicalSyncCheckpoint'];
+    const sameDayDeps = okDeps();
+    const sameDaySummary = await runClinicalFill(storedRecord, '2026-07-10', sameDayDeps);
+    expect(sameDaySummary).toMatchObject({ total: 1, patched: 0, errors: [] });
+    expect(sameDaySummary.incremental).toMatchObject({ patientWrites: 0, historySnapshots: 0 });
+    expect(sameDayDeps.applyPatch).not.toHaveBeenCalled();
+  });
+
+  it('does not certify a full history validation when the history read fails', async () => {
+    const rec = record({ H1C2: { encId: 'E1' } });
+    rec.beds.H1C2.clinicalSyncCheckpoint = {
+      version: 2,
+      fingerprintVersion: 1,
+      sources: {
+        scales: { facts: [], lastFullValidationAt: '2026-07-08T08:00:00.000Z' },
+        staffing: { facts: [], lastFullValidationAt: '2026-07-08T08:00:00.000Z' },
+      },
+    };
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({
+        events: [],
+        error: 'Historial clínico no disponible',
+      }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    await runClinicalFill(rec, '2026-07-10', deps);
+
+    const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const stored = patch['beds.H1C2.clinicalSyncCheckpoint'];
+    expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
+    expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
   });
 });

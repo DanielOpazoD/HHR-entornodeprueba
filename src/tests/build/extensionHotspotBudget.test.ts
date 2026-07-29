@@ -61,7 +61,7 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    expect(metrics.authoredFiles).toHaveLength(84);
+    expect(metrics.authoredFiles).toHaveLength(85);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
@@ -245,7 +245,7 @@ describe('extension hotspot CI wiring', () => {
     });
   });
 
-  it('lints exactly the 84 authored JavaScript files with the real config', async () => {
+  it('lints exactly the 85 authored JavaScript files with the real config', async () => {
     const baseline = JSON.parse(
       fs.readFileSync(
         path.join(process.cwd(), 'scripts/config/extension-hotspots-baseline.json'),

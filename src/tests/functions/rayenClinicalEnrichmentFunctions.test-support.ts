@@ -20,11 +20,17 @@ export const {
   createRayenClinicalEnrichmentFunctions,
 } = require('../../../functions/lib/rayenClinicalEnrichmentFunctions.js');
 const {
+  buildLegacyClinicalEnrichmentDigest,
+  clinicalEnrichmentMatches,
   digestValue,
   parseClinicalEnrichmentPayload,
 } = require('../../../functions/lib/rayenClinicalEnrichmentPolicy.js');
 
-export { parseClinicalEnrichmentPayload };
+export {
+  buildLegacyClinicalEnrichmentDigest,
+  clinicalEnrichmentMatches,
+  parseClinicalEnrichmentPayload,
+};
 
 export const makeClinicalRecord = () => ({
   date: '2026-07-28',
@@ -72,7 +78,11 @@ export const makePayload = () => ({
 
 export const digestPayload = (payload: ReturnType<typeof makePayload>): string => {
   const parsed = parseClinicalEnrichmentPayload(payload);
-  return digestValue({ date: parsed.date, patches: parsed.patches });
+  return digestValue({
+    date: parsed.date,
+    patches: parsed.patches,
+    checkpoints: parsed.checkpoints,
+  });
 };
 
 export const makeContext = () => ({

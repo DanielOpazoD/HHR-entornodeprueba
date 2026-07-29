@@ -15,6 +15,7 @@ const ALLOWED_FIELDS = new Set([
   'vitalSignsHistory',
   'clinicalSyncCheckpoint',
 ]);
+const CHECKPOINT_FIELD = 'clinicalSyncCheckpoint';
 
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
@@ -127,6 +128,25 @@ const parseTarget = (target, index) => {
   };
 };
 
+const targetKey = target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`;
+
+const parseCheckpointTarget = (target, index) => {
+  if (!isPlainObject(target) || !Object.prototype.hasOwnProperty.call(target, 'checkpoint')) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `Clinical checkpoint target ${index} must include a checkpoint.`
+    );
+  }
+  const parsed = parseTarget(
+    {
+      ...target,
+      fields: { [CHECKPOINT_FIELD]: target.checkpoint },
+    },
+    index
+  );
+  return parsed;
+};
+
 const parseClinicalEnrichmentPayload = data => {
   const date = assertString(data?.date, 'date', 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -149,26 +169,92 @@ const parseClinicalEnrichmentPayload = data => {
       'expectedLastUpdated must be a valid date-time value.'
     );
   }
-  const patches = Array.isArray(data?.patches) ? data.patches.map(parseTarget) : [];
-  if (patches.length === 0 || patches.length > MAX_BATCH_TARGETS) {
+  const rawPatches = Array.isArray(data?.patches) ? data.patches.map(parseTarget) : [];
+  const rawCheckpoints = Array.isArray(data?.checkpoints)
+    ? data.checkpoints.map(parseCheckpointTarget)
+    : [];
+  if (
+    rawPatches.length + rawCheckpoints.length === 0 ||
+    rawPatches.length > MAX_BATCH_TARGETS ||
+    rawCheckpoints.length > MAX_BATCH_TARGETS
+  ) {
     throw new functions.https.HttpsError(
       'invalid-argument',
-      `Clinical enrichment requires between 1 and ${MAX_BATCH_TARGETS} targets.`
+      `Clinical enrichment requires between 1 and ${MAX_BATCH_TARGETS} targets per section.`
     );
   }
 
-  const uniqueTargets = new Set();
-  patches.forEach(target => {
-    const key = `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`;
-    if (uniqueTargets.has(key)) {
+  const clinicalPatches = [];
+  const checkpointsByTarget = new Map();
+  rawPatches.forEach(target => {
+    const clinicalFields = Object.fromEntries(
+      Object.entries(target.fields).filter(([field]) => field !== CHECKPOINT_FIELD)
+    );
+    if (Object.keys(clinicalFields).length > 0) {
+      clinicalPatches.push({ ...target, fields: clinicalFields });
+    }
+    if (Object.prototype.hasOwnProperty.call(target.fields, CHECKPOINT_FIELD)) {
+      const key = targetKey(target);
+      if (checkpointsByTarget.has(key)) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'Clinical enrichment contains a duplicate checkpoint target.'
+        );
+      }
+      checkpointsByTarget.set(key, {
+        ...target,
+        fields: { [CHECKPOINT_FIELD]: target.fields[CHECKPOINT_FIELD] },
+      });
+    }
+  });
+  rawCheckpoints.forEach(target => {
+    const key = targetKey(target);
+    if (checkpointsByTarget.has(key)) {
       throw new functions.https.HttpsError(
         'invalid-argument',
-        'Clinical enrichment contains a duplicate target.'
+        'Clinical enrichment contains a duplicate checkpoint target.'
       );
     }
-    uniqueTargets.add(key);
+    checkpointsByTarget.set(key, target);
   });
-  if (Buffer.byteLength(JSON.stringify(patches), 'utf8') > MAX_BATCH_BYTES) {
+  const clinicalKeys = new Set();
+  clinicalPatches.forEach(target => {
+    const key = targetKey(target);
+    if (clinicalKeys.has(key)) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Clinical enrichment contains a duplicate clinical target.'
+      );
+    }
+    clinicalKeys.add(key);
+  });
+  const targetsByKey = new Map();
+  [...clinicalPatches, ...checkpointsByTarget.values()].forEach(target => {
+    const key = targetKey(target);
+    const previous = targetsByKey.get(key);
+    if (previous && previous.clinicalEpisodeId !== target.clinicalEpisodeId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Clinical enrichment target sections must reference the same clinical episode.'
+      );
+    }
+    targetsByKey.set(key, {
+      ...target,
+      fields: { ...(previous?.fields || {}), ...target.fields },
+    });
+  });
+  if (targetsByKey.size > MAX_BATCH_TARGETS) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `Clinical enrichment exceeds ${MAX_BATCH_TARGETS} unique targets.`
+    );
+  }
+  if (
+    Buffer.byteLength(
+      JSON.stringify({ patches: clinicalPatches, checkpoints: [...checkpointsByTarget.values()] }),
+      'utf8'
+    ) > MAX_BATCH_BYTES
+  ) {
     throw new functions.https.HttpsError(
       'invalid-argument',
       'Clinical enrichment batch exceeds the allowed payload size.'
@@ -182,7 +268,17 @@ const parseClinicalEnrichmentPayload = data => {
     mutationId,
     mode,
     dryRun,
-    patches: patches.sort(
+    patches: clinicalPatches.sort(
+      (left, right) =>
+        compareCodeUnits(left.bedId, right.bedId) ||
+        Number(left.clinicalCrib) - Number(right.clinicalCrib)
+    ),
+    checkpoints: [...checkpointsByTarget.values()].sort(
+      (left, right) =>
+        compareCodeUnits(left.bedId, right.bedId) ||
+        Number(left.clinicalCrib) - Number(right.clinicalCrib)
+    ),
+    targets: [...targetsByKey.values()].sort(
       (left, right) =>
         compareCodeUnits(left.bedId, right.bedId) ||
         Number(left.clinicalCrib) - Number(right.clinicalCrib)
@@ -253,16 +349,25 @@ const applyClinicalEnrichment = (record, patches) => {
   return next;
 };
 
+const clinicalEnrichmentMatches = (record, targets) =>
+  targets.every(target => {
+    const patient = assertTargetMatchesEpisode(record, target);
+    return Object.entries(target.fields).every(
+      ([field, value]) => canonicalize(patient[field]) === canonicalize(value)
+    );
+  });
+
 const resolveReceipts = record =>
   Array.isArray(record?.meta?.clinicalEnrichmentReceipts)
     ? record.meta.clinicalEnrichmentReceipts.filter(isPlainObject)
     : [];
 
-const classifyIdempotency = (record, payload, batchDigest) => {
+const classifyIdempotency = (record, payload, batchDigest, compatibleDigests = []) => {
+  const acceptedDigests = new Set([batchDigest, ...compatibleDigests]);
   const receipts = resolveReceipts(record);
   const sameMutation = receipts.find(receipt => receipt.mutationId === payload.mutationId);
   if (sameMutation) {
-    if (sameMutation.runId === payload.runId && sameMutation.digest === batchDigest) {
+    if (sameMutation.runId === payload.runId && acceptedDigests.has(sameMutation.digest)) {
       return 'idempotent';
     }
     throw new functions.https.HttpsError(
@@ -272,11 +377,39 @@ const classifyIdempotency = (record, payload, batchDigest) => {
   }
   const sameRun = receipts.find(receipt => receipt.runId === payload.runId);
   if (!sameRun) return 'new';
-  if (sameRun.digest === batchDigest) return 'idempotent';
+  if (acceptedDigests.has(sameRun.digest)) return 'idempotent';
   throw new functions.https.HttpsError(
     'failed-precondition',
     'runId was already used with a different clinical enrichment payload.'
   );
+};
+
+const buildLegacyClinicalEnrichmentDigest = payload => {
+  const checkpointsByTarget = new Map(
+    payload.checkpoints.map(target => [targetKey(target), target])
+  );
+  const clinicalKeys = new Set(payload.patches.map(targetKey));
+  const patches = payload.patches.map(target => {
+    const checkpoint = checkpointsByTarget.get(targetKey(target));
+    return checkpoint
+      ? {
+          ...target,
+          fields: {
+            ...target.fields,
+            [CHECKPOINT_FIELD]: checkpoint.fields[CHECKPOINT_FIELD],
+          },
+        }
+      : target;
+  });
+  payload.checkpoints.forEach(target => {
+    if (!clinicalKeys.has(targetKey(target))) patches.push(target);
+  });
+  patches.sort(
+    (left, right) =>
+      compareCodeUnits(left.bedId, right.bedId) ||
+      Number(left.clinicalCrib) - Number(right.clinicalCrib)
+  );
+  return digestValue({ date: payload.date, patches });
 };
 
 const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, now }) => {
@@ -287,7 +420,7 @@ const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, now }) => {
     ...(isPlainObject(record?.meta) ? clonePlainValue(record.meta) : {}),
     revision: resolveRecordRevision(record) + 1,
     lastMutationId: payload.mutationId,
-    lastChangedPaths: payload.patches.flatMap(target =>
+    lastChangedPaths: payload.targets.flatMap(target =>
       Object.keys(target.fields).map(
         field => `beds.${target.bedId}${target.clinicalCrib ? '.clinicalCrib' : ''}.${field}`
       )
@@ -311,10 +444,12 @@ module.exports = {
   ALLOWED_FIELDS,
   MAX_BATCH_TARGETS,
   applyClinicalEnrichment,
+  clinicalEnrichmentMatches,
   assertPersistedDocumentSize,
   assertRecordRevision,
   buildClinicalEnrichmentMeta,
   buildHistorySnapshotId,
+  buildLegacyClinicalEnrichmentDigest,
   classifyIdempotency,
   digestValue,
   parseClinicalEnrichmentPayload,

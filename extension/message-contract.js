@@ -80,7 +80,7 @@
       physician: 'string?',
       marks: 'array?',
     },
-    [types.HISTORY_SCALES_REQUEST]: { encId: 'id' },
+    [types.HISTORY_SCALES_REQUEST]: { encId: 'id', censusDate: 'string?', lookbackDays: 'number?' },
     [types.CLINICAL_PANEL_REQUEST]: { encId: 'id' },
     [types.LAB_SEARCH_REQUEST]: { rutBody: 'rut-body' },
     [types.SYSLAB_LOGIN_REQUEST]: { username: 'string', password: 'string' },

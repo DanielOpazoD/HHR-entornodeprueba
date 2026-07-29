@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-day-runtime.js';
 import '../../../extension/fichamedico-history-read-model.js';
+import '../../../extension/fichamedico-device-evidence-runtime.js';
 import '../../../extension/fichamedico-clinical-client.js';
 
 type SessionInfo = {

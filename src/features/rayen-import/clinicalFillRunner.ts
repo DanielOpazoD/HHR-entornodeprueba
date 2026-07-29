@@ -1,28 +1,8 @@
-/**
- * Orchestrates the Rayen clinical fill (invasive devices + evaluation scales + CUDYR) as an
- * INDEPENDENT, testable unit. All IO goes through injected ports, and results are applied as
- * GRANULAR PER-PATIENT PATCHES (`beds.{bedId}.devices`, `beds.{bedId}.evaluationScores`, …) instead
- * of full-record saves. The established mode applies each patch as it arrives; the optional batch
- * port accumulates the same allowlisted patches for one backend transaction.
- *
- * Independence guarantees:
- * - Each SOURCE (devices / scales / CUDYR) is best-effort per patient; one failing never blocks
- *   the others. Failures are collected into the summary, not thrown.
- * - Each PATIENT read is independent. Per-patient persistence remains isolated in the established
- *   mode; transactional mode deliberately accepts or rejects the complete bounded batch.
- * - The CUDYR bulk read runs in parallel and is awaited per patient with everything else — an
- *   extension without the CUDYR relay only costs its own timeout, not the fill.
- *
- * `fecha` (the census day, Rapa Nui local) drives every source, so a late sync of a PAST census
- * fills that day's data.
- */
-
 import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { mergeReportDevices } from './domain/mergeReportDevices';
 import { mergeReportScales } from './domain/mergeReportScales';
 import { parseInvasiveDevices } from './mapping/parseInvasiveDevices';
-import { mapInvasiveDevices } from './mapping/mapDeviceToInstance';
+import { mapInvasiveDevices, mapRayenInvasiveDeviceEntries } from './mapping/mapDeviceToInstance';
 import { parseHistoryScales } from './mapping/parseHistoryScales';
 import { parseEvaluationScales } from './mapping/parseEvaluationScales';
 import { mergeScaleSources } from './mapping/mergeScaleSources';
@@ -44,6 +24,8 @@ import type {
 import type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 import { createClinicalFillPerformance } from './domain/clinicalFillPerformance';
 import { persistClinicalBatch } from './domain/clinicalBatchPersistence';
+import { resolveClinicalHistoryReadPolicy } from './domain/clinicalHistoryReadPolicy';
+import { buildClinicalPatientPatch } from './domain/clinicalPatientPatch';
 
 export type {
   ClinicalFillDeps,
@@ -96,15 +78,11 @@ export const runClinicalFill = async (
     return summary;
   }
   const nursingObservations: NursingActivityObservation[] = [];
-  // Each source gets independent backpressure. A slow device PDF must not consume the slots used
-  // by history/forms, while every Eloisa endpoint still stays below the same conservative limit.
   const withDeviceReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   const withHistoryReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   const withFormsReadSlot = createConcurrencyGate(READ_CONCURRENCY);
 
-  // Patient reports are fetched concurrently, but all record writes are serialized. Parallel
-  // writes share one census version and can otherwise conflict with another write from this same
-  // synchronization, producing a false "modified by another user" result.
+  // Reads are concurrent; writes are serialized to preserve the census revision contract.
   const writes = createClinicalWriteCoordinator(summary.incremental!, performance.writeObserver);
   const pendingBatch: ClinicalFillPatchOperation[] = [];
 
@@ -147,22 +125,40 @@ export const runClinicalFill = async (
         merged = { ...merged, clinicalSyncCheckpoint };
       }
     );
+    const historyReadPolicy = resolveClinicalHistoryReadPolicy(
+      patient.clinicalSyncCheckpoint,
+      fecha,
+      deps.now()
+    );
 
-    // Start every independent patient source together. Source-specific gates avoid head-of-line
-    // blocking: four slow PDFs no longer prevent another patient's history/forms from starting.
     const [deviceResult, historyResult, formsResult] = await Promise.allSettled([
       withDeviceReadSlot(async () => {
-        const { base64, error } = await performance.trackRequest(() =>
+        const { entries, base64, error, source } = await performance.trackRequest(() =>
           deps.fetchDeviceReport(encId, fecha)
         );
         if (error) {
           performance.recordTimeout(error);
           throw new Error(error);
         }
-        return base64 ? deps.extractDeviceItems(base64) : [];
+        if (Array.isArray(entries)) {
+          return {
+            entries,
+            source,
+            textItems: [] as Awaited<ReturnType<typeof deps.extractDeviceItems>>,
+          };
+        }
+        return {
+          entries: [],
+          source,
+          textItems: base64 ? await deps.extractDeviceItems(base64) : [],
+        };
       }),
       withHistoryReadSlot(() =>
-        performance.trackRequest(() => deps.fetchHistoryScales(encId, fecha))
+        performance.trackRequest(() =>
+          deps.fetchHistoryScales(encId, fecha, {
+            lookbackDays: historyReadPolicy.lookbackDays,
+          })
+        )
       ),
       withFormsReadSlot(() => performance.trackRequest(() => deps.fetchScalesForms(encId))),
     ]);
@@ -171,7 +167,12 @@ export const runClinicalFill = async (
       summary.errors.push({ bedId, source: 'devices', message: message(deviceResult.reason) });
     } else {
       try {
-        const devices = mapInvasiveDevices(parseInvasiveDevices(deviceResult.value));
+        const devices =
+          deviceResult.value.source === 'json'
+            ? mapRayenInvasiveDeviceEntries(deviceResult.value.entries)
+            : mapInvasiveDevices(parseInvasiveDevices(deviceResult.value.textItems));
+        // Device synchronization is intentionally additive: without persisted source provenance,
+        // an empty remote list cannot safely remove devices maintained manually by nursing.
         if (devices.length > 0) {
           merged = mergeReportDevices(merged, devices, {
             now: deps.now(),
@@ -183,9 +184,7 @@ export const runClinicalFill = async (
       }
     }
 
-    // Read the scale sources ONCE (shared by scales + vitals): the history report and the
-    // encounter-form-entry summary. `fetchScalesForms` returns INSTRUMENTO (scales) AND VITAL_SIGNS
-    // forms in one call. Promise.allSettled isolates every source failure.
+    // One forms read supplies both scales and vital signs.
     const formsReadError =
       formsResult.status === 'rejected' ? message(formsResult.reason) : formsResult.value.error;
     if (formsResult.status === 'fulfilled') performance.recordTimeout(formsResult.value.error);
@@ -204,7 +203,14 @@ export const runClinicalFill = async (
       summary.errors.push({ bedId, source: 'scales', message: historyReadError });
       summary.errors.push({ bedId, source: 'staffing', message: historyReadError });
     }
-    if (historyResult.status === 'fulfilled' && !historyReadError) {
+    const historyAuthoritative = historyResult.status === 'fulfilled' && !historyReadError;
+    const formsAuthoritative = formsResult.status === 'fulfilled' && !formsReadError;
+    const historyFullValidationAt = historyAuthoritative
+      ? historyReadPolicy.fullValidationAt
+      : undefined;
+    const scalesFullValidationAt =
+      historyAuthoritative && formsAuthoritative ? historyReadPolicy.fullValidationAt : undefined;
+    if (historyAuthoritative) {
       for (const activity of historyResult.value.nursingActivity ?? []) {
         nursingObservations.push({ ...activity, encounterId: encId });
       }
@@ -213,7 +219,8 @@ export const runClinicalFill = async (
         (historyResult.value.nursingActivity ?? []).map(activity => ({
           watermark: activity.recordedAt,
           value: activity,
-        }))
+        })),
+        { fullValidationAt: historyFullValidationAt }
       );
     }
 
@@ -228,14 +235,15 @@ export const runClinicalFill = async (
       if (scales.length > 0) {
         merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
       }
-      if (!historyReadError && !formsReadError) {
+      if (historyAuthoritative && formsAuthoritative) {
         recordIncrementalFacts(
           'scales',
           scales.map(scale => ({
             sourceId: `${scale.code}:${scale.encounterEventId}:${scale.sourceOrder ?? 0}`,
             watermark: scale.encounterEventId,
             value: scale,
-          }))
+          })),
+          { fullValidationAt: scalesFullValidationAt }
         );
       }
     } catch (error) {
@@ -243,8 +251,6 @@ export const runClinicalFill = async (
     }
 
     try {
-      // Latest vitals come from the same encounter-form-entry forms (VITAL_SIGNS). Independent of
-      // scales: a failure here never blocks them.
       if (formsResult.status === 'fulfilled' && !formsReadError) {
         const vitals = parseVitalSigns(forms);
         merged = mergeReportVitals(merged, vitals, fecha);
@@ -315,28 +321,19 @@ export const runClinicalFill = async (
       return;
     }
 
-    // Granular patch: only the clinical-fill fields, so a concurrent census edit/confirm on other
-    // fields is never clobbered and the full-record freshness guard is never involved.
-    const patch: DailyRecordPatch = {};
-    const patchPrefix = `beds.${bedId}${clinicalCrib ? '.clinicalCrib' : ''}`;
-    if (merged.devices !== patient.devices) patch[`${patchPrefix}.devices`] = merged.devices;
-    if (merged.deviceDetails !== patient.deviceDetails)
-      patch[`${patchPrefix}.deviceDetails`] = merged.deviceDetails;
-    if (merged.deviceInstanceHistory !== patient.deviceInstanceHistory)
-      patch[`${patchPrefix}.deviceInstanceHistory`] = merged.deviceInstanceHistory;
-    if (merged.evaluationScores !== patient.evaluationScores)
-      patch[`${patchPrefix}.evaluationScores`] = merged.evaluationScores;
-    if (merged.vitalSigns !== patient.vitalSigns)
-      patch[`${patchPrefix}.vitalSigns`] = merged.vitalSigns;
-    if (merged.vitalSignsHistory !== patient.vitalSignsHistory)
-      patch[`${patchPrefix}.vitalSignsHistory`] = merged.vitalSignsHistory;
-    if (merged.clinicalSyncCheckpoint !== patient.clinicalSyncCheckpoint)
-      patch[`${patchPrefix}.clinicalSyncCheckpoint`] = merged.clinicalSyncCheckpoint;
+    const { patch, checkpointChanged, clinicalFieldCount } = buildClinicalPatientPatch(
+      patient,
+      merged,
+      bedId,
+      clinicalCrib
+    );
     if (Object.keys(patch).length === 0) return;
 
     if (deps.applyBatch || deps.observeBatch) {
       pendingBatch.push({
         patch,
+        clinicalFieldCount,
+        checkpointChanged,
         target: {
           censusDate: fecha,
           bedId,
@@ -344,28 +341,31 @@ export const runClinicalFill = async (
           ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
         },
       });
-      if (deps.applyBatch) return;
+      if (deps.applyBatch) {
+        if (historicalCudyrPatched && clinicalFieldCount === 0) summary.patched += 1;
+        return;
+      }
     }
 
     try {
-      await writes.applyPatientPatch(async captureHistorySnapshot => {
-        await deps.applyPatch(patch, {
-          censusDate: fecha,
-          bedId,
-          clinicalEpisodeId: encId,
-          captureHistorySnapshot,
-          ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
-        });
-      });
-      summary.patched += 1;
+      await writes.applyPatientPatch(
+        async captureHistorySnapshot => {
+          await deps.applyPatch(patch, {
+            censusDate: fecha,
+            bedId,
+            clinicalEpisodeId: encId,
+            captureHistorySnapshot,
+            ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
+          });
+        },
+        { clinicalChange: clinicalFieldCount > 0 }
+      );
+      if (clinicalFieldCount > 0 || historicalCudyrPatched) summary.patched += 1;
     } catch (error) {
       summary.errors.push({ bedId, source: 'patch', message: message(error) });
     }
   };
 
-  // Schedule every patient once. The read gate above provides backpressure and releases its slot
-  // before parsing/serialized Firestore writes, so a slow write no longer blocks the next patient
-  // from starting its independent Eloisa reads.
   await Promise.all(
     eligible.map(({ bedId, patient, clinicalCrib }) =>
       fillPatient(bedId, patient, clinicalCrib).finally(report)
@@ -381,6 +381,11 @@ export const runClinicalFill = async (
   });
   summary.patched += batchPersistence.patched;
   summary.errors.push(...batchPersistence.errors);
+  if (summary.incremental && batchPersistence.batch) {
+    summary.incremental.batch = batchPersistence.batch;
+    summary.incremental.clinicalTargets = batchPersistence.batch.clinicalTargets;
+    summary.incremental.checkpointOnlyTargets = batchPersistence.batch.checkpointOnlyTargets;
+  }
 
   summary.staffingProposal = inferNursingShifts(
     nursingObservations,

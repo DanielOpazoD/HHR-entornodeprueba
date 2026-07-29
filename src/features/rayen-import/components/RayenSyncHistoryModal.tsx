@@ -180,6 +180,21 @@ const HistoryMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
           {event.coverage.incremental.patientWrites} escrituras
         </span>
       )}
+      {event.coverage?.incremental?.batch && (
+        <span
+          className="font-medium tabular-nums text-slate-500"
+          title="Comparación agregada del lote transaccional; no contiene datos clínicos"
+        >
+          Lote {event.coverage.incremental.batch.mode}:{' '}
+          {event.coverage.incremental.batch.parity === 'matched'
+            ? 'paridad confirmada'
+            : event.coverage.incremental.batch.parity === 'mismatch'
+              ? 'paridad no confirmada'
+              : 'sin evidencia'}{' '}
+          · {event.coverage.incremental.batch.clinicalTargets} clínicos ·{' '}
+          {event.coverage.incremental.batch.checkpointOnlyTargets} sólo checkpoint
+        </span>
+      )}
     </div>
   );
 };

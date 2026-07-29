@@ -148,14 +148,14 @@
           post({
             type: 'HHR_RAYEN_DEVICE_REPORT_RESULT',
             reqId,
+            entries: response && Array.isArray(response.entries) ? response.entries : undefined,
             base64: (response && response.base64) || '',
+            source: response && response.source,
             error: response && response.error,
           });
         })
         .catch(error => {
-          // Degrade gracefully: no PDF → no devices synced for this patient.
-          console.warn('[Rayen→HHR] Device report error:', error);
-          post({ type: 'HHR_RAYEN_DEVICE_REPORT_RESULT', reqId, base64: '', error: String(error) });
+          console.warn('[Rayen→HHR] Device report error:', error); post({ type: 'HHR_RAYEN_DEVICE_REPORT_RESULT', reqId, base64: '', error: String(error) });
         });
       return;
     }
@@ -182,7 +182,7 @@
     if (data.type === 'HHR_RAYEN_HISTORY_SCALES_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: runtimeMessages.HISTORY_SCALES_REQUEST, encId: data.encId, censusDate: data.censusDate })
+        .sendMessage({ type: runtimeMessages.HISTORY_SCALES_REQUEST, encId: data.encId, censusDate: data.censusDate, lookbackDays: data.lookbackDays })
         .then(response => {
           post({
             type: 'HHR_RAYEN_HISTORY_SCALES_RESULT',

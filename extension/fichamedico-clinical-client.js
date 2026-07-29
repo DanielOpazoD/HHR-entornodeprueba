@@ -164,16 +164,27 @@
       }
     };
 
-    const fetchHistoryScales = async ({ encId, censusDate, info }) => {
+    const { fetchDeviceEvidence } = root.HhrFichaMedicoDeviceEvidenceRuntime.create({
+      resolveSession,
+      readJson,
+      fetchDeviceReportBuffer,
+      clinicalDayAt: root.HhrClinicalDayRuntime.clinicalDayAt,
+    });
+
+    const fetchHistoryScales = async ({ encId, censusDate, lookbackDays, info }) => {
       if (!encId) return { error: 'Falta enc_id para el historial de escalas.' };
       const session = await resolveSession({ info });
       if (session.error) return session;
       try {
+        const requestedLookback = Number(lookbackDays);
+        const boundedLookback = Number.isFinite(requestedLookback)
+          ? Math.min(180, Math.max(1, Math.floor(requestedLookback)))
+          : root.HhrClinicalDayRuntime.historyLookbackDays(censusDate);
         const result = await readJson({
           info: session.info,
           path:
             `/api/encounter/${encodeURIComponent(encId)}/` +
-            `getPatientEncounterHistoryReportServer/false/0/0/-${root.HhrClinicalDayRuntime.historyLookbackDays(censusDate)}`,
+            `getPatientEncounterHistoryReportServer/false/0/0/-${boundedLookback}`,
         });
         const projection = root.HhrFichaMedicoHistoryReadModel.project(result.data);
         return { ok: true, ...projection };
@@ -515,6 +526,7 @@
       readJson,
       readBuffer,
       fetchDeviceReportBuffer,
+      fetchDeviceEvidence,
       fetchScalesReportWithInfo,
       fetchHistoryScales,
       fetchPrescriptionEvents,

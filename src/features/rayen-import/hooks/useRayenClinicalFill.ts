@@ -114,9 +114,9 @@ export const useRayenClinicalFill = ({
                 : {}),
               ...(batchMode === 'shadow' && runId
                 ? {
-                    observeBatch: operations =>
+                    observeBatch: async operations =>
                       observeClinicalEnrichmentBatch({
-                        record: freshRecord,
+                        record: await loadDailyRecord(freshRecord.date),
                         runId,
                         operations,
                       }),

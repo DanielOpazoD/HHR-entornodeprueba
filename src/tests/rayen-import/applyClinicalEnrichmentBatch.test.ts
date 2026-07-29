@@ -45,10 +45,12 @@ const dependencies = () => ({
     date: payload.date,
     mode: payload.mode,
     targetCount: payload.patches.length,
-    fieldCount: payload.patches.reduce(
-      (total, patch) => total + Object.keys(patch.fields).length,
-      0
-    ),
+    fieldCount:
+      payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
+      (payload.checkpoints?.length ?? 0),
+    resultParity: 'matched' as const,
+    patientWrites: 1,
+    historySnapshots: 1,
   })),
   createMutationId: vi.fn(() => 'mutation-fixed'),
 });
@@ -96,10 +98,47 @@ describe('applyClinicalEnrichmentBatch', () => {
           }),
           expect.objectContaining({ bedId: 'H2C2', clinicalEpisodeId: 'episode-2' }),
         ],
+        checkpoints: [
+          expect.objectContaining({
+            bedId: 'H2C1',
+            clinicalEpisodeId: 'episode-1',
+            checkpoint: expect.objectContaining({ version: 1 }),
+          }),
+        ],
       })
     );
+    const payload = deps.invoke.mock.calls[0]?.[0];
+    expect(payload.patches[0]?.fields).not.toHaveProperty('clinicalSyncCheckpoint');
     expect(deps.applyPatch).toHaveBeenCalledTimes(2);
+    expect(deps.applyPatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      deps.invoke.mock.invocationCallOrder[0]
+    );
+    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
     expect(result.patientWrites).toBe(2);
+  });
+
+  it('builds shadow guards from the record refreshed after legacy writes', async () => {
+    const deps = dependencies();
+    deps.refreshRecord.mockResolvedValue({
+      ...record,
+      lastUpdated: '2026-07-28T10:01:00.000Z',
+      meta: { revision: 9 },
+    });
+
+    await applyClinicalEnrichmentBatch({
+      mode: 'shadow',
+      record,
+      runId: 'run-shadow-fresh',
+      operations,
+      ...deps,
+    });
+
+    expect(deps.invoke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedLastUpdated: '2026-07-28T10:01:00.000Z',
+        baseRevision: 9,
+      })
+    );
   });
 
   it('uses one enforced mutation and refreshes local state after success', async () => {
@@ -115,7 +154,12 @@ describe('applyClinicalEnrichmentBatch', () => {
     expect(deps.invoke).toHaveBeenCalledTimes(1);
     expect(deps.applyPatch).not.toHaveBeenCalled();
     expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ patientWrites: 1, historySnapshots: 1, retries: 0 });
+    expect(result).toMatchObject({
+      patientWrites: 1,
+      historySnapshots: 1,
+      retries: 0,
+      batch: { parity: 'matched', clinicalTargets: 2, checkpointOnlyTargets: 0 },
+    });
   });
 
   it('does not count an idempotent replay as a committed write or snapshot', async () => {
@@ -126,10 +170,12 @@ describe('applyClinicalEnrichmentBatch', () => {
       date: payload.date,
       mode: payload.mode,
       targetCount: payload.patches.length,
-      fieldCount: payload.patches.reduce(
-        (total, patch) => total + Object.keys(patch.fields).length,
-        0
-      ),
+      fieldCount:
+        payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
+        (payload.checkpoints?.length ?? 0),
+      resultParity: 'matched' as const,
+      patientWrites: 0,
+      historySnapshots: 0,
     }));
 
     const result = await applyClinicalEnrichmentBatch({
@@ -141,7 +187,7 @@ describe('applyClinicalEnrichmentBatch', () => {
     });
 
     expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ patientWrites: 0, historySnapshots: 0, retries: 0 });
+    expect(result).toMatchObject({ patientWrites: 0, historySnapshots: 0, retries: 0 });
   });
 
   it('rejects a resolved response that does not confirm the requested batch', async () => {
@@ -159,6 +205,58 @@ describe('applyClinicalEnrichmentBatch', () => {
     ).rejects.toThrow('confirmación inválida');
     expect(deps.applyPatch).not.toHaveBeenCalled();
     expect(deps.refreshRecord).not.toHaveBeenCalled();
+  });
+
+  it('records a semantic shadow mismatch without blocking established writes', async () => {
+    const deps = dependencies();
+    deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
+      success: true,
+      authorityStatus: 'ok' as const,
+      date: payload.date,
+      mode: payload.mode,
+      targetCount: 2,
+      fieldCount: 3,
+      resultParity: 'mismatch' as const,
+      patientWrites: 0,
+      historySnapshots: 0,
+    }));
+
+    const result = await applyClinicalEnrichmentBatch({
+      mode: 'shadow',
+      record,
+      runId: 'run-shadow-mismatch',
+      operations,
+      ...deps,
+    });
+
+    expect(deps.applyPatch).toHaveBeenCalledTimes(2);
+    expect(result.batch?.parity).toBe('mismatch');
+  });
+
+  it('blocks enforced mode when the backend result does not match the requested values', async () => {
+    const deps = dependencies();
+    deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
+      success: true,
+      authorityStatus: 'ok' as const,
+      date: payload.date,
+      mode: payload.mode,
+      targetCount: 2,
+      fieldCount: 3,
+      resultParity: 'mismatch' as const,
+      patientWrites: 0,
+      historySnapshots: 0,
+    }));
+
+    await expect(
+      applyClinicalEnrichmentBatch({
+        mode: 'enforced',
+        record,
+        runId: 'run-enforced-mismatch',
+        operations,
+        ...deps,
+      })
+    ).rejects.toThrow('no confirmó paridad');
+    expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 
   it('retries a transient failure with the same mutation identity', async () => {

@@ -69,6 +69,19 @@ const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   ...over,
 });
 
+const expectCheckpointOnlyPatch = (
+  applyPatch: NonNullable<ClinicalFillDeps['applyPatch']>,
+  bedId: string
+): void => {
+  expect(applyPatch).toHaveBeenCalledTimes(1);
+  expect(Object.keys((applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0])).toEqual([
+    `beds.${bedId}.clinicalSyncCheckpoint`,
+  ]);
+  expect((applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][1]).toMatchObject({
+    captureHistorySnapshot: false,
+  });
+};
+
 describe('runClinicalFill', () => {
   it('applies one granular patch per patient (scales + CUDYR), never a full-record save', async () => {
     const deps = okDeps();
@@ -124,7 +137,7 @@ describe('runClinicalFill', () => {
         author: 'Constanza Guajardo',
       })
     );
-    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
   });
 
   it('does not fail coverage when a prior-shift CUDYR belongs to an episode absent from that census', async () => {
@@ -156,7 +169,7 @@ describe('runClinicalFill', () => {
     expect(summary).toMatchObject({ total: 1, patched: 0, errors: [] });
     expect(summary.staffingProposal?.day.names).toEqual([]);
     expect(summary.staffingProposal?.night.names).toEqual([]);
-    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expectCheckpointOnlyPatch(deps.applyPatch, 'R1');
   });
 
   it('syncs the latest vitals from the same forms fetch (VITAL_SIGNS)', async () => {
@@ -305,7 +318,7 @@ describe('runClinicalFill', () => {
       day: { names: [] },
       night: { names: [] },
     });
-    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
   });
 
   it('reports a fulfilled forms error and does not treat its scales or vitals as successful', async () => {
@@ -325,7 +338,7 @@ describe('runClinicalFill', () => {
       { bedId: 'H1C2', source: 'vitals', message: 'Ficha clínica no disponible' },
     ]);
     expect(summary.patched).toBe(0);
-    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
   });
 
   it('a failing patient never blocks another (patch error on one bed only)', async () => {
@@ -442,7 +455,7 @@ describe('runClinicalFill', () => {
     const summary = await runClinicalFill(rec, '2026-07-11', deps);
 
     expect(summary.patched).toBe(0);
-    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
   });
 
   it('keeps stored CUDYR when the bridge resolves with a non-authoritative error', async () => {
@@ -465,6 +478,6 @@ describe('runClinicalFill', () => {
       source: 'cudyr',
       message: 'Gestión de Camas no disponible',
     });
-    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
   });
 });

@@ -19,6 +19,8 @@ export interface ClinicalSyncFactCheckpoint {
 export interface ClinicalSyncSourceCheckpoint {
   /** Latest source ordering key observed, when the source exposes one. */
   watermark?: string;
+  /** Last bounded full revalidation; updated at most once per day. */
+  lastFullValidationAt?: string;
   /** Bounded overlap window used to recognize retries and late corrections. */
   facts: ClinicalSyncFactCheckpoint[];
 }

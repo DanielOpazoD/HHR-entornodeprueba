@@ -19,6 +19,18 @@ export interface MappedDevice {
   note: string;
 }
 
+/** Minimal, privacy-bounded projection returned by Ficha Medico's invasive-device JSON endpoint. */
+export interface RayenInvasiveDeviceEntry {
+  name: string;
+  location?: string | null;
+  measuredNumber?: number | string | null;
+  installationDatetime?: string | null;
+  expirationDatetime?: string | null;
+  removedDatetime?: string | null;
+  archived?: boolean;
+  deleted?: boolean;
+}
+
 const norm = (value: string): string =>
   String(value || '')
     .normalize('NFD')
@@ -40,6 +52,13 @@ const baseType = (nombre: string): string => {
 
 /** "29/06/26 10:32" → { date: '2026-06-29', time: '10:32' }. */
 const parseInstall = (raw: string): { date: string; time: string } => {
+  const iso = String(raw || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2}))?/);
+  if (iso) {
+    return {
+      date: `${iso[1]}-${iso[2]}-${iso[3]}`,
+      time: iso[4] != null && iso[5] != null ? `${iso[4]}:${iso[5]}` : '',
+    };
+  }
   const match = String(raw || '').match(
     /(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/
   );
@@ -52,6 +71,22 @@ const parseInstall = (raw: string): { date: string; time: string } => {
     time: h != null && mi != null ? `${pad(h)}:${pad(mi)}` : '',
   };
 };
+
+/** Converts the direct JSON endpoint into the same canonical rows used by the PDF fallback. */
+export const mapRayenInvasiveDeviceEntries = (
+  entries: RayenInvasiveDeviceEntry[]
+): MappedDevice[] =>
+  mapInvasiveDevices(
+    entries
+      .filter(entry => !entry.deleted && !entry.archived && !entry.removedDatetime)
+      .map(entry => ({
+        nombre: String(entry.name || '').trim(),
+        ubicacion: String(entry.location || '').trim(),
+        nro: entry.measuredNumber == null ? '' : String(entry.measuredNumber),
+        fechaInstalacion: String(entry.installationDatetime || ''),
+        fechaExpiracion: String(entry.expirationDatetime || ''),
+      }))
+  );
 
 export const mapInvasiveDevices = (rows: InvasiveDeviceRow[]): MappedDevice[] => {
   let vvpCount = 0;

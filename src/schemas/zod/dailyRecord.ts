@@ -82,6 +82,20 @@ const RayenSyncCoverageSchema = z.object({
       corrections: z.number().int().nonnegative(),
       patientWrites: z.number().int().nonnegative(),
       historySnapshots: z.number().int().nonnegative(),
+      clinicalTargets: nullableOptional(z.number().int().nonnegative()),
+      checkpointOnlyTargets: nullableOptional(z.number().int().nonnegative()),
+      batch: nullableOptional(
+        z.object({
+          mode: z.enum(['shadow', 'enforced']),
+          parity: z.enum(['matched', 'mismatch', 'unavailable']),
+          clinicalTargets: z.number().int().nonnegative(),
+          checkpointOnlyTargets: z.number().int().nonnegative(),
+          checkpointTargets: z.number().int().nonnegative(),
+          requestedFields: z.number().int().nonnegative(),
+          backendTargets: nullableOptional(z.number().int().nonnegative()),
+          backendFields: nullableOptional(z.number().int().nonnegative()),
+        })
+      ),
     })
   ),
   completedAt: z.string(),

@@ -86,6 +86,7 @@ const sameSourceCheckpoint = (
   right: ClinicalSyncSourceCheckpoint
 ): boolean =>
   left?.watermark === right.watermark &&
+  left?.lastFullValidationAt === right.lastFullValidationAt &&
   left?.facts.length === right.facts.length &&
   left.facts.every(
     (fact, index) =>
@@ -96,7 +97,8 @@ const sameSourceCheckpoint = (
 export const mergeClinicalSourceCheckpoint = (
   checkpoint: ClinicalSyncCheckpoint | undefined,
   source: ClinicalSyncSource,
-  facts: ClinicalSourceFact[]
+  facts: ClinicalSourceFact[],
+  options: { fullValidationAt?: string } = {}
 ): {
   checkpoint: ClinicalSyncCheckpoint;
   changed: boolean;
@@ -141,6 +143,9 @@ export const mergeClinicalSourceCheckpoint = (
     .sort((left, right) => compareWatermarks(right, left))[0];
   const sourceCheckpoint: ClinicalSyncSourceCheckpoint = {
     ...(latestWatermark ? { watermark: latestWatermark } : {}),
+    ...(options.fullValidationAt || previous?.lastFullValidationAt
+      ? { lastFullValidationAt: options.fullValidationAt ?? previous?.lastFullValidationAt }
+      : {}),
     facts: retainedFacts,
   };
   const metrics = uniqueFacts.reduce<ClinicalIncrementalMetrics>(
