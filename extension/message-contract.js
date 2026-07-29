@@ -67,7 +67,7 @@
     [types.EGRESO_REPORT_SAVE]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.STATISTICAL_DISCHARGE_REPORT_REQUEST]: { encId: 'id' },
     [types.STATISTICAL_DISCHARGE_EVIDENCE_REQUEST]: { encId: 'id' },
-    [types.DEVICE_REPORT_REQUEST]: { encId: 'id', fecha: 'string?' },
+    [types.DEVICE_REPORT_REQUEST]: { encId: 'id', fecha: 'string?', acceptEntries: 'boolean?' },
     [types.PATIENT_FLOW_REPORT_REQUEST]: { encId: 'id' },
     [types.DEVICE_REPORT_SAVE]: { encId: 'id', fecha: 'string?' },
     [types.SCALES_REPORT_REQUEST]: { encId: 'id' },

@@ -187,10 +187,10 @@
             `getPatientEncounterHistoryReportServer/false/0/0/-${boundedLookback}`,
         });
         const projection = root.HhrFichaMedicoHistoryReadModel.project(result.data);
-        return { ok: true, ...projection };
+        return { ok: true, ...projection, effectiveLookbackDays: boundedLookback };
       } catch (error) {
         if (error.kind === 'http' && error.status === 204) {
-          return { ok: true, events: [], nursingActivity: [] };
+          return { ok: true, events: [], nursingActivity: [], effectiveLookbackDays: boundedLookback };
         }
         if (error.kind === 'http') {
           return { error: 'El servidor de Ficha Médico respondió HTTP ' + error.status + '.' };

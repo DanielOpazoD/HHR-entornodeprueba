@@ -291,6 +291,7 @@ export const requestHistoryScales = (
 ): Promise<{
   events: RayenHistoryScaleEvent[];
   nursingActivity: RayenNursingActivity[];
+  effectiveLookbackDays?: number;
   error?: string;
 }> =>
   new Promise(resolve => {
@@ -319,6 +320,9 @@ export const requestHistoryScales = (
         nursingActivity: Array.isArray(data.nursingActivity)
           ? (data.nursingActivity as RayenNursingActivity[])
           : [],
+        effectiveLookbackDays: Number.isFinite(Number(data.effectiveLookbackDays))
+          ? Number(data.effectiveLookbackDays)
+          : undefined,
         error: typeof data.error === 'string' ? data.error : undefined,
       });
     };

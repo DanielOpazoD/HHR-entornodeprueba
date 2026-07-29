@@ -36,7 +36,9 @@ const record = (beds: Record<string, { encId?: string; name?: string }>): DailyR
 const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),
   extractDeviceItems: vi.fn().mockResolvedValue([]),
-  fetchHistoryScales: vi.fn().mockResolvedValue({ events: [BRADEN_HISTORY_EVENT] }),
+  fetchHistoryScales: vi
+    .fn()
+    .mockResolvedValue({ events: [BRADEN_HISTORY_EVENT], effectiveLookbackDays: 14 }),
   fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
   fetchCudyrCategories: vi.fn().mockResolvedValue({
     items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T18:00:00+00:00' }],
@@ -145,5 +147,59 @@ describe('runClinicalFill no-op behavior', () => {
     const stored = patch['beds.H1C2.clinicalSyncCheckpoint'];
     expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
     expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
+  });
+
+  it('does not certify a full validation when an older extension omits the effective window', async () => {
+    const rec = record({ H1C2: { encId: 'E1' } });
+    rec.beds.H1C2.clinicalSyncCheckpoint = {
+      version: 2,
+      fingerprintVersion: 1,
+      sources: {
+        scales: { facts: [], lastFullValidationAt: '2026-07-08T08:00:00.000Z' },
+        staffing: { facts: [], lastFullValidationAt: '2026-07-08T08:00:00.000Z' },
+      },
+    };
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [], nursingActivity: [] }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    await runClinicalFill(rec, '2026-07-10', deps);
+
+    const stored = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0][
+      'beds.H1C2.clinicalSyncCheckpoint'
+    ];
+    expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
+    expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
+  });
+
+  it('certifies a full validation only when the extension confirms the requested window', async () => {
+    const rec = record({ H1C2: { encId: 'E1' } });
+    rec.beds.H1C2.clinicalSyncCheckpoint = {
+      version: 2,
+      fingerprintVersion: 1,
+      sources: {
+        scales: { facts: [], lastFullValidationAt: '2026-07-08T08:00:00.000Z' },
+        staffing: { facts: [], lastFullValidationAt: '2026-07-08T08:00:00.000Z' },
+      },
+    };
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({
+        events: [],
+        nursingActivity: [],
+        effectiveLookbackDays: 14,
+      }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    await runClinicalFill(rec, '2026-07-10', deps);
+
+    const stored = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0][
+      'beds.H1C2.clinicalSyncCheckpoint'
+    ];
+    expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-10T12:00:00.000Z');
+    expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-10T12:00:00.000Z');
   });
 });

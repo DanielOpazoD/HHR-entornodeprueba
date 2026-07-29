@@ -9,6 +9,16 @@ export interface ClinicalHistoryReadPolicy {
   fullValidationAt?: string;
 }
 
+export const confirmFullWindow = (
+  policy: ClinicalHistoryReadPolicy,
+  effectiveLookbackDays: unknown
+): string | undefined =>
+  policy.fullValidationAt &&
+  policy.lookbackDays !== undefined &&
+  Number(effectiveLookbackDays) >= policy.lookbackDays
+    ? policy.fullValidationAt
+    : undefined;
+
 /**
  * Rayen's history route only accepts a day-window, not an event watermark. Keep the short adaptive
  * window for normal runs and perform one bounded full validation per day to catch late corrections.

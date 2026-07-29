@@ -27,6 +27,7 @@ export interface ClinicalFillDeps {
   ) => Promise<{
     events: RayenHistoryScaleEvent[];
     nursingActivity?: RayenNursingActivity[];
+    effectiveLookbackDays?: number;
     error?: string;
   }>;
   fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;

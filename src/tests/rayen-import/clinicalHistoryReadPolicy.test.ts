@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
   CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
+  confirmFullWindow,
   resolveClinicalHistoryReadPolicy,
 } from '@/features/rayen-import/domain/clinicalHistoryReadPolicy';
 import type { ClinicalSyncCheckpoint } from '@/types/domain/clinicalSync';
@@ -85,5 +86,13 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     expect(resolveClinicalHistoryReadPolicy(checkpoint(), '2025-12-01', now)).toEqual({
       lookbackDays: CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
     });
+  });
+
+  it('confirms a baseline only when the extension covered the requested window', () => {
+    const policy = { lookbackDays: 14, fullValidationAt: now.toISOString() };
+
+    expect(confirmFullWindow(policy, 14)).toBe(now.toISOString());
+    expect(confirmFullWindow(policy, 13)).toBeUndefined();
+    expect(confirmFullWindow(policy, undefined)).toBeUndefined();
   });
 });

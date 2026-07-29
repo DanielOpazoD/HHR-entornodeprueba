@@ -51,7 +51,12 @@ describe('Ficha Médico device evidence runtime', () => {
     });
 
     await expect(
-      create().fetchDeviceEvidence({ encId: '141336', fecha: '2026-07-28', info })
+      create().fetchDeviceEvidence({
+        encId: '141336',
+        fecha: '2026-07-28',
+        info,
+        acceptEntries: true,
+      })
     ).resolves.toEqual({
       source: 'json',
       entries: [
@@ -75,11 +80,24 @@ describe('Ficha Médico device evidence runtime', () => {
     expect(fetchDeviceReportBuffer).not.toHaveBeenCalled();
   });
 
+  it('keeps the PDF response for page clients that did not negotiate JSON entries', async () => {
+    await expect(
+      create().fetchDeviceEvidence({ encId: '141336', fecha: '2026-07-28', info })
+    ).resolves.toEqual({ buffer, source: 'pdf' });
+    expect(readJson).not.toHaveBeenCalled();
+    expect(fetchDeviceReportBuffer).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to the daily PDF when the direct endpoint is unavailable', async () => {
     readJson.mockRejectedValue(new Error('HTTP 404'));
 
     await expect(
-      create().fetchDeviceEvidence({ encId: '141336', fecha: '2026-07-28', info })
+      create().fetchDeviceEvidence({
+        encId: '141336',
+        fecha: '2026-07-28',
+        info,
+        acceptEntries: true,
+      })
     ).resolves.toEqual({ buffer, source: 'pdf' });
     expect(fetchDeviceReportBuffer).toHaveBeenCalledWith({
       encId: '141336',
@@ -92,7 +110,12 @@ describe('Ficha Médico device evidence runtime', () => {
     readJson.mockResolvedValue({ data: { items: [] } });
 
     await expect(
-      create().fetchDeviceEvidence({ encId: '141336', fecha: '2026-07-28', info })
+      create().fetchDeviceEvidence({
+        encId: '141336',
+        fecha: '2026-07-28',
+        info,
+        acceptEntries: true,
+      })
     ).resolves.toEqual({ buffer, source: 'pdf' });
     expect(fetchDeviceReportBuffer).toHaveBeenCalledWith({
       encId: '141336',

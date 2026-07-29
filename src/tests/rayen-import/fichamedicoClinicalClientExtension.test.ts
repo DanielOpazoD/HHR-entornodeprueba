@@ -38,8 +38,14 @@ type ClinicalClient = {
   fetchHistoryScales: (input: {
     encId: string;
     censusDate?: string;
+    lookbackDays?: number;
     info?: SessionInfo;
-  }) => Promise<{ events?: unknown[]; nursingActivity?: unknown[]; error?: string }>;
+  }) => Promise<{
+    events?: unknown[];
+    nursingActivity?: unknown[];
+    effectiveLookbackDays?: number;
+    error?: string;
+  }>;
   fetchScalesReportWithInfo: (
     encId: string,
     info?: SessionInfo
@@ -104,15 +110,17 @@ describe('Ficha Médico read-only clinical client', () => {
     try {
       fetchWithTimeout.mockResolvedValueOnce(response({ json: async () => [] }));
 
-      await client.fetchHistoryScales({
+      const result = await client.fetchHistoryScales({
         encId: '141336',
         censusDate: '2026-07-28',
+        lookbackDays: 14,
         info: session,
       });
 
       expect(fetchWithTimeout.mock.calls[0][0]).toContain(
-        'getPatientEncounterHistoryReportServer/false/0/0/-2'
+        'getPatientEncounterHistoryReportServer/false/0/0/-14'
       );
+      expect(result.effectiveLookbackDays).toBe(14);
     } finally {
       vi.useRealTimers();
     }

@@ -12,11 +12,11 @@
       if (typeof dependency !== 'function') throw new Error(`Falta la dependencia ${name}.`);
     }
 
-    const fetchDeviceEvidence = async ({ encId, fecha, info }) => {
+    const fetchDeviceEvidence = async ({ encId, fecha, info, acceptEntries }) => {
       if (!encId || !fecha) {
         return { error: 'Faltan enc_id o fecha para consultar dispositivos.' };
       }
-      if (clinicalDayAt(new Date()) !== fecha) {
+      if (clinicalDayAt(new Date()) !== fecha || acceptEntries !== true) {
         const historicalReport = await fetchDeviceReportBuffer({ encId, fecha, info });
         return historicalReport.error
           ? historicalReport

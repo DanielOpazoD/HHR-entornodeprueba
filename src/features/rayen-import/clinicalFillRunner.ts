@@ -25,6 +25,7 @@ import type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 import { createClinicalFillPerformance } from './domain/clinicalFillPerformance';
 import { persistClinicalBatch } from './domain/clinicalBatchPersistence';
 import { resolveClinicalHistoryReadPolicy } from './domain/clinicalHistoryReadPolicy';
+import { confirmFullWindow } from './domain/clinicalHistoryReadPolicy';
 import { buildClinicalPatientPatch } from './domain/clinicalPatientPatch';
 
 export type {
@@ -206,10 +207,9 @@ export const runClinicalFill = async (
     const historyAuthoritative = historyResult.status === 'fulfilled' && !historyReadError;
     const formsAuthoritative = formsResult.status === 'fulfilled' && !formsReadError;
     const historyFullValidationAt = historyAuthoritative
-      ? historyReadPolicy.fullValidationAt
+      ? confirmFullWindow(historyReadPolicy, historyResult.value.effectiveLookbackDays)
       : undefined;
-    const scalesFullValidationAt =
-      historyAuthoritative && formsAuthoritative ? historyReadPolicy.fullValidationAt : undefined;
+    const scalesFullValidationAt = formsAuthoritative ? historyFullValidationAt : undefined;
     if (historyAuthoritative) {
       for (const activity of historyResult.value.nursingActivity ?? []) {
         nursingObservations.push({ ...activity, encounterId: encId });
