@@ -37,6 +37,7 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/fonasaDatabase-*.js');
     expect(viteConfig).toContain('**/assets/clinicalDocumentTemplateEditorController-*.js');
     expect(viteConfig).toContain('**/assets/vendor-heic2any-*.js');
+    expect(viteConfig).toContain('**/assets/applyClinicalEnrichmentBatch-*.js');
   });
 
   it('keeps HEIC and PDF.js runtimes excluded from both PWA config and bundle budget precache accounting', () => {
@@ -47,6 +48,16 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/vendor-heic2any-*.js');
     expect(bundleBudgetConfig.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining(['^assets/vendor-pdfjs-.*\\.js$', '^assets/vendor-heic2any-.*\\.js$'])
+    );
+  });
+
+  it('keeps online-only Rayen enrichment out of the PWA install payload', () => {
+    const viteConfig = readViteConfig();
+    const bundleBudgetConfig = readBundleBudgetConfig();
+
+    expect(viteConfig).toContain('**/assets/applyClinicalEnrichmentBatch-*.js');
+    expect(bundleBudgetConfig.precacheIgnoredAssetPatterns).toContain(
+      '^assets/applyClinicalEnrichmentBatch-.*\\.js$'
     );
   });
 });

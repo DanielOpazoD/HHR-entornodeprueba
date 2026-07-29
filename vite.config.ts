@@ -140,6 +140,9 @@ export default defineConfig(({ mode }) => {
             '**/assets/fonasaDatabase-*.js',
             '**/assets/clinicalDocumentTemplateEditorController-*.js',
             '**/assets/vendor-heic2any-*.js',
+            // Rayen enrichment only runs while Eloisa is connected, so it is
+            // an on-demand online workflow rather than PWA install payload.
+            '**/assets/applyClinicalEnrichmentBatch-*.js',
           ],
         },
         registerType: 'autoUpdate',
