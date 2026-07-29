@@ -63,17 +63,20 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     ).toEqual({});
   });
 
-  it('revalidates when either clinical-history source is stale or missing', () => {
+  it('revalidates when the latest full-window attempt is stale', () => {
     expect(
       resolveClinicalHistoryReadPolicy(
-        checkpoint('2026-07-28T11:59:59.000Z', '2026-07-29T07:00:00.000Z'),
+        checkpoint('2026-07-28T11:59:59.000Z', '2026-07-28T10:00:00.000Z'),
         '2026-07-29',
         now
       )
     ).toMatchObject({ lookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS });
+  });
+
+  it('throttles another full read after one source confirmed the requested window', () => {
     expect(
       resolveClinicalHistoryReadPolicy(checkpoint('2026-07-29T07:00:00.000Z'), '2026-07-29', now)
-    ).toMatchObject({ lookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS });
+    ).toEqual({});
   });
 
   it('extends full validation far enough to include an older census date', () => {

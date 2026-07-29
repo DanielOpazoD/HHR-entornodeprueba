@@ -34,11 +34,12 @@ export const resolveClinicalHistoryReadPolicy = (
     .filter((value): value is string => Boolean(value))
     .map(value => Date.parse(value))
     .filter(Number.isFinite);
-  const oldestValidation = validations.length === 2 ? Math.min(...validations) : 0;
+  const latestFullWindowAttempt = validations.length > 0 ? Math.max(...validations) : 0;
   const nowMs = now.getTime();
   if (
     Number.isFinite(nowMs) &&
-    (oldestValidation === 0 || nowMs - oldestValidation >= CLINICAL_FULL_REVALIDATION_INTERVAL_MS)
+    (latestFullWindowAttempt === 0 ||
+      nowMs - latestFullWindowAttempt >= CLINICAL_FULL_REVALIDATION_INTERVAL_MS)
   ) {
     const censusStart = Date.parse(`${censusDate}T00:00:00Z`);
     const nowStart = Date.parse(`${now.toISOString().slice(0, 10)}T00:00:00Z`);

@@ -88,6 +88,21 @@ describe('Ficha Médico device evidence runtime', () => {
     expect(fetchDeviceReportBuffer).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the PDF when the session role cannot select a role-specific JSON feed', async () => {
+    resolveSession.mockResolvedValue({ info: { ...info, role: 'Paramédico' } });
+
+    await expect(
+      create().fetchDeviceEvidence({
+        encId: '141336',
+        fecha: '2026-07-28',
+        info,
+        acceptEntries: true,
+      })
+    ).resolves.toEqual({ buffer, source: 'pdf' });
+    expect(readJson).not.toHaveBeenCalled();
+    expect(fetchDeviceReportBuffer).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to the daily PDF when the direct endpoint is unavailable', async () => {
     readJson.mockRejectedValue(new Error('HTTP 404'));
 

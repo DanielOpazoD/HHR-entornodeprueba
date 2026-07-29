@@ -18,18 +18,18 @@
       }
       if (clinicalDayAt(new Date()) !== fecha || acceptEntries !== true) {
         const historicalReport = await fetchDeviceReportBuffer({ encId, fecha, info });
-        return historicalReport.error
-          ? historicalReport
-          : { buffer: historicalReport.buffer, source: 'pdf' };
+        return historicalReport.error ? historicalReport : { buffer: historicalReport.buffer, source: 'pdf' };
       }
       const session = await resolveSession({
         info,
         required: ['practitionerId'],
-        invalidMessage:
-          'La sesión de Ficha Médico no contiene los datos necesarios para consultar dispositivos.',
+        invalidMessage: 'La sesión de Ficha Médico no contiene los datos necesarios para consultar dispositivos.',
       });
       if (!session.error) {
-        const eventTypeId = /enfermer/i.test(String(session.info.role || '')) ? '2' : '1';
+        const role = String(session.info.role || '');
+        const eventTypeId = /enfermer/i.test(role) ? '2' : /^m[eé]dic/i.test(role) ? '1' : null;
+        if (!eventTypeId) return fetchDeviceReportBuffer({ encId, fecha, info }).then(
+          fallback => fallback.error ? fallback : { buffer: fallback.buffer, source: 'pdf' });
         try {
           const result = await readJson({
             info: session.info,
