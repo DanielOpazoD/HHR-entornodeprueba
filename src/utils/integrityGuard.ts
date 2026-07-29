@@ -64,6 +64,9 @@ type VacatedOccupant = {
   patient: PatientData;
 };
 
+// The remote-write error is rendered with one decimal place; keep movement-loss blocks visible.
+const MIN_VISIBLE_MOVEMENT_DROP_PERCENTAGE = 0.1;
+
 const normalizedIdentityText = (value?: string): string =>
   String(value ?? '')
     .normalize('NFD')
@@ -296,7 +299,10 @@ export const checkRegression = (
       oldMovementDensity > 0
         ? ((oldMovementDensity - newMovementDensity) / oldMovementDensity) * 100
         : 0;
-    return { isSuspicious: true, dropPercentage: movementDropPercentage };
+    return {
+      isSuspicious: true,
+      dropPercentage: Math.max(movementDropPercentage, MIN_VISIBLE_MOVEMENT_DROP_PERCENTAGE),
+    };
   }
 
   // If remote is basically empty, no risk of regression

@@ -176,6 +176,22 @@ describe('IntegrityGuard', () => {
       expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(true);
     });
 
+    it('reports a visible positive loss when a historical movement is replaced one-for-one', () => {
+      const oldRecord = createDenseRecord('2024-01-01');
+      const newRecord = createDenseRecord('2024-01-01');
+      oldRecord.discharges = [
+        { id: 'movement-old', bedId: 'BED_01', patientName: 'Historical' },
+      ] as unknown as DailyRecord['discharges'];
+      newRecord.discharges = [
+        { id: 'movement-new', bedId: 'BED_01', patientName: 'Historical' },
+      ] as unknown as DailyRecord['discharges'];
+
+      expect(checkRegression(oldRecord, newRecord)).toEqual({
+        isSuspicious: true,
+        dropPercentage: 0.1,
+      });
+    });
+
     it('does not let unrelated new movement snapshots compensate removed patients', () => {
       const oldRecord = createEmptyRecord('2024-01-01');
       const newRecord = createEmptyRecord('2024-01-01');
@@ -284,7 +300,10 @@ describe('IntegrityGuard', () => {
         patientName: `Historical ${index}`,
       })) as unknown as DailyRecord['discharges'];
 
-      expect(checkRegression(oldRecord, newRecord).isSuspicious).toBe(true);
+      expect(checkRegression(oldRecord, newRecord)).toEqual({
+        isSuspicious: true,
+        dropPercentage: 100,
+      });
     });
   });
 });

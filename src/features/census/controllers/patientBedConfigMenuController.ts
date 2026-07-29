@@ -32,7 +32,7 @@ export const resolvePatientBedIndicators = ({
   if (hasClinicalCrib) {
     indicators.push({
       key: 'cc',
-      label: '+CC',
+      label: '+RN',
       title: 'Cuna RN',
       className:
         'text-[8px] bg-slate-100 text-slate-600 font-bold px-1 rounded-sm border border-slate-200',

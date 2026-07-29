@@ -11,7 +11,11 @@ import {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { findPatientErasures } from '@/services/repositories/dailyRecordErasureGuard';
-import { attachAssociatedClinicalCribDischarges } from '@/features/rayen-import/domain/associatedClinicalCribDischarge';
+import {
+  attachAssociatedClinicalCribDischarges,
+  buildClinicalCribPromotionCandidates,
+} from '@/features/rayen-import/domain/associatedClinicalCribDischarge';
+import type { OccupiedClinicalCrib } from '@/features/rayen-import/domain/egresoReportPolicy';
 
 const REFERENCE = new Date(2026, 6, 8);
 
@@ -82,6 +86,43 @@ const apply = (current: DailyRecord, rows: EgresoReportRow[], encounters: RayenE
 };
 
 describe('clinical crib discharge promotion', () => {
+  it('skips malformed occupied cribs without a traceable maternal identity', () => {
+    const child = seed(newborn());
+    const diff = reconcileCensus(
+      {
+        date: '2026-07-08',
+        beds: {},
+        discharges: [],
+        transfers: [],
+        cma: [],
+        lastUpdated: '',
+        activeExtraBeds: [],
+      },
+      snapshotOf([]),
+      { reference: REFERENCE }
+    );
+    const occupiedCribs = new Map<string, OccupiedClinicalCrib>([
+      [
+        'missing-parent',
+        {
+          parentBedId: 'H5C1',
+          parent: undefined as unknown as OccupiedClinicalCrib['parent'],
+          patient: child,
+        },
+      ],
+      [
+        'missing-parent-rut',
+        {
+          parentBedId: 'H6C1',
+          parent: { patientName: 'Madre sin RUT', rut: '' } as OccupiedClinicalCrib['parent'],
+          patient: child,
+        },
+      ],
+    ]);
+
+    expect(buildClinicalCribPromotionCandidates(diff, occupiedCribs)).toEqual(new Map());
+  });
+
   it('records a RUN-less newborn as an associated non-statistical discharge with its mother', () => {
     const mother = encounter();
     const child = newborn();

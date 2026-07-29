@@ -55,11 +55,12 @@ export const buildClinicalCribPromotionCandidates = (
 
   const activeEpisodes = activeClinicalEpisodes(diff);
   for (const crib of occupiedCribs.values()) {
+    if (!crib.parent?.rut) continue;
     const cribEpisode = episodeIdOf(crib.patient.clinicalEpisodeId);
     // A complete snapshot is authoritative: a missing exact episode is stale local state, not a
     // newborn that should be promoted into the mother's newly released bed.
     if (diff.snapshotComplete === true && !activeEpisodes.has(cribEpisode)) continue;
-    const parentRun = normalizeRut(crib.parent?.rut);
+    const parentRun = normalizeRut(crib.parent.rut);
     const parentMove = diff.moves.find(
       entry => entry.fromBedId === crib.parentBedId && normalizeRut(entry.rut) === parentRun
     );

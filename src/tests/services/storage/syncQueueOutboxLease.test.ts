@@ -24,11 +24,16 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
 
+vi.mock('@/shared/runtime/e2eRuntime', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/shared/runtime/e2eRuntime')>()),
+  isE2ERuntimeEnabled: () => true,
+}));
+
 import { getDoc, setDoc } from 'firebase/firestore';
 import { hospitalDB } from '@/services/storage/indexedDBService';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { DAILY_RECORD_STORE_CHANGED_EVENT } from '@/services/storage/indexeddb/indexedDbRecordEvents';
-import { STORAGE_KEY } from '@/services/storage/localstorage/localStorageCore';
+import { localPersistence } from '@/services/storage/localpersistence/localPersistenceService';
 import {
   processSyncQueue,
   queueDailyRecordSyncTaskWithLocalRecord,
@@ -91,16 +96,9 @@ describe('sync queue transactional outbox and leases', () => {
 
   it('keeps IndexedDB persistence successful when the legacy mirror is over quota', async () => {
     const record = makeRecord('2025-01-26', '2025-01-26T10:00:00.000Z');
-    const originalSetItem = Storage.prototype.setItem;
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
-      this: Storage,
-      key: string,
-      value: string
-    ) {
-      if (key === STORAGE_KEY) {
-        throw new DOMException('Legacy mirror quota exceeded', 'QuotaExceededError');
-      }
-      originalSetItem.call(this, key, value);
+    window.__HHR_E2E_OVERRIDE__ = {};
+    const mirrorSaveSpy = vi.spyOn(localPersistence.records, 'save').mockImplementationOnce(() => {
+      throw new DOMException('Legacy mirror quota exceeded', 'QuotaExceededError');
     });
     const storeChanges: Array<{ operation: string; dates?: string[] }> = [];
     const onStoreChange = (event: Event) => {
@@ -123,10 +121,11 @@ describe('sync queue transactional outbox and leases', () => {
       });
       await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(1);
       expect(storeChanges).toContainEqual({ operation: 'save', dates: [record.date] });
-      expect(setItemSpy).not.toHaveBeenCalledWith(STORAGE_KEY, expect.any(String));
+      expect(mirrorSaveSpy).toHaveBeenCalledWith(record);
     } finally {
       window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, onStoreChange);
-      setItemSpy.mockRestore();
+      window.__HHR_E2E_OVERRIDE__ = undefined;
+      mirrorSaveSpy.mockRestore();
     }
   });
 
