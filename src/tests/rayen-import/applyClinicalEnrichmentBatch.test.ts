@@ -98,17 +98,14 @@ describe('applyClinicalEnrichmentBatch', () => {
           }),
           expect.objectContaining({ bedId: 'H2C2', clinicalEpisodeId: 'episode-2' }),
         ],
-        checkpoints: [
-          expect.objectContaining({
-            bedId: 'H2C1',
-            clinicalEpisodeId: 'episode-1',
-            checkpoint: expect.objectContaining({ version: 1 }),
-          }),
-        ],
       })
     );
     const payload = deps.invoke.mock.calls[0]?.[0];
-    expect(payload.patches[0]?.fields).not.toHaveProperty('clinicalSyncCheckpoint');
+    expect(payload.checkpoints).toBeUndefined();
+    expect(payload.patches[0]?.fields).toHaveProperty(
+      'clinicalSyncCheckpoint',
+      expect.objectContaining({ version: 1 })
+    );
     expect(deps.applyPatch).toHaveBeenCalledTimes(2);
     expect(deps.applyPatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
       deps.invoke.mock.invocationCallOrder[0]

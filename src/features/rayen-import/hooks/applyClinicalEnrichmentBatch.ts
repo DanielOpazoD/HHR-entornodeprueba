@@ -76,13 +76,22 @@ const assertCommittedResponse = (
   const requestedFields =
     payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
     (payload.checkpoints?.length ?? 0);
-  const checkpointKeys = new Set(
-    (payload.checkpoints ?? []).map(
+  const checkpointKeys = new Set([
+    ...payload.patches
+      .filter(target =>
+        Object.prototype.hasOwnProperty.call(target.fields, 'clinicalSyncCheckpoint')
+      )
+      .map(target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`),
+    ...(payload.checkpoints ?? []).map(
       target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`
-    )
-  );
+    ),
+  ]);
   const clinicalKeys = new Set(
-    payload.patches.map(target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`)
+    payload.patches
+      .filter(target =>
+        Object.keys(target.fields).some(field => field !== 'clinicalSyncCheckpoint')
+      )
+      .map(target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`)
   );
   const checkpointOnlyTargets = [...checkpointKeys].filter(key => !clinicalKeys.has(key)).length;
   const countsMatch =
@@ -117,7 +126,6 @@ const toCallableTarget = (operation: ClinicalFillPatchOperation): RayenClinicalE
       throw new Error('El lote clínico contiene una ruta fuera del paciente esperado.');
     }
     const field = path.slice(prefix.length);
-    if (field === 'clinicalSyncCheckpoint') return;
     if (!allowedFields.has(field) || field.includes('.')) {
       throw new Error('El lote clínico contiene un campo no autorizado.');
     }
@@ -213,13 +221,13 @@ const preparePayload = ({
   createMutationId: () => string;
 }): RayenClinicalEnrichmentBatchPayload | null => {
   if (operations.length === 0 || operations.length > 32) return null;
-  const clinicalOperations = operations.filter(
-    operation => (operation.clinicalFieldCount ?? 1) > 0
-  );
-  const patches = clinicalOperations.map(toCallableTarget);
-  const checkpoints = operations.map(toCheckpointTarget).filter(item => item !== null);
-  if (patches.length === 0 && checkpoints.length === 0) return null;
-  if (serializedBytes({ patches, checkpoints }) > RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES) {
+  const patches = operations
+    .filter(
+      operation => (operation.clinicalFieldCount ?? 1) > 0 || toCheckpointTarget(operation) !== null
+    )
+    .map(toCallableTarget);
+  if (patches.length === 0) return null;
+  if (serializedBytes({ patches }) > RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES) {
     return null;
   }
   return {
@@ -231,7 +239,6 @@ const preparePayload = ({
     mode: mode === 'shadow' ? 'shadow' : 'enforced',
     dryRun: mode === 'shadow',
     patches,
-    ...(checkpoints.length > 0 ? { checkpoints } : {}),
   };
 };
 
