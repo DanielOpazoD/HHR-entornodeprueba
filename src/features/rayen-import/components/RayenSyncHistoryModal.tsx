@@ -189,7 +189,7 @@ const HistoryMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
           {event.coverage.incremental.batch.parity === 'matched'
             ? 'paridad confirmada'
             : event.coverage.incremental.batch.parity === 'mismatch'
-              ? 'paridad no confirmada'
+              ? 'paridad no coincide'
               : 'sin evidencia'}{' '}
           · {event.coverage.incremental.batch.clinicalTargets} clínicos ·{' '}
           {event.coverage.incremental.batch.checkpointOnlyTargets} sólo checkpoint

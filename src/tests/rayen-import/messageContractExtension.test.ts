@@ -111,6 +111,25 @@ describe('shared Rayen runtime-message contract', () => {
         encId: '142040',
       })
     ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.HISTORY_SCALES_REQUEST,
+        encId: '142040',
+        censusDate: '2026-07-28',
+        lookbackDays: 7,
+      })
+    ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.HISTORY_SCALES_REQUEST,
+        encId: '142040',
+        lookbackDays: '7',
+      })
+    ).toMatchObject({
+      ok: false,
+      known: true,
+      response: { code: 'INVALID_MESSAGE', error: expect.stringContaining('lookbackDays') },
+    });
 
     expect(
       contract.validateRuntimeMessage({

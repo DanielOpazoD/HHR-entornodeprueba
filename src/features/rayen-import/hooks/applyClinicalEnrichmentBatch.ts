@@ -59,6 +59,14 @@ const assertCommittedResponse = (
   response: Awaited<ReturnType<typeof callRayenClinicalEnrichmentBatch>>,
   payload: RayenClinicalEnrichmentBatchPayload
 ): ClinicalFillBatchEvidence => {
+  if (
+    response?.success !== true ||
+    response.date !== payload.date ||
+    response.mode !== payload.mode ||
+    !['ok', 'idempotent'].includes(response.authorityStatus)
+  ) {
+    throw new Error('El backend devolvió una confirmación inválida para el lote clínico.');
+  }
   const requestedTargetKeys = new Set([
     ...payload.patches.map(target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`),
     ...(payload.checkpoints ?? []).map(
@@ -77,20 +85,14 @@ const assertCommittedResponse = (
     payload.patches.map(target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`)
   );
   const checkpointOnlyTargets = [...checkpointKeys].filter(key => !clinicalKeys.has(key)).length;
+  const countsMatch =
+    response.targetCount === requestedTargetKeys.size && response.fieldCount === requestedFields;
   const parity =
-    response.targetCount === requestedTargetKeys.size &&
-    response.fieldCount === requestedFields &&
-    response.resultParity === 'matched'
-      ? 'matched'
-      : 'mismatch';
-  if (
-    response?.success !== true ||
-    response.date !== payload.date ||
-    response.mode !== payload.mode ||
-    !['ok', 'idempotent'].includes(response.authorityStatus)
-  ) {
-    throw new Error('El backend devolvió una confirmación inválida para el lote clínico.');
-  }
+    response.resultParity == null
+      ? 'unavailable'
+      : countsMatch && response.resultParity === 'matched'
+        ? 'matched'
+        : 'mismatch';
   if (payload.mode === 'enforced' && parity !== 'matched') {
     throw new Error('El backend no confirmó paridad para el lote clínico aplicado.');
   }

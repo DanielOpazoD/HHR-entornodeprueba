@@ -144,6 +144,7 @@
   });
   const knownTypes = new Set(Object.values(types));
   const cleanMessage = value => String(value || '').replace(/\s+/g, ' ').trim();
+  const scalarRules = Object.freeze({ string: value => typeof value === 'string', number: value => typeof value === 'number' && Number.isFinite(value), boolean: value => typeof value === 'boolean' });
   const responses = Object.freeze({
     success: data => ({ ...(data && typeof data === 'object' ? data : {}), ok: true }),
     error: (message, code = '', data) => ({
@@ -170,8 +171,7 @@
     if (value == null) return optional;
     if (kind === 'array') return Array.isArray(value);
     if (kind === 'object') return typeof value === 'object' && !Array.isArray(value);
-    if (kind === 'string') return typeof value === 'string';
-    if (kind === 'boolean') return typeof value === 'boolean';
+    if (scalarRules[kind]) return scalarRules[kind](value);
     if (kind === 'rut-body') return typeof value === 'string' && /^\d{5,9}$/.test(value);
     if (kind === 'id') {
       const normalized = cleanMessage(value);
