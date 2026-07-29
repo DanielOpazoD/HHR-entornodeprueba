@@ -342,7 +342,18 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     expect(deps.invoke).toHaveBeenCalledTimes(1);
     expect(deps.applyPatch).toHaveBeenCalledTimes(2);
-    expect(result).toEqual({ patientWrites: 2, historySnapshots: 1, retries: 1 });
+    expect(result).toMatchObject({
+      patientWrites: 2,
+      historySnapshots: 1,
+      retries: 1,
+      batch: {
+        mode: 'enforced',
+        parity: 'unavailable',
+        clinicalTargets: 2,
+        checkpointTargets: 1,
+        requestedFields: 3,
+      },
+    });
   });
 
   it('uses the established path when the serialized batch exceeds the callable budget', async () => {

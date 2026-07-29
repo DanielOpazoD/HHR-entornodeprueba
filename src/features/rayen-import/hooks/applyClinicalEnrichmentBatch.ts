@@ -102,9 +102,7 @@ const assertCommittedResponse = (
       : countsMatch && response.resultParity === 'matched'
         ? 'matched'
         : 'mismatch';
-  // The first deployed callable predates resultParity but already committed atomically and
-  // returned exact target/field counts. Accept that narrow success shape during rolling deploys;
-  // explicit mismatches and incomplete counts remain fail-closed.
+  // Accept only exact pre-parity confirmations during rolling deploys; mismatches fail closed.
   const legacyCommittedResponse = response.resultParity == null && countsMatch;
   if (payload.mode === 'enforced' && parity !== 'matched' && !legacyCommittedResponse) {
     throw new Error('El backend no confirmó paridad para el lote clínico aplicado.');
@@ -158,10 +156,10 @@ const toCheckpointTarget = (operation: ClinicalFillPatchOperation) => {
   };
 };
 
-const unavailableBatchEvidence = (
-  operations: ClinicalFillPatchOperation[]
+const unavailableBatchEvidenceForTargets = (
+  targets: RayenClinicalEnrichmentTarget[],
+  mode: ClinicalFillBatchEvidence['mode'] = 'shadow'
 ): ClinicalFillBatchEvidence => {
-  const targets = operations.map(toCallableTarget);
   const clinicalKeys = new Set<string>();
   const checkpointKeys = new Set<string>();
   let requestedFields = 0;
@@ -173,7 +171,7 @@ const unavailableBatchEvidence = (
     if (fields.some(field => field !== 'clinicalSyncCheckpoint')) clinicalKeys.add(key);
   });
   return {
-    mode: 'shadow',
+    mode,
     parity: 'unavailable',
     clinicalTargets: clinicalKeys.size,
     checkpointTargets: checkpointKeys.size,
@@ -181,6 +179,11 @@ const unavailableBatchEvidence = (
     requestedFields,
   };
 };
+
+const unavailableBatchEvidence = (
+  operations: ClinicalFillPatchOperation[]
+): ClinicalFillBatchEvidence =>
+  unavailableBatchEvidenceForTargets(operations.map(toCallableTarget));
 
 const resolveBaseRevision = (record: DailyRecord): number | undefined => {
   const revision = Number(
@@ -330,7 +333,7 @@ export const applyClinicalEnrichmentBatch = async ({
       shadowRecord = await refreshRecord();
     } catch (error) {
       console.warn('[rayen-import] validación shadow sin censo post-escritura:', errorCode(error));
-      return { ...legacy };
+      return { ...legacy, batch: unavailableBatchEvidence(operations) };
     }
     const shadowPayload = preparePayload({
       mode,
@@ -347,7 +350,7 @@ export const applyClinicalEnrichmentBatch = async ({
           '[rayen-import] validación shadow del lote clínico no disponible:',
           errorCode(error)
         );
-        return unavailableBatchEvidence(operations);
+        return unavailableBatchEvidenceForTargets(shadowPayload.patches);
       });
     return { ...legacy, batch };
   }
@@ -386,6 +389,10 @@ export const applyClinicalEnrichmentBatch = async ({
     if (retries > 0) throw withRetryCount(error, retries);
     if (!isClinicalBatchFallbackError(error)) throw error;
     const result = await applyLegacyOperations(operations, applyPatch);
-    return { ...result, retries: retries + 1 };
+    return {
+      ...result,
+      retries: retries + 1,
+      batch: unavailableBatchEvidenceForTargets(payload.patches, 'enforced'),
+    };
   }
 };

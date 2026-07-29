@@ -50,6 +50,53 @@ const preParityResponse = (
 });
 
 describe('applyClinicalEnrichmentBatch rolling compatibility', () => {
+  it('preserves batch evidence when shadow validation cannot refresh the census', async () => {
+    const deps = dependencies();
+    deps.refreshRecord.mockRejectedValue(new Error('offline'));
+
+    const result = await applyClinicalEnrichmentBatch({
+      mode: 'shadow',
+      record,
+      runId: 'run-shadow-refresh-failure',
+      operations,
+      invoke: vi.fn(),
+      ...deps,
+    });
+
+    expect(result.batch).toMatchObject({
+      mode: 'shadow',
+      parity: 'unavailable',
+      clinicalTargets: 2,
+      checkpointTargets: 1,
+      requestedFields: 3,
+    });
+  });
+
+  it('reports only the targets actually attempted by a failed shadow batch', async () => {
+    const deps = dependencies();
+    const filteredOperations = [
+      operations[0],
+      { ...operations[1], clinicalFieldCount: 0 },
+    ] as ClinicalFillPatchOperation[];
+
+    const result = await applyClinicalEnrichmentBatch({
+      mode: 'shadow',
+      record,
+      runId: 'run-shadow-invoke-failure',
+      operations: filteredOperations,
+      invoke: vi.fn().mockRejectedValue({ code: 'functions/not-found' }),
+      ...deps,
+    });
+
+    expect(result.batch).toMatchObject({
+      mode: 'shadow',
+      parity: 'unavailable',
+      clinicalTargets: 1,
+      checkpointTargets: 1,
+      requestedFields: 2,
+    });
+  });
+
   it('preserves requested counts when a shadow batch exceeds the target limit', async () => {
     const deps = dependencies();
     const oversizedOperations = Array.from(

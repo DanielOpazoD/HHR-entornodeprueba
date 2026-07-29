@@ -127,7 +127,8 @@ describe('Ficha Médico read-only clinical client', () => {
   });
 
   it('preserves the effective window when history returns an empty 204 response', async () => {
-    fetchWithTimeout.mockResolvedValueOnce(response({ status: 204, json: async () => [] }));
+    const parseBody = vi.fn().mockRejectedValue(new Error('204 responses have no body'));
+    fetchWithTimeout.mockResolvedValueOnce(response({ status: 204, json: parseBody }));
 
     const result = await client.fetchHistoryScales({
       encId: '141336',
@@ -142,6 +143,7 @@ describe('Ficha Médico read-only clinical client', () => {
       nursingActivity: [],
       effectiveLookbackDays: 14,
     });
+    expect(parseBody).not.toHaveBeenCalled();
   });
 
   it('fails closed when required dependencies or timeout are invalid', () => {

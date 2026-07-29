@@ -186,6 +186,7 @@
             `/api/encounter/${encodeURIComponent(encId)}/` +
             `getPatientEncounterHistoryReportServer/false/0/0/-${boundedLookback}`,
         });
+        if (result.status === 204) return { ok: true, events: [], nursingActivity: [], effectiveLookbackDays: boundedLookback };
         const projection = root.HhrFichaMedicoHistoryReadModel.project(result.data);
         return { ok: true, ...projection, effectiveLookbackDays: boundedLookback };
       } catch (error) {
