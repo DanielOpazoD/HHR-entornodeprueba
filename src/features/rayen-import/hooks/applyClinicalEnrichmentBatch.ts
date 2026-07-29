@@ -255,6 +255,13 @@ const preparePayload = ({
     )
     .map(toCallableTarget);
   if (patches.length === 0) return null;
+  if (
+    !patches.some(target =>
+      Object.keys(target.fields).some(field => field !== 'clinicalSyncCheckpoint')
+    )
+  ) {
+    return null;
+  }
   if (serializedBytes({ patches }) > RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES) {
     return null;
   }

@@ -218,7 +218,7 @@ export const requestDeviceReport = (
 
     window.addEventListener('message', onMessage);
     window.postMessage(
-      { type: RAYEN_DEVICE_REPORT_REQUEST_TYPE, reqId, encId, fecha },
+      { type: RAYEN_DEVICE_REPORT_REQUEST_TYPE, reqId, encId, fecha, acceptEntries: true },
       window.location.origin
     );
     setTimeout(() => {

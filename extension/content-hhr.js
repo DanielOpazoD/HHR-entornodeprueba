@@ -143,7 +143,7 @@
     if (data.type === 'HHR_RAYEN_DEVICE_REPORT_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: runtimeMessages.DEVICE_REPORT_REQUEST, encId: data.encId, fecha: data.fecha, acceptEntries: true })
+        .sendMessage({ type: runtimeMessages.DEVICE_REPORT_REQUEST, encId: data.encId, fecha: data.fecha, acceptEntries: data.acceptEntries === true })
         .then(response => {
           post({
             type: 'HHR_RAYEN_DEVICE_REPORT_RESULT',

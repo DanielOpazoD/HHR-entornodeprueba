@@ -15,7 +15,7 @@ const record = {
 } as unknown as DailyRecord;
 
 describe('clinical enrichment rolling compatibility', () => {
-  it('keeps checkpoint-only targets in the legacy-compatible patches shape', async () => {
+  it('keeps checkpoint-only writes on the established path during rolling deploys', async () => {
     const operation: ClinicalFillPatchOperation = {
       target: {
         censusDate: record.date,
@@ -40,32 +40,24 @@ describe('clinical enrichment rolling compatibility', () => {
       historySnapshots: 0,
     }));
 
+    const applyPatch = vi.fn().mockResolvedValue(undefined);
     const result = await applyClinicalEnrichmentBatch({
-      mode: 'shadow',
+      mode: 'enforced',
       record,
       runId: 'run-checkpoint-only',
       operations: [operation],
-      applyPatch: vi.fn().mockResolvedValue(undefined),
+      applyPatch,
       refreshRecord: vi.fn().mockResolvedValue(record),
       invoke,
       createMutationId: () => 'mutation-fixed',
     });
 
-    const payload = invoke.mock.calls[0]?.[0];
-    expect(payload.checkpoints).toBeUndefined();
-    expect(payload.patches).toEqual([
+    expect(invoke).not.toHaveBeenCalled();
+    expect(applyPatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        bedId: 'H2C1',
-        fields: {
-          clinicalSyncCheckpoint: expect.objectContaining({ version: 2 }),
-        },
-      }),
-    ]);
-    expect(result.batch).toMatchObject({
-      clinicalTargets: 0,
-      checkpointTargets: 1,
-      checkpointOnlyTargets: 1,
-      requestedFields: 1,
-    });
+        target: expect.objectContaining({ captureHistorySnapshot: false }),
+      })
+    );
+    expect(result).toMatchObject({ patientWrites: 1, historySnapshots: 0 });
   });
 });
