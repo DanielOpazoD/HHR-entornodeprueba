@@ -123,6 +123,7 @@ const clockParts = (
   const hour = Number(match[1]);
   const minute = Number(match[2]);
   const second = Number(match[3] ?? '0');
+  if (hour > 23 || minute > 59 || second > 59) return null;
   return {
     minute: `${String(hour).padStart(2, '0')}:${match[2]}`,
     seconds: hour * 3600 + minute * 60 + second,

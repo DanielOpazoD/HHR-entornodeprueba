@@ -21,6 +21,7 @@ import type { EvaluationScale } from './parseEvaluationScales';
 import {
   dedupeEquivalentScaleApplications,
   mergeEquivalentScaleApplications,
+  parseClock,
   scaleApplicationMatchQuality,
 } from './evaluationScaleApplicationIdentity';
 
@@ -38,12 +39,11 @@ const normalize = (scale: EvaluationScale): EvaluationScale => {
 
 /** Canonical HH:MM:SS clock; Rayen sometimes omits seconds or a leading zero. */
 const canonicalClock = (recordedAt: string): string | null => {
-  const time = recordedAt.match(/(?:^|[T\s])(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (!time) return null;
-  const hour = Number(time[1]);
-  const minute = Number(time[2]);
-  const second = Number(time[3] ?? '0');
-  if (hour > 23 || minute > 59 || second > 59) return null;
+  const parsed = parseClock(recordedAt);
+  if (!parsed) return null;
+  const hour = Math.floor(parsed.seconds / 3600);
+  const minute = Math.floor((parsed.seconds % 3600) / 60);
+  const second = parsed.seconds % 60;
   return [hour, minute, second].map(value => String(value).padStart(2, '0')).join(':');
 };
 
@@ -60,7 +60,8 @@ const mergeDuplicate = (history: EvaluationScale, summary: EvaluationScale): Eva
   };
   if (history.sourceOrder != null) withHistoryIdentity.sourceOrder = history.sourceOrder;
   else delete withHistoryIdentity.sourceOrder;
-  // Only Resumen knows whether the user hid this application from quick display.
+  // When both authoritative sources expose one application, Resumen owns its current quick-display
+  // state. Single-source results never enter this branch and retain that source's archive state.
   if (summary.archived) withHistoryIdentity.archived = true;
   else delete withHistoryIdentity.archived;
   return withHistoryIdentity;
@@ -118,7 +119,8 @@ const matchSummaryApplications = (
   });
   summary.forEach((_, summaryIndex) => addFlowEdge(graph, summaryOffset + summaryIndex, sink, 0));
 
-  while (true) {
+  const maxAugmentations = Math.min(history.length, summary.length);
+  for (let augmentation = 0; augmentation < maxAugmentations; augmentation += 1) {
     const distance = Array<number>(graph.length).fill(Number.POSITIVE_INFINITY);
     const previous = Array<{ node: number; edge: number } | null>(graph.length).fill(null);
     distance[source] = 0;
@@ -138,13 +140,23 @@ const matchSummaryApplications = (
       if (!changed) break;
     }
     if (previous[sink] == null) break;
-    for (let node = sink; node !== source; ) {
+    const path: Array<{ node: number; step: { node: number; edge: number } }> = [];
+    const visited = new Set<number>();
+    let node = sink;
+    while (node !== source) {
       const step = previous[node];
-      if (!step) break;
+      if (!step || visited.has(node)) break;
+      visited.add(node);
+      path.push({ node, step });
+      node = step.node;
+    }
+    // A malformed predecessor chain is an internal invariant failure. Preserve earlier complete
+    // matches and stop without partially mutating this path.
+    if (node !== source) break;
+    for (const { node: pathNode, step } of path) {
       const edge = graph[step.node][step.edge];
       edge.capacity -= 1;
-      graph[node][edge.reverse].capacity += 1;
-      node = step.node;
+      graph[pathNode][edge.reverse].capacity += 1;
     }
   }
 

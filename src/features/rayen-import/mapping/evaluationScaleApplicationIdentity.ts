@@ -2,12 +2,12 @@ import type { EvaluationScale } from './parseEvaluationScales';
 
 const itemsOf = (scale: EvaluationScale) => scale.items ?? [];
 
-interface ParsedClock {
+export interface ParsedClock {
   seconds: number;
   hasSeconds: boolean;
 }
 
-const parseClock = (recordedAt: string): ParsedClock | null => {
+export const parseClock = (recordedAt: string): ParsedClock | null => {
   const match = recordedAt.match(/(?:^|[T\s])(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return null;
   const hour = Number(match[1]);

@@ -238,6 +238,23 @@ describe('buildScoresCellModel — Downton and history', () => {
     expect(dedupeScoreHistory([first, second])).toHaveLength(2);
   });
 
+  it('does not use malformed clocks as application identity evidence', () => {
+    const first = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260710250000,
+      total: 3,
+      recordedAt: '2026-07-10T25:00:00',
+    });
+    const second = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260710250000,
+      total: 3,
+      recordedAt: '10-07-2026 25:00:00 -06:00',
+    });
+
+    expect(dedupeScoreHistory([first, second])).toHaveLength(2);
+  });
+
   it('collapses minute/second copies for display but preserves precise genuine repeats', () => {
     const minuteCopy = entry({
       code: 'DOWNTON',
