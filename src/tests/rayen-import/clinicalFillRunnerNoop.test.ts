@@ -82,6 +82,50 @@ describe('runClinicalFill no-op behavior', () => {
     expect(target).toMatchObject({ captureHistorySnapshot: false });
   });
 
+  it('repairs persisted duplicate scales even when Eloisa reports no new application', async () => {
+    const rec = record({ H1C2: { encId: 'E1', name: 'Franco Morales' } });
+    rec.beds.H1C2.evaluationScores = {
+      history: [
+        {
+          code: 'DOWNTON',
+          name: 'Escala de Riesgo de caídas (Downton)',
+          encounterEventId: 20260710161638,
+          sourceOrder: 1,
+          total: 3,
+          severity: 'Riesgo alto',
+          recordedDate: '2026-07-10',
+          recordedAt: '2026-07-10T16:16:38',
+          author: 'Valeria Salfate',
+        },
+        {
+          code: 'DOWNTON',
+          name: 'Escala de Riesgo de caídas (Downton)',
+          encounterEventId: 20260710161638,
+          sourceOrder: 2,
+          total: 3,
+          severity: 'Riesgo alto',
+          recordedDate: '2026-07-10',
+          recordedAt: '10-07-2026 16:16:38 -06:00',
+          author: 'Constanza Guajardo',
+        },
+      ],
+    };
+    const deps = okDeps({
+      fetchHistoryScales: vi
+        .fn()
+        .mockResolvedValue({ events: [], nursingActivity: [], effectiveLookbackDays: 14 }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    const summary = await runClinicalFill(rec, '2026-07-10', deps);
+
+    expect(summary.patched).toBe(1);
+    const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(patch['beds.H1C2.evaluationScores'].history).toHaveLength(1);
+    expect(patch['beds.H1C2.evaluationScores'].history[0].author).toBe('Valeria Salfate');
+  });
+
   it('persists only the daily checkpoint when repeated clinical facts do not change the patient', async () => {
     const firstRecord = record({ H1C2: { encId: 'E1' } });
     const firstDeps = okDeps();

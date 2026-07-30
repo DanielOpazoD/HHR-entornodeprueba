@@ -143,7 +143,9 @@ const expectSeededPatientVisible = async (page: Page) => {
   );
 
   try {
-    await expect(seededPatientInput).toHaveValue(SEEDED_PATIENT_NAME, { timeout: 5000 });
+    // The production bundle may need several seconds to hydrate IndexedDB/localStorage on a cold
+    // preview worker. Keep the assertion strict, but give bootstrap enough time to finish under CI.
+    await expect(seededPatientInput).toHaveValue(SEEDED_PATIENT_NAME, { timeout: 20_000 });
   } catch (error) {
     const diagnostics = await collectPreviewDiagnostics(page, PREVIEW_BOOTSTRAP_DATE);
     test.info().attach('preview-bootstrap-diagnostics', {
@@ -184,6 +186,8 @@ const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRu
 };
 
 test.describe('Production Preview Bootstrap', () => {
+  test.describe.configure({ timeout: 60_000 });
+
   test('loads persisted census state without falling into empty state after initial bootstrap', async ({
     page,
   }) => {

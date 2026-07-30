@@ -115,11 +115,18 @@ const applicationEvidence = (entry: EvaluationScoreEntry): EvaluationScaleApplic
     ...(entry.archived ? { archived: true } : {}),
   };
 
-const clockParts = (value: string): { minute: string; hasSeconds: boolean } | null => {
+const clockParts = (
+  value: string
+): { minute: string; seconds: number; hasSeconds: boolean } | null => {
   const match = value.match(/(?:^|[T\s])(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const second = Number(match[3] ?? '0');
+  if (hour > 23 || minute > 59 || second > 59) return null;
   return {
-    minute: `${String(Number(match[1])).padStart(2, '0')}:${match[2]}`,
+    minute: `${String(hour).padStart(2, '0')}:${match[2]}`,
+    seconds: hour * 3600 + minute * 60 + second,
     hasSeconds: match[3] != null,
   };
 };
@@ -141,6 +148,26 @@ const professionalsAreCompatible = (
   return !a || !b || a === b || a.startsWith(`${b} `) || b.startsWith(`${a} `);
 };
 
+const itemAnswers = (entry: EvaluationScoreEntry): Map<string, string> =>
+  new Map((entry.items ?? []).map(item => [item.id, JSON.stringify([item.value, item.valueName])]));
+
+const itemPayloadsAreCompatible = (
+  left: EvaluationScoreEntry,
+  right: EvaluationScoreEntry
+): boolean => {
+  const leftAnswers = itemAnswers(left);
+  const rightAnswers = itemAnswers(right);
+  if (leftAnswers.size === 0 || rightAnswers.size === 0) return true;
+  const [smaller, larger] =
+    leftAnswers.size <= rightAnswers.size
+      ? [leftAnswers, rightAnswers]
+      : [rightAnswers, leftAnswers];
+  return [...smaller].every(([id, answer]) => larger.get(id) === answer);
+};
+
+const sameStableApplication = (left: EvaluationScoreEntry, right: EvaluationScoreEntry): boolean =>
+  left.encounterEventId > 0 && left.encounterEventId === right.encounterEventId;
+
 const sameCrossSourceApplication = (
   left: EvaluationScoreEntry,
   right: EvaluationScoreEntry
@@ -153,8 +180,7 @@ const sameCrossSourceApplication = (
     left.total !== right.total ||
     !leftClock ||
     !rightClock ||
-    leftClock.minute !== rightClock.minute ||
-    !professionalsAreCompatible(left, right)
+    leftClock.minute !== rightClock.minute
   )
     return false;
 
@@ -162,12 +188,18 @@ const sameCrossSourceApplication = (
     left.severity == null || right.severity == null || left.severity === right.severity;
   if (!severityCompatible) return false;
 
-  // Exact duplicate, or the known Resumen (minute) + Historial (seconds) representation. Two
-  // second-precise events remain distinct because they may be genuine repeated assessments.
-  return (
-    left.encounterEventId === right.encounterEventId ||
-    leftClock.hasSeconds !== rightClock.hasSeconds
-  );
+  const exactClock =
+    leftClock.hasSeconds && rightClock.hasSeconds && leftClock.seconds === rightClock.seconds;
+  // Exact copies are one clinical application even if separate Rayen forms attribute different
+  // professionals. This is the legacy shape observed for Franco Morales. Different second-precise
+  // times remain distinct because they may be genuine rapid reassessments.
+  if (exactClock) {
+    return sameStableApplication(left, right) && itemPayloadsAreCompatible(left, right);
+  }
+
+  // Resumen omits seconds while Historial preserves them. Professional compatibility keeps this
+  // deliberately broader minute match from joining two real applications by different nurses.
+  return leftClock.hasSeconds !== rightClock.hasSeconds && professionalsAreCompatible(left, right);
 };
 
 const mergeHistoryCopies = (

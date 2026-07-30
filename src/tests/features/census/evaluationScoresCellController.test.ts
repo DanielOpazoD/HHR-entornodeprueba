@@ -171,6 +171,90 @@ describe('buildScoresCellModel — Braden countdown', () => {
 });
 
 describe('buildScoresCellModel — Downton and history', () => {
+  it('collapses an exact application attributed to different professionals', () => {
+    const valeria = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260726161638,
+      sourceOrder: 1,
+      total: 3,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-26',
+      recordedAt: '2026-07-26T16:16:38',
+      author: 'Valeria Salfate',
+    });
+    const constanza = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260726161638,
+      sourceOrder: 2,
+      total: 3,
+      severity: 'Riesgo alto',
+      recordedDate: '2026-07-26',
+      recordedAt: '26-07-2026 16:16:38 -06:00',
+      author: 'Constanza Guajardo',
+    });
+
+    expect(dedupeScoreHistory([valeria, constanza])).toEqual([
+      expect.objectContaining({ author: 'Valeria Salfate' }),
+    ]);
+  });
+
+  it('preserves exact-time applications when their item answers conflict', () => {
+    const first = entry({
+      code: 'DOWNTON',
+      encounterEventId: 101,
+      total: 3,
+      severity: 'Riesgo alto',
+      recordedAt: '2026-07-10T08:00:00',
+      items: [{ id: 'DOWNTON_A', label: 'A', value: '1', valueName: 'Sí' }],
+    });
+    const second = entry({
+      code: 'DOWNTON',
+      encounterEventId: 101,
+      total: 3,
+      severity: 'Riesgo alto',
+      recordedAt: '10-07-2026 08:00:00 -06:00',
+      items: [{ id: 'DOWNTON_A', label: 'A', value: '0', valueName: 'No' }],
+    });
+
+    expect(dedupeScoreHistory([first, second])).toHaveLength(2);
+  });
+
+  it('preserves ambiguous minute-only applications even when their stable key matches', () => {
+    const first = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260710080000,
+      sourceOrder: 1,
+      total: 3,
+      recordedAt: '2026-07-10T08:00',
+    });
+    const second = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260710080000,
+      sourceOrder: 2,
+      total: 3,
+      recordedAt: '10-07-2026 08:00 -06:00',
+    });
+
+    expect(dedupeScoreHistory([first, second])).toHaveLength(2);
+  });
+
+  it('does not use malformed clocks as application identity evidence', () => {
+    const first = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260710250000,
+      total: 3,
+      recordedAt: '2026-07-10T25:00:00',
+    });
+    const second = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260710250000,
+      total: 3,
+      recordedAt: '10-07-2026 25:00:00 -06:00',
+    });
+
+    expect(dedupeScoreHistory([first, second])).toHaveLength(2);
+  });
+
   it('collapses minute/second copies for display but preserves precise genuine repeats', () => {
     const minuteCopy = entry({
       code: 'DOWNTON',
@@ -302,7 +386,10 @@ describe('buildScoresCellModel — Downton and history', () => {
   });
 
   it('exposes the unified history and handles a patient without scores', () => {
-    const history = [entry({ encounterEventId: 2 }), entry({ encounterEventId: 1 })];
+    const history = [
+      entry({ encounterEventId: 2, recordedAt: '2026-07-10T08:00:00' }),
+      entry({ encounterEventId: 1, recordedAt: '2026-07-10T08:05:00' }),
+    ];
     const withHistory = buildScoresCellModel(
       patient({ evaluationScores: { braden: entry({}), history } }),
       '2026-07-10'
