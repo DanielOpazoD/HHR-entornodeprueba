@@ -4,6 +4,10 @@ import type {
   RayenClinicalEnrichmentRolloutRecommendation,
   RayenClinicalEnrichmentRolloutSummary,
 } from '@/types/functionsTelemetry';
+import {
+  MIN_MATCHED_SHADOW_RUNS,
+  MIN_SHADOW_EVIDENCE_HOURS,
+} from '@/services/admin/functionsTelemetryService';
 
 interface Props {
   summary: RayenClinicalEnrichmentRolloutSummary;
@@ -56,8 +60,8 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
             </h2>
           </div>
           <p className="mt-1 text-xs opacity-75">
-            Gate operativo: mínimo 4 ejecuciones shadow coincidentes, 8 horas de evidencia y cero
-            señales bloqueantes.
+            Gate operativo: mínimo {MIN_MATCHED_SHADOW_RUNS} ejecuciones shadow coincidentes,{' '}
+            {MIN_SHADOW_EVIDENCE_HOURS} horas de evidencia y cero señales bloqueantes.
           </p>
         </div>
         <div className="inline-flex items-center gap-2 self-start rounded-lg bg-white/75 px-3 py-1.5 text-xs font-bold">
@@ -66,7 +70,7 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 text-sm">
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-2 text-sm">
         <Metric label="Shadow" value={summary.shadowRuns} />
         <Metric label="Paridad OK" value={summary.matchedShadowRuns} />
         <Metric label="Mismatch" value={summary.mismatchedShadowRuns} />
@@ -74,6 +78,7 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
         <Metric label="Enforced" value={summary.enforcedWrites} />
         <Metric label="Fallas" value={summary.failureCount} />
         <Metric label="Bloqueos" value={summary.blockedCount} />
+        <Metric label="Permisos denegados" value={summary.permissionDeniedCount} />
         <Metric label="Horas" value={summary.evidenceHours} />
       </div>
     </section>

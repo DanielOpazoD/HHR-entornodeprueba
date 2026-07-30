@@ -25,8 +25,8 @@ const DAILY_RECORD_AUTHORITY_OPERATIONS = new Set([
 ]);
 const RAYEN_CLINICAL_ENRICHMENT_SERVICE = 'rayenClinicalEnrichment';
 const RAYEN_CLINICAL_ENRICHMENT_OPERATION = 'applyRayenClinicalEnrichmentBatch';
-const MIN_MATCHED_SHADOW_RUNS = 4;
-const MIN_SHADOW_EVIDENCE_HOURS = 8;
+export const MIN_MATCHED_SHADOW_RUNS = 4;
+export const MIN_SHADOW_EVIDENCE_HOURS = 8;
 
 interface RawTelemetryRecord {
   id?: string;

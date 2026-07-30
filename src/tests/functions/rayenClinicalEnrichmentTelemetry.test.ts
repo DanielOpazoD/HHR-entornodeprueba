@@ -56,4 +56,21 @@ describe('Rayen clinical enrichment telemetry', () => {
       })
     );
   });
+
+  it('records unavailable parity when validation fails before comparison', async () => {
+    const admin = createClinicalAdminMock();
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+        { ...makePayload(), date: undefined },
+        makeContext()
+      )
+    ).rejects.toThrow();
+
+    expect(admin.telemetryAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({ resultParity: 'unavailable' }),
+      })
+    );
+  });
 });

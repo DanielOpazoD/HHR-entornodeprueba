@@ -27,6 +27,7 @@ describe('RayenClinicalEnrichmentRolloutCard', () => {
     expect(screen.getByText('Lote clínico transaccional')).toBeInTheDocument();
     expect(screen.getByText('Listo para activar el lote')).toBeInTheDocument();
     expect(screen.getByText('Paridad OK')).toBeInTheDocument();
+    expect(screen.getByText('Permisos denegados')).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
   });
 
