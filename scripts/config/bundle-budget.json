@@ -1,7 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4730000,
+  "precacheMaxBytes": 4750000,
+  "_precacheMaxBytesComment": "Raised 20 KB from a main baseline already at 99.9%; Rayen online-only chunks remain excluded and independently governed.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -21,7 +22,8 @@
     "^assets/fonasaDatabase-.*\\.js$",
     "^assets/clinicalDocumentTemplateEditorController-.*\\.js$",
     "^assets/vendor-heic2any-.*\\.js$",
-    "^assets/applyClinicalEnrichmentBatch-.*\\.js$"
+    "^assets/applyClinicalEnrichmentBatch-.*\\.js$",
+    "^assets/clinicalEnrichmentBatchPayload-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [

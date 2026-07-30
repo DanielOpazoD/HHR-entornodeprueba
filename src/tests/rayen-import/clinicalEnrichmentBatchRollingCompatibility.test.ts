@@ -15,7 +15,7 @@ const record = {
 } as unknown as DailyRecord;
 
 describe('clinical enrichment rolling compatibility', () => {
-  it('keeps checkpoint-only writes on the established path during rolling deploys', async () => {
+  it('routes checkpoint-only writes through the deployed callable without clinical history', async () => {
     const operation: ClinicalFillPatchOperation = {
       target: {
         censusDate: record.date,
@@ -36,7 +36,7 @@ describe('clinical enrichment rolling compatibility', () => {
       targetCount: 1,
       fieldCount: 1,
       resultParity: 'matched' as const,
-      patientWrites: 0,
+      patientWrites: 1,
       historySnapshots: 0,
     }));
 
@@ -52,12 +52,18 @@ describe('clinical enrichment rolling compatibility', () => {
       createMutationId: () => 'mutation-fixed',
     });
 
-    expect(invoke).not.toHaveBeenCalled();
-    expect(applyPatch).toHaveBeenCalledWith(
+    expect(invoke).toHaveBeenCalledWith(
       expect.objectContaining({
-        target: expect.objectContaining({ captureHistorySnapshot: false }),
+        patches: [],
+        checkpoints: [
+          expect.objectContaining({
+            bedId: 'H2C1',
+            checkpoint: expect.objectContaining({ version: 2 }),
+          }),
+        ],
       })
     );
+    expect(applyPatch).not.toHaveBeenCalled();
     expect(result).toMatchObject({ patientWrites: 1, historySnapshots: 0 });
   });
 });

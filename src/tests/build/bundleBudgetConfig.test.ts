@@ -67,7 +67,7 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    expect(config.precacheMaxBytes).toBe(4730000);
+    expect(config.precacheMaxBytes).toBe(4750000);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([
         '^docs/',
@@ -89,6 +89,7 @@ describe('bundle budget config', () => {
         '^assets/clinicalDocumentTemplateEditorController-.*\\.js$',
         '^assets/vendor-heic2any-.*\\.js$',
         '^assets/applyClinicalEnrichmentBatch-.*\\.js$',
+        '^assets/clinicalEnrichmentBatchPayload-.*\\.js$',
       ])
     );
   });
