@@ -63,6 +63,23 @@ describe('rayen preview close policy', () => {
     ).toBe(false);
   });
 
+  it('cancels a report-egreso-only preview because confirming adds it to census discharges', () => {
+    expect(
+      shouldPreservePostImportFlow(
+        diff({
+          reportEgresos: [
+            {
+              run: '11111111-1',
+              patientName: 'Paciente egresado',
+              kind: 'alta',
+            } as never,
+          ],
+        }),
+        null
+      )
+    ).toBe(false);
+  });
+
   it('keeps post-import work alive after an applied result', () => {
     expect(shouldPreservePostImportFlow(diff(), {} as never)).toBe(true);
   });

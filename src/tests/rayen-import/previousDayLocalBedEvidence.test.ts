@@ -1,10 +1,27 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import { historicalEncounterFromLocal } from '@/features/rayen-import/domain/historicalEncounterFromLocal';
 import { verifyPreviousDayAdmissionPlacements } from '@/features/rayen-import/domain/previousDayCorrections';
 import { historicalRecord, motherAndNewbornDiff } from './previousDayAdmissionCorrections.fixtures';
 
 describe('previous-day local bed evidence', () => {
+  it('maps local sex to Rayen labels without guessing indeterminate values', () => {
+    const patient = motherAndNewbornDiff.admissions[0].patient;
+
+    expect(historicalEncounterFromLocal({ ...patient, biologicalSex: 'Femenino' })).toMatchObject({
+      administrativeSex: 'Mujer',
+      gender: 'Femenina',
+    });
+    expect(historicalEncounterFromLocal({ ...patient, biologicalSex: 'Masculino' })).toMatchObject({
+      administrativeSex: 'Hombre',
+      gender: 'Masculino',
+    });
+    expect(
+      historicalEncounterFromLocal({ ...patient, biologicalSex: 'Indeterminado' })
+    ).toMatchObject({ administrativeSex: undefined, gender: undefined });
+  });
+
   it('uses the already-recorded mother before requesting a patient-flow PDF', async () => {
     const admission = motherAndNewbornDiff.admissions[0];
     const mother = {

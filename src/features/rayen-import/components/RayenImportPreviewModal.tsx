@@ -29,11 +29,8 @@ const dischargeKindLabel: Record<string, string> = {
 
 const updateEntryKey = (entry: CensusImportDiff['updates'][number]): string => {
   const subject = entry.source?.encounterId || entry.rut || entry.patientName;
-  const fields = entry.changes
-    .map(change => String(change.field))
-    .sort()
-    .join('-');
-  return `upd-${entry.bedId}-${subject}-${fields}`;
+  const fields = entry.changes.map(change => String(change.field)).sort();
+  return JSON.stringify([entry.bedId, subject, fields]);
 };
 
 export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = ({

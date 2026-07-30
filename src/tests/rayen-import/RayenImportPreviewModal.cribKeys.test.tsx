@@ -76,4 +76,68 @@ describe('RayenImportPreviewModal Cuna RN identity', () => {
       consoleError.mockRestore();
     }
   });
+
+  it('keeps composite keys distinct when subjects and fields contain delimiters', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const patient = { ...EMPTY_PATIENT, bedId: 'H4C1', patientName: 'Paciente A' };
+    const diff: CensusImportDiff = {
+      admissions: [],
+      updates: [
+        {
+          bedId: 'H4C1',
+          rut: '',
+          patientName: 'Paciente A',
+          changes: [{ field: 'pathology', from: '', to: 'Diagnóstico A' }],
+          patient,
+          source: { encounterId: 'a-clinicalCrib' } as never,
+        },
+        {
+          bedId: 'H4C1',
+          rut: '',
+          patientName: 'Paciente B',
+          changes: [
+            { field: 'clinicalCrib', from: undefined, to: { ...patient, patientName: 'RN B' } },
+            { field: 'pathology', from: '', to: 'Diagnóstico B' },
+          ],
+          patient: { ...patient, patientName: 'Paciente B' },
+          source: { encounterId: 'a' } as never,
+        },
+      ],
+      moves: [],
+      discharges: [],
+      pendingAdministrativeDischarges: [],
+      conflicts: [],
+      unchangedCount: 0,
+      summary: {
+        admissions: 0,
+        updates: 2,
+        moves: 0,
+        discharges: 0,
+        pendingAdministrativeDischarges: 0,
+        conflicts: 0,
+        unchanged: 0,
+      },
+    };
+
+    try {
+      render(
+        <RayenImportPreviewModal
+          isOpen
+          diff={diff}
+          isBusy={false}
+          error={null}
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/Paciente A:/)).toBeVisible();
+      expect(screen.getByText(/Paciente B:/)).toBeVisible();
+      expect(consoleError.mock.calls.some(call => String(call[0]).includes('same key'))).toBe(
+        false
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });
