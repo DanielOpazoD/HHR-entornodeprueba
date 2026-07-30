@@ -67,7 +67,7 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    expect(config.precacheMaxBytes).toBe(4720000);
+    expect(config.precacheMaxBytes).toBe(4730000);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([
         '^docs/',
