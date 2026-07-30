@@ -38,6 +38,7 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/clinicalDocumentTemplateEditorController-*.js');
     expect(viteConfig).toContain('**/assets/vendor-heic2any-*.js');
     expect(viteConfig).toContain('**/assets/applyClinicalEnrichmentBatch-*.js');
+    expect(viteConfig).toContain('**/assets/clinicalEnrichmentBatchPayload-*.js');
   });
 
   it('keeps HEIC and PDF.js runtimes excluded from both PWA config and bundle budget precache accounting', () => {
@@ -58,6 +59,9 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/applyClinicalEnrichmentBatch-*.js');
     expect(bundleBudgetConfig.precacheIgnoredAssetPatterns).toContain(
       '^assets/applyClinicalEnrichmentBatch-.*\\.js$'
+    );
+    expect(bundleBudgetConfig.precacheIgnoredAssetPatterns).toContain(
+      '^assets/clinicalEnrichmentBatchPayload-.*\\.js$'
     );
   });
 });

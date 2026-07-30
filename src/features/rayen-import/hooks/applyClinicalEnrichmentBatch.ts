@@ -11,6 +11,7 @@ import {
 import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
 import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
 import {
+  clinicalEnrichmentTargetKey,
   prepareClinicalEnrichmentBatchPayload,
   summarizeClinicalEnrichmentSections,
 } from './clinicalEnrichmentBatchPayload';
@@ -64,22 +65,14 @@ const assertCommittedResponse = (
     throw new Error('El backend devolvió una confirmación inválida para el lote clínico.');
   }
   const requestedTargetKeys = new Set([
-    ...payload.patches.map(target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`),
-    ...(payload.checkpoints ?? []).map(
-      target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`
-    ),
+    ...payload.patches.map(clinicalEnrichmentTargetKey),
+    ...(payload.checkpoints ?? []).map(clinicalEnrichmentTargetKey),
   ]);
   const requestedFields =
     payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
     (payload.checkpoints?.length ?? 0);
-  const checkpointKeys = new Set(
-    (payload.checkpoints ?? []).map(
-      target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`
-    )
-  );
-  const clinicalKeys = new Set(
-    payload.patches.map(target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`)
-  );
+  const checkpointKeys = new Set((payload.checkpoints ?? []).map(clinicalEnrichmentTargetKey));
+  const clinicalKeys = new Set(payload.patches.map(clinicalEnrichmentTargetKey));
   const checkpointOnlyTargets = [...checkpointKeys].filter(key => !clinicalKeys.has(key)).length;
   const countsMatch =
     response.targetCount === requestedTargetKeys.size && response.fieldCount === requestedFields;

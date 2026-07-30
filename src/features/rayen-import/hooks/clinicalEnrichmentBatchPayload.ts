@@ -6,6 +6,7 @@ import type {
 import {
   RAYEN_CLINICAL_ENRICHMENT_FIELDS,
   RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES,
+  RAYEN_CLINICAL_ENRICHMENT_MAX_TARGETS,
   type RayenClinicalCheckpointTarget,
   type RayenClinicalEnrichmentBatchPayload,
   type RayenClinicalEnrichmentTarget,
@@ -18,8 +19,10 @@ const allowedFields = new Set<string>(RAYEN_CLINICAL_ENRICHMENT_FIELDS);
 const serializedBytes = (value: unknown): number =>
   new TextEncoder().encode(JSON.stringify(value)).byteLength;
 
-const targetKey = (target: { bedId: string; clinicalCrib?: true }): string =>
-  `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`;
+export const clinicalEnrichmentTargetKey = (target: {
+  bedId: string;
+  clinicalCrib?: true;
+}): string => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`;
 
 const operationFields = (
   operation: ClinicalFillPatchOperation
@@ -81,8 +84,8 @@ export const summarizeClinicalEnrichmentSections = (
   mode: ClinicalFillBatchEvidence['mode'],
   parity: ClinicalFillBatchEvidence['parity'] = 'unavailable'
 ): ClinicalFillBatchEvidence => {
-  const clinicalKeys = new Set(patches.map(targetKey));
-  const checkpointKeys = new Set(checkpoints.map(targetKey));
+  const clinicalKeys = new Set(patches.map(clinicalEnrichmentTargetKey));
+  const checkpointKeys = new Set(checkpoints.map(clinicalEnrichmentTargetKey));
   return {
     mode,
     parity,
@@ -102,7 +105,7 @@ export const prepareClinicalEnrichmentBatchPayload = ({
   operations,
   mutationId,
 }: {
-  mode: ClinicalEnrichmentBatchMode;
+  mode: Exclude<ClinicalEnrichmentBatchMode, 'off'>;
   record: DailyRecord;
   runId: string;
   operations: ClinicalFillPatchOperation[];
@@ -116,13 +119,13 @@ export const prepareClinicalEnrichmentBatchPayload = ({
   const checkpoints = sections.flatMap(section => (section.checkpoint ? [section.checkpoint] : []));
   const effectiveMode = mode === 'shadow' ? 'shadow' : 'enforced';
   const evidence = summarizeClinicalEnrichmentSections(patches, checkpoints, effectiveMode);
-  const targetCount = new Set([...patches, ...checkpoints].map(targetKey)).size;
+  const targetCount = new Set([...patches, ...checkpoints].map(clinicalEnrichmentTargetKey)).size;
   const sectionsPayload = { patches, ...(checkpoints.length > 0 ? { checkpoints } : {}) };
 
   if (
     operations.length === 0 ||
     targetCount === 0 ||
-    targetCount > 32 ||
+    targetCount > RAYEN_CLINICAL_ENRICHMENT_MAX_TARGETS ||
     serializedBytes(sectionsPayload) > RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES
   ) {
     return { payload: null, evidence };

@@ -12,6 +12,7 @@ export const RAYEN_CLINICAL_ENRICHMENT_FIELDS = [
 ] as const;
 
 export const RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES = 500_000;
+export const RAYEN_CLINICAL_ENRICHMENT_MAX_TARGETS = 32;
 export const RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS = 20_000;
 
 export type RayenClinicalEnrichmentField = (typeof RAYEN_CLINICAL_ENRICHMENT_FIELDS)[number];
