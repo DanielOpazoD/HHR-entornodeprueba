@@ -284,6 +284,29 @@ describe('mergeScaleSources', () => {
     expect(merged.author).toBe('Enfermera Historial');
   });
 
+  it('preserves the hidden state reported by Resumen on a cross-source copy', () => {
+    const history = [
+      scale({
+        recordedAt: '2026-07-10T08:00:19',
+        author: 'Enfermera Historial',
+      }),
+    ];
+    const summary = [
+      scale({
+        recordedAt: '10-07-2026 08:00 -06:00',
+        archived: true,
+        author: 'Nombre Resumen',
+      }),
+    ];
+
+    const [merged] = mergeScaleSources(history, summary);
+    expect(merged).toMatchObject({
+      archived: true,
+      author: 'Enfermera Historial',
+      recordedAt: '2026-07-10T08:00:19',
+    });
+  });
+
   it('does not collapse real repeated applications with identical results inside one source', () => {
     const history = [
       scale({ recordedAt: '2026-07-10T08:00:00' }),

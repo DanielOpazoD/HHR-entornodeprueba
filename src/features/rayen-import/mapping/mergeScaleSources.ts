@@ -60,6 +60,9 @@ const mergeDuplicate = (history: EvaluationScale, summary: EvaluationScale): Eva
   };
   if (history.sourceOrder != null) withHistoryIdentity.sourceOrder = history.sourceOrder;
   else delete withHistoryIdentity.sourceOrder;
+  // Only Resumen knows whether the user hid this application from quick display.
+  if (summary.archived) withHistoryIdentity.archived = true;
+  else delete withHistoryIdentity.archived;
   return withHistoryIdentity;
 };
 

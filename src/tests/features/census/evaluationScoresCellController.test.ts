@@ -209,11 +209,30 @@ describe('buildScoresCellModel — Downton and history', () => {
     });
     const second = entry({
       code: 'DOWNTON',
-      encounterEventId: 102,
+      encounterEventId: 101,
       total: 3,
       severity: 'Riesgo alto',
       recordedAt: '10-07-2026 08:00:00 -06:00',
       items: [{ id: 'DOWNTON_A', label: 'A', value: '0', valueName: 'No' }],
+    });
+
+    expect(dedupeScoreHistory([first, second])).toHaveLength(2);
+  });
+
+  it('preserves ambiguous minute-only applications even when their stable key matches', () => {
+    const first = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260710080000,
+      sourceOrder: 1,
+      total: 3,
+      recordedAt: '2026-07-10T08:00',
+    });
+    const second = entry({
+      code: 'DOWNTON',
+      encounterEventId: 20260710080000,
+      sourceOrder: 2,
+      total: 3,
+      recordedAt: '10-07-2026 08:00 -06:00',
     });
 
     expect(dedupeScoreHistory([first, second])).toHaveLength(2);

@@ -187,11 +187,12 @@ const sameCrossSourceApplication = (
     left.severity == null || right.severity == null || left.severity === right.severity;
   if (!severityCompatible) return false;
 
-  const exactClock = leftClock.seconds === rightClock.seconds;
+  const exactClock =
+    leftClock.hasSeconds && rightClock.hasSeconds && leftClock.seconds === rightClock.seconds;
   // Exact copies are one clinical application even if separate Rayen forms attribute different
   // professionals. This is the legacy shape observed for Franco Morales. Different second-precise
   // times remain distinct because they may be genuine rapid reassessments.
-  if (exactClock && leftClock.hasSeconds === rightClock.hasSeconds) {
+  if (exactClock) {
     return sameStableApplication(left, right) && itemPayloadsAreCompatible(left, right);
   }
 
