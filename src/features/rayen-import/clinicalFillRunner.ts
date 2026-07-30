@@ -42,7 +42,6 @@ export type {
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-/** Maximum concurrent reads per remote source. */
 const READ_CONCURRENCY = 4;
 
 export { countClinicalFillEligiblePatients } from './domain/clinicalFillCandidates';
@@ -393,7 +392,8 @@ export const runClinicalFill = async (
     deps.nurseCatalog ?? [],
     deps.tensCatalog ?? []
   );
-  summary.performance = performance.finish(summary.incremental!);
+  const cudyrCacheHits = (await cudyrPromise).ok ? Math.max(0, eligible.length - 1) : 0;
+  summary.performance = performance.finish(summary.incremental!, cudyrCacheHits);
 
   return summary;
 };

@@ -90,6 +90,7 @@ const recordTelemetry = async ({
   startedAt,
   status,
   authorityStatus,
+  resultParity,
   revision,
   error,
 }) => {
@@ -111,6 +112,7 @@ const recordTelemetry = async ({
         context: {
           ...requestSummary,
           authorityStatus,
+          resultParity,
           revision: Number.isFinite(revision) ? revision : null,
         },
       });
@@ -127,7 +129,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
     const startedAt = Date.now();
     let requestSummary = summarizeRequest(data);
     let authorityStatus = 'ok';
-    let resultParity = 'matched';
+    let resultParity = 'unavailable';
     let revision;
 
     try {
@@ -159,6 +161,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         ]);
         if (idempotency === 'idempotent') {
           authorityStatus = 'idempotent';
+          resultParity = 'matched';
           revision = resolveRecordRevision(remoteData);
           return;
         }
@@ -224,6 +227,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         startedAt,
         status: 'success',
         authorityStatus,
+        resultParity,
         revision,
       });
       return {
@@ -250,6 +254,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           startedAt,
           status: 'failure',
           authorityStatus: 'blocked',
+          resultParity,
           revision,
           error,
         });

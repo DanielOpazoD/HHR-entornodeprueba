@@ -51,7 +51,10 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     if (Number.isFinite(count) && count > 0) retries += Math.floor(count);
   };
 
-  const finish = (writeMetrics: ClinicalWriteMetrics): RayenSyncPerformance => ({
+  const finish = (
+    writeMetrics: ClinicalWriteMetrics,
+    cacheHits: number = 0
+  ): RayenSyncPerformance => ({
     stagesMs: {
       clinicalReads: clinicalReadsMs,
       writeQueueWait: writeQueueWaitMs,
@@ -59,7 +62,7 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     },
     counters: {
       requests,
-      cacheHits: 0,
+      cacheHits,
       patches: writeMetrics.patientWrites + historicalPatches,
       retries,
       timeouts,

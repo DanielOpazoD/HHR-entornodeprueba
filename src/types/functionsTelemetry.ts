@@ -53,6 +53,28 @@ export interface DailyRecordAuthorityRolloutSummary {
   recommendation: DailyRecordAuthorityRolloutRecommendation;
 }
 
+export type RayenClinicalEnrichmentRolloutRecommendation =
+  | 'insufficient_data'
+  | 'ready_for_enforced'
+  | 'monitor_enforced'
+  | 'investigate';
+
+export interface RayenClinicalEnrichmentRolloutSummary {
+  total: number;
+  shadowRuns: number;
+  enforcedWrites: number;
+  matchedShadowRuns: number;
+  mismatchedShadowRuns: number;
+  unavailableShadowRuns: number;
+  failureCount: number;
+  blockedCount: number;
+  permissionDeniedCount: number;
+  evidenceHours: number;
+  firstEntryAt?: string;
+  lastEntryAt?: string;
+  recommendation: RayenClinicalEnrichmentRolloutRecommendation;
+}
+
 export interface FunctionsTelemetryFilters {
   service?: string;
   status?: TelemetryStatus;
