@@ -27,6 +27,15 @@ const dischargeKindLabel: Record<string, string> = {
   cma: 'Egreso CMA',
 };
 
+const updateEntryKey = (entry: CensusImportDiff['updates'][number]): string => {
+  const subject = entry.source?.encounterId || entry.rut || entry.patientName;
+  const fields = entry.changes
+    .map(change => String(change.field))
+    .sort()
+    .join('-');
+  return `upd-${entry.bedId}-${subject}-${fields}`;
+};
+
 export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = ({
   isOpen,
   diff,
@@ -132,7 +141,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
 
                 <Section title="Actualizaciones" count={diff.updates.length}>
                   {diff.updates.map(entry => (
-                    <li key={`upd-${entry.bedId}`}>
+                    <li key={updateEntryKey(entry)}>
                       <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
                       <span className="text-gray-400">
                         {entry.changes.map(change => String(change.field)).join(', ')}
