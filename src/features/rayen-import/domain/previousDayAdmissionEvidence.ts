@@ -26,6 +26,7 @@ const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, 
 interface EvidenceDependencies {
   fetchReport: (encounterId: string) => Promise<PatientFlowReportResult>;
   extractText?: (buffer: ArrayBuffer) => Promise<string>;
+  loadHistoricalRecord?: (day: string) => Promise<DailyRecord | null>;
   snapshot?: RayenCensusSnapshot;
   currentRecord?: DailyRecord;
   reference?: Date;
@@ -105,6 +106,21 @@ const currentPrincipalFor = (
       !!normalizeRut(encounter.run) && normalizeRut(encounter.run) === normalizeRut(patient.rut)
     );
   });
+
+const historicalPrincipalFor = (
+  record: DailyRecord | null | undefined,
+  expected: PatientData,
+  expectedEncounterId?: string
+): { bedId: string; patient: PatientData } | undefined => {
+  const exactEpisode = expectedEncounterId?.trim() || expected.clinicalEpisodeId?.trim();
+  const match = Object.entries(record?.beds ?? {}).find(([, patient]) => {
+    if (!isOccupied(patient)) return false;
+    if (exactEpisode) return patient.clinicalEpisodeId?.trim() === exactEpisode;
+    const expectedRut = normalizeRut(expected.rut);
+    return Boolean(expectedRut) && normalizeRut(patient.rut) === expectedRut;
+  });
+  return match ? { bedId: match[0], patient: match[1] } : undefined;
+};
 
 const snapshotReference = (snapshot: RayenCensusSnapshot, reference?: Date): Date => {
   if (reference) return reference;
@@ -231,6 +247,34 @@ const verifyCandidate = async (
   }
   const { nextDay, nightEnd } = resolveClinicalDayBounds(correctionDay);
   try {
+    let historicalRecord: DailyRecord | null = null;
+    try {
+      historicalRecord = dependencies.loadHistoricalRecord
+        ? await dependencies.loadHistoricalRecord(correctionDay)
+        : null;
+    } catch {
+      // The official patient-flow report remains a valid fallback when local history is unavailable.
+    }
+    const historicalPrincipal = historicalPrincipalFor(
+      historicalRecord,
+      admission.patient,
+      source.encounterId
+    );
+    if (historicalPrincipal) {
+      return {
+        admission: {
+          ...admission,
+          source: {
+            ...source,
+            verifiedBedPlacement: {
+              source: 'local-census-history',
+              bedId: historicalPrincipal.bedId,
+              changedAt: historicalRecord?.lastUpdated || `${correctionDay}T${nightEnd}:00`,
+            },
+          },
+        },
+      };
+    }
     const report = await dependencies.fetchReport(source.encounterId);
     if (!report.base64 || report.error) {
       return {
@@ -288,13 +332,26 @@ export const verifyPreviousDayAdmissionPlacements = async (
   dependencies: EvidenceDependencies
 ): Promise<CensusImportDiff> => {
   const extractText = dependencies.extractText ?? extractPdfTextFromBuffer;
+  const historicalRecordCache = new Map<string, Promise<DailyRecord | null>>();
+  const loadHistoricalRecord = dependencies.loadHistoricalRecord
+    ? (day: string): Promise<DailyRecord | null> => {
+        const cached = historicalRecordCache.get(day);
+        if (cached) return cached;
+        const pending = dependencies.loadHistoricalRecord?.(day) ?? Promise.resolve(null);
+        historicalRecordCache.set(day, pending);
+        return pending;
+      }
+    : undefined;
+  const cachedDependencies = { ...dependencies, loadHistoricalRecord };
   const candidates = [
     ...diff.admissions,
     ...(diff.previousDayAdmissionCandidates ?? []),
     ...supplementalCandidates(diff, censusDay, dependencies),
   ];
   const results = await Promise.all(
-    candidates.map(admission => verifyCandidate(admission, censusDay, dependencies, extractText))
+    candidates.map(admission =>
+      verifyCandidate(admission, censusDay, cachedDependencies, extractText)
+    )
   );
   const evidenceConflicts = results.flatMap(result => (result.conflict ? [result.conflict] : []));
   const conflicts = diff.conflicts.filter(

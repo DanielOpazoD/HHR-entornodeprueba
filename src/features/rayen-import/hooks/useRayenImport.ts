@@ -46,6 +46,7 @@ import { patchFreshClinicalRecord } from './patchFreshClinicalRecord';
 import type { ClinicalFillPatchTarget } from '../contracts/clinicalFillContracts';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
+import { shouldPreservePostImportFlow } from '../domain/rayenPreviewClosePolicy';
 export const useRayenImport = () => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
@@ -350,6 +351,10 @@ export const useRayenImport = () => {
   );
 
   const cancel = useCallback(() => {
+    if (shouldPreservePostImportFlow(state.diff, state.result)) {
+      setState(prev => ({ ...prev, isPreviewOpen: false }));
+      return;
+    }
     invalidateRayenFillAttempt();
     cancelRun();
     const staffingDecisionWasSkipped =
@@ -358,7 +363,7 @@ export const useRayenImport = () => {
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
-  }, [cancelRun, staffingProposal]);
+  }, [cancelRun, staffingProposal, state.diff, state.result]);
 
   return useMemo(
     () => ({
