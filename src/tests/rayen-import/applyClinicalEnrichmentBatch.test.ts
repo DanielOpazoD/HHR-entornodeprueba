@@ -44,13 +44,17 @@ const dependencies = () => ({
     authorityStatus: 'ok' as const,
     date: payload.date,
     mode: payload.mode,
-    targetCount: payload.patches.length,
+    targetCount: new Set(
+      [...payload.patches, ...(payload.checkpoints ?? [])].map(
+        target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`
+      )
+    ).size,
     fieldCount:
       payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
       (payload.checkpoints?.length ?? 0),
     resultParity: 'matched' as const,
     patientWrites: 1,
-    historySnapshots: 1,
+    historySnapshots: Number(payload.patches.length > 0),
   })),
   createMutationId: vi.fn(() => 'mutation-fixed'),
 });
@@ -101,11 +105,14 @@ describe('applyClinicalEnrichmentBatch', () => {
       })
     );
     const payload = deps.invoke.mock.calls[0]?.[0];
-    expect(payload.checkpoints).toBeUndefined();
-    expect(payload.patches[0]?.fields).toHaveProperty(
-      'clinicalSyncCheckpoint',
-      expect.objectContaining({ version: 1 })
-    );
+    expect(payload.checkpoints).toEqual([
+      expect.objectContaining({
+        bedId: 'H2C1',
+        clinicalEpisodeId: 'episode-1',
+        checkpoint: expect.objectContaining({ version: 1 }),
+      }),
+    ]);
+    expect(payload.patches[0]?.fields).not.toHaveProperty('clinicalSyncCheckpoint');
     expect(deps.applyPatch).toHaveBeenCalledTimes(2);
     expect(deps.applyPatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
       deps.invoke.mock.invocationCallOrder[0]

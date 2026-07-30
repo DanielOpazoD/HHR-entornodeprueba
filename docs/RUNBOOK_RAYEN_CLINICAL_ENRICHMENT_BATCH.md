@@ -18,12 +18,14 @@ solo el `mutationId` se conserva entre reintentos de transporte de esa misma eje
 
 - `off`: conserva íntegramente las escrituras por paciente.
 - `shadow`: las escrituras por paciente continúan apenas quedan listas; al final se observa el mismo
-  lote en backend con `dryRun`. Es el modo predeterminado mientras se reúne evidencia de paridad.
-  Un fallo del observador no revierte la persistencia clínica y la llamada queda acotada a 20 s.
+  lote en backend con `dryRun`. Se conserva para diagnóstico controlado, no como ruta operativa
+  habitual. Un fallo del observador no revierte la persistencia clínica y la llamada queda acotada
+  a 20 s.
 - `enforced`: el callable aplica el lote. Los errores transitorios tienen un reintento idempotente,
   pero nunca hacen fallback porque su resultado puede ser ambiguo. El flujo actual se usa como
   fallback solo si el callable no existe o aún no está implementado. Rechazos de autenticación,
   revisión, episodio o allowlist se muestran como conflicto y tampoco hacen fallback silencioso.
+  Es el modo predeterminado después de la promoción operativa basada en el gate de paridad.
 
 Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
 
@@ -32,7 +34,8 @@ Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
 1. Confirmar que el workflow `Deploy Firebase Functions` termina correctamente. Requiere el secreto
    de repositorio `FIREBASE_SERVICE_ACCOUNT_HHR`, usa Node 22 y verifica después del despliegue que
    `applyRayenClinicalEnrichmentBatch` exista realmente en `hhr-pruebas`.
-2. Desplegar `shadow` durante varias ejecuciones y al menos dos turnos; revisar
+2. Antes de una nueva promoción o después de cambios en el contrato, desplegar `shadow` durante
+   varias ejecuciones y al menos dos turnos; revisar
    `functionsTelemetry` con
    `service = rayenClinicalEnrichment`.
 3. Usar el gate **Lote clínico transaccional** del panel técnico. Para recomendar `enforced` exige
@@ -42,15 +45,17 @@ Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
    `failed-precondition` y `aborted`, y ausencia de degradación clínica.
 5. Comparar `targetCount`, `fieldCount`, duración y cobertura con el flujo actual. La telemetría no
    contiene RUT, nombres, camas, ENC_ID ni valores clínicos.
-6. Activar `enforced` mediante configuración explícita; no existe promoción automática. Vigilar
-   reintentos/fallbacks y volver a `off` ante errores sostenidos.
+6. Activar `enforced` mediante configuración explícita en instalaciones que aún mantengan `shadow`;
+   no existe promoción automática. En la instalación principal, la ausencia del flag resuelve a
+   `enforced`. Vigilar reintentos/fallbacks y volver a `off` ante errores sostenidos.
 
 ## Incrementalidad de lectura y escritura
 
 - El cliente compara el contenido clínico canónico y excluye del lote todo paciente sin un cambio
   clínico efectivo ni avance de checkpoint.
 - Un target que solo cambia `clinicalSyncCheckpoint` se persiste en la misma transacción, pero no
-  cuenta como parche clínico ni genera snapshot en `history/`.
+  cuenta como parche clínico ni genera snapshot en `history/`. El cliente lo envía en la sección
+  `checkpoints`, no duplicado dentro de `patches`.
 - Signos vitales, escalas y actividad de dotación conservan identidades/fingerprints acotados y un
   watermark por fuente. La ruta histórica actual de Ficha Médico no acepta un watermark explícito:
   se mantiene su ventana adaptativa normal y se realiza como máximo una revalidación completa cada
