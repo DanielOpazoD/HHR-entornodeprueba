@@ -53,11 +53,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Verify deployment credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HHR }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Missing GitHub secret FIREBASE_SERVICE_ACCOUNT_HHR. See the workflow header for setup instructions."
+            exit 1
+          fi
+
       - name: Setup Node.js (functions runtime)
         uses: actions/setup-node@v6
         with:
           # Matches `functions/package.json` engines.node — keep these in sync.
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: functions/package-lock.json
 
@@ -69,10 +78,6 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HHR }}
         run: |
-          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
-            echo "::error::Missing GitHub secret FIREBASE_SERVICE_ACCOUNT_HHR. See the workflow header for setup instructions."
-            exit 1
-          fi
           mkdir -p "$RUNNER_TEMP/firebase"
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase/service-account.json"
           chmod 600 "$RUNNER_TEMP/firebase/service-account.json"
@@ -121,6 +126,17 @@ jobs:
             --project hhr-pruebas \
             --non-interactive \
             --force
+
+      - name: Verify deployed clinical fast path
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
+        run: |
+          npx --yes firebase-tools@latest functions:list \
+            --project hhr-pruebas \
+            --json > "$RUNNER_TEMP/firebase/functions-list.json"
+          node scripts/check-deployed-firebase-functions.mjs \
+            "$RUNNER_TEMP/firebase/functions-list.json" \
+            applyRayenClinicalEnrichmentBatch
 
       - name: Cleanup credentials
         if: always()

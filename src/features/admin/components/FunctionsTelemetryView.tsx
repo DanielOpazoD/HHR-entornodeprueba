@@ -8,6 +8,7 @@ import { DailyRecordAuthorityRolloutCard } from './internal/functionsTelemetry/D
 import { FunctionsTelemetrySummaryCards } from './internal/functionsTelemetry/FunctionsTelemetrySummaryCards';
 import { FunctionsTelemetryFilters } from './internal/functionsTelemetry/FunctionsTelemetryFilters';
 import { FunctionsTelemetryTable } from './internal/functionsTelemetry/FunctionsTelemetryTable';
+import { RayenClinicalEnrichmentRolloutCard } from './internal/functionsTelemetry/RayenClinicalEnrichmentRolloutCard';
 
 export const FunctionsTelemetryView: React.FC = () => {
   const { role } = useAuth();
@@ -15,6 +16,7 @@ export const FunctionsTelemetryView: React.FC = () => {
     filteredEntries,
     summaries,
     authorityRolloutSummary,
+    clinicalEnrichmentRolloutSummary,
     availableServices,
     loading,
     error,
@@ -49,6 +51,8 @@ export const FunctionsTelemetryView: React.FC = () => {
       )}
 
       <DailyRecordAuthorityRolloutCard summary={authorityRolloutSummary} />
+
+      <RayenClinicalEnrichmentRolloutCard summary={clinicalEnrichmentRolloutSummary} />
 
       <FunctionsTelemetrySummaryCards summaries={summaries} />
 

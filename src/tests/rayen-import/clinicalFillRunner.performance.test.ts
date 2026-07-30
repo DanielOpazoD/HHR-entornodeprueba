@@ -187,7 +187,7 @@ describe('runClinicalFill performance pipeline', () => {
         historySnapshots: 1,
       },
       performance: {
-        counters: { patches: 1, retries: 1 },
+        counters: { cacheHits: 4, patches: 1, retries: 1 },
       },
     });
   });

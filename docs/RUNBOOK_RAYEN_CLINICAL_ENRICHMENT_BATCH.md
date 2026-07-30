@@ -29,14 +29,20 @@ Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
 
 ## Secuencia operativa
 
-1. Desplegar `shadow` durante varias ejecuciones y al menos dos turnos; revisar
+1. Confirmar que el workflow `Deploy Firebase Functions` termina correctamente. Requiere el secreto
+   de repositorio `FIREBASE_SERVICE_ACCOUNT_HHR`, usa Node 22 y verifica después del despliegue que
+   `applyRayenClinicalEnrichmentBatch` exista realmente en `hhr-pruebas`.
+2. Desplegar `shadow` durante varias ejecuciones y al menos dos turnos; revisar
    `functionsTelemetry` con
    `service = rayenClinicalEnrichment`.
-2. Exigir paridad `matched`, cero rechazos inesperados de `permission-denied`,
+3. Usar el gate **Lote clínico transaccional** del panel técnico. Para recomendar `enforced` exige
+   al menos 4 ejecuciones shadow coincidentes, 8 horas entre la primera y última evidencia, ninguna
+   paridad ausente y cero señales bloqueantes.
+4. Exigir paridad `matched`, cero rechazos inesperados de `permission-denied`,
    `failed-precondition` y `aborted`, y ausencia de degradación clínica.
-3. Comparar `targetCount`, `fieldCount`, duración y cobertura con el flujo actual. La telemetría no
+5. Comparar `targetCount`, `fieldCount`, duración y cobertura con el flujo actual. La telemetría no
    contiene RUT, nombres, camas, ENC_ID ni valores clínicos.
-4. Activar `enforced` mediante configuración explícita; no existe promoción automática. Vigilar
+6. Activar `enforced` mediante configuración explícita; no existe promoción automática. Vigilar
    reintentos/fallbacks y volver a `off` ante errores sostenidos.
 
 ## Incrementalidad de lectura y escritura
@@ -54,6 +60,9 @@ Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
 - Para el censo clínico vigente, dispositivos usa primero la respuesta JSON estructurada de Ficha
   Médico. Los censos históricos conservan el PDF fechado como autoridad; el PDF también permanece
   como fallback de compatibilidad cuando el endpoint JSON no está disponible.
+- El contador `cacheHits` incluye la reutilización intrarrun del único resultado CUDYR masivo. Para
+  `K` episodios elegibles registra `K - 1` lecturas individuales evitadas solo cuando esa lectura
+  compartida fue autoritativa; no simula caché cuando el origen falla.
 
 ## Invariantes
 

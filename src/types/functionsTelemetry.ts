@@ -33,11 +33,13 @@ export interface FunctionsTelemetryServiceSummary {
   lastEntryAt?: string;
 }
 
-export type DailyRecordAuthorityRolloutRecommendation =
+export type RolloutRecommendation =
   | 'insufficient_data'
   | 'ready_for_enforced'
   | 'monitor_enforced'
   | 'investigate';
+
+export type DailyRecordAuthorityRolloutRecommendation = RolloutRecommendation;
 
 export interface DailyRecordAuthorityRolloutSummary {
   total: number;
@@ -51,6 +53,24 @@ export interface DailyRecordAuthorityRolloutSummary {
   degenerateFallbackEpisodeKeys: number;
   lastEntryAt?: string;
   recommendation: DailyRecordAuthorityRolloutRecommendation;
+}
+
+export type RayenClinicalEnrichmentRolloutRecommendation = RolloutRecommendation;
+
+export interface RayenClinicalEnrichmentRolloutSummary {
+  total: number;
+  shadowRuns: number;
+  enforcedWrites: number;
+  matchedShadowRuns: number;
+  mismatchedShadowRuns: number;
+  unavailableShadowRuns: number;
+  failureCount: number;
+  blockedCount: number;
+  permissionDeniedCount: number;
+  evidenceHours: number;
+  firstEntryAt?: string;
+  lastEntryAt?: string;
+  recommendation: RayenClinicalEnrichmentRolloutRecommendation;
 }
 
 export interface FunctionsTelemetryFilters {

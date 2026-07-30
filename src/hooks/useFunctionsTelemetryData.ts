@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   buildDailyRecordAuthorityRolloutSummary,
+  buildRayenClinicalEnrichmentRolloutSummary,
   buildServiceSummaries,
   fetchFunctionsTelemetry,
 } from '@/services/admin/functionsTelemetryService';
@@ -61,6 +62,10 @@ export const useFunctionsTelemetryData = (limit: number = DEFAULT_LIMIT) => {
     () => buildDailyRecordAuthorityRolloutSummary(entries),
     [entries]
   );
+  const clinicalEnrichmentRolloutSummary = useMemo(
+    () => buildRayenClinicalEnrichmentRolloutSummary(entries),
+    [entries]
+  );
 
   const availableServices = useMemo(() => {
     const set = new Set(entries.map(e => e.service));
@@ -72,6 +77,7 @@ export const useFunctionsTelemetryData = (limit: number = DEFAULT_LIMIT) => {
     filteredEntries,
     summaries,
     authorityRolloutSummary,
+    clinicalEnrichmentRolloutSummary,
     availableServices,
     loading,
     error,
