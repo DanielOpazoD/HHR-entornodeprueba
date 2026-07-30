@@ -49,6 +49,92 @@ describe('mergeScaleSources', () => {
     expect(merged[0].severity).toBe('Riesgo bajo');
   });
 
+  it('merges partial history answers with a fuller compatible summary payload', () => {
+    const history = [
+      scale({
+        items: [{ id: 'BRAD_A', label: 'Etiqueta antigua', value: '1', valueName: 'Respuesta A' }],
+      }),
+    ];
+    const summary = [
+      scale({
+        items: [
+          { id: 'BRAD_A', label: 'Etiqueta nueva', value: '1', valueName: 'Respuesta A' },
+          { id: 'BRAD_B', label: 'Otra respuesta', value: '2', valueName: 'Respuesta B' },
+        ],
+      }),
+    ];
+
+    const merged = mergeScaleSources(history, summary);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].items).toHaveLength(2);
+  });
+
+  it('keeps same-time records separate when their overlapping answers conflict', () => {
+    const history = [
+      scale({
+        items: [{ id: 'BRAD_A', label: 'A', value: '1', valueName: 'Respuesta A' }],
+      }),
+    ];
+    const summary = [
+      scale({
+        items: [{ id: 'BRAD_A', label: 'A', value: '2', valueName: 'Respuesta B' }],
+      }),
+    ];
+
+    expect(mergeScaleSources(history, summary)).toHaveLength(2);
+  });
+
+  it('pairs an exact severity before an underspecified candidate in an ambiguous minute', () => {
+    const history = [scale({ severity: 'Riesgo alto', author: 'Historial' })];
+    const summary = [
+      scale({ severity: null, sourceOrder: 1, author: 'Coincidencia incompleta' }),
+      scale({ severity: 'Riesgo alto', sourceOrder: 2, author: 'Coincidencia exacta' }),
+    ];
+
+    const merged = mergeScaleSources(history, summary);
+
+    expect(merged).toHaveLength(2);
+    expect(merged.find(item => item.author === 'Coincidencia exacta')).toBeUndefined();
+    expect(merged.some(item => item.author === 'Coincidencia incompleta')).toBe(true);
+    expect(merged.some(item => item.severity == null)).toBe(true);
+  });
+
+  it('pairs the most constrained partial history record before an ambiguous one', () => {
+    const answerA = { id: 'BRAD_A', label: 'A', value: '1', valueName: 'Respuesta A' };
+    const answerB = { id: 'BRAD_A', label: 'A', value: '2', valueName: 'Respuesta B' };
+    const history = [
+      scale({ items: [], sourceOrder: 1 }),
+      scale({ items: [answerA], sourceOrder: 2 }),
+    ];
+    const summary = [
+      scale({ items: [answerA], sourceOrder: 3 }),
+      scale({ items: [answerB], sourceOrder: 4 }),
+    ];
+
+    const merged = mergeScaleSources(history, summary);
+
+    expect(merged).toHaveLength(2);
+    expect(merged.map(item => item.items[0]?.value).sort()).toEqual(['1', '2']);
+  });
+
+  it('maximizes total evidence quality without sacrificing the number of pairs', () => {
+    const answerA = { id: 'BRAD_A', label: 'A', value: '1', valueName: 'Respuesta A' };
+    const history = [
+      scale({ severity: 'Riesgo alto', items: [answerA], sourceOrder: 1 }),
+      scale({ severity: null, items: [], sourceOrder: 2 }),
+    ];
+    const summary = [
+      scale({ severity: 'Riesgo alto', items: [answerA], sourceOrder: 3 }),
+      scale({ severity: null, items: [], sourceOrder: 4 }),
+    ];
+
+    const merged = mergeScaleSources(history, summary);
+
+    expect(merged).toHaveLength(2);
+    expect(merged.map(item => item.items.length).sort()).toEqual([0, 1]);
+  });
+
   it('keeps exact-timestamp records separate when their severities conflict', () => {
     const history = [scale({ recordedAt: '2026-07-10T08:00:00', severity: 'Riesgo alto' })];
     const summary = [scale({ recordedAt: '10-07-2026 08:00:00 -06:00', severity: 'Riesgo bajo' })];
@@ -83,6 +169,7 @@ describe('mergeScaleSources', () => {
         recordedAt: '26-07-2026 13:01',
         author: 'Nicole Palma',
         authorRole: '',
+        items: [{ id: 'BRAD_A', label: 'A', value: '1', valueName: 'Respuesta A' }],
       }),
     ];
 
@@ -91,9 +178,11 @@ describe('mergeScaleSources', () => {
     expect(merged).toHaveLength(1);
     expect(merged[0]).toMatchObject({
       encounterEventId: 20260726130119,
+      recordedAt: '2026-07-26T13:01:19',
       author: 'Nicole Palma',
       authorRole: 'Enfermera(o)',
     });
+    expect(merged[0].items).toHaveLength(1);
   });
 
   it('keeps genuine repeats when one source exposes two applications in the same minute', () => {
@@ -116,6 +205,64 @@ describe('mergeScaleSources', () => {
     expect(mergeScaleSources(history, summary)).toHaveLength(2);
   });
 
+  it('collapses the same summary application repeated under different form authors', () => {
+    const summary = [
+      scale({
+        recordedAt: '2026-07-26T16:16:38',
+        author: 'Valeria Salfate',
+        sourceOrder: 100,
+      }),
+      scale({
+        recordedAt: '2026-07-26T16:16:38',
+        author: 'Constanza Guajardo',
+        sourceOrder: 200,
+      }),
+    ];
+
+    expect(mergeScaleSources([], summary)).toEqual([
+      expect.objectContaining({ author: 'Valeria Salfate', sourceOrder: 100 }),
+    ]);
+  });
+
+  it('preserves distinct same-source forms when both timestamps have only minute precision', () => {
+    const summary = [
+      scale({ recordedAt: '26-07-2026 16:16', sourceOrder: 100 }),
+      scale({ recordedAt: '26-07-2026 16:16', sourceOrder: 200 }),
+    ];
+
+    expect(mergeScaleSources([], summary)).toHaveLength(2);
+  });
+
+  it('collapses an exact minute-precision copy with the same form identity', () => {
+    const summary = [
+      scale({ recordedAt: '26-07-2026 16:16', sourceOrder: 100, author: 'Primera copia' }),
+      scale({ recordedAt: '26-07-2026 16:16', sourceOrder: 100, author: 'Segunda copia' }),
+    ];
+
+    expect(mergeScaleSources([], summary)).toEqual([
+      expect.objectContaining({ sourceOrder: 100, author: 'Primera copia' }),
+    ]);
+  });
+
+  it('keeps same-result applications seconds apart because they may be real reassessments', () => {
+    const summary = [
+      scale({ recordedAt: '2026-07-26T13:01:19', sourceOrder: 1 }),
+      scale({ recordedAt: '2026-07-26T13:01:27', sourceOrder: 2 }),
+      scale({ recordedAt: '2026-07-26T13:01:48', sourceOrder: 3 }),
+    ];
+
+    expect(mergeScaleSources([], summary).map(item => item.sourceOrder)).toEqual([1, 2, 3]);
+  });
+
+  it('keeps rapid applications separate when their clinical result changes', () => {
+    const summary = [
+      scale({ recordedAt: '2026-07-26T13:01:19', total: 3, severity: 'Riesgo alto' }),
+      scale({ recordedAt: '2026-07-26T13:01:27', total: 2, severity: 'Riesgo medio' }),
+    ];
+
+    expect(mergeScaleSources([], summary)).toHaveLength(2);
+  });
+
   it('keeps history attribution when only the summary marks the exact copy as visible', () => {
     const history = [
       scale({
@@ -133,7 +280,7 @@ describe('mergeScaleSources', () => {
     ];
 
     const [merged] = mergeScaleSources(history, summary);
-    expect(merged.archived).toBe(false);
+    expect(merged.archived).toBeUndefined();
     expect(merged.author).toBe('Enfermera Historial');
   });
 

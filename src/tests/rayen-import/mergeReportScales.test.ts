@@ -168,4 +168,169 @@ describe('mergeReportScales', () => {
     expect(result.evaluationScores?.braden).toBeUndefined();
     expect(result.evaluationScores?.history).toEqual([]);
   });
+
+  it('repairs already-persisted equivalent duplicates without waiting for a new scale', () => {
+    const duplicated = patient({
+      evaluationScores: {
+        history: [
+          {
+            ...BRADEN_D10,
+            sourceOrder: 100,
+            author: 'Valeria Salfate',
+            items: undefined,
+          },
+          {
+            ...BRADEN_D10,
+            sourceOrder: 200,
+            author: 'Constanza Guajardo',
+            items: undefined,
+          },
+        ],
+      },
+    });
+
+    const result = mergeReportScales(duplicated, [], {
+      censusIsoDay: '2026-07-10',
+    });
+
+    expect(result.evaluationScores?.history).toHaveLength(1);
+    expect(result.evaluationScores?.history?.[0].author).toBe('Valeria Salfate');
+  });
+
+  it('defensively collapses equivalent duplicates that arrive in the same batch', () => {
+    const original = { ...BRADEN_D10, sourceOrder: 100 };
+    const duplicate = {
+      ...BRADEN_D10,
+      sourceOrder: 200,
+      author: 'Otro formulario',
+    };
+
+    const result = mergeReportScales(patient(), [original, duplicate], {
+      censusIsoDay: '2026-07-10',
+    });
+
+    expect(result.evaluationScores?.history).toHaveLength(1);
+    expect(result.evaluationScores?.history?.[0].author).toBe('Enf. Ejemplo');
+  });
+
+  it('keeps the preferred visible persisted representation over an archived alternate form', () => {
+    const existing = patient({
+      evaluationScores: {
+        history: [
+          {
+            ...BRADEN_D10,
+            encounterEventId: 20260710080000,
+            sourceOrder: 1,
+            author: 'Valeria Salfate',
+            items: undefined,
+          },
+        ],
+      },
+    });
+    const archivedCopy = {
+      ...BRADEN_D10,
+      encounterEventId: 20260710080000,
+      sourceOrder: 2,
+      author: 'Otro formulario',
+      archived: true,
+    };
+
+    const result = mergeReportScales(existing, [archivedCopy], {
+      censusIsoDay: '2026-07-10',
+    });
+
+    expect(result.evaluationScores?.history).toEqual([
+      expect.objectContaining({
+        encounterEventId: 20260710080000,
+        author: 'Valeria Salfate',
+      }),
+    ]);
+    expect(result.evaluationScores?.history?.[0].archived).toBeUndefined();
+  });
+
+  it('persists an authoritative archive transition for the same stable event', () => {
+    const existing = patient({
+      evaluationScores: {
+        history: [
+          {
+            ...BRADEN_D10,
+            encounterEventId: 20260710080000,
+            sourceOrder: 1,
+            author: 'Valeria Salfate',
+          },
+        ],
+      },
+    });
+    const archivedUpdate = {
+      ...BRADEN_D10,
+      encounterEventId: 20260710080000,
+      sourceOrder: 1,
+      author: 'Rayen actualizado',
+      archived: true,
+    };
+
+    const result = mergeReportScales(existing, [archivedUpdate], {
+      censusIsoDay: '2026-07-10',
+    });
+
+    expect(result.evaluationScores?.history).toEqual([
+      expect.objectContaining({
+        author: 'Rayen actualizado',
+        archived: true,
+      }),
+    ]);
+  });
+
+  it('retains a newly available stable identity when repairing a preferred legacy copy', () => {
+    const existing = patient({
+      evaluationScores: {
+        history: [
+          {
+            ...BRADEN_D10,
+            encounterEventId: 0,
+            sourceOrder: 1,
+            author: 'Valeria Salfate',
+          },
+        ],
+      },
+    });
+    const stableArchivedCopy = {
+      ...BRADEN_D10,
+      encounterEventId: 20260710080000,
+      sourceOrder: 42,
+      author: 'Otro formulario',
+      items: [],
+      archived: true,
+    };
+
+    const result = mergeReportScales(existing, [stableArchivedCopy], {
+      censusIsoDay: '2026-07-10',
+    });
+
+    expect(result.evaluationScores?.history).toEqual([
+      expect.objectContaining({
+        author: 'Valeria Salfate',
+        encounterEventId: 20260710080000,
+        sourceOrder: 42,
+      }),
+    ]);
+    expect(result.evaluationScores?.history?.[0].archived).toBeUndefined();
+  });
+
+  it('does not repair away a real reapplication with a changed score', () => {
+    const repeated = {
+      ...BRADEN_D10,
+      encounterEventId: 20260710080008,
+      recordedAt: '10-07-2026 08:00:08 -06:00',
+      sourceOrder: 200,
+      total: 11,
+      severity: 'Riesgo alto',
+    };
+
+    const result = mergeReportScales(patient(), [BRADEN_D10, repeated], {
+      censusIsoDay: '2026-07-10',
+    });
+
+    expect(result.evaluationScores?.history).toHaveLength(2);
+  });
 });

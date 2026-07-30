@@ -228,9 +228,10 @@ export const runClinicalFill = async (
           : [];
       const summaryScales = parseEvaluationScales(forms);
       const scales = mergeScaleSources(historyScales, summaryScales);
-      if (scales.length > 0) {
-        merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
-      }
+      // Always pass through the canonicalizer, even when the incremental read contains no new
+      // scale. Older versions could persist one Rayen application twice under different form
+      // authors; waiting for a new application would leave that duplicate visible indefinitely.
+      merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
       if (historyAuthoritative && formsAuthoritative) {
         recordIncrementalFacts(
           'scales',

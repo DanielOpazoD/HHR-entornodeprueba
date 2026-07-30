@@ -10,15 +10,19 @@
  * ARCHIVED RULE. Archived records remain clinically usable. Day-level selection later prefers the
  * newest visible application, falling back to the newest archived application when all are hidden.
  *
- * Strategy: normalize every ordering key, then reconcile ONE-TO-ONE cross-source copies by
- * `(code · day · minute · total)` and compatible severity. Resumen only exposes minute precision,
- * while Historial exposes seconds for the same application (e.g. 13:01 vs 13:01:19). Pairing is
- * deliberately one-to-one: if either source really contains two applications in that minute, the
- * extra record remains in the result.
+ * Strategy: normalize every ordering key, collapse equivalent copies inside each source, then
+ * reconcile ONE-TO-ONE cross-source copies by clinical identity. Resumen sometimes omits seconds
+ * and repeated forms can expose the same answers a few seconds apart. Distinct results and genuine
+ * repeated applications remain independent.
  * History contributes reliable attribution; summary contributes the fuller item breakdown.
  */
 
 import type { EvaluationScale } from './parseEvaluationScales';
+import {
+  dedupeEquivalentScaleApplications,
+  mergeEquivalentScaleApplications,
+  scaleApplicationMatchQuality,
+} from './evaluationScaleApplicationIdentity';
 
 /** Rewrite `encounterEventId` to YYYYMMDDHHMMSS; `sourceOrder` stays the independent tie-breaker. */
 const normalize = (scale: EvaluationScale): EvaluationScale => {
@@ -43,33 +47,109 @@ const canonicalClock = (recordedAt: string): string | null => {
   return [hour, minute, second].map(value => String(value).padStart(2, '0')).join(':');
 };
 
-const applicationMinuteKey = (scale: EvaluationScale, source: 'history' | 'summary'): string =>
-  [
-    scale.code,
-    scale.recordedDate,
-    canonicalClock(scale.recordedAt)?.slice(0, 5) ??
-      // Without a clock there is no safe cross-source identity: keep each source record distinct.
-      `${source}:${scale.encounterEventId}:${scale.sourceOrder ?? ''}`,
-    scale.total ?? '',
-  ].join('|');
-
-const severitiesAreCompatible = (left: EvaluationScale, right: EvaluationScale): boolean =>
-  left.severity == null || right.severity == null || left.severity === right.severity;
-
 const mergeDuplicate = (history: EvaluationScale, summary: EvaluationScale): EvaluationScale => {
-  const preferred = history.archived && !summary.archived ? summary : history;
-  const complement = preferred === history ? summary : history;
-  const richerItems =
-    preferred.items.length >= complement.items.length ? preferred.items : complement.items;
-  return {
-    ...preferred,
-    items: richerItems,
-    severity: preferred.severity ?? complement.severity,
+  const merged = mergeEquivalentScaleApplications(history, summary);
+  const withHistoryIdentity: EvaluationScale = {
+    ...merged,
+    recordedDate: history.recordedDate,
+    recordedAt: history.recordedAt,
+    encounterEventId: history.encounterEventId,
     // Historial is authoritative for who applied it, regardless of quick-summary archive state.
     author: history.author || summary.author,
     authorRole: history.authorRole || summary.authorRole,
-    archived: Boolean(preferred.archived && complement.archived),
   };
+  if (history.sourceOrder != null) withHistoryIdentity.sourceOrder = history.sourceOrder;
+  else delete withHistoryIdentity.sourceOrder;
+  return withHistoryIdentity;
+};
+
+interface FlowEdge {
+  to: number;
+  reverse: number;
+  capacity: number;
+  cost: number;
+}
+
+const addFlowEdge = (graph: FlowEdge[][], from: number, to: number, cost: number): FlowEdge => {
+  const forward: FlowEdge = { to, reverse: graph[to].length, capacity: 1, cost };
+  const backward: FlowEdge = { to: from, reverse: graph[from].length, capacity: 0, cost: -cost };
+  graph[from].push(forward);
+  graph[to].push(backward);
+  return forward;
+};
+
+const matchSummaryApplications = (
+  history: EvaluationScale[],
+  summary: EvaluationScale[]
+): Map<number, number> => {
+  const source = 0;
+  const historyOffset = 1;
+  const summaryOffset = historyOffset + history.length;
+  const sink = summaryOffset + summary.length;
+  const graph: FlowEdge[][] = Array.from({ length: sink + 1 }, () => []);
+  const pairEdges: Array<{
+    historyIndex: number;
+    summaryIndex: number;
+    edge: FlowEdge;
+  }> = [];
+
+  history.forEach((historyScale, historyIndex) => {
+    addFlowEdge(graph, source, historyOffset + historyIndex, 0);
+    summary.forEach((summaryScale, summaryIndex) => {
+      const quality = scaleApplicationMatchQuality(historyScale, summaryScale, {
+        allowMinutePrecision: true,
+        allowPartialPayload: true,
+      });
+      if (quality == null) return;
+      pairEdges.push({
+        historyIndex,
+        summaryIndex,
+        edge: addFlowEdge(
+          graph,
+          historyOffset + historyIndex,
+          summaryOffset + summaryIndex,
+          -quality
+        ),
+      });
+    });
+  });
+  summary.forEach((_, summaryIndex) => addFlowEdge(graph, summaryOffset + summaryIndex, sink, 0));
+
+  while (true) {
+    const distance = Array<number>(graph.length).fill(Number.POSITIVE_INFINITY);
+    const previous = Array<{ node: number; edge: number } | null>(graph.length).fill(null);
+    distance[source] = 0;
+    for (let pass = 0; pass < graph.length - 1; pass += 1) {
+      let changed = false;
+      graph.forEach((edges, node) => {
+        if (!Number.isFinite(distance[node])) return;
+        edges.forEach((edge, edgeIndex) => {
+          const nextDistance = distance[node] + edge.cost;
+          if (edge.capacity > 0 && nextDistance < distance[edge.to]) {
+            distance[edge.to] = nextDistance;
+            previous[edge.to] = { node, edge: edgeIndex };
+            changed = true;
+          }
+        });
+      });
+      if (!changed) break;
+    }
+    if (previous[sink] == null) break;
+    for (let node = sink; node !== source; ) {
+      const step = previous[node];
+      if (!step) break;
+      const edge = graph[step.node][step.edge];
+      edge.capacity -= 1;
+      graph[node][edge.reverse].capacity += 1;
+      node = step.node;
+    }
+  }
+
+  return new Map(
+    pairEdges
+      .filter(({ edge }) => edge.capacity === 0)
+      .map(({ historyIndex, summaryIndex }) => [historyIndex, summaryIndex])
+  );
 };
 
 /**
@@ -79,38 +159,22 @@ export const mergeScaleSources = (
   historyScales: EvaluationScale[],
   summaryScales: EvaluationScale[]
 ): EvaluationScale[] => {
-  const groups = new Map<string, { history: EvaluationScale[]; summary: EvaluationScale[] }>();
-  const add = (source: 'history' | 'summary', scale: EvaluationScale) => {
-    const normalized = normalize(scale);
-    const key = applicationMinuteKey(normalized, source);
-    const group = groups.get(key) ?? { history: [], summary: [] };
-    group[source].push(normalized);
-    groups.set(key, group);
-  };
-  historyScales.forEach(scale => add('history', scale));
-  summaryScales.forEach(scale => add('summary', scale));
+  const history = dedupeEquivalentScaleApplications(historyScales.map(normalize));
+  const unmatchedSummary = dedupeEquivalentScaleApplications(summaryScales.map(normalize));
+  const summaryByHistory = matchSummaryApplications(history, unmatchedSummary);
+  const matchedSummary = new Set(summaryByHistory.values());
 
   const merged: EvaluationScale[] = [];
-  for (const group of groups.values()) {
-    const unmatchedSummary = [...group.summary];
-    for (const history of group.history) {
-      // Prefer an equal non-null severity. A missing severity may enrich its exact copy, but two
-      // contradictory clinical classifications must remain as distinct applications.
-      let summaryIndex = unmatchedSummary.findIndex(
-        summary => history.severity != null && summary.severity === history.severity
-      );
-      if (summaryIndex < 0)
-        summaryIndex = unmatchedSummary.findIndex(summary =>
-          severitiesAreCompatible(history, summary)
-        );
-      if (summaryIndex < 0) {
-        merged.push(history);
-        continue;
-      }
-      const [summary] = unmatchedSummary.splice(summaryIndex, 1);
-      merged.push(mergeDuplicate(history, summary));
-    }
-    merged.push(...unmatchedSummary);
-  }
+  history.forEach((historyScale, historyIndex) => {
+    const summaryIndex = summaryByHistory.get(historyIndex);
+    merged.push(
+      summaryIndex == null
+        ? historyScale
+        : mergeDuplicate(historyScale, unmatchedSummary[summaryIndex])
+    );
+  });
+  unmatchedSummary.forEach((summaryScale, summaryIndex) => {
+    if (!matchedSummary.has(summaryIndex)) merged.push(summaryScale);
+  });
   return merged;
 };

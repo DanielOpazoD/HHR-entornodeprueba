@@ -23,6 +23,11 @@ import {
   type EvaluationScale,
 } from '../mapping/parseEvaluationScales';
 import { clinicalValuesEqual } from './clinicalIncrementalSync';
+import {
+  areEquivalentScaleApplications,
+  dedupeEquivalentScaleApplications,
+  mergeEquivalentScaleApplications,
+} from '../mapping/evaluationScaleApplicationIdentity';
 
 export interface MergeScalesContext {
   /** The census day being synced (YYYY-MM-DD, Rapa Nui local). */
@@ -104,19 +109,37 @@ const mergeScaleHistory = (
     ...(scores?.downton ? [toScale(scores.downton)] : []),
   ];
   const byIdentity = new Map<string, EvaluationScale>();
-  for (const scale of existing) {
+  // Convergent repair: old versions could persist the same clinical application more than once
+  // when repeated forms attributed it to different professionals.
+  for (const scale of dedupeEquivalentScaleApplications(existing)) {
     if (scale.recordedDate <= censusIsoDay) byIdentity.set(scaleIdentity(scale), scale);
   }
   // Source values replace a stable event identity even when a correction moves the event after the
   // requested census day. Otherwise the old eligible copy would survive as stale clinical truth.
-  for (const scale of incoming) {
-    const stableIdentity = scaleStableIdentity(scale);
-    if (stableIdentity) {
-      byIdentity.delete(stableIdentity);
+  for (const scale of dedupeEquivalentScaleApplications(incoming)) {
+    let canonicalScale = scale;
+    const incomingStableIdentity = scaleStableIdentity(scale);
+    for (const [identity, existingScale] of byIdentity) {
+      if (
+        !areEquivalentScaleApplications(existingScale, canonicalScale, {
+          allowPartialPayload: true,
+        })
+      )
+        continue;
+      byIdentity.delete(identity);
+      // The same stable identity is an authoritative state transition (including archive changes).
+      // Different identities are simultaneous Rayen representations, so reconcile those copies and
+      // retain the visible/richer one.
+      if (identity !== incomingStableIdentity) {
+        canonicalScale = mergeEquivalentScaleApplications(existingScale, canonicalScale);
+      }
+    }
+    if (incomingStableIdentity) {
+      byIdentity.delete(incomingStableIdentity);
       byIdentity.delete(`legacy:${scaleLegacyIdentity(scale)}`);
     }
-    if (scale.recordedDate <= censusIsoDay) {
-      byIdentity.set(stableIdentity ?? scaleIdentity(scale), scale);
+    if (canonicalScale.recordedDate <= censusIsoDay) {
+      byIdentity.set(scaleIdentity(canonicalScale), canonicalScale);
     }
   }
   return [...byIdentity.values()].sort(
