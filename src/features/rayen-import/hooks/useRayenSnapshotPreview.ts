@@ -17,10 +17,14 @@ import {
   supportsPatientFlowReport,
   supportsStatisticalDischargeEvidence,
 } from '../bridge/extensionHealthBridge';
-import { resolveOccupiedBedTraceabilityChain } from '../bedTraceabilityResolver';
+import {
+  recoverMissingSnapshotPlacements,
+  resolveOccupiedBedTraceabilityChain,
+} from '../bedTraceabilityResolver';
 import { reconstructHistoricalSnapshotAtClose } from '../domain/historicalSnapshotReconstruction';
 import { createPatientFlowRequestCache } from '../domain/patientFlowRequestCache';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import type { EgresoLookupResult } from '../contracts/egresoLookup';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import type { RayenImportMode } from '../settings/rayenImportSettings';
@@ -179,6 +183,8 @@ export const useRayenSnapshotPreview = ({
         return requestEgresoLookup(targets);
       };
       let diff: CensusImportDiff;
+      let evidenceSnapshot = snapshot;
+      let lookupResults: EgresoLookupResult[] = [];
       if (isHistoricalDay) {
         const reconstruction = await measureEvidence(() =>
           reconstructHistoricalSnapshotAtClose(
@@ -209,32 +215,67 @@ export const useRayenSnapshotPreview = ({
         }
       } else {
         diff = planRayenCensusImport({ current: currentRecord, snapshot }).diff;
-        const traceability = await measureEvidence(() =>
-          resolveOccupiedBedTraceabilityChain(
+        diff = applyEgresoReport(diff, bundle.egresoRows, currentRecord);
+        const recoveryTargets = diff.pendingAdministrativeDischarges
+          .filter(entry => entry.rut && entry.encounterId)
+          .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
+        lookupResults = await measureEvidence(() => lookupEgresos(recoveryTargets));
+        const recovered = await measureEvidence(() =>
+          recoverMissingSnapshotPlacements(
             currentRecord,
             snapshot,
             diff,
+            lookupResults,
+            { fetchReport: fetchPatientFlowReport },
+            recoveredSnapshot =>
+              planRayenCensusImport({ current: currentRecord, snapshot: recoveredSnapshot }).diff
+          )
+        );
+        const traceability = await measureEvidence(() =>
+          resolveOccupiedBedTraceabilityChain(
+            currentRecord,
+            recovered.snapshot,
+            recovered.diff,
             { fetchReport: fetchPatientFlowReport },
             verified => planRayenCensusImport({ current: currentRecord, snapshot: verified }).diff
           )
         );
         diff = traceability.diff;
+        evidenceSnapshot = traceability.snapshot;
       }
 
+      // Placement resolvers replan from the snapshot, so restore authoritative bundle egresos.
       diff = applyEgresoReport(diff, bundle.egresoRows, currentRecord);
 
       const lookupTargets = diff.pendingAdministrativeDischarges
         .filter(entry => entry.rut && entry.encounterId)
+        .filter(
+          entry =>
+            !lookupResults.some(
+              result =>
+                result.encounterId === entry.encounterId &&
+                result.run.replace(/[^0-9kK]/gi, '').toUpperCase() ===
+                  String(entry.rut)
+                    .replace(/[^0-9kK]/gi, '')
+                    .toUpperCase()
+            )
+        )
         .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
       if (lookupTargets.length > 0) {
-        const lookupResults = await measureEvidence(() => lookupEgresos(lookupTargets));
+        lookupResults = [
+          ...lookupResults,
+          ...(await measureEvidence(() => lookupEgresos(lookupTargets))),
+        ];
+      }
+      if (lookupResults.length > 0) {
         diff = applyEgresoLookupFallback(diff, lookupResults, currentRecord);
       }
 
       diff = await measureEvidence(() =>
         verifyPreviousDayAdmissionPlacements(diff, reportDate, {
           fetchReport: fetchPatientFlowReport,
-          snapshot,
+          loadHistoricalRecord: day => dailyRecord.getForDate(day),
+          snapshot: evidenceSnapshot,
           currentRecord,
         })
       );

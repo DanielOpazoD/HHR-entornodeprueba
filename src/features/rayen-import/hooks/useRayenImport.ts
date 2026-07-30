@@ -2,19 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuthState } from '@/hooks/useAuthState';
-import {
-  useSaveDailyRecordMutation,
-  usePatchDailyRecordMutation,
-} from '@/hooks/useDailyRecordQuery';
+import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { ensureFreshDailyRecordQuery } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import {
-  subscribeToRayenSnapshots,
-  subscribeToRayenImportErrors,
-} from '../bridge/rayenImportBridge';
+import * as rayenImportBridge from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
 import {
   getRayenImportErrorMessage,
@@ -46,6 +40,7 @@ import { patchFreshClinicalRecord } from './patchFreshClinicalRecord';
 import type { ClinicalFillPatchTarget } from '../contracts/clinicalFillContracts';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
+import { shouldPreservePostImportFlow } from '../domain/rayenPreviewClosePolicy';
 export const useRayenImport = () => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
@@ -53,7 +48,7 @@ export const useRayenImport = () => {
   const { mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
   const { currentUser, role } = useAuthState();
-  const { mutateAsync: saveDailyRecord } = useSaveDailyRecordMutation();
+  const { mutateAsync: saveDailyRecord } = dailyRecordQuery.useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
   const isAdmin = role === 'admin';
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
@@ -66,7 +61,9 @@ export const useRayenImport = () => {
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
   const currentRecordRef = useRef(currentRecord);
   currentRecordRef.current = currentRecord;
-  const { mutateAsync: patchDailyRecord } = usePatchDailyRecordMutation(currentRecord?.date ?? '');
+  const { mutateAsync: patchDailyRecord } = dailyRecordQuery.usePatchDailyRecordMutation(
+    currentRecord?.date ?? ''
+  );
   const patchClinicalRecord = useCallback(
     (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) =>
       patchFreshClinicalRecord(dailyRecord, patch, target),
@@ -156,10 +153,10 @@ export const useRayenImport = () => {
     recordRunPerformance,
     syncTargetRef,
   });
-  useEffect(() => subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
+  useEffect(() => rayenImportBridge.subscribeToRayenSnapshots(previewSnapshot), [previewSnapshot]);
   useEffect(
     () =>
-      subscribeToRayenImportErrors(() => {
+      rayenImportBridge.subscribeToRayenImportErrors(() => {
         clearSyncTimeout();
         syncTargetRef.current = null;
         void failRun('snapshot_error');
@@ -350,6 +347,10 @@ export const useRayenImport = () => {
   );
 
   const cancel = useCallback(() => {
+    if (shouldPreservePostImportFlow(state.diff, state.result)) {
+      setState(prev => ({ ...prev, isPreviewOpen: false }));
+      return;
+    }
     invalidateRayenFillAttempt();
     cancelRun();
     const staffingDecisionWasSkipped =
@@ -358,8 +359,7 @@ export const useRayenImport = () => {
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
-  }, [cancelRun, staffingProposal]);
-
+  }, [cancelRun, staffingProposal, state.diff, state.result]);
   return useMemo(
     () => ({
       mode,

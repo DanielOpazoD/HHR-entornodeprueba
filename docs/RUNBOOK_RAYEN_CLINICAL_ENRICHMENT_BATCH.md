@@ -25,7 +25,11 @@ solo el `mutationId` se conserva entre reintentos de transporte de esa misma eje
   pero nunca hacen fallback porque su resultado puede ser ambiguo. El flujo actual se usa como
   fallback solo si el callable no existe o aún no está implementado. Rechazos de autenticación,
   revisión, episodio o allowlist se muestran como conflicto y tampoco hacen fallback silencioso.
-  Es el modo predeterminado después de la promoción operativa basada en el gate de paridad.
+  Solo se activa explícitamente después de la promoción operativa basada en el gate de paridad.
+
+La ausencia del flag resuelve a `off`. Esto es intencional: si el despliegue de Functions no ocurrió,
+un navegador puede presentar el `404` del callable como un error CORS indistinguible de un fallo de
+transporte. El cliente no debe arriesgar una segunda escritura tras una respuesta ambigua.
 
 Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
 
@@ -45,9 +49,9 @@ Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
    `failed-precondition` y `aborted`, y ausencia de degradación clínica.
 5. Comparar `targetCount`, `fieldCount`, duración y cobertura con el flujo actual. La telemetría no
    contiene RUT, nombres, camas, ENC_ID ni valores clínicos.
-6. Activar `enforced` mediante configuración explícita en instalaciones que aún mantengan `shadow`;
-   no existe promoción automática. En la instalación principal, la ausencia del flag resuelve a
-   `enforced`. Vigilar reintentos/fallbacks y volver a `off` ante errores sostenidos.
+6. Activar `enforced` mediante configuración explícita; no existe promoción automática. La ausencia
+   del flag conserva el flujo `off`. Vigilar reintentos/fallbacks y volver a `off` ante errores
+   sostenidos.
 
 ## Incrementalidad de lectura y escritura
 

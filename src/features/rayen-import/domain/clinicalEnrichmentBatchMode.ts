@@ -9,7 +9,10 @@ export const resolveClinicalEnrichmentBatchMode = (
       .toLowerCase()
   ) {
     case '':
-      return 'enforced';
+      // The callable is an optional deployment. Keep the established path as the fail-safe
+      // default so a missing function cannot block vitals, scores or devices. Enforced mode must
+      // always be an explicit decision after the deployment and parity gates are green.
+      return 'off';
     case 'shadow':
       return 'shadow';
     case 'enforced':

@@ -135,6 +135,7 @@ export type {
   PatientFlowReportResult,
 } from './bedTraceabilityResolver';
 export {
+  recoverMissingSnapshotPlacements,
   resolveOccupiedBedTraceability,
   resolveOccupiedBedTraceabilityChain,
 } from './bedTraceabilityResolver';
