@@ -28,7 +28,9 @@ const normalizeExistingDeviceAliases = (patient: PatientData): PatientData => {
   const deviceDetails = Object.entries(patient.deviceDetails ?? {}).reduce<DeviceDetails>(
     (result, [type, details]) => {
       const canonical = canonicalizePersistedDeviceType(type);
-      result[canonical] = { ...details, ...(result[canonical] ?? {}) };
+      const existing = result[canonical] ?? {};
+      result[canonical] =
+        type === canonical ? { ...existing, ...details } : { ...details, ...existing };
       return result;
     },
     {}

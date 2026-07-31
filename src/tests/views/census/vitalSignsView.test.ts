@@ -75,13 +75,14 @@ describe('buildVitalSignsView', () => {
 
   it('uses newborn HR/RR/temperature ranges without applying adult BP thresholds', () => {
     const newborn = buildVitalSignsView(
-      vitals({ systolic: 70, diastolic: 40, heartRate: 126, respiratoryRate: 44 }),
+      vitals({ systolic: 70, diastolic: 40, heartRate: 126, respiratoryRate: 44, hgt: 110 }),
       'newborn'
     );
     expect(newborn?.profile).toBe('newborn');
     expect(newborn?.readings.find(r => r.key === 'pa')?.status).toBe('neutral');
     expect(newborn?.readings.find(r => r.key === 'fc')?.status).toBe('normal');
     expect(newborn?.readings.find(r => r.key === 'fr')?.status).toBe('normal');
+    expect(newborn?.readings.find(r => r.key === 'hgt')?.status).toBe('neutral');
     expect(newborn?.worst).toBe('normal');
 
     const adult = buildVitalSignsView(
@@ -89,6 +90,16 @@ describe('buildVitalSignsView', () => {
     );
     expect(adult?.readings.find(r => r.key === 'pa')?.status).toBe('alert');
     expect(adult?.readings.find(r => r.key === 'fr')?.status).toBe('alert');
+  });
+
+  it.each([
+    [35.5, 'alert'],
+    [36.5, 'normal'],
+    [37.5, 'normal'],
+    [38, 'alert'],
+  ] as const)('classifies newborn temperature %s °C as %s', (temperature, expected) => {
+    const view = buildVitalSignsView(vitals({ temperature }), 'newborn');
+    expect(view?.readings.find(r => r.key === 'temp')?.status).toBe(expected);
   });
 
   it('flags neonatal bradycardia/tachypnea using RN screening bands', () => {

@@ -264,14 +264,12 @@ export const useRayenImport = () => {
       syncRequestController,
     ]
   );
-
   const retryClinicalFill = useRayenClinicalFillRetry({
     currentRecord,
     currentRecordRef,
     fillClinicalData: fillDevicesInBackground,
     setState,
   });
-
   const { confirm: confirmStaffingProposal, dismiss: dismissStaffingProposal } =
     useRayenStaffingProposalActions({
       proposal: staffingProposal,
@@ -284,7 +282,6 @@ export const useRayenImport = () => {
       dailyRecord,
       queryClient,
     });
-
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
       const base = currentRecordRef.current ?? currentRecord;
@@ -350,7 +347,6 @@ export const useRayenImport = () => {
       queryClient,
     ]
   );
-
   const cancel = useCallback(() => {
     if (shouldPreservePostImportFlow(state.diff, state.result)) {
       setState(prev => ({ ...prev, isPreviewOpen: false }));

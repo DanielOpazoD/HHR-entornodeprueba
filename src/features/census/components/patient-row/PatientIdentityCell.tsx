@@ -86,7 +86,12 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const isRealPatient = !isEmpty && !isSubRow && !!fullName.trim();
   const showIdentityDetails =
     !isEmpty &&
-    (hasRutValue || !!data.age || !!admissionShort || !!specialtyLabel || isRealPatient);
+    (hasRutValue ||
+      !!data.age ||
+      !!admissionShort ||
+      !!specialtyLabel ||
+      !!data.treatingPhysicianName ||
+      isRealPatient);
   const handleSpecialtyAssign = onNameChange('specialty');
 
   useEffect(() => {

@@ -145,7 +145,8 @@ export const buildVitalSignsView = (
       label: 'HGT',
       value: fmt(vitals.hgt),
       unit: 'mg/dL',
-      status: hgtStatus(vitals.hgt),
+      // Neonatal glucose thresholds depend on hours of life and perinatal risk factors.
+      status: profile === 'newborn' ? 'neutral' : hgtStatus(vitals.hgt),
     });
   }
   // Rapid insulin administered: units + abdominal quadrant ("Ins/Cuad"). Not a range — shown neutral.

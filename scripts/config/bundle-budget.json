@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4750000,
-  "_precacheMaxBytesComment": "Raised 20 KB from a main baseline already at 99.9%; Rayen online-only chunks remain excluded and independently governed.",
+  "precacheMaxBytes": 4780000,
+  "_precacheMaxBytesComment": "Raised 30 KB for the treating-physician catalog and census settings UI; Rayen online-only chunks remain excluded and independently governed.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",

@@ -146,6 +146,28 @@ describe('mergeReportDevices', () => {
     ]);
   });
 
+  it.each([
+    ['legacy-first', ['Solucion para gotas Orales Catéter subcutáneo', 'Catéter subcutáneo']],
+    ['canonical-first', ['Catéter subcutáneo', 'Solucion para gotas Orales Catéter subcutáneo']],
+  ] as const)('prefers canonical device details with %s insertion order', (_label, order) => {
+    const details = {
+      [order[0]]: { installationDate: '2026-07-01' },
+      [order[1]]: { installationDate: '2026-07-30', note: 'Dato complementario' },
+    };
+    const canonicalDetails = { installationDate: '2026-07-30' };
+    const source =
+      order[0] === 'Catéter subcutáneo'
+        ? { ...details, 'Catéter subcutáneo': canonicalDetails }
+        : details;
+
+    expect(mergeReportDevices(patient({ deviceDetails: source }), [], ctx).deviceDetails).toEqual({
+      'Catéter subcutáneo': {
+        installationDate: '2026-07-30',
+        note: 'Dato complementario',
+      },
+    });
+  });
+
   it('preserves separately tracked numbered VVP devices while normalizing aliases', () => {
     const before = patient({
       devices: ['VVP#1', 'VVP#2'],

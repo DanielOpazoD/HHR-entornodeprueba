@@ -30,6 +30,11 @@ describe('RayenImportPreviewModal Cuna RN identity', () => {
           patientName: 'RN de Serena Teao Atan',
           changes: [
             {
+              field: 'pathology',
+              from: '',
+              to: 'Producto único, nacido en hospital',
+            },
+            {
               field: 'clinicalCrib',
               from: undefined,
               to: { ...EMPTY_PATIENT, patientName: 'RN de Serena Teao Atan' },
