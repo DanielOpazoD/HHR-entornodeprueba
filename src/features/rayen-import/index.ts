@@ -5,7 +5,12 @@
  * internal subpaths. Phase 1 exposes the preview/plan surface and its contracts.
  */
 
-export type { RayenEncounter, RayenCensusSnapshot } from './contracts/rayenSnapshot';
+export type {
+  RayenEncounter,
+  RayenCensusSnapshot,
+  RayenTreatingPhysician,
+  RayenActiveBedAssignment,
+} from './contracts/rayenSnapshot';
 
 export type {
   FieldChange,
@@ -102,7 +107,11 @@ export { mergeReportVitals } from './domain/mergeReportVitals';
 export type { MergeScalesContext } from './domain/mergeReportScales';
 export { mergeReportScales } from './domain/mergeReportScales';
 export type { MappedDevice, RayenInvasiveDeviceEntry } from './mapping/mapDeviceToInstance';
-export { mapInvasiveDevices, mapRayenInvasiveDeviceEntries } from './mapping/mapDeviceToInstance';
+export {
+  canonicalizeRayenDeviceType,
+  mapInvasiveDevices,
+  mapRayenInvasiveDeviceEntries,
+} from './mapping/mapDeviceToInstance';
 export { extractDeviceTextItems } from './mapping/extractDeviceTextItems';
 export type { PatientBedMovement, PatientFlowTimeWindow } from './mapping/parsePatientFlow';
 export {

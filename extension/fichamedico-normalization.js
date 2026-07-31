@@ -85,7 +85,7 @@
     };
   };
 
-  const normalizeEncounter = (item, header, principalDiagnosis, discharged) => {
+  const normalizeEncounter = (item, header, principalDiagnosis, discharged, physicianById) => {
     const safeItem = record(item);
     const patient = record(safeItem.patient);
     const safeHeader = record(header);
@@ -118,7 +118,7 @@
         validClinicalDate(safeItem.medicalDischargeDateTime),
       isDead: Boolean(safeItem.isDead),
       ...isolationNormalization.toEncounterFields(safeItem),
-      isGes: Boolean(safeItem.isGes),
+      isGes: Boolean(safeItem.isGes), ...globalThis.HhrFichaMedicoTreatingPhysicianNormalization.toEncounterFields(safeItem, physicianById),
     };
   };
 

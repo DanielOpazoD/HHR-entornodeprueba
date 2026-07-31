@@ -23,13 +23,13 @@ const VITALS: PatientVitalSigns = {
   authorRole: '',
 };
 
-const renderCell = (vitalSigns?: PatientVitalSigns) =>
+const renderCell = (vitalSigns?: PatientVitalSigns, bedId = 'R1') =>
   render(
     <table>
       <tbody>
         <tr>
           <VitalsCell
-            data={DataFactory.createMockPatient('R1', { patientName: 'X', vitalSigns })}
+            data={DataFactory.createMockPatient(bedId, { patientName: 'X', vitalSigns })}
           />
         </tr>
       </tbody>
@@ -54,5 +54,22 @@ describe('VitalsCell', () => {
     const { container } = renderCell(undefined);
     expect(container.querySelector('button')).toBeNull();
     expect(screen.getByTitle('Sin signos vitales')).toBeInTheDocument();
+  });
+
+  it('uses neonatal ranges for standalone NEO beds', () => {
+    renderCell(
+      {
+        ...VITALS,
+        systolic: 70,
+        diastolic: 40,
+        heartRate: 126,
+        spo2: 98,
+        respiratoryRate: 44,
+      },
+      'NEO1'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    expect(screen.getByText('Última toma · rangos RN')).toBeInTheDocument();
   });
 });

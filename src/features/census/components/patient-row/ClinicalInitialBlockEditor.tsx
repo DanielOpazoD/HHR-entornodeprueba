@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import clsx from 'clsx';
 import { Check, SquarePen, X } from 'lucide-react';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
+import { useStaffContext } from '@/context/StaffContext';
+import {
+  findProfessionalByCatalogKey,
+  findProfessionalByRayenIdentity,
+  professionalCatalogKey,
+  professionalSpecialtyToPatientSpecialty,
+} from '@/services/staff/treatingPhysicianCatalog';
+import { TreatingPhysicianSelect } from './TreatingPhysicianSelect';
 import type {
   PatientData,
   PatientRowPatientPatch,
@@ -12,6 +20,7 @@ import type { DebouncedTextHandler } from '@/features/census/components/patient-
 // column as a colored dot (StatusSelect). This editor only edits diagnosis + specialty.
 interface ClinicalInitialBlockDraft {
   pathology: string;
+  treatingPhysicianKey: string;
   specialtySelection: string;
   specialtyOther: string;
 }
@@ -31,25 +40,59 @@ interface ClinicalInitialBlockEditorProps {
 const isKnownSpecialtyOption = (specialty: string): boolean =>
   specialty === '' || SPECIALTY_OPTIONS.includes(specialty as (typeof SPECIALTY_OPTIONS)[number]);
 
-const buildClinicalInitialBlockDraft = (data: PatientData): ClinicalInitialBlockDraft => {
+const buildClinicalInitialBlockDraft = (
+  data: PatientData,
+  professionalsCatalog: ReturnType<typeof useStaffContext>['professionalsCatalog']
+): ClinicalInitialBlockDraft => {
   const specialty = data.specialty || '';
   const isKnownSpecialty = isKnownSpecialtyOption(specialty);
+  const matchingProfessional = findProfessionalByRayenIdentity(
+    professionalsCatalog,
+    data.treatingPhysicianId,
+    data.treatingPhysicianName
+  );
 
   return {
     pathology: data.pathology || '',
+    treatingPhysicianKey: matchingProfessional
+      ? professionalCatalogKey(matchingProfessional)
+      : data.treatingPhysicianId
+        ? `rayen:${data.treatingPhysicianId}`
+        : data.treatingPhysicianName
+          ? `stored-name:${encodeURIComponent(data.treatingPhysicianName)}`
+          : '',
     specialtySelection: isKnownSpecialty ? specialty : 'Otro',
     specialtyOther: isKnownSpecialty ? '' : specialty,
   };
 };
 
 const buildClinicalInitialBlockPatch = (
-  draft: ClinicalInitialBlockDraft
-): PatientRowPatientPatch => ({
-  pathology: draft.pathology,
-  specialty: (draft.specialtySelection === 'Otro'
-    ? draft.specialtyOther.trim() || 'Otro'
-    : draft.specialtySelection) as PatientData['specialty'],
-});
+  draft: ClinicalInitialBlockDraft,
+  professionalsCatalog: ReturnType<typeof useStaffContext>['professionalsCatalog'],
+  data: PatientData
+): PatientRowPatientPatch => {
+  const selectedProfessional = findProfessionalByCatalogKey(
+    professionalsCatalog,
+    draft.treatingPhysicianKey
+  );
+  const keepsStoredIdentity = Boolean(draft.treatingPhysicianKey);
+
+  return {
+    pathology: draft.pathology,
+    treatingPhysicianId: selectedProfessional
+      ? selectedProfessional.rayenPractitionerId
+      : draft.treatingPhysicianKey.startsWith('rayen:')
+        ? draft.treatingPhysicianKey.slice('rayen:'.length)
+        : keepsStoredIdentity
+          ? data.treatingPhysicianId
+          : undefined,
+    treatingPhysicianName:
+      selectedProfessional?.name ?? (keepsStoredIdentity ? data.treatingPhysicianName : undefined),
+    specialty: (draft.specialtySelection === 'Otro'
+      ? draft.specialtyOther.trim() || 'Otro'
+      : draft.specialtySelection) as PatientData['specialty'],
+  };
+};
 
 export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProps> = ({
   data,
@@ -62,13 +105,15 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
   onChange,
   onMultipleUpdate,
 }) => {
+  const staffContext = useStaffContext();
+  const professionalsCatalog = staffContext.professionalsCatalog ?? [];
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState<ClinicalInitialBlockDraft>(() =>
-    buildClinicalInitialBlockDraft(data)
+    buildClinicalInitialBlockDraft(data, professionalsCatalog)
   );
 
   const openEditor = () => {
-    setDraft(buildClinicalInitialBlockDraft(data));
+    setDraft(buildClinicalInitialBlockDraft(data, professionalsCatalog));
     setIsOpen(true);
   };
 
@@ -77,7 +122,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
   };
 
   const saveDraft = () => {
-    const patch = buildClinicalInitialBlockPatch(draft);
+    const patch = buildClinicalInitialBlockPatch(draft, professionalsCatalog, data);
     if (onMultipleUpdate) {
       onMultipleUpdate(patch);
     } else {
@@ -86,6 +131,8 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
           ? draft.specialtyOther.trim() || 'Otro'
           : draft.specialtySelection;
       onChange('pathology')(draft.pathology);
+      onChange('treatingPhysicianId')(String(patch.treatingPhysicianId ?? ''));
+      onChange('treatingPhysicianName')(String(patch.treatingPhysicianName ?? ''));
       onChange('specialty')(fallbackSpecialty);
     }
     setIsOpen(false);
@@ -120,7 +167,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
 
       {isOpen && (
         <div
-          className="absolute right-0 top-8 z-[1000] w-80 rounded-lg border border-slate-200 bg-white shadow-xl"
+          className="absolute right-0 top-8 z-[1000] w-96 rounded-lg border border-slate-200 bg-white shadow-xl"
           data-testid={`clinical-block-editor-${data.bedId}`}
           onKeyDown={event => {
             // ESC cierra; Enter guarda SOLO desde un input de texto — así Enter sobre Cancelar/Cerrar
@@ -146,6 +193,32 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
           </button>
 
           <div className="space-y-2 p-3 pt-4">
+            <TreatingPhysicianSelect
+              bedId={data.bedId}
+              currentPhysicianName={data.treatingPhysicianName}
+              professionals={professionalsCatalog}
+              value={draft.treatingPhysicianKey}
+              onChange={(key, professional) => {
+                const configuredSpecialty = professionalSpecialtyToPatientSpecialty(
+                  professional?.specialty
+                );
+                setDraft(current => ({
+                  ...current,
+                  treatingPhysicianKey: key,
+                  ...(configuredSpecialty
+                    ? {
+                        specialtySelection: isKnownSpecialtyOption(configuredSpecialty)
+                          ? configuredSpecialty
+                          : 'Otro',
+                        specialtyOther: isKnownSpecialtyOption(configuredSpecialty)
+                          ? ''
+                          : configuredSpecialty,
+                      }
+                    : {}),
+                }));
+              }}
+            />
+
             <label className="block">
               <span className="mb-1 block text-[11px] font-semibold text-slate-600">
                 Diagnóstico

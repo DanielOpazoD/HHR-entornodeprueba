@@ -154,6 +154,21 @@ describe('rayenToPatientData', () => {
     expect(patient.isolationMicroorganism).toBe('Virus Influenza B');
   });
 
+  it('maps the treating physician and only an explicitly configured HHR specialty', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        treatingPhysicianId: '7947',
+        treatingPhysicianName: 'Angelica Vargas',
+        treatingPhysicianSpecialty: 'Psiquiatría',
+      }),
+      REFERENCE
+    );
+
+    expect(patient.treatingPhysicianId).toBe('7947');
+    expect(patient.treatingPhysicianName).toBe('Angelica Vargas');
+    expect(patient.specialty).toBe('Psiquiatría');
+  });
+
   it('keeps isolation metadata absent when only the active flag is available', () => {
     const { patient } = rayenToPatientData(baseEncounter({ isIsolated: true }), REFERENCE);
 

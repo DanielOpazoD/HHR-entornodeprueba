@@ -35,6 +35,11 @@
     }))
     .filter(item => /^\d+$/.test(item.encounterId) && item.encounterId !== '0' && item.parentBedId);
 
+  const buildActiveBedAssignments = payload => root.HhrGestionCamasActiveBeds.buildAssignments(
+    payload,
+    record => Boolean(parentBedIdFromRecord(record))
+  );
+
   const enrichSnapshot = (snapshot, assignments) => {
     if (!snapshot || !Array.isArray(snapshot.encounters)) return snapshot;
     const assignmentByEncounter = new Map(
@@ -56,30 +61,6 @@
     };
   };
 
-  const fetchAssignments = async (gestionCamasRuntime, fetchWithTimeout) => {
-    try {
-      const session = await gestionCamasRuntime.resolveSession();
-      if (!session.record) return [];
-      const record = session.record;
-      const response = await fetchWithTimeout(
-        `${record.apiBase}/facility/${encodeURIComponent(record.facId)}/beds`,
-        {
-          headers: { Authorization: record.token, Accept: 'application/json' },
-          cache: 'no-store',
-        }
-      );
-      if (!response.ok) {
-        await gestionCamasRuntime.classifyRejection(response, record);
-        return [];
-      }
-      const payload = await response.json();
-      const verified = await gestionCamasRuntime.markSessionVerified(record);
-      return verified ? buildAssignments(payload) : [];
-    } catch (_error) {
-      return [];
-    }
-  };
-
   const enrichSnapshotRequest = async (
     snapshotRequest,
     gestionCamasRuntime,
@@ -87,14 +68,26 @@
   ) => {
     const response = await snapshotRequest;
     if (!response || !response.snapshot) return response;
-    const assignments = await fetchAssignments(gestionCamasRuntime, fetchWithTimeout);
-    return { ...response, snapshot: enrichSnapshot(response.snapshot, assignments) };
+    const evidence = await root.HhrGestionCamasActiveBeds.fetchEvidence(
+      gestionCamasRuntime,
+      fetchWithTimeout,
+      buildAssignments,
+      record => Boolean(parentBedIdFromRecord(record))
+    );
+    const enriched = enrichSnapshot(response.snapshot, evidence.cribAssignments);
+    return {
+      ...response,
+      snapshot: evidence.activeBedAssignments.length > 0
+        ? { ...enriched, activeBedAssignments: evidence.activeBedAssignments }
+        : enriched,
+    };
   };
 
   root.HhrGestionCamasClinicalCribs = Object.freeze({
     parentBedIdFromLabel,
     parentBedIdFromRecord,
     buildAssignments,
+    buildActiveBedAssignments,
     enrichSnapshot,
     enrichSnapshotRequest,
   });

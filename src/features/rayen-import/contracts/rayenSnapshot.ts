@@ -63,6 +63,12 @@ export interface RayenEncounter {
   isolationMicroorganism?: string;
   /** True if the patient is GES. */
   isGes?: boolean;
+  /** Stable Rayen practitioner id assigned as treating physician for this episode. */
+  treatingPhysicianId?: string;
+  /** Display name resolved from Rayen's facility physician catalog. */
+  treatingPhysicianName?: string;
+  /** HHR-only catalog enrichment used while planning an import; never supplied by Rayen. */
+  treatingPhysicianSpecialty?: string;
   /**
    * Latest physical placement proven by official patient-flow evidence, an exact statistical-
    * discharge interval, or the already-persisted historical HHR census for the same episode.
@@ -77,6 +83,18 @@ export interface RayenEncounter {
   };
 }
 
+/** A physician available in the current Rayen facility. */
+export interface RayenTreatingPhysician {
+  practitionerId: string;
+  displayName: string;
+}
+
+/** Current physical occupancy proven by Gestión de Camas, without duplicating patient identity. */
+export interface RayenActiveBedAssignment {
+  encounterId: string;
+  bedId: string;
+}
+
 /** A census snapshot captured from Rayen at a point in time. */
 export interface RayenCensusSnapshot {
   /** ISO timestamp when the snapshot was captured by the extension. */
@@ -85,6 +103,10 @@ export interface RayenCensusSnapshot {
   facilityId: number;
   /** All admitted encounters (real service + CMA virtual service). */
   encounters: RayenEncounter[];
+  /** Facility physician catalog captured once per synchronization (no per-patient requests). */
+  physicians?: RayenTreatingPhysician[];
+  /** Episode-first fallback when Ficha Médico omits an active episode after a service/bed change. */
+  activeBedAssignments?: RayenActiveBedAssignment[];
   /**
    * True ONLY when this snapshot is the FULL active census (every service/ward).
    * A patient present in the HHR census but absent here can be inferred as discharged

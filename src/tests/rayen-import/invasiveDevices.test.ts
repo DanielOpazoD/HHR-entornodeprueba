@@ -150,4 +150,22 @@ describe('mapInvasiveDevices', () => {
     expect(mapped.map(m => m.type)).toEqual(['CVC', 'VVP#1', 'VVP#2']);
     expect(mapped[0]).toMatchObject({ installationDate: '2026-07-01', installationTime: '08:00' });
   });
+
+  it('normalizes Eloísa medication text around a subcutaneous catheter', () => {
+    expect(
+      mapRayenInvasiveDeviceEntries([
+        {
+          name: 'Solucion para gotas Orales Catéter subcutáneo',
+          location: 'Abdomen',
+          installationDatetime: '2026-07-30T08:00:00-06:00',
+        },
+      ])
+    ).toEqual([
+      expect.objectContaining({
+        type: 'Catéter subcutáneo',
+        location: 'Abdomen',
+        installationDate: '2026-07-30',
+      }),
+    ]);
+  });
 });

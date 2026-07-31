@@ -12,6 +12,7 @@ import {
   buildVitalsHistory,
   VITALS_HISTORY_COLUMNS,
   type VitalSignsView,
+  type VitalSignsProfile,
   type VitalStatus,
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
@@ -20,16 +21,19 @@ interface VitalsDetailModalProps {
   patientName: string;
   vitals: VitalSignsView;
   history: PatientVitalSigns[];
+  profile: VitalSignsProfile;
   onClose: () => void;
 }
 
 const CARD_TOKENS: Record<VitalStatus, string> = {
+  neutral: 'bg-slate-50 text-slate-500 border-slate-200',
   normal: 'bg-slate-50 text-slate-700 border-slate-200',
   warn: 'bg-amber-50 text-amber-700 border-amber-300',
   alert: 'bg-red-50 text-red-700 border-red-300',
 };
 
 const CELL_TEXT: Record<VitalStatus, string> = {
+  neutral: 'text-slate-500',
   normal: 'text-slate-700',
   warn: 'text-amber-600 font-semibold',
   alert: 'text-red-600 font-bold',
@@ -45,9 +49,10 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
   patientName,
   vitals,
   history,
+  profile,
   onClose,
 }) => {
-  const rows = buildVitalsHistory(history);
+  const rows = buildVitalsHistory(history, profile);
   const days = [...new Set(rows.map(row => row.recordedDate))];
 
   return (
@@ -63,7 +68,9 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
       <div className="space-y-3">
         <section>
           <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">
-            <span className="font-semibold uppercase tracking-wide">Última toma</span>
+            <span className="font-semibold uppercase tracking-wide">
+              Última toma{profile === 'newborn' ? ' · rangos RN' : ''}
+            </span>
             <span className="tabular-nums">{vitals.recordedAt}</span>
           </div>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">

@@ -4,6 +4,7 @@ import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egreso
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
+import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 
 export interface LocalHistoricalOccupant {
   encounter: RayenEncounter;
@@ -33,7 +34,12 @@ export const collectUnreferencedLocalOccupants = (
       { patient: bed.clinicalCrib, isClinicalCrib: true },
     ]) {
       const patient = entry.patient;
-      if (!patient?.patientName?.trim() || patient.isBlocked) continue;
+      if (
+        !patient?.patientName?.trim() ||
+        patient.isBlocked ||
+        isPavilionRecoveryLocation(patient.location)
+      )
+        continue;
       const encounter = historicalEncounterFromLocal(
         patient,
         entry.isClinicalCrib ? bedId : undefined

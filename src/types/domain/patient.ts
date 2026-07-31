@@ -84,6 +84,10 @@ export interface PatientData {
   cie10Code?: string; // Standardized CIE-10 code
   cie10Description?: string; // Official CIE-10 description recorded at selection
   diagnosisComments?: string; // New field for sub-diagnosis details (e.g. surgical dates)
+  /** Stable Rayen practitioner id for the treating physician, when assigned. */
+  treatingPhysicianId?: string;
+  /** Treating physician display name for census presentation and manual fallback. */
+  treatingPhysicianName?: string;
   specialty: Specialty | string;
   ginecobstetriciaType?: GinecobstetriciaType;
   /** Optional secondary specialty for co-managed patients. Not used for statistics. */

@@ -73,6 +73,51 @@ describe('buildVitalSignsView', () => {
     expect(buildVitalSignsView(vitals({ temperature: 39.2 }))?.worst).toBe('alert');
   });
 
+  it('uses newborn HR/RR/temperature ranges without applying adult BP thresholds', () => {
+    const newborn = buildVitalSignsView(
+      vitals({ systolic: 70, diastolic: 40, heartRate: 126, respiratoryRate: 44 }),
+      'newborn'
+    );
+    expect(newborn?.profile).toBe('newborn');
+    expect(newborn?.readings.find(r => r.key === 'pa')?.status).toBe('neutral');
+    expect(newborn?.readings.find(r => r.key === 'fc')?.status).toBe('normal');
+    expect(newborn?.readings.find(r => r.key === 'fr')?.status).toBe('normal');
+    expect(newborn?.worst).toBe('normal');
+
+    const adult = buildVitalSignsView(
+      vitals({ systolic: 70, diastolic: 40, heartRate: 126, respiratoryRate: 44 })
+    );
+    expect(adult?.readings.find(r => r.key === 'pa')?.status).toBe('alert');
+    expect(adult?.readings.find(r => r.key === 'fr')?.status).toBe('alert');
+  });
+
+  it('flags neonatal bradycardia/tachypnea using RN screening bands', () => {
+    const view = buildVitalSignsView(vitals({ heartRate: 78, respiratoryRate: 72 }), 'newborn');
+    expect(view?.readings.find(r => r.key === 'fc')?.status).toBe('alert');
+    expect(view?.readings.find(r => r.key === 'fr')?.status).toBe('alert');
+    expect(view?.worst).toBe('alert');
+  });
+
+  it('keeps newborn blood pressure neutral when no age-specific context is available', () => {
+    const newborn = buildVitalSignsView(
+      vitals({
+        systolic: 300,
+        diastolic: 200,
+        heartRate: null,
+        spo2: null,
+        temperature: null,
+        respiratoryRate: null,
+        painEva: null,
+      }),
+      'newborn'
+    );
+
+    expect(newborn?.readings).toEqual([
+      expect.objectContaining({ key: 'pa', value: '300/200', status: 'neutral' }),
+    ]);
+    expect(newborn?.worst).toBe('neutral');
+  });
+
   it('omits absent readings and still builds a chip from what exists', () => {
     const view = buildVitalSignsView(
       vitals({

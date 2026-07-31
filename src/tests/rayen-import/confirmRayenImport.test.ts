@@ -7,6 +7,16 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { ApplyResult } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
+import {
+  historicalRecord,
+  motherAndNewbornDiff,
+  repository,
+} from './previousDayAdmissionCorrections.fixtures';
+
+vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
+  patchDailyRecordWithCompatibility: vi.fn(),
+}));
 
 const record = (lastUpdated: string): DailyRecord =>
   ({
@@ -107,6 +117,65 @@ describe('applyConfirmedRayenImport', () => {
 
     expect(applyDiff).toHaveBeenCalledTimes(3);
     expect(getFreshRecord).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries an accepted previous-day correction after a concurrent revision', async () => {
+    const conflict = new Error('El registro ha sido modificado por otro usuario.');
+    conflict.name = 'ConcurrencyError';
+    vi.mocked(patchDailyRecordWithCompatibility)
+      .mockResolvedValueOnce({
+        outcome: 'blocked',
+        conflictSummary: { kind: 'concurrency' },
+        blockingError: conflict,
+      } as never)
+      .mockResolvedValueOnce({} as never);
+    const acceptedDiff = {
+      ...motherAndNewbornDiff,
+      previousDayEdits: [
+        {
+          day: '2026-07-25',
+          reason: 'admission-night-shift-correction',
+          patientNames: ['Maeva Elisabet Maria Tuki Garcia', 'RN de Maeva Tuki Garcia'],
+          recordExists: true,
+          withinEditingWindow: true,
+          isSigned: false,
+          admissionSubjects: [
+            { kind: 'principal', bedId: 'H4C1', clinicalEpisodeId: '143100' },
+            { kind: 'clinical-crib', bedId: 'H4C1', clinicalEpisodeId: '143101' },
+          ],
+        },
+      ],
+    } as CensusImportDiff;
+    const expected = {
+      record: historicalRecord,
+      applied: {},
+      skipped: [],
+    } as unknown as ApplyResult;
+    const applyDiff = vi.fn().mockResolvedValue(expected);
+    const onRetry = vi.fn();
+
+    await expect(
+      applyConfirmedRayenImport({
+        applyPreviousDays: true,
+        base: { ...historicalRecord, date: '2026-07-26' },
+        diff: acceptedDiff,
+        dailyRecord: repository,
+        isAdmin: true,
+        ensureRun: () => ({
+          id: 'sync-run',
+          startedAt: '2026-07-26T10:00:00.000Z',
+          by: 'Enfermera prueba',
+        }),
+        applyDiff,
+        getFreshRecord: vi.fn(),
+        createId: () => 'movement-id',
+        onRetry,
+      })
+    ).resolves.toBe(expected);
+
+    expect(patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(2);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(applyDiff).toHaveBeenCalledTimes(1);
   });
 });
 

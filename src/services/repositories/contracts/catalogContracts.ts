@@ -19,12 +19,22 @@ export const normalizeStringCatalog = (value: unknown): string[] => {
 
 const SPECIALTY_ALIAS_MAP: Record<string, ProfessionalCatalogItem['specialty']> = {
   'medicina interna': 'Medicina Interna',
+  'med interna': 'Med Interna',
   medicina: 'Medicina Interna',
   medico: 'Medicina Interna',
   medicos: 'Medicina Interna',
   cirugia: 'Cirugía',
   cirugía: 'Cirugía',
+  traumatologia: 'Traumatología',
+  traumatología: 'Traumatología',
   ginecobstetricia: 'Ginecobstetricia',
+  psiquiatria: 'Psiquiatría',
+  psiquiatría: 'Psiquiatría',
+  pediatria: 'Pediatría',
+  pediatría: 'Pediatría',
+  odontologia: 'Odontología',
+  odontología: 'Odontología',
+  otro: 'Otro',
   anestesia: 'Anestesia',
   anestesista: 'Anestesia',
   kinesiologia: 'Kinesiología',
@@ -34,9 +44,10 @@ const SPECIALTY_ALIAS_MAP: Record<string, ProfessionalCatalogItem['specialty']> 
 
 const normalizeSpecialty = (value: unknown): ProfessionalCatalogItem['specialty'] | null => {
   if (typeof value !== 'string') return null;
-  const normalized = value.trim().toLowerCase();
+  const trimmed = value.trim();
+  const normalized = trimmed.toLowerCase();
   if (!normalized) return null;
-  return SPECIALTY_ALIAS_MAP[normalized] || null;
+  return SPECIALTY_ALIAS_MAP[normalized] || trimmed;
 };
 
 const normalizeIso = (value: unknown): string | undefined => {
@@ -52,15 +63,20 @@ const toProfessionalCatalogItem = (entry: unknown): ProfessionalCatalogItem | nu
   const name = normalizeString(candidate.name);
   const phone = normalizeString(candidate.phone);
   const specialty = normalizeSpecialty(candidate.specialty);
+  const rayenPractitionerId = normalizeString(candidate.rayenPractitionerId) || undefined;
+  const source =
+    candidate.source === 'rayen' ? 'rayen' : candidate.source === 'manual' ? 'manual' : undefined;
 
-  if (!name || !specialty) {
+  if (!name) {
     return null;
   }
 
   return {
     name,
     phone,
-    specialty,
+    specialty: specialty || undefined,
+    rayenPractitionerId,
+    source,
     period: normalizeIso(candidate.period),
     lastUsed: normalizeIso(candidate.lastUsed),
   };
@@ -75,7 +91,9 @@ export const normalizeProfessionalCatalog = (value: unknown): ProfessionalCatalo
     const item = toProfessionalCatalogItem(entry);
     if (!item) continue;
 
-    const key = `${item.specialty}:${item.name.toLowerCase()}:${item.phone}`;
+    const key = item.rayenPractitionerId
+      ? `rayen:${item.rayenPractitionerId}`
+      : `${item.name.toLowerCase()}:${item.phone}`;
     if (!unique.has(key)) {
       unique.set(key, item);
     }

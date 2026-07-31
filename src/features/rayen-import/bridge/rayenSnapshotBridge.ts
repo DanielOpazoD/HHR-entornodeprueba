@@ -25,8 +25,38 @@ const isEncounter = (value: unknown): value is RayenEncounter => {
     typeof candidate.run === 'string' &&
     typeof candidate.firstGivenName === 'string' &&
     typeof candidate.firstFamilyName === 'string' &&
-    // Placement proof is internal enrichment produced after the raw snapshot is validated.
-    candidate.verifiedBedPlacement === undefined
+    (candidate.treatingPhysicianId === undefined ||
+      typeof candidate.treatingPhysicianId === 'string') &&
+    (candidate.treatingPhysicianName === undefined ||
+      typeof candidate.treatingPhysicianName === 'string') &&
+    // Placement proof and configured specialty are HHR-only enrichments produced after the raw
+    // snapshot is validated. The extension is never authoritative for either value.
+    candidate.verifiedBedPlacement === undefined &&
+    candidate.treatingPhysicianSpecialty === undefined
+  );
+};
+
+const isTreatingPhysician = (value: unknown): boolean => {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.practitionerId === 'string' &&
+    candidate.practitionerId.length > 0 &&
+    candidate.practitionerId.length <= 64 &&
+    typeof candidate.displayName === 'string' &&
+    candidate.displayName.length > 0 &&
+    candidate.displayName.length <= 200
+  );
+};
+
+const isActiveBedAssignment = (value: unknown): boolean => {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.encounterId === 'string' &&
+    /^\d+$/.test(candidate.encounterId) &&
+    typeof candidate.bedId === 'string' &&
+    /^(?:R[1-4]|NEO[12]|H[1-6]C[12])$/.test(candidate.bedId)
   );
 };
 
@@ -37,7 +67,15 @@ export const isRayenCensusSnapshot = (value: unknown): value is RayenCensusSnaps
     typeof candidate.facilityId === 'number' &&
     typeof candidate.capturedAt === 'string' &&
     Array.isArray(candidate.encounters) &&
-    candidate.encounters.every(isEncounter)
+    candidate.encounters.every(isEncounter) &&
+    (candidate.physicians === undefined ||
+      (Array.isArray(candidate.physicians) &&
+        candidate.physicians.length <= 500 &&
+        candidate.physicians.every(isTreatingPhysician))) &&
+    (candidate.activeBedAssignments === undefined ||
+      (Array.isArray(candidate.activeBedAssignments) &&
+        candidate.activeBedAssignments.length <= 30 &&
+        candidate.activeBedAssignments.every(isActiveBedAssignment)))
   );
 };
 

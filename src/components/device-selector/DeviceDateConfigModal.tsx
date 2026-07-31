@@ -114,7 +114,7 @@ export const DeviceDateConfigModal: React.FC<DeviceDateConfigModalProps> = ({
     <BaseModal
       isOpen={true}
       onClose={onClose}
-      title={`${device} - ${deviceLabel}`}
+      title={device === deviceLabel ? device : `${device} - ${deviceLabel}`}
       icon={<Calendar size={18} />}
       size="sm"
       variant="white"

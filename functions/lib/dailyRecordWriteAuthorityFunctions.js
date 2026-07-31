@@ -22,6 +22,8 @@ const ALLOWED_DAILY_RECORD_PATCH_FIELDS = new Set([
   'snomedCode',
   'cie10Code',
   'cie10Description',
+  'treatingPhysicianId',
+  'treatingPhysicianName',
   'specialty',
   'secondarySpecialty',
   'status',

@@ -38,10 +38,11 @@ const norm = (value: string): string =>
     .toLowerCase();
 
 /** Rayen device name → HHR base device type (VVP left unnumbered here; numbered by the caller). */
-const baseType = (nombre: string): string => {
+export const canonicalizeRayenDeviceType = (nombre: string): string => {
   const n = norm(nombre);
   if (/sonda vesical|foley|urinar|\bcup\b/.test(n)) return 'CUP';
   if (/cateter venoso central|venoso central|\bcvc\b/.test(n)) return 'CVC';
+  if (/cateter subcutaneo|via subcutanea/.test(n)) return 'Catéter subcutáneo';
   if (/via venosa perif|venosa perif|perifer|\bvvp\b/.test(n)) return 'VVP';
   if (/linea arterial|\barterial\b|\bla\b/.test(n)) return 'LA';
   if (/canula nasal alto flujo|alto flujo|\bcnaf\b/.test(n)) return 'CNAF';
@@ -93,7 +94,7 @@ export const mapInvasiveDevices = (rows: InvasiveDeviceRow[]): MappedDevice[] =>
   return rows
     .filter(row => row.nombre.trim().length > 0)
     .map(row => {
-      const base = baseType(row.nombre);
+      const base = canonicalizeRayenDeviceType(row.nombre);
       const type = base === 'VVP' ? `VVP#${Math.min(++vvpCount, 3)}` : base;
       const install = parseInstall(row.fechaInstalacion);
       return {

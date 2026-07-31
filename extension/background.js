@@ -25,7 +25,7 @@ importScripts(
   'fichamedico-patient-context.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',
   'gestion-camas-runtime.js',
-  'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-clinical-cribs.js',
+  'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'gestion-camas-cudyr.js',
   'clinical-panel-fetch.js',

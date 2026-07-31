@@ -147,7 +147,9 @@ export const RayenImportButton: React.FC = () => {
 
   return (
     <div
-      className="w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+      className={`w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+        connectionGuidanceOpen ? 'relative z-[39]' : ''
+      }`}
       data-testid="rayen-operations-bar"
     >
       <div className="grid min-h-[3.75rem] grid-cols-1 items-center gap-2 px-3 py-1.5 xl:grid-cols-[minmax(190px,0.78fr)_minmax(260px,1.4fr)_auto]">
@@ -212,7 +214,7 @@ export const RayenImportButton: React.FC = () => {
             {needsConnectionGuidance && connectionGuidanceOpen && (
               <p
                 id="rayen-connection-guidance"
-                className="absolute left-0 top-[calc(100%+0.5rem)] z-30 w-72 rounded-lg border border-amber-200 bg-white px-3 py-2 text-[11px] leading-relaxed text-amber-900 shadow-lg"
+                className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-72 rounded-lg border border-amber-200 bg-white px-3 py-2 text-[11px] leading-relaxed text-amber-900 shadow-lg"
               >
                 {extension.message}
               </p>
@@ -246,7 +248,10 @@ export const RayenImportButton: React.FC = () => {
             <History size={14} aria-hidden="true" />
             {recovery && (
               <span
-                className="absolute -right-0.5 -top-0.5 size-2 rounded-full border border-white bg-amber-500"
+                className={`absolute -right-0.5 -top-0.5 size-2 rounded-full border border-white ${
+                  working ? 'animate-pulse bg-slate-300' : 'bg-amber-500'
+                }`}
+                data-testid="rayen-sync-history-indicator"
                 aria-hidden="true"
               />
             )}

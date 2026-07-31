@@ -34,6 +34,7 @@ import { resolveCensusSyncTarget, type CensusSyncTarget } from '../domain/histor
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import { elapsedMilliseconds, isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
+import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
 
 interface UseRayenSnapshotPreviewInput {
   currentRecord: DailyRecord | null | undefined;
@@ -67,10 +68,12 @@ export const useRayenSnapshotPreview = ({
   syncTargetRef,
 }: UseRayenSnapshotPreviewInput) => {
   const autoApplyingRef = useRef(false);
+  const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
 
   return useCallback(
     async (snapshot: RayenCensusSnapshot, bundle: RayenSyncBundle) => {
       clearSyncTimeout();
+      const planningSnapshot = prepareTreatingPhysicianSnapshot(snapshot);
       if (!currentRecord) {
         void failRun('apply_failed');
         setState(prev => ({
@@ -183,13 +186,13 @@ export const useRayenSnapshotPreview = ({
         return requestEgresoLookup(targets);
       };
       let diff: CensusImportDiff;
-      let evidenceSnapshot = snapshot;
+      let evidenceSnapshot = planningSnapshot;
       let lookupResults: EgresoLookupResult[] = [];
       if (isHistoricalDay) {
         const reconstruction = await measureEvidence(() =>
           reconstructHistoricalSnapshotAtClose(
             reportDate,
-            snapshot,
+            planningSnapshot,
             currentRecord,
             bundle.egresoRows,
             {
@@ -214,7 +217,7 @@ export const useRayenSnapshotPreview = ({
           };
         }
       } else {
-        diff = planRayenCensusImport({ current: currentRecord, snapshot }).diff;
+        diff = planRayenCensusImport({ current: currentRecord, snapshot: planningSnapshot }).diff;
         diff = applyEgresoReport(diff, bundle.egresoRows, currentRecord);
         const recoveryTargets = diff.pendingAdministrativeDischarges
           .filter(entry => entry.rut && entry.encounterId)
@@ -223,7 +226,7 @@ export const useRayenSnapshotPreview = ({
         const recovered = await measureEvidence(() =>
           recoverMissingSnapshotPlacements(
             currentRecord,
-            snapshot,
+            planningSnapshot,
             diff,
             lookupResults,
             { fetchReport: fetchPatientFlowReport },
@@ -385,6 +388,7 @@ export const useRayenSnapshotPreview = ({
       recordRunPerformance,
       setState,
       syncTargetRef,
+      prepareTreatingPhysicianSnapshot,
     ]
   );
 };

@@ -21,6 +21,7 @@ import type {
   DischargeEntry,
 } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
+import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import {
   applyHistoricalAdmissions,
   confirmedPreviousDayAdmissionsByDay,
@@ -33,6 +34,17 @@ export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvid
 /** ~48h nurse editing window (mirrors firestore.rules isWithinEditingWindow); admin bypasses it. */
 export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
   isAdmin || Date.now() - new Date(`${day}T00:00:00`).getTime() < 172_800_000;
+
+const assertHistoricalPatchAccepted = (
+  result: Awaited<ReturnType<typeof patchDailyRecordWithCompatibility>>
+): void => {
+  if (!result || !isDailyRecordWriteRejectedResult(result)) return;
+  const error =
+    result.blockingError ??
+    new Error(result.userSafeMessage || 'No se confirmó el guardado histórico.');
+  if (result.conflictSummary?.kind === 'concurrency') error.name = 'ConcurrencyError';
+  throw error;
+};
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
@@ -178,7 +190,10 @@ export const fileCrossDayCorrections = async (
   const records = new Map<string, DailyRecord>();
   await Promise.all(
     [...affectedDays].map(async day => {
-      const record = await port.getForDate(day);
+      const record =
+        typeof port.getForDateWithMeta === 'function'
+          ? (await port.getForDateWithMeta(day, true)).record
+          : await port.getForDate(day);
       if (record) records.set(day, record);
     })
   );
@@ -221,8 +236,10 @@ export const fileCrossDayCorrections = async (
   }
 
   for (const correction of preparedCorrections) {
-    await patchDailyRecordWithCompatibility(port, correction.day, correction.patch, {
-      baseRecord: correction.record,
-    });
+    assertHistoricalPatchAccepted(
+      await patchDailyRecordWithCompatibility(port, correction.day, correction.patch, {
+        baseRecord: correction.record,
+      })
+    );
   }
 };

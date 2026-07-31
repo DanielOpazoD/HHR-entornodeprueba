@@ -241,6 +241,7 @@ describe('RayenImportButton', () => {
       expect.stringContaining('Se requieren Ficha Médico y Gestión de Camas')
     );
     fireEvent.click(screen.getByTestId('rayen-extension-health-help'));
+    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('relative', 'z-[39]');
     expect(
       screen.getByText(
         'Gestión de Camas no está abierta. Se requieren Ficha Médico y Gestión de Camas para sincronizar.'

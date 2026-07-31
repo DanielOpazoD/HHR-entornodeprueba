@@ -279,6 +279,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 readOnly={readOnly}
                 onAssign={handleSpecialtyAssign}
               />
+              {data.treatingPhysicianName && (
+                <span
+                  className="max-w-28 truncate text-[9px] font-medium text-slate-400"
+                  title={`Médico tratante: ${data.treatingPhysicianName}`}
+                >
+                  · {data.treatingPhysicianName}
+                </span>
+              )}
             </span>
           </div>
         )}

@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import '../../../extension/fichamedico-isolation-normalization.js';
+import '../../../extension/fichamedico-treating-physician-normalization.js';
 import '../../../extension/fichamedico-normalization.js';
+
+const treatingPhysicianNormalization = (
+  globalThis as typeof globalThis & {
+    HhrFichaMedicoTreatingPhysicianNormalization: {
+      normalize: (rows: unknown[]) => Array<{
+        practitionerId: string;
+        displayName: string;
+      }>;
+    };
+  }
+).HhrFichaMedicoTreatingPhysicianNormalization;
 
 const normalization = (
   globalThis as typeof globalThis & {
@@ -10,7 +22,8 @@ const normalization = (
         item: unknown,
         header: unknown,
         principalDiagnosis: unknown,
-        discharged?: boolean
+        discharged?: boolean,
+        physicianById?: Record<string, unknown>
       ) => Record<string, unknown>;
       normalizeSessionExpiry: (session: unknown, payload?: unknown) => number | null;
       normalizeSessionRole: (session: unknown) => string;
@@ -47,6 +60,31 @@ describe('Ficha Medico identity and session normalization', () => {
 });
 
 describe('Ficha Medico census normalization', () => {
+  it('normalizes the facility physician catalog and resolves the encounter assignment by id', () => {
+    const physicians = treatingPhysicianNormalization.normalize([
+      { id: 7947, firstGivenName: 'Angelica', firstFamilyName: 'Vargas' },
+      { id: 7947, firstGivenName: 'Duplicada', firstFamilyName: 'No usar' },
+      { id: null, firstGivenName: 'Sin', firstFamilyName: 'Id' },
+    ]);
+    const physicianById = Object.fromEntries(
+      physicians.map(physician => [physician.practitionerId, physician])
+    );
+
+    expect(physicians).toEqual([{ practitionerId: '7947', displayName: 'Angelica Vargas' }]);
+    expect(
+      normalization.normalizeEncounter(
+        { id: 141336, healthCarePractitionerAssignedId: 7947 },
+        {},
+        {},
+        false,
+        physicianById
+      )
+    ).toMatchObject({
+      treatingPhysicianId: '7947',
+      treatingPhysicianName: 'Angelica Vargas',
+    });
+  });
+
   it('requests separate detail only for active isolation signals', () => {
     expect(normalization.requiresIsolationDetails({ isIsolated: true })).toBe(true);
     expect(normalization.requiresIsolationDetails({ isIsolated: false })).toBe(false);

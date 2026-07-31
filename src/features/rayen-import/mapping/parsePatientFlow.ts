@@ -7,6 +7,12 @@ export interface PatientBedMovement {
   sourceBedLabel: string;
 }
 
+export interface PatientFlowPlacement {
+  changedAt: string;
+  bedId: string | null;
+  sourceBedLabel: string;
+}
+
 export interface PatientFlowTimeWindow {
   notBefore?: string;
   notAfter?: string;
@@ -92,10 +98,10 @@ export const parsePatientFlowMovements = (text: string): PatientBedMovement[] =>
   return [...movements.values()].sort((a, b) => a.changedAt.localeCompare(b.changedAt));
 };
 
-export const latestPatientFlowMovement = (
+export const latestPatientFlowPlacement = (
   text: string,
   window: PatientFlowTimeWindow = {}
-): PatientBedMovement | null => {
+): PatientFlowPlacement | null => {
   const parsed = parsePatientFlowRows(text);
   if (parsed.hasMalformedMovementRow) return null;
   const rows = parsed.rows.filter(
@@ -106,10 +112,20 @@ export const latestPatientFlowMovement = (
   const latestTimestamp = rows.at(-1)?.changedAt;
   if (!latestTimestamp) return null;
   const latestRows = rows.filter(row => row.changedAt === latestTimestamp);
-  const distinctBeds = new Set(latestRows.map(row => row.bedId));
-  if (distinctBeds.size !== 1 || distinctBeds.has(null)) return null;
-  const latest = latestRows[0];
-  return { ...latest, bedId: latest.bedId as string };
+  const distinctPlacements = new Set(
+    latestRows.map(row =>
+      row.bedId ? `bed:${row.bedId}` : `external:${row.sourceBedLabel.trim().toUpperCase()}`
+    )
+  );
+  return distinctPlacements.size === 1 ? latestRows[0] : null;
+};
+
+export const latestPatientFlowMovement = (
+  text: string,
+  window: PatientFlowTimeWindow = {}
+): PatientBedMovement | null => {
+  const placement = latestPatientFlowPlacement(text, window);
+  return placement?.bedId ? { ...placement, bedId: placement.bedId } : null;
 };
 
 /** Earliest valid row, including locations outside HHR, so callers can bound the episode safely. */

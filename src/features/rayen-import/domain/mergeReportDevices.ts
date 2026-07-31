@@ -9,6 +9,7 @@
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type { MappedDevice } from '../mapping/mapDeviceToInstance';
+import { canonicalizeRayenDeviceType } from '../mapping/mapDeviceToInstance';
 import { clinicalValuesEqual } from './clinicalIncrementalSync';
 
 export interface MergeDevicesContext {
@@ -19,17 +20,46 @@ export interface MergeDevicesContext {
 const buildNote = (device: MappedDevice): string =>
   [device.location, device.note].filter(part => part.trim().length > 0).join(' · ');
 
+const canonicalizePersistedDeviceType = (type: string): string =>
+  /^VVP#\d+$/i.test(type.trim()) ? type.trim().toUpperCase() : canonicalizeRayenDeviceType(type);
+
+const normalizeExistingDeviceAliases = (patient: PatientData): PatientData => {
+  const devices = [...new Set((patient.devices ?? []).map(canonicalizePersistedDeviceType))];
+  const deviceDetails = Object.entries(patient.deviceDetails ?? {}).reduce<DeviceDetails>(
+    (result, [type, details]) => {
+      const canonical = canonicalizePersistedDeviceType(type);
+      result[canonical] = { ...details, ...(result[canonical] ?? {}) };
+      return result;
+    },
+    {}
+  );
+  const deviceInstanceHistory = (patient.deviceInstanceHistory ?? []).map(instance => {
+    const canonical = canonicalizePersistedDeviceType(instance.type);
+    return canonical === instance.type ? instance : { ...instance, type: canonical };
+  });
+
+  if (
+    clinicalValuesEqual(patient.devices ?? [], devices) &&
+    clinicalValuesEqual(patient.deviceDetails ?? {}, deviceDetails) &&
+    clinicalValuesEqual(patient.deviceInstanceHistory ?? [], deviceInstanceHistory)
+  ) {
+    return patient;
+  }
+  return { ...patient, devices, deviceDetails, deviceInstanceHistory };
+};
+
 export const mergeReportDevices = (
   patient: PatientData,
   devices: MappedDevice[],
   ctx: MergeDevicesContext
 ): PatientData => {
-  if (devices.length === 0) return patient;
+  const normalizedPatient = normalizeExistingDeviceAliases(patient);
+  if (devices.length === 0) return normalizedPatient;
 
   const nowMs = ctx.now.getTime();
-  const history: DeviceInstance[] = [...(patient.deviceInstanceHistory ?? [])];
-  const deviceDetails: DeviceDetails = { ...(patient.deviceDetails ?? {}) };
-  const activeTypes = new Set(patient.devices ?? []);
+  const history: DeviceInstance[] = [...(normalizedPatient.deviceInstanceHistory ?? [])];
+  const deviceDetails: DeviceDetails = { ...(normalizedPatient.deviceDetails ?? {}) };
+  const activeTypes = new Set(normalizedPatient.devices ?? []);
 
   for (const device of devices) {
     activeTypes.add(device.type);
@@ -59,9 +89,9 @@ export const mergeReportDevices = (
       history.push({
         id: ctx.createId(),
         type: device.type,
-        clinicalEpisodeId: patient.clinicalEpisodeId,
-        patientRut: patient.rut,
-        patientName: patient.patientName,
+        clinicalEpisodeId: normalizedPatient.clinicalEpisodeId,
+        patientRut: normalizedPatient.rut,
+        patientName: normalizedPatient.patientName,
         status: 'Active',
         installationDate: device.installationDate,
         installationTime: device.installationTime,
@@ -74,17 +104,17 @@ export const mergeReportDevices = (
   }
 
   const merged = {
-    ...patient,
+    ...normalizedPatient,
     devices: [...activeTypes],
     deviceDetails,
     deviceInstanceHistory: history,
   };
   if (
-    clinicalValuesEqual(patient.devices ?? [], merged.devices) &&
-    clinicalValuesEqual(patient.deviceDetails ?? {}, merged.deviceDetails) &&
-    clinicalValuesEqual(patient.deviceInstanceHistory ?? [], merged.deviceInstanceHistory)
+    clinicalValuesEqual(normalizedPatient.devices ?? [], merged.devices) &&
+    clinicalValuesEqual(normalizedPatient.deviceDetails ?? {}, merged.deviceDetails) &&
+    clinicalValuesEqual(normalizedPatient.deviceInstanceHistory ?? [], merged.deviceInstanceHistory)
   ) {
-    return patient;
+    return normalizedPatient;
   }
   return merged;
 };

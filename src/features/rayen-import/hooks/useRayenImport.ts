@@ -87,7 +87,12 @@ export const useRayenImport = () => {
     completeRun,
     failRun,
     cancelRun,
-  } = useRayenSyncAudit({ currentRecordRef, patchDailyRecord, actor: syncActor });
+  } = useRayenSyncAudit({
+    currentRecordRef,
+    patchDailyRecord,
+    loadDailyRecord: loadFreshClinicalRecord,
+    actor: syncActor,
+  });
   const applyDiff = useRayenCensusDiffApplication({
     ensureRun,
     applyRunToRecord,

@@ -52,15 +52,28 @@ export const applyConfirmedRayenImport = async ({
 }): Promise<ApplyResult> => {
   if (applyPreviousDays) {
     const run = ensureRun();
-    await fileCrossDayCorrections(
-      dailyRecord,
-      base,
-      diff,
-      toIsoReportDate(base),
-      isAdmin,
-      createId,
-      { actor: run.by, syncRunId: run.id }
-    );
+    let lastHistoricalConflict: unknown;
+    for (let attempt = 0; attempt <= MAX_FRESH_RECORD_RETRIES; attempt += 1) {
+      try {
+        await fileCrossDayCorrections(
+          dailyRecord,
+          base,
+          diff,
+          toIsoReportDate(base),
+          isAdmin,
+          createId,
+          { actor: run.by, syncRunId: run.id }
+        );
+        lastHistoricalConflict = undefined;
+        break;
+      } catch (error) {
+        if (!isVersionConflict(error)) throw error;
+        lastHistoricalConflict = error;
+        if (attempt === MAX_FRESH_RECORD_RETRIES) break;
+        onRetry?.();
+      }
+    }
+    if (lastHistoricalConflict) throw lastHistoricalConflict;
   }
 
   let candidate = base;

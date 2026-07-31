@@ -76,6 +76,20 @@ describe('PatientIdentityCell', () => {
     expect(screen.getByText('FI:')).toBeInTheDocument();
   });
 
+  it('shows the treating physician name without an abbreviated title', () => {
+    const data = DataFactory.createMockPatient('R1', {
+      treatingPhysicianId: '7947',
+      treatingPhysicianName: 'Angelica Vargas',
+    });
+
+    renderCell({ data });
+
+    expect(screen.getByTitle('Médico tratante: Angelica Vargas')).toHaveTextContent(
+      '· Angelica Vargas'
+    );
+    expect(screen.queryByText(/Méd\./)).not.toBeInTheDocument();
+  });
+
   it('shows Pediatría and the clinical actions for an attached newborn without RUN', () => {
     const data = DataFactory.createMockPatient('H5C1', {
       patientName: 'RN de Fernanda Valladares',
