@@ -48,6 +48,16 @@ export const diffSyncablePatientFields = (
       current.treatingPhysicianName
     )
       continue;
+    // A transient failure resolving the directory must not erase a previously verified display
+    // name while Rayen still reports the exact same stable physician identity.
+    if (
+      field === 'treatingPhysicianName' &&
+      incoming.treatingPhysicianId &&
+      incoming.treatingPhysicianId === current.treatingPhysicianId &&
+      !incoming.treatingPhysicianName &&
+      current.treatingPhysicianName
+    )
+      continue;
     if (String(from ?? '') !== String(to ?? '')) changes.push({ field, from, to });
   }
   return changes;

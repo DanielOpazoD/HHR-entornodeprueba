@@ -162,6 +162,26 @@ describe('treating physician catalog', () => {
     expect(enriched.encounters[0].treatingPhysicianSpecialty).toBe('Psiquiatría');
   });
 
+  it('restores a missing display name from the persistent catalog using the stable id', () => {
+    const missingNameSnapshot: RayenCensusSnapshot = {
+      ...snapshot,
+      encounters: [{ ...snapshot.encounters[0], treatingPhysicianName: undefined }],
+    };
+    const enriched = enrichSnapshotWithTreatingPhysicianSpecialties(missingNameSnapshot, [
+      {
+        name: 'Angelica Vargas',
+        phone: '',
+        specialty: 'Psiquiatría',
+        rayenPractitionerId: '7947',
+      },
+    ]);
+
+    expect(enriched.encounters[0]).toMatchObject({
+      treatingPhysicianName: 'Angelica Vargas',
+      treatingPhysicianSpecialty: 'Psiquiatría',
+    });
+  });
+
   it('converts the legacy internal-medicine catalog label to the HHR census label', () => {
     const enriched = enrichSnapshotWithTreatingPhysicianSpecialties(snapshot, [
       {
@@ -195,5 +215,20 @@ describe('treating physician catalog', () => {
       ])
     );
     expect(changes.some(change => change.field === 'specialty')).toBe(false);
+  });
+
+  it('does not erase a verified name when the same stable id is temporarily unresolved', () => {
+    const current = patient({
+      treatingPhysicianId: '7947',
+      treatingPhysicianName: 'Angelica Vargas',
+    });
+    const incoming = patient({
+      treatingPhysicianId: '7947',
+      treatingPhysicianName: undefined,
+    });
+
+    expect(diffSyncablePatientFields(current, incoming)).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'treatingPhysicianName' })])
+    );
   });
 });

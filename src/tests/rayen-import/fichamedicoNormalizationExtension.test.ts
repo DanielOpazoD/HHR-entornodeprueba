@@ -1,13 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import '../../../extension/fichamedico-isolation-normalization.js';
+import '../../../extension/fichamedico-treating-physician-sources.js';
 import '../../../extension/fichamedico-treating-physician-normalization.js';
 import '../../../extension/fichamedico-normalization.js';
 
 const treatingPhysicianNormalization = (
   globalThis as typeof globalThis & {
     HhrFichaMedicoTreatingPhysicianNormalization: {
-      normalize: (rows: unknown[]) => Array<{
+      assignedFromDocument: (root: Document) => Array<{
+        practitionerId: string;
+        displayName: string;
+      }>;
+      merge: (...sources: unknown[]) => Array<{
+        practitionerId: string;
+        displayName: string;
+      }>;
+      normalize: (rows: unknown) => Array<{
         practitionerId: string;
         displayName: string;
       }>;
@@ -37,6 +46,10 @@ const normalization = (
     };
   }
 ).HhrFichaMedicoNormalization;
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
 
 describe('Ficha Medico identity and session normalization', () => {
   it.each([
@@ -83,6 +96,56 @@ describe('Ficha Medico census normalization', () => {
       treatingPhysicianId: '7947',
       treatingPhysicianName: 'Angelica Vargas',
     });
+  });
+
+  it('accepts wrapped or nested physician catalogs from compatible Ficha Medico versions', () => {
+    expect(
+      treatingPhysicianNormalization.normalize({
+        data: [
+          {
+            id: 512,
+            healthCarePractitioner: {
+              id: 7947,
+              fullName: '  Angelica   Vargas ',
+            },
+          },
+        ],
+      })
+    ).toEqual([{ practitionerId: '7947', displayName: 'Angelica Vargas' }]);
+  });
+
+  it('recovers assigned physician identities from the rendered census rows', () => {
+    document.body.innerHTML = `
+      <table>
+        <thead><tr><th>Servicio</th><th>Asignación</th></tr></thead>
+        <tbody><tr>
+          <td><div role="combobox">Medicina</div><input value="404" /></td>
+          <td><div role="combobox"> Angelica   Vargas </div><input value="7947" /></td>
+        </tr><tr>
+          <td><div role="combobox">Cirugía</div><input value="405" /></td>
+          <td><div role="combobox">Sin asignación</div><input value="0" /></td>
+        </tr></tbody>
+      </table>
+    `;
+
+    expect(treatingPhysicianNormalization.assignedFromDocument(document)).toEqual([
+      { practitionerId: '7947', displayName: 'Angelica Vargas' },
+    ]);
+  });
+
+  it('keeps current assigned-row evidence ahead of a stale facility catalog name', () => {
+    expect(
+      treatingPhysicianNormalization.merge(
+        [{ practitionerId: '7947', displayName: 'Angelica Vargas' }],
+        [
+          { id: 7947, displayName: 'Nombre anterior' },
+          { id: 7942, displayName: 'Otra médica' },
+        ]
+      )
+    ).toEqual([
+      { practitionerId: '7947', displayName: 'Angelica Vargas' },
+      { practitionerId: '7942', displayName: 'Otra médica' },
+    ]);
   });
 
   it('requests separate detail only for active isolation signals', () => {

@@ -185,6 +185,10 @@
       "maxLines": 80,
       "hotspots": {}
     },
+    "fichamedico-treating-physician-sources.js": {
+      "maxLines": 143,
+      "hotspots": {}
+    },
     "fichamedico-normalization.js": {
       "maxLines": 134,
       "hotspots": {

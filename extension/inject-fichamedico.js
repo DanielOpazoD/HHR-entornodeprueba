@@ -336,7 +336,7 @@
   const readCensus = async () => {
     const context = await getVerifiedClinicalContext();
     const base = context.base || new URL(context.apiOrigin);
-    const physicianCatalogPromise = (globalThis.HhrFichaMedicoTreatingPhysicianNormalization?.capture || (async () => ({ physicians: [], physicianById: {} })))({ apiGet, apiOrigin: context.apiOrigin, facilityId: context.identity.facilityId, auth: capturedAuth }).catch(() => ({ physicians: [], physicianById: {} }));
+    const physicianCatalogPromise = (globalThis.HhrFichaMedicoTreatingPhysicianNormalization?.captureFromDocument || (async () => ({ physicians: [], physicianById: {} })))({ apiGet, apiOrigin: context.apiOrigin, facilityId: context.identity.facilityId, auth: capturedAuth, root: document }).catch(() => ({ physicians: [], physicianById: {} }));
     const withFilter = ft => {
       const u = new URL(base);
       u.searchParams.set('filterType', ft);
