@@ -223,11 +223,21 @@ const resolveClinicalEnrichmentRecommendation = (
 export const buildRayenClinicalEnrichmentRolloutSummary = (
   entries: FunctionsTelemetryEntry[]
 ): RayenClinicalEnrichmentRolloutSummary => {
-  const batchEntries = entries.filter(
+  const allBatchEntries = entries.filter(
     entry =>
       entry.service === RAYEN_CLINICAL_ENRICHMENT_SERVICE &&
       entry.operation === RAYEN_CLINICAL_ENRICHMENT_OPERATION
   );
+  const parityContractVersion = allBatchEntries.reduce(
+    (latest, entry) =>
+      Math.max(latest, Math.max(1, readNumberContext(entry.context, 'parityContractVersion'))),
+    0
+  );
+  // A parity-contract change invalidates previous rollout evidence without deleting its audit log.
+  const batchEntries = allBatchEntries.filter(entry => {
+    const version = Math.max(1, readNumberContext(entry.context, 'parityContractVersion'));
+    return version === parityContractVersion;
+  });
   const timestamps = batchEntries
     .map(entry => Date.parse(entry.timestamp))
     .filter(Number.isFinite)
@@ -276,6 +286,7 @@ export const buildRayenClinicalEnrichmentRolloutSummary = (
   );
   const summary = {
     ...base,
+    parityContractVersion,
     evidenceHours,
     firstEntryAt: firstTimestamp != null ? new Date(firstTimestamp).toISOString() : undefined,
     lastEntryAt: lastTimestamp != null ? new Date(lastTimestamp).toISOString() : undefined,

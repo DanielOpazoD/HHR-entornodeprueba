@@ -62,6 +62,9 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
           <p className="mt-1 text-xs opacity-75">
             Gate operativo: mínimo {MIN_MATCHED_SHADOW_RUNS} ejecuciones shadow coincidentes,{' '}
             {MIN_SHADOW_EVIDENCE_HOURS} horas de evidencia y cero señales bloqueantes.
+            {summary.parityContractVersion > 0
+              ? ` Evidencia del contrato v${summary.parityContractVersion}.`
+              : ''}
           </p>
         </div>
         <div className="inline-flex items-center gap-2 self-start rounded-lg bg-white/75 px-3 py-1.5 text-xs font-bold">
