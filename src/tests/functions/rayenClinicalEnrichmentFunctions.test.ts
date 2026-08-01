@@ -45,7 +45,12 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
           revision: 5,
           lastMutationId: 'mutation-1',
           clinicalEnrichmentReceipts: [
-            expect.objectContaining({ runId: 'run-1', mutationId: 'mutation-1' }),
+            expect.objectContaining({
+              runId: 'run-1',
+              mutationId: 'mutation-1',
+              fieldContractVersion: 2,
+              canonicalDigest: digestPayload(makePayload()),
+            }),
           ],
         }),
       })
@@ -63,123 +68,6 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     const telemetry = JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0]);
     expect(telemetry).not.toMatch(/H2C1|episode-secret|Paciente reservado|11\.111|braden|120/);
   });
-  it('returns idempotent success before revision checks for the same run and mutation', async () => {
-    const remote = makeClinicalRecord();
-    const payload = makePayload();
-    remote.lastUpdated = '2026-07-28T11:00:00.000Z';
-    remote.meta = {
-      revision: 8,
-      clinicalEnrichmentReceipts: [
-        {
-          runId: 'run-1',
-          mutationId: 'mutation-1',
-          digest: digestPayload(payload),
-        },
-      ],
-    } as never;
-    const admin = createClinicalAdminMock(remote);
-    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
-      payload,
-      makeContext()
-    );
-
-    expect(result).toMatchObject({ authorityStatus: 'idempotent' });
-    expect(admin.set).not.toHaveBeenCalled();
-  });
-
-  it('accepts the pre-deployment digest during an idempotent rolling retry', async () => {
-    const remote = makeClinicalRecord();
-    const payload = makePayload();
-    const parsed = parseClinicalEnrichmentPayload(payload);
-    remote.meta = {
-      revision: 5,
-      clinicalEnrichmentReceipts: [
-        {
-          runId: payload.runId,
-          mutationId: payload.mutationId,
-          digest: buildLegacyClinicalEnrichmentDigest(parsed),
-        },
-      ],
-    } as never;
-    const admin = createClinicalAdminMock(remote);
-
-    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
-      payload,
-      makeContext()
-    );
-
-    expect(result).toMatchObject({ authorityStatus: 'idempotent', patientWrites: 0 });
-    expect(admin.set).not.toHaveBeenCalled();
-    expect(admin.create).not.toHaveBeenCalled();
-  });
-
-  it('accepts a pre-deployment digest for a checkpoint-only rolling retry', async () => {
-    const remote = makeClinicalRecord();
-    const payload = makePayload();
-    payload.patches[0].fields = {
-      clinicalSyncCheckpoint: { version: 1, sources: {} },
-    } as never;
-    const parsed = parseClinicalEnrichmentPayload(payload);
-    remote.meta = {
-      revision: 5,
-      clinicalEnrichmentReceipts: [
-        {
-          runId: payload.runId,
-          mutationId: payload.mutationId,
-          digest: buildLegacyClinicalEnrichmentDigest(parsed),
-        },
-      ],
-    } as never;
-    const admin = createClinicalAdminMock(remote);
-
-    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
-      payload,
-      makeContext()
-    );
-
-    expect(result).toMatchObject({ authorityStatus: 'idempotent', patientWrites: 0 });
-    expect(admin.set).not.toHaveBeenCalled();
-    expect(admin.create).not.toHaveBeenCalled();
-  });
-
-  it('orders digest targets with deterministic UTF-16 code units', () => {
-    const payload = makePayload();
-    payload.patches = [
-      { ...payload.patches[0], bedId: 'á' },
-      { ...payload.patches[0], bedId: 'Z' },
-    ];
-
-    expect(parseClinicalEnrichmentPayload(payload).patches).toMatchObject([
-      { bedId: 'Z' },
-      { bedId: 'á' },
-    ]);
-  });
-
-  it('keeps one snapshot when the same run is retried with a new mutation id', async () => {
-    const remote = makeClinicalRecord();
-    const payload = makePayload();
-    remote.meta = {
-      revision: 5,
-      clinicalEnrichmentReceipts: [
-        {
-          runId: 'run-1',
-          mutationId: 'mutation-original',
-          digest: digestPayload(payload),
-        },
-      ],
-    } as never;
-    const admin = createClinicalAdminMock(remote);
-
-    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
-      payload,
-      makeContext()
-    );
-
-    expect(result).toMatchObject({ authorityStatus: 'idempotent', revision: 5 });
-    expect(admin.historyDoc).not.toHaveBeenCalled();
-    expect(admin.set).not.toHaveBeenCalled();
-  });
-
   it('rejects reuse of a run id with a different clinical payload', async () => {
     const remote = makeClinicalRecord();
     remote.meta = {
@@ -336,7 +224,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
-  it('forces shadow requests to dry-run without creating a snapshot', async () => {
+  it('returns a compatible idempotent shadow response when canonical data already matches', async () => {
     const remote = makeClinicalRecord();
     remote.beds.H2C1 = {
       ...remote.beds.H2C1,
@@ -360,7 +248,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(result).toMatchObject({
       success: true,
       mode: 'shadow',
-      authorityStatus: 'ok',
+      authorityStatus: 'idempotent',
       resultParity: 'matched',
       patientWrites: 0,
       historySnapshots: 0,

@@ -37,6 +37,10 @@ export interface ClinicalFillDeps {
     censusDay: string,
     cudyr: ImportedCudyr
   ) => Promise<HistoricalCudyrApplyResult>;
+  applyHistoricalCudyrBatch?: (
+    censusDay: string,
+    items: HistoricalCudyrBatchItem[]
+  ) => Promise<HistoricalCudyrBatchItemResult[]>;
   applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
   /** Optional request-scoped atomic persistence. Omit to preserve the established per-patient path. */
   applyBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
@@ -91,6 +95,15 @@ export interface HistoricalCudyrApplyResult {
   persisted: boolean;
   changed: boolean;
   applicable?: boolean;
+}
+
+export interface HistoricalCudyrBatchItem {
+  clinicalEpisodeId: string;
+  cudyr: ImportedCudyr;
+}
+
+export interface HistoricalCudyrBatchItemResult extends HistoricalCudyrApplyResult {
+  clinicalEpisodeId: string;
 }
 
 export interface ClinicalFillError {

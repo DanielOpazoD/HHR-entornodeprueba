@@ -5,6 +5,7 @@ const MAX_BATCH_TARGETS = 32;
 const MAX_BATCH_BYTES = 500_000;
 const MAX_PERSISTED_DOCUMENT_BYTES = 900_000;
 const MAX_RECEIPTS = 16;
+const CANONICAL_FIELD_CONTRACT_VERSION = 2;
 
 const ALLOWED_FIELDS = new Set([
   'devices',
@@ -44,31 +45,42 @@ const clonePlainValue = value => {
   return value;
 };
 
-// Firestore's established partial-update path flattens non-empty objects into dot paths. Mirror
-// that behavior here so the transactional batch preserves unrelated nested clinical keys.
 const isPatchMap = value =>
   isPlainObject(value) && !(value instanceof Date) && typeof value?.toDate !== 'function';
 
-const applyEstablishedPatchValue = (current, requested) => {
+const applyLegacyPatchValue = (current, requested) => {
   if (!isPatchMap(requested)) return clonePlainValue(requested);
   const entries = Object.entries(requested);
   if (entries.length === 0) return {};
   const next = isPatchMap(current) ? clonePlainValue(current) : {};
   entries.forEach(([key, value]) => {
-    next[key] = applyEstablishedPatchValue(next[key], value);
+    next[key] = applyLegacyPatchValue(next[key], value);
   });
   return next;
 };
 
-const establishedPatchValueMatches = (current, requested) => {
+const legacyPatchValueMatches = (current, requested) => {
   if (!isPatchMap(requested)) return canonicalize(current) === canonicalize(requested);
   const entries = Object.entries(requested);
   if (entries.length === 0) return isPatchMap(current) && Object.keys(current).length === 0;
   return (
     isPatchMap(current) &&
-    entries.every(([key, value]) => establishedPatchValueMatches(current[key], value))
+    entries.every(([key, value]) => legacyPatchValueMatches(current[key], value))
   );
 };
+
+// Contract v2 declares that every allowlisted field is a complete canonical value assembled by
+// the frontend mergers. Unversioned clients keep the established recursive merge semantics during
+// rolling deployments, while v2 can remove stale optional leaves and converge subsequent runs.
+const applyEstablishedPatchValue = (current, requested, fieldContractVersion) =>
+  fieldContractVersion >= CANONICAL_FIELD_CONTRACT_VERSION
+    ? clonePlainValue(requested)
+    : applyLegacyPatchValue(current, requested);
+
+const establishedPatchValueMatches = (current, requested, fieldContractVersion) =>
+  fieldContractVersion >= CANONICAL_FIELD_CONTRACT_VERSION
+    ? canonicalize(current) === canonicalize(requested)
+    : legacyPatchValueMatches(current, requested);
 
 const assertString = (value, fieldName, maxLength) => {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > maxLength) {
@@ -198,6 +210,20 @@ const parseClinicalEnrichmentPayload = data => {
   }
   const mode = data.mode;
   const dryRun = mode === 'shadow';
+  if (
+    data?.fieldContractVersion !== undefined &&
+    data.fieldContractVersion !== 1 &&
+    data.fieldContractVersion !== CANONICAL_FIELD_CONTRACT_VERSION
+  ) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Clinical enrichment fieldContractVersion is not supported.'
+    );
+  }
+  const fieldContractVersion =
+    data?.fieldContractVersion === CANONICAL_FIELD_CONTRACT_VERSION
+      ? CANONICAL_FIELD_CONTRACT_VERSION
+      : 1;
   const expectedLastUpdated = assertString(data?.expectedLastUpdated, 'expectedLastUpdated', 80);
   if (!Number.isFinite(Date.parse(expectedLastUpdated))) {
     throw new functions.https.HttpsError(
@@ -303,6 +329,7 @@ const parseClinicalEnrichmentPayload = data => {
     mutationId,
     mode,
     dryRun,
+    fieldContractVersion,
     patches: clinicalPatches.sort(
       (left, right) =>
         compareCodeUnits(left.bedId, right.bedId) ||
@@ -371,28 +398,28 @@ const assertTargetMatchesEpisode = (record, target) => {
   return patient;
 };
 
-const applyClinicalEnrichment = (record, patches) => {
+const applyClinicalEnrichment = (record, patches, fieldContractVersion = 1) => {
   const next = clonePlainValue(record);
   patches.forEach(target => {
     assertTargetMatchesEpisode(next, target);
     const bed = next.beds[target.bedId];
     const patient = target.clinicalCrib ? bed.clinicalCrib : bed;
     Object.entries(target.fields).forEach(([field, value]) => {
-      patient[field] = applyEstablishedPatchValue(patient[field], value);
+      patient[field] = applyEstablishedPatchValue(patient[field], value, fieldContractVersion);
     });
   });
   return next;
 };
 
-const clinicalEnrichmentMatches = (record, targets) =>
+const clinicalEnrichmentMatches = (record, targets, fieldContractVersion = 1) =>
   targets.every(target => {
     const patient = assertTargetMatchesEpisode(record, target);
     return Object.entries(target.fields).every(([field, value]) =>
-      establishedPatchValueMatches(patient[field], value)
+      establishedPatchValueMatches(patient[field], value, fieldContractVersion)
     );
   });
 
-const summarizeClinicalEnrichmentMismatches = (record, targets) => {
+const summarizeClinicalEnrichmentMismatches = (record, targets, fieldContractVersion = 1) => {
   const summary = {
     mismatchTargetCount: 0,
     mismatchFieldCount: 0,
@@ -406,7 +433,7 @@ const summarizeClinicalEnrichmentMismatches = (record, targets) => {
     const patient = assertTargetMatchesEpisode(record, target);
     let targetMismatch = false;
     Object.entries(target.fields).forEach(([field, value]) => {
-      if (establishedPatchValueMatches(patient[field], value)) return;
+      if (establishedPatchValueMatches(patient[field], value, fieldContractVersion)) return;
       targetMismatch = true;
       summary.mismatchFieldCount += 1;
       const section = MISMATCH_SECTION_BY_FIELD[field];
@@ -426,13 +453,47 @@ const resolveReceipts = record =>
     ? record.meta.clinicalEnrichmentReceipts.filter(isPlainObject)
     : [];
 
+const assertLegacyReplayRevision = (record, payload, receipt) => {
+  const currentRevision = resolveRecordRevision(record);
+  const isUninterruptedLegacyWrite =
+    receipt?.runId === payload.runId &&
+    payload.baseRevision !== undefined &&
+    currentRevision === payload.baseRevision + 1 &&
+    record?.meta?.lastMutationId === receipt?.mutationId &&
+    toMillis(record?.lastUpdated) > 0 &&
+    toMillis(record?.lastUpdated) === toMillis(receipt?.appliedAt);
+  return isUninterruptedLegacyWrite ? currentRevision : assertRecordRevision(record, payload);
+};
+
 const classifyIdempotency = (record, payload, batchDigest, compatibleDigests = []) => {
   const acceptedDigests = new Set([batchDigest, ...compatibleDigests]);
+  const canonicalContract = payload.fieldContractVersion >= CANONICAL_FIELD_CONTRACT_VERSION;
   const receipts = resolveReceipts(record);
+  const classifyReceipt = receipt => {
+    if (
+      canonicalContract &&
+      receipt.fieldContractVersion === payload.fieldContractVersion &&
+      receipt.canonicalDigest === batchDigest
+    ) {
+      return 'idempotent';
+    }
+    if (!canonicalContract && acceptedDigests.has(receipt.digest)) return 'idempotent';
+    if (
+      canonicalContract &&
+      Number(receipt.fieldContractVersion || 1) < CANONICAL_FIELD_CONTRACT_VERSION &&
+      acceptedDigests.has(receipt.digest)
+    ) {
+      // A rolling v1 instance may have applied the same request using recursive merge semantics.
+      // Let the caller compare the canonical v2 value before deciding whether it must converge.
+      return 'legacy-replay';
+    }
+    return 'mismatch';
+  };
   const sameMutation = receipts.find(receipt => receipt.mutationId === payload.mutationId);
   if (sameMutation) {
-    if (sameMutation.runId === payload.runId && acceptedDigests.has(sameMutation.digest)) {
-      return 'idempotent';
+    const classification = classifyReceipt(sameMutation);
+    if (sameMutation.runId === payload.runId && classification !== 'mismatch') {
+      return { status: classification, receipt: sameMutation };
     }
     throw new functions.https.HttpsError(
       'failed-precondition',
@@ -440,8 +501,9 @@ const classifyIdempotency = (record, payload, batchDigest, compatibleDigests = [
     );
   }
   const sameRun = receipts.find(receipt => receipt.runId === payload.runId);
-  if (!sameRun) return 'new';
-  if (acceptedDigests.has(sameRun.digest)) return 'idempotent';
+  if (!sameRun) return { status: 'new', receipt: null };
+  const classification = classifyReceipt(sameRun);
+  if (classification !== 'mismatch') return { status: classification, receipt: sameRun };
   throw new functions.https.HttpsError(
     'failed-precondition',
     'runId was already used with a different clinical enrichment payload.'
@@ -476,7 +538,7 @@ const buildLegacyClinicalEnrichmentDigest = payload => {
   return digestValue({ date: payload.date, patches });
 };
 
-const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, now }) => {
+const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, canonicalDigest, now }) => {
   const receipts = resolveReceipts(record)
     .filter(receipt => receipt.runId !== payload.runId && receipt.mutationId !== payload.mutationId)
     .slice(-(MAX_RECEIPTS - 1));
@@ -496,6 +558,8 @@ const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, now }) => {
         runId: payload.runId,
         mutationId: payload.mutationId,
         digest: batchDigest,
+        canonicalDigest,
+        fieldContractVersion: payload.fieldContractVersion,
         appliedAt: now,
       },
     ],
@@ -509,6 +573,7 @@ module.exports = {
   MAX_BATCH_TARGETS,
   applyClinicalEnrichment,
   clinicalEnrichmentMatches,
+  assertLegacyReplayRevision,
   assertPersistedDocumentSize,
   assertRecordRevision,
   buildClinicalEnrichmentMeta,

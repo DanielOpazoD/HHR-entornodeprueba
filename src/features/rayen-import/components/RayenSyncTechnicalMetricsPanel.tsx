@@ -7,8 +7,8 @@ const STAGE_LABELS: Array<[keyof RayenSyncPerformance['stagesMs'], string]> = [
   ['reconciliation', 'Reconciliación total'],
   ['historicalEvidence', 'Evidencia histórica incluida'],
   ['clinicalReads', 'Lecturas clínicas'],
-  ['writeQueueWait', 'Espera acumulada'],
-  ['persistence', 'Persistencia acumulada'],
+  ['writeQueueWait', 'Espera interna sumada'],
+  ['persistence', 'Persistencia sumada'],
 ];
 
 const formatDuration = (durationMs: number): string =>
@@ -53,6 +53,13 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
           {countLabel(counters.retries, 'reintento', 'reintentos')} ·{' '}
           {countLabel(counters.timeouts, 'timeout', 'timeouts')}
         </p>
+        {(performance.stagesMs.writeQueueWait != null ||
+          performance.stagesMs.persistence != null) && (
+          <p className="text-[10px] text-slate-400">
+            Las esperas y persistencias se suman entre pacientes; pueden superar la duración total
+            de la sincronización.
+          </p>
+        )}
         <p className="text-[10px] text-slate-400">
           Sólo agregados técnicos; no contiene pacientes, camas, episodios ni valores clínicos.
         </p>

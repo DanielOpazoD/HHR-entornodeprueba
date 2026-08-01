@@ -30,6 +30,11 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     expect(panel).toHaveTextContent('Preflight');
     expect(panel).toHaveTextContent('Captura dual');
     expect(panel).toHaveTextContent('Evidencia histórica incluida');
+    expect(panel).toHaveTextContent('Espera interna sumada');
+    expect(panel).toHaveTextContent('Persistencia sumada');
+    expect(panel).toHaveTextContent(
+      'Las esperas y persistencias se suman entre pacientes; pueden superar la duración total'
+    );
     expect(panel).toHaveTextContent(
       '14 solicitudes Eloísa · 3 aciertos de caché · 2 parches · 1 reintento · 0 timeouts'
     );

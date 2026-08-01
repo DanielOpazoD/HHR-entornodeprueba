@@ -8,10 +8,8 @@ import { parseEvaluationScales } from './mapping/parseEvaluationScales';
 import { mergeScaleSources } from './mapping/mergeScaleSources';
 import { parseVitalSigns } from './mapping/parseVitalSigns';
 import { mergeReportVitals } from './domain/mergeReportVitals';
-import { buildImportedCudyr, previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
 import { inferNursingShifts, type NursingActivityObservation } from './domain/inferNursingShifts';
 import { createConcurrencyGate } from './domain/concurrencyGate';
-import { clinicalValuesEqual } from './domain/clinicalIncrementalSync';
 import { collectClinicalFillCandidates } from './domain/clinicalFillCandidates';
 import { createClinicalCheckpointAccumulator } from './domain/clinicalCheckpointAccumulator';
 import { createClinicalWriteCoordinator } from './domain/clinicalWriteCoordinator';
@@ -27,6 +25,7 @@ import { persistClinicalBatch } from './domain/clinicalBatchPersistence';
 import { resolveClinicalHistoryReadPolicy } from './domain/clinicalHistoryReadPolicy';
 import { confirmFullWindow } from './domain/clinicalHistoryReadPolicy';
 import { buildClinicalPatientPatch } from './domain/clinicalPatientPatch';
+import { createClinicalCudyrCoordinator } from './domain/clinicalCudyrCoordinator';
 
 export type {
   ClinicalFillDeps,
@@ -37,6 +36,8 @@ export type {
   ClinicalFillProgress,
   ClinicalFillSummary,
   HistoricalCudyrApplyResult,
+  HistoricalCudyrBatchItem,
+  HistoricalCudyrBatchItemResult,
 } from './contracts/clinicalFillContracts';
 
 const message = (error: unknown): string =>
@@ -100,6 +101,19 @@ export const runClinicalFill = async (
       summary.errors.push({ bedId: '*', source: 'cudyr', message: message(error) });
       return { map: new Map<string, RayenCudyrCategory>(), ok: false };
     });
+  const cudyr = createClinicalCudyrCoordinator({
+    censusDate: fecha,
+    clinicalEpisodeIds: eligible.flatMap(({ patient }) =>
+      patient.clinicalEpisodeId ? [patient.clinicalEpisodeId] : []
+    ),
+    source: cudyrPromise,
+    applyBatch: deps.applyHistoricalCudyrBatch,
+    applySingle: deps.applyHistoricalCudyr,
+    enqueueWrite: writes.enqueue,
+    onHistoricalPatch: performance.recordHistoricalPatch,
+    onError: (bedId, errorMessage) =>
+      summary.errors.push({ bedId, source: 'cudyr', message: errorMessage }),
+  });
   let done = 0;
   const report = (): void => {
     done += 1;
@@ -267,50 +281,9 @@ export const runClinicalFill = async (
     }
 
     try {
-      const { map, ok } = await cudyrPromise;
-      const cudyrRow = map.get(encId);
-      const importedCudyr = cudyrRow ? buildImportedCudyr(cudyrRow, fecha) : null;
-      const priorCensusDay = previousCensusIsoDay(fecha);
-      const priorCudyr = cudyrRow ? buildImportedCudyr(cudyrRow, priorCensusDay) : null;
-      let priorCudyrPersisted = !priorCudyr;
-      if (priorCudyr && deps.applyHistoricalCudyr) {
-        try {
-          const historicalResult = await writes.enqueue(() =>
-            deps.applyHistoricalCudyr!(encId, priorCensusDay, priorCudyr)
-          );
-          const historicalNotApplicable = historicalResult.applicable === false;
-          priorCudyrPersisted = historicalResult.persisted || historicalNotApplicable;
-          historicalCudyrPatched = historicalResult.changed;
-          if (historicalResult.changed) performance.recordHistoricalPatch();
-          if (!historicalResult.persisted && !historicalNotApplicable) {
-            summary.errors.push({
-              bedId,
-              source: 'cudyr',
-              message: `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}.`,
-            });
-          }
-        } catch (error) {
-          summary.errors.push({
-            bedId,
-            source: 'cudyr',
-            message: `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}: ${message(error)}`,
-          });
-        }
-      }
-      const existingCudyr = merged.evaluationScores?.cudyr;
-      if (importedCudyr) {
-        if (!clinicalValuesEqual(existingCudyr, importedCudyr)) {
-          merged = {
-            ...merged,
-            evaluationScores: { ...merged.evaluationScores, cudyr: importedCudyr },
-          };
-        }
-      } else if (ok && existingCudyr && priorCudyrPersisted) {
-        // An authoritative read with no CUDYR owned by this census removes any stale local copy.
-        // This also migrates pre-fix records whose stored recordedDate incorrectly matched D + 1.
-        const { cudyr: _removed, ...rest } = merged.evaluationScores ?? {};
-        merged = { ...merged, evaluationScores: rest };
-      }
+      const cudyrResult = await cudyr.apply(merged, encId, bedId);
+      merged = cudyrResult.patient;
+      historicalCudyrPatched = cudyrResult.historicalChanged;
     } catch (error) {
       summary.errors.push({ bedId, source: 'cudyr', message: message(error) });
     }

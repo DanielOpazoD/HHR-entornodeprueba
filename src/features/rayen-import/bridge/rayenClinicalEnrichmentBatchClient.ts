@@ -14,6 +14,7 @@ export const RAYEN_CLINICAL_ENRICHMENT_FIELDS = [
 export const RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES = 500_000;
 export const RAYEN_CLINICAL_ENRICHMENT_MAX_TARGETS = 32;
 export const RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS = 20_000;
+export const RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION = 2 as const;
 
 export type RayenClinicalEnrichmentField = (typeof RAYEN_CLINICAL_ENRICHMENT_FIELDS)[number];
 
@@ -37,6 +38,7 @@ export interface RayenClinicalEnrichmentBatchPayload {
   mutationId: string;
   expectedLastUpdated: string;
   baseRevision?: number;
+  fieldContractVersion: typeof RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION;
   mode: 'shadow' | 'enforced';
   dryRun?: boolean;
   patches: RayenClinicalEnrichmentTarget[];

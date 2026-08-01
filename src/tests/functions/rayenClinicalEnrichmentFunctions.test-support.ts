@@ -62,6 +62,7 @@ export const makePayload = () => ({
   mutationId: 'mutation-1',
   expectedLastUpdated: '2026-07-28T10:00:00.000Z',
   baseRevision: 4,
+  fieldContractVersion: 2,
   mode: 'enforced',
   patches: [
     {
@@ -109,10 +110,13 @@ export const createClinicalAdminMock = (remoteData = makeClinicalRecord()) => {
   };
   const collection = vi.fn(() => ({ doc: vi.fn(() => hospitalDoc) }));
   const transaction = { create, get, set };
+  const runTransaction = vi.fn((callback: (value: typeof transaction) => unknown) =>
+    callback(transaction)
+  );
   const firestore = Object.assign(
     () => ({
       collection,
-      runTransaction: (callback: (value: typeof transaction) => unknown) => callback(transaction),
+      runTransaction,
     }),
     {
       Timestamp: {
@@ -127,6 +131,8 @@ export const createClinicalAdminMock = (remoteData = makeClinicalRecord()) => {
     create,
     set,
     historyDoc,
+    runTransaction,
+    transaction,
     docRef,
     telemetryAdd,
   };

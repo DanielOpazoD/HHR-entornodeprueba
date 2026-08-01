@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import { applyHistoricalCudyr } from '@/features/rayen-import/hooks/applyHistoricalCudyr';
+import {
+  applyHistoricalCudyr,
+  applyHistoricalCudyrBatch,
+} from '@/features/rayen-import/hooks/applyHistoricalCudyr';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
@@ -32,6 +35,19 @@ const record = (revision: string): DailyRecord =>
     cma: [],
     activeExtraBeds: [],
     lastUpdated: revision,
+  }) as unknown as DailyRecord;
+
+const recordWithTwoEpisodes = (revision: string): DailyRecord =>
+  ({
+    ...record(revision),
+    beds: {
+      ...record(revision).beds,
+      H2C2: {
+        bedId: 'H2C2',
+        patientName: 'Paciente dos',
+        clinicalEpisodeId: '142001',
+      },
+    },
   }) as unknown as DailyRecord;
 
 describe('applyHistoricalCudyr', () => {
@@ -98,5 +114,42 @@ describe('applyHistoricalCudyr', () => {
 
     expect(repository.getForDateWithMeta).toHaveBeenCalledOnce();
     expect(patchDailyRecordWithCompatibility).toHaveBeenCalledOnce();
+  });
+
+  it('persists several historical patients with one census read and one patch', async () => {
+    const repository = {
+      getForDateWithMeta: vi
+        .fn()
+        .mockResolvedValue({ record: recordWithTwoEpisodes('revision-1') }),
+    } as unknown as DailyRecordRepositoryPort;
+    vi.mocked(patchDailyRecordWithCompatibility).mockResolvedValueOnce(null);
+    const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
+
+    await expect(
+      applyHistoricalCudyrBatch({
+        dailyRecord: repository,
+        censusDay: '2026-07-29',
+        items: [
+          { clinicalEpisodeId: '142000', cudyr },
+          { clinicalEpisodeId: '142001', cudyr: secondCudyr },
+        ],
+        isAdmin: true,
+      })
+    ).resolves.toEqual([
+      { clinicalEpisodeId: '142000', persisted: true, changed: true },
+      { clinicalEpisodeId: '142001', persisted: true, changed: true },
+    ]);
+
+    expect(repository.getForDateWithMeta).toHaveBeenCalledOnce();
+    expect(patchDailyRecordWithCompatibility).toHaveBeenCalledOnce();
+    expect(patchDailyRecordWithCompatibility).toHaveBeenCalledWith(
+      repository,
+      '2026-07-29',
+      {
+        'beds.H2C1.evaluationScores.cudyr': cudyr,
+        'beds.H2C2.evaluationScores.cudyr': secondCudyr,
+      },
+      { baseRecord: expect.objectContaining({ lastUpdated: 'revision-1' }) }
+    );
   });
 });

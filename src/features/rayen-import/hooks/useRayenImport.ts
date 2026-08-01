@@ -6,7 +6,6 @@ import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { ensureFreshDailyRecordQuery } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import * as rayenImportBridge from '../bridge/rayenImportBridge';
 import { useRayenImportMode } from './useRayenImportMode';
@@ -18,7 +17,7 @@ import {
 import { failureReasonFromHealth, useRayenSyncAudit } from './useRayenSyncAudit';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import { useRayenClinicalFill } from './useRayenClinicalFill';
-import { applyHistoricalCudyr as applyHistoricalCudyrToRecord } from './applyHistoricalCudyr';
+import { useHistoricalCudyrPersistence } from './useHistoricalCudyrPersistence';
 import { applyConfirmedRayenImport, hasSkippedPreviousDayCorrections } from './confirmRayenImport';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
@@ -102,17 +101,10 @@ export const useRayenImport = () => {
   const finishSyncing = useCallback(() => {
     setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
   }, []);
-  const applyHistoricalCudyr = useCallback(
-    (clinicalEpisodeId: string, censusDay: string, cudyr: ImportedCudyr) =>
-      applyHistoricalCudyrToRecord({
-        dailyRecord,
-        clinicalEpisodeId,
-        censusDay,
-        cudyr,
-        isAdmin,
-      }),
-    [dailyRecord, isAdmin]
-  );
+  const { applyHistoricalCudyr, applyHistoricalCudyrBatch } = useHistoricalCudyrPersistence({
+    dailyRecord,
+    isAdmin,
+  });
   const presentStaffingProposal = useCallback(
     (proposal: NursingStaffingProposal, attemptId: number) => {
       if (!isRayenFillAttemptCurrent(attemptId)) return;
@@ -138,6 +130,7 @@ export const useRayenImport = () => {
     loadDailyRecord: loadFreshClinicalRecord,
     patchDailyRecord: patchClinicalRecord,
     applyHistoricalCudyr,
+    applyHistoricalCudyrBatch,
     completeRun,
     onStaffingProposal: presentStaffingProposal,
     onSettled: finishSyncing,
