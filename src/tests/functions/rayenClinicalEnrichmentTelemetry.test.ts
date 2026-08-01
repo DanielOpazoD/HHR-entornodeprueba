@@ -34,7 +34,12 @@ describe('Rayen clinical enrichment telemetry', () => {
 
     expect(admin.telemetryAdd).toHaveBeenCalledWith(
       expect.objectContaining({
-        context: expect.objectContaining({ resultParity: 'matched' }),
+        context: expect.objectContaining({
+          resultParity: 'matched',
+          parityContractVersion: 2,
+          mismatchTargetCount: 0,
+          mismatchFieldCount: 0,
+        }),
       })
     );
     expect(JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0])).not.toMatch(
@@ -52,8 +57,20 @@ describe('Rayen clinical enrichment telemetry', () => {
 
     expect(admin.telemetryAdd).toHaveBeenCalledWith(
       expect.objectContaining({
-        context: expect.objectContaining({ resultParity: 'mismatch' }),
+        context: expect.objectContaining({
+          resultParity: 'mismatch',
+          parityContractVersion: 2,
+          mismatchTargetCount: 1,
+          mismatchFieldCount: 3,
+          mismatchDeviceFieldCount: 0,
+          mismatchScoreFieldCount: 1,
+          mismatchVitalFieldCount: 1,
+          mismatchCheckpointFieldCount: 1,
+        }),
       })
+    );
+    expect(JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0])).not.toMatch(
+      /H2C1|episode-secret|Paciente reservado|11\.111|evaluationScores|vitalSigns|braden|120/
     );
   });
 

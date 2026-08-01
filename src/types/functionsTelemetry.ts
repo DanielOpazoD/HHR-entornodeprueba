@@ -58,6 +58,7 @@ export interface DailyRecordAuthorityRolloutSummary {
 export type RayenClinicalEnrichmentRolloutRecommendation = RolloutRecommendation;
 
 export interface RayenClinicalEnrichmentRolloutSummary {
+  parityContractVersion: number;
   total: number;
   shadowRuns: number;
   enforcedWrites: number;

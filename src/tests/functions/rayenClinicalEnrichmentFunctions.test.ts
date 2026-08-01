@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildLegacyClinicalEnrichmentDigest,
-  clinicalEnrichmentMatches,
   createClinicalAdminMock,
   createRayenClinicalEnrichmentFunctions,
   digestPayload,
@@ -20,37 +19,6 @@ const createApi = (admin: ReturnType<typeof createClinicalAdminMock>, role = 'nu
 
 describe('applyRayenClinicalEnrichmentBatch', () => {
   beforeEach(() => vi.clearAllMocks());
-
-  it('compares the requested values with the independently projected batch result', () => {
-    const record = makeClinicalRecord();
-    const payload = parseClinicalEnrichmentPayload(makePayload());
-    const matching = {
-      ...record,
-      beds: {
-        ...record.beds,
-        H2C1: {
-          ...record.beds.H2C1,
-          evaluationScores: { braden: { total: 17 } },
-          vitalSigns: { systolic: 120 },
-          clinicalSyncCheckpoint: { version: 1, sources: {} },
-        },
-      },
-    };
-
-    expect(clinicalEnrichmentMatches(matching, payload.targets)).toBe(true);
-    expect(
-      clinicalEnrichmentMatches(
-        {
-          ...matching,
-          beds: {
-            ...matching.beds,
-            H2C1: { ...matching.beds.H2C1, vitalSigns: { systolic: 119 } },
-          },
-        },
-        payload.targets
-      )
-    ).toBe(false);
-  });
 
   it('applies all allowlisted patient fields with one census read and one run snapshot', async () => {
     const admin = createClinicalAdminMock();

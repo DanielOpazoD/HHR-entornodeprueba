@@ -17,6 +17,16 @@ const ALLOWED_FIELDS = new Set([
 ]);
 const CHECKPOINT_FIELD = 'clinicalSyncCheckpoint';
 
+const MISMATCH_SECTION_BY_FIELD = Object.freeze({
+  devices: 'devices',
+  deviceDetails: 'devices',
+  deviceInstanceHistory: 'devices',
+  evaluationScores: 'scores',
+  vitalSigns: 'vitals',
+  vitalSignsHistory: 'vitals',
+  clinicalSyncCheckpoint: 'checkpoints',
+});
+
 const FORBIDDEN_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
 const compareCodeUnits = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
@@ -32,6 +42,32 @@ const clonePlainValue = value => {
     );
   }
   return value;
+};
+
+// Firestore's established partial-update path flattens non-empty objects into dot paths. Mirror
+// that behavior here so the transactional batch preserves unrelated nested clinical keys.
+const isPatchMap = value =>
+  isPlainObject(value) && !(value instanceof Date) && typeof value?.toDate !== 'function';
+
+const applyEstablishedPatchValue = (current, requested) => {
+  if (!isPatchMap(requested)) return clonePlainValue(requested);
+  const entries = Object.entries(requested);
+  if (entries.length === 0) return {};
+  const next = isPatchMap(current) ? clonePlainValue(current) : {};
+  entries.forEach(([key, value]) => {
+    next[key] = applyEstablishedPatchValue(next[key], value);
+  });
+  return next;
+};
+
+const establishedPatchValueMatches = (current, requested) => {
+  if (!isPatchMap(requested)) return canonicalize(current) === canonicalize(requested);
+  const entries = Object.entries(requested);
+  if (entries.length === 0) return isPatchMap(current) && Object.keys(current).length === 0;
+  return (
+    isPatchMap(current) &&
+    entries.every(([key, value]) => establishedPatchValueMatches(current[key], value))
+  );
 };
 
 const assertString = (value, fieldName, maxLength) => {
@@ -342,7 +378,7 @@ const applyClinicalEnrichment = (record, patches) => {
     const bed = next.beds[target.bedId];
     const patient = target.clinicalCrib ? bed.clinicalCrib : bed;
     Object.entries(target.fields).forEach(([field, value]) => {
-      patient[field] = clonePlainValue(value);
+      patient[field] = applyEstablishedPatchValue(patient[field], value);
     });
   });
   return next;
@@ -351,10 +387,39 @@ const applyClinicalEnrichment = (record, patches) => {
 const clinicalEnrichmentMatches = (record, targets) =>
   targets.every(target => {
     const patient = assertTargetMatchesEpisode(record, target);
-    return Object.entries(target.fields).every(
-      ([field, value]) => canonicalize(patient[field]) === canonicalize(value)
+    return Object.entries(target.fields).every(([field, value]) =>
+      establishedPatchValueMatches(patient[field], value)
     );
   });
+
+const summarizeClinicalEnrichmentMismatches = (record, targets) => {
+  const summary = {
+    mismatchTargetCount: 0,
+    mismatchFieldCount: 0,
+    mismatchDeviceFieldCount: 0,
+    mismatchScoreFieldCount: 0,
+    mismatchVitalFieldCount: 0,
+    mismatchCheckpointFieldCount: 0,
+  };
+
+  targets.forEach(target => {
+    const patient = assertTargetMatchesEpisode(record, target);
+    let targetMismatch = false;
+    Object.entries(target.fields).forEach(([field, value]) => {
+      if (establishedPatchValueMatches(patient[field], value)) return;
+      targetMismatch = true;
+      summary.mismatchFieldCount += 1;
+      const section = MISMATCH_SECTION_BY_FIELD[field];
+      if (section === 'devices') summary.mismatchDeviceFieldCount += 1;
+      if (section === 'scores') summary.mismatchScoreFieldCount += 1;
+      if (section === 'vitals') summary.mismatchVitalFieldCount += 1;
+      if (section === 'checkpoints') summary.mismatchCheckpointFieldCount += 1;
+    });
+    if (targetMismatch) summary.mismatchTargetCount += 1;
+  });
+
+  return summary;
+};
 
 const resolveReceipts = record =>
   Array.isArray(record?.meta?.clinicalEnrichmentReceipts)
@@ -453,4 +518,5 @@ module.exports = {
   digestValue,
   parseClinicalEnrichmentPayload,
   resolveRecordRevision,
+  summarizeClinicalEnrichmentMismatches,
 };

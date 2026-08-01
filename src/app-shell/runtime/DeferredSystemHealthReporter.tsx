@@ -18,12 +18,17 @@ export const DeferredSystemHealthReporter = () => {
   React.useEffect(() => {
     let isMounted = true;
     const timeoutId = window.setTimeout(() => {
-      void loadSystemHealthReporterBridge().then(component => {
-        if (!isMounted) {
-          return;
-        }
-        setReporter(() => component);
-      });
+      void loadSystemHealthReporterBridge()
+        .then(component => {
+          if (!isMounted) {
+            return;
+          }
+          setReporter(() => component);
+        })
+        .catch(() => {
+          // Diagnostics are non-critical. A transient/offline chunk failure must not
+          // surface as an unhandled rejection or interrupt the clinical workspace.
+        });
     }, SYSTEM_HEALTH_REPORTING_ENABLE_DELAY_MS);
 
     return () => {

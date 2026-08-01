@@ -1,9 +1,9 @@
 /**
  * Lazy component loader with automatic recovery from chunk load errors.
  *
- * After a deploy on Netlify, old chunk filenames may no longer exist.
- * This wrapper detects chunk load failures and reloads the page once
- * to fetch the updated bundle. A session counter prevents infinite reload loops.
+ * After a deploy on Netlify, old chunk filenames may no longer exist. Online
+ * failures use a bounded reload budget to fetch the updated bundle. Offline
+ * failures wait for connectivity and retry without reloading the workspace.
  */
 
 import { lazy, type ComponentType } from 'react';
@@ -12,6 +12,19 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 
 const RELOAD_KEY = 'hhr_chunk_reload_count';
 const MAX_RELOADS = 2;
+
+const isBrowserOffline = (): boolean =>
+  typeof navigator !== 'undefined' && navigator.onLine === false;
+
+const waitForBrowserOnline = (): Promise<void> => {
+  if (!isBrowserOffline() || typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  return new Promise(resolve => {
+    window.addEventListener('online', () => resolve(), { once: true });
+  });
+};
 
 function isChunkLoadError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
@@ -29,11 +42,23 @@ function isChunkLoadError(error: unknown): boolean {
 export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ) {
-  return lazy(async () => {
+  const load = async (): Promise<{ default: T }> => {
     try {
       return await factory();
     } catch (error) {
       if (isChunkLoadError(error)) {
+        if (isBrowserOffline()) {
+          recordOperationalTelemetry({
+            category: 'integration',
+            operation: 'chunk_load_recovery',
+            status: 'degraded',
+            runtimeState: 'recoverable',
+            issues: ['Chunk load deferred until browser connectivity resumes.'],
+          });
+          await waitForBrowserOnline();
+          return load();
+        }
+
         const reloadCount = Number(sessionStorage.getItem(RELOAD_KEY) ?? '0');
 
         recordOperationalTelemetry({
@@ -58,5 +83,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       }
       throw error;
     }
-  });
+  };
+
+  return lazy(load);
 }

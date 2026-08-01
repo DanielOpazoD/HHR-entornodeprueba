@@ -6,6 +6,7 @@ import type { RayenClinicalEnrichmentRolloutSummary } from '@/types/functionsTel
 const makeSummary = (
   overrides: Partial<RayenClinicalEnrichmentRolloutSummary> = {}
 ): RayenClinicalEnrichmentRolloutSummary => ({
+  parityContractVersion: 2,
   total: 4,
   shadowRuns: 4,
   enforcedWrites: 0,
@@ -28,6 +29,7 @@ describe('RayenClinicalEnrichmentRolloutCard', () => {
     expect(screen.getByText('Listo para activar el lote')).toBeInTheDocument();
     expect(screen.getByText('Paridad OK')).toBeInTheDocument();
     expect(screen.getByText('Permisos denegados')).toBeInTheDocument();
+    expect(screen.getByText(/contrato v2/i)).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
   });
 

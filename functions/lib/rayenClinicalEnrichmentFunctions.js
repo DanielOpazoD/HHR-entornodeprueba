@@ -10,14 +10,24 @@ const {
   buildClinicalEnrichmentMeta,
   buildHistorySnapshotId,
   buildLegacyClinicalEnrichmentDigest,
-  clinicalEnrichmentMatches,
   classifyIdempotency,
   digestValue,
   parseClinicalEnrichmentPayload,
   resolveRecordRevision,
+  summarizeClinicalEnrichmentMismatches,
 } = require('./rayenClinicalEnrichmentPolicy');
 
 const operation = 'applyRayenClinicalEnrichmentBatch';
+const PARITY_CONTRACT_VERSION = 2;
+
+const EMPTY_PARITY_DIAGNOSTICS = Object.freeze({
+  mismatchTargetCount: 0,
+  mismatchFieldCount: 0,
+  mismatchDeviceFieldCount: 0,
+  mismatchScoreFieldCount: 0,
+  mismatchVitalFieldCount: 0,
+  mismatchCheckpointFieldCount: 0,
+});
 
 const countFields = patches =>
   patches.reduce((total, target) => total + Object.keys(target.fields).length, 0);
@@ -91,6 +101,7 @@ const recordTelemetry = async ({
   status,
   authorityStatus,
   resultParity,
+  parityDiagnostics,
   revision,
   error,
 }) => {
@@ -113,6 +124,8 @@ const recordTelemetry = async ({
           ...requestSummary,
           authorityStatus,
           resultParity,
+          parityContractVersion: PARITY_CONTRACT_VERSION,
+          ...parityDiagnostics,
           revision: Number.isFinite(revision) ? revision : null,
         },
       });
@@ -130,6 +143,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
     let requestSummary = summarizeRequest(data);
     let authorityStatus = 'ok';
     let resultParity = 'unavailable';
+    let parityDiagnostics = EMPTY_PARITY_DIAGNOSTICS;
     let revision;
 
     try {
@@ -170,12 +184,9 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         const nextRecord = applyClinicalEnrichment(remoteData, payload.targets);
         // Shadow runs after the established per-patient writes. Compare against that independently
         // persisted record; comparing with our own projection would certify the request tautologically.
-        resultParity = clinicalEnrichmentMatches(
-          payload.dryRun ? remoteData : nextRecord,
-          payload.targets
-        )
-          ? 'matched'
-          : 'mismatch';
+        const parityRecord = payload.dryRun ? remoteData : nextRecord;
+        parityDiagnostics = summarizeClinicalEnrichmentMismatches(parityRecord, payload.targets);
+        resultParity = parityDiagnostics.mismatchFieldCount === 0 ? 'matched' : 'mismatch';
         if (resultParity !== 'matched' && !payload.dryRun) {
           throw new functions.https.HttpsError(
             'failed-precondition',
@@ -228,6 +239,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         status: 'success',
         authorityStatus,
         resultParity,
+        parityDiagnostics,
         revision,
       });
       return {
@@ -255,6 +267,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           status: 'failure',
           authorityStatus: 'blocked',
           resultParity,
+          parityDiagnostics,
           revision,
           error,
         });

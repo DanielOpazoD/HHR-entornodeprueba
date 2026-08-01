@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { CMASection } from '@/features/census/components/CMASection';
 import { DischargesSection } from '@/features/census/components/DischargesSection';
@@ -10,8 +10,9 @@ import {
 import { useCensusMovementData } from '@/features/census/hooks/useCensusMovementData';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 
-const LazyCensusModals = lazy(() =>
+const LazyCensusModals = lazyWithRetry(() =>
   import('@/features/census/components/CensusModals').then(module => ({
     default: module.CensusModals,
   }))

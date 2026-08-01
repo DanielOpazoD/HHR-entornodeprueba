@@ -177,6 +177,7 @@ describe('functionsTelemetryService clinical enrichment rollout summary', () => 
     );
 
     expect(buildRayenClinicalEnrichmentRolloutSummary(entries)).toEqual({
+      parityContractVersion: 1,
       total: 4,
       shadowRuns: 4,
       enforcedWrites: 0,
@@ -189,6 +190,37 @@ describe('functionsTelemetryService clinical enrichment rollout summary', () => 
       evidenceHours: 9,
       firstEntryAt: '2026-07-29T08:00:00.000Z',
       lastEntryAt: '2026-07-29T17:00:00.000Z',
+      recommendation: 'ready_for_enforced',
+    });
+  });
+
+  it('restarts rollout evidence when a newer parity contract appears', () => {
+    const entries = [
+      makeClinicalBatchEntry('legacy', '2026-07-29T07:00:00.000Z', {
+        mode: 'shadow',
+        resultParity: 'mismatch',
+        authorityStatus: 'ok',
+      }),
+      ...[0, 3, 6, 9].map(hours =>
+        makeClinicalBatchEntry(
+          `v2-${hours}`,
+          `2026-07-29T${String(8 + hours).padStart(2, '0')}:00:00.000Z`,
+          {
+            mode: 'shadow',
+            resultParity: 'matched',
+            authorityStatus: 'ok',
+            parityContractVersion: 2,
+          }
+        )
+      ),
+    ];
+
+    expect(buildRayenClinicalEnrichmentRolloutSummary(entries)).toMatchObject({
+      parityContractVersion: 2,
+      total: 4,
+      matchedShadowRuns: 4,
+      mismatchedShadowRuns: 0,
+      evidenceHours: 9,
       recommendation: 'ready_for_enforced',
     });
   });

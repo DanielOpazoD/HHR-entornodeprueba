@@ -42,6 +42,9 @@ Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
    varias ejecuciones y al menos dos turnos; revisar
    `functionsTelemetry` con
    `service = rayenClinicalEnrichment`.
+   Cada entrada declara `parityContractVersion`; el gate usa solo la versión más reciente y conserva
+   las anteriores como auditoría. Un cambio de versión reinicia las cuatro ejecuciones y las ocho
+   horas exigidas.
 3. Usar el gate **Lote clínico transaccional** del panel técnico. Para recomendar `enforced` exige
    al menos 4 ejecuciones shadow coincidentes, 8 horas entre la primera y última evidencia, ninguna
    paridad ausente y cero señales bloqueantes.
@@ -85,6 +88,8 @@ Configurar con `VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE`.
 - Un snapshot determinista y de creación exclusiva por `runId`; reutilizar un identificador antiguo
   no puede sobrescribir su historia aunque el recibo ya haya salido de la ventana de 16 ejecuciones.
 - Ningún dato demográfico o valor clínico en telemetría.
+- Los desacuerdos de `shadow` registran solo conteos agregados por sección (dispositivos, escalas,
+  signos vitales y checkpoint), nunca nombres de campos internos, camas ni identificadores clínicos.
 
 ## Rollback
 
