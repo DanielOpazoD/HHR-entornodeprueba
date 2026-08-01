@@ -1,3 +1,5 @@
+import React, { Suspense } from 'react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockRecordOperationalTelemetry = vi.fn();
@@ -7,17 +9,27 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
 }));
 
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 
 const RELOAD_KEY = 'hhr_chunk_reload_count';
+const setNavigatorOnline = (online: boolean) => {
+  Object.defineProperty(window.navigator, 'onLine', {
+    configurable: true,
+    value: online,
+  });
+};
 
 describe('lazyWithRetry', () => {
   beforeEach(() => {
     sessionStorage.removeItem(RELOAD_KEY);
     mockRecordOperationalTelemetry.mockClear();
+    setNavigatorOnline(true);
   });
 
   afterEach(() => {
+    cleanup();
     sessionStorage.removeItem(RELOAD_KEY);
+    setNavigatorOnline(true);
     vi.restoreAllMocks();
   });
 
@@ -130,5 +142,63 @@ describe('lazyWithRetry', () => {
     sessionStorage.setItem(RELOAD_KEY, String(count2 + 1));
 
     expect(sessionStorage.getItem(RELOAD_KEY)).toBe('2');
+  });
+
+  it('defers a failed chunk while offline and retries it after reconnecting', async () => {
+    const Chunk = () => React.createElement('span', null, 'Módulo cargado');
+    const factory = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Failed to fetch dynamically imported module'))
+      .mockResolvedValueOnce({ default: Chunk });
+    const reloadSpy = vi
+      .spyOn(defaultBrowserWindowRuntime, 'reload')
+      .mockImplementation(() => undefined);
+    setNavigatorOnline(false);
+
+    const LazyComponent = lazyWithRetry(factory);
+    render(
+      React.createElement(
+        Suspense,
+        { fallback: React.createElement('span', null, 'Cargando módulo') },
+        React.createElement(LazyComponent)
+      )
+    );
+
+    expect(await screen.findByText('Cargando módulo')).toBeInTheDocument();
+    await waitFor(() => expect(factory).toHaveBeenCalledTimes(1));
+    expect(reloadSpy).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(RELOAD_KEY)).toBeNull();
+
+    setNavigatorOnline(true);
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+    });
+
+    expect(await screen.findByText('Módulo cargado')).toBeInTheDocument();
+    expect(factory).toHaveBeenCalledTimes(2);
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps reload recovery for stale chunks while online', async () => {
+    const factory = vi
+      .fn()
+      .mockRejectedValue(
+        new Error('Failed to fetch dynamically imported module /assets/stale-chunk.js')
+      );
+    const reloadSpy = vi
+      .spyOn(defaultBrowserWindowRuntime, 'reload')
+      .mockImplementation(() => undefined);
+    const LazyComponent = lazyWithRetry(factory);
+
+    render(
+      React.createElement(
+        Suspense,
+        { fallback: React.createElement('span', null, 'Cargando módulo') },
+        React.createElement(LazyComponent)
+      )
+    );
+
+    await waitFor(() => expect(reloadSpy).toHaveBeenCalledTimes(1));
+    expect(sessionStorage.getItem(RELOAD_KEY)).toBe('1');
   });
 });

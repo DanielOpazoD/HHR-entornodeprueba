@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, type CSSProperties, useState } from 'react';
+import React, { Suspense, type CSSProperties, useState } from 'react';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { Statistics } from '@/types/domain/statistics';
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
@@ -13,8 +13,9 @@ import { useDeferredCensusEnhancement } from '@/features/census/hooks/useDeferre
 import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 
-const LazyCensusRegisterSections = lazy(() =>
+const LazyCensusRegisterSections = lazyWithRetry(() =>
   import('./CensusRegisterSections').then(module => ({
     default: module.CensusRegisterSections,
   }))
