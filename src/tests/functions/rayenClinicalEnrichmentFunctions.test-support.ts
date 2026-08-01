@@ -110,10 +110,13 @@ export const createClinicalAdminMock = (remoteData = makeClinicalRecord()) => {
   };
   const collection = vi.fn(() => ({ doc: vi.fn(() => hospitalDoc) }));
   const transaction = { create, get, set };
+  const runTransaction = vi.fn((callback: (value: typeof transaction) => unknown) =>
+    callback(transaction)
+  );
   const firestore = Object.assign(
     () => ({
       collection,
-      runTransaction: (callback: (value: typeof transaction) => unknown) => callback(transaction),
+      runTransaction,
     }),
     {
       Timestamp: {
@@ -128,6 +131,8 @@ export const createClinicalAdminMock = (remoteData = makeClinicalRecord()) => {
     create,
     set,
     historyDoc,
+    runTransaction,
+    transaction,
     docRef,
     telemetryAdd,
   };

@@ -453,13 +453,47 @@ const resolveReceipts = record =>
     ? record.meta.clinicalEnrichmentReceipts.filter(isPlainObject)
     : [];
 
+const assertLegacyReplayRevision = (record, payload, receipt) => {
+  const currentRevision = resolveRecordRevision(record);
+  const isUninterruptedLegacyWrite =
+    receipt?.runId === payload.runId &&
+    payload.baseRevision !== undefined &&
+    currentRevision === payload.baseRevision + 1 &&
+    record?.meta?.lastMutationId === receipt?.mutationId &&
+    toMillis(record?.lastUpdated) > 0 &&
+    toMillis(record?.lastUpdated) === toMillis(receipt?.appliedAt);
+  return isUninterruptedLegacyWrite ? currentRevision : assertRecordRevision(record, payload);
+};
+
 const classifyIdempotency = (record, payload, batchDigest, compatibleDigests = []) => {
   const acceptedDigests = new Set([batchDigest, ...compatibleDigests]);
+  const canonicalContract = payload.fieldContractVersion >= CANONICAL_FIELD_CONTRACT_VERSION;
   const receipts = resolveReceipts(record);
+  const classifyReceipt = receipt => {
+    if (
+      canonicalContract &&
+      receipt.fieldContractVersion === payload.fieldContractVersion &&
+      receipt.canonicalDigest === batchDigest
+    ) {
+      return 'idempotent';
+    }
+    if (!canonicalContract && acceptedDigests.has(receipt.digest)) return 'idempotent';
+    if (
+      canonicalContract &&
+      Number(receipt.fieldContractVersion || 1) < CANONICAL_FIELD_CONTRACT_VERSION &&
+      acceptedDigests.has(receipt.digest)
+    ) {
+      // A rolling v1 instance may have applied the same request using recursive merge semantics.
+      // Let the caller compare the canonical v2 value before deciding whether it must converge.
+      return 'legacy-replay';
+    }
+    return 'mismatch';
+  };
   const sameMutation = receipts.find(receipt => receipt.mutationId === payload.mutationId);
   if (sameMutation) {
-    if (sameMutation.runId === payload.runId && acceptedDigests.has(sameMutation.digest)) {
-      return 'idempotent';
+    const classification = classifyReceipt(sameMutation);
+    if (sameMutation.runId === payload.runId && classification !== 'mismatch') {
+      return { status: classification, receipt: sameMutation };
     }
     throw new functions.https.HttpsError(
       'failed-precondition',
@@ -467,8 +501,9 @@ const classifyIdempotency = (record, payload, batchDigest, compatibleDigests = [
     );
   }
   const sameRun = receipts.find(receipt => receipt.runId === payload.runId);
-  if (!sameRun) return 'new';
-  if (acceptedDigests.has(sameRun.digest)) return 'idempotent';
+  if (!sameRun) return { status: 'new', receipt: null };
+  const classification = classifyReceipt(sameRun);
+  if (classification !== 'mismatch') return { status: classification, receipt: sameRun };
   throw new functions.https.HttpsError(
     'failed-precondition',
     'runId was already used with a different clinical enrichment payload.'
@@ -503,7 +538,7 @@ const buildLegacyClinicalEnrichmentDigest = payload => {
   return digestValue({ date: payload.date, patches });
 };
 
-const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, now }) => {
+const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, canonicalDigest, now }) => {
   const receipts = resolveReceipts(record)
     .filter(receipt => receipt.runId !== payload.runId && receipt.mutationId !== payload.mutationId)
     .slice(-(MAX_RECEIPTS - 1));
@@ -523,6 +558,8 @@ const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, now }) => {
         runId: payload.runId,
         mutationId: payload.mutationId,
         digest: batchDigest,
+        canonicalDigest,
+        fieldContractVersion: payload.fieldContractVersion,
         appliedAt: now,
       },
     ],
@@ -536,6 +573,7 @@ module.exports = {
   MAX_BATCH_TARGETS,
   applyClinicalEnrichment,
   clinicalEnrichmentMatches,
+  assertLegacyReplayRevision,
   assertPersistedDocumentSize,
   assertRecordRevision,
   buildClinicalEnrichmentMeta,

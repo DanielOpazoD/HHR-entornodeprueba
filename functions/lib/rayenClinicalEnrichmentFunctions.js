@@ -6,6 +6,7 @@ const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthori
 const {
   applyClinicalEnrichment,
   assertPersistedDocumentSize,
+  assertLegacyReplayRevision,
   assertRecordRevision,
   buildClinicalEnrichmentMeta,
   buildHistorySnapshotId,
@@ -164,7 +165,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         .doc(HOSPITAL_ID)
         .collection('dailyRecords')
         .doc(payload.date);
-      await firestore.runTransaction(async transaction => {
+      const transactionOutcome = await firestore.runTransaction(async transaction => {
         const snapshot = await transaction.get(docRef);
         if (!snapshot.exists) {
           throw new functions.https.HttpsError(
@@ -176,11 +177,11 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         const idempotency = classifyIdempotency(remoteData, payload, batchDigest, [
           legacyBatchDigest,
         ]);
-        if (idempotency === 'idempotent') {
+        if (idempotency.status === 'idempotent') {
           authorityStatus = 'idempotent';
           resultParity = 'matched';
           revision = resolveRecordRevision(remoteData);
-          return;
+          return { historySnapshotWritten: false };
         }
 
         if (clinicalEnrichmentMatches(remoteData, payload.targets, payload.fieldContractVersion)) {
@@ -190,9 +191,12 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           authorityStatus = 'idempotent';
           resultParity = 'matched';
           revision = resolveRecordRevision(remoteData);
-          return;
+          return { historySnapshotWritten: false };
         }
-        revision = assertRecordRevision(remoteData, payload);
+        revision =
+          idempotency.status === 'legacy-replay'
+            ? assertLegacyReplayRevision(remoteData, payload, idempotency.receipt)
+            : assertRecordRevision(remoteData, payload);
         const nextRecord = applyClinicalEnrichment(
           remoteData,
           payload.targets,
@@ -228,6 +232,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           // Keep the receipt readable by the previous callable while instances overlap. The
           // legacy digest still covers every clinical field and embedded checkpoint.
           batchDigest: legacyBatchDigest,
+          canonicalDigest: batchDigest,
           now,
         });
         // The established authority path also stores a Firestore Timestamp; firestoreShared
@@ -240,16 +245,19 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         };
         assertPersistedDocumentSize(nextRecord);
         assertPersistedDocumentSize(historySnapshot);
-        if (payload.dryRun) return;
+        if (payload.dryRun) return { historySnapshotWritten: false };
 
         revision = nextRecord.meta.revision;
-        if (payload.patches.length > 0) {
+        const historySnapshotWritten =
+          payload.patches.length > 0 && idempotency.status !== 'legacy-replay';
+        if (historySnapshotWritten) {
           const historyRef = docRef
             .collection('history')
             .doc(buildHistorySnapshotId(payload.runId));
           transaction.create(historyRef, historySnapshot);
         }
         transaction.set(docRef, nextRecord);
+        return { historySnapshotWritten };
       });
 
       await recordTelemetry({
@@ -275,8 +283,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         fieldCount: countFields(payload.targets),
         resultParity,
         patientWrites: authorityStatus === 'ok' && !payload.dryRun ? 1 : 0,
-        historySnapshots:
-          authorityStatus === 'ok' && !payload.dryRun && payload.patches.length > 0 ? 1 : 0,
+        historySnapshots: transactionOutcome.historySnapshotWritten ? 1 : 0,
       };
     } catch (error) {
       if (context.auth) {
