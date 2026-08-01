@@ -12,6 +12,7 @@ const treatingPhysicianNormalization = (
         practitionerId: string;
         displayName: string;
       }>;
+      captureFromDocument: (options: Record<string, unknown>) => Promise<unknown>;
       merge: (...sources: unknown[]) => Array<{
         practitionerId: string;
         displayName: string;
@@ -131,6 +132,24 @@ describe('Ficha Medico census normalization', () => {
     expect(treatingPhysicianNormalization.assignedFromDocument(document)).toEqual([
       { practitionerId: '7947', displayName: 'Angelica Vargas' },
     ]);
+  });
+
+  it('exposes malformed rendered assignments as a rejected capture promise', async () => {
+    const malformedRoot = {
+      querySelectorAll: () => {
+        throw new Error('malformed physician assignment table');
+      },
+    } as unknown as Document;
+
+    await expect(
+      treatingPhysicianNormalization.captureFromDocument({
+        apiGet: async () => [],
+        apiOrigin: 'https://fichamedico.example',
+        facilityId: '1',
+        auth: {},
+        root: malformedRoot,
+      })
+    ).rejects.toThrow('malformed physician assignment table');
   });
 
   it('keeps current assigned-row evidence ahead of a stale facility catalog name', () => {

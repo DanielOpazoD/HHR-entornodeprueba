@@ -135,7 +135,7 @@
     };
   };
 
-  const captureFromDocument = options =>
+  const captureFromDocument = async options =>
     capture({ ...options, assignedPhysicians: assignedFromDocument(options.root) });
 
   return { assignedFromDocument, capture, captureFromDocument, merge, normalize };
