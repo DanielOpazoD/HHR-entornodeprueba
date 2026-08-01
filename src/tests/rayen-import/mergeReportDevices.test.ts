@@ -114,4 +114,90 @@ describe('mergeReportDevices', () => {
     expect(retried).toBe(first);
     expect(retried.deviceInstanceHistory).toHaveLength(1);
   });
+
+  it('migrates the legacy contaminated subcutaneous-catheter label in place', () => {
+    const legacyType = 'Solucion para gotas Orales Catéter subcutáneo';
+    const before = patient({
+      devices: [legacyType],
+      deviceDetails: {
+        [legacyType]: { installationDate: '2026-07-30', note: 'Abdomen' },
+      },
+      deviceInstanceHistory: [
+        {
+          id: 'subcut-1',
+          type: legacyType,
+          status: 'Active',
+          installationDate: '2026-07-30',
+          installationTime: '08:00',
+          location: 'Abdomen',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+    const result = mergeReportDevices(before, [], ctx);
+
+    expect(result.devices).toEqual(['Catéter subcutáneo']);
+    expect(result.deviceDetails).toEqual({
+      'Catéter subcutáneo': { installationDate: '2026-07-30', note: 'Abdomen' },
+    });
+    expect(result.deviceInstanceHistory).toEqual([
+      expect.objectContaining({ id: 'subcut-1', type: 'Catéter subcutáneo' }),
+    ]);
+  });
+
+  it.each([
+    ['legacy-first', ['Solucion para gotas Orales Catéter subcutáneo', 'Catéter subcutáneo']],
+    ['canonical-first', ['Catéter subcutáneo', 'Solucion para gotas Orales Catéter subcutáneo']],
+  ] as const)('prefers canonical device details with %s insertion order', (_label, order) => {
+    const details = {
+      [order[0]]: { installationDate: '2026-07-01' },
+      [order[1]]: { installationDate: '2026-07-30', note: 'Dato complementario' },
+    };
+    const canonicalDetails = { installationDate: '2026-07-30' };
+    const source =
+      order[0] === 'Catéter subcutáneo'
+        ? { ...details, 'Catéter subcutáneo': canonicalDetails }
+        : details;
+
+    expect(mergeReportDevices(patient({ deviceDetails: source }), [], ctx).deviceDetails).toEqual({
+      'Catéter subcutáneo': {
+        installationDate: '2026-07-30',
+        note: 'Dato complementario',
+      },
+    });
+  });
+
+  it('preserves separately tracked numbered VVP devices while normalizing aliases', () => {
+    const before = patient({
+      devices: ['VVP#1', 'VVP#2'],
+      deviceDetails: {
+        'VVP#1': { installationDate: '2026-07-29', note: 'Brazo derecho' },
+        'VVP#2': { installationDate: '2026-07-30', note: 'Brazo izquierdo' },
+      },
+      deviceInstanceHistory: [
+        {
+          id: 'vvp-1',
+          type: 'VVP#1',
+          status: 'Active',
+          installationDate: '2026-07-29',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: 'vvp-2',
+          type: 'VVP#2',
+          status: 'Active',
+          installationDate: '2026-07-30',
+          createdAt: 2,
+          updatedAt: 2,
+        },
+      ],
+    });
+
+    expect(mergeReportDevices(before, [], ctx)).toBe(before);
+    expect(before.devices).toEqual(['VVP#1', 'VVP#2']);
+    expect(Object.keys(before.deviceDetails ?? {})).toEqual(['VVP#1', 'VVP#2']);
+    expect(before.deviceInstanceHistory?.map(item => item.type)).toEqual(['VVP#1', 'VVP#2']);
+  });
 });

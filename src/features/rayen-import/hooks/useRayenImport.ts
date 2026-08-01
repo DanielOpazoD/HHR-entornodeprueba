@@ -87,7 +87,12 @@ export const useRayenImport = () => {
     completeRun,
     failRun,
     cancelRun,
-  } = useRayenSyncAudit({ currentRecordRef, patchDailyRecord, actor: syncActor });
+  } = useRayenSyncAudit({
+    currentRecordRef,
+    patchDailyRecord,
+    loadDailyRecord: loadFreshClinicalRecord,
+    actor: syncActor,
+  });
   const applyDiff = useRayenCensusDiffApplication({
     ensureRun,
     applyRunToRecord,
@@ -259,14 +264,12 @@ export const useRayenImport = () => {
       syncRequestController,
     ]
   );
-
   const retryClinicalFill = useRayenClinicalFillRetry({
     currentRecord,
     currentRecordRef,
     fillClinicalData: fillDevicesInBackground,
     setState,
   });
-
   const { confirm: confirmStaffingProposal, dismiss: dismissStaffingProposal } =
     useRayenStaffingProposalActions({
       proposal: staffingProposal,
@@ -279,7 +282,6 @@ export const useRayenImport = () => {
       dailyRecord,
       queryClient,
     });
-
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
       const base = currentRecordRef.current ?? currentRecord;
@@ -345,7 +347,6 @@ export const useRayenImport = () => {
       queryClient,
     ]
   );
-
   const cancel = useCallback(() => {
     if (shouldPreservePostImportFlow(state.diff, state.result)) {
       setState(prev => ({ ...prev, isPreviewOpen: false }));
@@ -353,9 +354,8 @@ export const useRayenImport = () => {
     }
     invalidateRayenFillAttempt();
     cancelRun();
-    const staffingDecisionWasSkipped =
-      !!staffingProposal && hasPendingStaffingDecision(staffingProposal);
-    if (staffingDecisionWasSkipped) reportRayenStaffingOutcome('declined');
+    if (staffingProposal && hasPendingStaffingDecision(staffingProposal))
+      reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));

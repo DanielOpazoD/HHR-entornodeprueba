@@ -30,6 +30,8 @@ export const EMPTY_PATIENT: Omit<PatientData, 'bedId'> = {
   pathology: '',
   cie10Code: undefined,
   cie10Description: undefined,
+  treatingPhysicianId: undefined,
+  treatingPhysicianName: undefined,
   specialty: Specialty.EMPTY,
   ginecobstetriciaType: undefined,
   status: PatientStatus.EMPTY,

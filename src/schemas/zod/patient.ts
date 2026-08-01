@@ -192,6 +192,8 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       cie10Code: nullableOptional(z.string()),
       cie10Description: nullableOptional(z.string()),
       diagnosisComments: nullableOptional(z.string()),
+      treatingPhysicianId: nullableOptional(z.string()),
+      treatingPhysicianName: nullableOptional(z.string()),
       specialty: SpecialtySchema.default(Specialty.EMPTY),
       ginecobstetriciaType: nullableOptional(
         emptyStringToUndefined(z.enum(['Obstétrica', 'Ginecológica']))

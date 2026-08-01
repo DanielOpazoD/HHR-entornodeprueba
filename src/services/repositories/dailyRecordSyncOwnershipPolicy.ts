@@ -33,6 +33,8 @@ const PATIENT_FIELD_OWNERSHIP = {
   cie10Code: 'remoteCanonical',
   cie10Description: 'remoteCanonical',
   diagnosisComments: 'remoteCanonical',
+  treatingPhysicianId: 'remoteCanonical',
+  treatingPhysicianName: 'remoteCanonical',
   specialty: 'remoteCanonical',
   secondarySpecialty: 'remoteCanonical',
   status: 'remoteCanonical',

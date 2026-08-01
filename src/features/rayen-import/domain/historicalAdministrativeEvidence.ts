@@ -2,13 +2,14 @@ import { normalizeRut } from '@/utils/rutUtils';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
-import type { RayenEncounter } from '../contracts/rayenSnapshot';
+import type { RayenActiveBedAssignment, RayenEncounter } from '../contracts/rayenSnapshot';
 import {
   parseStatisticalEgresoInstant,
   parseStatisticalEgresoStamp,
 } from '../mapping/reportEgresoDateTime';
 import { historicalReconstructionConflict as unresolvedConflict } from './historicalReconstructionConflicts';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
+import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 
 export interface HistoricalCandidate {
   encounter: RayenEncounter;
@@ -137,4 +138,39 @@ export const reportBackedCandidates = (
     });
   }
   return candidates;
+};
+
+/**
+ * Restores an active episode omitted by Ficha Medico after a service or bed change. Gestión de
+ * Camas proves the episode is still active; its historical bed is verified later from traceability.
+ */
+export const activeBedBackedCandidates = (
+  record: DailyRecord,
+  assignments: RayenActiveBedAssignment[],
+  alreadyReferencedEpisodes: ReadonlySet<string>
+): HistoricalCandidate[] => {
+  const localByEpisode = new Map<string, { patient: PatientData; bedId: string }>();
+  for (const [bedId, patient] of Object.entries(record.beds)) {
+    const episodeId = patient.clinicalEpisodeId?.trim() ?? '';
+    if (
+      patient.patientName?.trim() &&
+      !patient.isBlocked &&
+      /^\d+$/.test(episodeId) &&
+      !isPavilionRecoveryLocation(patient.location)
+    ) {
+      localByEpisode.set(episodeId, { patient, bedId });
+    }
+  }
+
+  return assignments.flatMap(assignment => {
+    if (
+      alreadyReferencedEpisodes.has(assignment.encounterId) ||
+      isPavilionRecoveryLocation(assignment.bedId)
+    )
+      return [];
+    const local = localByEpisode.get(assignment.encounterId);
+    return local
+      ? [{ encounter: historicalEncounterFromLocal(local.patient), localBedId: local.bedId }]
+      : [];
+  });
 };

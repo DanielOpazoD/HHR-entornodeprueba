@@ -10,7 +10,7 @@ import { mapRayenBed } from '../mapping/bedMapping';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import {
   firstPatientFlowTimestamp,
-  latestPatientFlowMovement,
+  latestPatientFlowPlacement,
   patientRunFromFlowReport,
 } from '../mapping/parsePatientFlow';
 import type {
@@ -31,12 +31,14 @@ import {
   recoverLocalBedFromStatisticalDischarge,
 } from './historicalStatisticalDischargeRecovery';
 import {
+  activeBedBackedCandidates,
   invalidReportBackedConflicts,
   latestReportRowsByEpisode,
   reportBackedCandidates,
   reportClinicalStamp,
   type HistoricalCandidate,
 } from './historicalAdministrativeEvidence';
+import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 
 const MAX_PARALLEL_REPORTS = 4;
 const secondBefore = (localTimestamp: string): string => {
@@ -151,12 +153,21 @@ export const reconstructHistoricalSnapshotAtClose = async (
   const eligibleClinicalCribs: HistoricalClinicalCribCandidate[] = [];
   const conflicts: ConflictEntry[] = [];
 
-  const reportByEpisode = latestReportRowsByEpisode(reportRows);
-  conflicts.push(...invalidReportBackedConflicts(reportRows, reportByEpisode));
+  // The report describes a later administrative location, not necessarily the placement at this
+  // historical cutoff. Patient-flow evidence below decides whether P-R1/P-R2 must be omitted.
+  const scopedReportRows = reportRows;
+  const reportByEpisode = latestReportRowsByEpisode(scopedReportRows);
+  conflicts.push(...invalidReportBackedConflicts(scopedReportRows, reportByEpisode));
   const liveEncounterIds = new Set(liveSnapshot.encounters.map(item => item.encounterId));
+  // A current P-R1/P-R2 placement does not prove where the patient was at a historical cutoff.
+  // Keep the episode as traceability input and exclude it only after resolving that past placement.
+  const eligibleLiveEncounters = liveSnapshot.encounters;
+  const activeAssignmentIds = new Set(
+    (liveSnapshot.activeBedAssignments ?? []).map(item => item.encounterId)
+  );
   const unreferencedLocal = collectUnreferencedLocalOccupants(
     record,
-    new Set([...liveEncounterIds, ...reportByEpisode.keys()])
+    new Set([...liveEncounterIds, ...reportByEpisode.keys(), ...activeAssignmentIds])
   );
   const exactLocalEgresos = await verifyLocalOccupantsByExactEgreso(
     unreferencedLocal,
@@ -175,11 +186,16 @@ export const reconstructHistoricalSnapshotAtClose = async (
     );
   }
   const candidates: HistoricalCandidate[] = [
-    ...liveSnapshot.encounters.map(encounter => ({
+    ...eligibleLiveEncounters.map(encounter => ({
       encounter,
       reportRow: reportByEpisode.get(encounter.encounterId),
     })),
     ...reportBackedCandidates(record, reportByEpisode, liveEncounterIds),
+    ...activeBedBackedCandidates(
+      record,
+      liveSnapshot.activeBedAssignments ?? [],
+      new Set([...liveEncounterIds, ...reportByEpisode.keys()])
+    ),
     ...exactLocalEgresos.verified.map(item => ({
       encounter: item.encounter,
       localBedId: item.bedId,
@@ -274,8 +290,8 @@ export const reconstructHistoricalSnapshotAtClose = async (
           conflict: unresolvedConflict(encounter, 'el RUN del informe no coincide.'),
         } satisfies ReconstructionEntry;
       }
-      const movement = latestPatientFlowMovement(text, { notAfter: cutoff });
-      if (!movement) {
+      const placement = latestPatientFlowPlacement(text, { notAfter: cutoff });
+      if (!placement) {
         const firstMovementAt = firstPatientFlowTimestamp(text);
         if (firstMovementAt && firstMovementAt > cutoff) return null;
         const recovered = await recoverLocalBedFromDischarge(
@@ -292,12 +308,21 @@ export const reconstructHistoricalSnapshotAtClose = async (
           ),
         } satisfies ReconstructionEntry;
       }
+      if (!placement.bedId && isPavilionRecoveryLocation(placement.sourceBedLabel)) return null;
+      if (!placement.bedId) {
+        return {
+          conflict: unresolvedConflict(
+            encounter,
+            'la ubicación al cierre no corresponde a una cama hospitalaria reconocida.'
+          ),
+        } satisfies ReconstructionEntry;
+      }
       return {
         encounter: encounterAtHistoricalBed(
           encounter,
           'patient-flow-report',
-          movement.bedId,
-          movement.changedAt
+          placement.bedId,
+          placement.changedAt
         ),
       } satisfies ReconstructionEntry;
     } catch {
@@ -318,7 +343,10 @@ export const reconstructHistoricalSnapshotAtClose = async (
   // association was verified by Gestion de Camas. Resolve principals first, then project the RN
   // onto the mother's proven historical bed. This keeps a mother + newborn admission atomic and
   // independent from the order in which Ficha Medico returned both encounters.
-  const livePrincipalsByBed = activePrincipalEncountersByBed(liveSnapshot);
+  const livePrincipalsByBed = activePrincipalEncountersByBed({
+    ...liveSnapshot,
+    encounters: eligibleLiveEncounters,
+  });
   const reconstructedPrincipalsByEpisode = new Map(
     encounters.map(encounter => [encounter.encounterId, encounter] as const)
   );

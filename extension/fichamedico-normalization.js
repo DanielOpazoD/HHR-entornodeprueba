@@ -9,9 +9,9 @@
 })(typeof globalThis !== 'undefined' ? globalThis : self, function () {
   'use strict';
   const text = value => (value == null ? '' : String(value).trim());
-
   const record = value => value && typeof value === 'object' ? value : {};
   const isolationNormalization = globalThis.HhrFichaMedicoIsolationNormalization;
+  const treatingPhysicianFields = (item, physicianById) => globalThis.HhrFichaMedicoTreatingPhysicianNormalization?.toEncounterFields(item, physicianById) || {};
   const normalizeSessionRole = session => {
     const safeSession = record(session);
     const candidates = [
@@ -85,7 +85,7 @@
     };
   };
 
-  const normalizeEncounter = (item, header, principalDiagnosis, discharged) => {
+  const normalizeEncounter = (item, header, principalDiagnosis, discharged, physicianById) => {
     const safeItem = record(item);
     const patient = record(safeItem.patient);
     const safeHeader = record(header);
@@ -118,7 +118,7 @@
         validClinicalDate(safeItem.medicalDischargeDateTime),
       isDead: Boolean(safeItem.isDead),
       ...isolationNormalization.toEncounterFields(safeItem),
-      isGes: Boolean(safeItem.isGes),
+      isGes: Boolean(safeItem.isGes), ...treatingPhysicianFields(safeItem, physicianById),
     };
   };
 

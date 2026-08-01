@@ -66,12 +66,24 @@ describe('isRayenCensusSnapshot', () => {
 
   it('accepts a well-formed snapshot', () => {
     expect(isRayenCensusSnapshot(validSnapshot)).toBe(true);
+    expect(
+      isRayenCensusSnapshot({
+        ...validSnapshot,
+        physicians: [{ practitionerId: '7947', displayName: 'Angelica Vargas' }],
+      })
+    ).toBe(true);
   });
 
   it('rejects malformed payloads', () => {
     expect(isRayenCensusSnapshot(null)).toBe(false);
     expect(isRayenCensusSnapshot({ facilityId: 1342 })).toBe(false);
     expect(isRayenCensusSnapshot({ ...validSnapshot, encounters: [{ run: '1' }] })).toBe(false);
+    expect(
+      isRayenCensusSnapshot({
+        ...validSnapshot,
+        physicians: [{ practitionerId: '', displayName: 'Sin ID' }],
+      })
+    ).toBe(false);
     expect(
       isRayenCensusSnapshot({
         ...validSnapshot,
@@ -83,6 +95,17 @@ describe('isRayenCensusSnapshot', () => {
               bedId: 'H2C2',
               changedAt: '2026-07-23T23:10:09',
             },
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      isRayenCensusSnapshot({
+        ...validSnapshot,
+        encounters: [
+          {
+            ...validSnapshot.encounters[0],
+            treatingPhysicianSpecialty: 'Cirugía',
           },
         ],
       })

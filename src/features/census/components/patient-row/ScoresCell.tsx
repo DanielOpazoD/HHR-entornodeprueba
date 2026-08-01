@@ -60,9 +60,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   const pendingClass =
     cudyrPending?.phase === 'overdue'
       ? 'border-red-200 bg-red-50 text-red-700'
-      : cudyrPending?.phase === 'application_window'
-        ? 'border-amber-200 bg-amber-50 text-amber-700'
-        : 'border-slate-200 bg-slate-50 text-slate-500';
+      : 'border-slate-200 bg-slate-50 text-slate-500';
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
@@ -152,6 +150,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
           {cudyrPending && (
             <div
               className={`flex items-center justify-between rounded border px-1.5 py-0.5 text-[9px] ${pendingClass}`}
+              data-testid="cudyr-pending-status"
               title={cudyrPending.detail}
               aria-label={`CUDYR ${cudyrPending.label}. ${cudyrPending.detail}`}
             >

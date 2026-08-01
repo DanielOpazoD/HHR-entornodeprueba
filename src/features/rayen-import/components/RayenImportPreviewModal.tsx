@@ -9,6 +9,7 @@ import {
   Section,
   VerificationBadges,
 } from './RayenImportDiffReviewParts';
+import { presentPatientUpdates } from './rayenImportUpdatePresentation';
 
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
@@ -62,6 +63,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     if (isOpen) setAcceptedPreviousDays(false);
   }, [isOpen]);
   const hasConflicts = Boolean(diff?.summary.conflicts);
+  const presentedUpdates = React.useMemo(
+    () => presentPatientUpdates(diff?.updates ?? []),
+    [diff?.updates]
+  );
   const historicalConflicts =
     diff?.conflicts.filter(entry => entry.code === 'historical-reconstruction') ?? [];
   const blockingConflicts =
@@ -95,7 +100,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
               <div>
                 <div className="flex flex-wrap gap-2">
                   <Chip label="Ingresos" value={diff.summary.admissions} tone="green" />
-                  <Chip label="Actualizaciones" value={diff.summary.updates} tone="blue" />
+                  <Chip label="Actualizaciones" value={presentedUpdates.length} tone="blue" />
                   <Chip label="Movimientos de cama" value={diff.summary.moves} tone="teal" />
                   <Chip label="Egresos" value={diff.summary.discharges} tone="amber" />
                   <Chip
@@ -136,13 +141,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   ))}
                 </Section>
 
-                <Section title="Actualizaciones" count={diff.updates.length}>
-                  {diff.updates.map(entry => (
+                <Section title="Actualizaciones" count={presentedUpdates.length}>
+                  {presentedUpdates.map(entry => (
                     <li key={updateEntryKey(entry)}>
                       <span className="font-semibold">{entry.bedId}</span> — {entry.patientName}:{' '}
-                      <span className="text-gray-400">
-                        {entry.changes.map(change => String(change.field)).join(', ')}
-                      </span>
+                      <span className="text-gray-400">{entry.visibleLabels.join(', ')}</span>
                     </li>
                   ))}
                 </Section>

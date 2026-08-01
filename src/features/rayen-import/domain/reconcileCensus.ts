@@ -1,4 +1,3 @@
-/** Pure Rayen/HHR census diff; matches by clinical episode first, then RUN. */
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -23,10 +22,13 @@ import {
   prepareActiveClinicalPlacements,
   shouldReconcileAsPrincipal,
 } from './clinicalCribPlacementPolicy';
+import { isOccupiedCensusPatient as isOccupied } from './censusReconciliationPredicates';
 import {
-  isDischargedEncounter as isDischarged,
-  isOccupiedCensusPatient as isOccupied,
-} from './censusReconciliationPredicates';
+  appendActiveBedPlacementIntents,
+  reconcileActiveBedAssignments,
+} from './gestionCamasActiveBedPolicy';
+import { createEmptyCensusImportDiff } from './censusImportDiffFactory';
+import { preparePavilionRecoverySyncScope } from './pavilionRecoverySyncPolicy';
 export { requiresReview } from './censusReconciliationPredicates';
 export interface ReconcileOptions {
   /** Reference date for age computation (defaults to now). */
@@ -44,8 +46,6 @@ export const reconcileCensus = (
     current,
     snapshot.encounters
   );
-  // A statistical HHR movement makes the matching absence from beds intentional. A patient
-  // merely deleted from HHR has no movement and can still be restored provisionally.
   const dischargedEpisodes = new Set<string>();
   const dischargedRunsWithoutEpisode = new Set<string>();
   for (const record of [
@@ -67,25 +67,7 @@ export const reconcileCensus = (
   const wasClinicalCribDischargedInHhr = (encounter: RayenEncounter): boolean =>
     dischargedEpisodes.has(encounter.encounterId) ||
     dischargedRunsWithoutEpisode.has(normalizePatientRut(encounter.run));
-  const diff: CensusImportDiff = {
-    admissions: [],
-    updates: [],
-    moves: [],
-    discharges: [],
-    pendingAdministrativeDischarges: [],
-    conflicts: [],
-    snapshotComplete: snapshot.isComplete === true,
-    unchangedCount: 0,
-    summary: {
-      admissions: 0,
-      updates: 0,
-      moves: 0,
-      discharges: 0,
-      pendingAdministrativeDischarges: 0,
-      conflicts: 0,
-      unchanged: 0,
-    },
-  };
+  const diff: CensusImportDiff = createEmptyCensusImportDiff(snapshot.isComplete === true);
   const consumedBedIds = new Set<string>();
   const confirmedPrincipalBedIds = new Set<string>();
   const claimedTargets = new Map<string, string>(); // incoming admission/transfer targets
@@ -123,11 +105,17 @@ export const reconcileCensus = (
     diff.admissions.push({ bedId, patient, isCma: false, source: encounter });
     return true;
   };
-  const active = snapshot.encounters.filter(encounter => !isDischarged(encounter));
-  const discharged = snapshot.encounters.filter(isDischarged);
-  diff.activeClinicalEpisodeIds = active
-    .map(encounter => String(encounter.encounterId ?? '').trim())
-    .filter(Boolean);
+  const activeScope = preparePavilionRecoverySyncScope(
+    snapshot,
+    current,
+    occupiedBedIds,
+    findCurrent
+  );
+  const active = activeScope.activeEncounters;
+  const discharged = activeScope.dischargedEncounters;
+  const { snapshotEpisodeIds, activeBedByEpisode } = activeScope;
+  diff.activeClinicalEpisodeIds = activeScope.activeClinicalEpisodeIds;
+  activeScope.ignoredLocalBedIds.forEach(bedId => consumedBedIds.add(bedId));
   const activeMapped = prepareActiveClinicalPlacements(
     current,
     active,
@@ -155,6 +143,12 @@ export const reconcileCensus = (
       targetBedId: encounter.verifiedBedPlacement && mapped.bedId ? mapped.bedId : match.bedId,
     });
   }
+  appendActiveBedPlacementIntents(
+    current,
+    snapshotEpisodeIds,
+    activeBedByEpisode,
+    principalPlacementIntents
+  );
   feasibleMoveSourceBedIds = feasiblePrincipalMoveSourceBedIds(
     principalPlacementIntents,
     occupiedBedIds
@@ -223,11 +217,19 @@ export const reconcileCensus = (
       }
       continue;
     }
-    // New patient not yet in the census → admit into the mapped bed if it is free, UNLESS they were
-    // admitted after the census day being synced (they don't belong in a past day's census).
     if (admittedAfterCensusDay(encounter, censusDay)) continue;
     if (tryAdmit(encounter, patient, bedId)) confirmedPrincipalBedIds.add(bedId);
   }
+  reconcileActiveBedAssignments({
+    current,
+    snapshotEpisodeIds,
+    activeBedByEpisode,
+    consumedBedIds,
+    feasibleMoveSourceBedIds,
+    diff,
+    claimTarget,
+    confirmedPrincipalBedIds,
+  });
   // ---- Clinically closed encounters (epicrisis médica / enfermería) ----
   // Ficha Médico is NOT the authority for the statistical discharge. Even when both clinical
   // closures are complete, the patient stays in the HHR bed until the Gestión de Camas

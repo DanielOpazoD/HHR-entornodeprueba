@@ -7,6 +7,7 @@ import {
   Shield,
   ShieldCheck,
   Sparkles,
+  Stethoscope,
   TableProperties,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -23,6 +24,7 @@ import {
   SettingsSecurityTab,
   SettingsTableTab,
 } from '@/components/modals/SettingsModalTabs';
+import { TreatingPhysiciansSettings } from './TreatingPhysiciansSettings';
 
 const LazyClinicalDocumentTemplatesManager = lazy(() =>
   import('./ClinicalDocumentTemplatesManager').then(module => ({
@@ -35,6 +37,7 @@ type ConfigurationTab =
   | 'TABLE'
   | 'SECURITY'
   | 'ROLES'
+  | 'PHYSICIANS'
   | 'CLINICAL_TEMPLATES'
   | 'AI_PROVIDERS'
   | 'INTEGRATIONS';
@@ -111,6 +114,7 @@ export const ConfigurationView: React.FC = () => {
     { id: 'TABLE', label: 'Tabla', icon: TableProperties, color: 'text-sky-400' },
     { id: 'SECURITY', label: 'Seguridad', icon: Shield, color: 'text-amber-400' },
     { id: 'ROLES', label: 'Roles y permisos', icon: ShieldCheck, color: 'text-indigo-400' },
+    { id: 'PHYSICIANS', label: 'Médicos', icon: Stethoscope, color: 'text-sky-400' },
     {
       id: 'AI_PROVIDERS',
       label: 'IA',
@@ -184,6 +188,7 @@ export const ConfigurationView: React.FC = () => {
         )}
         {activeTab === 'SECURITY' && <SettingsSecurityTab />}
         {activeTab === 'ROLES' && <RoleManagementView />}
+        {activeTab === 'PHYSICIANS' && <TreatingPhysiciansSettings />}
         {activeTab === 'AI_PROVIDERS' && <ClinicalAIProviderRoutingPanel />}
         {activeTab === 'INTEGRATIONS' && (
           <div className="rounded-2xl border border-slate-200 bg-white p-6">

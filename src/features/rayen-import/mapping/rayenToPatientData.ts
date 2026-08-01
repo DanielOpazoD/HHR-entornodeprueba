@@ -192,6 +192,11 @@ export const rayenToPatientData = (
     cie10Description: encounter.diagnosisCode?.trim()
       ? cleanDiagnosis(encounter.diagnosisDescription || encounter.diagnosis)
       : undefined,
+    treatingPhysicianId: encounter.treatingPhysicianId?.trim() || undefined,
+    treatingPhysicianName: encounter.treatingPhysicianId?.trim()
+      ? encounter.treatingPhysicianName?.trim() || undefined
+      : undefined,
+    specialty: encounter.treatingPhysicianSpecialty?.trim() || EMPTY_PATIENT.specialty,
     admissionDate: toIsoDate(encounter.admissionDatetime),
     admissionTime: extractTime(encounter.admissionDatetime),
     // A synced patient defaults to "Estable"; `status` is not in SYNCABLE_FIELDS, so a re-sync

@@ -28,12 +28,14 @@ const CELL_READINGS: ReadonlyArray<{ key: VitalReadingView['key']; label: string
 
 // Same semantic tones as ScaleChip's value zone, so SIGNOS and SCORES read as one visual system.
 const STATUS_TEXT: Record<VitalStatus, string> = {
+  neutral: 'text-slate-500',
   normal: 'text-slate-600',
   warn: 'text-amber-600',
   alert: 'text-red-600',
 };
 
 const WORST_ACCENT: Record<VitalStatus, string> = {
+  neutral: 'border-l-slate-200',
   normal: 'border-l-transparent',
   warn: 'border-l-amber-400',
   alert: 'border-l-red-500',
@@ -51,7 +53,11 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
   }
 
-  const vitals = buildVitalSignsView(data.vitalSigns);
+  const vitalProfile =
+    isSubRow || data.bedMode === 'Cuna' || data.bedId === 'NEO1' || data.bedId === 'NEO2'
+      ? 'newborn'
+      : 'adult';
+  const vitals = buildVitalSignsView(data.vitalSigns, vitalProfile);
   const readingByKey = (key: VitalReadingView['key']): VitalReadingView | undefined =>
     vitals?.readings.find(reading => reading.key === key);
 
@@ -122,6 +128,7 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
                 ? [data.vitalSigns]
                 : []
           }
+          profile={vitalProfile}
           onClose={() => setIsDetailOpen(false)}
         />
       )}

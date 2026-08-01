@@ -86,7 +86,12 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const isRealPatient = !isEmpty && !isSubRow && !!fullName.trim();
   const showIdentityDetails =
     !isEmpty &&
-    (hasRutValue || !!data.age || !!admissionShort || !!specialtyLabel || isRealPatient);
+    (hasRutValue ||
+      !!data.age ||
+      !!admissionShort ||
+      !!specialtyLabel ||
+      !!data.treatingPhysicianName ||
+      isRealPatient);
   const handleSpecialtyAssign = onNameChange('specialty');
 
   useEffect(() => {
@@ -279,6 +284,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 readOnly={readOnly}
                 onAssign={handleSpecialtyAssign}
               />
+              {data.treatingPhysicianName && (
+                <span
+                  className="max-w-28 truncate text-[9px] font-medium text-slate-400"
+                  title={`Médico tratante: ${data.treatingPhysicianName}`}
+                >
+                  · {data.treatingPhysicianName}
+                </span>
+              )}
             </span>
           </div>
         )}

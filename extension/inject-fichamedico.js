@@ -336,6 +336,7 @@
   const readCensus = async () => {
     const context = await getVerifiedClinicalContext();
     const base = context.base || new URL(context.apiOrigin);
+    const physicianCatalogPromise = (globalThis.HhrFichaMedicoTreatingPhysicianNormalization?.capture || (async () => ({ physicians: [], physicianById: {} })))({ apiGet, apiOrigin: context.apiOrigin, facilityId: context.identity.facilityId, auth: capturedAuth }).catch(() => ({ physicians: [], physicianById: {} }));
     const withFilter = ft => {
       const u = new URL(base);
       u.searchParams.set('filterType', ft);
@@ -369,7 +370,7 @@
       ...(Array.isArray(active) ? active : []).map(item => ({ item, discharged: false })),
       ...(Array.isArray(discharged) ? discharged : []).map(item => ({ item, discharged: true })),
     ];
-
+    const { physicians, physicianById } = await physicianCatalogPromise;
     // Keep a small concurrency ceiling: headers and diagnoses are independent, but the bridge
     // should not burst dozens of requests against Ficha Medico at once.
     const encounters = new Array(rows.length);
@@ -397,7 +398,7 @@
           itemWithIsolation,
           header,
           principalDiagnosis,
-          isDischarged
+          isDischarged, physicianById
         );
       }
     };
@@ -407,10 +408,9 @@
       capturedAt: new Date().toISOString(),
       facilityId: Number(context.identity.facilityId),
       isComplete: true, // filterType=3 + Servicio Todos covers the whole active census
-      encounters,
+      encounters, physicians,
     };
   };
-
   // --- Bridge with the isolated content script ---
   window.addEventListener('message', async event => {
     if (event.source !== window) return;

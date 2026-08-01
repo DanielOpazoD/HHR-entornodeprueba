@@ -181,6 +181,10 @@
       "maxLines": 47,
       "hotspots": {}
     },
+    "fichamedico-treating-physician-normalization.js": {
+      "maxLines": 80,
+      "hotspots": {}
+    },
     "fichamedico-normalization.js": {
       "maxLines": 134,
       "hotspots": {
@@ -203,6 +207,10 @@
     },
     "gestion-camas-cudyr.js": {
       "maxLines": 158,
+      "hotspots": {}
+    },
+    "gestion-camas-active-beds.js": {
+      "maxLines": 67,
       "hotspots": {}
     },
     "gestion-camas-clinical-cribs.js": {
