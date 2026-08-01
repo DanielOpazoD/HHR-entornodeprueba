@@ -354,9 +354,8 @@ export const useRayenImport = () => {
     }
     invalidateRayenFillAttempt();
     cancelRun();
-    const staffingDecisionWasSkipped =
-      !!staffingProposal && hasPendingStaffingDecision(staffingProposal);
-    if (staffingDecisionWasSkipped) reportRayenStaffingOutcome('declined');
+    if (staffingProposal && hasPendingStaffingDecision(staffingProposal))
+      reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
