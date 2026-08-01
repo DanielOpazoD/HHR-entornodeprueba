@@ -19,7 +19,7 @@ const createApi = (admin: ReturnType<typeof createClinicalAdminMock>) =>
 describe('Rayen clinical enrichment patch semantics', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('matches requested leaves while allowing unrelated nested data', () => {
+  it('requires exact canonical values for complete clinical fields', () => {
     const record = makeClinicalRecord();
     const payload = parseClinicalEnrichmentPayload(makePayload());
     const matching = {
@@ -38,22 +38,40 @@ describe('Rayen clinical enrichment patch semantics', () => {
       },
     };
 
-    expect(clinicalEnrichmentMatches(matching, payload.targets)).toBe(true);
+    expect(clinicalEnrichmentMatches(matching, payload.targets, payload.fieldContractVersion)).toBe(
+      false
+    );
+    const exact = {
+      ...matching,
+      beds: {
+        ...matching.beds,
+        H2C1: {
+          ...matching.beds.H2C1,
+          evaluationScores: { braden: { total: 17 } },
+          vitalSigns: { systolic: 120 },
+          clinicalSyncCheckpoint: { version: 1, sources: {} },
+        },
+      },
+    };
+    expect(clinicalEnrichmentMatches(exact, payload.targets, payload.fieldContractVersion)).toBe(
+      true
+    );
     expect(
       clinicalEnrichmentMatches(
         {
-          ...matching,
+          ...exact,
           beds: {
-            ...matching.beds,
-            H2C1: { ...matching.beds.H2C1, vitalSigns: { systolic: 119 } },
+            ...exact.beds,
+            H2C1: { ...exact.beds.H2C1, vitalSigns: { systolic: 119 } },
           },
         },
-        payload.targets
+        payload.targets,
+        payload.fieldContractVersion
       )
     ).toBe(false);
   });
 
-  it('does not delete unrelated nested data when applying a batch', async () => {
+  it('replaces canonical clinical objects so removed leaves do not survive', async () => {
     const remote = makeClinicalRecord();
     remote.beds.H2C1 = {
       ...remote.beds.H2C1,
@@ -77,13 +95,11 @@ describe('Rayen clinical enrichment patch semantics', () => {
         beds: expect.objectContaining({
           H2C1: expect.objectContaining({
             evaluationScores: {
-              braden: { total: 17, recordedAt: 'preserved' },
-              downton: { total: 3 },
+              braden: { total: 17 },
             },
             clinicalSyncCheckpoint: {
               version: 1,
               sources: {},
-              legacyMarker: true,
             },
           }),
         }),
@@ -101,8 +117,27 @@ describe('Rayen clinical enrichment patch semantics', () => {
     await createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext());
 
     expect(admin.set.mock.calls[0]?.[1]?.beds?.H2C1?.devices).toEqual(['VVP']);
-    expect(clinicalEnrichmentMatches(remote, parseClinicalEnrichmentPayload(payload).targets)).toBe(
+    const parsed = parseClinicalEnrichmentPayload(payload);
+    expect(clinicalEnrichmentMatches(remote, parsed.targets, parsed.fieldContractVersion)).toBe(
       false
     );
+  });
+
+  it('preserves nested siblings for unversioned rolling-deployment clients', async () => {
+    const remote = makeClinicalRecord();
+    remote.beds.H2C1 = {
+      ...remote.beds.H2C1,
+      evaluationScores: { downton: { total: 3 } },
+      vitalSigns: { heartRate: 76 },
+    } as never;
+    const { fieldContractVersion: _removed, ...payload } = makePayload();
+    const admin = createClinicalAdminMock(remote);
+
+    await createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext());
+
+    expect(admin.set.mock.calls[0]?.[1]?.beds?.H2C1).toMatchObject({
+      evaluationScores: { braden: { total: 17 }, downton: { total: 3 } },
+      vitalSigns: { systolic: 120, heartRate: 76 },
+    });
   });
 });

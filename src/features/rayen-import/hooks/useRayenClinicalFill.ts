@@ -10,6 +10,10 @@ import {
   type ClinicalFillPatchTarget,
   type HistoricalCudyrApplyResult,
 } from '../clinicalFillRunner';
+import type {
+  HistoricalCudyrBatchItem,
+  HistoricalCudyrBatchItemResult,
+} from '../contracts/clinicalFillContracts';
 import {
   beginRayenFill,
   endRayenFill,
@@ -43,6 +47,10 @@ interface UseRayenClinicalFillInput {
     censusDay: string,
     cudyr: ImportedCudyr
   ) => Promise<HistoricalCudyrApplyResult>;
+  applyHistoricalCudyrBatch?: (
+    censusDay: string,
+    items: HistoricalCudyrBatchItem[]
+  ) => Promise<HistoricalCudyrBatchItemResult[]>;
   completeRun: (
     record: DailyRecord,
     summary: ClinicalFillSummary,
@@ -60,6 +68,7 @@ export const useRayenClinicalFill = ({
   loadDailyRecord,
   patchDailyRecord,
   applyHistoricalCudyr,
+  applyHistoricalCudyrBatch,
   completeRun,
   onStaffingProposal,
   onSettled,
@@ -123,6 +132,7 @@ export const useRayenClinicalFill = ({
                   }
                 : {}),
               applyHistoricalCudyr,
+              applyHistoricalCudyrBatch,
               now: () => new Date(),
               createId,
               nurseCatalog,
@@ -162,6 +172,7 @@ export const useRayenClinicalFill = ({
     },
     [
       applyHistoricalCudyr,
+      applyHistoricalCudyrBatch,
       completeRun,
       createId,
       loadDailyRecord,

@@ -3,7 +3,7 @@ import { resolveClinicalEnrichmentBatchMode } from '@/features/rayen-import/doma
 
 describe('clinicalEnrichmentBatchMode', () => {
   it.each([
-    [undefined, 'off'],
+    [null, 'off'],
     ['', 'off'],
     ['unexpected', 'off'],
     ['shadow', 'shadow'],

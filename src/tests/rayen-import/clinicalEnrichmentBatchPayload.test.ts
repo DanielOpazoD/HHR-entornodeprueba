@@ -40,6 +40,7 @@ describe('clinicalEnrichmentBatchPayload', () => {
     ]);
 
     expect(payload).toMatchObject({
+      fieldContractVersion: 2,
       patches: [],
       checkpoints: [
         {

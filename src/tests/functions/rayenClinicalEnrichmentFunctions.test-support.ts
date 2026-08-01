@@ -62,6 +62,7 @@ export const makePayload = () => ({
   mutationId: 'mutation-1',
   expectedLastUpdated: '2026-07-28T10:00:00.000Z',
   baseRevision: 4,
+  fieldContractVersion: 2,
   mode: 'enforced',
   patches: [
     {

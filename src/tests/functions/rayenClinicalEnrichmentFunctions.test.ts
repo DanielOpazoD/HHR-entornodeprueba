@@ -87,6 +87,34 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
+  it('skips persistence when a new run requests clinical values already stored exactly', async () => {
+    const remote = makeClinicalRecord();
+    remote.lastUpdated = '2026-07-28T11:00:00.000Z';
+    remote.meta = { revision: 8 } as never;
+    remote.beds.H2C1 = {
+      ...remote.beds.H2C1,
+      evaluationScores: { braden: { total: 17 } },
+      vitalSigns: { systolic: 120 },
+      clinicalSyncCheckpoint: { version: 1, sources: {} },
+    } as never;
+    const admin = createClinicalAdminMock(remote);
+
+    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+      makePayload(),
+      makeContext()
+    );
+
+    expect(result).toMatchObject({
+      authorityStatus: 'idempotent',
+      resultParity: 'matched',
+      revision: 8,
+      patientWrites: 0,
+      historySnapshots: 0,
+    });
+    expect(admin.set).not.toHaveBeenCalled();
+    expect(admin.create).not.toHaveBeenCalled();
+  });
+
   it('accepts the pre-deployment digest during an idempotent rolling retry', async () => {
     const remote = makeClinicalRecord();
     const payload = makePayload();
@@ -336,7 +364,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
-  it('forces shadow requests to dry-run without creating a snapshot', async () => {
+  it('returns a compatible idempotent shadow response when canonical data already matches', async () => {
     const remote = makeClinicalRecord();
     remote.beds.H2C1 = {
       ...remote.beds.H2C1,
@@ -360,7 +388,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(result).toMatchObject({
       success: true,
       mode: 'shadow',
-      authorityStatus: 'ok',
+      authorityStatus: 'idempotent',
       resultParity: 'matched',
       patientWrites: 0,
       historySnapshots: 0,

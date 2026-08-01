@@ -5,6 +5,7 @@ import type {
 } from '../contracts/clinicalFillContracts';
 import {
   RAYEN_CLINICAL_ENRICHMENT_FIELDS,
+  RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION,
   RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES,
   RAYEN_CLINICAL_ENRICHMENT_MAX_TARGETS,
   type RayenClinicalCheckpointTarget,
@@ -140,6 +141,7 @@ export const prepareClinicalEnrichmentBatchPayload = ({
       runId,
       mutationId,
       expectedLastUpdated: record.lastUpdated,
+      fieldContractVersion: RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION,
       ...(Number.isFinite(revision) && revision >= 0 ? { baseRevision: revision } : {}),
       mode: effectiveMode,
       dryRun: effectiveMode === 'shadow',

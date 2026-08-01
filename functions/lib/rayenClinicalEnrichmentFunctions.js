@@ -11,6 +11,7 @@ const {
   buildHistorySnapshotId,
   buildLegacyClinicalEnrichmentDigest,
   classifyIdempotency,
+  clinicalEnrichmentMatches,
   digestValue,
   parseClinicalEnrichmentPayload,
   resolveRecordRevision,
@@ -70,6 +71,7 @@ const summarizeRequest = data => {
     clinicalCribCount: patches.filter(target => target?.clinicalCrib === true).length,
     hasExpectedVersion: typeof data?.expectedLastUpdated === 'string',
     hasBaseRevision: data?.baseRevision !== undefined,
+    fieldContractVersion: data?.fieldContractVersion === 2 ? 2 : 1,
     versionGuardEnforced: mode === 'enforced',
   };
 };
@@ -91,6 +93,7 @@ const summarizePayload = payload => ({
   clinicalCribCount: payload.targets.filter(target => target.clinicalCrib).length,
   hasExpectedVersion: Boolean(payload.expectedLastUpdated),
   hasBaseRevision: payload.baseRevision !== undefined,
+  fieldContractVersion: payload.fieldContractVersion,
   versionGuardEnforced: payload.mode === 'enforced',
 });
 
@@ -180,12 +183,29 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           return;
         }
 
+        if (clinicalEnrichmentMatches(remoteData, payload.targets, payload.fieldContractVersion)) {
+          // Reuse the established status so older clients remain compatible
+          // while the callable rolls out. A canonical no-op is idempotent even
+          // when this runId has not produced a receipt yet.
+          authorityStatus = 'idempotent';
+          resultParity = 'matched';
+          revision = resolveRecordRevision(remoteData);
+          return;
+        }
         revision = assertRecordRevision(remoteData, payload);
-        const nextRecord = applyClinicalEnrichment(remoteData, payload.targets);
+        const nextRecord = applyClinicalEnrichment(
+          remoteData,
+          payload.targets,
+          payload.fieldContractVersion
+        );
         // Shadow runs after the established per-patient writes. Compare against that independently
         // persisted record; comparing with our own projection would certify the request tautologically.
         const parityRecord = payload.dryRun ? remoteData : nextRecord;
-        parityDiagnostics = summarizeClinicalEnrichmentMismatches(parityRecord, payload.targets);
+        parityDiagnostics = summarizeClinicalEnrichmentMismatches(
+          parityRecord,
+          payload.targets,
+          payload.fieldContractVersion
+        );
         resultParity = parityDiagnostics.mismatchFieldCount === 0 ? 'matched' : 'mismatch';
         if (resultParity !== 'matched' && !payload.dryRun) {
           throw new functions.https.HttpsError(
