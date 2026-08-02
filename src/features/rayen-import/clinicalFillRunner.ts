@@ -346,6 +346,7 @@ export const runClinicalFill = async (
 
   const batchPersistence = await persistClinicalBatch({
     operations: pendingBatch,
+    diagnosticRunId: deps.diagnosticRunId,
     applyBatch: deps.applyBatch,
     observeBatch: deps.observeBatch,
     applyWithMetrics: writes.applyBatch,

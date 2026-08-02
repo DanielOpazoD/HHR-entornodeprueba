@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { logger } from '@/services/utils/loggerService';
 
 const SCALE_EVENT = {
   publishDatetime: '2026-07-10T10:00:00',
@@ -249,6 +250,41 @@ describe('runClinicalFill performance pipeline', () => {
       errors: [],
       incremental: { batch: { parity: 'matched', clinicalTargets: 5 } },
     });
+  });
+
+  it('reports a bounded correlated diagnostic when the shadow observer throws', async () => {
+    const observeBatch = vi.fn().mockRejectedValue(new Error('sensitive provider detail'));
+    const consoleWarning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    logger.clearEntries();
+
+    const summary = await runClinicalFill(
+      record(1),
+      '2026-07-10',
+      deps({ observeBatch, diagnosticRunId: 'sync-run' })
+    );
+
+    expect(summary).toMatchObject({
+      total: 1,
+      patched: 1,
+      errors: [],
+      incremental: { batch: { mode: 'shadow', parity: 'unavailable' } },
+    });
+    expect(logger.getEntries()).toContainEqual(
+      expect.objectContaining({
+        level: 'warn',
+        message: 'clinical_batch_shadow_observation_failed',
+        context: 'RayenSync',
+        data: {
+          runId: 'sync-run',
+          errorKind: 'unexpected',
+          patientCount: 1,
+          batchMode: 'shadow',
+        },
+      })
+    );
+    expect(JSON.stringify(logger.getEntries())).not.toContain('sensitive provider detail');
+    consoleWarning.mockRestore();
+    logger.clearEntries();
   });
 
   it('persists legacy patches before waiting for the bounded shadow parity result', async () => {

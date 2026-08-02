@@ -22,10 +22,8 @@ const start = (entry: QueueEntry): void => {
   active = entry;
   void entry
     .task()
-    .catch(error => {
-      // The task owns its clinical/audit error reporting. This guard only keeps the queue live.
-      console.warn('[rayen-import] ejecución clínica en cola falló:', error);
-    })
+    // The task owns its clinical/audit error reporting. This guard only keeps the queue live.
+    .catch(() => undefined)
     .finally(() => {
       active = null;
       const next = pending;

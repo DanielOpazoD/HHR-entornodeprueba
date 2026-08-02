@@ -141,8 +141,12 @@ const isRayenImportMessage = (value: unknown): value is RayenImportMessage => {
   );
 };
 
-type SnapshotHandler = (snapshot: RayenCensusSnapshot, bundle: RayenSyncBundle) => void;
-type ImportErrorHandler = (error: string) => void;
+type SnapshotHandler = (
+  snapshot: RayenCensusSnapshot,
+  bundle: RayenSyncBundle,
+  requestId: string
+) => void;
+type ImportErrorHandler = (error: string, requestId: string) => void;
 
 const handlers = new Set<SnapshotHandler>();
 const errorHandlers = new Set<ImportErrorHandler>();
@@ -179,13 +183,15 @@ const onWindowMessage = (event: MessageEvent): void => {
     const requestId = typeof event.data.requestId === 'string' ? event.data.requestId : '';
     if (!requestId || requestId !== activeSyncRequestId) return;
     activeSyncRequestId = null;
-    errorHandlers.forEach(handler => handler(event.data.error));
+    errorHandlers.forEach(handler => handler(event.data.error, requestId));
     return;
   }
   if (!isRayenImportMessage(event.data)) return;
   if (event.data.requestId !== activeSyncRequestId) return;
   activeSyncRequestId = null;
-  handlers.forEach(handler => handler(event.data.snapshot, event.data.bundle));
+  handlers.forEach(handler =>
+    handler(event.data.snapshot, event.data.bundle, event.data.requestId)
+  );
 };
 
 export const subscribeToRayenSnapshots = (handler: SnapshotHandler): (() => void) => {

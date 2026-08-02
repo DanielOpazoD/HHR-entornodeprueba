@@ -2,6 +2,7 @@ import { useCallback, useRef, type MutableRefObject } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type {
+  RayenSyncEvent,
   RayenSyncFailureReason,
   RayenSyncPerformanceDelta,
   RayenSyncSource,
@@ -22,6 +23,12 @@ import {
 } from '../domain/rayenSyncHistory';
 import { elapsedMilliseconds, mergeRayenSyncPerformance } from '../domain/rayenSyncPerformance';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { createRayenSyncRunLifecycle } from '../domain/rayenSyncRunLifecycle';
+import {
+  classifyRayenSyncError,
+  reportRayenSyncTerminal,
+  reportRayenSyncWarning,
+} from '../observability/rayenSyncDiagnostics';
 
 interface UseRayenSyncAuditInput {
   currentRecordRef: MutableRefObject<DailyRecord | null | undefined>;
@@ -87,8 +94,8 @@ export const useRayenSyncAudit = ({
   createId = defaultCreateId,
   monotonicNow = Date.now,
 }: UseRayenSyncAuditInput) => {
-  const activeRunRef = useRef<RayenSyncRun | null>(null);
-  const runsRef = useRef(new Map<string, RayenSyncRun>());
+  const lifecycleRef = useRef(createRayenSyncRunLifecycle());
+  const lifecycle = lifecycleRef.current;
 
   const persistMetadataPatch = useCallback(
     async <T>(
@@ -121,12 +128,12 @@ export const useRayenSyncAudit = ({
   );
 
   const recordRunPerformance = useCallback(
-    (delta: RayenSyncPerformanceDelta, runId = activeRunRef.current?.id): void => {
+    (delta: RayenSyncPerformanceDelta, runId = lifecycle.getActiveRun()?.id): void => {
       if (!runId) return;
-      const run = runsRef.current.get(runId);
+      const run = lifecycle.getRun(runId);
       if (run) run.performance = mergeRayenSyncPerformance(run.performance, delta);
     },
-    []
+    [lifecycle]
   );
 
   const startRun = useCallback(
@@ -138,19 +145,32 @@ export const useRayenSyncAudit = ({
         source: sourceFromHealth(health),
         performance: mergeRayenSyncPerformance(undefined, performance),
       };
-      activeRunRef.current = run;
-      runsRef.current.set(run.id, run);
+      const { superseded } = lifecycle.start(run);
+      if (superseded) {
+        reportRayenSyncTerminal(superseded, 'cancelled', {
+          cancellationReason: 'superseded',
+        });
+      }
       return run;
     },
-    [actor, createId, now]
+    [actor, createId, lifecycle, now]
   );
 
-  const ensureRun = useCallback((): RayenSyncRun => activeRunRef.current ?? startRun(), [startRun]);
+  const ensureRun = useCallback(
+    (): RayenSyncRun => lifecycle.getActiveRun() ?? startRun(),
+    [lifecycle, startRun]
+  );
+
+  const getRun = useCallback(
+    (runId: string): RayenSyncRun | undefined => lifecycle.getRun(runId),
+    [lifecycle]
+  );
 
   const applyRunToRecord = useCallback(
     (record: DailyRecord, diff: CensusImportDiff) => {
       const run = ensureRun();
       const event = buildAppliedRayenSyncEvent(run, diff, now().toISOString());
+      lifecycle.markApplied(run.id);
       const stamped: DailyRecord = {
         ...record,
         rayenSync: rayenSyncMetaFromEvent(event),
@@ -158,7 +178,7 @@ export const useRayenSyncAudit = ({
       };
       return { run, event, record: stamped };
     },
-    [ensureRun, now]
+    [ensureRun, lifecycle, now]
   );
 
   const persistAppliedRun = useCallback(
@@ -187,69 +207,150 @@ export const useRayenSyncAudit = ({
     async (
       recordAtApply: DailyRecord,
       summary: ClinicalFillSummary,
-      staffingProposal?: NursingStaffingProposal | null
+      staffingProposal?: NursingStaffingProposal | null,
+      requestedRunId?: string
     ): Promise<void> => {
       // The applied record carries the authoritative run id. A newer manual attempt
       // may already be active while this background fill is finishing.
-      const runId = recordAtApply.rayenSync?.runId;
+      const runId = requestedRunId ?? recordAtApply.rayenSync?.runId;
       if (!runId) return;
+      const claim = lifecycle.claimTerminal(runId);
+      if (!claim) return;
       const coverage = buildRayenSyncCoverage(summary.total, summary.errors, now().toISOString());
       if (summary.incremental) coverage.incremental = summary.incremental;
       const liveRecord = currentRecordRef.current;
       const fallback = liveRecord?.rayenSyncHistory?.some(event => event.id === runId)
         ? liveRecord
         : recordAtApply;
-      await persistMetadataPatch(fallback, base => {
-        const appliedEvent = base.rayenSyncHistory?.find(event => event.id === runId);
-        if (!appliedEvent) return { patch: null, value: false };
-        const completedEvent = completeRayenSyncEvent(
+      const buildCompletedEvent = (appliedEvent: RayenSyncEvent): RayenSyncEvent =>
+        completeRayenSyncEvent(
           appliedEvent,
           coverage,
           buildRayenStaffingObservation(staffingProposal),
           mergeRayenSyncPerformance(
-            runsRef.current.get(runId)?.performance ?? appliedEvent.performance,
+            claim.run?.performance ?? appliedEvent.performance,
             summary.performance
           )
         );
-        const patch: DailyRecordPatch = {
-          rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, completedEvent),
-        };
-        if (base.rayenSync?.runId === runId)
-          patch.rayenSync = rayenSyncMetaFromEvent(completedEvent);
-        return { patch, value: true };
-      });
-      // A missing event means another successful write superseded or removed this audit entry.
-      // It must still release the in-memory run; thrown persistence failures intentionally do not.
-      if (activeRunRef.current?.id === runId) activeRunRef.current = null;
-      runsRef.current.delete(runId);
+      try {
+        const completedEvent = await persistMetadataPatch(fallback, base => {
+          const appliedEvent = base.rayenSyncHistory?.find(event => event.id === runId);
+          if (!appliedEvent) return { patch: null, value: null };
+          const event = buildCompletedEvent(appliedEvent);
+          const patch: DailyRecordPatch = {
+            rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
+          };
+          if (base.rayenSync?.runId === runId) patch.rayenSync = rayenSyncMetaFromEvent(event);
+          return { patch, value: event };
+        });
+        lifecycle.commitTerminal(claim);
+        if (completedEvent) {
+          reportRayenSyncTerminal(
+            claim.run ?? { id: completedEvent.id, startedAt: completedEvent.startedAt },
+            completedEvent.status === 'partial' ? 'partial' : 'complete',
+            {},
+            completedEvent.completedAt
+          );
+        } else {
+          reportRayenSyncWarning('sync_audit_event_missing', { runId });
+          reportRayenSyncTerminal(
+            claim.run ?? {
+              id: runId,
+              startedAt: recordAtApply.rayenSync?.at ?? now().toISOString(),
+            },
+            'failed'
+          );
+        }
+      } catch (error) {
+        reportRayenSyncWarning('sync_audit_persist_failed', {
+          runId,
+          errorKind: classifyRayenSyncError(error),
+        });
+        try {
+          const failedEvent = await persistMetadataPatch(fallback, base => {
+            const appliedEvent = base.rayenSyncHistory?.find(event => event.id === runId);
+            if (!appliedEvent) return { patch: null, value: null };
+            const event: RayenSyncEvent = {
+              ...buildCompletedEvent(appliedEvent),
+              status: 'failed',
+              failureReason: 'apply_failed',
+            };
+            const patch: DailyRecordPatch = {
+              rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
+            };
+            if (base.rayenSync?.runId === runId) patch.rayenSync = rayenSyncMetaFromEvent(event);
+            return {
+              patch,
+              value: event,
+            };
+          });
+          if (failedEvent) {
+            lifecycle.commitTerminal(claim);
+            reportRayenSyncTerminal(
+              claim.run ?? { id: failedEvent.id, startedAt: failedEvent.startedAt },
+              'failed',
+              { failureReason: 'apply_failed' },
+              failedEvent.completedAt
+            );
+          } else {
+            lifecycle.releaseTerminal(claim);
+            reportRayenSyncWarning('sync_audit_event_missing', { runId });
+          }
+        } catch (recoveryError) {
+          lifecycle.releaseTerminal(claim);
+          reportRayenSyncWarning('sync_audit_terminal_recovery_failed', {
+            runId,
+            errorKind: classifyRayenSyncError(recoveryError),
+          });
+        }
+        throw error;
+      }
     },
-    [currentRecordRef, now, persistMetadataPatch]
+    [currentRecordRef, lifecycle, now, persistMetadataPatch]
   );
 
   const failRun = useCallback(
-    async (reason: RayenSyncFailureReason): Promise<void> => {
-      const run = activeRunRef.current;
+    async (reason: RayenSyncFailureReason, runId = lifecycle.getActiveRun()?.id): Promise<void> => {
+      const run = runId ? lifecycle.getRun(runId) : undefined;
       const record = currentRecordRef.current;
       if (!run) return;
-      activeRunRef.current = null;
-      runsRef.current.delete(run.id);
-      if (!record) return;
+      const claim = lifecycle.claimTerminal(run.id);
+      if (!claim) return;
       const event = buildFailedRayenSyncEvent(run, reason, now().toISOString());
-      await patchDailyRecord({
-        rayenSyncHistory: upsertRayenSyncEvent(record.rayenSyncHistory, event),
-      });
+      if (record) {
+        try {
+          await persistMetadataPatch(record, base => ({
+            patch: {
+              rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
+            },
+            value: undefined,
+          }));
+        } catch (error) {
+          reportRayenSyncWarning('sync_audit_persist_failed', {
+            runId: run.id,
+            errorKind: classifyRayenSyncError(error),
+          });
+        }
+      }
+      lifecycle.commitTerminal(claim);
+      reportRayenSyncTerminal(run, 'failed', { failureReason: reason }, event.completedAt);
     },
-    [currentRecordRef, now, patchDailyRecord]
+    [currentRecordRef, lifecycle, now, persistMetadataPatch]
   );
 
   const cancelRun = useCallback(() => {
-    if (activeRunRef.current) runsRef.current.delete(activeRunRef.current.id);
-    activeRunRef.current = null;
-  }, []);
+    const cancellation = lifecycle.cancelActive();
+    if (cancellation?.disposition === 'cancelled') {
+      reportRayenSyncTerminal(cancellation.run, 'cancelled', {
+        cancellationReason: 'operator',
+      });
+    }
+  }, [lifecycle]);
 
   return {
     startRun,
     ensureRun,
+    getRun,
     recordRunPerformance,
     applyRunToRecord,
     persistAppliedRun,
