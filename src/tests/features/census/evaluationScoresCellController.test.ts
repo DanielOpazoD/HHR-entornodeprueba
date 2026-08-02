@@ -42,9 +42,50 @@ describe('buildScoresCellModel — Braden countdown', () => {
       '2026-07-12'
     );
     expect(model.braden?.assessment.riskLevel).toBe('bajo');
+    expect(model.braden?.displayLevel).toBe('bajo');
+    expect(model.braden?.severityLabel).toBe('Riesgo bajo');
     expect(model.braden?.chipCountdown).toBe('5d');
     expect(model.braden?.countdownLabel).toBe('Faltan 5 días para repetir la escala');
     expect(model.alertUrgency).toBe('ok');
+  });
+
+  it('shows the Eloísa classification without changing HHR reapplication policy', () => {
+    // Adult Braden 14 is locally "medio" (every 3 days), while Eloísa reports "Riesgo alto".
+    const model = buildScoresCellModel(
+      patient({
+        evaluationScores: {
+          braden: entry({ total: 14, severity: 'Riesgo alto', recordedDate: '2026-07-10' }),
+        },
+      }),
+      '2026-07-11'
+    );
+
+    expect(model.braden?.displayLevel).toBe('alto');
+    expect(model.braden?.severityLabel).toBe('Riesgo alto');
+    expect(model.braden?.assessment.riskLevel).toBe('medio');
+    expect(model.braden?.assessment.conducta.aplicacion).toBe('Cada 3 días');
+    expect(model.braden?.chipCountdown).toBe('2d');
+  });
+
+  it('falls back to the local presentation only when Eloísa has no classification', () => {
+    const model = buildScoresCellModel(
+      patient({ evaluationScores: { braden: entry({ total: 17, severity: null }) } }),
+      '2026-07-10'
+    );
+
+    expect(model.braden?.displayLevel).toBe('bajo');
+    expect(model.braden?.severityLabel).toBe('Riesgo Bajo');
+  });
+
+  it('keeps an unknown Eloísa label neutral instead of inventing a classification', () => {
+    const model = buildScoresCellModel(
+      patient({ evaluationScores: { braden: entry({ total: 17, severity: 'No interpretable' }) } }),
+      '2026-07-10'
+    );
+
+    expect(model.braden?.displayLevel).toBeNull();
+    expect(model.braden?.severityLabel).toBe('No interpretable');
+    expect(model.braden?.assessment.riskLevel).toBe('bajo');
   });
 
   it('when the deadline arrives it visually asks to reapply ("Reaplicar hoy")', () => {
@@ -296,9 +337,18 @@ describe('buildScoresCellModel — Downton and history', () => {
   it('maps Downton severity text to a level for coloring', () => {
     const downton = entry({ code: 'DOWNTON', total: 5, severity: 'Riesgo alto' });
     const model = buildScoresCellModel(patient({ evaluationScores: { downton } }), '2026-07-10');
-    expect(model.downton?.level).toBe('alto');
+    expect(model.downton?.displayLevel).toBe('alto');
     expect(model.hasAny).toBe(true);
     expect(model.braden).toBeNull();
+  });
+
+  it('shows Eloísa Downton wording and keeps an unknown cadence unchanged', () => {
+    const downton = entry({ code: 'DOWNTON', total: 0, severity: 'Sin riesgo' });
+    const model = buildScoresCellModel(patient({ evaluationScores: { downton } }), '2026-07-10');
+
+    expect(model.downton?.displayLevel).toBe('bajo');
+    expect(model.downton?.severityLabel).toBe('Sin riesgo');
+    expect(model.downton?.reapplication).toBeNull();
   });
 
   it('Downton follows the same reapplication cadence as Braden (alto → diario) and drives the alert', () => {

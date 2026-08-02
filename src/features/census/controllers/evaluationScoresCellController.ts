@@ -1,8 +1,8 @@
 /**
  * View-model for the census "Scores" column (nursing risk scales). Pure and testable: given the
- * patient and the census day it derives what the cell and detail modal display — Braden risk level
- * with its reapplication countdown ("faltan X días" → "Reaplicar hoy" → "Vencida hace X días") and
- * the Downton severity — from the stored totals (see `@/domain/evaluationScales/bradenRisk`).
+ * patient and the census day it derives what the cell and detail modal display. Eloísa owns the
+ * visible risk classification; HHR's local rules continue to own planned care and reapplication
+ * cadence ("faltan X días" → "Reaplicar hoy" → "Vencida hace X días").
  */
 
 import {
@@ -20,12 +20,20 @@ import type {
   PatientEvaluationScores,
 } from '@/types/domain/evaluationScores';
 import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
+import {
+  parseSourceRiskLevel,
+  sourceRiskLabel,
+} from '@/domain/evaluationScales/sourceRiskSeverity';
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
 
 export interface BradenCellModel {
   entry: EvaluationScoreEntry;
   application: EvaluationScaleApplicationEvidence;
   total: number;
+  /** Eloísa classification used only for the visible label and color. */
+  displayLevel: BradenRiskLevel | null;
+  severityLabel: string;
+  /** Local HHR assessment used only for care planning and reapplication cadence. */
   assessment: BradenAssessment;
   /** Short in-cell countdown chip, e.g. "5d" | "hoy" | "-2d". */
   chipCountdown: string;
@@ -37,8 +45,8 @@ export interface DowntonCellModel {
   entry: EvaluationScoreEntry;
   application: EvaluationScaleApplicationEvidence;
   total: number;
-  /** Risk level parsed from the source severity text ("Riesgo alto" → 'alto'); null if unknown. */
-  level: BradenRiskLevel | null;
+  /** Eloísa classification used only for the visible label and color. */
+  displayLevel: BradenRiskLevel | null;
   severityLabel: string;
   /** Reapplication follows the same cadence as Braden (bajo 7d · medio 3d · alto diario). */
   reapplication: ReapplicationStatus | null;
@@ -97,8 +105,8 @@ const buildChipCountdown = (daysUntilDue: number, urgency: ReapplicationUrgency)
   return `${daysUntilDue}d`;
 };
 
-/** Downton has no local conducta table yet — level comes from the source severity text. */
-const parseSeverityLevel = (severity: string | null): BradenRiskLevel | null => {
+/** Preserve the existing Downton reapplication behavior independently from presentation. */
+const parseDowntonCadenceLevel = (severity: string | null): BradenRiskLevel | null => {
   const value = (severity ?? '').toLowerCase();
   if (value.includes('alto')) return 'alto';
   if (value.includes('medio') || value.includes('moderado')) return 'medio';
@@ -283,10 +291,13 @@ export const buildScoresCellModel = (
       censusIsoDay
     );
     const { daysUntilDue, urgency } = assessment.reapplication;
+    const sourceSeverity = scores.braden.severity?.trim() ?? '';
     braden = {
       entry: scores.braden,
       application,
       total: scores.braden.total,
+      displayLevel: sourceSeverity ? parseSourceRiskLevel(sourceSeverity) : assessment.riskLevel,
+      severityLabel: sourceRiskLabel(scores.braden.severity, assessment.conducta.riskLabel),
       assessment,
       chipCountdown: buildChipCountdown(daysUntilDue, urgency),
       countdownLabel: buildCountdownLabel(daysUntilDue, urgency),
@@ -296,17 +307,17 @@ export const buildScoresCellModel = (
   let downton: DowntonCellModel | null = null;
   if (scores.downton && scores.downton.total != null) {
     const application = latestApplicationEvidence(scores.downton, history);
-    const level = parseSeverityLevel(scores.downton.severity);
+    const cadenceLevel = parseDowntonCadenceLevel(scores.downton.severity);
     // Downton reapplies with the SAME cadence as Braden by risk level (bajo 7d · medio 3d · alto 1d).
-    const reapplication = level
-      ? bradenReapplicationStatus(application.recordedDate, level, censusIsoDay)
+    const reapplication = cadenceLevel
+      ? bradenReapplicationStatus(application.recordedDate, cadenceLevel, censusIsoDay)
       : null;
     downton = {
       entry: scores.downton,
       application,
       total: scores.downton.total,
-      level,
-      severityLabel: scores.downton.severity ?? '',
+      displayLevel: parseSourceRiskLevel(scores.downton.severity),
+      severityLabel: sourceRiskLabel(scores.downton.severity, ''),
       reapplication,
       chipCountdown: reapplication
         ? buildChipCountdown(reapplication.daysUntilDue, reapplication.urgency)
