@@ -76,6 +76,14 @@ export const evaluateSyncConvergenceEvidence = root => {
     root,
     'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.handoff.test.ts'
   );
+  const simulatorRayenAcceptanceTests = readText(
+    root,
+    'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.rayen-acceptance.test.ts'
+  );
+  const simulatorRayenAcceptanceFixtures = readText(
+    root,
+    'src/tests/support/clinicalSyncSimulator/rayenSyncAcceptanceFixtures.ts'
+  );
 
   const autoMergeInvariantIndex = autoMerge.indexOf(
     'evaluateDailyRecordConflictPostMergeInvariants'
@@ -281,6 +289,29 @@ export const evaluateSyncConvergenceEvidence = root => {
         ].every(token => simulatorHandoffTests.includes(token)),
         'Nursing and medical handoff scenarios cover stale replay, parallel specialties and entry-level merge semantics.',
         ['src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.handoff.test.ts']
+      ),
+      buildCheck(
+        'rayen-acceptance-idempotence',
+        [
+          'planRayenCensusImport',
+          'applyCensusImportDiff',
+          'clinicalCrib',
+          'treatingPhysicianName',
+          'repeatedPlan',
+          'pendingAdministrativeDischarges: 0',
+        ].every(token => simulatorRayenAcceptanceTests.includes(token)) &&
+          [
+            'fixture-episode-newborn',
+            'fixture-episode-pavilion-1',
+            'fixture-episode-pavilion-2',
+            'P-R1',
+            'P-R2',
+          ].every(token => simulatorRayenAcceptanceFixtures.includes(token)),
+        'A fictional end-to-end Rayen scenario composes census planning/application and proves a repeated snapshot is a clinical no-op.',
+        [
+          'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.rayen-acceptance.test.ts',
+          'src/tests/support/clinicalSyncSimulator/rayenSyncAcceptanceFixtures.ts',
+        ]
       ),
     ]),
   ];

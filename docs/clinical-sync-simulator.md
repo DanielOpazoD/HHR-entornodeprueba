@@ -19,6 +19,7 @@ La verdad final no es "ultimo navegador que escribio". La verdad final es:
 - Harness: `src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.ts`
 - Contrato base: `src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.test.ts`
 - Censo diario: `src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.census.test.ts`
+- Aceptacion Rayen: `src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.rayen-acceptance.test.ts`
 - Entrega de turno: `src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.handoff.test.ts`
 
 ## Como correrlo
@@ -58,6 +59,11 @@ unitarios generales.
   - mover paciente de cama preservando RUT, diagnostico y episodio;
   - alta, traslado y CMA visibles, con cama liberada;
   - DMI replay stale sin residuos en cama egresada.
+- Aceptacion transversal Rayen:
+  - un snapshot ficticio combina ingreso, movimiento, actualizacion y cuna RN;
+  - preserva notas locales y adopta medico/especialidad con identidad Rayen;
+  - excluye recuperacion transitoria P-R1/P-R2 sin alertas;
+  - repetir el mismo snapshot converge a cero mutaciones clinicas.
 - Entrega enfermeria:
   - `handoffNoteDayShift`;
   - `handoffNoteNightShift`;

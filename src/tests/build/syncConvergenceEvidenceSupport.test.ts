@@ -28,6 +28,7 @@ describe('sync convergence evidence support', () => {
         'auditable-clinical-context',
         'census-replay-scenarios',
         'handoff-replay-scenarios',
+        'rayen-acceptance-idempotence',
       ])
     );
   });
