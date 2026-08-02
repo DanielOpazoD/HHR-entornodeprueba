@@ -80,6 +80,7 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 | `domain/applyCensusImportDiff.ts`               | Aplica el diff → siguiente `DailyRecord` (puro, defensivo)                 |
 | `domain/rayenSyncHistory.ts`                    | Historial diario agregado, idempotente y acotado                           |
 | `domain/rayenSyncPerformance.ts`                | Acumula duración/contadores técnicos sin aceptar payload clínico           |
+| `domain/rayenSyncSourceQuality.ts`              | Resume cobertura agregada de médico tratante, sin identidades              |
 | `importRayenCensusUseCase.ts`                   | Use-case `planRayenCensusImport` (planifica el diff)                       |
 | `settings/rayenImportSettings.ts`               | Setting de modo (`preview`/`auto`) en localStorage                         |
 | `bridge/rayenImportBridge.ts`                   | Puente `postMessage` extensión ⇄ app (+ validación de forma)               |
@@ -116,9 +117,10 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 - **Telemetría técnica sin datos clínicos:** el mismo evento `rayenSyncHistory` registra tiempos de
   preflight, captura dual, reconciliación, evidencia histórica, lecturas clínicas, espera de
   escrituras y persistencia, más contadores agregados de solicitudes, caché, parches, reintentos y
-  timeouts. No crea otra colección, no se proyecta a `rayenSync` y sólo se muestra dentro del panel
-  técnico plegado del historial; sus contratos no admiten RUN, nombres, camas, `ENC_ID` ni valores
-  clínicos.
+  timeouts. También contrasta asignaciones médicas con nombres recibidos y nombres finalmente
+  disponibles mediante el catálogo HHR, usando sólo conteos. No crea otra colección, no se proyecta
+  a `rayenSync` y sólo se muestra dentro del panel técnico plegado del historial; sus contratos no
+  admiten RUN, nombres, camas, `ENC_ID` ni valores clínicos.
 - **Concurrencia por fuente:** dispositivos, historial y formularios usan colas independientes de
   máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
   permanecen serializados para evitar conflictos de escritura.

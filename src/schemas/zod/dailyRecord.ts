@@ -158,6 +158,19 @@ const RayenSyncPerformanceSchema = z.object({
     retries: z.number().int().nonnegative(),
     timeouts: z.number().int().nonnegative(),
   }),
+  sourceQuality: nullableOptional(
+    z.object({
+      treatingPhysicians: nullableOptional(
+        z.object({
+          encounters: z.number().int().nonnegative(),
+          catalogEntries: z.number().int().nonnegative(),
+          assignedEncounters: z.number().int().nonnegative(),
+          sourceResolvedNames: z.number().int().nonnegative(),
+          plannedResolvedNames: z.number().int().nonnegative(),
+        })
+      ),
+    })
+  ),
 });
 
 const RayenSyncEventSchema = z.object({

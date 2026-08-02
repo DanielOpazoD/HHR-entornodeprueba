@@ -8,6 +8,7 @@ import {
 } from '@/services/staff/treatingPhysicianCatalog';
 import { enrichSnapshotWithTreatingPhysicianSpecialties } from '@/features/rayen-import/domain/enrichTreatingPhysicianSnapshot';
 import { diffSyncablePatientFields } from '@/features/rayen-import/domain/patientSyncPolicy';
+import { summarizeTreatingPhysicianSourceQuality } from '@/features/rayen-import/domain/rayenSyncSourceQuality';
 import type { RayenCensusSnapshot } from '@/features/rayen-import/contracts/rayenSnapshot';
 import type { PatientData } from '@/types/domain/patient';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
@@ -179,6 +180,13 @@ describe('treating physician catalog', () => {
     expect(enriched.encounters[0]).toMatchObject({
       treatingPhysicianName: 'Angelica Vargas',
       treatingPhysicianSpecialty: 'Psiquiatría',
+    });
+    expect(summarizeTreatingPhysicianSourceQuality(missingNameSnapshot, enriched)).toEqual({
+      encounters: 1,
+      catalogEntries: 1,
+      assignedEncounters: 1,
+      sourceResolvedNames: 0,
+      plannedResolvedNames: 1,
     });
   });
 

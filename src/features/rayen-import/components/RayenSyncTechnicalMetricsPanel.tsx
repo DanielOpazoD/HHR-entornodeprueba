@@ -28,6 +28,7 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
     return value == null ? [] : [{ key, label, value }];
   });
   const { counters } = performance;
+  const physicianQuality = performance.sourceQuality?.treatingPhysicians;
 
   return (
     <details
@@ -53,6 +54,14 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
           {countLabel(counters.retries, 'reintento', 'reintentos')} ·{' '}
           {countLabel(counters.timeouts, 'timeout', 'timeouts')}
         </p>
+        {physicianQuality && (
+          <p className="tabular-nums text-slate-500">
+            Médicos tratantes: {physicianQuality.assignedEncounters} asignados ·{' '}
+            {physicianQuality.sourceResolvedNames} nombres desde Eloísa ·{' '}
+            {physicianQuality.plannedResolvedNames} disponibles para sincronizar ·{' '}
+            {physicianQuality.catalogEntries} en catálogo · {physicianQuality.encounters} encuentros
+          </p>
+        )}
         {(performance.stagesMs.writeQueueWait != null ||
           performance.stagesMs.persistence != null) && (
           <p className="text-[10px] text-slate-400">
@@ -61,7 +70,8 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
           </p>
         )}
         <p className="text-[10px] text-slate-400">
-          Sólo agregados técnicos; no contiene pacientes, camas, episodios ni valores clínicos.
+          Sólo agregados técnicos; no contiene pacientes, camas, episodios, nombres profesionales ni
+          valores clínicos.
         </p>
       </div>
     </details>

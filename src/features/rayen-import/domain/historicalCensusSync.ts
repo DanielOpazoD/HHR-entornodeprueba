@@ -165,11 +165,46 @@ const isSafeAttachedCribBackfill = (
     incomingCrib.admissionDate <= record.date &&
     hasAuthoritativeEpisodeEnd &&
     (!dischargeDay || record.date <= dischargeDay);
-  const onlyCribFields = update.changes.every(
-    change => change.field === 'clinicalCrib' || change.field === 'hasCompanionCrib'
-  );
+  return wasEmpty && belongsToHistoricalDay;
+};
 
-  return wasEmpty && belongsToHistoricalDay && onlyCribFields;
+const safeHistoricalPhysicianNameBackfill = (
+  update: CensusImportDiff['updates'][number],
+  record: DailyRecord
+): CensusImportDiff['updates'][number] | null => {
+  const historical = record.beds[update.bedId];
+  if (!historical || !update.patient || !hasSameStableIdentity(historical, update.patient)) {
+    return null;
+  }
+
+  const historicalPhysicianId = historical.treatingPhysicianId?.trim();
+  const incomingPhysicianId = update.patient.treatingPhysicianId?.trim();
+  const incomingName = update.patient.treatingPhysicianName?.trim();
+  if (
+    !historicalPhysicianId ||
+    historicalPhysicianId !== incomingPhysicianId ||
+    historical.treatingPhysicianName?.trim() ||
+    !incomingName
+  ) {
+    return null;
+  }
+
+  const nameChange = update.changes.find(
+    change =>
+      change.field === 'treatingPhysicianName' &&
+      !String(change.from ?? '').trim() &&
+      String(change.to ?? '').trim() === incomingName
+  );
+  return nameChange ? { ...update, changes: [nameChange] } : null;
+};
+
+const patientWithHistoricalChanges = (
+  historical: DailyRecord['beds'][string],
+  changes: CensusImportDiff['updates'][number]['changes']
+): DailyRecord['beds'][string] => {
+  const patient = { ...historical } as unknown as Record<string, unknown>;
+  for (const change of changes) patient[change.field] = change.to;
+  return patient as unknown as DailyRecord['beds'][string];
 };
 
 /**
@@ -179,19 +214,39 @@ const isSafeAttachedCribBackfill = (
  * happened. For a past census its existing structure is therefore authoritative. The sole
  * structural exception is an attached crib whose episode started on or before that census day,
  * whose mother is still in the same confirmed principal bed, and whose historical crib slot is
- * empty. This gives the user a reviewable backfill without projecting today's other structure into
- * yesterday.
+ * empty. A missing physician display name may also be completed when the historical episode
+ * already stores the exact same stable physician id. Neither exception can replace historical
+ * identity or project today's structural state into yesterday.
  */
 export const toSafeHistoricalDiff = (
   diff: CensusImportDiff,
   record: DailyRecord
 ): CensusImportDiff => {
   const unchangedCount = occupiedPatientCount(record);
-  const safeCribUpdates = diff.updates.filter(update => isSafeAttachedCribBackfill(update, record));
+  const safeUpdates = diff.updates.flatMap(update => {
+    const historical = record.beds[update.bedId];
+    if (!historical) return [];
+    const safeChanges = isSafeAttachedCribBackfill(update, record)
+      ? update.changes.filter(
+          change => change.field === 'clinicalCrib' || change.field === 'hasCompanionCrib'
+        )
+      : [];
+    const physicianNameBackfill = safeHistoricalPhysicianNameBackfill(update, record);
+    if (physicianNameBackfill) safeChanges.push(...physicianNameBackfill.changes);
+    return safeChanges.length > 0
+      ? [
+          {
+            ...update,
+            patient: patientWithHistoricalChanges(historical, safeChanges),
+            changes: safeChanges,
+          },
+        ]
+      : [];
+  });
   return {
     ...diff,
     admissions: [],
-    updates: safeCribUpdates,
+    updates: safeUpdates,
     moves: [],
     discharges: [],
     pendingAdministrativeDischarges: [],
@@ -201,7 +256,7 @@ export const toSafeHistoricalDiff = (
     unchangedCount,
     summary: {
       admissions: 0,
-      updates: safeCribUpdates.length,
+      updates: safeUpdates.length,
       moves: 0,
       discharges: 0,
       pendingAdministrativeDischarges: 0,
