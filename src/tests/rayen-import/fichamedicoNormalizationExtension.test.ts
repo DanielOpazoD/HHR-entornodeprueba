@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import '../../../extension/fichamedico-isolation-normalization.js';
+import '../../../extension/fichamedico-treating-physician-dom.js';
 import '../../../extension/fichamedico-treating-physician-sources.js';
 import '../../../extension/fichamedico-treating-physician-normalization.js';
 import '../../../extension/fichamedico-normalization.js';
@@ -12,6 +13,9 @@ const treatingPhysicianNormalization = (
         practitionerId: string;
         displayName: string;
       }>;
+      assignedByEncounterFromDocument: (
+        root: Document
+      ) => Record<string, { practitionerId: string; displayName: string } | null>;
       captureFromDocument: (options: Record<string, unknown>) => Promise<unknown>;
       merge: (...sources: unknown[]) => Array<{
         practitionerId: string;
@@ -33,7 +37,8 @@ const normalization = (
         header: unknown,
         principalDiagnosis: unknown,
         discharged?: boolean,
-        physicianById?: Record<string, unknown>
+        physicianById?: Record<string, unknown>,
+        physicianByEncounterId?: Record<string, unknown>
       ) => Record<string, unknown>;
       normalizeSessionExpiry: (session: unknown, payload?: unknown) => number | null;
       normalizeSessionRole: (session: unknown) => string;
@@ -118,12 +123,14 @@ describe('Ficha Medico census normalization', () => {
   it('recovers assigned physician identities from the rendered census rows', () => {
     document.body.innerHTML = `
       <table>
-        <thead><tr><th>Servicio</th><th>Asignación</th></tr></thead>
+        <thead><tr><th>Servicio</th><th>Paciente</th><th>Médico tratante</th></tr></thead>
         <tbody><tr>
           <td><div role="combobox">Medicina</div><input value="404" /></td>
+          <td><a href="/dashboard/encounter-list/141336">Paciente</a></td>
           <td><div role="combobox"> Angelica   Vargas </div><input value="7947" /></td>
         </tr><tr>
           <td><div role="combobox">Cirugía</div><input value="405" /></td>
+          <td><a href="/dashboard/encounter-list/141337">Paciente</a></td>
           <td><div role="combobox">Sin asignación</div><input value="0" /></td>
         </tr></tbody>
       </table>
@@ -132,6 +139,90 @@ describe('Ficha Medico census normalization', () => {
     expect(treatingPhysicianNormalization.assignedFromDocument(document)).toEqual([
       { practitionerId: '7947', displayName: 'Angelica Vargas' },
     ]);
+    expect(treatingPhysicianNormalization.assignedByEncounterFromDocument(document)).toEqual({
+      '141336': { practitionerId: '7947', displayName: 'Angelica Vargas' },
+      '141337': null,
+    });
+  });
+
+  it('resolves a physician from the rendered encounter row when the list response omits it', () => {
+    expect(
+      normalization.normalizeEncounter(
+        { id: 141336 },
+        {},
+        {},
+        false,
+        {},
+        {
+          '141336': { practitionerId: '7947', displayName: 'Angelica Vargas' },
+        }
+      )
+    ).toMatchObject({
+      treatingPhysicianId: '7947',
+      treatingPhysicianName: 'Angelica Vargas',
+    });
+  });
+
+  it('prefers the visible encounter assignment over a stale list assignment', () => {
+    expect(
+      normalization.normalizeEncounter(
+        { id: 141336, healthCarePractitionerAssignedId: 8001 },
+        {},
+        {},
+        false,
+        { '8001': { practitionerId: '8001', displayName: 'Nombre anterior' } },
+        {
+          '141336': { practitionerId: '7947', displayName: 'Angelica Vargas' },
+        }
+      )
+    ).toMatchObject({
+      treatingPhysicianId: '7947',
+      treatingPhysicianName: 'Angelica Vargas',
+    });
+  });
+
+  it('preserves an explicit visible unassignment instead of reviving a stale list value', () => {
+    expect(
+      normalization.normalizeEncounter(
+        { id: 141336, healthCarePractitionerAssignedId: 8001 },
+        {},
+        {},
+        false,
+        { '8001': { practitionerId: '8001', displayName: 'Nombre anterior' } },
+        { '141336': null }
+      )
+    ).toMatchObject({
+      treatingPhysicianId: undefined,
+      treatingPhysicianName: undefined,
+    });
+  });
+
+  it('ignores an incomplete rendered assignment instead of clearing a valid list value', () => {
+    document.body.innerHTML = `
+      <table>
+        <thead><tr><th>Paciente</th><th>Médico tratante</th></tr></thead>
+        <tbody><tr>
+          <td><a href="/dashboard/encounter-list/141336">Paciente</a></td>
+          <td><div role="combobox"></div><input value="7947" /></td>
+        </tr></tbody>
+      </table>
+    `;
+
+    const rendered = treatingPhysicianNormalization.assignedByEncounterFromDocument(document);
+    expect(rendered).toEqual({});
+    expect(
+      normalization.normalizeEncounter(
+        { id: 141336, healthCarePractitionerAssignedId: 7947 },
+        {},
+        {},
+        false,
+        { '7947': { practitionerId: '7947', displayName: 'Angelica Vargas' } },
+        rendered
+      )
+    ).toMatchObject({
+      treatingPhysicianId: '7947',
+      treatingPhysicianName: 'Angelica Vargas',
+    });
   });
 
   it('exposes malformed rendered assignments as a rejected capture promise', async () => {

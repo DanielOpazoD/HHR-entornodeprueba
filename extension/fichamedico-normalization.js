@@ -11,7 +11,7 @@
   const text = value => (value == null ? '' : String(value).trim());
   const record = value => value && typeof value === 'object' ? value : {};
   const isolationNormalization = globalThis.HhrFichaMedicoIsolationNormalization;
-  const treatingPhysicianFields = (item, physicianById) => globalThis.HhrFichaMedicoTreatingPhysicianNormalization?.toEncounterFields(item, physicianById) || {};
+  const treatingPhysicianFields = (item, physicianById, physicianByEncounterId) => globalThis.HhrFichaMedicoTreatingPhysicianNormalization?.toEncounterFields(item, physicianById, physicianByEncounterId) || {};
   const normalizeSessionRole = session => {
     const safeSession = record(session);
     const candidates = [
@@ -85,7 +85,7 @@
     };
   };
 
-  const normalizeEncounter = (item, header, principalDiagnosis, discharged, physicianById) => {
+  const normalizeEncounter = (item, header, principalDiagnosis, discharged, physicianById, physicianByEncounterId) => {
     const safeItem = record(item);
     const patient = record(safeItem.patient);
     const safeHeader = record(header);
@@ -118,7 +118,7 @@
         validClinicalDate(safeItem.medicalDischargeDateTime),
       isDead: Boolean(safeItem.isDead),
       ...isolationNormalization.toEncounterFields(safeItem),
-      isGes: Boolean(safeItem.isGes), ...treatingPhysicianFields(safeItem, physicianById),
+      isGes: Boolean(safeItem.isGes), ...treatingPhysicianFields(safeItem, physicianById, physicianByEncounterId),
     };
   };
 

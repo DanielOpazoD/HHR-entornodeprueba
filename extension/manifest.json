@@ -45,6 +45,7 @@
       "matches": ["https://fichamedico.rayensalud.cl/*"],
       "js": [
         "fichamedico-isolation-normalization.js",
+        "fichamedico-treating-physician-dom.js",
         "fichamedico-treating-physician-sources.js",
         "fichamedico-treating-physician-normalization.js",
         "fichamedico-normalization.js",

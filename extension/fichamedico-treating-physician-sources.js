@@ -7,8 +7,10 @@
   'use strict';
   const text = value => (value == null ? '' : String(value).trim());
   const record = value => (value && typeof value === 'object' ? value : {});
-  const label = value =>
-    text(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const dom = globalThis.HhrFichaMedicoTreatingPhysicianDom || {};
+  const assignedFromDocument = dom.assignedFromDocument || (() => []);
+  const assignedByEncounterFromDocument =
+    dom.assignedByEncounterFromDocument || (() => ({}));
   const flag = value =>
     value === true ||
     value === 1 ||
@@ -80,41 +82,6 @@
     return [...unique.values()];
   };
 
-  const assignmentColumnIndex = table => {
-    const header = [...table.querySelectorAll('th')].find(
-      candidate => label(candidate.textContent) === 'asignacion'
-    );
-    return header ? header.cellIndex : -1;
-  };
-
-  const physicianFromCell = container => {
-    if (!container) return null;
-    const combobox = container.querySelector('[role="combobox"]');
-    const input = container.querySelector('input[value]');
-    const practitionerId = text(input && input.value);
-    const displayName = text(combobox && combobox.textContent).replace(/\s+/g, ' ');
-    return /^\d+$/.test(practitionerId) && practitionerId !== '0' && displayName
-      ? { practitionerId, displayName }
-      : null;
-  };
-
-  const assignedFromTable = table => {
-    const columnIndex = assignmentColumnIndex(table);
-    if (columnIndex < 0) return [];
-    const rows = [];
-    for (const row of table.querySelectorAll('tr')) {
-      const physician = physicianFromCell(row.cells && row.cells[columnIndex]);
-      if (physician) rows.push(physician);
-    }
-    return rows;
-  };
-
-  /** Reads id + name pairs already rendered by Ficha Medico in the current census rows. */
-  const assignedFromDocument = root => {
-    if (!root || typeof root.querySelectorAll !== 'function') return [];
-    return merge(...[...root.querySelectorAll('table')].map(assignedFromTable));
-  };
-
   const catalogUrl = (apiOrigin, facilityId) => {
     const url = new URL('/api/core/healthCarePractitioner/healthCarePractitionerRole', apiOrigin);
     url.searchParams.set('facilityId', facilityId);
@@ -123,12 +90,20 @@
     return url.toString();
   };
 
-  const capture = async ({ apiGet, apiOrigin, facilityId, auth, assignedPhysicians }) => {
+  const capture = async ({
+    apiGet,
+    apiOrigin,
+    facilityId,
+    auth,
+    assignedPhysicians,
+    physicianByEncounterId = {},
+  }) => {
     const rows = await apiGet(catalogUrl(apiOrigin, facilityId), auth).catch(() => []);
     // The visible assignment is stronger evidence than a potentially stale facility catalog.
     const physicians = merge(assignedPhysicians, rows);
     return {
       physicians,
+      physicianByEncounterId,
       physicianById: Object.fromEntries(
         physicians.map(physician => [physician.practitionerId, physician])
       ),
@@ -136,7 +111,18 @@
   };
 
   const captureFromDocument = async options =>
-    capture({ ...options, assignedPhysicians: assignedFromDocument(options.root) });
+    capture({
+      ...options,
+      assignedPhysicians: merge(assignedFromDocument(options.root)),
+      physicianByEncounterId: assignedByEncounterFromDocument(options.root),
+    });
 
-  return { assignedFromDocument, capture, captureFromDocument, merge, normalize };
+  return {
+    assignedByEncounterFromDocument,
+    assignedFromDocument,
+    capture,
+    captureFromDocument,
+    merge,
+    normalize,
+  };
 });

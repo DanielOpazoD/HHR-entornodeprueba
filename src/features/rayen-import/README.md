@@ -103,6 +103,10 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 
 - **Identidad cruzada:** match por `clinicalEpisodeId` (Rayen `encId`) y, para datos legacy sin
   episodio, por RUN solo cuando identifica una única hospitalización candidata.
+- **Médico tratante por episodio:** la extensión usa primero la asignación visible vinculada al
+  `encId` de cada fila de Ficha Médico y conserva el catálogo institucional como respaldo de nombre.
+  Nunca infiere un médico desde la cama, el diagnóstico o la especialidad. Una fila visible sin
+  médico también es autoritativa y elimina una asignación antigua.
 - **Camas:** `Habitacion N`+`Cn`→`H{N}C{n}`; `Recuperacion k`/`Rk`→`Rk` (UTI); `Neo k`→`NEOk`.
 - **CMA = tipo de egreso, no ubicación:** un paciente del servicio CMA (`CMA*`) ocupa la misma
   cama real (`CMAR1→R1`, `CMAN1→NEO1`, …); solo su egreso se traduce a tipo CMA (`record.cma[]`).

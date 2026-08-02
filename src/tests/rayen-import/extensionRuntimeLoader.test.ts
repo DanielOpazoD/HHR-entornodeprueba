@@ -64,6 +64,9 @@ describe('extension heavy runtime loading', () => {
 
     expect(fichaEntries).toHaveLength(2);
     expect(fichaEntries.every(entry => entry.run_at === 'document_start')).toBe(true);
+    expect(scripts.indexOf('fichamedico-treating-physician-dom.js')).toBeLessThan(
+      scripts.indexOf('fichamedico-treating-physician-sources.js')
+    );
     expect(scripts).toContain('inject-fichamedico.js');
     expect(scripts).toContain('content-fichamedico.js');
     expect(scripts).toContain('hhr-center-styles.js');
