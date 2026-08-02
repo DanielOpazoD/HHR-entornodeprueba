@@ -8,6 +8,9 @@ import * as authSession from '@/services/auth/authSession';
 import * as authFallback from '@/services/auth/authFallback';
 import * as authUseCases from '@/application/auth/authSessionUseCases';
 import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
+import type { AuthChannelMessage } from '@/services/auth/authBroadcastChannel';
+
+let emitAuthChannelMessage: ((message: AuthChannelMessage) => void) | undefined;
 
 vi.mock('@/services/auth/authSession', () => ({
   onAuthSessionStateChange: vi.fn(),
@@ -33,9 +36,19 @@ vi.mock('@/services/storage/sessionScopedStorageService', () => ({
   resolveSessionOwnerKey: (uid: string | null | undefined) => (uid ? `user:${uid}` : null),
 }));
 
+vi.mock('@/services/auth/authBroadcastChannel', () => ({
+  onAuthChannelMessage: vi.fn((callback: (message: AuthChannelMessage) => void) => {
+    emitAuthChannelMessage = callback;
+    return () => {
+      if (emitAuthChannelMessage === callback) emitAuthChannelMessage = undefined;
+    };
+  }),
+}));
+
 describe('useAuthState cross-tab logout', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    emitAuthChannelMessage = undefined;
     window.sessionStorage.clear();
     window.localStorage.clear();
     vi.mocked(authFallback.hasActiveFirebaseSession).mockReturnValue(false);
@@ -60,10 +73,7 @@ describe('useAuthState cross-tab logout', () => {
     const { result } = renderHook(() => useAuthState());
 
     await act(async () => {
-      const channel = new BroadcastChannel('hhr_auth_channel');
-      channel.postMessage({ type: 'LOGOUT', reason: 'manual', tabId: 'other-tab' });
-      channel.close();
-      await new Promise(resolve => setTimeout(resolve, 0));
+      emitAuthChannelMessage?.({ type: 'LOGOUT', reason: 'manual', tabId: 'other-tab' });
     });
 
     await waitFor(() => expect(authSession.signOut).toHaveBeenCalledTimes(1));

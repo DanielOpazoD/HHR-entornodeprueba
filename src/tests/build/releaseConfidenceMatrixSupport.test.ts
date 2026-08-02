@@ -15,4 +15,13 @@ describe('releaseConfidenceMatrixSupport', () => {
     expect(markdown).toContain(`Commit: ${report.gitSha}`);
     expect(markdown).toContain(`Worktree: ${report.gitDirty ? 'dirty' : 'clean'}`);
   });
+
+  it('maps every governed release signal to an accountable area', () => {
+    const report = buildReleaseConfidenceMatrixReport(process.cwd());
+
+    expect(report.overall).toBe('ok');
+    expect(report.issues).toEqual([]);
+    expect(report.flowBudgets.unmapped).toEqual([]);
+    expect(report.flowBudgets.mapped).toBe(report.counts.flowBudgets);
+  });
 });

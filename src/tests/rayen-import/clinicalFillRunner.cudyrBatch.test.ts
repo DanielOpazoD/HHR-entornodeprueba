@@ -62,14 +62,19 @@ describe('runClinicalFill historical CUDYR batch', () => {
   });
 
   it('contains an eager batch rejection until each patient can report it normally', async () => {
-    const applyHistoricalCudyrBatch = vi.fn().mockRejectedValue(new Error('write unavailable'));
+    let confirmBatchAttempt: (() => void) | undefined;
+    const batchAttempted = new Promise<void>(resolve => {
+      confirmBatchAttempt = resolve;
+    });
+    const applyHistoricalCudyrBatch = vi.fn().mockImplementation(async () => {
+      confirmBatchAttempt?.();
+      throw new Error('write unavailable');
+    });
     const deps: ClinicalFillDeps = {
-      fetchDeviceReport: vi.fn().mockImplementation(
-        () =>
-          new Promise(resolve => {
-            setTimeout(() => resolve({ base64: '' }), 0);
-          })
-      ),
+      fetchDeviceReport: vi.fn().mockImplementation(async () => {
+        await batchAttempted;
+        return { base64: '' };
+      }),
       extractDeviceItems: vi.fn().mockResolvedValue([]),
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
