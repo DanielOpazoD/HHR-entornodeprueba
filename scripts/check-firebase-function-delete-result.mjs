@@ -13,9 +13,9 @@ const normalizeFirebaseCliOutput = output =>
     .toLowerCase();
 
 const FUNCTION_ABSENCE_PATTERNS = [
-  /the specified filters do not match any existing functions(?: in project [^.]+)?\.?/,
-  /\bno (?:matching )?functions? (?:were )?(?:found|present)\b/,
-  /\bfunctions? [a-z0-9_:-]+ (?:was |were )?(?:not found|does not exist)\b/,
+  /^(?:error:\s*)?the specified filters do not match any existing functions(?: in project [^.]+)?\.?$/,
+  /^(?:error:\s*)?no (?:matching )?functions? (?:were )?(?:found|present)\.?$/,
+  /^(?:error:\s*)?functions? [a-z0-9_:-]+ (?:was |were )?(?:not found|does not exist)\.?$/,
 ];
 
 export const isFirebaseFunctionAlreadyAbsent = output => {

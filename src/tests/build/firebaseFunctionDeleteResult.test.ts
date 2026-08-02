@@ -23,6 +23,7 @@ describe('Firebase retired function deletion', () => {
     'Error: HTTP 403 while deleting function mirrorDailyRecords: permission denied.',
     'Error: Project hhr-pruebas was not found.',
     'Error: Network request failed while deleting function mirrorDailyRecords.',
+    'Error: HTTP 403 permission denied. The specified filters do not match any existing functions.',
   ])('rejects an unrelated deletion failure: %s', output => {
     expect(isFirebaseFunctionAlreadyAbsent(output)).toBe(false);
   });
