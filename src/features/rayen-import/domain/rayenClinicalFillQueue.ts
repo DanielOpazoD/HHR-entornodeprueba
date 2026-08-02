@@ -1,3 +1,8 @@
+import {
+  classifyRayenSyncError,
+  reportRayenSyncWarning,
+} from '../observability/rayenSyncDiagnostics';
+
 export type RayenClinicalFillQueueOutcome = 'completed' | 'drained' | 'superseded';
 
 interface QueueEntry {
@@ -22,8 +27,13 @@ const start = (entry: QueueEntry): void => {
   active = entry;
   void entry
     .task()
-    // The task owns its clinical/audit error reporting. This guard only keeps the queue live.
-    .catch(() => undefined)
+    // The task owns expected clinical/audit failures. This guard records unexpected escapes while
+    // preserving queue liveness and never includes the raw provider error.
+    .catch(error => {
+      reportRayenSyncWarning('clinical_fill_queue_task_failed', {
+        errorKind: classifyRayenSyncError(error),
+      });
+    })
     .finally(() => {
       active = null;
       const next = pending;

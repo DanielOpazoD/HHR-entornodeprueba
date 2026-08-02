@@ -17,6 +17,7 @@ export type RayenSyncDiagnosticCode =
   | 'clinical_batch_shadow_refresh_failed'
   | 'clinical_fill_failed'
   | 'clinical_fill_partial'
+  | 'clinical_fill_queue_task_failed'
   | 'clinical_record_load_failed'
   | 'sync_audit_event_missing'
   | 'sync_audit_persist_failed'
@@ -26,6 +27,7 @@ export type RayenSyncTerminalOutcome = 'complete' | 'partial' | 'failed' | 'canc
 
 interface RayenSyncDiagnosticData {
   runId?: string;
+  batchRunId?: string;
   outcome?: RayenSyncTerminalOutcome;
   failureReason?: RayenSyncFailureReason;
   cancellationReason?: 'operator' | 'superseded';

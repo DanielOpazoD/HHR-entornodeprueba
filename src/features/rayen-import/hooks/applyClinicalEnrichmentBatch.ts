@@ -231,7 +231,7 @@ export const applyClinicalEnrichmentBatch = async ({
       .then(result => result.batch)
       .catch(error => {
         reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
-          runId,
+          batchRunId: runId,
           batchMode: 'shadow',
           errorKind: classifyRayenSyncError(error),
         });

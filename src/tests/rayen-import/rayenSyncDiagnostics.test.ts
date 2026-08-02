@@ -3,23 +3,46 @@ import { classifyRayenSyncError } from '@/features/rayen-import/observability/ra
 
 describe('rayenSyncDiagnostics', () => {
   it.each([
-    [
-      Object.assign(new Error('El registro fue modificado por otro usuario'), { code: 'aborted' }),
-      'concurrency',
-    ],
-    [Object.assign(new Error('write rejected'), { code: 'aborted' }), 'concurrency'],
-    [
-      Object.assign(new Error('deadline exceeded'), { code: 'functions/deadline-exceeded' }),
-      'timeout',
-    ],
-    [Object.assign(new Error('endpoint missing'), { code: 'functions/not-found' }), 'unsupported'],
-    [
-      Object.assign(new Error('Failed to fetch'), { code: 'network-request-failed' }),
-      'unavailable',
-    ],
-    [new Error('El backend devolvió una confirmación inválida'), 'invalid_response'],
-    [new Error('sensitive provider payload'), 'unexpected'],
-  ])('maps operational errors to a bounded category', (error, expected) => {
+    {
+      label: 'concurrent modification',
+      error: Object.assign(new Error('El registro fue modificado por otro usuario'), {
+        code: 'aborted',
+      }),
+      expected: 'concurrency',
+    },
+    {
+      label: 'aborted write',
+      error: Object.assign(new Error('write rejected'), { code: 'aborted' }),
+      expected: 'concurrency',
+    },
+    {
+      label: 'deadline',
+      error: Object.assign(new Error('deadline exceeded'), {
+        code: 'functions/deadline-exceeded',
+      }),
+      expected: 'timeout',
+    },
+    {
+      label: 'missing endpoint',
+      error: Object.assign(new Error('endpoint missing'), { code: 'functions/not-found' }),
+      expected: 'unsupported',
+    },
+    {
+      label: 'network failure',
+      error: Object.assign(new Error('Failed to fetch'), { code: 'network-request-failed' }),
+      expected: 'unavailable',
+    },
+    {
+      label: 'invalid confirmation',
+      error: new Error('El backend devolvió una confirmación inválida'),
+      expected: 'invalid_response',
+    },
+    {
+      label: 'unclassified provider failure',
+      error: new Error('sensitive provider payload'),
+      expected: 'unexpected',
+    },
+  ])('$label maps to $expected', ({ error, expected }) => {
     expect(classifyRayenSyncError(error)).toBe(expected);
   });
 });

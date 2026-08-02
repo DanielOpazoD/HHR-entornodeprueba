@@ -90,7 +90,7 @@ export const useRayenClinicalFill = ({
           freshRecord = await loadDailyRecord(record.date);
         } catch (error) {
           reportRayenSyncWarning('clinical_record_load_failed', {
-            runId: record.rayenSync?.runId,
+            runId: requestedRunId,
             errorKind: classifyRayenSyncError(error),
           });
           await completeRun(

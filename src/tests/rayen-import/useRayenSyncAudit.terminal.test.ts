@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';
 import { logger } from '@/services/utils/loggerService';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
@@ -47,6 +47,11 @@ const deferred = <T>() => {
 };
 
 describe('useRayenSyncAudit terminal outcomes', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    logger.clearEntries();
+  });
+
   it('persists a completed outcome exactly once under concurrent completion callbacks', async () => {
     const pendingWrite = deferred<undefined>();
     const patchDailyRecord = vi.fn().mockReturnValue(pendingWrite.promise);
@@ -140,7 +145,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
       .mockResolvedValueOnce(undefined);
     const ids = ['completion-write-failed', 'next-run'];
     const currentRecordRef = { current: record() };
-    const consoleWarning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     logger.clearEntries();
     const { result } = renderHook(() =>
       useRayenSyncAudit({
@@ -196,8 +201,6 @@ describe('useRayenSyncAudit terminal outcomes', () => {
         }),
       })
     );
-    consoleWarning.mockRestore();
-    logger.clearEntries();
   });
 
   it('keeps completion retryable when neither the terminal event nor its fallback persisted', async () => {
@@ -207,7 +210,7 @@ describe('useRayenSyncAudit terminal outcomes', () => {
       .mockRejectedValueOnce(new Error('fallback unavailable'))
       .mockResolvedValueOnce(undefined);
     const currentRecordRef = { current: record() };
-    const consoleWarning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const { result } = renderHook(() =>
       useRayenSyncAudit({
         currentRecordRef,
@@ -233,8 +236,6 @@ describe('useRayenSyncAudit terminal outcomes', () => {
         rayenSyncHistory: [expect.objectContaining({ id: 'retryable-run', status: 'complete' })],
       })
     );
-    consoleWarning.mockRestore();
-    logger.clearEntries();
   });
 
   it('fails the correlated older run without terminalizing a newer active capture', async () => {

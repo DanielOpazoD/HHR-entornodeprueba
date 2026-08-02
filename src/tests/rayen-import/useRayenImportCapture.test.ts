@@ -98,6 +98,54 @@ describe('useRayenImportCapture', () => {
     expect(previewSnapshot).toHaveBeenCalledWith('snapshot', 'bundle', 'run-1');
   });
 
+  it('terminalizes the correlated run when its extension request times out', () => {
+    const setState = vi.fn();
+    const startRequest = vi.fn();
+    const failRun = vi.fn().mockResolvedValue(undefined);
+    const recordRunPerformance = vi.fn();
+    const syncTargetRef: { current: CensusSyncTarget | null } = { current: null };
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        setState,
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue('run-1'),
+        },
+        syncTargetRef,
+        startRun: vi.fn(() => ({
+          id: 'run-1',
+          startedAt: '2026-08-02T10:00:00.000Z',
+          by: 'Operador HHR',
+        })),
+        failRun,
+        recordRunPerformance,
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+    const onTimeout = startRequest.mock.calls[0]?.[3] as () => void;
+
+    act(() => onTimeout());
+
+    expect(syncTargetRef.current).toBeNull();
+    expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { timeouts: 1 } }, 'run-1');
+    expect(failRun).toHaveBeenCalledWith('snapshot_timeout', 'run-1');
+    const stateUpdater = setState.mock.calls.at(-1)?.[0] as (
+      state: typeof INITIAL_RAYEN_IMPORT_STATE
+    ) => typeof INITIAL_RAYEN_IMPORT_STATE;
+    expect(stateUpdater({ ...INITIAL_RAYEN_IMPORT_STATE, isSyncing: true })).toEqual(
+      expect.objectContaining({ isSyncing: false, error: expect.any(String) })
+    );
+  });
+
   it('closes the request and terminalizes the active run when the extension reports an error', () => {
     const clearSyncTimeout = vi.fn();
     const failRun = vi.fn().mockResolvedValue(undefined);

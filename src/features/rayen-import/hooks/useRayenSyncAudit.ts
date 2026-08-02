@@ -94,7 +94,8 @@ export const useRayenSyncAudit = ({
   createId = defaultCreateId,
   monotonicNow = Date.now,
 }: UseRayenSyncAuditInput) => {
-  const lifecycleRef = useRef(createRayenSyncRunLifecycle());
+  const lifecycleRef = useRef<ReturnType<typeof createRayenSyncRunLifecycle> | null>(null);
+  lifecycleRef.current ??= createRayenSyncRunLifecycle();
   const lifecycle = lifecycleRef.current;
 
   const persistMetadataPatch = useCallback(

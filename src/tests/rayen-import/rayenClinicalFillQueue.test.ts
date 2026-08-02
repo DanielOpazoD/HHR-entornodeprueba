@@ -3,8 +3,13 @@ import {
   enqueueLatestRayenClinicalFill,
   resetRayenClinicalFillQueueForTests,
 } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
+import { logger } from '@/services/utils/loggerService';
 
-afterEach(() => resetRayenClinicalFillQueueForTests());
+afterEach(() => {
+  resetRayenClinicalFillQueueForTests();
+  vi.restoreAllMocks();
+  logger.clearEntries();
+});
 
 describe('rayen clinical fill queue', () => {
   it('coalesces duplicate requests for the same applied run', async () => {
@@ -37,5 +42,28 @@ describe('rayen clinical fill queue', () => {
     release();
     await expect(Promise.all([active, latest])).resolves.toEqual(['completed', 'drained']);
     expect(order).toEqual(['run-1', 'run-3']);
+  });
+
+  it('records unexpected task failures without leaking details or blocking the next run', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const failed = enqueueLatestRayenClinicalFill('run-1', async () => {
+      throw new Error('sensitive provider detail');
+    });
+    await expect(failed).resolves.toBe('drained');
+
+    const nextTask = vi.fn().mockResolvedValue(undefined);
+    await expect(enqueueLatestRayenClinicalFill('run-2', nextTask)).resolves.toBe('drained');
+
+    expect(nextTask).toHaveBeenCalledTimes(1);
+    expect(logger.getEntries()).toContainEqual(
+      expect.objectContaining({
+        level: 'warn',
+        message: 'clinical_fill_queue_task_failed',
+        context: 'RayenSync',
+        data: { errorKind: 'unexpected' },
+      })
+    );
+    expect(JSON.stringify(logger.getEntries())).not.toContain('sensitive provider detail');
   });
 });

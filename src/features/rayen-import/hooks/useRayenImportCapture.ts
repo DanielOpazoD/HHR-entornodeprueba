@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from 'react';
+import { useCallback, useEffect, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { CensusSyncTarget } from '../domain/historicalCensusSync';
@@ -26,7 +20,7 @@ interface UseRayenImportCaptureInput {
   setStaffingProposalError: Dispatch<SetStateAction<string | null>>;
   clearSyncTimeout: () => void;
   syncRequestController: RayenSyncRequestController;
-  syncTargetRef: MutableRefObject<CensusSyncTarget | null>;
+  syncTargetRef: RefObject<CensusSyncTarget | null>;
   startRun: (
     health?: RayenExtensionHealthState,
     performance?: RayenSyncPerformanceDelta

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { logger } from '@/services/utils/loggerService';
@@ -46,6 +46,11 @@ const deps = (overrides: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
 });
 
 describe('runClinicalFill performance pipeline', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    logger.clearEntries();
+  });
+
   it('starts devices, history and forms together so slow source waits are not additive', async () => {
     let releaseDevice: ((value: { base64: string }) => void) | undefined;
     const fetchDeviceReport = vi.fn(
@@ -254,7 +259,7 @@ describe('runClinicalFill performance pipeline', () => {
 
   it('reports a bounded correlated diagnostic when the shadow observer throws', async () => {
     const observeBatch = vi.fn().mockRejectedValue(new Error('sensitive provider detail'));
-    const consoleWarning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     logger.clearEntries();
 
     const summary = await runClinicalFill(
@@ -283,8 +288,6 @@ describe('runClinicalFill performance pipeline', () => {
       })
     );
     expect(JSON.stringify(logger.getEntries())).not.toContain('sensitive provider detail');
-    consoleWarning.mockRestore();
-    logger.clearEntries();
   });
 
   it('persists legacy patches before waiting for the bounded shadow parity result', async () => {
