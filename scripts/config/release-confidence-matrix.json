@@ -13,7 +13,7 @@
         "e2e_critical_ci"
       ],
       "smokeScenarios": ["cold_boot", "login"],
-      "flowBudgets": ["loginVisibleMs", "authFeedbackMs"],
+      "flowBudgets": ["loginVisibleMs", "authFeedbackMs", "logoutToLoginVisibleMs"],
       "validationSuites": ["test:risk:auth"]
     },
     {
