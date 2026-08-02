@@ -115,7 +115,7 @@ const Badge: React.FC<{ className: string; children: React.ReactNode }> = ({
 );
 
 export const BradenCard: React.FC<{ braden: BradenCellModel }> = ({ braden }) => {
-  const t = tokensFor(braden.assessment.riskLevel);
+  const t = tokensFor(braden.displayLevel);
   return (
     <ScoreCard
       icon={<Bandage size={16} />}
@@ -124,7 +124,7 @@ export const BradenCard: React.FC<{ braden: BradenCellModel }> = ({ braden }) =>
       value={String(braden.total)}
       valueClass={t.number}
       accentClass={t.accent}
-      badge={<Badge className={t.chip}>{braden.assessment.conducta.riskLabel}</Badge>}
+      badge={<Badge className={t.chip}>{braden.severityLabel}</Badge>}
       recordedDate={braden.entry.recordedDate}
       applicationDate={braden.application.recordedDate}
       applicationArchived={braden.application.archived}
@@ -141,7 +141,7 @@ export const BradenCard: React.FC<{ braden: BradenCellModel }> = ({ braden }) =>
 };
 
 export const DowntonCard: React.FC<{ downton: DowntonCellModel }> = ({ downton }) => {
-  const t = tokensFor(downton.level);
+  const t = tokensFor(downton.displayLevel);
   return (
     <ScoreCard
       icon={<Footprints size={16} />}

@@ -6,6 +6,7 @@
  */
 
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
+import { parseSourceRiskLevel } from '@/domain/evaluationScales/sourceRiskSeverity';
 
 /** One risk-level's palette, reused across chips, big numbers, accents and timeline dots. */
 export interface LevelTokens {
@@ -81,10 +82,4 @@ export const formatIsoDay = (isoDay: string): string => {
 };
 
 /** Derive a risk level from a source severity text ("Riesgo alto" → 'alto') for history coloring. */
-export const severityLevel = (severity: string | null): BradenRiskLevel | null => {
-  const value = (severity ?? '').toLowerCase();
-  if (value.includes('alto')) return 'alto';
-  if (value.includes('medio') || value.includes('moderad')) return 'medio';
-  if (value.includes('bajo')) return 'bajo';
-  return null;
-};
+export const severityLevel = parseSourceRiskLevel;

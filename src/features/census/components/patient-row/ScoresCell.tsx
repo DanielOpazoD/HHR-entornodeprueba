@@ -84,7 +84,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                   icon={Bandage}
                   label="Braden"
                   value={String(model.braden.total)}
-                  severity={model.braden.assessment.riskLevel}
+                  severity={model.braden.displayLevel}
                   countdown={model.braden.chipCountdown}
                   countdownUrgent={model.braden.assessment.reapplication.urgency !== 'ok'}
                   note={{
@@ -94,7 +94,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                     author: model.braden.entry.author,
                     authorRole: model.braden.entry.authorRole,
                     detail: [
-                      model.braden.assessment.conducta.riskLabel,
+                      model.braden.severityLabel,
                       latestApplicationDetail(model.braden.entry, model.braden.application),
                     ]
                       .filter(Boolean)
@@ -108,7 +108,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                   icon={Footprints}
                   label="Downton"
                   value={String(model.downton.total)}
-                  severity={model.downton.level}
+                  severity={model.downton.displayLevel}
                   countdown={model.downton.chipCountdown}
                   countdownUrgent={
                     !!model.downton.reapplication && model.downton.reapplication.urgency !== 'ok'

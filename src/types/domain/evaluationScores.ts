@@ -2,10 +2,10 @@
  * Stored model for nursing evaluation scales (risk scales) on a patient: Escala de riesgo UPP
  * (Braden) and Escala de Riesgo de caídas (Downton). Populated by the Rayen sync from Ficha Médico.
  *
- * Kept intentionally lean and derivation-free: the total + severity + recorded day are stored, while
- * the RISK LEVEL, the planned care ("conducta") and the reapplication due-date are DERIVED at display
- * time from the total + patient age + reference day (see `@/domain/evaluationScales/bradenRisk`). This
- * keeps records small and lets the clinical thresholds evolve without a data migration.
+ * Kept intentionally lean: total + Eloísa severity + recorded day are stored. The source severity
+ * owns the classification shown to users, while planned care ("conducta") and reapplication due-date
+ * remain derived from HHR's local policy (see `@/domain/evaluationScales/bradenRisk`). Keeping those
+ * responsibilities separate lets either contract evolve without rewriting stored records.
  */
 
 export type EvaluationScaleCode = 'BRADEN' | 'DOWNTON';
