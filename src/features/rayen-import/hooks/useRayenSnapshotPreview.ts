@@ -35,6 +35,7 @@ import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import { elapsedMilliseconds, isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
+import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
 
 interface UseRayenSnapshotPreviewInput {
   currentRecord: DailyRecord | null | undefined;
@@ -85,7 +86,11 @@ export const useRayenSnapshotPreview = ({
       }
       const run = ensureRun();
       recordRunPerformance(
-        { stagesMs: { dualCapture: elapsedMilliseconds(Date.parse(run.startedAt)) } },
+        buildRayenCapturePerformance(
+          snapshot,
+          planningSnapshot,
+          elapsedMilliseconds(Date.parse(run.startedAt))
+        ),
         run.id
       );
       const reconciliationStartedAt = Date.now();

@@ -32,7 +32,8 @@ export const mergeRayenSyncPerformance = (
   for (const key of Object.keys(EMPTY_COUNTERS) as Array<keyof typeof EMPTY_COUNTERS>) {
     counters[key] = safeInteger(counters[key]) + safeInteger(delta?.counters?.[key]);
   }
-  return { stagesMs, counters };
+  const sourceQuality = delta?.sourceQuality ?? merged.sourceQuality;
+  return { stagesMs, counters, ...(sourceQuality ? { sourceQuality } : {}) };
 };
 
 export const elapsedMilliseconds = (startedAt: number, now = Date.now()): number =>

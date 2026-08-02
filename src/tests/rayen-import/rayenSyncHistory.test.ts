@@ -11,6 +11,7 @@ import {
   upsertRayenSyncEvent,
   type RayenSyncRun,
 } from '@/features/rayen-import/domain/rayenSyncHistory';
+import { mergeRayenSyncPerformance } from '@/features/rayen-import/domain/rayenSyncPerformance';
 
 const run = (id = 'run-1', startedAt = '2026-07-14T10:00:00.000Z'): RayenSyncRun => ({
   id,
@@ -181,6 +182,35 @@ describe('rayen sync history', () => {
 
     expect(completed.performance).toEqual(performance);
     expect(JSON.stringify(completed.performance)).not.toMatch(/rut|patientName|bedId|encounterId/i);
+  });
+
+  it('preserves source-quality evidence when later stages add performance counters', () => {
+    const sourceQuality = {
+      treatingPhysicians: {
+        encounters: 10,
+        catalogEntries: 12,
+        assignedEncounters: 8,
+        sourceResolvedNames: 6,
+        plannedResolvedNames: 8,
+      },
+    };
+    const merged = mergeRayenSyncPerformance(
+      {
+        stagesMs: { dualCapture: 500 },
+        counters: { requests: 2, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+        sourceQuality,
+      },
+      { stagesMs: { clinicalReads: 1_000 }, counters: { requests: 4, patches: 1 } }
+    );
+
+    expect(merged).toMatchObject({
+      stagesMs: { dualCapture: 500, clinicalReads: 1_000 },
+      counters: { requests: 6, patches: 1 },
+      sourceQuality,
+    });
+    expect(JSON.stringify(merged?.sourceQuality)).not.toMatch(
+      /Angelica|11\.111\.111|H1C1|episode-1/i
+    );
   });
 
   it('persists a privacy-safe explanation for ambiguous staffing evidence', () => {

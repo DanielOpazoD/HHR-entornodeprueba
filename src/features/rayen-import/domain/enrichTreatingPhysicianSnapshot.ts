@@ -5,7 +5,7 @@ import {
 } from '@/services/staff/treatingPhysicianCatalog';
 import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
 
-/** Adds configured HHR specialties to an ephemeral planning snapshot. */
+/** Restores physician display names and adds configured specialties to a planning snapshot. */
 export const enrichSnapshotWithTreatingPhysicianSpecialties = (
   snapshot: RayenCensusSnapshot,
   catalog: ProfessionalCatalogItem[]
@@ -18,10 +18,20 @@ export const enrichSnapshotWithTreatingPhysicianSpecialties = (
       encounter.treatingPhysicianId,
       encounter.treatingPhysicianName
     );
+    const name = encounter.treatingPhysicianName?.trim() || entry?.name.trim();
     const specialty = professionalSpecialtyToPatientSpecialty(entry?.specialty);
-    if (!specialty || specialty === encounter.treatingPhysicianSpecialty) return encounter;
+    if (
+      (!name || name === encounter.treatingPhysicianName) &&
+      (!specialty || specialty === encounter.treatingPhysicianSpecialty)
+    ) {
+      return encounter;
+    }
     changed = true;
-    return { ...encounter, treatingPhysicianSpecialty: specialty };
+    return {
+      ...encounter,
+      treatingPhysicianName: name || encounter.treatingPhysicianName,
+      treatingPhysicianSpecialty: specialty || encounter.treatingPhysicianSpecialty,
+    };
   });
   return changed ? { ...snapshot, encounters } : snapshot;
 };

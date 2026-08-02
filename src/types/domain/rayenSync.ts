@@ -108,6 +108,15 @@ export interface RayenSyncSource {
   gestionCamas?: RayenExtensionEndpointStatus;
 }
 
+/** Aggregate physician-source evidence. Names and stable practitioner ids are never persisted. */
+export interface RayenTreatingPhysicianSourceQuality {
+  encounters: number;
+  catalogEntries: number;
+  assignedEncounters: number;
+  sourceResolvedNames: number;
+  plannedResolvedNames: number;
+}
+
 /** Aggregate-only performance evidence. It must never contain patient or clinical identifiers. */
 export interface RayenSyncPerformance {
   stagesMs: Partial<{
@@ -126,11 +135,15 @@ export interface RayenSyncPerformance {
     retries: number;
     timeouts: number;
   };
+  sourceQuality?: {
+    treatingPhysicians?: RayenTreatingPhysicianSourceQuality;
+  };
 }
 
 export interface RayenSyncPerformanceDelta {
   stagesMs?: RayenSyncPerformance['stagesMs'];
   counters?: Partial<RayenSyncPerformance['counters']>;
+  sourceQuality?: RayenSyncPerformance['sourceQuality'];
 }
 
 export interface RayenSyncEvent {

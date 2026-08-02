@@ -108,6 +108,101 @@ describe('historical census synchronization', () => {
     });
   });
 
+  it('combines safe crib and physician-name backfills while excluding unrelated fields', () => {
+    const record = {
+      ...historicalRecord,
+      beds: {
+        ...historicalRecord.beds,
+        H4C2: {
+          ...historicalRecord.beds.H4C2,
+          treatingPhysicianId: '7947',
+          treatingPhysicianName: '',
+          specialty: 'Med Interna',
+        },
+      },
+    } as DailyRecord;
+    const incomingPatient = {
+      ...record.beds.H4C2,
+      treatingPhysicianName: 'Angelica Vargas',
+      specialty: 'Psiquiatría',
+      clinicalCrib: {
+        patientName: 'RN asociado',
+        clinicalEpisodeId: 'RN-EPISODE',
+        admissionDate: '2026-07-15',
+      },
+    };
+    const candidate = {
+      ...liveDiff,
+      updates: [
+        {
+          bedId: 'H4C2',
+          patientName: incomingPatient.patientName,
+          rut: incomingPatient.rut,
+          patient: incomingPatient,
+          source: {
+            encounterId: 'RN-EPISODE',
+            clinicalCribParentBedId: 'H4C2',
+            hasMedicalDischarge: false,
+          },
+          changes: [
+            { field: 'clinicalCrib', from: undefined, to: incomingPatient.clinicalCrib },
+            { field: 'treatingPhysicianName', from: '', to: 'Angelica Vargas' },
+            { field: 'specialty', from: 'Med Interna', to: 'Psiquiatría' },
+          ],
+        },
+      ],
+    } as CensusImportDiff;
+
+    const diff = toSafeHistoricalDiff(candidate, record);
+
+    expect(diff.updates).toHaveLength(1);
+    expect(diff.updates[0].changes).toEqual([
+      { field: 'clinicalCrib', from: undefined, to: incomingPatient.clinicalCrib },
+      { field: 'treatingPhysicianName', from: '', to: 'Angelica Vargas' },
+    ]);
+    expect(diff.updates[0].patient).toMatchObject({
+      specialty: 'Med Interna',
+      treatingPhysicianName: 'Angelica Vargas',
+      clinicalCrib: incomingPatient.clinicalCrib,
+    });
+    expect(diff.summary.updates).toBe(1);
+  });
+
+  it('never projects a changed physician identity or overwrites a historical physician name', () => {
+    const record = {
+      ...historicalRecord,
+      beds: {
+        ...historicalRecord.beds,
+        H4C2: {
+          ...historicalRecord.beds.H4C2,
+          treatingPhysicianId: '7947',
+          treatingPhysicianName: 'Médica histórica',
+        },
+      },
+    } as DailyRecord;
+    const candidate = {
+      ...liveDiff,
+      updates: [
+        {
+          bedId: 'H4C2',
+          patientName: record.beds.H4C2.patientName,
+          rut: record.beds.H4C2.rut,
+          patient: {
+            ...record.beds.H4C2,
+            treatingPhysicianId: '8001',
+            treatingPhysicianName: 'Médico actual',
+          },
+          changes: [
+            { field: 'treatingPhysicianId', from: '7947', to: '8001' },
+            { field: 'treatingPhysicianName', from: 'Médica histórica', to: 'Médico actual' },
+          ],
+        },
+      ],
+    } as CensusImportDiff;
+
+    expect(toSafeHistoricalDiff(candidate, record).updates).toEqual([]);
+  });
+
   it('retains only a reviewable attached-crib backfill that already existed on that day', () => {
     const child = {
       patientName: 'RN de Paciente principal',
