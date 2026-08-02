@@ -54,9 +54,9 @@ describe('clinical sync simulator · Rayen acceptance contract', () => {
       conflicts: 0,
       pendingAdministrativeDischarges: 0,
     });
-    expect(firstPlan.activeClinicalEpisodeIds).not.toEqual(
-      expect.arrayContaining(scenario.episodes.pavilionRecovery)
-    );
+    for (const excludedEpisodeId of scenario.episodes.pavilionRecovery) {
+      expect(firstPlan.activeClinicalEpisodeIds).not.toContain(excludedEpisodeId);
+    }
 
     const firstApply = applyCensusImportDiff(scenario.current, firstPlan, applyContext(1));
 
@@ -86,10 +86,11 @@ describe('clinical sync simulator · Rayen acceptance contract', () => {
     const activeEpisodeIds = Object.values(firstApply.record.beds).map(
       patient => patient?.clinicalEpisodeId
     );
-    expect(activeEpisodeIds).not.toEqual(
-      expect.arrayContaining(scenario.episodes.pavilionRecovery)
-    );
+    for (const excludedEpisodeId of scenario.episodes.pavilionRecovery) {
+      expect(activeEpisodeIds).not.toContain(excludedEpisodeId);
+    }
 
+    const projectionBeforeReplay = structuredClone(clinicalProjection(firstApply.record));
     const repeatedPlan = planRayenCensusImport({
       current: firstApply.record,
       snapshot: scenario.snapshot,
@@ -107,6 +108,6 @@ describe('clinical sync simulator · Rayen acceptance contract', () => {
     const repeatedApply = applyCensusImportDiff(firstApply.record, repeatedPlan, applyContext(2));
     expect(repeatedApply.applied).toEqual({ admissions: 0, updates: 0, moves: 0, discharges: 0 });
     expect(repeatedApply.skipped).toEqual([]);
-    expect(clinicalProjection(repeatedApply.record)).toEqual(clinicalProjection(firstApply.record));
+    expect(clinicalProjection(repeatedApply.record)).toEqual(projectionBeforeReplay);
   });
 });
