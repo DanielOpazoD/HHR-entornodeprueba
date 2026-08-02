@@ -106,7 +106,7 @@ jobs:
             set -e
 
             if [ "$status" -ne 0 ]; then
-              if echo "$output" | grep -Eiq 'not found|does not exist|no function'; then
+              if printf '%s\n' "$output" | node scripts/check-firebase-function-delete-result.mjs; then
                 echo "Retired Firebase function was already absent: ${function_name}"
               else
                 echo "$output"
