@@ -111,7 +111,9 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.census.test.ts',
       'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.dmi-episode.test.ts',
       'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.handoff.test.ts',
+      'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.rayen-acceptance.test.ts',
       'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.test.ts',
+      'src/tests/support/clinicalSyncSimulator/rayenSyncAcceptanceFixtures.ts',
     ],
   }),
   'test-runtime-governance': reportNode({
@@ -128,8 +130,10 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
       'src/tests/build/ciWorkflowGovernance.test.ts',
       'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.census.test.ts',
       'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.dmi-episode.test.ts',
+      'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.rayen-acceptance.test.ts',
       'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.test.ts',
       'src/tests/support/clinicalSyncSimulator/clinicalSyncSimulatorFixtures.ts',
+      'src/tests/support/clinicalSyncSimulator/rayenSyncAcceptanceFixtures.ts',
     ],
   }),
   'unit-shard-runtime-profile': reportNode({

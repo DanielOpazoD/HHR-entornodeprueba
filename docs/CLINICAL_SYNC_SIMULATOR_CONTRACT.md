@@ -1,6 +1,6 @@
 # Clinical Sync Simulator Contract
 
-**Estado:** vigente para PR #163.
+**Estado:** vigente.
 **Ambito:** censo diario, entrega de turno enfermeria, entrega de turno medica, replay offline y conflictos multi-PC.
 **Fuente:** `src/tests/support/clinicalSyncSimulator/`.
 
@@ -28,6 +28,7 @@ La verdad final no es el ultimo navegador que escribio. En este modelo la verdad
 | DMI                | edicion compatible de vias/dispositivos con cambios remotos en otros campos; replay stale de DMI no revive dispositivos sobre cama disponible.                                                       |
 | Entrega enfermeria | notas dia/noche y novedades preservadas cuando pertenecen al mismo episodio.                                                                                                                         |
 | Entrega medica     | notas por especialidad, `medicalHandoffEntries` por `id`, rechazo de entradas stale de otro episodio y consistencia de `medicalHandoffNovedades`.                                                    |
+| Aceptacion Rayen   | composicion de ingreso, movimiento, actualizacion, cuna RN, medico tratante y exclusion P-R1/P-R2; una segunda ejecucion identica no produce mutaciones clinicas.                                    |
 | Observabilidad     | eventos `queued`, `accepted`, `auto_merged`, `already_applied` y `blocked` con fecha, modulo, paths, mutation/client/tab y resumen de paciente/cama cuando existe.                                   |
 
 ## Invariantes que debe hacer fallar el gate
@@ -38,6 +39,8 @@ La verdad final no es el ultimo navegador que escribio. En este modelo la verdad
 - Un movimiento de cama no puede perder diagnostico, RUT ni `clinicalEpisodeId`.
 - Dos clientes stale editando el mismo campo clinico incompatible deben quedar `blocked` o `needs_review`.
 - La misma `mutationId` reintentada debe ser `already_applied`, sin duplicar movimientos ni entradas.
+- El mismo snapshot Rayen aplicado por segunda vez debe producir cero ingresos, actualizaciones,
+  movimientos, egresos, conflictos y pendientes administrativos.
 - DMI, notas y handoff medico no pueden cruzar paciente, cama vieja o episodio clinico.
 
 ## Brechas deliberadas

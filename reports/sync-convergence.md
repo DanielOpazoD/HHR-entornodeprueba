@@ -1,10 +1,10 @@
 # Sync Convergence Evidence
 
-- Generated: 2026-07-05T21:29:38.314Z
-- Git SHA: `97df59fb`
+- Generated: 2026-08-02T04:58:07.936Z
+- Git SHA: `515a0fa6`
 - Worktree: `clean`
 - Status: `ready`
-- Checks: `18/18` passing
+- Checks: `19/19` passing
 
 ## Sections
 
@@ -13,7 +13,7 @@
 | Post-merge convergence | OK | 5/5 |
 | Authority replay traceability | OK | 4/4 |
 | Conservative recovery readiness | OK | 5/5 |
-| Clinical sync simulator | OK | 4/4 |
+| Clinical sync simulator | OK | 5/5 |
 
 ## Post-merge convergence
 
@@ -62,6 +62,8 @@
   - Evidence: `src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.census.test.ts`
 - OK `handoff-replay-scenarios`: Nursing and medical handoff scenarios cover stale replay, parallel specialties and entry-level merge semantics.
   - Evidence: `src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.handoff.test.ts`
+- OK `rayen-acceptance-idempotence`: A fictional end-to-end Rayen scenario composes census planning/application and proves a repeated snapshot is a clinical no-op.
+  - Evidence: `src/tests/support/clinicalSyncSimulator/clinicalSyncSimulator.rayen-acceptance.test.ts`, `src/tests/support/clinicalSyncSimulator/rayenSyncAcceptanceFixtures.ts`
 
 ## Validation Commands
 
