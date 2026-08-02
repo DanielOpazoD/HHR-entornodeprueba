@@ -1,16 +1,16 @@
 {
   "reportId": "sync-convergence",
-  "generatedAt": "2026-08-02T04:29:52.490Z",
-  "gitSha": "2e41fe4e",
+  "generatedAt": "2026-08-02T04:58:07.936Z",
+  "gitSha": "515a0fa6",
   "gitDirty": false,
   "generatedFor": {
-    "gitSha": "2e41fe4e",
+    "gitSha": "515a0fa6",
     "gitDirty": false,
-    "treeHash": "a0ae7a22dd89055d37a7660fb0e076a897bb8733",
+    "treeHash": "216ec37b6522aa528b1c66d74c33e9278dcf430c",
     "reportId": "sync-convergence",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "ea5d0db7f550ded37b8678b66b02d0196193ad1f1cebdcc4d61fb1c654a5ff72",
+      "value": "6840f76a3406e81642426dea9fc93fe3f7be3f173b3809712d86b870f60cafc6",
       "files": [
         "docs/CLINICAL_SYNC_SIMULATOR_CONTRACT.md",
         "docs/clinical-sync-simulator.md",
