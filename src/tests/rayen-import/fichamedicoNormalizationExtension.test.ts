@@ -145,6 +145,25 @@ describe('Ficha Medico census normalization', () => {
     });
   });
 
+  it('reads the live physician input value when React did not render a value attribute', () => {
+    document.body.innerHTML = `
+      <table>
+        <thead><tr><th>Paciente</th><th>Médico tratante</th></tr></thead>
+        <tbody><tr>
+          <td><a href="/dashboard/encounter-list/141336">Paciente</a></td>
+          <td><div role="combobox">Angelica Vargas</div><input /></td>
+        </tr></tbody>
+      </table>
+    `;
+    const input = document.querySelector('tbody input') as HTMLInputElement;
+    input.value = '7947';
+
+    expect(input.hasAttribute('value')).toBe(false);
+    expect(treatingPhysicianNormalization.assignedByEncounterFromDocument(document)).toEqual({
+      '141336': { practitionerId: '7947', displayName: 'Angelica Vargas' },
+    });
+  });
+
   it('resolves a physician from the rendered encounter row when the list response omits it', () => {
     expect(
       normalization.normalizeEncounter(

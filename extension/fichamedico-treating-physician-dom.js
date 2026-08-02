@@ -20,7 +20,7 @@
   const physicianFromCell = container => {
     if (!container) return undefined;
     const combobox = container.querySelector('[role="combobox"]');
-    const input = container.querySelector('input[value]');
+    const input = container.querySelector('input[value]') || container.querySelector('input');
     const practitionerId = text(input && input.value);
     const displayName = text(combobox && combobox.textContent).replace(/\s+/g, ' ');
     if (practitionerId === '0') return null;
