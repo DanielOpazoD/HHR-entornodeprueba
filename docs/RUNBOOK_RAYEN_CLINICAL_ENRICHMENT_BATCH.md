@@ -27,6 +27,11 @@ solo el `mutationId` se conserva entre reintentos de transporte de esa misma eje
   revisión, episodio o allowlist se muestran como conflicto y tampoco hacen fallback silencioso.
   Solo se activa explícitamente después de la promoción operativa basada en el gate de paridad.
 
+El cliente resuelve uno de estos modos una sola vez al iniciar cada ejecución y lo traduce a una
+estrategia discriminada: escritura inmediata (`off`), escritura inmediata con observación posterior
+(`shadow`) o autoridad diferida al lote (`enforced`). El runner no admite combinar observador y
+autoridad en una misma ejecución; así se conserva un único propietario de cada escritura clínica.
+
 La ausencia del flag resuelve a `off`. Esto es intencional: si el despliegue de Functions no ocurrió,
 un navegador puede presentar el `404` del callable como un error CORS indistinguible de un fallo de
 transporte. El cliente no debe arriesgar una segunda escritura tras una respuesta ambigua.

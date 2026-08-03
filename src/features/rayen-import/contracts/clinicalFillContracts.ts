@@ -44,10 +44,8 @@ export interface ClinicalFillDeps {
     items: HistoricalCudyrBatchItem[]
   ) => Promise<HistoricalCudyrBatchItemResult[]>;
   applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
-  /** Optional request-scoped atomic persistence. Omit to preserve the established per-patient path. */
-  applyBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
-  /** Optional shadow observer; never owns or delays the established per-patient persistence. */
-  observeBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchEvidence>;
+  /** Selects exactly one persistence owner for the whole fill run. */
+  persistenceStrategy?: ClinicalFillPersistenceStrategy;
   now: () => Date;
   createId: () => string;
   monotonicNow?: () => number;
@@ -79,6 +77,24 @@ export interface ClinicalFillBatchApplyResult {
   failures?: ClinicalFillBatchApplyFailure[];
   batch?: ClinicalFillBatchEvidence;
 }
+
+/**
+ * A run may write each patient immediately, observe those writes afterwards, or defer all
+ * writes to one authority batch. The discriminant prevents mixed ownership configurations.
+ */
+export type ClinicalFillPersistenceStrategy =
+  | {
+      disposition: 'immediate';
+      persist: (operations: ClinicalFillPatchOperation[]) => Promise<void>;
+    }
+  | {
+      disposition: 'observe';
+      persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchEvidence>;
+    }
+  | {
+      disposition: 'deferred';
+      persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
+    };
 
 export interface ClinicalFillBatchApplyFailure {
   index: number;
