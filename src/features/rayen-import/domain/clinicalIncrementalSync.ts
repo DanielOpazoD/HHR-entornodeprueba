@@ -148,29 +148,27 @@ export const mergeClinicalSourceCheckpoint = (
   const latestWatermark = [previous?.watermark ?? '', watermarks[0] ?? '']
     .filter(Boolean)
     .sort((left, right) => compareWatermarks(right, left))[0];
+  const successfulValidationAt = options.fullValidationAt ?? previous?.lastFullValidationAt;
+  const successfulValidationLookbackDays =
+    options.fullValidationAt !== undefined
+      ? options.fullValidationLookbackDays
+      : previous?.lastFullValidationLookbackDays;
+  const validationAttemptAt =
+    options.fullValidationAttemptAt ?? previous?.lastFullValidationAttemptAt;
+  const validationAttemptLookbackDays =
+    options.fullValidationAttemptAt !== undefined
+      ? options.fullValidationLookbackDays
+      : previous?.lastFullValidationAttemptLookbackDays;
   const sourceCheckpoint: ClinicalSyncSourceCheckpoint = {
     ...(latestWatermark ? { watermark: latestWatermark } : {}),
-    ...(options.fullValidationAt || previous?.lastFullValidationAt
-      ? { lastFullValidationAt: options.fullValidationAt ?? previous?.lastFullValidationAt }
+    ...(successfulValidationAt ? { lastFullValidationAt: successfulValidationAt } : {}),
+    ...(successfulValidationAt && successfulValidationLookbackDays !== undefined
+      ? { lastFullValidationLookbackDays: successfulValidationLookbackDays }
       : {}),
-    ...(options.fullValidationAt && options.fullValidationLookbackDays
-      ? { lastFullValidationLookbackDays: options.fullValidationLookbackDays }
-      : previous?.lastFullValidationLookbackDays
-        ? { lastFullValidationLookbackDays: previous.lastFullValidationLookbackDays }
-        : {}),
-    ...(options.fullValidationAttemptAt || previous?.lastFullValidationAttemptAt
-      ? {
-          lastFullValidationAttemptAt:
-            options.fullValidationAttemptAt ?? previous?.lastFullValidationAttemptAt,
-        }
+    ...(validationAttemptAt ? { lastFullValidationAttemptAt: validationAttemptAt } : {}),
+    ...(validationAttemptAt && validationAttemptLookbackDays !== undefined
+      ? { lastFullValidationAttemptLookbackDays: validationAttemptLookbackDays }
       : {}),
-    ...(options.fullValidationAttemptAt && options.fullValidationLookbackDays
-      ? { lastFullValidationAttemptLookbackDays: options.fullValidationLookbackDays }
-      : previous?.lastFullValidationAttemptLookbackDays
-        ? {
-            lastFullValidationAttemptLookbackDays: previous.lastFullValidationAttemptLookbackDays,
-          }
-        : {}),
     facts: retainedFacts,
   };
   const metrics = uniqueFacts.reduce<ClinicalIncrementalMetrics>(

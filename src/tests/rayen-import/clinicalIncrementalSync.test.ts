@@ -108,4 +108,45 @@ describe('clinical incremental checkpoint', () => {
       lastFullValidationAttemptLookbackDays: 22,
     });
   });
+
+  it('replaces previous validation coverage when a narrower window is recorded', () => {
+    const baseline = mergeClinicalSourceCheckpoint(undefined, 'scales', [], {
+      fullValidationAt: '2026-08-03T10:00:00.000Z',
+      fullValidationAttemptAt: '2026-08-03T10:00:00.000Z',
+      fullValidationLookbackDays: 22,
+    });
+    const narrowed = mergeClinicalSourceCheckpoint(baseline.checkpoint, 'scales', [], {
+      fullValidationAt: '2026-08-03T12:00:00.000Z',
+      fullValidationAttemptAt: '2026-08-03T12:00:00.000Z',
+      fullValidationLookbackDays: 14,
+    });
+
+    expect(narrowed.checkpoint.sources.scales).toMatchObject({
+      lastFullValidationLookbackDays: 14,
+      lastFullValidationAttemptLookbackDays: 14,
+    });
+  });
+
+  it('clears stale validation coverage when updated timestamps omit their window', () => {
+    const baseline = mergeClinicalSourceCheckpoint(undefined, 'scales', [], {
+      fullValidationAt: '2026-08-03T10:00:00.000Z',
+      fullValidationAttemptAt: '2026-08-03T10:00:00.000Z',
+      fullValidationLookbackDays: 22,
+    });
+    const withoutCoverage = mergeClinicalSourceCheckpoint(baseline.checkpoint, 'scales', [], {
+      fullValidationAt: '2026-08-03T12:00:00.000Z',
+      fullValidationAttemptAt: '2026-08-03T12:00:00.000Z',
+    });
+
+    expect(withoutCoverage.checkpoint.sources.scales).toMatchObject({
+      lastFullValidationAt: '2026-08-03T12:00:00.000Z',
+      lastFullValidationAttemptAt: '2026-08-03T12:00:00.000Z',
+    });
+    expect(
+      withoutCoverage.checkpoint.sources.scales?.lastFullValidationLookbackDays
+    ).toBeUndefined();
+    expect(
+      withoutCoverage.checkpoint.sources.scales?.lastFullValidationAttemptLookbackDays
+    ).toBeUndefined();
+  });
 });
