@@ -20,7 +20,7 @@ importScripts(
   'message-contract.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
-  'health-check.js', 'clinical-day-runtime.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js',
+  'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js',
   'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',

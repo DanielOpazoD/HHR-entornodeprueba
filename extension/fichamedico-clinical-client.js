@@ -10,7 +10,6 @@
   const FORM_CODIGO_KEEP = new Set(['INSTRUMENTO', 'VITAL_SIGNS']);
   const SCALE_FORM_RE = /braden|downton/i;
   const NURSING_WORKLISTS = ['noveltyNurseList', 'uneventfulNurseList', 'incomeNurseList'];
-
   const errorMessage = error =>
     String((error && error.message) || error || 'error desconocido');
 
@@ -179,6 +178,7 @@
       const boundedLookback = Number.isFinite(requestedLookback)
         ? Math.min(180, Math.max(1, Math.floor(requestedLookback)))
         : root.HhrClinicalDayRuntime.historyLookbackDays(censusDate);
+      const withCoverage = root.HhrClinicalHistoryCoverage.responseAttacher(boundedLookback);
       try {
         const result = await readJson({
           info: session.info,
@@ -186,12 +186,12 @@
             `/api/encounter/${encodeURIComponent(encId)}/` +
             `getPatientEncounterHistoryReportServer/false/0/0/-${boundedLookback}`,
         });
-        if (result.status === 204) return { ok: true, events: [], nursingActivity: [], effectiveLookbackDays: boundedLookback };
+        if (result.status === 204) return withCoverage({ ok: true, events: [], nursingActivity: [] });
         const projection = root.HhrFichaMedicoHistoryReadModel.project(result.data);
-        return { ok: true, ...projection, effectiveLookbackDays: boundedLookback };
+        return withCoverage({ ok: true, ...projection });
       } catch (error) {
         if (error.kind === 'http' && error.status === 204) {
-          return { ok: true, events: [], nursingActivity: [], effectiveLookbackDays: boundedLookback };
+          return withCoverage({ ok: true, events: [], nursingActivity: [] });
         }
         if (error.kind === 'http') {
           return { error: 'El servidor de Ficha Médico respondió HTTP ' + error.status + '.' };

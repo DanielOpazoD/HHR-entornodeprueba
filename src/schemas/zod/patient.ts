@@ -133,7 +133,9 @@ const ClinicalSyncFactCheckpointSchema = z.object({
 const ClinicalSyncSourceCheckpointSchema = z.object({
   watermark: nullableOptional(z.string()),
   lastFullValidationAt: nullableOptional(z.string()),
+  lastFullValidationLookbackDays: nullableOptional(z.number().int().positive()),
   lastFullValidationAttemptAt: nullableOptional(z.string()),
+  lastFullValidationAttemptLookbackDays: nullableOptional(z.number().int().positive()),
   facts: z.array(ClinicalSyncFactCheckpointSchema).default([]),
 });
 

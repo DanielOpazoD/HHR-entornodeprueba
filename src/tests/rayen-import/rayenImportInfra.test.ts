@@ -313,6 +313,8 @@ describe('bounded clinical-history bridge', () => {
           reqId: request.reqId,
           events: [],
           effectiveLookbackDays: 14,
+          coverageWindowStartIsoDay: '2026-07-16',
+          coverageWindowEndIsoDay: '2026-07-27',
         },
       })
     );
@@ -321,6 +323,8 @@ describe('bounded clinical-history bridge', () => {
       events: [],
       nursingActivity: [],
       effectiveLookbackDays: 14,
+      coverageWindowStartIsoDay: '2026-07-16',
+      coverageWindowEndIsoDay: '2026-07-27',
       error: undefined,
     });
     postMessage.mockRestore();

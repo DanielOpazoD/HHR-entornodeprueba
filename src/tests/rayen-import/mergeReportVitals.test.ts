@@ -97,6 +97,18 @@ describe('mergeReportVitals', () => {
     expect(result.vitalSigns?.heartRate).toBe(84);
   });
 
+  it('preserves older measurements omitted from a shorter incremental window', () => {
+    const older = { ...rec('2026-06-01', 70), sourceEventId: 'old-event' };
+    const newer = { ...rec('2026-07-10', 80), sourceEventId: 'new-event' };
+    const before = mergeReportVitals(patient, [older], '2026-07-10');
+    const result = mergeReportVitals(before, [newer], '2026-07-10');
+
+    expect(result.vitalSignsHistory?.map(item => item.sourceEventId)).toEqual([
+      'new-event',
+      'old-event',
+    ]);
+  });
+
   it('migrates a legacy content-identical reading when Eloisa starts providing a source id', () => {
     const legacy = rec('2026-07-11', 80);
     const before = { ...patient, vitalSigns: legacy, vitalSignsHistory: [legacy] };

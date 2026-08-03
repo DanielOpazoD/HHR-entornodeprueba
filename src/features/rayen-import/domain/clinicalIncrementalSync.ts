@@ -24,23 +24,23 @@ export interface ClinicalIncrementalMetrics {
   corrections: number;
 }
 
-const canonicalize = (value: unknown): string => {
+export const canonicalizeClinicalValue = (value: unknown): string => {
   if (value === undefined) return 'undefined';
   if (value == null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
+  if (Array.isArray(value)) return `[${value.map(canonicalizeClinicalValue).join(',')}]`;
   return `{${Object.entries(value as Record<string, unknown>)
     .filter(([, item]) => item !== undefined)
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item)}`)
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalizeClinicalValue(item)}`)
     .join(',')}}`;
 };
 
 export const clinicalValuesEqual = (left: unknown, right: unknown): boolean =>
-  canonicalize(left) === canonicalize(right);
+  canonicalizeClinicalValue(left) === canonicalizeClinicalValue(right);
 
 /** Compact deterministic hash. It is an identity key, not a security primitive. */
 const fingerprint = (value: unknown): string => {
-  const input = canonicalize(value);
+  const input = canonicalizeClinicalValue(value);
   let hash = 0x811c9dc5;
   for (let index = 0; index < input.length; index += 1) {
     hash ^= input.charCodeAt(index);
@@ -87,7 +87,9 @@ const sameSourceCheckpoint = (
 ): boolean =>
   left?.watermark === right.watermark &&
   left?.lastFullValidationAt === right.lastFullValidationAt &&
+  left?.lastFullValidationLookbackDays === right.lastFullValidationLookbackDays &&
   left?.lastFullValidationAttemptAt === right.lastFullValidationAttemptAt &&
+  left?.lastFullValidationAttemptLookbackDays === right.lastFullValidationAttemptLookbackDays &&
   left?.facts.length === right.facts.length &&
   left.facts.every(
     (fact, index) =>
@@ -99,7 +101,11 @@ export const mergeClinicalSourceCheckpoint = (
   checkpoint: ClinicalSyncCheckpoint | undefined,
   source: ClinicalSyncSource,
   facts: ClinicalSourceFact[],
-  options: { fullValidationAt?: string; fullValidationAttemptAt?: string } = {}
+  options: {
+    fullValidationAt?: string;
+    fullValidationAttemptAt?: string;
+    fullValidationLookbackDays?: number;
+  } = {}
 ): {
   checkpoint: ClinicalSyncCheckpoint;
   changed: boolean;
@@ -142,16 +148,26 @@ export const mergeClinicalSourceCheckpoint = (
   const latestWatermark = [previous?.watermark ?? '', watermarks[0] ?? '']
     .filter(Boolean)
     .sort((left, right) => compareWatermarks(right, left))[0];
+  const successfulValidationAt = options.fullValidationAt ?? previous?.lastFullValidationAt;
+  const successfulValidationLookbackDays =
+    options.fullValidationAt !== undefined
+      ? options.fullValidationLookbackDays
+      : previous?.lastFullValidationLookbackDays;
+  const validationAttemptAt =
+    options.fullValidationAttemptAt ?? previous?.lastFullValidationAttemptAt;
+  const validationAttemptLookbackDays =
+    options.fullValidationAttemptAt !== undefined
+      ? options.fullValidationLookbackDays
+      : previous?.lastFullValidationAttemptLookbackDays;
   const sourceCheckpoint: ClinicalSyncSourceCheckpoint = {
     ...(latestWatermark ? { watermark: latestWatermark } : {}),
-    ...(options.fullValidationAt || previous?.lastFullValidationAt
-      ? { lastFullValidationAt: options.fullValidationAt ?? previous?.lastFullValidationAt }
+    ...(successfulValidationAt ? { lastFullValidationAt: successfulValidationAt } : {}),
+    ...(successfulValidationAt && successfulValidationLookbackDays !== undefined
+      ? { lastFullValidationLookbackDays: successfulValidationLookbackDays }
       : {}),
-    ...(options.fullValidationAttemptAt || previous?.lastFullValidationAttemptAt
-      ? {
-          lastFullValidationAttemptAt:
-            options.fullValidationAttemptAt ?? previous?.lastFullValidationAttemptAt,
-        }
+    ...(validationAttemptAt ? { lastFullValidationAttemptAt: validationAttemptAt } : {}),
+    ...(validationAttemptAt && validationAttemptLookbackDays !== undefined
+      ? { lastFullValidationAttemptLookbackDays: validationAttemptLookbackDays }
       : {}),
     facts: retainedFacts,
   };

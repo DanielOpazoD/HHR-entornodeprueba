@@ -157,6 +157,7 @@ describe('zod entity schemas', () => {
             scales: {
               facts: [],
               lastFullValidationAttemptAt: '2026-07-29T07:00:00.000Z',
+              lastFullValidationAttemptLookbackDays: 180,
             },
           },
         },
@@ -165,6 +166,9 @@ describe('zod entity schemas', () => {
       expect(patient.clinicalSyncCheckpoint?.sources.scales?.lastFullValidationAttemptAt).toBe(
         '2026-07-29T07:00:00.000Z'
       );
+      expect(
+        patient.clinicalSyncCheckpoint?.sources.scales?.lastFullValidationAttemptLookbackDays
+      ).toBe(180);
     });
 
     it('should apply defaults for missing fields', () => {

@@ -104,6 +104,15 @@ describe('mergeReportDevices', () => {
     expect(mergeReportDevices(before, [], ctx)).toBe(before);
   });
 
+  it('persists normalization when a stored device type is duplicated', () => {
+    const before = patient({ devices: ['VVP', 'VVP'] });
+
+    const result = mergeReportDevices(before, [], ctx);
+
+    expect(result).not.toBe(before);
+    expect(result.devices).toEqual(['VVP']);
+  });
+
   it('is a semantic no-op when Eloisa repeats the same active device', () => {
     const first = mergeReportDevices(patient(), [cup], ctx);
     const retried = mergeReportDevices(first, [cup], {

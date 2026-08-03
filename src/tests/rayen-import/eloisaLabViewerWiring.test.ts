@@ -25,6 +25,7 @@ describe('native Eloisa laboratory viewer wiring', () => {
 
     expect(background).not.toContain('localhost:3001');
     expect(background).toContain("'syslab-session-transport.js'");
+    expect(background).toContain("'clinical-history-coverage.js'");
     expect(background).toContain("'syslab-login-window.js'");
     expect(background).toContain("'syslab-runtime.js'");
     expect(background).toContain('self.HhrSyslabRuntime.create({');
@@ -134,6 +135,6 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(manifest).toContain('"offscreen"');
     expect(manifest).toContain('"all_frames": true');
     expect(manifest).toContain('"syslab-login.html"');
-    expect(manifest).toContain('"version": "0.45.1"');
+    expect(manifest).toContain('"version": "0.45.2"');
   });
 });

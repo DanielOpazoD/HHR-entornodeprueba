@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-day-runtime.js';
+import '../../../extension/clinical-history-coverage.js';
 import '../../../extension/fichamedico-history-read-model.js';
 import '../../../extension/fichamedico-device-evidence-runtime.js';
 import '../../../extension/fichamedico-clinical-client.js';
@@ -44,6 +45,8 @@ type ClinicalClient = {
     events?: unknown[];
     nursingActivity?: unknown[];
     effectiveLookbackDays?: number;
+    coverageWindowStartIsoDay?: string;
+    coverageWindowEndIsoDay?: string;
     error?: string;
   }>;
   fetchScalesReportWithInfo: (
@@ -121,6 +124,10 @@ describe('Ficha Médico read-only clinical client', () => {
         'getPatientEncounterHistoryReportServer/false/0/0/-14'
       );
       expect(result.effectiveLookbackDays).toBe(14);
+      expect(result).toMatchObject({
+        coverageWindowStartIsoDay: '2026-07-16',
+        coverageWindowEndIsoDay: '2026-07-27',
+      });
     } finally {
       vi.useRealTimers();
     }

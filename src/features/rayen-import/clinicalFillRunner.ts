@@ -22,8 +22,10 @@ import type {
 import type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 import { createClinicalFillPerformance } from './domain/clinicalFillPerformance';
 import { persistClinicalBatch } from './domain/clinicalBatchPersistence';
-import { resolveClinicalHistoryReadPolicy } from './domain/clinicalHistoryReadPolicy';
-import { confirmFullWindow } from './domain/clinicalHistoryReadPolicy';
+import {
+  confirmAuthoritativeHistoryResponse,
+  resolveClinicalHistoryReadPolicy,
+} from './domain/clinicalHistoryReadPolicy';
 import { buildClinicalPatientPatch } from './domain/clinicalPatientPatch';
 import { createClinicalCudyrCoordinator } from './domain/clinicalCudyrCoordinator';
 
@@ -217,10 +219,17 @@ export const runClinicalFill = async (
     }
     const historyAuthoritative = historyResult.status === 'fulfilled' && !historyReadError;
     const formsAuthoritative = formsResult.status === 'fulfilled' && !formsReadError;
-    const historyFullValidationAt = historyAuthoritative
-      ? confirmFullWindow(historyReadPolicy, historyResult.value.effectiveLookbackDays)
+    const historyAuthoritativeWindow =
+      historyAuthoritative && historyResult.status === 'fulfilled'
+        ? confirmAuthoritativeHistoryResponse(historyReadPolicy, historyResult.value)
+        : undefined;
+    // A successful HTTP response is not a full validation unless the extension certifies the exact
+    // coverage boundaries. This remains false when a request crosses a Rapa Nui calendar boundary.
+    const historyFullValidationAt = historyAuthoritativeWindow
+      ? historyReadPolicy.fullValidationAt
       : undefined;
     const scalesFullValidationAt = formsAuthoritative ? historyFullValidationAt : undefined;
+    const scalesAuthoritativeWindow = formsAuthoritative ? historyAuthoritativeWindow : undefined;
     if (historyAuthoritative) {
       for (const activity of historyResult.value.nursingActivity ?? []) {
         nursingObservations.push({ ...activity, encounterId: encId });
@@ -234,6 +243,7 @@ export const runClinicalFill = async (
         {
           fullValidationAt: historyFullValidationAt,
           fullValidationAttemptAt: historyReadPolicy.fullValidationAttemptAt,
+          fullValidationLookbackDays: historyReadPolicy.lookbackDays,
         }
       );
     }
@@ -249,7 +259,18 @@ export const runClinicalFill = async (
       // Always pass through the canonicalizer, even when the incremental read contains no new
       // scale. Older versions could persist one Rayen application twice under different form
       // authors; waiting for a new application would leave that duplicate visible indefinitely.
-      merged = mergeReportScales(merged, scales, { censusIsoDay: fecha });
+      if (historyAuthoritative || formsAuthoritative) {
+        merged = mergeReportScales(merged, scales, {
+          censusIsoDay: fecha,
+          sourceCompleteness: scalesAuthoritativeWindow ? 'authoritative' : 'partial',
+          ...(scalesAuthoritativeWindow
+            ? {
+                authoritativeWindowStartIsoDay: scalesAuthoritativeWindow.startIsoDay,
+                authoritativeWindowEndIsoDay: scalesAuthoritativeWindow.endIsoDay,
+              }
+            : {}),
+        });
+      }
       if (historyAuthoritative && formsAuthoritative) {
         recordIncrementalFacts(
           'scales',
@@ -261,6 +282,7 @@ export const runClinicalFill = async (
           {
             fullValidationAt: scalesFullValidationAt,
             fullValidationAttemptAt: historyReadPolicy.fullValidationAttemptAt,
+            fullValidationLookbackDays: historyReadPolicy.lookbackDays,
           }
         );
       }

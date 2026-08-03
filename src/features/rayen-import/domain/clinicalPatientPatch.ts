@@ -1,6 +1,9 @@
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import { clinicalValuesEqual } from './clinicalIncrementalSync';
+import {
+  clinicalFieldValuesEqual,
+  type CanonicalClinicalField,
+} from './clinicalFieldCanonicalization';
 
 interface ClinicalPatientPatchResult {
   patch: DailyRecordPatch;
@@ -17,8 +20,8 @@ export const buildClinicalPatientPatch = (
 ): ClinicalPatientPatchResult => {
   const patch: DailyRecordPatch = {};
   const prefix = `beds.${bedId}${clinicalCrib ? '.clinicalCrib' : ''}`;
-  const copyChanged = (field: keyof PatientData): void => {
-    if (!clinicalValuesEqual(merged[field], patient[field])) {
+  const copyChanged = (field: CanonicalClinicalField): void => {
+    if (!clinicalFieldValuesEqual(field, merged[field], patient[field])) {
       patch[`${prefix}.${field}`] = merged[field];
     }
   };
