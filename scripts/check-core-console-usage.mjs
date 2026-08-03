@@ -11,12 +11,15 @@ const TARGET_DIRECTORIES = [
   'src/services/pdf',
   'src/services/admin',
   'src/services/storage/sync',
+  'src/features/rayen-import',
 ];
 
 const FORBIDDEN_PATTERNS = [
-  { label: 'console.log', regex: /\bconsole\.log\s*\(/g },
-  { label: 'console.info', regex: /\bconsole\.info\s*\(/g },
-  { label: 'console.debug', regex: /\bconsole\.debug\s*\(/g },
+  { label: 'console.log', regex: /\bconsole\.log\s*\(/ },
+  { label: 'console.info', regex: /\bconsole\.info\s*\(/ },
+  { label: 'console.debug', regex: /\bconsole\.debug\s*\(/ },
+  { label: 'console.warn', regex: /\bconsole\.warn\s*\(/ },
+  { label: 'console.error', regex: /\bconsole\.error\s*\(/ },
 ];
 
 const toPosix = value => value.split(path.sep).join('/');

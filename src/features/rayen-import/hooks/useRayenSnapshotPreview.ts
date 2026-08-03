@@ -36,7 +36,6 @@ import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import { elapsedMilliseconds, isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
 import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
-
 interface UseRayenSnapshotPreviewInput {
   currentRecord: DailyRecord | null | undefined;
   mode: RayenImportMode;
@@ -47,12 +46,12 @@ interface UseRayenSnapshotPreviewInput {
   applyDiff: (record: DailyRecord, diff: CensusImportDiff) => Promise<ApplyResult>;
   persistAppliedRun: (record: DailyRecord, diff: CensusImportDiff) => Promise<DailyRecord>;
   fillDevicesInBackground: (record: DailyRecord) => Promise<void>;
-  failRun: (reason: 'apply_failed') => Promise<void>;
+  failRun: (reason: 'apply_failed', runId?: string) => Promise<void>;
   ensureRun: () => RayenSyncRun;
+  getRun: (runId: string) => RayenSyncRun | undefined;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
   syncTargetRef: RefObject<CensusSyncTarget | null>;
 }
-
 export const useRayenSnapshotPreview = ({
   currentRecord,
   mode,
@@ -65,18 +64,20 @@ export const useRayenSnapshotPreview = ({
   fillDevicesInBackground,
   failRun,
   ensureRun,
+  getRun,
   recordRunPerformance,
   syncTargetRef,
 }: UseRayenSnapshotPreviewInput) => {
   const autoApplyingRef = useRef(false);
   const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
-
   return useCallback(
-    async (snapshot: RayenCensusSnapshot, bundle: RayenSyncBundle) => {
+    async (snapshot: RayenCensusSnapshot, bundle: RayenSyncBundle, requestedRunId?: string) => {
+      const run = requestedRunId ? getRun(requestedRunId) : ensureRun();
+      if (!run) return;
       clearSyncTimeout();
       const planningSnapshot = prepareTreatingPhysicianSnapshot(snapshot);
       if (!currentRecord) {
-        void failRun('apply_failed');
+        void failRun('apply_failed', run.id);
         setState(prev => ({
           ...prev,
           isSyncing: false,
@@ -84,7 +85,6 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
-      const run = ensureRun();
       recordRunPerformance(
         buildRayenCapturePerformance(
           snapshot,
@@ -114,7 +114,7 @@ export const useRayenSnapshotPreview = ({
         completedTarget.kind === 'unsupported' ||
         completedTarget.clinicalDay !== requestedTarget.clinicalDay
       ) {
-        void failRun('apply_failed');
+        void failRun('apply_failed', run.id);
         setState(prev => ({
           ...prev,
           isBusy: false,
@@ -134,7 +134,7 @@ export const useRayenSnapshotPreview = ({
         bundle.dateStart === reportRange.dateStart &&
         bundle.dateEnd === reportRange.dateEnd;
       if (!bundleMatchesRequest) {
-        void failRun('apply_failed');
+        void failRun('apply_failed', run.id);
         setState(prev => ({
           ...prev,
           isBusy: false,
@@ -332,7 +332,7 @@ export const useRayenSnapshotPreview = ({
           })
           .catch(error => {
             autoApplyingRef.current = false;
-            void failRun('apply_failed');
+            void failRun('apply_failed', run.id);
             setState(prev => ({
               ...prev,
               isBusy: false,
@@ -357,9 +357,8 @@ export const useRayenSnapshotPreview = ({
         try {
           const stamped = await persistAppliedRun(currentRecord, diff);
           void fillDevicesInBackground(stamped);
-        } catch (error) {
-          console.warn('[rayen-import] sello de sincronización no registrado:', error);
-          void failRun('apply_failed');
+        } catch {
+          void failRun('apply_failed', run.id);
           setState(prev => ({ ...prev, isSyncing: false }));
         }
       }
@@ -390,6 +389,7 @@ export const useRayenSnapshotPreview = ({
       persistAppliedRun,
       failRun,
       ensureRun,
+      getRun,
       recordRunPerformance,
       setState,
       syncTargetRef,

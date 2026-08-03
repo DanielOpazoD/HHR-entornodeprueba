@@ -36,6 +36,10 @@ import {
   observeClinicalEnrichmentBatch,
 } from './applyClinicalEnrichmentBatch';
 import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
+import {
+  classifyRayenSyncError,
+  reportRayenSyncWarning,
+} from '../observability/rayenSyncDiagnostics';
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
@@ -54,7 +58,8 @@ interface UseRayenClinicalFillInput {
   completeRun: (
     record: DailyRecord,
     summary: ClinicalFillSummary,
-    staffingProposal?: NursingStaffingProposal | null
+    staffingProposal?: NursingStaffingProposal | null,
+    runId?: string
   ) => Promise<void>;
   onStaffingProposal: (proposal: NursingStaffingProposal, attemptId: number) => void;
   onSettled: () => void;
@@ -76,17 +81,43 @@ export const useRayenClinicalFill = ({
 }: UseRayenClinicalFillInput) =>
   useCallback(
     async (record: DailyRecord): Promise<void> => {
-      const queueKey = `${record.date}|${record.rayenSync?.runId ?? 'untracked'}`;
+      const requestedRunId = record.rayenSync?.runId;
+      const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}`;
       const outcome = await enqueueLatestRayenClinicalFill(queueKey, async () => {
+        const requestedEligibleCount = countClinicalFillEligiblePatients(record);
         let freshRecord: DailyRecord;
         try {
           freshRecord = await loadDailyRecord(record.date);
         } catch (error) {
-          console.warn('[rayen-import] no se pudo hidratar el censo antes del relleno:', error);
+          reportRayenSyncWarning('clinical_record_load_failed', {
+            runId: requestedRunId,
+            errorKind: classifyRayenSyncError(error),
+          });
+          await completeRun(
+            record,
+            {
+              total: requestedEligibleCount,
+              patched: 0,
+              errors: [{ bedId: '*', source: 'patch', message: 'clinical_record_load_failed' }],
+            },
+            null,
+            requestedRunId
+          ).catch(() => undefined);
           return;
         }
+        const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
         const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
         if (!beginRayenFill(eligibleCount)) {
+          await completeRun(
+            freshRecord,
+            {
+              total: eligibleCount,
+              patched: 0,
+              errors: [{ bedId: '*', source: 'patch', message: 'clinical_fill_busy' }],
+            },
+            null,
+            requestedRunId
+          ).catch(() => undefined);
           return;
         }
         const attemptId = getRayenFillAttemptId();
@@ -94,11 +125,12 @@ export const useRayenClinicalFill = ({
         let summary: ClinicalFillSummary;
         try {
           const batchMode = resolveClinicalEnrichmentBatchMode();
-          const runId = batchMode === 'off' ? undefined : `clinical_${createSyncMutationId()}`;
+          const batchRunId = batchMode === 'off' ? undefined : `clinical_${createSyncMutationId()}`;
           summary = await runClinicalFill(
             freshRecord,
             toIsoReportDate(freshRecord),
             {
+              diagnosticRunId: auditRunId,
               fetchDeviceReport: requestDeviceReport,
               extractDeviceItems: extractDeviceTextItems,
               fetchHistoryScales: requestHistoryScales,
@@ -107,13 +139,13 @@ export const useRayenClinicalFill = ({
               applyPatch: async (patch, target) => {
                 await patchDailyRecord(patch, target);
               },
-              ...(batchMode === 'enforced' && runId
+              ...(batchMode === 'enforced' && batchRunId
                 ? {
                     applyBatch: operations =>
                       applyClinicalEnrichmentBatch({
                         mode: batchMode,
                         record: freshRecord,
-                        runId,
+                        runId: batchRunId,
                         operations,
                         applyPatch: operation =>
                           patchDailyRecord(operation.patch, operation.target).then(() => undefined),
@@ -121,12 +153,12 @@ export const useRayenClinicalFill = ({
                       }),
                   }
                 : {}),
-              ...(batchMode === 'shadow' && runId
+              ...(batchMode === 'shadow' && batchRunId
                 ? {
                     observeBatch: async operations =>
                       observeClinicalEnrichmentBatch({
                         record: await loadDailyRecord(freshRecord.date),
-                        runId,
+                        runId: batchRunId,
                         operations,
                       }),
                   }
@@ -141,7 +173,11 @@ export const useRayenClinicalFill = ({
             ({ done, total }) => reportRayenFillProgress(done, total)
           );
         } catch (error) {
-          console.warn('[rayen-import] Relleno clínico falló:', error);
+          reportRayenSyncWarning('clinical_fill_failed', {
+            runId: auditRunId,
+            errorKind: classifyRayenSyncError(error),
+            patientCount: eligibleCount,
+          });
           summary = {
             total: eligibleCount,
             patched: 0,
@@ -150,7 +186,14 @@ export const useRayenClinicalFill = ({
         }
 
         if (summary.errors.length > 0) {
-          console.warn('[rayen-import] Relleno clínico con errores:', summary.errors);
+          const affectedPatients = new Set(
+            summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
+          ).size;
+          reportRayenSyncWarning('clinical_fill_partial', {
+            runId: auditRunId,
+            issueCount: summary.errors.length,
+            patientCount: affectedPatients,
+          });
         }
         const reviewProposal = summary.staffingProposal
           ? reconcileNursingShiftProposal(freshRecord, summary.staffingProposal)
@@ -160,10 +203,9 @@ export const useRayenClinicalFill = ({
         ).size;
         let completionFailed = false;
         try {
-          await completeRun(freshRecord, summary, reviewProposal);
-        } catch (error) {
+          await completeRun(freshRecord, summary, reviewProposal, requestedRunId);
+        } catch {
           completionFailed = true;
-          console.warn('[rayen-import] cobertura de sincronización no registrada:', error);
         }
         endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
         if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);

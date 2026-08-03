@@ -175,7 +175,7 @@ describe('Rayen synchronized source bundle bridge', () => {
         data: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', requestId, snapshot, bundle },
       })
     );
-    expect(handler).toHaveBeenCalledWith(snapshot, bundle);
+    expect(handler).toHaveBeenCalledWith(snapshot, bundle, requestId);
     unsubscribe();
   });
 
@@ -355,7 +355,7 @@ describe('Rayen import error bridge', () => {
       })
     );
 
-    expect(handler).toHaveBeenCalledWith('No hay una pestaña de Ficha Médico abierta.');
+    expect(handler).toHaveBeenCalledWith('No hay una pestaña de Ficha Médico abierta.', requestId);
     unsubscribe();
   });
 });

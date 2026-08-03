@@ -12,7 +12,7 @@ const normalizeLocation = (value: string | undefined): string =>
 
 /**
  * P-R1 and P-R2 are temporary post-anaesthesia recovery positions, not beds in the HHR inpatient
- * census. Active encounters there must not create admissions, clinical enrichment or warnings.
+ * census. Encounters there must not create admissions, discharges, clinical enrichment or warnings.
  */
 export const isPavilionRecoveryLocation = (value: string | undefined): boolean => {
   const matchesToken = (candidate: string): boolean => {
@@ -39,15 +39,21 @@ export const preparePavilionRecoverySyncScope = (
   findCurrent: (encounter: RayenEncounter) => { bedId: string } | undefined
 ) => {
   const allActive = snapshot.encounters.filter(encounter => !isDischargedEncounter(encounter));
-  const ignoredEncounters = allActive.filter(isPavilionRecoveryEncounter);
-  const ignoredEpisodeIds = new Set([
-    ...ignoredEncounters.map(encounter => String(encounter.encounterId ?? '').trim()),
-    ...(snapshot.activeBedAssignments ?? [])
-      .filter(assignment => isPavilionRecoveryLocation(assignment.bedId))
-      .map(assignment => assignment.encounterId),
-  ]);
-  const activeEncounters = allActive.filter(
-    encounter => !ignoredEpisodeIds.has(String(encounter.encounterId ?? '').trim())
+  const ignoredEncounters = snapshot.encounters.filter(isPavilionRecoveryEncounter);
+  const ignoredEpisodeIds = new Set(
+    [
+      ...ignoredEncounters.map(encounter => String(encounter.encounterId ?? '').trim()),
+      ...(snapshot.activeBedAssignments ?? [])
+        .filter(assignment => isPavilionRecoveryLocation(assignment.bedId))
+        .map(assignment => assignment.encounterId),
+    ].filter(Boolean)
+  );
+  const isIgnoredEncounter = (encounter: RayenEncounter): boolean =>
+    isPavilionRecoveryEncounter(encounter) ||
+    ignoredEpisodeIds.has(String(encounter.encounterId ?? '').trim());
+  const activeEncounters = allActive.filter(encounter => !isIgnoredEncounter(encounter));
+  const dischargedEncounters = snapshot.encounters.filter(
+    encounter => isDischargedEncounter(encounter) && !isIgnoredEncounter(encounter)
   );
   const activeBedAssignments = (snapshot.activeBedAssignments ?? []).filter(
     assignment =>
@@ -56,6 +62,7 @@ export const preparePavilionRecoverySyncScope = (
   );
   const { snapshotEpisodeIds, activeBedByEpisode } = buildActiveBedEvidence({
     ...snapshot,
+    encounters: [...activeEncounters, ...dischargedEncounters],
     activeBedAssignments,
   });
   const ignoredLocalBedIds = new Set(
@@ -67,7 +74,7 @@ export const preparePavilionRecoverySyncScope = (
   }
   return {
     activeEncounters,
-    dischargedEncounters: snapshot.encounters.filter(isDischargedEncounter),
+    dischargedEncounters,
     snapshotEpisodeIds,
     activeBedByEpisode,
     ignoredLocalBedIds,

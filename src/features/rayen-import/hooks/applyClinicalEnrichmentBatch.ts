@@ -15,6 +15,10 @@ import {
   prepareClinicalEnrichmentBatchPayload,
   summarizeClinicalEnrichmentSections,
 } from './clinicalEnrichmentBatchPayload';
+import {
+  classifyRayenSyncError,
+  reportRayenSyncWarning,
+} from '../observability/rayenSyncDiagnostics';
 
 const errorCode = (error: unknown): string =>
   String((error as { code?: unknown })?.code || '')
@@ -201,7 +205,11 @@ export const applyClinicalEnrichmentBatch = async ({
     try {
       shadowRecord = await refreshRecord();
     } catch (error) {
-      console.warn('[rayen-import] validación shadow sin censo post-escritura:', errorCode(error));
+      reportRayenSyncWarning('clinical_batch_shadow_refresh_failed', {
+        runId,
+        batchMode: 'shadow',
+        errorKind: classifyRayenSyncError(error),
+      });
       const { evidence } = prepareClinicalEnrichmentBatchPayload({
         mode,
         record,
@@ -222,10 +230,11 @@ export const applyClinicalEnrichmentBatch = async ({
     const batch = await invokeChecked(shadowPayload)
       .then(result => result.batch)
       .catch(error => {
-        console.warn(
-          '[rayen-import] validación shadow del lote clínico no disponible:',
-          errorCode(error)
-        );
+        reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
+          batchRunId: runId,
+          batchMode: 'shadow',
+          errorKind: classifyRayenSyncError(error),
+        });
         return summarizeClinicalEnrichmentSections(
           shadowPayload.patches,
           shadowPayload.checkpoints ?? [],
@@ -259,7 +268,11 @@ export const applyClinicalEnrichmentBatch = async ({
     try {
       await refreshRecord();
     } catch (error) {
-      console.warn('[rayen-import] lote aplicado; hidratación local diferida:', errorCode(error));
+      reportRayenSyncWarning('clinical_batch_local_refresh_deferred', {
+        runId,
+        batchMode: 'enforced',
+        errorKind: classifyRayenSyncError(error),
+      });
     }
     const response = checked.response;
     const committed = response.authorityStatus === 'ok';

@@ -8,6 +8,8 @@ import type { NursingStaffingProposal, RayenNursingActivity } from './nursingShi
 import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
 
 export interface ClinicalFillDeps {
+  /** Correlates aggregate diagnostics with the user-initiated synchronization run. */
+  diagnosticRunId?: string;
   nurseCatalog?: string[];
   tensCatalog?: string[];
   fetchDeviceReport: (

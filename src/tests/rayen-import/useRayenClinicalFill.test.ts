@@ -24,9 +24,9 @@ describe('useRayenClinicalFill', () => {
     mocks.getRayenFillAttemptId.mockReturnValue(7);
   });
 
-  it('does not turn an overlapping fill into a permanent partial audit result', async () => {
+  it('terminalizes an applied run when another fill already owns the shared progress slot', async () => {
     mocks.beginRayenFill.mockReturnValue(false);
-    const completeRun = vi.fn().mockResolvedValue(undefined);
+    const completeRun = vi.fn().mockRejectedValue(new Error('audit unavailable'));
     const onSettled = vi.fn();
     const record = {
       date: '2026-07-14',
@@ -55,9 +55,62 @@ describe('useRayenClinicalFill', () => {
       await result.current(record);
     });
 
-    expect(completeRun).not.toHaveBeenCalled();
+    expect(completeRun).toHaveBeenCalledWith(
+      record,
+      expect.objectContaining({
+        total: 1,
+        patched: 0,
+        errors: [expect.objectContaining({ message: 'clinical_fill_busy' })],
+      }),
+      null,
+      undefined
+    );
     expect(onSettled).toHaveBeenCalledOnce();
     expect(mocks.endRayenFill).not.toHaveBeenCalled();
+  });
+
+  it('terminalizes an applied run when the fresh census cannot be loaded', async () => {
+    const completeRun = vi.fn().mockRejectedValue(new Error('audit unavailable'));
+    const onSettled = vi.fn();
+    const record = {
+      date: '2026-07-14',
+      beds: {
+        R1: { bedId: 'R1', patientName: 'Paciente', clinicalEpisodeId: 'episode-1' },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      rayenSync: { runId: 'run-load-failed' },
+    } as unknown as DailyRecord;
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        tensCatalog: [],
+        loadDailyRecord: vi.fn().mockRejectedValue(new Error('offline')),
+        patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
+        completeRun,
+        onStaffingProposal: vi.fn(),
+        onSettled,
+        createId: () => 'id',
+      })
+    );
+
+    await act(async () => result.current(record));
+
+    expect(completeRun).toHaveBeenCalledWith(
+      record,
+      expect.objectContaining({
+        total: 1,
+        patched: 0,
+        errors: [expect.objectContaining({ message: 'clinical_record_load_failed' })],
+      }),
+      null,
+      'run-load-failed'
+    );
+    expect(mocks.beginRayenFill).not.toHaveBeenCalled();
+    expect(mocks.endRayenFill).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledOnce();
   });
 
   it('reports an explicit no-data nursing result in the same settled flow', async () => {
@@ -174,6 +227,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
+      rayenSync: { runId: 'run-old' },
     } as unknown as DailyRecord;
     const freshRecord = {
       ...staleRecord,
@@ -199,6 +253,11 @@ describe('useRayenClinicalFill', () => {
     await act(async () => result.current(staleRecord));
 
     expect(loadDailyRecord).toHaveBeenCalledWith('2026-07-14');
-    expect(completeRun).toHaveBeenCalledWith(freshRecord, expect.any(Object), expect.anything());
+    expect(completeRun).toHaveBeenCalledWith(
+      freshRecord,
+      expect.any(Object),
+      expect.anything(),
+      'run-old'
+    );
   });
 });

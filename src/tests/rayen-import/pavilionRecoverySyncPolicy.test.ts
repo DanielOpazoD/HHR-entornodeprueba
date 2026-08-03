@@ -67,6 +67,45 @@ describe('pavilion recovery synchronization policy', () => {
     expect(diff.activeClinicalEpisodeIds).toEqual([]);
   });
 
+  it('does not restore or discharge closed P-R1/P-R2 encounters', () => {
+    const current = record({
+      'P-R1': {
+        bedId: 'P-R1',
+        patientName: 'Paciente Pabellón Uno',
+        rut: '18.658.570-4',
+        clinicalEpisodeId: 'enc-pr-1',
+      } as DailyRecord['beds'][string],
+      'P-R2': {
+        bedId: 'P-R2',
+        patientName: 'Paciente Pabellón Dos',
+        rut: '20.236.052-1',
+        clinicalEpisodeId: 'enc-pr-2',
+      } as DailyRecord['beds'][string],
+    });
+    const captured = snapshot([
+      encounter({ hasMedicalDischarge: true }),
+      encounter({
+        encounterId: 'enc-pr-2',
+        run: '202360521',
+        room: 'H2',
+        bed: 'C1',
+        dischargeDatetime: '2026-07-31T09:30:00.000Z',
+      }),
+    ]);
+    captured.activeBedAssignments = [{ encounterId: 'enc-pr-2', bedId: 'P-R2' }];
+
+    const diff = reconcileCensus(current, captured);
+
+    expect(diff.admissions).toEqual([]);
+    expect(diff.updates).toEqual([]);
+    expect(diff.moves).toEqual([]);
+    expect(diff.discharges).toEqual([]);
+    expect(diff.pendingAdministrativeDischarges).toEqual([]);
+    expect(diff.conflicts).toEqual([]);
+    expect(diff.activeClinicalEpisodeIds).toEqual([]);
+    expect(diff.unchangedCount).toBe(0);
+  });
+
   it('does not warn when a previously local episode is temporarily visible in P-R1', () => {
     const localPatient = {
       bedId: 'H1C1',

@@ -4,9 +4,14 @@ import type {
   ClinicalFillError,
   ClinicalFillPatchOperation,
 } from '../contracts/clinicalFillContracts';
+import {
+  classifyRayenSyncError,
+  reportRayenSyncWarning,
+} from '../observability/rayenSyncDiagnostics';
 
 interface PersistClinicalBatchInput {
   operations: ClinicalFillPatchOperation[];
+  diagnosticRunId?: string;
   applyBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
   observeBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchEvidence>;
   applyWithMetrics: (
@@ -32,6 +37,7 @@ const retryCount = (error: unknown): number => {
 /** Completes optional batch persistence without coupling its outcome mapping to the fill runner. */
 export const persistClinicalBatch = async ({
   operations,
+  diagnosticRunId,
   applyBatch,
   observeBatch,
   applyWithMetrics,
@@ -73,10 +79,12 @@ export const persistClinicalBatch = async ({
       const batch = await observeBatch(operations);
       return { patched: 0, errors: [], batch };
     } catch (error) {
-      console.warn(
-        '[rayen-import] observación shadow del lote clínico no disponible:',
-        message(error)
-      );
+      reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
+        runId: diagnosticRunId,
+        errorKind: classifyRayenSyncError(error),
+        patientCount: operations.length,
+        batchMode: 'shadow',
+      });
       return {
         patched: 0,
         errors: [],

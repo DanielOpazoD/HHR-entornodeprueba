@@ -328,14 +328,16 @@ describe('applyEgresoReport', () => {
     const diff = makeDiff({
       unchangedCount: 1,
       summary: { ...makeDiff().summary, updates: 1, unchanged: 1 },
-      updates: [{
-        bedId: 'R2',
-        rut: '',
-        patientName: 'Paciente NN',
-        changes: [],
-        patient: exactPatient,
-        source: { encounterId: 'EXACT-EPISODE' } as never,
-      }],
+      updates: [
+        {
+          bedId: 'R2',
+          rut: '',
+          patientName: 'Paciente NN',
+          changes: [],
+          patient: exactPatient,
+          source: { encounterId: 'EXACT-EPISODE' } as never,
+        },
+      ],
     });
     const enriched = applyEgresoReport(
       diff,
@@ -347,9 +349,12 @@ describe('applyEgresoReport', () => {
   });
 
   it('deduplicates an exact episode even when the stored RUN differs', () => {
-    const current = makeRecord({}, {
-      discharges: [{ rut: '1-9', clinicalEpisodeId: 'EXACT-EPISODE' } as never],
-    });
+    const current = makeRecord(
+      {},
+      {
+        discharges: [{ rut: '1-9', clinicalEpisodeId: 'EXACT-EPISODE' } as never],
+      }
+    );
     const enriched = applyEgresoReport(
       makeDiff(),
       [row({ run: '22-5', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' })],
@@ -366,13 +371,15 @@ describe('applyEgresoReport', () => {
     };
     const enriched = applyEgresoReport(
       makeDiff({
-        moves: [{
-          fromBedId: 'R2',
-          toBedId: 'R3',
-          rut: exactPatient.rut,
-          patientName: exactPatient.patientName,
-          source: { encounterId: 'EXACT-EPISODE' } as never,
-        }],
+        moves: [
+          {
+            fromBedId: 'R2',
+            toBedId: 'R3',
+            rut: exactPatient.rut,
+            patientName: exactPatient.patientName,
+            source: { encounterId: 'EXACT-EPISODE' } as never,
+          },
+        ],
       }),
       [row({ run: '22-5', encounterId: 'EXACT-EPISODE', destino: 'Domicilio' })],
       makeRecord({ R2: exactPatient })
@@ -438,7 +445,6 @@ describe('applyEgresoReport', () => {
       expect.objectContaining({ encounterId: 'OLDER-EPISODE' }),
     ]);
   });
-
 });
 
 describe('collectRecordedMovementRuns', () => {
