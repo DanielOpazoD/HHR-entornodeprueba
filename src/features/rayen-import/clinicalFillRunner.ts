@@ -33,6 +33,7 @@ export type {
   ClinicalFillError,
   ClinicalFillPatchOperation,
   ClinicalFillPatchTarget,
+  ClinicalFillPersistenceStrategy,
   ClinicalFillProgress,
   ClinicalFillSummary,
   HistoricalCudyrApplyResult,
@@ -84,6 +85,10 @@ export const runClinicalFill = async (
   const withFormsReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   // Reads are concurrent; writes are serialized to preserve the census revision contract.
   const writes = createClinicalWriteCoordinator(summary.incremental!, performance.writeObserver);
+  const persistenceStrategy = deps.persistenceStrategy ?? {
+    disposition: 'immediate' as const,
+    persist: async () => undefined,
+  };
   const pendingBatch: ClinicalFillPatchOperation[] = [];
   // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source. `ok`
   // marks the read as authoritative — only then may a stale stored category be removed.
@@ -301,7 +306,7 @@ export const runClinicalFill = async (
     );
     if (Object.keys(patch).length === 0) return;
 
-    if (deps.applyBatch || deps.observeBatch) {
+    if (persistenceStrategy.disposition !== 'immediate') {
       pendingBatch.push({
         patch,
         clinicalFieldCount,
@@ -313,7 +318,7 @@ export const runClinicalFill = async (
           ...(clinicalCrib ? { clinicalCrib: true as const } : {}),
         },
       });
-      if (deps.applyBatch) {
+      if (persistenceStrategy.disposition === 'deferred') {
         if (historicalCudyrPatched && clinicalFieldCount === 0) summary.patched += 1;
         return;
       }
@@ -347,8 +352,7 @@ export const runClinicalFill = async (
   const batchPersistence = await persistClinicalBatch({
     operations: pendingBatch,
     diagnosticRunId: deps.diagnosticRunId,
-    applyBatch: deps.applyBatch,
-    observeBatch: deps.observeBatch,
+    strategy: persistenceStrategy,
     applyWithMetrics: writes.applyBatch,
     recordRetries: performance.recordRetries,
   });

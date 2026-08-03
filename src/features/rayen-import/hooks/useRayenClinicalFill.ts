@@ -31,11 +31,7 @@ import type { NursingStaffingProposal } from '../contracts/nursingShiftInference
 import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftProposal';
 import { enqueueLatestRayenClinicalFill } from '../domain/rayenClinicalFillQueue';
 import { resolveClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
-import {
-  applyClinicalEnrichmentBatch,
-  observeClinicalEnrichmentBatch,
-} from './applyClinicalEnrichmentBatch';
-import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
+import { createClinicalEnrichmentPersistenceStrategy } from './clinicalEnrichmentPersistenceStrategy';
 import {
   classifyRayenSyncError,
   reportRayenSyncWarning,
@@ -125,7 +121,13 @@ export const useRayenClinicalFill = ({
         let summary: ClinicalFillSummary;
         try {
           const batchMode = resolveClinicalEnrichmentBatchMode();
-          const batchRunId = batchMode === 'off' ? undefined : `clinical_${createSyncMutationId()}`;
+          const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
+            mode: batchMode,
+            record: freshRecord,
+            applyPatch: operation =>
+              patchDailyRecord(operation.patch, operation.target).then(() => undefined),
+            refreshRecord: () => loadDailyRecord(freshRecord.date),
+          });
           summary = await runClinicalFill(
             freshRecord,
             toIsoReportDate(freshRecord),
@@ -139,30 +141,7 @@ export const useRayenClinicalFill = ({
               applyPatch: async (patch, target) => {
                 await patchDailyRecord(patch, target);
               },
-              ...(batchMode === 'enforced' && batchRunId
-                ? {
-                    applyBatch: operations =>
-                      applyClinicalEnrichmentBatch({
-                        mode: batchMode,
-                        record: freshRecord,
-                        runId: batchRunId,
-                        operations,
-                        applyPatch: operation =>
-                          patchDailyRecord(operation.patch, operation.target).then(() => undefined),
-                        refreshRecord: () => loadDailyRecord(freshRecord.date),
-                      }),
-                  }
-                : {}),
-              ...(batchMode === 'shadow' && batchRunId
-                ? {
-                    observeBatch: async operations =>
-                      observeClinicalEnrichmentBatch({
-                        record: await loadDailyRecord(freshRecord.date),
-                        runId: batchRunId,
-                        operations,
-                      }),
-                  }
-                : {}),
+              persistenceStrategy,
               applyHistoricalCudyr,
               applyHistoricalCudyrBatch,
               now: () => new Date(),

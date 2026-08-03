@@ -3,6 +3,7 @@ import type {
   ClinicalFillBatchEvidence,
   ClinicalFillError,
   ClinicalFillPatchOperation,
+  ClinicalFillPersistenceStrategy,
 } from '../contracts/clinicalFillContracts';
 import {
   classifyRayenSyncError,
@@ -12,8 +13,7 @@ import {
 interface PersistClinicalBatchInput {
   operations: ClinicalFillPatchOperation[];
   diagnosticRunId?: string;
-  applyBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>;
-  observeBatch?: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchEvidence>;
+  strategy: ClinicalFillPersistenceStrategy;
   applyWithMetrics: (
     operation: () => Promise<ClinicalFillBatchApplyResult>
   ) => Promise<ClinicalFillBatchApplyResult>;
@@ -38,14 +38,13 @@ const retryCount = (error: unknown): number => {
 export const persistClinicalBatch = async ({
   operations,
   diagnosticRunId,
-  applyBatch,
-  observeBatch,
+  strategy,
   applyWithMetrics,
   recordRetries,
 }: PersistClinicalBatchInput): Promise<PersistClinicalBatchResult> => {
-  if (applyBatch && operations.length > 0) {
+  if (strategy.disposition === 'deferred' && operations.length > 0) {
     try {
-      const result = await applyWithMetrics(() => applyBatch(operations));
+      const result = await applyWithMetrics(() => strategy.persist(operations));
       recordRetries(result.retries ?? 0);
       const failedIndexes = new Set((result.failures ?? []).map(failure => failure.index));
       const clinicalTargets = operations.filter(
@@ -74,9 +73,9 @@ export const persistClinicalBatch = async ({
     }
   }
 
-  if (observeBatch && operations.length > 0) {
+  if (strategy.disposition === 'observe' && operations.length > 0) {
     try {
-      const batch = await observeBatch(operations);
+      const batch = await strategy.persist(operations);
       return { patched: 0, errors: [], batch };
     } catch (error) {
       reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {

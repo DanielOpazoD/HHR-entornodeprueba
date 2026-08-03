@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
+import {
+  runClinicalFill,
+  type ClinicalFillBatchApplyResult,
+  type ClinicalFillDeps,
+  type ClinicalFillPatchOperation,
+  type ClinicalFillPersistenceStrategy,
+} from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { logger } from '@/services/utils/loggerService';
 
@@ -44,6 +50,14 @@ const deps = (overrides: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   createId: () => 'device-id',
   ...overrides,
 });
+
+const deferredPersistence = (
+  persist: (operations: ClinicalFillPatchOperation[]) => Promise<ClinicalFillBatchApplyResult>
+): ClinicalFillPersistenceStrategy => ({ disposition: 'deferred', persist });
+
+const observedPersistence = (
+  persist: Extract<ClinicalFillPersistenceStrategy, { disposition: 'observe' }>['persist']
+): ClinicalFillPersistenceStrategy => ({ disposition: 'observe', persist });
 
 describe('runClinicalFill performance pipeline', () => {
   afterEach(() => {
@@ -177,7 +191,7 @@ describe('runClinicalFill performance pipeline', () => {
       historySnapshots: 1,
       retries: 1,
     });
-    const dependencies = deps({ applyBatch });
+    const dependencies = deps({ persistenceStrategy: deferredPersistence(applyBatch) });
 
     const summary = await runClinicalFill(record(5), '2026-07-10', dependencies);
 
@@ -205,7 +219,11 @@ describe('runClinicalFill performance pipeline', () => {
       failures: [{ index: 1, message: 'conflicto paciente 2' }],
     });
 
-    const summary = await runClinicalFill(record(5), '2026-07-10', deps({ applyBatch }));
+    const summary = await runClinicalFill(
+      record(5),
+      '2026-07-10',
+      deps({ persistenceStrategy: deferredPersistence(applyBatch) })
+    );
 
     expect(summary).toMatchObject({
       total: 5,
@@ -221,7 +239,11 @@ describe('runClinicalFill performance pipeline', () => {
     });
     const applyBatch = vi.fn().mockRejectedValue(failure);
 
-    const summary = await runClinicalFill(record(2), '2026-07-10', deps({ applyBatch }));
+    const summary = await runClinicalFill(
+      record(2),
+      '2026-07-10',
+      deps({ persistenceStrategy: deferredPersistence(applyBatch) })
+    );
 
     expect(summary).toMatchObject({
       total: 2,
@@ -242,7 +264,7 @@ describe('runClinicalFill performance pipeline', () => {
       backendTargets: 5,
       backendFields: 10,
     });
-    const dependencies = deps({ observeBatch });
+    const dependencies = deps({ persistenceStrategy: observedPersistence(observeBatch) });
 
     const summary = await runClinicalFill(record(5), '2026-07-10', dependencies);
 
@@ -265,7 +287,10 @@ describe('runClinicalFill performance pipeline', () => {
     const summary = await runClinicalFill(
       record(1),
       '2026-07-10',
-      deps({ observeBatch, diagnosticRunId: 'sync-run' })
+      deps({
+        persistenceStrategy: observedPersistence(observeBatch),
+        diagnosticRunId: 'sync-run',
+      })
     );
 
     expect(summary).toMatchObject({
@@ -314,7 +339,7 @@ describe('runClinicalFill performance pipeline', () => {
         })
     );
 
-    const dependencies = deps({ observeBatch });
+    const dependencies = deps({ persistenceStrategy: observedPersistence(observeBatch) });
     const pending = runClinicalFill(record(1), '2026-07-10', dependencies);
     await vi.waitFor(() => expect(dependencies.applyPatch).toHaveBeenCalledTimes(1));
     expect(observeBatch).toHaveBeenCalledTimes(1);
