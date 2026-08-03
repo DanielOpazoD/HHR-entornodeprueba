@@ -19,6 +19,10 @@
       "maxLines": 35,
       "hotspots": {}
     },
+    "clinical-history-coverage.js": {
+      "maxLines": 37,
+      "hotspots": {}
+    },
     "census-sync-horizon-runtime.js": {
       "maxLines": 43,
       "hotspots": {}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
   CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
+  confirmAuthoritativeHistoryWindow,
   confirmFullWindow,
   resolveClinicalHistoryReadPolicy,
 } from '@/features/rayen-import/domain/clinicalHistoryReadPolicy';
@@ -28,14 +29,19 @@ const checkpoint = (
 describe('resolveClinicalHistoryReadPolicy', () => {
   const now = new Date('2026-07-29T12:00:00.000Z');
 
-  it('keeps the adaptive window on the first synchronization', () => {
-    expect(resolveClinicalHistoryReadPolicy(undefined, '2026-07-29', now)).toEqual({});
+  it('establishes a bounded full baseline on the first synchronization', () => {
+    expect(resolveClinicalHistoryReadPolicy(undefined, '2026-07-29', now)).toEqual({
+      lookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
+      fullValidationAt: now.toISOString(),
+      fullValidationAttemptAt: now.toISOString(),
+    });
   });
 
   it('requests one bounded full validation when an incremental checkpoint has no baseline', () => {
     expect(resolveClinicalHistoryReadPolicy(checkpoint(), '2026-07-29', now)).toEqual({
       lookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
       fullValidationAt: now.toISOString(),
+      fullValidationAttemptAt: now.toISOString(),
     });
   });
 
@@ -108,5 +114,21 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     expect(confirmFullWindow(policy, 14)).toBe(now.toISOString());
     expect(confirmFullWindow(policy, 13)).toBeUndefined();
     expect(confirmFullWindow(policy, undefined)).toBeUndefined();
+  });
+
+  it('accepts only explicit, canonical bounds from a confirmed full read', () => {
+    const policy = { lookbackDays: 14, fullValidationAt: now.toISOString() };
+    expect(confirmAuthoritativeHistoryWindow(policy, 14, '2026-07-16', '2026-07-27')).toEqual({
+      startIsoDay: '2026-07-16',
+      endIsoDay: '2026-07-27',
+    });
+    expect(
+      confirmAuthoritativeHistoryWindow(policy, 13, '2026-07-16', '2026-07-27')
+    ).toBeUndefined();
+    expect(confirmAuthoritativeHistoryWindow(policy, 14, undefined, '2026-07-27')).toBeUndefined();
+    expect(
+      confirmAuthoritativeHistoryWindow(policy, 14, '2026-07-28', '2026-07-27')
+    ).toBeUndefined();
+    expect(confirmAuthoritativeHistoryWindow(policy, 14, 'fecha', '2026-07-27')).toBeUndefined();
   });
 });

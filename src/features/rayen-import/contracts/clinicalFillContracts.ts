@@ -30,6 +30,8 @@ export interface ClinicalFillDeps {
     events: RayenHistoryScaleEvent[];
     nursingActivity?: RayenNursingActivity[];
     effectiveLookbackDays?: number;
+    coverageWindowStartIsoDay?: string;
+    coverageWindowEndIsoDay?: string;
     error?: string;
   }>;
   fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;

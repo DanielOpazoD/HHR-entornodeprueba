@@ -7,15 +7,12 @@
  * Snapshot (Ficha Médico census):
  *   Page → us:  { type: 'HHR_RAYEN_REQUEST_SNAPSHOT' }
  *   us  → page: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', snapshot } | { type: 'HHR_RAYEN_IMPORT_ERROR', error }
- *
  * Guarded sync bundle (Ficha Médico + Gestión de Camas):
  *   Page → us:  { type: 'HHR_RAYEN_REQUEST_SYNC_BUNDLE', dateStart, dateEnd }
  *   us  → page: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', snapshot, bundle } | import error
- *
  * Egreso lookup (Gestión de Camas, for late-sync patients absent from Ficha Médico):
  *   Page → us:  { type: 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST', reqId, runs }
  *   us  → page: { type: 'HHR_RAYEN_EGRESO_LOOKUP_RESULT', reqId, results }
- *
  * Egreso report (bulk "Alta Administrativa" list by date — enumerates the day's egresos,
  * including patients HHR never synced; parsed to rows in the background):
  *   Page → us:  { type: 'HHR_RAYEN_EGRESO_REPORT_REQUEST', reqId, dateStart, dateEnd }
@@ -189,7 +186,10 @@
             reqId,
             events: (response && Array.isArray(response.events) && response.events) || [],
             nursingActivity: (response && Array.isArray(response.nursingActivity) && response.nursingActivity) || [],
-            effectiveLookbackDays: response && response.effectiveLookbackDays, error: response && response.error,
+            effectiveLookbackDays: response && response.effectiveLookbackDays,
+            coverageWindowStartIsoDay: response && response.coverageWindowStartIsoDay,
+            coverageWindowEndIsoDay: response && response.coverageWindowEndIsoDay,
+            error: response && response.error,
           });
         })
         .catch(error => {

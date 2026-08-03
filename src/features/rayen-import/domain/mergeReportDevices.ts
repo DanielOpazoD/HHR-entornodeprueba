@@ -10,6 +10,7 @@ import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 import type { MappedDevice } from '../mapping/mapDeviceToInstance';
 import { canonicalizeRayenDeviceType } from '../mapping/mapDeviceToInstance';
+import { clinicalFieldValuesEqual } from './clinicalFieldCanonicalization';
 import { clinicalValuesEqual } from './clinicalIncrementalSync';
 
 export interface MergeDevicesContext {
@@ -41,9 +42,13 @@ const normalizeExistingDeviceAliases = (patient: PatientData): PatientData => {
   });
 
   if (
-    clinicalValuesEqual(patient.devices ?? [], devices) &&
-    clinicalValuesEqual(patient.deviceDetails ?? {}, deviceDetails) &&
-    clinicalValuesEqual(patient.deviceInstanceHistory ?? [], deviceInstanceHistory)
+    clinicalFieldValuesEqual('devices', patient.devices, devices) &&
+    clinicalFieldValuesEqual('deviceDetails', patient.deviceDetails, deviceDetails) &&
+    clinicalFieldValuesEqual(
+      'deviceInstanceHistory',
+      patient.deviceInstanceHistory,
+      deviceInstanceHistory
+    )
   ) {
     return patient;
   }
@@ -112,9 +117,17 @@ export const mergeReportDevices = (
     deviceInstanceHistory: history,
   };
   if (
-    clinicalValuesEqual(normalizedPatient.devices ?? [], merged.devices) &&
-    clinicalValuesEqual(normalizedPatient.deviceDetails ?? {}, merged.deviceDetails) &&
-    clinicalValuesEqual(normalizedPatient.deviceInstanceHistory ?? [], merged.deviceInstanceHistory)
+    clinicalFieldValuesEqual('devices', normalizedPatient.devices, merged.devices) &&
+    clinicalFieldValuesEqual(
+      'deviceDetails',
+      normalizedPatient.deviceDetails,
+      merged.deviceDetails
+    ) &&
+    clinicalFieldValuesEqual(
+      'deviceInstanceHistory',
+      normalizedPatient.deviceInstanceHistory,
+      merged.deviceInstanceHistory
+    )
   ) {
     return normalizedPatient;
   }

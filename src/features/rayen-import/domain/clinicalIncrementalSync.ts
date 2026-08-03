@@ -24,23 +24,23 @@ export interface ClinicalIncrementalMetrics {
   corrections: number;
 }
 
-const canonicalize = (value: unknown): string => {
+export const canonicalizeClinicalValue = (value: unknown): string => {
   if (value === undefined) return 'undefined';
   if (value == null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
+  if (Array.isArray(value)) return `[${value.map(canonicalizeClinicalValue).join(',')}]`;
   return `{${Object.entries(value as Record<string, unknown>)
     .filter(([, item]) => item !== undefined)
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item)}`)
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalizeClinicalValue(item)}`)
     .join(',')}}`;
 };
 
 export const clinicalValuesEqual = (left: unknown, right: unknown): boolean =>
-  canonicalize(left) === canonicalize(right);
+  canonicalizeClinicalValue(left) === canonicalizeClinicalValue(right);
 
 /** Compact deterministic hash. It is an identity key, not a security primitive. */
 const fingerprint = (value: unknown): string => {
-  const input = canonicalize(value);
+  const input = canonicalizeClinicalValue(value);
   let hash = 0x811c9dc5;
   for (let index = 0; index < input.length; index += 1) {
     hash ^= input.charCodeAt(index);

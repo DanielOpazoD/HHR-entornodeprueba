@@ -37,6 +37,9 @@ export const RAYEN_HISTORY_SCALES_RESULT_TYPE = 'HHR_RAYEN_HISTORY_SCALES_RESULT
 export const RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST';
 export const RAYEN_CUDYR_CATEGORIES_RESULT_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT';
 
+const optionalString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined;
+
 export interface RayenCudyrHistoryEntry {
   id?: string;
   category: string;
@@ -277,10 +280,9 @@ export const requestScalesReport = (
  * Ask the extension for one patient's evaluation scales (Braden/Downton) as clinical-history events
  * from Ficha Médico's "panel de historial" (`getPatientEncounterHistoryReportServer`). The census
  * date lets the extension bound the remote history window without losing D-7 or its morning handoff.
- * Each event's
- * `publishDatetime` is the real application timestamp, so HHR (`parseHistoryScales`) can select the
- * last score applied ON the census day — including past days and same-day re-applications that
- * encounterFormEntry misses. Resolves to `{ events: [] }` if the extension / Ficha Médico tab is
+ * Each event's `publishDatetime` is real, so HHR (`parseHistoryScales`) can select the
+ * last score applied ON the census day, including same-day re-applications encounterFormEntry
+ * misses. Resolves to `{ events: [] }` if the extension / Ficha Médico tab is
  * unavailable or times out, so the caller degrades gracefully (no scales synced for that patient).
  */
 export const requestHistoryScales = (
@@ -292,6 +294,8 @@ export const requestHistoryScales = (
   events: RayenHistoryScaleEvent[];
   nursingActivity: RayenNursingActivity[];
   effectiveLookbackDays?: number;
+  coverageWindowStartIsoDay?: string;
+  coverageWindowEndIsoDay?: string;
   error?: string;
 }> =>
   new Promise(resolve => {
@@ -323,6 +327,8 @@ export const requestHistoryScales = (
         effectiveLookbackDays: Number.isFinite(Number(data.effectiveLookbackDays))
           ? Number(data.effectiveLookbackDays)
           : undefined,
+        coverageWindowStartIsoDay: optionalString(data.coverageWindowStartIsoDay),
+        coverageWindowEndIsoDay: optionalString(data.coverageWindowEndIsoDay),
         error: typeof data.error === 'string' ? data.error : undefined,
       });
     };

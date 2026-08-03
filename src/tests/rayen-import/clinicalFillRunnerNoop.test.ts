@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import { buildClinicalPatientPatch } from '@/features/rayen-import/domain/clinicalPatientPatch';
+import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import { applyPatches } from '@/utils/patchUtils';
 
 /** Real-shaped Braden 17 (07-10) as a slimmed clinical-history event from the panel de historial. */
 const BRADEN_HISTORY_EVENT = {
@@ -111,9 +113,7 @@ describe('runClinicalFill no-op behavior', () => {
       ],
     };
     const deps = okDeps({
-      fetchHistoryScales: vi
-        .fn()
-        .mockResolvedValue({ events: [], nursingActivity: [], effectiveLookbackDays: 14 }),
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [], nursingActivity: [] }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
       fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
     });
@@ -126,17 +126,18 @@ describe('runClinicalFill no-op behavior', () => {
     expect(patch['beds.H1C2.evaluationScores'].history[0].author).toBe('Valeria Salfate');
   });
 
-  it('persists only the daily checkpoint when repeated clinical facts do not change the patient', async () => {
+  it('is a zero-write retry after persistence and hydration of an authoritative first pass', async () => {
     const firstRecord = record({ H1C2: { encId: 'E1' } });
     const firstDeps = okDeps();
     const firstSummary = await runClinicalFill(firstRecord, '2026-07-10', firstDeps);
     const firstPatch = (firstDeps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
     expect(firstPatch).toBeDefined();
 
-    const storedRecord = record({ H1C2: { encId: 'E1' } });
-    const storedPatient = storedRecord.beds.H1C2!;
-    storedPatient.evaluationScores = firstPatch['beds.H1C2.evaluationScores'];
-    storedPatient.clinicalSyncCheckpoint = firstPatch['beds.H1C2.clinicalSyncCheckpoint'];
+    const persisted = prepareDailyRecordForPersistence(
+      applyPatches(firstRecord, firstPatch),
+      '2026-07-10'
+    );
+    const storedRecord = JSON.parse(JSON.stringify(persisted)) as DailyRecord;
 
     const retryDeps = okDeps();
     const summary = await runClinicalFill(storedRecord, '2026-07-10', retryDeps);
@@ -146,24 +147,11 @@ describe('runClinicalFill no-op behavior', () => {
     expect(summary.incremental).toMatchObject({
       newFacts: 0,
       duplicates: 1,
-      patientWrites: 1,
+      patientWrites: 0,
       historySnapshots: 0,
     });
-    expect(retryDeps.applyPatch).toHaveBeenCalledTimes(1);
-    expect((retryDeps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1]).toMatchObject({
-      captureHistorySnapshot: false,
-    });
-
-    const retryPatch = (retryDeps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0];
-    expect(Object.keys(retryPatch)).toEqual(['beds.H1C2.clinicalSyncCheckpoint']);
-    expect(JSON.stringify(retryPatch).length).toBeLessThan(JSON.stringify(firstPatch).length);
-
-    storedPatient.clinicalSyncCheckpoint = retryPatch['beds.H1C2.clinicalSyncCheckpoint'];
-    const sameDayDeps = okDeps();
-    const sameDaySummary = await runClinicalFill(storedRecord, '2026-07-10', sameDayDeps);
-    expect(sameDaySummary).toMatchObject({ total: 1, patched: 0, errors: [] });
-    expect(sameDaySummary.incremental).toMatchObject({ patientWrites: 0, historySnapshots: 0 });
-    expect(sameDayDeps.applyPatch).not.toHaveBeenCalled();
+    expect(summary.performance?.counters.patches).toBe(0);
+    expect(retryDeps.applyPatch).not.toHaveBeenCalled();
   });
 
   it('does not certify a full history validation when the history read fails', async () => {
@@ -216,9 +204,42 @@ describe('runClinicalFill no-op behavior', () => {
     ];
     expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
     expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
+    expect(stored.sources.scales.lastFullValidationAttemptAt).toBe('2026-07-10T12:00:00.000Z');
+    expect(stored.sources.staffing.lastFullValidationAttemptAt).toBe('2026-07-10T12:00:00.000Z');
   });
 
   it('certifies a full validation only when the extension confirms the requested window', async () => {
+    const rec = record({ H1C2: { encId: 'E1' } });
+    rec.beds.H1C2.clinicalSyncCheckpoint = {
+      version: 2,
+      fingerprintVersion: 1,
+      sources: {
+        scales: { facts: [], lastFullValidationAt: '2026-07-08T08:00:00.000Z' },
+        staffing: { facts: [], lastFullValidationAt: '2026-07-08T08:00:00.000Z' },
+      },
+    };
+    const deps = okDeps({
+      fetchHistoryScales: vi.fn().mockResolvedValue({
+        events: [],
+        nursingActivity: [],
+        effectiveLookbackDays: 14,
+        coverageWindowStartIsoDay: '2026-06-28',
+        coverageWindowEndIsoDay: '2026-07-09',
+      }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    });
+
+    await runClinicalFill(rec, '2026-07-10', deps);
+
+    const stored = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0][
+      'beds.H1C2.clinicalSyncCheckpoint'
+    ];
+    expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-10T12:00:00.000Z');
+    expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-10T12:00:00.000Z');
+  });
+
+  it('does not certify a full validation from lookback metadata without coverage bounds', async () => {
     const rec = record({ H1C2: { encId: 'E1' } });
     rec.beds.H1C2.clinicalSyncCheckpoint = {
       version: 2,
@@ -243,7 +264,8 @@ describe('runClinicalFill no-op behavior', () => {
     const stored = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0][
       'beds.H1C2.clinicalSyncCheckpoint'
     ];
-    expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-10T12:00:00.000Z');
-    expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-10T12:00:00.000Z');
+    expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
+    expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
+    expect(stored.sources.scales.lastFullValidationAttemptAt).toBe('2026-07-10T12:00:00.000Z');
   });
 });

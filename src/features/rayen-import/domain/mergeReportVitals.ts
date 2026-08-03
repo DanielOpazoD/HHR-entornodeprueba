@@ -10,7 +10,7 @@
 
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
-import { clinicalValuesEqual } from './clinicalIncrementalSync';
+import { clinicalFieldValuesEqual } from './clinicalFieldCanonicalization';
 
 /**
  * How many measurements to keep — enough for "7 días o más" at typical ward frequency (~3–4/day)
@@ -99,8 +99,8 @@ export const mergeReportVitals = (
   const glance = history.find(hasCoreVital) ?? history[0];
   const nextHistory = history.length > 0 ? history : [];
   if (
-    clinicalValuesEqual(patient.vitalSignsHistory ?? [], nextHistory) &&
-    clinicalValuesEqual(patient.vitalSigns, glance)
+    clinicalFieldValuesEqual('vitalSignsHistory', patient.vitalSignsHistory, nextHistory) &&
+    clinicalFieldValuesEqual('vitalSigns', patient.vitalSigns, glance)
   ) {
     return patient;
   }

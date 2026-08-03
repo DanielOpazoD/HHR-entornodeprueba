@@ -155,6 +155,133 @@ describe('mergeReportScales', () => {
     expect(result.evaluationScores?.braden?.total).toBe(11);
   });
 
+  it('preserves antecedents omitted from a shorter incremental window', () => {
+    const older = scale({
+      encounterEventId: 50,
+      recordedDate: '2026-06-01',
+      recordedAt: '2026-06-01T08:00:00',
+      total: 19,
+    });
+    const before = mergeReportScales(patient(), [older], { censusIsoDay: '2026-07-10' });
+    const result = mergeReportScales(before, [BRADEN_D10], { censusIsoDay: '2026-07-10' });
+
+    expect(result.evaluationScores?.history?.map(item => item.recordedDate)).toEqual([
+      '2026-07-10',
+      '2026-06-01',
+    ]);
+  });
+
+  it('does not prune facts outside the explicit window from partial or authoritative evidence', () => {
+    const storedFuture = scale({
+      encounterEventId: 200,
+      recordedDate: '2026-07-12',
+      recordedAt: '2026-07-12T08:00:00',
+    });
+    const before = patient({
+      evaluationScores: { history: [{ ...storedFuture, items: undefined }] },
+    });
+
+    const partial = mergeReportScales(before, [BRADEN_D10], {
+      censusIsoDay: '2026-07-10',
+      sourceCompleteness: 'partial',
+    });
+    const authoritative = mergeReportScales(before, [BRADEN_D10], {
+      censusIsoDay: '2026-07-10',
+      sourceCompleteness: 'authoritative',
+      authoritativeWindowStartIsoDay: '2026-07-01',
+      authoritativeWindowEndIsoDay: '2026-07-10',
+    });
+
+    expect(partial.evaluationScores?.history).toHaveLength(2);
+    expect(authoritative.evaluationScores?.history).toHaveLength(2);
+  });
+
+  it('removes retracted facts only inside an explicitly validated authoritative window', () => {
+    const older = scale({
+      encounterEventId: 40,
+      sourceOrder: 40,
+      recordedDate: '2026-06-30',
+      recordedAt: '2026-06-30T08:00:00',
+      total: 19,
+    });
+    const retracted = scale({
+      encounterEventId: 80,
+      sourceOrder: 80,
+      recordedDate: '2026-07-10',
+      recordedAt: '2026-07-10T08:00:00',
+      total: 11,
+    });
+    const before = mergeReportScales(patient(), [older, retracted], {
+      censusIsoDay: '2026-07-10',
+    });
+
+    const partial = mergeReportScales(before, [], {
+      censusIsoDay: '2026-07-10',
+      sourceCompleteness: 'partial',
+    });
+    const authoritative = mergeReportScales(before, [], {
+      censusIsoDay: '2026-07-10',
+      sourceCompleteness: 'authoritative',
+      authoritativeWindowStartIsoDay: '2026-07-01',
+      authoritativeWindowEndIsoDay: '2026-07-10',
+    });
+
+    expect(partial).toBe(before);
+    expect(authoritative.evaluationScores?.history?.map(item => item.recordedDate)).toEqual([
+      '2026-06-30',
+    ]);
+    expect(authoritative.evaluationScores?.braden?.total).toBe(19);
+  });
+
+  it('preserves prior-day Rayen antecedents inside a multi-day authoritative window', () => {
+    const priorRayen = scale({
+      encounterEventId: 20260705080000,
+      sourceOrder: 5,
+      recordedDate: '2026-07-05',
+      recordedAt: '2026-07-05T08:00:00',
+      total: 13,
+    });
+    const before = patient({
+      evaluationScores: { history: [{ ...priorRayen, items: undefined }] },
+    });
+
+    const result = mergeReportScales(before, [], {
+      censusIsoDay: '2026-07-10',
+      sourceCompleteness: 'authoritative',
+      authoritativeWindowStartIsoDay: '2026-07-01',
+      authoritativeWindowEndIsoDay: '2026-07-10',
+    });
+
+    expect(result.evaluationScores?.history).toEqual([
+      expect.objectContaining({ recordedDate: '2026-07-05', total: 13 }),
+    ]);
+  });
+
+  it('preserves unowned local scales when an authoritative Rayen window is empty', () => {
+    const local = scale({
+      encounterEventId: 20260705080000,
+      sourceOrder: undefined,
+      recordedDate: '2026-07-05',
+      recordedAt: '2026-07-05T08:00:00',
+      author: 'Registro local',
+      total: 13,
+    });
+    const before = patient({
+      evaluationScores: { history: [{ ...local, items: undefined }] },
+    });
+
+    const result = mergeReportScales(before, [], {
+      censusIsoDay: '2026-07-10',
+      sourceCompleteness: 'authoritative',
+      authoritativeWindowStartIsoDay: '2026-07-01',
+      authoritativeWindowEndIsoDay: '2026-07-10',
+    });
+
+    expect(result.evaluationScores?.history).toEqual([
+      expect.objectContaining({ author: 'Registro local', total: 13 }),
+    ]);
+  });
+
   it('removes the old copy when a source correction moves the scale after the census day', () => {
     const before = mergeReportScales(patient(), [BRADEN_D10], { censusIsoDay: '2026-07-11' });
     const corrected = {
@@ -164,7 +291,10 @@ describe('mergeReportScales', () => {
       total: 11,
     };
 
-    const result = mergeReportScales(before, [corrected], { censusIsoDay: '2026-07-11' });
+    const result = mergeReportScales(before, [corrected], {
+      censusIsoDay: '2026-07-11',
+      sourceCompleteness: 'partial',
+    });
     expect(result.evaluationScores?.braden).toBeUndefined();
     expect(result.evaluationScores?.history).toEqual([]);
   });
@@ -211,6 +341,31 @@ describe('mergeReportScales', () => {
 
     expect(result.evaluationScores?.history).toHaveLength(1);
     expect(result.evaluationScores?.history?.[0].author).toBe('Enf. Ejemplo');
+  });
+
+  it('canonicalizes compact and detailed copies on the first pass', () => {
+    const compact = {
+      ...BRADEN_D10,
+      sourceOrder: 1,
+      items: [],
+      author: 'Historial',
+    };
+    const detailed = {
+      ...BRADEN_D10,
+      sourceOrder: 8642,
+      author: 'Resumen',
+    };
+
+    const first = mergeReportScales(patient(), [compact, detailed], {
+      censusIsoDay: '2026-07-10',
+    });
+    const retry = mergeReportScales(first, [compact, detailed], {
+      censusIsoDay: '2026-07-10',
+    });
+
+    expect(first.evaluationScores?.history).toHaveLength(1);
+    expect(first.evaluationScores?.braden?.items).toHaveLength(1);
+    expect(retry).toBe(first);
   });
 
   it('keeps the preferred visible persisted representation over an archived alternate form', () => {

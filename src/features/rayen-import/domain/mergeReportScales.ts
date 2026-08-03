@@ -22,7 +22,7 @@ import {
   evaluationScalesAsOf,
   type EvaluationScale,
 } from '../mapping/parseEvaluationScales';
-import { clinicalValuesEqual } from './clinicalIncrementalSync';
+import { clinicalFieldValuesEqual } from './clinicalFieldCanonicalization';
 import {
   areEquivalentScaleApplications,
   dedupeEquivalentScaleApplications,
@@ -32,6 +32,12 @@ import {
 export interface MergeScalesContext {
   /** The census day being synced (YYYY-MM-DD, Rapa Nui local). */
   censusIsoDay: string;
+  /** Only a complete dual-source baseline may prune facts absent from the requested census view. */
+  sourceCompleteness?: 'partial' | 'authoritative';
+  /** Inclusive lower bound of the fully validated Rayen history window (YYYY-MM-DD). */
+  authoritativeWindowStartIsoDay?: string;
+  /** Inclusive upper bound of the fully validated Rayen history window (YYYY-MM-DD). */
+  authoritativeWindowEndIsoDay?: string;
 }
 
 const toApplicationEvidence = (scale: EvaluationScale): EvaluationScaleApplicationEvidence => ({
@@ -94,13 +100,25 @@ const scaleStableIdentity = (scale: EvaluationScale): string | null =>
     ? `${scale.code}|event:${scale.encounterEventId}|${scale.sourceOrder ?? 0}`
     : null;
 
+/**
+ * `sourceOrder` is emitted only by Rayen's history/form parsers. Older or locally-authored entries
+ * without that source-level coordinate are deliberately unowned: an empty Rayen window cannot prove
+ * that they were retracted and therefore must never delete them.
+ */
+const hasRayenSourceIdentity = (scale: EvaluationScale): boolean =>
+  scale.encounterEventId > 0 &&
+  Number.isInteger(scale.sourceOrder) &&
+  (scale.sourceOrder ?? -1) >= 0;
+
 const scaleIdentity = (scale: EvaluationScale): string =>
   scaleStableIdentity(scale) ?? `legacy:${scaleLegacyIdentity(scale)}`;
 
 const mergeScaleHistory = (
   patient: PatientData,
   incoming: EvaluationScale[],
-  censusIsoDay: string
+  censusIsoDay: string,
+  authoritativeWindowStartIsoDay?: string,
+  authoritativeWindowEndIsoDay?: string
 ): EvaluationScale[] => {
   const scores = patient.evaluationScores;
   const existing = [
@@ -111,12 +129,24 @@ const mergeScaleHistory = (
   const byIdentity = new Map<string, EvaluationScale>();
   // Convergent repair: old versions could persist the same clinical application more than once
   // when repeated forms attributed it to different professionals.
-  for (const scale of dedupeEquivalentScaleApplications(existing)) {
-    if (scale.recordedDate <= censusIsoDay) byIdentity.set(scaleIdentity(scale), scale);
+  for (const scale of dedupeEquivalentScaleApplications(existing, { allowPartialPayload: true })) {
+    // The merged input is projected for the requested census day. Even when the underlying history
+    // read covers several days, absence is actionable only for that represented day; prior Rayen
+    // facts in the certified window remain valid antecedents. Local/legacy entries are never owned.
+    if (
+      !hasRayenSourceIdentity(scale) ||
+      !authoritativeWindowStartIsoDay ||
+      !authoritativeWindowEndIsoDay ||
+      scale.recordedDate !== censusIsoDay ||
+      scale.recordedDate < authoritativeWindowStartIsoDay ||
+      scale.recordedDate > authoritativeWindowEndIsoDay
+    ) {
+      byIdentity.set(scaleIdentity(scale), scale);
+    }
   }
   // Source values replace a stable event identity even when a correction moves the event after the
   // requested census day. Otherwise the old eligible copy would survive as stale clinical truth.
-  for (const scale of dedupeEquivalentScaleApplications(incoming)) {
+  for (const scale of dedupeEquivalentScaleApplications(incoming, { allowPartialPayload: true })) {
     let canonicalScale = scale;
     const incomingStableIdentity = scaleStableIdentity(scale);
     for (const [identity, existingScale] of byIdentity) {
@@ -154,14 +184,34 @@ export const mergeReportScales = (
   scales: EvaluationScale[],
   ctx: MergeScalesContext
 ): PatientData => {
-  const mergedScales = mergeScaleHistory(patient, scales, ctx.censusIsoDay);
+  const authoritativeWindowStartIsoDay =
+    ctx.sourceCompleteness === 'authoritative' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(ctx.authoritativeWindowStartIsoDay ?? '') &&
+    /^\d{4}-\d{2}-\d{2}$/.test(ctx.authoritativeWindowEndIsoDay ?? '') &&
+    (ctx.authoritativeWindowStartIsoDay ?? '') <= (ctx.authoritativeWindowEndIsoDay ?? '')
+      ? ctx.authoritativeWindowStartIsoDay
+      : undefined;
+  const authoritativeWindowEndIsoDay = authoritativeWindowStartIsoDay
+    ? ctx.authoritativeWindowEndIsoDay
+    : undefined;
+  const mergedScales = mergeScaleHistory(
+    patient,
+    scales,
+    ctx.censusIsoDay,
+    authoritativeWindowStartIsoDay,
+    authoritativeWindowEndIsoDay
+  );
   if (mergedScales.length === 0) {
-    if (scales.length === 0 || !patient.evaluationScores) return patient;
+    if (!patient.evaluationScores || (scales.length === 0 && !authoritativeWindowStartIsoDay)) {
+      return patient;
+    }
     const evaluationScores: PatientEvaluationScores = {
       ...(patient.evaluationScores.cudyr ? { cudyr: patient.evaluationScores.cudyr } : {}),
       history: [],
     };
-    if (clinicalValuesEqual(patient.evaluationScores, evaluationScores)) return patient;
+    if (clinicalFieldValuesEqual('evaluationScores', patient.evaluationScores, evaluationScores)) {
+      return patient;
+    }
     return { ...patient, evaluationScores };
   }
 
@@ -186,6 +236,8 @@ export const mergeReportScales = (
     history,
   };
 
-  if (clinicalValuesEqual(patient.evaluationScores, evaluationScores)) return patient;
+  if (clinicalFieldValuesEqual('evaluationScores', patient.evaluationScores, evaluationScores)) {
+    return patient;
+  }
   return { ...patient, evaluationScores };
 };
