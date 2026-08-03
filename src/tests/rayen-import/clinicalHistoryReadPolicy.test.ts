@@ -11,18 +11,29 @@ import type { ClinicalSyncCheckpoint } from '@/types/domain/clinicalSync';
 
 const checkpoint = (
   scalesValidation?: string,
-  staffingValidation?: string
+  staffingValidation?: string,
+  validatedLookbackDays = CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS
 ): ClinicalSyncCheckpoint => ({
-  version: 1,
+  version: 2,
   fingerprintVersion: 1,
   sources: {
     scales: {
       facts: [],
-      ...(scalesValidation ? { lastFullValidationAt: scalesValidation } : {}),
+      ...(scalesValidation
+        ? {
+            lastFullValidationAt: scalesValidation,
+            lastFullValidationLookbackDays: validatedLookbackDays,
+          }
+        : {}),
     },
     staffing: {
       facts: [],
-      ...(staffingValidation ? { lastFullValidationAt: staffingValidation } : {}),
+      ...(staffingValidation
+        ? {
+            lastFullValidationAt: staffingValidation,
+            lastFullValidationLookbackDays: validatedLookbackDays,
+          }
+        : {}),
     },
   },
 });
@@ -92,6 +103,38 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     });
   });
 
+  it('requests a wider window when the recent successful validation was narrower', () => {
+    expect(
+      resolveClinicalHistoryReadPolicy(
+        checkpoint('2026-07-29T06:00:00.000Z', '2026-07-29T07:00:00.000Z'),
+        '2026-07-09',
+        now
+      )
+    ).toMatchObject({ lookbackDays: 22 });
+  });
+
+  it('revalidates a legacy timestamp once because its covered window is unknown', () => {
+    const legacyCheckpoint = checkpoint();
+    legacyCheckpoint.sources.scales = {
+      facts: [],
+      lastFullValidationAt: '2026-07-29T07:00:00.000Z',
+    };
+
+    expect(resolveClinicalHistoryReadPolicy(legacyCheckpoint, '2026-07-29', now)).toMatchObject({
+      lookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
+    });
+  });
+
+  it('keeps the adaptive window when the recent validation already covers the older census', () => {
+    expect(
+      resolveClinicalHistoryReadPolicy(
+        checkpoint('2026-07-29T06:00:00.000Z', '2026-07-29T07:00:00.000Z', 22),
+        '2026-07-09',
+        now
+      )
+    ).toEqual({});
+  });
+
   it('does not certify a full validation beyond the endpoint history limit', () => {
     expect(resolveClinicalHistoryReadPolicy(checkpoint(), '2025-12-01', now)).toEqual({
       lookbackDays: CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
@@ -104,6 +147,7 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     cappedAttempt.sources.scales = {
       facts: [],
       lastFullValidationAttemptAt: '2026-07-29T07:00:00.000Z',
+      lastFullValidationAttemptLookbackDays: CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
     };
 
     expect(resolveClinicalHistoryReadPolicy(cappedAttempt, '2025-12-01', now)).toEqual({});
@@ -116,6 +160,7 @@ describe('resolveClinicalHistoryReadPolicy', () => {
       lastFullValidationAttemptAt: new Date(
         now.getTime() - CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS + 1
       ).toISOString(),
+      lastFullValidationAttemptLookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
     };
 
     expect(resolveClinicalHistoryReadPolicy(failedAttempt, '2026-07-29', now)).toEqual({});
@@ -128,11 +173,27 @@ describe('resolveClinicalHistoryReadPolicy', () => {
       lastFullValidationAttemptAt: new Date(
         now.getTime() - CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS
       ).toISOString(),
+      lastFullValidationAttemptLookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
     };
 
     expect(resolveClinicalHistoryReadPolicy(failedAttempt, '2026-07-29', now)).toMatchObject({
       lookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
       fullValidationAt: now.toISOString(),
+    });
+  });
+
+  it('does not let a recent narrower attempt throttle a wider request', () => {
+    const narrowAttempt = checkpoint();
+    narrowAttempt.sources.scales = {
+      facts: [],
+      lastFullValidationAttemptAt: new Date(
+        now.getTime() - CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS + 1
+      ).toISOString(),
+      lastFullValidationAttemptLookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
+    };
+
+    expect(resolveClinicalHistoryReadPolicy(narrowAttempt, '2026-07-09', now)).toMatchObject({
+      lookbackDays: 22,
     });
   });
 

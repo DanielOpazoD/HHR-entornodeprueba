@@ -84,17 +84,6 @@ export const resolveClinicalHistoryReadPolicy = (
   const sourceCheckpoints = ['scales', 'staffing'].map(
     source => checkpoint?.sources[source as 'scales' | 'staffing']
   );
-  const parseTimestamps = (values: Array<string | undefined>): number[] =>
-    values
-      .filter((value): value is string => Boolean(value))
-      .map(value => Date.parse(value))
-      .filter(Number.isFinite);
-  const successfulValidations = parseTimestamps(
-    sourceCheckpoints.map(source => source?.lastFullValidationAt)
-  );
-  const validationAttempts = parseTimestamps(
-    sourceCheckpoints.map(source => source?.lastFullValidationAttemptAt)
-  );
   const nowMs = now.getTime();
   if (!Number.isFinite(nowMs)) return {};
 
@@ -106,23 +95,47 @@ export const resolveClinicalHistoryReadPolicy = (
       : 0;
   const requestedLookback = Math.max(CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS, censusAgeDays + 2);
   const canCertifyFullWindow = requestedLookback <= CLINICAL_MAX_HISTORY_LOOKBACK_DAYS;
-  const hasRecentTimestamp = (timestamps: number[], intervalMs: number): boolean =>
-    timestamps.some(timestamp => nowMs - timestamp < intervalMs);
-
-  if (
-    hasRecentTimestamp(successfulValidations, CLINICAL_FULL_REVALIDATION_INTERVAL_MS) ||
-    hasRecentTimestamp(
-      validationAttempts,
-      canCertifyFullWindow
-        ? CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS
-        : CLINICAL_FULL_REVALIDATION_INTERVAL_MS
+  const requestedEndpointLookback = Math.min(CLINICAL_MAX_HISTORY_LOOKBACK_DAYS, requestedLookback);
+  const hasRecentSufficientWindow = (
+    timestamp: string | undefined,
+    coveredLookbackDays: number | undefined,
+    requiredLookbackDays: number,
+    intervalMs: number
+  ): boolean => {
+    const timestampMs = timestamp ? Date.parse(timestamp) : Number.NaN;
+    return (
+      Number.isFinite(timestampMs) &&
+      Number.isFinite(coveredLookbackDays) &&
+      Number(coveredLookbackDays) >= requiredLookbackDays &&
+      nowMs - timestampMs < intervalMs
+    );
+  };
+  const hasFreshSuccessfulValidation = sourceCheckpoints.some(source =>
+    hasRecentSufficientWindow(
+      source?.lastFullValidationAt,
+      source?.lastFullValidationLookbackDays,
+      requestedLookback,
+      CLINICAL_FULL_REVALIDATION_INTERVAL_MS
     )
-  ) {
+  );
+  const attemptThrottleMs = canCertifyFullWindow
+    ? CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS
+    : CLINICAL_FULL_REVALIDATION_INTERVAL_MS;
+  const hasFreshSufficientAttempt = sourceCheckpoints.some(source =>
+    hasRecentSufficientWindow(
+      source?.lastFullValidationAttemptAt,
+      source?.lastFullValidationAttemptLookbackDays,
+      requestedEndpointLookback,
+      attemptThrottleMs
+    )
+  );
+
+  if (hasFreshSuccessfulValidation || hasFreshSufficientAttempt) {
     return {};
   }
 
   return {
-    lookbackDays: Math.min(CLINICAL_MAX_HISTORY_LOOKBACK_DAYS, requestedLookback),
+    lookbackDays: requestedEndpointLookback,
     fullValidationAttemptAt: now.toISOString(),
     // Do not certify an incomplete baseline when the requested census exceeds endpoint support.
     ...(canCertifyFullWindow ? { fullValidationAt: now.toISOString() } : {}),

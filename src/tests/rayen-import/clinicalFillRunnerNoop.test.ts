@@ -206,6 +206,8 @@ describe('runClinicalFill no-op behavior', () => {
     expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
     expect(stored.sources.scales.lastFullValidationAttemptAt).toBe('2026-07-10T12:00:00.000Z');
     expect(stored.sources.staffing.lastFullValidationAttemptAt).toBe('2026-07-10T12:00:00.000Z');
+    expect(stored.sources.scales.lastFullValidationAttemptLookbackDays).toBe(14);
+    expect(stored.sources.staffing.lastFullValidationAttemptLookbackDays).toBe(14);
   });
 
   it('certifies a full validation only when the extension confirms the requested window', async () => {
@@ -237,6 +239,8 @@ describe('runClinicalFill no-op behavior', () => {
     ];
     expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-10T12:00:00.000Z');
     expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-10T12:00:00.000Z');
+    expect(stored.sources.scales.lastFullValidationLookbackDays).toBe(14);
+    expect(stored.sources.staffing.lastFullValidationLookbackDays).toBe(14);
   });
 
   it('does not certify a full validation from lookback metadata without coverage bounds', async () => {
@@ -267,5 +271,7 @@ describe('runClinicalFill no-op behavior', () => {
     expect(stored.sources.scales.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
     expect(stored.sources.staffing.lastFullValidationAt).toBe('2026-07-08T08:00:00.000Z');
     expect(stored.sources.scales.lastFullValidationAttemptAt).toBe('2026-07-10T12:00:00.000Z');
+    expect(stored.sources.scales.lastFullValidationAttemptLookbackDays).toBe(14);
+    expect(stored.sources.staffing.lastFullValidationAttemptLookbackDays).toBe(14);
   });
 });

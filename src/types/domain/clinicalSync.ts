@@ -21,8 +21,12 @@ export interface ClinicalSyncSourceCheckpoint {
   watermark?: string;
   /** Last bounded full revalidation; updated at most once per day. */
   lastFullValidationAt?: string;
-  /** Last successful capped attempt; throttles reads that cannot cover the entire census age. */
+  /** Minimum history lookback proven by the last bounded full revalidation. */
+  lastFullValidationLookbackDays?: number;
+  /** Last bounded full-window attempt, whether or not the source certified it. */
   lastFullValidationAttemptAt?: string;
+  /** History lookback requested by the last bounded full-window attempt. */
+  lastFullValidationAttemptLookbackDays?: number;
   /** Bounded overlap window used to recognize retries and late corrections. */
   facts: ClinicalSyncFactCheckpoint[];
 }

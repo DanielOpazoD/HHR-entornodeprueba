@@ -243,6 +243,7 @@ export const runClinicalFill = async (
         {
           fullValidationAt: historyFullValidationAt,
           fullValidationAttemptAt: historyReadPolicy.fullValidationAttemptAt,
+          fullValidationLookbackDays: historyReadPolicy.lookbackDays,
         }
       );
     }
@@ -281,6 +282,7 @@ export const runClinicalFill = async (
           {
             fullValidationAt: scalesFullValidationAt,
             fullValidationAttemptAt: historyReadPolicy.fullValidationAttemptAt,
+            fullValidationLookbackDays: historyReadPolicy.lookbackDays,
           }
         );
       }

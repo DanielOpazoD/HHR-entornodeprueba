@@ -15,7 +15,11 @@ export const createClinicalCheckpointAccumulator = (
   return (
     source: ClinicalSyncSource,
     facts: ClinicalSourceFact[],
-    options: { fullValidationAt?: string; fullValidationAttemptAt?: string } = {}
+    options: {
+      fullValidationAt?: string;
+      fullValidationAttemptAt?: string;
+      fullValidationLookbackDays?: number;
+    } = {}
   ): void => {
     const result = mergeClinicalSourceCheckpoint(checkpoint, source, facts, options);
     checkpoint = result.checkpoint;

@@ -92,4 +92,20 @@ describe('clinical incremental checkpoint', () => {
     expect(empty.changed).toBe(false);
     expect(empty.checkpoint).toBe(partial.checkpoint);
   });
+
+  it('persists the lookback proven and attempted by a full-window read', () => {
+    const validationAt = '2026-08-03T12:00:00.000Z';
+    const result = mergeClinicalSourceCheckpoint(undefined, 'scales', [], {
+      fullValidationAt: validationAt,
+      fullValidationAttemptAt: validationAt,
+      fullValidationLookbackDays: 22,
+    });
+
+    expect(result.checkpoint.sources.scales).toMatchObject({
+      lastFullValidationAt: validationAt,
+      lastFullValidationLookbackDays: 22,
+      lastFullValidationAttemptAt: validationAt,
+      lastFullValidationAttemptLookbackDays: 22,
+    });
+  });
 });

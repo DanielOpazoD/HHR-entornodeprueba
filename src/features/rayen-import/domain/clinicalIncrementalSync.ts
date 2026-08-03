@@ -87,7 +87,9 @@ const sameSourceCheckpoint = (
 ): boolean =>
   left?.watermark === right.watermark &&
   left?.lastFullValidationAt === right.lastFullValidationAt &&
+  left?.lastFullValidationLookbackDays === right.lastFullValidationLookbackDays &&
   left?.lastFullValidationAttemptAt === right.lastFullValidationAttemptAt &&
+  left?.lastFullValidationAttemptLookbackDays === right.lastFullValidationAttemptLookbackDays &&
   left?.facts.length === right.facts.length &&
   left.facts.every(
     (fact, index) =>
@@ -99,7 +101,11 @@ export const mergeClinicalSourceCheckpoint = (
   checkpoint: ClinicalSyncCheckpoint | undefined,
   source: ClinicalSyncSource,
   facts: ClinicalSourceFact[],
-  options: { fullValidationAt?: string; fullValidationAttemptAt?: string } = {}
+  options: {
+    fullValidationAt?: string;
+    fullValidationAttemptAt?: string;
+    fullValidationLookbackDays?: number;
+  } = {}
 ): {
   checkpoint: ClinicalSyncCheckpoint;
   changed: boolean;
@@ -147,12 +153,24 @@ export const mergeClinicalSourceCheckpoint = (
     ...(options.fullValidationAt || previous?.lastFullValidationAt
       ? { lastFullValidationAt: options.fullValidationAt ?? previous?.lastFullValidationAt }
       : {}),
+    ...(options.fullValidationAt && options.fullValidationLookbackDays
+      ? { lastFullValidationLookbackDays: options.fullValidationLookbackDays }
+      : previous?.lastFullValidationLookbackDays
+        ? { lastFullValidationLookbackDays: previous.lastFullValidationLookbackDays }
+        : {}),
     ...(options.fullValidationAttemptAt || previous?.lastFullValidationAttemptAt
       ? {
           lastFullValidationAttemptAt:
             options.fullValidationAttemptAt ?? previous?.lastFullValidationAttemptAt,
         }
       : {}),
+    ...(options.fullValidationAttemptAt && options.fullValidationLookbackDays
+      ? { lastFullValidationAttemptLookbackDays: options.fullValidationLookbackDays }
+      : previous?.lastFullValidationAttemptLookbackDays
+        ? {
+            lastFullValidationAttemptLookbackDays: previous.lastFullValidationAttemptLookbackDays,
+          }
+        : {}),
     facts: retainedFacts,
   };
   const metrics = uniqueFacts.reduce<ClinicalIncrementalMetrics>(
