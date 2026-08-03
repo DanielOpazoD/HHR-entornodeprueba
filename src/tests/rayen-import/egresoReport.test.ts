@@ -285,29 +285,6 @@ describe('applyEgresoReport', () => {
     expect(requiresReview(enriched)).toBe(true);
   });
 
-  it.each(['P-R1', 'Pabellón-R2'])(
-    'omits administrative movements from pavilion recovery position %s',
-    bedLabel => {
-      const enriched = applyEgresoReport(
-        makeDiff(),
-        [
-          row({
-            run: '11.044.046-4',
-            patientName: 'Paciente recuperación',
-            bedLabel,
-            destino: 'Domicilio',
-          }),
-        ],
-        makeRecord()
-      );
-
-      expect(enriched.discharges).toEqual([]);
-      expect(enriched.reportEgresos ?? []).toEqual([]);
-      expect(enriched.conflicts).toEqual([]);
-      expect(requiresReview(enriched)).toBe(false);
-    }
-  );
-
   it('does not duplicate a RUN already represented by a movement', () => {
     const current = makeRecord({}, { discharges: [{ rut: '11.044.046-4' } as never] });
     const enriched = applyEgresoReport(

@@ -25,8 +25,13 @@ const createEntry = (key: string, task: () => Promise<void>): QueueEntry => {
 
 const start = (entry: QueueEntry): void => {
   active = entry;
-  void entry
-    .task()
+  let taskPromise: Promise<void>;
+  try {
+    taskPromise = entry.task();
+  } catch (error) {
+    taskPromise = Promise.reject(error);
+  }
+  void taskPromise
     // The task owns expected clinical/audit failures. This guard records unexpected escapes while
     // preserving queue liveness and never includes the raw provider error.
     .catch(error => {
