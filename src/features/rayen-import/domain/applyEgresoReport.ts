@@ -29,6 +29,7 @@ import {
   attachAssociatedClinicalCribDischarges,
   buildClinicalCribPromotionCandidates,
 } from './associatedClinicalCribDischarge';
+import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 export { collectRecordedMovementRuns } from './egresoReportPolicy';
 export { markEgresoReportUnavailable } from './egresoReportConflicts';
 export const applyEgresoReport = (
@@ -37,12 +38,13 @@ export const applyEgresoReport = (
   record: DailyRecord
 ): CensusImportDiff => {
   const checkedDiff = markReportChecked(diff);
-  if (reportRows.length === 0) return checkedDiff;
+  const eligibleLocationRows = reportRows.filter(row => !isPavilionRecoveryLocation(row.bedLabel));
+  if (eligibleLocationRows.length === 0) return checkedDiff;
   const occupied = occupiedBedsByRun(record);
   const occupiedCribs = occupiedClinicalCribsByRun(record);
   const { diff: diffWithReportConflicts, rows: eligibleRows } = selectEligibleEgresoRows(
     checkedDiff,
-    reportRows,
+    eligibleLocationRows,
     record
   );
   const { primaryByRun: byRun, supplemental } = selectReportRowsByEpisode(eligibleRows, key =>

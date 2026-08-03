@@ -67,6 +67,27 @@ describe('pavilion recovery synchronization policy', () => {
     expect(diff.activeClinicalEpisodeIds).toEqual([]);
   });
 
+  it('does not restore or discharge closed P-R1/P-R2 encounters', () => {
+    const diff = reconcileCensus(
+      record(),
+      snapshot([
+        encounter({ hasMedicalDischarge: true }),
+        encounter({
+          encounterId: 'enc-pr-2',
+          bed: 'P-R2',
+          room: 'Pabellón-R2',
+          dischargeDatetime: '2026-07-31T09:30:00.000Z',
+        }),
+      ])
+    );
+
+    expect(diff.admissions).toEqual([]);
+    expect(diff.discharges).toEqual([]);
+    expect(diff.pendingAdministrativeDischarges).toEqual([]);
+    expect(diff.conflicts).toEqual([]);
+    expect(diff.activeClinicalEpisodeIds).toEqual([]);
+  });
+
   it('does not warn when a previously local episode is temporarily visible in P-R1', () => {
     const localPatient = {
       bedId: 'H1C1',
