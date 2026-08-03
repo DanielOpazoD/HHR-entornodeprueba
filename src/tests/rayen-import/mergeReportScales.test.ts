@@ -174,6 +174,7 @@ describe('mergeReportScales', () => {
   it('does not prune facts outside the explicit window from partial or authoritative evidence', () => {
     const storedFuture = scale({
       encounterEventId: 200,
+      sourceOrder: 200,
       recordedDate: '2026-07-12',
       recordedAt: '2026-07-12T08:00:00',
     });

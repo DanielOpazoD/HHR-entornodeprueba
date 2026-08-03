@@ -40,8 +40,10 @@ const normalizeExistingDeviceAliases = (patient: PatientData): PatientData => {
     const canonical = canonicalizePersistedDeviceType(instance.type);
     return canonical === instance.type ? instance : { ...instance, type: canonical };
   });
+  const devicesNeedDeduplication = (patient.devices ?? []).length !== devices.length;
 
   if (
+    !devicesNeedDeduplication &&
     clinicalFieldValuesEqual('devices', patient.devices, devices) &&
     clinicalFieldValuesEqual('deviceDetails', patient.deviceDetails, deviceDetails) &&
     clinicalFieldValuesEqual(

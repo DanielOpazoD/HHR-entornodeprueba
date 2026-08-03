@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
+  CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS,
   CLINICAL_MAX_HISTORY_LOOKBACK_DAYS,
   confirmAuthoritativeHistoryWindow,
   confirmFullWindow,
@@ -106,6 +107,33 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     };
 
     expect(resolveClinicalHistoryReadPolicy(cappedAttempt, '2025-12-01', now)).toEqual({});
+  });
+
+  it('briefly throttles an ordinary full-window attempt that was not certified', () => {
+    const failedAttempt = checkpoint();
+    failedAttempt.sources.scales = {
+      facts: [],
+      lastFullValidationAttemptAt: new Date(
+        now.getTime() - CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS + 1
+      ).toISOString(),
+    };
+
+    expect(resolveClinicalHistoryReadPolicy(failedAttempt, '2026-07-29', now)).toEqual({});
+  });
+
+  it('retries an uncertified ordinary window without waiting a full day', () => {
+    const failedAttempt = checkpoint();
+    failedAttempt.sources.scales = {
+      facts: [],
+      lastFullValidationAttemptAt: new Date(
+        now.getTime() - CLINICAL_FULL_REVALIDATION_RETRY_INTERVAL_MS
+      ).toISOString(),
+    };
+
+    expect(resolveClinicalHistoryReadPolicy(failedAttempt, '2026-07-29', now)).toMatchObject({
+      lookbackDays: CLINICAL_FULL_REVALIDATION_LOOKBACK_DAYS,
+      fullValidationAt: now.toISOString(),
+    });
   });
 
   it('confirms a baseline only when the extension covered the requested window', () => {
