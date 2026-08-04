@@ -5,6 +5,7 @@ import type {
   RayenSyncEvent,
   RayenSyncFailureReason,
   RayenSyncPerformanceDelta,
+  RayenSyncPolicy,
   RayenSyncSource,
 } from '@/types/domain/rayenSync';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -138,12 +139,17 @@ export const useRayenSyncAudit = ({
   );
 
   const startRun = useCallback(
-    (health?: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta): RayenSyncRun => {
+    (
+      health?: RayenExtensionHealthState,
+      performance?: RayenSyncPerformanceDelta,
+      policy?: RayenSyncPolicy
+    ): RayenSyncRun => {
       const run: RayenSyncRun = {
         id: createId(),
         startedAt: now().toISOString(),
         by: actor,
         source: sourceFromHealth(health),
+        policy,
         performance: mergeRayenSyncPerformance(undefined, performance),
       };
       const { superseded } = lifecycle.start(run);

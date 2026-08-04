@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { Timestamp } from 'firebase/firestore';
 import {
+  DEFAULT_RAYEN_IMPORT_POLICY,
   DEFAULT_RAYEN_IMPORT_MODE,
-  getRayenImportMode,
-  setRayenImportMode,
-  subscribeRayenImportMode,
+  normalizeRayenImportPolicy,
   isRayenCensusSnapshot,
   isRayenSyncBundle,
   requestRayenSyncBundle,
@@ -27,31 +27,62 @@ import {
 } from '@/features/rayen-import/bridge/patientFlowBridge';
 
 describe('rayen import mode setting', () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
-  it('defaults to preview', () => {
+  it('defaults globally to the safe preview policy', () => {
     expect(DEFAULT_RAYEN_IMPORT_MODE).toBe('preview');
-    expect(getRayenImportMode()).toBe('preview');
+    expect(DEFAULT_RAYEN_IMPORT_POLICY).toEqual({ mode: 'preview', revision: 0 });
   });
 
-  it('persists and reads the auto mode', () => {
-    setRayenImportMode('auto');
-    expect(getRayenImportMode()).toBe('auto');
-    expect(localStorage.getItem('hhr_rayen_import_mode')).toBe('auto');
-    setRayenImportMode('preview');
-    expect(getRayenImportMode()).toBe('preview');
+  it('normalizes a versioned server policy', () => {
+    expect(
+      normalizeRayenImportPolicy({
+        schemaVersion: 1,
+        mode: 'auto',
+        revision: 4,
+        updatedAt: Timestamp.fromDate(new Date(1_000)),
+        updatedByUid: 'admin-1',
+      })
+    ).toEqual({ mode: 'auto', revision: 4 });
   });
 
-  it('notifies subscribers on change', () => {
-    const listener = vi.fn();
-    const unsubscribe = subscribeRayenImportMode(listener);
-    setRayenImportMode('auto');
-    expect(listener).toHaveBeenCalledTimes(1);
-    unsubscribe();
-    setRayenImportMode('preview');
-    expect(listener).toHaveBeenCalledTimes(1);
+  it('rejects malformed or unversioned automation policies', () => {
+    expect(normalizeRayenImportPolicy({ mode: 'auto', revision: 1 })).toBeNull();
+    expect(
+      normalizeRayenImportPolicy({
+        schemaVersion: 1,
+        mode: 'auto',
+        revision: 1,
+        updatedAt: {},
+        updatedByUid: 'admin-1',
+      })
+    ).toBeNull();
+    expect(
+      normalizeRayenImportPolicy({
+        schemaVersion: 1,
+        mode: 'automatic',
+        revision: 1,
+        updatedAt: {},
+        updatedByUid: 'admin-1',
+      })
+    ).toBeNull();
+    expect(
+      normalizeRayenImportPolicy({
+        schemaVersion: 1,
+        mode: 'auto',
+        revision: 1,
+        updatedAt: Timestamp.fromDate(new Date(1_000)),
+        updatedByUid: 'admin-1',
+        unexpected: true,
+      })
+    ).toBeNull();
+    expect(
+      normalizeRayenImportPolicy({
+        schemaVersion: 1,
+        mode: 'auto',
+        revision: 0,
+        updatedAt: {},
+        updatedByUid: 'admin-1',
+      })
+    ).toBeNull();
   });
 });
 

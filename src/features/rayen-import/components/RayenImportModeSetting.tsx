@@ -1,6 +1,7 @@
 import React from 'react';
 import { useRayenImportMode } from '../hooks/useRayenImportMode';
 import type { RayenImportMode } from '../settings/rayenImportSettings';
+import { useAuthState } from '@/hooks/useAuthState';
 
 interface OptionProps {
   value: RayenImportMode;
@@ -8,21 +9,31 @@ interface OptionProps {
   title: string;
   description: string;
   badge?: string;
-  onSelect: (mode: RayenImportMode) => void;
+  disabled: boolean;
+  onSelect: (mode: RayenImportMode) => Promise<void>;
 }
 
-const Option: React.FC<OptionProps> = ({ value, current, title, description, badge, onSelect }) => (
+const Option: React.FC<OptionProps> = ({
+  value,
+  current,
+  title,
+  description,
+  badge,
+  disabled,
+  onSelect,
+}) => (
   <label
-    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
-      current === value ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:bg-gray-50'
-    }`}
+    className={`flex items-start gap-3 rounded-lg border p-3 ${
+      disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+    } ${current === value ? 'border-teal-500 bg-teal-50' : 'border-gray-200 hover:bg-gray-50'}`}
   >
     <input
       type="radio"
       name="rayen-import-mode"
       className="mt-1"
       checked={current === value}
-      onChange={() => onSelect(value)}
+      disabled={disabled}
+      onChange={() => void onSelect(value).catch(() => undefined)}
     />
     <span>
       <span className="flex items-center gap-2 text-sm font-semibold text-gray-800">
@@ -43,13 +54,15 @@ const Option: React.FC<OptionProps> = ({ value, current, title, description, bad
  * automatic mode is experimental. Gate rendering behind an admin check at the call site.
  */
 export const RayenImportModeSetting: React.FC = () => {
-  const { mode, setMode } = useRayenImportMode();
+  const { currentUser } = useAuthState();
+  const { mode, status, isSaving, error, setMode } = useRayenImportMode(currentUser?.uid);
+  const disabled = status !== 'ready' || isSaving;
 
   return (
     <div data-module="rayen-import" data-testid="rayen-import-mode-setting">
       <h3 className="text-sm font-semibold text-gray-800">Sincronización con Rayen</h3>
       <p className="mb-3 text-xs text-gray-500">
-        Cómo se aplican los datos importados desde Rayen al censo.
+        Política única para todo HHR. Cada sincronización conserva la revisión usada al comenzar.
       </p>
       <div className="space-y-2">
         <Option
@@ -58,6 +71,7 @@ export const RayenImportModeSetting: React.FC = () => {
           title="Revisión y confirmación (recomendado)"
           description="Muestra un resumen de los cambios y requiere que un usuario confirme antes de aplicar."
           onSelect={setMode}
+          disabled={disabled}
         />
         <Option
           value="auto"
@@ -66,12 +80,19 @@ export const RayenImportModeSetting: React.FC = () => {
           badge="Experimental"
           description="Aplica los cambios sin confirmación. Los conflictos igual se retienen para revisión manual."
           onSelect={setMode}
+          disabled={disabled}
         />
       </div>
+      {status === 'loading' && (
+        <p className="mt-3 rounded bg-slate-50 p-2 text-xs text-slate-600">
+          Confirmando la política global con el servidor…
+        </p>
+      )}
+      {error && <p className="mt-3 rounded bg-amber-50 p-2 text-xs text-amber-700">{error}</p>}
       {mode === 'auto' && (
         <p className="mt-3 rounded bg-amber-50 p-2 text-xs text-amber-700">
-          ⚠️ Modo experimental activo: el censo se actualizará automáticamente al recibir datos de
-          Rayen.
+          Modo experimental global activo: el censo se actualizará automáticamente al recibir datos
+          de Rayen. Los conflictos continúan requiriendo revisión.
         </p>
       )}
     </div>

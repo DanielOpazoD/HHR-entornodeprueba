@@ -57,6 +57,12 @@
       "reason": "valida señales operacionales y telemetría de salud"
     },
     {
+      "path": "rules/firestore/26-rayen-import-policy-helpers.rules",
+      "ownerAreaId": "sync",
+      "risk": "critical",
+      "reason": "protege la política global que habilita la importación automática de Rayen"
+    },
+    {
       "path": "rules/firestore/30-daily-record-write-helpers.rules",
       "ownerAreaId": "repositories",
       "risk": "critical",

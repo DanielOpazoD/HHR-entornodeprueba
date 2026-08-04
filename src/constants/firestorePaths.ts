@@ -91,6 +91,8 @@ export const SETTINGS_DOCS = {
   TABLE_CONFIG: 'tableConfig',
   /** Default discharge indications catalog for clinical documents */
   CLINICAL_DOCUMENT_INDICATIONS: 'clinicalDocumentIndications',
+  /** Global Rayen import apply policy */
+  RAYEN_IMPORT_POLICY: 'rayenImportPolicy',
 } as const;
 
 /**

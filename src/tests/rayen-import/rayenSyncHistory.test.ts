@@ -23,6 +23,7 @@ const run = (id = 'run-1', startedAt = '2026-07-14T10:00:00.000Z'): RayenSyncRun
     fichaMedico: 'ready',
     gestionCamas: 'ready',
   },
+  policy: { mode: 'preview', revision: 3 },
 });
 
 const diff = (changes = 1): CensusImportDiff =>
@@ -66,6 +67,7 @@ describe('rayen sync history', () => {
       status: 'applied',
     });
     expect(event.performance).toEqual(performance);
+    expect(event.policy).toEqual({ mode: 'preview', revision: 3 });
     expect(rayenSyncMetaFromEvent(event)).not.toHaveProperty('performance');
     expect(JSON.stringify(event)).not.toMatch(/patient|rut|diagn|indication/i);
   });

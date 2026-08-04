@@ -45,8 +45,21 @@ const isClinicalBatchRetryableError = (error: unknown): boolean => {
   ].some(candidate => code.includes(candidate));
 };
 
+const isClinicalBatchVersionConflict = (error: unknown): boolean => {
+  const code = errorCode(error);
+  const message = failureMessage(error).toLowerCase();
+  return (
+    code.includes('aborted') &&
+    (message.includes('revision_mismatch') || message.includes('version_mismatch'))
+  );
+};
+
 const failureMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error || 'Error desconocido');
+  error instanceof Error
+    ? error.message
+    : typeof (error as { message?: unknown } | null)?.message === 'string'
+      ? String((error as { message: string }).message)
+      : String(error || 'Error desconocido');
 
 const withRetryCount = (error: unknown, retries: number): unknown => {
   if (error && typeof error === 'object') {
@@ -256,14 +269,33 @@ export const applyClinicalEnrichmentBatch = async ({
   }
 
   let retries = 0;
+  let activePayload = payload;
   try {
     let checked: Awaited<ReturnType<typeof invokeChecked>>;
     try {
-      checked = await invokeChecked(payload);
+      checked = await invokeChecked(activePayload);
     } catch (error) {
-      if (!isClinicalBatchRetryableError(error)) throw error;
       retries = 1;
-      checked = await invokeChecked(payload);
+      if (isClinicalBatchVersionConflict(error)) {
+        const refreshedRecord = await refreshRecord();
+        const refreshed = prepareClinicalEnrichmentBatchPayload({
+          mode,
+          record: refreshedRecord,
+          runId,
+          operations,
+          // A rejected authority check did not consume this identity. Reusing it also preserves
+          // idempotency if the first response was lost after a concurrent transaction retry.
+          mutationId: activePayload.mutationId,
+        });
+        if (!refreshed.payload) {
+          throw new Error('No se pudo reconstruir el lote clínico contra el censo vigente.');
+        }
+        activePayload = refreshed.payload;
+      } else if (!isClinicalBatchRetryableError(error)) {
+        retries = 0;
+        throw error;
+      }
+      checked = await invokeChecked(activePayload);
     }
     try {
       await refreshRecord();
@@ -279,7 +311,7 @@ export const applyClinicalEnrichmentBatch = async ({
     return {
       patientWrites: committed ? (response.patientWrites ?? 1) : 0,
       historySnapshots: committed
-        ? (response.historySnapshots ?? Number(payload.patches.length > 0))
+        ? (response.historySnapshots ?? Number(activePayload.patches.length > 0))
         : 0,
       retries,
       batch: checked.batch,

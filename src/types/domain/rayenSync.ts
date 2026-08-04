@@ -5,6 +5,12 @@ export const MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE = 40;
 
 export type RayenSyncStatus = 'applied' | 'complete' | 'partial' | 'failed';
 
+/** Immutable global import policy captured when a synchronization starts. */
+export interface RayenSyncPolicy {
+  mode: 'preview' | 'auto';
+  revision: number;
+}
+
 export type RayenExtensionEndpointStatus = 'ready' | 'missing' | 'stale';
 
 export type RayenSyncIssueSource = 'devices' | 'scales' | 'vitals' | 'staffing' | 'cudyr' | 'patch';
@@ -156,6 +162,7 @@ export interface RayenSyncEvent {
   coverage?: RayenSyncCoverage;
   changes?: RayenSyncChanges;
   source?: RayenSyncSource;
+  policy?: RayenSyncPolicy;
   staffingObservation?: RayenSyncStaffingObservation;
   /** Technical aggregate shown only in synchronization history and diagnostics. */
   performance?: RayenSyncPerformance;

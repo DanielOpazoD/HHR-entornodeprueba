@@ -55,10 +55,14 @@ describe('useRayenSyncAudit', () => {
     );
 
     act(() => {
-      result.current.startRun(undefined, {
-        stagesMs: { preflight: 50 },
-        counters: { requests: 1 },
-      });
+      result.current.startRun(
+        undefined,
+        {
+          stagesMs: { preflight: 50 },
+          counters: { requests: 1 },
+        },
+        { mode: 'auto', revision: 7 }
+      );
       result.current.recordRunPerformance({
         stagesMs: { dualCapture: 200 },
         counters: { requests: 1, cacheHits: 1 },
@@ -86,6 +90,7 @@ describe('useRayenSyncAudit', () => {
           expect.objectContaining({
             id: 'run-1',
             status: 'complete',
+            policy: { mode: 'auto', revision: 7 },
             coverage: expect.any(Object),
             performance: {
               stagesMs: {

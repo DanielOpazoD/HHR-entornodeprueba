@@ -1,0 +1,26 @@
+    function isValidRayenImportPolicy() {
+      let policy = request.resource.data;
+      return policy.keys().hasOnly([
+               'schemaVersion', 'mode', 'revision', 'updatedAt', 'updatedByUid'
+             ]) &&
+             policy.schemaVersion == 1 &&
+             policy.mode in ['preview', 'auto'] &&
+             policy.revision is int &&
+             policy.revision >= 1 &&
+             policy.updatedAt is timestamp &&
+             policy.updatedAt == request.time &&
+             policy.updatedByUid is string &&
+             policy.updatedByUid == request.auth.uid;
+    }
+
+    function canCreateRayenImportPolicy() {
+      return isAdmin() &&
+             isValidRayenImportPolicy() &&
+             request.resource.data.revision == 1;
+    }
+
+    function canUpdateRayenImportPolicy() {
+      return isAdmin() &&
+             isValidRayenImportPolicy() &&
+             request.resource.data.revision == resource.data.revision + 1;
+    }

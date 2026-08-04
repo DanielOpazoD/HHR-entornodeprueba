@@ -166,6 +166,12 @@ const HistoryMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
         </span>
       )}
       {source && <span className="font-medium text-slate-400">{source}</span>}
+      {event.policy && (
+        <span className="font-medium text-slate-400">
+          Política {event.policy.mode === 'auto' ? 'automática' : 'con revisión'} · rev.{' '}
+          {event.policy.revision}
+        </span>
+      )}
       {duration && (
         <span className="font-medium tabular-nums text-slate-500">Duración {duration}</span>
       )}
