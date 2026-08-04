@@ -88,11 +88,19 @@ const formatDayLong = (isoDay: string): string => {
 };
 
 const ABSOLUTE_ISO_INSTANT =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i;
+  /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+const isValidCalendarDay = (year: number, month: number, day: number): boolean => {
+  if (month < 1 || month > 12 || day < 1) return false;
+  const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return day <= daysInMonth[month - 1];
+};
 
 const absoluteMomentFromRecordedAt = (recordedAt?: string): string => {
   const raw = (recordedAt ?? '').trim();
-  if (ABSOLUTE_ISO_INSTANT.test(raw)) {
+  const match = raw.match(ABSOLUTE_ISO_INSTANT);
+  if (match && isValidCalendarDay(Number(match[1]), Number(match[2]), Number(match[3]))) {
     const instant = new Date(raw);
     if (!Number.isNaN(instant.getTime())) {
       const parts = new Intl.DateTimeFormat('es-CL', {

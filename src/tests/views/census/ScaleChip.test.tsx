@@ -80,4 +80,24 @@ describe('ScaleChip', () => {
 
     expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 01-08-2026, 21:00');
   });
+
+  it('falls back to the census day and local clock for a calendar-invalid ISO timestamp', () => {
+    render(
+      <ScaleChip
+        hue="violet"
+        icon={Bandage}
+        label="Braden"
+        value="16"
+        note={{
+          ...note,
+          recordedDate: '2026-08-02',
+          recordedAt: '2026-02-30T07:23:00Z',
+        }}
+      />
+    );
+
+    fireEvent.focus(screen.getByText('Braden').closest('.grid') as HTMLElement);
+
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Registrado: 02-08-2026, 07:23');
+  });
 });

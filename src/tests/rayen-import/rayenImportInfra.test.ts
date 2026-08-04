@@ -68,6 +68,16 @@ describe('rayen import mode setting', () => {
       normalizeRayenImportPolicy({
         schemaVersion: 1,
         mode: 'auto',
+        revision: 1,
+        updatedAt: Timestamp.fromDate(new Date(1_000)),
+        updatedByUid: 'admin-1',
+        unexpected: true,
+      })
+    ).toBeNull();
+    expect(
+      normalizeRayenImportPolicy({
+        schemaVersion: 1,
+        mode: 'auto',
         revision: 0,
         updatedAt: {},
         updatedByUid: 'admin-1',

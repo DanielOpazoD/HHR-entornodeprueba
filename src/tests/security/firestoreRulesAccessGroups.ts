@@ -1,4 +1,5 @@
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
+import { serverTimestamp } from 'firebase/firestore';
 import { beforeEach, describe, it } from 'vitest';
 
 import type { FirestoreRulesHarness } from './firestoreRulesTestHarness';
@@ -1186,11 +1187,15 @@ export function registerFirestoreRulesAccessGroups({
     const settingsPath = 'hospitals/H1/settings/tableConfig';
     const aiProviderRoutingPath = 'hospitals/H1/settings/aiProviderRouting';
     const rayenImportPolicyPath = 'hospitals/H1/settings/rayenImportPolicy';
-    const rayenPolicy = (revision: number, updatedByUid = 'user_admin') => ({
+    const rayenPolicy = (
+      revision: number,
+      updatedByUid = 'user_admin',
+      mode: 'preview' | 'auto' = 'preview'
+    ) => ({
       schemaVersion: 1,
-      mode: 'preview',
+      mode,
       revision,
-      updatedAt: new Date(NOW_MS),
+      updatedAt: serverTimestamp(),
       updatedByUid,
     });
 
@@ -1235,16 +1240,39 @@ export function registerFirestoreRulesAccessGroups({
     });
 
     it('Only admins can create the strict global Rayen import policy', async () => {
-      await assertSucceeds(admin().doc(rayenImportPolicyPath).set(rayenPolicy(1)));
+      await assertSucceeds(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set(rayenPolicy(1, 'user_admin', 'auto'))
+      );
       await assertFails(nurse().doc(rayenImportPolicyPath).set(rayenPolicy(1, 'user_nurse')));
     });
 
     it('Requires sequential Rayen policy revisions and the authenticated actor', async () => {
       await setupDoc(admin(), rayenImportPolicyPath, rayenPolicy(1));
-      await assertSucceeds(admin().doc(rayenImportPolicyPath).set(rayenPolicy(2)));
+      await assertSucceeds(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set(rayenPolicy(2, 'user_admin', 'auto'))
+      );
       await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(4)));
       await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(3, 'another-admin')));
       await assertFails(admin().doc(rayenImportPolicyPath).delete());
+    });
+
+    it('Rejects caller-supplied Rayen policy timestamps on create and update', async () => {
+      await assertFails(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set({ ...rayenPolicy(1), updatedAt: new Date(0) })
+      );
+
+      await setupDoc(admin(), rayenImportPolicyPath, rayenPolicy(1));
+      await assertFails(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set({ ...rayenPolicy(2), updatedAt: new Date(0) })
+      );
     });
 
     it('Rejects malformed or expanded Rayen import policies', async () => {

@@ -638,6 +638,7 @@ service cloud.firestore {
              policy.revision is int &&
              policy.revision >= 1 &&
              policy.updatedAt is timestamp &&
+             policy.updatedAt == request.time &&
              policy.updatedByUid is string &&
              policy.updatedByUid == request.auth.uid;
     }
