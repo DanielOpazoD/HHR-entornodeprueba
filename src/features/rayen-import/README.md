@@ -14,7 +14,9 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 - **`auto` (EXPERIMENTAL):** aplica el diff sin confirmación, **pero cae al preview** si hay algo que
   requiere revisión — conflictos, señales de cierre aún sin alta administrativa o egresos del reporte
   no representados en HHR. Gate: `requiresReview(diff)`.
-  El admin elige el modo en Configuración → Integraciones (localStorage).
+  El admin elige una política global en Configuración → Integraciones. Se guarda en Firestore con
+  revisión monotónica; caché, documentos inválidos o falta de conexión siempre caen a `preview`.
+  Cada ejecución congela modo y revisión al comenzar y los conserva en `rayenSyncHistory`.
 
 ## Seguridad clínica
 
@@ -82,7 +84,8 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 | `domain/rayenSyncPerformance.ts`                | Acumula duración/contadores técnicos sin aceptar payload clínico           |
 | `domain/rayenSyncSourceQuality.ts`              | Resume cobertura agregada de médico tratante, sin identidades              |
 | `importRayenCensusUseCase.ts`                   | Use-case `planRayenCensusImport` (planifica el diff)                       |
-| `settings/rayenImportSettings.ts`               | Setting de modo (`preview`/`auto`) en localStorage                         |
+| `settings/rayenImportSettings.ts`               | Contrato y normalización fail-safe de la política global                   |
+| `settings/rayenImportPolicyService.ts`          | Suscripción server-confirmed y actualización transaccional admin           |
 | `bridge/rayenImportBridge.ts`                   | Puente `postMessage` extensión ⇄ app (+ validación de forma)               |
 | `bridge/patientFlowBridge.ts`                   | Canal acotado para solicitar el PDF del episodio en conflicto              |
 | `bridge/statisticalDischargeEvidenceBridge.ts`  | Lee el egreso exacto ya autorizado sin descargarlo al usuario              |
@@ -151,10 +154,6 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
   `requiresReview`, **apply**, Zod del registro producido, settings, navegación y handshake de la
   extensión, estados de salud, captura dual, desfase temporal, cambio de establecimiento y barra
   operativa.
-
-## Pendiente
-
-- (Opcional) mover el setting de modo a Firestore para que sea app-wide en vez de por-dispositivo.
 
 ## Referencia funcional
 

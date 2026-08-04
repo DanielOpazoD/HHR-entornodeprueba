@@ -10,6 +10,7 @@ import type {
   RayenSyncStaffingObservation,
   RayenStaffingSection,
   RayenSyncPerformance,
+  RayenSyncPolicy,
 } from '@/types/domain/rayenSync';
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
@@ -28,6 +29,7 @@ export interface RayenSyncRun {
   startedAt: string;
   by: string;
   source?: RayenSyncSource;
+  policy?: RayenSyncPolicy;
   performance?: RayenSyncPerformance;
 }
 
@@ -62,6 +64,7 @@ export const buildAppliedRayenSyncEvent = (
   status: 'applied',
   changes: buildRayenSyncChanges(diff),
   source: run.source,
+  policy: run.policy,
   performance: run.performance,
 });
 
@@ -76,6 +79,7 @@ export const buildFailedRayenSyncEvent = (
   by: run.by,
   status: 'failed',
   source: run.source,
+  policy: run.policy,
   performance: run.performance,
   failureReason: reason,
 });

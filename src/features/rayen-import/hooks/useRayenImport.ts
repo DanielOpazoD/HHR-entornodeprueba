@@ -40,7 +40,7 @@ export const useRayenImport = () => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
   const { data: tensList = [] } = useTensQuery();
-  const { mode } = useRayenImportMode();
+  const { policy, mode } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
   const { currentUser, role } = useAuthState();
   const { mutateAsync: saveDailyRecord } = dailyRecordQuery.useSaveDailyRecordMutation();
@@ -135,7 +135,6 @@ export const useRayenImport = () => {
   });
   const previewSnapshot = useRayenSnapshotPreview({
     currentRecord,
-    mode,
     dailyRecord,
     isAdmin,
     setState,
@@ -151,6 +150,7 @@ export const useRayenImport = () => {
   });
   const triggerImport = useRayenImportCapture({
     currentRecord,
+    policy,
     setState,
     setStaffingProposal,
     setStaffingProposalError,

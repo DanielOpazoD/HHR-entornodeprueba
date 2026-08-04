@@ -76,7 +76,15 @@
 
       match /settings/{settingId} {
         allow read: if canReadClinicalData();
-        allow write: if settingId == 'aiProviderRouting' ? isAdmin() : canEdit();
+        allow create: if settingId == 'rayenImportPolicy'
+          ? canCreateRayenImportPolicy()
+          : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
+        allow update: if settingId == 'rayenImportPolicy'
+          ? canUpdateRayenImportPolicy()
+          : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
+        allow delete: if settingId == 'rayenImportPolicy'
+          ? false
+          : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
       }
 
       match /reminders/{reminderId} {

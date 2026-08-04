@@ -1185,6 +1185,14 @@ export function registerFirestoreRulesAccessGroups({
   describe('Settings Collection', () => {
     const settingsPath = 'hospitals/H1/settings/tableConfig';
     const aiProviderRoutingPath = 'hospitals/H1/settings/aiProviderRouting';
+    const rayenImportPolicyPath = 'hospitals/H1/settings/rayenImportPolicy';
+    const rayenPolicy = (revision: number, updatedByUid = 'user_admin') => ({
+      schemaVersion: 1,
+      mode: 'preview',
+      revision,
+      updatedAt: new Date(NOW_MS),
+      updatedByUid,
+    });
 
     it('Admins can write settings', async () => {
       await assertSucceeds(admin().doc(settingsPath).set({ foo: 'bar' }));
@@ -1223,6 +1231,32 @@ export function registerFirestoreRulesAccessGroups({
               },
             },
           })
+      );
+    });
+
+    it('Only admins can create the strict global Rayen import policy', async () => {
+      await assertSucceeds(admin().doc(rayenImportPolicyPath).set(rayenPolicy(1)));
+      await assertFails(nurse().doc(rayenImportPolicyPath).set(rayenPolicy(1, 'user_nurse')));
+    });
+
+    it('Requires sequential Rayen policy revisions and the authenticated actor', async () => {
+      await setupDoc(admin(), rayenImportPolicyPath, rayenPolicy(1));
+      await assertSucceeds(admin().doc(rayenImportPolicyPath).set(rayenPolicy(2)));
+      await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(4)));
+      await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(3, 'another-admin')));
+      await assertFails(admin().doc(rayenImportPolicyPath).delete());
+    });
+
+    it('Rejects malformed or expanded Rayen import policies', async () => {
+      await assertFails(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set({ ...rayenPolicy(1), mode: 'unsafe-auto' })
+      );
+      await assertFails(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set({ ...rayenPolicy(1), unexpected: true })
       );
     });
 

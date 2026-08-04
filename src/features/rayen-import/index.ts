@@ -170,12 +170,11 @@ export type {
 export { planRayenCensusImport } from './importRayenCensusUseCase';
 
 // Settings (import mode)
-export type { RayenImportMode } from './settings/rayenImportSettings';
+export type { RayenImportMode, RayenImportPolicy } from './settings/rayenImportSettings';
 export {
   DEFAULT_RAYEN_IMPORT_MODE,
-  getRayenImportMode,
-  setRayenImportMode,
-  subscribeRayenImportMode,
+  DEFAULT_RAYEN_IMPORT_POLICY,
+  normalizeRayenImportPolicy,
 } from './settings/rayenImportSettings';
 
 // Bridge (extension ⇄ app)

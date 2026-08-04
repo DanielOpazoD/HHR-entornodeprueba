@@ -182,6 +182,12 @@ const RayenSyncEventSchema = z.object({
   coverage: nullableOptional(RayenSyncCoverageSchema),
   changes: nullableOptional(RayenSyncChangesSchema),
   source: nullableOptional(RayenSyncSourceSchema),
+  policy: nullableOptional(
+    z.object({
+      mode: z.enum(['preview', 'auto']),
+      revision: z.number().int().nonnegative(),
+    })
+  ),
   staffingObservation: nullableOptional(RayenSyncStaffingObservationSchema),
   performance: nullableOptional(RayenSyncPerformanceSchema),
   failureReason: nullableOptional(

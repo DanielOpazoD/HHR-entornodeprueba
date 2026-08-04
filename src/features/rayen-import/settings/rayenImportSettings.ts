@@ -1,46 +1,34 @@
-/**
- * Rayen import mode setting.
- *
- * - `preview` (default, SIEMPRE seguro): el usuario revisa el diff y confirma.
- * - `auto`    (EXPERIMENTAL): aplica el diff sin preview (los conflictos igual se retienen).
- *
- * Persisted in localStorage (device-local), mirroring the app's `uiSettingsService`
- * and `featureFlags` conventions. The default must stay `preview`.
- */
+import { Timestamp } from 'firebase/firestore';
+
+/** Global, fail-safe policy for applying Eloísa census imports. */
 
 export type RayenImportMode = 'preview' | 'auto';
 
-export const RAYEN_IMPORT_MODE_KEY = 'hhr_rayen_import_mode';
+export interface RayenImportPolicy {
+  mode: RayenImportMode;
+  revision: number;
+}
+
+export const RAYEN_IMPORT_POLICY_SCHEMA_VERSION = 1;
 export const DEFAULT_RAYEN_IMPORT_MODE: RayenImportMode = 'preview';
+export const DEFAULT_RAYEN_IMPORT_POLICY: Readonly<RayenImportPolicy> = Object.freeze({
+  mode: DEFAULT_RAYEN_IMPORT_MODE,
+  revision: 0,
+});
 
-const listeners = new Set<() => void>();
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
 
-export const getRayenImportMode = (): RayenImportMode => {
-  try {
-    if (typeof localStorage === 'undefined') return DEFAULT_RAYEN_IMPORT_MODE;
-    return localStorage.getItem(RAYEN_IMPORT_MODE_KEY) === 'auto'
-      ? 'auto'
-      : DEFAULT_RAYEN_IMPORT_MODE;
-  } catch {
-    return DEFAULT_RAYEN_IMPORT_MODE;
-  }
-};
-
-export const setRayenImportMode = (mode: RayenImportMode): void => {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(RAYEN_IMPORT_MODE_KEY, mode);
-    }
-  } catch {
-    // localStorage unavailable — keep the in-memory notification path working anyway.
-  }
-  listeners.forEach(listener => listener());
-};
-
-/** Subscribe to mode changes. Returns an unsubscribe function. */
-export const subscribeRayenImportMode = (listener: () => void): (() => void) => {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+/**
+ * Converts a persisted policy into the small operational contract used by a sync run.
+ * Invalid or legacy payloads are deliberately rejected instead of enabling automation.
+ */
+export const normalizeRayenImportPolicy = (value: unknown): RayenImportPolicy | null => {
+  if (!isRecord(value)) return null;
+  if (value.schemaVersion !== RAYEN_IMPORT_POLICY_SCHEMA_VERSION) return null;
+  if (value.mode !== 'preview' && value.mode !== 'auto') return null;
+  if (!Number.isInteger(value.revision) || Number(value.revision) < 1) return null;
+  if (typeof value.updatedByUid !== 'string' || value.updatedByUid.trim().length === 0) return null;
+  if (!(value.updatedAt instanceof Timestamp)) return null;
+  return { mode: value.mode, revision: Number(value.revision) };
 };

@@ -12,9 +12,11 @@ import { resolveSyncReportRequest } from './reportDateHelpers';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
 import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
+import type { RayenImportPolicy } from '../settings/rayenImportSettings';
 
 interface UseRayenImportCaptureInput {
   currentRecord: DailyRecord | null | undefined;
+  policy: RayenImportPolicy;
   setState: Dispatch<SetStateAction<RayenImportState>>;
   setStaffingProposal: Dispatch<SetStateAction<NursingStaffingProposal | null>>;
   setStaffingProposalError: Dispatch<SetStateAction<string | null>>;
@@ -23,7 +25,8 @@ interface UseRayenImportCaptureInput {
   syncTargetRef: RefObject<CensusSyncTarget | null>;
   startRun: (
     health?: RayenExtensionHealthState,
-    performance?: RayenSyncPerformanceDelta
+    performance?: RayenSyncPerformanceDelta,
+    policy?: RayenImportPolicy
   ) => RayenSyncRun;
   failRun: (reason: RayenSyncFailureReason, runId?: string) => Promise<void>;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
@@ -33,6 +36,7 @@ interface UseRayenImportCaptureInput {
 /** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
 export const useRayenImportCapture = ({
   currentRecord,
+  policy,
   setState,
   setStaffingProposal,
   setStaffingProposalError,
@@ -89,7 +93,7 @@ export const useRayenImportCapture = ({
       }
       setStaffingProposal(null);
       setStaffingProposalError(null);
-      const run = startRun(health, performance);
+      const run = startRun(health, performance, policy);
       if (!health.canSync) {
         void failRun(failureReasonFromHealth(health), run.id);
         setState(previous => ({
@@ -163,6 +167,7 @@ export const useRayenImportCapture = ({
       currentRecord,
       failRun,
       recordRunPerformance,
+      policy,
       setStaffingProposal,
       setStaffingProposalError,
       setState,

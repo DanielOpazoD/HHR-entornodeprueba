@@ -36,6 +36,7 @@ const record = {
   lastUpdated: '2026-08-02T09:00:00.000Z',
   activeExtraBeds: [],
 } as DailyRecord;
+const policy = { mode: 'preview' as const, revision: 3 };
 
 describe('useRayenImportCapture', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -57,6 +58,7 @@ describe('useRayenImportCapture', () => {
     const { result } = renderHook(() =>
       useRayenImportCapture({
         currentRecord: record,
+        policy,
         setState,
         setStaffingProposal,
         setStaffingProposalError,
@@ -75,6 +77,11 @@ describe('useRayenImportCapture', () => {
     });
 
     expect(bridge.subscribeSnapshots).toHaveBeenCalledWith(expect.any(Function));
+    expect(startRun).toHaveBeenCalledWith(
+      { connection: 'ready', report: null, message: 'ok', canSync: true },
+      undefined,
+      policy
+    );
     expect(startRequest).toHaveBeenCalledWith(
       '2026-08-02',
       '2026-08-02',
@@ -107,6 +114,7 @@ describe('useRayenImportCapture', () => {
     const { result } = renderHook(() =>
       useRayenImportCapture({
         currentRecord: record,
+        policy,
         setState,
         setStaffingProposal: vi.fn(),
         setStaffingProposalError: vi.fn(),
@@ -162,6 +170,7 @@ describe('useRayenImportCapture', () => {
     renderHook(() =>
       useRayenImportCapture({
         currentRecord: record,
+        policy,
         setState,
         setStaffingProposal: vi.fn(),
         setStaffingProposalError: vi.fn(),
@@ -202,6 +211,7 @@ describe('useRayenImportCapture', () => {
     renderHook(() =>
       useRayenImportCapture({
         currentRecord: record,
+        policy,
         setState,
         setStaffingProposal: vi.fn(),
         setStaffingProposalError: vi.fn(),

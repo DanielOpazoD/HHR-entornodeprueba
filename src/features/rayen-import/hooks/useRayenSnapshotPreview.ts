@@ -27,7 +27,6 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoLookupResult } from '../contracts/egresoLookup';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
-import type { RayenImportMode } from '../settings/rayenImportSettings';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import { syncReportRange, toIsoReportDate } from './reportDateHelpers';
 import { resolveCensusSyncTarget, type CensusSyncTarget } from '../domain/historicalCensusSync';
@@ -38,7 +37,6 @@ import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSy
 import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
 interface UseRayenSnapshotPreviewInput {
   currentRecord: DailyRecord | null | undefined;
-  mode: RayenImportMode;
   dailyRecord: DailyRecordRepositoryPort;
   isAdmin: boolean;
   setState: Dispatch<SetStateAction<RayenImportState>>;
@@ -54,7 +52,6 @@ interface UseRayenSnapshotPreviewInput {
 }
 export const useRayenSnapshotPreview = ({
   currentRecord,
-  mode,
   dailyRecord,
   isAdmin,
   setState,
@@ -305,7 +302,7 @@ export const useRayenSnapshotPreview = ({
       );
 
       const needsReview = requiresReview(diff) || previousDayEdits.length > 0;
-      const canAutoApply = mode === 'auto' && !needsReview;
+      const canAutoApply = run.policy?.mode === 'auto' && !needsReview;
 
       if (canAutoApply) {
         if (autoApplyingRef.current) return;
@@ -373,14 +370,13 @@ export const useRayenSnapshotPreview = ({
         result: null,
         hasSkippedItems: false,
         error:
-          mode === 'auto' && needsReview
+          run.policy?.mode === 'auto' && needsReview
             ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
             : null,
       });
     },
     [
       currentRecord,
-      mode,
       applyDiff,
       fillDevicesInBackground,
       clearSyncTimeout,
