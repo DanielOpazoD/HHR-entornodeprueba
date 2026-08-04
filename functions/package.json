@@ -23,8 +23,9 @@
   },
   "overrides": {
     "basic-ftp": "5.3.1",
-    "brace-expansion": "2.1.2",
+    "brace-expansion": "2.1.4",
     "fast-xml-parser": "4.5.5",
+    "ip-address": "10.3.1",
     "minimatch": "9.0.9",
     "node-forge": "1.4.0",
     "path-to-regexp": "0.1.13",
