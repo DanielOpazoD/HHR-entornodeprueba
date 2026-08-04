@@ -87,21 +87,45 @@ const formatDayLong = (isoDay: string): string => {
   return match ? `${match[3]}-${match[2]}-${match[1]}` : isoDay;
 };
 
-const formatRecordedMoment = (recordedDate: string, recordedAt?: string): string => {
-  const instant = recordedAt ? new Date(recordedAt) : null;
-  if (instant && !Number.isNaN(instant.getTime())) {
-    return instant.toLocaleString('es-CL', {
-      timeZone: 'Pacific/Easter',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
+const ABSOLUTE_ISO_INSTANT =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i;
+
+const absoluteMomentFromRecordedAt = (recordedAt?: string): string => {
+  const raw = (recordedAt ?? '').trim();
+  if (ABSOLUTE_ISO_INSTANT.test(raw)) {
+    const instant = new Date(raw);
+    if (!Number.isNaN(instant.getTime())) {
+      const parts = new Intl.DateTimeFormat('es-CL', {
+        timeZone: 'Pacific/Easter',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(instant);
+      const part = (type: Intl.DateTimeFormatPartTypes): string =>
+        parts.find(candidate => candidate.type === type)?.value ?? '';
+      return `${part('day')}-${part('month')}-${part('year')}, ${part('hour')}:${part('minute')}`;
+    }
   }
-  const time = (recordedAt ?? '').match(/(\d{1,2}):(\d{2})/);
-  return `${formatDayLong(recordedDate)}${time ? ` · ${time[1].padStart(2, '0')}:${time[2]} h` : ''}`;
+
+  return '';
+};
+
+const localClockFromRecordedAt = (recordedAt?: string): string => {
+  const raw = (recordedAt ?? '').trim();
+
+  const match = raw.match(/(?:^|[T\s])(\d{1,2}):(\d{2})/);
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : '';
+};
+
+const formatRecordedMoment = (recordedDate: string, recordedAt?: string): string => {
+  const absoluteMoment = absoluteMomentFromRecordedAt(recordedAt);
+  if (absoluteMoment) return absoluteMoment;
+
+  const clock = localClockFromRecordedAt(recordedAt);
+  return `${formatDayLong(recordedDate)}${clock ? `, ${clock}` : ''}`;
 };
 
 /**
