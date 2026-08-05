@@ -3,11 +3,6 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type { HistoricalCudyrBatchItem } from '../contracts/clinicalFillContracts';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
-import {
-  applyHistoricalCudyr as applyHistoricalCudyrToRecord,
-  applyHistoricalCudyrBatch as applyHistoricalCudyrBatchToRecord,
-  applyHistoricalCudyrBatchAuthoritatively,
-} from './applyHistoricalCudyr';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 
 export const useHistoricalCudyrPersistence = ({
@@ -24,25 +19,29 @@ export const useHistoricalCudyrPersistence = ({
       cudyr: ImportedCudyr,
       writeGuard?: RayenClinicalWriteGuard
     ) =>
-      applyHistoricalCudyrToRecord({
-        dailyRecord,
-        clinicalEpisodeId,
-        censusDay,
-        cudyr,
-        isAdmin,
-        writeGuard,
-      }),
+      import('./applyHistoricalCudyr').then(({ applyHistoricalCudyr }) =>
+        applyHistoricalCudyr({
+          dailyRecord,
+          clinicalEpisodeId,
+          censusDay,
+          cudyr,
+          isAdmin,
+          writeGuard,
+        })
+      ),
     [dailyRecord, isAdmin]
   );
   const applyHistoricalCudyrBatch = useCallback(
     (censusDay: string, items: HistoricalCudyrBatchItem[], writeGuard?: RayenClinicalWriteGuard) =>
-      applyHistoricalCudyrBatchToRecord({
-        dailyRecord,
-        censusDay,
-        items,
-        isAdmin,
-        writeGuard,
-      }),
+      import('./applyHistoricalCudyr').then(({ applyHistoricalCudyrBatch }) =>
+        applyHistoricalCudyrBatch({
+          dailyRecord,
+          censusDay,
+          items,
+          isAdmin,
+          writeGuard,
+        })
+      ),
     [dailyRecord, isAdmin]
   );
   const applyHistoricalCudyrEnforcedBatch = useCallback(
@@ -52,14 +51,16 @@ export const useHistoricalCudyrPersistence = ({
       items: HistoricalCudyrBatchItem[],
       runId: string
     ) =>
-      applyHistoricalCudyrBatchAuthoritatively({
-        dailyRecord,
-        sourceRecord,
-        censusDay,
-        items,
-        isAdmin,
-        runId,
-      }),
+      import('./applyHistoricalCudyr').then(({ applyHistoricalCudyrBatchAuthoritatively }) =>
+        applyHistoricalCudyrBatchAuthoritatively({
+          dailyRecord,
+          sourceRecord,
+          censusDay,
+          items,
+          isAdmin,
+          runId,
+        })
+      ),
     [dailyRecord, isAdmin]
   );
 

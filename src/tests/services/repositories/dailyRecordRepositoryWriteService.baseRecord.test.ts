@@ -50,7 +50,6 @@ vi.mock('@/services/repositories/PatientMasterRepository', () => ({
     upsertPatient: vi.fn().mockResolvedValue(undefined),
   },
 }));
-
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import {
   getRecordForDate as getRecordFromIndexedDB,
@@ -62,7 +61,6 @@ import {
   ackDailyRecordSyncTask,
   queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask,
 } from '@/services/storage/sync';
-
 const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
   expect.objectContaining({
     syncContract: expect.objectContaining({
@@ -71,7 +69,6 @@ const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
       recordRevision: expect.any(String),
     }),
   });
-
 describe('dailyRecordRepositoryWriteService explicit base records', () => {
   beforeEach(() => {
     vi.clearAllMocks();

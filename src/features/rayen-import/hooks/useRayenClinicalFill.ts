@@ -3,12 +3,10 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
-import {
-  runClinicalFill,
-  countClinicalFillEligiblePatients,
-  type ClinicalFillSummary,
-  type ClinicalFillPatchTarget,
-  type HistoricalCudyrApplyResult,
+import type {
+  ClinicalFillSummary,
+  ClinicalFillPatchTarget,
+  HistoricalCudyrApplyResult,
 } from '../clinicalFillRunner';
 import type {
   HistoricalCudyrBatchItem,
@@ -35,7 +33,6 @@ import {
   usesLegacyClinicalWriter,
 } from '../domain/clinicalEnrichmentBatchMode';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
-import { createClinicalEnrichmentPersistenceStrategy } from './clinicalEnrichmentPersistenceStrategy';
 import {
   classifyRayenSyncError,
   reportRayenSyncWarning,
@@ -97,6 +94,8 @@ export const useRayenClinicalFill = ({
       const requestedRunId = record.rayenSync?.runId;
       const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}`;
       const outcome = await enqueueLatestRayenClinicalFill(queueKey, async () => {
+        const { countClinicalFillEligiblePatients, runClinicalFill } =
+          await import('../clinicalFillRunner');
         const requestedEligibleCount = countClinicalFillEligiblePatients(record);
         let freshRecord: DailyRecord;
         try {
@@ -176,6 +175,8 @@ export const useRayenClinicalFill = ({
 
         let summary: ClinicalFillSummary;
         try {
+          const { createClinicalEnrichmentPersistenceStrategy } =
+            await import('./clinicalEnrichmentPersistenceStrategy');
           const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
             mode: batchMode,
             record: freshRecord,

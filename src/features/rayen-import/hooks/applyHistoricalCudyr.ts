@@ -12,7 +12,9 @@ import { canWritePreviousDay } from '../domain/previousDayCorrections';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { resolveHistoricalCudyrBatchOperation } from '../domain/historicalCudyrPatch';
-import { applyClinicalEnrichmentBatch } from './applyClinicalEnrichmentBatch';
+
+type ApplyClinicalEnrichmentBatch =
+  typeof import('./applyClinicalEnrichmentBatch').applyClinicalEnrichmentBatch;
 
 const concurrencyError = (message: string): Error => {
   const error = new Error(message);
@@ -154,7 +156,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   items,
   isAdmin,
   runId,
-  applyBatch = applyClinicalEnrichmentBatch,
+  applyBatch,
 }: {
   dailyRecord: DailyRecordRepositoryPort;
   sourceRecord: DailyRecord;
@@ -162,7 +164,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   items: HistoricalCudyrBatchItem[];
   isAdmin: boolean;
   runId: string;
-  applyBatch?: typeof applyClinicalEnrichmentBatch;
+  applyBatch?: ApplyClinicalEnrichmentBatch;
 }): Promise<HistoricalCudyrBatchItemResult[]> => {
   const uniqueItems = uniqueBatchItems(items);
   if (uniqueItems.length === 0) return [];
@@ -207,7 +209,9 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   };
   const operations = resolutions.flatMap(({ operation }) => (operation ? [operation] : []));
   if (operations.length > 0) {
-    await applyBatch({
+    const authoritativeApplyBatch =
+      applyBatch ?? (await import('./applyClinicalEnrichmentBatch')).applyClinicalEnrichmentBatch;
+    await authoritativeApplyBatch({
       mode: 'enforced',
       record: historicalRecord,
       authorityDate: sourceRecord.date,
