@@ -57,6 +57,20 @@ describe('runtimeContractClient', () => {
     });
   });
 
+  it('rejects a client older than the minimum published runtime', () => {
+    expect(
+      assessRemoteRuntimeContract({
+        backendRuntimeContractVersion: BACKEND_RUNTIME_CONTRACT_VERSION,
+        minSupportedClientRuntimeContractVersion: CLIENT_RUNTIME_CONTRACT_VERSION + 1,
+        supportedSchemaVersion: CURRENT_SCHEMA_VERSION,
+        legacySchemaFloorVersion: LEGACY_SCHEMA_VERSION,
+      })
+    ).toEqual({
+      ok: false,
+      disposition: 'runtime_contract_mismatch',
+    });
+  });
+
   it('fetches and validates the remote runtime contract payload', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

@@ -1,7 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
-
 const { mockAuthorityCallable } = vi.hoisted(() => ({
   mockAuthorityCallable: vi.fn().mockResolvedValue(undefined),
 }));
@@ -72,7 +71,9 @@ describe('sync queue mutation conflicts', () => {
   beforeEach(async () => {
     await hospitalDB.syncQueue.clear();
     vi.clearAllMocks();
-    mockAuthorityCallable.mockClear();
+    mockAuthorityCallable.mockImplementation(async ({ record }: { record: DailyRecord }) => ({
+      recordState: { record, lastUpdated: record.lastUpdated, meta: {} },
+    }));
     delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
     vi.mocked(getDoc).mockResolvedValue({
       exists: () => false,

@@ -36,7 +36,7 @@ const record = {
   lastUpdated: '2026-08-02T09:00:00.000Z',
   activeExtraBeds: [],
 } as DailyRecord;
-const policy = { mode: 'preview' as const, revision: 3 };
+const policy = { mode: 'preview' as const, clinicalBatchMode: 'enforced' as const, revision: 3 };
 
 describe('useRayenImportCapture', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -50,6 +50,7 @@ describe('useRayenImportCapture', () => {
       id: 'run-1',
       startedAt: '2026-08-02T10:00:00.000Z',
       by: 'Operador HHR',
+      sourceDate: '2026-08-02',
     }));
     const recordRunPerformance = vi.fn();
     const getRunId = vi.fn().mockReturnValue('run-1');
@@ -59,6 +60,7 @@ describe('useRayenImportCapture', () => {
       useRayenImportCapture({
         currentRecord: record,
         policy,
+        policyStatus: 'ready',
         setState,
         setStaffingProposal,
         setStaffingProposalError,
@@ -115,6 +117,7 @@ describe('useRayenImportCapture', () => {
       useRayenImportCapture({
         currentRecord: record,
         policy,
+        policyStatus: 'ready',
         setState,
         setStaffingProposal: vi.fn(),
         setStaffingProposalError: vi.fn(),
@@ -129,6 +132,7 @@ describe('useRayenImportCapture', () => {
           id: 'run-1',
           startedAt: '2026-08-02T10:00:00.000Z',
           by: 'Operador HHR',
+          sourceDate: '2026-08-02',
         })),
         failRun,
         recordRunPerformance,
@@ -171,6 +175,7 @@ describe('useRayenImportCapture', () => {
       useRayenImportCapture({
         currentRecord: record,
         policy,
+        policyStatus: 'ready',
         setState,
         setStaffingProposal: vi.fn(),
         setStaffingProposalError: vi.fn(),
@@ -181,6 +186,7 @@ describe('useRayenImportCapture', () => {
           id: 'unused-run',
           startedAt: '2026-08-02T10:00:00.000Z',
           by: 'Operador HHR',
+          sourceDate: '2026-08-02',
         })),
         failRun,
         recordRunPerformance: vi.fn(),
@@ -212,6 +218,7 @@ describe('useRayenImportCapture', () => {
       useRayenImportCapture({
         currentRecord: record,
         policy,
+        policyStatus: 'ready',
         setState,
         setStaffingProposal: vi.fn(),
         setStaffingProposalError: vi.fn(),
@@ -226,6 +233,7 @@ describe('useRayenImportCapture', () => {
           id: 'new-run',
           startedAt: '2026-08-02T10:00:00.000Z',
           by: 'Operador HHR',
+          sourceDate: '2026-08-02',
         })),
         failRun,
         recordRunPerformance: vi.fn(),
@@ -247,5 +255,48 @@ describe('useRayenImportCapture', () => {
     expect(previewSnapshot).not.toHaveBeenCalled();
     expect(failRun).not.toHaveBeenCalled();
     expect(setState).not.toHaveBeenCalled();
+  });
+
+  it('does not start a run when the global policy is not server-confirmed', () => {
+    const setState = vi.fn();
+    const startRun = vi.fn();
+    const startRequest = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'fallback',
+        setState,
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue(null),
+        },
+        syncTargetRef: { current: null },
+        startRun,
+        failRun: vi.fn().mockResolvedValue(undefined),
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+
+    expect(startRun).not.toHaveBeenCalled();
+    expect(startRequest).not.toHaveBeenCalled();
+    const stateUpdater = setState.mock.calls[0]?.[0] as (
+      state: typeof INITIAL_RAYEN_IMPORT_STATE
+    ) => typeof INITIAL_RAYEN_IMPORT_STATE;
+    expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
+      expect.objectContaining({
+        isSyncing: false,
+        error: expect.stringContaining('política global'),
+      })
+    );
   });
 });

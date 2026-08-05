@@ -64,7 +64,7 @@ describe('firestore rules critical access matrix support', () => {
     `;
 
     expect(findCriticalAccessMatrixDrift(rules)).toContain(
-      'dailyRecords create expected canEdit() but found canReadClinicalData()'
+      'dailyRecords create expected canEdit() && !isRayenClinicalWriteFenceActive(hospitalId) but found canReadClinicalData()'
     );
   });
 });

@@ -1,5 +1,6 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import {
   classifyDailyRecordPatchContexts,
   classifyDailyRecordSaveContexts,
@@ -33,6 +34,11 @@ export interface PartialUpdateDailyRecordOptions {
    * skip repeated multi-megabyte snapshots for the remaining patches in the same logical run.
    */
   historyPolicy?: 'snapshot' | 'skip';
+  /**
+   * Forces this Rayen clinical patch through an atomic remote policy check before it may enter
+   * local persistence/outbox. Reserved for synchronization code; ordinary census edits omit it.
+   */
+  rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
 }
 
 const assertDate = (date: string, operation: string): void => {

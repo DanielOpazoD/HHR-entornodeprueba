@@ -175,6 +175,7 @@ const RayenSyncPerformanceSchema = z.object({
 
 const RayenSyncEventSchema = z.object({
   id: z.string(),
+  sourceDate: nullableOptional(z.string().regex(DATE_REGEX)),
   startedAt: z.string(),
   completedAt: nullableOptional(z.string()),
   by: z.string(),
@@ -185,6 +186,7 @@ const RayenSyncEventSchema = z.object({
   policy: nullableOptional(
     z.object({
       mode: z.enum(['preview', 'auto']),
+      clinicalBatchMode: nullableOptional(z.enum(['off', 'shadow', 'enforced'])),
       revision: z.number().int().nonnegative(),
     })
   ),

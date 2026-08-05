@@ -11,6 +11,13 @@ describe('runtimeContractGovernance', () => {
     expect(snapshot.clientRuntimeContractVersion).toBeGreaterThan(0);
     expect(snapshot.backendRuntimeContractVersion).toBeGreaterThan(0);
     expect(snapshot.minSupportedClientRuntimeContractVersion).toBeGreaterThan(0);
+    expect(snapshot.minSupportedClientRuntimeContractVersion).toBeLessThanOrEqual(
+      snapshot.clientRuntimeContractVersion
+    );
+    expect(snapshot.minSupportedClientRuntimeContractVersion).toBe(1);
+    expect(snapshot.minSupportedBackendRuntimeContractVersion).toBeLessThanOrEqual(
+      snapshot.backendRuntimeContractVersion
+    );
     expect(snapshot.backendSupportedSchemaVersion).toBe(snapshot.currentSchemaVersion);
     expect(snapshot.backendLegacySchemaFloorVersion).toBe(snapshot.legacySchemaVersion);
     expect(snapshot.schemaGovernance.ok).toBe(true);

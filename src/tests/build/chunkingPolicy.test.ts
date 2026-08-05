@@ -150,6 +150,30 @@ describe('chunkingPolicy', () => {
     expect(navbarSource).toContain('@/components/layout/userAvatarPresentationController');
   });
 
+  it('loads online-only Rayen clinical authority through dynamic boundaries', () => {
+    assertDynamicBoundary({
+      sourcePath: 'src/features/rayen-import/hooks/useRayenClinicalFill.ts',
+      forbiddenStaticImport: /from ['"]\.\/clinicalEnrichmentPersistenceStrategy['"]/,
+      requiredDynamicImport: "import('./clinicalEnrichmentPersistenceStrategy')",
+    });
+    assertDynamicBoundary({
+      sourcePath: 'src/features/rayen-import/hooks/useRayenClinicalFill.ts',
+      forbiddenStaticImport:
+        /import\s+\{[^}]*runClinicalFill[^}]*\}\s+from ['"]\.\.\/clinicalFillRunner['"]/,
+      requiredDynamicImport: "import('../clinicalFillRunner')",
+    });
+    assertDynamicBoundary({
+      sourcePath: 'src/features/rayen-import/hooks/applyHistoricalCudyr.ts',
+      forbiddenStaticImport: /from ['"]\.\/applyClinicalEnrichmentBatch['"]/,
+      requiredDynamicImport: "import('./applyClinicalEnrichmentBatch')",
+    });
+    assertDynamicBoundary({
+      sourcePath: 'src/features/rayen-import/hooks/useHistoricalCudyrPersistence.ts',
+      forbiddenStaticImport: /from ['"]\.\/applyHistoricalCudyr['"]/,
+      requiredDynamicImport: "import('./applyHistoricalCudyr')",
+    });
+  });
+
   it.each([
     {
       label: 'user avatar remote profile service',

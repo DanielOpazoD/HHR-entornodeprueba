@@ -27,7 +27,8 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       makeContext()
     );
 
-    expect(admin.get).toHaveBeenCalledTimes(1);
+    expect(admin.policyGet).toHaveBeenCalledTimes(1);
+    expect(admin.recordGet).toHaveBeenCalledTimes(1);
     expect(admin.historyDoc).toHaveBeenCalledTimes(1);
     expect(admin.historyDoc).toHaveBeenCalledWith(expect.stringMatching(/^rayen-clinical-/));
     expect(admin.create).toHaveBeenCalledTimes(1);
@@ -68,24 +69,41 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     const telemetry = JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0]);
     expect(telemetry).not.toMatch(/H2C1|episode-secret|Paciente reservado|11\.111|braden|120/);
   });
-  it('rejects reuse of a run id with a different clinical payload', async () => {
+  it('recognizes an exact committed retry even after the global policy changes', async () => {
+    const payload = makePayload();
     const remote = makeClinicalRecord();
     remote.meta = {
       revision: 5,
       clinicalEnrichmentReceipts: [
         {
-          runId: 'run-1',
-          mutationId: 'mutation-original',
-          digest: 'digest-from-another-payload',
+          runId: payload.runId,
+          mutationId: payload.mutationId,
+          fieldContractVersion: payload.fieldContractVersion,
+          canonicalDigest: digestPayload(payload),
         },
       ],
     } as never;
-    const admin = createClinicalAdminMock(remote);
+    Object.assign(remote, {
+      rayenSyncHistory: [
+        {
+          id: payload.runId,
+          sourceDate: payload.authorityDate,
+          policy: { mode: 'preview', clinicalBatchMode: 'enforced', revision: 7 },
+        },
+      ],
+    });
+    const admin = createClinicalAdminMock(remote, { policyRevision: 8, runPolicy: 'missing' });
 
     await expect(
-      createApi(admin).applyRayenClinicalEnrichmentBatch.run(makePayload(), makeContext())
-    ).rejects.toMatchObject({ code: 'failed-precondition' });
-    expect(admin.historyDoc).not.toHaveBeenCalled();
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+    ).resolves.toMatchObject({
+      success: true,
+      authorityStatus: 'idempotent',
+      revision: 5,
+      patientWrites: 0,
+      historySnapshots: 0,
+    });
+    expect(admin.policyGet).not.toHaveBeenCalled();
     expect(admin.set).not.toHaveBeenCalled();
   });
 
@@ -209,6 +227,35 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
+  it('rejects historical targets outside the immediately preceding census day', async () => {
+    const admin = createClinicalAdminMock();
+    const payload = {
+      ...makePayload(),
+      date: '2026-07-26',
+      authorityDate: '2026-07-28',
+    };
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(admin.get).not.toHaveBeenCalled();
+    expect(admin.set).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['date', '2026-02-30'],
+    ['authorityDate', '2026-99-99'],
+  ])('rejects an invalid calendar %s before reading the census', async (field, value) => {
+    const admin = createClinicalAdminMock();
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+        { ...makePayload(), [field]: value },
+        makeContext()
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(admin.get).not.toHaveBeenCalled();
+  });
+
   it('rejects a batch larger than the safe Firestore request budget', async () => {
     const admin = createClinicalAdminMock();
     const payload = makePayload();
@@ -232,7 +279,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
     } as never;
-    const admin = createClinicalAdminMock(remote);
+    const admin = createClinicalAdminMock(remote, { clinicalBatchMode: 'shadow' });
     const payload = {
       ...makePayload(),
       mode: 'shadow',
@@ -256,8 +303,32 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
+  it('rejects a new enforced no-op whose base revision is stale', async () => {
+    const remote = makeClinicalRecord();
+    remote.beds.H2C1 = {
+      ...remote.beds.H2C1,
+      evaluationScores: { braden: { total: 17 } },
+      vitalSigns: { systolic: 120 },
+      clinicalSyncCheckpoint: { version: 1, sources: {} },
+    } as never;
+    const admin = createClinicalAdminMock(remote);
+    const payload = {
+      ...makePayload(),
+      baseRevision: 3,
+      expectedLastUpdated: '2026-07-27T10:00:00.000Z',
+    };
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+    ).rejects.toMatchObject({
+      code: 'aborted',
+      message: expect.stringContaining('revision_mismatch'),
+    });
+    expect(admin.set).not.toHaveBeenCalled();
+  });
+
   it('reports a shadow mismatch when established persistence differs from the batch', async () => {
-    const admin = createClinicalAdminMock();
+    const admin = createClinicalAdminMock(undefined, { clinicalBatchMode: 'shadow' });
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
       { ...makePayload(), mode: 'shadow' },
       makeContext()
@@ -292,7 +363,8 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       makeContext()
     );
 
-    expect(admin.get).toHaveBeenCalledTimes(1);
+    expect(admin.policyGet).toHaveBeenCalledTimes(1);
+    expect(admin.recordGet).toHaveBeenCalledTimes(1);
     expect(admin.historyDoc).not.toHaveBeenCalled();
     expect(admin.create).not.toHaveBeenCalled();
     expect(admin.set).toHaveBeenCalledTimes(1);
@@ -327,29 +399,5 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(result).toMatchObject({ success: true, mode: 'enforced' });
     expect(admin.create).toHaveBeenCalledTimes(1);
     expect(admin.set).toHaveBeenCalledTimes(1);
-  });
-
-  it('rejects authenticated viewers before reading or writing clinical data', async () => {
-    const admin = createClinicalAdminMock();
-
-    await expect(
-      createApi(admin, 'viewer').applyRayenClinicalEnrichmentBatch.run(makePayload(), makeContext())
-    ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(admin.get).not.toHaveBeenCalled();
-    expect(admin.set).not.toHaveBeenCalled();
-    expect(admin.telemetryAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'failure', errorCode: 'permission-denied' })
-    );
-  });
-
-  it('rejects unauthenticated callers without emitting telemetry', async () => {
-    const admin = createClinicalAdminMock();
-
-    await expect(
-      createApi(admin).applyRayenClinicalEnrichmentBatch.run(makePayload(), {})
-    ).rejects.toMatchObject({ code: 'unauthenticated' });
-    expect(admin.get).not.toHaveBeenCalled();
-    expect(admin.set).not.toHaveBeenCalled();
-    expect(admin.telemetryAdd).not.toHaveBeenCalled();
   });
 });

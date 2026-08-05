@@ -76,6 +76,11 @@ describe('sync queue clinical authority', () => {
         date: '2025-01-17',
         mode: 'enforced',
         authorityStatus: 'ok',
+        recordState: {
+          record: makeRecord('2025-01-17'),
+          lastUpdated: '2025-01-17T10:10:00.000Z',
+          meta: {},
+        },
       },
     });
     delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;

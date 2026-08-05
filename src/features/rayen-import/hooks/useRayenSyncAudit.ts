@@ -146,6 +146,7 @@ export const useRayenSyncAudit = ({
     ): RayenSyncRun => {
       const run: RayenSyncRun = {
         id: createId(),
+        sourceDate: currentRecordRef.current?.date ?? '',
         startedAt: now().toISOString(),
         by: actor,
         source: sourceFromHealth(health),
@@ -160,7 +161,7 @@ export const useRayenSyncAudit = ({
       }
       return run;
     },
-    [actor, createId, lifecycle, now]
+    [actor, createId, currentRecordRef, lifecycle, now]
   );
 
   const ensureRun = useCallback(

@@ -3,12 +3,10 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import { extractDeviceTextItems } from '../mapping/extractDeviceTextItems';
-import {
-  runClinicalFill,
-  countClinicalFillEligiblePatients,
-  type ClinicalFillSummary,
-  type ClinicalFillPatchTarget,
-  type HistoricalCudyrApplyResult,
+import type {
+  ClinicalFillSummary,
+  ClinicalFillPatchTarget,
+  HistoricalCudyrApplyResult,
 } from '../clinicalFillRunner';
 import type {
   HistoricalCudyrBatchItem,
@@ -30,8 +28,11 @@ import {
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftProposal';
 import { enqueueLatestRayenClinicalFill } from '../domain/rayenClinicalFillQueue';
-import { resolveClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
-import { createClinicalEnrichmentPersistenceStrategy } from './clinicalEnrichmentPersistenceStrategy';
+import {
+  resolveClinicalEnrichmentBatchPolicyForRun,
+  usesLegacyClinicalWriter,
+} from '../domain/clinicalEnrichmentBatchMode';
+import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import {
   classifyRayenSyncError,
   reportRayenSyncWarning,
@@ -41,15 +42,27 @@ interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
   tensCatalog: string[];
   loadDailyRecord: (date: string) => Promise<DailyRecord>;
-  patchDailyRecord: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<unknown>;
+  patchDailyRecord: (
+    patch: DailyRecordPatch,
+    target: ClinicalFillPatchTarget,
+    writeGuard: RayenClinicalWriteGuard
+  ) => Promise<unknown>;
   applyHistoricalCudyr: (
     encId: string,
     censusDay: string,
-    cudyr: ImportedCudyr
+    cudyr: ImportedCudyr,
+    writeGuard?: RayenClinicalWriteGuard
   ) => Promise<HistoricalCudyrApplyResult>;
   applyHistoricalCudyrBatch?: (
     censusDay: string,
-    items: HistoricalCudyrBatchItem[]
+    items: HistoricalCudyrBatchItem[],
+    writeGuard?: RayenClinicalWriteGuard
+  ) => Promise<HistoricalCudyrBatchItemResult[]>;
+  applyHistoricalCudyrEnforcedBatch?: (
+    sourceRecord: DailyRecord,
+    censusDay: string,
+    items: HistoricalCudyrBatchItem[],
+    runId: string
   ) => Promise<HistoricalCudyrBatchItemResult[]>;
   completeRun: (
     record: DailyRecord,
@@ -70,6 +83,7 @@ export const useRayenClinicalFill = ({
   patchDailyRecord,
   applyHistoricalCudyr,
   applyHistoricalCudyrBatch,
+  applyHistoricalCudyrEnforcedBatch,
   completeRun,
   onStaffingProposal,
   onSettled,
@@ -80,6 +94,8 @@ export const useRayenClinicalFill = ({
       const requestedRunId = record.rayenSync?.runId;
       const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}`;
       const outcome = await enqueueLatestRayenClinicalFill(queueKey, async () => {
+        const { countClinicalFillEligiblePatients, runClinicalFill } =
+          await import('../clinicalFillRunner');
         const requestedEligibleCount = countClinicalFillEligiblePatients(record);
         let freshRecord: DailyRecord;
         try {
@@ -101,6 +117,45 @@ export const useRayenClinicalFill = ({
           ).catch(() => undefined);
           return;
         }
+        const runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
+        if (runPolicy === 'unavailable') {
+          const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
+          reportRayenSyncWarning('clinical_fill_failed', {
+            runId: requestedRunId,
+            errorKind: 'policy_unavailable',
+            patientCount: eligibleCount,
+          });
+          // The structural save can become visible before its run event during propagation.
+          // Keep the run in its applied/pending state so the established retry path can resume it.
+          return;
+        }
+        const batchMode = runPolicy.clinicalBatchMode;
+        const legacyWriterEnabled = usesLegacyClinicalWriter(batchMode);
+        const historicalWriteGuard: RayenClinicalWriteGuard | undefined = legacyWriterEnabled
+          ? { ...runPolicy, recordScope: 'historical' }
+          : undefined;
+        const historicalCudyrPersistence = historicalWriteGuard
+          ? {
+              applyHistoricalCudyr: (encId: string, censusDay: string, cudyr: ImportedCudyr) =>
+                applyHistoricalCudyr(encId, censusDay, cudyr, historicalWriteGuard),
+              applyHistoricalCudyrBatch: applyHistoricalCudyrBatch
+                ? (censusDay: string, items: HistoricalCudyrBatchItem[]) =>
+                    applyHistoricalCudyrBatch(censusDay, items, historicalWriteGuard)
+                : undefined,
+            }
+          : {
+              applyHistoricalCudyrBatch: (censusDay: string, items: HistoricalCudyrBatchItem[]) => {
+                if (!applyHistoricalCudyrEnforcedBatch) {
+                  throw new Error('El lote histórico autoritativo no está disponible.');
+                }
+                return applyHistoricalCudyrEnforcedBatch(
+                  freshRecord,
+                  censusDay,
+                  items,
+                  runPolicy.runId
+                );
+              },
+            };
         const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
         const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
         if (!beginRayenFill(eligibleCount)) {
@@ -120,12 +175,14 @@ export const useRayenClinicalFill = ({
 
         let summary: ClinicalFillSummary;
         try {
-          const batchMode = resolveClinicalEnrichmentBatchMode();
+          const { createClinicalEnrichmentPersistenceStrategy } =
+            await import('./clinicalEnrichmentPersistenceStrategy');
           const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
             mode: batchMode,
             record: freshRecord,
+            runId: runPolicy.runId,
             applyPatch: operation =>
-              patchDailyRecord(operation.patch, operation.target).then(() => undefined),
+              patchDailyRecord(operation.patch, operation.target, runPolicy).then(() => undefined),
             refreshRecord: () => loadDailyRecord(freshRecord.date),
           });
           summary = await runClinicalFill(
@@ -139,11 +196,10 @@ export const useRayenClinicalFill = ({
               fetchScalesForms: requestScalesReport,
               fetchCudyrCategories: () => requestCudyrCategories(15000),
               applyPatch: async (patch, target) => {
-                await patchDailyRecord(patch, target);
+                await patchDailyRecord(patch, target, runPolicy);
               },
               persistenceStrategy,
-              applyHistoricalCudyr,
-              applyHistoricalCudyrBatch,
+              ...historicalCudyrPersistence,
               now: () => new Date(),
               createId,
               nurseCatalog,
@@ -189,11 +245,14 @@ export const useRayenClinicalFill = ({
         endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
         if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
       });
+      // Task-level early exits still resolve through the queue. Only clear the shared UI state once
+      // this attempt drained the queue; a queued newer run must keep the synchronization active.
       if (outcome === 'drained') onSettled();
     },
     [
       applyHistoricalCudyr,
       applyHistoricalCudyrBatch,
+      applyHistoricalCudyrEnforcedBatch,
       completeRun,
       createId,
       loadDailyRecord,

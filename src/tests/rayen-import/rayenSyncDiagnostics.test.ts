@@ -33,6 +33,13 @@ describe('rayenSyncDiagnostics', () => {
       expected: 'unavailable',
     },
     {
+      label: 'clinical policy promotion during a run',
+      error: Object.assign(new Error('La política clínica cambió durante la sincronización'), {
+        code: 'rayen-clinical-policy-changed',
+      }),
+      expected: 'policy_unavailable',
+    },
+    {
       label: 'invalid confirmation',
       error: new Error('El backend devolvió una confirmación inválida'),
       expected: 'invalid_response',

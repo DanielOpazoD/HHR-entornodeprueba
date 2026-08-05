@@ -31,6 +31,7 @@ const operations: ClinicalFillPatchOperation[] = [
 const dependencies = () => ({
   applyPatch: vi.fn().mockResolvedValue(undefined),
   refreshRecord: vi.fn().mockResolvedValue(record),
+  rebuildOperations: vi.fn(() => operations),
   invoke: vi.fn().mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
     success: true,
     authorityStatus: 'ok' as const,

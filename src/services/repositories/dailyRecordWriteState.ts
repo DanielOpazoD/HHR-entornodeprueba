@@ -7,6 +7,7 @@ import type { DailyRecordRecoveryDecision } from '@/services/repositories/dailyR
 import type { DailyRecordRetryability } from '@/services/repositories/contracts/dailyRecordConsistency';
 
 export interface RemoteWriteState {
+  savedLocally: boolean;
   savedRemotely: boolean;
   queuedForRetry: boolean;
   autoMerged: boolean;
@@ -34,6 +35,7 @@ export interface RemoteWriteState {
 }
 
 export const createRemoteWriteState = (): RemoteWriteState => ({
+  savedLocally: false,
   savedRemotely: false,
   queuedForRetry: false,
   autoMerged: false,
@@ -84,12 +86,12 @@ export const buildSaveResult = (date: string, state: RemoteWriteState) =>
   createSaveDailyRecordResult({
     date,
     outcome: resolveCompatibilityOutcome(state),
-    savedLocally: true,
+    savedLocally: state.savedLocally,
     savedRemotely: state.savedRemotely,
     queuedForRetry: state.queuedForRetry,
     autoMerged: state.autoMerged,
     consistencyState: state.consistencyState,
-    sourceOfTruth: state.savedRemotely ? 'remote' : 'local',
+    sourceOfTruth: state.savedRemotely ? 'remote' : state.savedLocally ? 'local' : 'none',
     retryability: state.retryability,
     recoveryAction: state.recoveryAction,
     conflictSummary: state.conflictSummary,
@@ -108,13 +110,13 @@ export const buildPartialUpdateResult = (
   createUpdatePartialDailyRecordResult({
     date,
     outcome: resolveCompatibilityOutcome(state),
-    savedLocally: true,
+    savedLocally: state.savedLocally,
     updatedRemotely: state.savedRemotely,
     queuedForRetry: state.queuedForRetry,
     autoMerged: state.autoMerged,
     patchedFields,
     consistencyState: state.consistencyState,
-    sourceOfTruth: state.savedRemotely ? 'remote' : 'local',
+    sourceOfTruth: state.savedRemotely ? 'remote' : state.savedLocally ? 'local' : 'none',
     retryability: state.retryability,
     recoveryAction: state.recoveryAction,
     conflictSummary: state.conflictSummary,

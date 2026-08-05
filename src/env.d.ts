@@ -36,7 +36,6 @@ interface ImportMetaEnv {
   readonly VITE_WHATSAPP_BOT_URL?: string;
   readonly VITE_OPERATIONAL_TELEMETRY_ENDPOINT?: string;
   readonly VITE_OPERATIONAL_TELEMETRY_SAMPLE_RATE?: string;
-  readonly VITE_RAYEN_CLINICAL_ENRICHMENT_BATCH_MODE?: 'off' | 'shadow' | 'enforced';
 }
 
 interface ImportMeta {

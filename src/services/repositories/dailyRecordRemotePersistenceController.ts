@@ -12,12 +12,24 @@ import {
 } from '@/services/repositories/dailyRecordWriteState';
 import type { SyncQueueEnqueueResult } from '@/services/storage/sync';
 
+export interface RemoteAuthorityWriteResult {
+  recordState?: {
+    lastUpdated: string;
+    meta: Record<string, unknown>;
+    record: DailyRecord;
+  };
+}
+
 const markRemoteWriteSucceeded = (state: RemoteWriteState): void => {
   state.savedRemotely = true;
   state.consistencyState = 'persisted_and_synced';
   state.recoveryAction = 'none';
   state.retryability = 'not_applicable';
   state.observabilityTags = ['daily_record', 'write', 'persisted_and_synced'];
+};
+
+const markLocalWriteSucceeded = (state: RemoteWriteState): void => {
+  state.savedLocally = true;
 };
 
 const toLocalPersistenceError = (result: LocalRecordWriteResult): Error => {
@@ -32,9 +44,16 @@ const applyLocalPersistenceFailure = (
   date: string,
   changedPaths: string[],
   result: LocalRecordWriteResult,
-  state: RemoteWriteState
+  state: RemoteWriteState,
+  { remoteCommitted = false }: { remoteCommitted?: boolean } = {}
 ): void => {
   const error = toLocalPersistenceError(result);
+  if (remoteCommitted) {
+    state.savedLocally = false;
+  }
+  const userSafeMessage = remoteCommitted
+    ? 'Los cambios ya quedaron guardados en el servidor, pero no se pudo actualizar la copia local. Recarga la página antes de continuar.'
+    : result.userSafeMessage || 'No fue posible guardar el registro local.';
   applyRecoveryDecisionToState(
     state,
     {
@@ -43,12 +62,14 @@ const applyLocalPersistenceFailure = (
       recoveryAction: 'block_and_surface',
       conflictSummary: {
         kind: 'local_persistence_failed',
-        sourceOfTruth: 'none',
+        sourceOfTruth: remoteCommitted ? 'remote' : 'none',
         changedPaths,
-        message: result.userSafeMessage || error.message,
+        message: userSafeMessage,
       },
-      observabilityTags: ['daily_record', 'write', 'local_persistence_failed'],
-      userSafeMessage: result.userSafeMessage || 'No fue posible guardar el registro local.',
+      observabilityTags: remoteCommitted
+        ? ['daily_record', 'write', 'remote_committed', 'local_cache_stale']
+        : ['daily_record', 'write', 'local_persistence_failed'],
+      userSafeMessage,
     },
     error
   );
@@ -104,14 +125,13 @@ const applyRemoteRecovery = async (
   return recovery.status === 'auto_merged' ? 'return' : 'continue';
 };
 
-const runRemoteWriteWithOptionalPreOutboxRenewal = async (
-  remoteWrite: () => Promise<void>,
+const runRemoteWriteWithOptionalPreOutboxRenewal = async <T>(
+  remoteWrite: () => Promise<T>,
   renewLocalPreOutboxHold?: () => Promise<void>,
   renewIntervalMs?: number
-): Promise<void> => {
+): Promise<T> => {
   if (!renewLocalPreOutboxHold || !renewIntervalMs || renewIntervalMs <= 0) {
-    await remoteWrite();
-    return;
+    return remoteWrite();
   }
 
   const intervalId = globalThis.setInterval(() => {
@@ -121,11 +141,44 @@ const runRemoteWriteWithOptionalPreOutboxRenewal = async (
   }, renewIntervalMs);
 
   try {
-    await remoteWrite();
+    return await remoteWrite();
   } finally {
     globalThis.clearInterval(intervalId);
   }
 };
+
+const applyRemoteAuthorityState = (
+  record: DailyRecord,
+  result: RemoteAuthorityWriteResult | void
+): DailyRecord | null => {
+  const recordState = result?.recordState;
+  const authoritativeRecord = recordState?.record;
+  if (
+    !recordState ||
+    typeof recordState.lastUpdated !== 'string' ||
+    !recordState.lastUpdated ||
+    !recordState.meta ||
+    typeof recordState.meta !== 'object' ||
+    Array.isArray(recordState.meta) ||
+    !authoritativeRecord ||
+    typeof authoritativeRecord !== 'object' ||
+    Array.isArray(authoritativeRecord) ||
+    authoritativeRecord.date !== record.date ||
+    authoritativeRecord.lastUpdated !== recordState.lastUpdated
+  ) {
+    return null;
+  }
+  return authoritativeRecord;
+};
+
+const missingRemoteAuthorityStateResult = (date: string): LocalRecordWriteResult => ({
+  ok: false,
+  operation: 'save',
+  store: 'none',
+  dates: [date],
+  error: new Error('La autoridad remota no devolvió la versión confirmada del registro.'),
+  userSafeMessage: 'La copia local no pudo confirmar la versión guardada en el servidor.',
+});
 
 export const persistLocalAndAttemptRemoteSync = async ({
   date,
@@ -141,12 +194,13 @@ export const persistLocalAndAttemptRemoteSync = async ({
   renewLocalPreOutboxHold,
   renewLocalPreOutboxHoldEveryMs,
   allowConflictAutoMerge = true,
+  remoteAuthorityFirst = false,
 }: {
   date: string;
   record: DailyRecord;
   changedPaths: string[];
   remoteState: RemoteWriteState;
-  remoteWrite: () => Promise<void>;
+  remoteWrite: () => Promise<RemoteAuthorityWriteResult | void>;
   onRemoteFailure: (error: unknown) => void;
   expectedVersion?: string;
   queueLocalBeforeRemote?: () => Promise<SyncQueueEnqueueResult>;
@@ -156,7 +210,48 @@ export const persistLocalAndAttemptRemoteSync = async ({
   renewLocalPreOutboxHoldEveryMs?: number;
   /** Some multi-field mutations must be retried from fresh state, never union-merged. */
   allowConflictAutoMerge?: boolean;
+  /**
+   * Fail-closed path for guarded writes: commit the atomic remote authority check before touching
+   * IndexedDB, and never enqueue a rejected stale writer for later replay.
+   */
+  remoteAuthorityFirst?: boolean;
 }): Promise<'continue' | 'return'> => {
+  if (remoteAuthorityFirst) {
+    if (!isFirestoreEnabled()) {
+      throw new Error('La autoridad remota no está disponible para esta escritura clínica.');
+    }
+    let remoteResult: RemoteAuthorityWriteResult | void;
+    try {
+      remoteResult = await remoteWrite();
+    } catch (error) {
+      onRemoteFailure(error);
+      throw error;
+    }
+    markRemoteWriteSucceeded(remoteState);
+
+    const authoritativeRecord = applyRemoteAuthorityState(record, remoteResult);
+    if (!authoritativeRecord) {
+      applyLocalPersistenceFailure(
+        date,
+        changedPaths,
+        missingRemoteAuthorityStateResult(date),
+        remoteState,
+        { remoteCommitted: true }
+      );
+      return 'return';
+    }
+
+    const localResult = await saveToIndexedDB(authoritativeRecord);
+    if (!localResult.ok) {
+      applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState, {
+        remoteCommitted: true,
+      });
+      return 'return';
+    }
+    markLocalWriteSucceeded(remoteState);
+    return 'continue';
+  }
+
   if (queueLocalBeforeRemote) {
     const outboxResult = await queueLocalBeforeRemote();
     if (!outboxResult.accepted) {
@@ -168,12 +263,14 @@ export const persistLocalAndAttemptRemoteSync = async ({
       );
       return 'return';
     }
+    markLocalWriteSucceeded(remoteState);
   } else {
     const localResult = await saveToIndexedDB(record);
     if (!localResult.ok) {
       applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState);
       return 'return';
     }
+    markLocalWriteSucceeded(remoteState);
   }
 
   if (!isFirestoreEnabled()) {
@@ -181,13 +278,36 @@ export const persistLocalAndAttemptRemoteSync = async ({
   }
 
   try {
-    await runRemoteWriteWithOptionalPreOutboxRenewal(
+    const remoteResult = await runRemoteWriteWithOptionalPreOutboxRenewal(
       remoteWrite,
       renewLocalPreOutboxHold,
       renewLocalPreOutboxHoldEveryMs
     );
-    await ackLocalAfterRemote?.();
     markRemoteWriteSucceeded(remoteState);
+    if (remoteResult !== undefined) {
+      const authoritativeRecord = applyRemoteAuthorityState(record, remoteResult);
+      if (!authoritativeRecord) {
+        await releaseLocalPreOutboxHold?.();
+        applyLocalPersistenceFailure(
+          date,
+          changedPaths,
+          missingRemoteAuthorityStateResult(date),
+          remoteState,
+          { remoteCommitted: true }
+        );
+        return 'return';
+      }
+      const localResult = await saveToIndexedDB(authoritativeRecord);
+      if (!localResult.ok) {
+        await releaseLocalPreOutboxHold?.();
+        applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState, {
+          remoteCommitted: true,
+        });
+        return 'return';
+      }
+      markLocalWriteSucceeded(remoteState);
+    }
+    await ackLocalAfterRemote?.();
     return 'continue';
   } catch (err) {
     onRemoteFailure(err);

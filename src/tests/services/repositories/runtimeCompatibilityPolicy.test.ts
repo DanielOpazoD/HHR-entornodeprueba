@@ -7,9 +7,12 @@ import {
 describe('runtimeCompatibilityPolicy', () => {
   it('exposes a stable runtime compatibility snapshot', () => {
     const snapshot = getRuntimeCompatibilitySnapshot();
-    expect(snapshot.clientRuntimeContractVersion).toBeGreaterThan(0);
-    expect(snapshot.backendRuntimeContractVersion).toBeGreaterThan(0);
-    expect(snapshot.minSupportedClientRuntimeContractVersion).toBeGreaterThan(0);
+    expect(snapshot).toMatchObject({
+      clientRuntimeContractVersion: 2,
+      backendRuntimeContractVersion: 2,
+      minSupportedBackendRuntimeContractVersion: 2,
+      minSupportedClientRuntimeContractVersion: 1,
+    });
     expect(snapshot.currentSchemaVersion).toBeGreaterThanOrEqual(snapshot.legacySchemaVersion);
   });
 

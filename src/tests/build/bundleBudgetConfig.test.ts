@@ -89,7 +89,10 @@ describe('bundle budget config', () => {
         '^assets/clinicalDocumentTemplateEditorController-.*\\.js$',
         '^assets/vendor-heic2any-.*\\.js$',
         '^assets/applyClinicalEnrichmentBatch-.*\\.js$',
+        '^assets/applyHistoricalCudyr-.*\\.js$',
+        '^assets/clinicalFillRunner-.*\\.js$',
         '^assets/clinicalEnrichmentBatchPayload-.*\\.js$',
+        '^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$',
       ])
     );
   });

@@ -121,6 +121,21 @@ describeEmulator('Firestore emulator mutation idempotency', () => {
     await clearAllRecords();
     await clearAllSyncQueue();
     mockAuthorityCallable.mockReset();
+    mockAuthorityCallable.mockImplementation(
+      async ({ date, mode, record }: { date: string; mode: 'enforced'; record: DailyRecord }) => ({
+        success: true,
+        date,
+        mode,
+        authorityStatus: 'ok',
+        revision: 8,
+        recordState: {
+          record,
+          lastUpdated: record.lastUpdated,
+          meta: {},
+        },
+        violations: [],
+      })
+    );
     (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
       'enforced';
     setFirestoreEnabled(true);

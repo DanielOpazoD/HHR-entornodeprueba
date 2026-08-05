@@ -28,18 +28,16 @@ const operations: ClinicalFillPatchOperation[] = [
 
 describe('createClinicalEnrichmentPersistenceStrategy', () => {
   it('keeps off mode on immediate writes without allocating a batch run', async () => {
-    const createRunId = vi.fn(() => 'unused');
     const strategy = createClinicalEnrichmentPersistenceStrategy({
       mode: 'off',
       record: record('initial'),
+      runId: 'sync-run',
       applyPatch: vi.fn(),
       refreshRecord: vi.fn(),
-      createRunId,
     });
 
     expect(strategy.disposition).toBe('immediate');
     await strategy.persist(operations);
-    expect(createRunId).not.toHaveBeenCalled();
   });
 
   it('observes shadow parity against the record refreshed after immediate writes', async () => {
@@ -56,9 +54,9 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
     const strategy = createClinicalEnrichmentPersistenceStrategy({
       mode: 'shadow',
       record: record('initial'),
+      runId: 'sync-shadow',
       applyPatch: vi.fn(),
       refreshRecord,
-      createRunId: () => 'clinical-shadow',
       observeBatch,
     });
 
@@ -68,7 +66,7 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
     expect(refreshRecord).toHaveBeenCalledOnce();
     expect(observeBatch).toHaveBeenCalledWith({
       record: refreshed,
-      runId: 'clinical-shadow',
+      runId: 'sync-shadow',
       operations,
     });
   });
@@ -81,9 +79,9 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
     const strategy = createClinicalEnrichmentPersistenceStrategy({
       mode: 'enforced',
       record: initial,
+      runId: 'sync-enforced',
       applyPatch,
       refreshRecord,
-      createRunId: () => 'clinical-enforced',
       applyBatch,
     });
 
@@ -93,8 +91,9 @@ describe('createClinicalEnrichmentPersistenceStrategy', () => {
     expect(applyBatch).toHaveBeenCalledWith({
       mode: 'enforced',
       record: initial,
-      runId: 'clinical-enforced',
+      runId: 'sync-enforced',
       operations,
+      rebuildOperations: expect.any(Function),
       applyPatch,
       refreshRecord,
     });

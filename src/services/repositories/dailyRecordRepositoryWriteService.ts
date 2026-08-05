@@ -331,6 +331,9 @@ export const updatePartialDetailed = async (
         syncContract,
         requireAtomicCas: isReclassification,
         ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
+        ...(options.rayenClinicalWriteGuard
+          ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
+          : {}),
       }),
     queueLocalBeforeRemote: () =>
       queueDailyRecordSyncTaskWithLocalRecord(
@@ -347,7 +350,8 @@ export const updatePartialDetailed = async (
       dailyRecordWriteLogger.warn(`Firestore partial update failed for ${command.date}`, err);
     },
     expectedVersion: current.lastUpdated,
-    allowConflictAutoMerge: !isReclassification,
+    allowConflictAutoMerge: !isReclassification && !options.rayenClinicalWriteGuard,
+    remoteAuthorityFirst: Boolean(options.rayenClinicalWriteGuard),
   });
   if (nextAction === 'return') {
     return buildPartialUpdateResult(command.date, remoteState, patchedFields);

@@ -20,6 +20,7 @@ export function registerFirestoreRulesAccessGroups({
   CURRENT_RECORD_DATE,
   PREVIOUS_RECORD_DATE,
   setupDoc,
+  setupDocBypass,
 }: FirestoreRulesHarness): void {
   describe('Audit Logs Collection', () => {
     const auditCollection = (db: ReturnType<FirestoreRulesHarness['authed']>) =>
@@ -213,6 +214,110 @@ export function registerFirestoreRulesAccessGroups({
 
       await assertSucceeds(nurse().doc(recordPath).update(staffingPayload));
     });
+
+    it('fences direct bed writes from stale clients when clinical batching is enforced', async () => {
+      await setupDocBypass('hospitals/H1/settings/rayenImportPolicy', {
+        schemaVersion: 2,
+        mode: 'preview',
+        clinicalBatchMode: 'enforced',
+      });
+      await setupDocBypass(recordPath, {
+        date: CURRENT_RECORD_DATE,
+        dateTimestamp: NOW_MS,
+        beds: {
+          H2C1: {
+            bedId: 'H2C1',
+            clinicalEpisodeId: 'ep_current',
+            vitalSigns: { heartRate: 70 },
+          },
+        },
+      });
+
+      await assertFails(
+        nurse()
+          .doc(recordPath)
+          .update({
+            beds: {
+              H2C1: {
+                bedId: 'H2C1',
+                clinicalEpisodeId: 'ep_current',
+                vitalSigns: { heartRate: 120 },
+              },
+            },
+          })
+      );
+    });
+
+    it('keeps non-clinical staffing edits available while clinical batching is enforced', async () => {
+      await setupDocBypass('hospitals/H1/settings/rayenImportPolicy', {
+        schemaVersion: 2,
+        mode: 'preview',
+        clinicalBatchMode: 'enforced',
+      });
+      await setupDocBypass(recordPath, {
+        date: CURRENT_RECORD_DATE,
+        dateTimestamp: NOW_MS,
+      });
+
+      await assertSucceeds(
+        nurse()
+          .doc(recordPath)
+          .update({ nursesDayShift: ['Nurse Authority'] })
+      );
+    });
+
+    it.each(['off', 'shadow', 'enforced'] as const)(
+      'blocks direct daily-record creation after schema-v2 migration in %s mode',
+      async clinicalBatchMode => {
+        await setupDocBypass('hospitals/H1/settings/rayenImportPolicy', {
+          schemaVersion: 2,
+          mode: 'preview',
+          clinicalBatchMode,
+        });
+
+        await assertFails(
+          nurse()
+            .doc(recordPath)
+            .set({ date: CURRENT_RECORD_DATE, dateTimestamp: NOW_MS, beds: {} })
+        );
+      }
+    );
+
+    it.each(['off', 'shadow'] as const)(
+      'keeps direct bed writes fenced after rollback to %s',
+      async clinicalBatchMode => {
+        await setupDocBypass('hospitals/H1/settings/rayenImportPolicy', {
+          schemaVersion: 2,
+          mode: 'preview',
+          clinicalBatchMode,
+        });
+        await setupDocBypass(recordPath, {
+          date: CURRENT_RECORD_DATE,
+          dateTimestamp: NOW_MS,
+          beds: {
+            H2C1: {
+              bedId: 'H2C1',
+              clinicalEpisodeId: 'ep_current',
+              vitalSigns: { heartRate: 70 },
+            },
+          },
+        });
+
+        await assertFails(
+          nurse()
+            .doc(recordPath)
+            .update({
+              beds: {
+                H2C1: {
+                  bedId: 'H2C1',
+                  clinicalEpisodeId: 'ep_current',
+                  vitalSigns: { heartRate: 120 },
+                },
+              },
+            })
+        );
+      }
+    );
 
     it('Nurses can repair missing dateTimestamp while updating current records', async () => {
       await setupDoc(admin(), recordPath, {
@@ -1190,10 +1295,12 @@ export function registerFirestoreRulesAccessGroups({
     const rayenPolicy = (
       revision: number,
       updatedByUid = 'user_admin',
-      mode: 'preview' | 'auto' = 'preview'
+      mode: 'preview' | 'auto' = 'preview',
+      clinicalBatchMode: 'off' | 'shadow' | 'enforced' = 'off'
     ) => ({
-      schemaVersion: 1,
+      schemaVersion: 2,
       mode,
+      clinicalBatchMode,
       revision,
       updatedAt: serverTimestamp(),
       updatedByUid,
@@ -1253,11 +1360,27 @@ export function registerFirestoreRulesAccessGroups({
       await assertSucceeds(
         admin()
           .doc(rayenImportPolicyPath)
-          .set(rayenPolicy(2, 'user_admin', 'auto'))
+          .set(rayenPolicy(2, 'user_admin', 'auto', 'shadow'))
       );
       await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(4)));
       await assertFails(admin().doc(rayenImportPolicyPath).set(rayenPolicy(3, 'another-admin')));
       await assertFails(admin().doc(rayenImportPolicyPath).delete());
+    });
+
+    it('Allows an admin to migrate a legacy v1 policy to the strict v2 contract', async () => {
+      await setupDocBypass(rayenImportPolicyPath, {
+        schemaVersion: 1,
+        mode: 'auto',
+        revision: 3,
+        updatedAt: new Date(0),
+        updatedByUid: 'legacy-admin',
+      });
+
+      await assertSucceeds(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set(rayenPolicy(4, 'user_admin', 'auto', 'shadow'))
+      );
     });
 
     it('Rejects caller-supplied Rayen policy timestamps on create and update', async () => {
@@ -1280,6 +1403,11 @@ export function registerFirestoreRulesAccessGroups({
         admin()
           .doc(rayenImportPolicyPath)
           .set({ ...rayenPolicy(1), mode: 'unsafe-auto' })
+      );
+      await assertFails(
+        admin()
+          .doc(rayenImportPolicyPath)
+          .set({ ...rayenPolicy(1), clinicalBatchMode: 'fallback' })
       );
       await assertFails(
         admin()

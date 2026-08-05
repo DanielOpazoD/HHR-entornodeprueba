@@ -7,7 +7,6 @@ import {
 import { buildAtomicPatientMovementPatch } from '@/application/census/atomicPatientMovementPatchController';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
-
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
@@ -20,16 +19,13 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     })
   ),
 }));
-
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: vi.fn(),
 }));
-
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
   saveRecordToFirestore: vi.fn(),
   updateRecordPartial: vi.fn(),
 }));
-
 vi.mock('@/services/storage/sync', () => ({
   ackDailyRecordSyncTask: vi.fn(),
   isRetryableSyncError: vi.fn(),
@@ -37,38 +33,34 @@ vi.mock('@/services/storage/sync', () => ({
   releaseDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
   renewDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
 }));
-
 vi.mock('@/services/repositories/repositoryConfig', () => ({
   isFirestoreEnabled: vi.fn(() => true),
 }));
-
 vi.mock('@/utils/recordInvariants', () => ({
   normalizeDailyRecordInvariants: vi.fn((record: DailyRecord) => ({ record, patches: {} })),
 }));
-
 vi.mock('@/services/repositories/helpers/validationHelper', () => ({
   validateAndSalvageRecord: vi.fn((record: DailyRecord) => record),
 }));
-
 vi.mock('@/services/utils/fhirMappers', () => ({
   mapPatientToFhir: vi.fn(() => ({})),
 }));
-
 vi.mock('@/services/repositories/PatientMasterRepository', () => ({
   PatientMasterRepository: {
     upsertPatient: vi.fn().mockResolvedValue(undefined),
   },
 }));
-
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
-import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
+import {
+  getRecordForDate as getRecordFromIndexedDB,
+  saveRecordStrict as saveToIndexedDB,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import {
   ackDailyRecordSyncTask,
   queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask,
 } from '@/services/storage/sync';
-
 const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
   expect.objectContaining({
     syncContract: expect.objectContaining({
@@ -77,7 +69,6 @@ const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
       recordRevision: expect.any(String),
     }),
   });
-
 describe('dailyRecordRepositoryWriteService explicit base records', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -436,5 +427,73 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         }),
       })
     );
+  });
+
+  it('persists guarded Rayen patches remotely before local cache without queuing a stale retry', async () => {
+    const hydratedBase = buildRecord('2026-02-13');
+    hydratedBase.lastUpdated = '2026-02-13T08:00:00.000Z';
+    hydratedBase.beds = { R1: buildPatient('R1', 'Paciente local') };
+    const rayenClinicalWriteGuard = {
+      runId: 'rayen-run-guarded',
+      importMode: 'preview',
+      clinicalBatchMode: 'shadow',
+      revision: 7,
+      sourceDate: '2026-02-13',
+      recordScope: 'run',
+    } as const;
+    vi.mocked(updateRecordPartialToFirestore).mockResolvedValueOnce({
+      success: true,
+      date: '2026-02-13',
+      mode: 'shadow',
+      authorityStatus: 'ok',
+      coverage: {
+        activePatients: 1,
+        canonicalEpisodeIds: 1,
+        fallbackEpisodeKeys: 0,
+        degenerateFallbackEpisodeKeys: 0,
+      },
+      violations: [],
+      recordState: {
+        lastUpdated: '2026-02-13T08:05:00.000Z',
+        meta: {
+          revision: 2,
+          lastMutationId: 'rayen-run-guarded',
+          updatedAt: '2026-02-13T08:05:00.000Z',
+        },
+        record: {
+          ...hydratedBase,
+          lastUpdated: '2026-02-13T08:05:00.000Z',
+          meta: {
+            revision: 2,
+            lastMutationId: 'rayen-run-guarded',
+            updatedAt: '2026-02-13T08:05:00.000Z',
+          },
+        } as unknown as DailyRecord,
+      },
+    });
+
+    const result = await updatePartialDetailed(
+      '2026-02-13',
+      { 'beds.R1.vitalSigns': { heartRate: 72 } },
+      { baseRecord: hydratedBase, rayenClinicalWriteGuard }
+    );
+
+    expect(result.outcome).toBe('clean');
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
+      '2026-02-13',
+      expect.any(Object),
+      hydratedBase.lastUpdated,
+      expect.objectContaining({ rayenClinicalWriteGuard })
+    );
+    expect(vi.mocked(updateRecordPartialToFirestore).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(saveToIndexedDB).mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+    );
+    expect(saveToIndexedDB).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastUpdated: '2026-02-13T08:05:00.000Z',
+        meta: expect.objectContaining({ revision: 2 }),
+      })
+    );
+    expect(queueSyncTask).not.toHaveBeenCalled();
   });
 });

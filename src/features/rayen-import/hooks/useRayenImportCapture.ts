@@ -13,10 +13,12 @@ import { getRayenImportErrorMessage, type RayenImportState } from './rayenImport
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
 import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
+import type { RayenImportPolicyStatus } from './useRayenImportMode';
 
 interface UseRayenImportCaptureInput {
   currentRecord: DailyRecord | null | undefined;
   policy: RayenImportPolicy;
+  policyStatus: RayenImportPolicyStatus;
   setState: Dispatch<SetStateAction<RayenImportState>>;
   setStaffingProposal: Dispatch<SetStateAction<NursingStaffingProposal | null>>;
   setStaffingProposalError: Dispatch<SetStateAction<string | null>>;
@@ -37,6 +39,7 @@ interface UseRayenImportCaptureInput {
 export const useRayenImportCapture = ({
   currentRecord,
   policy,
+  policyStatus,
   setState,
   setStaffingProposal,
   setStaffingProposalError,
@@ -80,6 +83,22 @@ export const useRayenImportCapture = ({
   return useCallback(
     (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
       clearSyncTimeout();
+      if (policyStatus !== 'ready') {
+        setState(previous => ({
+          ...previous,
+          isBusy: false,
+          isSyncing: false,
+          result: null,
+          hasSkippedItems: false,
+          error:
+            policyStatus === 'unconfigured'
+              ? 'La política global de sincronización aún no está configurada. Solicita a un administrador que la inicialice.'
+              : policyStatus === 'migration-required'
+                ? 'La política global de sincronización requiere migración a v2 antes de iniciar.'
+                : 'No se pudo confirmar la política global de sincronización con el servidor. Reintenta cuando vuelva la conexión.',
+        }));
+        return;
+      }
       if (!resetRayenFillProgress()) {
         setState(previous => ({
           ...previous,
@@ -168,6 +187,7 @@ export const useRayenImportCapture = ({
       failRun,
       recordRunPerformance,
       policy,
+      policyStatus,
       setStaffingProposal,
       setStaffingProposalError,
       setState,

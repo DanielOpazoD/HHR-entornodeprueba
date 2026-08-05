@@ -11,16 +11,19 @@ import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import { shouldShadowDailyRecordAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityMode';
+import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import {
-  shouldShadowDailyRecordAuthorityCallable,
-  shouldUseDailyRecordAuthorityCallable,
-} from '@/services/storage/firestore/dailyRecordAuthorityMode';
+  isServerClinicalWriteFenceActive,
+  resolveEffectiveDailyRecordAuthorityMode,
+} from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import {
   patchDailyRecordWithClinicalAuthorityCallable,
   saveDailyRecordWithClinicalAuthorityCallable,
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import type { UserRole } from '@/types/authRoleTypes';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
+import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 
 export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
@@ -28,6 +31,8 @@ export interface DailyRecordPartialWriteOptions {
   requireAtomicCas?: boolean;
   /** See PartialUpdateDailyRecordOptions.historyPolicy. Defaults to the safe `snapshot` behavior. */
   historyPolicy?: 'snapshot' | 'skip';
+  /** Frozen Rayen run policy revalidated atomically with the legacy clinical write. */
+  rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
 }
 
 export interface DailyRecordSaveWriteOptions {
@@ -108,6 +113,23 @@ export const shouldRouteClinicalAuthorityPatch = (patch: Record<string, unknown>
   );
 };
 
+/**
+ * Firestore fences the complete patient tree once the server owns Rayen clinical fields.
+ * Structural edits that share that tree must therefore use the preserving authority callable too.
+ */
+export const isDailyRecordBedTreePath = (path: string): boolean => {
+  const [root] = path.split('.');
+  return root === 'beds' || root === 'bedTypeOverrides';
+};
+
+export const touchesDailyRecordBedTree = (patch: Record<string, unknown>): boolean =>
+  Object.keys(patch).some(isDailyRecordBedTreePath);
+
+export const extractDailyRecordBedTreePatch = (
+  patch: Record<string, unknown>
+): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(patch).filter(([path]) => isDailyRecordBedTreePath(path)));
+
 export const shouldRouteSpecialistPatchViaCallable = async (): Promise<boolean> => {
   try {
     await defaultAuthRuntime.ready;
@@ -140,7 +162,11 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
 };
 
 export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> => {
-  if (!shouldUseDailyRecordAuthorityCallable()) {
+  const [mode, writeFenceActive] = await Promise.all([
+    resolveEffectiveDailyRecordAuthorityMode(),
+    isServerClinicalWriteFenceActive(defaultFirestoreServiceRuntime),
+  ]);
+  if (mode !== 'enforced' && !writeFenceActive) {
     return false;
   }
 
@@ -150,6 +176,34 @@ export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> 
     return Boolean(firebaseUser && !firebaseUser.isAnonymous);
   } catch (error) {
     firestoreWriteLogger.warn('Daily record authority callable routing check failed', { error });
+    return false;
+  }
+};
+
+export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
+  'shadow' | 'enforced' | null
+> => {
+  const mode = await resolveEffectiveDailyRecordAuthorityMode();
+  if (mode === 'client_only') return null;
+  try {
+    await defaultAuthRuntime.ready;
+    const firebaseUser = defaultAuthRuntime.getCurrentUser();
+    return firebaseUser && !firebaseUser.isAnonymous ? mode : null;
+  } catch (error) {
+    firestoreWriteLogger.warn('Daily record authority callable routing check failed', { error });
+    return null;
+  }
+};
+
+/** Structural bed routing is owned by the schema-v2 server fence, never by the legacy flag. */
+export const shouldRouteStructuralBedPatchViaCallable = async (): Promise<boolean> => {
+  if (!(await isServerClinicalWriteFenceActive(defaultFirestoreServiceRuntime))) return false;
+  try {
+    await defaultAuthRuntime.ready;
+    const firebaseUser = defaultAuthRuntime.getCurrentUser();
+    return Boolean(firebaseUser && !firebaseUser.isAnonymous);
+  } catch (error) {
+    firestoreWriteLogger.warn('Rayen structural callable routing check failed', { error });
     return false;
   }
 };

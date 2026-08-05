@@ -61,7 +61,7 @@ describe('useRayenSyncAudit', () => {
           stagesMs: { preflight: 50 },
           counters: { requests: 1 },
         },
-        { mode: 'auto', revision: 7 }
+        { mode: 'auto', clinicalBatchMode: 'enforced', revision: 7 }
       );
       result.current.recordRunPerformance({
         stagesMs: { dualCapture: 200 },
@@ -90,7 +90,7 @@ describe('useRayenSyncAudit', () => {
           expect.objectContaining({
             id: 'run-1',
             status: 'complete',
-            policy: { mode: 'auto', revision: 7 },
+            policy: { mode: 'auto', clinicalBatchMode: 'enforced', revision: 7 },
             coverage: expect.any(Object),
             performance: {
               stagesMs: {

@@ -22,7 +22,7 @@ describe('dailyRecordWriteAuthorityFunctions full save revisions', () => {
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
       firestore: admin.firestore(),
       Timestamp: admin.firestore.Timestamp,
-      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
     });
 
     await expect(
@@ -46,6 +46,51 @@ describe('dailyRecordWriteAuthorityFunctions full save revisions', () => {
       code: 'aborted',
       message: expect.stringContaining('revision_mismatch'),
     });
+
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects a nurse full save after the editing window closes', async () => {
+    const staleTimestamp = Date.parse('2026-05-13T00:00:00.000Z');
+    const remote = { ...makeRecord(), dateTimestamp: staleTimestamp };
+    const { admin, set } = createAdminMock({ remoteData: remote });
+    const functionsApi = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+    });
+
+    await expect(
+      functionsApi.saveDailyRecordWithClinicalAuthority.run(
+        { date: remote.date, record: remote },
+        makeContext()
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects structural full saves from roles with scoped write permissions', async () => {
+    const remote = { ...makeRecord(), dateTimestamp: Date.now() };
+    const { admin, set } = createAdminMock({ remoteData: remote });
+    const functionsApi = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
+    });
+
+    await expect(
+      functionsApi.saveDailyRecordWithClinicalAuthority.run(
+        {
+          date: remote.date,
+          record: {
+            ...remote,
+            beds: { R1: { ...remote.beds.R1, patientName: 'Cambio no autorizado' } },
+          },
+        },
+        makeContext()
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
 
     expect(set).not.toHaveBeenCalled();
   });

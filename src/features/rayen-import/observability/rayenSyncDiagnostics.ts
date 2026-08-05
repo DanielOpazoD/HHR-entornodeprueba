@@ -7,6 +7,7 @@ export type RayenSyncOperationalErrorKind =
   | 'concurrency'
   | 'timeout'
   | 'unavailable'
+  | 'policy_unavailable'
   | 'unsupported'
   | 'invalid_response'
   | 'unexpected';
@@ -48,6 +49,11 @@ const errorText = (error: unknown): string => {
 /** Converts provider/runtime errors into a bounded category; raw messages never enter telemetry. */
 export const classifyRayenSyncError = (error: unknown): RayenSyncOperationalErrorKind => {
   const detail = errorText(error);
+  if (
+    /rayen-clinical-policy-changed|clinical_policy_unavailable|pol[ií]tica cl[ií]nica/.test(detail)
+  ) {
+    return 'policy_unavailable';
+  }
   if (
     /\baborted\b|concurr|contention|modificado por otro usuario|actualiz[oó] hace un momento/.test(
       detail

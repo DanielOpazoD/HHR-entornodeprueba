@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { resolveHistoricalCudyrPatch } from '@/features/rayen-import/domain/historicalCudyrPatch';
+import {
+  resolveHistoricalCudyrBatchOperation,
+  resolveHistoricalCudyrPatch,
+} from '@/features/rayen-import/domain/historicalCudyrPatch';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 
@@ -54,6 +57,34 @@ describe('resolveHistoricalCudyrPatch', () => {
     expect(resolveHistoricalCudyrPatch(recordWith(misdated), 'episode-1', official)).toEqual({
       matched: true,
       patch: { 'beds.H5C1.evaluationScores.cudyr': official },
+    });
+  });
+
+  it('preserves the other canonical scores in an authoritative historical batch', () => {
+    const stale = { ...official, category: 'D3' };
+    const record = recordWith(stale);
+    record.beds.H5C1.evaluationScores = {
+      braden: { total: 17 },
+      downton: { total: 2 },
+      cudyr: stale,
+    } as never;
+
+    expect(resolveHistoricalCudyrBatchOperation(record, 'episode-1', official)).toEqual({
+      matched: true,
+      operation: expect.objectContaining({
+        patch: {
+          'beds.H5C1.evaluationScores': {
+            braden: { total: 17 },
+            downton: { total: 2 },
+            cudyr: official,
+          },
+        },
+        target: expect.objectContaining({
+          censusDate: '2026-07-15',
+          bedId: 'H5C1',
+          clinicalEpisodeId: 'episode-1',
+        }),
+      }),
     });
   });
 });

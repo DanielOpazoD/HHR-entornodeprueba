@@ -62,6 +62,24 @@ vi.mock('firebase/firestore', async () => {
   };
 });
 
+// Authority routing has its own focused suite. Keep these storage tests deterministic so their
+// Firestore reads model only the record/snapshot under test, not the independently-fetched Rayen
+// policy document.
+vi.mock('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting')
+  >('@/services/storage/firestore/firestoreDailyRecordAuthorityRouting');
+  return {
+    ...actual,
+    resolveAuthenticatedDailyRecordAuthorityMode: vi.fn().mockResolvedValue(null),
+    shouldRouteDailyRecordSaveViaCallable: vi.fn().mockResolvedValue(false),
+    shouldRouteStructuralBedPatchViaCallable: vi.fn().mockResolvedValue(false),
+    shouldRouteSpecialistPatchViaCallable: vi.fn().mockResolvedValue(false),
+    tryShadowDailyRecordPatchViaCallable: vi.fn().mockResolvedValue(undefined),
+    tryShadowDailyRecordSaveViaCallable: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
 describe('firestoreService', () => {
   type PartialUpdatePatch = Parameters<typeof updateRecordPartial>[1];
   const flushAsyncSubscription = async () => {
@@ -359,7 +377,6 @@ describe('firestoreService', () => {
 
   it('should handle concurrency error on save', async () => {
     const getDocMock = vi.mocked(firestore.getDoc);
-    // Mock remote doc with NEWER lastUpdated
     getDocMock.mockResolvedValueOnce({
       exists: () => true,
       data: () => ({ lastUpdated: '2025-01-01T00:00:00Z' }),

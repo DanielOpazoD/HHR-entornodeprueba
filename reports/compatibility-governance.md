@@ -1,6 +1,6 @@
 # Compatibility Governance Snapshot
 
-- Generated: 2026-07-29T16:16:50.379Z
+- Generated: 2026-08-05T18:17:57.741Z
 - Policy version: 2026-04-v1
 - Tracked entries: 4
 

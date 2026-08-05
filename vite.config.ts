@@ -143,7 +143,10 @@ export default defineConfig(({ mode }) => {
             // Rayen enrichment only runs while Eloisa is connected, so it is
             // an on-demand online workflow rather than PWA install payload.
             '**/assets/applyClinicalEnrichmentBatch-*.js',
+            '**/assets/applyHistoricalCudyr-*.js',
+            '**/assets/clinicalFillRunner-*.js',
             '**/assets/clinicalEnrichmentBatchPayload-*.js',
+            '**/assets/clinicalEnrichmentPersistenceStrategy-*.js',
           ],
         },
         registerType: 'autoUpdate',

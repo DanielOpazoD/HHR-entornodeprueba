@@ -7,6 +7,18 @@ const {
   evaluateDailyRecordClinicalAuthority,
 } = require('./dailyRecordClinicalAuthorityPolicy');
 const { findPatientErasures } = require('./dailyRecordErasureGuard');
+const {
+  RAYEN_CLINICAL_FIELDS,
+  isRayenClinicalWriteFenceActive,
+  preserveRayenClinicalFields,
+} = require('./dailyRecordClinicalFieldPreservation');
+const {
+  assertGuardedClinicalPatch,
+  assertRayenLegacyClinicalWriteAuthority,
+  isGuardedClinicalPatchPath,
+  isHistoricalCudyrPatchPath,
+  parseRayenClinicalWriteGuard,
+} = require('./rayenLegacyClinicalWriteAuthority');
 
 const ALLOWED_DAILY_RECORD_WRITE_ROLES = new Set([
   'admin',
@@ -37,8 +49,10 @@ const ALLOWED_DAILY_RECORD_PATCH_FIELDS = new Set([
 ]);
 
 const ALLOWED_DAILY_RECORD_BED_TYPE_OVERRIDE_VALUES = new Set(['UTI', 'UCI', 'MEDIA', null]);
+const STRUCTURAL_DAILY_RECORD_PATCH_ROLES = new Set(['admin', 'nurse_hospital']);
 
 const FORBIDDEN_PATCH_PATH_SEGMENTS = new Set(['__proto__', 'prototype', 'constructor']);
+const RAYEN_CLINICAL_PATCH_FIELDS = new Set(RAYEN_CLINICAL_FIELDS);
 
 const assertStringField = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
@@ -116,11 +130,28 @@ const applyPatchToRecord = ({ date, remoteData, patch }) => {
   return record;
 };
 
-const parseAuthorizedPatchPath = path => {
+const parseAuthorizedPatchPath = (
+  path,
+  role,
+  guardedClinicalWrite = false,
+  guardedRecordScope = 'run'
+) => {
   const parts = String(path)
     .split('.')
     .map(part => part.trim())
     .filter(Boolean);
+
+  if (
+    guardedClinicalWrite &&
+    (isGuardedClinicalPatchPath(path, RAYEN_CLINICAL_PATCH_FIELDS) ||
+      (guardedRecordScope === 'historical' && isHistoricalCudyrPatchPath(path)))
+  ) {
+    return {
+      kind: 'rayenClinicalField',
+      bedId: parts[1],
+      field: parts[parts.length - 1],
+    };
+  }
 
   if (
     parts.length === 3 &&
@@ -144,6 +175,22 @@ const parseAuthorizedPatchPath = path => {
       kind: 'bedTypeOverride',
       bedId: parts[1],
       field: 'bedTypeOverride',
+    };
+  }
+
+  // Once policy schema v2 is active, Firestore deliberately fences the whole beds tree.
+  // Admin/nurse structural edits are therefore authorized here and later merged while preserving
+  // every server-owned clinical field. Other roles retain the narrow allowlist above.
+  if (
+    parts.length >= 3 &&
+    parts[0] === 'beds' &&
+    !parts.some(part => FORBIDDEN_PATCH_PATH_SEGMENTS.has(part)) &&
+    STRUCTURAL_DAILY_RECORD_PATCH_ROLES.has(role)
+  ) {
+    return {
+      kind: 'structuralField',
+      bedId: parts[1],
+      field: parts[parts.length - 1],
     };
   }
 
@@ -176,10 +223,39 @@ const assertAuthorizedPatchValue = ({ path, value, parsedPath, patchPaths }) => 
   }
 };
 
-const assertPatchTargetsCurrentClinicalEpisode = ({ remoteData, patch }) => {
+const inspectAuthorizedPatch = ({
+  remoteData,
+  patch,
+  role,
+  guardedClinicalWrite = false,
+  guardedRecordScope = 'run',
+}) => {
   const patchPaths = new Set(Object.keys(patch));
+  let requiresStructuralAuthority = false;
   Object.entries(patch).forEach(([path, value]) => {
-    const parsedPath = parseAuthorizedPatchPath(path);
+    const parsedPath = parseAuthorizedPatchPath(
+      path,
+      role,
+      guardedClinicalWrite,
+      guardedRecordScope
+    );
+    if (parsedPath.kind === 'structuralField') {
+      const patient = remoteData?.beds?.[parsedPath.bedId];
+      if (!isPlainObject(patient)) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          `Daily record patch target bed is not present: ${parsedPath.bedId}`
+        );
+      }
+      if (patient.isBlocked === true) {
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          `Daily record patch target bed is blocked: ${parsedPath.bedId}`
+        );
+      }
+      requiresStructuralAuthority = true;
+      return;
+    }
     assertAuthorizedPatchValue({ path, value, parsedPath, patchPaths });
     const { bedId } = parsedPath;
     const patient = remoteData?.beds?.[bedId];
@@ -207,6 +283,103 @@ const assertPatchTargetsCurrentClinicalEpisode = ({ remoteData, patch }) => {
       );
     }
   });
+  return { requiresStructuralAuthority };
+};
+
+const isRayenClinicalOwnedPatchPath = path => {
+  const parts = String(path)
+    .split('.')
+    .map(part => part.trim())
+    .filter(Boolean);
+  if (parts[0] !== 'beds' || !parts[1]) return false;
+  if (RAYEN_CLINICAL_PATCH_FIELDS.has(parts[2])) return true;
+  return parts[2] === 'clinicalCrib' && RAYEN_CLINICAL_PATCH_FIELDS.has(parts[3]);
+};
+
+const assertNoRayenClinicalOwnedPatch = patch => {
+  if (!Object.keys(patch).some(isRayenClinicalOwnedPatchPath)) return;
+  throw new functions.https.HttpsError(
+    'failed-precondition',
+    'Rayen clinical fields must be written through the authoritative clinical batch.'
+  );
+};
+
+const toCalendarDayOrdinal = value => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return undefined;
+  const ordinal = Date.parse(`${value}T00:00:00.000Z`);
+  return Number.isFinite(ordinal) ? ordinal : undefined;
+};
+
+const currentRapaNuiCalendarDay = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Pacific/Easter',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .formatToParts(new Date())
+    .reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+
+const isNurseStructuralEditWithinWindow = ({ date, remoteData }) => {
+  const recordTimestamp = Number(remoteData?.dateTimestamp);
+  const now = Date.now();
+  if (remoteData?.dateTimestamp != null && Number.isFinite(recordTimestamp)) {
+    return now > recordTimestamp - 86_400_000 && now < recordTimestamp + 172_800_000;
+  }
+
+  const recordDay = toCalendarDayOrdinal(date);
+  const currentDay = toCalendarDayOrdinal(currentRapaNuiCalendarDay());
+  if (recordDay === undefined || currentDay === undefined) return false;
+  const dayOffset = Math.round((recordDay - currentDay) / 86_400_000);
+  return dayOffset >= -1 && dayOffset <= 1;
+};
+
+const assertStructuralPatchPolicy = ({ date, policySnapshot, remoteData, role }) => {
+  if (!isRayenClinicalWriteFenceActive(policySnapshot)) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Structural daily record patches require the schema-v2 server clinical authority fence.'
+    );
+  }
+
+  if (role !== 'nurse_hospital') {
+    return;
+  }
+
+  if (!isNurseStructuralEditWithinWindow({ date, remoteData })) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'The nurse editing window for this daily record has closed.'
+    );
+  }
+};
+
+const assertFullRecordWritePolicy = ({ date, snapshot, record, role }) => {
+  if (!snapshot.exists) {
+    if (role === 'admin' || role === 'nurse_hospital') return;
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Only administrators and hospital nurses can create daily records.'
+    );
+  }
+
+  if (role === 'admin') return;
+  if (
+    role === 'nurse_hospital' &&
+    Number.isFinite(Number(record?.dateTimestamp)) &&
+    isNurseStructuralEditWithinWindow({ date, remoteData: record })
+  ) {
+    return;
+  }
+
+  throw new functions.https.HttpsError(
+    'permission-denied',
+    role === 'nurse_hospital'
+      ? 'The nurse editing window for this daily record has closed.'
+      : 'This role must use its scoped daily-record write operation.'
+  );
 };
 
 const collectChangedPaths = syncContract =>
@@ -264,6 +437,59 @@ const toMillis = value => {
   return Number.isFinite(millis) ? millis : 0;
 };
 
+const toIsoTimestamp = value => {
+  if (!value) return undefined;
+  if (typeof value.toDate === 'function') return value.toDate().toISOString();
+  if (Number.isFinite(value.seconds)) {
+    return new Date(
+      value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6)
+    ).toISOString();
+  }
+  const millis = new Date(value).getTime();
+  return Number.isFinite(millis) ? new Date(millis).toISOString() : undefined;
+};
+
+const toClientRecordValue = value => {
+  if (Array.isArray(value)) {
+    return value.map(toClientRecordValue);
+  }
+
+  const timestamp = toIsoTimestamp(value);
+  if (
+    value instanceof Date ||
+    typeof value?.toDate === 'function' ||
+    Number.isFinite(value?.seconds)
+  ) {
+    return timestamp;
+  }
+
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, toClientRecordValue(nestedValue)])
+    );
+  }
+
+  return value;
+};
+
+const buildAuthorityRecordState = ({ record, lastUpdated, meta }) => {
+  const normalizedLastUpdated = toIsoTimestamp(lastUpdated);
+  if (!normalizedLastUpdated || !isPlainObject(meta) || !isPlainObject(record)) return undefined;
+  const normalizedMeta = {
+    ...toClientRecordValue(meta),
+    updatedAt: toIsoTimestamp(meta.updatedAt) || normalizedLastUpdated,
+  };
+  return {
+    lastUpdated: normalizedLastUpdated,
+    meta: normalizedMeta,
+    record: toClientRecordValue({
+      ...record,
+      lastUpdated: normalizedLastUpdated,
+      meta: normalizedMeta,
+    }),
+  };
+};
+
 const assertExpectedVersion = ({ snapshot, expectedLastUpdated }) => {
   if (!expectedLastUpdated || !snapshot.exists) {
     return;
@@ -280,6 +506,21 @@ const assertExpectedVersion = ({ snapshot, expectedLastUpdated }) => {
     throw new functions.https.HttpsError(
       'aborted',
       'Daily record changed remotely before the authorized write transaction.'
+    );
+  }
+};
+
+const assertExactExpectedVersion = ({ snapshot, expectedLastUpdated }) => {
+  if (!snapshot.exists || !expectedLastUpdated) {
+    throw new functions.https.HttpsError(
+      'aborted',
+      'Rayen clinical guarded writes require an exact remote version.'
+    );
+  }
+  if (toMillis(snapshot.data()?.lastUpdated) !== toMillis(expectedLastUpdated)) {
+    throw new functions.https.HttpsError(
+      'aborted',
+      'Daily record changed before the guarded Rayen clinical write.'
     );
   }
 };
@@ -346,6 +587,8 @@ const parsePatchPayload = data => {
     origin: normalizeOrigin(data?.origin, 'direct_partial_update'),
     dryRun: data?.dryRun === true,
     syncContract,
+    rayenClinicalWriteGuard: parseRayenClinicalWriteGuard(data?.rayenClinicalWriteGuard),
+    historyPolicy: data?.historyPolicy === 'skip' ? 'skip' : 'snapshot',
     expectedLastUpdated:
       typeof data?.expectedLastUpdated === 'string'
         ? data.expectedLastUpdated
@@ -355,7 +598,15 @@ const parsePatchPayload = data => {
   };
 };
 
-const buildAuthorityResponse = ({ date, mode, authority, coverage, revision, mutationId }) => {
+const buildAuthorityResponse = ({
+  date,
+  mode,
+  authority,
+  coverage,
+  revision,
+  mutationId,
+  recordState,
+}) => {
   const response = {
     success: authority.status === 'ok' || authority.status === 'idempotent',
     date,
@@ -374,6 +625,9 @@ const buildAuthorityResponse = ({ date, mode, authority, coverage, revision, mut
   }
   if (mutationId) {
     response.mutationId = mutationId;
+  }
+  if (recordState) {
+    response.recordState = recordState;
   }
 
   return response;
@@ -455,10 +709,20 @@ const recordAuthorityTelemetry = async ({
   }
 };
 
-const assertAuthorizedDailyRecordWriter = async ({ context, resolveRoleForEmail }) => {
+const assertAuthorizedDailyRecordWriter = async ({
+  context,
+  resolveRoleForEmail,
+  requiredRole,
+}) => {
   const email = requireAuthenticatedEmail(context);
   const resolvedRole = await resolveRoleForEmail(email);
 
+  if (requiredRole && resolvedRole !== requiredRole) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'This daily-record operation requires an administrator.'
+    );
+  }
   if (!ALLOWED_DAILY_RECORD_WRITE_ROLES.has(resolvedRole)) {
     throw new functions.https.HttpsError(
       'permission-denied',
@@ -466,7 +730,7 @@ const assertAuthorizedDailyRecordWriter = async ({ context, resolveRoleForEmail 
     );
   }
 
-  return email;
+  return { email, role: resolvedRole };
 };
 
 const assertNoPatientErasures = ({ snapshot, record }) => {
@@ -494,7 +758,10 @@ const createDailyRecordWriteAuthorityFunctions = ({
 }) => ({
   saveDailyRecordWithClinicalAuthority: functions.https.onCall(async (data, context) => {
     const startedAt = Date.now();
-    const email = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
+    const { email, role } = await assertAuthorizedDailyRecordWriter({
+      context,
+      resolveRoleForEmail,
+    });
 
     const { date, record, expectedLastUpdated, mode, origin, dryRun, syncContract } =
       parsePayload(data);
@@ -523,8 +790,11 @@ const createDailyRecordWriteAuthorityFunctions = ({
     }
 
     const db = firestore;
-    const docRef = db.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords').doc(date);
+    const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
+    const docRef = hospitalRef.collection('dailyRecords').doc(date);
+    const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
     let revision;
+    let recordState;
     let responseAuthority = authority;
     let responseCoverage = coverage;
 
@@ -536,12 +806,33 @@ const createDailyRecordWriteAuthorityFunctions = ({
           responseAuthority = idempotentAuthority;
           responseCoverage = collectClinicalEpisodeCoverage(remoteData);
           revision = resolveCurrentRevision(remoteData);
+          recordState = buildAuthorityRecordState({
+            record: remoteData,
+            lastUpdated: remoteData.lastUpdated,
+            meta: remoteData.meta,
+          });
           return;
         }
+
+        assertFullRecordWritePolicy({ date, snapshot, record, role });
 
         assertExpectedVersion({ snapshot, expectedLastUpdated });
         assertExpectedRevision({ snapshot, syncContract });
         assertNoPatientErasures({ snapshot, record });
+
+        const policySnapshot = await transaction.get(policyRef);
+        const remoteData = snapshot.exists ? snapshot.data() || {} : {};
+        const recordForPersistence = isRayenClinicalWriteFenceActive(policySnapshot)
+          ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
+          : record;
+        responseAuthority = assertClinicalAuthority(recordForPersistence);
+        responseCoverage = collectClinicalEpisodeCoverage(recordForPersistence);
+        if (responseAuthority.status !== 'ok') {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            responseAuthority.violations.map(violation => violation.message).join(' ')
+          );
+        }
 
         if (dryRun) {
           return;
@@ -557,13 +848,18 @@ const createDailyRecordWriteAuthorityFunctions = ({
         }
 
         const nextMeta = buildNextMeta({
-          remoteData: snapshot.exists ? snapshot.data() || {} : {},
+          remoteData,
           syncContract,
           now,
         });
         revision = nextMeta.revision;
+        recordState = buildAuthorityRecordState({
+          record: recordForPersistence,
+          lastUpdated: now,
+          meta: nextMeta,
+        });
         transaction.set(docRef, {
-          ...record,
+          ...recordForPersistence,
           meta: nextMeta,
           lastUpdated: now,
         });
@@ -589,6 +885,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
         coverage: responseCoverage,
         revision,
         mutationId: normalizeShortString(syncContract?.mutationId),
+        recordState,
       });
     } catch (error) {
       if (error instanceof functions.https.HttpsError) {
@@ -622,19 +919,48 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
   patchDailyRecordWithClinicalAuthority: functions.https.onCall(async (data, context) => {
     const startedAt = Date.now();
-    const email = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
-    const { date, patch, mode, origin, dryRun, syncContract, expectedLastUpdated } =
-      parsePatchPayload(data);
+    const { email, role } = await assertAuthorizedDailyRecordWriter({
+      context,
+      resolveRoleForEmail,
+    });
+    const {
+      date,
+      patch,
+      mode,
+      origin,
+      dryRun,
+      syncContract,
+      expectedLastUpdated,
+      rayenClinicalWriteGuard,
+    } = parsePatchPayload(data);
     const db = firestore;
-    const docRef = db.collection('hospitals').doc(HOSPITAL_ID).collection('dailyRecords').doc(date);
+    const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
+    const docRef = hospitalRef.collection('dailyRecords').doc(date);
+    const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
+    const sourceRef =
+      rayenClinicalWriteGuard?.recordScope === 'historical'
+        ? hospitalRef.collection('dailyRecords').doc(rayenClinicalWriteGuard.sourceDate)
+        : docRef;
     let authority;
     let coverage;
     let revision;
+    let recordState;
     const mutationId = normalizeShortString(syncContract?.mutationId);
+    const guardedHistoryRef = rayenClinicalWriteGuard
+      ? docRef.collection('history').doc(`rayen-${rayenClinicalWriteGuard.runId}`)
+      : null;
 
     try {
       await db.runTransaction(async transaction => {
-        const snapshot = await transaction.get(docRef);
+        const [snapshot, policySnapshot, sourceSnapshot, guardedHistorySnapshot] =
+          await Promise.all([
+            transaction.get(docRef),
+            transaction.get(policyRef),
+            rayenClinicalWriteGuard?.recordScope === 'historical'
+              ? transaction.get(sourceRef)
+              : Promise.resolve(null),
+            guardedHistoryRef ? transaction.get(guardedHistoryRef) : Promise.resolve(null),
+          ]);
         if (!snapshot.exists) {
           throw new functions.https.HttpsError(
             'failed-precondition',
@@ -647,19 +973,73 @@ const createDailyRecordWriteAuthorityFunctions = ({
           authority = idempotentAuthority;
           coverage = collectClinicalEpisodeCoverage(remoteData);
           revision = resolveCurrentRevision(remoteData);
+          recordState = buildAuthorityRecordState({
+            record: remoteData,
+            lastUpdated: remoteData.lastUpdated,
+            meta: remoteData.meta,
+          });
           return;
         }
 
-        assertExpectedVersion({ snapshot, expectedLastUpdated });
+        if (rayenClinicalWriteGuard) {
+          assertExactExpectedVersion({ snapshot, expectedLastUpdated });
+        } else {
+          assertExpectedVersion({ snapshot, expectedLastUpdated });
+        }
         assertExpectedRevision({ snapshot, syncContract });
-        assertPatchTargetsCurrentClinicalEpisode({ remoteData, patch });
+        if (rayenClinicalWriteGuard) {
+          assertGuardedClinicalPatch({
+            patch,
+            clinicalFields: RAYEN_CLINICAL_PATCH_FIELDS,
+            recordScope: rayenClinicalWriteGuard.recordScope,
+          });
+          const runRecord =
+            rayenClinicalWriteGuard.recordScope === 'historical'
+              ? sourceSnapshot?.exists
+                ? sourceSnapshot.data() || {}
+                : null
+              : remoteData;
+          assertRayenLegacyClinicalWriteAuthority({
+            policySnapshot,
+            runRecord,
+            targetDate: date,
+            guard: rayenClinicalWriteGuard,
+            role,
+          });
+        }
+        const patchInspection = inspectAuthorizedPatch({
+          remoteData,
+          patch,
+          role,
+          guardedClinicalWrite: Boolean(rayenClinicalWriteGuard),
+          guardedRecordScope: rayenClinicalWriteGuard?.recordScope,
+        });
+        if (isRayenClinicalWriteFenceActive(policySnapshot) && !rayenClinicalWriteGuard) {
+          assertNoRayenClinicalOwnedPatch(patch);
+        }
+        if (patchInspection.requiresStructuralAuthority) {
+          assertStructuralPatchPolicy({ date, policySnapshot, remoteData, role });
+        }
         const now = Timestamp.now();
-        const patchedRecord = applyPatchToRecord({ date, remoteData, patch });
+        const patchedCandidate = applyPatchToRecord({ date, remoteData, patch });
+        const patchedRecord =
+          isRayenClinicalWriteFenceActive(policySnapshot) && !rayenClinicalWriteGuard
+            ? preserveRayenClinicalFields({
+                remoteRecord: remoteData,
+                incomingRecord: patchedCandidate,
+              })
+            : patchedCandidate;
+        assertNoPatientErasures({ snapshot, record: patchedRecord });
         patchedRecord.meta = buildNextMeta({ remoteData, syncContract, now });
 
         authority = assertClinicalAuthority(patchedRecord);
         coverage = collectClinicalEpisodeCoverage(patchedRecord);
         revision = patchedRecord.meta.revision;
+        recordState = buildAuthorityRecordState({
+          record: patchedRecord,
+          lastUpdated: now,
+          meta: patchedRecord.meta,
+        });
 
         if (authority.status !== 'ok') {
           throw new functions.https.HttpsError(
@@ -672,11 +1052,20 @@ const createDailyRecordWriteAuthorityFunctions = ({
           return;
         }
 
-        const historyRef = docRef.collection('history').doc(new Date().toISOString());
-        transaction.set(historyRef, {
-          ...remoteData,
-          snapshotTimestamp: now,
-        });
+        if (guardedHistoryRef) {
+          if (!guardedHistorySnapshot?.exists) {
+            transaction.set(guardedHistoryRef, {
+              ...remoteData,
+              snapshotTimestamp: now,
+            });
+          }
+        } else {
+          const historyRef = docRef.collection('history').doc(new Date().toISOString());
+          transaction.set(historyRef, {
+            ...remoteData,
+            snapshotTimestamp: now,
+          });
+        }
 
         transaction.set(docRef, {
           ...patchedRecord,
@@ -698,7 +1087,15 @@ const createDailyRecordWriteAuthorityFunctions = ({
         startedAt,
       });
 
-      return buildAuthorityResponse({ date, mode, authority, coverage, revision, mutationId });
+      return buildAuthorityResponse({
+        date,
+        mode,
+        authority,
+        coverage,
+        revision,
+        mutationId,
+        recordState,
+      });
     } catch (error) {
       if (error instanceof functions.https.HttpsError) {
         await recordAuthorityTelemetry({

@@ -195,10 +195,37 @@ const parseCheckpointTarget = (target, index) => {
   return parsed;
 };
 
-const parseClinicalEnrichmentPayload = data => {
-  const date = assertString(data?.date, 'date', 10);
+const assertIsoCalendarDate = (value, field) => {
+  const date = assertString(value, field, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new functions.https.HttpsError('invalid-argument', 'date must use YYYY-MM-DD.');
+    throw new functions.https.HttpsError('invalid-argument', `${field} must use YYYY-MM-DD.`);
+  }
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `${field} must be a valid calendar date.`
+    );
+  }
+  return date;
+};
+
+const parseClinicalEnrichmentPayload = data => {
+  const date = assertIsoCalendarDate(data?.date, 'date');
+  // Runtime v1 did not send authorityDate. During the bounded v1/v2 rollout it may only target
+  // its own census day; historical writes always require the explicit v2 authority binding.
+  const authorityDateProvided = data?.authorityDate !== undefined;
+  const authorityDate = authorityDateProvided
+    ? assertIsoCalendarDate(data.authorityDate, 'authorityDate')
+    : date;
+  const previousAuthorityDay = new Date(`${authorityDate}T12:00:00.000Z`);
+  previousAuthorityDay.setUTCDate(previousAuthorityDay.getUTCDate() - 1);
+  const allowedHistoricalDate = previousAuthorityDay.toISOString().slice(0, 10);
+  if (date !== authorityDate && date !== allowedHistoricalDate) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Clinical enrichment may target only the run day or its immediately preceding census day.'
+    );
   }
   const runId = assertString(data?.runId, 'runId', 120);
   const mutationId = assertString(data?.mutationId, 'mutationId', 160);
@@ -224,6 +251,12 @@ const parseClinicalEnrichmentPayload = data => {
     data?.fieldContractVersion === CANONICAL_FIELD_CONTRACT_VERSION
       ? CANONICAL_FIELD_CONTRACT_VERSION
       : 1;
+  if (!authorityDateProvided && fieldContractVersion !== CANONICAL_FIELD_CONTRACT_VERSION) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Legacy authority inference requires the canonical field contract.'
+    );
+  }
   const expectedLastUpdated = assertString(data?.expectedLastUpdated, 'expectedLastUpdated', 80);
   if (!Number.isFinite(Date.parse(expectedLastUpdated))) {
     throw new functions.https.HttpsError(
@@ -325,6 +358,8 @@ const parseClinicalEnrichmentPayload = data => {
   const baseRevision = Number(data?.baseRevision);
   return {
     date,
+    authorityDate,
+    legacyAuthorityInference: !authorityDateProvided,
     runId,
     mutationId,
     mode,
@@ -396,6 +431,45 @@ const assertTargetMatchesEpisode = (record, target) => {
     );
   }
   return patient;
+};
+
+const assertHistoricalCudyrPayload = (record, payload) => {
+  if (payload.date === payload.authorityDate) return;
+  if (payload.checkpoints.length > 0 || payload.patches.length === 0) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Historical clinical enrichment accepts only CUDYR corrections.'
+    );
+  }
+  payload.patches.forEach(target => {
+    const patient = assertTargetMatchesEpisode(record, target);
+    const fields = Object.keys(target.fields);
+    const requestedScores = target.fields.evaluationScores;
+    if (
+      fields.length !== 1 ||
+      fields[0] !== 'evaluationScores' ||
+      !isPlainObject(requestedScores) ||
+      !Object.prototype.hasOwnProperty.call(requestedScores, 'cudyr') ||
+      !isPlainObject(requestedScores.cudyr)
+    ) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Historical clinical enrichment accepts only canonical CUDYR score values.'
+      );
+    }
+    const currentScores = isPlainObject(patient.evaluationScores)
+      ? clonePlainValue(patient.evaluationScores)
+      : {};
+    const requestedWithoutCudyr = clonePlainValue(requestedScores);
+    delete currentScores.cudyr;
+    delete requestedWithoutCudyr.cudyr;
+    if (canonicalize(currentScores) !== canonicalize(requestedWithoutCudyr)) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'Historical CUDYR enrichment cannot modify other evaluation scores.'
+      );
+    }
+  });
 };
 
 const applyClinicalEnrichment = (record, patches, fieldContractVersion = 1) => {
@@ -500,14 +574,19 @@ const classifyIdempotency = (record, payload, batchDigest, compatibleDigests = [
       'mutationId was already used with a different clinical enrichment payload.'
     );
   }
-  const sameRun = receipts.find(receipt => receipt.runId === payload.runId);
-  if (!sameRun) return { status: 'new', receipt: null };
-  const classification = classifyReceipt(sameRun);
-  if (classification !== 'mismatch') return { status: classification, receipt: sameRun };
-  throw new functions.https.HttpsError(
-    'failed-precondition',
-    'runId was already used with a different clinical enrichment payload.'
-  );
+  const compatibleSameRun = receipts
+    .filter(receipt => receipt.runId === payload.runId)
+    .map(receipt => ({ receipt, classification: classifyReceipt(receipt) }))
+    .find(candidate => candidate.classification !== 'mismatch');
+  if (compatibleSameRun) {
+    return {
+      status: compatibleSameRun.classification,
+      receipt: compatibleSameRun.receipt,
+    };
+  }
+  // One synchronization run may be split into several bounded mutations. The mutation identity
+  // remains the strict idempotency boundary; a different digest under the same run is a new chunk.
+  return { status: 'new', receipt: null };
 };
 
 const buildLegacyClinicalEnrichmentDigest = payload => {
@@ -540,7 +619,7 @@ const buildLegacyClinicalEnrichmentDigest = payload => {
 
 const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, canonicalDigest, now }) => {
   const receipts = resolveReceipts(record)
-    .filter(receipt => receipt.runId !== payload.runId && receipt.mutationId !== payload.mutationId)
+    .filter(receipt => receipt.mutationId !== payload.mutationId)
     .slice(-(MAX_RECEIPTS - 1));
   return {
     ...(isPlainObject(record?.meta) ? clonePlainValue(record.meta) : {}),
@@ -560,11 +639,21 @@ const buildClinicalEnrichmentMeta = ({ record, payload, batchDigest, canonicalDi
         digest: batchDigest,
         canonicalDigest,
         fieldContractVersion: payload.fieldContractVersion,
+        clinicalTargetCount: payload.patches.length,
+        checkpointTargetCount: payload.checkpoints.length,
         appliedAt: now,
       },
     ],
   };
 };
+
+const hasClinicalReceiptForRun = (record, runId) =>
+  resolveReceipts(record).some(receipt => {
+    if (receipt.runId !== runId) return false;
+    // Receipts written before chunk metadata existed came from the original clinical batch and
+    // must conservatively count as a prior clinical snapshot.
+    return receipt.clinicalTargetCount === undefined || Number(receipt.clinicalTargetCount) > 0;
+  });
 
 const buildHistorySnapshotId = runId => `rayen-clinical-${digestValue(runId).slice(0, 24)}`;
 
@@ -572,6 +661,7 @@ module.exports = {
   ALLOWED_FIELDS,
   MAX_BATCH_TARGETS,
   applyClinicalEnrichment,
+  assertHistoricalCudyrPayload,
   clinicalEnrichmentMatches,
   assertLegacyReplayRevision,
   assertPersistedDocumentSize,
@@ -581,6 +671,7 @@ module.exports = {
   buildLegacyClinicalEnrichmentDigest,
   classifyIdempotency,
   digestValue,
+  hasClinicalReceiptForRun,
   parseClinicalEnrichmentPayload,
   resolveRecordRevision,
   summarizeClinicalEnrichmentMismatches,
