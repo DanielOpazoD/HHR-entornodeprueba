@@ -37,6 +37,27 @@ const buildRecord = (date: string): DailyRecord =>
     activeExtraBeds: [],
   }) as DailyRecord;
 
+const buildAuthorityReceipt = () => ({
+  recordState: {
+    lastUpdated: '2026-05-23T10:30:00.000Z',
+    meta: {
+      revision: 2,
+      lastMutationId: 'mutation-2',
+      updatedAt: '2026-05-23T10:30:00.000Z',
+    },
+    record: {
+      ...buildRecord('2026-05-23'),
+      beds: { R1: { bedId: 'R1', patientName: 'Registro preservado por servidor' } },
+      lastUpdated: '2026-05-23T10:30:00.000Z',
+      meta: {
+        revision: 2,
+        lastMutationId: 'mutation-2',
+        updatedAt: '2026-05-23T10:30:00.000Z',
+      },
+    } as unknown as DailyRecord,
+  },
+});
+
 describe('dailyRecordRemotePersistenceController', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,6 +93,7 @@ describe('dailyRecordRemotePersistenceController', () => {
       expect.objectContaining({ date: '2026-05-23' })
     );
     expect(remoteWrite).not.toHaveBeenCalled();
+    expect(state.savedLocally).toBe(true);
     expect(state.savedRemotely).toBe(false);
     expect(state.consistencyState).toBe('persisted_local_only');
   });
@@ -99,14 +121,16 @@ describe('dailyRecordRemotePersistenceController', () => {
     expect(result).toBe('continue');
     expect(remoteWrite).toHaveBeenCalledTimes(1);
     expect(state.savedRemotely).toBe(true);
+    expect(state.savedLocally).toBe(true);
     expect(state.consistencyState).toBe('persisted_and_synced');
+    expect(state.savedLocally).toBe(true);
     expect(state.recoveryAction).toBe('none');
     expect(state.observabilityTags).toEqual(['daily_record', 'write', 'persisted_and_synced']);
   });
 
   it('uses a transactional outbox preflight instead of a separate local save when provided', async () => {
     const state = createRemoteWriteState();
-    const remoteWrite = vi.fn().mockResolvedValue(undefined);
+    const remoteWrite = vi.fn().mockResolvedValue(buildAuthorityReceipt());
     const queueLocalBeforeRemote = vi.fn().mockResolvedValue({
       accepted: true,
       mode: 'created',
@@ -129,10 +153,144 @@ describe('dailyRecordRemotePersistenceController', () => {
 
     expect(result).toBe('continue');
     expect(queueLocalBeforeRemote).toHaveBeenCalledTimes(1);
-    expect(saveToIndexedDBMock).not.toHaveBeenCalled();
+    expect(saveToIndexedDBMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        beds: { R1: expect.objectContaining({ patientName: 'Registro preservado por servidor' }) },
+        lastUpdated: '2026-05-23T10:30:00.000Z',
+      })
+    );
     expect(remoteWrite).toHaveBeenCalledTimes(1);
     expect(ackLocalAfterRemote).toHaveBeenCalledTimes(1);
     expect(state.consistencyState).toBe('persisted_and_synced');
+    expect(state.savedRemotely).toBe(true);
+    expect(state.savedLocally).toBe(true);
+  });
+
+  it('keeps remote authority after a guarded commit when the local cache cannot update', async () => {
+    const localError = new Error('indexeddb quota exceeded');
+    const state = createRemoteWriteState();
+    saveToIndexedDBMock.mockResolvedValue({
+      ok: false,
+      operation: 'save',
+      store: 'none',
+      dates: ['2026-05-23'],
+      error: localError,
+      userSafeMessage: 'No fue posible guardar el registro local.',
+    });
+
+    const result = await persistLocalAndAttemptRemoteSync({
+      date: '2026-05-23',
+      record: buildRecord('2026-05-23'),
+      changedPaths: ['beds.R1.vitalSigns'],
+      remoteState: state,
+      remoteWrite: vi.fn().mockResolvedValue(buildAuthorityReceipt()),
+      onRemoteFailure: vi.fn(),
+      remoteAuthorityFirst: true,
+    });
+
+    expect(result).toBe('return');
+    expect(state.savedRemotely).toBe(true);
+    expect(state.savedLocally).toBe(false);
+    expect(state.consistencyState).toBe('unrecoverable');
+    expect(state.conflictSummary).toMatchObject({
+      kind: 'local_persistence_failed',
+      sourceOfTruth: 'remote',
+    });
+    expect(state.userSafeMessage).toContain('guardados en el servidor');
+    expect(state.observabilityTags).toEqual([
+      'daily_record',
+      'write',
+      'remote_committed',
+      'local_cache_stale',
+    ]);
+    expect(resolveRemoteWriteRecoveryMock).not.toHaveBeenCalled();
+  });
+
+  it('commits guarded writes remotely before local persistence and never creates an outbox task', async () => {
+    const order: string[] = [];
+    const state = createRemoteWriteState();
+    const remoteWrite = vi.fn().mockImplementation(async () => {
+      order.push('remote');
+      return buildAuthorityReceipt();
+    });
+    saveToIndexedDBMock.mockImplementation(async () => {
+      order.push('local');
+      return {
+        ok: true,
+        operation: 'save',
+        store: 'indexeddb',
+        dates: ['2026-05-23'],
+      };
+    });
+    const queueLocalBeforeRemote = vi.fn();
+
+    const result = await persistLocalAndAttemptRemoteSync({
+      date: '2026-05-23',
+      record: buildRecord('2026-05-23'),
+      changedPaths: ['beds.R1.vitalSigns'],
+      remoteState: state,
+      remoteWrite,
+      onRemoteFailure: vi.fn(),
+      queueLocalBeforeRemote,
+      remoteAuthorityFirst: true,
+    });
+
+    expect(result).toBe('continue');
+    expect(order).toEqual(['remote', 'local']);
+    expect(queueLocalBeforeRemote).not.toHaveBeenCalled();
+    expect(saveToIndexedDBMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastUpdated: '2026-05-23T10:30:00.000Z',
+        meta: expect.objectContaining({ revision: 2, lastMutationId: 'mutation-2' }),
+        beds: { R1: expect.objectContaining({ patientName: 'Registro preservado por servidor' }) },
+      })
+    );
+    expect(state.consistencyState).toBe('persisted_and_synced');
+  });
+
+  it('does not cache a guarded write when the server omits its authoritative record state', async () => {
+    const state = createRemoteWriteState();
+
+    const result = await persistLocalAndAttemptRemoteSync({
+      date: '2026-05-23',
+      record: buildRecord('2026-05-23'),
+      changedPaths: ['beds.R1.vitalSigns'],
+      remoteState: state,
+      remoteWrite: vi.fn().mockResolvedValue(undefined),
+      onRemoteFailure: vi.fn(),
+      remoteAuthorityFirst: true,
+    });
+
+    expect(result).toBe('return');
+    expect(saveToIndexedDBMock).not.toHaveBeenCalled();
+    expect(state.savedRemotely).toBe(true);
+    expect(state.savedLocally).toBe(false);
+    expect(state.consistencyState).toBe('unrecoverable');
+    expect(state.userSafeMessage).toContain('guardados en el servidor');
+  });
+
+  it('does not persist or enqueue a guarded write rejected by remote authority', async () => {
+    const rejection = new Error('policy changed');
+    const onRemoteFailure = vi.fn();
+    const queueLocalBeforeRemote = vi.fn();
+
+    await expect(
+      persistLocalAndAttemptRemoteSync({
+        date: '2026-05-23',
+        record: buildRecord('2026-05-23'),
+        changedPaths: ['beds.R1.vitalSigns'],
+        remoteState: createRemoteWriteState(),
+        remoteWrite: vi.fn().mockRejectedValue(rejection),
+        onRemoteFailure,
+        queueLocalBeforeRemote,
+        remoteAuthorityFirst: true,
+      })
+    ).rejects.toBe(rejection);
+
+    expect(onRemoteFailure).toHaveBeenCalledWith(rejection);
+    expect(saveToIndexedDBMock).not.toHaveBeenCalled();
+    expect(queueLocalBeforeRemote).not.toHaveBeenCalled();
+    expect(resolveRemoteWriteRecoveryMock).not.toHaveBeenCalled();
   });
 
   it('renews the pre-outbox hold while a direct remote write is still in flight', async () => {

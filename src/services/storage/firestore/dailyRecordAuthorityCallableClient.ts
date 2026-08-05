@@ -3,6 +3,7 @@ import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
+import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 
 export interface DailyRecordAuthorityCallablePayload {
   date: string;
@@ -21,6 +22,11 @@ export interface DailyRecordAuthorityCallableResponse {
   authorityStatus: 'ok' | 'blocked';
   revision?: number;
   mutationId?: string;
+  recordState?: {
+    lastUpdated: string;
+    meta: Record<string, unknown>;
+    record: DailyRecord;
+  };
   coverage?: {
     activePatients: number;
     canonicalEpisodeIds: number;
@@ -43,6 +49,8 @@ export interface DailyRecordAuthorityPatchCallablePayload {
   mode: Exclude<DailyRecordAuthorityMode, 'client_only'>;
   origin?: string;
   syncContract?: SyncTaskContract;
+  rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
+  historyPolicy?: 'snapshot' | 'skip';
   dryRun?: boolean;
 }
 

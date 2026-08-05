@@ -4,18 +4,18 @@ import type {
   ClinicalFillPersistenceStrategy,
 } from '../contracts/clinicalFillContracts';
 import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
-import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
 import {
   applyClinicalEnrichmentBatch,
   observeClinicalEnrichmentBatch,
 } from './applyClinicalEnrichmentBatch';
+import { rebuildClinicalEnrichmentOperations } from '../domain/rebuildClinicalEnrichmentOperations';
 
 interface CreateClinicalEnrichmentPersistenceStrategyInput {
   mode: ClinicalEnrichmentBatchMode;
   record: DailyRecord;
+  runId: string;
   applyPatch: (operation: ClinicalFillPatchOperation) => Promise<void>;
   refreshRecord: () => Promise<DailyRecord>;
-  createRunId?: () => string;
   applyBatch?: typeof applyClinicalEnrichmentBatch;
   observeBatch?: typeof observeClinicalEnrichmentBatch;
 }
@@ -24,9 +24,9 @@ interface CreateClinicalEnrichmentPersistenceStrategyInput {
 export const createClinicalEnrichmentPersistenceStrategy = ({
   mode,
   record,
+  runId,
   applyPatch,
   refreshRecord,
-  createRunId = () => `clinical_${createSyncMutationId()}`,
   applyBatch = applyClinicalEnrichmentBatch,
   observeBatch = observeClinicalEnrichmentBatch,
 }: CreateClinicalEnrichmentPersistenceStrategyInput): ClinicalFillPersistenceStrategy => {
@@ -37,7 +37,6 @@ export const createClinicalEnrichmentPersistenceStrategy = ({
     };
   }
 
-  const runId = createRunId();
   if (mode === 'shadow') {
     return {
       disposition: 'observe',
@@ -58,6 +57,12 @@ export const createClinicalEnrichmentPersistenceStrategy = ({
         record,
         runId,
         operations,
+        rebuildOperations: currentRecord =>
+          rebuildClinicalEnrichmentOperations({
+            baseRecord: record,
+            currentRecord,
+            operations,
+          }),
         applyPatch,
         refreshRecord,
       }),

@@ -165,6 +165,7 @@ describe('applyConfirmedRayenImport', () => {
           id: 'sync-run',
           startedAt: '2026-07-26T10:00:00.000Z',
           by: 'Enfermera prueba',
+          sourceDate: '2026-07-26',
         }),
         applyDiff,
         getFreshRecord: vi.fn(),

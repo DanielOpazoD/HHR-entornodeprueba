@@ -23,10 +23,11 @@ import {
   recordClinicalEpisodeIdCoverageTelemetry,
 } from '@/services/repositories/dailyRecordClinicalAuthorityPolicy';
 import {
-  shouldShadowDailyRecordAuthorityCallable,
-  shouldUseDailyRecordAuthorityCallable,
-} from '@/services/storage/firestore/dailyRecordAuthorityMode';
+  isServerClinicalWriteFenceActive,
+  resolveEffectiveDailyRecordAuthorityMode,
+} from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { saveDailyRecordWithClinicalAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
+import { saveRecordStrict } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   recordSyncQueueTruthSelectionTelemetry,
   type SyncQueueSelectedTruth,
@@ -205,25 +206,43 @@ const syncDailyRecord = async (
         );
       }
 
-      if (shouldUseDailyRecordAuthorityCallable()) {
+      const effectiveAuthorityMode = await resolveEffectiveDailyRecordAuthorityMode(runtime);
+      const writeFenceActive = await isServerClinicalWriteFenceActive(runtime);
+      if (effectiveAuthorityMode === 'enforced' || writeFenceActive) {
         const response = await saveDailyRecordWithClinicalAuthorityCallable({
           date: recordToWrite.date,
           record: recordToWrite,
           expectedLastUpdated: task.syncContract?.expectedVersion,
-          mode: 'enforced',
+          mode: effectiveAuthorityMode === 'enforced' ? 'enforced' : 'shadow',
           origin: task.origin,
           syncContract: task.syncContract,
         });
+        const authoritativeRecord = response.recordState?.record;
+        if (
+          !authoritativeRecord ||
+          authoritativeRecord.date !== recordToWrite.date ||
+          authoritativeRecord.lastUpdated !== response.recordState?.lastUpdated
+        ) {
+          throw new ConcurrencyError(
+            `Sync queue: authority omitted the committed record for ${recordToWrite.date}.`
+          );
+        }
+        const localWrite = await saveRecordStrict(authoritativeRecord);
+        if (!localWrite.ok) {
+          throw new Error(
+            `Sync queue: remote commit succeeded but local cache failed for ${recordToWrite.date}.`
+          );
+        }
         recordSyncQueueTruthSelectionTelemetry(task, {
           resolution: resolved.resolution,
-          acceptedVersion: recordToWrite.lastUpdated,
+          acceptedVersion: authoritativeRecord.lastUpdated,
           acceptedRevision: response?.revision,
           selectedTruth: 'authority_intent_invariants',
         });
         return;
       }
 
-      if (shouldShadowDailyRecordAuthorityCallable()) {
+      if (effectiveAuthorityMode === 'shadow') {
         try {
           await saveDailyRecordWithClinicalAuthorityCallable({
             date: recordToWrite.date,

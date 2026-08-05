@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-05-28T05:42:33.416Z",
-  "clientRuntimeContractVersion": 1,
-  "backendRuntimeContractVersion": 1,
-  "minSupportedBackendRuntimeContractVersion": 1,
+  "generatedAt": "2026-08-05T16:04:42.702Z",
+  "clientRuntimeContractVersion": 2,
+  "backendRuntimeContractVersion": 2,
+  "minSupportedBackendRuntimeContractVersion": 2,
   "minSupportedClientRuntimeContractVersion": 1,
   "currentSchemaVersion": 1,
   "legacySchemaVersion": 0,

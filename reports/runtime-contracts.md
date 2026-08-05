@@ -1,9 +1,9 @@
 # Runtime Contracts Snapshot
 
-- Generated: 2026-05-28T05:42:33.416Z
-- Client runtime contract: v1
-- Backend runtime contract: v1
-- Min supported backend runtime: v1
+- Generated: 2026-08-05T16:04:42.702Z
+- Client runtime contract: v2
+- Backend runtime contract: v2
+- Min supported backend runtime: v2
 - Min supported client runtime: v1
 - Current schema: v1
 - Legacy schema: v0

@@ -631,10 +631,11 @@ service cloud.firestore {
     function isValidRayenImportPolicy() {
       let policy = request.resource.data;
       return policy.keys().hasOnly([
-               'schemaVersion', 'mode', 'revision', 'updatedAt', 'updatedByUid'
+               'schemaVersion', 'mode', 'clinicalBatchMode', 'revision', 'updatedAt', 'updatedByUid'
              ]) &&
-             policy.schemaVersion == 1 &&
+             policy.schemaVersion == 2 &&
              policy.mode in ['preview', 'auto'] &&
+             policy.clinicalBatchMode in ['off', 'shadow', 'enforced'] &&
              policy.revision is int &&
              policy.revision >= 1 &&
              policy.updatedAt is timestamp &&
@@ -651,6 +652,18 @@ service cloud.firestore {
       return isAdmin() &&
              isValidRayenImportPolicy() &&
              request.resource.data.revision == resource.data.revision + 1;
+    }
+    function isRayenClinicalWriteFenceActive(hospitalId) {
+      let policyPath = /databases/$(database)/documents/hospitals/$(hospitalId)/settings/rayenImportPolicy;
+      return exists(policyPath) &&
+             get(policyPath).data.schemaVersion == 2;
+    }
+    function preservesServerOwnedClinicalState(hospitalId) {
+      return !isRayenClinicalWriteFenceActive(hospitalId) ||
+             !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+               'beds',
+               'bedTypeOverrides'
+             ]);
     }
     function isWithinEditingWindow(recordTS) {
       let now = request.time.toMillis();
@@ -718,8 +731,8 @@ service cloud.firestore {
       allow write: if isAdmin();
       match /dailyRecords/{date} {
         allow read: if canReadClinicalData();
-        allow create: if canEdit();
-        allow update: if canUpdatePersistedDailyRecord();
+        allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId);
+        allow update: if canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId);
         allow delete: if isAdmin();
         match /history/{historyId} {
           allow read: if canReadClinicalData();

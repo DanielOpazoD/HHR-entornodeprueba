@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { firestoreWriteLoggerWarn, firestoreWriteLoggerError } = vi.hoisted(() => ({
+const {
+  firestoreWriteLoggerWarn,
+  firestoreWriteLoggerError,
+  mockAssertFirestoreConcurrency,
+  mockGetDoc,
+} = vi.hoisted(() => ({
   firestoreWriteLoggerWarn: vi.fn(),
   firestoreWriteLoggerError: vi.fn(),
+  mockAssertFirestoreConcurrency: vi.fn(),
+  mockGetDoc: vi.fn(),
 }));
 
 const { mockEnsureUserRoleClaim, mockResolveFirebaseUserRole, mockGetCurrentUser, mockAuthReady } =
@@ -31,6 +38,7 @@ vi.mock('firebase/firestore', async () => {
     collection: vi.fn(),
     deleteDoc: vi.fn(),
     doc: vi.fn(),
+    getDoc: mockGetDoc,
     setDoc: vi.fn(),
     Timestamp: MockTimestamp,
     updateDoc: vi.fn(),
@@ -54,7 +62,7 @@ vi.mock('@/services/storage/firestore/firestoreShared', () => ({
 vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
   ConcurrencyError: class ConcurrencyError extends Error {},
   asFirestoreUpdatePayload: vi.fn((payload: Record<string, unknown>) => payload),
-  assertFirestoreConcurrency: vi.fn(),
+  assertFirestoreConcurrency: mockAssertFirestoreConcurrency,
   createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
   saveHistorySnapshot: vi.fn(),
 }));
@@ -102,6 +110,10 @@ describe('firestoreRecordWrites authority patch routing', () => {
     mockEnsureUserRoleClaim.mockResolvedValue(undefined);
     mockHttpsCallable.mockReturnValue(mockAuthorityCallable);
     mockAuthorityCallable.mockResolvedValue({ data: { success: true } });
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ schemaVersion: 2, clinicalBatchMode: 'enforced' }),
+    });
   });
 
   it('routes authenticated partial updates through the clinical authority patch callable when enabled', async () => {
@@ -302,7 +314,7 @@ describe('firestoreRecordWrites authority patch routing', () => {
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
   });
 
-  it('keeps non-clinical partial updates on direct Firestore writes in enforced mode', async () => {
+  it('routes structural bed edits through the preserving authority callable in enforced mode', async () => {
     (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
       'enforced';
     mockGetCurrentUser.mockReturnValue({
@@ -313,28 +325,141 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
     await updateRecordPartial(
       '2026-03-14',
-      { handoffNovedadesDayShift: 'Novedad administrativa' } as never,
+      { 'beds.R1.patientName': 'Nombre estructural actualizado' } as never,
+      '2026-03-14T10:00:00.000Z',
+      {
+        syncContract: {
+          expectedVersion: '2026-03-14T10:00:00.000Z',
+          changedPaths: ['beds.R1.patientName'],
+          mutationId: 'mutation-structural-1',
+          clientId: 'client-1',
+          tabId: 'tab-1',
+        },
+      }
+    );
+
+    expect(mockAuthorityCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: '2026-03-14',
+        mode: 'enforced',
+        patch: {
+          'beds.R1.patientName': 'Nombre estructural actualizado',
+        },
+        syncContract: expect.objectContaining({
+          changedPaths: ['beds.R1.patientName'],
+          mutationId: 'mutation-structural-1',
+        }),
+      })
+    );
+    expect(updateDoc).not.toHaveBeenCalled();
+    expect(saveHistorySnapshot).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['off', 'client_only'],
+    ['shadow', 'shadow'],
+  ] as const)(
+    'routes schema-v2 clinical patches through the preserving callable after rollback to %s',
+    async (serverMode, clientMode) => {
+      (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
+        clientMode;
+      mockGetCurrentUser.mockReturnValue({
+        uid: 'nurse-1',
+        email: 'nurse@example.com',
+        isAnonymous: false,
+      });
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        data: () => ({ schemaVersion: 2, clinicalBatchMode: serverMode }),
+      });
+
+      await updateRecordPartial(
+        '2026-03-14',
+        { 'beds.R1.pathology': 'Diagnóstico protegido por schema v2' } as never,
+        '2026-03-14T10:00:00.000Z'
+      );
+
+      expect(mockAuthorityCallable).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: 'shadow',
+          patch: { 'beds.R1.pathology': 'Diagnóstico protegido por schema v2' },
+        })
+      );
+      expect(updateDoc).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not forward derived dateTimestamp alongside an authoritative structural bed patch', async () => {
+    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
+      'enforced';
+    mockGetCurrentUser.mockReturnValue({
+      uid: 'nurse-1',
+      email: 'nurse@example.com',
+      isAnonymous: false,
+    });
+
+    await updateRecordPartial(
+      '2026-03-14',
+      {
+        'beds.R1.patientName': 'Nombre estructural actualizado',
+        dateTimestamp: 1773446400000,
+      } as never,
       '2026-03-14T10:00:00.000Z'
     );
 
-    expect(mockHttpsCallable).not.toHaveBeenCalledWith(
-      expect.anything(),
-      'patchDailyRecordWithClinicalAuthority'
+    expect(mockAuthorityCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patch: { 'beds.R1.patientName': 'Nombre estructural actualizado' },
+      })
     );
-    expect(mockAuthorityCallable).not.toHaveBeenCalled();
-    expect(saveHistorySnapshot).toHaveBeenCalledWith('2026-03-14');
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 
-  it('can skip a repeated history snapshot for a serialized automated clinical patch', async () => {
-    await updateRecordPartial(
-      '2026-03-14',
-      { 'beds.R1.vitalSigns': { heartRate: 80 } } as never,
-      '2026-03-14T10:00:00.000Z',
-      { historyPolicy: 'skip' }
-    );
+  it('fails closed when one update mixes a bed-tree edit with unrelated document fields', async () => {
+    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
+      'enforced';
+    mockGetCurrentUser.mockReturnValue({
+      uid: 'nurse-1',
+      email: 'nurse@example.com',
+      isAnonymous: false,
+    });
 
-    expect(saveHistorySnapshot).not.toHaveBeenCalled();
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    await expect(
+      updateRecordPartial(
+        '2026-03-14',
+        {
+          'beds.R1.patientName': 'Nombre estructural actualizado',
+          handoffNovedadesDayShift: 'Cambio no relacionado',
+        } as never,
+        '2026-03-14T10:00:00.000Z'
+      )
+    ).rejects.toThrow('mezcla cambios de cama con otros campos');
+
+    expect(mockAuthorityCallable).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('fails closed instead of dropping either side of a mixed clinical and structural patch', async () => {
+    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
+      'enforced';
+    mockGetCurrentUser.mockReturnValue({
+      uid: 'nurse-1',
+      email: 'nurse@example.com',
+      isAnonymous: false,
+    });
+
+    await expect(
+      updateRecordPartial(
+        '2026-03-14',
+        {
+          'beds.R1.pathology': 'Diagnóstico clínico actualizado',
+          'beds.R1.patientName': 'Nombre estructural actualizado',
+        } as never,
+        '2026-03-14T10:00:00.000Z'
+      )
+    ).rejects.toThrow('mezcla campos clínicos y estructurales');
+
+    expect(mockAuthorityCallable).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 });

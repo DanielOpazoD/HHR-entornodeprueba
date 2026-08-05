@@ -170,8 +170,13 @@ export type {
 export { planRayenCensusImport } from './importRayenCensusUseCase';
 
 // Settings (import mode)
-export type { RayenImportMode, RayenImportPolicy } from './settings/rayenImportSettings';
+export type {
+  ClinicalEnrichmentBatchMode,
+  RayenImportMode,
+  RayenImportPolicy,
+} from './settings/rayenImportSettings';
 export {
+  DEFAULT_RAYEN_CLINICAL_BATCH_MODE,
   DEFAULT_RAYEN_IMPORT_MODE,
   DEFAULT_RAYEN_IMPORT_POLICY,
   normalizeRayenImportPolicy,

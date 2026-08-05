@@ -26,6 +26,7 @@ export { MAX_RAYEN_SYNC_HISTORY } from '@/types/domain/rayenSync';
 
 export interface RayenSyncRun {
   id: string;
+  sourceDate: string;
   startedAt: string;
   by: string;
   source?: RayenSyncSource;
@@ -58,6 +59,7 @@ export const buildAppliedRayenSyncEvent = (
   appliedAt: string
 ): RayenSyncEvent => ({
   id: run.id,
+  sourceDate: run.sourceDate,
   startedAt: run.startedAt,
   completedAt: appliedAt,
   by: run.by,
@@ -74,6 +76,7 @@ export const buildFailedRayenSyncEvent = (
   completedAt: string
 ): RayenSyncEvent => ({
   id: run.id,
+  sourceDate: run.sourceDate,
   startedAt: run.startedAt,
   completedAt,
   by: run.by,

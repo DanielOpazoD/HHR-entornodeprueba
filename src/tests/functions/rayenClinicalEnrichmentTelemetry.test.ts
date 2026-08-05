@@ -25,7 +25,7 @@ describe('Rayen clinical enrichment telemetry', () => {
       vitalSigns: { systolic: 120 },
       clinicalSyncCheckpoint: { version: 1, sources: {} },
     } as never;
-    const admin = createClinicalAdminMock(remote);
+    const admin = createClinicalAdminMock(remote, { clinicalBatchMode: 'shadow' });
 
     await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
       { ...makePayload(), mode: 'shadow' },
@@ -48,7 +48,7 @@ describe('Rayen clinical enrichment telemetry', () => {
   });
 
   it('records a mismatch when established persistence differs from the batch', async () => {
-    const admin = createClinicalAdminMock();
+    const admin = createClinicalAdminMock(undefined, { clinicalBatchMode: 'shadow' });
 
     await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
       { ...makePayload(), mode: 'shadow' },

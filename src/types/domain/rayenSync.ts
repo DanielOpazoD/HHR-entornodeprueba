@@ -8,7 +8,26 @@ export type RayenSyncStatus = 'applied' | 'complete' | 'partial' | 'failed';
 /** Immutable global import policy captured when a synchronization starts. */
 export interface RayenSyncPolicy {
   mode: 'preview' | 'auto';
+  /** Absent only on synchronization events created before the global clinical policy existed. */
+  clinicalBatchMode?: 'off' | 'shadow' | 'enforced';
   revision: number;
+}
+
+/**
+ * Frozen authority proof attached only to legacy clinical writes from one synchronization run.
+ * Firestore revalidates it atomically before committing so a later promotion to `enforced`
+ * cannot leave an older client writing through the legacy path.
+ */
+export interface RayenClinicalWriteGuard {
+  runId: string;
+  /** Structural import mode frozen by the same server-confirmed policy revision. */
+  importMode: 'preview' | 'auto';
+  clinicalBatchMode: 'off' | 'shadow' | 'enforced';
+  revision: number;
+  /** Daily record that owns the authoritative synchronization event. */
+  sourceDate: string;
+  /** Historical CUDYR targets live in another daily record; sourceDate still owns the run event. */
+  recordScope: 'run' | 'historical';
 }
 
 export type RayenExtensionEndpointStatus = 'ready' | 'missing' | 'stale';
@@ -155,6 +174,8 @@ export interface RayenSyncPerformanceDelta {
 export interface RayenSyncEvent {
   /** Stable run id. Updating a run replaces this event instead of appending a duplicate. */
   id: string;
+  /** Daily record that owns this run; absent only on events created before schema v2. */
+  sourceDate?: string;
   startedAt: string;
   completedAt?: string;
   by: string;

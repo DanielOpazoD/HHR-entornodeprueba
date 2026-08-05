@@ -24,20 +24,27 @@ import {
   saveRecordAtomically,
   updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
+import {
+  isPermissionDeniedError,
+  logFirestoreWriteError,
+  logFirestoreWriteRetry,
+  tryRefreshCurrentUserRoleClaim,
+} from '@/services/storage/firestore/firestoreRecordWriteUtilities';
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
-import { ensureUserRoleClaim } from '@/services/auth/authClaimSyncService';
-import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
-import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
-import { resolveDailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import {
   patchDailyRecordWithClinicalAuthorityCallable,
   saveDailyRecordWithClinicalAuthorityCallable,
+  type DailyRecordAuthorityCallableResponse,
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import {
   assertDailyRecordClinicalAuthority,
+  extractDailyRecordBedTreePatch,
   extractClinicalAuthorityPatch,
-  shouldRouteClinicalAuthorityPatch,
+  isDailyRecordBedTreePath,
+  resolveAuthenticatedDailyRecordAuthorityMode,
   shouldRouteDailyRecordSaveViaCallable,
+  shouldRouteClinicalAuthorityPatch,
+  shouldRouteStructuralBedPatchViaCallable,
   shouldRouteSpecialistPatchViaCallable,
   tryShadowDailyRecordPatchViaCallable,
   tryShadowDailyRecordSaveViaCallable,
@@ -46,68 +53,6 @@ import {
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
-
-const logFirestoreWriteRetry = (
-  operation: 'save' | 'partialUpdate' | 'delete',
-  date: string,
-  attempt: number,
-  error: unknown
-): void => {
-  firestoreWriteLogger.warn(`Firestore write retry: ${operation}`, {
-    attempt,
-    date,
-    error,
-  });
-};
-
-const logFirestoreWriteError = (
-  operation: 'save' | 'partialUpdate' | 'delete' | 'moveToTrash',
-  date: string,
-  error: unknown
-): void => {
-  firestoreWriteLogger.error(`Firestore write failed: ${operation}`, {
-    date,
-    error,
-  });
-};
-
-const isPermissionDeniedError = (error: unknown): boolean => {
-  const code = String((error as { code?: unknown })?.code || '').toLowerCase();
-  const message = String((error as { message?: unknown })?.message || '').toLowerCase();
-
-  return (
-    code.includes('permission-denied') || message.includes('missing or insufficient permissions')
-  );
-};
-
-const tryRefreshCurrentUserRoleClaim = async (date: string): Promise<boolean> => {
-  try {
-    await defaultAuthRuntime.ready;
-    const firebaseUser = defaultAuthRuntime.getCurrentUser();
-    if (!firebaseUser || firebaseUser.isAnonymous) {
-      return false;
-    }
-
-    const resolvedRole = await resolveFirebaseUserRole(firebaseUser);
-    if (!resolvedRole) {
-      return false;
-    }
-
-    await ensureUserRoleClaim(firebaseUser, resolvedRole);
-    firestoreWriteLogger.warn('Firestore write auth refresh succeeded', {
-      date,
-      resolvedRole,
-      uid: firebaseUser.uid,
-    });
-    return true;
-  } catch (error) {
-    firestoreWriteLogger.warn('Firestore write auth refresh failed', {
-      date,
-      error,
-    });
-    return false;
-  }
-};
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
@@ -134,20 +79,22 @@ export const saveRecordToFirestore = async (
   record: DailyRecord,
   expectedLastUpdated?: string,
   options: DailyRecordSaveWriteOptions = {}
-): Promise<void> => {
+): Promise<DailyRecordAuthorityCallableResponse | void> => {
   try {
     const docRef = getRecordDocRef(record.date);
 
     assertDailyRecordClinicalAuthority(record);
 
-    if (await shouldRouteDailyRecordSaveViaCallable()) {
-      await withRetry(
+    const callableAuthorityMode = await resolveAuthenticatedDailyRecordAuthorityMode();
+    const writeFenceActive = await shouldRouteDailyRecordSaveViaCallable();
+    if (callableAuthorityMode === 'enforced' || writeFenceActive) {
+      return withRetry(
         () =>
           saveDailyRecordWithClinicalAuthorityCallable({
             date: record.date,
             record,
             expectedLastUpdated,
-            mode: resolveDailyRecordAuthorityMode() === 'enforced' ? 'enforced' : 'shadow',
+            mode: callableAuthorityMode || 'shadow',
             origin: 'direct_save',
             syncContract: options.syncContract,
           }),
@@ -156,7 +103,6 @@ export const saveRecordToFirestore = async (
             logFirestoreWriteRetry('save', record.date, attempt, err),
         }
       );
-      return;
     }
 
     await tryShadowDailyRecordSaveViaCallable(record, expectedLastUpdated, options.syncContract);
@@ -205,16 +151,18 @@ export const updateRecordPartial = async (
   partialData: DailyRecordPatch,
   expectedLastUpdated?: string,
   options: DailyRecordPartialWriteOptions = {}
-): Promise<void> => {
+): Promise<DailyRecordAuthorityCallableResponse | void> => {
   try {
     const docRef = getRecordDocRef(date);
-    await assertFirestoreConcurrency(
-      docRef,
-      expectedLastUpdated,
-      'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
-      'partial update',
-      { toleranceMs: 0, failClosed: true }
-    );
+    if (!options.rayenClinicalWriteGuard) {
+      await assertFirestoreConcurrency(
+        docRef,
+        expectedLastUpdated,
+        'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+        'partial update',
+        { toleranceMs: 0, failClosed: true }
+      );
+    }
 
     // Specialist patches arrive in correct dot-notation (e.g. "beds.R1.medicalHandoffAudit").
     // flattenObject would recursively expand nested objects into sub-field paths
@@ -239,18 +187,103 @@ export const updateRecordPartial = async (
           });
         }
 
-        const isClinicalPatchForAuthority = shouldRouteClinicalAuthorityPatch(sanitizedPatch);
-        const authorityPatch = extractClinicalAuthorityPatch(sanitizedPatch);
-        if (isClinicalPatchForAuthority && (await shouldRouteDailyRecordSaveViaCallable())) {
+        const rayenClinicalWriteGuard = options.rayenClinicalWriteGuard;
+        if (rayenClinicalWriteGuard) {
           return withRetry(
             () =>
               patchDailyRecordWithClinicalAuthorityCallable({
                 date,
-                patch: authorityPatch,
+                patch: sanitizedPatch,
                 expectedLastUpdated,
-                mode: resolveDailyRecordAuthorityMode() === 'enforced' ? 'enforced' : 'shadow',
+                mode: 'shadow',
+                origin: 'legacy_guarded_clinical_patch',
+                rayenClinicalWriteGuard,
+                historyPolicy: options.historyPolicy,
+                syncContract: options.syncContract,
+              }),
+            {
+              onRetry: (err: unknown, attempt: number) =>
+                logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+              shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
+            }
+          );
+        }
+
+        const isClinicalPatchForAuthority = shouldRouteClinicalAuthorityPatch(sanitizedPatch);
+        const authorityPatch = extractClinicalAuthorityPatch(sanitizedPatch);
+        const authorityPaths = new Set(Object.keys(authorityPatch));
+        const hasClinicalAuthorityPatch = authorityPaths.size > 0;
+        // Derived compatibility fields are omitted only when every meaningful path belongs to the
+        // clinical envelope. A genuinely mixed clinical/structural patch makes this predicate false,
+        // so its structural fields remain visible to the fail-closed separation checks below.
+        const structuralBedPatch = Object.fromEntries(
+          Object.entries(extractDailyRecordBedTreePatch(sanitizedPatch)).filter(
+            ([path]) => !authorityPaths.has(path) && !isClinicalPatchForAuthority
+          )
+        );
+        const hasStructuralBedPatch = Object.keys(structuralBedPatch).length > 0;
+        const shouldUseAuthorityCallable = hasClinicalAuthorityPatch || hasStructuralBedPatch;
+        const structuralCompanionPaths = Object.keys(sanitizedPatch).filter(
+          path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp'
+        );
+        const clinicalAuthorityMode = hasClinicalAuthorityPatch
+          ? await resolveAuthenticatedDailyRecordAuthorityMode()
+          : null;
+        const structuralAuthorityMode = hasStructuralBedPatch
+          ? await resolveAuthenticatedDailyRecordAuthorityMode()
+          : null;
+        const bedTreeAuthorityFenced =
+          shouldUseAuthorityCallable && (await shouldRouteStructuralBedPatchViaCallable());
+        const structuralAuthorityFenced = hasStructuralBedPatch && bedTreeAuthorityFenced;
+        const clinicalAuthorityFenced = hasClinicalAuthorityPatch && bedTreeAuthorityFenced;
+        const requiresAuthoritySeparation =
+          clinicalAuthorityMode === 'enforced' || bedTreeAuthorityFenced;
+        if (requiresAuthoritySeparation && hasStructuralBedPatch && hasClinicalAuthorityPatch) {
+          throw new ConcurrencyError(
+            'La edición mezcla campos clínicos y estructurales de cama y debe guardarse por separado.'
+          );
+        }
+        if (
+          requiresAuthoritySeparation &&
+          hasClinicalAuthorityPatch &&
+          !isClinicalPatchForAuthority
+        ) {
+          throw new ConcurrencyError(
+            'La edición mezcla cambios clínicos con otros campos y debe guardarse por separado.'
+          );
+        }
+        if (
+          requiresAuthoritySeparation &&
+          hasStructuralBedPatch &&
+          structuralCompanionPaths.length > 0
+        ) {
+          throw new ConcurrencyError(
+            'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
+          );
+        }
+        const callablePatch = isClinicalPatchForAuthority ? authorityPatch : structuralBedPatch;
+        const callableAuthorityMode = isClinicalPatchForAuthority
+          ? clinicalAuthorityMode === 'enforced'
+            ? 'enforced'
+            : clinicalAuthorityFenced
+              ? clinicalAuthorityMode || 'shadow'
+              : null
+          : structuralAuthorityFenced
+            ? structuralAuthorityMode || 'shadow'
+            : null;
+        if (
+          shouldUseAuthorityCallable &&
+          (callableAuthorityMode === 'enforced' || bedTreeAuthorityFenced)
+        ) {
+          return withRetry(
+            () =>
+              patchDailyRecordWithClinicalAuthorityCallable({
+                date,
+                patch: callablePatch,
+                expectedLastUpdated,
+                mode: callableAuthorityMode || 'shadow',
                 origin: 'direct_partial_update',
-                syncContract: buildAuthorityPatchSyncContract(options.syncContract, authorityPatch),
+                syncContract: buildAuthorityPatchSyncContract(options.syncContract, callablePatch),
               }),
             {
               onRetry: (err: unknown, attempt: number) =>

@@ -102,12 +102,14 @@ export const summarizeClinicalEnrichmentSections = (
 export const prepareClinicalEnrichmentBatchPayload = ({
   mode,
   record,
+  authorityDate = record.date,
   runId,
   operations,
   mutationId,
 }: {
   mode: Exclude<ClinicalEnrichmentBatchMode, 'off'>;
   record: DailyRecord;
+  authorityDate?: string;
   runId: string;
   operations: ClinicalFillPatchOperation[];
   mutationId: string;
@@ -138,6 +140,7 @@ export const prepareClinicalEnrichmentBatchPayload = ({
   return {
     payload: {
       date: record.date,
+      authorityDate,
       runId,
       mutationId,
       expectedLastUpdated: record.lastUpdated,

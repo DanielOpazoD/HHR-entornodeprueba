@@ -33,7 +33,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
       firestore: admin.firestore(),
       Timestamp: admin.firestore.Timestamp,
-      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
     });
 
     // The incoming record only has R1, so R2's cloud patient would be erased — and there is no

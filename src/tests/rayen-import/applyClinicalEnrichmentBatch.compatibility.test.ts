@@ -148,24 +148,25 @@ describe('applyClinicalEnrichmentBatch rolling compatibility', () => {
     expect(result.batch?.parity).toBe('unavailable');
   });
 
-  it('accepts an exact committed response from the pre-parity backend', async () => {
+  it('rejects an exact committed response from the retired pre-parity backend', async () => {
     const deps = dependencies();
     const invoke = vi.fn(async (payload: RayenClinicalEnrichmentBatchPayload) =>
       preParityResponse(payload, 2, 3)
     );
 
-    const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
-      record,
-      runId: 'run-old-enforced-response',
-      operations,
-      invoke,
-      ...deps,
-    });
+    await expect(
+      applyClinicalEnrichmentBatch({
+        mode: 'enforced',
+        record,
+        runId: 'run-old-enforced-response',
+        operations,
+        invoke,
+        ...deps,
+      })
+    ).rejects.toThrow('no confirmó paridad');
 
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
-    expect(result.batch?.parity).toBe('unavailable');
+    expect(deps.refreshRecord).not.toHaveBeenCalled();
   });
 
   it('rejects a pre-parity response with incomplete counts', async () => {

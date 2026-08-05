@@ -4,7 +4,12 @@ const { sanitizeLogValue } = require('./logging/redaction');
 const { evaluateDailyRecordClinicalAuthority } = require('./dailyRecordClinicalAuthorityPolicy');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
 const {
+  assertRayenClinicalBatchAuthority,
+  assertRayenClinicalRunAuthority,
+} = require('./rayenClinicalBatchAuthority');
+const {
   applyClinicalEnrichment,
+  assertHistoricalCudyrPayload,
   assertPersistedDocumentSize,
   assertLegacyReplayRevision,
   assertRecordRevision,
@@ -107,6 +112,7 @@ const recordTelemetry = async ({
   resultParity,
   parityDiagnostics,
   revision,
+  policyRevision,
   error,
 }) => {
   try {
@@ -131,6 +137,7 @@ const recordTelemetry = async ({
           parityContractVersion: PARITY_CONTRACT_VERSION,
           ...parityDiagnostics,
           revision: Number.isFinite(revision) ? revision : null,
+          policyRevision: Number.isFinite(policyRevision) ? policyRevision : null,
         },
       });
   } catch (telemetryError) {
@@ -149,22 +156,26 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
     let resultParity = 'unavailable';
     let parityDiagnostics = EMPTY_PARITY_DIAGNOSTICS;
     let revision;
+    let policyRevision;
 
     try {
-      await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
       const payload = parseClinicalEnrichmentPayload(data);
+      const { role: writerRole } = await assertAuthorizedDailyRecordWriter({
+        context,
+        resolveRoleForEmail,
+      });
       requestSummary = summarizePayload(payload);
       const batchDigest = digestValue({
         date: payload.date,
+        authorityDate: payload.authorityDate,
         patches: payload.patches,
         checkpoints: payload.checkpoints,
       });
       const legacyBatchDigest = buildLegacyClinicalEnrichmentDigest(payload);
-      const docRef = firestore
-        .collection('hospitals')
-        .doc(HOSPITAL_ID)
-        .collection('dailyRecords')
-        .doc(payload.date);
+      const hospitalRef = firestore.collection('hospitals').doc(HOSPITAL_ID);
+      const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
+      const docRef = hospitalRef.collection('dailyRecords').doc(payload.date);
+      const authorityRef = hospitalRef.collection('dailyRecords').doc(payload.authorityDate);
       const transactionOutcome = await firestore.runTransaction(async transaction => {
         const snapshot = await transaction.get(docRef);
         if (!snapshot.exists) {
@@ -174,6 +185,26 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           );
         }
         const remoteData = snapshot.data() || {};
+        const authoritySnapshot =
+          payload.authorityDate === payload.date ? snapshot : await transaction.get(authorityRef);
+        if (!authoritySnapshot.exists) {
+          throw new functions.https.HttpsError(
+            'failed-precondition',
+            'Clinical enrichment requires the synchronization run record.'
+          );
+        }
+        if (payload.legacyAuthorityInference !== true) {
+          const { sourceDate } = assertRayenClinicalRunAuthority({
+            record: authoritySnapshot.data() || {},
+            payload,
+          });
+          if (payload.date !== sourceDate && writerRole !== 'admin') {
+            throw new functions.https.HttpsError(
+              'permission-denied',
+              'This daily-record operation requires an administrator.'
+            );
+          }
+        }
         const idempotency = classifyIdempotency(remoteData, payload, batchDigest, [
           legacyBatchDigest,
         ]);
@@ -184,19 +215,43 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           return { historySnapshotWritten: false };
         }
 
-        if (clinicalEnrichmentMatches(remoteData, payload.targets, payload.fieldContractVersion)) {
-          // Reuse the established status so older clients remain compatible
-          // while the callable rolls out. A canonical no-op is idempotent even
-          // when this runId has not produced a receipt yet.
-          authorityStatus = 'idempotent';
-          resultParity = 'matched';
-          revision = resolveRecordRevision(remoteData);
-          return { historySnapshotWritten: false };
+        assertHistoricalCudyrPayload(remoteData, payload);
+        const policySnapshot = await transaction.get(policyRef);
+        // A lost response may be retried after an administrator changes the policy. An exact
+        // receipt proves that mutation already committed; only new/legacy-replay work must satisfy
+        // the current authority fence.
+        const batchAuthority = assertRayenClinicalBatchAuthority({
+          policySnapshot,
+          record: authoritySnapshot.data() || {},
+          payload,
+        });
+        policyRevision = batchAuthority.policyRevision;
+        if (payload.date !== batchAuthority.sourceDate && writerRole !== 'admin') {
+          throw new functions.https.HttpsError(
+            'permission-denied',
+            'This daily-record operation requires an administrator.'
+          );
         }
+
         revision =
           idempotency.status === 'legacy-replay'
             ? assertLegacyReplayRevision(remoteData, payload, idempotency.receipt)
             : assertRecordRevision(remoteData, payload);
+        if (clinicalEnrichmentMatches(remoteData, payload.targets, payload.fieldContractVersion)) {
+          // Reuse the established status so older clients remain compatible
+          // while the callable rolls out. A new canonical no-op is accepted only after proving
+          // that its base revision still describes the remote record; exact receipts returned
+          // above remain the sole path that may bypass mutable authority state.
+          authorityStatus = 'idempotent';
+          resultParity = 'matched';
+          return { historySnapshotWritten: false };
+        }
+        const shouldCaptureHistorySnapshot =
+          payload.patches.length > 0 && idempotency.status !== 'legacy-replay';
+        const historyRef = shouldCaptureHistorySnapshot
+          ? docRef.collection('history').doc(buildHistorySnapshotId(payload.runId))
+          : null;
+        const historyRefSnapshot = historyRef ? await transaction.get(historyRef) : null;
         const nextRecord = applyClinicalEnrichment(
           remoteData,
           payload.targets,
@@ -249,11 +304,8 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
 
         revision = nextRecord.meta.revision;
         const historySnapshotWritten =
-          payload.patches.length > 0 && idempotency.status !== 'legacy-replay';
-        if (historySnapshotWritten) {
-          const historyRef = docRef
-            .collection('history')
-            .doc(buildHistorySnapshotId(payload.runId));
+          shouldCaptureHistorySnapshot && historyRefSnapshot?.exists !== true;
+        if (historySnapshotWritten && historyRef) {
           transaction.create(historyRef, historySnapshot);
         }
         transaction.set(docRef, nextRecord);
@@ -269,6 +321,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         resultParity,
         parityDiagnostics,
         revision,
+        policyRevision,
       });
       return {
         success: true,
@@ -296,6 +349,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           resultParity,
           parityDiagnostics,
           revision,
+          policyRevision,
           error,
         });
       }

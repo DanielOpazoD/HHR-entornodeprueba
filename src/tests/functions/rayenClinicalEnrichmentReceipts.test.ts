@@ -36,7 +36,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
         },
       ],
     } as never;
-    const admin = createClinicalAdminMock(remote);
+    const admin = createClinicalAdminMock(remote, { runStatus: 'complete' });
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
       payload,
       makeContext()
@@ -57,9 +57,14 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       clinicalSyncCheckpoint: { version: 1, sources: {} },
     } as never;
     const admin = createClinicalAdminMock(remote);
+    const payload = {
+      ...makePayload(),
+      baseRevision: 8,
+      expectedLastUpdated: remote.lastUpdated,
+    };
 
     const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
-      makePayload(),
+      payload,
       makeContext()
     );
 
@@ -143,11 +148,13 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     } as never;
     remote.meta = {
       revision: 5,
+      lastMutationId: payload.mutationId,
       clinicalEnrichmentReceipts: [
         {
           runId: payload.runId,
           mutationId: payload.mutationId,
           digest: digestPayload(payload),
+          appliedAt: remote.lastUpdated,
         },
       ],
     } as never;
@@ -311,9 +318,13 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       ],
     } as never;
     const admin = createClinicalAdminMock();
-    admin.get
-      .mockResolvedValueOnce({ exists: true, data: () => makeClinicalRecord() })
-      .mockResolvedValueOnce({ exists: true, data: () => committed });
+    const committedWithAuthority = {
+      ...committed,
+      rayenSyncHistory: [admin.runEvent],
+    };
+    admin.recordGet
+      .mockResolvedValueOnce({ exists: true, data: () => admin.authorizedRemoteData })
+      .mockResolvedValueOnce({ exists: true, data: () => committedWithAuthority });
     admin.runTransaction.mockImplementation(async callback => {
       await callback(admin.transaction);
       return callback(admin.transaction);
@@ -329,7 +340,10 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
       patientWrites: 0,
       historySnapshots: 0,
     });
-    expect(admin.get).toHaveBeenCalledTimes(2);
+    // The retried transaction first observes the exact committed receipt and returns before
+    // consulting mutable policy, so only the transaction attempt that wrote reads authority.
+    expect(admin.policyGet).toHaveBeenCalledTimes(1);
+    expect(admin.recordGet).toHaveBeenCalledTimes(2);
   });
 
   it('orders digest targets with deterministic UTF-16 code units', () => {

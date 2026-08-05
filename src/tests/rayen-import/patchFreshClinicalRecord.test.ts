@@ -29,6 +29,14 @@ const target = {
   bedId: 'R1',
   clinicalEpisodeId: 'episode-1',
 };
+const writeGuard = {
+  runId: 'run-1',
+  importMode: 'preview' as const,
+  clinicalBatchMode: 'shadow' as const,
+  revision: 4,
+  sourceDate: '2026-07-27',
+  recordScope: 'run' as const,
+};
 
 describe('patchFreshClinicalRecord', () => {
   beforeEach(() => {
@@ -37,13 +45,16 @@ describe('patchFreshClinicalRecord', () => {
   });
 
   it('keeps the safe history snapshot default when intent is omitted', async () => {
-    await patchFreshClinicalRecord(repository, { 'beds.R1.pathology': 'X' }, target);
+    await patchFreshClinicalRecord(repository, { 'beds.R1.pathology': 'X' }, target, writeGuard);
 
     expect(mocks.patchDailyRecordWithCompatibility).toHaveBeenCalledWith(
       repository,
       '2026-07-27',
       expect.any(Object),
-      expect.objectContaining({ historyPolicy: 'snapshot' })
+      expect.objectContaining({
+        historyPolicy: 'snapshot',
+        rayenClinicalWriteGuard: writeGuard,
+      })
     );
   });
 
@@ -54,7 +65,8 @@ describe('patchFreshClinicalRecord', () => {
       {
         ...target,
         captureHistorySnapshot: false,
-      }
+      },
+      writeGuard
     );
 
     expect(mocks.patchDailyRecordWithCompatibility).toHaveBeenCalledWith(
@@ -72,7 +84,12 @@ describe('patchFreshClinicalRecord', () => {
       .mockRejectedValueOnce(conflict)
       .mockResolvedValueOnce(undefined);
 
-    await patchFreshClinicalRecord(repository, { 'beds.R1.vitalSigns': { heartRate: 70 } }, target);
+    await patchFreshClinicalRecord(
+      repository,
+      { 'beds.R1.vitalSigns': { heartRate: 70 } },
+      target,
+      writeGuard
+    );
 
     expect(repository.getForDateWithMeta).toHaveBeenCalledTimes(2);
     expect(mocks.assertClinicalFillPatchTarget).toHaveBeenCalledTimes(2);
@@ -90,7 +107,12 @@ describe('patchFreshClinicalRecord', () => {
       } as never)
       .mockResolvedValueOnce(undefined);
 
-    await patchFreshClinicalRecord(repository, { 'beds.R1.vitalSigns': { heartRate: 70 } }, target);
+    await patchFreshClinicalRecord(
+      repository,
+      { 'beds.R1.vitalSigns': { heartRate: 70 } },
+      target,
+      writeGuard
+    );
 
     expect(repository.getForDateWithMeta).toHaveBeenCalledTimes(2);
     expect(mocks.patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(2);
@@ -100,7 +122,12 @@ describe('patchFreshClinicalRecord', () => {
     mocks.patchDailyRecordWithCompatibility.mockRejectedValueOnce(new Error('permission-denied'));
 
     await expect(
-      patchFreshClinicalRecord(repository, { 'beds.R1.vitalSigns': { heartRate: 70 } }, target)
+      patchFreshClinicalRecord(
+        repository,
+        { 'beds.R1.vitalSigns': { heartRate: 70 } },
+        target,
+        writeGuard
+      )
     ).rejects.toThrow('permission-denied');
 
     expect(repository.getForDateWithMeta).toHaveBeenCalledTimes(1);
@@ -124,7 +151,12 @@ describe('patchFreshClinicalRecord', () => {
     });
 
     await expect(
-      patchFreshClinicalRecord(repository, { 'beds.R1.vitalSigns': { heartRate: 70 } }, target)
+      patchFreshClinicalRecord(
+        repository,
+        { 'beds.R1.vitalSigns': { heartRate: 70 } },
+        target,
+        writeGuard
+      )
     ).rejects.toThrow('El episodio cambió de cama.');
 
     expect(mocks.patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(1);

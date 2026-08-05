@@ -33,6 +33,7 @@ import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal'
 import { useRayenClinicalFillRetry } from './useRayenClinicalFillRetry';
 import { patchFreshClinicalRecord } from './patchFreshClinicalRecord';
 import type { ClinicalFillPatchTarget } from '../contracts/clinicalFillContracts';
+import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
 import { shouldPreservePostImportFlow } from '../domain/rayenPreviewClosePolicy';
 import { useRayenImportCapture } from './useRayenImportCapture';
@@ -40,7 +41,7 @@ export const useRayenImport = () => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
   const { data: tensList = [] } = useTensQuery();
-  const { policy, mode } = useRayenImportMode();
+  const { policy, mode, status: policyStatus } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
   const { currentUser, role } = useAuthState();
   const { mutateAsync: saveDailyRecord } = dailyRecordQuery.useSaveDailyRecordMutation();
@@ -60,8 +61,11 @@ export const useRayenImport = () => {
     currentRecord?.date ?? ''
   );
   const patchClinicalRecord = useCallback(
-    (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) =>
-      patchFreshClinicalRecord(dailyRecord, patch, target),
+    (
+      patch: DailyRecordPatch,
+      target: ClinicalFillPatchTarget,
+      writeGuard: RayenClinicalWriteGuard
+    ) => patchFreshClinicalRecord(dailyRecord, patch, target, writeGuard),
     [dailyRecord]
   );
   const loadFreshClinicalRecord = useCallback(
@@ -98,10 +102,11 @@ export const useRayenImport = () => {
   const finishSyncing = useCallback(() => {
     setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
   }, []);
-  const { applyHistoricalCudyr, applyHistoricalCudyrBatch } = useHistoricalCudyrPersistence({
-    dailyRecord,
-    isAdmin,
-  });
+  const { applyHistoricalCudyr, applyHistoricalCudyrBatch, applyHistoricalCudyrEnforcedBatch } =
+    useHistoricalCudyrPersistence({
+      dailyRecord,
+      isAdmin,
+    });
   const presentStaffingProposal = useCallback(
     (proposal: NursingStaffingProposal, attemptId: number) => {
       if (!isRayenFillAttemptCurrent(attemptId)) return;
@@ -128,6 +133,7 @@ export const useRayenImport = () => {
     patchDailyRecord: patchClinicalRecord,
     applyHistoricalCudyr,
     applyHistoricalCudyrBatch,
+    applyHistoricalCudyrEnforcedBatch,
     completeRun,
     onStaffingProposal: presentStaffingProposal,
     onSettled: finishSyncing,
@@ -151,6 +157,7 @@ export const useRayenImport = () => {
   const triggerImport = useRayenImportCapture({
     currentRecord,
     policy,
+    policyStatus,
     setState,
     setStaffingProposal,
     setStaffingProposalError,

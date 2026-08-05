@@ -34,6 +34,8 @@ export interface RayenClinicalCheckpointTarget {
 
 export interface RayenClinicalEnrichmentBatchPayload {
   date: string;
+  /** Daily record that contains the server-confirmed synchronization event. */
+  authorityDate: string;
   runId: string;
   mutationId: string;
   expectedLastUpdated: string;

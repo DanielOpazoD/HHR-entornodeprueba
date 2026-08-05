@@ -56,32 +56,54 @@ export const makeContext = () => ({
 
 export const createAdminMock = ({
   remoteData,
+  policyData,
+  historyExists = false,
 }: {
   remoteData?: Record<string, unknown>;
+  policyData?: Record<string, unknown>;
+  historyExists?: boolean;
 } = {}) => {
   const set = vi.fn();
   const telemetryAdd = vi.fn().mockResolvedValue({ id: 'telemetry-1' });
   const collection = vi.fn();
-  const historyDoc = { path: 'history-doc' };
+  const historyDoc = { path: 'history-doc', kind: 'history' };
   const historyCollection = { doc: vi.fn(() => historyDoc) };
   const docRef = {
     path: 'daily-record-doc',
     collection: vi.fn(() => historyCollection),
   };
   const dailyRecordsCollection = { doc: vi.fn(() => docRef) };
+  const policyRef = { path: 'settings/rayenImportPolicy' };
+  const settingsCollection = { doc: vi.fn(() => policyRef) };
   const functionsTelemetryCollection = { add: telemetryAdd };
   const hospitalDoc = {
-    collection: vi.fn((name: string) =>
-      name === 'functionsTelemetry' ? functionsTelemetryCollection : dailyRecordsCollection
-    ),
+    collection: vi.fn((name: string) => {
+      if (name === 'functionsTelemetry') return functionsTelemetryCollection;
+      if (name === 'settings') return settingsCollection;
+      return dailyRecordsCollection;
+    }),
   };
   collection.mockReturnValue({ doc: vi.fn(() => hospitalDoc) });
 
   const transaction = {
-    get: vi.fn().mockResolvedValue({
-      exists: Boolean(remoteData),
-      data: () => remoteData,
-    }),
+    get: vi.fn((reference: unknown) =>
+      Promise.resolve(
+        reference === policyRef
+          ? {
+              exists: Boolean(policyData),
+              data: () => policyData,
+            }
+          : reference === historyDoc
+            ? {
+                exists: historyExists,
+                data: () => undefined,
+              }
+            : {
+                exists: Boolean(remoteData),
+                data: () => remoteData,
+              }
+      )
+    ),
     set,
   };
 
@@ -91,6 +113,7 @@ export const createAdminMock = ({
     telemetryAdd,
     docRef,
     historyDoc,
+    policyRef,
     admin: {
       firestore: Object.assign(
         () => ({

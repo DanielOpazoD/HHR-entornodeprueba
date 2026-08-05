@@ -17,6 +17,19 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   reportRayenFillProgress: mocks.reportRayenFillProgress,
 }));
 
+const legacyRunEvidence = (runId = 'legacy-run') => ({
+  rayenSync: { runId },
+  rayenSyncHistory: [
+    {
+      id: runId,
+      startedAt: '2026-07-14T10:00:00.000Z',
+      by: 'Operador HHR',
+      status: 'applied' as const,
+      policy: { mode: 'preview' as const, revision: 1 },
+    },
+  ],
+});
+
 describe('useRayenClinicalFill', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -36,6 +49,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
+      ...legacyRunEvidence(),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
@@ -63,7 +77,7 @@ describe('useRayenClinicalFill', () => {
         errors: [expect.objectContaining({ message: 'clinical_fill_busy' })],
       }),
       null,
-      undefined
+      'legacy-run'
     );
     expect(onSettled).toHaveBeenCalledOnce();
     expect(mocks.endRayenFill).not.toHaveBeenCalled();
@@ -80,7 +94,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      rayenSync: { runId: 'run-load-failed' },
+      ...legacyRunEvidence('run-load-failed'),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
@@ -121,6 +135,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
+      ...legacyRunEvidence(),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
@@ -166,6 +181,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
+      ...legacyRunEvidence(),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
@@ -199,6 +215,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
+      ...legacyRunEvidence(),
     } as unknown as DailyRecord;
     const { result } = renderHook(() =>
       useRayenClinicalFill({
@@ -227,7 +244,7 @@ describe('useRayenClinicalFill', () => {
       discharges: [],
       transfers: [],
       cma: [],
-      rayenSync: { runId: 'run-old' },
+      ...legacyRunEvidence('run-old'),
     } as unknown as DailyRecord;
     const freshRecord = {
       ...staleRecord,
@@ -258,6 +275,82 @@ describe('useRayenClinicalFill', () => {
       expect.any(Object),
       expect.anything(),
       'run-old'
+    );
+  });
+
+  it('keeps the applied run retryable without falling back when frozen policy evidence is unavailable', async () => {
+    const record = {
+      date: '2026-07-14',
+      beds: {
+        R1: { bedId: 'R1', patientName: 'Paciente', clinicalEpisodeId: 'episode-1' },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      rayenSync: { runId: 'run-without-event' },
+    } as unknown as DailyRecord;
+    const loadDailyRecord = vi.fn().mockResolvedValue(record);
+    const patchDailyRecord = vi.fn();
+    const completeRun = vi.fn().mockResolvedValue(undefined);
+    const onSettled = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        tensCatalog: [],
+        loadDailyRecord,
+        patchDailyRecord,
+        applyHistoricalCudyr: vi.fn(),
+        completeRun,
+        onStaffingProposal: vi.fn(),
+        onSettled,
+        createId: () => 'id',
+      })
+    );
+
+    await act(async () => result.current(record));
+
+    expect(loadDailyRecord).toHaveBeenCalledWith('2026-07-14');
+    expect(patchDailyRecord).not.toHaveBeenCalled();
+    expect(completeRun).not.toHaveBeenCalled();
+    expect(mocks.beginRayenFill).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledOnce();
+  });
+
+  it('resolves the frozen mode from the fresh authoritative run evidence', async () => {
+    const staleRecord = {
+      date: '2026-07-14',
+      beds: {},
+      discharges: [],
+      transfers: [],
+      cma: [],
+      rayenSync: { runId: 'run-persisted-later' },
+    } as unknown as DailyRecord;
+    const freshRecord = {
+      ...staleRecord,
+      ...legacyRunEvidence('run-persisted-later'),
+    } as unknown as DailyRecord;
+    const completeRun = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        tensCatalog: [],
+        loadDailyRecord: vi.fn().mockResolvedValue(freshRecord),
+        patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn(),
+        completeRun,
+        onStaffingProposal: vi.fn(),
+        onSettled: vi.fn(),
+        createId: () => 'id',
+      })
+    );
+
+    await act(async () => result.current(staleRecord));
+
+    expect(completeRun).toHaveBeenCalledWith(
+      freshRecord,
+      expect.objectContaining({ total: 0, errors: [] }),
+      expect.anything(),
+      'run-persisted-later'
     );
   });
 });

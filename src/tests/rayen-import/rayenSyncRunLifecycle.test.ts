@@ -4,6 +4,7 @@ import type { RayenSyncRun } from '@/features/rayen-import/domain/rayenSyncHisto
 
 const run = (id: string): RayenSyncRun => ({
   id,
+  sourceDate: '2026-07-14',
   startedAt: '2026-08-02T10:00:00.000Z',
   by: 'Operador HHR',
 });

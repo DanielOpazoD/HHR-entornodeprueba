@@ -22,7 +22,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
       firestore: admin.firestore(),
       Timestamp: admin.firestore.Timestamp,
-      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
     });
 
     const result = await functionsApi.saveDailyRecordWithClinicalAuthority.run(
@@ -258,14 +258,14 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
     );
   });
 
-  it('rejects authority patches that target non-clinical census paths', async () => {
+  it('rejects non-clinical census paths for roles without structural edit authority', async () => {
     const { admin, set } = createAdminMock({
       remoteData: makeRecord(),
     });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
       firestore: admin.firestore(),
       Timestamp: admin.firestore.Timestamp,
-      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+      resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
     });
 
     await expect(
@@ -437,7 +437,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
       firestore: admin.firestore(),
       Timestamp: admin.firestore.Timestamp,
-      resolveRoleForEmail: vi.fn().mockResolvedValue('doctor_urgency'),
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
     });
 
     await expect(

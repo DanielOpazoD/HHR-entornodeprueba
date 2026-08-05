@@ -4,6 +4,7 @@ import type { ClinicalFillPatchTarget } from '../contracts/clinicalFillContracts
 import { assertClinicalFillPatchTarget } from '../domain/clinicalFillPatchTarget';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 
 const isConcurrencyFailure = (error: unknown): boolean =>
   error instanceof Error && error.name === 'ConcurrencyError';
@@ -11,7 +12,8 @@ const isConcurrencyFailure = (error: unknown): boolean =>
 const writeFreshClinicalPatch = async (
   dailyRecord: DailyRecordRepositoryPort,
   patch: DailyRecordPatch,
-  target: ClinicalFillPatchTarget
+  target: ClinicalFillPatchTarget,
+  writeGuard: RayenClinicalWriteGuard
 ): Promise<void> => {
   const fresh = await dailyRecord.getForDateWithMeta(target.censusDate, true);
   if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
@@ -19,6 +21,7 @@ const writeFreshClinicalPatch = async (
   const result = await patchDailyRecordWithCompatibility(dailyRecord, target.censusDate, patch, {
     baseRecord: fresh.record,
     historyPolicy: target.captureHistorySnapshot === false ? 'skip' : 'snapshot',
+    rayenClinicalWriteGuard: writeGuard,
   });
   if (isDailyRecordWriteRejectedResult(result)) {
     const rejection = new Error(result?.userSafeMessage || 'El guardado clínico fue bloqueado.');
@@ -34,14 +37,15 @@ const writeFreshClinicalPatch = async (
 export const patchFreshClinicalRecord = async (
   dailyRecord: DailyRecordRepositoryPort,
   patch: DailyRecordPatch,
-  target: ClinicalFillPatchTarget
+  target: ClinicalFillPatchTarget,
+  writeGuard: RayenClinicalWriteGuard
 ): Promise<void> => {
   try {
-    await writeFreshClinicalPatch(dailyRecord, patch, target);
+    await writeFreshClinicalPatch(dailyRecord, patch, target, writeGuard);
   } catch (error) {
     if (!isConcurrencyFailure(error)) throw error;
     // The bounded retry is safe: it rehydrates and revalidates the episode/bed target before
     // reapplying the same granular clinical patch, without replacing unrelated census fields.
-    await writeFreshClinicalPatch(dailyRecord, patch, target);
+    await writeFreshClinicalPatch(dailyRecord, patch, target, writeGuard);
   }
 };

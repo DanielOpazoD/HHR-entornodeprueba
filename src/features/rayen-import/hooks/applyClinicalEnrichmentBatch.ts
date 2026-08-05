@@ -11,7 +11,6 @@ import {
 import type { ClinicalEnrichmentBatchMode } from '../domain/clinicalEnrichmentBatchMode';
 import { createSyncMutationId } from '@/services/storage/sync/syncMutationIdentity';
 import {
-  clinicalEnrichmentTargetKey,
   prepareClinicalEnrichmentBatchPayload,
   summarizeClinicalEnrichmentSections,
 } from './clinicalEnrichmentBatchPayload';
@@ -19,101 +18,33 @@ import {
   classifyRayenSyncError,
   reportRayenSyncWarning,
 } from '../observability/rayenSyncDiagnostics';
+import {
+  assertCommittedResponse,
+  buildBoundedClinicalBatchChunks,
+  failureMessage,
+  isClinicalBatchRetryableError,
+  isClinicalBatchVersionConflict,
+  mergeBatchEvidence,
+  operationLogicalTargetKey,
+  withRetryCount,
+  type BoundedClinicalBatchChunk,
+} from './clinicalEnrichmentBatchExecutionSupport';
 
-const errorCode = (error: unknown): string =>
-  String((error as { code?: unknown })?.code || '')
-    .trim()
-    .toLowerCase();
-
-export const isClinicalBatchFallbackError = (error: unknown): boolean => {
-  const code = errorCode(error);
-  return ['functions/not-found', 'not-found', 'functions/unimplemented', 'unimplemented'].some(
-    candidate => code.includes(candidate)
-  );
-};
-
-const isClinicalBatchRetryableError = (error: unknown): boolean => {
-  const code = errorCode(error);
-  return [
-    'functions/unavailable',
-    'unavailable',
-    'functions/deadline-exceeded',
-    'deadline-exceeded',
-    'functions/internal',
-    'internal',
-    'network-request-failed',
-  ].some(candidate => code.includes(candidate));
-};
-
-const isClinicalBatchVersionConflict = (error: unknown): boolean => {
-  const code = errorCode(error);
-  const message = failureMessage(error).toLowerCase();
-  return (
-    code.includes('aborted') &&
-    (message.includes('revision_mismatch') || message.includes('version_mismatch'))
-  );
-};
-
-const failureMessage = (error: unknown): string =>
-  error instanceof Error
-    ? error.message
-    : typeof (error as { message?: unknown } | null)?.message === 'string'
-      ? String((error as { message: string }).message)
-      : String(error || 'Error desconocido');
-
-const withRetryCount = (error: unknown, retries: number): unknown => {
-  if (error && typeof error === 'object') {
-    Object.assign(error, { clinicalBatchRetries: retries });
-    return error;
-  }
-  return Object.assign(new Error(failureMessage(error)), { clinicalBatchRetries: retries });
-};
-
-const assertCommittedResponse = (
-  response: Awaited<ReturnType<typeof callRayenClinicalEnrichmentBatch>>,
-  payload: RayenClinicalEnrichmentBatchPayload
-): ClinicalFillBatchEvidence => {
-  if (
-    response?.success !== true ||
-    response.date !== payload.date ||
-    response.mode !== payload.mode ||
-    !['ok', 'idempotent'].includes(response.authorityStatus)
-  ) {
-    throw new Error('El backend devolvió una confirmación inválida para el lote clínico.');
-  }
-  const requestedTargetKeys = new Set([
-    ...payload.patches.map(clinicalEnrichmentTargetKey),
-    ...(payload.checkpoints ?? []).map(clinicalEnrichmentTargetKey),
-  ]);
-  const requestedFields =
-    payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
-    (payload.checkpoints?.length ?? 0);
-  const checkpointKeys = new Set((payload.checkpoints ?? []).map(clinicalEnrichmentTargetKey));
-  const clinicalKeys = new Set(payload.patches.map(clinicalEnrichmentTargetKey));
-  const checkpointOnlyTargets = [...checkpointKeys].filter(key => !clinicalKeys.has(key)).length;
-  const countsMatch =
-    response.targetCount === requestedTargetKeys.size && response.fieldCount === requestedFields;
-  const parity =
-    response.resultParity == null
-      ? 'unavailable'
-      : countsMatch && response.resultParity === 'matched'
-        ? 'matched'
-        : 'mismatch';
-  // Accept only exact pre-parity confirmations during rolling deploys; mismatches fail closed.
-  const legacyCommittedResponse = response.resultParity == null && countsMatch;
-  if (payload.mode === 'enforced' && parity !== 'matched' && !legacyCommittedResponse) {
-    throw new Error('El backend no confirmó paridad para el lote clínico aplicado.');
-  }
-  return {
-    mode: payload.mode,
-    parity,
-    clinicalTargets: clinicalKeys.size,
-    checkpointTargets: checkpointKeys.size,
-    checkpointOnlyTargets,
-    requestedFields,
-    backendTargets: response.targetCount,
-    backendFields: response.fieldCount,
-  };
+const selectRebuiltChunkOperations = (
+  rebuiltOperations: ClinicalFillPatchOperation[],
+  originalChunkOperations: ClinicalFillPatchOperation[]
+): ClinicalFillPatchOperation[] => {
+  const expectedKeys = new Set(originalChunkOperations.map(operationLogicalTargetKey));
+  const selectedKeys = new Set<string>();
+  return rebuiltOperations.filter(operation => {
+    const key = operationLogicalTargetKey(operation);
+    if (!expectedKeys.has(key)) return false;
+    if (selectedKeys.has(key)) {
+      throw new Error('La reconstrucción clínica produjo un episodio ambiguo para el fragmento.');
+    }
+    selectedKeys.add(key);
+    return true;
+  });
 };
 
 const applyLegacyOperations = async (
@@ -150,8 +81,12 @@ const applyLegacyOperations = async (
 interface ApplyClinicalEnrichmentBatchInput {
   mode: ClinicalEnrichmentBatchMode;
   record: DailyRecord;
+  /** Record that owns the synchronization event when the target is the previous census day. */
+  authorityDate?: string;
   runId: string;
   operations: ClinicalFillPatchOperation[];
+  /** Rebuilds record-derived canonical values after a version conflict. */
+  rebuildOperations?: (record: DailyRecord) => ClinicalFillPatchOperation[];
   applyPatch: (operation: ClinicalFillPatchOperation) => Promise<void>;
   refreshRecord: () => Promise<DailyRecord>;
   invoke?: typeof callRayenClinicalEnrichmentBatch;
@@ -173,26 +108,52 @@ export const observeClinicalEnrichmentBatch = async ({
   invoke = callRayenClinicalEnrichmentBatch,
   createMutationId = createSyncMutationId,
 }: ObserveClinicalEnrichmentBatchInput): Promise<ClinicalFillBatchEvidence> => {
-  const { payload, evidence } = prepareClinicalEnrichmentBatchPayload({
-    mode: 'shadow',
-    record,
-    runId,
-    operations,
-    mutationId: createMutationId(),
-  });
-  if (!payload) {
-    return evidence;
+  try {
+    const chunks = buildBoundedClinicalBatchChunks({
+      mode: 'shadow',
+      record,
+      runId,
+      operations,
+      createMutationId,
+    });
+    const evidence: ClinicalFillBatchEvidence[] = [];
+    for (const chunk of chunks) {
+      const prepared = prepareClinicalEnrichmentBatchPayload({
+        mode: 'shadow',
+        record,
+        runId,
+        operations: chunk.operations,
+        mutationId: chunk.mutationId,
+      });
+      if (!prepared.payload) continue;
+      const response = await invoke(prepared.payload);
+      evidence.push(assertCommittedResponse(response, prepared.payload));
+    }
+    return mergeBatchEvidence(evidence, 'shadow');
+  } catch (error) {
+    reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
+      batchRunId: runId,
+      batchMode: 'shadow',
+      errorKind: classifyRayenSyncError(error),
+    });
+    return prepareClinicalEnrichmentBatchPayload({
+      mode: 'shadow',
+      record,
+      runId,
+      operations,
+      mutationId: createMutationId(),
+    }).evidence;
   }
-  const response = await invoke(payload);
-  return assertCommittedResponse(response, payload);
 };
 
-/** Executes one bounded authority call, preserving the established writes as a safe fallback. */
+/** Executes one bounded authority call; enforced never changes persistence owner mid-run. */
 export const applyClinicalEnrichmentBatch = async ({
   mode,
   record,
+  authorityDate,
   runId,
   operations,
+  rebuildOperations,
   applyPatch,
   refreshRecord,
   invoke = callRayenClinicalEnrichmentBatch,
@@ -226,104 +187,178 @@ export const applyClinicalEnrichmentBatch = async ({
       const { evidence } = prepareClinicalEnrichmentBatchPayload({
         mode,
         record,
+        authorityDate,
         runId,
         operations,
         mutationId: createMutationId(),
       });
       return { ...legacy, batch: evidence };
     }
-    const { payload: shadowPayload, evidence } = prepareClinicalEnrichmentBatchPayload({
-      mode,
-      record: shadowRecord,
-      runId,
-      operations,
-      mutationId: createMutationId(),
-    });
-    if (!shadowPayload) return { ...legacy, batch: evidence };
-    const batch = await invokeChecked(shadowPayload)
-      .then(result => result.batch)
-      .catch(error => {
-        reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
-          batchRunId: runId,
-          batchMode: 'shadow',
-          errorKind: classifyRayenSyncError(error),
-        });
-        return summarizeClinicalEnrichmentSections(
-          shadowPayload.patches,
-          shadowPayload.checkpoints ?? [],
-          'shadow'
-        );
+    let chunks: BoundedClinicalBatchChunk[];
+    try {
+      chunks = buildBoundedClinicalBatchChunks({
+        mode,
+        record: shadowRecord,
+        authorityDate,
+        runId,
+        operations,
+        createMutationId,
       });
-    return { ...legacy, batch };
+    } catch (error) {
+      reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
+        batchRunId: runId,
+        batchMode: 'shadow',
+        errorKind: classifyRayenSyncError(error),
+      });
+      const { evidence } = prepareClinicalEnrichmentBatchPayload({
+        mode,
+        record: shadowRecord,
+        authorityDate,
+        runId,
+        operations,
+        mutationId: createMutationId(),
+      });
+      return { ...legacy, batch: evidence };
+    }
+    const batchEvidence: ClinicalFillBatchEvidence[] = [];
+    for (const chunk of chunks) {
+      const prepared = prepareClinicalEnrichmentBatchPayload({
+        mode,
+        record: shadowRecord,
+        authorityDate,
+        runId,
+        operations: chunk.operations,
+        mutationId: chunk.mutationId,
+      });
+      if (!prepared.payload) continue;
+      const batch = await invokeChecked(prepared.payload)
+        .then(result => result.batch)
+        .catch(error => {
+          reportRayenSyncWarning('clinical_batch_shadow_observation_failed', {
+            batchRunId: runId,
+            batchMode: 'shadow',
+            errorKind: classifyRayenSyncError(error),
+          });
+          return summarizeClinicalEnrichmentSections(
+            prepared.payload?.patches ?? [],
+            prepared.payload?.checkpoints ?? [],
+            'shadow'
+          );
+        });
+      batchEvidence.push(batch);
+    }
+    return { ...legacy, batch: mergeBatchEvidence(batchEvidence, 'shadow') };
   }
 
-  const { payload, evidence } = prepareClinicalEnrichmentBatchPayload({
+  const chunks = buildBoundedClinicalBatchChunks({
     mode,
     record,
+    authorityDate,
     runId,
     operations,
-    mutationId: createMutationId(),
+    createMutationId,
   });
-  if (!payload) {
-    return applyLegacyOperations(operations, applyPatch);
+  if (chunks.length === 0) {
+    return {
+      patientWrites: 0,
+      historySnapshots: 0,
+      batch: summarizeClinicalEnrichmentSections([], [], 'enforced'),
+    };
+  }
+  if (chunks.length > 1) {
+    throw new Error(
+      'El lote clínico excede una transacción atómica segura; los datos quedaron pendientes.'
+    );
+  }
+  let activeRecord = record;
+  let patientWrites = 0;
+  let historySnapshots = 0;
+  let retries = 0;
+  const batchEvidence: ClinicalFillBatchEvidence[] = [];
+  const chunk = chunks[0]!;
+  let activeOperations = chunk.operations;
+  let prepared = prepareClinicalEnrichmentBatchPayload({
+    mode,
+    record: activeRecord,
+    authorityDate,
+    runId,
+    operations: activeOperations,
+    mutationId: chunk.mutationId,
+  });
+  if (!prepared.payload) {
+    throw new Error('No se pudo preparar el lote clínico transaccional.');
   }
 
-  let retries = 0;
-  let activePayload = payload;
+  let activePayload = prepared.payload;
+  let checked: Awaited<ReturnType<typeof invokeChecked>>;
   try {
-    let checked: Awaited<ReturnType<typeof invokeChecked>>;
     try {
       checked = await invokeChecked(activePayload);
     } catch (error) {
-      retries = 1;
+      if (!isClinicalBatchVersionConflict(error) && !isClinicalBatchRetryableError(error)) {
+        throw error;
+      }
+      retries += 1;
       if (isClinicalBatchVersionConflict(error)) {
-        const refreshedRecord = await refreshRecord();
-        const refreshed = prepareClinicalEnrichmentBatchPayload({
+        activeRecord = await refreshRecord();
+        if (!rebuildOperations) {
+          throw error;
+        }
+        activeOperations = selectRebuiltChunkOperations(
+          rebuildOperations(activeRecord),
+          chunk.operations
+        );
+        prepared = prepareClinicalEnrichmentBatchPayload({
           mode,
-          record: refreshedRecord,
+          record: activeRecord,
+          authorityDate,
           runId,
-          operations,
+          operations: activeOperations,
           // A rejected authority check did not consume this identity. Reusing it also preserves
           // idempotency if the first response was lost after a concurrent transaction retry.
           mutationId: activePayload.mutationId,
         });
-        if (!refreshed.payload) {
+        if (!prepared.payload) {
+          if (prepared.evidence.requestedFields === 0) {
+            return {
+              patientWrites: 0,
+              historySnapshots: 0,
+              retries,
+              batch: prepared.evidence,
+            };
+          }
           throw new Error('No se pudo reconstruir el lote clínico contra el censo vigente.');
         }
-        activePayload = refreshed.payload;
-      } else if (!isClinicalBatchRetryableError(error)) {
-        retries = 0;
-        throw error;
+        activePayload = prepared.payload;
       }
       checked = await invokeChecked(activePayload);
     }
-    try {
-      await refreshRecord();
-    } catch (error) {
-      reportRayenSyncWarning('clinical_batch_local_refresh_deferred', {
-        runId,
-        batchMode: 'enforced',
-        errorKind: classifyRayenSyncError(error),
-      });
-    }
-    const response = checked.response;
-    const committed = response.authorityStatus === 'ok';
-    return {
-      patientWrites: committed ? (response.patientWrites ?? 1) : 0,
-      historySnapshots: committed
-        ? (response.historySnapshots ?? Number(activePayload.patches.length > 0))
-        : 0,
-      retries,
-      batch: checked.batch,
-    };
   } catch (error) {
     if (retries > 0) throw withRetryCount(error, retries);
-    if (!isClinicalBatchFallbackError(error)) throw error;
-    const result = await applyLegacyOperations(operations, applyPatch);
-    return {
-      ...result,
-      retries: retries + 1,
-      batch: { ...evidence, mode: 'enforced' },
-    };
+    throw error;
   }
+
+  const response = checked.response;
+  if (response.authorityStatus === 'ok') {
+    patientWrites += response.patientWrites ?? 1;
+    historySnapshots += response.historySnapshots ?? Number(activePayload.patches.length > 0);
+  }
+  batchEvidence.push(checked.batch);
+
+  try {
+    await refreshRecord();
+  } catch (error) {
+    reportRayenSyncWarning('clinical_batch_local_refresh_deferred', {
+      runId,
+      batchMode: 'enforced',
+      errorKind: classifyRayenSyncError(error),
+    });
+  }
+
+  return {
+    patientWrites,
+    historySnapshots,
+    retries,
+    batch: mergeBatchEvidence(batchEvidence, 'enforced'),
+  };
 };

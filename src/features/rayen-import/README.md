@@ -18,6 +18,55 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
   revisión monotónica; caché, documentos inválidos o falta de conexión siempre caen a `preview`.
   Cada ejecución congela modo y revisión al comenzar y los conserva en `rayenSyncHistory`.
 
+La misma política global gobierna de forma independiente la persistencia clínica:
+
+- **`off`:** rollback explícito a la semántica compatible por paciente. Tras migrar la política a
+  esquema v2, cada parche sigue pasando por el callable de autoridad; no vuelve a habilitarse la
+  escritura clínica directa del navegador.
+- **`shadow`:** la ruta compatible conserva autoridad mediante el callable y el lote sólo verifica
+  paridad.
+- **`enforced`:** el lote transaccional del backend es la única autoridad. Callable ausente,
+  respuesta sin paridad o lote fuera de límite fallan cerrado y dejan los datos reintentables; nunca
+  degradan silenciosamente a escrituras por paciente.
+
+El modo del lote sólo gobierna el enriquecimiento clínico Rayen: `off` o `shadow` no pueden
+degradar una autoridad general del censo configurada de forma independiente como `enforced`.
+
+La política se confirma con el servidor, se versiona y queda congelada por ejecución. Caché local,
+esquemas inválidos o ausencia del evento de ejecución bloquean el paso clínico. Una política v1 sólo
+puede mostrarse como `off` y bloquea toda nueva ejecución hasta que un administrador complete su
+migración atómica a v2 desde Configuración;
+un evento histórico anterior al contrato clínico conserva la compatibilidad revisión 0 únicamente
+mientras la política global siga ausente. En `shadow` y `enforced`, el callable exige que el modo y
+la revisión del evento coincidan con la política global vigente.
+La promoción y el rollback se realizan en Configuración → Integraciones; no dependen de una variable
+Vite del navegador. Cliente y backend usan contrato runtime v2 y la web exige backend v2. El backend
+acepta temporalmente clientes v1 sólo para poder desplegar primero Functions y después la web; la
+migración posterior de la política a esquema v2 activa el cerco irreversible que bloquea sus
+escrituras clínicas directas.
+En `off` y `shadow`, cada parche individual demuestra atómicamente mediante el callable que la
+revisión congelada sigue vigente antes de tocar la caché local. Una promoción concurrente a
+`enforced` cancela los parches restantes y no deja escrituras antiguas en la cola para un replay
+posterior.
+En `enforced`, el CUDYR de D−1 usa el mismo callable en un lote separado: modifica el documento
+histórico, pero demuestra autoridad con el `runId` congelado en el día de la sincronización. Sólo se
+admite el día inmediatamente anterior y nunca se degrada al escritor individual. Si cambia la
+revisión, el reintento reconstruye el valor completo de scores desde el documento vigente para no
+pisar Braden o Downton concurrentes.
+Cada ejecución congela además su `sourceDate`; el lote debe declarar la misma `authorityDate` y el
+backend la contrasta con el documento que contiene el evento. Sólo un administrador puede escribir
+un día distinto del origen. Los reintentos exactos se resuelven por `runId`/`mutationId` antes de
+depender del estado clínico mutable, por lo que conservan idempotencia aunque el paciente ya haya
+egresado.
+`shadow` puede dividir una observación grande porque no persiste. Si una ejecución `enforced`
+requiere varios fragmentos, falla antes de la primera mutación; la autoridad nunca acepta un lote
+clínico parcialmente aplicado. Un conflicto de revisión en el lote único reconstruye sus valores
+desde el censo canónico recién leído antes del único reintento.
+Desde que la política usa esquema v2, un guardado estructural completo conserva desde Firestore los
+campos clínicos propiedad del backend —por `clinicalEpisodeId`, aun con traslado de cama— y elimina
+esos campos si el episodio todavía no ha sido aceptado por la autoridad clínica. Volver a `off` no
+desactiva este cerco.
+
 ## Seguridad clínica
 
 - **Dos fuentes obligatorias:** una sincronización estructural solo comienza cuando Ficha Médico y
@@ -84,13 +133,13 @@ externo) hacia el `DailyRecord` del HHR. La extensión de navegador lee Rayen y 
 | `domain/rayenSyncPerformance.ts`                | Acumula duración/contadores técnicos sin aceptar payload clínico           |
 | `domain/rayenSyncSourceQuality.ts`              | Resume cobertura agregada de médico tratante, sin identidades              |
 | `importRayenCensusUseCase.ts`                   | Use-case `planRayenCensusImport` (planifica el diff)                       |
-| `settings/rayenImportSettings.ts`               | Contrato y normalización fail-safe de la política global                   |
+| `settings/rayenImportSettings.ts`               | Contrato v2 fail-safe de importación y persistencia clínica global         |
 | `settings/rayenImportPolicyService.ts`          | Suscripción server-confirmed y actualización transaccional admin           |
 | `bridge/rayenImportBridge.ts`                   | Puente `postMessage` extensión ⇄ app (+ validación de forma)               |
 | `bridge/patientFlowBridge.ts`                   | Canal acotado para solicitar el PDF del episodio en conflicto              |
 | `bridge/statisticalDischargeEvidenceBridge.ts`  | Lee el egreso exacto ya autorizado sin descargarlo al usuario              |
 | `bridge/extensionHealthBridge.ts`               | Handshake de versión/capacidades, sin leer información clínica             |
-| `hooks/useRayenImportMode.ts`                   | Hook reactivo del modo                                                     |
+| `hooks/useRayenImportMode.ts`                   | Hook server-confirmed; bloquea runs sin política global autoritativa       |
 | `hooks/useRayenExtensionHealth.ts`              | Estado listo/parcial/bloqueado y refresco al recuperar foco                |
 | `hooks/useRayenImport.ts`                       | Orquesta plan→(preview\|auto)→apply→guardar (`useSaveDailyRecordMutation`) |
 | `hooks/useRayenSyncAudit.ts`                    | Coordina inicio, aplicación, cobertura final y fallo sanitizado            |

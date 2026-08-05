@@ -3,8 +3,9 @@ export const CRITICAL_FIRESTORE_ACCESS_MATRIX = [
     path: 'dailyRecords',
     matchPath: '/dailyRecords/{date}',
     read: 'canReadClinicalData()',
-    create: 'canEdit()',
-    update: 'canUpdatePersistedDailyRecord()',
+    create: 'canEdit() && !isRayenClinicalWriteFenceActive(hospitalId)',
+    update:
+      'canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId)',
     delete: 'isAdmin()',
   },
   {

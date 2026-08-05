@@ -3,65 +3,11 @@ import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/appl
 import type { ClinicalFillPatchOperation } from '@/features/rayen-import';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-
-const record = {
-  date: '2026-07-28',
-  lastUpdated: '2026-07-28T10:00:00.000Z',
-  beds: {},
-  discharges: [],
-  transfers: [],
-  cma: [],
-  meta: { revision: 7 },
-} as unknown as DailyRecord;
-
-const operations: ClinicalFillPatchOperation[] = [
-  {
-    target: {
-      censusDate: '2026-07-28',
-      bedId: 'H2C1',
-      clinicalEpisodeId: 'episode-1',
-    },
-    patch: {
-      'beds.H2C1.evaluationScores': { braden: { total: 17 } },
-      'beds.H2C1.clinicalSyncCheckpoint': { version: 1, sources: {} },
-    },
-  },
-  {
-    target: {
-      censusDate: '2026-07-28',
-      bedId: 'H2C2',
-      clinicalEpisodeId: 'episode-2',
-    },
-    patch: { 'beds.H2C2.vitalSigns': { systolic: 120 } },
-  },
-];
-
-const dependencies = () => ({
-  applyPatch: vi.fn().mockResolvedValue(undefined),
-  refreshRecord: vi.fn().mockResolvedValue(record),
-  invoke: vi.fn().mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
-    success: true,
-    authorityStatus: 'ok' as const,
-    date: payload.date,
-    mode: payload.mode,
-    targetCount: new Set(
-      [...payload.patches, ...(payload.checkpoints ?? [])].map(
-        target => `${target.bedId}|${target.clinicalCrib ? 'crib' : 'patient'}`
-      )
-    ).size,
-    fieldCount:
-      payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
-      (payload.checkpoints?.length ?? 0),
-    resultParity: 'matched' as const,
-    patientWrites: 1,
-    historySnapshots: Number(payload.patches.length > 0),
-  })),
-  createMutationId: vi.fn(() => 'mutation-fixed'),
-});
+import { createDependencies, operations, record } from './applyClinicalEnrichmentBatch.fixtures';
 
 describe('applyClinicalEnrichmentBatch', () => {
   it('keeps off mode on the established sequential path with one history snapshot', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     const result = await applyClinicalEnrichmentBatch({
       mode: 'off',
       record,
@@ -78,7 +24,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('validates in shadow but persists through the established path', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     const result = await applyClinicalEnrichmentBatch({
       mode: 'shadow',
       record,
@@ -122,7 +68,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('builds shadow guards from the record refreshed after legacy writes', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.refreshRecord.mockResolvedValue({
       ...record,
       lastUpdated: '2026-07-28T10:01:00.000Z',
@@ -146,7 +92,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('uses one enforced mutation and refreshes local state after success', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     const result = await applyClinicalEnrichmentBatch({
       mode: 'enforced',
       record,
@@ -167,7 +113,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('does not count an idempotent replay as a committed write or snapshot', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
       success: true,
       authorityStatus: 'idempotent' as const,
@@ -194,8 +140,43 @@ describe('applyClinicalEnrichmentBatch', () => {
     expect(result).toMatchObject({ patientWrites: 0, historySnapshots: 0, retries: 0 });
   });
 
+  it('accepts an exact idempotent replay from a pre-parity backend during rollout', async () => {
+    const deps = createDependencies();
+    deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
+      success: true,
+      authorityStatus: 'idempotent' as const,
+      date: payload.date,
+      mode: payload.mode,
+      targetCount: new Set([
+        ...payload.patches.map(patch => `${patch.bedId}:${patch.clinicalEpisodeId}`),
+        ...(payload.checkpoints ?? []).map(
+          checkpoint => `${checkpoint.bedId}:${checkpoint.clinicalEpisodeId}`
+        ),
+      ]).size,
+      fieldCount:
+        payload.patches.reduce((total, patch) => total + Object.keys(patch.fields).length, 0) +
+        (payload.checkpoints?.length ?? 0),
+      patientWrites: 0,
+      historySnapshots: 0,
+    }));
+
+    const result = await applyClinicalEnrichmentBatch({
+      mode: 'enforced',
+      record,
+      runId: 'run-idempotent-pre-parity',
+      operations,
+      ...deps,
+    });
+
+    expect(result).toMatchObject({
+      patientWrites: 0,
+      historySnapshots: 0,
+      batch: { parity: 'matched' },
+    });
+  });
+
   it('rejects a resolved response that does not confirm the requested batch', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke.mockResolvedValue({ success: false });
 
     await expect(
@@ -212,7 +193,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('rejects a null backend response with the controlled confirmation error', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke.mockResolvedValue(null as never);
 
     await expect(
@@ -229,7 +210,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('records a semantic shadow mismatch without blocking established writes', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
       success: true,
       authorityStatus: 'ok' as const,
@@ -255,7 +236,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('blocks enforced mode when the backend result does not match the requested values', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke.mockImplementation(async (payload: RayenClinicalEnrichmentBatchPayload) => ({
       success: true,
       authorityStatus: 'ok' as const,
@@ -281,7 +262,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('retries a transient failure with the same mutation identity', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke.mockRejectedValueOnce({ code: 'functions/unavailable' });
     const result = await applyClinicalEnrichmentBatch({
       mode: 'enforced',
@@ -297,8 +278,89 @@ describe('applyClinicalEnrichmentBatch', () => {
     expect(result.retries).toBe(1);
   });
 
+  it('rebuilds canonical record-derived fields after a version conflict', async () => {
+    const deps = createDependencies();
+    const refreshedRecord = {
+      ...record,
+      lastUpdated: '2026-07-28T10:02:00.000Z',
+      meta: { revision: 8 },
+    } as DailyRecord;
+    const rebuiltOperations: ClinicalFillPatchOperation[] = [
+      {
+        target: operations[0].target,
+        patch: {
+          'beds.H2C1.evaluationScores': {
+            braden: { total: 20 },
+            cudyr: { category: 'C1' },
+          },
+        },
+      },
+    ];
+    const rebuildOperations = vi.fn(() => rebuiltOperations);
+    deps.refreshRecord.mockResolvedValue(refreshedRecord);
+    deps.invoke.mockRejectedValueOnce({
+      code: 'functions/aborted',
+      message: 'revision_mismatch',
+    });
+
+    const result = await applyClinicalEnrichmentBatch({
+      mode: 'enforced',
+      record,
+      runId: 'run-rebuild',
+      operations: [operations[0]],
+      rebuildOperations,
+      ...deps,
+    });
+
+    expect(rebuildOperations).toHaveBeenCalledWith(refreshedRecord);
+    expect(deps.invoke).toHaveBeenCalledTimes(2);
+    expect(deps.invoke.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        mutationId: 'mutation-fixed',
+        baseRevision: 8,
+        patches: [
+          expect.objectContaining({
+            fields: {
+              evaluationScores: {
+                braden: { total: 20 },
+                cudyr: { category: 'C1' },
+              },
+            },
+          }),
+        ],
+      })
+    );
+    expect(result.retries).toBe(1);
+  });
+
+  it('settles a version conflict when rebuilding proves the desired value is current', async () => {
+    const deps = createDependencies();
+    const rebuildOperations = vi.fn((): ClinicalFillPatchOperation[] => []);
+    deps.invoke.mockRejectedValueOnce({
+      code: 'functions/aborted',
+      message: 'revision_mismatch',
+    });
+
+    const result = await applyClinicalEnrichmentBatch({
+      mode: 'enforced',
+      record,
+      runId: 'run-already-current',
+      operations: [operations[0]],
+      rebuildOperations,
+      ...deps,
+    });
+
+    expect(deps.invoke).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      patientWrites: 0,
+      historySnapshots: 0,
+      retries: 1,
+      batch: { requestedFields: 0 },
+    });
+  });
+
   it('does not fall back after an ambiguous availability failure', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke.mockRejectedValue({ code: 'functions/unavailable' });
 
     await expect(
@@ -316,7 +378,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('does not fall back when an ambiguous attempt is followed by a missing endpoint', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke
       .mockRejectedValueOnce({ code: 'functions/unavailable' })
       .mockRejectedValueOnce({ code: 'functions/not-found' });
@@ -335,60 +397,45 @@ describe('applyClinicalEnrichmentBatch', () => {
     expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 
-  it('falls back only when the callable is definitively unavailable', async () => {
-    const deps = dependencies();
+  it('fails closed when the enforced callable is definitively unavailable', async () => {
+    const deps = createDependencies();
     deps.invoke.mockRejectedValue({ code: 'functions/not-found' });
 
-    const result = await applyClinicalEnrichmentBatch({
-      mode: 'enforced',
-      record,
-      runId: 'run-1',
-      operations,
-      ...deps,
-    });
+    await expect(
+      applyClinicalEnrichmentBatch({
+        mode: 'enforced',
+        record,
+        runId: 'run-1',
+        operations,
+        ...deps,
+      })
+    ).rejects.toMatchObject({ code: 'functions/not-found' });
 
     expect(deps.invoke).toHaveBeenCalledTimes(1);
-    expect(deps.applyPatch).toHaveBeenCalledTimes(2);
-    expect(result).toMatchObject({
-      patientWrites: 2,
-      historySnapshots: 1,
-      retries: 1,
-      batch: {
-        mode: 'enforced',
-        parity: 'unavailable',
-        clinicalTargets: 2,
-        checkpointTargets: 1,
-        requestedFields: 3,
-      },
-    });
+    expect(deps.applyPatch).not.toHaveBeenCalled();
   });
 
-  it('uses the established path when the serialized batch exceeds the callable budget', async () => {
-    const deps = dependencies();
-    const oversized: ClinicalFillPatchOperation[] = [
-      {
-        target: operations[0].target,
-        patch: {
-          'beds.H2C1.deviceDetails': { oversized: 'x'.repeat(510_000) },
-        },
-      },
-    ];
-
+  it('settles an empty enforced batch without invoking either persistence owner', async () => {
+    const deps = createDependencies();
     const result = await applyClinicalEnrichmentBatch({
       mode: 'enforced',
       record,
-      runId: 'run-large',
-      operations: oversized,
+      runId: 'run-empty',
+      operations: [],
       ...deps,
     });
 
     expect(deps.invoke).not.toHaveBeenCalled();
-    expect(deps.applyPatch).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ patientWrites: 1, historySnapshots: 1 });
+    expect(deps.applyPatch).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      patientWrites: 0,
+      historySnapshots: 0,
+      batch: { mode: 'enforced', requestedFields: 0 },
+    });
   });
 
   it('continues legacy writes after one patient fails and snapshots the first success', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.applyPatch
       .mockRejectedValueOnce(new Error('conflicto paciente 1'))
       .mockResolvedValueOnce(undefined);
@@ -412,7 +459,7 @@ describe('applyClinicalEnrichmentBatch', () => {
   });
 
   it('never falls back around an authority or concurrency rejection', async () => {
-    const deps = dependencies();
+    const deps = createDependencies();
     deps.invoke.mockRejectedValue({ code: 'functions/failed-precondition' });
 
     await expect(
@@ -425,26 +472,5 @@ describe('applyClinicalEnrichmentBatch', () => {
       })
     ).rejects.toMatchObject({ code: 'functions/failed-precondition' });
     expect(deps.applyPatch).not.toHaveBeenCalled();
-  });
-
-  it('rejects a route outside the operation target before invoking the backend', async () => {
-    const deps = dependencies();
-    const invalid = [
-      {
-        ...operations[0],
-        patch: { 'beds.H9C9.patientName': 'No permitido' },
-      },
-    ];
-
-    await expect(
-      applyClinicalEnrichmentBatch({
-        mode: 'enforced',
-        record,
-        runId: 'run-1',
-        operations: invalid,
-        ...deps,
-      })
-    ).rejects.toThrow('ruta fuera del paciente');
-    expect(deps.invoke).not.toHaveBeenCalled();
   });
 });

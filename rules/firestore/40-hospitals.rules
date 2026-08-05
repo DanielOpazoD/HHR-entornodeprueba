@@ -4,8 +4,8 @@
       
       match /dailyRecords/{date} {
         allow read: if canReadClinicalData();
-        allow create: if canEdit();
-        allow update: if canUpdatePersistedDailyRecord();
+        allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId);
+        allow update: if canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId);
         // Delete: Admin only (nurses must not hard-delete census records)
         allow delete: if isAdmin();
         
