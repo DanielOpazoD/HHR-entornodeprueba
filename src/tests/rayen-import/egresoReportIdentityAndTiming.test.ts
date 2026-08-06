@@ -207,7 +207,7 @@ describe('applyEgresoReport', () => {
     expect(requiresReview(enriched)).toBe(true);
   });
 
-  it('does not apply an earlier same-RUN egreso to a later active readmission', () => {
+  it('ignores an earlier same-RUN egreso for a later identified readmission', () => {
     const current = makeRecord({
       R2: {
         ...patient('1-9', 'Paciente Reingresado'),
@@ -240,9 +240,7 @@ describe('applyEgresoReport', () => {
         verification: { ...pending.verification, hospitalDischarge: 'not-detected' },
       },
     ]);
-    expect(enriched.conflicts).toEqual([
-      expect.objectContaining({ bedId: 'R2', reason: expect.stringContaining('ingreso activo') }),
-    ]);
+    expect(enriched.conflicts).toHaveLength(0);
   });
 
   it('accepts the same-RUN egreso when its official time follows the active admission', () => {

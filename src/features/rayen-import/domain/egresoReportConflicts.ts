@@ -1,4 +1,16 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import { normalizeRut } from '@/utils/rutUtils';
+
+type ConflictEntry = CensusImportDiff['conflicts'][number];
+
+const sameConflict = (left: ConflictEntry, right: ConflictEntry): boolean =>
+  left.bedId === right.bedId &&
+  normalizeRut(left.rut) === normalizeRut(right.rut) &&
+  (left.patientName ?? '').trim() === (right.patientName ?? '').trim() &&
+  left.scope === right.scope &&
+  left.code === right.code &&
+  left.reason === right.reason &&
+  left.source?.encounterId === right.source?.encounterId;
 
 export const markReportChecked = (diff: CensusImportDiff): CensusImportDiff => {
   if (diff.pendingAdministrativeDischarges.length === 0) return diff;
@@ -15,6 +27,7 @@ export const appendReportConflict = (
   diff: CensusImportDiff,
   conflict: CensusImportDiff['conflicts'][number]
 ): CensusImportDiff => {
+  if (diff.conflicts.some(entry => sameConflict(entry, conflict))) return diff;
   const conflicts = [...diff.conflicts, conflict];
   return {
     ...diff,

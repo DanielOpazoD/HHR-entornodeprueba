@@ -11,6 +11,7 @@ import {
   occupiedBedsByRun,
   occupiedClinicalCribsByRun,
   reportPredatesActiveAdmission,
+  resolveActiveEpisode,
   toIsoDay,
 } from './egresoReportPolicy';
 import { appendReportConflict } from './egresoReportConflicts';
@@ -91,6 +92,14 @@ export const selectEligibleEgresoRows = (
       activeCrib?.patient ??
       provisional?.patient;
     if (reportPredatesActiveAdmission(diff, row, run, stamp, admissionEvidence)) {
+      const activeEpisode = resolveActiveEpisode(
+        diff,
+        run,
+        admissionEvidence?.clinicalEpisodeId
+      );
+      // An episode-less discharge from before a known readmission cannot refer to the
+      // active hospitalization. Keep the active bed and ignore the historical evidence.
+      if (!reportedEpisode && activeEpisode) continue;
       nextDiff = appendReportConflict(nextDiff, {
         bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
         rut: row.run,

@@ -309,11 +309,55 @@ describe('useRayenClinicalFill', () => {
 
     await act(async () => result.current(record));
 
+    expect(loadDailyRecord).toHaveBeenCalledTimes(3);
     expect(loadDailyRecord).toHaveBeenCalledWith('2026-07-14');
     expect(patchDailyRecord).not.toHaveBeenCalled();
     expect(completeRun).not.toHaveBeenCalled();
     expect(mocks.beginRayenFill).not.toHaveBeenCalled();
     expect(onSettled).toHaveBeenCalledOnce();
+  });
+
+  it('continues the clinical fill when a second authoritative read exposes the applied run', async () => {
+    const staleRecord = {
+      date: '2026-07-14',
+      beds: {},
+      discharges: [],
+      transfers: [],
+      cma: [],
+      rayenSync: { runId: 'run-persisted-later' },
+    } as unknown as DailyRecord;
+    const freshRecord = {
+      ...staleRecord,
+      ...legacyRunEvidence('run-persisted-later'),
+    } as unknown as DailyRecord;
+    const loadDailyRecord = vi
+      .fn()
+      .mockResolvedValueOnce(staleRecord)
+      .mockResolvedValue(freshRecord);
+    const completeRun = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        tensCatalog: [],
+        loadDailyRecord,
+        patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn(),
+        completeRun,
+        onStaffingProposal: vi.fn(),
+        onSettled: vi.fn(),
+        createId: () => 'id',
+      })
+    );
+
+    await act(async () => result.current(staleRecord));
+
+    expect(loadDailyRecord).toHaveBeenCalledTimes(2);
+    expect(completeRun).toHaveBeenCalledWith(
+      freshRecord,
+      expect.objectContaining({ total: 0, errors: [] }),
+      expect.anything(),
+      'run-persisted-later'
+    );
   });
 
   it('resolves the frozen mode from the fresh authoritative run evidence', async () => {
