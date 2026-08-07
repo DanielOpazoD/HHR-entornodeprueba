@@ -101,6 +101,7 @@ export const useRayenClinicalFill = ({
       const requestedRunId = record.rayenSync?.runId;
       const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}`;
       const outcome = await enqueueLatestRayenClinicalFill(
+        record.date,
         queueKey,
         async ({ startedAfterQueue }) => {
           const { countClinicalFillEligiblePatients, runClinicalFill } =
