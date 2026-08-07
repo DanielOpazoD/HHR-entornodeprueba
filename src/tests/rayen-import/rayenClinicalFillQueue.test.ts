@@ -128,12 +128,17 @@ describe('rayen clinical fill queue', () => {
       order.push('2026-07-27');
       await new Promise<void>(resolve => (release = resolve));
     });
-    const nextDate = enqueueLatestRayenClinicalFill('2026-07-28', 'run-next', async () => {
+    const nextDateTask = vi.fn(async () => {
       order.push('2026-07-28');
     });
-    const laterDate = enqueueLatestRayenClinicalFill('2026-07-29', 'run-later', async () => {
+    const laterDateTask = vi.fn(async () => {
       order.push('2026-07-29');
     });
+    const nextDate = enqueueLatestRayenClinicalFill('2026-07-28', 'run-next', nextDateTask);
+    const laterDate = enqueueLatestRayenClinicalFill('2026-07-29', 'run-later', laterDateTask);
+
+    expect(nextDateTask).not.toHaveBeenCalled();
+    expect(laterDateTask).not.toHaveBeenCalled();
 
     release();
 
@@ -142,6 +147,8 @@ describe('rayen clinical fill queue', () => {
       'completed',
       'drained',
     ]);
+    expect(nextDateTask).toHaveBeenCalledTimes(1);
+    expect(laterDateTask).toHaveBeenCalledTimes(1);
     expect(order).toEqual(['2026-07-27', '2026-07-28', '2026-07-29']);
   });
 
