@@ -53,6 +53,7 @@ import {
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
+import { extractGuardedRayenClinicalPatch } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
@@ -189,17 +190,25 @@ export const updateRecordPartial = async (
 
         const rayenClinicalWriteGuard = options.rayenClinicalWriteGuard;
         if (rayenClinicalWriteGuard) {
+          // Build the callable payload from the original shape so clinical objects stay atomic.
+          // The ordinary flattened payload remains available for the safe direct-write fallback.
+          const guardedPatch = sanitizeForFirestore(
+            extractGuardedRayenClinicalPatch(
+              partialData as unknown as Record<string, unknown>,
+              rayenClinicalWriteGuard.recordScope
+            )
+          ) as Record<string, unknown>;
           return withRetry(
             () =>
               patchDailyRecordWithClinicalAuthorityCallable({
                 date,
-                patch: sanitizedPatch,
+                patch: guardedPatch,
                 expectedLastUpdated,
                 mode: 'shadow',
                 origin: 'legacy_guarded_clinical_patch',
                 rayenClinicalWriteGuard,
                 historyPolicy: options.historyPolicy,
-                syncContract: options.syncContract,
+                syncContract: buildAuthorityPatchSyncContract(options.syncContract, guardedPatch),
               }),
             {
               onRetry: (err: unknown, attempt: number) =>
@@ -331,10 +340,10 @@ export const updateRecordPartial = async (
       };
 
       try {
-        await persist();
+        return await persist();
       } catch (error) {
         if (isPermissionDeniedError(error) && (await tryRefreshCurrentUserRoleClaim(date))) {
-          await persist();
+          return await persist();
         } else {
           throw error;
         }

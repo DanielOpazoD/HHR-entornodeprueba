@@ -4,11 +4,13 @@ const {
   firestoreWriteLoggerWarn,
   firestoreWriteLoggerError,
   mockAssertFirestoreConcurrency,
+  mockFlattenObject,
   mockGetDoc,
 } = vi.hoisted(() => ({
   firestoreWriteLoggerWarn: vi.fn(),
   firestoreWriteLoggerError: vi.fn(),
   mockAssertFirestoreConcurrency: vi.fn(),
+  mockFlattenObject: vi.fn((value: Record<string, unknown>) => value),
   mockGetDoc: vi.fn(),
 }));
 
@@ -54,7 +56,7 @@ vi.mock('@/utils/networkUtils', () => ({
 }));
 
 vi.mock('@/services/storage/firestore/firestoreShared', () => ({
-  flattenObject: vi.fn((value: Record<string, unknown>) => value),
+  flattenObject: mockFlattenObject,
   getRecordDocRef: vi.fn((date: string) => ({ date })),
   sanitizeForFirestore: vi.fn((value: unknown) => value),
 }));
@@ -218,9 +220,14 @@ describe('firestoreRecordWrites authority fallback routing', () => {
       recordScope: 'run' as const,
     };
 
-    await updateRecordPartial(
+    const result = await updateRecordPartial(
       '2026-03-14',
-      { 'beds.R1.vitalSigns': { heartRate: 80 } } as never,
+      {
+        'beds.R1.vitalSigns': { heartRate: 80 },
+        'beds.R1.fhir_resource': { resourceType: 'Patient' },
+        'beds.R1.clinicalEpisodeId': 'episode-1',
+        dateTimestamp: 123,
+      } as never,
       '2026-03-14T10:00:00.000Z',
       { rayenClinicalWriteGuard, historyPolicy: 'skip' }
     );
@@ -234,7 +241,138 @@ describe('firestoreRecordWrites authority fallback routing', () => {
         patch: { 'beds.R1.vitalSigns': { heartRate: 80 } },
       })
     );
+    expect(mockFlattenObject).toHaveBeenCalled();
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
     expect(updateDoc).not.toHaveBeenCalled();
+    expect(result).toEqual({ success: true });
+  });
+
+  it('normalizes nested and dotted-container Rayen patches into atomic guarded paths', async () => {
+    const rayenClinicalWriteGuard = {
+      runId: 'run-nested-1',
+      importMode: 'preview' as const,
+      clinicalBatchMode: 'shadow' as const,
+      revision: 4,
+      sourceDate: '2026-03-14',
+      recordScope: 'run' as const,
+    };
+    const vitalSigns = { heartRate: 82 };
+    const cribScores = { braden: { score: 17 } };
+
+    await updateRecordPartial(
+      '2026-03-14',
+      {
+        beds: {
+          R1: {
+            vitalSigns,
+            fhir_resource: { resourceType: 'Patient' },
+            clinicalCrib: {
+              evaluationScores: cribScores,
+              clinicalEpisodeId: 'crib-episode-1',
+            },
+          },
+        },
+        dateTimestamp: 123,
+      } as never,
+      '2026-03-14T10:00:00.000Z',
+      { rayenClinicalWriteGuard, historyPolicy: 'skip' }
+    );
+
+    expect(mockAuthorityCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patch: {
+          'beds.R1.vitalSigns': vitalSigns,
+          'beds.R1.clinicalCrib.evaluationScores': cribScores,
+        },
+        rayenClinicalWriteGuard,
+      })
+    );
+    expect(mockFlattenObject).toHaveBeenCalled();
+
+    const secondVitalSigns = { heartRate: 84 };
+    await updateRecordPartial(
+      '2026-03-14',
+      {
+        'beds.R2': {
+          vitalSigns: secondVitalSigns,
+          patientName: 'No debe salir',
+        },
+      } as never,
+      '2026-03-14T10:01:00.000Z',
+      { rayenClinicalWriteGuard, historyPolicy: 'skip' }
+    );
+
+    expect(mockAuthorityCallable).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        patch: { 'beds.R2.vitalSigns': secondVitalSigns },
+        rayenClinicalWriteGuard,
+      })
+    );
+  });
+
+  it('keeps a historical CUDYR value atomic when routing through the guarded authority', async () => {
+    const rayenClinicalWriteGuard = {
+      runId: 'run-historical-1',
+      importMode: 'preview' as const,
+      clinicalBatchMode: 'shadow' as const,
+      revision: 4,
+      sourceDate: '2026-03-15',
+      recordScope: 'historical' as const,
+    };
+    const cudyr = {
+      category: 'B1',
+      recordedDate: '2026-03-14',
+      source: 'rayen',
+    };
+
+    await updateRecordPartial(
+      '2026-03-14',
+      {
+        'beds.R1.evaluationScores.cudyr': cudyr,
+        'beds.R1.fhir_resource': { resourceType: 'Patient' },
+        dateTimestamp: 123,
+      } as never,
+      '2026-03-14T10:00:00.000Z',
+      { rayenClinicalWriteGuard, historyPolicy: 'skip' }
+    );
+
+    expect(mockAuthorityCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patch: { 'beds.R1.evaluationScores.cudyr': cudyr },
+        rayenClinicalWriteGuard,
+      })
+    );
+    expect(mockFlattenObject).toHaveBeenCalled();
+  });
+
+  it('normalizes nested historical CUDYR without forwarding adjacent score fields', async () => {
+    const rayenClinicalWriteGuard = {
+      runId: 'run-historical-nested-1',
+      importMode: 'preview' as const,
+      clinicalBatchMode: 'shadow' as const,
+      revision: 4,
+      sourceDate: '2026-03-15',
+      recordScope: 'historical' as const,
+    };
+    const cudyr = { category: 'B2', recordedDate: '2026-03-14', source: 'rayen' };
+
+    await updateRecordPartial(
+      '2026-03-14',
+      {
+        'beds.R1.evaluationScores': {
+          cudyr,
+          braden: { score: 18 },
+        },
+      } as never,
+      '2026-03-14T10:00:00.000Z',
+      { rayenClinicalWriteGuard, historyPolicy: 'skip' }
+    );
+
+    expect(mockAuthorityCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patch: { 'beds.R1.evaluationScores.cudyr': cudyr },
+        rayenClinicalWriteGuard,
+      })
+    );
   });
 });
