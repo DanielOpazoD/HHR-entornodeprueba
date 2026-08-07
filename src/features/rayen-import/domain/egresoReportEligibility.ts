@@ -57,7 +57,7 @@ export const selectEligibleEgresoRows = (
       nextDiff = appendReportConflict(nextDiff, {
         bedId: null,
         rut: row.run,
-        reason: `El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN ${row.run}; no se aplicó.`,
+        reason: `El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN ${run}; no se aplicó.`,
       });
       continue;
     }

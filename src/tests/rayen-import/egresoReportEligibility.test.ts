@@ -85,10 +85,15 @@ describe('egreso report eligibility', () => {
     };
 
     const first = selectEligibleEgresoRows(emptyDiff(), [invalidRow], record);
-    const second = selectEligibleEgresoRows(first.diff, [invalidRow], record);
+    const second = selectEligibleEgresoRows(
+      first.diff,
+      [{ ...invalidRow, run: '111111111' }],
+      record
+    );
 
     expect(second.diff.conflicts).toHaveLength(1);
     expect(second.diff.summary.conflicts).toBe(1);
+    expect(second.diff.conflicts[0]?.reason).toContain('RUN 111111111');
   });
 
   it('does not use an unrelated RUN-less crib as admission evidence', () => {
