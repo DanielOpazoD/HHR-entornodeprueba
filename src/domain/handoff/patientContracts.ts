@@ -26,11 +26,13 @@ export interface HandoffPatientContract {
   age: string;
   birthDate?: string;
   pathology: string;
+  treatingPhysicianName?: string;
   specialty: RootPatientData['specialty'];
   secondarySpecialty?: RootPatientData['secondarySpecialty'];
   status: PatientStatus;
   admissionDate: string;
   admissionTime?: string;
+  clinicalEpisodeId?: string;
   hasWristband: boolean;
   devices: string[];
   deviceDetails?: DeviceDetails;

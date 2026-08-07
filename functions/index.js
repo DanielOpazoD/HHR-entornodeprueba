@@ -29,6 +29,9 @@ const {
   resolveUploadPatientOptionForExactDate,
 } = require('./lib/prescriptionAccessFunctions');
 const { createDocumentScannerFunctions } = require('./lib/documentScannerFunctions');
+const {
+  createMedicalHandoffSpreadsheetFunctions,
+} = require('./lib/medicalHandoffSpreadsheetFunctions');
 
 const authHelpers = createAuthHelpers({ auth, firestore });
 
@@ -84,5 +87,8 @@ module.exports = {
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
     validatePin: validatePinAgainstConfig,
     resolvePatientOption: resolveUploadPatientOptionForExactDate,
+  }),
+  ...createMedicalHandoffSpreadsheetFunctions({
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
 };

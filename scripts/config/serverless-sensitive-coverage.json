@@ -37,6 +37,15 @@
       "functionFile": "functions/lib/rayenClinicalEnrichmentFunctions.js",
       "endpoint": "applyRayenClinicalEnrichmentBatch",
       "testFiles": ["src/tests/functions/rayenClinicalEnrichmentFunctions.test.ts"]
+    },
+    {
+      "id": "medical_handoff_spreadsheet",
+      "functionFile": "functions/lib/medicalHandoffSpreadsheetFunctions.js",
+      "endpoint": "openMedicalHandoffSpreadsheet",
+      "testFiles": [
+        "src/tests/functions/medicalHandoffSpreadsheetFunctions.test.ts",
+        "src/tests/functions/medicalHandoffAppsScript.test.ts"
+      ]
     }
   ]
 }

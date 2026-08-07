@@ -17,6 +17,8 @@ import {
 } from '@/features/handoff/controllers/medicalHandoffTabsController';
 import { MedicalHandoffTabSwitcher } from './MedicalHandoffTabSwitcher';
 import { MedicalHandoffPrintMenu } from './MedicalHandoffPrintMenu';
+import { MedicalHandoffSpreadsheetAction } from './MedicalHandoffSpreadsheetAction';
+import { buildMedicalHandoffSpreadsheetRows } from '@/features/handoff/controllers/medicalHandoffSpreadsheetController';
 
 interface HandoffMedicalContentProps {
   record: DailyRecord;
@@ -101,6 +103,10 @@ export const HandoffMedicalContent: React.FC<HandoffMedicalContentProps> = ({
   const { upcBeds, nonUpcBeds } = splitMedicalBedsByScope(specialtyFilteredBeds, record);
   const upcPatientCount = countScopedPatients(upcBeds, record);
   const nonUpcPatientCount = countScopedPatients(nonUpcBeds, record);
+  const spreadsheetRows = useMemo(
+    () => buildMedicalHandoffSpreadsheetRows(record, effectiveVisibleBeds),
+    [effectiveVisibleBeds, record]
+  );
 
   const handlePrint = (mode: MedicalPrintMode) => {
     setPrintMode(mode);
@@ -188,7 +194,8 @@ export const HandoffMedicalContent: React.FC<HandoffMedicalContentProps> = ({
             />
 
             {canPrint && (
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
+                <MedicalHandoffSpreadsheetAction date={record.date} rows={spreadsheetRows} />
                 <MedicalHandoffPrintMenu
                   upcPatientCount={upcPatientCount}
                   nonUpcPatientCount={nonUpcPatientCount}
