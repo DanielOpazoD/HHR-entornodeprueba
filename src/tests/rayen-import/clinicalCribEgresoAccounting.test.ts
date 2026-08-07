@@ -124,7 +124,7 @@ describe('clinical crib egreso accounting', () => {
     );
   });
 
-  it('keeps a provisional principal admission when an episode-less egreso predates it', () => {
+  it('ignores an episode-less historical egreso that predates a known provisional admission', () => {
     const current = baseRecord({});
     const active = encounter({ encounterId: 'CURRENT-ADMISSION' });
     const diff = reconcileCensus(current, snapshotOf([active]), { reference: REFERENCE });
@@ -136,13 +136,7 @@ describe('clinical crib egreso accounting', () => {
 
     expect(enriched.admissions).toHaveLength(1);
     expect(enriched.reportEgresos ?? []).toHaveLength(0);
-    expect(enriched.conflicts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          reason: expect.stringContaining('anterior a su ingreso activo'),
-        }),
-      ])
-    );
+    expect(enriched.conflicts).toHaveLength(0);
   });
 
   it('records an exact older episode without conflicting with the active readmission', () => {

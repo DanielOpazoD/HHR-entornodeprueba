@@ -38,6 +38,8 @@ import {
   reportRayenSyncWarning,
 } from '../observability/rayenSyncDiagnostics';
 
+const MAX_RUN_POLICY_READ_ATTEMPTS = 3;
+
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
   tensCatalog: string[];
@@ -98,8 +100,18 @@ export const useRayenClinicalFill = ({
           await import('../clinicalFillRunner');
         const requestedEligibleCount = countClinicalFillEligiblePatients(record);
         let freshRecord: DailyRecord;
+        let runPolicy: ReturnType<typeof resolveClinicalEnrichmentBatchPolicyForRun> = 'unavailable';
         try {
           freshRecord = await loadDailyRecord(record.date);
+          runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
+          for (
+            let attempt = 1;
+            runPolicy === 'unavailable' && attempt < MAX_RUN_POLICY_READ_ATTEMPTS;
+            attempt += 1
+          ) {
+            freshRecord = await loadDailyRecord(record.date);
+            runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
+          }
         } catch (error) {
           reportRayenSyncWarning('clinical_record_load_failed', {
             runId: requestedRunId,
@@ -117,7 +129,6 @@ export const useRayenClinicalFill = ({
           ).catch(() => undefined);
           return;
         }
-        const runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
         if (runPolicy === 'unavailable') {
           const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
           reportRayenSyncWarning('clinical_fill_failed', {

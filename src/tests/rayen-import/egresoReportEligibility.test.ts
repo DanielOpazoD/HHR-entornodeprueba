@@ -24,6 +24,78 @@ const emptyDiff = (): CensusImportDiff => ({
 });
 
 describe('egreso report eligibility', () => {
+  it('ignores an episode-less discharge that predates a known active readmission', () => {
+    const record: DailyRecord = {
+      date: '2026-07-10',
+      beds: {
+        R2: {
+          ...EMPTY_PATIENT,
+          bedId: 'R2',
+          patientName: 'Paciente reingresado',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'EPISODE-NEW',
+          admissionDate: '2026-07-10',
+          admissionTime: '10:00',
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const reportRow = {
+      encounterId: '',
+      run: '11.111.111-1',
+      patientName: 'Paciente reingresado',
+      bedLabel: 'R2',
+      servicio: 'Medicina',
+      edad: '50',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: '09-07-2026 12:00',
+    };
+
+    const result = selectEligibleEgresoRows(emptyDiff(), [reportRow], record);
+
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toEqual([]);
+  });
+
+  it('does not duplicate the same report conflict when evidence is reconciled twice', () => {
+    const record: DailyRecord = {
+      date: '2026-07-10',
+      beds: {},
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const invalidRow = {
+      encounterId: 'EPISODE-1',
+      run: '11.111.111-1',
+      patientName: 'Paciente',
+      bedLabel: 'R2',
+      servicio: 'Medicina',
+      edad: '50',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: 'fecha inválida',
+    };
+
+    const first = selectEligibleEgresoRows(emptyDiff(), [invalidRow], record);
+    const second = selectEligibleEgresoRows(
+      first.diff,
+      [{ ...invalidRow, run: '111111111' }],
+      record
+    );
+
+    expect(second.diff.conflicts).toHaveLength(1);
+    expect(second.diff.summary.conflicts).toBe(1);
+    expect(second.diff.conflicts[0]?.reason).toContain('RUN 111111111');
+  });
+
   it('does not use an unrelated RUN-less crib as admission evidence', () => {
     const diff = emptyDiff();
     diff.activeClinicalCribs = [
