@@ -53,6 +53,7 @@ import {
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
+import { buildGuardedRayenFallbackData, extractGuardedRayenClinicalPatch } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
@@ -177,7 +178,18 @@ export const updateRecordPartial = async (
       ...sanitizedPatch,
       lastUpdated: Timestamp.now(),
     }) as Record<string, unknown>;
-
+    const rayenClinicalWriteGuard = options.rayenClinicalWriteGuard;
+    const guardedPatch = rayenClinicalWriteGuard
+      ? (sanitizeForFirestore(
+          extractGuardedRayenClinicalPatch(
+            partialData as unknown as Record<string, unknown>,
+            rayenClinicalWriteGuard.recordScope
+          )
+        ) as Record<string, unknown>)
+      : null;
+    const guardedFallbackData = guardedPatch
+      ? buildGuardedRayenFallbackData(guardedPatch, Timestamp.now())
+      : null;
     try {
       const persist = async () => {
         if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
@@ -187,19 +199,19 @@ export const updateRecordPartial = async (
           });
         }
 
-        const rayenClinicalWriteGuard = options.rayenClinicalWriteGuard;
-        if (rayenClinicalWriteGuard) {
+        if (rayenClinicalWriteGuard && guardedPatch) {
+          // Build the callable payload from the original shape so clinical objects stay atomic.
           return withRetry(
             () =>
               patchDailyRecordWithClinicalAuthorityCallable({
                 date,
-                patch: sanitizedPatch,
+                patch: guardedPatch,
                 expectedLastUpdated,
                 mode: 'shadow',
                 origin: 'legacy_guarded_clinical_patch',
                 rayenClinicalWriteGuard,
                 historyPolicy: options.historyPolicy,
-                syncContract: options.syncContract,
+                syncContract: buildAuthorityPatchSyncContract(options.syncContract, guardedPatch),
               }),
             {
               onRetry: (err: unknown, attempt: number) =>
@@ -208,7 +220,6 @@ export const updateRecordPartial = async (
             }
           );
         }
-
         const isClinicalPatchForAuthority = shouldRouteClinicalAuthorityPatch(sanitizedPatch);
         const authorityPatch = extractClinicalAuthorityPatch(sanitizedPatch);
         const authorityPaths = new Set(Object.keys(authorityPatch));
@@ -331,10 +342,10 @@ export const updateRecordPartial = async (
       };
 
       try {
-        await persist();
+        return await persist();
       } catch (error) {
         if (isPermissionDeniedError(error) && (await tryRefreshCurrentUserRoleClaim(date))) {
-          await persist();
+          return await persist();
         } else {
           throw error;
         }
@@ -343,7 +354,7 @@ export const updateRecordPartial = async (
       const storageError = error as { code?: string };
       if (storageError?.code === 'not-found') {
         firestoreWriteLogger.warn('Firestore write fallback: partialUpdateNotFound', { date });
-        await withRetry(() => setDoc(docRef, sanitizedData, { merge: true }));
+        await withRetry(() => setDoc(docRef, guardedFallbackData ?? sanitizedData, { merge: true }));
       } else {
         throw error;
       }
