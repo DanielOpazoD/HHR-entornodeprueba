@@ -7,6 +7,7 @@ const RAYEN_GUARDED_CLINICAL_FIELDS = new Set([
   'vitalSignsHistory',
   'clinicalSyncCheckpoint',
 ]);
+const UNSAFE_FIELD_PATH_PARTS = new Set(['__proto__', 'prototype', 'constructor']);
 
 const isGuardedRayenClinicalPath = (parts: string[]): boolean => {
   if (parts[0] !== 'beds' || !parts[1]) return false;
@@ -67,6 +68,7 @@ export const extractGuardedRayenClinicalPatch = (
     : isGuardedRayenClinicalPath;
 
   const visit = (parts: string[], value: unknown): void => {
+    if (parts.some(part => UNSAFE_FIELD_PATH_PARTS.has(part))) return;
     if (isAllowedPath(parts)) {
       guardedPatch[parts.join('.')] = value;
       return;
@@ -85,4 +87,34 @@ export const extractGuardedRayenClinicalPatch = (
   }
 
   return guardedPatch;
+};
+
+/** Converts guarded update paths into the nested document shape required by setDoc. */
+export const buildGuardedRayenFallbackData = (
+  guardedPatch: Record<string, unknown>,
+  lastUpdated: unknown
+): Record<string, unknown> => {
+  const nestedData: Record<string, unknown> = {};
+
+  for (const [path, value] of Object.entries(guardedPatch)) {
+    const parts = path.split('.');
+    if (parts.some(part => UNSAFE_FIELD_PATH_PARTS.has(part))) continue;
+    const leaf = parts.pop();
+    if (!leaf) continue;
+    let cursor = nestedData;
+    for (const segment of parts) {
+      const existing = asPatchRecord(cursor[segment]);
+      if (existing) {
+        cursor = existing;
+        continue;
+      }
+      const nested: Record<string, unknown> = {};
+      cursor[segment] = nested;
+      cursor = nested;
+    }
+    cursor[leaf] = value;
+  }
+
+  nestedData.lastUpdated = lastUpdated;
+  return nestedData;
 };

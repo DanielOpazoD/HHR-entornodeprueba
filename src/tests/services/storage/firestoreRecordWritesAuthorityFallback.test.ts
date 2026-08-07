@@ -97,7 +97,7 @@ vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   },
 }));
 
-import { updateDoc } from 'firebase/firestore';
+import { setDoc, updateDoc } from 'firebase/firestore';
 import { updateRecordPartial } from '@/services/storage/firestore/firestoreRecordWrites';
 import { saveHistorySnapshot } from '@/services/storage/firestore/firestoreWriteSupport';
 
@@ -245,6 +245,45 @@ describe('firestoreRecordWrites authority fallback routing', () => {
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
     expect(updateDoc).not.toHaveBeenCalled();
     expect(result).toEqual({ success: true });
+  });
+
+  it('keeps excluded Rayen fields out of the guarded not-found fallback', async () => {
+    const rayenClinicalWriteGuard = {
+      runId: 'run-fallback-1',
+      importMode: 'preview' as const,
+      clinicalBatchMode: 'shadow' as const,
+      revision: 4,
+      sourceDate: '2026-03-14',
+      recordScope: 'run' as const,
+    };
+    const vitalSigns = { heartRate: 80 };
+    mockAuthorityCallable.mockRejectedValueOnce({ code: 'not-found' });
+
+    await updateRecordPartial(
+      '2026-03-14',
+      {
+        'beds.R1.vitalSigns': vitalSigns,
+        'beds.R1.fhir_resource': { resourceType: 'Patient' },
+        'beds.R1.clinicalEpisodeId': 'episode-1',
+        dateTimestamp: 123,
+      } as never,
+      '2026-03-14T10:00:00.000Z',
+      { rayenClinicalWriteGuard, historyPolicy: 'skip' }
+    );
+
+    expect(setDoc).toHaveBeenCalledWith(
+      { date: '2026-03-14' },
+      expect.objectContaining({
+        beds: { R1: { vitalSigns } },
+        lastUpdated: expect.anything(),
+      }),
+      { merge: true }
+    );
+    const fallbackPayload = vi.mocked(setDoc).mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(fallbackPayload).toEqual({
+      beds: { R1: { vitalSigns } },
+      lastUpdated: expect.anything(),
+    });
   });
 
   it('normalizes nested and dotted-container Rayen patches into atomic guarded paths', async () => {
