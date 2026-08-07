@@ -9,6 +9,7 @@ const HANDOFF_SPREADSHEET_ALLOWED_ROLES = new Set([
   'editor',
 ]);
 const MAX_ROWS = 80;
+const APPS_SCRIPT_TIMEOUT_MS = 50_000;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const STABLE_KEY_PATTERN = /^[A-Za-z0-9:._-]+$/;
 const SPREADSHEET_URL_PATTERN = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[\w-]+(?:\/.*)?$/;
@@ -173,6 +174,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
   resolveRoleForEmail,
   fetchImpl = global.fetch,
   readConfig = defaultReadConfig,
+  auditLogger = console.info,
 }) => ({
   openMedicalHandoffSpreadsheet: functions
     .runWith({
@@ -213,6 +215,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
         response = await fetchImpl(appsScriptUrl, {
           method: 'POST',
           redirect: 'follow',
+          signal: AbortSignal.timeout(APPS_SCRIPT_TIMEOUT_MS),
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             action: 'openOrCreate',
@@ -245,8 +248,17 @@ const createMedicalHandoffSpreadsheetFunctions = ({
         );
       }
 
+      const result = parseGatewayResponse(gatewayResponse);
+      auditLogger({
+        event: 'MEDICAL_HANDOFF_SHEET_EXPORTED',
+        actorUid: context.auth?.uid || null,
+        date,
+        rowCount: result.rowCount,
+        created: result.created,
+      });
+
       return {
-        ...parseGatewayResponse(gatewayResponse),
+        ...result,
         date,
       };
     }),

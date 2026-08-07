@@ -1,3 +1,4 @@
+import hashJs from 'hash.js';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
 import type { HandoffPatientContract } from '@/domain/handoff/patientContracts';
@@ -12,6 +13,16 @@ export interface MedicalHandoffSpreadsheetRow {
   treatingPhysician: string;
 }
 
+export const MEDICAL_HANDOFF_SPREADSHEET_MAX_ROWS = 80;
+
+const hashStableKeyPart = (value: string): string =>
+  hashJs
+    .sha384()
+    .update(new TextEncoder().encode(value))
+    .digest()
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+
 const normalizeKeyPart = (value: string): string =>
   value
     .normalize('NFD')
@@ -22,9 +33,9 @@ const normalizeKeyPart = (value: string): string =>
     .replace(/^-+|-+$/g, '');
 
 const buildStableKey = (patient: HandoffPatientContract, fallbackBedId: string): string => {
-  const episodeId = patient.clinicalEpisodeId?.trim();
+  const episodeId = patient.clinicalEpisodeId?.trim() || '';
   if (episodeId) {
-    return `episode:${episodeId}`;
+    return `episode-h1:${hashStableKeyPart(episodeId)}`;
   }
 
   return `bed:${normalizeKeyPart(fallbackBedId)}:${normalizeKeyPart(patient.patientName)}`;
@@ -68,8 +79,10 @@ export const buildMedicalHandoffSpreadsheetRows = (
       })
     );
 
+    // `clinicalCrib` is the current source of truth. `hasCompanionCrib` is a
+    // legacy presentation flag and can remain false on migrated active cribs.
     const crib = patient.clinicalCrib;
-    if (patient.hasCompanionCrib && crib && !crib.isBlocked && crib.patientName.trim()) {
+    if (crib?.patientName.trim()) {
       rows.push(
         buildRow({
           patient: crib,

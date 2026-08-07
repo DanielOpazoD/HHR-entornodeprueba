@@ -77,4 +77,27 @@ describe('MedicalHandoffSpreadsheetAction', () => {
 
     expect(screen.getByRole('button', { name: /crear planilla/i })).toBeDisabled();
   });
+
+  it('does not call the backend when occupied beds and cribs exceed the row limit', () => {
+    const openSpreadsheet = vi.fn();
+    const oversizedRows = Array.from({ length: 81 }, (_, index) => ({
+      ...rows[0],
+      stableKey: `episode:${index}`,
+    }));
+
+    render(
+      <MedicalHandoffSpreadsheetAction
+        date="2026-08-07"
+        rows={oversizedRows}
+        openSpreadsheet={openSpreadsheet}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /crear planilla/i }));
+
+    expect(openSpreadsheet).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      'No se pudo preparar la planilla',
+      expect.stringContaining('máximo de 80 filas')
+    );
+  });
 });

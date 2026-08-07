@@ -9,6 +9,7 @@
 
 const HHR_HANDOFF_PROPERTY_PREFIX = 'HHR_MEDICAL_HANDOFF_';
 const HHR_HANDOFF_SHEET_NAME = 'Entrega médica';
+const HHR_HANDOFF_HASHED_EPISODE_KEY_PATTERN = /^episode-h1:[a-f0-9]{96}$/;
 const HHR_HANDOFF_HEADERS = [
   'Cama',
   'Paciente',
@@ -36,7 +37,8 @@ function doPost(event) {
     } finally {
       lock.releaseLock();
     }
-  } catch (_error) {
+  } catch (error) {
+    console.error('medical-handoff doPost failed: ' + (error && error.message));
     return jsonHhrResponse_({
       ok: false,
       error: 'No fue posible preparar la planilla institucional.',
@@ -88,7 +90,7 @@ function validateHhrRequest_(payload) {
         throw new Error('Fila inválida.');
       }
       const normalizedRow = {
-        stableKey: requireHhrText_(row.stableKey, 180),
+        stableKey: canonicalHhrStableKey_(requireHhrText_(row.stableKey, 180)),
         bed: requireHhrText_(row.bed, 50),
         patientName: requireHhrText_(row.patientName, 180),
         age: optionalHhrText_(row.age, 40),
@@ -132,6 +134,32 @@ function optionalHhrText_(value, maxLength) {
   return normalized;
 }
 
+function canonicalHhrStableKey_(value) {
+  const stableKey = String(value || '')
+    .trim()
+    .replace(/^'/, '');
+  if (HHR_HANDOFF_HASHED_EPISODE_KEY_PATTERN.test(stableKey)) {
+    return stableKey;
+  }
+  if (!stableKey.startsWith('episode:')) return stableKey;
+
+  const legacyEpisodeId = stableKey.slice('episode:'.length);
+  return legacyEpisodeId ? 'episode-h1:' + hashHhrText_(legacyEpisodeId) : stableKey;
+}
+
+function hashHhrText_(value) {
+  const digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_384,
+    value,
+    Utilities.Charset.UTF_8
+  );
+  return digest
+    .map(function (byte) {
+      return ((byte + 256) % 256).toString(16).padStart(2, '0');
+    })
+    .join('');
+}
+
 function openOrCreateHhrHandoff_(request) {
   const properties = PropertiesService.getScriptProperties();
   const propertyKey = HHR_HANDOFF_PROPERTY_PREFIX + request.date.replace(/-/g, '_');
@@ -145,7 +173,10 @@ function openOrCreateHhrHandoff_(request) {
     created = true;
   }
 
+  // Reconcile on every request so retries recover transient Drive failures and
+  // newly configured editors gain access to an existing daily spreadsheet.
   grantConfiguredHhrEditors_(spreadsheet.getId());
+
   const sheet = resolveHhrSheet_(spreadsheet);
   upsertHhrRows_(sheet, request.rows);
   configureHhrSheet_(sheet);
@@ -216,16 +247,30 @@ function upsertHhrRows_(sheet, incomingRows) {
 }
 
 function mergeHhrRows_(existingRows, incomingRows) {
-  const mergedRows = existingRows.map(function (row) {
-    return row.slice();
-  });
+  const mergedRows = [];
   const rowIndexByKey = {};
-  mergedRows.forEach(function (row, index) {
-    const stableKey = String(row[7] || '').trim();
-    if (stableKey) rowIndexByKey[stableKey] = index;
+  existingRows.forEach(function (existingRow) {
+    const row = existingRow.slice();
+    const stableKey = canonicalHhrStableKey_(row[7]);
+    if (!stableKey) {
+      mergedRows.push(row);
+      return;
+    }
+
+    row[7] = safeHhrCell_(stableKey);
+    const duplicateIndex = rowIndexByKey[stableKey];
+    if (duplicateIndex === undefined) {
+      rowIndexByKey[stableKey] = mergedRows.length;
+      mergedRows.push(row);
+      return;
+    }
+
+    row[6] = mergeHhrHandoffText_(mergedRows[duplicateIndex][6], row[6]);
+    mergedRows[duplicateIndex] = row;
   });
 
   incomingRows.forEach(function (row) {
+    const stableKey = canonicalHhrStableKey_(row.stableKey);
     const nextValues = [
       safeHhrCell_(row.bed),
       safeHhrCell_(row.patientName),
@@ -234,11 +279,11 @@ function mergeHhrRows_(existingRows, incomingRows) {
       safeHhrCell_(row.specialty),
       safeHhrCell_(row.treatingPhysician),
       '',
-      row.stableKey,
+      safeHhrCell_(stableKey),
     ];
-    const existingIndex = rowIndexByKey[row.stableKey];
+    const existingIndex = rowIndexByKey[stableKey];
     if (existingIndex === undefined) {
-      rowIndexByKey[row.stableKey] = mergedRows.length;
+      rowIndexByKey[stableKey] = mergedRows.length;
       mergedRows.push(nextValues);
       return;
     }
@@ -248,6 +293,14 @@ function mergeHhrRows_(existingRows, incomingRows) {
   });
 
   return mergedRows;
+}
+
+function mergeHhrHandoffText_(firstValue, secondValue) {
+  const first = String(firstValue || '').trim();
+  const second = String(secondValue || '').trim();
+  if (!first) return secondValue || '';
+  if (!second || first === second) return firstValue;
+  return firstValue + '\n\n---\n\n' + secondValue;
 }
 
 function safeHhrCell_(value) {

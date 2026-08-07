@@ -56,23 +56,23 @@ describe('medicalHandoffSpreadsheetController', () => {
 
     const rows = buildMedicalHandoffSpreadsheetRows(record, beds);
 
-    expect(rows).toEqual([
-      {
-        stableKey: 'episode:episode-101',
-        bed: 'R1',
-        patientName: 'Paciente Uno',
-        age: '52a',
-        diagnosis: 'Diagnóstico principal',
-        specialty: Specialty.MEDICINA,
-        treatingPhysician: 'Dra. Aravena',
-      },
-    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      bed: 'R1',
+      patientName: 'Paciente Uno',
+      age: '52a',
+      diagnosis: 'Diagnóstico principal',
+      specialty: Specialty.MEDICINA,
+      treatingPhysician: 'Dra. Aravena',
+    });
+    expect(rows[0].stableKey).toMatch(/^episode-h1:[a-f0-9]{96}$/);
     expect(rows[0]).not.toHaveProperty('rut');
   });
 
   it('includes a companion newborn as a separate handoff row', () => {
     const crib = createPatient({
       bedId: 'R1-CUNA',
+      isBlocked: true,
       bedMode: 'Cuna',
       patientName: 'RN de Paciente Uno',
       age: '1d',
@@ -81,17 +81,17 @@ describe('medicalHandoffSpreadsheetController', () => {
       clinicalEpisodeId: 'episode-rn-202',
     });
     const record = createRecord({
-      R1: createPatient({ hasCompanionCrib: true, clinicalCrib: crib }),
+      R1: createPatient({ hasCompanionCrib: false, clinicalCrib: crib }),
     });
 
     const rows = buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1));
 
     expect(rows).toHaveLength(2);
     expect(rows[1]).toMatchObject({
-      stableKey: 'episode:episode-rn-202',
       bed: 'Cuna RN (R1)',
       patientName: 'RN de Paciente Uno',
     });
+    expect(rows[1].stableKey).toMatch(/^episode-h1:[a-f0-9]{96}$/);
   });
 
   it('builds a deterministic fallback key without exposing the RUT', () => {
@@ -105,5 +105,20 @@ describe('medicalHandoffSpreadsheetController', () => {
     expect(first[0].stableKey).toBe('bed:r1:paciente-uno');
     expect(second[0].stableKey).toBe(first[0].stableKey);
     expect(JSON.stringify(first)).not.toContain('22.222.222-2');
+  });
+
+  it('hashes the complete episode identifier without case or truncation collisions', () => {
+    const buildKey = (clinicalEpisodeId: string): string => {
+      const record = createRecord({ R1: createPatient({ clinicalEpisodeId }) });
+      return buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1))[0].stableKey;
+    };
+    const longPrefix = 'episode-' + 'a'.repeat(220);
+
+    const first = buildKey('ABC');
+
+    expect(first).toMatch(/^episode-h1:[a-f0-9]{96}$/);
+    expect(buildKey('ABC')).toBe(first);
+    expect(buildKey('abc')).not.toBe(first);
+    expect(buildKey(`${longPrefix}-one`)).not.toBe(buildKey(`${longPrefix}-two`));
   });
 });

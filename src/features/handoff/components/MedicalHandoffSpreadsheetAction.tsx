@@ -2,11 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { ExternalLink, FileSpreadsheet, LoaderCircle } from 'lucide-react';
 
 import { useNotification } from '@/context/UIContext';
-import type { MedicalHandoffSpreadsheetRow } from '@/features/handoff/controllers/medicalHandoffSpreadsheetController';
+import {
+  MEDICAL_HANDOFF_SPREADSHEET_MAX_ROWS,
+  type MedicalHandoffSpreadsheetRow,
+} from '@/features/handoff/controllers/medicalHandoffSpreadsheetController';
 import {
   openOrCreateMedicalHandoffSpreadsheet,
   type OpenMedicalHandoffSpreadsheetResult,
 } from '@/features/handoff/services/medicalHandoffSpreadsheetService';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { getErrorMessage } from '@/types/valueTypes';
 
 interface MedicalHandoffSpreadsheetActionProps {
@@ -32,12 +36,23 @@ export const MedicalHandoffSpreadsheetAction: React.FC<MedicalHandoffSpreadsheet
   }, [date, rows]);
 
   const handleOpen = async () => {
-    if (spreadsheetUrl) {
-      window.open(spreadsheetUrl, '_blank', 'noopener,noreferrer');
+    if (rows.length > MEDICAL_HANDOFF_SPREADSHEET_MAX_ROWS) {
+      error(
+        'No se pudo preparar la planilla',
+        `Las camas ocupadas y cunas RN superan el máximo de ${MEDICAL_HANDOFF_SPREADSHEET_MAX_ROWS} filas.`
+      );
       return;
     }
 
-    const pendingWindow = window.open('about:blank', '_blank');
+    if (spreadsheetUrl) {
+      const spreadsheetWindow = defaultBrowserWindowRuntime.open(spreadsheetUrl, '_blank');
+      if (spreadsheetWindow) {
+        spreadsheetWindow.opener = null;
+      }
+      return;
+    }
+
+    const pendingWindow = defaultBrowserWindowRuntime.open('about:blank', '_blank');
     if (pendingWindow) {
       pendingWindow.opener = null;
       pendingWindow.document.title = 'Preparando planilla de entrega...';

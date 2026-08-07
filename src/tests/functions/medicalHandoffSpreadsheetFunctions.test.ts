@@ -156,10 +156,12 @@ describe('functions medicalHandoffSpreadsheetFunctions', () => {
 
   it('sends only allowlisted handoff columns and returns the spreadsheet URL', async () => {
     const resolveRoleForEmail = vi.fn().mockResolvedValue('doctor_urgency');
+    const auditLogger = vi.fn();
     const functionsApi = createMedicalHandoffSpreadsheetFunctions({
       resolveRoleForEmail,
       fetchImpl: successfulFetch,
       readConfig: () => validConfig,
+      auditLogger,
     });
 
     const result = await functionsApi.openMedicalHandoffSpreadsheet.run(
@@ -187,6 +189,70 @@ describe('functions medicalHandoffSpreadsheetFunctions', () => {
       treatingPhysician: 'Dra. Aravena',
     });
     expect(sentPayload.rows[0]).not.toHaveProperty('rut');
+    expect(auditLogger).toHaveBeenCalledWith({
+      event: 'MEDICAL_HANDOFF_SHEET_EXPORTED',
+      actorUid: 'user-1',
+      date: '2026-08-07',
+      rowCount: 1,
+      created: true,
+    });
+    expect(JSON.stringify(auditLogger.mock.calls)).not.toContain('Paciente Uno');
+    expect(requestInit.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it.each([
+    {
+      name: 'rejects a gateway response with an attacker-controlled spreadsheet host',
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(
+          JSON.stringify({
+            ok: true,
+            spreadsheetUrl: 'https://attacker.example/spreadsheets/d/sheet-id/edit',
+          })
+        ),
+      }),
+    },
+    {
+      name: 'rejects a gateway response that reports failure',
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ ok: false })),
+      }),
+    },
+    {
+      name: 'maps a transport rejection to unavailable',
+      fetchImpl: vi.fn().mockRejectedValue(new Error('network failed')),
+    },
+    {
+      name: 'maps an Apps Script HTTP failure to unavailable',
+      fetchImpl: vi.fn().mockResolvedValue({ ok: false }),
+    },
+  ])('$name', async ({ fetchImpl }) => {
+    const functionsApi = createMedicalHandoffSpreadsheetFunctions({
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      fetchImpl,
+      readConfig: () => validConfig,
+      auditLogger: vi.fn(),
+    });
+
+    await expect(
+      functionsApi.openMedicalHandoffSpreadsheet.run(validRequest, authorizedContext)
+    ).rejects.toMatchObject({ code: 'unavailable' });
+  });
+
+  it('maps an Apps Script timeout to unavailable', async () => {
+    const timeoutError = Object.assign(new Error('timed out'), { name: 'AbortError' });
+    const functionsApi = createMedicalHandoffSpreadsheetFunctions({
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      fetchImpl: vi.fn().mockRejectedValue(timeoutError),
+      readConfig: () => validConfig,
+      auditLogger: vi.fn(),
+    });
+
+    await expect(
+      functionsApi.openMedicalHandoffSpreadsheet.run(validRequest, authorizedContext)
+    ).rejects.toMatchObject({ code: 'unavailable' });
   });
 
   it('keeps the callable exported from the deployable entrypoint', () => {
