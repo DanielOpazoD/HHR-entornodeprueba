@@ -143,7 +143,7 @@ desactiva este cerco.
 | `hooks/useRayenExtensionHealth.ts`              | Estado listo/parcial/bloqueado y refresco al recuperar foco                |
 | `hooks/useRayenImport.ts`                       | Orquesta plan→(preview\|auto)→apply→guardar (`useSaveDailyRecordMutation`) |
 | `hooks/useRayenSyncAudit.ts`                    | Coordina inicio, aplicación, cobertura final y fallo sanitizado            |
-| `hooks/useRayenClinicalFill.ts`                 | Ejecuta enriquecimiento y cierra la evidencia técnica del run              |
+| `hooks/useRayenClinicalFill.ts`                 | Consume el censo confirmado, enriquece y cierra la evidencia técnica       |
 | `components/RayenImportButton.tsx`              | Botón "Sincronizar Eloísa" (barra del censo)                               |
 | `components/RayenImportPreviewModal.tsx`        | Modal de preview del diff (BaseModal)                                      |
 | `components/RayenSyncHistoryModal.tsx`          | Historial operativo del día, sin información clínica individual            |
@@ -163,6 +163,10 @@ desactiva este cerco.
 - **CMA = tipo de egreso, no ubicación:** un paciente del servicio CMA (`CMA*`) ocupa la misma
   cama real (`CMAR1→R1`, `CMAN1→NEO1`, …); solo su egreso se traduce a tipo CMA (`record.cma[]`).
 - **Apply defensivo:** nunca sobrescribe una cama ocupada; reporta lo omitido (`skipped`).
+- **Traspaso estructural→clínico:** el guardado entrega un comprobante en memoria de la versión
+  exacta y aplicada del mismo día/run. Sólo ese comprobante evita una lectura redundante; los
+  reintentos y rutas legadas leen una vez la autoridad. Si el llenado esperó en cola, revalida al
+  comenzar y se descarta si un `runId` más nuevo ya reemplazó su estructura.
 - **Orden independiente:** las reubicaciones se planifican como lote; cadenas y permutas liberan
   sus orígenes antes de los ingresos, mientras una cadena bloqueada no libera ninguna cama.
 - **Trazabilidad sin PHI del paciente:** `rayenSyncHistory` guarda actor, tiempos, duración, salud

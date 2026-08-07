@@ -7,9 +7,14 @@ import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import {
-  assertRayenCensusPersistenceConfirmed,
+  resolveConfirmedRayenCensusHandoff,
+  type ConfirmedRayenCensusHandoff,
   type RayenCensusPersistencePayload,
 } from './rayenCensusPersistenceGuard';
+
+export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
+  confirmedHandoff: ConfirmedRayenCensusHandoff;
+}
 
 interface RayenCensusDiffApplicationInput {
   ensureRun: () => RayenSyncRun;
@@ -26,7 +31,10 @@ export const useRayenCensusDiffApplication = ({
   recordRunPerformance,
 }: RayenCensusDiffApplicationInput) =>
   useCallback(
-    async (record: DailyRecord, diff: CensusImportDiff): Promise<ApplyResult> => {
+    async (
+      record: DailyRecord,
+      diff: CensusImportDiff
+    ): Promise<ConfirmedRayenCensusApplyResult> => {
       const run = ensureRun();
       const result = applyCensusImportDiff(record, diff, {
         idFactory: () => crypto.randomUUID(),
@@ -36,7 +44,10 @@ export const useRayenCensusDiffApplication = ({
       const stamped = applyRunToRecord(result.record, diff).record;
       const startedAt = Date.now();
       const persistence = await saveDailyRecord(stamped);
-      assertRayenCensusPersistenceConfirmed(persistence);
+      const confirmedHandoff = resolveConfirmedRayenCensusHandoff(persistence, {
+        date: stamped.date,
+        runId: run.id,
+      });
       recordRunPerformance(
         {
           stagesMs: { persistence: elapsedMilliseconds(startedAt) },
@@ -44,7 +55,7 @@ export const useRayenCensusDiffApplication = ({
         },
         run.id
       );
-      return { ...result, record: stamped };
+      return { ...result, record: confirmedHandoff.record, confirmedHandoff };
     },
     [applyRunToRecord, ensureRun, recordRunPerformance, saveDailyRecord]
   );

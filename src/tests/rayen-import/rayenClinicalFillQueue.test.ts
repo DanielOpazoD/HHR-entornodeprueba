@@ -16,8 +16,16 @@ describe('rayen clinical fill queue', () => {
     let release!: () => void;
     const task = vi.fn(() => new Promise<void>(resolve => (release = resolve)));
 
-    const first = enqueueLatestRayenClinicalFill('2026-07-27|run-1', task);
-    const duplicate = enqueueLatestRayenClinicalFill('2026-07-27|run-1', task);
+    const first = enqueueLatestRayenClinicalFill(
+      '2026-07-27',
+      '2026-07-27|run-1',
+      task
+    );
+    const duplicate = enqueueLatestRayenClinicalFill(
+      '2026-07-27',
+      '2026-07-27|run-1',
+      task
+    );
     expect(task).toHaveBeenCalledTimes(1);
     release();
 
@@ -27,14 +35,14 @@ describe('rayen clinical fill queue', () => {
   it('keeps only the latest pending run while the active run finishes', async () => {
     let release!: () => void;
     const order: string[] = [];
-    const active = enqueueLatestRayenClinicalFill('run-1', async () => {
+    const active = enqueueLatestRayenClinicalFill('2026-07-27', 'run-1', async () => {
       order.push('run-1');
       await new Promise<void>(resolve => (release = resolve));
     });
-    const superseded = enqueueLatestRayenClinicalFill('run-2', async () => {
+    const superseded = enqueueLatestRayenClinicalFill('2026-07-27', 'run-2', async () => {
       order.push('run-2');
     });
-    const latest = enqueueLatestRayenClinicalFill('run-3', async () => {
+    const latest = enqueueLatestRayenClinicalFill('2026-07-27', 'run-3', async () => {
       order.push('run-3');
     });
 
@@ -44,14 +52,30 @@ describe('rayen clinical fill queue', () => {
     expect(order).toEqual(['run-1', 'run-3']);
   });
 
+  it('tells a task whether it started immediately or after waiting in the queue', async () => {
+    let release!: () => void;
+    const immediateTask = vi.fn(() => new Promise<void>(resolve => (release = resolve)));
+    const queuedTask = vi.fn().mockResolvedValue(undefined);
+
+    const immediate = enqueueLatestRayenClinicalFill('2026-07-27', 'run-1', immediateTask);
+    const queued = enqueueLatestRayenClinicalFill('2026-07-27', 'run-2', queuedTask);
+
+    expect(immediateTask).toHaveBeenCalledWith({ startedAfterQueue: false });
+    expect(queuedTask).not.toHaveBeenCalled();
+
+    release();
+    await expect(Promise.all([immediate, queued])).resolves.toEqual(['completed', 'drained']);
+    expect(queuedTask).toHaveBeenCalledWith({ startedAfterQueue: true });
+  });
+
   it('records synchronous task failures without leaking details or blocking the pending run', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    const failed = enqueueLatestRayenClinicalFill('run-1', () => {
+    const failed = enqueueLatestRayenClinicalFill('2026-07-27', 'run-1', () => {
       throw new Error('sensitive provider detail');
     });
     const nextTask = vi.fn().mockResolvedValue(undefined);
-    const next = enqueueLatestRayenClinicalFill('run-2', nextTask);
+    const next = enqueueLatestRayenClinicalFill('2026-07-27', 'run-2', nextTask);
 
     await expect(Promise.all([failed, next])).resolves.toEqual(['completed', 'drained']);
 
@@ -61,7 +85,7 @@ describe('rayen clinical fill queue', () => {
         level: 'warn',
         message: 'clinical_fill_queue_task_failed',
         context: 'RayenSync',
-        data: { errorKind: 'unexpected' },
+        data: { date: '2026-07-27', errorKind: 'unexpected' },
       })
     );
     expect(JSON.stringify(logger.getEntries())).not.toContain('sensitive provider detail');
@@ -71,6 +95,7 @@ describe('rayen clinical fill queue', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     let rejectActive!: (error: Error) => void;
     const failed = enqueueLatestRayenClinicalFill(
+      '2026-07-27',
       'run-1',
       () =>
         new Promise<void>((_resolve, reject) => {
@@ -78,7 +103,7 @@ describe('rayen clinical fill queue', () => {
         })
     );
     const nextTask = vi.fn().mockResolvedValue(undefined);
-    const next = enqueueLatestRayenClinicalFill('run-2', nextTask);
+    const next = enqueueLatestRayenClinicalFill('2026-07-27', 'run-2', nextTask);
 
     expect(nextTask).not.toHaveBeenCalled();
     rejectActive(new Error('another sensitive provider detail'));
@@ -90,9 +115,57 @@ describe('rayen clinical fill queue', () => {
         level: 'warn',
         message: 'clinical_fill_queue_task_failed',
         context: 'RayenSync',
-        data: { errorKind: 'unexpected' },
+        data: { date: '2026-07-27', errorKind: 'unexpected' },
       })
     );
     expect(JSON.stringify(logger.getEntries())).not.toContain('another sensitive provider detail');
+  });
+
+  it('preserves pending fills for different census dates', async () => {
+    let release!: () => void;
+    const order: string[] = [];
+    const active = enqueueLatestRayenClinicalFill('2026-07-27', 'run-active', async () => {
+      order.push('2026-07-27');
+      await new Promise<void>(resolve => (release = resolve));
+    });
+    const nextDateTask = vi.fn(async () => {
+      order.push('2026-07-28');
+    });
+    const laterDateTask = vi.fn(async () => {
+      order.push('2026-07-29');
+    });
+    const nextDate = enqueueLatestRayenClinicalFill('2026-07-28', 'run-next', nextDateTask);
+    const laterDate = enqueueLatestRayenClinicalFill('2026-07-29', 'run-later', laterDateTask);
+
+    expect(nextDateTask).not.toHaveBeenCalled();
+    expect(laterDateTask).not.toHaveBeenCalled();
+
+    release();
+
+    await expect(Promise.all([active, nextDate, laterDate])).resolves.toEqual([
+      'completed',
+      'completed',
+      'drained',
+    ]);
+    expect(nextDateTask).toHaveBeenCalledTimes(1);
+    expect(laterDateTask).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(['2026-07-27', '2026-07-28', '2026-07-29']);
+  });
+
+  it('does not coalesce an active key reused by a different census date', async () => {
+    let release!: () => void;
+    const order: string[] = [];
+    const active = enqueueLatestRayenClinicalFill('2026-07-27', 'shared-key', async () => {
+      order.push('2026-07-27');
+      await new Promise<void>(resolve => (release = resolve));
+    });
+    const nextDate = enqueueLatestRayenClinicalFill('2026-07-28', 'shared-key', async () => {
+      order.push('2026-07-28');
+    });
+
+    release();
+
+    await expect(Promise.all([active, nextDate])).resolves.toEqual(['completed', 'drained']);
+    expect(order).toEqual(['2026-07-27', '2026-07-28']);
   });
 });

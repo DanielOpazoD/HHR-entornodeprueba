@@ -37,8 +37,10 @@ import {
   classifyRayenSyncError,
   reportRayenSyncWarning,
 } from '../observability/rayenSyncDiagnostics';
-
-const MAX_RUN_POLICY_READ_ATTEMPTS = 3;
+import {
+  isConfirmedRayenCensusHandoff,
+  type ConfirmedRayenCensusHandoff,
+} from './rayenCensusPersistenceGuard';
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
@@ -92,170 +94,187 @@ export const useRayenClinicalFill = ({
   createId,
 }: UseRayenClinicalFillInput) =>
   useCallback(
-    async (record: DailyRecord): Promise<void> => {
+    async (source: DailyRecord | ConfirmedRayenCensusHandoff): Promise<void> => {
+      const isConfirmedHandoff = isConfirmedRayenCensusHandoff(source);
+      const confirmedHandoff = isConfirmedHandoff ? source : null;
+      const record: DailyRecord = isConfirmedHandoff ? source.record : source;
       const requestedRunId = record.rayenSync?.runId;
       const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}`;
-      const outcome = await enqueueLatestRayenClinicalFill(queueKey, async () => {
-        const { countClinicalFillEligiblePatients, runClinicalFill } =
-          await import('../clinicalFillRunner');
-        const requestedEligibleCount = countClinicalFillEligiblePatients(record);
-        let freshRecord: DailyRecord;
-        let runPolicy: ReturnType<typeof resolveClinicalEnrichmentBatchPolicyForRun> = 'unavailable';
-        try {
-          freshRecord = await loadDailyRecord(record.date);
-          runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
-          for (
-            let attempt = 1;
-            runPolicy === 'unavailable' && attempt < MAX_RUN_POLICY_READ_ATTEMPTS;
-            attempt += 1
-          ) {
-            freshRecord = await loadDailyRecord(record.date);
-            runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
-          }
-        } catch (error) {
-          reportRayenSyncWarning('clinical_record_load_failed', {
-            runId: requestedRunId,
-            errorKind: classifyRayenSyncError(error),
-          });
-          await completeRun(
-            record,
-            {
-              total: requestedEligibleCount,
-              patched: 0,
-              errors: [{ bedId: '*', source: 'patch', message: 'clinical_record_load_failed' }],
-            },
-            null,
-            requestedRunId
-          ).catch(() => undefined);
-          return;
-        }
-        if (runPolicy === 'unavailable') {
-          const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
-          reportRayenSyncWarning('clinical_fill_failed', {
-            runId: requestedRunId,
-            errorKind: 'policy_unavailable',
-            patientCount: eligibleCount,
-          });
-          // The structural save can become visible before its run event during propagation.
-          // Keep the run in its applied/pending state so the established retry path can resume it.
-          return;
-        }
-        const batchMode = runPolicy.clinicalBatchMode;
-        const legacyWriterEnabled = usesLegacyClinicalWriter(batchMode);
-        const historicalWriteGuard: RayenClinicalWriteGuard | undefined = legacyWriterEnabled
-          ? { ...runPolicy, recordScope: 'historical' }
-          : undefined;
-        const historicalCudyrPersistence = historicalWriteGuard
-          ? {
-              applyHistoricalCudyr: (encId: string, censusDay: string, cudyr: ImportedCudyr) =>
-                applyHistoricalCudyr(encId, censusDay, cudyr, historicalWriteGuard),
-              applyHistoricalCudyrBatch: applyHistoricalCudyrBatch
-                ? (censusDay: string, items: HistoricalCudyrBatchItem[]) =>
-                    applyHistoricalCudyrBatch(censusDay, items, historicalWriteGuard)
-                : undefined,
+      const outcome = await enqueueLatestRayenClinicalFill(
+        record.date,
+        queueKey,
+        async ({ startedAfterQueue }) => {
+          const { countClinicalFillEligiblePatients, runClinicalFill } =
+            await import('../clinicalFillRunner');
+          const requestedEligibleCount = countClinicalFillEligiblePatients(record);
+          // The immediate path consumes the exact structural record just accepted by persistence.
+          // A task that actually waited must revalidate once at dequeue time because a newer census
+          // could have overtaken it while another clinical fill owned the queue.
+          let freshRecord = record;
+          let runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
+          const hasConfirmedImmediateHandoff =
+            confirmedHandoff?.runId === requestedRunId && !startedAfterQueue;
+          if (!hasConfirmedImmediateHandoff || runPolicy === 'unavailable') {
+            try {
+              freshRecord = await loadDailyRecord(record.date);
+              if (requestedRunId && freshRecord.rayenSync?.runId !== requestedRunId) {
+                reportRayenSyncWarning('clinical_fill_superseded', {
+                  runId: requestedRunId,
+                });
+                return;
+              }
+              runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
+            } catch (error) {
+              reportRayenSyncWarning('clinical_record_load_failed', {
+                runId: requestedRunId,
+                errorKind: classifyRayenSyncError(error),
+              });
+              await completeRun(
+                record,
+                {
+                  total: requestedEligibleCount,
+                  patched: 0,
+                  errors: [{ bedId: '*', source: 'patch', message: 'clinical_record_load_failed' }],
+                },
+                null,
+                requestedRunId
+              ).catch(() => undefined);
+              return;
             }
-          : {
-              applyHistoricalCudyrBatch: (censusDay: string, items: HistoricalCudyrBatchItem[]) => {
-                if (!applyHistoricalCudyrEnforcedBatch) {
-                  throw new Error('El lote histórico autoritativo no está disponible.');
-                }
-                return applyHistoricalCudyrEnforcedBatch(
-                  freshRecord,
-                  censusDay,
-                  items,
-                  runPolicy.runId
-                );
+          }
+          if (runPolicy === 'unavailable') {
+            const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
+            reportRayenSyncWarning('clinical_fill_failed', {
+              runId: requestedRunId,
+              errorKind: 'policy_unavailable',
+              patientCount: eligibleCount,
+            });
+            // The structural save can become visible before its run event during propagation.
+            // Keep the run in its applied/pending state so the established retry path can resume it.
+            return;
+          }
+          const batchMode = runPolicy.clinicalBatchMode;
+          const legacyWriterEnabled = usesLegacyClinicalWriter(batchMode);
+          const historicalWriteGuard: RayenClinicalWriteGuard | undefined = legacyWriterEnabled
+            ? { ...runPolicy, recordScope: 'historical' }
+            : undefined;
+          const historicalCudyrPersistence = historicalWriteGuard
+            ? {
+                applyHistoricalCudyr: (encId: string, censusDay: string, cudyr: ImportedCudyr) =>
+                  applyHistoricalCudyr(encId, censusDay, cudyr, historicalWriteGuard),
+                applyHistoricalCudyrBatch: applyHistoricalCudyrBatch
+                  ? (censusDay: string, items: HistoricalCudyrBatchItem[]) =>
+                      applyHistoricalCudyrBatch(censusDay, items, historicalWriteGuard)
+                  : undefined,
+              }
+            : {
+                applyHistoricalCudyrBatch: (
+                  censusDay: string,
+                  items: HistoricalCudyrBatchItem[]
+                ) => {
+                  if (!applyHistoricalCudyrEnforcedBatch) {
+                    throw new Error('El lote histórico autoritativo no está disponible.');
+                  }
+                  return applyHistoricalCudyrEnforcedBatch(
+                    freshRecord,
+                    censusDay,
+                    items,
+                    runPolicy.runId
+                  );
+                },
+              };
+          const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
+          const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
+          if (!beginRayenFill(eligibleCount)) {
+            await completeRun(
+              freshRecord,
+              {
+                total: eligibleCount,
+                patched: 0,
+                errors: [{ bedId: '*', source: 'patch', message: 'clinical_fill_busy' }],
               },
-            };
-        const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
-        const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
-        if (!beginRayenFill(eligibleCount)) {
-          await completeRun(
-            freshRecord,
-            {
+              null,
+              requestedRunId
+            ).catch(() => undefined);
+            return;
+          }
+          const attemptId = getRayenFillAttemptId();
+
+          let summary: ClinicalFillSummary;
+          try {
+            const { createClinicalEnrichmentPersistenceStrategy } =
+              await import('./clinicalEnrichmentPersistenceStrategy');
+            const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
+              mode: batchMode,
+              record: freshRecord,
+              runId: runPolicy.runId,
+              applyPatch: operation =>
+                patchDailyRecord(operation.patch, operation.target, runPolicy).then(
+                  () => undefined
+                ),
+              refreshRecord: () => loadDailyRecord(freshRecord.date),
+            });
+            summary = await runClinicalFill(
+              freshRecord,
+              toIsoReportDate(freshRecord),
+              {
+                diagnosticRunId: auditRunId,
+                fetchDeviceReport: requestDeviceReport,
+                extractDeviceItems: extractDeviceTextItems,
+                fetchHistoryScales: requestHistoryScales,
+                fetchScalesForms: requestScalesReport,
+                fetchCudyrCategories: () => requestCudyrCategories(15000),
+                applyPatch: async (patch, target) => {
+                  await patchDailyRecord(patch, target, runPolicy);
+                },
+                persistenceStrategy,
+                ...historicalCudyrPersistence,
+                now: () => new Date(),
+                createId,
+                nurseCatalog,
+                tensCatalog,
+              },
+              ({ done, total }) => reportRayenFillProgress(done, total)
+            );
+          } catch (error) {
+            reportRayenSyncWarning('clinical_fill_failed', {
+              runId: auditRunId,
+              errorKind: classifyRayenSyncError(error),
+              patientCount: eligibleCount,
+            });
+            summary = {
               total: eligibleCount,
               patched: 0,
-              errors: [{ bedId: '*', source: 'patch', message: 'clinical_fill_busy' }],
-            },
-            null,
-            requestedRunId
-          ).catch(() => undefined);
-          return;
-        }
-        const attemptId = getRayenFillAttemptId();
+              errors: [{ bedId: '*', source: 'patch', message: 'unexpected_fill_failure' }],
+            };
+          }
 
-        let summary: ClinicalFillSummary;
-        try {
-          const { createClinicalEnrichmentPersistenceStrategy } =
-            await import('./clinicalEnrichmentPersistenceStrategy');
-          const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
-            mode: batchMode,
-            record: freshRecord,
-            runId: runPolicy.runId,
-            applyPatch: operation =>
-              patchDailyRecord(operation.patch, operation.target, runPolicy).then(() => undefined),
-            refreshRecord: () => loadDailyRecord(freshRecord.date),
-          });
-          summary = await runClinicalFill(
-            freshRecord,
-            toIsoReportDate(freshRecord),
-            {
-              diagnosticRunId: auditRunId,
-              fetchDeviceReport: requestDeviceReport,
-              extractDeviceItems: extractDeviceTextItems,
-              fetchHistoryScales: requestHistoryScales,
-              fetchScalesForms: requestScalesReport,
-              fetchCudyrCategories: () => requestCudyrCategories(15000),
-              applyPatch: async (patch, target) => {
-                await patchDailyRecord(patch, target, runPolicy);
-              },
-              persistenceStrategy,
-              ...historicalCudyrPersistence,
-              now: () => new Date(),
-              createId,
-              nurseCatalog,
-              tensCatalog,
-            },
-            ({ done, total }) => reportRayenFillProgress(done, total)
-          );
-        } catch (error) {
-          reportRayenSyncWarning('clinical_fill_failed', {
-            runId: auditRunId,
-            errorKind: classifyRayenSyncError(error),
-            patientCount: eligibleCount,
-          });
-          summary = {
-            total: eligibleCount,
-            patched: 0,
-            errors: [{ bedId: '*', source: 'patch', message: 'unexpected_fill_failure' }],
-          };
-        }
-
-        if (summary.errors.length > 0) {
-          const affectedPatients = new Set(
+          if (summary.errors.length > 0) {
+            const affectedPatients = new Set(
+              summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
+            ).size;
+            reportRayenSyncWarning('clinical_fill_partial', {
+              runId: auditRunId,
+              issueCount: summary.errors.length,
+              patientCount: affectedPatients,
+            });
+          }
+          const reviewProposal = summary.staffingProposal
+            ? reconcileNursingShiftProposal(freshRecord, summary.staffingProposal)
+            : null;
+          const failedPatients = new Set(
             summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
           ).size;
-          reportRayenSyncWarning('clinical_fill_partial', {
-            runId: auditRunId,
-            issueCount: summary.errors.length,
-            patientCount: affectedPatients,
-          });
+          let completionFailed = false;
+          try {
+            await completeRun(freshRecord, summary, reviewProposal, requestedRunId);
+          } catch {
+            completionFailed = true;
+          }
+          endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
+          if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
         }
-        const reviewProposal = summary.staffingProposal
-          ? reconcileNursingShiftProposal(freshRecord, summary.staffingProposal)
-          : null;
-        const failedPatients = new Set(
-          summary.errors.map(item => item.bedId).filter(bedId => bedId !== '*')
-        ).size;
-        let completionFailed = false;
-        try {
-          await completeRun(freshRecord, summary, reviewProposal, requestedRunId);
-        } catch {
-          completionFailed = true;
-        }
-        endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
-        if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
-      });
+      );
       // Task-level early exits still resolve through the queue. Only clear the shared UI state once
       // this attempt drained the queue; a queued newer run must keep the synchronization active.
       if (outcome === 'drained') onSettled();

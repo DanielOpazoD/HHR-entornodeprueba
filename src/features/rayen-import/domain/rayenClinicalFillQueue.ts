@@ -5,29 +5,48 @@ import {
 
 export type RayenClinicalFillQueueOutcome = 'completed' | 'drained' | 'superseded';
 
+export interface RayenClinicalFillQueueContext {
+  startedAfterQueue: boolean;
+}
+
 interface QueueEntry {
+  date: string;
   key: string;
-  task: () => Promise<void>;
+  task: (context: RayenClinicalFillQueueContext) => Promise<void>;
+  startedAfterQueue: boolean;
   promise: Promise<RayenClinicalFillQueueOutcome>;
   resolve: (outcome: RayenClinicalFillQueueOutcome) => void;
 }
 
 let active: QueueEntry | null = null;
-let pending: QueueEntry | null = null;
+const pendingByDate = new Map<string, QueueEntry>();
 
-const createEntry = (key: string, task: () => Promise<void>): QueueEntry => {
+const createEntry = (
+  date: string,
+  key: string,
+  task: QueueEntry['task'],
+  startedAfterQueue: boolean
+): QueueEntry => {
   let resolve!: QueueEntry['resolve'];
   const promise = new Promise<RayenClinicalFillQueueOutcome>(settle => {
     resolve = settle;
   });
-  return { key, task, promise, resolve };
+  return { date, key, task, startedAfterQueue, promise, resolve };
+};
+
+const takeNextPending = (): QueueEntry | null => {
+  const next = pendingByDate.entries().next();
+  if (next.done) return null;
+  const [date, entry] = next.value;
+  pendingByDate.delete(date);
+  return entry;
 };
 
 const start = (entry: QueueEntry): void => {
   active = entry;
   let taskPromise: Promise<void>;
   try {
-    taskPromise = entry.task();
+    taskPromise = entry.task({ startedAfterQueue: entry.startedAfterQueue });
   } catch (error) {
     taskPromise = Promise.reject(error);
   }
@@ -36,13 +55,13 @@ const start = (entry: QueueEntry): void => {
     // preserving queue liveness and never includes the raw provider error.
     .catch(error => {
       reportRayenSyncWarning('clinical_fill_queue_task_failed', {
+        date: entry.date,
         errorKind: classifyRayenSyncError(error),
       });
     })
     .finally(() => {
       active = null;
-      const next = pending;
-      pending = null;
+      const next = takeNextPending();
       if (next) {
         entry.resolve('completed');
         start(next);
@@ -53,31 +72,33 @@ const start = (entry: QueueEntry): void => {
 };
 
 /**
- * Single active clinical fill plus one latest pending fill. Repeated requests for the same applied
- * run share one promise; a newer different run supersedes the older pending request, never the work
- * already in progress.
+ * Single active clinical fill plus one latest pending fill per census date. Repeated requests for
+ * the same applied run share one promise; a newer run supersedes only the pending request for its
+ * own date, never another census day or the work already in progress.
  */
 export const enqueueLatestRayenClinicalFill = (
+  date: string,
   key: string,
-  task: () => Promise<void>
+  task: QueueEntry['task']
 ): Promise<RayenClinicalFillQueueOutcome> => {
-  if (active?.key === key) return active.promise;
-  if (pending?.key === key) return pending.promise;
+  if (active?.date === date && active.key === key) return active.promise;
+  const pendingForDate = pendingByDate.get(date);
+  if (pendingForDate?.key === key) return pendingForDate.promise;
 
-  const entry = createEntry(key, task);
+  const entry = createEntry(date, key, task, active !== null);
   if (!active) {
     start(entry);
     return entry.promise;
   }
 
-  pending?.resolve('superseded');
-  pending = entry;
+  pendingForDate?.resolve('superseded');
+  pendingByDate.set(date, entry);
   return entry.promise;
 };
 
 /** Test-only reset for module state isolated from React. */
 export const resetRayenClinicalFillQueueForTests = (): void => {
   active = null;
-  pending?.resolve('superseded');
-  pending = null;
+  pendingByDate.forEach(entry => entry.resolve('superseded'));
+  pendingByDate.clear();
 };
