@@ -28,6 +28,7 @@ export type RayenSyncDiagnosticCode =
 export type RayenSyncTerminalOutcome = 'complete' | 'partial' | 'failed' | 'cancelled';
 
 interface RayenSyncDiagnosticData {
+  date?: string;
   runId?: string;
   batchRunId?: string;
   outcome?: RayenSyncTerminalOutcome;

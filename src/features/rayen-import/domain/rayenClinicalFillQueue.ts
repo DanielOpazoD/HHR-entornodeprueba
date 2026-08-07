@@ -55,6 +55,7 @@ const start = (entry: QueueEntry): void => {
     // preserving queue liveness and never includes the raw provider error.
     .catch(error => {
       reportRayenSyncWarning('clinical_fill_queue_task_failed', {
+        date: entry.date,
         errorKind: classifyRayenSyncError(error),
       });
     })
@@ -80,7 +81,7 @@ export const enqueueLatestRayenClinicalFill = (
   key: string,
   task: QueueEntry['task']
 ): Promise<RayenClinicalFillQueueOutcome> => {
-  if (active?.key === key) return active.promise;
+  if (active?.date === date && active.key === key) return active.promise;
   const pendingForDate = pendingByDate.get(date);
   if (pendingForDate?.key === key) return pendingForDate.promise;
 

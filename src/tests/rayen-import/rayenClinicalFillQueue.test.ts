@@ -85,7 +85,7 @@ describe('rayen clinical fill queue', () => {
         level: 'warn',
         message: 'clinical_fill_queue_task_failed',
         context: 'RayenSync',
-        data: { errorKind: 'unexpected' },
+        data: { date: '2026-07-27', errorKind: 'unexpected' },
       })
     );
     expect(JSON.stringify(logger.getEntries())).not.toContain('sensitive provider detail');
@@ -115,7 +115,7 @@ describe('rayen clinical fill queue', () => {
         level: 'warn',
         message: 'clinical_fill_queue_task_failed',
         context: 'RayenSync',
-        data: { errorKind: 'unexpected' },
+        data: { date: '2026-07-27', errorKind: 'unexpected' },
       })
     );
     expect(JSON.stringify(logger.getEntries())).not.toContain('another sensitive provider detail');
@@ -143,5 +143,22 @@ describe('rayen clinical fill queue', () => {
       'drained',
     ]);
     expect(order).toEqual(['2026-07-27', '2026-07-28', '2026-07-29']);
+  });
+
+  it('does not coalesce an active key reused by a different census date', async () => {
+    let release!: () => void;
+    const order: string[] = [];
+    const active = enqueueLatestRayenClinicalFill('2026-07-27', 'shared-key', async () => {
+      order.push('2026-07-27');
+      await new Promise<void>(resolve => (release = resolve));
+    });
+    const nextDate = enqueueLatestRayenClinicalFill('2026-07-28', 'shared-key', async () => {
+      order.push('2026-07-28');
+    });
+
+    release();
+
+    await expect(Promise.all([active, nextDate])).resolves.toEqual(['completed', 'drained']);
+    expect(order).toEqual(['2026-07-27', '2026-07-28']);
   });
 });
