@@ -45,10 +45,7 @@ export const MedicalHandoffSpreadsheetAction: React.FC<MedicalHandoffSpreadsheet
     }
 
     if (spreadsheetUrl) {
-      const spreadsheetWindow = defaultBrowserWindowRuntime.open(spreadsheetUrl, '_blank');
-      if (spreadsheetWindow) {
-        spreadsheetWindow.opener = null;
-      }
+      defaultBrowserWindowRuntime.open(spreadsheetUrl, '_blank', 'noopener');
       return;
     }
 

@@ -15,11 +15,17 @@ describe('browserWindowRuntime', () => {
     runtime.alert('hola');
     const confirmed = runtime.confirm('seguro?');
     runtime.open('https://example.com', '_blank');
+    runtime.open('https://example.com/seguro', '_blank', 'noopener');
 
     expect(alertSpy).toHaveBeenCalledWith('hola');
     expect(confirmSpy).toHaveBeenCalledWith('seguro?');
     expect(confirmed).toBe(true);
     expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank');
+    expect(openSpy).toHaveBeenCalledWith(
+      'https://example.com/seguro',
+      '_blank',
+      'noopener'
+    );
   });
 
   it('reads location properties and exposes reload operation', () => {
