@@ -27,7 +27,7 @@ export const hasSkippedPreviousDayCorrections = (
   );
 };
 
-export const applyConfirmedRayenImport = async ({
+export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult>({
   applyPreviousDays,
   base,
   diff,
@@ -45,11 +45,11 @@ export const applyConfirmedRayenImport = async ({
   dailyRecord: DailyRecordRepositoryPort;
   isAdmin: boolean;
   ensureRun: () => RayenSyncRun;
-  applyDiff: (record: DailyRecord, diff: CensusImportDiff) => Promise<ApplyResult>;
+  applyDiff: (record: DailyRecord, diff: CensusImportDiff) => Promise<TApplyResult>;
   getFreshRecord: () => Promise<DailyRecord | null | undefined>;
   createId: () => string;
   onRetry?: () => void;
-}): Promise<ApplyResult> => {
+}): Promise<TApplyResult> => {
   if (applyPreviousDays) {
     const run = ensureRun();
     let lastHistoricalConflict: unknown;

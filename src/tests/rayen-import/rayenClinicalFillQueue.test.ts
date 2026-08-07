@@ -44,6 +44,22 @@ describe('rayen clinical fill queue', () => {
     expect(order).toEqual(['run-1', 'run-3']);
   });
 
+  it('tells a task whether it started immediately or after waiting in the queue', async () => {
+    let release!: () => void;
+    const immediateTask = vi.fn(() => new Promise<void>(resolve => (release = resolve)));
+    const queuedTask = vi.fn().mockResolvedValue(undefined);
+
+    const immediate = enqueueLatestRayenClinicalFill('run-1', immediateTask);
+    const queued = enqueueLatestRayenClinicalFill('run-2', queuedTask);
+
+    expect(immediateTask).toHaveBeenCalledWith({ startedAfterQueue: false });
+    expect(queuedTask).not.toHaveBeenCalled();
+
+    release();
+    await expect(Promise.all([immediate, queued])).resolves.toEqual(['completed', 'drained']);
+    expect(queuedTask).toHaveBeenCalledWith({ startedAfterQueue: true });
+  });
+
   it('records synchronous task failures without leaking details or blocking the pending run', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 

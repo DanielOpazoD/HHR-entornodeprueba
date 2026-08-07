@@ -5,9 +5,14 @@ import {
 
 export type RayenClinicalFillQueueOutcome = 'completed' | 'drained' | 'superseded';
 
+export interface RayenClinicalFillQueueContext {
+  startedAfterQueue: boolean;
+}
+
 interface QueueEntry {
   key: string;
-  task: () => Promise<void>;
+  task: (context: RayenClinicalFillQueueContext) => Promise<void>;
+  startedAfterQueue: boolean;
   promise: Promise<RayenClinicalFillQueueOutcome>;
   resolve: (outcome: RayenClinicalFillQueueOutcome) => void;
 }
@@ -15,19 +20,23 @@ interface QueueEntry {
 let active: QueueEntry | null = null;
 let pending: QueueEntry | null = null;
 
-const createEntry = (key: string, task: () => Promise<void>): QueueEntry => {
+const createEntry = (
+  key: string,
+  task: QueueEntry['task'],
+  startedAfterQueue: boolean
+): QueueEntry => {
   let resolve!: QueueEntry['resolve'];
   const promise = new Promise<RayenClinicalFillQueueOutcome>(settle => {
     resolve = settle;
   });
-  return { key, task, promise, resolve };
+  return { key, task, startedAfterQueue, promise, resolve };
 };
 
 const start = (entry: QueueEntry): void => {
   active = entry;
   let taskPromise: Promise<void>;
   try {
-    taskPromise = entry.task();
+    taskPromise = entry.task({ startedAfterQueue: entry.startedAfterQueue });
   } catch (error) {
     taskPromise = Promise.reject(error);
   }
@@ -59,12 +68,12 @@ const start = (entry: QueueEntry): void => {
  */
 export const enqueueLatestRayenClinicalFill = (
   key: string,
-  task: () => Promise<void>
+  task: QueueEntry['task']
 ): Promise<RayenClinicalFillQueueOutcome> => {
   if (active?.key === key) return active.promise;
   if (pending?.key === key) return pending.promise;
 
-  const entry = createEntry(key, task);
+  const entry = createEntry(key, task, active !== null);
   if (!active) {
     start(entry);
     return entry.promise;

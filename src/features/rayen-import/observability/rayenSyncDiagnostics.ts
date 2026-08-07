@@ -19,6 +19,7 @@ export type RayenSyncDiagnosticCode =
   | 'clinical_fill_failed'
   | 'clinical_fill_partial'
   | 'clinical_fill_queue_task_failed'
+  | 'clinical_fill_superseded'
   | 'clinical_record_load_failed'
   | 'sync_audit_event_missing'
   | 'sync_audit_persist_failed'

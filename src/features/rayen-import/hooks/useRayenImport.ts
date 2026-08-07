@@ -228,7 +228,7 @@ export const useRayenImport = () => {
           result,
           hasSkippedItems: skippedPreviousDays || result.skipped.length > 0,
         }));
-        void fillDevicesInBackground(result.record);
+        void fillDevicesInBackground(result.confirmedHandoff);
       } catch (error) {
         void failRun('apply_failed', run.id);
         setState(prev => ({

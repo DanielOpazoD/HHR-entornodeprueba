@@ -2,11 +2,12 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenImportState } from './rayenImportState';
 import { resetRayenFillProgress } from './useRayenFillStatus';
+import type { ConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
 
 interface UseRayenClinicalFillRetryInput {
   currentRecord: DailyRecord | null | undefined;
   currentRecordRef: MutableRefObject<DailyRecord | null | undefined>;
-  fillClinicalData: (record: DailyRecord) => Promise<void>;
+  fillClinicalData: (source: DailyRecord | ConfirmedRayenCensusHandoff) => Promise<void>;
   setState: Dispatch<SetStateAction<RayenImportState>>;
 }
 

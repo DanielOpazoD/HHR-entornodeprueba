@@ -1,7 +1,6 @@
 import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
-import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import { applyEgresoReport } from '../domain/applyEgresoReport';
 import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { requiresReview } from '../domain/reconcileCensus';
@@ -35,15 +34,20 @@ import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import { elapsedMilliseconds, isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
 import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
+import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
+import type { ConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
 interface UseRayenSnapshotPreviewInput {
   currentRecord: DailyRecord | null | undefined;
   dailyRecord: DailyRecordRepositoryPort;
   isAdmin: boolean;
   setState: Dispatch<SetStateAction<RayenImportState>>;
   clearSyncTimeout: () => void;
-  applyDiff: (record: DailyRecord, diff: CensusImportDiff) => Promise<ApplyResult>;
+  applyDiff: (
+    record: DailyRecord,
+    diff: CensusImportDiff
+  ) => Promise<ConfirmedRayenCensusApplyResult>;
   persistAppliedRun: (record: DailyRecord, diff: CensusImportDiff) => Promise<DailyRecord>;
-  fillDevicesInBackground: (record: DailyRecord) => Promise<void>;
+  fillDevicesInBackground: (source: DailyRecord | ConfirmedRayenCensusHandoff) => Promise<void>;
   failRun: (reason: 'apply_failed', runId?: string) => Promise<void>;
   ensureRun: () => RayenSyncRun;
   getRun: (runId: string) => RayenSyncRun | undefined;
@@ -325,7 +329,7 @@ export const useRayenSnapshotPreview = ({
               result,
               hasSkippedItems: result.skipped.length > 0,
             }));
-            void fillDevicesInBackground(result.record);
+            void fillDevicesInBackground(result.confirmedHandoff);
           })
           .catch(error => {
             autoApplyingRef.current = false;
