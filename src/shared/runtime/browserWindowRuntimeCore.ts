@@ -1,7 +1,7 @@
 export interface BrowserWindowRuntime {
   alert: (message: string) => void;
   confirm: (message: string) => boolean;
-  open: (url: string, target?: string) => Window | null;
+  open: (url: string, target?: string, features?: string) => Window | null;
   reload: () => void;
   getLocationOrigin: () => string;
   getLocationPathname: () => string;
@@ -54,8 +54,12 @@ export const createBrowserWindowRuntime = (
   },
   confirm: message =>
     readWindowValue(dependencies, false, runtimeWindow => runtimeWindow.confirm(message)),
-  open: (url, target = '_blank') =>
-    readWindowValue(dependencies, null, runtimeWindow => runtimeWindow.open(url, target)),
+  open: (url, target = '_blank', features) =>
+    readWindowValue(dependencies, null, runtimeWindow =>
+      features === undefined
+        ? runtimeWindow.open(url, target)
+        : runtimeWindow.open(url, target, features)
+    ),
   reload: () => {
     runWithWindow(dependencies, runtimeWindow => {
       runtimeWindow.location.reload();

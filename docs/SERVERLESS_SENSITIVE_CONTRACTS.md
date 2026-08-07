@@ -29,9 +29,14 @@
 | Endpoint                            | Auth               | Roles                                                                      | Autoridad                                                                  |
 | ----------------------------------- | ------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `applyRayenClinicalEnrichmentBatch` | Firebase requerida | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor` | allowlist de campos, episodio y revisión verificados dentro de transacción |
+| `openMedicalHandoffSpreadsheet`     | Firebase requerida | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor` | filas clínicas validadas y envío exclusivo a Apps Script institucional     |
 
 Este callable recibe un lote acotado, no acepta rutas arbitrarias y registra únicamente
 telemetría agregada sin identificadores de pacientes ni valores clínicos.
+
+`openMedicalHandoffSpreadsheet` recibe como máximo 80 filas, no acepta RUT ni columnas
+arbitrarias, valida claves estables y envía la carga únicamente a una URL institucional
+de Apps Script configurada en el backend. El secreto compartido nunca se expone al navegador.
 
 ## Convergencia obligatoria de rol
 
