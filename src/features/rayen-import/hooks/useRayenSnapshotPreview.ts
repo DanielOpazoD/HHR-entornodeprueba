@@ -252,7 +252,6 @@ export const useRayenSnapshotPreview = ({
         diff = traceability.diff;
         evidenceSnapshot = traceability.snapshot;
       }
-
       // Reapply after snapshot replans so report-only discharges survive.
       diff = applyEgresoReport(diff, bundle.egresoRows, baseRecord);
       const lookupTargets = diff.pendingAdministrativeDischarges
