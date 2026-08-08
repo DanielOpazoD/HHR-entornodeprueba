@@ -19,10 +19,7 @@ import { applyConfirmedRayenImport, hasSkippedPreviousDayCorrections } from './c
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
-import {
-  invalidateRayenFillAttempt,
-  reportRayenStaffingOutcome,
-} from './useRayenFillStatus';
+import { invalidateRayenFillAttempt, reportRayenStaffingOutcome } from './useRayenFillStatus';
 import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActions';
 import { useRayenSyncRequestController } from './useRayenSyncRequestController';
 import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal';
@@ -60,9 +57,12 @@ export const useRayenImport = () => {
     useRayenSyncRequestController();
   const preparedSyncContextRef = useRef<PreparedRayenSyncContext | null>(null);
   const confirmationInFlightRef = useRef(false);
+  const staffingRefreshInFlightRef = useRef(false);
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
   const currentRecordRef = useRef(currentRecord);
-  currentRecordRef.current = currentRecord;
+  useEffect(() => {
+    currentRecordRef.current = currentRecord;
+  }, [currentRecord]);
   useEffect(() => {
     setStaffingProposal(null);
     setStaffingProposalError(null);
@@ -123,7 +123,8 @@ export const useRayenImport = () => {
       isAdmin,
     });
   const refreshStaffingProposal = useCallback(async (): Promise<NursingStaffingProposal | null> => {
-    if (isStaffingProposalBusy) return null;
+    if (staffingRefreshInFlightRef.current) return null;
+    staffingRefreshInFlightRef.current = true;
     setIsStaffingProposalBusy(true);
     setStaffingProposalError(null);
     try {
@@ -154,6 +155,9 @@ export const useRayenImport = () => {
       });
       if (!canWritePreviousDay(reconciled.censusDate, isAdmin)) {
         setStaffingProposal(null);
+        setStaffingProposalError(
+          'Este censo está fuera de la ventana de edición de dotación clínica.'
+        );
         reportRayenStaffingOutcome(
           hasPendingStaffingDecision(reconciled) ? 'declined' : 'resolved'
         );
@@ -161,6 +165,7 @@ export const useRayenImport = () => {
       }
       const review = hasNursingShiftReview(reconciled) ? reconciled : null;
       setStaffingProposal(review);
+      if (!review) setStaffingProposalError('No hay cambios de dotación pendientes de revisión.');
       reportRayenStaffingOutcome(
         review && hasPendingStaffingDecision(review) ? 'pending' : 'resolved'
       );
@@ -169,16 +174,10 @@ export const useRayenImport = () => {
       setStaffingProposalError(getRayenImportErrorMessage(error));
       return null;
     } finally {
+      staffingRefreshInFlightRef.current = false;
       setIsStaffingProposalBusy(false);
     }
-  }, [
-    currentRecord,
-    isAdmin,
-    isStaffingProposalBusy,
-    loadFreshClinicalRecord,
-    nursesList,
-    tensList,
-  ]);
+  }, [currentRecord, isAdmin, loadFreshClinicalRecord, nursesList, tensList]);
   const fillDevicesInBackground = useRayenClinicalFill({
     nurseCatalog: nursesList,
     tensCatalog: tensList,
@@ -245,7 +244,8 @@ export const useRayenImport = () => {
   const confirm = useCallback(
     async (applyPreviousDays: boolean = true) => {
       if (confirmationInFlightRef.current) return;
-      const base = preparedSyncContextRef.current?.record ?? currentRecordRef.current ?? currentRecord;
+      const base =
+        preparedSyncContextRef.current?.record ?? currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
       confirmationInFlightRef.current = true;
       const diff = state.diff;

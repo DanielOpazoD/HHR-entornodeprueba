@@ -53,6 +53,19 @@ describe('prepareRayenSyncTemporalContext', () => {
     ).rejects.toThrow('día de censo seleccionado');
   });
 
+  it('rejects a census outside the seven-day reconstruction window', async () => {
+    await expect(
+      prepareRayenSyncTemporalContext({
+        displayedRecord: recordFor('2026-07-30', '2026-08-08T10:00:00.000Z'),
+        runId: 'run-too-old',
+        loadFreshRecord: vi
+          .fn()
+          .mockResolvedValue(recordFor('2026-07-30', '2026-08-08T12:00:00.000Z')),
+        now: () => new Date('2026-08-08T18:00:00.000Z'),
+      })
+    ).rejects.toThrow('hasta siete días clínicos anteriores');
+  });
+
   it('keeps a prepared context valid while the same clinical shift remains active', async () => {
     const context = await prepareRayenSyncTemporalContext({
       displayedRecord: recordFor('2026-08-07', '2026-08-08T10:00:00.000Z'),
@@ -64,10 +77,7 @@ describe('prepareRayenSyncTemporalContext', () => {
     });
 
     expect(
-      validatePreparedRayenSyncContextAtCompletion(
-        context,
-        new Date('2026-08-08T18:05:00.000Z')
-      )
+      validatePreparedRayenSyncContextAtCompletion(context, new Date('2026-08-08T18:05:00.000Z'))
     ).toMatchObject({ valid: true });
   });
 
@@ -82,10 +92,7 @@ describe('prepareRayenSyncTemporalContext', () => {
     });
 
     expect(
-      validatePreparedRayenSyncContextAtCompletion(
-        context,
-        new Date('2026-08-09T20:00:00.000Z')
-      )
+      validatePreparedRayenSyncContextAtCompletion(context, new Date('2026-08-09T20:00:00.000Z'))
     ).toMatchObject({ valid: false, reason: 'clinical_day_changed' });
   });
 });

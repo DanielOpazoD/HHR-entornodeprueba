@@ -48,7 +48,7 @@ export const useRayenStaffingProposalActions = ({
   }, [isBusy, setError, setProposal]);
 
   const confirm = useCallback(async () => {
-    if (!proposal) return;
+    if (!proposal) return false;
     reportRayenStaffingOutcome('applying');
     setIsBusy(true);
     setError(null);
@@ -70,7 +70,7 @@ export const useRayenStaffingProposalActions = ({
       );
       if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
       if (
-        proposal.sourceLastUpdated &&
+        !proposal.sourceLastUpdated ||
         !isNursingStaffingCollectionContextCurrent(
           { date: proposal.censusDate, lastUpdated: proposal.sourceLastUpdated },
           fresh.record,
@@ -96,7 +96,7 @@ export const useRayenStaffingProposalActions = ({
         if (!hasActionableNames) {
           setProposal(null);
           reportRayenStaffingOutcome('resolved');
-          return;
+          return true;
         }
         throw new Error(
           'La dotación clínica ya está sincronizada o cambió mientras revisabas la propuesta. Revisa la asignación actual.'
@@ -119,9 +119,11 @@ export const useRayenStaffingProposalActions = ({
       );
       setProposal(null);
       reportRayenStaffingOutcome('resolved');
+      return true;
     } catch (error) {
       reportRayenStaffingOutcome('pending');
       setError(getRayenImportErrorMessage(error));
+      return false;
     } finally {
       setIsBusy(false);
     }

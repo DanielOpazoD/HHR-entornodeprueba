@@ -117,6 +117,105 @@ describe('useRayenImportCapture', () => {
     expect(previewSnapshot).toHaveBeenCalledWith('snapshot', 'bundle', 'run-1');
   });
 
+  it('ignores a second start while the freshest census is still loading', async () => {
+    let resolveFreshRecord!: (value: DailyRecord) => void;
+    const loadFreshRecord = vi.fn(
+      () => new Promise<DailyRecord>(resolve => (resolveFreshRecord = resolve))
+    );
+    const startRun = vi.fn(() => ({
+      id: 'run-1',
+      startedAt: '2026-08-02T10:00:00.000Z',
+      by: 'Operador HHR',
+      sourceDate: '2026-08-02',
+    }));
+    const startRequest = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        setState: vi.fn(),
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue('run-1'),
+        },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord,
+        startRun,
+        failRun: vi.fn().mockResolvedValue(undefined),
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    let firstStart!: Promise<void>;
+    await act(async () => {
+      firstStart = result.current({
+        connection: 'ready',
+        report: null,
+        message: 'ok',
+        canSync: true,
+      });
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+    resolveFreshRecord(record);
+    await act(async () => firstStart);
+
+    expect(startRun).toHaveBeenCalledOnce();
+    expect(loadFreshRecord).toHaveBeenCalledOnce();
+    expect(startRequest).toHaveBeenCalledOnce();
+  });
+
+  it('terminalizes the run when the freshest census cannot be loaded', async () => {
+    const failRun = vi.fn().mockResolvedValue(undefined);
+    const setState = vi.fn();
+    const startRequest = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        setState,
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue('run-1'),
+        },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord: vi.fn().mockRejectedValue(new Error('lectura fallida')),
+        startRun: vi.fn(() => ({
+          id: 'run-1',
+          startedAt: '2026-08-02T10:00:00.000Z',
+          by: 'Operador HHR',
+          sourceDate: '2026-08-02',
+        })),
+        failRun,
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+
+    expect(startRequest).not.toHaveBeenCalled();
+    expect(failRun).toHaveBeenCalledWith('snapshot_error', 'run-1');
+    const stateUpdater = setState.mock.calls.at(-1)?.[0] as (
+      state: typeof INITIAL_RAYEN_IMPORT_STATE
+    ) => typeof INITIAL_RAYEN_IMPORT_STATE;
+    expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
+      expect.objectContaining({ isSyncing: false, error: 'lectura fallida' })
+    );
+  });
+
   it('terminalizes the correlated run when its extension request times out', async () => {
     const setState = vi.fn();
     const startRequest = vi.fn();

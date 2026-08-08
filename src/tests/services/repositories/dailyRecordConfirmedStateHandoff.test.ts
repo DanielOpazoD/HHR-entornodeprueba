@@ -103,4 +103,23 @@ describe('daily record confirmed state handoff', () => {
     expect(state.confirmedRecord).toBe(confirmedRecord);
     expect(saveToIndexedDBMock).toHaveBeenCalledWith(confirmedRecord);
   });
+
+  it('fails closed when neither the callable nor a readback confirms the server record', async () => {
+    const state = createRemoteWriteState();
+
+    const result = await persistLocalAndAttemptRemoteSync({
+      date: '2026-08-07',
+      record: buildRecord(),
+      changedPaths: ['*'],
+      remoteState: state,
+      remoteWrite: vi.fn().mockResolvedValue({ success: true }),
+      onRemoteFailure: vi.fn(),
+      remoteAuthorityFirst: true,
+    });
+
+    expect(result).toBe('return');
+    expect(state.confirmedRecord).toBeUndefined();
+    expect(state.consistencyState).toBe('unrecoverable');
+    expect(saveToIndexedDBMock).not.toHaveBeenCalled();
+  });
 });

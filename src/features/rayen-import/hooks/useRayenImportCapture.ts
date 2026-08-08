@@ -1,4 +1,11 @@
-import { useCallback, useEffect, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
@@ -55,6 +62,7 @@ export const useRayenImportCapture = ({
   recordRunPerformance,
   previewSnapshot,
 }: UseRayenImportCaptureInput) => {
+  const capturePreparationInFlightRef = useRef(false);
   useEffect(
     () =>
       rayenImportBridge.subscribeToRayenSnapshots((snapshot, bundle, requestId) => {
@@ -86,113 +94,119 @@ export const useRayenImportCapture = ({
 
   return useCallback(
     async (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
-      clearSyncTimeout();
-      preparedSyncContextRef.current = null;
-      if (policyStatus !== 'ready') {
-        setState(previous => ({
-          ...previous,
-          isBusy: false,
-          isSyncing: false,
-          result: null,
-          hasSkippedItems: false,
-          error:
-            policyStatus === 'unconfigured'
-              ? 'La política global de sincronización aún no está configurada. Solicita a un administrador que la inicialice.'
-              : policyStatus === 'migration-required'
-                ? 'La política global de sincronización requiere migración a v2 antes de iniciar.'
-                : 'No se pudo confirmar la política global de sincronización con el servidor. Reintenta cuando vuelva la conexión.',
-        }));
-        return;
-      }
-      if (!resetRayenFillProgress()) {
-        setState(previous => ({
-          ...previous,
-          isSyncing: false,
-          result: null,
-          hasSkippedItems: false,
-          error:
-            'La revisión clínica anterior todavía está terminando. Espera un momento antes de sincronizar nuevamente.',
-        }));
-        return;
-      }
-      setStaffingProposal(null);
-      setStaffingProposalError(null);
-      const run = startRun(health, performance, policy);
-      if (!health.canSync) {
+      if (capturePreparationInFlightRef.current) return;
+      capturePreparationInFlightRef.current = true;
+      try {
+        clearSyncTimeout();
         preparedSyncContextRef.current = null;
-        void failRun(failureReasonFromHealth(health), run.id);
+        if (policyStatus !== 'ready') {
+          setState(previous => ({
+            ...previous,
+            isBusy: false,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error:
+              policyStatus === 'unconfigured'
+                ? 'La política global de sincronización aún no está configurada. Solicita a un administrador que la inicialice.'
+                : policyStatus === 'migration-required'
+                  ? 'La política global de sincronización requiere migración a v2 antes de iniciar.'
+                  : 'No se pudo confirmar la política global de sincronización con el servidor. Reintenta cuando vuelva la conexión.',
+          }));
+          return;
+        }
+        if (!resetRayenFillProgress()) {
+          setState(previous => ({
+            ...previous,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error:
+              'La revisión clínica anterior todavía está terminando. Espera un momento antes de sincronizar nuevamente.',
+          }));
+          return;
+        }
+        setStaffingProposal(null);
+        setStaffingProposalError(null);
+        const run = startRun(health, performance, policy);
+        if (!health.canSync) {
+          preparedSyncContextRef.current = null;
+          void failRun(failureReasonFromHealth(health), run.id);
+          setState(previous => ({
+            ...previous,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error: null,
+          }));
+          return;
+        }
+        if (!currentRecord) {
+          preparedSyncContextRef.current = null;
+          void failRun('snapshot_error', run.id);
+          setState(previous => ({
+            ...previous,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error: 'No hay un censo cargado para sincronizar.',
+          }));
+          return;
+        }
+
         setState(previous => ({
           ...previous,
-          isSyncing: false,
+          isSyncing: true,
           result: null,
           hasSkippedItems: false,
           error: null,
         }));
-        return;
-      }
-      if (!currentRecord) {
-        preparedSyncContextRef.current = null;
-        void failRun('snapshot_error', run.id);
-        setState(previous => ({
-          ...previous,
-          isSyncing: false,
-          result: null,
-          hasSkippedItems: false,
-          error: 'No hay un censo cargado para sincronizar.',
-        }));
-        return;
-      }
 
-      setState(previous => ({
-        ...previous,
-        isSyncing: true,
-        result: null,
-        hasSkippedItems: false,
-        error: null,
-      }));
-
-      let preparedContext: PreparedRayenSyncContext;
-      try {
-        preparedContext = await prepareRayenSyncTemporalContext({
-          displayedRecord: currentRecord,
-          runId: run.id,
-          loadFreshRecord,
-        });
-      } catch (error) {
-        preparedSyncContextRef.current = null;
-        void failRun('snapshot_error', run.id);
-        setState(previous => ({
-          ...previous,
-          isSyncing: false,
-          result: null,
-          hasSkippedItems: false,
-          error: getRayenImportErrorMessage(error),
-        }));
-        return;
-      }
-
-      preparedSyncContextRef.current = preparedContext;
-      syncRequestController.start(
-        preparedContext.range.dateStart,
-        preparedContext.range.dateEnd,
-        run.id,
-        () => {
+        let preparedContext: PreparedRayenSyncContext;
+        try {
+          preparedContext = await prepareRayenSyncTemporalContext({
+            displayedRecord: currentRecord,
+            runId: run.id,
+            loadFreshRecord,
+          });
+        } catch (error) {
           preparedSyncContextRef.current = null;
-          recordRunPerformance({ counters: { timeouts: 1 } }, run.id);
-          void failRun('snapshot_timeout', run.id);
-          setState(previous =>
-            previous.isSyncing
-              ? {
-                  ...previous,
-                  isSyncing: false,
-                  error:
-                    'No se recibió respuesta de la extensión Rayen. Verifica que Ficha Médico y Gestión de Camas estén abiertas y conectadas.',
-                }
-              : previous
-          );
+          void failRun('snapshot_error', run.id);
+          setState(previous => ({
+            ...previous,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error: getRayenImportErrorMessage(error),
+          }));
+          return;
         }
-      );
-      recordRunPerformance({ counters: { requests: 1 } }, run.id);
+
+        preparedSyncContextRef.current = preparedContext;
+        syncRequestController.start(
+          preparedContext.range.dateStart,
+          preparedContext.range.dateEnd,
+          run.id,
+          () => {
+            preparedSyncContextRef.current = null;
+            recordRunPerformance({ counters: { timeouts: 1 } }, run.id);
+            void failRun('snapshot_timeout', run.id);
+            setState(previous =>
+              previous.isSyncing
+                ? {
+                    ...previous,
+                    isSyncing: false,
+                    error:
+                      'No se recibió respuesta de la extensión Rayen. Verifica que Ficha Médico y Gestión de Camas estén abiertas y conectadas.',
+                  }
+                : previous
+            );
+          }
+        );
+        recordRunPerformance({ counters: { requests: 1 } }, run.id);
+      } finally {
+        capturePreparationInFlightRef.current = false;
+      }
     },
     [
       clearSyncTimeout,

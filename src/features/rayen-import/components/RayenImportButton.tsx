@@ -132,8 +132,7 @@ export const RayenImportButton: React.FC = () => {
   }, [staffingProposal]);
 
   const handleConfirmStaffingProposal = async (): Promise<void> => {
-    await confirmStaffingProposal();
-    setStaffingReviewOpen(false);
+    if (await confirmStaffingProposal()) setStaffingReviewOpen(false);
   };
   const handleDismissStaffingProposal = (): void => {
     dismissStaffingProposal();
@@ -314,11 +313,7 @@ export const RayenImportButton: React.FC = () => {
           <button
             type="button"
             onClick={() => void handleSync()}
-            disabled={
-              working ||
-              extension.connection === 'checking' ||
-              isPreviewOpen
-            }
+            disabled={working || extension.connection === 'checking' || isPreviewOpen}
             aria-busy={mainWorking || extension.connection === 'checking'}
             title={
               mode === 'auto'

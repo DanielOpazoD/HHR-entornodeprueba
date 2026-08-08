@@ -99,6 +99,7 @@ describe('rayenCensusPersistenceGuard', () => {
   );
 
   it('does not misclassify an operationally queued write as a concurrency conflict', () => {
+    let thrown: unknown;
     try {
       assertRayenCensusPersistenceConfirmed({
         record: buildRecord(),
@@ -110,10 +111,12 @@ describe('rayenCensusPersistenceGuard', () => {
           sourceOfTruth: 'local',
         }),
       });
-      throw new Error('Expected persistence guard to reject the pending census');
     } catch (error) {
-      expect(error).toMatchObject({ name: 'Error' });
+      thrown = error;
     }
+    expect(thrown).toBeInstanceOf(Error);
+    expect(thrown).toMatchObject({ name: 'Error' });
+    expect(thrown).not.toMatchObject({ name: 'ConcurrencyError' });
   });
 
   it('marks an explicit concurrency outcome as a recoverable concurrency conflict', () => {

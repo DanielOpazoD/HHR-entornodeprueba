@@ -253,8 +253,8 @@ export const useRayenSnapshotPreview = ({
         evidenceSnapshot = traceability.snapshot;
       }
 
+      // Reapply after snapshot replans so report-only discharges survive.
       diff = applyEgresoReport(diff, bundle.egresoRows, baseRecord);
-
       const lookupTargets = diff.pendingAdministrativeDischarges
         .filter(entry => entry.rut && entry.encounterId)
         .filter(
@@ -353,16 +353,17 @@ export const useRayenSnapshotPreview = ({
           (diff.reportEgresos?.length ?? 0) >
         0;
       const hasUnresolvedConflicts = diff.summary.conflicts > 0;
-      // Conflict-only reviews still persist the run and continue clinical enrichment.
       if (!hasApplicableChanges) {
         try {
           const stamped = await persistAppliedRun(baseRecord, diff);
           void fillDevicesInBackground(stamped);
           preparedSyncContextRef.current = null;
-        } catch {
+        } catch (error) {
           preparedSyncContextRef.current = null;
           void failRun('apply_failed', run.id);
-          setState(prev => ({ ...prev, isSyncing: false }));
+          const message = getRayenImportErrorMessage(error);
+          setState(prev => ({ ...prev, isSyncing: false, error: message }));
+          return;
         }
       }
 

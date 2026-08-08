@@ -40,8 +40,20 @@ vi.mock('@/features/rayen-import/components/RayenSyncHistoryModal', () => ({
   RayenSyncHistoryModal: () => null,
 }));
 vi.mock('@/features/rayen-import/components/RayenNursingShiftProposalModal', () => ({
-  RayenNursingShiftProposalModal: ({ proposal }: { proposal: unknown }) =>
-    proposal ? <div role="dialog" aria-label="Dotación clínica identificada" /> : null,
+  RayenNursingShiftProposalModal: ({
+    proposal,
+    onConfirm,
+  }: {
+    proposal: unknown;
+    onConfirm: () => void;
+  }) =>
+    proposal ? (
+      <div role="dialog" aria-label="Dotación clínica identificada">
+        <button type="button" onClick={onConfirm}>
+          Aplicar propuesta
+        </button>
+      </div>
+    ) : null,
 }));
 
 describe('RayenImportButton staffing review', () => {
@@ -69,7 +81,7 @@ describe('RayenImportButton staffing review', () => {
       retryClinicalFill: vi.fn(),
       confirm: vi.fn(),
       cancel: vi.fn(),
-      confirmStaffingProposal: vi.fn(),
+      confirmStaffingProposal: vi.fn(async () => true),
       dismissStaffingProposal: vi.fn(),
     });
   });
@@ -110,5 +122,30 @@ describe('RayenImportButton staffing review', () => {
     expect(
       await screen.findByRole('dialog', { name: /dotación clínica identificada/i })
     ).toBeVisible();
+  });
+
+  it('keeps the staffing review open when applying the proposal fails', async () => {
+    const confirmStaffingProposal = vi.fn(async () => false);
+    mocks.useRayenImport.mockReturnValue({
+      ...mocks.useRayenImport(),
+      confirmStaffingProposal,
+    });
+
+    render(<RayenImportButton />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sincronizar dotación clínica' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Aplicar propuesta' }));
+
+    await waitFor(() => expect(confirmStaffingProposal).toHaveBeenCalledOnce());
+    expect(screen.getByRole('dialog', { name: /dotación clínica identificada/i })).toBeVisible();
+  });
+
+  it('closes the staffing review only after a confirmed application', async () => {
+    render(<RayenImportButton />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sincronizar dotación clínica' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Aplicar propuesta' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /dotación clínica identificada/i })).toBeNull()
+    );
   });
 });
