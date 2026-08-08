@@ -94,9 +94,51 @@ describe('rayenCensusPersistenceGuard', () => {
             sourceOfTruth: 'local',
           }),
         })
-      ).toThrow(/todavía no fue confirmado en la nube/i);
+      ).toThrow(/pendiente de confirmación en la nube/i);
     }
   );
+
+  it('does not misclassify an operationally queued write as a concurrency conflict', () => {
+    try {
+      assertRayenCensusPersistenceConfirmed({
+        record: buildRecord(),
+        result: buildResult({
+          outcome: 'queued',
+          savedRemotely: false,
+          queuedForRetry: true,
+          consistencyState: 'queued_for_retry',
+          sourceOfTruth: 'local',
+        }),
+      });
+      throw new Error('Expected persistence guard to reject the pending census');
+    } catch (error) {
+      expect(error).toMatchObject({ name: 'Error' });
+    }
+  });
+
+  it('marks an explicit concurrency outcome as a recoverable concurrency conflict', () => {
+    try {
+      assertRayenCensusPersistenceConfirmed({
+        record: buildRecord(),
+        result: buildResult({
+          outcome: 'auto_merged',
+          savedRemotely: false,
+          queuedForRetry: true,
+          autoMerged: true,
+          consistencyState: 'auto_merged',
+          sourceOfTruth: 'local',
+          conflictSummary: {
+            kind: 'concurrency',
+            sourceOfTruth: 'local',
+            message: 'La versión remota cambió durante el guardado.',
+          },
+        }),
+      });
+      throw new Error('Expected persistence guard to reject the stale census');
+    } catch (error) {
+      expect(error).toMatchObject({ name: 'ConcurrencyError' });
+    }
+  });
 
   it('surfaces unrecoverable local persistence instead of continuing', () => {
     expect(() =>

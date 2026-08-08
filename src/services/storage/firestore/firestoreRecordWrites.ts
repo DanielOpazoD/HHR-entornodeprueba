@@ -34,6 +34,7 @@ import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import {
   patchDailyRecordWithClinicalAuthorityCallable,
   saveDailyRecordWithClinicalAuthorityCallable,
+  shouldRetryDailyRecordAuthorityError,
   type DailyRecordAuthorityCallableResponse,
 } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
 import {
@@ -102,6 +103,7 @@ export const saveRecordToFirestore = async (
         {
           onRetry: (err: unknown, attempt: number) =>
             logFirestoreWriteRetry('save', record.date, attempt, err),
+          shouldRetry: shouldRetryDailyRecordAuthorityError,
         }
       );
     }
@@ -216,7 +218,7 @@ export const updateRecordPartial = async (
             {
               onRetry: (err: unknown, attempt: number) =>
                 logFirestoreWriteRetry('partialUpdate', date, attempt, err),
-              shouldRetry: (err: unknown) => !(err instanceof ConcurrencyError),
+              shouldRetry: shouldRetryDailyRecordAuthorityError,
             }
           );
         }
@@ -299,6 +301,7 @@ export const updateRecordPartial = async (
             {
               onRetry: (err: unknown, attempt: number) =>
                 logFirestoreWriteRetry('partialUpdate', date, attempt, err),
+              shouldRetry: shouldRetryDailyRecordAuthorityError,
             }
           );
         }

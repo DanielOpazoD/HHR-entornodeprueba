@@ -48,9 +48,14 @@ export const assertRayenCensusPersistenceConfirmed = (
   }
 
   if (result.outcome !== 'clean') {
-    throw new Error(
-      'El censo quedó guardado localmente, pero todavía no fue confirmado en la nube. La información clínica no se aplicó para evitar mezclar versiones; espera un momento y vuelve a sincronizar.'
+    const pendingWrite = new Error(
+      result.userSafeMessage ||
+        'El censo quedó guardado localmente y está pendiente de confirmación en la nube. La información clínica no se aplicó; vuelve a sincronizar cuando termine el guardado.'
     );
+    if (result.conflictSummary?.kind === 'concurrency') {
+      pendingWrite.name = 'ConcurrencyError';
+    }
+    throw pendingWrite;
   }
 };
 

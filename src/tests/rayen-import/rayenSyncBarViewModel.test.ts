@@ -63,12 +63,6 @@ describe('buildRayenSyncBarViewModel', () => {
     ],
     ['apply', input({ isApplyingCensus: true }), 'apply', 'Aplicando cambios al censo'],
     [
-      'staffing decision',
-      input({ fill: fill({ outcome: 'complete', staffingOutcome: 'pending' }) }),
-      'staffing',
-      'Revisión lista · 1 decisión pendiente',
-    ],
-    [
       'conflict',
       input({ hasUnresolvedConflicts: true, isSyncing: true }),
       'action',
@@ -76,6 +70,45 @@ describe('buildRayenSyncBarViewModel', () => {
     ],
   ])('maps %s to one canonical state', (_name, state, phase, label) => {
     expect(buildRayenSyncBarViewModel(state)).toMatchObject({ phase, label });
+  });
+
+  it.each(['pending', 'ambiguous', 'declined'] as const)(
+    'keeps a complete clinical sync green when staffing is %s',
+    staffingOutcome => {
+      const model = buildRayenSyncBarViewModel(
+        input({ fill: fill({ outcome: 'complete', staffingOutcome }) })
+      );
+
+      expect(model).toMatchObject({
+        phase: 'complete',
+        tone: 'success',
+        label: 'Todo al día',
+      });
+    }
+  );
+
+  it('does not degrade persisted clinical success because staffing evidence is ambiguous', () => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        hasPersistedSync: true,
+        persistedSync: {
+          status: 'complete',
+          coverage: {
+            total: 15,
+            completed: 15,
+            errors: 0,
+            sourceErrors: 0,
+            completedAt: '2026-08-08T05:00:00.000Z',
+          },
+          staffingObservation: {
+            ambiguousSections: ['nurse_day'],
+            ignoredBoundaryRecords: 1,
+          },
+        },
+      })
+    );
+
+    expect(model).toMatchObject({ phase: 'complete', tone: 'success', label: 'Todo al día' });
   });
 
   it('uses the real clinical patient counter instead of an inferred percentage', () => {

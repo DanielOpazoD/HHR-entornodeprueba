@@ -35,13 +35,14 @@ interface FreshnessDependencies {
 
 export const saveDailyRecordWithCompatibility = async (
   dailyRecord: DailyRecordRepositoryPort,
-  record: DailyRecord
+  record: DailyRecord,
+  expectedLastUpdated: string = record.lastUpdated
 ): Promise<SaveDailyRecordResult | null> => {
   if (typeof dailyRecord.saveDetailed === 'function') {
-    return dailyRecord.saveDetailed(record, record.lastUpdated);
+    return dailyRecord.saveDetailed(record, expectedLastUpdated);
   }
 
-  await dailyRecord.save(record, record.lastUpdated);
+  await dailyRecord.save(record, expectedLastUpdated);
   return null;
 };
 

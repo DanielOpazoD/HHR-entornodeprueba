@@ -15,6 +15,7 @@ import {
 import { canWritePreviousDay } from '../domain/previousDayCorrections';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { reportRayenStaffingOutcome } from './useRayenFillStatus';
+import { isNursingStaffingCollectionContextCurrent } from '../domain/nursingStaffingCollectionContext';
 
 interface StaffingProposalActionsInput {
   proposal: NursingStaffingProposal | null;
@@ -68,6 +69,18 @@ export const useRayenStaffingProposalActions = ({
         'clinical_patch'
       );
       if (!fresh.record) throw new Error('No se pudo obtener la versión vigente del censo.');
+      if (
+        proposal.sourceLastUpdated &&
+        !isNursingStaffingCollectionContextCurrent(
+          { date: proposal.censusDate, lastUpdated: proposal.sourceLastUpdated },
+          fresh.record,
+          currentRecordRef.current?.date
+        )
+      ) {
+        throw new Error(
+          'El censo cambió desde que se preparó la dotación. Vuelve a revisar la propuesta vigente.'
+        );
+      }
       // Reconcile once more against the freshly loaded roster. Clinical enrichment may have
       // updated the record while the modal was open, but an unrelated/already-resolved shift
       // must not block a still-valid nursing assignment.

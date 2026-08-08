@@ -1,5 +1,5 @@
 import React from 'react';
-import { CircleHelp, History, RefreshCw } from 'lucide-react';
+import { CircleHelp, History, RefreshCw, UsersRound } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
@@ -43,6 +43,7 @@ export const RayenImportButton: React.FC = () => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
+  const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const {
     mode,
@@ -56,6 +57,7 @@ export const RayenImportButton: React.FC = () => {
     staffingProposal,
     isStaffingProposalBusy,
     staffingProposalError,
+    refreshStaffingProposal,
     triggerImport,
     retryClinicalFill,
     confirm,
@@ -67,7 +69,8 @@ export const RayenImportButton: React.FC = () => {
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
-  const working = isSyncing || isBusy || fill.running || recoveryBusy || isStaffingProposalBusy;
+  const mainWorking = isSyncing || isBusy || fill.running || recoveryBusy;
+  const working = mainWorking || isStaffingProposalBusy;
 
   const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
   const history = React.useMemo(
@@ -78,8 +81,8 @@ export const RayenImportButton: React.FC = () => {
     [record?.rayenSyncHistory]
   );
   const recovery = React.useMemo(
-    () => presentRayenSyncRecovery(history[0], extension.connection, working),
-    [extension.connection, history, working]
+    () => presentRayenSyncRecovery(history[0], extension.connection, mainWorking),
+    [extension.connection, history, mainWorking]
   );
 
   const sourceState =
@@ -105,7 +108,7 @@ export const RayenImportButton: React.FC = () => {
   const handleSync = async (): Promise<void> => {
     const startedAt = Date.now();
     const health = await extension.refresh();
-    triggerImport(health, {
+    await triggerImport(health, {
       stagesMs: { preflight: elapsedMilliseconds(startedAt) },
       counters: { requests: 1 },
     });
@@ -122,9 +125,31 @@ export const RayenImportButton: React.FC = () => {
       ? `Revisar ${pendingChangeCount} cambio${pendingChangeCount === 1 ? '' : 's'}`
       : isPreviewOpen && result
         ? 'Revisar conflictos'
-        : staffingProposal
-          ? 'Revisar propuesta'
-          : rayenPrimaryActionLabel(extension.connection, working);
+        : rayenPrimaryActionLabel(extension.connection, mainWorking);
+
+  React.useEffect(() => {
+    if (!staffingProposal) setStaffingReviewOpen(false);
+  }, [staffingProposal]);
+
+  const handleConfirmStaffingProposal = async (): Promise<void> => {
+    await confirmStaffingProposal();
+    setStaffingReviewOpen(false);
+  };
+  const handleDismissStaffingProposal = (): void => {
+    dismissStaffingProposal();
+    setStaffingReviewOpen(false);
+  };
+  const handleStaffingReview = async (): Promise<void> => {
+    const health = await extension.refresh();
+    const fichaMedicoReady =
+      health.connection === 'ready' || health.report?.fichaMedico.status === 'ready';
+    if (!fichaMedicoReady) {
+      setConnectionGuidanceOpen(true);
+      return;
+    }
+    const proposal = await refreshStaffingProposal();
+    if (proposal) setStaffingReviewOpen(true);
+  };
   const closeHistory = React.useCallback(() => {
     setHistoryOpen(false);
     queueMicrotask(() => historyTriggerRef.current?.focus());
@@ -258,14 +283,43 @@ export const RayenImportButton: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={() => void handleStaffingReview()}
+            disabled={mainWorking || isStaffingProposalBusy}
+            aria-label="Sincronizar dotación clínica"
+            aria-busy={isStaffingProposalBusy}
+            title={
+              staffingProposalError ??
+              'Leer y revisar Enfermería y TENS sin modificar camas ni datos clínicos'
+            }
+            data-testid="rayen-staffing-review-button"
+            className={`relative inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50 ${
+              staffingProposalError
+                ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                : 'border-slate-200 text-slate-600 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700'
+            }`}
+          >
+            {isStaffingProposalBusy ? (
+              <RefreshCw size={14} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <UsersRound size={14} aria-hidden="true" />
+            )}
+            Dotación
+            {staffingProposal && !isStaffingProposalBusy && (
+              <span
+                className="absolute -right-0.5 -top-0.5 size-2 rounded-full border border-white bg-teal-500"
+                aria-hidden="true"
+              />
+            )}
+          </button>
+          <button
+            type="button"
             onClick={() => void handleSync()}
             disabled={
               working ||
               extension.connection === 'checking' ||
-              isPreviewOpen ||
-              Boolean(staffingProposal)
+              isPreviewOpen
             }
-            aria-busy={working || extension.connection === 'checking'}
+            aria-busy={mainWorking || extension.connection === 'checking'}
             title={
               mode === 'auto'
                 ? 'Sincronizar el censo con Eloísa (modo automático experimental)'
@@ -275,7 +329,7 @@ export const RayenImportButton: React.FC = () => {
             data-testid="rayen-import-button"
             className="inline-flex min-h-8 w-40 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-teal-700 px-2.5 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.1)] transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
           >
-            <RefreshCw size={13} strokeWidth={2.5} className={working ? 'animate-spin' : ''} />
+            <RefreshCw size={13} strokeWidth={2.5} className={mainWorking ? 'animate-spin' : ''} />
             {primaryActionLabel}
             {mode === 'auto' && (
               <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
@@ -304,11 +358,11 @@ export const RayenImportButton: React.FC = () => {
         onRecoveryAction={() => void handleRecoveryAction()}
       />
       <RayenNursingShiftProposalModal
-        proposal={isPreviewOpen ? null : staffingProposal}
+        proposal={!isPreviewOpen && staffingReviewOpen ? staffingProposal : null}
         isBusy={isStaffingProposalBusy}
         error={staffingProposalError}
-        onConfirm={() => void confirmStaffingProposal()}
-        onCancel={dismissStaffingProposal}
+        onConfirm={() => void handleConfirmStaffingProposal()}
+        onCancel={handleDismissStaffingProposal}
       />
     </div>
   );

@@ -33,6 +33,8 @@ export interface SaveDailyRecordResult {
   blockingReason?: 'regression' | 'version_mismatch' | 'validation';
   repairApplied: boolean;
   blockingError?: Error;
+  /** Exact server-confirmed state returned by the authority callable, when available. */
+  confirmedRecord?: DailyRecord;
 }
 
 type SaveDailyRecordResultInput = Pick<

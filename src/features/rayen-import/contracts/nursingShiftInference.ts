@@ -66,6 +66,8 @@ export interface NursingShiftSuggestion {
 
 export interface NursingStaffingProposal {
   censusDate: string;
+  /** Census revision whose patient histories produced this proposal. */
+  sourceLastUpdated?: string;
   /** Enfermeras(os), dos cupos estándar por turno. */
   day: NursingShiftSuggestion;
   night: NursingShiftSuggestion;

@@ -61,10 +61,6 @@ const persistedClinicalSyncHasIssues = (
   persistedSync.coverage.sourceErrors > 0 ||
   Boolean(persistedSync.coverage.issues?.length);
 
-const persistedStaffingHasIssues = (
-  persistedSync: RayenSyncBarViewModelInput['persistedSync']
-): boolean => Boolean(persistedSync?.staffingObservation?.ambiguousSections.length);
-
 const settled = (
   phase: RayenSyncBarPhase,
   tone: RayenSyncBarTone,
@@ -129,15 +125,6 @@ export const buildRayenSyncBarViewModel = (
   if (input.hasSkippedItems) {
     return settled('action', 'warning', 'Sincronización con elementos sin aplicar');
   }
-  if (fill.staffingOutcome === 'pending') {
-    return settled('staffing', 'warning', 'Revisión lista · 1 decisión pendiente');
-  }
-  if (fill.staffingOutcome === 'ambiguous') {
-    return settled('staffing', 'warning', 'Enfermería/TENS sin cambios · evidencia ambigua');
-  }
-  if (fill.staffingOutcome === 'applying') {
-    return active('staffing', 'Aplicando propuesta de enfermería', { kind: 'indeterminate' });
-  }
   if (fill.running) {
     const hasRealTotal = fill.total > 0;
     const done = hasRealTotal ? Math.min(Math.max(fill.done, 0), fill.total) : 0;
@@ -164,9 +151,6 @@ export const buildRayenSyncBarViewModel = (
   if (input.isSyncing) {
     return active('capture', 'Leyendo información de Eloísa', { kind: 'indeterminate' });
   }
-  if (fill.staffingOutcome === 'declined') {
-    return settled('complete', 'neutral', 'Sincronización completada · se mantuvo HHR');
-  }
   if (fill.outcome === 'partial') {
     return settled('action', 'warning', 'Sincronización completada con observaciones');
   }
@@ -176,8 +160,7 @@ export const buildRayenSyncBarViewModel = (
 
   if (input.hasPersistedSync) {
     const clinicalIssues = persistedClinicalSyncHasIssues(input.persistedSync);
-    const staffingIssues = persistedStaffingHasIssues(input.persistedSync);
-    if (clinicalIssues || staffingIssues) {
+    if (clinicalIssues) {
       if (input.persistedSync?.status === 'applied') {
         return settled('action', 'warning', 'Sincronización pendiente de completar');
       }

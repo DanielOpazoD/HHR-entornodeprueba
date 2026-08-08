@@ -218,7 +218,7 @@ export const useDailyRecordSyncQuery = (
   const saveAndUpdate = useCallback(
     async (updatedRecord: DailyRecord) => {
       try {
-        const payload = await saveMutation.mutateAsync(updatedRecord);
+        const payload = await saveMutation.mutateAsync({ record: updatedRecord });
         presentChannelNotice(resolveSaveOutcomeFeedback(payload.result), 'Guardado');
         assertDailyRecordWriteAccepted(payload.result);
       } catch (err) {

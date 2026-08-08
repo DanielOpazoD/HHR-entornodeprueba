@@ -1,19 +1,21 @@
 import { useCallback, useEffect, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
-import type { CensusSyncTarget } from '../domain/historicalCensusSync';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import * as rayenImportBridge from '../bridge/rayenImportBridge';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import { failureReasonFromHealth } from './useRayenSyncAudit';
 import { resetRayenFillProgress } from './useRayenFillStatus';
-import { resolveSyncReportRequest } from './reportDateHelpers';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
 import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
 import type { RayenImportPolicyStatus } from './useRayenImportMode';
+import {
+  prepareRayenSyncTemporalContext,
+  type PreparedRayenSyncContext,
+} from './rayenSyncTemporalContext';
 
 interface UseRayenImportCaptureInput {
   currentRecord: DailyRecord | null | undefined;
@@ -24,7 +26,8 @@ interface UseRayenImportCaptureInput {
   setStaffingProposalError: Dispatch<SetStateAction<string | null>>;
   clearSyncTimeout: () => void;
   syncRequestController: RayenSyncRequestController;
-  syncTargetRef: RefObject<CensusSyncTarget | null>;
+  preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
+  loadFreshRecord: (date: string) => Promise<DailyRecord>;
   startRun: (
     health?: RayenExtensionHealthState,
     performance?: RayenSyncPerformanceDelta,
@@ -45,7 +48,8 @@ export const useRayenImportCapture = ({
   setStaffingProposalError,
   clearSyncTimeout,
   syncRequestController,
-  syncTargetRef,
+  preparedSyncContextRef,
+  loadFreshRecord,
   startRun,
   failRun,
   recordRunPerformance,
@@ -67,7 +71,7 @@ export const useRayenImportCapture = ({
         const runId = syncRequestController.getRunId(requestId);
         if (!runId) return;
         clearSyncTimeout();
-        syncTargetRef.current = null;
+        preparedSyncContextRef.current = null;
         void failRun('snapshot_error', runId);
         setState(previous => ({
           ...previous,
@@ -77,12 +81,13 @@ export const useRayenImportCapture = ({
             'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen e inténtalo nuevamente.',
         }));
       }),
-    [clearSyncTimeout, failRun, setState, syncRequestController, syncTargetRef]
+    [clearSyncTimeout, failRun, preparedSyncContextRef, setState, syncRequestController]
   );
 
   return useCallback(
-    (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
+    async (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
       clearSyncTimeout();
+      preparedSyncContextRef.current = null;
       if (policyStatus !== 'ready') {
         setState(previous => ({
           ...previous,
@@ -114,6 +119,7 @@ export const useRayenImportCapture = ({
       setStaffingProposalError(null);
       const run = startRun(health, performance, policy);
       if (!health.canSync) {
+        preparedSyncContextRef.current = null;
         void failRun(failureReasonFromHealth(health), run.id);
         setState(previous => ({
           ...previous,
@@ -125,6 +131,7 @@ export const useRayenImportCapture = ({
         return;
       }
       if (!currentRecord) {
+        preparedSyncContextRef.current = null;
         void failRun('snapshot_error', run.id);
         setState(previous => ({
           ...previous,
@@ -136,10 +143,23 @@ export const useRayenImportCapture = ({
         return;
       }
 
-      let syncRequest: ReturnType<typeof resolveSyncReportRequest>;
+      setState(previous => ({
+        ...previous,
+        isSyncing: true,
+        result: null,
+        hasSkippedItems: false,
+        error: null,
+      }));
+
+      let preparedContext: PreparedRayenSyncContext;
       try {
-        syncRequest = resolveSyncReportRequest(currentRecord, new Date());
+        preparedContext = await prepareRayenSyncTemporalContext({
+          displayedRecord: currentRecord,
+          runId: run.id,
+          loadFreshRecord,
+        });
       } catch (error) {
+        preparedSyncContextRef.current = null;
         void failRun('snapshot_error', run.id);
         setState(previous => ({
           ...previous,
@@ -151,20 +171,13 @@ export const useRayenImportCapture = ({
         return;
       }
 
-      syncTargetRef.current = syncRequest.target;
-      setState(previous => ({
-        ...previous,
-        isSyncing: true,
-        result: null,
-        hasSkippedItems: false,
-        error: null,
-      }));
+      preparedSyncContextRef.current = preparedContext;
       syncRequestController.start(
-        syncRequest.range.dateStart,
-        syncRequest.range.dateEnd,
+        preparedContext.range.dateStart,
+        preparedContext.range.dateEnd,
         run.id,
         () => {
-          syncTargetRef.current = null;
+          preparedSyncContextRef.current = null;
           recordRunPerformance({ counters: { timeouts: 1 } }, run.id);
           void failRun('snapshot_timeout', run.id);
           setState(previous =>
@@ -185,6 +198,8 @@ export const useRayenImportCapture = ({
       clearSyncTimeout,
       currentRecord,
       failRun,
+      loadFreshRecord,
+      preparedSyncContextRef,
       recordRunPerformance,
       policy,
       policyStatus,
@@ -193,7 +208,6 @@ export const useRayenImportCapture = ({
       setState,
       startRun,
       syncRequestController,
-      syncTargetRef,
     ]
   );
 };

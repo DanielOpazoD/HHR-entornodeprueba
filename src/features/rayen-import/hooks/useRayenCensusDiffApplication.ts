@@ -19,7 +19,10 @@ export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
 interface RayenCensusDiffApplicationInput {
   ensureRun: () => RayenSyncRun;
   applyRunToRecord: (record: DailyRecord, diff: CensusImportDiff) => { record: DailyRecord };
-  saveDailyRecord: (record: DailyRecord) => Promise<RayenCensusPersistencePayload>;
+  saveDailyRecord: (
+    record: DailyRecord,
+    expectedLastUpdated: string
+  ) => Promise<RayenCensusPersistencePayload>;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
 }
 
@@ -43,7 +46,9 @@ export const useRayenCensusDiffApplication = ({
       });
       const stamped = applyRunToRecord(result.record, diff).record;
       const startedAt = Date.now();
-      const persistence = await saveDailyRecord(stamped);
+      // applyCensusImportDiff stamps a new lastUpdated. The CAS token must remain the revision of
+      // the base record, especially for a historical day, otherwise every legitimate save is 409.
+      const persistence = await saveDailyRecord(stamped, record.lastUpdated);
       const confirmedHandoff = resolveConfirmedRayenCensusHandoff(persistence, {
         date: stamped.date,
         runId: run.id,

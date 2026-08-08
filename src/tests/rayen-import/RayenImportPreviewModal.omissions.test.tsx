@@ -27,7 +27,7 @@ const renderSettledPulse = (
       isPreviewOpen={false}
       isSyncing={false}
       error={null}
-      hasPersistedSync
+      hasPersistedSync={false}
       {...flags}
     />
   );
@@ -78,11 +78,11 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
     expect(screen.getByRole('status')).not.toHaveTextContent('Enfermería/TENS');
   });
 
-  it('does not claim full success when staffing changes were declined', () => {
+  it('does not degrade clinical success when an independent staffing proposal was declined', () => {
     renderSettledPulse('declined');
 
-    expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
-    expect(screen.getByText('Sincronización completada · se mantuvo HHR')).toBeVisible();
+    expect(screen.getByText('Todo al día')).toBeVisible();
+    expect(screen.queryByText(/se mantuvo HHR/)).not.toBeInTheDocument();
   });
 
   it('keeps skipped work visible after the decision modal closes', () => {

@@ -268,7 +268,7 @@ describe('Rayen synchronization decisions and pulse', () => {
     expect(screen.queryByText('0 con observación')).not.toBeInTheDocument();
   });
 
-  it('turns staffing evidence into one clear decision', () => {
+  it('keeps an independent staffing decision out of the clinical pulse', () => {
     renderPulse(
       fill({
         outcome: 'complete',
@@ -280,11 +280,12 @@ describe('Rayen synchronization decisions and pulse', () => {
       })
     );
 
-    expect(screen.getByText('Revisión lista · 1 decisión pendiente')).toBeVisible();
+    expect(screen.getByText('Todo al día')).toBeVisible();
+    expect(screen.queryByText(/decisión pendiente/)).not.toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  it('shows staffing application without reopening the general review modal', () => {
+  it('keeps the clinical pulse settled while staffing applies independently', () => {
     renderPulse(
       fill({
         outcome: 'complete',
@@ -296,8 +297,9 @@ describe('Rayen synchronization decisions and pulse', () => {
       })
     );
 
-    expect(screen.getByText('Aplicando propuesta de enfermería')).toBeVisible();
-    expect(screen.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow');
+    expect(screen.getByText('Todo al día')).toBeVisible();
+    expect(screen.queryByText(/propuesta de enfermería/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
   it('keeps the prior single-flight execution visible when a second attempt is rejected', () => {
