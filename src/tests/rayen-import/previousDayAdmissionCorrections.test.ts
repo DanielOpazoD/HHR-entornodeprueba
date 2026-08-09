@@ -15,7 +15,11 @@ import {
 } from './previousDayAdmissionCorrections.fixtures';
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
-  patchDailyRecordWithCompatibility: vi.fn().mockResolvedValue({}),
+  patchDailyRecordWithCompatibility: vi.fn().mockResolvedValue({
+    outcome: 'clean',
+    savedLocally: true,
+    updatedRemotely: false,
+  }),
 }));
 
 describe('previous clinical-day admission corrections', () => {
@@ -49,7 +53,7 @@ describe('previous clinical-day admission corrections', () => {
       '2026-07-26',
       false
     );
-    await fileCrossDayCorrections(
+    const result = await fileCrossDayCorrections(
       repository,
       {
         ...historicalRecord,
@@ -75,6 +79,7 @@ describe('previous clinical-day admission corrections', () => {
       }),
       { baseRecord: historicalRecord }
     );
+    expect(result).toEqual({ confirmed: 1, durablyQueued: 0 });
   });
 
   it('does not backdate a newborn admitted after the clinical-day handoff', async () => {

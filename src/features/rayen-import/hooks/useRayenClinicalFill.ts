@@ -82,8 +82,7 @@ interface UseRayenClinicalFillInput {
 export const resolveClinicalFillDay = (
   source: DailyRecord | ConfirmedRayenCensusHandoff,
   record: DailyRecord
-): string =>
-  isConfirmedRayenCensusHandoff(source) ? source.clinicalDay : toIsoReportDate(record);
+): string => (isConfirmedRayenCensusHandoff(source) ? source.clinicalDay : toIsoReportDate(record));
 
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
@@ -266,7 +265,10 @@ export const useRayenClinicalFill = ({
             };
           }
 
-          if (confirmedHandoff?.historicalCorrectionsPending) {
+          if (
+            confirmedHandoff?.historicalCorrectionsPending ||
+            confirmedHandoff?.historicalCorrectionsRequireFreshCapture
+          ) {
             summary.errors.push({
               bedId: '*',
               source: 'patch',

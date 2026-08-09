@@ -3,6 +3,7 @@ import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusI
 import {
   hasNoApplicableRayenStructuralChanges,
   resolveRayenSnapshotPlanningStage,
+  shouldOpenRayenSnapshotPreview,
 } from '@/features/rayen-import/hooks/rayenSnapshotPlanningDecision';
 
 const createDiff = (conflictCount = 0): CensusImportDiff => ({
@@ -64,5 +65,16 @@ describe('hasNoApplicableRayenStructuralChanges', () => {
     expect(resolveRayenSnapshotPlanningStage(false, false)).toEqual({
       type: 'awaiting_review',
     });
+  });
+
+  it('keeps recovery visible when a committed historical correction needs fresh evidence', () => {
+    expect(
+      shouldOpenRayenSnapshotPreview({
+        persistenceCompleted: true,
+        hasUnresolvedConflicts: false,
+        hasNoApplicableChanges: true,
+        requiresFreshCapture: true,
+      })
+    ).toBe(true);
   });
 });

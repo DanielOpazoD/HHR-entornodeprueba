@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertRayenCensusPersistenceConfirmed,
   isConfirmedRayenCensusHandoff,
+  markRayenHistoricalCorrectionsRequireFreshCapture,
   markRayenHistoricalCorrectionsPending,
   resolveConfirmedRayenCensusHandoff,
   resolveStructuralStageResult,
@@ -80,6 +81,20 @@ describe('rayenCensusPersistenceGuard', () => {
 
     expect(isConfirmedRayenCensusHandoff(marked)).toBe(true);
     expect(marked.historicalCorrectionsPending).toBe(true);
+    expect(marked.acceptedRevision).toBe(handoff.acceptedRevision);
+  });
+
+  it('preserves the authoritative brand while requiring fresh historical evidence', () => {
+    const record = buildRecord();
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      { date: record.date, runId: 'run-1' }
+    );
+
+    const marked = markRayenHistoricalCorrectionsRequireFreshCapture(handoff);
+
+    expect(isConfirmedRayenCensusHandoff(marked)).toBe(true);
+    expect(marked.historicalCorrectionsRequireFreshCapture).toBe(true);
     expect(marked.acceptedRevision).toBe(handoff.acceptedRevision);
   });
 

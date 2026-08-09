@@ -30,6 +30,8 @@ export interface ConfirmedRayenCensusHandoff {
   readonly isolatedConflicts: readonly StructuralConflict[];
   /** The selected-day census won its CAS, but one or more cross-day corrections still need retry. */
   readonly historicalCorrectionsPending?: true;
+  /** The selected day is confirmed, but cross-day evidence must be captured again. */
+  readonly historicalCorrectionsRequireFreshCapture?: true;
   readonly [CONFIRMED_RAYEN_CENSUS_HANDOFF]: true;
 }
 
@@ -55,6 +57,25 @@ export const markRayenHistoricalCorrectionsPending = (
   historicalCorrectionsPending: true,
   [CONFIRMED_RAYEN_CENSUS_HANDOFF]: true,
 });
+
+/** Preserves the confirmed selected-day census while surfacing non-durable cross-day work. */
+export const markRayenHistoricalCorrectionsRequireFreshCapture = (
+  handoff: ConfirmedRayenCensusHandoff
+): ConfirmedRayenCensusHandoff => ({
+  ...handoff,
+  historicalCorrectionsRequireFreshCapture: true,
+  [CONFIRMED_RAYEN_CENSUS_HANDOFF]: true,
+});
+
+export const applyRayenHistoricalCorrectionState = (
+  handoff: ConfirmedRayenCensusHandoff,
+  state: { pending: boolean; requiresFreshCapture: boolean }
+): ConfirmedRayenCensusHandoff =>
+  state.requiresFreshCapture
+    ? markRayenHistoricalCorrectionsRequireFreshCapture(handoff)
+    : state.pending
+      ? markRayenHistoricalCorrectionsPending(handoff)
+      : handoff;
 
 /**
  * Clinical enrichment must start only after the structural census write is authoritative.

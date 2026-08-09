@@ -3,8 +3,10 @@ import type { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import {
   applyConfirmedRayenImport,
+  committedRayenImportResultFromError,
   hasSkippedPreviousDayCorrections,
   isRayenStructuralPlanChangedError,
+  type ConfirmedRayenImportResult,
 } from './confirmRayenImport';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import {
@@ -22,7 +24,7 @@ import type { useRayenCensusDiffApplication } from './useRayenCensusDiffApplicat
 import type { useRayenClinicalFill } from './useRayenClinicalFill';
 import type { useRayenSyncAudit } from './useRayenSyncAudit';
 import type { useRayenSyncExecutionController } from './useRayenSyncExecutionController';
-import { markRayenHistoricalCorrectionsPending } from './rayenCensusPersistenceGuard';
+import { applyRayenHistoricalCorrectionState } from './rayenCensusPersistenceGuard';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;
 type SyncAudit = ReturnType<typeof useRayenSyncAudit>;
@@ -106,6 +108,59 @@ export const useRayenImportConfirmation = ({
         hasSkippedItems: false,
         error: null,
       }));
+      const continueAfterStructuralCommit = (
+        result: ConfirmedRayenImportResult<Awaited<ReturnType<typeof applyDiff>>>,
+        requiresFreshCapture = false,
+        correctionError?: string
+      ): void => {
+        const appliedDiff = result.appliedDiff;
+        const skippedPreviousDays = hasSkippedPreviousDayCorrections(
+          appliedDiff,
+          applyPreviousDays
+        );
+        const hasPendingHistoricalCorrections = result.historicalCorrectionsPending;
+        const hasHistoricalFollowUp =
+          skippedPreviousDays || hasPendingHistoricalCorrections || requiresFreshCapture;
+        const isCurrent = isRayenSyncExecutionCurrent(executionRef.current, executionIdentity);
+        if (isCurrent) {
+          dispatchExecution({
+            type: 'record_outcome',
+            ...executionIdentity,
+            structuralConflicts: Math.max(
+              appliedDiff.conflicts.length,
+              appliedDiff.summary.conflicts
+            ),
+            skippedItems: Number(hasHistoricalFollowUp) + result.skipped.length,
+          });
+          const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
+          setState(previous => ({
+            ...previous,
+            isBusy: false,
+            ...(isExecutionDateVisible
+              ? {
+                  diff: appliedDiff,
+                  isPreviewOpen: appliedDiff.summary.conflicts > 0 || requiresFreshCapture,
+                  result,
+                  hasSkippedItems: hasHistoricalFollowUp || result.skipped.length > 0,
+                  error: correctionError ?? null,
+                }
+              : {}),
+          }));
+          transitionExecution({ type: 'verifying_structure' }, run.id);
+          preparedSyncContextRef.current = null;
+          structuralReplanRef.current = null;
+          transitionExecution({ type: 'syncing_clinical' }, run.id);
+        }
+
+        // The structural CAS already committed. Even if its UI execution was superseded while the
+        // write was in flight, enqueue the handoff; the clinical queue revalidates run authority
+        // before any patch and discards an obsolete run without touching the newer census.
+        const clinicalHandoff = applyRayenHistoricalCorrectionState(result.confirmedHandoff, {
+          pending: result.historicalCorrectionsPending,
+          requiresFreshCapture,
+        });
+        void fillDevicesInBackground(clinicalHandoff);
+      };
       try {
         const result = await runSerializedPersistence(() => {
           if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
@@ -127,52 +182,19 @@ export const useRayenImportConfirmation = ({
           });
         });
         if (!result) return;
-        const appliedDiff = result.appliedDiff;
-        const skippedPreviousDays = hasSkippedPreviousDayCorrections(
-          appliedDiff,
-          applyPreviousDays
-        );
-        const hasPendingHistoricalCorrections = result.historicalCorrectionsPending;
-        const isCurrent = isRayenSyncExecutionCurrent(executionRef.current, executionIdentity);
-        if (isCurrent) {
-          dispatchExecution({
-            type: 'record_outcome',
-            ...executionIdentity,
-            structuralConflicts: Math.max(
-              appliedDiff.conflicts.length,
-              appliedDiff.summary.conflicts
-            ),
-            skippedItems:
-              Number(skippedPreviousDays) +
-              Number(hasPendingHistoricalCorrections) +
-              result.skipped.length,
-          });
-          const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
-          setState(previous => ({
-            ...previous,
-            isBusy: false,
-            ...(isExecutionDateVisible
-              ? {
-                  diff: appliedDiff,
-                  isPreviewOpen: appliedDiff.summary.conflicts > 0,
-                  result,
-                  hasSkippedItems:
-                    skippedPreviousDays ||
-                    hasPendingHistoricalCorrections ||
-                    result.skipped.length > 0,
-                }
-              : {}),
-          }));
-          transitionExecution({ type: 'verifying_structure' }, run.id);
-          preparedSyncContextRef.current = null;
-          structuralReplanRef.current = null;
-          transitionExecution({ type: 'syncing_clinical' }, run.id);
-        }
-        const clinicalHandoff = result.historicalCorrectionsPending
-          ? markRayenHistoricalCorrectionsPending(result.confirmedHandoff)
-          : result.confirmedHandoff;
-        void fillDevicesInBackground(clinicalHandoff);
+        continueAfterStructuralCommit(result);
       } catch (error) {
+        const committedResult = committedRayenImportResultFromError<
+          Awaited<ReturnType<typeof applyDiff>>
+        >(error);
+        if (committedResult) {
+          continueAfterStructuralCommit(
+            committedResult,
+            true,
+            getRayenImportErrorMessage(error)
+          );
+          return;
+        }
         if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
         if (isRayenStructuralPlanChangedError(error)) {
           // Returning from this branch still executes `finally`; delete eagerly as well so the

@@ -234,14 +234,16 @@ describe('applyConfirmedRayenImport', () => {
     expect(replanDiff).not.toHaveBeenCalled();
   });
 
-  it('fails explicitly when historical corrections exhaust retries without durable persistence', async () => {
+  it('preserves the confirmed selected day when historical corrections exhaust retries', async () => {
     const conflict = new Error('El registro ha sido modificado por otro usuario.');
     conflict.name = 'ConcurrencyError';
-    vi.mocked(patchDailyRecordWithCompatibility).mockReset().mockResolvedValue({
-      outcome: 'blocked',
-      conflictSummary: { kind: 'concurrency' },
-      blockingError: conflict,
-    } as never);
+    vi.mocked(patchDailyRecordWithCompatibility)
+      .mockReset()
+      .mockResolvedValue({
+        outcome: 'blocked',
+        conflictSummary: { kind: 'concurrency' },
+        blockingError: conflict,
+      } as never);
     const acceptedDiff = {
       ...motherAndNewbornDiff,
       previousDayEdits: [
@@ -252,9 +254,7 @@ describe('applyConfirmedRayenImport', () => {
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,
-          admissionSubjects: [
-            { kind: 'principal', bedId: 'H4C1', clinicalEpisodeId: '143100' },
-          ],
+          admissionSubjects: [{ kind: 'principal', bedId: 'H4C1', clinicalEpisodeId: '143100' }],
         },
       ],
     } as CensusImportDiff;
@@ -264,34 +264,43 @@ describe('applyConfirmedRayenImport', () => {
       skipped: [],
     } as unknown as ApplyResult;
 
-    await expect(
-      applyConfirmedRayenImport({
-        applyPreviousDays: true,
-        base: { ...historicalRecord, date: '2026-07-26' },
-        diff: acceptedDiff,
-        dailyRecord: repository,
-        isAdmin: true,
-        ensureRun: () => ({
-          id: 'sync-run',
-          startedAt: '2026-07-26T10:00:00.000Z',
-          by: 'Enfermera prueba',
-          sourceDate: '2026-07-26',
-        }),
-        applyDiff: vi.fn().mockResolvedValue(expected),
-        getFreshRecord: vi.fn(),
-        replanDiff: vi.fn(),
-        createId: () => 'movement-id',
-      })
-    ).rejects.toBe(conflict);
+    const caught = await applyConfirmedRayenImport({
+      applyPreviousDays: true,
+      base: { ...historicalRecord, date: '2026-07-26' },
+      diff: acceptedDiff,
+      dailyRecord: repository,
+      isAdmin: true,
+      ensureRun: () => ({
+        id: 'sync-run',
+        startedAt: '2026-07-26T10:00:00.000Z',
+        by: 'Enfermera prueba',
+        sourceDate: '2026-07-26',
+      }),
+      applyDiff: vi.fn().mockResolvedValue(expected),
+      getFreshRecord: vi.fn(),
+      replanDiff: vi.fn(),
+      createId: () => 'movement-id',
+    }).catch(error => error as unknown);
+
+    expect(caught).toMatchObject({
+      name: 'RayenHistoricalCorrectionAfterCommitError',
+      committedResult: {
+        ...expected,
+        appliedDiff: acceptedDiff,
+        historicalCorrectionsPending: false,
+      },
+    });
     expect(patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(3);
   });
 
-  it('fails explicitly after a non-durable historical validation failure', async () => {
+  it('reports a non-durable historical validation failure without losing the selected-day commit', async () => {
     const historicalFailure = new Error('El día histórico quedó firmado durante la corrección.');
-    vi.mocked(patchDailyRecordWithCompatibility).mockReset().mockResolvedValue({
-      outcome: 'blocked',
-      blockingError: historicalFailure,
-    } as never);
+    vi.mocked(patchDailyRecordWithCompatibility)
+      .mockReset()
+      .mockResolvedValue({
+        outcome: 'blocked',
+        blockingError: historicalFailure,
+      } as never);
     const acceptedDiff = {
       ...motherAndNewbornDiff,
       previousDayEdits: [
@@ -302,9 +311,7 @@ describe('applyConfirmedRayenImport', () => {
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,
-          admissionSubjects: [
-            { kind: 'principal', bedId: 'H4C1', clinicalEpisodeId: '143100' },
-          ],
+          admissionSubjects: [{ kind: 'principal', bedId: 'H4C1', clinicalEpisodeId: '143100' }],
         },
       ],
     } as CensusImportDiff;
@@ -314,35 +321,44 @@ describe('applyConfirmedRayenImport', () => {
       skipped: [],
     } as unknown as ApplyResult;
 
-    await expect(
-      applyConfirmedRayenImport({
-        applyPreviousDays: true,
-        base: { ...historicalRecord, date: '2026-07-26' },
-        diff: acceptedDiff,
-        dailyRecord: repository,
-        isAdmin: true,
-        ensureRun: () => ({
-          id: 'sync-run',
-          startedAt: '2026-07-26T10:00:00.000Z',
-          by: 'Enfermera prueba',
-          sourceDate: '2026-07-26',
-        }),
-        applyDiff: vi.fn().mockResolvedValue(expected),
-        getFreshRecord: vi.fn(),
-        replanDiff: vi.fn(),
-        createId: () => 'movement-id',
-      })
-    ).rejects.toBe(historicalFailure);
+    const caught = await applyConfirmedRayenImport({
+      applyPreviousDays: true,
+      base: { ...historicalRecord, date: '2026-07-26' },
+      diff: acceptedDiff,
+      dailyRecord: repository,
+      isAdmin: true,
+      ensureRun: () => ({
+        id: 'sync-run',
+        startedAt: '2026-07-26T10:00:00.000Z',
+        by: 'Enfermera prueba',
+        sourceDate: '2026-07-26',
+      }),
+      applyDiff: vi.fn().mockResolvedValue(expected),
+      getFreshRecord: vi.fn(),
+      replanDiff: vi.fn(),
+      createId: () => 'movement-id',
+    }).catch(error => error as unknown);
+
+    expect(caught).toMatchObject({
+      name: 'RayenHistoricalCorrectionAfterCommitError',
+      committedResult: {
+        ...expected,
+        appliedDiff: acceptedDiff,
+        historicalCorrectionsPending: false,
+      },
+    });
     expect(patchDailyRecordWithCompatibility).toHaveBeenCalledOnce();
   });
 
   it('marks a historical correction pending only after its exact outbox write is durable', async () => {
-    vi.mocked(patchDailyRecordWithCompatibility).mockReset().mockResolvedValue({
-      outcome: 'blocked',
-      savedLocally: true,
-      updatedRemotely: false,
-      queuedForRetry: false,
-    } as never);
+    vi.mocked(patchDailyRecordWithCompatibility)
+      .mockReset()
+      .mockResolvedValue({
+        outcome: 'blocked',
+        savedLocally: true,
+        updatedRemotely: false,
+        queuedForRetry: false,
+      } as never);
     const acceptedDiff = {
       ...motherAndNewbornDiff,
       previousDayEdits: [
@@ -353,9 +369,7 @@ describe('applyConfirmedRayenImport', () => {
           recordExists: true,
           withinEditingWindow: true,
           isSigned: false,
-          admissionSubjects: [
-            { kind: 'principal', bedId: 'H4C1', clinicalEpisodeId: '143100' },
-          ],
+          admissionSubjects: [{ kind: 'principal', bedId: 'H4C1', clinicalEpisodeId: '143100' }],
         },
       ],
     } as CensusImportDiff;
@@ -415,26 +429,28 @@ describe('applyConfirmedRayenImport', () => {
     const stale = { ...historicalRecord, date: '2026-07-26', lastUpdated: 'stale' };
     const fresh = { ...stale, lastUpdated: 'fresh' };
     const applyDiff = vi.fn().mockRejectedValueOnce(conflict);
-    vi.mocked(patchDailyRecordWithCompatibility).mockReset().mockResolvedValue({} as never);
+    vi.mocked(patchDailyRecordWithCompatibility)
+      .mockReset()
+      .mockResolvedValue({} as never);
 
     const caught = await applyConfirmedRayenImport({
-        applyPreviousDays: true,
-        base: stale,
-        diff: initialDiff,
-        dailyRecord: repository,
-        isAdmin: true,
-        ensureRun: () => ({
-          id: 'sync-run',
-          startedAt: '2026-07-26T10:00:00.000Z',
-          by: 'Enfermera prueba',
-          sourceDate: '2026-07-26',
-        }),
-        applyDiff,
-        getFreshRecord: vi.fn().mockResolvedValue(fresh),
-        replanDiff: vi.fn().mockResolvedValue(replannedDiff),
-        clinicalDay: '2026-07-26',
-        createId: () => 'movement-id',
-      }).catch(error => error as unknown);
+      applyPreviousDays: true,
+      base: stale,
+      diff: initialDiff,
+      dailyRecord: repository,
+      isAdmin: true,
+      ensureRun: () => ({
+        id: 'sync-run',
+        startedAt: '2026-07-26T10:00:00.000Z',
+        by: 'Enfermera prueba',
+        sourceDate: '2026-07-26',
+      }),
+      applyDiff,
+      getFreshRecord: vi.fn().mockResolvedValue(fresh),
+      replanDiff: vi.fn().mockResolvedValue(replannedDiff),
+      clinicalDay: '2026-07-26',
+      createId: () => 'movement-id',
+    }).catch(error => error as unknown);
 
     expect(caught).toBeInstanceOf(RayenStructuralPlanChangedError);
     expect(caught).toMatchObject({

@@ -42,6 +42,7 @@ const classifyHistoricalPatchOutcome = (
 ): HistoricalPatchOutcome => {
   if (!result) return 'confirmed';
   if (result.updatedRemotely) return 'confirmed';
+  if (!isDailyRecordWriteRejectedResult(result)) return 'confirmed';
 
   // updatePartialDetailed persists the exact resulting record together with its outbox task before
   // attempting Firestore. A remote conflict may therefore be reported as blocked even though the
@@ -49,7 +50,6 @@ const classifyHistoricalPatchOutcome = (
   // local persistence is safe to describe as pending; a validation failure before enqueueing must
   // remain a hard error because no replayable correction exists.
   if (result.savedLocally) return 'durably_queued';
-  if (!isDailyRecordWriteRejectedResult(result)) return 'confirmed';
 
   const error =
     result.blockingError ??

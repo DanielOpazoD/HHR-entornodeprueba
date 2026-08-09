@@ -76,6 +76,36 @@ export const hasSkippedPreviousDayCorrections = (
   );
 };
 
+export type ConfirmedRayenImportResult<TApplyResult extends ApplyResult> = TApplyResult & {
+  appliedDiff: CensusImportDiff;
+  historicalCorrectionsPending: boolean;
+};
+
+/**
+ * The selected day is already authoritative, but a non-durable cross-day correction was rejected.
+ * Callers may continue clinical enrichment from `committedResult`; the historical change itself
+ * must be rebuilt from a fresh capture and must never be described as queued or replayable.
+ */
+export class RayenHistoricalCorrectionAfterCommitError extends Error {
+  readonly committedResult: ConfirmedRayenImportResult<ApplyResult>;
+
+  constructor(committedResult: ConfirmedRayenImportResult<ApplyResult>, cause: unknown) {
+    super(
+      'El censo del día seleccionado quedó confirmado, pero una corrección histórica no pudo guardarse. Vuelve a capturar la sincronización para recalcular esa corrección.',
+      cause === undefined ? undefined : { cause }
+    );
+    this.name = 'RayenHistoricalCorrectionAfterCommitError';
+    this.committedResult = committedResult;
+  }
+}
+
+export const committedRayenImportResultFromError = <TApplyResult extends ApplyResult>(
+  error: unknown
+): ConfirmedRayenImportResult<TApplyResult> | null =>
+  error instanceof RayenHistoricalCorrectionAfterCommitError
+    ? (error.committedResult as ConfirmedRayenImportResult<TApplyResult>)
+    : null;
+
 export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult>({
   applyPreviousDays,
   base,
@@ -107,9 +137,7 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
   clinicalDay?: string;
   createId: () => string;
   onRetry?: () => void;
-}): Promise<
-  TApplyResult & { appliedDiff: CensusImportDiff; historicalCorrectionsPending: boolean }
-> => {
+}): Promise<ConfirmedRayenImportResult<TApplyResult>> => {
   let candidate = base;
   let candidateDiff = diff;
   let lastConflict: unknown;
@@ -164,11 +192,21 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
         onRetry?.();
       }
     }
-    // Only a correction proven durable in the existing local outbox is resumable. A failure before
-    // that point cannot be represented by the generic audit marker, so fail explicitly rather than
-    // claiming that a future run can replay inputs that were never persisted.
-    if (lastHistoricalConflict) throw lastHistoricalConflict;
+    if (lastHistoricalConflict !== undefined) {
+      throw new RayenHistoricalCorrectionAfterCommitError(
+        {
+          ...appliedResult,
+          appliedDiff: candidateDiff,
+          historicalCorrectionsPending: false,
+        },
+        lastHistoricalConflict
+      );
+    }
   }
 
-  return { ...appliedResult, appliedDiff: candidateDiff, historicalCorrectionsPending };
+  return {
+    ...appliedResult,
+    appliedDiff: candidateDiff,
+    historicalCorrectionsPending,
+  };
 };
