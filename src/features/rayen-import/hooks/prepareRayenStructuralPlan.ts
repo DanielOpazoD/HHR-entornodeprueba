@@ -2,7 +2,7 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { createRayenSnapshotEvidenceClient } from './rayenSnapshotEvidenceClient';
-import { replanRayenStructure, type CapturedRayenStructuralEvidence } from './replanRayenStructure';
+import type { CapturedRayenStructuralEvidence } from './replanRayenStructure';
 
 interface EvidenceCounters {
   requests: number;
@@ -34,6 +34,9 @@ export const prepareRayenStructuralPlan = async ({
   counters,
   measureEvidence,
 }: PrepareRayenStructuralPlanInput) => {
+  // Structural reconstruction depends on live Eloisa evidence, so keep its comparatively large
+  // resolver graph out of the offline census shell and load it only when a sync is requested.
+  const { replanRayenStructure } = await import('./replanRayenStructure');
   const { fetchPatientFlowReport, fetchStatisticalDischarge, lookupEgresos } =
     createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
 
