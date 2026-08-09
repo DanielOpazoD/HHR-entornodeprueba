@@ -56,7 +56,7 @@ export const runClinicalFill = async (
   deps: ClinicalFillDeps,
   onProgress?: (progress: ClinicalFillProgress) => void
 ): Promise<ClinicalFillSummary> => {
-  const eligible = collectClinicalFillCandidates(record);
+  const eligible = collectClinicalFillCandidates(record, deps.allowedClinicalEpisodeIds);
   const summary: ClinicalFillSummary = {
     total: eligible.length,
     patched: 0,

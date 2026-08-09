@@ -1,6 +1,12 @@
 import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import {
+  collectSafeClinicalEpisodeIds,
+  describeStructuralConflicts,
+  type StructuralConflict,
+} from './rayenStructuralConvergence';
 
 export interface RayenCensusPersistencePayload {
   record: DailyRecord;
@@ -17,13 +23,38 @@ const CONFIRMED_RAYEN_CENSUS_HANDOFF = Symbol('confirmed-rayen-census-handoff');
 export interface ConfirmedRayenCensusHandoff {
   readonly record: DailyRecord;
   readonly runId: string;
+  readonly selectedDate: string;
+  readonly clinicalDay: string;
+  readonly acceptedRevision: string;
+  readonly safeClinicalEpisodeIds: readonly string[];
+  readonly isolatedConflicts: readonly StructuralConflict[];
+  /** The selected-day census won its CAS, but one or more cross-day corrections still need retry. */
+  readonly historicalCorrectionsPending?: true;
   readonly [CONFIRMED_RAYEN_CENSUS_HANDOFF]: true;
 }
+
+export type StructuralStageResult =
+  | { status: 'confirmed'; handoff: ConfirmedRayenCensusHandoff }
+  | {
+      status: 'confirmed_with_conflicts';
+      handoff: ConfirmedRayenCensusHandoff;
+      conflicts: readonly StructuralConflict[];
+    }
+  | { status: 'blocked'; reasons: readonly StructuralConflict[] };
 
 export const isConfirmedRayenCensusHandoff = (
   value: DailyRecord | ConfirmedRayenCensusHandoff
 ): value is ConfirmedRayenCensusHandoff =>
   (value as Partial<ConfirmedRayenCensusHandoff>)[CONFIRMED_RAYEN_CENSUS_HANDOFF] === true;
+
+/** Carries resumable cross-day work into the persisted terminal audit of the same run. */
+export const markRayenHistoricalCorrectionsPending = (
+  handoff: ConfirmedRayenCensusHandoff
+): ConfirmedRayenCensusHandoff => ({
+  ...handoff,
+  historicalCorrectionsPending: true,
+  [CONFIRMED_RAYEN_CENSUS_HANDOFF]: true,
+});
 
 /**
  * Clinical enrichment must start only after the structural census write is authoritative.
@@ -66,7 +97,12 @@ export const assertRayenCensusPersistenceConfirmed = (
  */
 export const resolveConfirmedRayenCensusHandoff = (
   payload: RayenCensusPersistencePayload,
-  expected: { date: string; runId: string }
+  expected: {
+    date: string;
+    clinicalDay?: string;
+    runId: string;
+    diff?: Pick<CensusImportDiff, 'conflicts'>;
+  }
 ): ConfirmedRayenCensusHandoff => {
   assertRayenCensusPersistenceConfirmed(payload);
   const { record, result } = payload;
@@ -81,9 +117,29 @@ export const resolveConfirmedRayenCensusHandoff = (
       'El guardado del censo no confirmó la versión de esta sincronización. La información clínica quedó pendiente y puede reintentarse sin volver a importar pacientes.'
     );
   }
+  const isolatedConflicts = describeStructuralConflicts(expected.diff?.conflicts ?? []);
   return {
     record,
     runId: expected.runId,
+    selectedDate: expected.date,
+    clinicalDay: expected.clinicalDay ?? expected.date,
+    acceptedRevision: record.lastUpdated,
+    safeClinicalEpisodeIds: collectSafeClinicalEpisodeIds(record, isolatedConflicts),
+    isolatedConflicts,
     [CONFIRMED_RAYEN_CENSUS_HANDOFF]: true,
+  };
+};
+
+export const resolveStructuralStageResult = (
+  handoff: ConfirmedRayenCensusHandoff
+): StructuralStageResult => {
+  if (handoff.isolatedConflicts.length === 0) return { status: 'confirmed', handoff };
+  if (handoff.safeClinicalEpisodeIds.length === 0) {
+    return { status: 'blocked', reasons: handoff.isolatedConflicts };
+  }
+  return {
+    status: 'confirmed_with_conflicts',
+    handoff,
+    conflicts: handoff.isolatedConflicts,
   };
 };

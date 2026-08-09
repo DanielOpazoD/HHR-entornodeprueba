@@ -35,16 +35,33 @@ export { verifyPreviousDayAdmissionPlacements } from './previousDayAdmissionEvid
 export const canWritePreviousDay = (day: string, isAdmin: boolean): boolean =>
   isAdmin || Date.now() - new Date(`${day}T00:00:00`).getTime() < 172_800_000;
 
-const assertHistoricalPatchAccepted = (
+type HistoricalPatchOutcome = 'confirmed' | 'durably_queued';
+
+const classifyHistoricalPatchOutcome = (
   result: Awaited<ReturnType<typeof patchDailyRecordWithCompatibility>>
-): void => {
-  if (!result || !isDailyRecordWriteRejectedResult(result)) return;
+): HistoricalPatchOutcome => {
+  if (!result) return 'confirmed';
+  if (result.updatedRemotely) return 'confirmed';
+
+  // updatePartialDetailed persists the exact resulting record together with its outbox task before
+  // attempting Firestore. A remote conflict may therefore be reported as blocked even though the
+  // historical correction is already durable and replayable from that outbox. Only that proven
+  // local persistence is safe to describe as pending; a validation failure before enqueueing must
+  // remain a hard error because no replayable correction exists.
+  if (result.savedLocally) return 'durably_queued';
+  if (!isDailyRecordWriteRejectedResult(result)) return 'confirmed';
+
   const error =
     result.blockingError ??
     new Error(result.userSafeMessage || 'No se confirmó el guardado histórico.');
   if (result.conflictSummary?.kind === 'concurrency') error.name = 'ConcurrencyError';
   throw error;
 };
+
+export interface CrossDayCorrectionResult {
+  confirmed: number;
+  durablyQueued: number;
+}
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
@@ -133,7 +150,7 @@ export const fileCrossDayCorrections = async (
   isAdmin: boolean,
   makeId: () => string,
   provenance: { actor?: string; syncRunId: string }
-): Promise<void> => {
+): Promise<CrossDayCorrectionResult> => {
   const previousDayEdits = diff.previousDayEdits ?? [];
   const confirmedDischargeDays = new Set(
     previousDayEdits
@@ -235,11 +252,15 @@ export const fileCrossDayCorrections = async (
     });
   }
 
+  const result: CrossDayCorrectionResult = { confirmed: 0, durablyQueued: 0 };
   for (const correction of preparedCorrections) {
-    assertHistoricalPatchAccepted(
+    const outcome = classifyHistoricalPatchOutcome(
       await patchDailyRecordWithCompatibility(port, correction.day, correction.patch, {
         baseRecord: correction.record,
       })
     );
+    if (outcome === 'confirmed') result.confirmed += 1;
+    else result.durablyQueued += 1;
   }
+  return result;
 };

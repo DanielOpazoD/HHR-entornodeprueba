@@ -163,6 +163,28 @@ describe('rayen sync history', () => {
     expect(partial).toMatchObject({ id: applied.id, status: 'partial' });
   });
 
+  it('classifies resumable structural follow-up without persisting raw error text', () => {
+    const coverage = buildRayenSyncCoverage(
+      0,
+      [
+        { bedId: '*', source: 'patch', message: 'historical_census_write_failed' },
+        { bedId: '*', source: 'patch', message: 'structural_conflicts_pending' },
+      ],
+      '2026-07-14T10:03:00.000Z'
+    );
+
+    expect(coverage).toMatchObject({
+      total: 0,
+      completed: 0,
+      errors: 0,
+      sourceErrors: 2,
+      issues: [
+        { bedId: '*', source: 'patch', reason: 'historical_census_write_failed' },
+        { bedId: '*', source: 'patch', reason: 'structural_conflict' },
+      ],
+    });
+  });
+
   it('replaces the applied performance snapshot with the completed aggregate', () => {
     const applied = buildAppliedRayenSyncEvent(
       {

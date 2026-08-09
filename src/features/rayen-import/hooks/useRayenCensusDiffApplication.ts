@@ -8,12 +8,15 @@ import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import {
   resolveConfirmedRayenCensusHandoff,
+  resolveStructuralStageResult,
   type ConfirmedRayenCensusHandoff,
   type RayenCensusPersistencePayload,
+  type StructuralStageResult,
 } from './rayenCensusPersistenceGuard';
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;
+  structuralStage: StructuralStageResult;
 }
 
 interface RayenCensusDiffApplicationInput {
@@ -36,7 +39,8 @@ export const useRayenCensusDiffApplication = ({
   useCallback(
     async (
       record: DailyRecord,
-      diff: CensusImportDiff
+      diff: CensusImportDiff,
+      clinicalDay: string = record.date
     ): Promise<ConfirmedRayenCensusApplyResult> => {
       const run = ensureRun();
       const result = applyCensusImportDiff(record, diff, {
@@ -51,8 +55,11 @@ export const useRayenCensusDiffApplication = ({
       const persistence = await saveDailyRecord(stamped, record.lastUpdated);
       const confirmedHandoff = resolveConfirmedRayenCensusHandoff(persistence, {
         date: stamped.date,
+        clinicalDay,
         runId: run.id,
+        diff,
       });
+      const structuralStage = resolveStructuralStageResult(confirmedHandoff);
       recordRunPerformance(
         {
           stagesMs: { persistence: elapsedMilliseconds(startedAt) },
@@ -60,7 +67,12 @@ export const useRayenCensusDiffApplication = ({
         },
         run.id
       );
-      return { ...result, record: confirmedHandoff.record, confirmedHandoff };
+      return {
+        ...result,
+        record: confirmedHandoff.record,
+        confirmedHandoff,
+        structuralStage,
+      };
     },
     [applyRunToRecord, ensureRun, recordRunPerformance, saveDailyRecord]
   );

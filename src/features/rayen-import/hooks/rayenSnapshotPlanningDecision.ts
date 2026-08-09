@@ -8,7 +8,8 @@ export const hasNoApplicableRayenStructuralChanges = (diff: CensusImportDiff): b
     diff.updates.length +
     diff.moves.length +
     diff.discharges.length +
-    (diff.reportEgresos?.length ?? 0);
+    (diff.reportEgresos?.length ?? 0) +
+    (diff.previousDayEdits?.length ?? 0);
   return applicableChanges === 0;
 };
 

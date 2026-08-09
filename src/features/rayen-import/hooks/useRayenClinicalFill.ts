@@ -79,6 +79,12 @@ interface UseRayenClinicalFillInput {
   createId: () => string;
 }
 
+export const resolveClinicalFillDay = (
+  source: DailyRecord | ConfirmedRayenCensusHandoff,
+  record: DailyRecord
+): string =>
+  isConfirmedRayenCensusHandoff(source) ? source.clinicalDay : toIsoReportDate(record);
+
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
   nurseCatalog,
@@ -98,6 +104,7 @@ export const useRayenClinicalFill = ({
       const isConfirmedHandoff = isConfirmedRayenCensusHandoff(source);
       const confirmedHandoff = isConfirmedHandoff ? source : null;
       const record: DailyRecord = isConfirmedHandoff ? source.record : source;
+      const allowedClinicalEpisodeIds = confirmedHandoff?.safeClinicalEpisodeIds;
       const requestedRunId = record.rayenSync?.runId;
       const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}`;
       const outcome = await enqueueLatestRayenClinicalFill(
@@ -106,7 +113,10 @@ export const useRayenClinicalFill = ({
         async ({ startedAfterQueue }) => {
           const { countClinicalFillEligiblePatients, runClinicalFill } =
             await import('../clinicalFillRunner');
-          const requestedEligibleCount = countClinicalFillEligiblePatients(record);
+          const requestedEligibleCount = countClinicalFillEligiblePatients(
+            record,
+            allowedClinicalEpisodeIds
+          );
           // The immediate path consumes the exact structural record just accepted by persistence.
           // A task that actually waited must revalidate once at dequeue time because a newer census
           // could have overtaken it while another clinical fill owned the queue.
@@ -143,7 +153,10 @@ export const useRayenClinicalFill = ({
             }
           }
           if (runPolicy === 'unavailable') {
-            const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
+            const eligibleCount = countClinicalFillEligiblePatients(
+              freshRecord,
+              allowedClinicalEpisodeIds
+            );
             reportRayenSyncWarning('clinical_fill_failed', {
               runId: requestedRunId,
               errorKind: 'policy_unavailable',
@@ -184,7 +197,10 @@ export const useRayenClinicalFill = ({
                 },
               };
           const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
-          const eligibleCount = countClinicalFillEligiblePatients(freshRecord);
+          const eligibleCount = countClinicalFillEligiblePatients(
+            freshRecord,
+            allowedClinicalEpisodeIds
+          );
           if (!beginRayenFill(eligibleCount)) {
             await completeRun(
               freshRecord,
@@ -216,9 +232,10 @@ export const useRayenClinicalFill = ({
             });
             summary = await runClinicalFill(
               freshRecord,
-              toIsoReportDate(freshRecord),
+              resolveClinicalFillDay(source, freshRecord),
               {
                 diagnosticRunId: auditRunId,
+                allowedClinicalEpisodeIds,
                 fetchDeviceReport: requestDeviceReport,
                 extractDeviceItems: extractDeviceTextItems,
                 fetchHistoryScales: requestHistoryScales,
@@ -247,6 +264,21 @@ export const useRayenClinicalFill = ({
               patched: 0,
               errors: [{ bedId: '*', source: 'patch', message: 'unexpected_fill_failure' }],
             };
+          }
+
+          if (confirmedHandoff?.historicalCorrectionsPending) {
+            summary.errors.push({
+              bedId: '*',
+              source: 'patch',
+              message: 'historical_census_write_failed',
+            });
+          }
+          if ((confirmedHandoff?.isolatedConflicts.length ?? 0) > 0) {
+            summary.errors.push({
+              bedId: '*',
+              source: 'patch',
+              message: 'structural_conflicts_pending',
+            });
           }
 
           if (summary.errors.length > 0) {

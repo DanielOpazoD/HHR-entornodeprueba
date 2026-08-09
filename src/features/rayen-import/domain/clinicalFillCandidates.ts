@@ -6,18 +6,35 @@ export interface ClinicalFillCandidate {
   clinicalCrib: boolean;
 }
 
-const isEligible = (patient: PatientData | undefined): patient is PatientData =>
+type EligibleClinicalPatient = PatientData & {
+  clinicalEpisodeId: string;
+  patientName: string;
+};
+
+const isEligible = (patient: PatientData | undefined): patient is EligibleClinicalPatient =>
   !!patient?.clinicalEpisodeId && !!patient.patientName?.trim();
 
-export const collectClinicalFillCandidates = (record: DailyRecord): ClinicalFillCandidate[] =>
-  Object.entries(record.beds).flatMap(([bedId, patient]) => {
+export const collectClinicalFillCandidates = (
+  record: DailyRecord,
+  allowedClinicalEpisodeIds?: readonly string[]
+): ClinicalFillCandidate[] => {
+  const allowed = allowedClinicalEpisodeIds ? new Set(allowedClinicalEpisodeIds) : null;
+  return Object.entries(record.beds).flatMap(([bedId, patient]) => {
     const candidates: ClinicalFillCandidate[] = [];
-    if (isEligible(patient)) candidates.push({ bedId, patient, clinicalCrib: false });
-    if (isEligible(patient?.clinicalCrib)) {
+    if (isEligible(patient) && (!allowed || allowed.has(patient.clinicalEpisodeId))) {
+      candidates.push({ bedId, patient, clinicalCrib: false });
+    }
+    if (
+      isEligible(patient?.clinicalCrib) &&
+      (!allowed || allowed.has(patient.clinicalCrib.clinicalEpisodeId))
+    ) {
       candidates.push({ bedId, patient: patient.clinicalCrib, clinicalCrib: true });
     }
     return candidates;
   });
+};
 
-export const countClinicalFillEligiblePatients = (record: DailyRecord): number =>
-  collectClinicalFillCandidates(record).length;
+export const countClinicalFillEligiblePatients = (
+  record: DailyRecord,
+  allowedClinicalEpisodeIds?: readonly string[]
+): number => collectClinicalFillCandidates(record, allowedClinicalEpisodeIds).length;

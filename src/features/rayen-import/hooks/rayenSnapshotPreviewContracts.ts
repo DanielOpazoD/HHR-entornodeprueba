@@ -9,6 +9,7 @@ import type { ConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard'
 import type { RayenImportState } from './rayenImportState';
 import type { PreparedRayenSyncContext } from './rayenSyncTemporalContext';
 import type { RayenSyncExecutionAction, RayenSyncExecutionState } from './rayenSyncExecutionState';
+import type { RayenStructuralReplan } from './rayenStructuralConvergence';
 
 export type RunSerializedRayenPersistence = <T>(operation: () => Promise<T>) => Promise<T>;
 
@@ -22,14 +23,15 @@ export interface UseRayenSnapshotPreviewInput {
   clearSyncTimeout: () => void;
   applyDiff: (
     record: DailyRecord,
-    diff: CensusImportDiff
+    diff: CensusImportDiff,
+    clinicalDay?: string
   ) => Promise<ConfirmedRayenCensusApplyResult>;
-  persistAppliedRun: (record: DailyRecord, diff: CensusImportDiff) => Promise<DailyRecord>;
   fillDevicesInBackground: (source: DailyRecord | ConfirmedRayenCensusHandoff) => Promise<void>;
   failRun: (reason: 'apply_failed', runId?: string) => Promise<void>;
   ensureRun: () => RayenSyncRun;
   getRun: (runId: string) => RayenSyncRun | undefined;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
   preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
+  structuralReplanRef: RefObject<RayenStructuralReplan | null>;
   runSerializedPersistence: RunSerializedRayenPersistence;
 }

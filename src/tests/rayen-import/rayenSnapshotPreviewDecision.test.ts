@@ -35,6 +35,24 @@ describe('hasNoApplicableRayenStructuralChanges', () => {
     expect(resolveRayenSnapshotPlanningStage(true, true)).toEqual({ type: 'syncing_clinical' });
   });
 
+  it('does not classify pending previous-day corrections as a no-change plan', () => {
+    const diff = {
+      ...createDiff(),
+      previousDayEdits: [
+        {
+          day: '2026-07-15',
+          reason: 'discharge-day-correction',
+          patientNames: ['Paciente prueba'],
+          recordExists: true,
+          withinEditingWindow: true,
+          isSigned: false,
+        },
+      ],
+    } as CensusImportDiff;
+
+    expect(hasNoApplicableRayenStructuralChanges(diff)).toBe(false);
+  });
+
   it('keeps an unapplied structural conflict cancellable before confirmation', () => {
     expect(resolveRayenSnapshotPlanningStage(false, true)).toEqual({
       type: 'needs_review',
