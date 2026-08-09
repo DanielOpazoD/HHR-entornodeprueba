@@ -20,14 +20,27 @@ import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
 import type { RayenImportPolicyStatus } from './useRayenImportMode';
 import {
+  createRayenSyncExecutionContext,
   prepareRayenSyncTemporalContext,
   type PreparedRayenSyncContext,
 } from './rayenSyncTemporalContext';
+import { toIsoReportDate } from './reportDateHelpers';
+import {
+  isRayenSyncExecutionCancellableBeforeCommit,
+  isRayenSyncExecutionCurrent,
+  isRayenSyncExecutionSettled,
+  type RayenSyncExecutionAction,
+  type RayenSyncExecutionState,
+} from './rayenSyncExecutionState';
 
 interface UseRayenImportCaptureInput {
   currentRecord: DailyRecord | null | undefined;
+  /** Route-selected census date; it changes before the matching record finishes loading. */
+  selectedDate?: string;
   policy: RayenImportPolicy;
   policyStatus: RayenImportPolicyStatus;
+  dispatchExecution?: Dispatch<RayenSyncExecutionAction>;
+  executionRef?: RefObject<RayenSyncExecutionState>;
   setState: Dispatch<SetStateAction<RayenImportState>>;
   setStaffingProposal: Dispatch<SetStateAction<NursingStaffingProposal | null>>;
   setStaffingProposalError: Dispatch<SetStateAction<string | null>>;
@@ -41,15 +54,29 @@ interface UseRayenImportCaptureInput {
     policy?: RayenImportPolicy
   ) => RayenSyncRun;
   failRun: (reason: RayenSyncFailureReason, runId?: string) => Promise<void>;
+  cancelRun?: () => void;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
-  previewSnapshot: (snapshot: RayenCensusSnapshot, bundle: RayenSyncBundle, runId: string) => void;
+  previewSnapshot: (
+    snapshot: RayenCensusSnapshot,
+    bundle: RayenSyncBundle,
+    runId: string,
+    requestId: string
+  ) => void;
+}
+
+interface CapturePreparationLock {
+  lockId: symbol;
+  selectedDate: string;
 }
 
 /** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
 export const useRayenImportCapture = ({
   currentRecord,
+  selectedDate: routeSelectedDate,
   policy,
   policyStatus,
+  dispatchExecution = () => undefined,
+  executionRef,
   setState,
   setStaffingProposal,
   setStaffingProposalError,
@@ -59,16 +86,17 @@ export const useRayenImportCapture = ({
   loadFreshRecord,
   startRun,
   failRun,
+  cancelRun,
   recordRunPerformance,
   previewSnapshot,
 }: UseRayenImportCaptureInput) => {
-  const capturePreparationInFlightRef = useRef(false);
+  const capturePreparationLockRef = useRef<CapturePreparationLock | null>(null);
   useEffect(
     () =>
       rayenImportBridge.subscribeToRayenSnapshots((snapshot, bundle, requestId) => {
         const runId = syncRequestController.getRunId(requestId);
         if (!runId) return;
-        previewSnapshot(snapshot, bundle, runId);
+        previewSnapshot(snapshot, bundle, runId, requestId);
       }),
     [previewSnapshot, syncRequestController]
   );
@@ -78,7 +106,20 @@ export const useRayenImportCapture = ({
       rayenImportBridge.subscribeToRayenImportErrors((_error, requestId) => {
         const runId = syncRequestController.getRunId(requestId);
         if (!runId) return;
+        const selectedDate = preparedSyncContextRef.current?.selectedDate;
+        if (
+          !isRayenSyncExecutionCurrent(executionRef?.current, { runId, requestId, selectedDate })
+        ) {
+          return;
+        }
         clearSyncTimeout();
+        dispatchExecution({
+          type: 'transition',
+          runId,
+          requestId,
+          selectedDate: preparedSyncContextRef.current?.selectedDate,
+          stage: { type: 'failed' },
+        });
         preparedSyncContextRef.current = null;
         void failRun('snapshot_error', runId);
         setState(previous => ({
@@ -89,14 +130,56 @@ export const useRayenImportCapture = ({
             'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen e inténtalo nuevamente.',
         }));
       }),
-    [clearSyncTimeout, failRun, preparedSyncContextRef, setState, syncRequestController]
+    [
+      clearSyncTimeout,
+      dispatchExecution,
+      failRun,
+      executionRef,
+      preparedSyncContextRef,
+      setState,
+      syncRequestController,
+    ]
   );
 
   return useCallback(
     async (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
-      if (capturePreparationInFlightRef.current) return;
-      capturePreparationInFlightRef.current = true;
+      const requestedSelectedDate =
+        routeSelectedDate ?? (currentRecord ? toIsoReportDate(currentRecord) : 'no-record');
+      const activeExecution = executionRef?.current;
+      if (activeExecution && !isRayenSyncExecutionSettled(activeExecution.stage)) {
+        const activeSelectedDate =
+          activeExecution.context?.selectedDate ?? activeExecution.pending?.selectedDate;
+        // Repeated clicks for one date are idempotent. A different selected date may supersede
+        // only pre-commit work; once structural persistence starts, its correlated execution must
+        // converge even if the operator navigates elsewhere.
+        if (
+          activeSelectedDate === requestedSelectedDate ||
+          !isRayenSyncExecutionCancellableBeforeCommit(activeExecution.stage)
+        ) {
+          return;
+        }
+        const activeRunId = activeExecution.context?.runId ?? activeExecution.pending?.runId;
+        clearSyncTimeout();
+        preparedSyncContextRef.current = null;
+        dispatchExecution({ type: 'cancel', runId: activeRunId });
+        cancelRun?.();
+      }
+      const activeLock = capturePreparationLockRef.current;
+      if (
+        activeLock?.selectedDate === requestedSelectedDate &&
+        executionRef?.current.stage?.type !== 'cancelled'
+      ) {
+        return;
+      }
+      const preparationLock: CapturePreparationLock = {
+        lockId: Symbol('rayen-capture-preparation'),
+        selectedDate: requestedSelectedDate,
+      };
+      capturePreparationLockRef.current = preparationLock;
       try {
+        // A new user attempt owns the presentation immediately, even if preflight fails before a
+        // run/request can be created. Otherwise a prior terminal state can hide the new error.
+        dispatchExecution({ type: 'reset' });
         clearSyncTimeout();
         preparedSyncContextRef.current = null;
         if (policyStatus !== 'ready') {
@@ -128,6 +211,19 @@ export const useRayenImportCapture = ({
         }
         setStaffingProposal(null);
         setStaffingProposalError(null);
+        if (!currentRecord || toIsoReportDate(currentRecord) !== requestedSelectedDate) {
+          setState(previous => ({
+            ...previous,
+            isBusy: false,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error: currentRecord
+              ? 'El censo seleccionado todavía está cargando. Espera un momento antes de sincronizar.'
+              : 'No hay un censo cargado para sincronizar.',
+          }));
+          return;
+        }
         const run = startRun(health, performance, policy);
         if (!health.canSync) {
           preparedSyncContextRef.current = null;
@@ -141,21 +237,14 @@ export const useRayenImportCapture = ({
           }));
           return;
         }
-        if (!currentRecord) {
-          preparedSyncContextRef.current = null;
-          void failRun('snapshot_error', run.id);
-          setState(previous => ({
-            ...previous,
-            isSyncing: false,
-            result: null,
-            hasSkippedItems: false,
-            error: 'No hay un censo cargado para sincronizar.',
-          }));
-          return;
-        }
+        const selectedDate = toIsoReportDate(currentRecord);
+        dispatchExecution({ type: 'prepare', runId: run.id, selectedDate });
 
         setState(previous => ({
           ...previous,
+          diff: null,
+          isPreviewOpen: false,
+          isBusy: false,
           isSyncing: true,
           result: null,
           hasSkippedItems: false,
@@ -169,7 +258,32 @@ export const useRayenImportCapture = ({
             runId: run.id,
             loadFreshRecord,
           });
+          // Reject unsupported historical targets before starting the extension request. Keeping
+          // this validation inside the preparation boundary also guarantees a terminal execution
+          // state instead of leaving an orphan request in `preparing_context`.
+          if (
+            preparedContext.target.kind === 'unsupported' ||
+            preparedContext.target.lookbackDays === null
+          ) {
+            throw new Error(
+              'Solo se puede sincronizar el censo vigente o uno de los siete días anteriores.'
+            );
+          }
         } catch (error) {
+          if (
+            !isRayenSyncExecutionCurrent(executionRef?.current, {
+              runId: run.id,
+              selectedDate,
+            })
+          ) {
+            return;
+          }
+          dispatchExecution({
+            type: 'transition',
+            runId: run.id,
+            selectedDate,
+            stage: { type: 'failed' },
+          });
           preparedSyncContextRef.current = null;
           void failRun('snapshot_error', run.id);
           setState(previous => ({
@@ -182,12 +296,39 @@ export const useRayenImportCapture = ({
           return;
         }
 
+        // The selected date or active execution may have changed while the authoritative census
+        // was loading. Never start an extension request for an obsolete temporal context.
+        if (
+          !isRayenSyncExecutionCurrent(executionRef?.current, {
+            runId: run.id,
+            selectedDate,
+          })
+        ) {
+          return;
+        }
+
         preparedSyncContextRef.current = preparedContext;
-        syncRequestController.start(
+        const requestId = syncRequestController.start(
           preparedContext.range.dateStart,
           preparedContext.range.dateEnd,
           run.id,
           () => {
+            if (
+              !isRayenSyncExecutionCurrent(executionRef?.current, {
+                runId: run.id,
+                requestId,
+                selectedDate,
+              })
+            ) {
+              return;
+            }
+            dispatchExecution({
+              type: 'transition',
+              runId: run.id,
+              requestId,
+              selectedDate,
+              stage: { type: 'failed' },
+            });
             preparedSyncContextRef.current = null;
             recordRunPerformance({ counters: { timeouts: 1 } }, run.id);
             void failRun('snapshot_timeout', run.id);
@@ -203,18 +344,30 @@ export const useRayenImportCapture = ({
             );
           }
         );
+        dispatchExecution({
+          type: 'activate',
+          context: createRayenSyncExecutionContext(preparedContext, requestId, policy),
+        });
         recordRunPerformance({ counters: { requests: 1 } }, run.id);
       } finally {
-        capturePreparationInFlightRef.current = false;
+        // An obsolete preparation can finish after a newer selected date has acquired the lock.
+        // Never release the newer execution's lock from the older callback.
+        if (capturePreparationLockRef.current?.lockId === preparationLock.lockId) {
+          capturePreparationLockRef.current = null;
+        }
       }
     },
     [
       clearSyncTimeout,
+      cancelRun,
       currentRecord,
+      dispatchExecution,
       failRun,
+      executionRef,
       loadFreshRecord,
       preparedSyncContextRef,
       recordRunPerformance,
+      routeSelectedDate,
       policy,
       policyStatus,
       setStaffingProposal,

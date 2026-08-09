@@ -140,6 +140,9 @@ const subscribe = (listener: () => void): (() => void) => {
 const getSnapshot = (): RayenFillProgress => progress;
 const getServerSnapshot = (): RayenFillProgress => IDLE;
 
+/** Imperative snapshot used by the synchronization orchestrator when a worker settles. */
+export const getRayenFillProgressSnapshot = (): RayenFillProgress => progress;
+
 /** Full fill progress (button area: "Sincronizando 4/9…", completion summary, error count). */
 export const useRayenFillProgress = (): RayenFillProgress =>
   useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);

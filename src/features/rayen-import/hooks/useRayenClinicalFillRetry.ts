@@ -9,6 +9,7 @@ interface UseRayenClinicalFillRetryInput {
   currentRecordRef: MutableRefObject<DailyRecord | null | undefined>;
   fillClinicalData: (source: DailyRecord | ConfirmedRayenCensusHandoff) => Promise<void>;
   setState: Dispatch<SetStateAction<RayenImportState>>;
+  onStart?: (record: DailyRecord) => boolean | void;
 }
 
 export const useRayenClinicalFillRetry = ({
@@ -16,6 +17,7 @@ export const useRayenClinicalFillRetry = ({
   currentRecordRef,
   fillClinicalData,
   setState,
+  onStart,
 }: UseRayenClinicalFillRetryInput) =>
   useCallback(async (): Promise<void> => {
     const record = currentRecordRef.current ?? currentRecord;
@@ -33,6 +35,13 @@ export const useRayenClinicalFillRetry = ({
       }));
       return;
     }
+    if (onStart?.(record) === false) {
+      setState(prev => ({
+        ...prev,
+        error: 'Hay otra sincronización en curso. Espera a que termine antes de reintentar.',
+      }));
+      return;
+    }
     setState(prev => ({ ...prev, isSyncing: true, error: null }));
     await fillClinicalData(record);
-  }, [currentRecord, currentRecordRef, fillClinicalData, setState]);
+  }, [currentRecord, currentRecordRef, fillClinicalData, onStart, setState]);

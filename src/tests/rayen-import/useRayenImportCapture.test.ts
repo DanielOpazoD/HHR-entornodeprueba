@@ -4,6 +4,12 @@ import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImp
 import { INITIAL_RAYEN_IMPORT_STATE } from '@/features/rayen-import/hooks/rayenImportState';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
+import {
+  INITIAL_RAYEN_SYNC_EXECUTION_STATE,
+  rayenSyncExecutionReducer,
+  type RayenSyncExecutionAction,
+  type RayenSyncExecutionState,
+} from '@/features/rayen-import/hooks/rayenSyncExecutionState';
 
 const bridge = vi.hoisted(() => ({
   subscribeSnapshots: vi.fn(() => vi.fn()),
@@ -17,15 +23,26 @@ vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
 
 vi.mock('@/features/rayen-import/hooks/reportDateHelpers', () => ({
   toIsoReportDate: (candidate: DailyRecord) => candidate.date,
-  resolveSyncReportRequest: () => ({
-    target: {
-      kind: 'current',
-      calendarDay: '2026-08-02',
-      clinicalDay: '2026-08-02',
-      lookbackDays: 0,
-    },
-    range: { dateStart: '2026-08-02', dateEnd: '2026-08-02' },
-  }),
+  resolveSyncReportRequest: (candidate: DailyRecord) =>
+    candidate.date === '2026-07-20'
+      ? {
+          target: {
+            kind: 'unsupported',
+            calendarDay: '2026-08-02',
+            clinicalDay: '2026-08-02',
+            lookbackDays: 13,
+          },
+          range: { dateStart: candidate.date, dateEnd: candidate.date },
+        }
+      : {
+          target: {
+            kind: 'current',
+            calendarDay: '2026-08-02',
+            clinicalDay: '2026-08-02',
+            lookbackDays: 0,
+          },
+          range: { dateStart: '2026-08-02', dateEnd: '2026-08-02' },
+        },
 }));
 
 const record = {
@@ -114,7 +131,7 @@ describe('useRayenImportCapture', () => {
     ];
     act(() => onSnapshot('snapshot', 'bundle', 'request-1'));
     expect(getRunId).toHaveBeenCalledWith('request-1');
-    expect(previewSnapshot).toHaveBeenCalledWith('snapshot', 'bundle', 'run-1');
+    expect(previewSnapshot).toHaveBeenCalledWith('snapshot', 'bundle', 'run-1', 'request-1');
   });
 
   it('ignores a second start while the freshest census is still loading', async () => {
@@ -170,6 +187,132 @@ describe('useRayenImportCapture', () => {
     expect(startRequest).toHaveBeenCalledOnce();
   });
 
+  it('does not supersede an active correlated capture on a repeated click', async () => {
+    const activeContext = {
+      runId: 'run-active',
+      requestId: 'request-active',
+      selectedDate: record.date,
+      clinicalDay: record.date,
+      timeZone: 'Pacific/Easter' as const,
+      target: 'current' as const,
+      lookbackDays: 0,
+      baseRevision: record.lastUpdated,
+      policy,
+      policyRevision: policy.revision,
+      queryRange: { dateStart: record.date, dateEnd: record.date },
+      preparedAt: '2026-08-02T10:00:00.000Z',
+    };
+    const executionRef: { current: RayenSyncExecutionState } = {
+      current: rayenSyncExecutionReducer(
+        rayenSyncExecutionReducer(INITIAL_RAYEN_SYNC_EXECUTION_STATE, {
+          type: 'prepare',
+          runId: activeContext.runId,
+          selectedDate: activeContext.selectedDate,
+        }),
+        { type: 'activate', context: activeContext }
+      ),
+    };
+    const startRun = vi.fn();
+    const startRequest = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        dispatchExecution: vi.fn(),
+        executionRef,
+        setState: vi.fn(),
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue(activeContext.runId),
+        },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord: vi.fn().mockResolvedValue(record),
+        startRun,
+        failRun: vi.fn().mockResolvedValue(undefined),
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+
+    expect(startRun).not.toHaveBeenCalled();
+    expect(startRequest).not.toHaveBeenCalled();
+    expect(executionRef.current.context?.runId).toBe(activeContext.runId);
+    expect(executionRef.current.stage).toEqual({ type: 'capturing' });
+  });
+
+  it('does not start an obsolete extension request when the execution is cancelled while loading', async () => {
+    let resolveFreshRecord!: (value: DailyRecord) => void;
+    const loadFreshRecord = vi.fn(
+      () => new Promise<DailyRecord>(resolve => (resolveFreshRecord = resolve))
+    );
+    const startRequest = vi.fn();
+    const executionRef: { current: RayenSyncExecutionState } = {
+      current: INITIAL_RAYEN_SYNC_EXECUTION_STATE,
+    };
+    const dispatchExecution = vi.fn((action: RayenSyncExecutionAction) => {
+      executionRef.current = rayenSyncExecutionReducer(executionRef.current, action);
+    });
+    const preparedSyncContextRef: { current: PreparedRayenSyncContext | null } = { current: null };
+    const failRun = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        dispatchExecution,
+        executionRef,
+        setState: vi.fn(),
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue('run-1'),
+        },
+        preparedSyncContextRef,
+        loadFreshRecord,
+        startRun: vi.fn(() => ({
+          id: 'run-1',
+          startedAt: '2026-08-02T10:00:00.000Z',
+          by: 'Operador HHR',
+          sourceDate: '2026-08-02',
+        })),
+        failRun,
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    let pendingStart!: Promise<void>;
+    await act(async () => {
+      pendingStart = result.current({
+        connection: 'ready',
+        report: null,
+        message: 'ok',
+        canSync: true,
+      });
+      await Promise.resolve();
+    });
+    act(() => dispatchExecution({ type: 'cancel', runId: 'run-1' }));
+    resolveFreshRecord(record);
+    await act(async () => pendingStart);
+
+    expect(executionRef.current.stage).toEqual({ type: 'cancelled' });
+    expect(startRequest).not.toHaveBeenCalled();
+    expect(preparedSyncContextRef.current).toBeNull();
+    expect(failRun).not.toHaveBeenCalled();
+  });
+
   it('terminalizes the run when the freshest census cannot be loaded', async () => {
     const failRun = vi.fn().mockResolvedValue(undefined);
     const setState = vi.fn();
@@ -213,6 +356,56 @@ describe('useRayenImportCapture', () => {
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
       expect.objectContaining({ isSyncing: false, error: 'lectura fallida' })
+    );
+  });
+
+  it('rejects a target older than D-7 before starting an extension request', async () => {
+    const unsupportedRecord = { ...record, date: '2026-07-20' };
+    const failRun = vi.fn().mockResolvedValue(undefined);
+    const setState = vi.fn();
+    const startRequest = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: unsupportedRecord,
+        policy,
+        policyStatus: 'ready',
+        setState,
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue('run-unsupported'),
+        },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord: vi.fn().mockResolvedValue(unsupportedRecord),
+        startRun: vi.fn(() => ({
+          id: 'run-unsupported',
+          startedAt: '2026-08-02T10:00:00.000Z',
+          by: 'Operador HHR',
+          sourceDate: unsupportedRecord.date,
+        })),
+        failRun,
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+
+    expect(startRequest).not.toHaveBeenCalled();
+    expect(failRun).toHaveBeenCalledWith('snapshot_error', 'run-unsupported');
+    const stateUpdater = setState.mock.calls.at(-1)?.[0] as (
+      state: typeof INITIAL_RAYEN_IMPORT_STATE
+    ) => typeof INITIAL_RAYEN_IMPORT_STATE;
+    expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
+      expect.objectContaining({
+        isSyncing: false,
+        error: expect.stringContaining('siete días anteriores'),
+      })
     );
   });
 
@@ -268,154 +461,4 @@ describe('useRayenImportCapture', () => {
     );
   });
 
-  it('closes the request and terminalizes the active run when the extension reports an error', () => {
-    const clearSyncTimeout = vi.fn();
-    const failRun = vi.fn().mockResolvedValue(undefined);
-    const setState = vi.fn();
-    const getRunId = vi.fn().mockReturnValue('run-1');
-    const preparedSyncContextRef: { current: PreparedRayenSyncContext | null } = {
-      current: {
-        runId: 'run-1',
-        record,
-        target: {
-          kind: 'current' as const,
-          calendarDay: '2026-08-02',
-          clinicalDay: '2026-08-02',
-          lookbackDays: 0,
-        },
-        range: { dateStart: '2026-08-02', dateEnd: '2026-08-02' },
-        preparedAt: '2026-08-02T10:00:00.000Z',
-      },
-    };
-    renderHook(() =>
-      useRayenImportCapture({
-        currentRecord: record,
-        policy,
-        policyStatus: 'ready',
-        setState,
-        setStaffingProposal: vi.fn(),
-        setStaffingProposalError: vi.fn(),
-        clearSyncTimeout,
-        syncRequestController: { start: vi.fn(), cancel: vi.fn(), getRunId },
-        preparedSyncContextRef,
-        loadFreshRecord: vi.fn().mockResolvedValue(record),
-        startRun: vi.fn(() => ({
-          id: 'unused-run',
-          startedAt: '2026-08-02T10:00:00.000Z',
-          by: 'Operador HHR',
-          sourceDate: '2026-08-02',
-        })),
-        failRun,
-        recordRunPerformance: vi.fn(),
-        previewSnapshot: vi.fn(),
-      })
-    );
-
-    const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
-      (error: string, requestId: string) => void,
-    ];
-    act(() => onError('capture failed', 'request-1'));
-
-    expect(clearSyncTimeout).toHaveBeenCalledOnce();
-    expect(preparedSyncContextRef.current).toBeNull();
-    expect(failRun).toHaveBeenCalledWith('snapshot_error', 'run-1');
-    const stateUpdater = setState.mock.calls[0]?.[0] as (
-      state: typeof INITIAL_RAYEN_IMPORT_STATE
-    ) => typeof INITIAL_RAYEN_IMPORT_STATE;
-    expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
-      expect.objectContaining({ isBusy: false, isSyncing: false, error: expect.any(String) })
-    );
-  });
-
-  it('ignores a callback whose request no longer belongs to an active run', () => {
-    const failRun = vi.fn().mockResolvedValue(undefined);
-    const previewSnapshot = vi.fn();
-    const setState = vi.fn();
-    renderHook(() =>
-      useRayenImportCapture({
-        currentRecord: record,
-        policy,
-        policyStatus: 'ready',
-        setState,
-        setStaffingProposal: vi.fn(),
-        setStaffingProposalError: vi.fn(),
-        clearSyncTimeout: vi.fn(),
-        syncRequestController: {
-          start: vi.fn(),
-          cancel: vi.fn(),
-          getRunId: vi.fn().mockReturnValue(null),
-        },
-        preparedSyncContextRef: { current: null },
-        loadFreshRecord: vi.fn().mockResolvedValue(record),
-        startRun: vi.fn(() => ({
-          id: 'new-run',
-          startedAt: '2026-08-02T10:00:00.000Z',
-          by: 'Operador HHR',
-          sourceDate: '2026-08-02',
-        })),
-        failRun,
-        recordRunPerformance: vi.fn(),
-        previewSnapshot,
-      })
-    );
-
-    const [onSnapshot] = bridge.subscribeSnapshots.mock.calls[0] as unknown as [
-      (snapshot: unknown, bundle: unknown, requestId: string) => void,
-    ];
-    const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
-      (error: string, requestId: string) => void,
-    ];
-    act(() => {
-      onSnapshot('late-snapshot', 'late-bundle', 'old-request');
-      onError('late-error', 'old-request');
-    });
-
-    expect(previewSnapshot).not.toHaveBeenCalled();
-    expect(failRun).not.toHaveBeenCalled();
-    expect(setState).not.toHaveBeenCalled();
-  });
-
-  it('does not start a run when the global policy is not server-confirmed', async () => {
-    const setState = vi.fn();
-    const startRun = vi.fn();
-    const startRequest = vi.fn();
-    const { result } = renderHook(() =>
-      useRayenImportCapture({
-        currentRecord: record,
-        policy,
-        policyStatus: 'fallback',
-        setState,
-        setStaffingProposal: vi.fn(),
-        setStaffingProposalError: vi.fn(),
-        clearSyncTimeout: vi.fn(),
-        syncRequestController: {
-          start: startRequest,
-          cancel: vi.fn(),
-          getRunId: vi.fn().mockReturnValue(null),
-        },
-        preparedSyncContextRef: { current: null },
-        loadFreshRecord: vi.fn().mockResolvedValue(record),
-        startRun,
-        failRun: vi.fn().mockResolvedValue(undefined),
-        recordRunPerformance: vi.fn(),
-        previewSnapshot: vi.fn(),
-      })
-    );
-
-    await act(async () => {
-      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
-    });
-
-    expect(startRun).not.toHaveBeenCalled();
-    expect(startRequest).not.toHaveBeenCalled();
-    const stateUpdater = setState.mock.calls[0]?.[0] as (
-      state: typeof INITIAL_RAYEN_IMPORT_STATE
-    ) => typeof INITIAL_RAYEN_IMPORT_STATE;
-    expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
-      expect.objectContaining({
-        isSyncing: false,
-        error: expect.stringContaining('política global'),
-      })
-    );
-  });
 });

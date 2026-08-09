@@ -12,6 +12,23 @@ export interface CoveragePresentation {
   tone: 'muted' | 'success' | 'warning';
 }
 
+export const formatRayenSyncTargetDate = (value?: string | null): string => {
+  if (!value) return 'hoy';
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}-${month}-${year}` : value;
+};
+
+export const formatRayenSyncIslandTime = (iso: string): string => {
+  const value = new Date(iso);
+  if (Number.isNaN(value.getTime())) return 'Hora no disponible';
+  return new Intl.DateTimeFormat('es-CL', {
+    timeZone: 'Pacific/Easter',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(value);
+};
+
 export const formatRayenSyncDuration = (startedAt: string, completedAt?: string): string | null => {
   if (!completedAt) return null;
   const started = Date.parse(startedAt);

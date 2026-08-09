@@ -64,6 +64,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
         <CensusOperationalStateBanner state={operationalState} />
 
         <CensusStaffHeader
+          selectedDate={currentDateString}
           readOnly={readOnly}
           stats={stats}
           accessProfile={accessProfile}

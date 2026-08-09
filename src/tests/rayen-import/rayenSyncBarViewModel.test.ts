@@ -53,6 +53,41 @@ const oneChangeDiff = {
 
 describe('buildRayenSyncBarViewModel', () => {
   it.each([
+    ['preparing_context', 'Preparando el contexto del censo · 07-08-2026', true],
+    ['capturing', 'Leyendo información de Eloísa · 07-08-2026', true],
+    ['planning_structure', 'Conciliando el censo · 07-08-2026', true],
+    ['persisting_structure', 'Guardando cambios del censo · 07-08-2026', true],
+    ['verifying_structure', 'Confirmando el censo guardado · 07-08-2026', true],
+    ['complete', 'Todo al día · 07-08-2026', false],
+  ] as const)('uses the execution stage %s as the canonical status', (type, label, ariaBusy) => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        executionStage: { type },
+        targetDate: '2026-08-07',
+        isSyncing: type === 'complete',
+        error: type === 'complete' ? 'stale legacy error' : null,
+      })
+    );
+
+    expect(model).toMatchObject({ label, ariaBusy });
+  });
+
+  it('keeps the selected historical date visible while awaiting review', () => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        executionStage: { type: 'awaiting_review' },
+        targetDate: '2026-08-01',
+        diff: oneChangeDiff,
+      })
+    );
+
+    expect(model).toMatchObject({
+      phase: 'review',
+      label: '1 cambio listo para revisar · 01-08-2026',
+    });
+  });
+
+  it.each([
     ['idle', input(), 'idle', 'Listo para sincronizar'],
     ['capture', input({ isSyncing: true }), 'capture', 'Leyendo información de Eloísa'],
     [
