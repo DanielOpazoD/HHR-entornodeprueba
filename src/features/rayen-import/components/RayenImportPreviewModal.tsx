@@ -17,6 +17,7 @@ export interface RayenImportPreviewModalProps {
   isBusy: boolean;
   error: string | null;
   isApplied?: boolean;
+  targetDate?: string | null;
   /** Whether to also file confirmed cross-day admission/discharge corrections. */
   onConfirm: (applyPreviousDays: boolean) => void;
   onCancel: () => void;
@@ -40,6 +41,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   isBusy,
   error,
   isApplied = false,
+  targetDate,
   onConfirm,
   onCancel,
 }) => {
@@ -92,6 +94,14 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       showCloseButton={!isBusy}
     >
       <div className="max-h-[60vh] overflow-y-auto">
+        {targetDate && (
+          <p
+            className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+            data-testid="rayen-import-target-date"
+          >
+            Censo del {ddmmyyyy(targetDate)}
+          </p>
+        )}
         {!diff ? (
           <p className="text-sm text-gray-500">Esperando datos de Rayen…</p>
         ) : (

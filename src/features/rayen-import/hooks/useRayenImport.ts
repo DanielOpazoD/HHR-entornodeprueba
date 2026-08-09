@@ -15,7 +15,6 @@ import {
 import { useRayenSyncAudit } from './useRayenSyncAudit';
 import { useRayenClinicalFill } from './useRayenClinicalFill';
 import { useHistoricalCudyrPersistence } from './useHistoricalCudyrPersistence';
-import { applyConfirmedRayenImport, hasSkippedPreviousDayCorrections } from './confirmRayenImport';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
@@ -39,7 +38,14 @@ import {
 import type { PreparedRayenSyncContext } from './rayenSyncTemporalContext';
 import { canWritePreviousDay } from '../domain/previousDayCorrections';
 import { isNursingStaffingCollectionContextCurrent } from '../domain/nursingStaffingCollectionContext';
-export const useRayenImport = () => {
+import { useRayenSyncExecutionController } from './useRayenSyncExecutionController';
+import {
+  isRayenSyncExecutionActive,
+  isRayenSyncExecutionCancellableBeforeCommit,
+} from './rayenSyncExecutionState';
+import { createRayenSyncPersistenceQueue } from './rayenSyncPersistenceQueue';
+import { useRayenImportConfirmation } from './useRayenImportConfirmation';
+export const useRayenImport = (selectedCensusDate?: string) => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
   const { data: tensList = [] } = useTensQuery();
@@ -49,14 +55,27 @@ export const useRayenImport = () => {
   const { mutateAsync: saveDailyRecordMutation } = dailyRecordQuery.useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
   const isAdmin = role === 'admin';
-  const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
+  const [state, setStateFromReact] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
+  const {
+    execution,
+    executionRef,
+    keepsPreviewOpen,
+    dispatchExecution,
+    setImportStateCurrent: setState,
+    transitionExecution,
+    finishClinicalSync,
+    startClinicalRetry,
+  } = useRayenSyncExecutionController({
+    importState: state,
+    setImportState: setStateFromReact,
+  });
   const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
   const [isStaffingProposalBusy, setIsStaffingProposalBusy] = useState(false);
   const [staffingProposalError, setStaffingProposalError] = useState<string | null>(null);
   const { controller: syncRequestController, cancel: clearSyncTimeout } =
     useRayenSyncRequestController();
   const preparedSyncContextRef = useRef<PreparedRayenSyncContext | null>(null);
-  const confirmationInFlightRef = useRef(false);
+  const persistenceQueueRef = useRef(createRayenSyncPersistenceQueue());
   const staffingRefreshInFlightRef = useRef(false);
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
   const currentRecordRef = useRef(currentRecord);
@@ -92,6 +111,9 @@ export const useRayenImport = () => {
       saveDailyRecordMutation({ record, expectedLastUpdated }),
     [saveDailyRecordMutation]
   );
+  const runSerializedPersistence = useCallback(<T>(operation: () => Promise<T>): Promise<T> => {
+    return persistenceQueueRef.current.run(operation);
+  }, []);
   const {
     startRun,
     ensureRun,
@@ -108,15 +130,47 @@ export const useRayenImport = () => {
     loadDailyRecord: loadFreshClinicalRecord,
     actor: syncActor,
   });
+  const failRunSerialized = useCallback(
+    (...args: Parameters<typeof failRun>) => runSerializedPersistence(() => failRun(...args)),
+    [failRun, runSerializedPersistence]
+  );
+  const completeRunSerialized = useCallback(
+    (...args: Parameters<typeof completeRun>) =>
+      runSerializedPersistence(() => completeRun(...args)),
+    [completeRun, runSerializedPersistence]
+  );
+  const selectedDate = selectedCensusDate ?? currentRecord?.date;
+  const selectedDateRef = useRef(selectedDate);
+  useEffect(() => {
+    // The route selection changes before its record finishes loading. Cancel from that explicit
+    // date instead of waiting for the replacement record, while same-date refetches remain inert.
+    if (!selectedDate) return;
+    const previousDate = selectedDateRef.current;
+    selectedDateRef.current = selectedDate;
+    if (!previousDate || previousDate === selectedDate) return;
+
+    const stage = executionRef.current.stage;
+    const cancellableBeforeCommit = isRayenSyncExecutionCancellableBeforeCommit(stage);
+    if (isRayenSyncExecutionActive(stage) && !cancellableBeforeCommit) {
+      // The structural handoff is already being persisted or clinical work is running. Changing
+      // the route only dismisses its old-day view; the correlated execution must still converge.
+      setState(previous => ({ ...previous, isPreviewOpen: false }));
+      return;
+    }
+
+    clearSyncTimeout();
+    preparedSyncContextRef.current = null;
+    dispatchExecution({ type: 'cancel' });
+    dispatchExecution({ type: 'reset' });
+    setState(INITIAL_RAYEN_IMPORT_STATE);
+    if (cancellableBeforeCommit) cancelRun();
+  }, [cancelRun, clearSyncTimeout, dispatchExecution, executionRef, selectedDate, setState]);
   const applyDiff = useRayenCensusDiffApplication({
     ensureRun,
     applyRunToRecord,
     saveDailyRecord: saveRayenCensus,
     recordRunPerformance,
   });
-  const finishSyncing = useCallback(() => {
-    setState(prev => (prev.isSyncing ? { ...prev, isSyncing: false } : prev));
-  }, []);
   const { applyHistoricalCudyr, applyHistoricalCudyrBatch, applyHistoricalCudyrEnforcedBatch } =
     useHistoricalCudyrPersistence({
       dailyRecord,
@@ -186,31 +240,36 @@ export const useRayenImport = () => {
     applyHistoricalCudyr,
     applyHistoricalCudyrBatch,
     applyHistoricalCudyrEnforcedBatch,
-    completeRun,
-    // Staffing has its own explicit read/review action. Clinical synchronization must never leave
-    // the main flow waiting for a roster decision.
+    completeRun: completeRunSerialized,
     onStaffingProposal: () => undefined,
-    onSettled: finishSyncing,
+    onSettled: finishClinicalSync,
     createId: () => crypto.randomUUID(),
   });
   const previewSnapshot = useRayenSnapshotPreview({
     dailyRecord,
     isAdmin,
     setState,
+    dispatchExecution,
+    executionRef,
+    selectedDateRef,
     clearSyncTimeout,
     applyDiff,
     persistAppliedRun,
     fillDevicesInBackground,
-    failRun,
+    failRun: failRunSerialized,
     ensureRun,
     getRun,
     recordRunPerformance,
     preparedSyncContextRef,
+    runSerializedPersistence,
   });
   const triggerImport = useRayenImportCapture({
     currentRecord,
+    selectedDate,
     policy,
     policyStatus,
+    dispatchExecution,
+    executionRef,
     setState,
     setStaffingProposal,
     setStaffingProposalError,
@@ -219,7 +278,8 @@ export const useRayenImport = () => {
     preparedSyncContextRef,
     loadFreshRecord: loadFreshClinicalRecord,
     startRun,
-    failRun,
+    failRun: failRunSerialized,
+    cancelRun,
     recordRunPerformance,
     previewSnapshot,
   });
@@ -228,6 +288,10 @@ export const useRayenImport = () => {
     currentRecordRef,
     fillClinicalData: fillDevicesInBackground,
     setState,
+    onStart: record => {
+      const runId = record.rayenSync?.runId;
+      return runId ? startClinicalRetry(runId, record.date) : false;
+    },
   });
   const { confirm: confirmStaffingProposal, dismiss: dismissStaffingProposal } =
     useRayenStaffingProposalActions({
@@ -241,92 +305,62 @@ export const useRayenImport = () => {
       dailyRecord,
       queryClient,
     });
-  const confirm = useCallback(
-    async (applyPreviousDays: boolean = true) => {
-      if (confirmationInFlightRef.current) return;
-      const base =
-        preparedSyncContextRef.current?.record ?? currentRecordRef.current ?? currentRecord;
-      if (!base || !state.diff) return;
-      confirmationInFlightRef.current = true;
-      const diff = state.diff;
-      const run = ensureRun();
-      const skippedPreviousDays = hasSkippedPreviousDayCorrections(diff, applyPreviousDays);
-      setState(prev => ({
-        ...prev,
-        isBusy: true,
-        isSyncing: true,
-        hasSkippedItems: false,
-        error: null,
-      }));
-      try {
-        const result = await applyConfirmedRayenImport({
-          applyPreviousDays,
-          base,
-          diff,
-          dailyRecord,
-          isAdmin,
-          ensureRun,
-          applyDiff,
-          // A retry after HTTP 409 must bypass the five-minute UI freshness cache. Otherwise each
-          // bounded retry reuses the same obsolete revision and can never converge for X-1.
-          getFreshRecord: () => loadFreshClinicalRecord(base.date),
-          createId: () => crypto.randomUUID(),
-          onRetry: () => recordRunPerformance({ counters: { retries: 1 } }),
-        });
-        setState(prev => ({
-          ...prev,
-          isBusy: false,
-          isPreviewOpen: diff.summary.conflicts > 0,
-          result,
-          hasSkippedItems: skippedPreviousDays || result.skipped.length > 0,
-        }));
-        preparedSyncContextRef.current = null;
-        void fillDevicesInBackground(result.confirmedHandoff);
-      } catch (error) {
-        void failRun('apply_failed', run.id);
-        setState(prev => ({
-          ...prev,
-          isBusy: false,
-          isSyncing: false,
-          isPreviewOpen: true,
-          error: getRayenImportErrorMessage(error),
-        }));
-      } finally {
-        confirmationInFlightRef.current = false;
-      }
-    },
-    [
-      currentRecord,
-      state.diff,
-      applyDiff,
-      fillDevicesInBackground,
-      dailyRecord,
-      isAdmin,
-      ensureRun,
-      failRun,
-      recordRunPerformance,
-      loadFreshClinicalRecord,
-    ]
-  );
+  const confirm = useRayenImportConfirmation({
+    currentRecord,
+    currentRecordRef,
+    state,
+    setState,
+    executionRef,
+    dispatchExecution,
+    transitionExecution,
+    preparedSyncContextRef,
+    selectedDateRef,
+    dailyRecord,
+    isAdmin,
+    ensureRun,
+    failRun: failRunSerialized,
+    recordRunPerformance,
+    applyDiff,
+    fillDevicesInBackground,
+    loadFreshClinicalRecord,
+    runSerializedPersistence,
+  });
   const cancel = useCallback(() => {
-    preparedSyncContextRef.current = null;
-    if (shouldPreservePostImportFlow(state.diff, state.result)) {
+    const stage = executionRef.current.stage;
+    const cancellableBeforeCommit = isRayenSyncExecutionCancellableBeforeCommit(stage);
+    if (stage && !cancellableBeforeCommit) {
+      // Closing the presentation cannot rewrite an already committed, terminal or post-commit
+      // outcome as cancelled. Its truthful result remains available in the toolbar and history.
+      setState(previous => ({ ...previous, isPreviewOpen: false }));
+      return;
+    }
+
+    const runId = executionRef.current.context?.runId ?? executionRef.current.pending?.runId;
+    if (cancellableBeforeCommit) {
+      dispatchExecution({ type: 'cancel', runId });
+      clearSyncTimeout();
+      preparedSyncContextRef.current = null;
+    }
+    if (!cancellableBeforeCommit && shouldPreservePostImportFlow(state.diff, state.result)) {
       setState(prev => ({ ...prev, isPreviewOpen: false }));
       return;
     }
-    invalidateRayenFillAttempt();
-    cancelRun();
+    if (cancellableBeforeCommit) {
+      invalidateRayenFillAttempt();
+      cancelRun();
+    }
     if (staffingProposal && hasPendingStaffingDecision(staffingProposal))
       reportRayenStaffingOutcome('declined');
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
-  }, [cancelRun, staffingProposal, state.diff, state.result]);
+  }, [cancelRun, clearSyncTimeout, dispatchExecution, executionRef, setState, staffingProposal, state.diff, state.result]);
   return useMemo(
     () => ({
       mode,
+      execution,
       diff: state.diff,
-      isPreviewOpen: state.isPreviewOpen,
+      isPreviewOpen: state.isPreviewOpen && keepsPreviewOpen,
       isBusy: state.isBusy,
       isSyncing: state.isSyncing,
       result: state.result,
@@ -346,6 +380,8 @@ export const useRayenImport = () => {
     }),
     [
       mode,
+      execution,
+      keepsPreviewOpen,
       state,
       staffingProposal,
       isStaffingProposalBusy,

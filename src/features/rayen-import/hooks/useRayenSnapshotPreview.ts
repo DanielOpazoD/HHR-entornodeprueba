@@ -1,5 +1,4 @@
-import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react';
-import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
+import { useCallback, useRef } from 'react';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
 import { applyEgresoReport } from '../domain/applyEgresoReport';
 import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
@@ -8,58 +7,37 @@ import {
   computePreviousDayEdits,
   verifyPreviousDayAdmissionPlacements,
 } from '../domain/previousDayCorrections';
-import { requestEgresoLookup } from '../bridge/rayenImportBridge';
-import { requestPatientFlowReport } from '../bridge/patientFlowBridge';
-import { requestStatisticalDischargeEvidence } from '../bridge/statisticalDischargeEvidenceBridge';
-import {
-  requestRayenExtensionHealth,
-  supportsPatientFlowReport,
-  supportsStatisticalDischargeEvidence,
-} from '../bridge/extensionHealthBridge';
 import {
   recoverMissingSnapshotPlacements,
   resolveOccupiedBedTraceabilityChain,
 } from '../bedTraceabilityResolver';
 import { reconstructHistoricalSnapshotAtClose } from '../domain/historicalSnapshotReconstruction';
-import { createPatientFlowRequestCache } from '../domain/patientFlowRequestCache';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoLookupResult } from '../contracts/egresoLookup';
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
-import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
+import { getRayenImportErrorMessage } from './rayenImportState';
 import { toIsoReportDate } from './reportDateHelpers';
-import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
-import type { RayenSyncRun } from '../domain/rayenSyncHistory';
-import { elapsedMilliseconds, isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
+import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
 import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
-import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
-import type { ConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
+import { validatePreparedRayenSyncContextAtCompletion } from './rayenSyncTemporalContext';
+import { isRayenSyncExecutionCurrent, rayenSyncExecutionKey } from './rayenSyncExecutionState';
+import { createRayenSnapshotEvidenceClient } from './rayenSnapshotEvidenceClient';
+import { createRayenSnapshotExecutionReporter } from './rayenSnapshotExecutionReporter';
 import {
-  validatePreparedRayenSyncContextAtCompletion,
-  type PreparedRayenSyncContext,
-} from './rayenSyncTemporalContext';
-interface UseRayenSnapshotPreviewInput {
-  dailyRecord: DailyRecordRepositoryPort;
-  isAdmin: boolean;
-  setState: Dispatch<SetStateAction<RayenImportState>>;
-  clearSyncTimeout: () => void;
-  applyDiff: (
-    record: DailyRecord,
-    diff: CensusImportDiff
-  ) => Promise<ConfirmedRayenCensusApplyResult>;
-  persistAppliedRun: (record: DailyRecord, diff: CensusImportDiff) => Promise<DailyRecord>;
-  fillDevicesInBackground: (source: DailyRecord | ConfirmedRayenCensusHandoff) => Promise<void>;
-  failRun: (reason: 'apply_failed', runId?: string) => Promise<void>;
-  ensureRun: () => RayenSyncRun;
-  getRun: (runId: string) => RayenSyncRun | undefined;
-  recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
-  preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
-}
+  hasNoApplicableRayenStructuralChanges,
+  resolveRayenSnapshotPlanningStage,
+} from './rayenSnapshotPlanningDecision';
+import type { UseRayenSnapshotPreviewInput } from './rayenSnapshotPreviewContracts';
+import { collectEgresoLookupTargets } from './rayenSnapshotLookupTargets';
+
 export const useRayenSnapshotPreview = ({
   dailyRecord,
   isAdmin,
   setState,
+  dispatchExecution = () => undefined,
+  executionRef,
+  selectedDateRef,
   clearSyncTimeout,
   applyDiff,
   persistAppliedRun,
@@ -69,19 +47,31 @@ export const useRayenSnapshotPreview = ({
   getRun,
   recordRunPerformance,
   preparedSyncContextRef,
+  runSerializedPersistence,
 }: UseRayenSnapshotPreviewInput) => {
-  const autoApplyingRef = useRef(false);
+  const persistenceExecutionKeysRef = useRef(new Set<string>());
   const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
   return useCallback(
-    async (snapshot: RayenCensusSnapshot, bundle: RayenSyncBundle, requestedRunId?: string) => {
+    async (
+      snapshot: RayenCensusSnapshot,
+      bundle: RayenSyncBundle,
+      requestedRunId: string,
+      requestId: string
+    ) => {
       const run = requestedRunId ? getRun(requestedRunId) : ensureRun();
       if (!run) return;
+      const requestIdentity = { runId: run.id, requestId };
+      if (!isRayenSyncExecutionCurrent(executionRef?.current, requestIdentity)) return;
       clearSyncTimeout();
       const planningSnapshot = prepareTreatingPhysicianSnapshot(snapshot);
       const preparedContext = preparedSyncContextRef.current;
       if (!preparedContext || preparedContext.runId !== run.id) {
+        createRayenSnapshotExecutionReporter(dispatchExecution, {
+          runId: run.id,
+          requestId,
+        }).transition({ type: 'failed' });
         preparedSyncContextRef.current = null;
-        void failRun('apply_failed', run.id);
+        void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
           isSyncing: false,
@@ -90,6 +80,14 @@ export const useRayenSnapshotPreview = ({
         return;
       }
       const baseRecord = preparedContext.record;
+      const executionIdentity = {
+        runId: run.id,
+        requestId,
+        selectedDate: preparedContext.selectedDate,
+      };
+      if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+      const execution = createRayenSnapshotExecutionReporter(dispatchExecution, executionIdentity);
+      execution.transition({ type: 'planning_structure' });
       recordRunPerformance(
         buildRayenCapturePerformance(
           snapshot,
@@ -113,8 +111,9 @@ export const useRayenSnapshotPreview = ({
       const requestedTarget = preparedContext.target;
       const temporalValidation = validatePreparedRayenSyncContextAtCompletion(preparedContext);
       if (!temporalValidation.valid) {
+        execution.transition({ type: 'failed' });
         preparedSyncContextRef.current = null;
-        void failRun('apply_failed', run.id);
+        void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
           isBusy: false,
@@ -134,8 +133,9 @@ export const useRayenSnapshotPreview = ({
         bundle.dateStart === reportRange.dateStart &&
         bundle.dateEnd === reportRange.dateEnd;
       if (!bundleMatchesRequest) {
+        execution.transition({ type: 'failed' });
         preparedSyncContextRef.current = null;
-        void failRun('apply_failed', run.id);
+        void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
           isBusy: false,
@@ -145,52 +145,8 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
-      let extensionHealth: ReturnType<typeof requestRayenExtensionHealth> | null = null;
-      const getExtensionHealth = () => {
-        if (!extensionHealth) {
-          counters.requests += 1;
-          extensionHealth = requestRayenExtensionHealth();
-        }
-        return extensionHealth;
-      };
-      const fetchPatientFlowReport = createPatientFlowRequestCache(
-        async encId => {
-          const health = await getExtensionHealth();
-          if (!supportsPatientFlowReport(health.report)) {
-            return {
-              base64: '',
-              error: 'La extensión instalada no admite trazabilidad de camas.',
-            };
-          }
-          counters.requests += 1;
-          const result = await requestPatientFlowReport(encId, isHistoricalDay ? 15_000 : 30_000);
-          if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
-          return result;
-        },
-        {
-          onHit: () => {
-            counters.cacheHits += 1;
-          },
-        }
-      );
-      const fetchStatisticalDischarge = async (encId: string) => {
-        const health = await getExtensionHealth();
-        if (!supportsStatisticalDischargeEvidence(health.report)) {
-          return {
-            base64: '',
-            error: 'La extensión instalada no admite lectura del egreso individual.',
-          };
-        }
-        counters.requests += 1;
-        const result = await requestStatisticalDischargeEvidence(encId);
-        if (isRayenTimeoutMessage(result.error)) counters.timeouts += 1;
-        return result;
-      };
-      const lookupEgresos = async (targets: Parameters<typeof requestEgresoLookup>[0]) => {
-        if (targets.length === 0) return [];
-        counters.requests += 1;
-        return requestEgresoLookup(targets);
-      };
+      const { fetchPatientFlowReport, fetchStatisticalDischarge, lookupEgresos } =
+        createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
       let diff: CensusImportDiff;
       let evidenceSnapshot = planningSnapshot;
       let lookupResults: EgresoLookupResult[] = [];
@@ -225,9 +181,7 @@ export const useRayenSnapshotPreview = ({
       } else {
         diff = planRayenCensusImport({ current: baseRecord, snapshot: planningSnapshot }).diff;
         diff = applyEgresoReport(diff, bundle.egresoRows, baseRecord);
-        const recoveryTargets = diff.pendingAdministrativeDischarges
-          .filter(entry => entry.rut && entry.encounterId)
-          .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
+        const recoveryTargets = collectEgresoLookupTargets(diff);
         lookupResults = await measureEvidence(() => lookupEgresos(recoveryTargets));
         const recovered = await measureEvidence(() =>
           recoverMissingSnapshotPlacements(
@@ -254,20 +208,7 @@ export const useRayenSnapshotPreview = ({
       }
       // Reapply after snapshot replans so report-only discharges survive.
       diff = applyEgresoReport(diff, bundle.egresoRows, baseRecord);
-      const lookupTargets = diff.pendingAdministrativeDischarges
-        .filter(entry => entry.rut && entry.encounterId)
-        .filter(
-          entry =>
-            !lookupResults.some(
-              result =>
-                result.encounterId === entry.encounterId &&
-                result.run.replace(/[^0-9kK]/gi, '').toUpperCase() ===
-                  String(entry.rut)
-                    .replace(/[^0-9kK]/gi, '')
-                    .toUpperCase()
-            )
-        )
-        .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
+      const lookupTargets = collectEgresoLookupTargets(diff, lookupResults);
       if (lookupTargets.length > 0) {
         lookupResults = [
           ...lookupResults,
@@ -289,6 +230,9 @@ export const useRayenSnapshotPreview = ({
       const previousDayPlan = await measureEvidence(() =>
         computePreviousDayEdits(dailyRecord, diff, reportDate, isAdmin)
       );
+      // Planning can span multiple network reads. Once another run/date supersedes this capture,
+      // its diff must never reach persistence or revive the review UI.
+      if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
       const previousDayEdits = previousDayPlan.edits;
       diff = { ...diff, reportEgresos: previousDayPlan.reportEgresos };
       if (previousDayEdits.length > 0) diff = { ...diff, previousDayEdits };
@@ -305,10 +249,15 @@ export const useRayenSnapshotPreview = ({
 
       const needsReview = requiresReview(diff) || previousDayEdits.length > 0;
       const canAutoApply = run.policy?.mode === 'auto' && !needsReview;
+      const structuralConflictCount = Math.max(diff.conflicts.length, diff.summary.conflicts);
+      execution.recordOutcome({ structuralConflicts: structuralConflictCount });
 
       if (canAutoApply) {
-        if (autoApplyingRef.current) return;
-        autoApplyingRef.current = true;
+        if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+        const autoApplyKey = rayenSyncExecutionKey(executionIdentity);
+        if (persistenceExecutionKeysRef.current.has(autoApplyKey)) return;
+        persistenceExecutionKeysRef.current.add(autoApplyKey);
+        execution.transition({ type: 'persisting_structure' });
         setState({
           diff,
           isPreviewOpen: false,
@@ -318,9 +267,16 @@ export const useRayenSnapshotPreview = ({
           hasSkippedItems: false,
           error: null,
         });
-        applyDiff(baseRecord, diff)
-          .then(result => {
-            autoApplyingRef.current = false;
+        try {
+          const result = await runSerializedPersistence(() =>
+            isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)
+              ? applyDiff(baseRecord, diff)
+              : Promise.resolve(null)
+          );
+          if (!result) return;
+          const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
+          if (isCurrent) {
+            execution.recordOutcome({ skippedItems: result.skipped.length });
             preparedSyncContextRef.current = null;
             setState(prev => ({
               ...prev,
@@ -328,60 +284,100 @@ export const useRayenSnapshotPreview = ({
               result,
               hasSkippedItems: result.skipped.length > 0,
             }));
-            void fillDevicesInBackground(result.confirmedHandoff);
-          })
-          .catch(error => {
-            autoApplyingRef.current = false;
-            preparedSyncContextRef.current = null;
-            void failRun('apply_failed', run.id);
-            setState(prev => ({
-              ...prev,
-              isBusy: false,
-              isSyncing: false,
-              error: getRayenImportErrorMessage(error),
-            }));
-          });
+            execution.transition({ type: 'verifying_structure' });
+            execution.transition({ type: 'syncing_clinical' });
+          }
+          // The committed handoff must reach clinical enrichment even when its UI execution was
+          // superseded. The clinical queue validates the original run before writing.
+          void fillDevicesInBackground(result.confirmedHandoff);
+        } catch (error) {
+          if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+          preparedSyncContextRef.current = null;
+          void failRun('apply_failed', run.id).catch(() => undefined);
+          execution.transition({ type: 'failed' });
+          const isExecutionDateVisible =
+            !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
+          setState(prev => ({
+            ...prev,
+            isBusy: false,
+            isSyncing: false,
+            ...(isExecutionDateVisible ? { error: getRayenImportErrorMessage(error) } : {}),
+          }));
+        } finally {
+          persistenceExecutionKeysRef.current.delete(autoApplyKey);
+        }
         return;
       }
 
-      const hasApplicableChanges =
-        diff.admissions.length +
-          diff.updates.length +
-          diff.moves.length +
-          diff.discharges.length +
-          (diff.reportEgresos?.length ?? 0) >
-        0;
-      const hasUnresolvedConflicts = diff.summary.conflicts > 0;
-      if (!hasApplicableChanges) {
+      const hasUnresolvedConflicts = structuralConflictCount > 0;
+      const hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
+      if (hasNoApplicableChanges) {
+        const noChangePersistenceKey = rayenSyncExecutionKey(executionIdentity);
+        if (persistenceExecutionKeysRef.current.has(noChangePersistenceKey)) return;
+        persistenceExecutionKeysRef.current.add(noChangePersistenceKey);
         try {
-          const stamped = await persistAppliedRun(baseRecord, diff);
+          if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+          execution.transition({ type: 'persisting_structure' });
+          const stamped = await runSerializedPersistence(() =>
+            isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)
+              ? persistAppliedRun(baseRecord, diff)
+              : Promise.resolve(null)
+          );
+          if (!stamped) return;
+          const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
+          if (isCurrent) {
+            execution.transition({ type: 'verifying_structure' });
+            execution.transition({ type: 'syncing_clinical' });
+            preparedSyncContextRef.current = null;
+          }
           void fillDevicesInBackground(stamped);
-          preparedSyncContextRef.current = null;
         } catch (error) {
+          if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+          execution.transition({ type: 'failed' });
           preparedSyncContextRef.current = null;
-          void failRun('apply_failed', run.id);
-          const message = getRayenImportErrorMessage(error);
-          setState(prev => ({ ...prev, isSyncing: false, error: message }));
+          void failRun('apply_failed', run.id).catch(() => undefined);
+          const isExecutionDateVisible =
+            !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
+          setState(prev => ({
+            ...prev,
+            isBusy: false,
+            isSyncing: false,
+            ...(isExecutionDateVisible ? { error: getRayenImportErrorMessage(error) } : {}),
+          }));
           return;
+        } finally {
+          persistenceExecutionKeysRef.current.delete(noChangePersistenceKey);
         }
       }
 
-      setState({
-        diff,
-        // No-change runs stay quiet; actionable conflicts keep the review open.
-        isPreviewOpen: hasApplicableChanges || hasUnresolvedConflicts,
-        isBusy: false,
-        isSyncing: !hasApplicableChanges,
-        result: null,
-        hasSkippedItems: false,
-        error:
-          run.policy?.mode === 'auto' && needsReview
-            ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
-            : null,
-      });
+      if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+      const isExecutionDateVisible =
+        !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
+      setState(previous =>
+        isExecutionDateVisible
+          ? {
+              diff,
+              isPreviewOpen: !hasNoApplicableChanges || hasUnresolvedConflicts,
+              isBusy: false,
+              isSyncing: hasNoApplicableChanges,
+              result: null,
+              hasSkippedItems: false,
+              error:
+                run.policy?.mode === 'auto' && needsReview
+                  ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
+                  : null,
+            }
+          : { ...previous, isBusy: false }
+      );
+      execution.transition(
+        resolveRayenSnapshotPlanningStage(hasNoApplicableChanges, hasUnresolvedConflicts)
+      );
     },
     [
       applyDiff,
+      dispatchExecution,
+      executionRef,
+      selectedDateRef,
       fillDevicesInBackground,
       clearSyncTimeout,
       dailyRecord,
@@ -391,6 +387,7 @@ export const useRayenSnapshotPreview = ({
       ensureRun,
       getRun,
       recordRunPerformance,
+      runSerializedPersistence,
       setState,
       preparedSyncContextRef,
       prepareTreatingPhysicianSnapshot,

@@ -20,6 +20,7 @@ import { CensusAttentionBar } from './CensusAttentionBar';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 
 interface CensusStaffHeaderProps {
+  selectedDate?: string;
   readOnly?: boolean;
   stats: Statistics | null;
   accessProfile?: CensusAccessProfile;
@@ -33,6 +34,7 @@ interface CensusStaffHeaderProps {
  * Optimized to consume fragmented context.
  */
 export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
+  selectedDate,
   readOnly = false,
   stats,
   accessProfile = 'default',
@@ -103,7 +105,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
           {!readOnly && !readModel.specialistAccess && (
             <div className="min-w-0 flex-1 lg:min-w-[760px]">
-              <RayenImportButton />
+              <RayenImportButton selectedDate={selectedDate} />
             </div>
           )}
 

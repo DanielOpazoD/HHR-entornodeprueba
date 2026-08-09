@@ -7,6 +7,8 @@ import {
   presentRayenSyncOutcome,
   presentRayenCoverageIssue,
   formatRayenSyncDuration,
+  formatRayenSyncIslandTime,
+  formatRayenSyncTargetDate,
   rayenFailureReasonLabel,
   type RayenSyncRecoveryPresentation,
 } from './rayenSyncPresentation';
@@ -21,18 +23,8 @@ interface RayenSyncHistoryModalProps {
   recovery: RayenSyncRecoveryPresentation | null;
   recoveryBusy: boolean;
   onRecoveryAction: () => void;
+  targetDate?: string | null;
 }
-
-const formatIslandTime = (iso: string): string => {
-  const value = new Date(iso);
-  if (Number.isNaN(value.getTime())) return 'Hora no disponible';
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'Pacific/Easter',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(value);
-};
 
 const statusPresentation = (event: RayenSyncEvent) => {
   const outcome = presentRayenSyncOutcome(event);
@@ -210,8 +202,8 @@ const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) =
   const oldest = events.at(-1) ?? newest;
   const timeLabel =
     events.length === 1
-      ? formatIslandTime(newest.startedAt)
-      : `${formatIslandTime(oldest.startedAt)}–${formatIslandTime(newest.startedAt)}`;
+      ? formatRayenSyncIslandTime(newest.startedAt)
+      : `${formatRayenSyncIslandTime(oldest.startedAt)}–${formatRayenSyncIslandTime(newest.startedAt)}`;
   return (
     <li className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -247,7 +239,7 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-xs font-bold tabular-nums text-slate-800">
             <Clock3 size={13} aria-hidden="true" />
-            {formatIslandTime(event.startedAt)}
+            {formatRayenSyncIslandTime(event.startedAt)}
             <span className="font-medium text-slate-400" aria-hidden="true">
               ·
             </span>
@@ -351,13 +343,15 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
   recovery,
   recoveryBusy,
   onRecoveryAction,
+  targetDate,
 }) => {
   const items = React.useMemo(() => groupHistory(history), [history]);
+  const formattedTargetDate = formatRayenSyncTargetDate(targetDate);
   return (
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Historial de sincronización · hoy"
+      title={`Historial de sincronización · ${formattedTargetDate}`}
       icon={<History size={19} />}
       size="lg"
       variant="white"
@@ -383,7 +377,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
       ) : (
         <ol
           className="max-h-[58vh] space-y-2 overflow-y-auto pr-1"
-          aria-label="Sincronizaciones de hoy"
+          aria-label={`Sincronizaciones del censo ${formattedTargetDate}`}
         >
           {items.map(item =>
             item.kind === 'quiet' ? (

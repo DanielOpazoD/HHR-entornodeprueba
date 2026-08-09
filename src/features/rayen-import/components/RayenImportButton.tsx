@@ -11,6 +11,10 @@ import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
+import {
+  isRayenSyncExecutionActive,
+  rayenSyncExecutionDate,
+} from '../hooks/rayenSyncExecutionState';
 
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
@@ -39,7 +43,11 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
   return `${get('day')}-${get('month')}-${get('year')} · ${get('hour')}:${get('minute')} h`;
 };
 
-export const RayenImportButton: React.FC = () => {
+interface RayenImportButtonProps {
+  selectedDate?: string;
+}
+
+export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDate }) => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
@@ -47,6 +55,7 @@ export const RayenImportButton: React.FC = () => {
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const {
     mode,
+    execution,
     diff,
     isPreviewOpen,
     isBusy,
@@ -64,21 +73,33 @@ export const RayenImportButton: React.FC = () => {
     cancel,
     confirmStaffingProposal,
     dismissStaffingProposal,
-  } = useRayenImport();
+  } = useRayenImport(selectedDate);
 
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
-  const mainWorking = isSyncing || isBusy || fill.running || recoveryBusy;
+  const mainWorking =
+    isRayenSyncExecutionActive(execution?.stage ?? null) ||
+    isSyncing ||
+    isBusy ||
+    fill.running ||
+    recoveryBusy;
   const working = mainWorking || isStaffingProposalBusy;
+  const selectedRecordIsCurrent = !selectedDate || record?.date === selectedDate;
+  const recordForSelectedDate = selectedRecordIsCurrent ? record : null;
+  const executionTargetDate = execution?.stage ? rayenSyncExecutionDate(execution) : null;
+  const targetDate = executionTargetDate ?? selectedDate ?? recordForSelectedDate?.date ?? null;
+  const historyTargetDate = recordForSelectedDate?.date ?? selectedDate ?? targetDate;
 
-  const lastSync = record?.rayenSync ? formatLastSync(record.rayenSync) : null;
+  const lastSync = recordForSelectedDate?.rayenSync
+    ? formatLastSync(recordForSelectedDate.rayenSync)
+    : null;
   const history = React.useMemo(
     () =>
-      (record?.rayenSyncHistory ?? [])
+      (recordForSelectedDate?.rayenSyncHistory ?? [])
         .slice()
         .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
-    [record?.rayenSyncHistory]
+    [recordForSelectedDate?.rayenSyncHistory]
   );
   const recovery = React.useMemo(
     () => presentRayenSyncRecovery(history[0], extension.connection, mainWorking),
@@ -139,6 +160,7 @@ export const RayenImportButton: React.FC = () => {
     setStaffingReviewOpen(false);
   };
   const handleStaffingReview = async (): Promise<void> => {
+    if (!selectedRecordIsCurrent) return;
     const health = await extension.refresh();
     const fichaMedicoReady =
       health.connection === 'ready' || health.report?.fichaMedico.status === 'ready';
@@ -254,9 +276,11 @@ export const RayenImportButton: React.FC = () => {
           isSyncing={isSyncing}
           error={error}
           hasPersistedSync={Boolean(lastSync)}
-          persistedSync={record?.rayenSync}
+          persistedSync={recordForSelectedDate?.rayenSync}
           hasSkippedItems={hasSkippedItems || Boolean(result?.skipped.length)}
           hasUnresolvedConflicts={Boolean(diff?.summary.conflicts)}
+          executionStage={execution?.stage}
+          targetDate={targetDate}
         />
 
         <div className="flex shrink-0 items-center justify-end gap-1.5 border-slate-200 xl:border-l xl:pl-2.5">
@@ -283,7 +307,7 @@ export const RayenImportButton: React.FC = () => {
           <button
             type="button"
             onClick={() => void handleStaffingReview()}
-            disabled={mainWorking || isStaffingProposalBusy}
+            disabled={!selectedRecordIsCurrent || mainWorking || isStaffingProposalBusy}
             aria-label="Sincronizar dotación clínica"
             aria-busy={isStaffingProposalBusy}
             title={
@@ -341,6 +365,7 @@ export const RayenImportButton: React.FC = () => {
         isBusy={isBusy}
         error={error}
         isApplied={Boolean(result)}
+        targetDate={targetDate}
         onConfirm={confirm}
         onCancel={cancel}
       />
@@ -351,6 +376,7 @@ export const RayenImportButton: React.FC = () => {
         recovery={recovery}
         recoveryBusy={working}
         onRecoveryAction={() => void handleRecoveryAction()}
+        targetDate={historyTargetDate}
       />
       <RayenNursingShiftProposalModal
         proposal={!isPreviewOpen && staffingReviewOpen ? staffingProposal : null}

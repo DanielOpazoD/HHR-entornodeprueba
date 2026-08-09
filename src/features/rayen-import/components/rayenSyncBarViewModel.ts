@@ -1,5 +1,6 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import type { RayenFillProgress } from '../hooks/useRayenFillStatus';
 
 export type RayenSyncBarPhase =
@@ -29,6 +30,8 @@ export interface RayenSyncBarViewModelInput {
   persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> | null;
   hasSkippedItems?: boolean;
   hasUnresolvedConflicts?: boolean;
+  executionStage?: RayenSyncStage | null;
+  targetDate?: string | null;
 }
 
 export interface RayenSyncBarViewModel {
@@ -90,6 +93,96 @@ const active = (
   visuallyHidden: false,
 });
 
+const formatTargetDate = (value?: string | null): string | null => {
+  if (!value) return null;
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}-${month}-${year}` : value;
+};
+
+const withTargetDate = (label: string, targetDate?: string | null): string => {
+  const formatted = formatTargetDate(targetDate);
+  return formatted ? `${label} · ${formatted}` : label;
+};
+
+const canonicalExecutionViewModel = (
+  input: RayenSyncBarViewModelInput
+): RayenSyncBarViewModel | null => {
+  const stage = input.executionStage;
+  if (!stage) return null;
+  const targetDate = input.targetDate;
+
+  switch (stage.type) {
+    case 'preparing_context':
+      return active('capture', withTargetDate('Preparando el contexto del censo', targetDate), {
+        kind: 'indeterminate',
+      });
+    case 'capturing':
+      return active('capture', withTargetDate('Leyendo información de Eloísa', targetDate), {
+        kind: 'indeterminate',
+      });
+    case 'planning_structure':
+      return active('capture', withTargetDate('Conciliando el censo', targetDate), {
+        kind: 'indeterminate',
+      });
+    case 'awaiting_review': {
+      const changes = changeCount(input.diff);
+      const label = changes
+        ? `${changes} cambio${changes === 1 ? '' : 's'} listo${changes === 1 ? '' : 's'} para revisar`
+        : 'Revisión lista';
+      return settled('review', 'neutral', withTargetDate(label, targetDate));
+    }
+    case 'needs_review':
+      return settled(
+        'action',
+        'warning',
+        withTargetDate('Sincronización requiere revisión', targetDate),
+        { detail: input.error ?? undefined, visuallyHidden: false }
+      );
+    case 'persisting_structure':
+      return active('apply', withTargetDate('Guardando cambios del censo', targetDate), {
+        kind: 'indeterminate',
+      });
+    case 'verifying_structure':
+      return active('apply', withTargetDate('Confirmando el censo guardado', targetDate), {
+        kind: 'indeterminate',
+      });
+    case 'syncing_clinical': {
+      const hasRealTotal = input.fill.total > 0;
+      const done = hasRealTotal ? Math.min(Math.max(input.fill.done, 0), input.fill.total) : 0;
+      return active(
+        'clinical',
+        withTargetDate(
+          hasRealTotal
+            ? `Datos clínicos · ${done} de ${input.fill.total} pacientes`
+            : 'Revisando datos clínicos',
+          targetDate
+        ),
+        hasRealTotal
+          ? { kind: 'determinate', done, total: input.fill.total }
+          : { kind: 'indeterminate' }
+      );
+    }
+    case 'complete':
+      return settled('complete', 'success', withTargetDate('Todo al día', targetDate));
+    case 'partial':
+      return settled(
+        'action',
+        'warning',
+        withTargetDate('Información clínica pendiente de completar', targetDate),
+        { detail: input.error ?? undefined, visuallyHidden: false }
+      );
+    case 'failed':
+      return settled(
+        'action',
+        'warning',
+        withTargetDate('Sincronización requiere revisión', targetDate),
+        { detail: input.error ?? undefined, visuallyHidden: false }
+      );
+    case 'cancelled':
+      return settled('idle', 'neutral', withTargetDate('Sincronización cancelada', targetDate));
+  }
+};
+
 /**
  * Converts the synchronization runtime into one mutually-exclusive operational state.
  * Reconciliation and persistence remain outside this presentation-only model.
@@ -97,6 +190,9 @@ const active = (
 export const buildRayenSyncBarViewModel = (
   input: RayenSyncBarViewModelInput
 ): RayenSyncBarViewModel => {
+  const canonical = canonicalExecutionViewModel(input);
+  if (canonical) return canonical;
+
   const { fill } = input;
 
   if (input.error) {

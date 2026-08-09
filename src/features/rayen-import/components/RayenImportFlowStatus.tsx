@@ -2,6 +2,7 @@ import React from 'react';
 import { Check, Circle, LoaderCircle, TriangleAlert } from 'lucide-react';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import type { RayenFillProgress } from '../hooks/useRayenFillStatus';
 import { buildRayenSyncBarViewModel, type RayenSyncBarTone } from './rayenSyncBarViewModel';
 
@@ -16,6 +17,8 @@ interface RayenImportFlowStatusProps {
   persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> | null;
   hasSkippedItems?: boolean;
   hasUnresolvedConflicts?: boolean;
+  executionStage?: RayenSyncStage | null;
+  targetDate?: string | null;
 }
 
 const toneClass: Record<RayenSyncBarTone, string> = {

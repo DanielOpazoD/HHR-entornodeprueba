@@ -75,7 +75,7 @@ interface UseRayenClinicalFillInput {
     runId?: string
   ) => Promise<void>;
   onStaffingProposal: (proposal: NursingStaffingProposal, attemptId: number) => void;
-  onSettled: () => void;
+  onSettled: (runId?: string) => void;
   createId: () => string;
 }
 
@@ -277,7 +277,7 @@ export const useRayenClinicalFill = ({
       );
       // Task-level early exits still resolve through the queue. Only clear the shared UI state once
       // this attempt drained the queue; a queued newer run must keep the synchronization active.
-      if (outcome === 'drained') onSettled();
+      if (outcome === 'drained') onSettled(requestedRunId);
     },
     [
       applyHistoricalCudyr,
