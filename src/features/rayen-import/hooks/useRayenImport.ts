@@ -304,6 +304,8 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     dispatchExecution,
     executionRef,
     setState,
+    setStaffingProposal,
+    setStaffingProposalError,
     staffingProposal,
     state.diff,
     state.result,

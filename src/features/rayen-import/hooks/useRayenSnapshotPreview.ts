@@ -158,7 +158,7 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
-      let { diff, replanDiff } = await prepareRayenStructuralPlan({
+      const { diff, replanDiff } = await prepareRayenStructuralPlan({
         baseRecord,
         planningSnapshot,
         bundle,
