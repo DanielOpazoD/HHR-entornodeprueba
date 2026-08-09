@@ -85,7 +85,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     fill.running ||
     recoveryBusy;
   const working = mainWorking || isStaffingProposalBusy;
-  const recordForSelectedDate = !selectedDate || record?.date === selectedDate ? record : null;
+  const selectedRecordIsCurrent = !selectedDate || record?.date === selectedDate;
+  const recordForSelectedDate = selectedRecordIsCurrent ? record : null;
   const executionTargetDate = execution?.stage ? rayenSyncExecutionDate(execution) : null;
   const targetDate = executionTargetDate ?? selectedDate ?? recordForSelectedDate?.date ?? null;
   const historyTargetDate = recordForSelectedDate?.date ?? selectedDate ?? targetDate;
@@ -159,6 +160,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     setStaffingReviewOpen(false);
   };
   const handleStaffingReview = async (): Promise<void> => {
+    if (!selectedRecordIsCurrent) return;
     const health = await extension.refresh();
     const fichaMedicoReady =
       health.connection === 'ready' || health.report?.fichaMedico.status === 'ready';
@@ -305,7 +307,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
           <button
             type="button"
             onClick={() => void handleStaffingReview()}
-            disabled={mainWorking || isStaffingProposalBusy}
+            disabled={!selectedRecordIsCurrent || mainWorking || isStaffingProposalBusy}
             aria-label="Sincronizar dotación clínica"
             aria-busy={isStaffingProposalBusy}
             title={

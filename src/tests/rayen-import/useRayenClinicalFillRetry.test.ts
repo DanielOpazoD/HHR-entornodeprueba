@@ -28,8 +28,7 @@ const record = {
 const useRetryHarness = (onStart: (candidate: DailyRecord) => boolean) => {
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
   const currentRecordRef = useRef<DailyRecord | null>(record);
-  const fillClinicalDataRef = useRef(vi.fn().mockResolvedValue(undefined));
-  const fillClinicalData = fillClinicalDataRef.current;
+  const [fillClinicalData] = useState(() => vi.fn().mockResolvedValue(undefined));
   const retry = useRayenClinicalFillRetry({
     currentRecord: record,
     currentRecordRef,

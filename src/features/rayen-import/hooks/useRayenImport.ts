@@ -354,7 +354,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
-  }, [cancelRun, clearSyncTimeout, executionRef, staffingProposal, state.diff, state.result]);
+  }, [cancelRun, clearSyncTimeout, dispatchExecution, executionRef, setState, staffingProposal, state.diff, state.result]);
   return useMemo(
     () => ({
       mode,

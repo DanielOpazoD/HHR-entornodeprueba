@@ -6,10 +6,11 @@ import { RayenImportButton } from '@/features/rayen-import/components/RayenImpor
 const mocks = vi.hoisted(() => ({
   useRayenImport: vi.fn(),
   refreshExtension: vi.fn(),
+  useDailyRecordData: vi.fn(),
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordData: () => ({ record: {} }),
+  useDailyRecordData: () => mocks.useDailyRecordData(),
 }));
 
 vi.mock('@/features/rayen-import/hooks/useRayenImport', () => ({
@@ -58,6 +59,7 @@ vi.mock('@/features/rayen-import/components/RayenNursingShiftProposalModal', () 
 
 describe('RayenImportButton staffing review', () => {
   beforeEach(() => {
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
     mocks.refreshExtension.mockResolvedValue({
       connection: 'ready',
       report: null,
@@ -122,6 +124,20 @@ describe('RayenImportButton staffing review', () => {
     expect(
       await screen.findByRole('dialog', { name: /dotación clínica identificada/i })
     ).toBeVisible();
+  });
+
+  it('waits for the selected census record before reading staffing', () => {
+    mocks.useDailyRecordData.mockReturnValue({ record: { date: '2026-08-07' } });
+    const refreshStaffingProposal = vi.fn();
+    mocks.useRayenImport.mockReturnValue({
+      ...mocks.useRayenImport(),
+      refreshStaffingProposal,
+    });
+
+    render(<RayenImportButton selectedDate="2026-08-08" />);
+
+    expect(screen.getByRole('button', { name: 'Sincronizar dotación clínica' })).toBeDisabled();
+    expect(refreshStaffingProposal).not.toHaveBeenCalled();
   });
 
   it('keeps the staffing review open when applying the proposal fails', async () => {

@@ -58,14 +58,16 @@ describe('rayenSyncExecutionReducer', () => {
     expect(planning.context).toEqual(execution);
   });
 
-  it('ignores a late response from a superseded request or selected date', () => {
+  it.each([
+    { label: 'run', runId: 'run-old', requestId: 'request-new', selectedDate: '2026-08-08' },
+    { label: 'request', runId: 'run-new', requestId: 'request-old', selectedDate: '2026-08-08' },
+    { label: 'date', runId: 'run-new', requestId: 'request-new', selectedDate: '2026-08-07' },
+  ])('ignores a late response with a stale $label identity', staleIdentity => {
     const latest = activate(context('run-new', 'request-new', '2026-08-08'));
 
     const stale = rayenSyncExecutionReducer(latest, {
       type: 'transition',
-      runId: 'run-old',
-      requestId: 'request-old',
-      selectedDate: '2026-08-07',
+      ...staleIdentity,
       stage: { type: 'awaiting_review' },
     });
 

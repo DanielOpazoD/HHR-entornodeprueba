@@ -71,7 +71,7 @@ export const useRayenSnapshotPreview = ({
           requestId,
         }).transition({ type: 'failed' });
         preparedSyncContextRef.current = null;
-        void failRun('apply_failed', run.id);
+        void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
           isSyncing: false,
@@ -113,7 +113,7 @@ export const useRayenSnapshotPreview = ({
       if (!temporalValidation.valid) {
         execution.transition({ type: 'failed' });
         preparedSyncContextRef.current = null;
-        void failRun('apply_failed', run.id);
+        void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
           isBusy: false,
@@ -135,7 +135,7 @@ export const useRayenSnapshotPreview = ({
       if (!bundleMatchesRequest) {
         execution.transition({ type: 'failed' });
         preparedSyncContextRef.current = null;
-        void failRun('apply_failed', run.id);
+        void failRun('apply_failed', run.id).catch(() => undefined);
         setState(prev => ({
           ...prev,
           isBusy: false,
@@ -293,13 +293,15 @@ export const useRayenSnapshotPreview = ({
         } catch (error) {
           if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
           preparedSyncContextRef.current = null;
-          void failRun('apply_failed', run.id);
+          void failRun('apply_failed', run.id).catch(() => undefined);
           execution.transition({ type: 'failed' });
+          const isExecutionDateVisible =
+            !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
           setState(prev => ({
             ...prev,
             isBusy: false,
             isSyncing: false,
-            error: getRayenImportErrorMessage(error),
+            ...(isExecutionDateVisible ? { error: getRayenImportErrorMessage(error) } : {}),
           }));
         } finally {
           persistenceExecutionKeysRef.current.delete(autoApplyKey);
@@ -333,7 +335,7 @@ export const useRayenSnapshotPreview = ({
           if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
           execution.transition({ type: 'failed' });
           preparedSyncContextRef.current = null;
-          void failRun('apply_failed', run.id);
+          void failRun('apply_failed', run.id).catch(() => undefined);
           const isExecutionDateVisible =
             !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
           setState(prev => ({

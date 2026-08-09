@@ -1,4 +1,4 @@
-import { useCallback, useRef, type MutableRefObject } from 'react';
+import { useCallback, useRef, type RefObject } from 'react';
 import type { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { applyConfirmedRayenImport, hasSkippedPreviousDayCorrections } from './confirmRayenImport';
@@ -20,14 +20,14 @@ type SyncAudit = ReturnType<typeof useRayenSyncAudit>;
 
 interface UseRayenImportConfirmationInput {
   currentRecord: DailyRecord | null | undefined;
-  currentRecordRef: MutableRefObject<DailyRecord | null | undefined>;
+  currentRecordRef: RefObject<DailyRecord | null | undefined>;
   state: RayenImportState;
   setState: ExecutionController['setImportStateCurrent'];
   executionRef: ExecutionController['executionRef'];
   dispatchExecution: (action: RayenSyncExecutionAction) => void;
   transitionExecution: ExecutionController['transitionExecution'];
-  preparedSyncContextRef: MutableRefObject<PreparedRayenSyncContext | null>;
-  selectedDateRef: MutableRefObject<string | undefined>;
+  preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
+  selectedDateRef: RefObject<string | undefined>;
   dailyRecord: ReturnType<typeof useRepositories>['dailyRecord'];
   isAdmin: boolean;
   ensureRun: SyncAudit['ensureRun'];
@@ -154,6 +154,7 @@ export const useRayenImportConfirmation = ({
     },
     [
       currentRecord,
+      currentRecordRef,
       state.diff,
       applyDiff,
       fillDevicesInBackground,
