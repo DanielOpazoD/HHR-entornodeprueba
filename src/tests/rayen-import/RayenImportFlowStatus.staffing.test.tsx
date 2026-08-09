@@ -34,7 +34,7 @@ const renderStatus = (
   );
 
 describe('RayenImportFlowStatus staffing observations', () => {
-  it('names ambiguous staffing evidence instead of showing a generic observation', () => {
+  it('does not turn an independent staffing ambiguity into a clinical warning', () => {
     renderStatus(
       fill({
         outcome: 'complete',
@@ -46,11 +46,12 @@ describe('RayenImportFlowStatus staffing observations', () => {
       })
     );
 
-    expect(screen.getByText('Enfermería/TENS sin cambios · evidencia ambigua')).toBeVisible();
+    expect(screen.getByText('Todo al día')).toBeVisible();
+    expect(screen.queryByText(/Enfermería\/TENS/)).not.toBeInTheDocument();
     expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 
-  it('keeps persisted staffing observations independent from clinical coverage', () => {
+  it('keeps persisted staffing observations out of the clinical status', () => {
     renderStatus(fill(), {
       status: 'complete',
       coverage: {
@@ -66,9 +67,10 @@ describe('RayenImportFlowStatus staffing observations', () => {
       },
     });
 
-    expect(screen.getByText('Última sincronización con observaciones')).toBeVisible();
+    expect(screen.getByText('Todo al día').parentElement).toHaveClass('sr-only');
     expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.getByRole('status')).not.toHaveTextContent('Enfermería/TENS');
+    expect(screen.queryByText('Última sincronización con observaciones')).not.toBeInTheDocument();
   });
 
   it('keeps a completed sync green when staffing only has handoff-boundary traceability', () => {

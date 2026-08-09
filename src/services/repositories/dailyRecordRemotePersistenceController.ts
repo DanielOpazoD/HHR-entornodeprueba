@@ -171,6 +171,40 @@ const applyRemoteAuthorityState = (
   return authoritativeRecord;
 };
 
+const isValidRemoteAuthorityRecord = (
+  candidate: DailyRecord | null | undefined,
+  expectedDate: string
+): candidate is DailyRecord =>
+  Boolean(
+    candidate &&
+      candidate.date === expectedDate &&
+      typeof candidate.lastUpdated === 'string' &&
+      candidate.lastUpdated
+  );
+
+/**
+ * Older deployed authority callables can confirm a write without returning `recordState`.
+ * Read the committed document once in that compatibility case so the next clinical stage receives
+ * the server version instead of treating a successful census write as an operational failure.
+ */
+const resolveRemoteAuthorityRecord = async (
+  record: DailyRecord,
+  result: RemoteAuthorityWriteResult | void,
+  readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>
+): Promise<DailyRecord | null> => {
+  const responseRecord = applyRemoteAuthorityState(record, result);
+  if (responseRecord) return responseRecord;
+  if (!readRemoteConfirmedRecord) return null;
+
+  try {
+    const remoteRecord = await readRemoteConfirmedRecord();
+    return isValidRemoteAuthorityRecord(remoteRecord, record.date) ? remoteRecord : null;
+  } catch (error) {
+    logger.warn('Could not read back the server-confirmed daily record', error);
+    return null;
+  }
+};
+
 const missingRemoteAuthorityStateResult = (date: string): LocalRecordWriteResult => ({
   ok: false,
   operation: 'save',
@@ -193,6 +227,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   releaseLocalPreOutboxHold,
   renewLocalPreOutboxHold,
   renewLocalPreOutboxHoldEveryMs,
+  readRemoteConfirmedRecord,
   allowConflictAutoMerge = true,
   remoteAuthorityFirst = false,
 }: {
@@ -208,6 +243,8 @@ export const persistLocalAndAttemptRemoteSync = async ({
   releaseLocalPreOutboxHold?: () => Promise<void>;
   renewLocalPreOutboxHold?: () => Promise<void>;
   renewLocalPreOutboxHoldEveryMs?: number;
+  /** Compatibility readback when a deployed callable confirms without returning recordState. */
+  readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>;
   /** Some multi-field mutations must be retried from fresh state, never union-merged. */
   allowConflictAutoMerge?: boolean;
   /**
@@ -229,7 +266,11 @@ export const persistLocalAndAttemptRemoteSync = async ({
     }
     markRemoteWriteSucceeded(remoteState);
 
-    const authoritativeRecord = applyRemoteAuthorityState(record, remoteResult);
+    const authoritativeRecord = await resolveRemoteAuthorityRecord(
+      record,
+      remoteResult,
+      readRemoteConfirmedRecord
+    );
     if (!authoritativeRecord) {
       applyLocalPersistenceFailure(
         date,
@@ -240,6 +281,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
       );
       return 'return';
     }
+    remoteState.confirmedRecord = authoritativeRecord;
 
     const localResult = await saveToIndexedDB(authoritativeRecord);
     if (!localResult.ok) {
@@ -285,7 +327,11 @@ export const persistLocalAndAttemptRemoteSync = async ({
     );
     markRemoteWriteSucceeded(remoteState);
     if (remoteResult !== undefined) {
-      const authoritativeRecord = applyRemoteAuthorityState(record, remoteResult);
+      const authoritativeRecord = await resolveRemoteAuthorityRecord(
+        record,
+        remoteResult,
+        readRemoteConfirmedRecord
+      );
       if (!authoritativeRecord) {
         await releaseLocalPreOutboxHold?.();
         applyLocalPersistenceFailure(
@@ -297,6 +343,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
         );
         return 'return';
       }
+      remoteState.confirmedRecord = authoritativeRecord;
       const localResult = await saveToIndexedDB(authoritativeRecord);
       if (!localResult.ok) {
         await releaseLocalPreOutboxHold?.();

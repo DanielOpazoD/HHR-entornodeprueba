@@ -5,6 +5,7 @@ import {
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordRecoveryDecision } from '@/services/repositories/dailyRecordRecoveryPolicy';
 import type { DailyRecordRetryability } from '@/services/repositories/contracts/dailyRecordConsistency';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export interface RemoteWriteState {
   savedLocally: boolean;
@@ -32,6 +33,7 @@ export interface RemoteWriteState {
   userSafeMessage?: string;
   blockingReason?: 'regression' | 'version_mismatch' | 'validation';
   blockingError?: Error;
+  confirmedRecord?: DailyRecord;
 }
 
 export const createRemoteWriteState = (): RemoteWriteState => ({
@@ -100,6 +102,7 @@ export const buildSaveResult = (date: string, state: RemoteWriteState) =>
     blockingReason: state.blockingReason,
     repairApplied: false,
     blockingError: state.blockingError,
+    confirmedRecord: state.confirmedRecord,
   });
 
 export const buildPartialUpdateResult = (

@@ -1,19 +1,28 @@
-import { useCallback, useEffect, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
-import type { CensusSyncTarget } from '../domain/historicalCensusSync';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import * as rayenImportBridge from '../bridge/rayenImportBridge';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
 import { failureReasonFromHealth } from './useRayenSyncAudit';
 import { resetRayenFillProgress } from './useRayenFillStatus';
-import { resolveSyncReportRequest } from './reportDateHelpers';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
 import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
 import type { RayenImportPolicyStatus } from './useRayenImportMode';
+import {
+  prepareRayenSyncTemporalContext,
+  type PreparedRayenSyncContext,
+} from './rayenSyncTemporalContext';
 
 interface UseRayenImportCaptureInput {
   currentRecord: DailyRecord | null | undefined;
@@ -24,7 +33,8 @@ interface UseRayenImportCaptureInput {
   setStaffingProposalError: Dispatch<SetStateAction<string | null>>;
   clearSyncTimeout: () => void;
   syncRequestController: RayenSyncRequestController;
-  syncTargetRef: RefObject<CensusSyncTarget | null>;
+  preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
+  loadFreshRecord: (date: string) => Promise<DailyRecord>;
   startRun: (
     health?: RayenExtensionHealthState,
     performance?: RayenSyncPerformanceDelta,
@@ -45,12 +55,14 @@ export const useRayenImportCapture = ({
   setStaffingProposalError,
   clearSyncTimeout,
   syncRequestController,
-  syncTargetRef,
+  preparedSyncContextRef,
+  loadFreshRecord,
   startRun,
   failRun,
   recordRunPerformance,
   previewSnapshot,
 }: UseRayenImportCaptureInput) => {
+  const capturePreparationInFlightRef = useRef(false);
   useEffect(
     () =>
       rayenImportBridge.subscribeToRayenSnapshots((snapshot, bundle, requestId) => {
@@ -67,7 +79,7 @@ export const useRayenImportCapture = ({
         const runId = syncRequestController.getRunId(requestId);
         if (!runId) return;
         clearSyncTimeout();
-        syncTargetRef.current = null;
+        preparedSyncContextRef.current = null;
         void failRun('snapshot_error', runId);
         setState(previous => ({
           ...previous,
@@ -77,114 +89,131 @@ export const useRayenImportCapture = ({
             'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen e inténtalo nuevamente.',
         }));
       }),
-    [clearSyncTimeout, failRun, setState, syncRequestController, syncTargetRef]
+    [clearSyncTimeout, failRun, preparedSyncContextRef, setState, syncRequestController]
   );
 
   return useCallback(
-    (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
-      clearSyncTimeout();
-      if (policyStatus !== 'ready') {
+    async (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
+      if (capturePreparationInFlightRef.current) return;
+      capturePreparationInFlightRef.current = true;
+      try {
+        clearSyncTimeout();
+        preparedSyncContextRef.current = null;
+        if (policyStatus !== 'ready') {
+          setState(previous => ({
+            ...previous,
+            isBusy: false,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error:
+              policyStatus === 'unconfigured'
+                ? 'La política global de sincronización aún no está configurada. Solicita a un administrador que la inicialice.'
+                : policyStatus === 'migration-required'
+                  ? 'La política global de sincronización requiere migración a v2 antes de iniciar.'
+                  : 'No se pudo confirmar la política global de sincronización con el servidor. Reintenta cuando vuelva la conexión.',
+          }));
+          return;
+        }
+        if (!resetRayenFillProgress()) {
+          setState(previous => ({
+            ...previous,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error:
+              'La revisión clínica anterior todavía está terminando. Espera un momento antes de sincronizar nuevamente.',
+          }));
+          return;
+        }
+        setStaffingProposal(null);
+        setStaffingProposalError(null);
+        const run = startRun(health, performance, policy);
+        if (!health.canSync) {
+          preparedSyncContextRef.current = null;
+          void failRun(failureReasonFromHealth(health), run.id);
+          setState(previous => ({
+            ...previous,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error: null,
+          }));
+          return;
+        }
+        if (!currentRecord) {
+          preparedSyncContextRef.current = null;
+          void failRun('snapshot_error', run.id);
+          setState(previous => ({
+            ...previous,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error: 'No hay un censo cargado para sincronizar.',
+          }));
+          return;
+        }
+
         setState(previous => ({
           ...previous,
-          isBusy: false,
-          isSyncing: false,
-          result: null,
-          hasSkippedItems: false,
-          error:
-            policyStatus === 'unconfigured'
-              ? 'La política global de sincronización aún no está configurada. Solicita a un administrador que la inicialice.'
-              : policyStatus === 'migration-required'
-                ? 'La política global de sincronización requiere migración a v2 antes de iniciar.'
-                : 'No se pudo confirmar la política global de sincronización con el servidor. Reintenta cuando vuelva la conexión.',
-        }));
-        return;
-      }
-      if (!resetRayenFillProgress()) {
-        setState(previous => ({
-          ...previous,
-          isSyncing: false,
-          result: null,
-          hasSkippedItems: false,
-          error:
-            'La revisión clínica anterior todavía está terminando. Espera un momento antes de sincronizar nuevamente.',
-        }));
-        return;
-      }
-      setStaffingProposal(null);
-      setStaffingProposalError(null);
-      const run = startRun(health, performance, policy);
-      if (!health.canSync) {
-        void failRun(failureReasonFromHealth(health), run.id);
-        setState(previous => ({
-          ...previous,
-          isSyncing: false,
+          isSyncing: true,
           result: null,
           hasSkippedItems: false,
           error: null,
         }));
-        return;
-      }
-      if (!currentRecord) {
-        void failRun('snapshot_error', run.id);
-        setState(previous => ({
-          ...previous,
-          isSyncing: false,
-          result: null,
-          hasSkippedItems: false,
-          error: 'No hay un censo cargado para sincronizar.',
-        }));
-        return;
-      }
 
-      let syncRequest: ReturnType<typeof resolveSyncReportRequest>;
-      try {
-        syncRequest = resolveSyncReportRequest(currentRecord, new Date());
-      } catch (error) {
-        void failRun('snapshot_error', run.id);
-        setState(previous => ({
-          ...previous,
-          isSyncing: false,
-          result: null,
-          hasSkippedItems: false,
-          error: getRayenImportErrorMessage(error),
-        }));
-        return;
-      }
-
-      syncTargetRef.current = syncRequest.target;
-      setState(previous => ({
-        ...previous,
-        isSyncing: true,
-        result: null,
-        hasSkippedItems: false,
-        error: null,
-      }));
-      syncRequestController.start(
-        syncRequest.range.dateStart,
-        syncRequest.range.dateEnd,
-        run.id,
-        () => {
-          syncTargetRef.current = null;
-          recordRunPerformance({ counters: { timeouts: 1 } }, run.id);
-          void failRun('snapshot_timeout', run.id);
-          setState(previous =>
-            previous.isSyncing
-              ? {
-                  ...previous,
-                  isSyncing: false,
-                  error:
-                    'No se recibió respuesta de la extensión Rayen. Verifica que Ficha Médico y Gestión de Camas estén abiertas y conectadas.',
-                }
-              : previous
-          );
+        let preparedContext: PreparedRayenSyncContext;
+        try {
+          preparedContext = await prepareRayenSyncTemporalContext({
+            displayedRecord: currentRecord,
+            runId: run.id,
+            loadFreshRecord,
+          });
+        } catch (error) {
+          preparedSyncContextRef.current = null;
+          void failRun('snapshot_error', run.id);
+          setState(previous => ({
+            ...previous,
+            isSyncing: false,
+            result: null,
+            hasSkippedItems: false,
+            error: getRayenImportErrorMessage(error),
+          }));
+          return;
         }
-      );
-      recordRunPerformance({ counters: { requests: 1 } }, run.id);
+
+        preparedSyncContextRef.current = preparedContext;
+        syncRequestController.start(
+          preparedContext.range.dateStart,
+          preparedContext.range.dateEnd,
+          run.id,
+          () => {
+            preparedSyncContextRef.current = null;
+            recordRunPerformance({ counters: { timeouts: 1 } }, run.id);
+            void failRun('snapshot_timeout', run.id);
+            setState(previous =>
+              previous.isSyncing
+                ? {
+                    ...previous,
+                    isSyncing: false,
+                    error:
+                      'No se recibió respuesta de la extensión Rayen. Verifica que Ficha Médico y Gestión de Camas estén abiertas y conectadas.',
+                  }
+                : previous
+            );
+          }
+        );
+        recordRunPerformance({ counters: { requests: 1 } }, run.id);
+      } finally {
+        capturePreparationInFlightRef.current = false;
+      }
     },
     [
       clearSyncTimeout,
       currentRecord,
       failRun,
+      loadFreshRecord,
+      preparedSyncContextRef,
       recordRunPerformance,
       policy,
       policyStatus,
@@ -193,7 +222,6 @@ export const useRayenImportCapture = ({
       setState,
       startRun,
       syncRequestController,
-      syncTargetRef,
     ]
   );
 };

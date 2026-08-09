@@ -168,19 +168,29 @@ export const useDailyRecordQuery = (
   };
 };
 
-/** Hook for saving/updating a daily record. */
+/** Full record plus the remote revision from which an optimistic mutation was derived. */
+type SaveDailyRecordMutationInput = { record: DailyRecord; expectedLastUpdated?: string };
+
 export const useSaveDailyRecordMutation = () => {
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
 
   return useMutation({
-    mutationFn: async (record: DailyRecord) => {
-      await ensureFreshClinicalSaveMutation(record, { dailyRecord, queryClient });
-      const result = await saveDailyRecordWithCompatibility(dailyRecord, record);
-      return { record, result };
+    mutationFn: async ({ record, expectedLastUpdated }: SaveDailyRecordMutationInput) => {
+      const result = await saveDailyRecordWithCompatibility(
+        dailyRecord,
+        record,
+        expectedLastUpdated
+      );
+      return { record: result?.confirmedRecord ?? record, result };
     },
-    onMutate: async newRecord => {
-      await ensureFreshClinicalSaveMutation(newRecord, { dailyRecord, queryClient });
+    onMutate: async ({ record: newRecord, expectedLastUpdated }) => {
+      // React Query awaits onMutate before mutationFn. One freshness read is enough; repeating it
+      // inside mutationFn can hydrate a second revision and manufacture a conflict with ourselves.
+      const freshnessAnchor = expectedLastUpdated
+        ? { ...newRecord, lastUpdated: expectedLastUpdated }
+        : newRecord;
+      await ensureFreshClinicalSaveMutation(freshnessAnchor, { dailyRecord, queryClient });
 
       await queryClient.cancelQueries({
         queryKey: queryKeys.dailyRecord.byDate(newRecord.date),
@@ -194,12 +204,12 @@ export const useSaveDailyRecordMutation = () => {
 
       return { previousRecord };
     },
-    onError: (err, newRecord, context) => {
+    onError: (err, { record: newRecord }, context) => {
       if (context?.previousRecord) {
         setDailyRecordQueryData(queryClient, newRecord.date, context.previousRecord);
       }
     },
-    onSuccess: (payload, _newRecord, context) => {
+    onSuccess: (payload, _input, context) => {
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         setDailyRecordQueryData(queryClient, payload.record.date, context?.previousRecord ?? null);
         return;

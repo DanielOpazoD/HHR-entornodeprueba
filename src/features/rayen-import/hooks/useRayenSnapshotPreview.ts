@@ -27,8 +27,7 @@ import type { EgresoLookupResult } from '../contracts/egresoLookup';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
-import { syncReportRange, toIsoReportDate } from './reportDateHelpers';
-import { resolveCensusSyncTarget, type CensusSyncTarget } from '../domain/historicalCensusSync';
+import { toIsoReportDate } from './reportDateHelpers';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import { elapsedMilliseconds, isRayenTimeoutMessage } from '../domain/rayenSyncPerformance';
@@ -36,8 +35,11 @@ import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSy
 import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
 import type { ConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
+import {
+  validatePreparedRayenSyncContextAtCompletion,
+  type PreparedRayenSyncContext,
+} from './rayenSyncTemporalContext';
 interface UseRayenSnapshotPreviewInput {
-  currentRecord: DailyRecord | null | undefined;
   dailyRecord: DailyRecordRepositoryPort;
   isAdmin: boolean;
   setState: Dispatch<SetStateAction<RayenImportState>>;
@@ -52,10 +54,9 @@ interface UseRayenSnapshotPreviewInput {
   ensureRun: () => RayenSyncRun;
   getRun: (runId: string) => RayenSyncRun | undefined;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
-  syncTargetRef: RefObject<CensusSyncTarget | null>;
+  preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
 }
 export const useRayenSnapshotPreview = ({
-  currentRecord,
   dailyRecord,
   isAdmin,
   setState,
@@ -67,7 +68,7 @@ export const useRayenSnapshotPreview = ({
   ensureRun,
   getRun,
   recordRunPerformance,
-  syncTargetRef,
+  preparedSyncContextRef,
 }: UseRayenSnapshotPreviewInput) => {
   const autoApplyingRef = useRef(false);
   const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
@@ -77,15 +78,18 @@ export const useRayenSnapshotPreview = ({
       if (!run) return;
       clearSyncTimeout();
       const planningSnapshot = prepareTreatingPhysicianSnapshot(snapshot);
-      if (!currentRecord) {
+      const preparedContext = preparedSyncContextRef.current;
+      if (!preparedContext || preparedContext.runId !== run.id) {
+        preparedSyncContextRef.current = null;
         void failRun('apply_failed', run.id);
         setState(prev => ({
           ...prev,
           isSyncing: false,
-          error: 'No hay censo cargado para hoy.',
+          error: 'No se pudo confirmar el contexto temporal de esta sincronización.',
         }));
         return;
       }
+      const baseRecord = preparedContext.record;
       recordRunPerformance(
         buildRayenCapturePerformance(
           snapshot,
@@ -105,36 +109,32 @@ export const useRayenSnapshotPreview = ({
           historicalEvidenceMs += elapsedMilliseconds(startedAt);
         }
       };
-      const reportDate = toIsoReportDate(currentRecord);
-      const requestedTarget = syncTargetRef.current;
-      syncTargetRef.current = null;
-      const completedTarget = resolveCensusSyncTarget(reportDate);
-      if (
-        !requestedTarget ||
-        requestedTarget.kind === 'unsupported' ||
-        completedTarget.kind === 'unsupported' ||
-        completedTarget.clinicalDay !== requestedTarget.clinicalDay
-      ) {
+      const reportDate = toIsoReportDate(baseRecord);
+      const requestedTarget = preparedContext.target;
+      const temporalValidation = validatePreparedRayenSyncContextAtCompletion(preparedContext);
+      if (!temporalValidation.valid) {
+        preparedSyncContextRef.current = null;
         void failRun('apply_failed', run.id);
         setState(prev => ({
           ...prev,
           isBusy: false,
           isSyncing: false,
           error:
-            requestedTarget && completedTarget.kind !== 'unsupported'
+            temporalValidation.reason === 'clinical_day_changed'
               ? 'El turno de enfermería cambió durante la captura. Vuelve a sincronizar para usar un único corte temporal.'
               : 'Solo se puede reconciliar el censo vigente o uno de los siete días clínicos anteriores.',
         }));
         return;
       }
       const isHistoricalDay = requestedTarget.kind === 'historical';
-      const reportRange = syncReportRange(reportDate, requestedTarget);
+      const reportRange = preparedContext.range;
       const bundleMatchesRequest =
         bundle.facilityId === snapshot.facilityId &&
         bundle.fichaMedicoCapturedAt === snapshot.capturedAt &&
         bundle.dateStart === reportRange.dateStart &&
         bundle.dateEnd === reportRange.dateEnd;
       if (!bundleMatchesRequest) {
+        preparedSyncContextRef.current = null;
         void failRun('apply_failed', run.id);
         setState(prev => ({
           ...prev,
@@ -199,7 +199,7 @@ export const useRayenSnapshotPreview = ({
           reconstructHistoricalSnapshotAtClose(
             reportDate,
             planningSnapshot,
-            currentRecord,
+            baseRecord,
             bundle.egresoRows,
             {
               fetchReport: fetchPatientFlowReport,
@@ -209,7 +209,7 @@ export const useRayenSnapshotPreview = ({
           )
         );
         diff = planRayenCensusImport({
-          current: currentRecord,
+          current: baseRecord,
           snapshot: reconstruction.snapshot,
         }).diff;
         if (reconstruction.conflicts.length > 0) {
@@ -223,39 +223,37 @@ export const useRayenSnapshotPreview = ({
           };
         }
       } else {
-        diff = planRayenCensusImport({ current: currentRecord, snapshot: planningSnapshot }).diff;
-        diff = applyEgresoReport(diff, bundle.egresoRows, currentRecord);
+        diff = planRayenCensusImport({ current: baseRecord, snapshot: planningSnapshot }).diff;
+        diff = applyEgresoReport(diff, bundle.egresoRows, baseRecord);
         const recoveryTargets = diff.pendingAdministrativeDischarges
           .filter(entry => entry.rut && entry.encounterId)
           .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
         lookupResults = await measureEvidence(() => lookupEgresos(recoveryTargets));
         const recovered = await measureEvidence(() =>
           recoverMissingSnapshotPlacements(
-            currentRecord,
+            baseRecord,
             planningSnapshot,
             diff,
             lookupResults,
             { fetchReport: fetchPatientFlowReport },
             recoveredSnapshot =>
-              planRayenCensusImport({ current: currentRecord, snapshot: recoveredSnapshot }).diff
+              planRayenCensusImport({ current: baseRecord, snapshot: recoveredSnapshot }).diff
           )
         );
         const traceability = await measureEvidence(() =>
           resolveOccupiedBedTraceabilityChain(
-            currentRecord,
+            baseRecord,
             recovered.snapshot,
             recovered.diff,
             { fetchReport: fetchPatientFlowReport },
-            verified => planRayenCensusImport({ current: currentRecord, snapshot: verified }).diff
+            verified => planRayenCensusImport({ current: baseRecord, snapshot: verified }).diff
           )
         );
         diff = traceability.diff;
         evidenceSnapshot = traceability.snapshot;
       }
-
-      // Placement resolvers replan from the snapshot, so restore authoritative bundle egresos.
-      diff = applyEgresoReport(diff, bundle.egresoRows, currentRecord);
-
+      // Reapply after snapshot replans so report-only discharges survive.
+      diff = applyEgresoReport(diff, bundle.egresoRows, baseRecord);
       const lookupTargets = diff.pendingAdministrativeDischarges
         .filter(entry => entry.rut && entry.encounterId)
         .filter(
@@ -277,7 +275,7 @@ export const useRayenSnapshotPreview = ({
         ];
       }
       if (lookupResults.length > 0) {
-        diff = applyEgresoLookupFallback(diff, lookupResults, currentRecord);
+        diff = applyEgresoLookupFallback(diff, lookupResults, baseRecord);
       }
 
       diff = await measureEvidence(() =>
@@ -285,7 +283,7 @@ export const useRayenSnapshotPreview = ({
           fetchReport: fetchPatientFlowReport,
           loadHistoricalRecord: day => dailyRecord.getForDate(day),
           snapshot: evidenceSnapshot,
-          currentRecord,
+          currentRecord: baseRecord,
         })
       );
       const previousDayPlan = await measureEvidence(() =>
@@ -320,9 +318,10 @@ export const useRayenSnapshotPreview = ({
           hasSkippedItems: false,
           error: null,
         });
-        applyDiff(currentRecord, diff)
+        applyDiff(baseRecord, diff)
           .then(result => {
             autoApplyingRef.current = false;
+            preparedSyncContextRef.current = null;
             setState(prev => ({
               ...prev,
               isBusy: false,
@@ -333,6 +332,7 @@ export const useRayenSnapshotPreview = ({
           })
           .catch(error => {
             autoApplyingRef.current = false;
+            preparedSyncContextRef.current = null;
             void failRun('apply_failed', run.id);
             setState(prev => ({
               ...prev,
@@ -352,22 +352,23 @@ export const useRayenSnapshotPreview = ({
           (diff.reportEgresos?.length ?? 0) >
         0;
       const hasUnresolvedConflicts = diff.summary.conflicts > 0;
-      // Even a conflict-only census review must continue clinical enrichment. Persist the run and
-      // start the fill, while the state below keeps the conflict details open for the operator.
       if (!hasApplicableChanges) {
         try {
-          const stamped = await persistAppliedRun(currentRecord, diff);
+          const stamped = await persistAppliedRun(baseRecord, diff);
           void fillDevicesInBackground(stamped);
-        } catch {
+          preparedSyncContextRef.current = null;
+        } catch (error) {
+          preparedSyncContextRef.current = null;
           void failRun('apply_failed', run.id);
-          setState(prev => ({ ...prev, isSyncing: false }));
+          const message = getRayenImportErrorMessage(error);
+          setState(prev => ({ ...prev, isSyncing: false, error: message }));
+          return;
         }
       }
 
       setState({
         diff,
-        // No-change runs continue quietly. Conflicts always open the review because their bed and
-        // reason are actionable even when there is no mutation to apply.
+        // No-change runs stay quiet; actionable conflicts keep the review open.
         isPreviewOpen: hasApplicableChanges || hasUnresolvedConflicts,
         isBusy: false,
         isSyncing: !hasApplicableChanges,
@@ -380,7 +381,6 @@ export const useRayenSnapshotPreview = ({
       });
     },
     [
-      currentRecord,
       applyDiff,
       fillDevicesInBackground,
       clearSyncTimeout,
@@ -392,7 +392,7 @@ export const useRayenSnapshotPreview = ({
       getRun,
       recordRunPerformance,
       setState,
-      syncTargetRef,
+      preparedSyncContextRef,
       prepareTreatingPhysicianSnapshot,
     ]
   );

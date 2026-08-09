@@ -4,6 +4,44 @@ import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
+import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+
+const NON_RETRYABLE_AUTHORITY_CODES = new Set([
+  'aborted',
+  'already-exists',
+  'failed-precondition',
+  'invalid-argument',
+  'not-found',
+  'permission-denied',
+  'unauthenticated',
+]);
+
+const authorityErrorCode = (error: unknown): string =>
+  String((error as { code?: unknown })?.code ?? '')
+    .toLowerCase()
+    .replace(/^functions\//, '');
+
+const authorityErrorMessage = (error: unknown): string =>
+  String((error as { message?: unknown })?.message ?? '');
+
+export const normalizeDailyRecordAuthorityError = (error: unknown): unknown => {
+  const code = authorityErrorCode(error);
+  const message = authorityErrorMessage(error);
+  if (
+    code === 'aborted' ||
+    /revision_mismatch|version_mismatch|base revision|remote revision/i.test(message)
+  ) {
+    return new ConcurrencyError(
+      'El censo cambió mientras se guardaba. HHR recargará la versión vigente y reintentará.'
+    );
+  }
+  return error;
+};
+
+export const shouldRetryDailyRecordAuthorityError = (error: unknown): boolean => {
+  if (error instanceof ConcurrencyError) return false;
+  return !NON_RETRYABLE_AUTHORITY_CODES.has(authorityErrorCode(error));
+};
 
 export interface DailyRecordAuthorityCallablePayload {
   date: string;
@@ -63,8 +101,12 @@ export const saveDailyRecordWithClinicalAuthorityCallable = async (
     DailyRecordAuthorityCallableResponse
   >(functions, 'saveDailyRecordWithClinicalAuthority');
 
-  const result = await callable(payload);
-  return result.data;
+  try {
+    const result = await callable(payload);
+    return result.data;
+  } catch (error) {
+    throw normalizeDailyRecordAuthorityError(error);
+  }
 };
 
 export const patchDailyRecordWithClinicalAuthorityCallable = async (
@@ -76,6 +118,10 @@ export const patchDailyRecordWithClinicalAuthorityCallable = async (
     DailyRecordAuthorityCallableResponse
   >(functions, 'patchDailyRecordWithClinicalAuthority');
 
-  const result = await callable(payload);
-  return result.data;
+  try {
+    const result = await callable(payload);
+    return result.data;
+  } catch (error) {
+    throw normalizeDailyRecordAuthorityError(error);
+  }
 };

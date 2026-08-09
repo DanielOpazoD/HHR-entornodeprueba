@@ -237,6 +237,7 @@ export const saveDetailed = async (record: DailyRecord, expectedLastUpdated?: st
         buildPreOutboxRemoteAckOptions(syncContract)
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
+    readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date),
     onRemoteFailure: err => {
       dailyRecordWriteLogger.warn(
         `Firestore sync failed for ${command.date}; data persisted in IndexedDB`,
@@ -346,6 +347,7 @@ export const updatePartialDetailed = async (
         buildPreOutboxRemoteAckOptions(syncContract)
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
+    readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date),
     onRemoteFailure: err => {
       dailyRecordWriteLogger.warn(`Firestore partial update failed for ${command.date}`, err);
     },

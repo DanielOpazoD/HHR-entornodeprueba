@@ -168,12 +168,16 @@ describe('clinical crib discharge promotion', () => {
     if (current.beds.H5C1.clinicalCrib) {
       current.beds.H5C1.clinicalCrib.handoffNote = 'Observación neonatal local';
     }
-    const { enriched, applied } = apply(current, [dischargeRow(mother)], [mother, child]);
+    const { enriched: firstReportResult, applied } = apply(
+      current,
+      [dischargeRow(mother)],
+      [mother, child]
+    );
 
-    expect(enriched.discharges).toEqual([
+    expect(firstReportResult.discharges).toEqual([
       expect.objectContaining({ bedId: 'H5C1', rut: seed(mother).rut }),
     ]);
-    expect(enriched.admissions).toEqual([
+    expect(firstReportResult.admissions).toEqual([
       expect.objectContaining({
         bedId: 'H5C1',
         patient: expect.objectContaining({
@@ -183,6 +187,13 @@ describe('clinical crib discharge promotion', () => {
         }),
       }),
     ]);
+    const secondReportResult = applyEgresoReport(
+      firstReportResult,
+      [dischargeRow(mother)],
+      current
+    );
+    expect(secondReportResult.admissions).toHaveLength(1);
+    expect(secondReportResult.admissions[0]?.patient.clinicalEpisodeId).toBe('NEWBORN');
     expect(applied.skipped).toHaveLength(0);
     expect(applied.record.beds.H5C1).toMatchObject({
       clinicalEpisodeId: 'NEWBORN',

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
 import { INITIAL_RAYEN_IMPORT_STATE } from '@/features/rayen-import/hooks/rayenImportState';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
-import type { CensusSyncTarget } from '@/features/rayen-import/domain/historicalCensusSync';
+import type { PreparedRayenSyncContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
 
 const bridge = vi.hoisted(() => ({
   subscribeSnapshots: vi.fn(() => vi.fn()),
@@ -16,6 +16,7 @@ vi.mock('@/features/rayen-import/bridge/rayenImportBridge', () => ({
 }));
 
 vi.mock('@/features/rayen-import/hooks/reportDateHelpers', () => ({
+  toIsoReportDate: (candidate: DailyRecord) => candidate.date,
   resolveSyncReportRequest: () => ({
     target: {
       kind: 'current',
@@ -41,7 +42,7 @@ const policy = { mode: 'preview' as const, clinicalBatchMode: 'enforced' as cons
 describe('useRayenImportCapture', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('starts one correlated extension request and records its aggregate request counter', () => {
+  it('starts one correlated extension request from the freshest selected census', async () => {
     const setState = vi.fn();
     const setStaffingProposal = vi.fn();
     const setStaffingProposalError = vi.fn();
@@ -54,7 +55,9 @@ describe('useRayenImportCapture', () => {
     }));
     const recordRunPerformance = vi.fn();
     const getRunId = vi.fn().mockReturnValue('run-1');
-    const syncTargetRef: { current: CensusSyncTarget | null } = { current: null };
+    const preparedSyncContextRef: { current: PreparedRayenSyncContext | null } = { current: null };
+    const freshRecord = { ...record, lastUpdated: '2026-08-02T09:30:00.000Z' };
+    const loadFreshRecord = vi.fn().mockResolvedValue(freshRecord);
     const previewSnapshot = vi.fn();
     const { result } = renderHook(() =>
       useRayenImportCapture({
@@ -66,7 +69,8 @@ describe('useRayenImportCapture', () => {
         setStaffingProposalError,
         clearSyncTimeout: vi.fn(),
         syncRequestController: { start: startRequest, cancel: vi.fn(), getRunId },
-        syncTargetRef,
+        preparedSyncContextRef,
+        loadFreshRecord,
         startRun,
         failRun: vi.fn().mockResolvedValue(undefined),
         recordRunPerformance,
@@ -74,8 +78,8 @@ describe('useRayenImportCapture', () => {
       })
     );
 
-    act(() => {
-      result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    await act(async () => {
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
     });
 
     expect(bridge.subscribeSnapshots).toHaveBeenCalledWith(expect.any(Function));
@@ -91,7 +95,13 @@ describe('useRayenImportCapture', () => {
       expect.any(Function)
     );
     expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { requests: 1 } }, 'run-1');
-    expect(syncTargetRef.current).toEqual(expect.objectContaining({ clinicalDay: '2026-08-02' }));
+    expect(loadFreshRecord).toHaveBeenCalledWith('2026-08-02');
+    expect(preparedSyncContextRef.current).toEqual(
+      expect.objectContaining({
+        record: freshRecord,
+        target: expect.objectContaining({ clinicalDay: '2026-08-02' }),
+      })
+    );
     const stateUpdater = setState.mock.calls.at(-1)?.[0] as (
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
@@ -107,12 +117,63 @@ describe('useRayenImportCapture', () => {
     expect(previewSnapshot).toHaveBeenCalledWith('snapshot', 'bundle', 'run-1');
   });
 
-  it('terminalizes the correlated run when its extension request times out', () => {
+  it('ignores a second start while the freshest census is still loading', async () => {
+    let resolveFreshRecord!: (value: DailyRecord) => void;
+    const loadFreshRecord = vi.fn(
+      () => new Promise<DailyRecord>(resolve => (resolveFreshRecord = resolve))
+    );
+    const startRun = vi.fn(() => ({
+      id: 'run-1',
+      startedAt: '2026-08-02T10:00:00.000Z',
+      by: 'Operador HHR',
+      sourceDate: '2026-08-02',
+    }));
+    const startRequest = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        setState: vi.fn(),
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue('run-1'),
+        },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord,
+        startRun,
+        failRun: vi.fn().mockResolvedValue(undefined),
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    let firstStart!: Promise<void>;
+    await act(async () => {
+      firstStart = result.current({
+        connection: 'ready',
+        report: null,
+        message: 'ok',
+        canSync: true,
+      });
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+    resolveFreshRecord(record);
+    await act(async () => firstStart);
+
+    expect(startRun).toHaveBeenCalledOnce();
+    expect(loadFreshRecord).toHaveBeenCalledOnce();
+    expect(startRequest).toHaveBeenCalledOnce();
+  });
+
+  it('terminalizes the run when the freshest census cannot be loaded', async () => {
+    const failRun = vi.fn().mockResolvedValue(undefined);
     const setState = vi.fn();
     const startRequest = vi.fn();
-    const failRun = vi.fn().mockResolvedValue(undefined);
-    const recordRunPerformance = vi.fn();
-    const syncTargetRef: { current: CensusSyncTarget | null } = { current: null };
     const { result } = renderHook(() =>
       useRayenImportCapture({
         currentRecord: record,
@@ -127,7 +188,56 @@ describe('useRayenImportCapture', () => {
           cancel: vi.fn(),
           getRunId: vi.fn().mockReturnValue('run-1'),
         },
-        syncTargetRef,
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord: vi.fn().mockRejectedValue(new Error('lectura fallida')),
+        startRun: vi.fn(() => ({
+          id: 'run-1',
+          startedAt: '2026-08-02T10:00:00.000Z',
+          by: 'Operador HHR',
+          sourceDate: '2026-08-02',
+        })),
+        failRun,
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    });
+
+    expect(startRequest).not.toHaveBeenCalled();
+    expect(failRun).toHaveBeenCalledWith('snapshot_error', 'run-1');
+    const stateUpdater = setState.mock.calls.at(-1)?.[0] as (
+      state: typeof INITIAL_RAYEN_IMPORT_STATE
+    ) => typeof INITIAL_RAYEN_IMPORT_STATE;
+    expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
+      expect.objectContaining({ isSyncing: false, error: 'lectura fallida' })
+    );
+  });
+
+  it('terminalizes the correlated run when its extension request times out', async () => {
+    const setState = vi.fn();
+    const startRequest = vi.fn();
+    const failRun = vi.fn().mockResolvedValue(undefined);
+    const recordRunPerformance = vi.fn();
+    const preparedSyncContextRef: { current: PreparedRayenSyncContext | null } = { current: null };
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        setState,
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue('run-1'),
+        },
+        preparedSyncContextRef,
+        loadFreshRecord: vi.fn().mockResolvedValue(record),
         startRun: vi.fn(() => ({
           id: 'run-1',
           startedAt: '2026-08-02T10:00:00.000Z',
@@ -140,14 +250,14 @@ describe('useRayenImportCapture', () => {
       })
     );
 
-    act(() => {
-      result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    await act(async () => {
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
     });
     const onTimeout = startRequest.mock.calls[0]?.[3] as () => void;
 
     act(() => onTimeout());
 
-    expect(syncTargetRef.current).toBeNull();
+    expect(preparedSyncContextRef.current).toBeNull();
     expect(recordRunPerformance).toHaveBeenCalledWith({ counters: { timeouts: 1 } }, 'run-1');
     expect(failRun).toHaveBeenCalledWith('snapshot_timeout', 'run-1');
     const stateUpdater = setState.mock.calls.at(-1)?.[0] as (
@@ -163,12 +273,18 @@ describe('useRayenImportCapture', () => {
     const failRun = vi.fn().mockResolvedValue(undefined);
     const setState = vi.fn();
     const getRunId = vi.fn().mockReturnValue('run-1');
-    const syncTargetRef: { current: CensusSyncTarget | null } = {
+    const preparedSyncContextRef: { current: PreparedRayenSyncContext | null } = {
       current: {
-        kind: 'current' as const,
-        calendarDay: '2026-08-02',
-        clinicalDay: '2026-08-02',
-        lookbackDays: 0,
+        runId: 'run-1',
+        record,
+        target: {
+          kind: 'current' as const,
+          calendarDay: '2026-08-02',
+          clinicalDay: '2026-08-02',
+          lookbackDays: 0,
+        },
+        range: { dateStart: '2026-08-02', dateEnd: '2026-08-02' },
+        preparedAt: '2026-08-02T10:00:00.000Z',
       },
     };
     renderHook(() =>
@@ -181,7 +297,8 @@ describe('useRayenImportCapture', () => {
         setStaffingProposalError: vi.fn(),
         clearSyncTimeout,
         syncRequestController: { start: vi.fn(), cancel: vi.fn(), getRunId },
-        syncTargetRef,
+        preparedSyncContextRef,
+        loadFreshRecord: vi.fn().mockResolvedValue(record),
         startRun: vi.fn(() => ({
           id: 'unused-run',
           startedAt: '2026-08-02T10:00:00.000Z',
@@ -200,7 +317,7 @@ describe('useRayenImportCapture', () => {
     act(() => onError('capture failed', 'request-1'));
 
     expect(clearSyncTimeout).toHaveBeenCalledOnce();
-    expect(syncTargetRef.current).toBeNull();
+    expect(preparedSyncContextRef.current).toBeNull();
     expect(failRun).toHaveBeenCalledWith('snapshot_error', 'run-1');
     const stateUpdater = setState.mock.calls[0]?.[0] as (
       state: typeof INITIAL_RAYEN_IMPORT_STATE
@@ -228,7 +345,8 @@ describe('useRayenImportCapture', () => {
           cancel: vi.fn(),
           getRunId: vi.fn().mockReturnValue(null),
         },
-        syncTargetRef: { current: null },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord: vi.fn().mockResolvedValue(record),
         startRun: vi.fn(() => ({
           id: 'new-run',
           startedAt: '2026-08-02T10:00:00.000Z',
@@ -257,7 +375,7 @@ describe('useRayenImportCapture', () => {
     expect(setState).not.toHaveBeenCalled();
   });
 
-  it('does not start a run when the global policy is not server-confirmed', () => {
+  it('does not start a run when the global policy is not server-confirmed', async () => {
     const setState = vi.fn();
     const startRun = vi.fn();
     const startRequest = vi.fn();
@@ -275,7 +393,8 @@ describe('useRayenImportCapture', () => {
           cancel: vi.fn(),
           getRunId: vi.fn().mockReturnValue(null),
         },
-        syncTargetRef: { current: null },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord: vi.fn().mockResolvedValue(record),
         startRun,
         failRun: vi.fn().mockResolvedValue(undefined),
         recordRunPerformance: vi.fn(),
@@ -283,8 +402,8 @@ describe('useRayenImportCapture', () => {
       })
     );
 
-    act(() => {
-      result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
+    await act(async () => {
+      await result.current({ connection: 'ready', report: null, message: 'ok', canSync: true });
     });
 
     expect(startRun).not.toHaveBeenCalled();
