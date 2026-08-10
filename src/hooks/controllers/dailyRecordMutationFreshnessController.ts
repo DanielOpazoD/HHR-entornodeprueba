@@ -1,7 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
-import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
+import type {
+  PartialUpdateDailyRecordOptions,
+  SaveDailyRecordOptions,
+} from '@/services/repositories/contracts/dailyRecordCommands';
 import {
   createDailyRecordQueryFn,
   getDailyRecordQueryKey,
@@ -36,10 +39,13 @@ interface FreshnessDependencies {
 export const saveDailyRecordWithCompatibility = async (
   dailyRecord: DailyRecordRepositoryPort,
   record: DailyRecord,
-  expectedLastUpdated: string = record.lastUpdated
+  expectedLastUpdated: string = record.lastUpdated,
+  options?: SaveDailyRecordOptions
 ): Promise<SaveDailyRecordResult | null> => {
   if (typeof dailyRecord.saveDetailed === 'function') {
-    return dailyRecord.saveDetailed(record, expectedLastUpdated);
+    return options
+      ? dailyRecord.saveDetailed(record, expectedLastUpdated, options)
+      : dailyRecord.saveDetailed(record, expectedLastUpdated);
   }
 
   await dailyRecord.save(record, expectedLastUpdated);

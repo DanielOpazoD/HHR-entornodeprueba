@@ -169,18 +169,20 @@ export const useDailyRecordQuery = (
 };
 
 /** Full record plus the remote revision from which an optimistic mutation was derived. */
-type SaveDailyRecordMutationInput = { record: DailyRecord; expectedLastUpdated?: string };
+type SaveDailyRecordMutationInput = { record: DailyRecord; expectedLastUpdated?: string; requireConfirmedRecord?: boolean };
 
 export const useSaveDailyRecordMutation = () => {
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
 
   return useMutation({
-    mutationFn: async ({ record, expectedLastUpdated }: SaveDailyRecordMutationInput) => {
+    mutationFn: async ({ record, expectedLastUpdated, requireConfirmedRecord }: SaveDailyRecordMutationInput) => {
+      const options = requireConfirmedRecord ? { requireConfirmedRecord: true } : undefined;
       const result = await saveDailyRecordWithCompatibility(
         dailyRecord,
         record,
-        expectedLastUpdated
+        expectedLastUpdated,
+        options
       );
       return { record: result?.confirmedRecord ?? record, result };
     },

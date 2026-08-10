@@ -228,6 +228,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   renewLocalPreOutboxHold,
   renewLocalPreOutboxHoldEveryMs,
   readRemoteConfirmedRecord,
+  requireConfirmedRecord = false,
   allowConflictAutoMerge = true,
   remoteAuthorityFirst = false,
 }: {
@@ -245,6 +246,12 @@ export const persistLocalAndAttemptRemoteSync = async ({
   renewLocalPreOutboxHoldEveryMs?: number;
   /** Compatibility readback when a deployed callable confirms without returning recordState. */
   readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>;
+  /**
+   * Require the exact server-confirmed revision even when the remote adapter returns `void`.
+   * Rayen structural imports need this handoff before starting their clinical stage; ordinary
+   * application writes keep their existing local-first behaviour.
+   */
+  requireConfirmedRecord?: boolean;
   /** Some multi-field mutations must be retried from fresh state, never union-merged. */
   allowConflictAutoMerge?: boolean;
   /**
@@ -326,7 +333,10 @@ export const persistLocalAndAttemptRemoteSync = async ({
       renewLocalPreOutboxHoldEveryMs
     );
     markRemoteWriteSucceeded(remoteState);
-    if (remoteResult !== undefined) {
+    // Callable-backed writes return an authority payload. A Rayen structural import can also use
+    // the direct Firestore adapter (which returns `void`), so that one flow explicitly requests a
+    // readback before handing control to the clinical stage.
+    if (remoteResult !== undefined || requireConfirmedRecord) {
       const authoritativeRecord = await resolveRemoteAuthorityRecord(
         record,
         remoteResult,

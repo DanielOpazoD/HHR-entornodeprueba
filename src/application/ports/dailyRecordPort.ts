@@ -6,7 +6,10 @@ import type {
   UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
-import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
+import type {
+  PartialUpdateDailyRecordOptions,
+  SaveDailyRecordOptions,
+} from '@/services/repositories/contracts/dailyRecordCommands';
 
 type DailyRecordReadService =
   typeof import('@/services/repositories/dailyRecordRepositoryReadService');
@@ -145,7 +148,8 @@ export interface DailyRecordRepositoryPort
   extends DailyRecordReadPort, DailyRecordWritePort, DailyRecordSyncPort {
   saveDetailed: (
     record: DailyRecord,
-    expectedLastUpdated?: string
+    expectedLastUpdated?: string,
+    options?: SaveDailyRecordOptions
   ) => Promise<SaveDailyRecordResult>;
   updatePartialDetailed: (
     date: string,

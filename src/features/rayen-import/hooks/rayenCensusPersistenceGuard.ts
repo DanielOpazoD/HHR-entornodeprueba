@@ -132,7 +132,8 @@ export const resolveConfirmedRayenCensusHandoff = (
     result?.date !== expected.date ||
     record.date !== expected.date ||
     record.rayenSync?.runId !== expected.runId ||
-    appliedEvent?.status !== 'applied'
+    (appliedEvent?.status !== 'applied' &&
+      !(record.rayenSync.status === 'applied' && appliedEvent?.status === 'failed'))
   ) {
     throw new Error(
       'El guardado del censo no confirmó la versión de esta sincronización. La información clínica quedó pendiente y puede reintentarse sin volver a importar pacientes.'

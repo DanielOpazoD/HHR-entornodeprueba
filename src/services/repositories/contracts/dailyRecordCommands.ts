@@ -16,6 +16,14 @@ export interface SaveDailyRecordCommand {
   contexts: DailyRecordDomainContext[];
 }
 
+export interface SaveDailyRecordOptions {
+  /**
+   * Require the exact server-confirmed record after this write.
+   * Reserved for a structural Rayen import immediately before its clinical handoff.
+   */
+  requireConfirmedRecord?: boolean;
+}
+
 export interface PartialUpdateDailyRecordCommand {
   date: string;
   patch: DailyRecordPatch;
