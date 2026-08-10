@@ -104,6 +104,33 @@ describe('daily record confirmed state handoff', () => {
     expect(saveToIndexedDBMock).toHaveBeenCalledWith(confirmedRecord);
   });
 
+  it('reads back a direct Firestore write that returns no authority payload', async () => {
+    const state = createRemoteWriteState();
+    const submittedRecord = buildRecord();
+    const confirmedRecord = {
+      ...submittedRecord,
+      lastUpdated: '2026-08-07T10:50:00.000Z',
+    } as DailyRecord;
+    const readRemoteConfirmedRecord = vi.fn().mockResolvedValue(confirmedRecord);
+
+    const result = await persistLocalAndAttemptRemoteSync({
+      date: '2026-08-07',
+      record: submittedRecord,
+      changedPaths: ['*'],
+      remoteState: state,
+      remoteWrite: vi.fn().mockResolvedValue(undefined),
+      readRemoteConfirmedRecord,
+      requireConfirmedRecord: true,
+      onRemoteFailure: vi.fn(),
+    });
+
+    expect(result).toBe('continue');
+    expect(readRemoteConfirmedRecord).toHaveBeenCalledOnce();
+    expect(state.confirmedRecord).toBe(confirmedRecord);
+    expect(saveToIndexedDBMock).toHaveBeenNthCalledWith(1, submittedRecord);
+    expect(saveToIndexedDBMock).toHaveBeenNthCalledWith(2, confirmedRecord);
+  });
+
   it('fails closed when neither the callable nor a readback confirms the server record', async () => {
     const state = createRemoteWriteState();
 

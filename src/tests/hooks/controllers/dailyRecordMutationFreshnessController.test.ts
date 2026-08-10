@@ -26,4 +26,20 @@ describe('saveDailyRecordWithCompatibility', () => {
 
     expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z');
   });
+
+  it('passes remote confirmation intent only for an explicit structural handoff', async () => {
+    const saveDetailed = vi.fn().mockResolvedValue(null);
+    const repository = { saveDetailed } as unknown as DailyRecordRepositoryPort;
+
+    await saveDailyRecordWithCompatibility(
+      repository,
+      record,
+      '2026-08-07T23:00:00.000Z',
+      { requireConfirmedRecord: true }
+    );
+
+    expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z', {
+      requireConfirmedRecord: true,
+    });
+  });
 });

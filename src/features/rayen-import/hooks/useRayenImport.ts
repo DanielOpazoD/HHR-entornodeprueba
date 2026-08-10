@@ -98,7 +98,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   const syncActor = currentUser?.displayName || currentUser?.email || 'Usuario sin nombre';
   const saveRayenCensus = useCallback(
     (record: DailyRecord, expectedLastUpdated: string) =>
-      saveDailyRecordMutation({ record, expectedLastUpdated }),
+      saveDailyRecordMutation({ record, expectedLastUpdated, requireConfirmedRecord: true }),
     [saveDailyRecordMutation]
   );
   const runSerializedPersistence = useCallback(<T>(operation: () => Promise<T>): Promise<T> => {

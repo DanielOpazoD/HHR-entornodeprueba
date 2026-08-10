@@ -15,6 +15,7 @@ import {
   createPartialUpdateDailyRecordCommand,
   createSaveDailyRecordCommand,
   type PartialUpdateDailyRecordOptions,
+  type SaveDailyRecordOptions,
 } from '@/services/repositories/contracts/dailyRecordCommands';
 import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
 import { queueDailyRecordSyncTaskWithLocalRecord } from '@/services/storage/sync';
@@ -137,7 +138,11 @@ const resolvePartialUpdateBaseRecord = async (
   }
 };
 
-export const saveDetailed = async (record: DailyRecord, expectedLastUpdated?: string) => {
+export const saveDetailed = async (
+  record: DailyRecord,
+  expectedLastUpdated?: string,
+  options: SaveDailyRecordOptions = {}
+) => {
   const command = createSaveDailyRecordCommand(record, expectedLastUpdated ?? record.lastUpdated);
   const remoteState = createRemoteWriteState();
   let validatedRecord: DailyRecord = command.record;
@@ -238,6 +243,7 @@ export const saveDetailed = async (record: DailyRecord, expectedLastUpdated?: st
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date),
+    requireConfirmedRecord: options.requireConfirmedRecord,
     onRemoteFailure: err => {
       dailyRecordWriteLogger.warn(
         `Firestore sync failed for ${command.date}; data persisted in IndexedDB`,

@@ -208,6 +208,32 @@ describe('rayenCensusPersistenceGuard', () => {
     expect(isConfirmedRayenCensusHandoff(record)).toBe(false);
   });
 
+  it('accepts an already applied census when a previous clinical attempt marked its audit failed', () => {
+    const record = buildRecord('run-1', {
+      lastUpdated: '2026-07-28T10:05:00.000Z',
+      rayenSyncHistory: [
+        {
+          id: 'run-1',
+          sourceDate: '2026-07-28',
+          startedAt: '2026-07-28T09:59:00.000Z',
+          completedAt: '2026-07-28T10:04:00.000Z',
+          by: 'Operador HHR',
+          status: 'failed',
+          failureReason: 'apply_failed',
+          policy: { mode: 'preview', revision: 1, clinicalBatchMode: 'enforced' },
+        },
+      ],
+    });
+
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult({ confirmedRecord: record }) },
+      { date: record.date, runId: 'run-1' }
+    );
+
+    expect(handoff.acceptedRevision).toBe('2026-07-28T10:05:00.000Z');
+    expect(handoff.record).toBe(record);
+  });
+
   it('isolates one conflicting episode and lets confirmed episodes continue to clinical fill', () => {
     const record = buildRecord('run-1', {
       beds: {
