@@ -1,0 +1,115 @@
+import type { ClinicalFillSummary } from '../contracts/clinicalFillContracts';
+import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type {
+  ClinicalRetryToken,
+  ClinicalStageResult,
+} from '../contracts/clinicalStageResult';
+import type { ConfirmedRayenCensusHandoff } from '../hooks/rayenCensusPersistenceGuard';
+import type { RayenSyncStructuralReviewEvidence } from '@/types/domain/rayenSync';
+import { collectClinicalFillCandidates } from './clinicalFillCandidates';
+import { mergeRayenSyncPerformance } from './rayenSyncPerformance';
+
+export const buildClinicalRetryToken = (
+  source: DailyRecord | ConfirmedRayenCensusHandoff,
+  record: DailyRecord,
+  allowedClinicalEpisodeIds: readonly string[] | undefined,
+  failedBedIds?: ReadonlySet<string>,
+  previousSummary?: ClinicalFillSummary
+): ClinicalRetryToken => {
+  const candidates = collectClinicalFillCandidates(record, allowedClinicalEpisodeIds);
+  return {
+    type: 'clinical_retry',
+    source,
+    pendingClinicalEpisodeIds: candidates
+      .filter(candidate => !failedBedIds || failedBedIds.has(candidate.bedId))
+      .map(candidate => candidate.patient.clinicalEpisodeId!)
+      .filter((clinicalEpisodeId, index, values) => values.indexOf(clinicalEpisodeId) === index),
+    ...(previousSummary ? { previousSummary } : {}),
+  };
+};
+
+const addIncrementalMetrics = (
+  previous: ClinicalFillSummary['incremental'],
+  current: ClinicalFillSummary['incremental']
+): ClinicalFillSummary['incremental'] => {
+  if (!previous) return current;
+  if (!current) return previous;
+  return {
+    received: previous.received + current.received,
+    newFacts: previous.newFacts + current.newFacts,
+    duplicates: previous.duplicates + current.duplicates,
+    corrections: previous.corrections + current.corrections,
+    patientWrites: previous.patientWrites + current.patientWrites,
+    historySnapshots: previous.historySnapshots + current.historySnapshots,
+    clinicalTargets: (previous.clinicalTargets ?? 0) + (current.clinicalTargets ?? 0),
+    checkpointOnlyTargets:
+      (previous.checkpointOnlyTargets ?? 0) + (current.checkpointOnlyTargets ?? 0),
+    batch: current.batch ?? previous.batch,
+  };
+};
+
+export const mergeClinicalRetrySummary = (
+  previous: ClinicalFillSummary | undefined,
+  current: ClinicalFillSummary,
+  retriedBedIds: ReadonlySet<string>
+): ClinicalFillSummary => {
+  if (!previous) return current;
+  const retainedErrors = previous.errors.filter(
+    error => error.bedId !== '*' && !retriedBedIds.has(error.bedId)
+  );
+  return {
+    total: previous.total,
+    // A retry can repeat targets whose clinical write succeeded but whose audit
+    // completion did not. Coverage is bounded by the original run population.
+    patched: Math.min(previous.total, previous.patched + current.patched),
+    errors: [...retainedErrors, ...current.errors],
+    staffingProposal: current.staffingProposal ?? previous.staffingProposal,
+    incremental: addIncrementalMetrics(previous.incremental, current.incremental),
+    performance: mergeRayenSyncPerformance(previous.performance, current.performance),
+  };
+};
+
+export const buildStructuralReviewEvidence = (
+  handoff: ConfirmedRayenCensusHandoff | null
+): RayenSyncStructuralReviewEvidence | undefined => {
+  if (!handoff) return undefined;
+  const evidence = {
+    historicalCorrectionsPending: handoff.historicalCorrectionsPending === true,
+    historicalCorrectionsRequireFreshCapture:
+      handoff.historicalCorrectionsRequireFreshCapture === true,
+    isolatedConflicts: handoff.isolatedConflicts.length,
+  };
+  return evidence.historicalCorrectionsPending ||
+    evidence.historicalCorrectionsRequireFreshCapture ||
+    evidence.isolatedConflicts > 0
+    ? evidence
+    : undefined;
+};
+
+export const resolveClinicalStageResult = (
+  source: DailyRecord | ConfirmedRayenCensusHandoff,
+  record: DailyRecord,
+  allowedClinicalEpisodeIds: readonly string[] | undefined,
+  summary: ClinicalFillSummary,
+  completionFailed: boolean
+): ClinicalStageResult => {
+  if (summary.errors.length === 0 && !completionFailed) return { status: 'complete' };
+  const hasGlobalFailure = completionFailed || summary.errors.some(error => error.bedId === '*');
+  const failedBedIds = hasGlobalFailure
+    ? undefined
+    : new Set(summary.errors.map(error => error.bedId));
+  const retryRequest = buildClinicalRetryToken(
+    source,
+    record,
+    allowedClinicalEpisodeIds,
+    failedBedIds,
+    summary
+  );
+  const hasCompletedTargets =
+    summary.patched > 0 ||
+    completionFailed ||
+    (!hasGlobalFailure && failedBedIds !== undefined && failedBedIds.size < summary.total);
+  return hasCompletedTargets
+    ? { status: 'partial', retry: retryRequest }
+    : { status: 'failed', retry: retryRequest };
+};

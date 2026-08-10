@@ -12,9 +12,13 @@ afterEach(() => {
 });
 
 describe('rayen clinical fill queue', () => {
+  const complete = { status: 'complete' } as const;
+
   it('coalesces duplicate requests for the same applied run', async () => {
     let release!: () => void;
-    const task = vi.fn(() => new Promise<void>(resolve => (release = resolve)));
+    const task = vi.fn(
+      () => new Promise<typeof complete>(resolve => (release = () => resolve(complete)))
+    );
 
     const first = enqueueLatestRayenClinicalFill(
       '2026-07-27',
@@ -29,7 +33,10 @@ describe('rayen clinical fill queue', () => {
     expect(task).toHaveBeenCalledTimes(1);
     release();
 
-    await expect(Promise.all([first, duplicate])).resolves.toEqual(['drained', 'drained']);
+    await expect(Promise.all([first, duplicate])).resolves.toEqual([
+      { outcome: 'drained', result: complete },
+      { outcome: 'drained', result: complete },
+    ]);
   });
 
   it('keeps only the latest pending run while the active run finishes', async () => {
@@ -38,24 +45,32 @@ describe('rayen clinical fill queue', () => {
     const active = enqueueLatestRayenClinicalFill('2026-07-27', 'run-1', async () => {
       order.push('run-1');
       await new Promise<void>(resolve => (release = resolve));
+      return complete;
     });
     const superseded = enqueueLatestRayenClinicalFill('2026-07-27', 'run-2', async () => {
       order.push('run-2');
+      return complete;
     });
     const latest = enqueueLatestRayenClinicalFill('2026-07-27', 'run-3', async () => {
       order.push('run-3');
+      return complete;
     });
 
-    await expect(superseded).resolves.toBe('superseded');
+    await expect(superseded).resolves.toEqual({ outcome: 'superseded' });
     release();
-    await expect(Promise.all([active, latest])).resolves.toEqual(['completed', 'drained']);
+    await expect(Promise.all([active, latest])).resolves.toEqual([
+      { outcome: 'completed', result: complete },
+      { outcome: 'drained', result: complete },
+    ]);
     expect(order).toEqual(['run-1', 'run-3']);
   });
 
   it('tells a task whether it started immediately or after waiting in the queue', async () => {
     let release!: () => void;
-    const immediateTask = vi.fn(() => new Promise<void>(resolve => (release = resolve)));
-    const queuedTask = vi.fn().mockResolvedValue(undefined);
+    const immediateTask = vi.fn(
+      () => new Promise<typeof complete>(resolve => (release = () => resolve(complete)))
+    );
+    const queuedTask = vi.fn().mockResolvedValue(complete);
 
     const immediate = enqueueLatestRayenClinicalFill('2026-07-27', 'run-1', immediateTask);
     const queued = enqueueLatestRayenClinicalFill('2026-07-27', 'run-2', queuedTask);
@@ -64,7 +79,10 @@ describe('rayen clinical fill queue', () => {
     expect(queuedTask).not.toHaveBeenCalled();
 
     release();
-    await expect(Promise.all([immediate, queued])).resolves.toEqual(['completed', 'drained']);
+    await expect(Promise.all([immediate, queued])).resolves.toEqual([
+      { outcome: 'completed', result: complete },
+      { outcome: 'drained', result: complete },
+    ]);
     expect(queuedTask).toHaveBeenCalledWith({ startedAfterQueue: true });
   });
 
@@ -74,10 +92,13 @@ describe('rayen clinical fill queue', () => {
     const failed = enqueueLatestRayenClinicalFill('2026-07-27', 'run-1', () => {
       throw new Error('sensitive provider detail');
     });
-    const nextTask = vi.fn().mockResolvedValue(undefined);
+    const nextTask = vi.fn().mockResolvedValue(complete);
     const next = enqueueLatestRayenClinicalFill('2026-07-27', 'run-2', nextTask);
 
-    await expect(Promise.all([failed, next])).resolves.toEqual(['completed', 'drained']);
+    await expect(Promise.all([failed, next])).resolves.toEqual([
+      { outcome: 'completed' },
+      { outcome: 'drained', result: complete },
+    ]);
 
     expect(nextTask).toHaveBeenCalledTimes(1);
     expect(logger.getEntries()).toContainEqual(
@@ -98,17 +119,20 @@ describe('rayen clinical fill queue', () => {
       '2026-07-27',
       'run-1',
       () =>
-        new Promise<void>((_resolve, reject) => {
+        new Promise<typeof complete>((_resolve, reject) => {
           rejectActive = reject;
         })
     );
-    const nextTask = vi.fn().mockResolvedValue(undefined);
+    const nextTask = vi.fn().mockResolvedValue(complete);
     const next = enqueueLatestRayenClinicalFill('2026-07-27', 'run-2', nextTask);
 
     expect(nextTask).not.toHaveBeenCalled();
     rejectActive(new Error('another sensitive provider detail'));
 
-    await expect(Promise.all([failed, next])).resolves.toEqual(['completed', 'drained']);
+    await expect(Promise.all([failed, next])).resolves.toEqual([
+      { outcome: 'completed' },
+      { outcome: 'drained', result: complete },
+    ]);
     expect(nextTask).toHaveBeenCalledTimes(1);
     expect(logger.getEntries()).toContainEqual(
       expect.objectContaining({
@@ -127,12 +151,15 @@ describe('rayen clinical fill queue', () => {
     const active = enqueueLatestRayenClinicalFill('2026-07-27', 'run-active', async () => {
       order.push('2026-07-27');
       await new Promise<void>(resolve => (release = resolve));
+      return complete;
     });
     const nextDateTask = vi.fn(async () => {
       order.push('2026-07-28');
+      return complete;
     });
     const laterDateTask = vi.fn(async () => {
       order.push('2026-07-29');
+      return complete;
     });
     const nextDate = enqueueLatestRayenClinicalFill('2026-07-28', 'run-next', nextDateTask);
     const laterDate = enqueueLatestRayenClinicalFill('2026-07-29', 'run-later', laterDateTask);
@@ -143,9 +170,9 @@ describe('rayen clinical fill queue', () => {
     release();
 
     await expect(Promise.all([active, nextDate, laterDate])).resolves.toEqual([
-      'completed',
-      'completed',
-      'drained',
+      { outcome: 'completed', result: complete },
+      { outcome: 'completed', result: complete },
+      { outcome: 'drained', result: complete },
     ]);
     expect(nextDateTask).toHaveBeenCalledTimes(1);
     expect(laterDateTask).toHaveBeenCalledTimes(1);
@@ -158,14 +185,19 @@ describe('rayen clinical fill queue', () => {
     const active = enqueueLatestRayenClinicalFill('2026-07-27', 'shared-key', async () => {
       order.push('2026-07-27');
       await new Promise<void>(resolve => (release = resolve));
+      return complete;
     });
     const nextDate = enqueueLatestRayenClinicalFill('2026-07-28', 'shared-key', async () => {
       order.push('2026-07-28');
+      return complete;
     });
 
     release();
 
-    await expect(Promise.all([active, nextDate])).resolves.toEqual(['completed', 'drained']);
+    await expect(Promise.all([active, nextDate])).resolves.toEqual([
+      { outcome: 'completed', result: complete },
+      { outcome: 'drained', result: complete },
+    ]);
     expect(order).toEqual(['2026-07-27', '2026-07-28']);
   });
 });

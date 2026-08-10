@@ -163,6 +163,32 @@ describe('rayen sync history', () => {
     expect(partial).toMatchObject({ id: applied.id, status: 'partial' });
   });
 
+  it('keeps structural review evidence visible after clinical coverage completes', () => {
+    const applied = buildAppliedRayenSyncEvent(run(), diff(), '2026-07-14T10:01:00.000Z');
+    const completed = completeRayenSyncEvent(
+      applied,
+      buildRayenSyncCoverage(2, [], '2026-07-14T10:03:00.000Z'),
+      undefined,
+      undefined,
+      {
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 1,
+      }
+    );
+
+    expect(completed).toMatchObject({
+      id: applied.id,
+      status: 'partial',
+      coverage: { total: 2, completed: 2, errors: 0 },
+      structuralReview: {
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 1,
+      },
+    });
+  });
+
   it('classifies resumable structural follow-up without persisting raw error text', () => {
     const coverage = buildRayenSyncCoverage(
       0,

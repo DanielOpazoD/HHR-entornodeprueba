@@ -34,6 +34,13 @@ import { createRayenSyncPersistenceQueue } from './rayenSyncPersistenceQueue';
 import { useRayenImportConfirmation } from './useRayenImportConfirmation';
 import type { RayenStructuralReplan } from './rayenStructuralConvergence';
 import { useRayenStaffingProposalReview } from './useRayenStaffingProposalReview';
+import {
+  isClinicalRetryToken,
+  type ClinicalFillRequest,
+  type ClinicalRetryToken,
+  type ClinicalStageResult,
+} from '../contracts/clinicalStageResult';
+import { isConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
 export const useRayenImport = (selectedCensusDate?: string) => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
@@ -62,6 +69,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     useRayenSyncRequestController();
   const preparedSyncContextRef = useRef<PreparedRayenSyncContext | null>(null);
   const structuralReplanRef = useRef<RayenStructuralReplan | null>(null);
+  const clinicalRetryTokenRef = useRef<ClinicalRetryToken | null>(null);
   const persistenceQueueRef = useRef(createRayenSyncPersistenceQueue());
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
   const currentRecordRef = useRef(currentRecord);
@@ -174,7 +182,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     tensCatalog: tensList,
     loadFreshClinicalRecord,
   });
-  const fillDevicesInBackground = useRayenClinicalFill({
+  const fillClinicalData = useRayenClinicalFill({
     nurseCatalog: nursesList,
     tensCatalog: tensList,
     loadDailyRecord: loadFreshClinicalRecord,
@@ -184,9 +192,26 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     applyHistoricalCudyrEnforcedBatch,
     completeRun: completeRunSerialized,
     onStaffingProposal: () => undefined,
-    onSettled: finishClinicalSync,
     createId: () => crypto.randomUUID(),
   });
+  const runClinicalStage = useCallback(
+    async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
+      const result = await fillClinicalData(request);
+      const source = isClinicalRetryToken(request) ? request.source : request;
+      const runId = isConfirmedRayenCensusHandoff(source)
+        ? source.runId
+        : source.rayenSync?.runId;
+      const activeRunId =
+        executionRef.current.context?.runId ?? executionRef.current.pending?.runId;
+      if (executionRef.current.stage?.type === 'syncing_clinical' && activeRunId === runId) {
+        clinicalRetryTokenRef.current =
+          result.status === 'complete' ? null : result.retry ?? null;
+      }
+      finishClinicalSync(result, runId);
+      return result;
+    },
+    [executionRef, fillClinicalData, finishClinicalSync]
+  );
   const previewSnapshot = useRayenSnapshotPreview({
     dailyRecord,
     isAdmin,
@@ -196,7 +221,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     selectedDateRef,
     clearSyncTimeout,
     applyDiff,
-    fillDevicesInBackground,
+    runClinicalStage,
     failRun: failRunSerialized,
     ensureRun,
     getRun,
@@ -228,7 +253,8 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   const retryClinicalFill = useRayenClinicalFillRetry({
     currentRecord,
     currentRecordRef,
-    fillClinicalData: fillDevicesInBackground,
+    runClinicalStage,
+    retryTokenRef: clinicalRetryTokenRef,
     setState,
     onStart: record => {
       const runId = record.rayenSync?.runId;
@@ -264,7 +290,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     failRun: failRunSerialized,
     recordRunPerformance,
     applyDiff,
-    fillDevicesInBackground,
+    runClinicalStage,
     loadFreshClinicalRecord,
     runSerializedPersistence,
   });

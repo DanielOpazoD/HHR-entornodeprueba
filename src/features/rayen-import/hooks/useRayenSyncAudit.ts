@@ -7,6 +7,7 @@ import type {
   RayenSyncPerformanceDelta,
   RayenSyncPolicy,
   RayenSyncSource,
+  RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { ClinicalFillSummary } from '../clinicalFillRunner';
@@ -44,6 +45,11 @@ interface UseRayenSyncAuditInput {
 const defaultNow = (): Date => new Date();
 const defaultCreateId = (): string => crypto.randomUUID();
 const MAX_METADATA_WRITE_RETRIES = 2;
+
+interface CompleteRayenSyncRunOptions {
+  retry?: boolean;
+  structuralReview?: RayenSyncStructuralReviewEvidence;
+}
 
 const isConcurrencyFailure = (error: unknown): boolean =>
   error instanceof Error &&
@@ -216,14 +222,17 @@ export const useRayenSyncAudit = ({
       recordAtApply: DailyRecord,
       summary: ClinicalFillSummary,
       staffingProposal?: NursingStaffingProposal | null,
-      requestedRunId?: string
+      requestedRunId?: string,
+      options?: CompleteRayenSyncRunOptions
     ): Promise<void> => {
       // The applied record carries the authoritative run id. A newer manual attempt
       // may already be active while this background fill is finishing.
       const runId = requestedRunId ?? recordAtApply.rayenSync?.runId;
       if (!runId) return;
       const claim = lifecycle.claimTerminal(runId);
-      if (!claim) return;
+      // A clinical-only retry may update the same persisted terminal event in this session.
+      // Ordinary duplicate callbacks remain inert.
+      if (!claim && !options?.retry) return;
       const coverage = buildRayenSyncCoverage(summary.total, summary.errors, now().toISOString());
       if (summary.incremental) coverage.incremental = summary.incremental;
       const liveRecord = currentRecordRef.current;
@@ -236,9 +245,10 @@ export const useRayenSyncAudit = ({
           coverage,
           buildRayenStaffingObservation(staffingProposal),
           mergeRayenSyncPerformance(
-            claim.run?.performance ?? appliedEvent.performance,
+            claim?.run?.performance ?? appliedEvent.performance,
             summary.performance
-          )
+          ),
+          options?.structuralReview ?? appliedEvent.structuralReview
         );
       try {
         const completedEvent = await persistMetadataPatch(fallback, base => {
@@ -251,18 +261,20 @@ export const useRayenSyncAudit = ({
           if (base.rayenSync?.runId === runId) patch.rayenSync = rayenSyncMetaFromEvent(event);
           return { patch, value: event };
         });
-        lifecycle.commitTerminal(claim);
+        if (claim) lifecycle.commitTerminal(claim);
         if (completedEvent) {
-          reportRayenSyncTerminal(
-            claim.run ?? { id: completedEvent.id, startedAt: completedEvent.startedAt },
-            completedEvent.status === 'partial' ? 'partial' : 'complete',
-            {},
-            completedEvent.completedAt
-          );
+          if (claim) {
+            reportRayenSyncTerminal(
+              claim.run ?? { id: completedEvent.id, startedAt: completedEvent.startedAt },
+              completedEvent.status === 'partial' ? 'partial' : 'complete',
+              {},
+              completedEvent.completedAt
+            );
+          }
         } else {
           reportRayenSyncWarning('sync_audit_event_missing', { runId });
           reportRayenSyncTerminal(
-            claim.run ?? {
+            claim?.run ?? {
               id: runId,
               startedAt: recordAtApply.rayenSync?.at ?? now().toISOString(),
             },
@@ -293,19 +305,19 @@ export const useRayenSyncAudit = ({
             };
           });
           if (failedEvent) {
-            lifecycle.commitTerminal(claim);
+            if (claim) lifecycle.commitTerminal(claim);
             reportRayenSyncTerminal(
-              claim.run ?? { id: failedEvent.id, startedAt: failedEvent.startedAt },
+              claim?.run ?? { id: failedEvent.id, startedAt: failedEvent.startedAt },
               'failed',
               { failureReason: 'apply_failed' },
               failedEvent.completedAt
             );
           } else {
-            lifecycle.releaseTerminal(claim);
+            if (claim) lifecycle.releaseTerminal(claim);
             reportRayenSyncWarning('sync_audit_event_missing', { runId });
           }
         } catch (recoveryError) {
-          lifecycle.releaseTerminal(claim);
+          if (claim) lifecycle.releaseTerminal(claim);
           reportRayenSyncWarning('sync_audit_terminal_recovery_failed', {
             runId,
             errorKind: classifyRayenSyncError(recoveryError),

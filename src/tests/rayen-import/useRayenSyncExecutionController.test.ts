@@ -6,12 +6,6 @@ import {
   type RayenImportState,
 } from '@/features/rayen-import/hooks/rayenImportState';
 import { useRayenSyncExecutionController } from '@/features/rayen-import/hooks/useRayenSyncExecutionController';
-import {
-  beginRayenFill,
-  endRayenFill,
-  reportRayenFillProgress,
-  resetRayenFillProgress,
-} from '@/features/rayen-import/hooks/useRayenFillStatus';
 
 const useControllerHarness = () => {
   const [importState, setImportState] = useState<RayenImportState>({
@@ -39,7 +33,7 @@ describe('useRayenSyncExecutionController', () => {
         selectedDate: '2026-08-08',
       });
       result.current.controller.transitionExecution({ type: 'syncing_clinical' }, 'run-new');
-      result.current.controller.finishClinicalSync('run-old');
+      result.current.controller.finishClinicalSync({ status: 'complete' }, 'run-old');
     });
 
     expect(result.current.importState.isSyncing).toBe(true);
@@ -52,16 +46,11 @@ describe('useRayenSyncExecutionController', () => {
 
   it('adopts and settles a persisted clinical-only retry after reload', () => {
     const { result } = renderHook(useControllerHarness);
-    resetRayenFillProgress();
-    beginRayenFill(1);
-    reportRayenFillProgress(1, 1);
-    endRayenFill(0);
-
     act(() => {
       expect(result.current.controller.startClinicalRetry('persisted-run', '2026-08-08')).toBe(
         true
       );
-      result.current.controller.finishClinicalSync('persisted-run');
+      result.current.controller.finishClinicalSync({ status: 'complete' }, 'persisted-run');
     });
 
     expect(result.current.importState.isSyncing).toBe(false);
@@ -105,7 +94,7 @@ describe('useRayenSyncExecutionController', () => {
         ...previous,
         hasSkippedItems: true,
       }));
-      result.current.controller.finishClinicalSync('run-current');
+      result.current.controller.finishClinicalSync({ status: 'complete' }, 'run-current');
     });
 
     expect(result.current.importState.isSyncing).toBe(false);
@@ -118,11 +107,6 @@ describe('useRayenSyncExecutionController', () => {
 
   it('keeps hidden structural review facts when another date replaces the visible state', () => {
     const { result } = renderHook(useControllerHarness);
-    resetRayenFillProgress();
-    beginRayenFill(1);
-    reportRayenFillProgress(1, 1);
-    endRayenFill(0);
-
     act(() => {
       result.current.controller.dispatchExecution({
         type: 'prepare',
@@ -146,7 +130,7 @@ describe('useRayenSyncExecutionController', () => {
         result: null,
         hasSkippedItems: false,
       }));
-      result.current.controller.finishClinicalSync('run-old-date');
+      result.current.controller.finishClinicalSync({ status: 'complete' }, 'run-old-date');
     });
 
     expect(result.current.importState.hasSkippedItems).toBe(false);

@@ -11,6 +11,7 @@ import type {
   RayenStaffingSection,
   RayenSyncPerformance,
   RayenSyncPolicy,
+  RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
@@ -192,17 +193,22 @@ export const completeRayenSyncEvent = (
   event: RayenSyncEvent,
   coverage: RayenSyncCoverage,
   staffingObservation?: RayenSyncStaffingObservation,
-  performance?: RayenSyncPerformance
+  performance?: RayenSyncPerformance,
+  structuralReview?: RayenSyncStructuralReviewEvidence
 ): RayenSyncEvent => ({
   ...event,
   completedAt: coverage.completedAt,
   status:
     coverage.sourceErrors > 0 ||
+    structuralReview?.historicalCorrectionsPending === true ||
+    structuralReview?.historicalCorrectionsRequireFreshCapture === true ||
+    (structuralReview?.isolatedConflicts ?? 0) > 0 ||
     (event.source?.gestionCamas != null && event.source.gestionCamas !== 'ready')
       ? 'partial'
       : 'complete',
   coverage,
   staffingObservation,
+  structuralReview,
   performance: performance ?? event.performance,
   failureReason: undefined,
 });

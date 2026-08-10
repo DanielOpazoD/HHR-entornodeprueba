@@ -40,7 +40,7 @@ export const extractDeviceTextItems = async (base64: string): Promise<DeviceText
     }
     return items;
   } finally {
-    // Release the PDFDocumentProxy (data + caches); fillDevicesInBackground calls this per patient.
+    // Release the PDFDocumentProxy (data + caches); the clinical stage calls this per patient.
     await document.destroy();
   }
 };

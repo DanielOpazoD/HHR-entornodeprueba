@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenClinicalFill } from '@/features/rayen-import/hooks/useRayenClinicalFill';
+import { mergeClinicalRetrySummary } from '@/features/rayen-import/domain/clinicalStageResolution';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
 
@@ -42,7 +43,6 @@ describe('useRayenClinicalFill', () => {
   it('terminalizes an applied run when another fill already owns the shared progress slot', async () => {
     mocks.beginRayenFill.mockReturnValue(false);
     const completeRun = vi.fn().mockRejectedValue(new Error('audit unavailable'));
-    const onSettled = vi.fn();
     const record = {
       date: '2026-07-14',
       beds: {
@@ -62,13 +62,13 @@ describe('useRayenClinicalFill', () => {
         applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
         completeRun,
         onStaffingProposal: vi.fn(),
-        onSettled,
         createId: () => 'id',
       })
     );
 
+    let clinicalResult;
     await act(async () => {
-      await result.current(record);
+      clinicalResult = await result.current(record);
     });
 
     expect(completeRun).toHaveBeenCalledWith(
@@ -81,13 +81,18 @@ describe('useRayenClinicalFill', () => {
       null,
       'legacy-run'
     );
-    expect(onSettled).toHaveBeenCalledOnce();
+    expect(clinicalResult).toEqual({
+      status: 'failed',
+      retry: expect.objectContaining({
+        type: 'clinical_retry',
+        pendingClinicalEpisodeIds: ['episode-1'],
+      }),
+    });
     expect(mocks.endRayenFill).not.toHaveBeenCalled();
   });
 
   it('terminalizes an applied run when the fresh census cannot be loaded', async () => {
     const completeRun = vi.fn().mockRejectedValue(new Error('audit unavailable'));
-    const onSettled = vi.fn();
     const record = {
       date: '2026-07-14',
       beds: {
@@ -107,12 +112,14 @@ describe('useRayenClinicalFill', () => {
         applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: false, changed: false }),
         completeRun,
         onStaffingProposal: vi.fn(),
-        onSettled,
         createId: () => 'id',
       })
     );
 
-    await act(async () => result.current(record));
+    let clinicalResult;
+    await act(async () => {
+      clinicalResult = await result.current(record);
+    });
 
     expect(completeRun).toHaveBeenCalledWith(
       record,
@@ -126,7 +133,13 @@ describe('useRayenClinicalFill', () => {
     );
     expect(mocks.beginRayenFill).not.toHaveBeenCalled();
     expect(mocks.endRayenFill).not.toHaveBeenCalled();
-    expect(onSettled).toHaveBeenCalledOnce();
+    expect(clinicalResult).toEqual({
+      status: 'failed',
+      retry: expect.objectContaining({
+        type: 'clinical_retry',
+        pendingClinicalEpisodeIds: ['episode-1'],
+      }),
+    });
   });
 
   it('reports an explicit no-data nursing result in the same settled flow', async () => {
@@ -148,7 +161,6 @@ describe('useRayenClinicalFill', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun: vi.fn().mockResolvedValue(undefined),
         onStaffingProposal,
-        onSettled: vi.fn(),
         createId: () => 'id',
       })
     );
@@ -194,7 +206,6 @@ describe('useRayenClinicalFill', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal,
-        onSettled: vi.fn(),
         createId: () => 'id',
       })
     );
@@ -228,13 +239,78 @@ describe('useRayenClinicalFill', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun: vi.fn().mockRejectedValue(new Error('audit unavailable')),
         onStaffingProposal: vi.fn(),
-        onSettled: vi.fn(),
         createId: () => 'id',
       })
     );
 
     await act(async () => result.current(record));
     expect(mocks.endRayenFill).toHaveBeenCalledWith(0, true);
+  });
+
+  it('replaces retried failures while preserving aggregate evidence from the run', () => {
+    const merged = mergeClinicalRetrySummary(
+      {
+        total: 2,
+        patched: 1,
+        errors: [
+          { bedId: 'R2', source: 'patch', message: 'concurrent_write' },
+          { bedId: '*', source: 'patch', message: 'temporary_summary' },
+        ],
+        incremental: {
+          received: 3,
+          newFacts: 2,
+          duplicates: 1,
+          corrections: 0,
+          patientWrites: 1,
+          historySnapshots: 1,
+        },
+      },
+      {
+        total: 1,
+        patched: 1,
+        errors: [],
+        incremental: {
+          received: 1,
+          newFacts: 1,
+          duplicates: 0,
+          corrections: 0,
+          patientWrites: 1,
+          historySnapshots: 0,
+        },
+      },
+      new Set(['R2'])
+    );
+
+    expect(merged).toMatchObject({
+      total: 2,
+      patched: 2,
+      errors: [],
+      incremental: {
+        received: 4,
+        newFacts: 3,
+        duplicates: 1,
+        patientWrites: 2,
+        historySnapshots: 1,
+      },
+    });
+  });
+
+  it('does not count a clinically successful target twice when only audit completion is retried', () => {
+    const merged = mergeClinicalRetrySummary(
+      {
+        total: 1,
+        patched: 1,
+        errors: [],
+      },
+      {
+        total: 1,
+        patched: 1,
+        errors: [],
+      },
+      new Set(['R2'])
+    );
+
+    expect(merged).toMatchObject({ total: 1, patched: 1, errors: [] });
   });
 
 });

@@ -2,8 +2,14 @@ import {
   classifyRayenSyncError,
   reportRayenSyncWarning,
 } from '../observability/rayenSyncDiagnostics';
+import type { ClinicalStageResult } from '../contracts/clinicalStageResult';
 
 export type RayenClinicalFillQueueOutcome = 'completed' | 'drained' | 'superseded';
+
+export interface RayenClinicalFillQueueResult {
+  outcome: RayenClinicalFillQueueOutcome;
+  result?: ClinicalStageResult;
+}
 
 export interface RayenClinicalFillQueueContext {
   startedAfterQueue: boolean;
@@ -12,10 +18,10 @@ export interface RayenClinicalFillQueueContext {
 interface QueueEntry {
   date: string;
   key: string;
-  task: (context: RayenClinicalFillQueueContext) => Promise<void>;
+  task: (context: RayenClinicalFillQueueContext) => Promise<ClinicalStageResult>;
   startedAfterQueue: boolean;
-  promise: Promise<RayenClinicalFillQueueOutcome>;
-  resolve: (outcome: RayenClinicalFillQueueOutcome) => void;
+  promise: Promise<RayenClinicalFillQueueResult>;
+  resolve: (outcome: RayenClinicalFillQueueResult) => void;
 }
 
 let active: QueueEntry | null = null;
@@ -28,7 +34,7 @@ const createEntry = (
   startedAfterQueue: boolean
 ): QueueEntry => {
   let resolve!: QueueEntry['resolve'];
-  const promise = new Promise<RayenClinicalFillQueueOutcome>(settle => {
+  const promise = new Promise<RayenClinicalFillQueueResult>(settle => {
     resolve = settle;
   });
   return { date, key, task, startedAfterQueue, promise, resolve };
@@ -44,13 +50,17 @@ const takeNextPending = (): QueueEntry | null => {
 
 const start = (entry: QueueEntry): void => {
   active = entry;
-  let taskPromise: Promise<void>;
+  let taskPromise: Promise<ClinicalStageResult>;
   try {
     taskPromise = entry.task({ startedAfterQueue: entry.startedAfterQueue });
   } catch (error) {
     taskPromise = Promise.reject(error);
   }
+  let taskResult: ClinicalStageResult | undefined;
   void taskPromise
+    .then(result => {
+      taskResult = result;
+    })
     // The task owns expected clinical/audit failures. This guard records unexpected escapes while
     // preserving queue liveness and never includes the raw provider error.
     .catch(error => {
@@ -63,10 +73,10 @@ const start = (entry: QueueEntry): void => {
       active = null;
       const next = takeNextPending();
       if (next) {
-        entry.resolve('completed');
+        entry.resolve({ outcome: 'completed', result: taskResult });
         start(next);
       } else {
-        entry.resolve('drained');
+        entry.resolve({ outcome: 'drained', result: taskResult });
       }
     });
 };
@@ -80,7 +90,7 @@ export const enqueueLatestRayenClinicalFill = (
   date: string,
   key: string,
   task: QueueEntry['task']
-): Promise<RayenClinicalFillQueueOutcome> => {
+): Promise<RayenClinicalFillQueueResult> => {
   if (active?.date === date && active.key === key) return active.promise;
   const pendingForDate = pendingByDate.get(date);
   if (pendingForDate?.key === key) return pendingForDate.promise;
@@ -91,7 +101,7 @@ export const enqueueLatestRayenClinicalFill = (
     return entry.promise;
   }
 
-  pendingForDate?.resolve('superseded');
+  pendingForDate?.resolve({ outcome: 'superseded' });
   pendingByDate.set(date, entry);
   return entry.promise;
 };
@@ -99,6 +109,6 @@ export const enqueueLatestRayenClinicalFill = (
 /** Test-only reset for module state isolated from React. */
 export const resetRayenClinicalFillQueueForTests = (): void => {
   active = null;
-  pendingByDate.forEach(entry => entry.resolve('superseded'));
+  pendingByDate.forEach(entry => entry.resolve({ outcome: 'superseded' }));
   pendingByDate.clear();
 };

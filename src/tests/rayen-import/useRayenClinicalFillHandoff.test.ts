@@ -93,7 +93,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
-        onSettled: vi.fn(),
         createId: () => 'id',
       })
     );
@@ -109,7 +108,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
     );
   });
 
-  it('persists pending historical corrections as a partial run outcome', async () => {
+  it('keeps pending structural corrections out of the clinical result', async () => {
     const record = {
       date: '2026-07-14',
       beds: {},
@@ -128,31 +127,36 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
-        onSettled: vi.fn(),
         createId: () => 'id',
       })
     );
     const handoff = markRayenHistoricalCorrectionsPending(confirmedHandoff(record));
 
-    await act(async () => result.current(handoff));
+    let clinicalResult;
+    await act(async () => {
+      clinicalResult = await result.current(handoff);
+    });
 
     expect(completeRun).toHaveBeenCalledWith(
       record,
       expect.objectContaining({
-        errors: [
-          expect.objectContaining({
-            bedId: '*',
-            source: 'patch',
-            message: 'historical_census_write_failed',
-          }),
-        ],
+        errors: [],
       }),
       expect.anything(),
-      'run-historical-pending'
+      'run-historical-pending',
+      {
+        retry: false,
+        structuralReview: {
+          historicalCorrectionsPending: true,
+          historicalCorrectionsRequireFreshCapture: false,
+          isolatedConflicts: 0,
+        },
+      }
     );
+    expect(clinicalResult).toEqual({ status: 'complete' });
   });
 
-  it('persists historical corrections requiring fresh evidence as a partial run outcome', async () => {
+  it('keeps fresh structural evidence requirements out of the clinical result', async () => {
     const record = {
       date: '2026-07-14',
       beds: {},
@@ -171,7 +175,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
-        onSettled: vi.fn(),
         createId: () => 'id',
       })
     );
@@ -179,25 +182,31 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       confirmedHandoff(record)
     );
 
-    await act(async () => result.current(handoff));
+    let clinicalResult;
+    await act(async () => {
+      clinicalResult = await result.current(handoff);
+    });
 
     expect(completeRun).toHaveBeenCalledWith(
       record,
       expect.objectContaining({
-        errors: [
-          expect.objectContaining({
-            bedId: '*',
-            source: 'patch',
-            message: 'historical_census_write_failed',
-          }),
-        ],
+        errors: [],
       }),
       expect.anything(),
-      'run-historical-failed'
+      'run-historical-failed',
+      {
+        retry: false,
+        structuralReview: {
+          historicalCorrectionsPending: false,
+          historicalCorrectionsRequireFreshCapture: true,
+          isolatedConflicts: 0,
+        },
+      }
     );
+    expect(clinicalResult).toEqual({ status: 'complete' });
   });
 
-  it('closes a fully isolated structural run with a persisted review marker', async () => {
+  it('does not convert an isolated structural conflict into a clinical failure', async () => {
     const record = {
       date: '2026-07-14',
       beds: {
@@ -222,7 +231,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       }
     );
     const completeRun = vi.fn().mockResolvedValue(undefined);
-    const onSettled = vi.fn();
     const { result } = renderHook(() =>
       useRayenClinicalFill({
         nurseCatalog: [],
@@ -232,25 +240,33 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
-        onSettled,
         createId: () => 'id',
       })
     );
 
-    await act(async () => result.current(handoff));
+    let clinicalResult;
+    await act(async () => {
+      clinicalResult = await result.current(handoff);
+    });
 
     expect(completeRun).toHaveBeenCalledWith(
       record,
       expect.objectContaining({
         total: 0,
-        errors: [
-          expect.objectContaining({ message: 'structural_conflicts_pending', source: 'patch' }),
-        ],
+        errors: [],
       }),
       expect.anything(),
-      'run-structural-conflict'
+      'run-structural-conflict',
+      {
+        retry: false,
+        structuralReview: {
+          historicalCorrectionsPending: false,
+          historicalCorrectionsRequireFreshCapture: false,
+          isolatedConflicts: 1,
+        },
+      }
     );
-    expect(onSettled).toHaveBeenCalledWith('run-structural-conflict');
+    expect(clinicalResult).toEqual({ status: 'complete' });
   });
 
   it('revalidates a confirmed handoff once when the fill actually waited in the queue', async () => {
@@ -287,7 +303,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
-        onSettled: vi.fn(),
         createId: () => 'id',
       })
     );
@@ -308,6 +323,81 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       expect.anything(),
       'run-queued'
     );
+  });
+
+  it('keeps the revalidated record in a retry without losing the confirmed handoff', async () => {
+    let releaseFirstCompletion!: () => void;
+    const firstRecord = {
+      date: '2026-07-14',
+      beds: {},
+      discharges: [],
+      transfers: [],
+      cma: [],
+      ...legacyRunEvidence('run-first'),
+    } as unknown as DailyRecord;
+    const queuedRecord = {
+      ...firstRecord,
+      beds: {
+        R1: {
+          bedId: 'R1',
+          patientName: 'Paciente',
+          clinicalEpisodeId: 'episode-queued',
+        },
+      },
+      ...legacyRunEvidence('run-queued'),
+    } as unknown as DailyRecord;
+    const authoritativeQueuedRecord = {
+      date: queuedRecord.date,
+      beds: queuedRecord.beds,
+      discharges: [],
+      transfers: [],
+      cma: [],
+      rayenSync: { runId: 'run-queued' },
+      nurseDayShift: ['Profesional vigente'],
+    } as unknown as DailyRecord;
+    const loadDailyRecord = vi.fn().mockResolvedValue(authoritativeQueuedRecord);
+    const completeRun = vi.fn((record: DailyRecord) => {
+      if (record.rayenSync?.runId === 'run-first') {
+        return new Promise<void>(resolve => {
+          releaseFirstCompletion = resolve;
+        });
+      }
+      return Promise.resolve();
+    });
+    const { result } = renderHook(() =>
+      useRayenClinicalFill({
+        nurseCatalog: [],
+        tensCatalog: [],
+        loadDailyRecord,
+        patchDailyRecord: vi.fn(),
+        applyHistoricalCudyr: vi.fn(),
+        completeRun,
+        onStaffingProposal: vi.fn(),
+        createId: () => 'id',
+      })
+    );
+
+    const firstFill = result.current(confirmedHandoff(firstRecord));
+    await vi.waitFor(() => expect(completeRun).toHaveBeenCalledOnce());
+    const queuedHandoff = confirmedHandoff(queuedRecord);
+    const queuedFill = result.current(queuedHandoff);
+
+    releaseFirstCompletion();
+    let queuedResult;
+    await act(async () => {
+      [, queuedResult] = await Promise.all([firstFill, queuedFill]);
+    });
+
+    expect(queuedResult).toEqual({
+      status: 'failed',
+      retry: expect.objectContaining({
+        pendingClinicalEpisodeIds: ['episode-queued'],
+        source: expect.objectContaining({
+          record: authoritativeQueuedRecord,
+          runId: 'run-queued',
+        }),
+      }),
+    });
   });
 
   it('does not let a queued old run enrich a newer authoritative census', async () => {
@@ -344,7 +434,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         applyHistoricalCudyr: vi.fn(),
         completeRun,
         onStaffingProposal: vi.fn(),
-        onSettled: vi.fn(),
         createId: () => 'id',
       })
     );

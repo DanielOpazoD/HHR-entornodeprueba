@@ -33,6 +33,7 @@ import {
   usesLegacyClinicalWriter,
 } from '../domain/clinicalEnrichmentBatchMode';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
+import type { RayenSyncStructuralReviewEvidence } from '@/types/domain/rayenSync';
 import {
   classifyRayenSyncError,
   reportRayenSyncWarning,
@@ -41,6 +42,18 @@ import {
   isConfirmedRayenCensusHandoff,
   type ConfirmedRayenCensusHandoff,
 } from './rayenCensusPersistenceGuard';
+import {
+  isClinicalRetryToken,
+  type ClinicalFillRequest,
+  type ClinicalStageResult,
+} from '../contracts/clinicalStageResult';
+import { collectClinicalFillCandidates } from '../domain/clinicalFillCandidates';
+import {
+  buildClinicalRetryToken,
+  buildStructuralReviewEvidence,
+  mergeClinicalRetrySummary,
+  resolveClinicalStageResult,
+} from '../domain/clinicalStageResolution';
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
@@ -72,10 +85,13 @@ interface UseRayenClinicalFillInput {
     record: DailyRecord,
     summary: ClinicalFillSummary,
     staffingProposal?: NursingStaffingProposal | null,
-    runId?: string
+    runId?: string,
+    options?: {
+      retry?: boolean;
+      structuralReview?: RayenSyncStructuralReviewEvidence;
+    }
   ) => Promise<void>;
   onStaffingProposal: (proposal: NursingStaffingProposal, attemptId: number) => void;
-  onSettled: (runId?: string) => void;
   createId: () => string;
 }
 
@@ -83,6 +99,12 @@ export const resolveClinicalFillDay = (
   source: DailyRecord | ConfirmedRayenCensusHandoff,
   record: DailyRecord
 ): string => (isConfirmedRayenCensusHandoff(source) ? source.clinicalDay : toIsoReportDate(record));
+
+const withRevalidatedClinicalRecord = (
+  source: DailyRecord | ConfirmedRayenCensusHandoff,
+  record: DailyRecord
+): DailyRecord | ConfirmedRayenCensusHandoff =>
+  isConfirmedRayenCensusHandoff(source) ? { ...source, record } : record;
 
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
@@ -95,18 +117,25 @@ export const useRayenClinicalFill = ({
   applyHistoricalCudyrEnforcedBatch,
   completeRun,
   onStaffingProposal,
-  onSettled,
   createId,
 }: UseRayenClinicalFillInput) =>
   useCallback(
-    async (source: DailyRecord | ConfirmedRayenCensusHandoff): Promise<void> => {
+    async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
+      const retryRequest = isClinicalRetryToken(request) ? request : null;
+      const source: DailyRecord | ConfirmedRayenCensusHandoff = isClinicalRetryToken(request)
+        ? request.source
+        : request;
       const isConfirmedHandoff = isConfirmedRayenCensusHandoff(source);
       const confirmedHandoff = isConfirmedHandoff ? source : null;
+      const structuralReview = buildStructuralReviewEvidence(confirmedHandoff);
       const record: DailyRecord = isConfirmedHandoff ? source.record : source;
-      const allowedClinicalEpisodeIds = confirmedHandoff?.safeClinicalEpisodeIds;
-      const requestedRunId = record.rayenSync?.runId;
-      const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}`;
-      const outcome = await enqueueLatestRayenClinicalFill(
+      const allowedClinicalEpisodeIds =
+        retryRequest?.pendingClinicalEpisodeIds ?? confirmedHandoff?.safeClinicalEpisodeIds;
+      const requestedRunId = confirmedHandoff?.runId ?? record.rayenSync?.runId;
+      const queueKey = `${record.date}|${requestedRunId ?? 'untracked'}|${
+        retryRequest ? 'retry' : 'initial'
+      }`;
+      const queued = await enqueueLatestRayenClinicalFill(
         record.date,
         queueKey,
         async ({ startedAfterQueue }) => {
@@ -130,7 +159,7 @@ export const useRayenClinicalFill = ({
                 reportRayenSyncWarning('clinical_fill_superseded', {
                   runId: requestedRunId,
                 });
-                return;
+                return { status: 'failed' };
               }
               runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
             } catch (error) {
@@ -148,7 +177,14 @@ export const useRayenClinicalFill = ({
                 null,
                 requestedRunId
               ).catch(() => undefined);
-              return;
+              return {
+                status: 'failed',
+                retry: buildClinicalRetryToken(
+                  source,
+                  record,
+                  allowedClinicalEpisodeIds
+                ),
+              };
             }
           }
           if (runPolicy === 'unavailable') {
@@ -163,7 +199,14 @@ export const useRayenClinicalFill = ({
             });
             // The structural save can become visible before its run event during propagation.
             // Keep the run in its applied/pending state so the established retry path can resume it.
-            return;
+            return {
+              status: 'failed',
+              retry: buildClinicalRetryToken(
+                withRevalidatedClinicalRecord(source, freshRecord),
+                freshRecord,
+                allowedClinicalEpisodeIds
+              ),
+            };
           }
           const batchMode = runPolicy.clinicalBatchMode;
           const legacyWriterEnabled = usesLegacyClinicalWriter(batchMode);
@@ -211,9 +254,21 @@ export const useRayenClinicalFill = ({
               null,
               requestedRunId
             ).catch(() => undefined);
-            return;
+            return {
+              status: 'failed',
+              retry: buildClinicalRetryToken(
+                withRevalidatedClinicalRecord(source, freshRecord),
+                freshRecord,
+                allowedClinicalEpisodeIds
+              ),
+            };
           }
           const attemptId = getRayenFillAttemptId();
+          const retriedBedIds = new Set(
+            collectClinicalFillCandidates(freshRecord, allowedClinicalEpisodeIds).map(
+              candidate => candidate.bedId
+            )
+          );
 
           let summary: ClinicalFillSummary;
           try {
@@ -265,23 +320,11 @@ export const useRayenClinicalFill = ({
             };
           }
 
-          if (
-            confirmedHandoff?.historicalCorrectionsPending ||
-            confirmedHandoff?.historicalCorrectionsRequireFreshCapture
-          ) {
-            summary.errors.push({
-              bedId: '*',
-              source: 'patch',
-              message: 'historical_census_write_failed',
-            });
-          }
-          if ((confirmedHandoff?.isolatedConflicts.length ?? 0) > 0) {
-            summary.errors.push({
-              bedId: '*',
-              source: 'patch',
-              message: 'structural_conflicts_pending',
-            });
-          }
+          summary = mergeClinicalRetrySummary(
+            retryRequest?.previousSummary,
+            summary,
+            retriedBedIds
+          );
 
           if (summary.errors.length > 0) {
             const affectedPatients = new Set(
@@ -301,17 +344,42 @@ export const useRayenClinicalFill = ({
           ).size;
           let completionFailed = false;
           try {
-            await completeRun(freshRecord, summary, reviewProposal, requestedRunId);
+            const completionOptions =
+              retryRequest || structuralReview
+                ? { retry: retryRequest !== null, structuralReview }
+                : undefined;
+            if (completionOptions) {
+              await completeRun(
+                freshRecord,
+                summary,
+                reviewProposal,
+                requestedRunId,
+                completionOptions
+              );
+            } else {
+              await completeRun(freshRecord, summary, reviewProposal, requestedRunId);
+            }
           } catch {
             completionFailed = true;
           }
           endRayenFill(failedPatients, summary.errors.length > 0 || completionFailed);
           if (reviewProposal) onStaffingProposal(reviewProposal, attemptId);
+          return resolveClinicalStageResult(
+            withRevalidatedClinicalRecord(source, freshRecord),
+            freshRecord,
+            allowedClinicalEpisodeIds,
+            summary,
+            completionFailed
+          );
         }
       );
-      // Task-level early exits still resolve through the queue. Only clear the shared UI state once
-      // this attempt drained the queue; a queued newer run must keep the synchronization active.
-      if (outcome === 'drained') onSettled(requestedRunId);
+      if (queued.result) return queued.result;
+      return queued.outcome === 'superseded'
+        ? { status: 'failed' }
+        : {
+            status: 'failed',
+            retry: buildClinicalRetryToken(source, record, allowedClinicalEpisodeIds),
+          };
     },
     [
       applyHistoricalCudyr,
@@ -322,7 +390,6 @@ export const useRayenClinicalFill = ({
       loadDailyRecord,
       nurseCatalog,
       tensCatalog,
-      onSettled,
       onStaffingProposal,
       patchDailyRecord,
     ]

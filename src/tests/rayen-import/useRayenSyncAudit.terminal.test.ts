@@ -84,6 +84,56 @@ describe('useRayenSyncAudit terminal outcomes', () => {
     expect(patchDailyRecord).toHaveBeenCalledTimes(1);
   });
 
+  it('updates the same audit event after a clinical-only retry succeeds', async () => {
+    const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
+    const currentRecordRef = { current: record() };
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef,
+        patchDailyRecord,
+        actor: 'Operador HHR',
+        createId: () => 'clinical-retry-run',
+      })
+    );
+    act(() => result.current.startRun());
+    const applied = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
+    currentRecordRef.current = applied;
+
+    await act(async () => {
+      await result.current.completeRun(applied, {
+        total: 2,
+        patched: 1,
+        errors: [{ bedId: 'R2', source: 'patch', message: 'concurrent_write' }],
+      });
+    });
+    const firstPatch = patchDailyRecord.mock.calls[0]?.[0] as Partial<DailyRecord>;
+    const partiallyCompleted = { ...applied, ...firstPatch } as DailyRecord;
+    currentRecordRef.current = partiallyCompleted;
+
+    await act(async () => {
+      await result.current.completeRun(
+        partiallyCompleted,
+        { total: 2, patched: 2, errors: [] },
+        null,
+        'clinical-retry-run',
+        { retry: true }
+      );
+    });
+
+    expect(patchDailyRecord).toHaveBeenCalledTimes(2);
+    expect(patchDailyRecord.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        rayenSyncHistory: [
+          expect.objectContaining({
+            id: 'clinical-retry-run',
+            status: 'complete',
+            coverage: expect.objectContaining({ total: 2, completed: 2, errors: 0 }),
+          }),
+        ],
+      })
+    );
+  });
+
   it('lets the first terminal path win when completion and failure race', async () => {
     const pendingWrite = deferred<undefined>();
     const patchDailyRecord = vi.fn().mockReturnValue(pendingWrite.promise);
