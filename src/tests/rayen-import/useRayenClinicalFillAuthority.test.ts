@@ -51,7 +51,6 @@ const renderClinicalFill = (overrides: Record<string, unknown> = {}) =>
       applyHistoricalCudyr: vi.fn(),
       completeRun: vi.fn().mockResolvedValue(undefined),
       onStaffingProposal: vi.fn(),
-      onSettled: vi.fn(),
       createId: () => 'id',
       ...overrides,
     })
@@ -84,21 +83,27 @@ describe('useRayenClinicalFill authority revalidation', () => {
     const loadDailyRecord = vi.fn().mockResolvedValue(record);
     const patchDailyRecord = vi.fn();
     const completeRun = vi.fn().mockResolvedValue(undefined);
-    const onSettled = vi.fn();
     const { result } = renderClinicalFill({
       loadDailyRecord,
       patchDailyRecord,
       completeRun,
-      onSettled,
     });
 
-    await act(async () => result.current(record));
+    let clinicalResult;
+    await act(async () => {
+      clinicalResult = await result.current(record);
+    });
 
     expect(loadDailyRecord).toHaveBeenCalledTimes(1);
     expect(patchDailyRecord).not.toHaveBeenCalled();
     expect(completeRun).not.toHaveBeenCalled();
     expect(mocks.beginRayenFill).not.toHaveBeenCalled();
-    expect(onSettled).toHaveBeenCalledOnce();
+    expect(clinicalResult).toEqual({
+      status: 'failed',
+      retry: expect.objectContaining({
+        pendingClinicalEpisodeIds: ['episode-1'],
+      }),
+    });
   });
 
   it('continues the clinical fill when one authoritative read exposes the applied run', async () => {

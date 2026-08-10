@@ -45,6 +45,7 @@ const record = {
 describe('useRayenImportConfirmation execution ownership', () => {
   it('enqueues a committed handoff after its reviewed UI execution is cancelled', async () => {
     let resolvePersistence!: (value: unknown) => void;
+    let resolveClinicalStage!: (value: { status: 'complete' }) => void;
     mocks.applyConfirmedRayenImport.mockReturnValue(
       new Promise(resolve => {
         resolvePersistence = resolve;
@@ -62,7 +63,12 @@ describe('useRayenImportConfirmation execution ownership', () => {
         outcome: { structuralConflicts: 0, skippedItems: 0 },
       },
     };
-    const fillDevicesInBackground = vi.fn();
+    const runClinicalStage = vi.fn(
+      () =>
+        new Promise<{ status: 'complete' }>(resolve => {
+          resolveClinicalStage = resolve;
+        })
+    );
     const { result } = renderHook(() =>
       useRayenImportConfirmation({
         currentRecord: record,
@@ -97,7 +103,7 @@ describe('useRayenImportConfirmation execution ownership', () => {
         failRun: vi.fn(),
         recordRunPerformance: vi.fn(),
         applyDiff: vi.fn() as never,
-        fillDevicesInBackground,
+        runClinicalStage,
         loadFreshClinicalRecord: vi.fn(),
         runSerializedPersistence: operation => operation(),
       })
@@ -116,9 +122,18 @@ describe('useRayenImportConfirmation execution ownership', () => {
       confirmedHandoff: {},
     });
 
+    await vi.waitFor(() => expect(runClinicalStage).toHaveBeenCalledOnce());
+    let confirmationSettled = false;
+    void confirmation.then(() => {
+      confirmationSettled = true;
+    });
+    await Promise.resolve();
+    expect(confirmationSettled).toBe(false);
+
+    resolveClinicalStage({ status: 'complete' });
     await act(async () => confirmation);
 
-    expect(fillDevicesInBackground).toHaveBeenCalledOnce();
-    expect(fillDevicesInBackground).toHaveBeenCalledWith({});
+    expect(runClinicalStage).toHaveBeenCalledOnce();
+    expect(runClinicalStage).toHaveBeenCalledWith({});
   });
 });

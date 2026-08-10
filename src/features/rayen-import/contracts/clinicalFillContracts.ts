@@ -130,6 +130,7 @@ export interface HistoricalCudyrBatchItemResult extends HistoricalCudyrApplyResu
 
 export interface ClinicalFillError {
   bedId: string;
+  clinicalEpisodeId?: string;
   source: 'devices' | 'scales' | 'vitals' | 'staffing' | 'cudyr' | 'patch';
   message: string;
 }

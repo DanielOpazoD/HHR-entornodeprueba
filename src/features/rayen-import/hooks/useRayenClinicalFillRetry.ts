@@ -2,12 +2,18 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenImportState } from './rayenImportState';
 import { resetRayenFillProgress } from './useRayenFillStatus';
-import type { ConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
+import type {
+  ClinicalFillRequest,
+  ClinicalRetryToken,
+  ClinicalStageResult,
+} from '../contracts/clinicalStageResult';
+import { isConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
 
 interface UseRayenClinicalFillRetryInput {
   currentRecord: DailyRecord | null | undefined;
   currentRecordRef: MutableRefObject<DailyRecord | null | undefined>;
-  fillClinicalData: (source: DailyRecord | ConfirmedRayenCensusHandoff) => Promise<void>;
+  runClinicalStage: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
+  retryTokenRef: MutableRefObject<ClinicalRetryToken | null>;
   setState: Dispatch<SetStateAction<RayenImportState>>;
   onStart?: (record: DailyRecord) => boolean | void;
 }
@@ -15,12 +21,38 @@ interface UseRayenClinicalFillRetryInput {
 export const useRayenClinicalFillRetry = ({
   currentRecord,
   currentRecordRef,
-  fillClinicalData,
+  runClinicalStage,
+  retryTokenRef,
   setState,
   onStart,
 }: UseRayenClinicalFillRetryInput) =>
   useCallback(async (): Promise<void> => {
-    const record = currentRecordRef.current ?? currentRecord;
+    const activeRecord = currentRecordRef.current ?? currentRecord;
+    let retryRequest = retryTokenRef.current;
+    if (retryRequest) {
+      const retrySource = retryRequest.source;
+      const retryRecord = 'record' in retrySource ? retrySource.record : retrySource;
+      const retryRunId = isConfirmedRayenCensusHandoff(retrySource)
+        ? retrySource.runId
+        : retryRecord.rayenSync?.runId;
+      const matchesActiveRun =
+        activeRecord?.date === retryRecord.date &&
+        activeRecord?.rayenSync?.runId === retryRunId;
+      if (!matchesActiveRun) {
+        retryTokenRef.current = null;
+        retryRequest = null;
+      } else if (activeRecord) {
+        retryRequest = {
+          ...retryRequest,
+          source:
+            'record' in retrySource
+              ? { ...retrySource, record: activeRecord }
+              : activeRecord,
+        };
+        retryTokenRef.current = retryRequest;
+      }
+    }
+    const record = activeRecord;
     if (!record?.rayenSync?.runId || record.rayenSync.status !== 'applied') {
       setState(prev => ({
         ...prev,
@@ -43,5 +75,5 @@ export const useRayenClinicalFillRetry = ({
       return;
     }
     setState(prev => ({ ...prev, isSyncing: true, error: null }));
-    await fillClinicalData(record);
-  }, [currentRecord, currentRecordRef, fillClinicalData, onStart, setState]);
+    await runClinicalStage(retryRequest ?? record);
+  }, [currentRecord, currentRecordRef, onStart, retryTokenRef, runClinicalStage, setState]);

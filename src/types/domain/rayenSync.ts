@@ -173,6 +173,13 @@ export interface RayenSyncPerformanceDelta {
   sourceQuality?: RayenSyncPerformance['sourceQuality'];
 }
 
+/** Aggregate-only structural evidence retained when clinical enrichment can still complete. */
+export interface RayenSyncStructuralReviewEvidence {
+  historicalCorrectionsPending: boolean;
+  historicalCorrectionsRequireFreshCapture: boolean;
+  isolatedConflicts: number;
+}
+
 export interface RayenSyncEvent {
   /** Stable run id. Updating a run replaces this event instead of appending a duplicate. */
   id: string;
@@ -187,6 +194,8 @@ export interface RayenSyncEvent {
   source?: RayenSyncSource;
   policy?: RayenSyncPolicy;
   staffingObservation?: RayenSyncStaffingObservation;
+  /** Structural review facts kept separate from clinical coverage and free of identifiers. */
+  structuralReview?: RayenSyncStructuralReviewEvidence;
   /** Technical aggregate shown only in synchronization history and diagnostics. */
   performance?: RayenSyncPerformance;
   /** Sanitized operational category; never a raw extension/server error. */

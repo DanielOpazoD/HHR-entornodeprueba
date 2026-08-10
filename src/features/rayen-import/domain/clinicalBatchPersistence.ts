@@ -55,7 +55,14 @@ export const persistClinicalBatch = async ({
         errors: (result.failures ?? []).flatMap(failure => {
           const operation = operations[failure.index];
           return operation
-            ? [{ bedId: operation.target.bedId, source: 'patch', message: failure.message }]
+            ? [
+                {
+                  bedId: operation.target.bedId,
+                  clinicalEpisodeId: operation.target.clinicalEpisodeId,
+                  source: 'patch',
+                  message: failure.message,
+                },
+              ]
             : [];
         }),
         batch: result.batch,
@@ -66,6 +73,7 @@ export const persistClinicalBatch = async ({
         patched: 0,
         errors: operations.map(operation => ({
           bedId: operation.target.bedId,
+          clinicalEpisodeId: operation.target.clinicalEpisodeId,
           source: 'patch',
           message: message(error),
         })),

@@ -21,7 +21,10 @@ import {
   type RayenStructuralReplan,
 } from './rayenStructuralConvergence';
 import type { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
-import type { useRayenClinicalFill } from './useRayenClinicalFill';
+import type {
+  ClinicalFillRequest,
+  ClinicalStageResult,
+} from '../contracts/clinicalStageResult';
 import type { useRayenSyncAudit } from './useRayenSyncAudit';
 import type { useRayenSyncExecutionController } from './useRayenSyncExecutionController';
 import { applyRayenHistoricalCorrectionState } from './rayenCensusPersistenceGuard';
@@ -46,7 +49,7 @@ interface UseRayenImportConfirmationInput {
   failRun: SyncAudit['failRun'];
   recordRunPerformance: SyncAudit['recordRunPerformance'];
   applyDiff: ReturnType<typeof useRayenCensusDiffApplication>;
-  fillDevicesInBackground: ReturnType<typeof useRayenClinicalFill>;
+  runClinicalStage: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
   loadFreshClinicalRecord: (date: string) => Promise<DailyRecord>;
   runSerializedPersistence: <T>(operation: () => Promise<T>) => Promise<T>;
 }
@@ -68,7 +71,7 @@ export const useRayenImportConfirmation = ({
   failRun,
   recordRunPerformance,
   applyDiff,
-  fillDevicesInBackground,
+  runClinicalStage,
   loadFreshClinicalRecord,
   runSerializedPersistence,
 }: UseRayenImportConfirmationInput) => {
@@ -108,11 +111,11 @@ export const useRayenImportConfirmation = ({
         hasSkippedItems: false,
         error: null,
       }));
-      const continueAfterStructuralCommit = (
+      const continueAfterStructuralCommit = async (
         result: ConfirmedRayenImportResult<Awaited<ReturnType<typeof applyDiff>>>,
         requiresFreshCapture = false,
         correctionError?: string
-      ): void => {
+      ): Promise<void> => {
         const appliedDiff = result.appliedDiff;
         const skippedPreviousDays = hasSkippedPreviousDayCorrections(
           appliedDiff,
@@ -160,7 +163,7 @@ export const useRayenImportConfirmation = ({
           pending: result.historicalCorrectionsPending,
           requiresFreshCapture,
         });
-        void fillDevicesInBackground(clinicalHandoff);
+        await runClinicalStage(clinicalHandoff);
       };
       try {
         const result = await runSerializedPersistence(() => {
@@ -183,13 +186,13 @@ export const useRayenImportConfirmation = ({
           });
         });
         if (!result) return;
-        continueAfterStructuralCommit(result);
+        await continueAfterStructuralCommit(result);
       } catch (error) {
         const committedResult = committedRayenImportResultFromError<
           Awaited<ReturnType<typeof applyDiff>>
         >(error);
         if (committedResult) {
-          continueAfterStructuralCommit(
+          await continueAfterStructuralCommit(
             committedResult,
             true,
             getRayenImportErrorMessage(error)
@@ -248,7 +251,7 @@ export const useRayenImportConfirmation = ({
       currentRecordRef,
       state.diff,
       applyDiff,
-      fillDevicesInBackground,
+      runClinicalStage,
       dailyRecord,
       isAdmin,
       ensureRun,

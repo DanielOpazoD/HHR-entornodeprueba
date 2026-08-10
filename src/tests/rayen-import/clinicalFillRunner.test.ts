@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
+import {
+  runClinicalFill,
+  type ClinicalFillDeps,
+  type ClinicalFillError,
+} from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const BRADEN_HISTORY_EVENT = {
@@ -81,6 +85,13 @@ const expectCheckpointOnlyPatch = (
     captureHistorySnapshot: false,
   });
 };
+
+const patientError = (
+  source: ClinicalFillError['source'],
+  message: string,
+  bedId = 'H1C2',
+  clinicalEpisodeId = 'E1'
+): ClinicalFillError => ({ bedId, clinicalEpisodeId, source, message });
 
 describe('runClinicalFill', () => {
   it('applies one granular patch per patient (scales + CUDYR), never a full-record save', async () => {
@@ -267,7 +278,7 @@ describe('runClinicalFill', () => {
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
 
     expect(summary.patched).toBe(1);
-    expect(summary.errors).toEqual([{ bedId: 'H1C2', source: 'devices', message: 'tab cerrada' }]);
+    expect(summary.errors).toEqual([patientError('devices', 'tab cerrada')]);
   });
 
   it('rejects a declared device error before parsing its non-authoritative payload', async () => {
@@ -283,9 +294,7 @@ describe('runClinicalFill', () => {
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
 
     expect(summary.patched).toBe(1);
-    expect(summary.errors).toEqual([
-      { bedId: 'H1C2', source: 'devices', message: 'Reporte de dispositivos incompleto' },
-    ]);
+    expect(summary.errors).toEqual([patientError('devices', 'Reporte de dispositivos incompleto')]);
     expect(extractDeviceItems).not.toHaveBeenCalled();
   });
 
@@ -311,8 +320,8 @@ describe('runClinicalFill', () => {
 
     expect(summary.patched).toBe(0);
     expect(summary.errors).toEqual([
-      { bedId: 'H1C2', source: 'scales', message: 'Historial clínico no disponible' },
-      { bedId: 'H1C2', source: 'staffing', message: 'Historial clínico no disponible' },
+      patientError('scales', 'Historial clínico no disponible'),
+      patientError('staffing', 'Historial clínico no disponible'),
     ]);
     expect(summary.staffingProposal).toMatchObject({
       day: { names: [] },
@@ -334,8 +343,8 @@ describe('runClinicalFill', () => {
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
 
     expect(summary.errors).toEqual([
-      { bedId: 'H1C2', source: 'scales', message: 'Ficha clínica no disponible' },
-      { bedId: 'H1C2', source: 'vitals', message: 'Ficha clínica no disponible' },
+      patientError('scales', 'Ficha clínica no disponible'),
+      patientError('vitals', 'Ficha clínica no disponible'),
     ]);
     expect(summary.patched).toBe(0);
     expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
@@ -354,9 +363,7 @@ describe('runClinicalFill', () => {
 
     expect(summary.total).toBe(2);
     expect(summary.patched).toBe(1);
-    expect(summary.errors).toEqual([
-      { bedId: 'H1C1', source: 'patch', message: 'patch rechazado' },
-    ]);
+    expect(summary.errors).toEqual([patientError('patch', 'patch rechazado', 'H1C1', 'E9')]);
   });
 
   it('fetches patients concurrently but serializes census writes to avoid self-conflicts', async () => {

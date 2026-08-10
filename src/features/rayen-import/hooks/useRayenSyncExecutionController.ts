@@ -6,8 +6,8 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { getRayenFillProgressSnapshot } from './useRayenFillStatus';
 import type { RayenImportState } from './rayenImportState';
+import type { ClinicalStageResult } from '../contracts/clinicalStageResult';
 import {
   INITIAL_RAYEN_SYNC_EXECUTION_STATE,
   isRayenSyncPreviewStage,
@@ -119,7 +119,7 @@ export const useRayenSyncExecutionController = ({
   );
 
   const finishClinicalSync = useCallback(
-    (runId?: string) => {
+    (result: ClinicalStageResult, runId?: string) => {
       const effectiveRunId = runId ?? clinicalRunIdRef.current;
       // A queue from an obsolete execution may drain after a newer run has started. It must not
       // clear the new run's progress or project a terminal result into its UI.
@@ -139,12 +139,15 @@ export const useRayenSyncExecutionController = ({
         transitionExecution({ type: 'needs_review', scope: 'post_commit' }, effectiveRunId);
         return;
       }
-      transitionExecution(
-        getRayenFillProgressSnapshot().outcome === 'complete'
-          ? { type: 'complete' }
-          : { type: 'partial', retry: 'clinical_only' },
-        effectiveRunId
-      );
+      if (result.status === 'complete') {
+        transitionExecution({ type: 'complete' }, effectiveRunId);
+        return;
+      }
+      if (result.status === 'partial' || result.retry) {
+        transitionExecution({ type: 'partial', retry: 'clinical_only' }, effectiveRunId);
+        return;
+      }
+      transitionExecution({ type: 'failed' }, effectiveRunId);
     },
     [setImportStateCurrent, transitionExecution]
   );

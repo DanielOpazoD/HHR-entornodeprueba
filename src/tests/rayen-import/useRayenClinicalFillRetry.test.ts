@@ -8,6 +8,9 @@ import {
 } from '@/features/rayen-import/hooks/rayenImportState';
 import { useRayenClinicalFillRetry } from '@/features/rayen-import/hooks/useRayenClinicalFillRetry';
 import { resetRayenFillProgress } from '@/features/rayen-import/hooks/useRayenFillStatus';
+import type { ClinicalRetryToken } from '@/features/rayen-import/contracts/clinicalStageResult';
+import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
+import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const record = {
   date: '2026-08-08',
@@ -25,18 +28,26 @@ const record = {
   },
 } as DailyRecord;
 
-const useRetryHarness = (onStart: (candidate: DailyRecord) => boolean) => {
+const useRetryHarness = (
+  onStart: (candidate: DailyRecord) => boolean,
+  retryRequest: ClinicalRetryToken | null = null,
+  activeRecord: DailyRecord = record
+) => {
   const [state, setState] = useState<RayenImportState>(INITIAL_RAYEN_IMPORT_STATE);
-  const currentRecordRef = useRef<DailyRecord | null>(record);
-  const [fillClinicalData] = useState(() => vi.fn().mockResolvedValue(undefined));
+  const currentRecordRef = useRef<DailyRecord | null>(activeRecord);
+  const [runClinicalStage] = useState(() =>
+    vi.fn().mockResolvedValue({ status: 'complete' as const })
+  );
+  const retryTokenRef = useRef(retryRequest);
   const retry = useRayenClinicalFillRetry({
-    currentRecord: record,
+    currentRecord: activeRecord,
     currentRecordRef,
-    fillClinicalData,
+    runClinicalStage,
+    retryTokenRef,
     setState,
     onStart,
   });
-  return { state, retry, fillClinicalData };
+  return { state, retry, retryTokenRef, runClinicalStage };
 };
 
 describe('useRayenClinicalFillRetry', () => {
@@ -49,7 +60,7 @@ describe('useRayenClinicalFillRetry', () => {
 
     await act(async () => result.current.retry());
 
-    expect(result.current.fillClinicalData).not.toHaveBeenCalled();
+    expect(result.current.runClinicalStage).not.toHaveBeenCalled();
     expect(result.current.state.isSyncing).toBe(false);
     expect(result.current.state.error).toContain('otra sincronización en curso');
   });
@@ -59,8 +70,90 @@ describe('useRayenClinicalFillRetry', () => {
 
     await act(async () => result.current.retry());
 
-    expect(result.current.fillClinicalData).toHaveBeenCalledWith(record);
+    expect(result.current.runClinicalStage).toHaveBeenCalledWith(record);
     expect(result.current.state.isSyncing).toBe(true);
     expect(result.current.state.error).toBeNull();
+  });
+
+  it('retries only the clinical episodes carried by the pending token', async () => {
+    const retryRequest: ClinicalRetryToken = {
+      type: 'clinical_retry',
+      source: record,
+      pendingClinicalEpisodeIds: ['episode-pending'],
+    };
+    const { result } = renderHook(() => useRetryHarness(() => true, retryRequest));
+
+    await act(async () => result.current.retry());
+
+    expect(result.current.runClinicalStage).toHaveBeenCalledWith(retryRequest);
+  });
+
+  it('discards a retry token from another day and run before starting', async () => {
+    const staleRecord = {
+      ...record,
+      date: '2026-08-07',
+      rayenSync: { ...record.rayenSync, runId: 'stale-run' },
+    } as DailyRecord;
+    const staleRetry: ClinicalRetryToken = {
+      type: 'clinical_retry',
+      source: staleRecord,
+      pendingClinicalEpisodeIds: ['episode-stale'],
+    };
+    const { result } = renderHook(() => useRetryHarness(() => true, staleRetry));
+
+    await act(async () => result.current.retry());
+
+    expect(result.current.retryTokenRef.current).toBeNull();
+    expect(result.current.runClinicalStage).toHaveBeenCalledWith(record);
+  });
+
+  it('uses the confirmed handoff run when its embedded snapshot has stale run evidence', async () => {
+    const confirmedRecord = {
+      ...record,
+      rayenSyncHistory: [
+        {
+          id: 'persisted-run',
+          startedAt: '2026-08-08T09:00:00.000Z',
+          by: 'Operador HHR',
+          status: 'applied' as const,
+          policy: { mode: 'preview' as const, revision: 1 },
+        },
+      ],
+    } as DailyRecord;
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      {
+        record: confirmedRecord,
+        result: { date: confirmedRecord.date, outcome: 'clean' } as SaveDailyRecordResult,
+      },
+      { date: confirmedRecord.date, runId: 'persisted-run' }
+    );
+    const retryRequest: ClinicalRetryToken = {
+      type: 'clinical_retry',
+      source: {
+        ...handoff,
+        record: {
+          ...confirmedRecord,
+          rayenSync: { ...record.rayenSync!, runId: 'embedded-stale-run' },
+        },
+      },
+      pendingClinicalEpisodeIds: ['episode-pending'],
+    };
+    const { result } = renderHook(() => useRetryHarness(() => true, retryRequest));
+
+    await act(async () => result.current.retry());
+
+    expect(result.current.retryTokenRef.current?.pendingClinicalEpisodeIds).toEqual([
+      'episode-pending',
+    ]);
+    expect(result.current.runClinicalStage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'clinical_retry',
+        pendingClinicalEpisodeIds: ['episode-pending'],
+        source: expect.objectContaining({
+          runId: 'persisted-run',
+          record,
+        }),
+      })
+    );
   });
 });

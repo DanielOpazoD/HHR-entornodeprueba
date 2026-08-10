@@ -5,7 +5,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
-import type { ConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
+import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { RayenImportState } from './rayenImportState';
 import type { PreparedRayenSyncContext } from './rayenSyncTemporalContext';
 import type { RayenSyncExecutionAction, RayenSyncExecutionState } from './rayenSyncExecutionState';
@@ -26,7 +26,7 @@ export interface UseRayenSnapshotPreviewInput {
     diff: CensusImportDiff,
     clinicalDay?: string
   ) => Promise<ConfirmedRayenCensusApplyResult>;
-  fillDevicesInBackground: (source: DailyRecord | ConfirmedRayenCensusHandoff) => Promise<void>;
+  runClinicalStage: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
   failRun: (reason: 'apply_failed', runId?: string) => Promise<void>;
   ensureRun: () => RayenSyncRun;
   getRun: (runId: string) => RayenSyncRun | undefined;

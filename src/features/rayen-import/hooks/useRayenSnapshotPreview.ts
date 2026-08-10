@@ -29,7 +29,7 @@ export const useRayenSnapshotPreview = ({
   selectedDateRef,
   clearSyncTimeout,
   applyDiff,
-  fillDevicesInBackground,
+  runClinicalStage,
   failRun,
   ensureRun,
   getRun,
@@ -211,7 +211,7 @@ export const useRayenSnapshotPreview = ({
             execution.transition({ type: 'verifying_structure' });
             execution.transition({ type: 'syncing_clinical' });
           }
-          void fillDevicesInBackground(committed.clinicalHandoff);
+          await runClinicalStage(committed.clinicalHandoff);
         } catch (error) {
           const committedResult = committedRayenImportResultFromError<
             Awaited<ReturnType<typeof applyDiff>>
@@ -241,7 +241,7 @@ export const useRayenSnapshotPreview = ({
               execution.transition({ type: 'verifying_structure' });
               execution.transition({ type: 'syncing_clinical' });
             }
-            void fillDevicesInBackground(committed.clinicalHandoff);
+            await runClinicalStage(committed.clinicalHandoff);
             return;
           }
           if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
@@ -266,7 +266,6 @@ export const useRayenSnapshotPreview = ({
       let hasUnresolvedConflicts = structuralConflictCount > 0;
       let hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
       let noChangePersistenceCompleted = false;
-      let noChangeClinicalStarted = false;
       let noChangeRequiresFreshCapture = false;
       let noChangeCorrectionError: string | null = null;
       let noChangeResult: Awaited<ReturnType<typeof persistConvergedStructure>> = null;
@@ -296,8 +295,7 @@ export const useRayenSnapshotPreview = ({
             });
             execution.transition({ type: 'syncing_clinical' });
           }
-          noChangeClinicalStarted = true;
-          void fillDevicesInBackground(committed.clinicalHandoff);
+          await runClinicalStage(committed.clinicalHandoff);
         } catch (error) {
           const committedResult = committedRayenImportResultFromError<
             Awaited<ReturnType<typeof applyDiff>>
@@ -309,7 +307,6 @@ export const useRayenSnapshotPreview = ({
             hasUnresolvedConflicts = committed.structuralConflicts > 0;
             hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
             noChangePersistenceCompleted = true;
-            noChangeClinicalStarted = true;
             noChangeRequiresFreshCapture = true;
             noChangeCorrectionError = getRayenImportErrorMessage(error);
             const isCurrent = isRayenSyncExecutionCurrent(
@@ -326,7 +323,7 @@ export const useRayenSnapshotPreview = ({
               });
               execution.transition({ type: 'syncing_clinical' });
             }
-            void fillDevicesInBackground(committed.clinicalHandoff);
+            await runClinicalStage(committed.clinicalHandoff);
           } else {
             if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
             if (returnReplanToReview(error)) return;
@@ -363,9 +360,7 @@ export const useRayenSnapshotPreview = ({
                 requiresFreshCapture: noChangeRequiresFreshCapture,
               }),
               isBusy: false,
-              isSyncing: noChangePersistenceCompleted
-                ? noChangeClinicalStarted
-                : hasNoApplicableChanges,
+              isSyncing: noChangePersistenceCompleted ? false : hasNoApplicableChanges,
               result: noChangePersistenceCompleted ? noChangeResult : null,
               hasSkippedItems: noChangeResult
                 ? noChangeResult.skipped.length > 0 ||
@@ -388,7 +383,7 @@ export const useRayenSnapshotPreview = ({
     },
     [
       applyDiff, clearSyncTimeout, dailyRecord, dispatchExecution,
-      ensureRun, executionRef, failRun, fillDevicesInBackground,
+      ensureRun, executionRef, failRun, runClinicalStage,
       getRun, isAdmin, preparedSyncContextRef, prepareTreatingPhysicianSnapshot,
       recordRunPerformance, runSerializedPersistence, selectedDateRef,
       setState, structuralReplanRef,
