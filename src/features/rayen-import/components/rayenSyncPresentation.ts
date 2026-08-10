@@ -143,6 +143,10 @@ const issueReasonLabel: Record<RayenSyncCoverageIssue['reason'], string> = {
   source_unavailable: 'Eloísa no devolvió esta información; comprueba la ficha y reintenta',
   source_timeout: 'la fuente demoró demasiado; comprueba la conexión y reintenta',
   historical_archive_failed: 'no se pudo asociar el CUDYR al turno correcto; reintenta',
+  historical_census_write_failed:
+    'las correcciones de días previos quedaron pendientes; reintenta la sincronización',
+  structural_conflict:
+    'la estructura de este episodio requiere revisión; los demás pacientes sí continuaron',
   sync_already_running: 'ya había otra sincronización clínica en curso; espera y reintenta',
   write_failed: 'no se pudo confirmar el guardado; comprueba la conexión y reintenta',
   unexpected: 'ocurrió un error no esperado; reintenta y revisa el nuevo detalle',

@@ -147,6 +147,7 @@ export default defineConfig(({ mode }) => {
             '**/assets/clinicalFillRunner-*.js',
             '**/assets/clinicalEnrichmentBatchPayload-*.js',
             '**/assets/clinicalEnrichmentPersistenceStrategy-*.js',
+            '**/assets/replanRayenStructure-*.js',
           ],
         },
         registerType: 'autoUpdate',

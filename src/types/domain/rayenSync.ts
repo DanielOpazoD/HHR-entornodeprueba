@@ -39,6 +39,8 @@ export type RayenSyncIssueReason =
   | 'source_unavailable'
   | 'source_timeout'
   | 'historical_archive_failed'
+  | 'historical_census_write_failed'
+  | 'structural_conflict'
   | 'sync_already_running'
   | 'write_failed'
   | 'unexpected';

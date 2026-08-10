@@ -102,6 +102,10 @@ export const buildRayenSyncCoverage = (
       return 'concurrent_write';
     }
     if (detail.includes('no se pudo archivar el cudyr')) return 'historical_archive_failed';
+    if (detail.includes('historical_census_write_failed')) {
+      return 'historical_census_write_failed';
+    }
+    if (detail.includes('structural_conflicts_pending')) return 'structural_conflict';
     if (detail.includes('clinical_fill_busy')) return 'sync_already_running';
     if (detail.includes('timeout') || detail.includes('tiempo de espera')) return 'source_timeout';
     if (source === 'patch') {

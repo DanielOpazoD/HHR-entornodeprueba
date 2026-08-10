@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   assertRayenCensusPersistenceConfirmed,
   isConfirmedRayenCensusHandoff,
+  markRayenHistoricalCorrectionsRequireFreshCapture,
+  markRayenHistoricalCorrectionsPending,
   resolveConfirmedRayenCensusHandoff,
+  resolveStructuralStageResult,
 } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
 import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
+import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 
 const buildResult = (overrides: Partial<SaveDailyRecordResult> = {}): SaveDailyRecordResult => ({
   date: '2026-07-28',
@@ -64,6 +68,34 @@ describe('rayenCensusPersistenceGuard', () => {
     expect(() =>
       assertRayenCensusPersistenceConfirmed({ record: buildRecord(), result: buildResult() })
     ).not.toThrow();
+  });
+
+  it('preserves the authoritative brand while marking pending historical corrections', () => {
+    const record = buildRecord();
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      { date: record.date, runId: 'run-1' }
+    );
+
+    const marked = markRayenHistoricalCorrectionsPending(handoff);
+
+    expect(isConfirmedRayenCensusHandoff(marked)).toBe(true);
+    expect(marked.historicalCorrectionsPending).toBe(true);
+    expect(marked.acceptedRevision).toBe(handoff.acceptedRevision);
+  });
+
+  it('preserves the authoritative brand while requiring fresh historical evidence', () => {
+    const record = buildRecord();
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      { date: record.date, runId: 'run-1' }
+    );
+
+    const marked = markRayenHistoricalCorrectionsRequireFreshCapture(handoff);
+
+    expect(isConfirmedRayenCensusHandoff(marked)).toBe(true);
+    expect(marked.historicalCorrectionsRequireFreshCapture).toBe(true);
+    expect(marked.acceptedRevision).toBe(handoff.acceptedRevision);
   });
 
   it('allows a clean local-only write when remote persistence is intentionally disabled', () => {
@@ -169,8 +201,140 @@ describe('rayenCensusPersistenceGuard', () => {
 
     expect(handoff.record).toBe(record);
     expect(handoff.runId).toBe('run-1');
+    expect(handoff.selectedDate).toBe('2026-07-28');
+    expect(handoff.clinicalDay).toBe('2026-07-28');
+    expect(handoff.acceptedRevision).toBe(record.lastUpdated);
     expect(isConfirmedRayenCensusHandoff(handoff)).toBe(true);
     expect(isConfirmedRayenCensusHandoff(record)).toBe(false);
+  });
+
+  it('isolates one conflicting episode and lets confirmed episodes continue to clinical fill', () => {
+    const record = buildRecord('run-1', {
+      beds: {
+        H1C1: {
+          bedId: 'H1C1',
+          patientName: 'Paciente seguro',
+          clinicalEpisodeId: 'episode-safe',
+        },
+        H2C1: {
+          bedId: 'H2C1',
+          patientName: 'Paciente en conflicto',
+          clinicalEpisodeId: 'episode-blocked',
+        },
+      } as unknown as DailyRecord['beds'],
+    });
+    const diff = {
+      conflicts: [
+        {
+          bedId: 'H2C1',
+          reason: 'La cama requiere revisión.',
+          source: { encounterId: 'episode-blocked' },
+        },
+      ],
+    } as CensusImportDiff;
+
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      { date: record.date, clinicalDay: '2026-07-27', runId: 'run-1', diff }
+    );
+
+    expect(handoff.clinicalDay).toBe('2026-07-27');
+    expect(handoff.safeClinicalEpisodeIds).toEqual(['episode-safe']);
+    expect(resolveStructuralStageResult(handoff)).toMatchObject({
+      status: 'confirmed_with_conflicts',
+      handoff,
+    });
+  });
+
+  it('isolates the persisted occupant when a conflict names a different incoming episode', () => {
+    const record = buildRecord('run-1', {
+      beds: {
+        H1C1: {
+          bedId: 'H1C1',
+          patientName: 'Paciente seguro',
+          clinicalEpisodeId: 'episode-safe',
+        },
+        H2C1: {
+          bedId: 'H2C1',
+          patientName: 'Ocupante de cama disputada',
+          clinicalEpisodeId: 'episode-occupant',
+        },
+      } as unknown as DailyRecord['beds'],
+    });
+    const diff = {
+      conflicts: [
+        {
+          bedId: 'H2C1',
+          reason: 'Otro episodio intenta ocupar una cama vigente.',
+          source: { encounterId: 'episode-incoming' },
+        },
+      ],
+    } as CensusImportDiff;
+
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      { date: record.date, runId: 'run-1', diff }
+    );
+
+    expect(handoff.safeClinicalEpisodeIds).toEqual(['episode-safe']);
+    expect(handoff.isolatedConflicts).toEqual([
+      expect.objectContaining({
+        bedId: 'H2C1',
+        clinicalEpisodeId: 'episode-incoming',
+      }),
+    ]);
+  });
+
+  it('blocks clinical fill when an unresolved bed conflict leaves no safe episode', () => {
+    const record = buildRecord('run-1', {
+      beds: {
+        H2C1: {
+          bedId: 'H2C1',
+          patientName: 'Paciente en conflicto',
+          clinicalEpisodeId: 'episode-blocked',
+        },
+      } as unknown as DailyRecord['beds'],
+    });
+    const diff = {
+      conflicts: [{ bedId: 'H2C1', reason: 'Identidad ambigua en la cama.' }],
+    } as CensusImportDiff;
+
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      { date: record.date, runId: 'run-1', diff }
+    );
+
+    expect(handoff.safeClinicalEpisodeIds).toEqual([]);
+    expect(resolveStructuralStageResult(handoff)).toEqual({
+      status: 'blocked',
+      reasons: handoff.isolatedConflicts,
+    });
+  });
+
+  it('blocks every episode when a structural conflict has no isolatable scope', () => {
+    const record = buildRecord('run-1', {
+      beds: {
+        H1C1: {
+          bedId: 'H1C1',
+          patientName: 'Paciente seguro en apariencia',
+          clinicalEpisodeId: 'episode-unknown-scope',
+        },
+      } as unknown as DailyRecord['beds'],
+    });
+    const diff = {
+      conflicts: [{ bedId: null, reason: 'La evidencia no identifica una cama ni episodio.' }],
+    } as CensusImportDiff;
+
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      { date: record.date, runId: 'run-1', diff }
+    );
+
+    expect(handoff.safeClinicalEpisodeIds).toEqual([]);
+    expect(resolveStructuralStageResult(handoff)).toEqual({
+      status: 'blocked',
+      reasons: handoff.isolatedConflicts,
+    });
   });
 
   it.each([

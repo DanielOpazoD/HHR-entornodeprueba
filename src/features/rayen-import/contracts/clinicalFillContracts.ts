@@ -10,6 +10,8 @@ import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
 export interface ClinicalFillDeps {
   /** Correlates aggregate diagnostics with the user-initiated synchronization run. */
   diagnosticRunId?: string;
+  /** Limits enrichment to structurally confirmed episodes from the accepted census revision. */
+  allowedClinicalEpisodeIds?: readonly string[];
   nurseCatalog?: string[];
   tensCatalog?: string[];
   fetchDeviceReport: (

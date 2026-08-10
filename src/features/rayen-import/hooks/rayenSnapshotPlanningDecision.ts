@@ -8,7 +8,8 @@ export const hasNoApplicableRayenStructuralChanges = (diff: CensusImportDiff): b
     diff.updates.length +
     diff.moves.length +
     diff.discharges.length +
-    (diff.reportEgresos?.length ?? 0);
+    (diff.reportEgresos?.length ?? 0) +
+    (diff.previousDayEdits?.length ?? 0);
   return applicableChanges === 0;
 };
 
@@ -21,3 +22,18 @@ export const resolveRayenSnapshotPlanningStage = (
   if (hasUnresolvedConflicts) return { type: 'needs_review', scope: 'structure' };
   return { type: 'awaiting_review' };
 };
+
+export const shouldOpenRayenSnapshotPreview = ({
+  persistenceCompleted,
+  hasUnresolvedConflicts,
+  hasNoApplicableChanges,
+  requiresFreshCapture,
+}: {
+  persistenceCompleted: boolean;
+  hasUnresolvedConflicts: boolean;
+  hasNoApplicableChanges: boolean;
+  requiresFreshCapture: boolean;
+}): boolean =>
+  persistenceCompleted
+    ? hasUnresolvedConflicts || requiresFreshCapture
+    : !hasNoApplicableChanges || hasUnresolvedConflicts;

@@ -7,16 +7,11 @@ import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { useRayenImportMode } from './useRayenImportMode';
-import {
-  getRayenImportErrorMessage,
-  INITIAL_RAYEN_IMPORT_STATE,
-  type RayenImportState,
-} from './rayenImportState';
+import { INITIAL_RAYEN_IMPORT_STATE, type RayenImportState } from './rayenImportState';
 import { useRayenSyncAudit } from './useRayenSyncAudit';
 import { useRayenClinicalFill } from './useRayenClinicalFill';
 import { useHistoricalCudyrPersistence } from './useHistoricalCudyrPersistence';
 import { useRayenSnapshotPreview } from './useRayenSnapshotPreview';
-import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import { useNursesQuery, useTensQuery } from '@/hooks/useStaffQuery';
 import { invalidateRayenFillAttempt, reportRayenStaffingOutcome } from './useRayenFillStatus';
 import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActions';
@@ -29,15 +24,7 @@ import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
 import { shouldPreservePostImportFlow } from '../domain/rayenPreviewClosePolicy';
 import { useRayenImportCapture } from './useRayenImportCapture';
-import { requestHistoryScales } from '../bridge/rayenImportBridge';
-import { collectNursingStaffingProposal } from '../domain/collectNursingStaffingProposal';
-import {
-  hasNursingShiftReview,
-  reconcileNursingShiftProposal,
-} from '../domain/applyNursingShiftProposal';
 import type { PreparedRayenSyncContext } from './rayenSyncTemporalContext';
-import { canWritePreviousDay } from '../domain/previousDayCorrections';
-import { isNursingStaffingCollectionContextCurrent } from '../domain/nursingStaffingCollectionContext';
 import { useRayenSyncExecutionController } from './useRayenSyncExecutionController';
 import {
   isRayenSyncExecutionActive,
@@ -45,6 +32,8 @@ import {
 } from './rayenSyncExecutionState';
 import { createRayenSyncPersistenceQueue } from './rayenSyncPersistenceQueue';
 import { useRayenImportConfirmation } from './useRayenImportConfirmation';
+import type { RayenStructuralReplan } from './rayenStructuralConvergence';
+import { useRayenStaffingProposalReview } from './useRayenStaffingProposalReview';
 export const useRayenImport = (selectedCensusDate?: string) => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
@@ -69,23 +58,16 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     importState: state,
     setImportState: setStateFromReact,
   });
-  const [staffingProposal, setStaffingProposal] = useState<NursingStaffingProposal | null>(null);
-  const [isStaffingProposalBusy, setIsStaffingProposalBusy] = useState(false);
-  const [staffingProposalError, setStaffingProposalError] = useState<string | null>(null);
   const { controller: syncRequestController, cancel: clearSyncTimeout } =
     useRayenSyncRequestController();
   const preparedSyncContextRef = useRef<PreparedRayenSyncContext | null>(null);
+  const structuralReplanRef = useRef<RayenStructuralReplan | null>(null);
   const persistenceQueueRef = useRef(createRayenSyncPersistenceQueue());
-  const staffingRefreshInFlightRef = useRef(false);
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
   const currentRecordRef = useRef(currentRecord);
   useEffect(() => {
     currentRecordRef.current = currentRecord;
   }, [currentRecord]);
-  useEffect(() => {
-    setStaffingProposal(null);
-    setStaffingProposalError(null);
-  }, [currentRecord?.date]);
   const { mutateAsync: patchDailyRecord } = dailyRecordQuery.usePatchDailyRecordMutation(
     currentRecord?.date ?? ''
   );
@@ -120,7 +102,6 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     getRun,
     recordRunPerformance,
     applyRunToRecord,
-    persistAppliedRun,
     completeRun,
     failRun,
     cancelRun,
@@ -160,6 +141,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
 
     clearSyncTimeout();
     preparedSyncContextRef.current = null;
+    structuralReplanRef.current = null;
     dispatchExecution({ type: 'cancel' });
     dispatchExecution({ type: 'reset' });
     setState(INITIAL_RAYEN_IMPORT_STATE);
@@ -176,62 +158,22 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       dailyRecord,
       isAdmin,
     });
-  const refreshStaffingProposal = useCallback(async (): Promise<NursingStaffingProposal | null> => {
-    if (staffingRefreshInFlightRef.current) return null;
-    staffingRefreshInFlightRef.current = true;
-    setIsStaffingProposalBusy(true);
-    setStaffingProposalError(null);
-    try {
-      const base = currentRecordRef.current ?? currentRecord;
-      if (!base) throw new Error('No existe un censo abierto para revisar la dotación.');
-      const freshRecord = await loadFreshClinicalRecord(base.date);
-      const proposal = await collectNursingStaffingProposal(freshRecord, {
-        fetchHistory: (encounterId, censusDate) =>
-          requestHistoryScales(encounterId, censusDate, { lookbackDays: 2 }),
-        nurseCatalog: nursesList,
-        tensCatalog: tensList,
-      });
-      const latestRecord = await loadFreshClinicalRecord(freshRecord.date);
-      if (
-        !isNursingStaffingCollectionContextCurrent(
-          freshRecord,
-          latestRecord,
-          currentRecordRef.current?.date
-        )
-      ) {
-        throw new Error(
-          'El censo cambió mientras se revisaba la dotación. Vuelve a intentarlo con la versión vigente.'
-        );
-      }
-      const reconciled = reconcileNursingShiftProposal(freshRecord, {
-        ...proposal,
-        sourceLastUpdated: freshRecord.lastUpdated,
-      });
-      if (!canWritePreviousDay(reconciled.censusDate, isAdmin)) {
-        setStaffingProposal(null);
-        setStaffingProposalError(
-          'Este censo está fuera de la ventana de edición de dotación clínica.'
-        );
-        reportRayenStaffingOutcome(
-          hasPendingStaffingDecision(reconciled) ? 'declined' : 'resolved'
-        );
-        return null;
-      }
-      const review = hasNursingShiftReview(reconciled) ? reconciled : null;
-      setStaffingProposal(review);
-      if (!review) setStaffingProposalError('No hay cambios de dotación pendientes de revisión.');
-      reportRayenStaffingOutcome(
-        review && hasPendingStaffingDecision(review) ? 'pending' : 'resolved'
-      );
-      return review;
-    } catch (error) {
-      setStaffingProposalError(getRayenImportErrorMessage(error));
-      return null;
-    } finally {
-      staffingRefreshInFlightRef.current = false;
-      setIsStaffingProposalBusy(false);
-    }
-  }, [currentRecord, isAdmin, loadFreshClinicalRecord, nursesList, tensList]);
+  const {
+    staffingProposal,
+    setStaffingProposal,
+    isStaffingProposalBusy,
+    setIsStaffingProposalBusy,
+    staffingProposalError,
+    setStaffingProposalError,
+    refreshStaffingProposal,
+  } = useRayenStaffingProposalReview({
+    currentRecord,
+    currentRecordRef,
+    isAdmin,
+    nurseCatalog: nursesList,
+    tensCatalog: tensList,
+    loadFreshClinicalRecord,
+  });
   const fillDevicesInBackground = useRayenClinicalFill({
     nurseCatalog: nursesList,
     tensCatalog: tensList,
@@ -254,13 +196,13 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     selectedDateRef,
     clearSyncTimeout,
     applyDiff,
-    persistAppliedRun,
     fillDevicesInBackground,
     failRun: failRunSerialized,
     ensureRun,
     getRun,
     recordRunPerformance,
     preparedSyncContextRef,
+    structuralReplanRef,
     runSerializedPersistence,
   });
   const triggerImport = useRayenImportCapture({
@@ -314,6 +256,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     dispatchExecution,
     transitionExecution,
     preparedSyncContextRef,
+    structuralReplanRef,
     selectedDateRef,
     dailyRecord,
     isAdmin,
@@ -340,6 +283,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       dispatchExecution({ type: 'cancel', runId });
       clearSyncTimeout();
       preparedSyncContextRef.current = null;
+      structuralReplanRef.current = null;
     }
     if (!cancellableBeforeCommit && shouldPreservePostImportFlow(state.diff, state.result)) {
       setState(prev => ({ ...prev, isPreviewOpen: false }));
@@ -354,7 +298,18 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     setStaffingProposal(null);
     setStaffingProposalError(null);
     setState(prev => ({ ...prev, isPreviewOpen: false, isSyncing: false }));
-  }, [cancelRun, clearSyncTimeout, dispatchExecution, executionRef, setState, staffingProposal, state.diff, state.result]);
+  }, [
+    cancelRun,
+    clearSyncTimeout,
+    dispatchExecution,
+    executionRef,
+    setState,
+    setStaffingProposal,
+    setStaffingProposalError,
+    staffingProposal,
+    state.diff,
+    state.result,
+  ]);
   return useMemo(
     () => ({
       mode,

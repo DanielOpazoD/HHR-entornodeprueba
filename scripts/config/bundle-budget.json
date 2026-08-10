@@ -26,7 +26,8 @@
     "^assets/applyHistoricalCudyr-.*\\.js$",
     "^assets/clinicalFillRunner-.*\\.js$",
     "^assets/clinicalEnrichmentBatchPayload-.*\\.js$",
-    "^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$"
+    "^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$",
+    "^assets/replanRayenStructure-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [
