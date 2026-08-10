@@ -121,15 +121,16 @@ export const useRayenImportConfirmation = ({
         const hasPendingHistoricalCorrections = result.historicalCorrectionsPending;
         const hasHistoricalFollowUp =
           skippedPreviousDays || hasPendingHistoricalCorrections || requiresFreshCapture;
+        const structuralConflicts = Math.max(
+          appliedDiff.conflicts.length,
+          appliedDiff.summary.conflicts
+        );
         const isCurrent = isRayenSyncExecutionCurrent(executionRef.current, executionIdentity);
         if (isCurrent) {
           dispatchExecution({
             type: 'record_outcome',
             ...executionIdentity,
-            structuralConflicts: Math.max(
-              appliedDiff.conflicts.length,
-              appliedDiff.summary.conflicts
-            ),
+            structuralConflicts,
             skippedItems: Number(hasHistoricalFollowUp) + result.skipped.length,
           });
           const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
@@ -139,7 +140,7 @@ export const useRayenImportConfirmation = ({
             ...(isExecutionDateVisible
               ? {
                   diff: appliedDiff,
-                  isPreviewOpen: appliedDiff.summary.conflicts > 0 || requiresFreshCapture,
+                  isPreviewOpen: structuralConflicts > 0 || requiresFreshCapture,
                   result,
                   hasSkippedItems: hasHistoricalFollowUp || result.skipped.length > 0,
                   error: correctionError ?? null,

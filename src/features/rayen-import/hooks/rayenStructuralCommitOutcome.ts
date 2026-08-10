@@ -1,4 +1,7 @@
-import type { ConfirmedRayenImportResult } from './confirmRayenImport';
+import {
+  hasSkippedPreviousDayCorrections,
+  type ConfirmedRayenImportResult,
+} from './confirmRayenImport';
 import { applyRayenHistoricalCorrectionState } from './rayenCensusPersistenceGuard';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
 
@@ -10,10 +13,11 @@ export const summarizeRayenStructuralCommit = (
     result.appliedDiff.conflicts.length,
     result.appliedDiff.summary.conflicts
   );
-  const skippedItems =
-    result.skipped.length +
-    Number(result.historicalCorrectionsPending) +
-    Number(requiresFreshCapture);
+  const hasHistoricalFollowUp =
+    result.historicalCorrectionsPending ||
+    hasSkippedPreviousDayCorrections(result.appliedDiff, false) ||
+    requiresFreshCapture;
+  const skippedItems = result.skipped.length + Number(hasHistoricalFollowUp);
 
   return {
     diff: result.appliedDiff,

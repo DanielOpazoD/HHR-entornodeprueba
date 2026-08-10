@@ -203,7 +203,7 @@ export const useRayenSnapshotPreview = ({
             setState(prev => ({
               ...prev,
               diff: committed.diff,
-              isPreviewOpen: committed.diff.summary.conflicts > 0,
+              isPreviewOpen: committed.structuralConflicts > 0,
               isBusy: false,
               result,
               hasSkippedItems: committed.hasSkippedItems,
@@ -282,7 +282,7 @@ export const useRayenSnapshotPreview = ({
           const committed = summarizeRayenStructuralCommit(result, false);
           noChangeResult = result;
           diff = committed.diff;
-          hasUnresolvedConflicts = Math.max(diff.conflicts.length, diff.summary.conflicts) > 0;
+          hasUnresolvedConflicts = committed.structuralConflicts > 0;
           hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
           noChangePersistenceCompleted = true;
           const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
@@ -306,8 +306,7 @@ export const useRayenSnapshotPreview = ({
             const committed = summarizeRayenStructuralCommit(committedResult, true);
             noChangeResult = committedResult;
             diff = committed.diff;
-            hasUnresolvedConflicts =
-              Math.max(diff.conflicts.length, diff.summary.conflicts) > 0;
+            hasUnresolvedConflicts = committed.structuralConflicts > 0;
             hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
             noChangePersistenceCompleted = true;
             noChangeClinicalStarted = true;

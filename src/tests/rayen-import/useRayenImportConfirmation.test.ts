@@ -104,7 +104,11 @@ describe('useRayenImportConfirmation execution ownership', () => {
     );
 
     const confirmation = result.current();
-    executionRef.current = { ...executionRef.current, stage: { type: 'cancelled' } };
+    executionRef.current = {
+      ...executionRef.current,
+      context: { ...executionRef.current.context, requestId: 'request-2' },
+      stage: { type: 'cancelled' },
+    };
     resolvePersistence({
       appliedDiff: diff,
       skipped: [],
