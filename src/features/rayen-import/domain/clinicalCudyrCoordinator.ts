@@ -28,7 +28,7 @@ interface ClinicalCudyrCoordinatorInput {
   ) => Promise<HistoricalCudyrApplyResult>;
   enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>;
   onHistoricalPatch: () => void;
-  onError: (bedId: string, message: string) => void;
+  onError: (bedId: string, clinicalEpisodeId: string, message: string) => void;
 }
 
 const errorMessage = (error: unknown): string =>
@@ -94,11 +94,16 @@ export const createClinicalCudyrCoordinator = ({
         historicalChanged = Boolean(result?.changed);
         if (historicalChanged) onHistoricalPatch();
         if (!result?.persisted && !notApplicable) {
-          onError(bedId, `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}.`);
+          onError(
+            bedId,
+            clinicalEpisodeId,
+            `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}.`
+          );
         }
       } catch (error) {
         onError(
           bedId,
+          clinicalEpisodeId,
           `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}: ${errorMessage(error)}`
         );
       }

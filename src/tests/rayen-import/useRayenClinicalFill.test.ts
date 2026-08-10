@@ -1,7 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenClinicalFill } from '@/features/rayen-import/hooks/useRayenClinicalFill';
-import { mergeClinicalRetrySummary } from '@/features/rayen-import/domain/clinicalStageResolution';
+import {
+  mergeClinicalRetrySummary,
+  resolveClinicalStageResult,
+} from '@/features/rayen-import/domain/clinicalStageResolution';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import { resetRayenClinicalFillQueueForTests } from '@/features/rayen-import/domain/rayenClinicalFillQueue';
 
@@ -295,6 +298,149 @@ describe('useRayenClinicalFill', () => {
     });
   });
 
+  it('reports failure when every episode candidate on the same bed failed', () => {
+    const record = {
+      date: '2026-07-14',
+      beds: {
+        R1: {
+          bedId: 'R1',
+          patientName: 'Paciente',
+          clinicalEpisodeId: 'episode-mother',
+          clinicalCrib: {
+            patientName: 'RN Paciente',
+            clinicalEpisodeId: 'episode-newborn',
+          },
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+    } as unknown as DailyRecord;
+
+    expect(
+      resolveClinicalStageResult(
+        record,
+        record,
+        undefined,
+        {
+          total: 2,
+          patched: 0,
+          errors: [
+            {
+              bedId: 'R1',
+              clinicalEpisodeId: 'episode-mother',
+              source: 'patch',
+              message: 'mother_failed',
+            },
+            {
+              bedId: 'R1',
+              clinicalEpisodeId: 'episode-newborn',
+              source: 'patch',
+              message: 'newborn_failed',
+            },
+          ],
+        },
+        false
+      )
+    ).toEqual({
+      status: 'failed',
+      retry: expect.objectContaining({
+        pendingClinicalEpisodeIds: ['episode-mother', 'episode-newborn'],
+      }),
+    });
+  });
+
+  it('reports partial when one of two episode candidates on the same bed completes', () => {
+    const record = {
+      date: '2026-07-14',
+      beds: {
+        R1: {
+          bedId: 'R1',
+          patientName: 'Paciente',
+          clinicalEpisodeId: 'episode-mother',
+          clinicalCrib: {
+            patientName: 'RN Paciente',
+            clinicalEpisodeId: 'episode-newborn',
+          },
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+    } as unknown as DailyRecord;
+
+    expect(
+      resolveClinicalStageResult(
+        record,
+        record,
+        undefined,
+        {
+          total: 2,
+          patched: 0,
+          errors: [
+            {
+              bedId: 'R1',
+              clinicalEpisodeId: 'episode-mother',
+              source: 'patch',
+              message: 'mother_failed',
+            },
+          ],
+        },
+        false
+      )
+    ).toEqual({
+      status: 'partial',
+      retry: expect.objectContaining({
+        pendingClinicalEpisodeIds: ['episode-mother', 'episode-newborn'],
+      }),
+    });
+  });
+
+  it('reports failure when duplicate candidate representations of one episode all fail', () => {
+    const record = {
+      date: '2026-07-14',
+      beds: {
+        R1: {
+          bedId: 'R1',
+          patientName: 'Paciente',
+          clinicalEpisodeId: 'episode-moved',
+        },
+        R2: {
+          bedId: 'R2',
+          patientName: 'Paciente',
+          clinicalEpisodeId: 'episode-moved',
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+    } as unknown as DailyRecord;
+
+    expect(
+      resolveClinicalStageResult(
+        record,
+        record,
+        undefined,
+        {
+          total: 2,
+          patched: 0,
+          errors: [
+            {
+              bedId: 'R1',
+              clinicalEpisodeId: 'episode-moved',
+              source: 'patch',
+              message: 'episode_failed',
+            },
+          ],
+        },
+        false
+      )
+    ).toEqual({
+      status: 'failed',
+      retry: expect.objectContaining({ pendingClinicalEpisodeIds: ['episode-moved'] }),
+    });
+  });
+
   it('does not count a clinically successful target twice when only audit completion is retried', () => {
     const merged = mergeClinicalRetrySummary(
       {
@@ -312,5 +458,4 @@ describe('useRayenClinicalFill', () => {
 
     expect(merged).toMatchObject({ total: 1, patched: 1, errors: [] });
   });
-
 });

@@ -178,9 +178,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
         createId: () => 'id',
       })
     );
-    const handoff = markRayenHistoricalCorrectionsRequireFreshCapture(
-      confirmedHandoff(record)
-    );
+    const handoff = markRayenHistoricalCorrectionsRequireFreshCapture(confirmedHandoff(record));
 
     let clinicalResult;
     await act(async () => {
@@ -285,7 +283,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
     } as unknown as DailyRecord;
     const authoritativeQueuedRecord = {
       ...queuedRecord,
-      nurseDayShift: ['Profesional vigente'],
+      nursesDayShift: ['Profesional vigente'],
     } as unknown as DailyRecord;
     const loadDailyRecord = vi.fn().mockResolvedValue(authoritativeQueuedRecord);
     const completeRun = vi.fn((record: DailyRecord) => {
@@ -353,7 +351,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       transfers: [],
       cma: [],
       rayenSync: { runId: 'run-queued' },
-      nurseDayShift: ['Profesional vigente'],
+      nursesDayShift: ['Profesional vigente'],
     } as unknown as DailyRecord;
     const loadDailyRecord = vi.fn().mockResolvedValue(authoritativeQueuedRecord);
     const completeRun = vi.fn((record: DailyRecord) => {

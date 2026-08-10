@@ -5,11 +5,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
-import type { ConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
-import type {
-  ClinicalFillRequest,
-  ClinicalStageResult,
-} from '../contracts/clinicalStageResult';
+import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { RayenImportState } from './rayenImportState';
 import type { PreparedRayenSyncContext } from './rayenSyncTemporalContext';
 import type { RayenSyncExecutionAction, RayenSyncExecutionState } from './rayenSyncExecutionState';

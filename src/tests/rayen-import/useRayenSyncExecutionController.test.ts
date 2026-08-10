@@ -61,6 +61,41 @@ describe('useRayenSyncExecutionController', () => {
     expect(result.current.controller.execution.stage).toEqual({ type: 'complete' });
   });
 
+  it('settles a partial clinical result as a clinical-only retry', () => {
+    const { result } = renderHook(useControllerHarness);
+    act(() => {
+      expect(result.current.controller.startClinicalRetry('partial-run', '2026-08-08')).toBe(true);
+      result.current.controller.finishClinicalSync(
+        {
+          status: 'partial',
+          retry: {
+            type: 'clinical_retry',
+            source: {} as never,
+            pendingClinicalEpisodeIds: ['episode-1'],
+          },
+        },
+        'partial-run'
+      );
+    });
+
+    expect(result.current.importState.isSyncing).toBe(false);
+    expect(result.current.controller.execution.stage).toEqual({
+      type: 'partial',
+      retry: 'clinical_only',
+    });
+  });
+
+  it('settles an unretryable clinical failure as failed', () => {
+    const { result } = renderHook(useControllerHarness);
+    act(() => {
+      expect(result.current.controller.startClinicalRetry('failed-run', '2026-08-08')).toBe(true);
+      result.current.controller.finishClinicalSync({ status: 'failed' }, 'failed-run');
+    });
+
+    expect(result.current.importState.isSyncing).toBe(false);
+    expect(result.current.controller.execution.stage).toEqual({ type: 'failed' });
+  });
+
   it('does not let a persisted retry replace a newer active execution', () => {
     const { result } = renderHook(useControllerHarness);
 
@@ -120,10 +155,7 @@ describe('useRayenSyncExecutionController', () => {
         structuralConflicts: 1,
         skippedItems: 1,
       });
-      result.current.controller.transitionExecution(
-        { type: 'syncing_clinical' },
-        'run-old-date'
-      );
+      result.current.controller.transitionExecution({ type: 'syncing_clinical' }, 'run-old-date');
       result.current.controller.setImportStateCurrent(previous => ({
         ...previous,
         diff: null,

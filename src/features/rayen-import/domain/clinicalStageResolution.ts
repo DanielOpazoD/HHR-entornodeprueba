@@ -1,9 +1,6 @@
 import type { ClinicalFillSummary } from '../contracts/clinicalFillContracts';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type {
-  ClinicalRetryToken,
-  ClinicalStageResult,
-} from '../contracts/clinicalStageResult';
+import type { ClinicalRetryToken, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { ConfirmedRayenCensusHandoff } from '../hooks/rayenCensusPersistenceGuard';
 import type { RayenSyncStructuralReviewEvidence } from '@/types/domain/rayenSync';
 import { collectClinicalFillCandidates } from './clinicalFillCandidates';
@@ -98,6 +95,29 @@ export const resolveClinicalStageResult = (
   const failedBedIds = hasGlobalFailure
     ? undefined
     : new Set(summary.errors.map(error => error.bedId));
+  const eligibleCandidates = collectClinicalFillCandidates(record, allowedClinicalEpisodeIds);
+  const eligibleEpisodeIds = new Set(
+    eligibleCandidates.flatMap(candidate =>
+      candidate.patient.clinicalEpisodeId ? [candidate.patient.clinicalEpisodeId] : []
+    )
+  );
+  const failedEpisodeIds = new Set(
+    summary.errors.flatMap(error =>
+      error.clinicalEpisodeId && eligibleEpisodeIds.has(error.clinicalEpisodeId)
+        ? [error.clinicalEpisodeId]
+        : []
+    )
+  );
+  const unscopedFailedBedIds = new Set(
+    summary.errors.flatMap(error =>
+      !error.clinicalEpisodeId && error.bedId !== '*' ? [error.bedId] : []
+    )
+  );
+  for (const candidate of eligibleCandidates) {
+    if (unscopedFailedBedIds.has(candidate.bedId) && candidate.patient.clinicalEpisodeId) {
+      failedEpisodeIds.add(candidate.patient.clinicalEpisodeId);
+    }
+  }
   const retryRequest = buildClinicalRetryToken(
     source,
     record,
@@ -108,7 +128,7 @@ export const resolveClinicalStageResult = (
   const hasCompletedTargets =
     summary.patched > 0 ||
     completionFailed ||
-    (!hasGlobalFailure && failedBedIds !== undefined && failedBedIds.size < summary.total);
+    (!hasGlobalFailure && failedEpisodeIds.size < eligibleEpisodeIds.size);
   return hasCompletedTargets
     ? { status: 'partial', retry: retryRequest }
     : { status: 'failed', retry: retryRequest };

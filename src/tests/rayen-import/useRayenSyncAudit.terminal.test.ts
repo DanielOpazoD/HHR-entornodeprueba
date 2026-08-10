@@ -288,6 +288,72 @@ describe('useRayenSyncAudit terminal outcomes', () => {
     );
   });
 
+  it('keeps a missing audit event nonterminal and reports the later successful retry once', async () => {
+    const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
+    const currentRecordRef = { current: record() };
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { result } = renderHook(() =>
+      useRayenSyncAudit({
+        currentRecordRef,
+        patchDailyRecord,
+        actor: 'Operador HHR',
+        createId: () => 'missing-event-run',
+      })
+    );
+    act(() => result.current.startRun());
+    const applied = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
+    const recordWithoutAuditEvent = { ...applied, rayenSyncHistory: [] };
+    currentRecordRef.current = recordWithoutAuditEvent;
+
+    await act(async () => {
+      await result.current.completeRun(recordWithoutAuditEvent, {
+        total: 1,
+        patched: 1,
+        errors: [],
+      });
+    });
+
+    expect(
+      logger
+        .getEntries()
+        .filter(
+          entry => entry.context === 'RayenSync' && entry.message === 'sync_audit_event_missing'
+        )
+    ).toHaveLength(1);
+    expect(
+      logger
+        .getEntries()
+        .filter(entry => entry.context === 'RayenSync' && entry.message === 'run_terminal')
+    ).toHaveLength(0);
+
+    currentRecordRef.current = applied;
+    await act(async () => {
+      await result.current.completeRun(applied, {
+        total: 1,
+        patched: 1,
+        errors: [],
+      });
+    });
+
+    expect(patchDailyRecord).toHaveBeenCalledTimes(1);
+    expect(patchDailyRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rayenSyncHistory: [
+          expect.objectContaining({ id: 'missing-event-run', status: 'complete' }),
+        ],
+      })
+    );
+
+    await act(async () => {
+      await result.current.completeRun(applied, {
+        total: 1,
+        patched: 1,
+        errors: [],
+      });
+    });
+    expect(patchDailyRecord).toHaveBeenCalledTimes(1);
+  });
+
   it('fails the correlated older run without terminalizing a newer active capture', async () => {
     const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
     const ids = ['older-run', 'newer-run'];

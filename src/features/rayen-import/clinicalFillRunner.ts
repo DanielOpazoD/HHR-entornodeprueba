@@ -15,6 +15,7 @@ import { createClinicalCheckpointAccumulator } from './domain/clinicalCheckpoint
 import { createClinicalWriteCoordinator } from './domain/clinicalWriteCoordinator';
 import type {
   ClinicalFillDeps,
+  ClinicalFillError,
   ClinicalFillPatchOperation,
   ClinicalFillProgress,
   ClinicalFillSummary,
@@ -118,14 +119,11 @@ export const runClinicalFill = async (
     applySingle: deps.applyHistoricalCudyr,
     enqueueWrite: writes.enqueue,
     onHistoricalPatch: performance.recordHistoricalPatch,
-    onError: (bedId, errorMessage) =>
-      summary.errors.push({ bedId, source: 'cudyr', message: errorMessage }),
+    onError: (bedId, clinicalEpisodeId, errorMessage) =>
+      summary.errors.push({ bedId, clinicalEpisodeId, source: 'cudyr', message: errorMessage }),
   });
   let done = 0;
-  const report = (): void => {
-    done += 1;
-    onProgress?.({ done, total: eligible.length });
-  };
+  const report = () => void onProgress?.({ done: ++done, total: eligible.length });
   const fillPatient = async (
     bedId: string,
     patient: PatientData,
@@ -133,6 +131,8 @@ export const runClinicalFill = async (
   ): Promise<void> => {
     const encId = patient.clinicalEpisodeId;
     if (!encId) return;
+    const reportPatientError = (source: ClinicalFillError['source'], errorMessage: string): void =>
+      void summary.errors.push({ bedId, clinicalEpisodeId: encId, source, message: errorMessage });
     let merged = patient;
     let historicalCudyrPatched = false;
     const recordIncrementalFacts = createClinicalCheckpointAccumulator(
@@ -179,7 +179,7 @@ export const runClinicalFill = async (
       withFormsReadSlot(() => performance.trackRequest(() => deps.fetchScalesForms(encId))),
     ]);
     if (deviceResult.status === 'rejected') {
-      summary.errors.push({ bedId, source: 'devices', message: message(deviceResult.reason) });
+      reportPatientError('devices', message(deviceResult.reason));
     } else {
       try {
         const devices =
@@ -195,7 +195,7 @@ export const runClinicalFill = async (
           });
         }
       } catch (error) {
-        summary.errors.push({ bedId, source: 'devices', message: message(error) });
+        reportPatientError('devices', message(error));
       }
     }
     // One forms read supplies both scales and vital signs.
@@ -203,8 +203,8 @@ export const runClinicalFill = async (
       formsResult.status === 'rejected' ? message(formsResult.reason) : formsResult.value.error;
     if (formsResult.status === 'fulfilled') performance.recordTimeout(formsResult.value.error);
     if (formsReadError) {
-      summary.errors.push({ bedId, source: 'scales', message: formsReadError });
-      summary.errors.push({ bedId, source: 'vitals', message: formsReadError });
+      reportPatientError('scales', formsReadError);
+      reportPatientError('vitals', formsReadError);
     }
     const forms =
       formsResult.status === 'fulfilled' && !formsReadError ? formsResult.value.forms : [];
@@ -214,8 +214,8 @@ export const runClinicalFill = async (
         : historyResult.value.error;
     if (historyResult.status === 'fulfilled') performance.recordTimeout(historyResult.value.error);
     if (historyReadError) {
-      summary.errors.push({ bedId, source: 'scales', message: historyReadError });
-      summary.errors.push({ bedId, source: 'staffing', message: historyReadError });
+      reportPatientError('scales', historyReadError);
+      reportPatientError('staffing', historyReadError);
     }
     const historyAuthoritative = historyResult.status === 'fulfilled' && !historyReadError;
     const formsAuthoritative = formsResult.status === 'fulfilled' && !formsReadError;
@@ -287,7 +287,7 @@ export const runClinicalFill = async (
         );
       }
     } catch (error) {
-      summary.errors.push({ bedId, source: 'scales', message: message(error) });
+      reportPatientError('scales', message(error));
     }
 
     try {
@@ -304,7 +304,7 @@ export const runClinicalFill = async (
         );
       }
     } catch (error) {
-      summary.errors.push({ bedId, source: 'vitals', message: message(error) });
+      reportPatientError('vitals', message(error));
     }
 
     try {
@@ -312,7 +312,7 @@ export const runClinicalFill = async (
       merged = cudyrResult.patient;
       historicalCudyrPatched = cudyrResult.historicalChanged;
     } catch (error) {
-      summary.errors.push({ bedId, source: 'cudyr', message: message(error) });
+      reportPatientError('cudyr', message(error));
     }
 
     if (merged === patient) {
@@ -361,7 +361,7 @@ export const runClinicalFill = async (
       );
       if (clinicalFieldCount > 0 || historicalCudyrPatched) summary.patched += 1;
     } catch (error) {
-      summary.errors.push({ bedId, source: 'patch', message: message(error) });
+      reportPatientError('patch', message(error));
     }
   };
 

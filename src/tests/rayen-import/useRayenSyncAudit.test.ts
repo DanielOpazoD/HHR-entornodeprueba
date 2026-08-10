@@ -246,7 +246,7 @@ describe('useRayenSyncAudit', () => {
     );
   });
 
-  it('releases an active run when its persisted audit event disappeared', async () => {
+  it('releases the terminal claim when its persisted audit event disappeared', async () => {
     const patchDailyRecord = vi.fn().mockResolvedValue(undefined);
     const currentRecordRef = { current: record() };
     const ids = ['missing-run', 'next-run'];
@@ -272,7 +272,7 @@ describe('useRayenSyncAudit', () => {
     const nextApplied = result.current.applyRunToRecord(currentRecordRef.current, diff()).record;
 
     expect(patchDailyRecord).not.toHaveBeenCalled();
-    expect(nextApplied.rayenSync?.runId).toBe('next-run');
+    expect(nextApplied.rayenSync?.runId).toBe('missing-run');
   });
 
   it('does not persist a cancelled preview', async () => {

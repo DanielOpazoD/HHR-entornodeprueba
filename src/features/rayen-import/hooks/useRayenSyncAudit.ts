@@ -261,8 +261,8 @@ export const useRayenSyncAudit = ({
           if (base.rayenSync?.runId === runId) patch.rayenSync = rayenSyncMetaFromEvent(event);
           return { patch, value: event };
         });
-        if (claim) lifecycle.commitTerminal(claim);
         if (completedEvent) {
+          if (claim) lifecycle.commitTerminal(claim);
           if (claim) {
             reportRayenSyncTerminal(
               claim.run ?? { id: completedEvent.id, startedAt: completedEvent.startedAt },
@@ -272,14 +272,8 @@ export const useRayenSyncAudit = ({
             );
           }
         } else {
+          if (claim) lifecycle.releaseTerminal(claim);
           reportRayenSyncWarning('sync_audit_event_missing', { runId });
-          reportRayenSyncTerminal(
-            claim?.run ?? {
-              id: runId,
-              startedAt: recordAtApply.rayenSync?.at ?? now().toISOString(),
-            },
-            'failed'
-          );
         }
       } catch (error) {
         reportRayenSyncWarning('sync_audit_persist_failed', {
