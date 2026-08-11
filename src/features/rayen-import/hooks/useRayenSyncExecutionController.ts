@@ -131,6 +131,11 @@ export const useRayenSyncExecutionController = ({
         importSettlement.result?.skipped.length ?? 0,
         Number(importSettlement.hasSkippedItems)
       );
+      const requiresPostCommitReview =
+        structuralConflicts > 0 ||
+        skippedItems > 0 ||
+        executionRef.current.outcome.structuralConflicts > 0 ||
+        executionRef.current.outcome.skippedItems > 0;
 
       // Some structural paths settle the clinical queue in the same tick as the reviewed diff.
       // Promote those facts into the canonical execution before choosing a terminal stage so a
@@ -144,10 +149,7 @@ export const useRayenSyncExecutionController = ({
       setImportStateCurrent(previous =>
         previous.isSyncing ? { ...previous, isSyncing: false } : previous
       );
-      if (
-        executionRef.current.outcome.structuralConflicts > 0 ||
-        executionRef.current.outcome.skippedItems > 0
-      ) {
+      if (requiresPostCommitReview) {
         transitionExecution({ type: 'needs_review', scope: 'post_commit' }, effectiveRunId);
         return;
       }
