@@ -8,6 +8,7 @@ import {
   resolveDetailedStaffingState,
   resolveShiftRoleStaffingMeta,
 } from '@/services/staff/dailyRecordDetailedStaffing';
+import { resolveDetailedStaffingStandardNames } from '@/services/staff/dailyRecordStaffingStandardNames';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
 import {
   getActiveDischarges,
@@ -63,12 +64,18 @@ interface AdmissionsInput {
 const ensureStringArray = (value?: string[] | null): string[] =>
   Array.isArray(value) ? value : [];
 
-export const resolveStaffSelectorsState = (input?: StaffInput | null): StaffSelectorsState => ({
-  nursesDayShift: ensureStringArray(input?.nursesDayShift),
-  nursesNightShift: ensureStringArray(input?.nursesNightShift),
-  tensDayShift: ensureStringArray(input?.tensDayShift),
-  tensNightShift: ensureStringArray(input?.tensNightShift),
-});
+export const resolveStaffSelectorsState = (input?: StaffInput | null): StaffSelectorsState => {
+  if (input?.date) {
+    return resolveDetailedStaffingStandardNames(resolveDetailedStaffingState(input, input.date));
+  }
+
+  return {
+    nursesDayShift: ensureStringArray(input?.nursesDayShift),
+    nursesNightShift: ensureStringArray(input?.nursesNightShift),
+    tensDayShift: ensureStringArray(input?.tensDayShift),
+    tensNightShift: ensureStringArray(input?.tensNightShift),
+  };
+};
 
 const EMPTY_SHIFT_INDICATOR: ShiftIndicatorState = {
   extraCount: 0,

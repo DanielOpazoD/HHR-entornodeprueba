@@ -6,6 +6,7 @@ import type {
   DetailedStaffingRole,
   DetailedStaffingShift,
 } from '@/services/contracts/dailyRecordServiceContracts';
+import { resolveDetailedStaffingStandardNames } from '@/services/staff/dailyRecordStaffingStandardNames';
 
 const STANDARD_SLOT_COUNT = {
   nurse: 2,
@@ -239,36 +240,11 @@ const withUpdatedShiftRoleAssignments = (
   return nextDetail;
 };
 
-const resolveStandardNames = (
-  detail: DailyRecordStaffingDetailsV1,
-  shift: DetailedStaffingShift,
-  role: DetailedStaffingRole
-): string[] => {
-  const standardSlotCount = STANDARD_SLOT_COUNT[role];
-  const collectionKey = getRoleCollectionKey(role);
-  const resolved = Array.from({ length: standardSlotCount }, () => '');
-
-  detail[shift][collectionKey].forEach(assignment => {
-    if (
-      assignment.slotType === 'standard' &&
-      typeof assignment.standardSlotIndex === 'number' &&
-      assignment.standardSlotIndex >= 0 &&
-      assignment.standardSlotIndex < standardSlotCount
-    ) {
-      resolved[assignment.standardSlotIndex] = assignment.name || '';
-    }
-  });
-
-  return resolved;
-};
-
 export const buildDetailedStaffingPatch = (
   detail: DailyRecordStaffingDetailsV1
 ): DailyRecordPatch => {
-  const nursesDayShift = resolveStandardNames(detail, 'day', 'nurse');
-  const nursesNightShift = resolveStandardNames(detail, 'night', 'nurse');
-  const tensDayShift = resolveStandardNames(detail, 'day', 'tens');
-  const tensNightShift = resolveStandardNames(detail, 'night', 'tens');
+  const { nursesDayShift, nursesNightShift, tensDayShift, tensNightShift } =
+    resolveDetailedStaffingStandardNames(detail);
 
   return {
     nurses: [...nursesDayShift],
