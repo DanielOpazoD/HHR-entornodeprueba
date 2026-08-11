@@ -155,7 +155,7 @@ describe('buildRayenSyncBarViewModel', () => {
 
     expect(model).toMatchObject({
       phase: 'clinical',
-      label: 'Datos clínicos · 2 de 5 pacientes · 07-08-2026',
+      label: 'Datos clínicos · 2 de 5 pacientes',
       progress: { kind: 'determinate', done: 2, total: 5 },
       ariaBusy: true,
     });

@@ -195,12 +195,9 @@ export const buildRayenSyncBarViewModel = (
     const done = hasRealTotal ? Math.min(Math.max(input.fill.done, 0), input.fill.total) : 0;
     return active(
       'clinical',
-      withTargetDate(
-        hasRealTotal
-          ? `Datos clínicos · ${done} de ${input.fill.total} pacientes`
-          : 'Revisando datos clínicos',
-        input.targetDate
-      ),
+      hasRealTotal
+        ? `Datos clínicos · ${done} de ${input.fill.total} pacientes`
+        : 'Revisando datos clínicos',
       hasRealTotal
         ? { kind: 'determinate', done, total: input.fill.total }
         : { kind: 'indeterminate' }
