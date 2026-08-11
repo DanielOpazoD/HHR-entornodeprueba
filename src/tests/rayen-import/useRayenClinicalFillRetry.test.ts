@@ -79,6 +79,20 @@ describe('useRayenClinicalFillRetry', () => {
     const partialRecord = {
       ...record,
       rayenSync: { ...record.rayenSync, status: 'partial' as const },
+      rayenSyncHistory: [
+        {
+          id: 'persisted-run',
+          startedAt: '2026-08-08T09:00:00.000Z',
+          by: 'Operador HHR',
+          status: 'partial' as const,
+          structuralReview: {
+            structureConfirmed: true,
+            historicalCorrectionsPending: false,
+            historicalCorrectionsRequireFreshCapture: false,
+            isolatedConflicts: 0,
+          },
+        },
+      ],
     } as DailyRecord;
     const { result } = renderHook(() =>
       useRetryHarness(() => true, null, partialRecord)
@@ -89,6 +103,19 @@ describe('useRayenClinicalFillRetry', () => {
     expect(result.current.runClinicalStage).toHaveBeenCalledWith(partialRecord);
     expect(result.current.state.isSyncing).toBe(true);
     expect(result.current.state.error).toBeNull();
+  });
+
+  it('does not bypass structural review for a partial run without a confirmed handoff', async () => {
+    const partialRecord = {
+      ...record,
+      rayenSync: { ...record.rayenSync, status: 'partial' as const },
+    } as DailyRecord;
+    const { result } = renderHook(() => useRetryHarness(() => true, null, partialRecord));
+
+    await act(async () => result.current.retry());
+
+    expect(result.current.runClinicalStage).not.toHaveBeenCalled();
+    expect(result.current.state.error).toContain('No hay una sincronización clínica pendiente');
   });
 
   it('does not resume a completed run', async () => {

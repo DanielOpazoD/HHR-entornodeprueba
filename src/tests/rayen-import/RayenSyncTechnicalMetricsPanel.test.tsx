@@ -69,4 +69,26 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     const { container } = render(<RayenSyncTechnicalMetricsPanel />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('does not mislabel legacy retry telemetry without a temporal target as current', () => {
+    render(
+      <RayenSyncTechnicalMetricsPanel
+        performance={{
+          stagesMs: {},
+          counters: { requests: 0, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+          coordination: {
+            structuralReplans: 0,
+            confirmedEpisodes: 0,
+            omittedEpisodes: 0,
+            clinicalRetries: 1,
+          },
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Detalle técnico'));
+
+    expect(screen.queryByText(/Contexto actual/)).not.toBeInTheDocument();
+    expect(screen.getByText(/1 reintento clínico/)).toBeVisible();
+  });
 });

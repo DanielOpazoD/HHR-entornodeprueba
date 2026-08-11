@@ -57,7 +57,9 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
         </p>
         {coordination && (
           <p className="tabular-nums text-slate-500">
-            Contexto {coordination.target === 'historical' ? 'histórico' : 'actual'} ·{' '}
+            {coordination.target
+              ? `Contexto ${coordination.target === 'historical' ? 'histórico' : 'actual'} · `
+              : ''}
             {countLabel(
               coordination.structuralReplans,
               'replanteamiento estructural',

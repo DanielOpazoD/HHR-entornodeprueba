@@ -18,11 +18,26 @@ interface UseRayenClinicalFillRetryInput {
   onStart?: (record: DailyRecord) => boolean | void;
 }
 
-const canResumeClinicalFill = (record: DailyRecord | null | undefined): record is DailyRecord =>
-  Boolean(
-    record?.rayenSync?.runId &&
-      (record.rayenSync.status === 'applied' || record.rayenSync.status === 'partial')
+const canResumeClinicalFill = (record: DailyRecord | null | undefined): record is DailyRecord => {
+  const sync = record?.rayenSync;
+  if (!record || !sync?.runId) return false;
+  const event = record.rayenSyncHistory?.find(candidate => candidate.id === sync.runId);
+  const structuralReview = event?.structuralReview;
+  const structuralReviewPending = Boolean(
+    structuralReview &&
+      (structuralReview.historicalCorrectionsPending ||
+        structuralReview.historicalCorrectionsRequireFreshCapture ||
+        structuralReview.isolatedConflicts > 0)
   );
+  if (structuralReviewPending) return false;
+
+  // `applied` is the legacy proof that the census was persisted. New partial runs must carry the
+  // explicit structural handoff evidence before a clinical-only retry can bypass census review.
+  return (
+    sync.status === 'applied' ||
+    (sync.status === 'partial' && structuralReview?.structureConfirmed === true)
+  );
+};
 
 export const useRayenClinicalFillRetry = ({
   currentRecord,
