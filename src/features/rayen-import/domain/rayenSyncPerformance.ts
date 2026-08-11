@@ -36,9 +36,10 @@ export const mergeRayenSyncPerformance = (
   const currentCoordination = merged.coordination;
   const coordinationDelta = delta?.coordination;
   const hasCoordination = Boolean(currentCoordination || coordinationDelta);
+  const coordinationTarget = coordinationDelta?.target ?? currentCoordination?.target;
   const coordination = hasCoordination
     ? {
-        target: coordinationDelta?.target ?? currentCoordination?.target,
+        ...(coordinationTarget ? { target: coordinationTarget } : {}),
         structuralReplans:
           safeInteger(currentCoordination?.structuralReplans) +
           safeInteger(coordinationDelta?.structuralReplans),

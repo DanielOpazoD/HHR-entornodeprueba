@@ -303,6 +303,20 @@ describe('rayen sync history', () => {
     );
   });
 
+  it('omits an unknown target when adding coordination to legacy telemetry', () => {
+    const merged = mergeRayenSyncPerformance(undefined, {
+      coordination: { clinicalRetries: 1 },
+    });
+
+    expect(merged?.coordination).toEqual({
+      structuralReplans: 0,
+      confirmedEpisodes: 0,
+      omittedEpisodes: 0,
+      clinicalRetries: 1,
+    });
+    expect(merged?.coordination).not.toHaveProperty('target');
+  });
+
   it('persists a privacy-safe explanation for ambiguous staffing evidence', () => {
     const observation = buildRayenStaffingObservation({
       censusDate: '2026-07-25',
