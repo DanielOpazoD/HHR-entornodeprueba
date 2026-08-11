@@ -268,6 +268,55 @@ describe('rayen sync history', () => {
     );
   });
 
+  it('merges contextual coordination as aggregate-only telemetry', () => {
+    const merged = mergeRayenSyncPerformance(
+      {
+        stagesMs: {},
+        counters: { requests: 0, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+        coordination: {
+          target: 'historical',
+          structuralReplans: 1,
+          confirmedEpisodes: 8,
+          omittedEpisodes: 2,
+          clinicalRetries: 0,
+        },
+      },
+      {
+        coordination: {
+          structuralReplans: 1,
+          confirmedEpisodes: 9,
+          omittedEpisodes: 1,
+          clinicalRetries: 2,
+        },
+      }
+    );
+
+    expect(merged?.coordination).toEqual({
+      target: 'historical',
+      structuralReplans: 2,
+      confirmedEpisodes: 9,
+      omittedEpisodes: 1,
+      clinicalRetries: 2,
+    });
+    expect(JSON.stringify(merged?.coordination)).not.toMatch(
+      /rut|patient|bed|encounter|clinicalEpisodeId/i
+    );
+  });
+
+  it('omits an unknown target when adding coordination to legacy telemetry', () => {
+    const merged = mergeRayenSyncPerformance(undefined, {
+      coordination: { clinicalRetries: 1 },
+    });
+
+    expect(merged?.coordination).toEqual({
+      structuralReplans: 0,
+      confirmedEpisodes: 0,
+      omittedEpisodes: 0,
+      clinicalRetries: 1,
+    });
+    expect(merged?.coordination).not.toHaveProperty('target');
+  });
+
   it('persists a privacy-safe explanation for ambiguous staffing evidence', () => {
     const observation = buildRayenStaffingObservation({
       censusDate: '2026-07-25',

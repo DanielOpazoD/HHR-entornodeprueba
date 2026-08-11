@@ -115,7 +115,7 @@ describe('useRayenSyncExecutionController', () => {
     expect(result.current.controller.execution.stage).toEqual({ type: 'preparing_context' });
   });
 
-  it('classifies a same-tick clinical settlement from the latest import flags', () => {
+  it('promotes same-tick skipped settlement into the canonical terminal outcome', () => {
     const { result } = renderHook(useControllerHarness);
 
     act(() => {
@@ -134,6 +134,10 @@ describe('useRayenSyncExecutionController', () => {
 
     expect(result.current.importState.isSyncing).toBe(false);
     expect(result.current.importState.hasSkippedItems).toBe(true);
+    expect(result.current.controller.execution.outcome).toEqual({
+      structuralConflicts: 0,
+      skippedItems: 1,
+    });
     expect(result.current.controller.execution.stage).toEqual({
       type: 'needs_review',
       scope: 'post_commit',

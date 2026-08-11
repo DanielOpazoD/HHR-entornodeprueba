@@ -65,7 +65,6 @@ describe('RayenImportPreviewModal Cuna RN identity', () => {
         <RayenImportPreviewModal
           isOpen
           diff={diff}
-          isBusy={false}
           error={null}
           onConfirm={vi.fn()}
           onCancel={vi.fn()}
@@ -129,7 +128,6 @@ describe('RayenImportPreviewModal Cuna RN identity', () => {
         <RayenImportPreviewModal
           isOpen
           diff={diff}
-          isBusy={false}
           error={null}
           onConfirm={vi.fn()}
           onCancel={vi.fn()}

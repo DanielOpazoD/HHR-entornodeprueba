@@ -308,6 +308,14 @@ export const useRayenImportCapture = ({
         }
 
         preparedSyncContextRef.current = preparedContext;
+        recordRunPerformance(
+          {
+            coordination: {
+              target: preparedContext.target.kind === 'current' ? 'current' : 'historical',
+            },
+          },
+          run.id
+        );
         const requestId = syncRequestController.start(
           preparedContext.range.dateStart,
           preparedContext.range.dateEnd,

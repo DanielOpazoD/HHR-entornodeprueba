@@ -104,7 +104,10 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       confirmedRecord,
       expect.any(Object),
       expect.anything(),
-      'run-confirmed'
+      'run-confirmed',
+      expect.objectContaining({
+        structuralReview: expect.objectContaining({ structureConfirmed: true }),
+      })
     );
   });
 
@@ -147,6 +150,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       {
         retry: false,
         structuralReview: {
+          structureConfirmed: true,
           historicalCorrectionsPending: true,
           historicalCorrectionsRequireFreshCapture: false,
           isolatedConflicts: 0,
@@ -195,6 +199,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       {
         retry: false,
         structuralReview: {
+          structureConfirmed: true,
           historicalCorrectionsPending: false,
           historicalCorrectionsRequireFreshCapture: true,
           isolatedConflicts: 0,
@@ -258,6 +263,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       {
         retry: false,
         structuralReview: {
+          structureConfirmed: true,
           historicalCorrectionsPending: false,
           historicalCorrectionsRequireFreshCapture: false,
           isolatedConflicts: 1,
@@ -319,7 +325,10 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       authoritativeQueuedRecord,
       expect.objectContaining({ total: 0 }),
       expect.anything(),
-      'run-queued'
+      'run-queued',
+      expect.objectContaining({
+        structuralReview: expect.objectContaining({ structureConfirmed: true }),
+      })
     );
   });
 

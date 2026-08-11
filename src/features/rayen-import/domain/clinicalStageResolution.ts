@@ -70,17 +70,13 @@ export const buildStructuralReviewEvidence = (
   handoff: ConfirmedRayenCensusHandoff | null
 ): RayenSyncStructuralReviewEvidence | undefined => {
   if (!handoff) return undefined;
-  const evidence = {
+  return {
+    structureConfirmed: true,
     historicalCorrectionsPending: handoff.historicalCorrectionsPending === true,
     historicalCorrectionsRequireFreshCapture:
       handoff.historicalCorrectionsRequireFreshCapture === true,
     isolatedConflicts: handoff.isolatedConflicts.length,
   };
-  return evidence.historicalCorrectionsPending ||
-    evidence.historicalCorrectionsRequireFreshCapture ||
-    evidence.isolatedConflicts > 0
-    ? evidence
-    : undefined;
 };
 
 export const resolveClinicalStageResult = (

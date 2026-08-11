@@ -39,12 +39,10 @@ describe('RayenImportButton', () => {
     vi.clearAllMocks();
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
+      execution: null,
       diff: null,
       isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
       result: null,
-      hasSkippedItems: false,
       error: null,
       staffingProposal: null,
       isStaffingProposalBusy: false,
@@ -369,6 +367,12 @@ describe('RayenImportButton', () => {
             completedAt: '2026-07-14T10:03:00.000Z',
             by: 'Daniel Opazo',
             status: 'partial',
+            structuralReview: {
+              structureConfirmed: true,
+              historicalCorrectionsPending: false,
+              historicalCorrectionsRequireFreshCapture: false,
+              isolatedConflicts: 0,
+            },
             coverage: {
               total: 11,
               completed: 10,
@@ -402,15 +406,13 @@ describe('RayenImportButton', () => {
     expect(
       screen.getByText(/Esta ejecución no registró el paciente ni la etapa que falló/i)
     ).toBeInTheDocument();
-    expect(screen.getByText('Puedes completar esta sincronización')).toBeInTheDocument();
+    expect(screen.getByText('Información clínica pendiente')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar con revisión' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar información clínica' }));
     expect(screen.getByRole('button', { name: 'Sincronizando…' })).toBeDisabled();
-    await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
-    expect(mocks.triggerImport).toHaveBeenCalledWith(
-      expect.objectContaining({ connection: 'ready', canSync: true }),
-      expect.objectContaining({ counters: { requests: 1 } })
-    );
+    await waitFor(() => expect(mocks.retryClinicalFill).toHaveBeenCalledTimes(1));
+    expect(mocks.refreshHealth).not.toHaveBeenCalled();
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 
 });

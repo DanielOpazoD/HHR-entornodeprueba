@@ -60,12 +60,10 @@ describe('RayenImportButton feedback', () => {
     });
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
+      execution: null,
       diff: null,
       isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
       result: null,
-      hasSkippedItems: false,
       error: null,
       staffingProposal: null,
       triggerImport: mocks.triggerImport,
@@ -78,10 +76,9 @@ describe('RayenImportButton feedback', () => {
   it('keeps a completed-change summary in the history instead of expanding the toolbar', () => {
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
+      execution: null,
       diff: null,
       isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
       result: {
         applied: { admissions: 1, updates: 0, moves: 0, discharges: 0 },
         skipped: [],
@@ -104,10 +101,14 @@ describe('RayenImportButton feedback', () => {
     const error = 'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen.';
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
+      execution: {
+        context: null,
+        pending: null,
+        stage: { type: 'failed' },
+        outcome: { structuralConflicts: 0, skippedItems: 0 },
+      },
       diff: null,
       isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
       result: null,
       error,
       triggerImport: mocks.triggerImport,
@@ -156,6 +157,12 @@ describe('RayenImportButton feedback', () => {
         },
       },
       isPreviewOpen: true,
+      execution: {
+        context: null,
+        pending: null,
+        stage: { type: 'needs_review', scope: 'post_commit' },
+        outcome: { structuralConflicts: 1, skippedItems: 0 },
+      },
       result: {
         record: {},
         applied: { admissions: 0, updates: 1, moves: 0, discharges: 0 },
@@ -176,9 +183,7 @@ describe('RayenImportButton feedback', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByRole('button', { name: 'Revisar conflictos' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Sincronización con conflictos pendientes'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Sincronización requiere revisión');
     expect(screen.queryByText('Aplicar enfermería')).not.toBeInTheDocument();
   });
 

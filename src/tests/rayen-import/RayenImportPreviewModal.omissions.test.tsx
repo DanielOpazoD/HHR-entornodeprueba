@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { RayenImportFlowStatus } from '@/features/rayen-import/components/RayenImportFlowStatus';
@@ -17,18 +18,17 @@ const settledFill = (staffingOutcome: RayenFillProgress['staffingOutcome']): Ray
 
 const renderSettledPulse = (
   staffingOutcome: RayenFillProgress['staffingOutcome'],
-  flags: { hasSkippedItems?: boolean; hasUnresolvedConflicts?: boolean } = {}
+  stage: ComponentProps<typeof RayenImportFlowStatus>['executionStage'] = {
+    type: 'complete',
+  }
 ) =>
   render(
     <RayenImportFlowStatus
       diff={null}
       fill={settledFill(staffingOutcome)}
-      isApplyingCensus={false}
-      isPreviewOpen={false}
-      isSyncing={false}
       error={null}
       hasPersistedSync={false}
-      {...flags}
+      executionStage={stage}
     />
   );
 
@@ -38,16 +38,13 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
       <RayenImportFlowStatus
         diff={null}
         fill={{ ...settledFill('idle'), outcome: 'idle', done: 0, total: 0, attemptId: 0 }}
-        isApplyingCensus={false}
-        isPreviewOpen
-        isSyncing
         error={null}
         hasPersistedSync={false}
-        hasUnresolvedConflicts
+        executionStage={{ type: 'needs_review', scope: 'structure' }}
       />
     );
 
-    expect(screen.getByText('Sincronización con conflictos pendientes')).toBeVisible();
+    expect(screen.getByText('Sincronización requiere revisión')).toBeVisible();
   });
 
   it('does not restore a partial persisted synchronization as fully successful', () => {
@@ -55,9 +52,6 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
       <RayenImportFlowStatus
         diff={null}
         fill={{ ...settledFill('idle'), outcome: 'idle', done: 0, total: 0, attemptId: 0 }}
-        isApplyingCensus={false}
-        isPreviewOpen={false}
-        isSyncing={false}
         error={null}
         hasPersistedSync
         persistedSync={{
@@ -86,16 +80,16 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
   });
 
   it('keeps skipped work visible after the decision modal closes', () => {
-    renderSettledPulse('resolved', { hasSkippedItems: true });
+    renderSettledPulse('resolved', { type: 'partial', retry: 'clinical_only' });
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
-    expect(screen.getByText('Sincronización con elementos sin aplicar')).toBeVisible();
+    expect(screen.getByText('Información clínica pendiente de completar')).toBeVisible();
   });
 
   it('keeps unresolved conflicts visible after the decision modal closes', () => {
-    renderSettledPulse('resolved', { hasUnresolvedConflicts: true });
+    renderSettledPulse('resolved', { type: 'needs_review', scope: 'structure' });
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
-    expect(screen.getByText('Sincronización con conflictos pendientes')).toBeVisible();
+    expect(screen.getByText('Sincronización requiere revisión')).toBeVisible();
   });
 });

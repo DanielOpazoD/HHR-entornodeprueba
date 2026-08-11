@@ -182,7 +182,14 @@ export const useRayenImportConfirmation = ({
             replanDiff: structuralReplan.replan,
             clinicalDay: structuralReplan.clinicalDay,
             createId: () => crypto.randomUUID(),
-            onRetry: () => recordRunPerformance({ counters: { retries: 1 } }),
+            onRetry: () =>
+              recordRunPerformance(
+                {
+                  counters: { retries: 1 },
+                  coordination: { structuralReplans: 1 },
+                },
+                run.id
+              ),
           });
         });
         if (!result) return;

@@ -68,10 +68,7 @@ export const useRayenSyncExecutionController = ({
     importStateRef.current = importState;
   }, [execution, importState]);
 
-  /**
-   * Mirror import state before React commits the render. A zero-work clinical queue can settle in
-   * the same tick as the structural result; terminal classification must see those latest flags.
-   */
+  /** Keep the legacy payload current for consumers that still render the reviewed diff. */
   const setImportStateCurrent = useCallback<Dispatch<SetStateAction<RayenImportState>>>(
     update => {
       const next = typeof update === 'function' ? update(importStateRef.current) : update;
@@ -125,17 +122,34 @@ export const useRayenSyncExecutionController = ({
       // clear the new run's progress or project a terminal result into its UI.
       if (!effectiveRunId || clinicalRunIdRef.current !== effectiveRunId) return;
       clinicalRunIdRef.current = null;
+      const importSettlement = importStateRef.current;
+      const structuralConflicts = Math.max(
+        importSettlement.diff?.conflicts.length ?? 0,
+        importSettlement.diff?.summary.conflicts ?? 0
+      );
+      const skippedItems = Math.max(
+        importSettlement.result?.skipped.length ?? 0,
+        Number(importSettlement.hasSkippedItems)
+      );
+      const requiresPostCommitReview =
+        structuralConflicts > 0 ||
+        skippedItems > 0 ||
+        executionRef.current.outcome.structuralConflicts > 0 ||
+        executionRef.current.outcome.skippedItems > 0;
+
+      // Some structural paths settle the clinical queue in the same tick as the reviewed diff.
+      // Promote those facts into the canonical execution before choosing a terminal stage so a
+      // partial import can never be presented as complete because React has not rendered yet.
+      dispatchExecution({
+        type: 'record_outcome',
+        runId: effectiveRunId,
+        structuralConflicts,
+        skippedItems,
+      });
       setImportStateCurrent(previous =>
         previous.isSyncing ? { ...previous, isSyncing: false } : previous
       );
-      const latest = importStateRef.current;
-      if (
-        executionRef.current.outcome.structuralConflicts > 0 ||
-        executionRef.current.outcome.skippedItems > 0 ||
-        latest.diff?.summary.conflicts ||
-        latest.hasSkippedItems ||
-        latest.result?.skipped.length
-      ) {
+      if (requiresPostCommitReview) {
         transitionExecution({ type: 'needs_review', scope: 'post_commit' }, effectiveRunId);
         return;
       }
@@ -149,7 +163,7 @@ export const useRayenSyncExecutionController = ({
       }
       transitionExecution({ type: 'failed' }, effectiveRunId);
     },
-    [setImportStateCurrent, transitionExecution]
+    [dispatchExecution, setImportStateCurrent, transitionExecution]
   );
 
   return {

@@ -22,14 +22,9 @@ export type RayenSyncBarProgress =
 export interface RayenSyncBarViewModelInput {
   diff: CensusImportDiff | null;
   fill: RayenFillProgress;
-  isApplyingCensus: boolean;
-  isPreviewOpen: boolean;
-  isSyncing: boolean;
   error: string | null;
   hasPersistedSync: boolean;
   persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> | null;
-  hasSkippedItems?: boolean;
-  hasUnresolvedConflicts?: boolean;
   executionStage?: RayenSyncStage | null;
   targetDate?: string | null;
 }
@@ -193,65 +188,29 @@ export const buildRayenSyncBarViewModel = (
   const canonical = canonicalExecutionViewModel(input);
   if (canonical) return canonical;
 
-  const { fill } = input;
+  // A shared clinical fill can outlive the component that started it. Keep it visible and
+  // actionable after remounting, while the contextual execution remains the primary source.
+  if (input.fill.running) {
+    const hasRealTotal = input.fill.total > 0;
+    const done = hasRealTotal ? Math.min(Math.max(input.fill.done, 0), input.fill.total) : 0;
+    return active(
+      'clinical',
+      hasRealTotal
+        ? `Datos clínicos · ${done} de ${input.fill.total} pacientes`
+        : 'Revisando datos clínicos',
+      hasRealTotal
+        ? { kind: 'determinate', done, total: input.fill.total }
+        : { kind: 'indeterminate' }
+    );
+  }
 
+  // Validation can reject a recovery action before a contextual execution is created. Surface
+  // that actionable error instead of falling back to a stale persisted or idle presentation.
   if (input.error) {
     return settled('action', 'warning', 'Sincronización requiere revisión', {
       detail: input.error,
       visuallyHidden: false,
     });
-  }
-  if (fill.outcome === 'rejected' && fill.running) {
-    const hasRealTotal = fill.total > 0;
-    const done = hasRealTotal ? Math.min(Math.max(fill.done, 0), fill.total) : 0;
-    return active(
-      'clinical',
-      hasRealTotal
-        ? `Sincronización anterior en curso · ${done} de ${fill.total} pacientes`
-        : 'Sincronización anterior en curso',
-      hasRealTotal ? { kind: 'determinate', done, total: fill.total } : { kind: 'indeterminate' }
-    );
-  }
-  if (fill.outcome === 'rejected') {
-    return settled('action', 'warning', 'La información clínica no pudo iniciar');
-  }
-  if (input.hasUnresolvedConflicts) {
-    return settled('action', 'warning', 'Sincronización con conflictos pendientes');
-  }
-  if (input.hasSkippedItems) {
-    return settled('action', 'warning', 'Sincronización con elementos sin aplicar');
-  }
-  if (fill.running) {
-    const hasRealTotal = fill.total > 0;
-    const done = hasRealTotal ? Math.min(Math.max(fill.done, 0), fill.total) : 0;
-    return active(
-      'clinical',
-      hasRealTotal
-        ? `Datos clínicos · ${done} de ${fill.total} pacientes`
-        : 'Revisando datos clínicos',
-      hasRealTotal ? { kind: 'determinate', done, total: fill.total } : { kind: 'indeterminate' }
-    );
-  }
-  if (input.isApplyingCensus) {
-    return active('apply', 'Aplicando cambios al censo', { kind: 'indeterminate' });
-  }
-
-  const changes = changeCount(input.diff);
-  if (input.isPreviewOpen && changes > 0) {
-    return settled(
-      'review',
-      'neutral',
-      `${changes} cambio${changes === 1 ? '' : 's'} listo${changes === 1 ? '' : 's'} para revisar`
-    );
-  }
-  if (input.isSyncing) {
-    return active('capture', 'Leyendo información de Eloísa', { kind: 'indeterminate' });
-  }
-  if (fill.outcome === 'partial') {
-    return settled('action', 'warning', 'Sincronización completada con observaciones');
-  }
-  if (fill.errors > 0) {
-    return settled('action', 'warning', 'Sincronización completada con observaciones');
   }
 
   if (input.hasPersistedSync) {
@@ -267,7 +226,7 @@ export const buildRayenSyncBarViewModel = (
     }
   }
 
-  if (fill.outcome === 'complete' || input.hasPersistedSync) {
+  if (input.hasPersistedSync) {
     return settled('complete', 'success', 'Todo al día', {
       visuallyHidden: input.hasPersistedSync,
     });

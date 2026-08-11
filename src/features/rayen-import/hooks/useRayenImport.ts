@@ -258,7 +258,9 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     setState,
     onStart: record => {
       const runId = record.rayenSync?.runId;
-      return runId ? startClinicalRetry(runId, record.date) : false;
+      if (!runId || !startClinicalRetry(runId, record.date)) return false;
+      recordRunPerformance({ coordination: { clinicalRetries: 1 } }, runId);
+      return true;
     },
   });
   const { confirm: confirmStaffingProposal, dismiss: dismissStaffingProposal } =
@@ -342,10 +344,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       execution,
       diff: state.diff,
       isPreviewOpen: state.isPreviewOpen && keepsPreviewOpen,
-      isBusy: state.isBusy,
-      isSyncing: state.isSyncing,
       result: state.result,
-      hasSkippedItems: state.hasSkippedItems,
       error: state.error,
       staffingProposal,
       isStaffingProposalBusy,

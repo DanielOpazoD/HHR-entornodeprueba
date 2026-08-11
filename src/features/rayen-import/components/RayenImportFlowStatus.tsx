@@ -9,14 +9,9 @@ import { buildRayenSyncBarViewModel, type RayenSyncBarTone } from './rayenSyncBa
 interface RayenImportFlowStatusProps {
   diff: CensusImportDiff | null;
   fill: RayenFillProgress;
-  isApplyingCensus: boolean;
-  isPreviewOpen: boolean;
-  isSyncing: boolean;
   error: string | null;
   hasPersistedSync: boolean;
   persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> | null;
-  hasSkippedItems?: boolean;
-  hasUnresolvedConflicts?: boolean;
   executionStage?: RayenSyncStage | null;
   targetDate?: string | null;
 }

@@ -58,10 +58,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     execution,
     diff,
     isPreviewOpen,
-    isBusy,
-    isSyncing,
     result,
-    hasSkippedItems,
     error,
     staffingProposal,
     isStaffingProposalBusy,
@@ -79,11 +76,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
   const mainWorking =
-    isRayenSyncExecutionActive(execution?.stage ?? null) ||
-    isSyncing ||
-    isBusy ||
-    fill.running ||
-    recoveryBusy;
+    isRayenSyncExecutionActive(execution?.stage ?? null) || fill.running || recoveryBusy;
   const working = mainWorking || isStaffingProposalBusy;
   const selectedRecordIsCurrent = !selectedDate || record?.date === selectedDate;
   const recordForSelectedDate = selectedRecordIsCurrent ? record : null;
@@ -179,10 +172,12 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     if (!recovery?.action) return;
     setRecoveryBusy(true);
     try {
-      if (recovery.action === 'retry') {
+      if (recovery.action === 'retry_clinical') {
         closeHistory();
-        if (history[0]?.status === 'applied') await retryClinicalFill();
-        else await handleSync();
+        await retryClinicalFill();
+      } else if (recovery.action === 'retry_full') {
+        closeHistory();
+        await handleSync();
       } else {
         await extension.refresh();
       }
@@ -271,14 +266,9 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
         <RayenImportFlowStatus
           diff={result ? null : diff}
           fill={fill}
-          isApplyingCensus={isBusy}
-          isPreviewOpen={isPreviewOpen}
-          isSyncing={isSyncing}
           error={error}
           hasPersistedSync={Boolean(lastSync)}
           persistedSync={recordForSelectedDate?.rayenSync}
-          hasSkippedItems={hasSkippedItems || Boolean(result?.skipped.length)}
-          hasUnresolvedConflicts={Boolean(diff?.summary.conflicts)}
           executionStage={execution?.stage}
           targetDate={targetDate}
         />
@@ -362,7 +352,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
       <RayenImportPreviewModal
         isOpen={isPreviewOpen}
         diff={diff}
-        isBusy={isBusy}
+        stage={execution?.stage}
         error={error}
         isApplied={Boolean(result)}
         targetDate={targetDate}

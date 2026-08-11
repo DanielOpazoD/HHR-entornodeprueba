@@ -75,9 +75,6 @@ const renderPulse = (
     <RayenImportFlowStatus
       diff={diff}
       fill={progress}
-      isApplyingCensus={false}
-      isPreviewOpen={false}
-      isSyncing={false}
       error={null}
       hasPersistedSync={false}
       {...overrides}
@@ -121,7 +118,6 @@ describe('Rayen synchronization decisions and pulse', () => {
       <RayenImportPreviewModal
         isOpen
         diff={motherAndNewbornDiff}
-        isBusy={false}
         error={null}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
@@ -166,7 +162,6 @@ describe('Rayen synchronization decisions and pulse', () => {
       <RayenImportPreviewModal
         isOpen
         diff={associatedDiff}
-        isBusy={false}
         error={null}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
@@ -182,7 +177,6 @@ describe('Rayen synchronization decisions and pulse', () => {
       <RayenImportPreviewModal
         isOpen
         diff={diff}
-        isBusy={false}
         error={null}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
@@ -200,7 +194,9 @@ describe('Rayen synchronization decisions and pulse', () => {
   });
 
   it('shows live clinical progress from the real patient counter', () => {
-    renderPulse(fill({ running: true, outcome: 'running', attemptId: 1, done: 2, total: 4 }));
+    renderPulse(fill({ running: true, outcome: 'running', attemptId: 1, done: 2, total: 4 }), {
+      executionStage: { type: 'syncing_clinical' },
+    });
 
     const progress = screen.getByRole('progressbar', {
       name: 'Progreso de sincronización con Eloísa',
@@ -212,7 +208,7 @@ describe('Rayen synchronization decisions and pulse', () => {
   });
 
   it('makes a pending census review explicit without claiming progress is complete', () => {
-    renderPulse(fill(), { isPreviewOpen: true });
+    renderPulse(fill(), { executionStage: { type: 'awaiting_review' } });
 
     expect(screen.getByText('2 cambios listos para revisar')).toBeVisible();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
@@ -227,7 +223,8 @@ describe('Rayen synchronization decisions and pulse', () => {
         total: 8,
         lastCompletedAt: '2026-07-21T17:00:00.000Z',
         staffingOutcome: 'resolved',
-      })
+      }),
+      { executionStage: { type: 'complete' } }
     );
 
     expect(screen.getByRole('status').parentElement).not.toHaveClass('sr-only');
@@ -245,10 +242,11 @@ describe('Rayen synchronization decisions and pulse', () => {
         errors: 1,
         lastCompletedAt: '2026-07-21T17:00:00.000Z',
         staffingOutcome: 'resolved',
-      })
+      }),
+      { executionStage: { type: 'partial', retry: 'clinical_only' } }
     );
 
-    expect(screen.getByText('Sincronización completada con observaciones')).toBeVisible();
+    expect(screen.getByText('Información clínica pendiente de completar')).toBeVisible();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
@@ -262,9 +260,10 @@ describe('Rayen synchronization decisions and pulse', () => {
         errors: 0,
         lastCompletedAt: '2026-07-21T17:00:00.000Z',
         staffingOutcome: 'resolved',
-      })
+      }),
+      { executionStage: { type: 'partial', retry: 'clinical_only' } }
     );
-    expect(screen.getByText('Sincronización completada con observaciones')).toBeVisible();
+    expect(screen.getByText('Información clínica pendiente de completar')).toBeVisible();
     expect(screen.queryByText('0 con observación')).not.toBeInTheDocument();
   });
 
@@ -277,7 +276,8 @@ describe('Rayen synchronization decisions and pulse', () => {
         total: 8,
         lastCompletedAt: '2026-07-21T17:00:00.000Z',
         staffingOutcome: 'pending',
-      })
+      }),
+      { executionStage: { type: 'complete' } }
     );
 
     expect(screen.getByText('Todo al día')).toBeVisible();
@@ -294,7 +294,8 @@ describe('Rayen synchronization decisions and pulse', () => {
         total: 8,
         lastCompletedAt: '2026-07-21T17:00:00.000Z',
         staffingOutcome: 'applying',
-      })
+      }),
+      { executionStage: { type: 'complete' } }
     );
 
     expect(screen.getByText('Todo al día')).toBeVisible();
@@ -312,10 +313,10 @@ describe('Rayen synchronization decisions and pulse', () => {
         total: 8,
         lastCompletedAt: '2026-07-20T17:00:00.000Z',
       }),
-      { isSyncing: true }
+      { executionStage: { type: 'syncing_clinical' } }
     );
 
-    expect(screen.getByText('Sincronización anterior en curso · 3 de 8 pacientes')).toBeVisible();
+    expect(screen.getByText('Datos clínicos · 3 de 8 pacientes')).toBeVisible();
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3');
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
   });
@@ -327,7 +328,6 @@ describe('Rayen synchronization decisions and pulse', () => {
       <RayenImportPreviewModal
         isOpen
         diff={diff}
-        isBusy={false}
         error={null}
         onConfirm={onConfirm}
         onCancel={onCancel}
@@ -359,7 +359,6 @@ describe('Rayen synchronization decisions and pulse', () => {
       <RayenImportPreviewModal
         isOpen
         diff={conflictDiff}
-        isBusy={false}
         error={null}
         isApplied
         onConfirm={vi.fn()}
@@ -401,7 +400,6 @@ describe('Rayen synchronization decisions and pulse', () => {
       <RayenImportPreviewModal
         isOpen
         diff={conflictOnlyDiff}
-        isBusy={false}
         error={null}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
@@ -446,7 +444,6 @@ describe('Rayen synchronization decisions and pulse', () => {
       <RayenImportPreviewModal
         isOpen
         diff={historicalDiff}
-        isBusy={false}
         error={null}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}

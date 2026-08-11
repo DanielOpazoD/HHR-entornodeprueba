@@ -23,9 +23,6 @@ const input = (
 ): RayenSyncBarViewModelInput => ({
   diff: null,
   fill: fill(),
-  isApplyingCensus: false,
-  isPreviewOpen: false,
-  isSyncing: false,
   error: null,
   hasPersistedSync: false,
   ...overrides,
@@ -64,7 +61,6 @@ describe('buildRayenSyncBarViewModel', () => {
       input({
         executionStage: { type },
         targetDate: '2026-08-07',
-        isSyncing: type === 'complete',
         error: type === 'complete' ? 'stale legacy error' : null,
       })
     );
@@ -87,31 +83,21 @@ describe('buildRayenSyncBarViewModel', () => {
     });
   });
 
-  it.each([
-    ['idle', input(), 'idle', 'Listo para sincronizar'],
-    ['capture', input({ isSyncing: true }), 'capture', 'Leyendo información de Eloísa'],
-    [
-      'review',
-      input({ isPreviewOpen: true, diff: oneChangeDiff }),
-      'review',
-      '1 cambio listo para revisar',
-    ],
-    ['apply', input({ isApplyingCensus: true }), 'apply', 'Aplicando cambios al censo'],
-    [
-      'conflict',
-      input({ hasUnresolvedConflicts: true, isSyncing: true }),
-      'action',
-      'Sincronización con conflictos pendientes',
-    ],
-  ])('maps %s to one canonical state', (_name, state, phase, label) => {
-    expect(buildRayenSyncBarViewModel(state)).toMatchObject({ phase, label });
+  it('uses an idle state when no contextual execution or persisted result exists', () => {
+    expect(buildRayenSyncBarViewModel(input())).toMatchObject({
+      phase: 'idle',
+      label: 'Listo para sincronizar',
+    });
   });
 
   it.each(['pending', 'ambiguous', 'declined'] as const)(
     'keeps a complete clinical sync green when staffing is %s',
     staffingOutcome => {
       const model = buildRayenSyncBarViewModel(
-        input({ fill: fill({ outcome: 'complete', staffingOutcome }) })
+        input({
+          executionStage: { type: 'complete' },
+          fill: fill({ outcome: 'complete', staffingOutcome }),
+        })
       );
 
       expect(model).toMatchObject({
@@ -148,12 +134,49 @@ describe('buildRayenSyncBarViewModel', () => {
 
   it('uses the real clinical patient counter instead of an inferred percentage', () => {
     const model = buildRayenSyncBarViewModel(
-      input({ fill: fill({ running: true, outcome: 'running', done: 4, total: 8 }) })
+      input({
+        executionStage: { type: 'syncing_clinical' },
+        fill: fill({ running: true, outcome: 'running', done: 4, total: 8 }),
+      })
     );
 
     expect(model.label).toBe('Datos clínicos · 4 de 8 pacientes');
     expect(model.progress).toEqual({ kind: 'determinate', done: 4, total: 8 });
     expect(model.ariaBusy).toBe(true);
+  });
+
+  it('keeps a shared clinical fill visible after the contextual view remounts', () => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        fill: fill({ running: true, outcome: 'running', done: 2, total: 5 }),
+        targetDate: '2026-08-07',
+      })
+    );
+
+    expect(model).toMatchObject({
+      phase: 'clinical',
+      label: 'Datos clínicos · 2 de 5 pacientes',
+      progress: { kind: 'determinate', done: 2, total: 5 },
+      ariaBusy: true,
+    });
+  });
+
+  it('surfaces a recovery error raised before a contextual execution starts', () => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        error: 'No hay una sincronización clínica pendiente que se pueda reanudar.',
+        hasPersistedSync: true,
+        persistedSync: { status: 'complete' },
+      })
+    );
+
+    expect(model).toMatchObject({
+      phase: 'action',
+      tone: 'warning',
+      label: 'Sincronización requiere revisión',
+      detail: 'No hay una sincronización clínica pendiente que se pueda reanudar.',
+      visuallyHidden: false,
+    });
   });
 
   it('counts pending administrative discharges in the review total', () => {
@@ -167,7 +190,10 @@ describe('buildRayenSyncBarViewModel', () => {
     } satisfies CensusImportDiff;
 
     const model = buildRayenSyncBarViewModel(
-      input({ isPreviewOpen: true, diff: pendingAdministrativeDischargeDiff })
+      input({
+        executionStage: { type: 'awaiting_review' },
+        diff: pendingAdministrativeDischargeDiff,
+      })
     );
 
     expect(model).toMatchObject({
@@ -176,22 +202,28 @@ describe('buildRayenSyncBarViewModel', () => {
     });
   });
 
-  it('keeps an overlapping rejected attempt visibly busy while the prior fill continues', () => {
+  it('keeps clinical progress canonical even when the legacy attempt result was rejected', () => {
     const model = buildRayenSyncBarViewModel(
-      input({ fill: fill({ running: true, outcome: 'rejected', done: 3, total: 8 }) })
+      input({
+        executionStage: { type: 'syncing_clinical' },
+        fill: fill({ running: true, outcome: 'rejected', done: 3, total: 8 }),
+      })
     );
 
     expect(model).toMatchObject({
       phase: 'clinical',
-      label: 'Sincronización anterior en curso · 3 de 8 pacientes',
+      label: 'Datos clínicos · 3 de 8 pacientes',
       progress: { kind: 'determinate', done: 3, total: 8 },
       ariaBusy: true,
     });
   });
 
-  it('shows a completed fill until its successful sync metadata is persisted', () => {
+  it('shows completion from the contextual terminal state', () => {
     const model = buildRayenSyncBarViewModel(
-      input({ fill: fill({ outcome: 'complete', done: 8, total: 8 }) })
+      input({
+        executionStage: { type: 'complete' },
+        fill: fill({ outcome: 'complete', done: 8, total: 8 }),
+      })
     );
 
     expect(model).toMatchObject({
@@ -201,21 +233,26 @@ describe('buildRayenSyncBarViewModel', () => {
     });
   });
 
-  it('never presents a completed fill with patient errors as successful', () => {
+  it('presents a contextual partial result even if the legacy fill says complete', () => {
     const model = buildRayenSyncBarViewModel(
-      input({ fill: fill({ outcome: 'complete', done: 7, total: 8, errors: 1 }) })
+      input({
+        executionStage: { type: 'partial', retry: 'clinical_only' },
+        fill: fill({ outcome: 'complete', done: 7, total: 8, errors: 1 }),
+      })
     );
 
     expect(model).toMatchObject({
       phase: 'action',
       tone: 'warning',
-      label: 'Sincronización completada con observaciones',
+      label: 'Información clínica pendiente de completar',
       visuallyHidden: false,
     });
   });
 
   it('keeps the exact error as one expandable detail', () => {
-    const model = buildRayenSyncBarViewModel(input({ error: 'La captura agotó el tiempo.' }));
+    const model = buildRayenSyncBarViewModel(
+      input({ executionStage: { type: 'failed' }, error: 'La captura agotó el tiempo.' })
+    );
 
     expect(model).toMatchObject({
       phase: 'action',

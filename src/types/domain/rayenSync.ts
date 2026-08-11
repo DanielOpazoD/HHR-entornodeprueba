@@ -165,16 +165,27 @@ export interface RayenSyncPerformance {
   sourceQuality?: {
     treatingPhysicians?: RayenTreatingPhysicianSourceQuality;
   };
+  /** Aggregate coordination evidence; never includes dates, beds or episode identifiers. */
+  coordination?: {
+    target?: 'current' | 'historical';
+    structuralReplans: number;
+    confirmedEpisodes: number;
+    omittedEpisodes: number;
+    clinicalRetries: number;
+  };
 }
 
 export interface RayenSyncPerformanceDelta {
   stagesMs?: RayenSyncPerformance['stagesMs'];
   counters?: Partial<RayenSyncPerformance['counters']>;
   sourceQuality?: RayenSyncPerformance['sourceQuality'];
+  coordination?: Partial<NonNullable<RayenSyncPerformance['coordination']>>;
 }
 
 /** Aggregate-only structural evidence retained when clinical enrichment can still complete. */
 export interface RayenSyncStructuralReviewEvidence {
+  /** Explicit proof that the structural census reached an authoritative confirmed handoff. */
+  structureConfirmed?: boolean;
   historicalCorrectionsPending: boolean;
   historicalCorrectionsRequireFreshCapture: boolean;
   isolatedConflicts: number;

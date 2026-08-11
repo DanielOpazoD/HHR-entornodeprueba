@@ -55,12 +55,15 @@ describe('RayenImportButton sync indicator', () => {
     });
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
+      execution: {
+        context: null,
+        pending: null,
+        stage: { type: 'syncing_clinical' },
+        outcome: { structuralConflicts: 0, skippedItems: 0 },
+      },
       diff: null,
       isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: true,
       result: null,
-      hasSkippedItems: false,
       error: null,
       staffingProposal: null,
       isStaffingProposalBusy: false,

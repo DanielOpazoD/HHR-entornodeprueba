@@ -10,11 +10,13 @@ import {
   VerificationBadges,
 } from './RayenImportDiffReviewParts';
 import { presentPatientUpdates } from './rayenImportUpdatePresentation';
+import { RayenImportWorkingState } from './RayenImportWorkingState';
+import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
   diff: CensusImportDiff | null;
-  isBusy: boolean;
+  stage?: RayenSyncStage | null;
   error: string | null;
   isApplied?: boolean;
   targetDate?: string | null;
@@ -38,7 +40,7 @@ const updateEntryKey = (entry: CensusImportDiff['updates'][number]): string => {
 export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = ({
   isOpen,
   diff,
-  isBusy,
+  stage,
   error,
   isApplied = false,
   targetDate,
@@ -65,6 +67,15 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     if (isOpen) setAcceptedPreviousDays(false);
   }, [isOpen]);
   const hasConflicts = Boolean(diff?.summary.conflicts);
+  const workingMessage =
+    stage?.type === 'persisting_structure'
+      ? 'Guardando los cambios del censo…'
+      : stage?.type === 'verifying_structure'
+        ? 'Confirmando la versión guardada…'
+        : stage?.type === 'syncing_clinical'
+          ? 'Completando signos vitales, escalas y dispositivos…'
+          : null;
+  const isWorking = workingMessage !== null;
   const presentedUpdates = React.useMemo(
     () => presentPatientUpdates(diff?.updates ?? []),
     [diff?.updates]
@@ -73,10 +84,15 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     diff?.conflicts.filter(entry => entry.code === 'historical-reconstruction') ?? [];
   const blockingConflicts =
     diff?.conflicts.filter(entry => entry.code !== 'historical-reconstruction') ?? [];
-  const showReview = (hasChanges || hasConflicts) && !isBusy && !isApplied;
-  const showAppliedConflicts = isApplied && diff != null && diff.summary.conflicts > 0 && !isBusy;
+  const canReview =
+    !stage ||
+    stage.type === 'awaiting_review' ||
+    (stage.type === 'needs_review' && stage.scope === 'structure');
+  const showReview = (hasChanges || hasConflicts) && canReview && !isApplied;
+  const showAppliedConflicts =
+    isApplied && diff != null && diff.summary.conflicts > 0 && !isWorking;
   const handleClose = (): void => {
-    if (!isBusy) onCancel();
+    if (!isWorking) onCancel();
   };
 
   return (
@@ -90,8 +106,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       headerIconColor="text-teal-600"
       dataModule="rayen-import"
       dataTestId="rayen-import-preview"
-      closeOnBackdrop={!isBusy}
-      showCloseButton={!isBusy}
+      closeOnBackdrop={!isWorking}
+      showCloseButton={!isWorking}
     >
       <div className="max-h-[60vh] overflow-y-auto">
         {targetDate && (
@@ -102,8 +118,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             Censo del {ddmmyyyy(targetDate)}
           </p>
         )}
-        {!diff ? (
-          <p className="text-sm text-gray-500">Esperando datos de Rayen…</p>
+        {workingMessage ? (
+          <RayenImportWorkingState message={workingMessage} />
+        ) : !diff ? (
+          <p className="text-sm text-gray-500">Preparando la revisión del censo…</p>
         ) : (
           <>
             {showReview && (
@@ -334,7 +352,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
           </>
         )}
 
-        {error && (
+        {error && !isWorking && (
           <details
             className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
             open
@@ -351,7 +369,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         <button
           type="button"
           onClick={handleClose}
-          disabled={isBusy}
+          disabled={isWorking}
           className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
         >
           {!hasChanges || isApplied ? 'Listo' : 'Cancelar'}
@@ -363,10 +381,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             onClick={() => {
               onConfirm(acceptedPreviousDays);
             }}
-            disabled={isBusy || !hasChanges}
+            disabled={isWorking || !hasChanges}
             className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
           >
-            {isBusy ? 'Aplicando…' : 'Confirmar e importar'}
+            Confirmar e importar
           </button>
         )}
       </div>
