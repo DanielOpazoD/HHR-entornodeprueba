@@ -18,6 +18,12 @@ interface UseRayenClinicalFillRetryInput {
   onStart?: (record: DailyRecord) => boolean | void;
 }
 
+const canResumeClinicalFill = (record: DailyRecord | null | undefined): record is DailyRecord =>
+  Boolean(
+    record?.rayenSync?.runId &&
+      (record.rayenSync.status === 'applied' || record.rayenSync.status === 'partial')
+  );
+
 export const useRayenClinicalFillRetry = ({
   currentRecord,
   currentRecordRef,
@@ -53,7 +59,7 @@ export const useRayenClinicalFillRetry = ({
       }
     }
     const record = activeRecord;
-    if (!record?.rayenSync?.runId || record.rayenSync.status !== 'applied') {
+    if (!canResumeClinicalFill(record)) {
       setState(prev => ({
         ...prev,
         error: 'No hay una sincronización clínica pendiente que se pueda reanudar.',
