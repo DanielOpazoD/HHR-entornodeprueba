@@ -161,6 +161,24 @@ describe('buildRayenSyncBarViewModel', () => {
     });
   });
 
+  it('surfaces a recovery error raised before a contextual execution starts', () => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        error: 'No hay una sincronización clínica pendiente que se pueda reanudar.',
+        hasPersistedSync: true,
+        persistedSync: { status: 'complete' },
+      })
+    );
+
+    expect(model).toMatchObject({
+      phase: 'action',
+      tone: 'warning',
+      label: 'Sincronización requiere revisión',
+      detail: 'No hay una sincronización clínica pendiente que se pueda reanudar.',
+      visuallyHidden: false,
+    });
+  });
+
   it('counts pending administrative discharges in the review total', () => {
     const pendingAdministrativeDischargeDiff = {
       ...oneChangeDiff,

@@ -207,6 +207,15 @@ export const buildRayenSyncBarViewModel = (
     );
   }
 
+  // Validation can reject a recovery action before a contextual execution is created. Surface
+  // that actionable error instead of falling back to a stale persisted or idle presentation.
+  if (input.error) {
+    return settled('action', 'warning', 'Sincronización requiere revisión', {
+      detail: input.error,
+      visuallyHidden: false,
+    });
+  }
+
   if (input.hasPersistedSync) {
     const clinicalIssues = persistedClinicalSyncHasIssues(input.persistedSync);
     if (clinicalIssues) {
