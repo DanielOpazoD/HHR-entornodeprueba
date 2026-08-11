@@ -66,6 +66,12 @@ describe('rayen sync presentation', () => {
       startedAt: '2026-07-14T10:00:00.000Z',
       by: 'Operador',
       status: 'partial',
+      structuralReview: {
+        structureConfirmed: true,
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 0,
+      },
       coverage: {
         total: 11,
         completed: 10,
@@ -161,14 +167,64 @@ describe('rayen sync presentation', () => {
       actionLabel: 'Comprobar nuevamente',
     });
     expect(presentRayenSyncRecovery(event, 'ready')).toMatchObject({
-      action: 'retry',
-      actionLabel: 'Reintentar con revisión',
+      action: 'retry_full',
+      actionLabel: 'Revisar censo',
     });
     expect(presentRayenSyncRecovery(event, 'ready', true)).toMatchObject({
       title: 'Sincronización en curso',
       action: null,
     });
     expect(presentRayenSyncRecovery({ ...event, status: 'complete' }, 'ready')).toBeNull();
+  });
+
+  it('retries only clinical data after the census was already confirmed', () => {
+    const event: RayenSyncEvent = {
+      id: 'run-clinical-partial',
+      startedAt: '2026-07-14T10:00:00.000Z',
+      by: 'Operador',
+      status: 'partial',
+      structuralReview: {
+        structureConfirmed: true,
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 0,
+      },
+      coverage: {
+        total: 10,
+        completed: 9,
+        errors: 1,
+        sourceErrors: 0,
+        completedAt: '2026-07-14T10:03:00.000Z',
+      },
+    };
+
+    expect(presentRayenSyncRecovery(event, 'ready')).toMatchObject({
+      title: 'Información clínica pendiente',
+      action: 'retry_clinical',
+      actionLabel: 'Reintentar información clínica',
+    });
+  });
+
+  it('does not infer a clinical-only retry from legacy coverage without structural proof', () => {
+    const event: RayenSyncEvent = {
+      id: 'legacy-partial',
+      startedAt: '2026-07-14T10:00:00.000Z',
+      by: 'Operador',
+      status: 'partial',
+      coverage: {
+        total: 10,
+        completed: 9,
+        errors: 1,
+        sourceErrors: 0,
+        completedAt: '2026-07-14T10:03:00.000Z',
+      },
+    };
+
+    expect(presentRayenSyncRecovery(event, 'ready')).toMatchObject({
+      title: 'Censo pendiente de revisión',
+      action: 'retry_full',
+      actionLabel: 'Revisar censo',
+    });
   });
 
   it('keeps the persisted last-sync status concise and backward compatible', () => {

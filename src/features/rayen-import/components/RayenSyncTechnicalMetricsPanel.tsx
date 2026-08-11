@@ -29,6 +29,7 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
   });
   const { counters } = performance;
   const physicianQuality = performance.sourceQuality?.treatingPhysicians;
+  const coordination = performance.coordination;
 
   return (
     <details
@@ -54,6 +55,23 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
           {countLabel(counters.retries, 'reintento', 'reintentos')} ·{' '}
           {countLabel(counters.timeouts, 'timeout', 'timeouts')}
         </p>
+        {coordination && (
+          <p className="tabular-nums text-slate-500">
+            Contexto {coordination.target === 'historical' ? 'histórico' : 'actual'} ·{' '}
+            {countLabel(
+              coordination.structuralReplans,
+              'replanteamiento estructural',
+              'replanteamientos estructurales'
+            )}{' '}
+            · {coordination.confirmedEpisodes} episodios confirmados ·{' '}
+            {coordination.omittedEpisodes} omitidos ·{' '}
+            {countLabel(
+              coordination.clinicalRetries,
+              'reintento clínico',
+              'reintentos clínicos'
+            )}
+          </p>
+        )}
         {physicianQuality && (
           <p className="tabular-nums text-slate-500">
             Médicos tratantes: {physicianQuality.assignedEncounters} asignados ·{' '}

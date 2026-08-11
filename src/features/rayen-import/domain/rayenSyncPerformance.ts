@@ -33,7 +33,34 @@ export const mergeRayenSyncPerformance = (
     counters[key] = safeInteger(counters[key]) + safeInteger(delta?.counters?.[key]);
   }
   const sourceQuality = delta?.sourceQuality ?? merged.sourceQuality;
-  return { stagesMs, counters, ...(sourceQuality ? { sourceQuality } : {}) };
+  const currentCoordination = merged.coordination;
+  const coordinationDelta = delta?.coordination;
+  const hasCoordination = Boolean(currentCoordination || coordinationDelta);
+  const coordination = hasCoordination
+    ? {
+        target: coordinationDelta?.target ?? currentCoordination?.target,
+        structuralReplans:
+          safeInteger(currentCoordination?.structuralReplans) +
+          safeInteger(coordinationDelta?.structuralReplans),
+        confirmedEpisodes:
+          coordinationDelta?.confirmedEpisodes == null
+            ? safeInteger(currentCoordination?.confirmedEpisodes)
+            : safeInteger(coordinationDelta.confirmedEpisodes),
+        omittedEpisodes:
+          coordinationDelta?.omittedEpisodes == null
+            ? safeInteger(currentCoordination?.omittedEpisodes)
+            : safeInteger(coordinationDelta.omittedEpisodes),
+        clinicalRetries:
+          safeInteger(currentCoordination?.clinicalRetries) +
+          safeInteger(coordinationDelta?.clinicalRetries),
+      }
+    : undefined;
+  return {
+    stagesMs,
+    counters,
+    ...(sourceQuality ? { sourceQuality } : {}),
+    ...(coordination ? { coordination } : {}),
+  };
 };
 
 export const elapsedMilliseconds = (startedAt: number, now = Date.now()): number =>

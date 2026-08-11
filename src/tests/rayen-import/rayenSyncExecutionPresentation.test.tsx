@@ -9,7 +9,6 @@ describe('Rayen contextual synchronization presentation', () => {
       <RayenImportPreviewModal
         isOpen
         diff={null}
-        isBusy={false}
         error={null}
         targetDate="2026-08-01"
         onConfirm={vi.fn()}
@@ -20,6 +19,25 @@ describe('Rayen contextual synchronization presentation', () => {
     expect(screen.getByTestId('rayen-import-target-date')).toHaveTextContent(
       'Censo del 01-08-2026'
     );
+  });
+
+  it('shows the canonical working stage instead of an empty modal', () => {
+    render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={null}
+        stage={{ type: 'verifying_structure' }}
+        error="mensaje antiguo"
+        targetDate="2026-08-01"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('rayen-import-working-state')).toHaveTextContent(
+      'Confirmando la versión guardada…'
+    );
+    expect(screen.queryByText('mensaje antiguo')).not.toBeInTheDocument();
   });
 
   it('labels history with the selected census date instead of today', () => {

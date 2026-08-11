@@ -170,7 +170,14 @@ export const useRayenSnapshotPreview = ({
             replanDiff,
             clinicalDay: preparedContext.target.clinicalDay,
             createId: () => crypto.randomUUID(),
-            onRetry: () => recordRunPerformance({ counters: { retries: 1 } }, run.id),
+            onRetry: () =>
+              recordRunPerformance(
+                {
+                  counters: { retries: 1 },
+                  coordination: { structuralReplans: 1 },
+                },
+                run.id
+              ),
           });
         });
       if (canAutoApply) {

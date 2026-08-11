@@ -64,6 +64,10 @@ export const useRayenCensusDiffApplication = ({
         {
           stagesMs: { persistence: elapsedMilliseconds(startedAt) },
           counters: { patches: 1 },
+          coordination: {
+            confirmedEpisodes: confirmedHandoff.safeClinicalEpisodeIds.length,
+            omittedEpisodes: confirmedHandoff.isolatedConflicts.length,
+          },
         },
         run.id
       );

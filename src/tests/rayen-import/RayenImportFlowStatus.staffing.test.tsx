@@ -24,12 +24,10 @@ const renderStatus = (
     <RayenImportFlowStatus
       diff={null}
       fill={progress}
-      isApplyingCensus={false}
-      isPreviewOpen={false}
-      isSyncing={false}
       error={null}
       hasPersistedSync={Boolean(persistedSync)}
       persistedSync={persistedSync}
+      executionStage={persistedSync ? null : { type: 'complete' }}
     />
   );
 

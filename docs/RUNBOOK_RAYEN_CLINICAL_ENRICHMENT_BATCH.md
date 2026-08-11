@@ -172,6 +172,26 @@ no puede introducir esos campos desde el navegador.
 - Los desacuerdos de `shadow` registran solo conteos agregados por sección (dispositivos, escalas,
   signos vitales y checkpoint), nunca nombres de campos internos, camas ni identificadores clínicos.
 
+## Recuperación del flujo contextual
+
+- La fase estructural termina sólo después de leer de vuelta la revisión confirmada por Firestore.
+  El enriquecimiento clínico nunca usa la copia optimista del navegador.
+- Un conflicto CAS replantea el censo con la misma captura Eloísa y el registro autoritativo nuevo;
+  nunca reaplica un diff calculado contra una revisión anterior.
+- Si falla sólo la información clínica, el historial y la barra deben ofrecer **Reintentar
+  información clínica**. Esa acción usa el token de pendientes de la misma ejecución y no vuelve a
+  capturar Ficha Médico/Gestión de Camas ni a importar el censo.
+- Si existe revisión estructural pendiente, no se presenta el reintento clínico como solución. El
+  usuario vuelve a revisar el censo y los episodios ya confirmados permanecen preservados.
+- Enfermería/TENS es un flujo independiente: una propuesta pendiente o ambigua no cambia un
+  resultado completo de censo y clínica.
+- El historial agrega contexto actual/histórico, tiempos por etapa, replanteamientos, episodios
+  confirmados/omitidos y reintentos clínicos. Estos contadores no contienen identificadores ni datos
+  clínicos.
+
+Antes de retirar un adaptador de compatibilidad, validar al menos: día actual sin cambios, día actual
+con cambios, día histórico, conflicto estructural aislado y recuperación clínica parcial.
+
 ## Rollback
 
 Un administrador selecciona **Compatibilidad por paciente** (`off`) en Configuración → Integraciones

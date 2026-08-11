@@ -190,7 +190,7 @@ export const presentRayenSyncOutcome = (event: RayenSyncEvent): RayenSyncOutcome
 export interface RayenSyncRecoveryPresentation {
   title: string;
   detail: string;
-  action: 'refresh' | 'retry' | null;
+  action: 'refresh' | 'retry_full' | 'retry_clinical' | null;
   actionLabel: string | null;
   tone: 'warning' | 'danger' | 'info';
 }
@@ -224,11 +224,22 @@ export const presentRayenSyncRecovery = (
     };
   }
   if (connection === 'ready') {
+    const structuralReviewPending = Boolean(
+      event.structuralReview &&
+        (event.structuralReview.historicalCorrectionsPending ||
+          event.structuralReview.historicalCorrectionsRequireFreshCapture ||
+          event.structuralReview.isolatedConflicts > 0)
+    );
+    const structureConfirmed =
+      event.status === 'applied' || event.structuralReview?.structureConfirmed === true;
+    const clinicalOnly = !structuralReviewPending && structureConfirmed;
     return {
-      title: 'Puedes completar esta sincronización',
-      detail: `${outcome.detail ?? 'La ejecución quedó pendiente'}. Eloísa está operativa.`,
-      action: 'retry',
-      actionLabel: 'Reintentar con revisión',
+      title: clinicalOnly ? 'Información clínica pendiente' : 'Censo pendiente de revisión',
+      detail: clinicalOnly
+        ? 'El censo ya está confirmado. Puedes completar solamente los datos clínicos pendientes.'
+        : `${outcome.detail ?? 'La ejecución quedó pendiente'}. Eloísa está operativa.`,
+      action: clinicalOnly ? 'retry_clinical' : 'retry_full',
+      actionLabel: clinicalOnly ? 'Reintentar información clínica' : 'Revisar censo',
       tone: 'warning',
     };
   }

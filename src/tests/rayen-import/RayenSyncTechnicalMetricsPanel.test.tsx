@@ -18,6 +18,13 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
             persistence: 400,
           },
           counters: { requests: 14, cacheHits: 3, patches: 2, retries: 1, timeouts: 0 },
+          coordination: {
+            target: 'historical',
+            structuralReplans: 2,
+            confirmedEpisodes: 10,
+            omittedEpisodes: 1,
+            clinicalRetries: 1,
+          },
           sourceQuality: {
             treatingPhysicians: {
               encounters: 11,
@@ -46,6 +53,9 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     );
     expect(panel).toHaveTextContent(
       '14 solicitudes Eloísa · 3 aciertos de caché · 2 parches · 1 reintento · 0 timeouts'
+    );
+    expect(panel).toHaveTextContent(
+      'Contexto histórico · 2 replanteamientos estructurales · 10 episodios confirmados · 1 omitidos · 1 reintento clínico'
     );
     expect(panel).toHaveTextContent(
       'Médicos tratantes: 8 asignados · 6 nombres desde Eloísa · 8 disponibles para sincronizar · 14 en catálogo · 11 encuentros'

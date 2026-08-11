@@ -35,12 +35,10 @@ describe('RayenImportButton history and progress', () => {
     vi.clearAllMocks();
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
+      execution: null,
       diff: null,
       isPreviewOpen: false,
-      isBusy: false,
-      isSyncing: false,
       result: null,
-      hasSkippedItems: false,
       error: null,
       staffingProposal: null,
       isStaffingProposalBusy: false,
@@ -132,7 +130,7 @@ describe('RayenImportButton history and progress', () => {
     mocks.retryClinicalFill.mockResolvedValue(undefined);
     render(<RayenImportButton />);
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
-    fireEvent.click(screen.getByRole('button', { name: 'Reintentar con revisión' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar información clínica' }));
     await waitFor(() => expect(mocks.retryClinicalFill).toHaveBeenCalledOnce());
     expect(mocks.refreshHealth).not.toHaveBeenCalled();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
@@ -168,6 +166,15 @@ describe('RayenImportButton history and progress', () => {
 
   it('shows real clinical-fill progress without an invented global percentage', () => {
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    mocks.useRayenImport.mockReturnValue({
+      ...mocks.useRayenImport(),
+      execution: {
+        context: null,
+        pending: null,
+        stage: { type: 'syncing_clinical' },
+        outcome: { structuralConflicts: 0, skippedItems: 0 },
+      },
+    });
     mocks.useRayenFillProgress.mockReturnValue({
       running: true,
       done: 4,

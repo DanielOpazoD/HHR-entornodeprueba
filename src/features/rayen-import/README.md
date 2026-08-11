@@ -67,6 +67,25 @@ campos clínicos propiedad del backend —por `clinicalEpisodeId`, aun con trasl
 esos campos si el episodio todavía no ha sido aceptado por la autoridad clínica. Volver a `off` no
 desactiva este cerco.
 
+## Flujo contextual único
+
+La ejecución visible y el historial usan una sola máquina de estados contextual:
+`preparing_context → capturing → planning_structure → awaiting_review → persisting_structure →
+verifying_structure → syncing_clinical → resultado terminal`. La barra y el modal no infieren la
+fase desde indicadores antiguos de captura o guardado. Por eso una respuesta tardía o un estado
+heredado de otra ejecución no puede mostrar un modal vacío ni reemplazar el resultado vigente.
+
+Después de confirmar la estructura, signos vitales, escalas y dispositivos se encadenan al mismo
+`runId` y al censo autoritativo leído de vuelta. Un fallo clínico conserva ese censo y ofrece
+**Reintentar información clínica** sólo para los objetivos pendientes: no recaptura Eloísa ni
+reimporta pacientes. Los conflictos estructurales reales permanecen en revisión y bloquean sólo
+los episodios afectados. La dotación Enfermería/TENS conserva su botón y decisión independientes.
+
+`rayenSyncHistory` guarda únicamente agregados de coordinación: contexto actual/histórico,
+duraciones por etapa, replanteamientos por concurrencia, cantidades de episodios confirmados u
+omitidos y reintentos clínicos. No persiste fechas objetivo, camas, episodios, nombres ni valores
+clínicos en esa telemetría.
+
 ## Seguridad clínica
 
 - **Dos fuentes obligatorias:** una sincronización estructural solo comienza cuando Ficha Médico y

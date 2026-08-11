@@ -45,7 +45,6 @@ describe('RayenImportPreviewModal previous-day admissions', () => {
       <RayenImportPreviewModal
         isOpen
         diff={diff}
-        isBusy={false}
         error={null}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
