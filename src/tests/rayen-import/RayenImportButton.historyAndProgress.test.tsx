@@ -193,4 +193,30 @@ describe('RayenImportButton history and progress', () => {
     );
     expect(screen.getByTestId('rayen-sync-pulse')).not.toHaveTextContent('%');
   });
+
+  it('blocks a second import while a shared clinical fill survives a remount', () => {
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    mocks.useRayenFillProgress.mockReturnValue({
+      running: true,
+      done: 2,
+      total: 5,
+      errors: 0,
+      lastCompletedAt: null,
+      outcome: 'running',
+      attemptId: 2,
+      staffingOutcome: 'idle',
+    });
+
+    render(<RayenImportButton />);
+
+    expect(screen.getByTestId('rayen-import-button')).toBeDisabled();
+    expect(screen.getByTestId('rayen-sync-pulse')).toHaveTextContent(
+      'Datos clínicos · 2 de 5 pacientes'
+    );
+    const progress = screen.getByRole('progressbar', {
+      name: 'Progreso de sincronización con Eloísa',
+    });
+    expect(progress).toHaveAttribute('aria-valuenow', '2');
+    expect(progress).toHaveAttribute('aria-valuemax', '5');
+  });
 });

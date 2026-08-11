@@ -76,7 +76,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
   const mainWorking =
-    isRayenSyncExecutionActive(execution?.stage ?? null) || recoveryBusy;
+    isRayenSyncExecutionActive(execution?.stage ?? null) || fill.running || recoveryBusy;
   const working = mainWorking || isStaffingProposalBusy;
   const selectedRecordIsCurrent = !selectedDate || record?.date === selectedDate;
   const recordForSelectedDate = selectedRecordIsCurrent ? record : null;

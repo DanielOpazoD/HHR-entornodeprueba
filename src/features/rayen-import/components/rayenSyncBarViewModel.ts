@@ -188,6 +188,25 @@ export const buildRayenSyncBarViewModel = (
   const canonical = canonicalExecutionViewModel(input);
   if (canonical) return canonical;
 
+  // A shared clinical fill can outlive the component that started it. Keep it visible and
+  // actionable after remounting, while the contextual execution remains the primary source.
+  if (input.fill.running) {
+    const hasRealTotal = input.fill.total > 0;
+    const done = hasRealTotal ? Math.min(Math.max(input.fill.done, 0), input.fill.total) : 0;
+    return active(
+      'clinical',
+      withTargetDate(
+        hasRealTotal
+          ? `Datos clínicos · ${done} de ${input.fill.total} pacientes`
+          : 'Revisando datos clínicos',
+        input.targetDate
+      ),
+      hasRealTotal
+        ? { kind: 'determinate', done, total: input.fill.total }
+        : { kind: 'indeterminate' }
+    );
+  }
+
   if (input.hasPersistedSync) {
     const clinicalIssues = persistedClinicalSyncHasIssues(input.persistedSync);
     if (clinicalIssues) {

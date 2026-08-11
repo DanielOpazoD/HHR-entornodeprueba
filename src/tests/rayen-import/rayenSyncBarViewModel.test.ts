@@ -145,6 +145,22 @@ describe('buildRayenSyncBarViewModel', () => {
     expect(model.ariaBusy).toBe(true);
   });
 
+  it('keeps a shared clinical fill visible after the contextual view remounts', () => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        fill: fill({ running: true, outcome: 'running', done: 2, total: 5 }),
+        targetDate: '2026-08-07',
+      })
+    );
+
+    expect(model).toMatchObject({
+      phase: 'clinical',
+      label: 'Datos clínicos · 2 de 5 pacientes · 07-08-2026',
+      progress: { kind: 'determinate', done: 2, total: 5 },
+      ariaBusy: true,
+    });
+  });
+
   it('counts pending administrative discharges in the review total', () => {
     const pendingAdministrativeDischargeDiff = {
       ...oneChangeDiff,
