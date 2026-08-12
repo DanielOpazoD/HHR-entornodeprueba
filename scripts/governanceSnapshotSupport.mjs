@@ -10,23 +10,24 @@ const SUPPORTING_GOVERNANCE_STEP_IDS = [
   'sustainable-change-policy',
 ];
 
-const releaseEvidenceSteps = getReleaseEvidenceRefreshSteps({
+const getGovernanceSnapshotStepIds = () => {
   // The coverage shard creates this expensive report once and CI downloads it
   // before running the governance package.
-  skipReportIds: ['critical-coverage'],
-});
-
-export const GOVERNANCE_SNAPSHOT_STEP_IDS = [
-  ...releaseEvidenceSteps.map(step => step.id),
-  ...SUPPORTING_GOVERNANCE_STEP_IDS.filter(
-    id => !releaseEvidenceSteps.some(step => step.id === id)
-  ),
-];
+  const releaseEvidenceSteps = getReleaseEvidenceRefreshSteps({
+    skipReportIds: ['critical-coverage'],
+  });
+  return [
+    ...releaseEvidenceSteps.map(step => step.id),
+    ...SUPPORTING_GOVERNANCE_STEP_IDS.filter(
+      id => !releaseEvidenceSteps.some(step => step.id === id)
+    ),
+  ];
+};
 
 export const GOVERNANCE_SNAPSHOT_PROFILE_BASENAME = 'ci-governance-snapshot-profile';
 
 export const getGovernanceSnapshotSteps = () =>
-  GOVERNANCE_SNAPSHOT_STEP_IDS.map(id => {
+  getGovernanceSnapshotStepIds().map(id => {
     const node = getEvidenceNode(id);
     return {
       id,
@@ -35,12 +36,7 @@ export const getGovernanceSnapshotSteps = () =>
     };
   });
 
-export const buildGovernanceSnapshotProfile = ({
-  root,
-  startedAt,
-  completedAt,
-  steps,
-}) => {
+export const buildGovernanceSnapshotProfile = ({ root, startedAt, completedAt, steps }) => {
   const durationMs = completedAt.getTime() - startedAt.getTime();
   const failedSteps = steps.filter(step => step.status !== 'passed');
 

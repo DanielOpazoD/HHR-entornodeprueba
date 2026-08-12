@@ -36,6 +36,19 @@ describe('release evidence contract', () => {
     );
   });
 
+  it('omits an externally produced report without disturbing the remaining order', () => {
+    const steps = getReleaseEvidenceRefreshSteps({ skipReportIds: ['critical-coverage'] });
+    const positions = new Map(steps.map((step, index) => [step.id, index]));
+
+    expect(positions.has('critical-coverage')).toBe(false);
+    expect(positions.get('operational-health')).toBeLessThan(
+      positions.get('system-confidence') as number
+    );
+    expect(positions.get('system-confidence')).toBeLessThan(
+      positions.get('release-readiness-scorecard') as number
+    );
+  });
+
   it('fails closed when the manifest does not represent the current clean commit', () => {
     const manifest = {
       schemaVersion: 1,
@@ -162,11 +175,18 @@ describe('release evidence contract', () => {
     };
     const runtimeManifest = buildRuntimeReleaseEvidenceManifest(manifest);
 
-    expect(collectBuiltReleaseEvidenceIssues({ runtimeManifest, manifest })).toEqual([]);
+    expect(
+      collectBuiltReleaseEvidenceIssues({
+        runtimeManifest,
+        manifest,
+        expectedRuntimeManifest: runtimeManifest,
+      })
+    ).toEqual([]);
     expect(
       collectBuiltReleaseEvidenceIssues({
         runtimeManifest: { ...runtimeManifest, generatedAt: '2026-08-11T12:31:00.000Z' },
         manifest,
+        expectedRuntimeManifest: runtimeManifest,
       })
     ).toEqual([expect.stringContaining('complete verified runtime contract')]);
     expect(

@@ -3,6 +3,10 @@ import { CheckCircle2, Clock3, FileWarning, GitCommitHorizontal } from 'lucide-r
 
 type ReleaseEvidenceStatus = 'current' | 'stale' | 'unavailable';
 
+type ReleaseEvidenceLoadState =
+  | { status: 'loading' }
+  | { status: 'settled'; manifest: ReleaseEvidenceManifest };
+
 interface ReleaseEvidenceManifest {
   generatedAt: string | null;
   gitSha: string | null;
@@ -106,7 +110,7 @@ const statusPresentation = {
 } as const;
 
 export const ReleaseEvidenceStatusPanel = () => {
-  const [manifest, setManifest] = useState<ReleaseEvidenceManifest>(unavailableManifest);
+  const [loadState, setLoadState] = useState<ReleaseEvidenceLoadState>({ status: 'loading' });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,14 +123,36 @@ export const ReleaseEvidenceStatusPanel = () => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload: unknown = await response.json();
         if (!isReleaseEvidenceManifest(payload)) throw new Error('Contrato de evidencia inválido');
-        setManifest(payload);
-      } catch (loadError) {
-        if (!controller.signal.aborted) setManifest(unavailableManifest);
+        setLoadState({ status: 'settled', manifest: payload });
+      } catch (_loadError) {
+        if (!controller.signal.aborted) {
+          setLoadState({ status: 'settled', manifest: unavailableManifest });
+        }
       }
     };
     void loadManifest();
     return () => controller.abort();
   }, []);
+
+  if (loadState.status === 'loading') {
+    return (
+      <section
+        className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <div className="flex items-center gap-3">
+          <Clock3 className="shrink-0" size={22} aria-hidden="true" />
+          <div>
+            <h2 className="font-semibold">Evidencia del release</h2>
+            <p className="text-sm opacity-80">Verificando el contrato incluido en este build…</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const { manifest } = loadState;
 
   const presentation = statusPresentation[manifest.status];
   const StatusIcon = presentation.Icon;

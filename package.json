@@ -201,7 +201,7 @@
     "ci:preview-gate": "npm run check:bundle-budget && npm run check:chunk-graph && npm run check:runtime-asset-margin && npm run test:e2e:preview:census-bootstrap:built",
     "ci:preview-smoke:built": "npm run test:e2e:preview:census-bootstrap:built",
     "ci:merge-gate": "npm run ci:pre-merge && npm run lint:strict:core && npm run check:critical-coverage && npm run check:netlify-functions-bundle && npm run build && npm run ci:preview-gate",
-    "ci:release-gate": "npm run ci:merge-gate && npm run check:daily-record-authority-release-gate && npm run report:release-evidence && npm run check:release-evidence && npm run test:firestore:release:ci",
+    "ci:release-gate": "npm run ci:merge-gate && npm run check:daily-record-authority-release-gate && npm run release:evidence:refresh && npm run check:release-evidence && npm run test:firestore:release:ci",
     "clean": "bash scripts/cleanup.sh",
     "ci": "npm run ci:merge-gate",
     "ci:quality-core": "npm run ci:inner-loop",

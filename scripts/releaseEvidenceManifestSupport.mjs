@@ -120,9 +120,12 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
     return ['Release evidence manifest must be an object.'];
   }
-  if (manifest.schemaVersion !== 1) issues.push('Release evidence manifest schemaVersion must be 1.');
+  if (manifest.schemaVersion !== 1)
+    issues.push('Release evidence manifest schemaVersion must be 1.');
   if (manifest.contractVersion !== RELEASE_EVIDENCE_CONTRACT_VERSION) {
-    issues.push('Release evidence manifest contractVersion does not match the repository contract.');
+    issues.push(
+      'Release evidence manifest contractVersion does not match the repository contract.'
+    );
   }
   if (!isSameCommit(String(manifest.gitSha || ''), currentGitState.gitSha)) {
     issues.push(
@@ -161,10 +164,7 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
     if (!isSameCommit(report.gitSha, currentGitState.gitSha)) {
       issues.push(`Release evidence report ${id} does not target the current HEAD.`);
     }
-    if (
-      typeof report.generatedAt !== 'string' ||
-      Number.isNaN(Date.parse(report.generatedAt))
-    ) {
+    if (typeof report.generatedAt !== 'string' || Number.isNaN(Date.parse(report.generatedAt))) {
       issues.push(`Release evidence report ${id} has no valid generation date.`);
     }
   }
@@ -211,7 +211,9 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
   }
   const expectedStatus = staleReports === 0 && manifest.gitDirty === false ? 'current' : 'stale';
   if (manifest.status !== expectedStatus) {
-    issues.push(`Release evidence status is ${manifest.status || 'invalid'}, expected ${expectedStatus}.`);
+    issues.push(
+      `Release evidence status is ${manifest.status || 'invalid'}, expected ${expectedStatus}.`
+    );
   }
   if (manifest.gitDirty !== false) {
     issues.push('Release evidence was generated from a dirty worktree.');
@@ -228,9 +230,7 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
 export const collectBuiltReleaseEvidenceIssues = ({
   runtimeManifest,
   manifest,
-  expectedRuntimeManifest = manifest
-    ? buildRuntimeReleaseEvidenceManifest(manifest)
-    : undefined,
+  expectedRuntimeManifest,
 }) => {
   const issues = [];
   const derivedRuntimeManifest = manifest

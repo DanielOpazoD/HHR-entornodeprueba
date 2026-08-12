@@ -55,12 +55,21 @@ describe('CI workflow governance', () => {
 
   it('carries the verified release evidence manifest into the production build and post-merge audit', () => {
     const workflow = readText('.github/workflows/ci-cd.yml');
-    const governanceJob = workflow.slice(
-      workflow.indexOf('quality-static-governance-snapshots:'),
-      workflow.indexOf('quality-static-groups:')
-    );
-    const buildJob = workflow.slice(workflow.indexOf('  build:'), workflow.indexOf('lighthouse-ci:'));
-    const postmergeJob = workflow.slice(workflow.indexOf('postmerge-evidence:'));
+    const governanceStart = workflow.indexOf('quality-static-governance-snapshots:');
+    const governanceEnd = workflow.indexOf('quality-static-groups:');
+    const buildStart = workflow.indexOf('  build:');
+    const buildEnd = workflow.indexOf('lighthouse-ci:');
+    const postmergeStart = workflow.indexOf('postmerge-evidence:');
+
+    expect(governanceStart).toBeGreaterThanOrEqual(0);
+    expect(governanceEnd).toBeGreaterThan(governanceStart);
+    expect(buildStart).toBeGreaterThanOrEqual(0);
+    expect(buildEnd).toBeGreaterThan(buildStart);
+    expect(postmergeStart).toBeGreaterThanOrEqual(0);
+
+    const governanceJob = workflow.slice(governanceStart, governanceEnd);
+    const buildJob = workflow.slice(buildStart, buildEnd);
+    const postmergeJob = workflow.slice(postmergeStart);
     const generateIndex = governanceJob.indexOf('npm run report:release-evidence-contract');
     const strictIndex = governanceJob.indexOf('npm run check:release-evidence-contract:strict');
     const uploadIndex = governanceJob.indexOf('name: release-evidence-runtime');
@@ -79,6 +88,17 @@ describe('CI workflow governance', () => {
     expect(postmergeJob).toContain('npm run check:release-evidence-contract:built');
     expect(postmergeJob).not.toContain('reports/release-evidence-runtime/**');
     expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
+  });
+
+  it('regenerates the complete evidence package before the release gate validates it', () => {
+    const scripts = readPackageScripts();
+    const releaseGate = scripts['ci:release-gate'];
+    const refreshIndex = releaseGate.indexOf('npm run release:evidence:refresh');
+    const validationIndex = releaseGate.indexOf('npm run check:release-evidence');
+
+    expect(refreshIndex).toBeGreaterThanOrEqual(0);
+    expect(validationIndex).toBeGreaterThan(refreshIndex);
+    expect(releaseGate).not.toContain('npm run report:release-evidence &&');
   });
 
   it('splits quality-static into governed groups while preserving an aggregate quality-static check', () => {

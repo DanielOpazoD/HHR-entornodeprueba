@@ -12,16 +12,11 @@ const root = process.cwd();
 const reportsDir = path.join(root, 'reports');
 const runtimeDir = path.join(reportsDir, 'release-evidence-runtime');
 const manifest = buildReleaseEvidenceManifest({ root });
+const manifestJson = `${JSON.stringify(manifest, null, 2)}\n`;
 
 fs.mkdirSync(runtimeDir, { recursive: true });
-fs.writeFileSync(
-  path.join(reportsDir, 'release-evidence-contract.json'),
-  `${JSON.stringify(manifest, null, 2)}\n`
-);
-fs.writeFileSync(
-  path.join(runtimeDir, 'release-evidence-contract.json'),
-  `${JSON.stringify(manifest, null, 2)}\n`
-);
+fs.writeFileSync(path.join(reportsDir, 'release-evidence-contract.json'), manifestJson);
+fs.writeFileSync(path.join(runtimeDir, 'release-evidence-contract.json'), manifestJson);
 fs.writeFileSync(
   path.join(reportsDir, 'release-evidence-contract.md'),
   formatReleaseEvidenceManifestMarkdown(manifest)

@@ -4,8 +4,7 @@ import {
 } from './previewBootstrapEvidenceSupport.mjs';
 
 export const RELEASE_EVIDENCE_RUNTIME_ARTIFACT = 'release-evidence-runtime';
-export const RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB =
-  'quality-static-governance-snapshots';
+export const RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB = 'quality-static-governance-snapshots';
 export const RELEASE_EVIDENCE_RUNTIME_PATH = 'reports/release-evidence-runtime';
 export const CRITICAL_COVERAGE_ARTIFACT = 'critical-coverage';
 export const CRITICAL_COVERAGE_PRODUCER_JOB = 'critical-coverage-report';
@@ -151,6 +150,12 @@ export const collectTransitiveNeeds = (jobs, jobName, visited = new Set()) => {
 
 const normalizePath = artifactPath => artifactPath.replace(/\/+$/, '');
 
+const isPathWithin = (candidatePath, rootPath) => {
+  const candidate = normalizePath(candidatePath);
+  const root = normalizePath(rootPath);
+  return candidate === root || candidate.startsWith(`${root}/`);
+};
+
 export const collectCiArtifactContractIssues = workflowText => {
   const jobs = parseWorkflowJobs(workflowText);
   const uploads = collectArtifactUploads(jobs);
@@ -204,6 +209,15 @@ export const collectCiArtifactContractIssues = workflowText => {
 
   const postmergeJob = jobs.get('postmerge-evidence');
   const releaseEvidenceProducerJob = jobs.get(RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB);
+  const releaseEvidenceContractIsReferenced = workflowText.includes(
+    RELEASE_EVIDENCE_RUNTIME_ARTIFACT
+  );
+  if (releaseEvidenceContractIsReferenced && !releaseEvidenceProducerJob) {
+    issues.push(
+      `Missing required producer job "${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}" for ` +
+        `artifact "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}".`
+    );
+  }
   if (postmergeJob) {
     if (!postmergeJob.body.includes('npm run check:ci-artifact-contracts')) {
       issues.push(
@@ -264,23 +278,18 @@ export const collectCiArtifactContractIssues = workflowText => {
     if (releaseEvidenceProducerJob) {
       const criticalCoverageDownload = downloads.find(
         download =>
-          download.jobName === 'postmerge-evidence' &&
-          download.name === CRITICAL_COVERAGE_ARTIFACT
+          download.jobName === 'postmerge-evidence' && download.name === CRITICAL_COVERAGE_ARTIFACT
       );
       const verifyCriticalCoverageCommand =
         `scripts/verify-github-run-artifact.mjs --artifact ${CRITICAL_COVERAGE_ARTIFACT} ` +
         `--producer ${CRITICAL_COVERAGE_PRODUCER_JOB}`;
-      const verifyCriticalCoverageIndex = postmergeJob.body.indexOf(
-        verifyCriticalCoverageCommand
-      );
+      const verifyCriticalCoverageIndex = postmergeJob.body.indexOf(verifyCriticalCoverageCommand);
       const downloadCriticalCoverageIndex = postmergeJob.body.indexOf(
         `name: ${CRITICAL_COVERAGE_ARTIFACT}`
       );
 
       if (!criticalCoverageDownload) {
-        issues.push(
-          `postmerge-evidence: must download artifact "${CRITICAL_COVERAGE_ARTIFACT}".`
-        );
+        issues.push(`postmerge-evidence: must download artifact "${CRITICAL_COVERAGE_ARTIFACT}".`);
       } else if (normalizePath(criticalCoverageDownload.path) !== 'reports') {
         issues.push('postmerge-evidence: critical coverage must download to "reports".');
       }
@@ -349,8 +358,7 @@ export const collectCiArtifactContractIssues = workflowText => {
     if (buildJob) {
       const runtimeDownload = downloads.find(
         download =>
-          download.jobName === 'build' &&
-          download.name === RELEASE_EVIDENCE_RUNTIME_ARTIFACT
+          download.jobName === 'build' && download.name === RELEASE_EVIDENCE_RUNTIME_ARTIFACT
       );
       if (!runtimeDownload) {
         issues.push(`build: must download artifact "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}".`);
@@ -360,17 +368,25 @@ export const collectCiArtifactContractIssues = workflowText => {
             `build: release evidence runtime must download to "${RELEASE_EVIDENCE_RUNTIME_PATH}".`
           );
         }
-        if (
-          buildJob.body.indexOf(`name: ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}`) >
-          buildJob.body.indexOf('npm run build')
-        ) {
+        const runtimeDownloadIndex = buildJob.body.indexOf(
+          `name: ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}`
+        );
+        const productionBuildIndex = buildJob.body.indexOf('npm run build');
+        if (productionBuildIndex === -1) {
+          issues.push('build: must run npm run build after downloading release evidence.');
+        } else if (runtimeDownloadIndex > productionBuildIndex) {
           issues.push('build: must download release evidence before building production assets.');
         }
       }
     }
 
     if (postmergeJob) {
-      if (postmergeJob.body.includes('reports/release-evidence-runtime/**')) {
+      const postmergeRuntimeUploads = uploads.filter(
+        upload =>
+          upload.jobName === 'postmerge-evidence' &&
+          isPathWithin(upload.path, RELEASE_EVIDENCE_RUNTIME_PATH)
+      );
+      if (postmergeRuntimeUploads.length > 0) {
         issues.push(
           'postmerge-evidence: must not republish regenerated release evidence as the build runtime contract.'
         );

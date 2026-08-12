@@ -62,10 +62,19 @@ function releaseEvidenceRuntimePlugin(): Plugin {
   return {
     name: 'release-evidence-runtime',
     configureServer(server) {
-      server.middlewares.use(route, (_req, res) => {
+      server.middlewares.use(route, (req, res, next) => {
+        if (req.url && req.url !== '/' && !req.url.startsWith('/?')) {
+          next();
+          return;
+        }
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store');
-        res.end(readReleaseEvidenceAsset());
+        try {
+          res.end(readReleaseEvidenceAsset());
+        } catch {
+          res.statusCode = 503;
+          res.end(unavailableReleaseEvidence());
+        }
       });
     },
     generateBundle() {

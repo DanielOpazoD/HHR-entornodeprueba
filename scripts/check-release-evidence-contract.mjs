@@ -17,15 +17,10 @@ let manifest;
 
 if (strict) {
   const manifestPath = builtAsset
-    ? path.join(
-        root,
-        'reports',
-        'release-evidence-runtime',
-        'release-evidence-contract.json'
-      )
+    ? path.join(root, 'reports', 'release-evidence-runtime', 'release-evidence-contract.json')
     : path.join(root, 'reports', 'release-evidence-contract.json');
   if (!fs.existsSync(manifestPath)) {
-    issues.push('reports/release-evidence-contract.json is missing.');
+    issues.push(`${path.relative(root, manifestPath)} is missing.`);
   } else {
     try {
       manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
@@ -37,7 +32,7 @@ if (strict) {
       );
     } catch (error) {
       issues.push(
-        `reports/release-evidence-contract.json is invalid: ${error instanceof Error ? error.message : String(error)}`
+        `${path.relative(root, manifestPath)} is invalid: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

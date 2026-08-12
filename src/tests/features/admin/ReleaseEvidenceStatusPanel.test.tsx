@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ReleaseEvidenceStatusPanel } from '@/features/admin/components/ReleaseEvidenceStatusPanel';
 
@@ -35,12 +35,14 @@ describe('ReleaseEvidenceStatusPanel', () => {
   });
 
   it('fails closed when the runtime contract cannot be loaded', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    const fetchMock = vi.fn().mockRejectedValue(new Error('offline'));
+    vi.stubGlobal('fetch', fetchMock);
 
     render(<ReleaseEvidenceStatusPanel />);
 
     expect(await screen.findByText('No generada')).toBeInTheDocument();
     expect(screen.getByText(/no incluye un contrato/i)).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
   });
 
   it('fails closed when the runtime payload is structurally incomplete', async () => {
@@ -74,5 +76,37 @@ describe('ReleaseEvidenceStatusPanel', () => {
     render(<ReleaseEvidenceStatusPanel />);
 
     expect(await screen.findByText('No generada')).toBeInTheDocument();
+  });
+
+  it('fails closed when the runtime endpoint returns an error status', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<ReleaseEvidenceStatusPanel />);
+
+    expect(await screen.findByText('No generada')).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+  });
+
+  it('shows stale evidence as unavailable for release approval', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          schemaVersion: 1,
+          contractVersion: 1,
+          generatedAt: '2026-08-11T12:30:00.000Z',
+          gitSha: '1234567890abcdef',
+          status: 'stale',
+          summary: { decisionReports: 10, currentReports: 4, staleReports: 6 },
+        }),
+      })
+    );
+
+    render(<ReleaseEvidenceStatusPanel />);
+
+    expect(await screen.findByText('Desactualizada')).toBeInTheDocument();
+    expect(screen.getByText('4/10')).toBeInTheDocument();
   });
 });

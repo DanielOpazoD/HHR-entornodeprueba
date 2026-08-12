@@ -1,7 +1,4 @@
-import {
-  getEvidenceNode,
-  getEvidenceReportDependencyFiles,
-} from './evidenceDependencyGraph.mjs';
+import { getEvidenceNode, getEvidenceReportDependencyFiles } from './evidenceDependencyGraph.mjs';
 
 export const RELEASE_EVIDENCE_CONTRACT_VERSION = 1;
 
@@ -168,7 +165,8 @@ export const getReleaseEvidenceRefreshSteps = ({ skipReportIds = [] } = {}) => {
     if (temporary.has(id)) throw new Error(`Release evidence dependency cycle at ${id}.`);
     temporary.add(id);
     const node = getEvidenceNode(id);
-    for (const dependency of node?.dependencies || []) {
+    if (!node) throw new Error(`Release evidence graph has no node for ${id}.`);
+    for (const dependency of node.dependencies || []) {
       if (reportIds.has(dependency)) visit(dependency);
     }
     temporary.delete(id);
@@ -183,6 +181,7 @@ export const getReleaseEvidenceRefreshSteps = ({ skipReportIds = [] } = {}) => {
 export const getReleaseEvidenceFreshnessContracts = () =>
   RELEASE_DECISION_REPORT_IDS.map(id => {
     const node = getEvidenceNode(id);
+    if (!node) throw new Error(`Release evidence graph has no node for ${id}.`);
     const file = node.artifacts.find(artifact => artifact.endsWith('.json'));
     return {
       id,
