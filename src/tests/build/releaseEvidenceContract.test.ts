@@ -198,21 +198,24 @@ describe('release evidence contract', () => {
     ).toEqual([expect.stringContaining('runtime source')]);
   });
 
-  it('rejects ambiguous or non-hex commit abbreviations', () => {
-    const issues = collectReleaseEvidenceManifestIssues({
-      manifest: {
-        schemaVersion: 1,
-        contractVersion: 1,
-        gitSha: 'a',
-        gitDirty: false,
-        status: 'current',
-        summary: { decisionReports: 0, currentReports: 0, staleReports: 0 },
-        reports: [],
-        inventory: [],
-      },
-      currentGitState: { gitSha: 'abcdef12', gitDirty: false },
-    });
+  it.each(['a', 'not-a-commit'])(
+    'rejects an ambiguous or non-hex commit identifier: %s',
+    gitSha => {
+      const issues = collectReleaseEvidenceManifestIssues({
+        manifest: {
+          schemaVersion: 1,
+          contractVersion: 1,
+          gitSha,
+          gitDirty: false,
+          status: 'current',
+          summary: { decisionReports: 0, currentReports: 0, staleReports: 0 },
+          reports: [],
+          inventory: [],
+        },
+        currentGitState: { gitSha: 'abcdef12', gitDirty: false },
+      });
 
-    expect(issues).toEqual(expect.arrayContaining([expect.stringContaining('current HEAD')]));
-  });
+      expect(issues).toEqual(expect.arrayContaining([expect.stringContaining('current HEAD')]));
+    }
+  );
 });

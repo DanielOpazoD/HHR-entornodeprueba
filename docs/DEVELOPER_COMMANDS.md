@@ -107,6 +107,7 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 - `npm run build:rules-assets`
 - `npm run check:report-freshness`
 - `npm run check:release-evidence`
+- `npm run check:release-evidence-contract`
 - `npm run check:release-evidence-contract:strict`
 - `npm run check:release-evidence-contract:built`
 - `npm run report:governance-snapshots`
