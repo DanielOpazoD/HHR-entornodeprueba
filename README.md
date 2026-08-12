@@ -291,6 +291,7 @@ Artifacts operativos publicados por CI:
 - `critical-coverage`
 - `governance-snapshot-profile`
 - `postmerge-release-evidence` (solo `push` a `main`)
+- `release-evidence-runtime` (manifiesto validado que se incorpora al build)
 - `flow-performance-budget`
 
 ## Baseline de Calidad
@@ -307,14 +308,15 @@ Snapshots versionados explícitamente (excepción documentada al `.gitignore`, m
 - [reports/legacy-bridge-governance.md](reports/legacy-bridge-governance.md)
 - [reports/runtime-contracts.md](reports/runtime-contracts.md)
 
-Flujo local recomendado antes de citar cualquier otro `reports/*.md` como evidencia:
+Flujo local canónico antes de decidir un release o citar `reports/*.md` como evidencia:
 
 ```bash
 git status --short
-npm run report:critical-coverage
-npm run report:governance-snapshots
-npm run check:report-freshness
+npm run release:evidence:refresh
 ```
+
+El inventario, orden, freshness, transporte CI y recuperación se documentan en
+[docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
 
 Flujo local rapido cuando `reports/critical-coverage.*` ya fue generado para el mismo `gitSha` y el mismo estado clean/dirty:
 

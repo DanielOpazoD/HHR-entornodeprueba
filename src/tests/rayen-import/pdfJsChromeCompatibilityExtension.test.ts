@@ -13,7 +13,7 @@ const sha256 = (file: string) =>
     .digest('hex');
 
 describe('PDF.js extension Chrome compatibility contract', () => {
-  it('vendors the exact PDF.js 5.6.205 legacy artifacts and declares Chrome 118+', () => {
+  it('vendors the exact PDF.js 5.5.207 legacy artifacts and declares Chrome 118+', () => {
     const manifest = readJson('extension/manifest.json');
     const lock = readJson('extension/vendor-lock.json');
     const vendors = new Map(lock.vendors.map((vendor: { file: string }) => [vendor.file, vendor]));
@@ -32,7 +32,7 @@ describe('PDF.js extension Chrome compatibility contract', () => {
       };
       expect(vendor).toMatchObject({
         package: 'pdfjs-dist',
-        version: '5.6.205',
+        version: '5.5.207',
         variant: 'legacy',
         source,
       });

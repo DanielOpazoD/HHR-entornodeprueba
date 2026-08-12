@@ -224,6 +224,7 @@
       { "id": "check:test-failure-catalog", "group": "tests" },
       { "id": "check:flaky-quarantine", "group": "tests" },
       { "id": "check:guardrail-governance", "group": "governance" },
+      { "id": "check:release-evidence-contract", "group": "governance" },
       {
         "id": "check:report-freshness",
         "group": "reports",

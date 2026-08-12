@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { SystemHealthIncidentDetailPanel } from './SystemHealthIncidentDetailPanel';
 import { SystemHealthIncidentQueue } from './SystemHealthIncidentQueue';
+import { ReleaseEvidenceStatusPanel } from './ReleaseEvidenceStatusPanel';
 import { SystemHealthSyncConvergencePanel } from './SystemHealthSyncConvergencePanel';
 import { SystemHealthTriageToolbar } from './SystemHealthTriageToolbar';
 import { buildSystemHealthSyncConvergencePanelModel } from './systemHealthSyncConvergenceModel';
@@ -313,6 +314,8 @@ export const SystemHealthDashboard = () => {
           setSelectedDate(currentDate => shiftSystemHealthSelectedDate(currentDate, deltaDays))
         }
       />
+
+      <ReleaseEvidenceStatusPanel />
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-40">

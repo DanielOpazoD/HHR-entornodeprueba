@@ -11,6 +11,7 @@ const scriptPath = path.join(process.cwd(), 'scripts/check-report-freshness.mjs'
 const tempRoots: string[] = [];
 
 const trackedReports = [
+  { id: 'critical-coverage', file: 'reports/critical-coverage.json' },
   { id: 'quality-metrics', file: 'reports/quality-metrics.json' },
   { id: 'sync-convergence', file: 'reports/sync-convergence.json' },
   { id: 'system-confidence', file: 'reports/system-confidence.json' },

@@ -91,11 +91,15 @@ Usar antes de release o para validar cambios con impacto en Firestore, emuladore
 Incluye:
 
 - `npm run ci:merge-gate`
-- `npm run report:release-evidence`
+- `npm run release:evidence:refresh`
 - `npm run check:release-evidence`
 - `npm run test:firestore:release:ci`
 
-`check:release-evidence` bloquea evidencia formal generada desde un worktree sucio, reportes stale, signoff clínico incompleto, smoke visual clínico faltante y `quality-metrics` con `flakeRiskFiles > 0`. Si falla por flake-risk, corregir o aislar el test afectado antes de regenerar `report:release-evidence`.
+El gate regenera primero el paquete completo, incluido el smoke visual clínico y el
+bundle que incorpora el manifiesto. Después `check:release-evidence` bloquea evidencia
+formal generada desde un worktree sucio, reportes stale, signoff clínico incompleto,
+smoke visual clínico faltante y `quality-metrics` con `flakeRiskFiles > 0`. Si falla por
+flake-risk, corregir o aislar el test afectado antes de repetir `ci:release-gate`.
 
 ### `test:release-confidence`
 

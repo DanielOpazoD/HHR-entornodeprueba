@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   getEvidenceNode,
+  getEvidenceReportDependencyFiles,
   getEvidenceReportDependencies,
-  resolveEvidenceDependencyFiles,
 } from './evidenceDependencyGraph.mjs';
 
 const CRITICAL_COVERAGE_ID = 'critical-coverage';
@@ -26,10 +26,7 @@ const getOldestExistingArtifactMtimeMs = (root, artifacts) =>
 const getMissingFiles = (root, files) =>
   files.filter(file => !fs.existsSync(path.join(root, file)));
 
-const getDependencyFiles = id => {
-  const dependencies = getEvidenceNode(id)?.dependencies || [];
-  return dependencies.flatMap(resolveEvidenceDependencyFiles);
-};
+const getDependencyFiles = id => getEvidenceReportDependencyFiles(id);
 
 export const getCriticalCoverageReuseInputs = () => {
   const node = getEvidenceNode(CRITICAL_COVERAGE_ID);

@@ -19,7 +19,7 @@
     "firebase-functions": "^7.3.0",
     "googleapis": "^171.4.0",
     "pdf-lib": "^1.17.1",
-    "puppeteer-core": "^24.40.0"
+    "puppeteer-core": "25.0.4"
   },
   "overrides": {
     "basic-ftp": "5.3.1",

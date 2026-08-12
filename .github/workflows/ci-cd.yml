@@ -98,6 +98,19 @@ jobs:
         # the artifact itself was stale.
         run: npm run check:report-freshness:strict
 
+      - name: Generate release evidence contract
+        run: npm run report:release-evidence-contract
+
+      - name: Enforce release evidence contract
+        run: npm run check:release-evidence-contract:strict
+
+      - name: Upload release evidence runtime contract
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-evidence-runtime
+          path: reports/release-evidence-runtime/
+          retention-days: 30
+
       - name: Upload quality metrics artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -421,6 +434,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Download release evidence runtime contract
+        uses: actions/download-artifact@v7
+        with:
+          name: release-evidence-runtime
+          path: reports/release-evidence-runtime
+
       - name: Build production bundle
         run: npm run build
         env:
@@ -607,6 +626,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - name: Verify critical coverage artifact availability
+        run: node scripts/verify-github-run-artifact.mjs --artifact critical-coverage --producer critical-coverage-report
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Verify release evidence runtime artifact availability
+        run: node scripts/verify-github-run-artifact.mjs --artifact release-evidence-runtime --producer quality-static-governance-snapshots
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
@@ -619,8 +648,23 @@ jobs:
           name: preview-bootstrap-artifacts
           path: reports/e2e/preview-bootstrap
 
+      - name: Download critical coverage artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: critical-coverage
+          path: reports
+
+      - name: Download release evidence runtime contract
+        uses: actions/download-artifact@v7
+        with:
+          name: release-evidence-runtime
+          path: reports/release-evidence-runtime
+
       - name: Validate downloaded preview bootstrap evidence
         run: npm run check:preview-bootstrap-evidence
+
+      - name: Verify built release evidence contract
+        run: npm run check:release-evidence-contract:built
 
       - name: Generate post-merge release evidence
         run: npm run postmerge:evidence
@@ -633,7 +677,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: postmerge-release-evidence
-          path: reports/postmerge-evidence.*
+          path: |
+            reports/postmerge-evidence.*
+            reports/release-evidence-contract.*
           retention-days: 30
 
   # ============================================

@@ -227,16 +227,16 @@ if (existsSync(vendorLockPath)) {
     ]);
     for (const [file, source] of expectedPdfJsSources) {
       const vendor = vendorLock.vendors.find(candidate => candidate.file === file);
-      if (!vendor || vendor.package !== 'pdfjs-dist' || vendor.version !== '5.6.205' ||
+      if (!vendor || vendor.package !== 'pdfjs-dist' || vendor.version !== '5.5.207' ||
           vendor.variant !== 'legacy' || vendor.source !== source) {
-        fail(`extension/${file} debe provenir del build legacy de pdfjs-dist 5.6.205.`);
+        fail(`extension/${file} debe provenir del build legacy de pdfjs-dist 5.5.207.`);
       }
       const vendorPath = path.join(extensionDir, file);
       if (isRegularFile(vendorPath)) {
         const sourceText = readFileSync(vendorPath, 'utf8');
-        if (!sourceText.includes('pdfjsVersion = 5.6.205') ||
+        if (!sourceText.includes('pdfjsVersion = 5.5.207') ||
             !sourceText.includes('__core-js_shared__')) {
-          fail(`extension/${file} no contiene el artefacto legacy trazable de PDF.js 5.6.205.`);
+          fail(`extension/${file} no contiene el artefacto legacy trazable de PDF.js 5.5.207.`);
         }
       }
     }
