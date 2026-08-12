@@ -26,6 +26,9 @@ const isReleaseEvidenceManifest = (value: unknown): value is ReleaseEvidenceMani
   const decisionReports = counts.decisionReports;
   const currentReports = counts.currentReports;
   const staleReports = counts.staleReports;
+  const decisionReportCount = isNonNegativeInteger(decisionReports) ? decisionReports : -1;
+  const currentReportCount = isNonNegativeInteger(currentReports) ? currentReports : -1;
+  const staleReportCount = isNonNegativeInteger(staleReports) ? staleReports : -1;
   const status = candidate.status;
   const validStatus = status === 'current' || status === 'stale' || status === 'unavailable';
   const validGeneratedAt =
@@ -33,10 +36,20 @@ const isReleaseEvidenceManifest = (value: unknown): value is ReleaseEvidenceMani
     (typeof candidate.generatedAt === 'string' && !Number.isNaN(Date.parse(candidate.generatedAt)));
   const validGitSha = candidate.gitSha === null || typeof candidate.gitSha === 'string';
   const validCounts =
-    isNonNegativeInteger(decisionReports) &&
-    isNonNegativeInteger(currentReports) &&
-    isNonNegativeInteger(staleReports) &&
-    currentReports + staleReports === decisionReports;
+    decisionReportCount >= 0 &&
+    currentReportCount >= 0 &&
+    staleReportCount >= 0 &&
+    currentReportCount + staleReportCount === decisionReportCount;
+  const validStatusCounts =
+    (status === 'current' &&
+      decisionReportCount > 0 &&
+      currentReportCount === decisionReportCount &&
+      staleReportCount === 0) ||
+    (status === 'stale' && decisionReportCount > 0 && staleReportCount > 0) ||
+    (status === 'unavailable' &&
+      decisionReportCount === 0 &&
+      currentReportCount === 0 &&
+      staleReportCount === 0);
 
   return (
     candidate.schemaVersion === 1 &&
@@ -45,6 +58,7 @@ const isReleaseEvidenceManifest = (value: unknown): value is ReleaseEvidenceMani
     validGeneratedAt &&
     validGitSha &&
     validCounts &&
+    validStatusCounts &&
     (status === 'unavailable' ||
       (typeof candidate.generatedAt === 'string' &&
         typeof candidate.gitSha === 'string' &&

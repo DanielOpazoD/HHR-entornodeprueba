@@ -41,7 +41,7 @@ describe('release evidence contract', () => {
       schemaVersion: 1,
       contractVersion: 1,
       generatedAt: '2026-08-11T12:30:00.000Z',
-      gitSha: 'old-sha',
+      gitSha: '11111111',
       gitDirty: true,
       status: 'stale',
       summary: { decisionReports: 10, currentReports: 8, staleReports: 2 },
@@ -50,7 +50,7 @@ describe('release evidence contract', () => {
     expect(
       collectReleaseEvidenceManifestIssues({
         manifest,
-        currentGitState: { gitSha: 'current-sha', gitDirty: false },
+        currentGitState: { gitSha: '22222222', gitDirty: false },
       })
     ).toEqual(
       expect.arrayContaining([
@@ -68,12 +68,12 @@ describe('release evidence contract', () => {
         schemaVersion: 1,
         contractVersion: 1,
         generatedAt: '2026-08-11T12:30:00.000Z',
-        gitSha: 'current-sha',
+        gitSha: '22222222',
         gitDirty: false,
         status: 'current',
         summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
       },
-      currentGitState: { gitSha: 'current-sha', gitDirty: false },
+      currentGitState: { gitSha: '22222222', gitDirty: false },
     });
 
     expect(issues).toEqual(
@@ -91,7 +91,7 @@ describe('release evidence contract', () => {
       schemaVersion: 1,
       contractVersion: 1,
       generatedAt: '2026-08-11T12:30:00.000Z',
-      gitSha: 'current-sha',
+      gitSha: '22222222',
       gitDirty: true,
       status: 'stale',
       summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
@@ -102,7 +102,7 @@ describe('release evidence contract', () => {
           label: inventory?.label,
           artifact: refreshSteps.get(id)?.artifacts.find((file: string) => file.endsWith('.json')),
           generatedAt: '2026-08-11T12:30:00.000Z',
-          gitSha: 'current-sha',
+          gitSha: '22222222',
           status: 'current',
         };
       }),
@@ -116,7 +116,7 @@ describe('release evidence contract', () => {
     expect(
       collectReleaseEvidenceManifestIssues({
         manifest,
-        currentGitState: { gitSha: 'current-sha', gitDirty: true },
+        currentGitState: { gitSha: '22222222', gitDirty: true },
       })
     ).toEqual(
       expect.arrayContaining([
@@ -173,8 +173,26 @@ describe('release evidence contract', () => {
       collectBuiltReleaseEvidenceIssues({
         runtimeManifest,
         manifest,
-        expectedRuntimeManifest: runtimeManifest,
+        expectedRuntimeManifest: { ...runtimeManifest, status: 'stale' },
       })
-    ).toEqual([]);
+    ).toEqual([expect.stringContaining('runtime source')]);
+  });
+
+  it('rejects ambiguous or non-hex commit abbreviations', () => {
+    const issues = collectReleaseEvidenceManifestIssues({
+      manifest: {
+        schemaVersion: 1,
+        contractVersion: 1,
+        gitSha: 'a',
+        gitDirty: false,
+        status: 'current',
+        summary: { decisionReports: 0, currentReports: 0, staleReports: 0 },
+        reports: [],
+        inventory: [],
+      },
+      currentGitState: { gitSha: 'abcdef12', gitDirty: false },
+    });
+
+    expect(issues).toEqual(expect.arrayContaining([expect.stringContaining('current HEAD')]));
   });
 });

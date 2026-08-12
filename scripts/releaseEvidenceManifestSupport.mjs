@@ -9,9 +9,10 @@ import {
 } from './releaseEvidenceContract.mjs';
 import { getEvidenceNode } from './evidenceDependencyGraph.mjs';
 
+const isValidGitSha = value => /^[0-9a-f]{7,40}$/i.test(String(value || ''));
+
 const isSameCommit = (left, right) =>
-  Boolean(left && right) &&
-  (left === right || left.startsWith(right) || right.startsWith(left));
+  isValidGitSha(left) && isValidGitSha(right) && left.toLowerCase() === right.toLowerCase();
 
 const readJson = filePath => JSON.parse(fs.readFileSync(filePath, 'utf8'));
 
@@ -231,7 +232,22 @@ export const collectBuiltReleaseEvidenceIssues = ({
     ? buildRuntimeReleaseEvidenceManifest(manifest)
     : undefined,
 }) => {
-  return isDeepStrictEqual(runtimeManifest, expectedRuntimeManifest)
-    ? []
-    : ['Built release evidence does not match the complete verified runtime contract.'];
+  const issues = [];
+  const derivedRuntimeManifest = manifest
+    ? buildRuntimeReleaseEvidenceManifest(manifest)
+    : undefined;
+
+  if (!derivedRuntimeManifest) {
+    return ['Built release evidence cannot be verified without its complete manifest.'];
+  }
+  if (
+    expectedRuntimeManifest &&
+    !isDeepStrictEqual(expectedRuntimeManifest, derivedRuntimeManifest)
+  ) {
+    issues.push('Release evidence runtime source was not derived from the verified manifest.');
+  }
+  if (!isDeepStrictEqual(runtimeManifest, derivedRuntimeManifest)) {
+    issues.push('Built release evidence does not match the complete verified runtime contract.');
+  }
+  return issues;
 };

@@ -54,4 +54,25 @@ describe('ReleaseEvidenceStatusPanel', () => {
     expect(await screen.findByText('No generada')).toBeInTheDocument();
     expect(screen.getByText('No disponible')).toBeInTheDocument();
   });
+
+  it('fails closed when a current payload reports stale evidence', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          schemaVersion: 1,
+          contractVersion: 1,
+          generatedAt: '2026-08-11T12:30:00.000Z',
+          gitSha: '1234567890abcdef',
+          status: 'current',
+          summary: { decisionReports: 10, currentReports: 0, staleReports: 10 },
+        }),
+      })
+    );
+
+    render(<ReleaseEvidenceStatusPanel />);
+
+    expect(await screen.findByText('No generada')).toBeInTheDocument();
+  });
 });

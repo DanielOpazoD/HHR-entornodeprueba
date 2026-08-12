@@ -64,6 +64,7 @@ if (builtAsset) {
       issues.push(
         ...collectBuiltReleaseEvidenceIssues({
           runtimeManifest,
+          manifest,
           expectedRuntimeManifest: verifiedRuntimeManifest,
         })
       );
