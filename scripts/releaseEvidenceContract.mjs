@@ -149,6 +149,19 @@ export const collectReleaseEvidenceContractIssues = () => {
     if (!node?.artifacts?.some(artifact => artifact.endsWith('.json'))) {
       issues.push(`Evidence graph has no JSON artifact for ${report.id}.`);
     }
+    if (node && !Array.isArray(node.dependencies)) {
+      issues.push(`Evidence graph dependencies must be an array for ${report.id}.`);
+    }
+    if (node && !Array.isArray(node.fileDependencies)) {
+      issues.push(`Evidence graph file dependencies must be an array for ${report.id}.`);
+    }
+    for (const dependency of Array.isArray(node?.dependencies) ? node.dependencies : []) {
+      if (!reportIds.has(dependency)) {
+        issues.push(
+          `Evidence graph report dependency ${dependency} for ${report.id} is not in the release evidence inventory.`
+        );
+      }
+    }
     if (!report.owner || report.consumers.length === 0 || !report.freshnessPolicy) {
       issues.push(`Release evidence inventory is incomplete for ${report.id}.`);
     }
@@ -170,8 +183,16 @@ export const getReleaseEvidenceRefreshSteps = ({ skipReportIds = [] } = {}) => {
     temporary.add(id);
     const node = getEvidenceNode(id);
     if (!node) throw new Error(`Release evidence graph has no node for ${id}.`);
-    for (const dependency of node.dependencies || []) {
-      if (reportIds.has(dependency)) visit(dependency);
+    if (!Array.isArray(node.dependencies)) {
+      throw new Error(`Release evidence dependencies must be an array for ${id}.`);
+    }
+    for (const dependency of node.dependencies) {
+      if (!reportIds.has(dependency)) {
+        throw new Error(
+          `Release evidence dependency ${dependency} for ${id} is not in the inventory.`
+        );
+      }
+      visit(dependency);
     }
     temporary.delete(id);
     permanent.add(id);
@@ -201,7 +222,10 @@ export const getReleaseEvidenceFreshnessContracts = () =>
       id,
       file,
       field: 'gitSha',
-      refreshScript: node.command,
+      refreshScript:
+        id === RELEASE_READINESS_SCORECARD_ID
+          ? RELEASE_READINESS_FINALIZER_COMMAND
+          : node.command,
       dependsOn: getEvidenceReportDependencyFiles(id),
     };
   });

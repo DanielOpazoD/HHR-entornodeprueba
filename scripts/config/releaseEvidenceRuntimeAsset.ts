@@ -1,19 +1,30 @@
-const isCompatibleGitSha = (left: unknown, right: unknown) => {
-  const normalizedLeft = typeof left === 'string' ? left.trim().toLowerCase() : '';
-  const normalizedRight = typeof right === 'string' ? right.trim().toLowerCase() : '';
-  if (!/^[0-9a-f]{7,40}$/.test(normalizedLeft) || !/^[0-9a-f]{7,40}$/.test(normalizedRight)) {
-    return false;
-  }
-  return (
-    normalizedLeft === normalizedRight ||
-    normalizedLeft.startsWith(normalizedRight) ||
-    normalizedRight.startsWith(normalizedLeft)
-  );
-};
+const isFullGitSha = (value: unknown): value is string =>
+  typeof value === 'string' && /^[0-9a-f]{40}$/i.test(value.trim());
 
-export const bindReleaseEvidenceToBuild = (source: string, buildGitSha: string) => {
+const isAbbreviatedGitSha = (value: unknown): value is string =>
+  typeof value === 'string' && /^[0-9a-f]{7,39}$/i.test(value.trim());
+
+export const bindReleaseEvidenceToBuild = (
+  source: string,
+  buildGitSha: string,
+  resolveEvidenceGitSha: (gitSha: string) => string = value => value
+) => {
   const manifest = JSON.parse(source) as Record<string, unknown>;
-  if (manifest.status !== 'current' || isCompatibleGitSha(manifest.gitSha, buildGitSha)) {
+  if (manifest.status !== 'current') {
+    return source;
+  }
+  const manifestGitSha = typeof manifest.gitSha === 'string' ? manifest.gitSha.trim() : '';
+  const evidenceGitSha = isFullGitSha(manifestGitSha)
+    ? manifestGitSha
+    : isAbbreviatedGitSha(manifestGitSha)
+      ? resolveEvidenceGitSha(manifestGitSha).trim()
+      : '';
+  const normalizedBuildGitSha = buildGitSha.trim();
+  if (
+    isFullGitSha(evidenceGitSha) &&
+    isFullGitSha(normalizedBuildGitSha) &&
+    evidenceGitSha.toLowerCase() === normalizedBuildGitSha.toLowerCase()
+  ) {
     return source;
   }
 

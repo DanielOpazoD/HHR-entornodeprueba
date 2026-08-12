@@ -57,7 +57,7 @@ const resolveBuildGitSha = () => {
   const environmentSha = process.env.COMMIT_REF || process.env.GITHUB_SHA;
   if (environmentSha) return environmentSha;
   try {
-    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+    return execFileSync('git', ['rev-parse', 'HEAD'], {
       cwd: __dirname,
       encoding: 'utf8',
     }).trim();
@@ -70,7 +70,20 @@ const BUILD_GIT_SHA = resolveBuildGitSha();
 
 const readReleaseEvidenceAsset = () =>
   fs.existsSync(RELEASE_EVIDENCE_SOURCE)
-    ? bindReleaseEvidenceToBuild(fs.readFileSync(RELEASE_EVIDENCE_SOURCE, 'utf8'), BUILD_GIT_SHA)
+    ? bindReleaseEvidenceToBuild(
+        fs.readFileSync(RELEASE_EVIDENCE_SOURCE, 'utf8'),
+        BUILD_GIT_SHA,
+        gitSha => {
+          try {
+            return execFileSync('git', ['rev-parse', `${gitSha}^{commit}`], {
+              cwd: __dirname,
+              encoding: 'utf8',
+            }).trim();
+          } catch {
+            return '';
+          }
+        }
+      )
     : unavailableReleaseEvidence();
 
 /** Serve the same release contract in dev and in the production bundle. */

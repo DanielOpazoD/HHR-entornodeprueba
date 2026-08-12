@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   collectReleaseEvidenceContractIssues,
+  getReleaseEvidenceFreshnessContracts,
   getReleaseEvidenceRefreshSteps,
   RELEASE_DECISION_REPORT_IDS,
   RELEASE_EVIDENCE_INVENTORY,
 } from '../../../scripts/releaseEvidenceContract.mjs';
+import { EVIDENCE_DEPENDENCY_GRAPH } from '../../../scripts/evidenceDependencyGraph.mjs';
 import {
   collectBuiltReleaseEvidenceIssues,
   buildRuntimeReleaseEvidenceManifest,
@@ -37,6 +39,32 @@ describe('release evidence contract', () => {
     expect(steps.find(step => step.id === 'release-readiness-scorecard')?.command).toBe(
       'report:release-readiness-scorecard:from-current-inputs'
     );
+  });
+
+  it('uses the dependency-aware release-readiness finalizer as freshness remediation', () => {
+    const contract = getReleaseEvidenceFreshnessContracts().find(
+      entry => entry.id === 'release-readiness-scorecard'
+    );
+
+    expect(contract?.refreshScript).toBe('report:release-readiness-scorecard:from-current-inputs');
+  });
+
+  it('fails closed when a report dependency is missing from the release inventory', () => {
+    const dependencyId = 'misspelled-release-evidence';
+    const qualityMetrics = EVIDENCE_DEPENDENCY_GRAPH['quality-metrics'];
+    const originalDependencies = qualityMetrics.dependencies;
+    qualityMetrics.dependencies = [dependencyId];
+
+    try {
+      expect(collectReleaseEvidenceContractIssues()).toContain(
+        `Evidence graph report dependency ${dependencyId} for quality-metrics is not in the release evidence inventory.`
+      );
+      expect(() => getReleaseEvidenceRefreshSteps()).toThrow(
+        `Release evidence dependency ${dependencyId} for quality-metrics is not in the inventory.`
+      );
+    } finally {
+      qualityMetrics.dependencies = originalDependencies;
+    }
   });
 
   it('omits an externally produced report without disturbing the remaining order', () => {

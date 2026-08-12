@@ -1,7 +1,8 @@
-const reportNode = ({ command, artifacts, dependencies = [] }) => ({
+const reportNode = ({ command, artifacts, dependencies = [], fileDependencies = [] }) => ({
   command,
   artifacts,
   dependencies,
+  fileDependencies,
 });
 
 export const EVIDENCE_DEPENDENCY_GRAPH = {
@@ -36,7 +37,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'critical-coverage': reportNode({
     command: 'report:critical-coverage',
     artifacts: ['reports/critical-coverage.json', 'reports/critical-coverage.md'],
-    dependencies: [
+    fileDependencies: [
       'scripts/config/critical-coverage-thresholds.json',
       'scripts/criticalCoverageSupport.mjs',
       'scripts/report-critical-coverage.mjs',
@@ -49,6 +50,8 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     artifacts: ['reports/operational-health.json', 'reports/operational-health.md'],
     dependencies: [
       'critical-coverage',
+    ],
+    fileDependencies: [
       'reports/e2e/preview-bootstrap/report.json',
       'reports/e2e/preview-bootstrap/ci-provenance.json',
     ],
@@ -74,7 +77,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'clinical-release-signoff': reportNode({
     command: 'report:clinical-release-signoff',
     artifacts: ['reports/clinical-release-signoff.json', 'reports/clinical-release-signoff.md'],
-    dependencies: ['scripts/config/clinical-release-signoff.json'],
+    fileDependencies: ['scripts/config/clinical-release-signoff.json'],
   }),
   'clinical-release-validation': reportNode({
     command: 'report:clinical-release-validation',
@@ -87,7 +90,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'sync-convergence': reportNode({
     command: 'report:sync-convergence',
     artifacts: ['reports/sync-convergence.json', 'reports/sync-convergence.md'],
-    dependencies: [
+    fileDependencies: [
       'docs/CLINICAL_SYNC_SIMULATOR_CONTRACT.md',
       'docs/clinical-sync-simulator.md',
       'scripts/check-sync-convergence-evidence.mjs',
@@ -119,7 +122,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'test-runtime-governance': reportNode({
     command: 'report:test-runtime-governance',
     artifacts: ['reports/test-runtime-governance.json', 'reports/test-runtime-governance.md'],
-    dependencies: [
+    fileDependencies: [
       '.github/workflows/ci-cd.yml',
       '.github/workflows/nightly-test-runtime.yml',
       'scripts/check-test-runtime-governance.mjs',
@@ -139,7 +142,7 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
   'unit-shard-runtime-profile': reportNode({
     command: 'report:unit-shard-runtime-profile',
     artifacts: ['reports/unit-shard-runtime-profile.json', 'reports/unit-shard-runtime-profile.md'],
-    dependencies: [
+    fileDependencies: [
       'scripts/check-unit-shard-balance.mjs',
       'scripts/config/unit-shard-balance.json',
       'scripts/profile-unit-shard-runtime.mjs',
@@ -154,6 +157,8 @@ export const EVIDENCE_DEPENDENCY_GRAPH = {
     artifacts: ['reports/ci-runtime-observed-profile.json', 'reports/ci-runtime-observed-profile.md'],
     dependencies: [
       'unit-shard-runtime-profile',
+    ],
+    fileDependencies: [
       'scripts/collect-github-actions-runtime.mjs',
       'scripts/check-ci-runtime-telemetry.mjs',
       'scripts/ciRuntimeTelemetrySupport.mjs',
@@ -209,13 +214,17 @@ export const getEvidenceNode = id => EVIDENCE_DEPENDENCY_GRAPH[id] || null;
 
 export const getEvidenceReportDependencies = id => getEvidenceNode(id)?.dependencies || [];
 
+export const getEvidenceReportFileDependencies = id =>
+  getEvidenceNode(id)?.fileDependencies || [];
+
 export const getEvidenceReportArtifacts = id => getEvidenceNode(id)?.artifacts || [];
 
 export const getEvidenceReportCommand = id => getEvidenceNode(id)?.command || '';
 
 export const resolveEvidenceDependencyFiles = dependency => {
   const node = getEvidenceNode(dependency);
-  return node ? node.artifacts : [dependency];
+  if (!node) throw new Error(`Evidence graph has no report node for ${dependency}.`);
+  return node.artifacts;
 };
 
 const appendUnique = (target, values) => {
@@ -230,27 +239,26 @@ export const getEvidenceReportDependencyFiles = (id, { transitive = true } = {})
   const files = [];
   const visitedNodes = new Set();
 
-  const visitDependency = dependency => {
-    const node = getEvidenceNode(dependency);
-    if (!node) {
-      appendUnique(files, [dependency]);
+  const visitNode = nodeId => {
+    const node = getEvidenceNode(nodeId);
+    if (!node) throw new Error(`Evidence graph has no report node for ${nodeId}.`);
+    appendUnique(files, node.fileDependencies || []);
+    if (visitedNodes.has(nodeId)) {
       return;
     }
 
-    appendUnique(files, node.artifacts);
-    if (!transitive || visitedNodes.has(dependency)) {
-      return;
-    }
-
-    visitedNodes.add(dependency);
+    visitedNodes.add(nodeId);
     for (const childDependency of node.dependencies || []) {
-      visitDependency(childDependency);
+      const childNode = getEvidenceNode(childDependency);
+      if (!childNode) {
+        throw new Error(`Evidence graph has no report node for ${childDependency}.`);
+      }
+      appendUnique(files, childNode.artifacts);
+      if (transitive) visitNode(childDependency);
     }
   };
 
-  for (const dependency of getEvidenceReportDependencies(id)) {
-    visitDependency(dependency);
-  }
+  visitNode(id);
 
   return files;
 };

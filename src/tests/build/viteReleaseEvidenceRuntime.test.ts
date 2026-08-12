@@ -13,10 +13,22 @@ const manifest = (gitSha: string, status: 'current' | 'stale' = 'current') =>
   });
 
 describe('Vite release evidence runtime asset', () => {
-  it('keeps current evidence when its abbreviated SHA belongs to this build', () => {
-    const source = manifest('12345678');
+  it('compares full SHAs directly when Git metadata is unavailable', () => {
+    const fullGitSha = `12345678${'90abcdef'.repeat(4)}`;
+    const source = manifest(fullGitSha);
 
-    expect(bindReleaseEvidenceToBuild(source, '1234567890abcdef')).toBe(source);
+    expect(
+      bindReleaseEvidenceToBuild(source, fullGitSha, () => {
+        throw new Error('Git metadata is unavailable');
+      })
+    ).toBe(source);
+  });
+
+  it('keeps current evidence when its SHA resolves exactly to this build', () => {
+    const source = manifest('12345678');
+    const fullGitSha = `12345678${'90abcdef'.repeat(4)}`;
+
+    expect(bindReleaseEvidenceToBuild(source, fullGitSha, () => fullGitSha)).toBe(source);
   });
 
   it('marks persisted current evidence as stale when it belongs to another build', () => {
@@ -31,6 +43,16 @@ describe('Vite release evidence runtime asset', () => {
 
   it('fails closed when the build SHA is unavailable', () => {
     const result = JSON.parse(bindReleaseEvidenceToBuild(manifest('11111111'), ''));
+
+    expect(result.status).toBe('stale');
+  });
+
+  it('rejects different commits that share the same abbreviated prefix', () => {
+    const buildGitSha = `12345678${'0'.repeat(32)}`;
+    const evidenceGitSha = `12345678${'f'.repeat(32)}`;
+    const result = JSON.parse(
+      bindReleaseEvidenceToBuild(manifest('12345678'), buildGitSha, () => evidenceGitSha)
+    );
 
     expect(result.status).toBe('stale');
   });
