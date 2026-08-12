@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { collectCiArtifactContractIssues } from '../../../scripts/ciArtifactContractSupport.mjs';
+import { RELEASE_EVIDENCE_REPORT_IDS } from '../../../scripts/releaseEvidenceContract.mjs';
 
 const readText = (relativePath: string) =>
   fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
@@ -26,10 +27,11 @@ describe('CI workflow governance', () => {
     expect(scripts['report:governance-snapshots']).toBe(
       'node scripts/run-governance-snapshots.mjs'
     );
-    expect(support).toContain('release-readiness-scorecard');
-    expect(support).toContain('clinical-release-signoff');
+    expect(RELEASE_EVIDENCE_REPORT_IDS).toContain('release-readiness-scorecard');
+    expect(RELEASE_EVIDENCE_REPORT_IDS).toContain('clinical-release-signoff');
+    expect(RELEASE_EVIDENCE_REPORT_IDS).toContain('maintenance-debt-scorecard');
     expect(support).toContain('runtime-contracts');
-    expect(support).toContain('maintenance-debt-scorecard');
+    expect(support).toContain('getReleaseEvidenceRefreshSteps');
     expect(runner).toContain('::group::');
     expect(support).toContain('ci-governance-snapshot-profile');
   });
@@ -49,6 +51,33 @@ describe('CI workflow governance', () => {
 
     expect(snapshotStep).toBeGreaterThanOrEqual(0);
     expect(freshnessStep).toBeGreaterThan(snapshotStep);
+  });
+
+  it('carries the verified release evidence manifest into the production build and post-merge audit', () => {
+    const workflow = readText('.github/workflows/ci-cd.yml');
+    const governanceJob = workflow.slice(
+      workflow.indexOf('quality-static-governance-snapshots:'),
+      workflow.indexOf('quality-static-groups:')
+    );
+    const buildJob = workflow.slice(workflow.indexOf('  build:'), workflow.indexOf('lighthouse-ci:'));
+    const postmergeJob = workflow.slice(workflow.indexOf('postmerge-evidence:'));
+    const generateIndex = governanceJob.indexOf('npm run report:release-evidence-contract');
+    const strictIndex = governanceJob.indexOf('npm run check:release-evidence-contract:strict');
+    const uploadIndex = governanceJob.indexOf('name: release-evidence-runtime');
+    const downloadIndex = buildJob.indexOf('name: release-evidence-runtime');
+    const buildIndex = buildJob.indexOf('npm run build');
+
+    expect(generateIndex).toBeGreaterThanOrEqual(0);
+    expect(strictIndex).toBeGreaterThan(generateIndex);
+    expect(uploadIndex).toBeGreaterThan(strictIndex);
+    expect(governanceJob).toContain('path: reports/release-evidence-runtime/');
+    expect(downloadIndex).toBeGreaterThanOrEqual(0);
+    expect(buildIndex).toBeGreaterThan(downloadIndex);
+    expect(postmergeJob).toContain(
+      'scripts/verify-github-run-artifact.mjs --artifact critical-coverage --producer critical-coverage-report'
+    );
+    expect(postmergeJob).toContain('npm run check:release-evidence-contract:built');
+    expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
   });
 
   it('splits quality-static into governed groups while preserving an aggregate quality-static check', () => {

@@ -3,6 +3,13 @@ import {
   PREVIEW_BOOTSTRAP_PRODUCER_JOB,
 } from './previewBootstrapEvidenceSupport.mjs';
 
+export const RELEASE_EVIDENCE_RUNTIME_ARTIFACT = 'release-evidence-runtime';
+export const RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB =
+  'quality-static-governance-snapshots';
+export const RELEASE_EVIDENCE_RUNTIME_PATH = 'reports/release-evidence-runtime';
+export const CRITICAL_COVERAGE_ARTIFACT = 'critical-coverage';
+export const CRITICAL_COVERAGE_PRODUCER_JOB = 'critical-coverage-report';
+
 const parseScalar = value =>
   String(value || '')
     .trim()
@@ -196,6 +203,7 @@ export const collectCiArtifactContractIssues = workflowText => {
   }
 
   const postmergeJob = jobs.get('postmerge-evidence');
+  const releaseEvidenceProducerJob = jobs.get(RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB);
   if (postmergeJob) {
     if (!postmergeJob.body.includes('npm run check:ci-artifact-contracts')) {
       issues.push(
@@ -230,6 +238,9 @@ export const collectCiArtifactContractIssues = workflowText => {
       'npm run check:preview-bootstrap-evidence'
     );
     const generateEvidenceIndex = postmergeJob.body.indexOf('npm run postmerge:evidence');
+    const builtContractIndex = postmergeJob.body.indexOf(
+      'npm run check:release-evidence-contract:built'
+    );
 
     if (verifyPreviewIndex === -1) {
       issues.push(
@@ -247,6 +258,114 @@ export const collectCiArtifactContractIssues = workflowText => {
       }
       if (generateEvidenceIndex !== -1 && validatePreviewIndex > generateEvidenceIndex) {
         issues.push('postmerge-evidence: validates preview bootstrap after generating evidence.');
+      }
+    }
+
+    if (releaseEvidenceProducerJob) {
+      const criticalCoverageDownload = downloads.find(
+        download =>
+          download.jobName === 'postmerge-evidence' &&
+          download.name === CRITICAL_COVERAGE_ARTIFACT
+      );
+      const verifyCriticalCoverageCommand =
+        `scripts/verify-github-run-artifact.mjs --artifact ${CRITICAL_COVERAGE_ARTIFACT} ` +
+        `--producer ${CRITICAL_COVERAGE_PRODUCER_JOB}`;
+      const verifyCriticalCoverageIndex = postmergeJob.body.indexOf(
+        verifyCriticalCoverageCommand
+      );
+      const downloadCriticalCoverageIndex = postmergeJob.body.indexOf(
+        `name: ${CRITICAL_COVERAGE_ARTIFACT}`
+      );
+
+      if (!criticalCoverageDownload) {
+        issues.push(
+          `postmerge-evidence: must download artifact "${CRITICAL_COVERAGE_ARTIFACT}".`
+        );
+      } else if (normalizePath(criticalCoverageDownload.path) !== 'reports') {
+        issues.push('postmerge-evidence: critical coverage must download to "reports".');
+      }
+      if (verifyCriticalCoverageIndex === -1) {
+        issues.push(
+          `postmerge-evidence: must verify "${CRITICAL_COVERAGE_ARTIFACT}" from producer ` +
+            `"${CRITICAL_COVERAGE_PRODUCER_JOB}".`
+        );
+      } else if (
+        downloadCriticalCoverageIndex !== -1 &&
+        verifyCriticalCoverageIndex > downloadCriticalCoverageIndex
+      ) {
+        issues.push('postmerge-evidence: must verify critical coverage before downloading it.');
+      }
+      if (
+        downloadCriticalCoverageIndex !== -1 &&
+        generateEvidenceIndex !== -1 &&
+        downloadCriticalCoverageIndex > generateEvidenceIndex
+      ) {
+        issues.push(
+          'postmerge-evidence: must download critical coverage before generating evidence.'
+        );
+      }
+      if (builtContractIndex === -1) {
+        issues.push('postmerge-evidence: must validate the release evidence embedded in dist.');
+      } else if (generateEvidenceIndex !== -1 && builtContractIndex < generateEvidenceIndex) {
+        issues.push(
+          'postmerge-evidence: validates built release evidence before regenerating evidence.'
+        );
+      }
+    }
+  }
+
+  if (releaseEvidenceProducerJob) {
+    const runtimeUploads = uploads.filter(
+      upload => upload.name === RELEASE_EVIDENCE_RUNTIME_ARTIFACT
+    );
+    if (runtimeUploads.length !== 1) {
+      issues.push(
+        `${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}: must upload exactly one ` +
+          `"${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}" artifact.`
+      );
+    }
+    for (const upload of runtimeUploads) {
+      if (upload.jobName !== RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB) {
+        issues.push(
+          `${upload.jobName}: uploads "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}"; expected producer ` +
+            `"${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}".`
+        );
+      }
+      if (normalizePath(upload.path) !== RELEASE_EVIDENCE_RUNTIME_PATH) {
+        issues.push(
+          `${upload.jobName}: release evidence runtime artifact must upload from ` +
+            `"${RELEASE_EVIDENCE_RUNTIME_PATH}".`
+        );
+      }
+      if (!upload.beforeActionBody.includes('npm run report:release-evidence-contract')) {
+        issues.push(`${upload.jobName}: uploads release evidence without generating its contract.`);
+      }
+      if (!upload.beforeActionBody.includes('npm run check:release-evidence-contract:strict')) {
+        issues.push(`${upload.jobName}: uploads release evidence without strict validation.`);
+      }
+    }
+
+    const buildJob = jobs.get('build');
+    if (buildJob) {
+      const runtimeDownload = downloads.find(
+        download =>
+          download.jobName === 'build' &&
+          download.name === RELEASE_EVIDENCE_RUNTIME_ARTIFACT
+      );
+      if (!runtimeDownload) {
+        issues.push(`build: must download artifact "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}".`);
+      } else {
+        if (normalizePath(runtimeDownload.path) !== RELEASE_EVIDENCE_RUNTIME_PATH) {
+          issues.push(
+            `build: release evidence runtime must download to "${RELEASE_EVIDENCE_RUNTIME_PATH}".`
+          );
+        }
+        if (
+          buildJob.body.indexOf(`name: ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}`) >
+          buildJob.body.indexOf('npm run build')
+        ) {
+          issues.push('build: must download release evidence before building production assets.');
+        }
       }
     }
   }
