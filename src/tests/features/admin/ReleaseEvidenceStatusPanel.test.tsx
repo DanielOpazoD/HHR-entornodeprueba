@@ -11,6 +11,8 @@ describe('ReleaseEvidenceStatusPanel', () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
+          schemaVersion: 1,
+          contractVersion: 1,
           generatedAt: '2026-08-11T12:30:00.000Z',
           gitSha: '1234567890abcdef',
           status: 'current',
@@ -34,5 +36,17 @@ describe('ReleaseEvidenceStatusPanel', () => {
 
     expect(await screen.findByText('No generada')).toBeInTheDocument();
     expect(screen.getByText(/no incluye un contrato/i)).toBeInTheDocument();
+  });
+
+  it('fails closed when the runtime payload is structurally incomplete', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: 'current' }) })
+    );
+
+    render(<ReleaseEvidenceStatusPanel />);
+
+    expect(await screen.findByText('No generada')).toBeInTheDocument();
+    expect(screen.getByText('No disponible')).toBeInTheDocument();
   });
 });

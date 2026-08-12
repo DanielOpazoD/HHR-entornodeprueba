@@ -156,6 +156,7 @@ export const collectReleaseEvidenceContractIssues = () => {
   return issues;
 };
 
+/** @param {{ skipReportIds?: string[] }} [options] */
 export const getReleaseEvidenceRefreshSteps = ({ skipReportIds = [] } = {}) => {
   const skipped = new Set(skipReportIds);
   const temporary = new Set();

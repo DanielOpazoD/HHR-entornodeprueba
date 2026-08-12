@@ -4,7 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getGitReportState } from './gitReportState.mjs';
 import { collectReleaseEvidenceContractIssues } from './releaseEvidenceContract.mjs';
-import { collectReleaseEvidenceManifestIssues } from './releaseEvidenceManifestSupport.mjs';
+import {
+  collectBuiltReleaseEvidenceIssues,
+  collectReleaseEvidenceManifestIssues,
+} from './releaseEvidenceManifestSupport.mjs';
 
 const root = process.cwd();
 const strict = process.argv.includes('--strict');
@@ -42,22 +45,7 @@ if (builtAsset) {
   } else {
     try {
       const runtimeManifest = JSON.parse(fs.readFileSync(builtAssetPath, 'utf8'));
-      if (runtimeManifest.gitSha !== manifest.gitSha) {
-        issues.push(
-          `Built release evidence targets ${runtimeManifest.gitSha || 'unknown'}, expected ${manifest.gitSha}.`
-        );
-      }
-      if (runtimeManifest.status !== manifest.status) {
-        issues.push(
-          `Built release evidence status is ${runtimeManifest.status}, expected ${manifest.status}.`
-        );
-      }
-      if (
-        runtimeManifest.summary?.currentReports !== manifest.summary?.currentReports ||
-        runtimeManifest.summary?.decisionReports !== manifest.summary?.decisionReports
-      ) {
-        issues.push('Built release evidence report counts do not match the verified manifest.');
-      }
+      issues.push(...collectBuiltReleaseEvidenceIssues({ runtimeManifest, manifest }));
     } catch (error) {
       issues.push(
         `dist/release-evidence.json is invalid: ${error instanceof Error ? error.message : String(error)}`

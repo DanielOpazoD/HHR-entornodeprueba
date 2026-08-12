@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import { getGitReportState } from './gitReportState.mjs';
 import {
   RELEASE_DECISION_REPORT_IDS,
@@ -115,6 +116,9 @@ export const buildRuntimeReleaseEvidenceManifest = manifest => ({
 
 export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState }) => {
   const issues = [];
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    return ['Release evidence manifest must be an object.'];
+  }
   if (manifest.schemaVersion !== 1) issues.push('Release evidence manifest schemaVersion must be 1.');
   if (manifest.contractVersion !== RELEASE_EVIDENCE_CONTRACT_VERSION) {
     issues.push('Release evidence manifest contractVersion does not match the repository contract.');
@@ -127,9 +131,96 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
   if (manifest.gitDirty !== currentGitState.gitDirty) {
     issues.push('Release evidence manifest worktree state does not match the current worktree.');
   }
-  if (manifest.status !== 'current') issues.push(`Release evidence status is ${manifest.status}.`);
-  if (manifest.summary?.staleReports !== 0) {
-    issues.push(`Release evidence contains ${manifest.summary?.staleReports ?? 'unknown'} stale reports.`);
+
+  const reports = Array.isArray(manifest.reports) ? manifest.reports : [];
+  if (!Array.isArray(manifest.reports)) {
+    issues.push('Release evidence manifest reports must be an array.');
+  }
+  const reportIds = reports.map(report => report?.id).filter(Boolean);
+  const uniqueReportIds = new Set(reportIds);
+  if (
+    reports.length !== RELEASE_DECISION_REPORT_IDS.length ||
+    uniqueReportIds.size !== RELEASE_DECISION_REPORT_IDS.length ||
+    RELEASE_DECISION_REPORT_IDS.some(id => !uniqueReportIds.has(id))
+  ) {
+    issues.push('Release evidence manifest must contain every decision report exactly once.');
+  }
+
+  for (const id of RELEASE_DECISION_REPORT_IDS) {
+    const report = reports.find(candidate => candidate?.id === id);
+    if (!report) continue;
+    const inventory = RELEASE_EVIDENCE_INVENTORY.find(candidate => candidate.id === id);
+    const expectedArtifact = getEvidenceNode(id).artifacts.find(file => file.endsWith('.json'));
+    if (report.label !== inventory.label || report.artifact !== expectedArtifact) {
+      issues.push(`Release evidence report ${id} does not match the declared inventory.`);
+    }
+    if (report.status !== 'current') {
+      issues.push(`Release evidence report ${id} is ${report.status || 'invalid'}.`);
+    }
+    if (!isSameCommit(report.gitSha, currentGitState.gitSha)) {
+      issues.push(`Release evidence report ${id} does not target the current HEAD.`);
+    }
+    if (
+      typeof report.generatedAt !== 'string' ||
+      Number.isNaN(Date.parse(report.generatedAt))
+    ) {
+      issues.push(`Release evidence report ${id} has no valid generation date.`);
+    }
+  }
+
+  const inventory = Array.isArray(manifest.inventory) ? manifest.inventory : [];
+  if (!Array.isArray(manifest.inventory)) {
+    issues.push('Release evidence manifest inventory must be an array.');
+  }
+  const inventoryIds = inventory.map(report => report?.id).filter(Boolean);
+  const uniqueInventoryIds = new Set(inventoryIds);
+  if (
+    inventory.length !== RELEASE_EVIDENCE_INVENTORY.length ||
+    uniqueInventoryIds.size !== RELEASE_EVIDENCE_INVENTORY.length ||
+    RELEASE_EVIDENCE_INVENTORY.some(entry => !uniqueInventoryIds.has(entry.id))
+  ) {
+    issues.push('Release evidence manifest inventory is incomplete or duplicated.');
+  }
+  for (const expected of RELEASE_EVIDENCE_INVENTORY) {
+    const entry = inventory.find(candidate => candidate?.id === expected.id);
+    if (!entry) continue;
+    const node = getEvidenceNode(expected.id);
+    if (
+      entry.label !== expected.label ||
+      entry.owner !== expected.owner ||
+      entry.role !== expected.role ||
+      entry.freshnessPolicy !== expected.freshnessPolicy ||
+      entry.producer !== node.command ||
+      !isDeepStrictEqual(entry.consumers, expected.consumers) ||
+      !isDeepStrictEqual(entry.artifacts, node.artifacts)
+    ) {
+      issues.push(`Release evidence inventory entry ${expected.id} differs from the contract.`);
+    }
+  }
+
+  const currentReports = reports.filter(report => report?.status === 'current').length;
+  const staleReports = RELEASE_DECISION_REPORT_IDS.length - currentReports;
+  const expectedSummary = {
+    decisionReports: RELEASE_DECISION_REPORT_IDS.length,
+    currentReports,
+    staleReports,
+  };
+  if (!isDeepStrictEqual(manifest.summary, expectedSummary)) {
+    issues.push('Release evidence summary does not match the validated report entries.');
+  }
+  const expectedStatus = staleReports === 0 && manifest.gitDirty === false ? 'current' : 'stale';
+  if (manifest.status !== expectedStatus) {
+    issues.push(`Release evidence status is ${manifest.status || 'invalid'}, expected ${expectedStatus}.`);
+  }
+  if (staleReports !== 0) {
+    issues.push(`Release evidence contains ${staleReports} stale reports.`);
   }
   return issues;
+};
+
+export const collectBuiltReleaseEvidenceIssues = ({ runtimeManifest, manifest }) => {
+  const expected = buildRuntimeReleaseEvidenceManifest(manifest);
+  return isDeepStrictEqual(runtimeManifest, expected)
+    ? []
+    : ['Built release evidence does not match the complete verified runtime contract.'];
 };

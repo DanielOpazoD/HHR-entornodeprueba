@@ -7,6 +7,7 @@ import {
   RELEASE_EVIDENCE_INVENTORY,
 } from '../../../scripts/releaseEvidenceContract.mjs';
 import {
+  collectBuiltReleaseEvidenceIssues,
   buildRuntimeReleaseEvidenceManifest,
   collectReleaseEvidenceManifestIssues,
 } from '../../../scripts/releaseEvidenceManifestSupport.mjs';
@@ -55,8 +56,31 @@ describe('release evidence contract', () => {
       expect.arrayContaining([
         expect.stringContaining('current HEAD'),
         expect.stringContaining('worktree state'),
-        expect.stringContaining('status is stale'),
-        expect.stringContaining('2 stale reports'),
+        expect.stringContaining('every decision report exactly once'),
+        expect.stringContaining('10 stale reports'),
+      ])
+    );
+  });
+
+  it('rejects a manifest that claims freshness without the required evidence entries', () => {
+    const issues = collectReleaseEvidenceManifestIssues({
+      manifest: {
+        schemaVersion: 1,
+        contractVersion: 1,
+        generatedAt: '2026-08-11T12:30:00.000Z',
+        gitSha: 'current-sha',
+        gitDirty: false,
+        status: 'current',
+        summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
+      },
+      currentGitState: { gitSha: 'current-sha', gitDirty: false },
+    });
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('reports must be an array'),
+        expect.stringContaining('every decision report exactly once'),
+        expect.stringContaining('inventory must be an array'),
       ])
     );
   });
@@ -84,5 +108,25 @@ describe('release evidence contract', () => {
     });
     expect(runtimeManifest).not.toHaveProperty('reports');
     expect(runtimeManifest).not.toHaveProperty('inventory');
+  });
+
+  it('compares every field in the built runtime contract', () => {
+    const manifest = {
+      schemaVersion: 1,
+      contractVersion: 1,
+      generatedAt: '2026-08-11T12:30:00.000Z',
+      gitSha: '1234567890abcdef',
+      status: 'current',
+      summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
+    };
+    const runtimeManifest = buildRuntimeReleaseEvidenceManifest(manifest);
+
+    expect(collectBuiltReleaseEvidenceIssues({ runtimeManifest, manifest })).toEqual([]);
+    expect(
+      collectBuiltReleaseEvidenceIssues({
+        runtimeManifest: { ...runtimeManifest, generatedAt: '2026-08-11T12:31:00.000Z' },
+        manifest,
+      })
+    ).toEqual([expect.stringContaining('complete verified runtime contract')]);
   });
 });

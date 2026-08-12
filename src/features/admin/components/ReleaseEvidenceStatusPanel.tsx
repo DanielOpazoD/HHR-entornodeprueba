@@ -14,6 +14,44 @@ interface ReleaseEvidenceManifest {
   };
 }
 
+const isNonNegativeInteger = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0;
+
+const isReleaseEvidenceManifest = (value: unknown): value is ReleaseEvidenceManifest => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  const summary = candidate.summary;
+  if (!summary || typeof summary !== 'object' || Array.isArray(summary)) return false;
+  const counts = summary as Record<string, unknown>;
+  const decisionReports = counts.decisionReports;
+  const currentReports = counts.currentReports;
+  const staleReports = counts.staleReports;
+  const status = candidate.status;
+  const validStatus = status === 'current' || status === 'stale' || status === 'unavailable';
+  const validGeneratedAt =
+    candidate.generatedAt === null ||
+    (typeof candidate.generatedAt === 'string' && !Number.isNaN(Date.parse(candidate.generatedAt)));
+  const validGitSha = candidate.gitSha === null || typeof candidate.gitSha === 'string';
+  const validCounts =
+    isNonNegativeInteger(decisionReports) &&
+    isNonNegativeInteger(currentReports) &&
+    isNonNegativeInteger(staleReports) &&
+    currentReports + staleReports === decisionReports;
+
+  return (
+    candidate.schemaVersion === 1 &&
+    candidate.contractVersion === 1 &&
+    validStatus &&
+    validGeneratedAt &&
+    validGitSha &&
+    validCounts &&
+    (status === 'unavailable' ||
+      (typeof candidate.generatedAt === 'string' &&
+        typeof candidate.gitSha === 'string' &&
+        candidate.gitSha.length > 0))
+  );
+};
+
 const unavailableManifest: ReleaseEvidenceManifest = {
   generatedAt: null,
   gitSha: null,
@@ -65,10 +103,8 @@ export const ReleaseEvidenceStatusPanel = () => {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const payload = (await response.json()) as ReleaseEvidenceManifest;
-        if (!['current', 'stale', 'unavailable'].includes(payload.status)) {
-          throw new Error('Estado de evidencia inválido');
-        }
+        const payload: unknown = await response.json();
+        if (!isReleaseEvidenceManifest(payload)) throw new Error('Contrato de evidencia inválido');
         setManifest(payload);
       } catch (loadError) {
         if (!controller.signal.aborted) setManifest(unavailableManifest);
