@@ -238,8 +238,8 @@ actual no está autorizado; la extensión no intenta eludir esa autorización.
 
 ## Requisitos y notas
 
-- Chrome 118+. Este mínimo coincide con el soporte declarado por PDF.js 5.6.205 para su build
-  `legacy`, que es el artefacto vendorizado para leer informes Syslab. Antes de distribuir una
+- Chrome 118+. La extensión fija PDF.js 5.5.207, anterior al rango afectado conocido y todavía
+  compatible con el build `legacy` validado para leer informes Syslab. Antes de distribuir una
   versión que eleve este mínimo, confirma que todos los equipos clínicos usan Chrome 118 o superior:
   Chrome deja silenciosamente sin futuras actualizaciones a instalaciones que permanezcan bajo el
   valor de `minimum_chrome_version`.

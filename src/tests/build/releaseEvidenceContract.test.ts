@@ -34,6 +34,9 @@ describe('release evidence contract', () => {
     expect(positions.get('system-confidence')).toBeLessThan(
       positions.get('release-readiness-scorecard') as number
     );
+    expect(steps.find(step => step.id === 'release-readiness-scorecard')?.command).toBe(
+      'report:release-readiness-scorecard:from-current-inputs'
+    );
   });
 
   it('omits an externally produced report without disturbing the remaining order', () => {

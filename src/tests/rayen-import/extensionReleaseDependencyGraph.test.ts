@@ -73,7 +73,7 @@ describe('Rayen extension release dependency graph', () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      'extension/pdf.min.mjs debe provenir del build legacy de pdfjs-dist 5.6.205.'
+      'extension/pdf.min.mjs debe provenir del build legacy de pdfjs-dist 5.5.207.'
     );
   });
 

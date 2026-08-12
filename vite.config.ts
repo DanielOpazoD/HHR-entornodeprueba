@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'path';
+import { execFileSync } from 'node:child_process';
 import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -8,6 +9,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { chunkForModule } from './scripts/config/chunkingPolicy';
 import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
 import { netlifyFunctionDevServerPlugin } from './scripts/config/netlifyFunctionDevServer';
+import { bindReleaseEvidenceToBuild } from './scripts/config/releaseEvidenceRuntimeAsset';
 
 /**
  * Generate version.json directly in the build output so the repo does not
@@ -51,9 +53,24 @@ const unavailableReleaseEvidence = () =>
     2
   );
 
+const resolveBuildGitSha = () => {
+  const environmentSha = process.env.COMMIT_REF || process.env.GITHUB_SHA;
+  if (environmentSha) return environmentSha;
+  try {
+    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+      cwd: __dirname,
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return '';
+  }
+};
+
+const BUILD_GIT_SHA = resolveBuildGitSha();
+
 const readReleaseEvidenceAsset = () =>
   fs.existsSync(RELEASE_EVIDENCE_SOURCE)
-    ? fs.readFileSync(RELEASE_EVIDENCE_SOURCE, 'utf8')
+    ? bindReleaseEvidenceToBuild(fs.readFileSync(RELEASE_EVIDENCE_SOURCE, 'utf8'), BUILD_GIT_SHA)
     : unavailableReleaseEvidence();
 
 /** Serve the same release contract in dev and in the production bundle. */

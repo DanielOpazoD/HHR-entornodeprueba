@@ -30,6 +30,11 @@ describe('postMergeEvidenceSupport', () => {
     expect(collectPostMergeEvidenceContractIssues()).toEqual([]);
 
     expect(
+      POST_MERGE_EVIDENCE_COMMANDS.find(command => command.name === 'release-readiness-scorecard')
+        ?.command
+    ).toBe('npm run report:release-readiness-scorecard:from-current-inputs');
+
+    expect(
       collectPostMergeEvidenceContractIssues(
         POST_MERGE_EVIDENCE_COMMANDS.filter(command => command.name !== 'sync-convergence')
       )

@@ -6,6 +6,16 @@ const releaseEvidenceCommands = getReleaseEvidenceRefreshSteps({
   skipReportIds: ['critical-coverage'],
 }).map(step => ({ name: step.id, command: `npm run ${step.command}` }));
 
+const getAcceptedRefreshCommands = contract => {
+  const commands = new Set([`npm run ${contract.refreshScript}`]);
+  const dependencyAwareCommand = releaseEvidenceCommands.find(
+    entry => entry.name === contract.id
+  )?.command;
+
+  if (dependencyAwareCommand) commands.add(dependencyAwareCommand);
+  return commands;
+};
+
 export const POST_MERGE_EVIDENCE_COMMANDS = [
   { name: 'preview-bootstrap-evidence', command: 'npm run check:preview-bootstrap-evidence' },
   {
@@ -46,11 +56,16 @@ export const collectPostMergeEvidenceContractIssues = (
   for (const contract of freshnessContracts) {
     if (contract.id === 'critical-coverage') continue;
     const refreshCommand = `npm run ${contract.refreshScript}`;
-    const refreshIndex = configuredCommands.indexOf(refreshCommand);
+    const acceptedRefreshCommands = getAcceptedRefreshCommands(contract);
+    const refreshIndex = configuredCommands.findIndex(command =>
+      acceptedRefreshCommands.has(command)
+    );
     if (refreshIndex === -1) {
       issues.push(`postmerge:evidence does not regenerate ${refreshCommand}`);
     } else if (strictIndex !== -1 && refreshIndex > strictIndex) {
-      issues.push(`postmerge:evidence runs ${refreshCommand} after strict freshness`);
+      issues.push(
+        `postmerge:evidence runs ${configuredCommands[refreshIndex]} after strict freshness`
+      );
     }
   }
 

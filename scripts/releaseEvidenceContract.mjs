@@ -2,6 +2,10 @@ import { getEvidenceNode, getEvidenceReportDependencyFiles } from './evidenceDep
 
 export const RELEASE_EVIDENCE_CONTRACT_VERSION = 1;
 
+const RELEASE_READINESS_SCORECARD_ID = 'release-readiness-scorecard';
+const RELEASE_READINESS_FINALIZER_COMMAND =
+  'report:release-readiness-scorecard:from-current-inputs';
+
 const decisionReport = ({ id, label, owner, consumers }) => ({
   id,
   label,
@@ -171,7 +175,17 @@ export const getReleaseEvidenceRefreshSteps = ({ skipReportIds = [] } = {}) => {
     }
     temporary.delete(id);
     permanent.add(id);
-    ordered.push({ id, command: node.command, artifacts: node.artifacts });
+    ordered.push({
+      id,
+      // The refresh plan already generated every scorecard input in dependency
+      // order. Running the standalone producer here would regenerate those
+      // inputs and make earlier consumers stale again.
+      command:
+        id === RELEASE_READINESS_SCORECARD_ID
+          ? RELEASE_READINESS_FINALIZER_COMMAND
+          : node.command,
+      artifacts: node.artifacts,
+    });
   };
 
   for (const id of RELEASE_EVIDENCE_REPORT_IDS) visit(id);

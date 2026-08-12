@@ -25,20 +25,20 @@
     {
       "file": "pdf.min.mjs",
       "package": "pdfjs-dist",
-      "version": "5.6.205",
+      "version": "5.5.207",
       "variant": "legacy",
       "source": "pdfjs-dist/legacy/build/pdf.min.mjs",
       "license": "Apache-2.0",
-      "sha256": "0d29c4871eff0b72f3896825f2673ddf7dfbccf815a7095a5d14f5aa68fab0e5"
+      "sha256": "933c8f40b1ab5b7f94ebb1cc2a75d0be84c9ffa238f739c398872a6bb65a862e"
     },
     {
       "file": "pdf.worker.min.mjs",
       "package": "pdfjs-dist",
-      "version": "5.6.205",
+      "version": "5.5.207",
       "variant": "legacy",
       "source": "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
       "license": "Apache-2.0",
-      "sha256": "7fc442c268d107d656755252cf38c422a88e825b7f0caaac6a5f58364dff4179"
+      "sha256": "c4b8db209aa0b3f4e738b2b37cba110fb6b4b0d0f4cee7cf62be974b884169f5"
     }
   ]
 }
