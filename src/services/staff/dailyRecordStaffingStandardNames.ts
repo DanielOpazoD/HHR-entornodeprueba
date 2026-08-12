@@ -29,6 +29,7 @@ const resolveStandardNames = (
     if (
       assignment.slotType === 'standard' &&
       typeof assignment.standardSlotIndex === 'number' &&
+      Number.isInteger(assignment.standardSlotIndex) &&
       assignment.standardSlotIndex >= 0 &&
       assignment.standardSlotIndex < standardSlotCount
     ) {
