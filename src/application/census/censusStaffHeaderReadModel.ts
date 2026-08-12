@@ -11,12 +11,15 @@ import {
   resolveStaffSelectorsState,
 } from '@/features/census';
 import type { DischargeData, TransferData } from '@/types/domain/movements';
+import type { DailyRecordStaffingDetailsV1 } from '@/application/shared/dailyRecordStaffContracts';
 
 interface CensusStaffData {
+  date?: string;
   nursesDayShift?: string[] | null;
   nursesNightShift?: string[] | null;
   tensDayShift?: string[] | null;
   tensNightShift?: string[] | null;
+  staffingDetailsV1?: DailyRecordStaffingDetailsV1;
 }
 
 interface CensusMovementsData {

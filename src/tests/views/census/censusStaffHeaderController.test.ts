@@ -8,6 +8,10 @@ import {
 } from '@/features/census/controllers/censusStaffHeaderController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { isNewAdmissionForClinicalDay } from '@/utils/dateUtils';
+import {
+  resolveDetailedStaffingState,
+  updateDetailedStaffingStandardSlot,
+} from '@/services/staff/dailyRecordDetailedStaffing';
 
 describe('censusStaffHeaderController', () => {
   it('normalizes nullable staff arrays to safe arrays', () => {
@@ -30,6 +34,33 @@ describe('censusStaffHeaderController', () => {
       nursesNightShift: [],
       tensDayShift: ['T1', 'T2'],
       tensNightShift: [],
+    });
+  });
+
+  it('uses canonical detailed staffing when legacy day arrays are stale', () => {
+    const input = {
+      date: '2026-08-11',
+      nursesDayShift: ['', ''],
+      nursesNightShift: ['Enfermera Noche 1', 'Enfermera Noche 2'],
+      tensDayShift: ['', '', ''],
+      tensNightShift: ['TENS Noche 1', 'TENS Noche 2', 'TENS Noche 3'],
+    };
+    let detail = resolveDetailedStaffingState(input, input.date);
+    detail = updateDetailedStaffingStandardSlot(detail, 'day', 'nurse', 0, 'Enfermera Día');
+    detail = updateDetailedStaffingStandardSlot(detail, 'day', 'tens', 0, 'TENS Día 1');
+    detail = updateDetailedStaffingStandardSlot(detail, 'day', 'tens', 1, 'TENS Día 2');
+    detail = updateDetailedStaffingStandardSlot(detail, 'day', 'tens', 2, 'TENS Día 3');
+
+    expect(
+      resolveStaffSelectorsState({
+        ...input,
+        staffingDetailsV1: detail,
+      })
+    ).toEqual({
+      nursesDayShift: ['Enfermera Día', ''],
+      nursesNightShift: ['Enfermera Noche 1', 'Enfermera Noche 2'],
+      tensDayShift: ['TENS Día 1', 'TENS Día 2', 'TENS Día 3'],
+      tensNightShift: ['TENS Noche 1', 'TENS Noche 2', 'TENS Noche 3'],
     });
   });
 

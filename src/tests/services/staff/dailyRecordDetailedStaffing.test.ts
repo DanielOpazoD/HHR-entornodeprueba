@@ -6,6 +6,7 @@ import {
   resolveShiftRoleStaffingMeta,
   updateDetailedStaffingStandardSlot,
 } from '@/services/staff/dailyRecordDetailedStaffing';
+import { resolveDetailedStaffingStandardNames } from '@/services/staff/dailyRecordStaffingStandardNames';
 
 describe('dailyRecordDetailedStaffing', () => {
   it('builds detailed staffing from legacy arrays using non-working-day schedules', () => {
@@ -73,5 +74,20 @@ describe('dailyRecordDetailedStaffing', () => {
       startTime: '10:00',
       endTime: '18:00',
     });
+  });
+
+  it('ignores fractional standard slot indices when resolving selector names', () => {
+    const detail = createEmptyDetailedStaffing('2026-04-17');
+    detail.day.nurses.push({
+      id: 'day-nurse-invalid-fractional-slot',
+      name: 'No debe ocupar una casilla',
+      role: 'nurse',
+      slotType: 'standard',
+      standardSlotIndex: 0.5,
+      startTime: '08:00',
+      endTime: '20:00',
+    });
+
+    expect(resolveDetailedStaffingStandardNames(detail).nursesDayShift).toEqual(['', '']);
   });
 });
