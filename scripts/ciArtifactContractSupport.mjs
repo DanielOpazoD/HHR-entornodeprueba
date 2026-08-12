@@ -306,9 +306,9 @@ export const collectCiArtifactContractIssues = workflowText => {
       }
       if (builtContractIndex === -1) {
         issues.push('postmerge-evidence: must validate the release evidence embedded in dist.');
-      } else if (generateEvidenceIndex !== -1 && builtContractIndex < generateEvidenceIndex) {
+      } else if (generateEvidenceIndex !== -1 && builtContractIndex > generateEvidenceIndex) {
         issues.push(
-          'postmerge-evidence: validates built release evidence before regenerating evidence.'
+          'postmerge-evidence: must validate built release evidence before regenerating reports.'
         );
       }
     }
@@ -366,6 +366,52 @@ export const collectCiArtifactContractIssues = workflowText => {
         ) {
           issues.push('build: must download release evidence before building production assets.');
         }
+      }
+    }
+
+    if (postmergeJob) {
+      const runtimeDownload = downloads.find(
+        download =>
+          download.jobName === 'postmerge-evidence' &&
+          download.name === RELEASE_EVIDENCE_RUNTIME_ARTIFACT
+      );
+      const verifyRuntimeCommand =
+        `scripts/verify-github-run-artifact.mjs --artifact ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT} ` +
+        `--producer ${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}`;
+      const verifyRuntimeIndex = postmergeJob.body.indexOf(verifyRuntimeCommand);
+      const downloadRuntimeIndex = postmergeJob.body.indexOf(
+        `name: ${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}`
+      );
+      const builtContractIndex = postmergeJob.body.indexOf(
+        'npm run check:release-evidence-contract:built'
+      );
+
+      if (!runtimeDownload) {
+        issues.push(
+          `postmerge-evidence: must download artifact "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}".`
+        );
+      } else if (normalizePath(runtimeDownload.path) !== RELEASE_EVIDENCE_RUNTIME_PATH) {
+        issues.push(
+          `postmerge-evidence: release evidence runtime must download to ` +
+            `"${RELEASE_EVIDENCE_RUNTIME_PATH}".`
+        );
+      }
+      if (verifyRuntimeIndex === -1) {
+        issues.push(
+          `postmerge-evidence: must verify "${RELEASE_EVIDENCE_RUNTIME_ARTIFACT}" from producer ` +
+            `"${RELEASE_EVIDENCE_RUNTIME_PRODUCER_JOB}".`
+        );
+      } else if (downloadRuntimeIndex !== -1 && verifyRuntimeIndex > downloadRuntimeIndex) {
+        issues.push('postmerge-evidence: must verify release evidence before downloading it.');
+      }
+      if (
+        builtContractIndex !== -1 &&
+        downloadRuntimeIndex !== -1 &&
+        builtContractIndex < downloadRuntimeIndex
+      ) {
+        issues.push(
+          'postmerge-evidence: validates built release evidence before downloading its source.'
+        );
       }
     }
   }

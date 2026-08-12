@@ -631,6 +631,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - name: Verify release evidence runtime artifact availability
+        run: node scripts/verify-github-run-artifact.mjs --artifact release-evidence-runtime --producer quality-static-governance-snapshots
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
       - name: Download build artifacts
         uses: actions/download-artifact@v7
         with:
@@ -649,17 +654,23 @@ jobs:
           name: critical-coverage
           path: reports
 
+      - name: Download release evidence runtime contract
+        uses: actions/download-artifact@v7
+        with:
+          name: release-evidence-runtime
+          path: reports/release-evidence-runtime
+
       - name: Validate downloaded preview bootstrap evidence
         run: npm run check:preview-bootstrap-evidence
+
+      - name: Verify built release evidence contract
+        run: npm run check:release-evidence-contract:built
 
       - name: Generate post-merge release evidence
         run: npm run postmerge:evidence
 
       - name: Verify post-merge release evidence
         run: npm run check:postmerge-evidence:strict
-
-      - name: Verify built release evidence contract
-        run: npm run check:release-evidence-contract:built
 
       - name: Upload post-merge release evidence
         if: always()

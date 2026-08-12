@@ -128,5 +128,11 @@ describe('release evidence contract', () => {
         manifest,
       })
     ).toEqual([expect.stringContaining('complete verified runtime contract')]);
+    expect(
+      collectBuiltReleaseEvidenceIssues({
+        runtimeManifest,
+        expectedRuntimeManifest: runtimeManifest,
+      })
+    ).toEqual([]);
   });
 });

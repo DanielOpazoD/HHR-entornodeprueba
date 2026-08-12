@@ -16,7 +16,14 @@ const issues = collectReleaseEvidenceContractIssues();
 let manifest;
 
 if (strict) {
-  const manifestPath = path.join(root, 'reports', 'release-evidence-contract.json');
+  const manifestPath = builtAsset
+    ? path.join(
+        root,
+        'reports',
+        'release-evidence-runtime',
+        'release-evidence-contract.json'
+      )
+    : path.join(root, 'reports', 'release-evidence-contract.json');
   if (!fs.existsSync(manifestPath)) {
     issues.push('reports/release-evidence-contract.json is missing.');
   } else {
@@ -38,17 +45,31 @@ if (strict) {
 
 if (builtAsset) {
   const builtAssetPath = path.join(root, 'dist', 'release-evidence.json');
+  const runtimeSourcePath = path.join(
+    root,
+    'reports',
+    'release-evidence-runtime',
+    'release-evidence.json'
+  );
   if (!manifest) {
-    issues.push('Cannot validate the built release evidence without a valid strict manifest.');
+    issues.push('Cannot validate built release evidence without its strict source manifest.');
+  } else if (!fs.existsSync(runtimeSourcePath)) {
+    issues.push('The verified release evidence runtime source is missing.');
   } else if (!fs.existsSync(builtAssetPath)) {
     issues.push('dist/release-evidence.json is missing.');
   } else {
     try {
       const runtimeManifest = JSON.parse(fs.readFileSync(builtAssetPath, 'utf8'));
-      issues.push(...collectBuiltReleaseEvidenceIssues({ runtimeManifest, manifest }));
+      const verifiedRuntimeManifest = JSON.parse(fs.readFileSync(runtimeSourcePath, 'utf8'));
+      issues.push(
+        ...collectBuiltReleaseEvidenceIssues({
+          runtimeManifest,
+          expectedRuntimeManifest: verifiedRuntimeManifest,
+        })
+      );
     } catch (error) {
       issues.push(
-        `dist/release-evidence.json is invalid: ${error instanceof Error ? error.message : String(error)}`
+        `Release evidence runtime comparison failed: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

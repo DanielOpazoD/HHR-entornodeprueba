@@ -218,9 +218,14 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
   return issues;
 };
 
-export const collectBuiltReleaseEvidenceIssues = ({ runtimeManifest, manifest }) => {
-  const expected = buildRuntimeReleaseEvidenceManifest(manifest);
-  return isDeepStrictEqual(runtimeManifest, expected)
+export const collectBuiltReleaseEvidenceIssues = ({
+  runtimeManifest,
+  manifest,
+  expectedRuntimeManifest = manifest
+    ? buildRuntimeReleaseEvidenceManifest(manifest)
+    : undefined,
+}) => {
+  return isDeepStrictEqual(runtimeManifest, expectedRuntimeManifest)
     ? []
     : ['Built release evidence does not match the complete verified runtime contract.'];
 };

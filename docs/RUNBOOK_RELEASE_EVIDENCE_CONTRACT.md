@@ -46,8 +46,9 @@ release.
   al checkout actual y a sus dependencias.
 - `npm run check:release-evidence-contract:strict`: el inventario y el manifiesto son
   completos, actuales y coherentes con `HEAD`.
-- `npm run check:release-evidence-contract:built`: además comprueba que
-  `dist/release-evidence.json` coincide con el manifiesto validado.
+- `npm run check:release-evidence-contract:built`: vuelve a validar el manifiesto
+  estricto descargado desde el productor y comprueba que
+  `dist/release-evidence.json` coincide exactamente con su resumen runtime.
 - `npm run check:ci-artifact-contracts`: comprueba productor, orden, ruta y consumidor
   del manifiesto, cobertura crítica, preview y build.
 

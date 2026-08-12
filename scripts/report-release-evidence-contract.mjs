@@ -19,6 +19,10 @@ fs.writeFileSync(
   `${JSON.stringify(manifest, null, 2)}\n`
 );
 fs.writeFileSync(
+  path.join(runtimeDir, 'release-evidence-contract.json'),
+  `${JSON.stringify(manifest, null, 2)}\n`
+);
+fs.writeFileSync(
   path.join(reportsDir, 'release-evidence-contract.md'),
   formatReleaseEvidenceManifestMarkdown(manifest)
 );

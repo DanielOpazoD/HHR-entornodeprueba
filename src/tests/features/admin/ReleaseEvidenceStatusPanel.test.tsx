@@ -26,7 +26,12 @@ describe('ReleaseEvidenceStatusPanel', () => {
     expect(await screen.findByText('Vigente')).toBeInTheDocument();
     expect(screen.getByText('1234567890ab')).toBeInTheDocument();
     expect(screen.getByText('10/10')).toBeInTheDocument();
-    expect(screen.getByText(/11-08-2026/i)).toBeInTheDocument();
+    const expectedGeneratedAt = new Intl.DateTimeFormat('es-CL', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Pacific/Easter',
+    }).format(new Date('2026-08-11T12:30:00.000Z'));
+    expect(screen.getByText(expectedGeneratedAt)).toBeInTheDocument();
   });
 
   it('fails closed when the runtime contract cannot be loaded', async () => {
