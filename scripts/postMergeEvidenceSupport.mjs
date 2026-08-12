@@ -1,17 +1,24 @@
 import { REPORT_FRESHNESS_CONTRACTS } from './reportFreshnessSupport.mjs';
+import { getReleaseEvidenceRefreshSteps } from './releaseEvidenceContract.mjs';
+
+const releaseEvidenceCommands = getReleaseEvidenceRefreshSteps({
+  // Main reuses the coverage artifact produced by this same workflow run.
+  skipReportIds: ['critical-coverage'],
+}).map(step => ({ name: step.id, command: `npm run ${step.command}` }));
 
 export const POST_MERGE_EVIDENCE_COMMANDS = [
   { name: 'preview-bootstrap-evidence', command: 'npm run check:preview-bootstrap-evidence' },
-  { name: 'quality-metrics', command: 'npm run report:quality-metrics' },
-  { name: 'sync-convergence', command: 'npm run report:sync-convergence' },
-  { name: 'system-confidence', command: 'npm run report:system-confidence' },
-  { name: 'operational-health', command: 'npm run report:operational-health' },
-  { name: 'clinical-release-validation', command: 'npm run report:clinical-release-validation' },
-  { name: 'clinical-release-signoff', command: 'npm run report:clinical-release-signoff' },
-  { name: 'release-confidence-matrix', command: 'npm run report:release-confidence-matrix' },
-  { name: 'release-readiness-scorecard', command: 'npm run report:release-readiness-scorecard' },
-  { name: 'maintenance-debt-scorecard', command: 'npm run report:maintenance-debt-scorecard' },
+  {
+    name: 'critical-coverage-freshness',
+    command: 'npm run check:report-freshness:strict -- --only critical-coverage',
+  },
+  ...releaseEvidenceCommands,
   { name: 'report-freshness-strict', command: 'npm run check:report-freshness:strict' },
+  { name: 'release-evidence-contract', command: 'npm run report:release-evidence-contract' },
+  {
+    name: 'release-evidence-contract-strict',
+    command: 'npm run check:release-evidence-contract:strict',
+  },
 ];
 
 export const REQUIRED_POST_MERGE_EVIDENCE_RESULTS = POST_MERGE_EVIDENCE_COMMANDS.map(
@@ -27,7 +34,17 @@ export const collectPostMergeEvidenceContractIssues = (
   const strictIndex = configuredCommands.indexOf(strictCommand);
   const issues = strictIndex === -1 ? [`postmerge:evidence does not run ${strictCommand}`] : [];
 
+  const criticalFreshnessCommand =
+    'npm run check:report-freshness:strict -- --only critical-coverage';
+  const criticalFreshnessIndex = configuredCommands.indexOf(criticalFreshnessCommand);
+  if (criticalFreshnessIndex === -1) {
+    issues.push(`postmerge:evidence does not validate downloaded critical coverage`);
+  } else if (strictIndex !== -1 && criticalFreshnessIndex > strictIndex) {
+    issues.push(`postmerge:evidence validates critical coverage after strict freshness`);
+  }
+
   for (const contract of freshnessContracts) {
+    if (contract.id === 'critical-coverage') continue;
     const refreshCommand = `npm run ${contract.refreshScript}`;
     const refreshIndex = configuredCommands.indexOf(refreshCommand);
     if (refreshIndex === -1) {
@@ -35,6 +52,21 @@ export const collectPostMergeEvidenceContractIssues = (
     } else if (strictIndex !== -1 && refreshIndex > strictIndex) {
       issues.push(`postmerge:evidence runs ${refreshCommand} after strict freshness`);
     }
+  }
+
+  const manifestIndex = configuredCommands.indexOf('npm run report:release-evidence-contract');
+  const contractIndex = configuredCommands.indexOf(
+    'npm run check:release-evidence-contract:strict'
+  );
+  if (manifestIndex === -1) {
+    issues.push('postmerge:evidence does not generate the release evidence contract');
+  } else if (strictIndex !== -1 && manifestIndex < strictIndex) {
+    issues.push('postmerge:evidence generates the release evidence contract before freshness');
+  }
+  if (contractIndex === -1) {
+    issues.push('postmerge:evidence does not validate the release evidence contract');
+  } else if (manifestIndex !== -1 && contractIndex < manifestIndex) {
+    issues.push('postmerge:evidence validates the release evidence contract before generating it');
   }
 
   return issues;

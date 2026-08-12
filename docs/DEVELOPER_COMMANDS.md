@@ -40,7 +40,12 @@ Estos son los entrypoints recomendados para trabajo normal.
 
 ### Antes de release o validación operativa fuerte
 
-1. `npm run ci:release-gate`
+1. `npm run release:evidence:refresh`
+2. `npm run ci:release-gate`
+
+El primer comando es la única orden local que reconstruye el paquete completo en
+orden determinista y deja el manifiesto embebido en `dist/`. Ver
+[RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md](./RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
 
 ### Antes de auditoría técnica o revisión ejecutiva
 
@@ -102,7 +107,10 @@ Estos scripts siguen soportados, pero no forman parte de la superficie pública 
 - `npm run build:rules-assets`
 - `npm run check:report-freshness`
 - `npm run check:release-evidence`
+- `npm run check:release-evidence-contract:strict`
+- `npm run check:release-evidence-contract:built`
 - `npm run report:governance-snapshots`
+- `npm run release:evidence:refresh`
 
 ### Reportes y auditoría
 

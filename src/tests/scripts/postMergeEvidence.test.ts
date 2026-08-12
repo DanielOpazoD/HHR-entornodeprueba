@@ -8,21 +8,21 @@ import {
   POST_MERGE_EVIDENCE_COMMANDS,
   REQUIRED_POST_MERGE_EVIDENCE_RESULTS,
 } from '../../../scripts/postMergeEvidenceSupport.mjs';
+import { getReleaseEvidenceRefreshSteps } from '../../../scripts/releaseEvidenceContract.mjs';
 
 describe('postMergeEvidenceSupport', () => {
   it('defines the release evidence commands that must be refreshed after merge', () => {
+    const expectedReportCommands = getReleaseEvidenceRefreshSteps({
+      skipReportIds: ['critical-coverage'],
+    }).map(step => step.id);
+
     expect(POST_MERGE_EVIDENCE_COMMANDS.map(command => command.name)).toEqual([
       'preview-bootstrap-evidence',
-      'quality-metrics',
-      'sync-convergence',
-      'system-confidence',
-      'operational-health',
-      'clinical-release-validation',
-      'clinical-release-signoff',
-      'release-confidence-matrix',
-      'release-readiness-scorecard',
-      'maintenance-debt-scorecard',
+      'critical-coverage-freshness',
+      ...expectedReportCommands,
       'report-freshness-strict',
+      'release-evidence-contract',
+      'release-evidence-contract-strict',
     ]);
   });
 
@@ -35,9 +35,12 @@ describe('postMergeEvidenceSupport', () => {
       )
     ).toContain('postmerge:evidence does not regenerate npm run report:sync-convergence');
 
+    const strictCommand = POST_MERGE_EVIDENCE_COMMANDS.find(
+      command => command.name === 'report-freshness-strict'
+    );
     const strictFirst = [
-      POST_MERGE_EVIDENCE_COMMANDS.at(-1),
-      ...POST_MERGE_EVIDENCE_COMMANDS.slice(0, -1),
+      strictCommand,
+      ...POST_MERGE_EVIDENCE_COMMANDS.filter(command => command !== strictCommand),
     ].filter(command => command !== undefined);
     expect(collectPostMergeEvidenceContractIssues(strictFirst)).toContain(
       'postmerge:evidence runs npm run report:sync-convergence after strict freshness'

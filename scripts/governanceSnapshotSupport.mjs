@@ -1,16 +1,26 @@
 import path from 'node:path';
 import { getEvidenceNode } from './evidenceDependencyGraph.mjs';
 import { getGitReportState } from './gitReportState.mjs';
+import { getReleaseEvidenceRefreshSteps } from './releaseEvidenceContract.mjs';
 
-export const GOVERNANCE_SNAPSHOT_STEP_IDS = [
-  'release-readiness-scorecard',
-  'clinical-release-signoff',
+const SUPPORTING_GOVERNANCE_STEP_IDS = [
   'runtime-contracts',
-  'sync-convergence',
   'serverless-runtime-governance',
   'serverless-sensitive-coverage',
   'sustainable-change-policy',
-  'maintenance-debt-scorecard',
+];
+
+const releaseEvidenceSteps = getReleaseEvidenceRefreshSteps({
+  // The coverage shard creates this expensive report once and CI downloads it
+  // before running the governance package.
+  skipReportIds: ['critical-coverage'],
+});
+
+export const GOVERNANCE_SNAPSHOT_STEP_IDS = [
+  ...releaseEvidenceSteps.map(step => step.id),
+  ...SUPPORTING_GOVERNANCE_STEP_IDS.filter(
+    id => !releaseEvidenceSteps.some(step => step.id === id)
+  ),
 ];
 
 export const GOVERNANCE_SNAPSHOT_PROFILE_BASENAME = 'ci-governance-snapshot-profile';
