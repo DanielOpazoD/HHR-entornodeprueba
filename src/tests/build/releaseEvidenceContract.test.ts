@@ -85,6 +85,47 @@ describe('release evidence contract', () => {
     );
   });
 
+  it('does not allow a dirty evidence package to authorize a release', () => {
+    const refreshSteps = new Map(getReleaseEvidenceRefreshSteps().map(step => [step.id, step]));
+    const manifest = {
+      schemaVersion: 1,
+      contractVersion: 1,
+      generatedAt: '2026-08-11T12:30:00.000Z',
+      gitSha: 'current-sha',
+      gitDirty: true,
+      status: 'stale',
+      summary: { decisionReports: 10, currentReports: 10, staleReports: 0 },
+      reports: RELEASE_DECISION_REPORT_IDS.map(id => {
+        const inventory = RELEASE_EVIDENCE_INVENTORY.find(entry => entry.id === id);
+        return {
+          id,
+          label: inventory?.label,
+          artifact: refreshSteps.get(id)?.artifacts.find((file: string) => file.endsWith('.json')),
+          generatedAt: '2026-08-11T12:30:00.000Z',
+          gitSha: 'current-sha',
+          status: 'current',
+        };
+      }),
+      inventory: RELEASE_EVIDENCE_INVENTORY.map(entry => ({
+        ...entry,
+        producer: refreshSteps.get(entry.id)?.command,
+        artifacts: refreshSteps.get(entry.id)?.artifacts,
+      })),
+    };
+
+    expect(
+      collectReleaseEvidenceManifestIssues({
+        manifest,
+        currentGitState: { gitSha: 'current-sha', gitDirty: true },
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('dirty worktree'),
+        expect.stringContaining('cannot authorize a release'),
+      ])
+    );
+  });
+
   it('publishes only the non-sensitive runtime summary', () => {
     const runtimeManifest = buildRuntimeReleaseEvidenceManifest({
       schemaVersion: 1,
@@ -131,6 +172,7 @@ describe('release evidence contract', () => {
     expect(
       collectBuiltReleaseEvidenceIssues({
         runtimeManifest,
+        manifest,
         expectedRuntimeManifest: runtimeManifest,
       })
     ).toEqual([]);

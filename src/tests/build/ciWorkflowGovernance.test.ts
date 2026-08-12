@@ -77,6 +77,7 @@ describe('CI workflow governance', () => {
       'scripts/verify-github-run-artifact.mjs --artifact critical-coverage --producer critical-coverage-report'
     );
     expect(postmergeJob).toContain('npm run check:release-evidence-contract:built');
+    expect(postmergeJob).not.toContain('reports/release-evidence-runtime/**');
     expect(collectCiArtifactContractIssues(workflow)).toEqual([]);
   });
 

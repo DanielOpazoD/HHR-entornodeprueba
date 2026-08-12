@@ -370,6 +370,11 @@ export const collectCiArtifactContractIssues = workflowText => {
     }
 
     if (postmergeJob) {
+      if (postmergeJob.body.includes('reports/release-evidence-runtime/**')) {
+        issues.push(
+          'postmerge-evidence: must not republish regenerated release evidence as the build runtime contract.'
+        );
+      }
       const runtimeDownload = downloads.find(
         download =>
           download.jobName === 'postmerge-evidence' &&

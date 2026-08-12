@@ -680,7 +680,6 @@ jobs:
           path: |
             reports/postmerge-evidence.*
             reports/release-evidence-contract.*
-            reports/release-evidence-runtime/**
           retention-days: 30
 
   # ============================================

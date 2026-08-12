@@ -61,7 +61,8 @@ release.
    `/release-evidence.json`.
 4. Cada PR valida el contrato y la frescura de los reportes usados para decidir.
 5. En `push` a `main`, `postmerge-evidence` descarga los artefactos del mismo run,
-   regenera la evidencia para el SHA integrado y verifica el manifiesto embebido.
+   verifica el manifiesto que entró al build y regenera por separado la evidencia
+   post-merge. No vuelve a publicar esa regeneración como contrato del bundle.
 
 ## Lectura operativa
 

@@ -212,6 +212,12 @@ export const collectReleaseEvidenceManifestIssues = ({ manifest, currentGitState
   if (manifest.status !== expectedStatus) {
     issues.push(`Release evidence status is ${manifest.status || 'invalid'}, expected ${expectedStatus}.`);
   }
+  if (manifest.gitDirty !== false) {
+    issues.push('Release evidence was generated from a dirty worktree.');
+  }
+  if (manifest.status !== 'current') {
+    issues.push('Release evidence is not current and cannot authorize a release.');
+  }
   if (staleReports !== 0) {
     issues.push(`Release evidence contains ${staleReports} stale reports.`);
   }
