@@ -29,6 +29,55 @@ function versionPlugin(versionInfo: { version: string; buildDate: string }): Plu
   };
 }
 
+const RELEASE_EVIDENCE_ASSET = 'release-evidence.json';
+const RELEASE_EVIDENCE_SOURCE = path.resolve(
+  __dirname,
+  'reports',
+  'release-evidence-runtime',
+  RELEASE_EVIDENCE_ASSET
+);
+
+const unavailableReleaseEvidence = () =>
+  JSON.stringify(
+    {
+      schemaVersion: 1,
+      contractVersion: 1,
+      generatedAt: null,
+      gitSha: null,
+      status: 'unavailable',
+      summary: { decisionReports: 0, currentReports: 0, staleReports: 0 },
+    },
+    null,
+    2
+  );
+
+const readReleaseEvidenceAsset = () =>
+  fs.existsSync(RELEASE_EVIDENCE_SOURCE)
+    ? fs.readFileSync(RELEASE_EVIDENCE_SOURCE, 'utf8')
+    : unavailableReleaseEvidence();
+
+/** Serve the same release contract in dev and in the production bundle. */
+function releaseEvidenceRuntimePlugin(): Plugin {
+  const route = `/${RELEASE_EVIDENCE_ASSET}`;
+  return {
+    name: 'release-evidence-runtime',
+    configureServer(server) {
+      server.middlewares.use(route, (_req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        res.end(readReleaseEvidenceAsset());
+      });
+    },
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: RELEASE_EVIDENCE_ASSET,
+        source: readReleaseEvidenceAsset(),
+      });
+    },
+  };
+}
+
 function excelJsRuntimeAssetPlugin(): Plugin {
   const runtimeAssetPath = path.resolve(
     __dirname,
@@ -101,6 +150,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       versionPlugin(buildVersionInfo),
+      releaseEvidenceRuntimePlugin(),
       excelJsRuntimeAssetPlugin(),
       netlifyFunctionDevServerPlugin(),
       minsalSharedInteropPlugin(__dirname),
