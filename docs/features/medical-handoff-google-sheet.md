@@ -52,6 +52,11 @@ No existe sincronización inversa: lo escrito en Google Sheets no modifica HHR.
      editores configurados.
 6. Copiar la URL terminada en `/exec`.
 
+> **Importante:** guardar o fusionar una versión nueva de `Code.gs` no actualiza la aplicación web
+> ya desplegada. Después de cada cambio, abrir **Implementar → Administrar implementaciones**, editar
+> la aplicación web, seleccionar **Nueva versión** y volver a implementar. Mantener la misma URL
+> `/exec` evita tener que cambiar el secreto `MEDICAL_HANDOFF_APPS_SCRIPT_URL` en Firebase.
+
 ### 2. Configurar Firebase Functions
 
 Desde una sesión con acceso al proyecto `hhr-pruebas`:
