@@ -17,6 +17,7 @@ interface UseCensusViewScreenModelParams {
   currentDateString: string;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
+  onOpenMedicalHandoff?: () => void;
   readOnly: boolean;
   allowAdminCopyOverride: boolean;
   accessProfile: CensusAccessProfile;
@@ -28,6 +29,7 @@ export const useCensusViewScreenModel = ({
   currentDateString,
   showBedManagerModal,
   onCloseBedManagerModal,
+  onOpenMedicalHandoff,
   readOnly,
   allowAdminCopyOverride,
   accessProfile,
@@ -41,6 +43,7 @@ export const useCensusViewScreenModel = ({
     currentDateString,
     showBedManagerModal,
     onCloseBedManagerModal,
+    onOpenMedicalHandoff,
     readOnly,
     allowAdminCopyOverride,
     accessProfile,

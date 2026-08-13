@@ -21,6 +21,8 @@ import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
+import { useStaffContext } from '@/context/StaffContext';
+import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { SpecialtyChip } from './SpecialtyChip';
@@ -56,6 +58,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   onOpenDemographics,
 }) => {
   const [copyFeedback, setCopyFeedback] = useState<'idle' | 'copied'>('idle');
+  const { professionalsCatalog = [] } = useStaffContext();
 
   const { fullName, canEditInlineName } = resolveNameInputState({
     data,
@@ -81,6 +84,11 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   // Especialidad como etiqueta de texto (rediseño 2026): ya no tiene columna propia; se muestra
   // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
+  const visibleTreatingPhysicianName = resolveVisibleTreatingPhysicianName(
+    professionalsCatalog,
+    data.treatingPhysicianId,
+    data.treatingPhysicianName
+  );
   // A real occupant always shows the details row so the specialty chip (or "Pendiente asignar")
   // has a home, even before RUT/edad/FI are filled in.
   const isRealPatient = !isEmpty && !isSubRow && !!fullName.trim();
@@ -90,7 +98,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
       !!data.age ||
       !!admissionShort ||
       !!specialtyLabel ||
-      !!data.treatingPhysicianName ||
+      !!visibleTreatingPhysicianName ||
       isRealPatient);
   const handleSpecialtyAssign = onNameChange('specialty');
 
@@ -284,12 +292,12 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 readOnly={readOnly}
                 onAssign={handleSpecialtyAssign}
               />
-              {data.treatingPhysicianName && (
+              {visibleTreatingPhysicianName && (
                 <span
                   className="max-w-28 truncate text-[9px] font-medium text-slate-400"
-                  title={`Médico tratante: ${data.treatingPhysicianName}`}
+                  title={`Médico tratante: ${visibleTreatingPhysicianName}`}
                 >
-                  · {data.treatingPhysicianName}
+                  · {visibleTreatingPhysicianName}
                 </span>
               )}
             </span>

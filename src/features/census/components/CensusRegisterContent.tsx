@@ -30,6 +30,7 @@ interface CensusRegisterContentProps {
   stats: Statistics | null;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
+  onOpenMedicalHandoff?: () => void;
   accessProfile?: CensusAccessProfile;
 }
 
@@ -42,6 +43,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   stats,
   showBedManagerModal,
   onCloseBedManagerModal,
+  onOpenMedicalHandoff,
   accessProfile = 'default',
 }) => {
   const shouldRenderSections = !isSpecialistCensusAccessProfile(accessProfile);
@@ -70,6 +72,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
           accessProfile={accessProfile}
           attentionFilter={attentionFilter}
           onAttentionFilterChange={setAttentionFilter}
+          onOpenMedicalHandoff={onOpenMedicalHandoff}
         />
 
         <CensusRegisterMainContent

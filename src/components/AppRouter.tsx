@@ -72,6 +72,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({ ui, shell }) => {
               resolveReadOnly,
               allowAdminCopyOverride,
               censusAccessProfile,
+              canOpenMedicalHandoff: visibleModules.includes('MEDICAL_HANDOFF'),
             })}
           </SectionErrorBoundary>
         ) : (
@@ -89,6 +90,7 @@ export const AppRouter: React.FC<AppRouterProps> = ({ ui, shell }) => {
                   resolveReadOnly,
                   allowAdminCopyOverride,
                   censusAccessProfile,
+                  canOpenMedicalHandoff: visibleModules.includes('MEDICAL_HANDOFF'),
                 })}
               </SectionErrorBoundary>
             )}

@@ -6,6 +6,15 @@ import { UIProvider } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import * as browserClipboardRuntime from '@/shared/runtime/browserClipboardRuntime';
 import type { DebouncedTextHandler } from '@/features/census/components/patient-row/inputCellTypes';
+import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
+
+const mockedStaffContext = vi.hoisted(() => ({
+  professionalsCatalog: [] as ProfessionalCatalogItem[],
+}));
+
+vi.mock('@/context/StaffContext', () => ({
+  useStaffContext: () => mockedStaffContext,
+}));
 
 const noopChange: DebouncedTextHandler = () => vi.fn();
 
@@ -31,6 +40,7 @@ const renderCell = (props?: Partial<React.ComponentProps<typeof PatientIdentityC
 describe('PatientIdentityCell', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedStaffContext.professionalsCatalog = [];
   });
 
   it('renders name with inline age badge and RUT inside a single cell', () => {
@@ -77,6 +87,14 @@ describe('PatientIdentityCell', () => {
   });
 
   it('shows the treating physician name without an abbreviated title', () => {
+    mockedStaffContext.professionalsCatalog = [
+      {
+        name: 'Angelica Vargas',
+        phone: '',
+        specialty: 'Psiquiatría',
+        rayenPractitionerId: '7947',
+      },
+    ];
     const data = DataFactory.createMockPatient('R1', {
       treatingPhysicianId: '7947',
       treatingPhysicianName: 'Angelica Vargas',
@@ -88,6 +106,25 @@ describe('PatientIdentityCell', () => {
       '· Angelica Vargas'
     );
     expect(screen.queryByText(/Méd\./)).not.toBeInTheDocument();
+  });
+
+  it('hides a treating physician whose catalog entry has no specialty', () => {
+    mockedStaffContext.professionalsCatalog = [
+      {
+        name: 'Ariki Merino',
+        phone: '',
+        rayenPractitionerId: 'pending-specialty',
+      },
+    ];
+    const data = DataFactory.createMockPatient('R1', {
+      treatingPhysicianId: 'pending-specialty',
+      treatingPhysicianName: 'Ariki Merino',
+    });
+
+    renderCell({ data });
+
+    expect(screen.queryByText(/Ariki Merino/)).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/Médico tratante:/)).not.toBeInTheDocument();
   });
 
   it('shows Pediatría and the clinical actions for an attached newborn without RUN', () => {

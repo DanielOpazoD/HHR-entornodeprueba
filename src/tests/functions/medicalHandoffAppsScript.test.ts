@@ -2,16 +2,17 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 interface AppsScriptContext {
   mergeHhrRows_: (existingRows: unknown[][], incomingRows: Record<string, string>[]) => unknown[][];
+  moveHhrSpreadsheetToHandoffFolder_: (spreadsheetId: string) => void;
 }
 
 const hashEpisodeStableKey = (episodeId: string): string =>
   `episode-h1:${createHash('sha384').update(episodeId).digest('hex')}`;
 
-const loadAppsScriptContext = (): AppsScriptContext => {
+const loadAppsScriptContext = (runtime: Record<string, unknown> = {}): AppsScriptContext => {
   const source = readFileSync(
     path.join(process.cwd(), 'integrations/google-apps-script/medical-handoff/Code.gs'),
     'utf8'
@@ -25,12 +26,64 @@ const loadAppsScriptContext = (): AppsScriptContext => {
           byte > 127 ? byte - 256 : byte
         ),
     },
+    console,
+    ...runtime,
   });
   vm.runInContext(source, context);
   return context as unknown as AppsScriptContext;
 };
 
 describe('medical handoff Apps Script', () => {
+  it('keeps an explicitly configured institutional folder authoritative', () => {
+    const getProperty = vi.fn().mockReturnValue('configured-folder');
+    const setProperty = vi.fn();
+    const configuredFolder = { getId: vi.fn().mockReturnValue('configured-folder') };
+    const createFolder = vi.fn();
+    const moveTo = vi.fn();
+    const getFolderById = vi.fn().mockReturnValue(configuredFolder);
+    const { moveHhrSpreadsheetToHandoffFolder_ } = loadAppsScriptContext({
+      PropertiesService: {
+        getScriptProperties: () => ({ getProperty, setProperty }),
+      },
+      DriveApp: {
+        getFolderById,
+        createFolder,
+        getFileById: vi.fn().mockReturnValue({ moveTo }),
+      },
+    });
+
+    moveHhrSpreadsheetToHandoffFolder_('spreadsheet-1');
+
+    expect(getFolderById).toHaveBeenCalledWith('configured-folder');
+    expect(createFolder).not.toHaveBeenCalled();
+    expect(setProperty).not.toHaveBeenCalled();
+    expect(moveTo).toHaveBeenCalledWith(configuredFolder);
+  });
+
+  it('creates and remembers the default institutional folder when none is configured', () => {
+    const getProperty = vi.fn().mockReturnValue(null);
+    const setProperty = vi.fn();
+    const folder = { getId: vi.fn().mockReturnValue('folder-1') };
+    const moveTo = vi.fn();
+    const createFolder = vi.fn().mockReturnValue(folder);
+    const { moveHhrSpreadsheetToHandoffFolder_ } = loadAppsScriptContext({
+      PropertiesService: {
+        getScriptProperties: () => ({ getProperty, setProperty }),
+      },
+      DriveApp: {
+        getFolderById: vi.fn(),
+        createFolder,
+        getFileById: vi.fn().mockReturnValue({ moveTo }),
+      },
+    });
+
+    moveHhrSpreadsheetToHandoffFolder_('spreadsheet-1');
+
+    expect(createFolder).toHaveBeenCalledWith('Entrega de turno médicos');
+    expect(setProperty).toHaveBeenCalledWith('HHR_HANDOFF_FOLDER_ID', 'folder-1');
+    expect(moveTo).toHaveBeenCalledWith(folder);
+  });
+
   it('updates census fields without erasing handoff text or historical rows', () => {
     const { mergeHhrRows_ } = loadAppsScriptContext();
     const existingRows = [

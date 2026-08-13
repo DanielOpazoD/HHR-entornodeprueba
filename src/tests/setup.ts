@@ -353,6 +353,7 @@ vi.mock('@/context/DailyRecordContext', () => ({
 const mockStaffContextValue = {
   nursesList: ['Enfermera 1', 'Enfermera 2'],
   tensList: ['TENS 1', 'TENS 2'],
+  professionalsCatalog: [],
   refreshNurses: vi.fn(),
   refreshTens: vi.fn(),
   saveNurses: vi.fn(),

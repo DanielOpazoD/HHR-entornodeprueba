@@ -37,6 +37,7 @@ export interface BuildRegisterContentPropsParams {
   stats: Statistics | null;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
+  onOpenMedicalHandoff?: () => void;
   accessProfile?: CensusAccessProfile;
 }
 
@@ -77,6 +78,7 @@ export const buildRegisterContentProps = ({
   stats,
   showBedManagerModal,
   onCloseBedManagerModal,
+  onOpenMedicalHandoff,
   accessProfile,
 }: BuildRegisterContentPropsParams) => ({
   currentDateString,
@@ -87,5 +89,6 @@ export const buildRegisterContentProps = ({
   stats,
   showBedManagerModal,
   onCloseBedManagerModal,
+  ...(onOpenMedicalHandoff ? { onOpenMedicalHandoff } : {}),
   ...(accessProfile ? { accessProfile } : {}),
 });
