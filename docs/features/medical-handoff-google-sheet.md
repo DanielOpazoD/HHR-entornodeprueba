@@ -37,19 +37,20 @@ No existe sincronización inversa: lo escrito en Google Sheets no modifica HHR.
 
 1. Iniciar sesión con la cuenta institucional real de Hospitalizados. No usar una cuenta personal
    ni un alias sin Drive propio.
-2. Crear una carpeta privada, por ejemplo `Entregas médicas HHR`.
-3. Crear un proyecto nuevo en [Google Apps Script](https://script.google.com/).
-4. Copiar `integrations/google-apps-script/medical-handoff/Code.gs` al editor.
-5. En **Configuración del proyecto → Propiedades del script**, definir:
+2. Crear un proyecto nuevo en [Google Apps Script](https://script.google.com/).
+3. Copiar `integrations/google-apps-script/medical-handoff/Code.gs` al editor.
+4. En **Configuración del proyecto → Propiedades del script**, definir:
    - `HHR_HANDOFF_SHARED_SECRET`: valor aleatorio de al menos 24 caracteres;
-   - `HHR_HANDOFF_FOLDER_ID`: ID de la carpeta institucional (recomendado);
+   - `HHR_HANDOFF_FOLDER_ID`: opcional. Si se omite, el script crea automáticamente una carpeta
+     privada `Entrega de turno médicos` en el Drive de la cuenta institucional y guarda allí su ID
+     para las ejecuciones siguientes. No reutiliza carpetas sólo por coincidencia de nombre;
    - `HHR_HANDOFF_EDITOR_EMAILS`: correos o Google Groups autorizados, separados por coma.
-6. Desplegar como **Aplicación web**:
+5. Desplegar como **Aplicación web**:
    - ejecutar como: **yo** (cuenta institucional);
    - acceso: **cualquiera**. El endpoint no entrega archivos y exige el secreto que sólo posee el
      backend autenticado. Las planillas siguen privadas y se comparten exclusivamente con los
      editores configurados.
-7. Copiar la URL terminada en `/exec`.
+6. Copiar la URL terminada en `/exec`.
 
 ### 2. Configurar Firebase Functions
 
@@ -67,8 +68,9 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
 
 1. Abrir una fecha con pacientes en **Entrega de turno médica**.
 2. Pulsar **Crear planilla** y confirmar que abre Google Sheets.
-3. Escribir texto de prueba en **Entrega de turno**.
-4. Volver a pulsar **Abrir planilla** y confirmar que:
+3. Confirmar que el archivo quedó en la carpeta privada `Entrega de turno médicos`.
+4. Escribir texto de prueba en **Entrega de turno**.
+5. Volver a pulsar **Abrir planilla** y confirmar que:
    - se abre el mismo archivo;
    - los datos censales se actualizan;
    - el texto de prueba no se borra;

@@ -5,6 +5,21 @@ import type { DailyRecord } from '@/domain/handoff/recordContracts';
 import type { HandoffPatientContract } from '@/domain/handoff/patientContracts';
 import { BedType, type BedDefinition } from '@/types/domain/beds';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
+import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
+
+const professionalsCatalog: ProfessionalCatalogItem[] = [
+  {
+    name: 'Dra. Aravena',
+    phone: '',
+    specialty: Specialty.MEDICINA,
+    rayenPractitionerId: 'physician-1',
+  },
+  {
+    name: 'Ariki Merino',
+    phone: '',
+    rayenPractitionerId: 'physician-without-specialty',
+  },
+];
 
 const beds: BedDefinition[] = [
   { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false },
@@ -48,13 +63,14 @@ describe('medicalHandoffSpreadsheetController', () => {
     const record = createRecord({
       R1: createPatient({
         clinicalEpisodeId: 'episode-101',
+        treatingPhysicianId: 'physician-1',
         treatingPhysicianName: 'Dra. Aravena',
       }),
       R2: createPatient({ bedId: 'R2', isBlocked: true, patientName: 'Bloqueada' }),
       R3: createPatient({ bedId: 'R3', patientName: '   ' }),
     });
 
-    const rows = buildMedicalHandoffSpreadsheetRows(record, beds);
+    const rows = buildMedicalHandoffSpreadsheetRows(record, beds, professionalsCatalog);
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -84,7 +100,7 @@ describe('medicalHandoffSpreadsheetController', () => {
       R1: createPatient({ hasCompanionCrib: false, clinicalCrib: crib }),
     });
 
-    const rows = buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1));
+    const rows = buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1), professionalsCatalog);
 
     expect(rows).toHaveLength(2);
     expect(rows[1]).toMatchObject({
@@ -99,8 +115,16 @@ describe('medicalHandoffSpreadsheetController', () => {
       R1: createPatient({ clinicalEpisodeId: undefined, rut: '22.222.222-2' }),
     });
 
-    const first = buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1));
-    const second = buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1));
+    const first = buildMedicalHandoffSpreadsheetRows(
+      record,
+      beds.slice(0, 1),
+      professionalsCatalog
+    );
+    const second = buildMedicalHandoffSpreadsheetRows(
+      record,
+      beds.slice(0, 1),
+      professionalsCatalog
+    );
 
     expect(first[0].stableKey).toBe('bed:r1:paciente-uno');
     expect(second[0].stableKey).toBe(first[0].stableKey);
@@ -110,7 +134,8 @@ describe('medicalHandoffSpreadsheetController', () => {
   it('hashes the complete episode identifier without case or truncation collisions', () => {
     const buildKey = (clinicalEpisodeId: string): string => {
       const record = createRecord({ R1: createPatient({ clinicalEpisodeId }) });
-      return buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1))[0].stableKey;
+      return buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1), professionalsCatalog)[0]
+        .stableKey;
     };
     const longPrefix = 'episode-' + 'a'.repeat(220);
 
@@ -120,5 +145,18 @@ describe('medicalHandoffSpreadsheetController', () => {
     expect(buildKey('ABC')).toBe(first);
     expect(buildKey('abc')).not.toBe(first);
     expect(buildKey(`${longPrefix}-one`)).not.toBe(buildKey(`${longPrefix}-two`));
+  });
+
+  it('omits a physician without a configured specialty from the spreadsheet', () => {
+    const record = createRecord({
+      R1: createPatient({
+        treatingPhysicianId: 'physician-without-specialty',
+        treatingPhysicianName: 'Ariki Merino',
+      }),
+    });
+
+    const rows = buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1), professionalsCatalog);
+
+    expect(rows[0].treatingPhysician).toBe('');
   });
 });

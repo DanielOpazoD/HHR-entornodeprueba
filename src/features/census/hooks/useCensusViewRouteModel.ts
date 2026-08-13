@@ -13,6 +13,7 @@ interface UseCensusViewRouteModelParams {
   currentDateString: string;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
+  onOpenMedicalHandoff?: () => void;
   readOnly: boolean;
   allowAdminCopyOverride: boolean;
   accessProfile: CensusAccessProfile;
@@ -24,6 +25,7 @@ export const useCensusViewRouteModel = ({
   currentDateString,
   showBedManagerModal,
   onCloseBedManagerModal,
+  onOpenMedicalHandoff,
   readOnly,
   allowAdminCopyOverride,
   accessProfile,
@@ -81,6 +83,7 @@ export const useCensusViewRouteModel = ({
       stats: viewModel.stats,
       showBedManagerModal,
       onCloseBedManagerModal,
+      onOpenMedicalHandoff,
       accessProfile,
     });
   }, [
@@ -88,6 +91,7 @@ export const useCensusViewRouteModel = ({
     branch,
     currentDateString,
     onCloseBedManagerModal,
+    onOpenMedicalHandoff,
     readOnly,
     showBedManagerModal,
     viewModel.beds,

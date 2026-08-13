@@ -26,6 +26,7 @@ export interface HandoffPatientContract {
   age: string;
   birthDate?: string;
   pathology: string;
+  treatingPhysicianId?: RootPatientData['treatingPhysicianId'];
   treatingPhysicianName?: string;
   specialty: RootPatientData['specialty'];
   secondarySpecialty?: RootPatientData['secondarySpecialty'];

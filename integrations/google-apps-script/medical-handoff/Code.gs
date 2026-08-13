@@ -3,12 +3,13 @@
  *
  * Script properties:
  * - HHR_HANDOFF_SHARED_SECRET (required)
- * - HHR_HANDOFF_FOLDER_ID (optional, recommended)
+ * - HHR_HANDOFF_FOLDER_ID (optional; resolved automatically when absent)
  * - HHR_HANDOFF_EDITOR_EMAILS (optional comma-separated users or Google Groups)
  */
 
 const HHR_HANDOFF_PROPERTY_PREFIX = 'HHR_MEDICAL_HANDOFF_';
 const HHR_HANDOFF_SHEET_NAME = 'Entrega médica';
+const HHR_HANDOFF_DEFAULT_FOLDER_NAME = 'Entrega de turno médicos';
 const HHR_HANDOFF_HASHED_EPISODE_KEY_PATTERN = /^episode-h1:[a-f0-9]{96}$/;
 const HHR_HANDOFF_HEADERS = [
   'Cama',
@@ -169,12 +170,12 @@ function openOrCreateHhrHandoff_(request) {
   if (!spreadsheet) {
     spreadsheet = SpreadsheetApp.create(buildHhrSpreadsheetTitle_(request.date));
     properties.setProperty(propertyKey, spreadsheet.getId());
-    moveHhrSpreadsheetToConfiguredFolder_(spreadsheet.getId());
     created = true;
   }
 
   // Reconcile on every request so retries recover transient Drive failures and
-  // newly configured editors gain access to an existing daily spreadsheet.
+  // existing daily spreadsheets also reach the configured institutional folder.
+  moveHhrSpreadsheetToHandoffFolder_(spreadsheet.getId());
   grantConfiguredHhrEditors_(spreadsheet.getId());
 
   const sheet = resolveHhrSheet_(spreadsheet);
@@ -203,10 +204,28 @@ function buildHhrSpreadsheetTitle_(date) {
   return 'Entrega médica HHR - ' + parts[2] + '-' + parts[1] + '-' + parts[0];
 }
 
-function moveHhrSpreadsheetToConfiguredFolder_(spreadsheetId) {
-  const folderId = PropertiesService.getScriptProperties().getProperty('HHR_HANDOFF_FOLDER_ID');
-  if (!folderId) return;
-  DriveApp.getFileById(spreadsheetId).moveTo(DriveApp.getFolderById(folderId));
+function resolveHhrHandoffFolder_() {
+  const properties = PropertiesService.getScriptProperties();
+  const configuredFolderId = String(properties.getProperty('HHR_HANDOFF_FOLDER_ID') || '').trim();
+  if (configuredFolderId) {
+    // An administrator-selected destination is authoritative. Let transient or
+    // permission failures surface so a retry keeps the same folder contract.
+    return DriveApp.getFolderById(configuredFolderId);
+  }
+
+  // This initializer is called only from openOrCreateHhrHandoff_, while doPost
+  // owns the script lock. The property read/create/write sequence is therefore
+  // serialized across concurrent web-app requests.
+  // Do not recover by name: DriveApp may return a same-named folder shared by
+  // an unrelated account. A newly created folder is private to the
+  // institutional owner until grantConfiguredHhrEditors_ shares each file.
+  const folder = DriveApp.createFolder(HHR_HANDOFF_DEFAULT_FOLDER_NAME);
+  properties.setProperty('HHR_HANDOFF_FOLDER_ID', folder.getId());
+  return folder;
+}
+
+function moveHhrSpreadsheetToHandoffFolder_(spreadsheetId) {
+  DriveApp.getFileById(spreadsheetId).moveTo(resolveHhrHandoffFolder_());
 }
 
 function grantConfiguredHhrEditors_(spreadsheetId) {

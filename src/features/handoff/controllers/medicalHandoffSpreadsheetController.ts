@@ -2,6 +2,8 @@ import hashJs from 'hash.js';
 import type { BedDefinition } from '@/types/domain/beds';
 import type { DailyRecord } from '@/domain/handoff/recordContracts';
 import type { HandoffPatientContract } from '@/domain/handoff/patientContracts';
+import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
+import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
 
 export interface MedicalHandoffSpreadsheetRow {
   stableKey: string;
@@ -45,10 +47,12 @@ const buildRow = ({
   patient,
   bedLabel,
   fallbackBedId,
+  professionalsCatalog,
 }: {
   patient: HandoffPatientContract;
   bedLabel: string;
   fallbackBedId: string;
+  professionalsCatalog: ProfessionalCatalogItem[];
 }): MedicalHandoffSpreadsheetRow => ({
   stableKey: buildStableKey(patient, fallbackBedId),
   bed: bedLabel,
@@ -56,12 +60,17 @@ const buildRow = ({
   age: patient.age?.trim() || '',
   diagnosis: patient.pathology?.trim() || '',
   specialty: String(patient.specialty || '').trim(),
-  treatingPhysician: patient.treatingPhysicianName?.trim() || '',
+  treatingPhysician: resolveVisibleTreatingPhysicianName(
+    professionalsCatalog,
+    patient.treatingPhysicianId,
+    patient.treatingPhysicianName
+  ),
 });
 
 export const buildMedicalHandoffSpreadsheetRows = (
   record: DailyRecord,
-  visibleBeds: readonly BedDefinition[]
+  visibleBeds: readonly BedDefinition[],
+  professionalsCatalog: ProfessionalCatalogItem[]
 ): MedicalHandoffSpreadsheetRow[] => {
   const rows: MedicalHandoffSpreadsheetRow[] = [];
 
@@ -76,6 +85,7 @@ export const buildMedicalHandoffSpreadsheetRows = (
         patient,
         bedLabel: bed.name || bed.id,
         fallbackBedId: bed.id,
+        professionalsCatalog,
       })
     );
 
@@ -88,6 +98,7 @@ export const buildMedicalHandoffSpreadsheetRows = (
           patient: crib,
           bedLabel: `Cuna RN (${bed.name || bed.id})`,
           fallbackBedId: `${bed.id}-cuna-rn`,
+          professionalsCatalog,
         })
       );
     }

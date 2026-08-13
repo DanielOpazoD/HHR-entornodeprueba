@@ -5,6 +5,7 @@ import {
   findProfessionalByRayenIdentity,
   mergeDiscoveredTreatingPhysicians,
   professionalCatalogKey,
+  resolveVisibleTreatingPhysicianName,
 } from '@/services/staff/treatingPhysicianCatalog';
 import { enrichSnapshotWithTreatingPhysicianSpecialties } from '@/features/rayen-import/domain/enrichTreatingPhysicianSnapshot';
 import { diffSyncablePatientFields } from '@/features/rayen-import/domain/patientSyncPolicy';
@@ -91,6 +92,32 @@ describe('treating physician catalog', () => {
 
     expect(findProfessionalByRayenIdentity(catalog, 'different-id', 'Alex Soto')).toBeUndefined();
     expect(findProfessionalByRayenIdentity(catalog, undefined, 'Alex Soto')).toEqual(catalog[0]);
+  });
+
+  it('only presents physicians whose catalog entry has an assigned specialty', () => {
+    const catalog: ProfessionalCatalogItem[] = [
+      {
+        name: 'Ariki Merino',
+        phone: '',
+        rayenPractitionerId: 'pending-specialty',
+        source: 'rayen',
+      },
+      {
+        name: 'Angelica Vargas',
+        phone: '',
+        specialty: 'Psiquiatría',
+        rayenPractitionerId: '7947',
+        source: 'rayen',
+      },
+    ];
+
+    expect(resolveVisibleTreatingPhysicianName(catalog, 'pending-specialty', 'Ariki Merino')).toBe(
+      ''
+    );
+    expect(resolveVisibleTreatingPhysicianName(catalog, '7947', 'Nombre capturado')).toBe(
+      'Angelica Vargas'
+    );
+    expect(resolveVisibleTreatingPhysicianName(catalog, 'unknown', 'Angelica Vargas')).toBe('');
   });
 
   it('discovers a physician once and preserves a locally configured specialty', () => {

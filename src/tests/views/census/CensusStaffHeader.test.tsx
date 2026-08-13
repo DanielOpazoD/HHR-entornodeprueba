@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { CensusStaffHeader } from '@/features/census/components/CensusStaffHeader';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -206,5 +206,20 @@ describe('CensusStaffHeader', () => {
 
     expect(screen.queryByTestId('rayen-operations-bar')).not.toBeInTheDocument();
     expect(screen.getByTestId('census-attention-bar')).toBeInTheDocument();
+  });
+
+  it('offers a discreet shortcut to the medical handoff for the selected census day', () => {
+    const onOpenMedicalHandoff = vi.fn();
+
+    render(
+      <CensusStaffHeader
+        stats={DataFactory.createMockStatistics()}
+        onOpenMedicalHandoff={onOpenMedicalHandoff}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir entrega médica del día' }));
+
+    expect(onOpenMedicalHandoff).toHaveBeenCalledTimes(1);
   });
 });

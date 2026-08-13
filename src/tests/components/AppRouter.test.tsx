@@ -39,7 +39,11 @@ vi.mock('@/views/LazyViews', () => ({
     <div data-testid="analytics-view" data-has-open-date={Boolean(onOpenCensusDate)} />
   ),
   CensusView: (props: Record<string, unknown>) => (
-    <div data-testid="census-view" data-props={JSON.stringify(props)} />
+    <div
+      data-testid="census-view"
+      data-props={JSON.stringify(props)}
+      data-has-medical-handoff={String(typeof props.onOpenMedicalHandoff === 'function')}
+    />
   ),
   CudyrView: ({ readOnly }: { readOnly: boolean }) => (
     <div data-testid="cudyr-view" data-read-only={String(readOnly)} />
@@ -120,6 +124,7 @@ describe('AppRouter', () => {
       'CENSUS',
       'ANALYTICS',
       'NURSING_HANDOFF',
+      'MEDICAL_HANDOFF',
       'DIAGNOSTICS',
       'TRANSFER_MANAGEMENT',
     ]);
@@ -136,6 +141,7 @@ describe('AppRouter', () => {
     const props = JSON.parse(censusView.getAttribute('data-props') ?? '{}');
 
     expect(screen.getByTestId('section-Censo')).toBeInTheDocument();
+    expect(censusView).toHaveAttribute('data-has-medical-handoff', 'true');
     expect(props).toEqual(
       expect.objectContaining({
         selectedDay: 22,
@@ -163,6 +169,14 @@ describe('AppRouter', () => {
 
     expect(screen.getByTestId('section-Entrega Enfermería')).toBeInTheDocument();
     expect(screen.getByTestId('handoff-nursing')).toHaveAttribute('data-read-only', 'true');
+  });
+
+  it('does not expose the hidden medical handoff shortcut without module access', () => {
+    mockGetVisibleAppModules.mockReturnValue(['CENSUS']);
+
+    render(<AppRouter {...createProps()} />);
+
+    expect(screen.getByTestId('census-view')).toHaveAttribute('data-has-medical-handoff', 'false');
   });
 
   it('renders a simple protected module when access is allowed', () => {

@@ -110,6 +110,21 @@ export const findProfessionalByRayenIdentity = (
   return uniqueCatalogByName(catalog).get(normalizedName(displayName));
 };
 
+/**
+ * Returns the physician name that may be presented in clinical census surfaces.
+ * A captured Rayen identity remains stored for traceability, but it is only shown once
+ * HHR staff has explicitly associated that catalog entry with a specialty.
+ */
+export const resolveVisibleTreatingPhysicianName = (
+  catalog: ProfessionalCatalogItem[],
+  practitionerId?: string,
+  displayName?: string
+): string => {
+  const professional = findProfessionalByRayenIdentity(catalog, practitionerId, displayName);
+  if (!professional?.specialty?.trim()) return '';
+  return professional.name.trim();
+};
+
 export const professionalCatalogKey = (item: ProfessionalCatalogItem): string =>
   item.rayenPractitionerId
     ? `rayen:${item.rayenPractitionerId}`

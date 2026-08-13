@@ -20,6 +20,7 @@ interface CensusViewProps {
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
   onOpenCensusDate?: (date: string) => void;
+  onOpenMedicalHandoff?: () => void;
   readOnly?: boolean;
   allowAdminCopyOverride?: boolean;
   accessProfile?: CensusAccessProfile;
@@ -32,6 +33,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
   showBedManagerModal,
   onCloseBedManagerModal,
   onOpenCensusDate: _onOpenCensusDate,
+  onOpenMedicalHandoff,
   readOnly = false,
   allowAdminCopyOverride = false,
   accessProfile = 'default',
@@ -48,6 +50,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     currentDateString,
     showBedManagerModal,
     onCloseBedManagerModal,
+    onOpenMedicalHandoff,
     readOnly,
     allowAdminCopyOverride,
     accessProfile,
@@ -81,7 +84,8 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
   const isDateSettled = settledDate === currentDateString;
   const isEmptyBranchPending =
     branch === 'empty' &&
-    (!isDateSettled || (shouldDeferTodayEmptyState && resolvedTodayEmptyDate !== currentDateString));
+    (!isDateSettled ||
+      (shouldDeferTodayEmptyState && resolvedTodayEmptyDate !== currentDateString));
   const loadingOperationalState = resolveCensusOperationalState({
     branch,
     bootstrapPhase: isEmptyBranchPending

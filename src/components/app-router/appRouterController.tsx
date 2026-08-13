@@ -66,6 +66,7 @@ export interface CoreModuleRouteRenderParams {
   resolveReadOnly: (module: ModuleType) => boolean;
   allowAdminCopyOverride: boolean;
   censusAccessProfile: AppRouterResolvedContext['censusAccessProfile'];
+  canOpenMedicalHandoff: boolean;
 }
 
 export interface CoreModuleRouteDefinition {
@@ -164,6 +165,7 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
     module: 'CENSUS',
     sectionName: 'Censo',
     render: ({
+      ui,
       selectedDay,
       selectedMonth,
       currentDateString,
@@ -173,6 +175,7 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
       resolveReadOnly,
       allowAdminCopyOverride,
       censusAccessProfile,
+      canOpenMedicalHandoff,
     }) => (
       <CensusView
         selectedDay={selectedDay}
@@ -181,6 +184,9 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
         showBedManagerModal={showBedManagerModal}
         onCloseBedManagerModal={onCloseBedManagerModal}
         onOpenCensusDate={onOpenCensusDate}
+        onOpenMedicalHandoff={
+          canOpenMedicalHandoff ? () => ui.setCurrentModule('MEDICAL_HANDOFF') : undefined
+        }
         readOnly={resolveReadOnly('CENSUS')}
         allowAdminCopyOverride={allowAdminCopyOverride}
         accessProfile={censusAccessProfile}
