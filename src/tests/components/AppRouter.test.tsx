@@ -11,6 +11,7 @@ const mockIsE2EEditableRecordOverrideEnabled = vi.fn();
 const mockCanEditAppModule = vi.fn();
 const lazyRouteState = vi.hoisted(() => ({
   suspendedViews: new Set<string>(),
+  censusProps: null as Record<string, unknown> | null,
   pendingViewChunk: new Promise<void>(() => {
     // Intentionally unresolved: lets tests assert the Suspense fallback state.
   }),
@@ -38,13 +39,16 @@ vi.mock('@/views/LazyViews', () => ({
   AnalyticsView: ({ onOpenCensusDate }: { onOpenCensusDate?: (date: string) => void }) => (
     <div data-testid="analytics-view" data-has-open-date={Boolean(onOpenCensusDate)} />
   ),
-  CensusView: (props: Record<string, unknown>) => (
-    <div
-      data-testid="census-view"
-      data-props={JSON.stringify(props)}
-      data-has-medical-handoff={String(typeof props.onOpenMedicalHandoff === 'function')}
-    />
-  ),
+  CensusView: (props: Record<string, unknown>) => {
+    lazyRouteState.censusProps = props;
+    return (
+      <div
+        data-testid="census-view"
+        data-props={JSON.stringify(props)}
+        data-has-medical-handoff={String(typeof props.onOpenMedicalHandoff === 'function')}
+      />
+    );
+  },
   CudyrView: ({ readOnly }: { readOnly: boolean }) => (
     <div data-testid="cudyr-view" data-read-only={String(readOnly)} />
   ),
@@ -101,7 +105,8 @@ type AppRouterProps = ComponentProps<typeof AppRouter>;
 const createProps = (overrides: Partial<AppRouterProps> = {}): AppRouterProps => ({
   ui: {
     currentModule: 'CENSUS',
-  } as AppRouterProps['ui'],
+    setCurrentModule: vi.fn(),
+  } as unknown as AppRouterProps['ui'],
   shell: {
     selectedDay: 22,
     selectedMonth: 3,
@@ -119,6 +124,7 @@ describe('AppRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lazyRouteState.suspendedViews.clear();
+    lazyRouteState.censusProps = null;
     mockResolveSpecialistCensusAccessProfile.mockReturnValue('default');
     mockGetVisibleAppModules.mockReturnValue([
       'CENSUS',
@@ -135,13 +141,18 @@ describe('AppRouter', () => {
   });
 
   it('renders census with the expected access props', () => {
-    render(<AppRouter {...createProps()} />);
+    const routerProps = createProps();
+    render(<AppRouter {...routerProps} />);
 
     const censusView = screen.getByTestId('census-view');
     const props = JSON.parse(censusView.getAttribute('data-props') ?? '{}');
 
     expect(screen.getByTestId('section-Censo')).toBeInTheDocument();
     expect(censusView).toHaveAttribute('data-has-medical-handoff', 'true');
+    const openMedicalHandoff = lazyRouteState.censusProps?.onOpenMedicalHandoff;
+    expect(openMedicalHandoff).toBeTypeOf('function');
+    (openMedicalHandoff as () => void)();
+    expect(routerProps.ui.setCurrentModule).toHaveBeenCalledWith('MEDICAL_HANDOFF');
     expect(props).toEqual(
       expect.objectContaining({
         selectedDay: 22,

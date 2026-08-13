@@ -68,7 +68,9 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
 
 1. Abrir una fecha con pacientes en **Entrega de turno médica**.
 2. Pulsar **Crear planilla** y confirmar que abre Google Sheets.
-3. Confirmar que el archivo quedó en la carpeta privada `Entrega de turno médicos`.
+3. Confirmar que el archivo quedó en la carpeta indicada por `HHR_HANDOFF_FOLDER_ID`; si esa
+   configuración está ausente, verificar la carpeta privada `Entrega de turno médicos` creada
+   automáticamente.
 4. Escribir texto de prueba en **Entrega de turno**.
 5. Volver a pulsar **Abrir planilla** y confirmar que:
    - se abre el mismo archivo;
