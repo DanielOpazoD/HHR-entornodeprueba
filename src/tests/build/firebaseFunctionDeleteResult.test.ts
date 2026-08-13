@@ -6,6 +6,7 @@ import { isFirebaseFunctionAlreadyAbsent } from '../../../scripts/check-firebase
 describe('Firebase retired function deletion', () => {
   it('accepts the real Firebase CLI response when retired functions are already absent', () => {
     const output = [
+      'npm notice New minor version of npm available! 11.5.1 -> 11.6.0',
       'npm warn deprecated node-domexception@1.0.0: Use your platform native DOMException instead',
       'npm warn deprecated uuid@9.0.1: package no longer supported',
       '\u001b[31mError:\u001b[39m The specified filters do not match any existing functions in project hhr-pruebas.',

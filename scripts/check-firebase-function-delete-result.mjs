@@ -18,7 +18,7 @@ const FUNCTION_ABSENCE_PATTERNS = [
   /^(?:error:\s*)?functions? [a-z0-9_:-]+ (?:was |were )?(?:not found|does not exist)\.?$/,
 ];
 
-const BENIGN_OUTPUT_PATTERNS = [/^npm warn\b/];
+const BENIGN_OUTPUT_PATTERNS = [/^npm (?:warn|notice)\b/];
 
 export const isFirebaseFunctionAlreadyAbsent = output => {
   const lines = String(output ?? '')
