@@ -34,6 +34,9 @@ on:
     paths:
       - 'functions/**'
       - '.github/workflows/deploy-functions.yml'
+      - 'scripts/check-deployed-firebase-functions.mjs'
+      - 'scripts/check-firebase-function-delete-result.mjs'
+      - 'scripts/list-firebase-function-targets.mjs'
   workflow_dispatch:
 
 # Avoid overlapping deploys; the latest push always wins.
