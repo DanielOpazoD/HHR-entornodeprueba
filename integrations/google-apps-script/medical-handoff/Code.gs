@@ -10,6 +10,7 @@
 const HHR_HANDOFF_PROPERTY_PREFIX = 'HHR_MEDICAL_HANDOFF_';
 const HHR_HANDOFF_SHEET_NAME = 'Entrega médica';
 const HHR_HANDOFF_DEFAULT_FOLDER_NAME = 'Entrega de turno médicos';
+const HHR_HANDOFF_DRIVE_RETRY_DELAYS_MS = [400, 800, 1200];
 const HHR_HANDOFF_HASHED_EPISODE_KEY_PATTERN = /^episode-h1:[a-f0-9]{96}$/;
 const HHR_HANDOFF_HEADERS = [
   'Cama',
@@ -225,7 +226,13 @@ function resolveHhrHandoffFolder_() {
 }
 
 function moveHhrSpreadsheetToHandoffFolder_(spreadsheetId) {
-  DriveApp.getFileById(spreadsheetId).moveTo(resolveHhrHandoffFolder_());
+  // Resolve the destination first. This guarantees that the first request
+  // creates the institutional folder even while Drive is still indexing the
+  // newly created spreadsheet.
+  const folder = resolveHhrHandoffFolder_();
+  retryHhrDriveOperation_(function () {
+    DriveApp.getFileById(spreadsheetId).moveTo(folder);
+  });
 }
 
 function grantConfiguredHhrEditors_(spreadsheetId) {
@@ -240,8 +247,25 @@ function grantConfiguredHhrEditors_(spreadsheetId) {
     })
     .filter(Boolean);
   if (editors.length > 0) {
-    DriveApp.getFileById(spreadsheetId).addEditors(editors);
+    retryHhrDriveOperation_(function () {
+      DriveApp.getFileById(spreadsheetId).addEditors(editors);
+    });
   }
+}
+
+function retryHhrDriveOperation_(operation) {
+  let lastError;
+  for (let attempt = 0; attempt <= HHR_HANDOFF_DRIVE_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < HHR_HANDOFF_DRIVE_RETRY_DELAYS_MS.length) {
+        Utilities.sleep(HHR_HANDOFF_DRIVE_RETRY_DELAYS_MS[attempt]);
+      }
+    }
+  }
+  throw lastError;
 }
 
 function resolveHhrSheet_(spreadsheet) {

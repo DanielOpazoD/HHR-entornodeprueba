@@ -84,6 +84,44 @@ describe('medical handoff Apps Script', () => {
     expect(moveTo).toHaveBeenCalledWith(folder);
   });
 
+  it('retries Drive reconciliation while a newly created spreadsheet is being indexed', () => {
+    const getProperty = vi.fn().mockReturnValue('configured-folder');
+    const configuredFolder = { getId: vi.fn().mockReturnValue('configured-folder') };
+    const moveTo = vi.fn();
+    const sleep = vi.fn();
+    const getFileById = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('Drive has not indexed the spreadsheet yet');
+      })
+      .mockReturnValue({ moveTo });
+    const { moveHhrSpreadsheetToHandoffFolder_ } = loadAppsScriptContext({
+      PropertiesService: {
+        getScriptProperties: () => ({ getProperty, setProperty: vi.fn() }),
+      },
+      Utilities: {
+        DigestAlgorithm: { SHA_384: 'SHA_384' },
+        Charset: { UTF_8: 'UTF_8' },
+        computeDigest: (_algorithm: string, value: string) =>
+          Array.from(createHash('sha384').update(value, 'utf8').digest()).map(byte =>
+            byte > 127 ? byte - 256 : byte
+          ),
+        sleep,
+      },
+      DriveApp: {
+        getFolderById: vi.fn().mockReturnValue(configuredFolder),
+        createFolder: vi.fn(),
+        getFileById,
+      },
+    });
+
+    moveHhrSpreadsheetToHandoffFolder_('spreadsheet-1');
+
+    expect(getFileById).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(400);
+    expect(moveTo).toHaveBeenCalledWith(configuredFolder);
+  });
+
   it('updates census fields without erasing handoff text or historical rows', () => {
     const { mergeHhrRows_ } = loadAppsScriptContext();
     const existingRows = [
