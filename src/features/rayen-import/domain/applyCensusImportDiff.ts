@@ -189,6 +189,8 @@ export const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
     specialty: egreso.servicio ?? '',
     age: egreso.edad ?? undefined,
     clinicalEpisodeId: egreso.encounterId,
+    admissionDate: egreso.admissionDay ?? '',
+    admissionTime: egreso.admissionTime ?? '',
   }) as unknown as PatientData;
 
 /**

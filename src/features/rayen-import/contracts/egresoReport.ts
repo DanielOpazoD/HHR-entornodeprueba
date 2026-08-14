@@ -31,6 +31,13 @@ export interface EgresoReportRow {
   /** Pre-normalized Rapa Nui stamp when the source was an offset-bearing API timestamp. */
   correctedDay?: string;
   correctedTime?: string;
+  /** Exact admission stamp read from the per-episode statistical discharge report. */
+  admissionDay?: string;
+  admissionTime?: string;
+  /** Exact condition from the per-episode report, when it was available. */
+  dischargeStatus?: 'Vivo' | 'Fallecido';
+  /** Whether HHR verified this report-only row against one exact clinical episode. */
+  exactEpisodeVerification?: 'verified' | 'unverified';
 }
 
 /**
@@ -57,4 +64,6 @@ export interface ReportEgreso {
   /** Normalized Rapa Nui egreso day + time exactly as printed by the statistical report. */
   correctedDay?: string;
   correctedTime?: string;
+  admissionDay?: string;
+  admissionTime?: string;
 }
