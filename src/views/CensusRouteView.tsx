@@ -1,6 +1,8 @@
 import React, { type ComponentProps, useMemo } from 'react';
-import { CensusView } from '@/features/census/census-view';
-import type { CensusMedicalHandoffActionContext } from '@/features/census/contracts/censusMedicalHandoffAction';
+import {
+  CensusView,
+  type CensusMedicalHandoffActionContext,
+} from '@/features/census/census-view';
 import {
   buildMedicalHandoffSpreadsheetRows,
   MedicalHandoffSpreadsheetAction,
