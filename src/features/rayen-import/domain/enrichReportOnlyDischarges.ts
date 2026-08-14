@@ -27,7 +27,7 @@ const candidateKey = (row: EgresoReportRow, reportDate: string): string => {
 /**
  * Resolves report-only discharges to an exact episode and replaces the bulk report's shifted
  * timestamp with the official admission/discharge interval. The bulk report is discovery only:
- * ambiguous lookups or mismatching PDFs leave the original row untouched.
+ * ambiguous lookups or mismatching PDFs remain visible but are explicitly marked non-actionable.
  */
 export const enrichReportOnlyDischarges = async (
   rows: readonly EgresoReportRow[],
@@ -46,7 +46,14 @@ export const enrichReportOnlyDischarges = async (
       keys.set(key, row);
     }
   }
-  if (keys.size === 0) return [...rows];
+  const withVerificationState = (row: EgresoReportRow): EgresoReportRow => {
+    const key = candidateKey(row, reportDate);
+    if (!key) return row;
+    return enrichedByKey.get(key) ?? { ...row, exactEpisodeVerification: 'unverified' };
+  };
+
+  const enrichedByKey = new Map<string, EgresoReportRow>();
+  if (keys.size === 0) return rows.map(withVerificationState);
 
   let lookupResults: EgresoLookupResult[];
   try {
@@ -59,14 +66,12 @@ export const enrichReportOnlyDischarges = async (
         }))
       )) ?? [];
   } catch {
-    return [...rows];
+    return rows.map(withVerificationState);
   }
   const lookupByKey = new Map(
     lookupResults.map(result => [`${normalizeRut(result.run)}|${reportDate}`, result])
   );
   const extractText = dependencies.extractText ?? extractPdfTextFromBuffer;
-  const enrichedByKey = new Map<string, EgresoReportRow>();
-
   await Promise.all(
     [...keys.entries()].map(async ([key, row]) => {
       const lookup = lookupByKey.get(key);
@@ -88,6 +93,7 @@ export const enrichReportOnlyDischarges = async (
         enrichedByKey.set(key, {
           ...row,
           encounterId,
+          exactEpisodeVerification: 'verified',
           admissionDay: exactDay(evidence.admissionAt),
           admissionTime: exactTime(evidence.admissionAt),
           correctedDay: exactDay(evidence.dischargeAt),
@@ -97,10 +103,10 @@ export const enrichReportOnlyDischarges = async (
             : { dischargeStatus: evidence.isDead ? ('Fallecido' as const) : ('Vivo' as const) }),
         });
       } catch {
-        // Keep the bulk row: absence of optional exact evidence must not erase a known discharge.
+        // Preserve discovery evidence, but never let it mutate an episode without exact proof.
       }
     })
   );
 
-  return rows.map(row => enrichedByKey.get(candidateKey(row, reportDate)) ?? row);
+  return rows.map(withVerificationState);
 };

@@ -66,6 +66,15 @@ export const selectEligibleEgresoRows = (
 
     const current = findOccupiedBed(occupied, row.run, reportedEpisode);
     const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
+    if (row.exactEpisodeVerification === 'unverified') {
+      nextDiff = appendReportConflict(nextDiff, {
+        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
+        rut: row.run,
+        patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
+        reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,
+      });
+      continue;
+    }
     const activeCrib = diff.activeClinicalCribs?.find(
       crib =>
         (Boolean(reportedEpisode) && crib.source.encounterId === reportedEpisode) ||
@@ -92,11 +101,7 @@ export const selectEligibleEgresoRows = (
       activeCrib?.patient ??
       provisional?.patient;
     if (reportPredatesActiveAdmission(diff, row, run, stamp, admissionEvidence)) {
-      const activeEpisode = resolveActiveEpisode(
-        diff,
-        run,
-        admissionEvidence?.clinicalEpisodeId
-      );
+      const activeEpisode = resolveActiveEpisode(diff, run, admissionEvidence?.clinicalEpisodeId);
       // An episode-less discharge from before a known readmission cannot refer to the
       // active hospitalization. Keep the active bed and ignore the historical evidence.
       if (!reportedEpisode && activeEpisode) continue;

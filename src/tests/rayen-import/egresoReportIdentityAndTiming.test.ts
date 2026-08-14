@@ -63,6 +63,36 @@ const row = (over: Partial<EgresoReportRow>): EgresoReportRow => ({
 });
 
 describe('applyEgresoReport', () => {
+  it('never applies report-only evidence that was not verified against an exact episode', () => {
+    const current = makeRecord({
+      R2: {
+        ...patient('11.044.046-4', 'Paciente con episodio activo'),
+        clinicalEpisodeId: 'ACTIVE-EPISODE',
+      },
+    });
+    const enriched = applyEgresoReport(
+      makeDiff(),
+      [
+        row({
+          run: '11.044.046-4',
+          destino: 'Domicilio',
+          exactEpisodeVerification: 'unverified',
+        }),
+      ],
+      current
+    );
+
+    expect(enriched.discharges).toHaveLength(0);
+    expect(enriched.conflicts).toEqual([
+      expect.objectContaining({
+        bedId: 'R2',
+        patientName: 'Paciente con episodio activo',
+        reason: expect.stringContaining('episodio clínico exacto'),
+      }),
+    ]);
+    expect(requiresReview(enriched)).toBe(true);
+  });
+
   it('persists the verified occupant RUN when an exact report carries a stale RUN', () => {
     const exactPatient = {
       ...patient('11.044.046-4', 'Paciente Exacto'),

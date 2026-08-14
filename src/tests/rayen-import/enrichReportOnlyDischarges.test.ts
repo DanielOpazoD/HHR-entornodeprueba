@@ -39,6 +39,7 @@ describe('report-only short-stay enrichment', () => {
     ]);
     expect(result[0]).toMatchObject({
       encounterId: '143322',
+      exactEpisodeVerification: 'verified',
       admissionDay: '2026-08-13',
       admissionTime: '14:04',
       correctedDay: '2026-08-13',
@@ -54,7 +55,7 @@ describe('report-only short-stay enrichment', () => {
       extractText: vi.fn(),
     });
 
-    expect(result).toEqual([row]);
+    expect(result).toEqual([{ ...row, exactEpisodeVerification: 'unverified' }]);
   });
 
   it('preserves the bulk evidence when the optional exact lookup is unavailable', async () => {
@@ -64,7 +65,7 @@ describe('report-only short-stay enrichment', () => {
       extractText: vi.fn(),
     });
 
-    expect(result).toEqual([row]);
+    expect(result).toEqual([{ ...row, exactEpisodeVerification: 'unverified' }]);
   });
 
   it('leaves duplicate RUN/day rows untouched because their episode is ambiguous', async () => {
@@ -77,7 +78,10 @@ describe('report-only short-stay enrichment', () => {
     });
 
     expect(lookupEgresos).not.toHaveBeenCalled();
-    expect(result).toEqual([row, duplicate]);
+    expect(result).toEqual([
+      { ...row, exactEpisodeVerification: 'unverified' },
+      { ...duplicate, exactEpisodeVerification: 'unverified' },
+    ]);
   });
 
   it('does not import genuine D+1 rows from the source compensation window', async () => {

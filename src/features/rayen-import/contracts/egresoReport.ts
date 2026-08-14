@@ -36,6 +36,8 @@ export interface EgresoReportRow {
   admissionTime?: string;
   /** Exact condition from the per-episode report, when it was available. */
   dischargeStatus?: 'Vivo' | 'Fallecido';
+  /** Whether HHR verified this report-only row against one exact clinical episode. */
+  exactEpisodeVerification?: 'verified' | 'unverified';
 }
 
 /**
