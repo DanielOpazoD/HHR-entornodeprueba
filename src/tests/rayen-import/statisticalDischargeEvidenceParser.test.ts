@@ -81,4 +81,12 @@ describe('statistical discharge evidence parser', () => {
       dischargeAt: '2026-07-25T14:28:00',
     });
   });
+
+  it('reads the official condition at discharge without inferring it from the bulk list', () => {
+    const deceased = `${report}\n30 DÍAS ESTADIA 0 0 0 1 31 1) VIVO 2) FALLECIDO 2`;
+    const alive = deceased.replace('FALLECIDO 2', 'FALLECIDO 1');
+
+    expect(parseStatisticalDischargeEvidence(deceased)?.isDead).toBe(true);
+    expect(parseStatisticalDischargeEvidence(alive)?.isDead).toBe(false);
+  });
 });
