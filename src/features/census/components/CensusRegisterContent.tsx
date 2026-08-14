@@ -14,6 +14,7 @@ import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 const LazyCensusRegisterSections = lazyWithRetry(() =>
   import('./CensusRegisterSections').then(module => ({
@@ -30,7 +31,7 @@ interface CensusRegisterContentProps {
   stats: Statistics | null;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
-  onOpenMedicalHandoff?: () => void;
+  renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   accessProfile?: CensusAccessProfile;
 }
 
@@ -43,7 +44,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   stats,
   showBedManagerModal,
   onCloseBedManagerModal,
-  onOpenMedicalHandoff,
+  renderMedicalHandoffAction,
   accessProfile = 'default',
 }) => {
   const shouldRenderSections = !isSpecialistCensusAccessProfile(accessProfile);
@@ -72,7 +73,8 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
           accessProfile={accessProfile}
           attentionFilter={attentionFilter}
           onAttentionFilterChange={setAttentionFilter}
-          onOpenMedicalHandoff={onOpenMedicalHandoff}
+          visibleBeds={visibleBeds}
+          renderMedicalHandoffAction={renderMedicalHandoffAction}
         />
 
         <CensusRegisterMainContent

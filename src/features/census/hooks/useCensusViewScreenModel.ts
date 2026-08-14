@@ -10,6 +10,7 @@ import {
   resolveCensusEmptyStatePolicy,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { readPostDeployRecentRecordRefreshMarker } from '@/services/config/postDeployRecentRecordRefresh';
+import type { RenderCensusMedicalHandoffAction } from '../contracts/censusMedicalHandoffAction';
 
 interface UseCensusViewScreenModelParams {
   selectedDay: number;
@@ -17,7 +18,7 @@ interface UseCensusViewScreenModelParams {
   currentDateString: string;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
-  onOpenMedicalHandoff?: () => void;
+  renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   readOnly: boolean;
   allowAdminCopyOverride: boolean;
   accessProfile: CensusAccessProfile;
@@ -29,7 +30,7 @@ export const useCensusViewScreenModel = ({
   currentDateString,
   showBedManagerModal,
   onCloseBedManagerModal,
-  onOpenMedicalHandoff,
+  renderMedicalHandoffAction,
   readOnly,
   allowAdminCopyOverride,
   accessProfile,
@@ -43,7 +44,7 @@ export const useCensusViewScreenModel = ({
     currentDateString,
     showBedManagerModal,
     onCloseBedManagerModal,
-    onOpenMedicalHandoff,
+    renderMedicalHandoffAction,
     readOnly,
     allowAdminCopyOverride,
     accessProfile,

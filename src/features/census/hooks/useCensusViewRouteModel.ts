@@ -6,6 +6,7 @@ import {
   resolveCensusViewBranch,
 } from '@/features/census/controllers/censusViewController';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 interface UseCensusViewRouteModelParams {
   selectedDay: number;
@@ -13,7 +14,7 @@ interface UseCensusViewRouteModelParams {
   currentDateString: string;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
-  onOpenMedicalHandoff?: () => void;
+  renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   readOnly: boolean;
   allowAdminCopyOverride: boolean;
   accessProfile: CensusAccessProfile;
@@ -25,7 +26,7 @@ export const useCensusViewRouteModel = ({
   currentDateString,
   showBedManagerModal,
   onCloseBedManagerModal,
-  onOpenMedicalHandoff,
+  renderMedicalHandoffAction,
   readOnly,
   allowAdminCopyOverride,
   accessProfile,
@@ -83,7 +84,7 @@ export const useCensusViewRouteModel = ({
       stats: viewModel.stats,
       showBedManagerModal,
       onCloseBedManagerModal,
-      onOpenMedicalHandoff,
+      renderMedicalHandoffAction,
       accessProfile,
     });
   }, [
@@ -91,7 +92,7 @@ export const useCensusViewRouteModel = ({
     branch,
     currentDateString,
     onCloseBedManagerModal,
-    onOpenMedicalHandoff,
+    renderMedicalHandoffAction,
     readOnly,
     showBedManagerModal,
     viewModel.beds,
