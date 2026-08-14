@@ -14,7 +14,7 @@ vi.mock('@/features/census/census-view', () => ({
   },
 }));
 
-vi.mock('@/features/handoff', () => ({
+vi.mock('@/features/handoff/medical-handoff-spreadsheet', () => ({
   buildMedicalHandoffSpreadsheetRows: vi.fn(() => [{ stableKey: 'episode:1' }]),
   MedicalHandoffSpreadsheetAction: ({ date, rows }: { date: string; rows: unknown[] }) => (
     <button type="button" data-testid="handoff-action" data-date={date} data-rows={rows.length} />

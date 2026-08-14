@@ -3,7 +3,7 @@ import { CensusView } from '@/features/census/census-view';
 import {
   buildMedicalHandoffSpreadsheetRows,
   MedicalHandoffSpreadsheetAction,
-} from '@/features/handoff';
+} from '@/features/handoff/medical-handoff-spreadsheet';
 
 type CensusRouteViewProps = Omit<
   ComponentProps<typeof CensusView>,

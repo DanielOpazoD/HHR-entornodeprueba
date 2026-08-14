@@ -376,14 +376,18 @@ describe('chunkingPolicy', () => {
 
   it('loads the initial census route from a dedicated view entrypoint instead of the modal-heavy public-components barrel', () => {
     const lazyViewsSource = readSource('src/views/LazyViews.ts');
+    const censusRouteSource = readSource('src/views/CensusRouteView.tsx');
     const censusPublicSource = readSource('src/features/census/public.ts');
     const censusViewBlock = lazyViewsSource.slice(
       lazyViewsSource.indexOf('export const CensusView'),
       lazyViewsSource.indexOf('export const CensusEmailConfigModal')
     );
 
-    expect(lazyViewsSource).toContain('@/features/census/census-view');
+    expect(lazyViewsSource).toContain("import('./CensusRouteView')");
     expect(censusViewBlock).not.toContain('@/features/census/public-components');
+    expect(censusRouteSource).toContain('@/features/census/census-view');
+    expect(censusRouteSource).toContain('@/features/handoff/medical-handoff-spreadsheet');
+    expect(censusRouteSource).not.toMatch(/from ['"]@\/features\/handoff['"]/);
     expect(censusPublicSource).toContain("import('./census-view')");
     expect(censusPublicSource).not.toContain("import('./public-components')");
   });

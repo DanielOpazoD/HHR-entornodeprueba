@@ -17,6 +17,9 @@ export interface MedicalHandoffSpreadsheetRow {
 
 export const MEDICAL_HANDOFF_SPREADSHEET_MAX_ROWS = 80;
 
+const normalizeText = (value: unknown): string =>
+  typeof value === 'string' ? value.trim() : '';
+
 const hashStableKeyPart = (value: string): string =>
   hashJs
     .sha384()
@@ -35,7 +38,7 @@ const normalizeKeyPart = (value: string): string =>
     .replace(/^-+|-+$/g, '');
 
 const buildStableKey = (patient: HandoffPatientContract, fallbackBedId: string): string => {
-  const episodeId = patient.clinicalEpisodeId?.trim() || '';
+  const episodeId = normalizeText(patient.clinicalEpisodeId);
   if (episodeId) {
     return `episode-h1:${hashStableKeyPart(episodeId)}`;
   }
@@ -56,10 +59,10 @@ const buildRow = ({
 }): MedicalHandoffSpreadsheetRow => ({
   stableKey: buildStableKey(patient, fallbackBedId),
   bed: bedLabel,
-  patientName: patient.patientName.trim(),
-  age: patient.age?.trim() || '',
-  diagnosis: patient.pathology?.trim() || '',
-  specialty: String(patient.specialty || '').trim(),
+  patientName: normalizeText(patient.patientName),
+  age: normalizeText(patient.age),
+  diagnosis: normalizeText(patient.pathology),
+  specialty: normalizeText(patient.specialty),
   treatingPhysician: resolveVisibleTreatingPhysicianName(
     professionalsCatalog,
     patient.treatingPhysicianId,
@@ -76,7 +79,7 @@ export const buildMedicalHandoffSpreadsheetRows = (
 
   visibleBeds.forEach(bed => {
     const patient = record.beds[bed.id];
-    if (!patient || patient.isBlocked || !patient.patientName.trim()) {
+    if (!patient || patient.isBlocked || !normalizeText(patient.patientName)) {
       return;
     }
 
@@ -92,7 +95,7 @@ export const buildMedicalHandoffSpreadsheetRows = (
     // `clinicalCrib` is the current source of truth. `hasCompanionCrib` is a
     // legacy presentation flag and can remain false on migrated active cribs.
     const crib = patient.clinicalCrib;
-    if (crib?.patientName.trim()) {
+    if (crib && normalizeText(crib.patientName)) {
       rows.push(
         buildRow({
           patient: crib,

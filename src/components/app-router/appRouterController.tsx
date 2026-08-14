@@ -165,7 +165,6 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
     module: 'CENSUS',
     sectionName: 'Censo',
     render: ({
-      ui,
       selectedDay,
       selectedMonth,
       currentDateString,
