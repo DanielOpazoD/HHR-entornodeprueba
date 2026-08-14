@@ -280,7 +280,7 @@ const handleEgresoLookup = async (runs, targets, sender) => {
   if (!record.facId) return { error: 'Gestión de Camas no informó el establecimiento.' };
   const results = [];
   for (const target of self.HhrGestionCamasEgresoLookup.normalizeTargets(runs, targets)) {
-    const { run, encounterId } = target;
+    const { run, encounterId, dischargeDay } = target;
     const url =
       `${record.apiBase}/facility/${record.facId}/encounter` +
       `?facId=0&prefferedIdentifierCode=${encodeURIComponent(run)}&prefferedPeridentId=2`;
@@ -310,13 +310,14 @@ const handleEgresoLookup = async (runs, targets, sender) => {
         });
         break;
       }
-      const item = self.HhrGestionCamasEgresoLookup.selectEncounter(payload, encounterId);
-      if (item && /^\d+$/.test(encounterId)) {
-        patientFlowRuntime.authorizeVerifiedEncounter(sender, encounterId);
+      const item = self.HhrGestionCamasEgresoLookup.selectEncounter(payload, encounterId, dischargeDay);
+      const selectedEncounterId = self.HhrGestionCamasEgresoLookup.encounterIdOf(item, encounterId);
+      if (item && /^\d+$/.test(selectedEncounterId)) {
+        patientFlowRuntime.authorizeVerifiedEncounter(sender, selectedEncounterId);
       }
       results.push({
         run,
-        encounterId,
+        encounterId: selectedEncounterId || encounterId,
         egreso: item ? self.HhrGestionCamasEgresoLookup.pickMetadata(item) : null,
       });
     } catch (error) {
@@ -325,7 +326,6 @@ const handleEgresoLookup = async (runs, targets, sender) => {
   }
   return { results };
 };
-
 // Base64-encode an ArrayBuffer in chunks (btoa chokes on huge apply() arg lists).
 const bufferToBase64 = buffer => {
   const bytes = new Uint8Array(buffer);

@@ -378,7 +378,6 @@ export const unchangedClinicalCribEpisodes = (
     ))
   ).map(crib => crib.source.encounterId));
 };
-
 export const reportEgresoFromRow = (row: EgresoReportRow): ReportEgreso => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
   return {
@@ -389,10 +388,12 @@ export const reportEgresoFromRow = (row: EgresoReportRow): ReportEgreso => {
     destino: row.destino,
     fechaEgreso: row.fechaEgreso,
     kind: mapped.kind,
-    status: mapped.status,
+    status: row.dischargeStatus ?? mapped.status,
     edad: row.edad,
     servicio: row.servicio,
     diagnostico: row.diagnostico,
+    admissionDay: row.admissionDay,
+    admissionTime: row.admissionTime,
     ...correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime),
   };
 };

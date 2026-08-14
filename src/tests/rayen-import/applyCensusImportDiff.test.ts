@@ -376,6 +376,8 @@ describe('applyCensusImportDiff', () => {
           edad: '60 año(s)',
           servicio: 'Área Médico Quirúrgica Indiferenciada',
           diagnostico: 'Herida de la pierna',
+          admissionDay: '2026-07-09',
+          admissionTime: '14:04',
         },
       ],
     });
@@ -387,6 +389,7 @@ describe('applyCensusImportDiff', () => {
       patientName: 'Lorena Lopez Alvarado',
       rut: '11.044.046-4',
       clinicalEpisodeId: 'report-only-episode',
+      admissionDate: '2026-07-09',
       diagnosis: 'Herida de la pierna',
       dischargeType: 'Domicilio (Habitual)',
       time: '17:11', // mainland report time converted to the Rapa Nui census clock

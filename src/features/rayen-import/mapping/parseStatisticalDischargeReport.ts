@@ -12,6 +12,7 @@ export interface StatisticalDischargeEvidence {
   admissionUnit: string;
   dischargeAt: string;
   transfers: StatisticalUnitTransfer[];
+  isDead?: boolean;
 }
 
 const compactBoxedDigits = (value: string): string =>
@@ -88,12 +89,17 @@ export const parseStatisticalDischargeEvidence = (
     .filter((value): value is NonNullable<typeof value> => value !== null)
     .sort((a, b) => a.changedAt.localeCompare(b.changedAt));
 
+  const condition = /(?:31\s+)?1\)\s*VIVO\s+2\)\s*FALLECIDO\s+([12])\b/i.exec(
+    String(text || '').replace(/\s+/g, ' ')
+  )?.[1];
+
   return {
     run,
     admissionAt: admission.changedAt,
     admissionUnit: admission.unit,
     dischargeAt: discharge.changedAt,
     transfers,
+    ...(condition ? { isDead: condition === '2' } : {}),
   };
 };
 

@@ -39,10 +39,17 @@ export const prepareRayenStructuralPlan = async ({
   const { replanRayenStructure } = await import('./replanRayenStructure');
   const { fetchPatientFlowReport, fetchStatisticalDischarge, lookupEgresos } =
     createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
+  const { enrichReportOnlyDischarges } = await import('../domain/enrichReportOnlyDischarges');
+  const egresoRows = await measureEvidence(() =>
+    enrichReportOnlyDischarges(bundle.egresoRows, reportDate, {
+      fetchStatisticalDischarge,
+      lookupEgresos,
+    })
+  );
 
   const capturedEvidence: CapturedRayenStructuralEvidence = {
     sourceSnapshot: planningSnapshot,
-    egresoRows: [...bundle.egresoRows],
+    egresoRows,
     reportDate,
     isHistoricalDay,
   };

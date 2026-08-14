@@ -35,8 +35,10 @@ export interface EgresoRecord {
 
 export interface EgresoLookupTarget {
   run: string;
-  /** Exact hospitalization to verify. The fallback must never use another episode for the same RUN. */
+  /** Exact hospitalization to verify. Empty only while resolving a report-only short stay. */
   encounterId: string;
+  /** Rapa Nui discharge day used to resolve one exact episode when the bulk report lacks its id. */
+  dischargeDay?: string;
 }
 
 /** Result of looking up one RUN in gestión de camas. */
