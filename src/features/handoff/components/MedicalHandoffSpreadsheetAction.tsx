@@ -63,10 +63,16 @@ export const MedicalHandoffSpreadsheetAction: React.FC<MedicalHandoffSpreadsheet
         pendingWindow.location.replace(result.spreadsheetUrl);
       }
       success(
-        result.created ? 'Planilla creada' : 'Planilla abierta',
-        pendingWindow
-          ? 'La entrega médica quedó disponible en Google Sheets.'
-          : 'La planilla está lista. Pulsa “Abrir planilla” para verla.'
+        result.storageStatus === 'recovered'
+          ? 'Planilla recuperada'
+          : result.created
+            ? 'Planilla creada'
+            : 'Planilla abierta',
+        result.storageStatus === 'recovered'
+          ? 'HHR recuperó la carpeta institucional y dejó disponible la entrega médica.'
+          : pendingWindow
+            ? 'La entrega médica quedó disponible en Google Sheets.'
+            : 'La planilla está lista. Pulsa “Abrir planilla” para verla.'
       );
     } catch (caughtError) {
       pendingWindow?.close();

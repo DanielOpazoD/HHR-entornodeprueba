@@ -15,6 +15,7 @@ const responseSchema = z.object({
   created: z.boolean(),
   rowCount: z.number().int().nonnegative(),
   date: z.string(),
+  storageStatus: z.enum(['configured', 'created', 'recovered', 'unknown']).default('unknown'),
 });
 
 export type OpenMedicalHandoffSpreadsheetResult = z.infer<typeof responseSchema>;

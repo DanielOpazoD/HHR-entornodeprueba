@@ -29,6 +29,15 @@ lo escrito por los médicos.
 5. Los datos censales se actualizan, pero la columna libre se conserva.
 6. Google Sheets se abre en una pestaña nueva para los especialistas autorizados.
 
+Si la carpeta guardada en `HHR_HANDOFF_FOLDER_ID` está en la papelera, Apps Script restaura esa misma
+carpeta, conservando su ID, permisos y todas las planillas históricas. No busca carpetas por nombre
+ni duplica el archivo del día. Las respuestas ambiguas de Drive —timeouts, cuotas o errores de acceso
+sin estado verificable— conservan el ID configurado y se informan como reintentables para no
+redirigir archivos institucionales silenciosamente.
+
+Si el archivo diario ya registrado no puede abrirse, HHR reintenta y falla de forma segura: no
+sobrescribe su identificador ni crea una segunda planilla que pueda ocultar notas existentes.
+
 No existe sincronización inversa: lo escrito en Google Sheets no modifica HHR.
 
 ## Configuración institucional (una vez)
@@ -83,6 +92,28 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
    - el texto de prueba no se borra;
    - columnas A–F no son editables para un especialista;
    - el archivo no está compartido públicamente.
+
+### Smoke de recuperación posterior al despliegue
+
+Este ejercicio debe realizarse con una fecha de prueba sin información clínica real:
+
+1. Guardar temporalmente en `HHR_HANDOFF_FOLDER_ID` el ID de una carpeta de prueba y enviarla a la
+   papelera desde Drive.
+2. Pulsar una vez **Crear planilla** desde el censo.
+3. Confirmar que la misma solicitud restaura la carpeta original y abre la planilla sin requerir un
+   segundo clic ni cambiar `HHR_HANDOFF_FOLDER_ID`.
+4. Pulsar nuevamente y comprobar que abre el mismo archivo, sin crear otra carpeta ni borrar el
+   texto de **Entrega de turno**.
+5. Revisar los logs de Firebase Functions: el evento `MEDICAL_HANDOFF_SHEET_EXPORTED` registra sólo
+   fecha, cantidad de filas y `storageStatus` (`configured`, `created` o `recovered`). Los fallos usan
+   `MEDICAL_HANDOFF_SHEET_EXPORT_FAILED` con un motivo técnico seguro y nunca incluyen pacientes,
+   camas, correos, IDs de Drive ni contenido médico.
+
+Los errores que llegan al usuario son deliberadamente acotados: `folder_unavailable` indica que
+Drive no pudo preparar la carpeta institucional; `request_rejected` indica que debe revisarse el
+secreto o el despliegue de Apps Script; `sheet_update_failed` indica que la planilla diaria existe
+pero no pudo actualizarse; `operation_busy` indica que otra solicitud conserva temporalmente el
+bloqueo. En todos los casos se puede reintentar sin crear un libro nuevo ni perder notas previas.
 
 ## Respaldo PDF
 

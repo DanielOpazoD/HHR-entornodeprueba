@@ -11,6 +11,12 @@ const HHR_HANDOFF_PROPERTY_PREFIX = 'HHR_MEDICAL_HANDOFF_';
 const HHR_HANDOFF_SHEET_NAME = 'Entrega médica';
 const HHR_HANDOFF_DEFAULT_FOLDER_NAME = 'Entrega de turno médicos';
 const HHR_HANDOFF_DRIVE_RETRY_DELAYS_MS = [400, 800, 1200];
+const HHR_HANDOFF_ERROR_CODES = {
+  FOLDER_UNAVAILABLE: 'folder_unavailable',
+  OPERATION_BUSY: 'operation_busy',
+  REQUEST_REJECTED: 'request_rejected',
+  SHEET_UPDATE_FAILED: 'sheet_update_failed',
+};
 const HHR_HANDOFF_HASHED_EPISODE_KEY_PATTERN = /^episode-h1:[a-f0-9]{96}$/;
 const HHR_HANDOFF_HEADERS = [
   'Cama',
@@ -25,26 +31,72 @@ const HHR_HANDOFF_HEADERS = [
 
 function doPost(event) {
   try {
-    const payload = parseHhrPayload_(event);
-    assertHhrSecret_(payload.secret);
-    if (payload.action !== 'openOrCreate') {
-      throw new Error('Acción no soportada.');
-    }
-
-    const request = validateHhrRequest_(payload);
-    const lock = LockService.getScriptLock();
-    lock.waitLock(30000);
+    const request = parseValidatedHhrRequest_(event);
+    const lock = acquireHhrScriptLock_();
     try {
       return jsonHhrResponse_(openOrCreateHhrHandoff_(request));
     } finally {
       lock.releaseLock();
     }
   } catch (error) {
-    console.error('medical-handoff doPost failed: ' + (error && error.message));
+    const errorCode = resolveHhrSafeErrorCode_(error);
+    console.error('medical-handoff doPost failed: ' + errorCode);
     return jsonHhrResponse_({
       ok: false,
-      error: 'No fue posible preparar la planilla institucional.',
+      errorCode,
+      error: resolveHhrSafeErrorMessage_(errorCode),
     });
+  }
+}
+
+function createHhrOperationalError_(errorCode) {
+  const error = new Error(errorCode);
+  error.hhrCode = errorCode;
+  return error;
+}
+
+function resolveHhrSafeErrorCode_(error) {
+  const errorCode = error && error.hhrCode;
+  if (errorCode === HHR_HANDOFF_ERROR_CODES.FOLDER_UNAVAILABLE) return errorCode;
+  if (errorCode === HHR_HANDOFF_ERROR_CODES.OPERATION_BUSY) return errorCode;
+  if (errorCode === HHR_HANDOFF_ERROR_CODES.REQUEST_REJECTED) return errorCode;
+  if (errorCode === HHR_HANDOFF_ERROR_CODES.SHEET_UPDATE_FAILED) return errorCode;
+  return HHR_HANDOFF_ERROR_CODES.SHEET_UPDATE_FAILED;
+}
+
+function parseValidatedHhrRequest_(event) {
+  try {
+    const payload = parseHhrPayload_(event);
+    assertHhrSecret_(payload.secret);
+    if (payload.action !== 'openOrCreate') {
+      throw new Error('Acción no soportada.');
+    }
+    return validateHhrRequest_(payload);
+  } catch (_error) {
+    throw createHhrOperationalError_(HHR_HANDOFF_ERROR_CODES.REQUEST_REJECTED);
+  }
+}
+
+function resolveHhrSafeErrorMessage_(errorCode) {
+  if (errorCode === HHR_HANDOFF_ERROR_CODES.FOLDER_UNAVAILABLE) {
+    return 'Google Drive no permitió preparar la carpeta institucional.';
+  }
+  if (errorCode === HHR_HANDOFF_ERROR_CODES.REQUEST_REJECTED) {
+    return 'La integración institucional rechazó la solicitud.';
+  }
+  if (errorCode === HHR_HANDOFF_ERROR_CODES.OPERATION_BUSY) {
+    return 'La entrega médica está procesando otra solicitud.';
+  }
+  return 'La planilla diaria existe, pero no se pudo actualizar.';
+}
+
+function acquireHhrScriptLock_() {
+  try {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    return lock;
+  } catch (_error) {
+    throw createHhrOperationalError_(HHR_HANDOFF_ERROR_CODES.OPERATION_BUSY);
   }
 }
 
@@ -176,7 +228,7 @@ function openOrCreateHhrHandoff_(request) {
 
   // Reconcile on every request so retries recover transient Drive failures and
   // existing daily spreadsheets also reach the configured institutional folder.
-  moveHhrSpreadsheetToHandoffFolder_(spreadsheet.getId());
+  const storageStatus = moveHhrSpreadsheetToHandoffFolder_(spreadsheet.getId());
   grantConfiguredHhrEditors_(spreadsheet.getId());
 
   const sheet = resolveHhrSheet_(spreadsheet);
@@ -188,15 +240,20 @@ function openOrCreateHhrHandoff_(request) {
     created,
     spreadsheetUrl: spreadsheet.getUrl(),
     rowCount: request.rows.length,
+    storageStatus,
   };
 }
 
 function openExistingHhrSpreadsheet_(spreadsheetId) {
   if (!spreadsheetId) return null;
   try {
-    return SpreadsheetApp.openById(spreadsheetId);
+    return retryHhrDriveOperation_(function () {
+      return SpreadsheetApp.openById(spreadsheetId);
+    });
   } catch (_error) {
-    return null;
+    // Never replace a registered daily sheet after a transient read failure:
+    // that could split or hide notes already written by the medical team.
+    throw createHhrOperationalError_(HHR_HANDOFF_ERROR_CODES.SHEET_UPDATE_FAILED);
   }
 }
 
@@ -209,9 +266,30 @@ function resolveHhrHandoffFolder_() {
   const properties = PropertiesService.getScriptProperties();
   const configuredFolderId = String(properties.getProperty('HHR_HANDOFF_FOLDER_ID') || '').trim();
   if (configuredFolderId) {
-    // An administrator-selected destination is authoritative. Let transient or
-    // permission failures surface so a retry keeps the same folder contract.
-    return DriveApp.getFolderById(configuredFolderId);
+    let recoveryAttempted = false;
+    try {
+      return retryHhrDriveOperation_(function () {
+        const configuredFolder = DriveApp.getFolderById(configuredFolderId);
+        // Force Drive to verify that the executing institutional account can
+        // still read the configured destination before it is reused.
+        configuredFolder.getName();
+        if (configuredFolder.isTrashed()) {
+          // Restore the same destination so every historical daily sheet and
+          // its existing sharing policy remain attached to the configured ID.
+          recoveryAttempted = true;
+          configuredFolder.setTrashed(false);
+        }
+        return {
+          folder: configuredFolder,
+          storageStatus: recoveryAttempted ? 'recovered' : 'configured',
+        };
+      });
+    } catch (_error) {
+      // Timeouts, quotas and generic Drive outages are ambiguous. Preserve the
+      // administrator-selected destination so a transient failure cannot
+      // silently redirect institutional files to a new private folder.
+      throw createHhrOperationalError_(HHR_HANDOFF_ERROR_CODES.FOLDER_UNAVAILABLE);
+    }
   }
 
   // This initializer is called only from openOrCreateHhrHandoff_, while doPost
@@ -220,19 +298,47 @@ function resolveHhrHandoffFolder_() {
   // Do not recover by name: DriveApp may return a same-named folder shared by
   // an unrelated account. A newly created folder is private to the
   // institutional owner until grantConfiguredHhrEditors_ shares each file.
-  const folder = DriveApp.createFolder(HHR_HANDOFF_DEFAULT_FOLDER_NAME);
-  properties.setProperty('HHR_HANDOFF_FOLDER_ID', folder.getId());
-  return folder;
+  return createAndRememberHhrHandoffFolder_(properties, 'created');
+}
+
+function createAndRememberHhrHandoffFolder_(properties, storageStatus) {
+  let folder;
+  try {
+    // Folder creation is not idempotent. Never retry this mutation: Drive can
+    // commit it and still return an ambiguous timeout to the caller.
+    folder = DriveApp.createFolder(HHR_HANDOFF_DEFAULT_FOLDER_NAME);
+  } catch (_error) {
+    throw createHhrOperationalError_(HHR_HANDOFF_ERROR_CODES.FOLDER_UNAVAILABLE);
+  }
+
+  try {
+    properties.setProperty('HHR_HANDOFF_FOLDER_ID', folder.getId());
+    return { folder, storageStatus };
+  } catch (_error) {
+    // Avoid leaving an untracked institutional destination if the property
+    // registry cannot record the newly created folder.
+    try {
+      folder.setTrashed(true);
+    } catch (_cleanupError) {
+      // Best effort only; the original configuration failure is authoritative.
+    }
+    throw createHhrOperationalError_(HHR_HANDOFF_ERROR_CODES.FOLDER_UNAVAILABLE);
+  }
 }
 
 function moveHhrSpreadsheetToHandoffFolder_(spreadsheetId) {
   // Resolve the destination first. This guarantees that the first request
   // creates the institutional folder even while Drive is still indexing the
   // newly created spreadsheet.
-  const folder = resolveHhrHandoffFolder_();
-  retryHhrDriveOperation_(function () {
-    DriveApp.getFileById(spreadsheetId).moveTo(folder);
-  });
+  const destination = resolveHhrHandoffFolder_();
+  try {
+    retryHhrDriveOperation_(function () {
+      DriveApp.getFileById(spreadsheetId).moveTo(destination.folder);
+    });
+  } catch (_error) {
+    throw createHhrOperationalError_(HHR_HANDOFF_ERROR_CODES.FOLDER_UNAVAILABLE);
+  }
+  return destination.storageStatus;
 }
 
 function grantConfiguredHhrEditors_(spreadsheetId) {
