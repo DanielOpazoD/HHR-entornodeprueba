@@ -4,6 +4,7 @@ import type { DailyRecord } from '@/features/census/contracts/censusRecordContra
 import type { CSSProperties } from 'react';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { CensusEmptyStateDiagnostic } from '@/hooks/controllers/dailyRecordBootstrapController';
+import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 export type CensusViewBranch = 'empty' | 'register';
 
@@ -37,7 +38,7 @@ export interface BuildRegisterContentPropsParams {
   stats: Statistics | null;
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
-  onOpenMedicalHandoff?: () => void;
+  renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   accessProfile?: CensusAccessProfile;
 }
 
@@ -78,7 +79,7 @@ export const buildRegisterContentProps = ({
   stats,
   showBedManagerModal,
   onCloseBedManagerModal,
-  onOpenMedicalHandoff,
+  renderMedicalHandoffAction,
   accessProfile,
 }: BuildRegisterContentPropsParams) => ({
   currentDateString,
@@ -89,6 +90,6 @@ export const buildRegisterContentProps = ({
   stats,
   showBedManagerModal,
   onCloseBedManagerModal,
-  ...(onOpenMedicalHandoff ? { onOpenMedicalHandoff } : {}),
+  ...(renderMedicalHandoffAction ? { renderMedicalHandoffAction } : {}),
   ...(accessProfile ? { accessProfile } : {}),
 });

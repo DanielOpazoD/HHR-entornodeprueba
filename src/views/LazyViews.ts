@@ -7,8 +7,8 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 // Census route entrypoint. Keep it narrower than the modal-heavy
 // public-components barrel so /censo can show the table sooner.
 export const CensusView = lazyWithRetry(() =>
-  import('@/features/census/census-view').then(module => ({
-    default: module.CensusView,
+  import('./CensusRouteView').then(module => ({
+    default: module.CensusRouteView,
   }))
 );
 

@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 interface AppsScriptContext {
   mergeHhrRows_: (existingRows: unknown[][], incomingRows: Record<string, string>[]) => unknown[][];
   moveHhrSpreadsheetToHandoffFolder_: (spreadsheetId: string) => void;
+  upsertHhrRows_: (sheet: unknown, incomingRows: Record<string, string>[]) => void;
 }
 
 const hashEpisodeStableKey = (episodeId: string): string =>
@@ -201,6 +202,58 @@ describe('medical handoff Apps Script', () => {
       ],
     ]);
     expect(existingRows[0][3]).toBe('Diagnóstico previo');
+  });
+
+  it('does not clear or rewrite the handoff note when the episode keeps its row', () => {
+    const stableKey = hashEpisodeStableKey('1');
+    const existingRows = [
+      ['R1', 'Paciente Uno', '52a', 'Previo', 'Medicina', '', 'Nota en edición', stableKey],
+    ];
+    const rangeOperations: Array<{
+      row: number;
+      column: number;
+      rowCount: number;
+      columnCount: number;
+      operation: string;
+    }> = [];
+    const getRange = vi.fn(
+      (row: number, column: number, rowCount: number, columnCount: number) => ({
+        getValues: () => existingRows,
+        clearContent: () =>
+          rangeOperations.push({ row, column, rowCount, columnCount, operation: 'clear' }),
+        setValues: () =>
+          rangeOperations.push({ row, column, rowCount, columnCount, operation: 'setValues' }),
+        setValue: () =>
+          rangeOperations.push({ row, column, rowCount, columnCount, operation: 'setValue' }),
+      })
+    );
+    const { upsertHhrRows_ } = loadAppsScriptContext();
+
+    upsertHhrRows_(
+      {
+        getLastRow: () => 2,
+        getRange,
+      },
+      [
+        {
+          stableKey,
+          bed: 'H1C1',
+          patientName: 'Paciente Uno',
+          age: '52a',
+          diagnosis: 'Actualizado',
+          specialty: 'Medicina',
+          treatingPhysician: 'Dra. Aravena',
+        },
+      ]
+    );
+
+    expect(rangeOperations).toEqual([
+      { row: 2, column: 1, rowCount: 1, columnCount: 6, operation: 'clear' },
+      { row: 2, column: 8, rowCount: 1, columnCount: 1, operation: 'clear' },
+      { row: 2, column: 1, rowCount: 1, columnCount: 6, operation: 'setValues' },
+      { row: 2, column: 8, rowCount: 1, columnCount: 1, operation: 'setValues' },
+    ]);
+    expect(rangeOperations.some(operation => operation.column === 7)).toBe(false);
   });
 
   it('escapes formula-like stable keys and matches them again on refresh', () => {

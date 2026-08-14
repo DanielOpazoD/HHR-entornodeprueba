@@ -28,7 +28,7 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     allowedSubpathImports: [
       {
         importPath: '@/features/census/census-view',
-        callers: new Set(['src/views/LazyViews.ts']),
+        callers: new Set(['src/views/LazyViews.ts', 'src/views/CensusRouteView.tsx']),
       },
       {
         importPath: '@/features/census/public-components',
@@ -46,6 +46,14 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     description:
       'Code outside src/features/handoff must import handoff only from "@/features/handoff"; internal subpaths are reserved for the feature itself.',
     allowBypass: file => file.startsWith('src/features/handoff/') || file.startsWith('src/tests/'),
+    // Narrow route-level entrypoint: exposes only the spreadsheet action and
+    // keeps the full medical-handoff view out of the census route chunk.
+    allowedSubpathImports: [
+      {
+        importPath: '@/features/handoff/medical-handoff-spreadsheet',
+        callers: new Set(['src/views/CensusRouteView.tsx']),
+      },
+    ],
   },
   {
     featurePath: 'src/features/transfers/',

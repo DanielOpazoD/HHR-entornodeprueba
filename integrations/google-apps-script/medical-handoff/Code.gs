@@ -283,9 +283,36 @@ function upsertHhrRows_(sheet, incomingRows) {
   const mergedRows = mergeHhrRows_(existingRows, incomingRows);
 
   const rowsToClear = Math.max(lastRow - 1, mergedRows.length);
-  if (rowsToClear > 0) sheet.getRange(2, 1, rowsToClear, 8).clearContent();
+  if (rowsToClear > 0) {
+    sheet.getRange(2, 1, rowsToClear, 6).clearContent();
+    sheet.getRange(2, 8, rowsToClear, 1).clearContent();
+  }
   if (mergedRows.length > 0) {
-    sheet.getRange(2, 1, mergedRows.length, 8).setValues(mergedRows);
+    sheet.getRange(2, 1, mergedRows.length, 6).setValues(
+      mergedRows.map(function (row) {
+        return row.slice(0, 6);
+      })
+    );
+    sheet.getRange(2, 8, mergedRows.length, 1).setValues(
+      mergedRows.map(function (row) {
+        return [row[7]];
+      })
+    );
+
+    mergedRows.forEach(function (row, index) {
+      const existingRow = existingRows[index];
+      const keepsSameEpisode =
+        existingRow && canonicalHhrStableKey_(existingRow[7]) === canonicalHhrStableKey_(row[7]);
+      const keepsSameNote = existingRow && String(existingRow[6] || '') === String(row[6] || '');
+      if (!keepsSameEpisode || !keepsSameNote) {
+        sheet.getRange(index + 2, 7, 1, 1).setValue(row[6]);
+      }
+    });
+  }
+
+  const surplusRows = rowsToClear - mergedRows.length;
+  if (surplusRows > 0) {
+    sheet.getRange(mergedRows.length + 2, 7, surplusRows, 1).clearContent();
   }
 }
 

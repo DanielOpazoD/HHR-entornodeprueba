@@ -1,6 +1,9 @@
 {
   "$schema_note": "Per-feature allowlist of governed deep imports (importerPath -> importPath). New entries must be reviewed: prefer exposing the symbol via the feature's public.ts. The 'application/<feature>/public.ts' shim is the legitimate place to widen the surface when a use-case layer needs to forward a feature view.",
   "exceptionsByFeature": {
-    "cudyr": ["src/application/cudyr/public.ts -> @/features/cudyr/components/CudyrView"]
+    "cudyr": ["src/application/cudyr/public.ts -> @/features/cudyr/components/CudyrView"],
+    "handoff": [
+      "src/views/CensusRouteView.tsx -> @/features/handoff/medical-handoff-spreadsheet"
+    ]
   }
 }

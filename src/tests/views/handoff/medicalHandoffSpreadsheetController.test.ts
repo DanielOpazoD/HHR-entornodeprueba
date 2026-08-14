@@ -159,4 +159,15 @@ describe('medicalHandoffSpreadsheetController', () => {
 
     expect(rows[0].treatingPhysician).toBe('');
   });
+
+  it('ignores incomplete legacy crib data instead of breaking the census route', () => {
+    const patient = createPatient({ clinicalEpisodeId: 'episode-legacy' });
+    patient.clinicalCrib = {} as HandoffPatientContract;
+    const record = createRecord({ R1: patient });
+
+    const rows = buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1), professionalsCatalog);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].patientName).toBe('Paciente Uno');
+  });
 });

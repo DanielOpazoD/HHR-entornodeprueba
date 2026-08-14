@@ -18,7 +18,8 @@ import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDet
 import { RayenImportButton } from '@/features/rayen-import';
 import { CensusAttentionBar } from './CensusAttentionBar';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
-import { ClipboardList } from 'lucide-react';
+import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 interface CensusStaffHeaderProps {
   selectedDate?: string;
@@ -27,7 +28,8 @@ interface CensusStaffHeaderProps {
   accessProfile?: CensusAccessProfile;
   attentionFilter?: CensusAttentionFilter;
   onAttentionFilterChange?: (filter: CensusAttentionFilter) => void;
-  onOpenMedicalHandoff?: () => void;
+  visibleBeds?: readonly BedDefinition[];
+  renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
 }
 
 /**
@@ -42,7 +44,8 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   accessProfile = 'default',
   attentionFilter = 'all',
   onAttentionFilterChange,
-  onOpenMedicalHandoff,
+  visibleBeds = [],
+  renderMedicalHandoffAction,
 }) => {
   const dailyRecordData = useDailyRecordData();
   const beds = useDailyRecordBeds();
@@ -50,7 +53,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   const movementsData = useDailyRecordMovements();
 
   const { updateNurse, updateTens, updateDetailedStaffing } = useDailyRecordStaffActions();
-  const { nursesList, tensList } = useStaffContext();
+  const { nursesList, tensList, professionalsCatalog = [] } = useStaffContext();
   const [activeDetailedRole, setActiveDetailedRole] = React.useState<DetailedStaffingRole | null>(
     null
   );
@@ -119,18 +122,13 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
             onFilterChange={onAttentionFilterChange}
           />
 
-          {onOpenMedicalHandoff ? (
-            <button
-              type="button"
-              onClick={onOpenMedicalHandoff}
-              aria-label="Abrir entrega médica del día"
-              title="Abrir entrega médica y generar su planilla"
-              className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
-            >
-              <ClipboardList size={13} strokeWidth={2.2} aria-hidden="true" />
-              Entrega médica
-            </button>
-          ) : null}
+          {renderMedicalHandoffAction && dailyRecordData.record
+            ? renderMedicalHandoffAction({
+                record: dailyRecordData.record,
+                visibleBeds,
+                professionalsCatalog,
+              })
+            : null}
         </div>
       </div>
 
