@@ -1,5 +1,6 @@
-import React, { type ComponentProps } from 'react';
+import React, { type ComponentProps, useMemo } from 'react';
 import { CensusView } from '@/features/census/census-view';
+import type { CensusMedicalHandoffActionContext } from '@/features/census/contracts/censusMedicalHandoffAction';
 import {
   buildMedicalHandoffSpreadsheetRows,
   MedicalHandoffSpreadsheetAction,
@@ -12,6 +13,19 @@ type CensusRouteViewProps = Omit<
   canOpenMedicalHandoffSpreadsheet?: boolean;
 };
 
+const CensusMedicalHandoffSpreadsheetAction: React.FC<CensusMedicalHandoffActionContext> = ({
+  record,
+  visibleBeds,
+  professionalsCatalog,
+}) => {
+  const rows = useMemo(
+    () => buildMedicalHandoffSpreadsheetRows(record, visibleBeds, professionalsCatalog),
+    [professionalsCatalog, record, visibleBeds]
+  );
+
+  return <MedicalHandoffSpreadsheetAction date={record.date} rows={rows} />;
+};
+
 /** Composes cross-feature actions at the route boundary, outside the census feature. */
 export const CensusRouteView: React.FC<CensusRouteViewProps> = ({
   canOpenMedicalHandoffSpreadsheet = false,
@@ -21,12 +35,7 @@ export const CensusRouteView: React.FC<CensusRouteViewProps> = ({
     {...censusProps}
     renderMedicalHandoffAction={
       canOpenMedicalHandoffSpreadsheet
-        ? ({ record, visibleBeds, professionalsCatalog }) => (
-            <MedicalHandoffSpreadsheetAction
-              date={record.date}
-              rows={buildMedicalHandoffSpreadsheetRows(record, visibleBeds, professionalsCatalog)}
-            />
-          )
+        ? context => <CensusMedicalHandoffSpreadsheetAction {...context} />
         : undefined
     }
   />

@@ -7,6 +7,10 @@ const routeState = vi.hoisted(() => ({
   censusProps: null as Record<string, unknown> | null,
 }));
 
+const handoffMocks = vi.hoisted(() => ({
+  buildRows: vi.fn(() => [{ stableKey: 'episode:1' }]),
+}));
+
 vi.mock('@/features/census/census-view', () => ({
   CensusView: (props: Record<string, unknown>) => {
     routeState.censusProps = props;
@@ -15,7 +19,7 @@ vi.mock('@/features/census/census-view', () => ({
 }));
 
 vi.mock('@/features/handoff/medical-handoff-spreadsheet', () => ({
-  buildMedicalHandoffSpreadsheetRows: vi.fn(() => [{ stableKey: 'episode:1' }]),
+  buildMedicalHandoffSpreadsheetRows: handoffMocks.buildRows,
   MedicalHandoffSpreadsheetAction: ({ date, rows }: { date: string; rows: unknown[] }) => (
     <button type="button" data-testid="handoff-action" data-date={date} data-rows={rows.length} />
   ),
@@ -38,15 +42,20 @@ describe('CensusRouteView', () => {
     const renderAction = routeState.censusProps?.renderMedicalHandoffAction;
     expect(renderAction).toEqual(expect.any(Function));
 
-    const action = render(
-      (renderAction as (context: Record<string, unknown>) => React.ReactNode)({
-        record: { date: '2026-02-15', beds: {} },
-        visibleBeds: [],
-        professionalsCatalog: [],
-      }) as React.ReactElement
-    );
+    const context = {
+      record: { date: '2026-02-15', beds: {} },
+      visibleBeds: [],
+      professionalsCatalog: [],
+    };
+    const renderSpreadsheetAction = renderAction as (
+      context: Record<string, unknown>
+    ) => React.ReactNode;
+    const action = render(renderSpreadsheetAction(context) as React.ReactElement);
     expect(action.getByTestId('handoff-action')).toHaveAttribute('data-date', '2026-02-15');
     expect(action.getByTestId('handoff-action')).toHaveAttribute('data-rows', '1');
+
+    action.rerender(renderSpreadsheetAction(context) as React.ReactElement);
+    expect(handoffMocks.buildRows).toHaveBeenCalledTimes(1);
   });
 
   it('does not inject the action without access', () => {
