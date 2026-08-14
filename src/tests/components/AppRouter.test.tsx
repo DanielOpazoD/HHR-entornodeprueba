@@ -45,7 +45,7 @@ vi.mock('@/views/LazyViews', () => ({
       <div
         data-testid="census-view"
         data-props={JSON.stringify(props)}
-        data-has-medical-handoff={String(typeof props.onOpenMedicalHandoff === 'function')}
+        data-has-medical-handoff={String(props.canOpenMedicalHandoffSpreadsheet === true)}
       />
     );
   },
@@ -149,10 +149,8 @@ describe('AppRouter', () => {
 
     expect(screen.getByTestId('section-Censo')).toBeInTheDocument();
     expect(censusView).toHaveAttribute('data-has-medical-handoff', 'true');
-    const openMedicalHandoff = lazyRouteState.censusProps?.onOpenMedicalHandoff;
-    expect(openMedicalHandoff).toBeTypeOf('function');
-    (openMedicalHandoff as () => void)();
-    expect(routerProps.ui.setCurrentModule).toHaveBeenCalledWith('MEDICAL_HANDOFF');
+    expect(lazyRouteState.censusProps?.canOpenMedicalHandoffSpreadsheet).toBe(true);
+    expect(routerProps.ui.setCurrentModule).not.toHaveBeenCalled();
     expect(props).toEqual(
       expect.objectContaining({
         selectedDay: 22,

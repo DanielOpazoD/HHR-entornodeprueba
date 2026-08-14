@@ -184,9 +184,7 @@ export const CORE_MODULE_ROUTE_DEFINITIONS: readonly CoreModuleRouteDefinition[]
         showBedManagerModal={showBedManagerModal}
         onCloseBedManagerModal={onCloseBedManagerModal}
         onOpenCensusDate={onOpenCensusDate}
-        onOpenMedicalHandoff={
-          canOpenMedicalHandoff ? () => ui.setCurrentModule('MEDICAL_HANDOFF') : undefined
-        }
+        canOpenMedicalHandoffSpreadsheet={canOpenMedicalHandoff}
         readOnly={resolveReadOnly('CENSUS')}
         allowAdminCopyOverride={allowAdminCopyOverride}
         accessProfile={censusAccessProfile}

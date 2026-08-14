@@ -6,6 +6,7 @@ import { CensusOperationalStateBanner } from './CensusOperationalStateBanner';
 import { CensusRegisterContent } from './CensusRegisterContent';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 const LazyEmptyDayPrompt = lazy(() =>
   import('./EmptyDayPrompt').then(module => ({
@@ -20,7 +21,7 @@ interface CensusViewProps {
   showBedManagerModal: boolean;
   onCloseBedManagerModal: () => void;
   onOpenCensusDate?: (date: string) => void;
-  onOpenMedicalHandoff?: () => void;
+  renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   readOnly?: boolean;
   allowAdminCopyOverride?: boolean;
   accessProfile?: CensusAccessProfile;
@@ -33,7 +34,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
   showBedManagerModal,
   onCloseBedManagerModal,
   onOpenCensusDate: _onOpenCensusDate,
-  onOpenMedicalHandoff,
+  renderMedicalHandoffAction,
   readOnly = false,
   allowAdminCopyOverride = false,
   accessProfile = 'default',
@@ -50,7 +51,7 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     currentDateString,
     showBedManagerModal,
     onCloseBedManagerModal,
-    onOpenMedicalHandoff,
+    renderMedicalHandoffAction,
     readOnly,
     allowAdminCopyOverride,
     accessProfile,
