@@ -13,10 +13,12 @@ vi.mock('firebase-functions/v1', () => ({
     onCall: (handler: (data: unknown, context: unknown) => unknown) => ({ run: handler }),
     HttpsError: class HttpsError extends Error {
       code: string;
+      details?: unknown;
 
-      constructor(code: string, message: string) {
+      constructor(code: string, message: string, details?: unknown) {
         super(message);
         this.code = code;
+        this.details = details;
       }
     },
   },
@@ -60,6 +62,7 @@ const successfulFetch = vi.fn().mockResolvedValue({
       spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/sheet-id/edit',
       created: true,
       rowCount: 1,
+      storageStatus: 'configured',
     })
   ),
 });
@@ -174,6 +177,7 @@ describe('functions medicalHandoffSpreadsheetFunctions', () => {
       created: true,
       rowCount: 1,
       date: '2026-08-07',
+      storageStatus: 'configured',
     });
     expect(resolveRoleForEmail).toHaveBeenCalledWith('medico@hospitalhangaroa.cl');
     const [, requestInit] = successfulFetch.mock.calls[0];
@@ -195,9 +199,127 @@ describe('functions medicalHandoffSpreadsheetFunctions', () => {
       date: '2026-08-07',
       rowCount: 1,
       created: true,
+      storageStatus: 'configured',
     });
     expect(JSON.stringify(auditLogger.mock.calls)).not.toContain('Paciente Uno');
     expect(requestInit.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('maps an inaccessible Drive folder to an actionable safe error and audit reason', async () => {
+    const auditLogger = vi.fn();
+    const functionsApi = createMedicalHandoffSpreadsheetFunctions({
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(
+          JSON.stringify({
+            ok: false,
+            errorCode: 'folder_unavailable',
+            error: 'internal text must not cross the gateway',
+          })
+        ),
+      }),
+      readConfig: () => validConfig,
+      auditLogger,
+    });
+
+    await expect(
+      functionsApi.openMedicalHandoffSpreadsheet.run(validRequest, authorizedContext)
+    ).rejects.toMatchObject({
+      code: 'unavailable',
+      message: expect.stringContaining('carpeta institucional'),
+      details: { reason: 'folder_unavailable' },
+    });
+    expect(auditLogger).toHaveBeenCalledWith({
+      event: 'MEDICAL_HANDOFF_SHEET_EXPORT_FAILED',
+      actorUid: 'user-1',
+      date: '2026-08-07',
+      rowCount: 1,
+      reason: 'folder_unavailable',
+    });
+    expect(JSON.stringify(auditLogger.mock.calls)).not.toContain('internal text');
+  });
+
+  it('maps a rejected Apps Script request to configuration guidance', async () => {
+    const auditLogger = vi.fn();
+    const functionsApi = createMedicalHandoffSpreadsheetFunctions({
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(
+          JSON.stringify({
+            ok: false,
+            errorCode: 'request_rejected',
+            error: 'secret mismatch',
+          })
+        ),
+      }),
+      readConfig: () => validConfig,
+      auditLogger,
+    });
+
+    await expect(
+      functionsApi.openMedicalHandoffSpreadsheet.run(validRequest, authorizedContext)
+    ).rejects.toMatchObject({
+      code: 'failed-precondition',
+      message: expect.stringContaining('configuración'),
+      details: { reason: 'request_rejected' },
+    });
+    expect(auditLogger).toHaveBeenCalledWith({
+      event: 'MEDICAL_HANDOFF_SHEET_EXPORT_FAILED',
+      actorUid: 'user-1',
+      date: '2026-08-07',
+      rowCount: 1,
+      reason: 'request_rejected',
+    });
+    expect(JSON.stringify(auditLogger.mock.calls)).not.toContain('secret mismatch');
+  });
+
+  it('maps a busy Apps Script execution to a retryable safe response', async () => {
+    const auditLogger = vi.fn();
+    const functionsApi = createMedicalHandoffSpreadsheetFunctions({
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ ok: false, errorCode: 'operation_busy' })),
+      }),
+      readConfig: () => validConfig,
+      auditLogger,
+    });
+
+    await expect(
+      functionsApi.openMedicalHandoffSpreadsheet.run(validRequest, authorizedContext)
+    ).rejects.toMatchObject({
+      code: 'unavailable',
+      message: expect.stringContaining('otra solicitud'),
+      details: { reason: 'operation_busy' },
+    });
+    expect(auditLogger).toHaveBeenCalledWith({
+      event: 'MEDICAL_HANDOFF_SHEET_EXPORT_FAILED',
+      actorUid: 'user-1',
+      date: '2026-08-07',
+      rowCount: 1,
+      reason: 'operation_busy',
+    });
+  });
+
+  it('treats inherited object names as unknown gateway error codes', async () => {
+    const functionsApi = createMedicalHandoffSpreadsheetFunctions({
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ ok: false, errorCode: 'constructor' })),
+      }),
+      readConfig: () => validConfig,
+    });
+
+    await expect(
+      functionsApi.openMedicalHandoffSpreadsheet.run(validRequest, authorizedContext)
+    ).rejects.toMatchObject({
+      code: 'unavailable',
+      message: expect.stringContaining('respuesta inesperada'),
+      details: { reason: 'invalid_response' },
+    });
   });
 
   it.each([

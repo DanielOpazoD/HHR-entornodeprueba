@@ -13,6 +13,32 @@ const APPS_SCRIPT_TIMEOUT_MS = 50_000;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const STABLE_KEY_PATTERN = /^[A-Za-z0-9:._-]+$/;
 const SPREADSHEET_URL_PATTERN = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[\w-]+(?:\/.*)?$/;
+const STORAGE_STATUS_VALUES = new Set(['configured', 'created', 'recovered', 'unknown']);
+const APPS_SCRIPT_FAILURES = Object.freeze({
+  folder_unavailable: {
+    code: 'unavailable',
+    message:
+      'Google Drive no permitió preparar la carpeta institucional. Reintenta; si persiste, revisa el acceso de la cuenta que ejecuta Apps Script.',
+  },
+  operation_busy: {
+    code: 'unavailable',
+    message: 'La entrega médica está procesando otra solicitud. Reintenta en unos segundos.',
+  },
+  request_rejected: {
+    code: 'failed-precondition',
+    message:
+      'La integración institucional rechazó la solicitud. Revisa la configuración de Google Sheets.',
+  },
+  sheet_update_failed: {
+    code: 'unavailable',
+    message:
+      'La planilla diaria existe, pero Google Sheets no pudo actualizarla. Reintenta en unos segundos.',
+  },
+  invalid_response: {
+    code: 'unavailable',
+    message: 'Google Sheets devolvió una respuesta inesperada.',
+  },
+});
 
 const FIELD_LIMITS = Object.freeze({
   stableKey: 180,
@@ -143,10 +169,16 @@ const parseAppsScriptUrl = value => {
 
 const parseGatewayResponse = rawResponse => {
   if (!isPlainObject(rawResponse) || rawResponse.ok !== true) {
-    throw new functions.https.HttpsError(
-      'unavailable',
-      'Google Sheets no pudo preparar la entrega médica. Reintenta en unos segundos.'
-    );
+    const reason = isPlainObject(rawResponse)
+      ? String(rawResponse.errorCode || '').trim()
+      : 'invalid_response';
+    const isKnownReason = Object.hasOwn(APPS_SCRIPT_FAILURES, reason);
+    const failure = isKnownReason
+      ? APPS_SCRIPT_FAILURES[reason]
+      : APPS_SCRIPT_FAILURES.invalid_response;
+    throw new functions.https.HttpsError(failure.code, failure.message, {
+      reason: isKnownReason ? reason : 'invalid_response',
+    });
   }
 
   const spreadsheetUrl = String(rawResponse.spreadsheetUrl || '').trim();
@@ -158,10 +190,12 @@ const parseGatewayResponse = rawResponse => {
   }
 
   const rowCount = Number(rawResponse.rowCount);
+  const rawStorageStatus = String(rawResponse.storageStatus || 'unknown').trim();
   return {
     spreadsheetUrl,
     created: rawResponse.created === true,
     rowCount: Number.isInteger(rowCount) && rowCount >= 0 ? rowCount : 0,
+    storageStatus: STORAGE_STATUS_VALUES.has(rawStorageStatus) ? rawStorageStatus : 'unknown',
   };
 };
 
@@ -210,6 +244,16 @@ const createMedicalHandoffSpreadsheetFunctions = ({
         );
       }
 
+      const auditFailure = reason => {
+        auditLogger({
+          event: 'MEDICAL_HANDOFF_SHEET_EXPORT_FAILED',
+          actorUid: context.auth?.uid || null,
+          date,
+          rowCount: rows.length,
+          reason,
+        });
+      };
+
       let response;
       try {
         response = await fetchImpl(appsScriptUrl, {
@@ -225,6 +269,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
           }),
         });
       } catch (_error) {
+        auditFailure('gateway_unavailable');
         throw new functions.https.HttpsError(
           'unavailable',
           'No fue posible conectar con Google Sheets. Reintenta en unos segundos.'
@@ -232,6 +277,7 @@ const createMedicalHandoffSpreadsheetFunctions = ({
       }
 
       if (!response?.ok) {
+        auditFailure('gateway_http_error');
         throw new functions.https.HttpsError(
           'unavailable',
           'Google Sheets no respondió correctamente. Revisa el despliegue institucional.'
@@ -242,19 +288,27 @@ const createMedicalHandoffSpreadsheetFunctions = ({
       try {
         gatewayResponse = JSON.parse(await response.text());
       } catch (_error) {
+        auditFailure('invalid_response');
         throw new functions.https.HttpsError(
           'unavailable',
           'Google Sheets devolvió una respuesta inesperada.'
         );
       }
 
-      const result = parseGatewayResponse(gatewayResponse);
+      let result;
+      try {
+        result = parseGatewayResponse(gatewayResponse);
+      } catch (error) {
+        auditFailure(error?.details?.reason || 'invalid_response');
+        throw error;
+      }
       auditLogger({
         event: 'MEDICAL_HANDOFF_SHEET_EXPORTED',
         actorUid: context.auth?.uid || null,
         date,
         rowCount: result.rowCount,
         created: result.created,
+        storageStatus: result.storageStatus,
       });
 
       return {

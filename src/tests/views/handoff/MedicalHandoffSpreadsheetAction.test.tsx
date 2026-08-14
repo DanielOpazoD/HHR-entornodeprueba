@@ -44,6 +44,7 @@ describe('MedicalHandoffSpreadsheetAction', () => {
       created: true,
       rowCount: 1,
       date: '2026-08-07',
+      storageStatus: 'configured',
     });
 
     const { rerender } = render(
@@ -72,6 +73,41 @@ describe('MedicalHandoffSpreadsheetAction', () => {
       />
     );
     expect(screen.getByRole('button', { name: /crear planilla/i })).toBeInTheDocument();
+    openWindow.mockRestore();
+  });
+
+  it('reports a recovered institutional folder without exposing technical identifiers', async () => {
+    const pendingWindow = {
+      closed: false,
+      close: vi.fn(),
+      document: { title: '' },
+      location: { replace: vi.fn() },
+      opener: window,
+    };
+    const openWindow = vi.spyOn(window, 'open').mockReturnValue(pendingWindow as unknown as Window);
+
+    render(
+      <MedicalHandoffSpreadsheetAction
+        date="2026-08-07"
+        rows={rows}
+        openSpreadsheet={vi.fn().mockResolvedValue({
+          spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/sheet-id/edit',
+          created: false,
+          rowCount: 1,
+          date: '2026-08-07',
+          storageStatus: 'recovered',
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /crear planilla/i }));
+
+    await waitFor(() =>
+      expect(success).toHaveBeenCalledWith(
+        'Planilla recuperada',
+        'HHR recuperó la carpeta institucional y dejó disponible la entrega médica.'
+      )
+    );
+    expect(JSON.stringify(success.mock.calls)).not.toContain('folder-');
     openWindow.mockRestore();
   });
 
