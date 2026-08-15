@@ -5,8 +5,10 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 interface AppsScriptRowsContext {
+  ensureHhrSheetColumnCapacity_: (sheet: unknown) => void;
   mergeHhrRows_: (existingRows: unknown[][], incomingRows: Record<string, string>[]) => unknown[][];
   normalizeExistingHhrRows_: (headers: unknown[], rows: unknown[][]) => unknown[][];
+  trimHhrSheetToCurrentSchema_: (sheet: unknown) => void;
   upsertHhrRows_: (sheet: unknown, incomingRows: Record<string, string>[]) => void;
 }
 
@@ -191,6 +193,94 @@ describe('medical handoff Apps Script row reconciliation', () => {
     expect(
       rangeOperations.some(operation => operation.column === 7 || operation.column === 8)
     ).toBe(false);
+  });
+
+  it('preserves a manually corrected physician and fills it only when the sheet is blank', () => {
+    const { mergeHhrRows_ } = loadAppsScriptRowsContext();
+    const manuallyCorrected = hashEpisodeStableKey('manual-physician');
+    const missingPhysician = hashEpisodeStableKey('missing-physician');
+    const existingRows = [
+      [
+        'R1',
+        'Paciente Uno (52a)',
+        '07-08-2026',
+        'Diagnóstico',
+        'Medicina',
+        'Dra. Corrección Manual',
+        'Entrega existente',
+        'Indicaciones existentes',
+        manuallyCorrected,
+      ],
+      [
+        'R2',
+        'Paciente Dos (40a)',
+        '07-08-2026',
+        'Diagnóstico',
+        'Cirugía',
+        '',
+        '',
+        '',
+        missingPhysician,
+      ],
+    ];
+
+    const result = mergeHhrRows_(existingRows, [
+      {
+        stableKey: manuallyCorrected,
+        bed: 'H1C1',
+        patientName: 'Paciente Uno',
+        age: '52a',
+        admissionDate: '07-08-2026',
+        diagnosis: 'Diagnóstico actualizado',
+        specialty: 'Medicina',
+        treatingPhysician: 'Dra. Valor desde HHR',
+      },
+      {
+        stableKey: missingPhysician,
+        bed: 'H2C1',
+        patientName: 'Paciente Dos',
+        age: '40a',
+        admissionDate: '07-08-2026',
+        diagnosis: 'Diagnóstico actualizado',
+        specialty: 'Cirugía',
+        treatingPhysician: 'Dr. Valor desde HHR',
+      },
+    ]);
+
+    expect(result[0][5]).toBe('Dra. Corrección Manual');
+    expect(result[0][6]).toBe('Entrega existente');
+    expect(result[0][7]).toBe('Indicaciones existentes');
+    expect(result[1][5]).toBe('Dr. Valor desde HHR');
+  });
+
+  it('adds missing schema columns and removes physical columns outside the current format', () => {
+    const { ensureHhrSheetColumnCapacity_, trimHhrSheetToCurrentSchema_ } =
+      loadAppsScriptRowsContext();
+    let shortSheetColumns = 7;
+    const insertColumnsAfter = vi.fn((_after: number, count: number) => {
+      shortSheetColumns += count;
+    });
+
+    ensureHhrSheetColumnCapacity_({
+      getMaxColumns: () => shortSheetColumns,
+      insertColumnsAfter,
+    });
+
+    expect(insertColumnsAfter).toHaveBeenCalledWith(7, 2);
+    expect(shortSheetColumns).toBe(9);
+
+    let wideSheetColumns = 12;
+    const deleteColumns = vi.fn((_start: number, count: number) => {
+      wideSheetColumns -= count;
+    });
+
+    trimHhrSheetToCurrentSchema_({
+      getMaxColumns: () => wideSheetColumns,
+      deleteColumns,
+    });
+
+    expect(deleteColumns).toHaveBeenCalledWith(10, 3);
+    expect(wideSheetColumns).toBe(9);
   });
 
   it('migrates an existing manually added indications column without duplicating or erasing it', () => {
