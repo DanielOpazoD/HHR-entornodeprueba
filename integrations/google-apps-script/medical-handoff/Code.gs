@@ -29,6 +29,7 @@ const HHR_HANDOFF_HEADERS = [
   'Indicaciones médicas',
   '_hhr_key',
 ];
+const HHR_HANDOFF_COLUMN_WIDTHS_PX = [63, 138, 92, 140, 99, 133, 354, 161];
 
 function doPost(event) {
   try {
@@ -602,14 +603,7 @@ function configureHhrSheet_(sheet) {
   trimHhrSheetToCurrentSchema_(sheet);
   sheet.getRange(1, 1, 1, 9).setValues([HHR_HANDOFF_HEADERS]);
   sheet.setFrozenRows(1);
-  sheet.setColumnWidth(1, 90);
-  sheet.setColumnWidth(2, 280);
-  sheet.setColumnWidth(3, 120);
-  sheet.setColumnWidth(4, 320);
-  sheet.setColumnWidth(5, 150);
-  sheet.setColumnWidth(6, 180);
-  sheet.setColumnWidth(7, 420);
-  sheet.setColumnWidth(8, 420);
+  applyHhrColumnWidths_(sheet);
   sheet.showColumns(8);
   sheet.hideColumns(9);
 
@@ -639,6 +633,12 @@ function configureHhrSheet_(sheet) {
   protectHhrRange_(sheet.getRange(1, 1, 1, 9), 'HHR_CABECERA');
   protectHhrRange_(sheet.getRange(2, 1, sheet.getMaxRows() - 1, 6), 'HHR_DATOS_CENSO');
   protectHhrRange_(sheet.getRange(2, 9, sheet.getMaxRows() - 1, 1), 'HHR_IDENTIFICADOR');
+}
+
+function applyHhrColumnWidths_(sheet) {
+  HHR_HANDOFF_COLUMN_WIDTHS_PX.forEach(function (width, index) {
+    sheet.setColumnWidth(index + 1, width);
+  });
 }
 
 function protectHhrRange_(range, description) {
