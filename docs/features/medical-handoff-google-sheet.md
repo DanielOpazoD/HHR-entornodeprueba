@@ -17,9 +17,12 @@ La planilla contiene únicamente:
 7. **Entrega de turno**;
 8. **Indicaciones médicas**.
 
-Las dos últimas columnas son editables. Al actualizar una planilla existente, HHR reconoce las
-columnas por su encabezado y conserva ambos textos asociados al episodio, aunque la columna
-**Indicaciones médicas** haya sido agregada manualmente antes de esta versión.
+Al actualizar una planilla existente, HHR reconoce las columnas por su encabezado. Para el mismo
+episodio conserva cualquier corrección manual de **Médico tratante** y los contenidos de **Entrega
+de turno** e **Indicaciones médicas**. Sólo completa el médico desde HHR cuando la celda continúa
+vacía. Si falta una columna oficial, la recrea; después de rescatar los valores reconocidos, elimina
+las columnas ajenas al formato actual. **Entrega de turno** e **Indicaciones médicas** permanecen
+editables.
 
 HHR no exporta RUT. Un identificador técnico estable queda oculto para reutilizar filas sin borrar
 lo escrito por los médicos.
@@ -92,10 +95,13 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
    automáticamente.
 4. Escribir texto de prueba en **Entrega de turno**.
    Escribir también una indicación de prueba en **Indicaciones médicas**.
+   Corregir temporalmente **Médico tratante** desde la cuenta propietaria.
 5. Volver a pulsar **Abrir planilla** y confirmar que:
    - se abre el mismo archivo;
    - los datos censales se actualizan;
+   - la corrección manual del médico tratante se conserva;
    - ninguno de los dos textos de prueba se borra;
+   - cualquier columna oficial faltante se recrea y no quedan columnas ajenas al formato;
    - columnas A–F no son editables para un especialista;
    - el archivo no está compartido públicamente.
 

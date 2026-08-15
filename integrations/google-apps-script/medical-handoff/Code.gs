@@ -234,6 +234,7 @@ function openOrCreateHhrHandoff_(request) {
   grantConfiguredHhrEditors_(spreadsheet.getId());
 
   const sheet = resolveHhrSheet_(spreadsheet);
+  ensureHhrSheetColumnCapacity_(sheet);
   upsertHhrRows_(sheet, request.rows);
   configureHhrSheet_(sheet);
 
@@ -383,6 +384,22 @@ function resolveHhrSheet_(spreadsheet) {
   const sheet = sheets[0];
   sheet.setName(HHR_HANDOFF_SHEET_NAME);
   return sheet;
+}
+
+function ensureHhrSheetColumnCapacity_(sheet) {
+  const requiredColumns = HHR_HANDOFF_HEADERS.length;
+  const currentColumns = sheet.getMaxColumns();
+  if (currentColumns < requiredColumns) {
+    sheet.insertColumnsAfter(currentColumns, requiredColumns - currentColumns);
+  }
+}
+
+function trimHhrSheetToCurrentSchema_(sheet) {
+  const requiredColumns = HHR_HANDOFF_HEADERS.length;
+  const currentColumns = sheet.getMaxColumns();
+  if (currentColumns > requiredColumns) {
+    sheet.deleteColumns(requiredColumns + 1, currentColumns - requiredColumns);
+  }
 }
 
 function upsertHhrRows_(sheet, incomingRows) {
@@ -552,12 +569,20 @@ function mergeHhrRows_(existingRows, incomingRows) {
       return;
     }
 
+    // A populated physician cell is owned by the sheet for this episode. HHR cannot
+    // distinguish an institutional correction from an earlier export, so only an
+    // explicitly cleared cell opts back into the physician supplied by HHR.
+    nextValues[5] = preserveHhrManualValue_(mergedRows[existingIndex][5], nextValues[5]);
     nextValues[6] = mergedRows[existingIndex][6];
     nextValues[7] = mergedRows[existingIndex][7];
     mergedRows[existingIndex] = nextValues;
   });
 
   return mergedRows;
+}
+
+function preserveHhrManualValue_(existingValue, incomingValue) {
+  return String(existingValue || '').trim() ? existingValue : incomingValue;
 }
 
 function mergeHhrHandoffText_(firstValue, secondValue) {
@@ -574,6 +599,7 @@ function safeHhrCell_(value) {
 }
 
 function configureHhrSheet_(sheet) {
+  trimHhrSheetToCurrentSchema_(sheet);
   sheet.getRange(1, 1, 1, 9).setValues([HHR_HANDOFF_HEADERS]);
   sheet.setFrozenRows(1);
   sheet.setColumnWidth(1, 90);
