@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 interface AppsScriptRowsContext {
+  applyHhrColumnWidths_: (sheet: unknown) => void;
   ensureHhrSheetColumnCapacity_: (sheet: unknown) => void;
   mergeHhrRows_: (existingRows: unknown[][], incomingRows: Record<string, string>[]) => unknown[][];
   normalizeExistingHhrRows_: (headers: unknown[], rows: unknown[][]) => unknown[][];
@@ -48,6 +49,24 @@ const loadAppsScriptRowsContext = (): AppsScriptRowsContext => {
 };
 
 describe('medical handoff Apps Script row reconciliation', () => {
+  it('applies the column widths approved in the medical handoff workbook', () => {
+    const { applyHhrColumnWidths_ } = loadAppsScriptRowsContext();
+    const setColumnWidth = vi.fn();
+
+    applyHhrColumnWidths_({ setColumnWidth });
+
+    expect(setColumnWidth.mock.calls).toEqual([
+      [1, 63],
+      [2, 138],
+      [3, 92],
+      [4, 140],
+      [5, 99],
+      [6, 133],
+      [7, 354],
+      [8, 161],
+    ]);
+  });
+
   it('updates census fields without erasing handoff text or historical rows', () => {
     const { mergeHhrRows_ } = loadAppsScriptRowsContext();
     const existingRows = [
