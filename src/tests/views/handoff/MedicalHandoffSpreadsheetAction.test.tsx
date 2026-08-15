@@ -18,6 +18,7 @@ const rows: MedicalHandoffSpreadsheetRow[] = [
     bed: 'R1',
     patientName: 'Paciente Uno',
     age: '52a',
+    admissionDate: '07-08-2026',
     diagnosis: 'Diagnóstico',
     specialty: 'Med Interna',
     treatingPhysician: 'Dra. Aravena',

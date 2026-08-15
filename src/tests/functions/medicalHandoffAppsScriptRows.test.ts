@@ -6,8 +6,21 @@ import { describe, expect, it, vi } from 'vitest';
 
 interface AppsScriptRowsContext {
   mergeHhrRows_: (existingRows: unknown[][], incomingRows: Record<string, string>[]) => unknown[][];
+  normalizeExistingHhrRows_: (headers: unknown[], rows: unknown[][]) => unknown[][];
   upsertHhrRows_: (sheet: unknown, incomingRows: Record<string, string>[]) => void;
 }
+
+const currentHeaders = [
+  'Cama',
+  'Paciente',
+  'Fecha de ingreso',
+  'Diagnóstico',
+  'Especialidad',
+  'Médico tratante',
+  'Entrega de turno',
+  'Indicaciones médicas',
+  '_hhr_key',
+];
 
 const hashEpisodeStableKey = (episodeId: string): string =>
   `episode-h1:${createHash('sha384').update(episodeId).digest('hex')}`;
@@ -39,21 +52,23 @@ describe('medical handoff Apps Script row reconciliation', () => {
       [
         'R1',
         'Paciente Uno',
-        '52a',
+        '07-08-2026',
         'Diagnóstico previo',
         'Medicina',
         '',
         'Texto médico',
+        'Mantener hidratación',
         hashEpisodeStableKey('1'),
       ],
       [
         'R2',
         'Paciente Egresado',
-        '60a',
+        '06-08-2026',
         'Diagnóstico',
         'Cirugía',
         '',
         'Entrega histórica',
+        '',
         'episode:2',
       ],
     ];
@@ -64,6 +79,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         bed: 'H1C1',
         patientName: 'Paciente Uno',
         age: '52a',
+        admissionDate: '07-08-2026',
         diagnosis: 'Diagnóstico actualizado',
         specialty: 'Medicina',
         treatingPhysician: 'Dra. Aravena',
@@ -73,6 +89,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         bed: 'H2C1',
         patientName: '=IMPORTDATA("https://example.com")',
         age: '40a',
+        admissionDate: '07-08-2026',
         diagnosis: 'Diagnóstico nuevo',
         specialty: 'Cirugía',
         treatingPhysician: '',
@@ -82,30 +99,33 @@ describe('medical handoff Apps Script row reconciliation', () => {
     expect(result).toEqual([
       [
         'H1C1',
-        'Paciente Uno',
-        '52a',
+        'Paciente Uno (52a)',
+        '07-08-2026',
         'Diagnóstico actualizado',
         'Medicina',
         'Dra. Aravena',
         'Texto médico',
+        'Mantener hidratación',
         hashEpisodeStableKey('1'),
       ],
       [
         'R2',
         'Paciente Egresado',
-        '60a',
+        '06-08-2026',
         'Diagnóstico',
         'Cirugía',
         '',
         'Entrega histórica',
+        '',
         hashEpisodeStableKey('2'),
       ],
       [
         'H2C1',
-        '\'=IMPORTDATA("https://example.com")',
-        '40a',
+        '\'=IMPORTDATA("https://example.com") (40a)',
+        '07-08-2026',
         'Diagnóstico nuevo',
         'Cirugía',
+        '',
         '',
         '',
         hashEpisodeStableKey('3'),
@@ -117,7 +137,17 @@ describe('medical handoff Apps Script row reconciliation', () => {
   it('does not clear or rewrite the handoff note when the episode keeps its row', () => {
     const stableKey = hashEpisodeStableKey('1');
     const existingRows = [
-      ['R1', 'Paciente Uno', '52a', 'Previo', 'Medicina', '', 'Nota en edición', stableKey],
+      [
+        'R1',
+        'Paciente Uno (52a)',
+        '07-08-2026',
+        'Previo',
+        'Medicina',
+        '',
+        'Nota en edición',
+        'Indicaciones en edición',
+        stableKey,
+      ],
     ];
     const rangeOperations: Array<{
       row: number;
@@ -128,7 +158,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
     }> = [];
     const getRange = vi.fn(
       (row: number, column: number, rowCount: number, columnCount: number) => ({
-        getValues: () => existingRows,
+        getValues: () => (row === 1 ? [currentHeaders] : existingRows),
         clearContent: () =>
           rangeOperations.push({ row, column, rowCount, columnCount, operation: 'clear' }),
         setValues: () =>
@@ -139,12 +169,13 @@ describe('medical handoff Apps Script row reconciliation', () => {
     );
     const { upsertHhrRows_ } = loadAppsScriptRowsContext();
 
-    upsertHhrRows_({ getLastRow: () => 2, getRange }, [
+    upsertHhrRows_({ getLastRow: () => 2, getLastColumn: () => 9, getRange }, [
       {
         stableKey,
         bed: 'H1C1',
         patientName: 'Paciente Uno',
         age: '52a',
+        admissionDate: '07-08-2026',
         diagnosis: 'Actualizado',
         specialty: 'Medicina',
         treatingPhysician: 'Dra. Aravena',
@@ -153,11 +184,70 @@ describe('medical handoff Apps Script row reconciliation', () => {
 
     expect(rangeOperations).toEqual([
       { row: 2, column: 1, rowCount: 1, columnCount: 6, operation: 'clear' },
-      { row: 2, column: 8, rowCount: 1, columnCount: 1, operation: 'clear' },
+      { row: 2, column: 9, rowCount: 1, columnCount: 1, operation: 'clear' },
       { row: 2, column: 1, rowCount: 1, columnCount: 6, operation: 'setValues' },
-      { row: 2, column: 8, rowCount: 1, columnCount: 1, operation: 'setValues' },
+      { row: 2, column: 9, rowCount: 1, columnCount: 1, operation: 'setValues' },
     ]);
-    expect(rangeOperations.some(operation => operation.column === 7)).toBe(false);
+    expect(
+      rangeOperations.some(operation => operation.column === 7 || operation.column === 8)
+    ).toBe(false);
+  });
+
+  it('migrates an existing manually added indications column without duplicating or erasing it', () => {
+    const { normalizeExistingHhrRows_, mergeHhrRows_ } = loadAppsScriptRowsContext();
+    const legacyHeaders = [
+      'Cama',
+      'Paciente',
+      'Edad',
+      'Diagnóstico',
+      'Especialidad',
+      'Médico tratante',
+      'Entrega de turno',
+      '_hhr_key',
+      'Indicaciones médicas',
+    ];
+    const existingRows = [
+      [
+        'R1',
+        'Paciente Uno',
+        '52a',
+        'Diagnóstico previo',
+        'Medicina',
+        'Dra. Aravena',
+        'Nota médica existente',
+        hashEpisodeStableKey('1'),
+        'No borrar esta indicación',
+      ],
+    ];
+
+    const normalized = normalizeExistingHhrRows_(legacyHeaders, existingRows);
+    const result = mergeHhrRows_(normalized, [
+      {
+        stableKey: hashEpisodeStableKey('1'),
+        bed: 'H1C1',
+        patientName: 'Paciente Uno (52a)',
+        age: '52a',
+        admissionDate: '07-08-2026',
+        diagnosis: 'Diagnóstico actualizado',
+        specialty: 'Medicina',
+        treatingPhysician: 'Dra. Aravena',
+      },
+    ]);
+
+    expect(result).toEqual([
+      [
+        'H1C1',
+        'Paciente Uno (52a)',
+        '07-08-2026',
+        'Diagnóstico actualizado',
+        'Medicina',
+        'Dra. Aravena',
+        'Nota médica existente',
+        'No borrar esta indicación',
+        hashEpisodeStableKey('1'),
+      ],
+    ]);
+    expect(currentHeaders.filter(header => header === 'Indicaciones médicas')).toHaveLength(1);
   });
 
   it('escapes formula-like stable keys and matches them again on refresh', () => {
@@ -167,6 +257,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
       bed: 'R1',
       patientName: 'Paciente Uno',
       age: '52a',
+      admissionDate: '07-08-2026',
       diagnosis: 'Diagnóstico',
       specialty: 'Medicina',
       treatingPhysician: '',
@@ -175,7 +266,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
     const first = mergeHhrRows_([], [incomingRow]);
     const second = mergeHhrRows_(first, [{ ...incomingRow, diagnosis: 'Actualizado' }]);
 
-    expect(first[0][7]).toBe("'-episode");
+    expect(first[0][8]).toBe("'-episode");
     expect(second).toHaveLength(1);
     expect(second[0][3]).toBe('Actualizado');
   });
@@ -188,11 +279,12 @@ describe('medical handoff Apps Script row reconciliation', () => {
       [
         'R1',
         'Paciente Uno',
-        '52a',
+        '07-08-2026',
         'Diagnóstico previo',
         'Medicina',
         '',
         'Entrega que debe conservarse',
+        '',
         `episode:${episodeId}`,
       ],
     ];
@@ -201,6 +293,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
       bed: 'H1C1',
       patientName: 'Paciente Uno',
       age: '52a',
+      admissionDate: '07-08-2026',
       diagnosis: 'Diagnóstico actualizado',
       specialty: 'Medicina',
       treatingPhysician: 'Dra. Aravena',
@@ -213,10 +306,10 @@ describe('medical handoff Apps Script row reconciliation', () => {
 
     expect(migrated).toHaveLength(1);
     expect(migrated[0][6]).toBe('Entrega que debe conservarse');
-    expect(migrated[0][7]).toBe(hashedKey);
+    expect(migrated[0][8]).toBe(hashedKey);
     expect(refreshedByLegacyClient).toHaveLength(1);
     expect(refreshedByLegacyClient[0][3]).toBe('Segundo cambio');
-    expect(refreshedByLegacyClient[0][7]).toBe(hashedKey);
+    expect(refreshedByLegacyClient[0][8]).toBe(hashedKey);
   });
 
   it('collapses legacy and versioned aliases without losing either handoff note', () => {
@@ -224,8 +317,8 @@ describe('medical handoff Apps Script row reconciliation', () => {
     const episodeId = 'episode-with-two-existing-aliases';
     const hashedKey = hashEpisodeStableKey(episodeId);
     const existingRows = [
-      ['R1', 'Paciente Uno', '', '', '', '', 'Nota antigua', `episode:${episodeId}`],
-      ['H1C1', 'Paciente Uno', '', '', '', '', 'Nota reciente', hashedKey],
+      ['R1', 'Paciente Uno', '', '', '', '', 'Nota antigua', '', `episode:${episodeId}`],
+      ['H1C1', 'Paciente Uno', '', '', '', '', 'Nota reciente', '', hashedKey],
     ];
 
     const result = mergeHhrRows_(existingRows, [
@@ -234,6 +327,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         bed: 'H1C1',
         patientName: 'Paciente Uno',
         age: '52a',
+        admissionDate: '07-08-2026',
         diagnosis: 'Diagnóstico vigente',
         specialty: 'Medicina',
         treatingPhysician: 'Dra. Aravena',
@@ -242,6 +336,6 @@ describe('medical handoff Apps Script row reconciliation', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0][6]).toBe('Nota antigua\n\n---\n\nNota reciente');
-    expect(result[0][7]).toBe(hashedKey);
+    expect(result[0][8]).toBe(hashedKey);
   });
 });

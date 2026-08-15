@@ -75,8 +75,9 @@ describe('medicalHandoffSpreadsheetController', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       bed: 'R1',
-      patientName: 'Paciente Uno',
+      patientName: 'Paciente Uno (52a)',
       age: '52a',
+      admissionDate: '07-08-2026',
       diagnosis: 'Diagnóstico principal',
       specialty: Specialty.MEDICINA,
       treatingPhysician: 'Dra. Aravena',
@@ -105,7 +106,8 @@ describe('medicalHandoffSpreadsheetController', () => {
     expect(rows).toHaveLength(2);
     expect(rows[1]).toMatchObject({
       bed: 'Cuna RN (R1)',
-      patientName: 'RN de Paciente Uno',
+      patientName: 'RN de Paciente Uno (1d)',
+      admissionDate: '07-08-2026',
     });
     expect(rows[1].stableKey).toMatch(/^episode-h1:[a-f0-9]{96}$/);
   });
@@ -168,6 +170,6 @@ describe('medicalHandoffSpreadsheetController', () => {
     const rows = buildMedicalHandoffSpreadsheetRows(record, beds.slice(0, 1), professionalsCatalog);
 
     expect(rows).toHaveLength(1);
-    expect(rows[0].patientName).toBe('Paciente Uno');
+    expect(rows[0].patientName).toBe('Paciente Uno (52a)');
   });
 });
