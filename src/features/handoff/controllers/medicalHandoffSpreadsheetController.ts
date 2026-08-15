@@ -10,6 +10,7 @@ export interface MedicalHandoffSpreadsheetRow {
   bed: string;
   patientName: string;
   age: string;
+  admissionDate: string;
   diagnosis: string;
   specialty: string;
   treatingPhysician: string;
@@ -17,8 +18,19 @@ export interface MedicalHandoffSpreadsheetRow {
 
 export const MEDICAL_HANDOFF_SPREADSHEET_MAX_ROWS = 80;
 
-const normalizeText = (value: unknown): string =>
-  typeof value === 'string' ? value.trim() : '';
+const normalizeText = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+const formatPatientNameWithAge = (patientName: string, age: string): string => {
+  const normalizedName = normalizeText(patientName);
+  const normalizedAge = normalizeText(age);
+  return normalizedAge ? `${normalizedName} (${normalizedAge})` : normalizedName;
+};
+
+const formatAdmissionDate = (value: string): string => {
+  const normalized = normalizeText(value);
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+  return isoMatch ? `${isoMatch[3]}-${isoMatch[2]}-${isoMatch[1]}` : normalized;
+};
 
 const hashStableKeyPart = (value: string): string =>
   hashJs
@@ -59,8 +71,9 @@ const buildRow = ({
 }): MedicalHandoffSpreadsheetRow => ({
   stableKey: buildStableKey(patient, fallbackBedId),
   bed: bedLabel,
-  patientName: normalizeText(patient.patientName),
+  patientName: formatPatientNameWithAge(patient.patientName, patient.age),
   age: normalizeText(patient.age),
+  admissionDate: formatAdmissionDate(patient.admissionDate),
   diagnosis: normalizeText(patient.pathology),
   specialty: normalizeText(patient.specialty),
   treatingPhysician: resolveVisibleTreatingPhysicianName(

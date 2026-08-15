@@ -43,8 +43,9 @@ const APPS_SCRIPT_FAILURES = Object.freeze({
 const FIELD_LIMITS = Object.freeze({
   stableKey: 180,
   bed: 50,
-  patientName: 180,
+  patientName: 240,
   age: 40,
+  admissionDate: 10,
   diagnosis: 600,
   specialty: 120,
   treatingPhysician: 180,
@@ -100,6 +101,7 @@ const parseRows = rawRows => {
       bed: parseTextField(rawRow.bed, 'bed', { required: true }),
       patientName: parseTextField(rawRow.patientName, 'patientName', { required: true }),
       age: parseTextField(rawRow.age, 'age'),
+      admissionDate: parseTextField(rawRow.admissionDate, 'admissionDate'),
       diagnosis: parseTextField(rawRow.diagnosis, 'diagnosis'),
       specialty: parseTextField(rawRow.specialty, 'specialty'),
       treatingPhysician: parseTextField(rawRow.treatingPhysician, 'treatingPhysician'),

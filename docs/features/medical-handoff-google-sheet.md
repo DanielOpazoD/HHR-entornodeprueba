@@ -9,12 +9,17 @@ Hospitalizados es propietaria del archivo.
 La planilla contiene únicamente:
 
 1. cama;
-2. paciente;
-3. edad;
+2. paciente, con la edad entre paréntesis;
+3. fecha de ingreso;
 4. diagnóstico;
 5. especialidad;
 6. médico tratante;
-7. **Entrega de turno**, única columna editable.
+7. **Entrega de turno**;
+8. **Indicaciones médicas**.
+
+Las dos últimas columnas son editables. Al actualizar una planilla existente, HHR reconoce las
+columnas por su encabezado y conserva ambos textos asociados al episodio, aunque la columna
+**Indicaciones médicas** haya sido agregada manualmente antes de esta versión.
 
 HHR no exporta RUT. Un identificador técnico estable queda oculto para reutilizar filas sin borrar
 lo escrito por los médicos.
@@ -26,7 +31,7 @@ lo escrito por los médicos.
 3. El callable valida rol, fecha y campos permitidos y contacta al Apps Script institucional. El
    secreto nunca llega al navegador.
 4. Apps Script crea una planilla para esa fecha o reutiliza la existente.
-5. Los datos censales se actualizan, pero la columna libre se conserva.
+5. Los datos censales se actualizan, pero las columnas médicas libres se conservan.
 6. Google Sheets se abre en una pestaña nueva para los especialistas autorizados.
 
 Si la carpeta guardada en `HHR_HANDOFF_FOLDER_ID` está en la papelera, Apps Script restaura esa misma
@@ -86,10 +91,11 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
    configuración está ausente, verificar la carpeta privada `Entrega de turno médicos` creada
    automáticamente.
 4. Escribir texto de prueba en **Entrega de turno**.
+   Escribir también una indicación de prueba en **Indicaciones médicas**.
 5. Volver a pulsar **Abrir planilla** y confirmar que:
    - se abre el mismo archivo;
    - los datos censales se actualizan;
-   - el texto de prueba no se borra;
+   - ninguno de los dos textos de prueba se borra;
    - columnas A–F no son editables para un especialista;
    - el archivo no está compartido públicamente.
 
@@ -103,7 +109,7 @@ Este ejercicio debe realizarse con una fecha de prueba sin información clínica
 3. Confirmar que la misma solicitud restaura la carpeta original y abre la planilla sin requerir un
    segundo clic ni cambiar `HHR_HANDOFF_FOLDER_ID`.
 4. Pulsar nuevamente y comprobar que abre el mismo archivo, sin crear otra carpeta ni borrar el
-   texto de **Entrega de turno**.
+   texto de **Entrega de turno** ni las **Indicaciones médicas**.
 5. Revisar los logs de Firebase Functions: el evento `MEDICAL_HANDOFF_SHEET_EXPORTED` registra sólo
    fecha, cantidad de filas y `storageStatus` (`configured`, `created` o `recovered`). Los fallos usan
    `MEDICAL_HANDOFF_SHEET_EXPORT_FAILED` con un motivo técnico seguro y nunca incluyen pacientes,
