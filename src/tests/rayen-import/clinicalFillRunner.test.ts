@@ -450,29 +450,6 @@ describe('runClinicalFill', () => {
     expect(patch['beds.H1C2.evaluationScores'].cudyr).toBeUndefined();
   });
 
-  it('keeps a stored CUDYR when its historical archive is not applicable', async () => {
-    const rec = record({ H1C2: { encId: 'E1' } });
-    (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
-      cudyr: { category: 'D3', recordedDate: '2026-07-11', source: 'Eloísa (Rayen)' },
-    };
-    const deps = okDeps({
-      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({
-        items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' }],
-      }),
-      applyHistoricalCudyr: vi.fn().mockResolvedValue({
-        persisted: false,
-        changed: false,
-        applicable: false,
-      }),
-    });
-
-    const summary = await runClinicalFill(rec, '2026-07-11', deps);
-
-    expect(summary).toMatchObject({ total: 1, patched: 0, errors: [] });
-    expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
-  });
-
   it('keeps a stale CUDYR when the read failed (not authoritative)', async () => {
     const rec = record({ H1C2: { encId: 'E1' } });
     (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {

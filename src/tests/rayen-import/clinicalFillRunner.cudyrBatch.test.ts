@@ -105,4 +105,37 @@ describe('runClinicalFill historical CUDYR batch', () => {
       }),
     ]);
   });
+
+  it('keeps a stored CUDYR when its historical archive is not applicable', async () => {
+    const rec = record();
+    delete rec.beds.H2C1;
+    rec.date = '2026-07-11';
+    (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
+      cudyr: { category: 'D3', recordedDate: '2026-07-11', source: 'Eloísa (Rayen)' },
+    };
+    const applyPatch = vi.fn().mockResolvedValue(undefined);
+    const deps: ClinicalFillDeps = {
+      fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),
+      extractDeviceItems: vi.fn().mockResolvedValue([]),
+      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
+      fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' }],
+      }),
+      applyHistoricalCudyr: vi.fn().mockResolvedValue({
+        persisted: false,
+        changed: false,
+        applicable: false,
+      }),
+      applyPatch,
+      now: () => new Date(Date.UTC(2026, 6, 11, 12, 0, 0)),
+      createId: () => 'id-1',
+    };
+
+    const summary = await runClinicalFill(rec, '2026-07-11', deps);
+
+    expect(summary).toMatchObject({ total: 1, patched: 0, errors: [] });
+    expect(applyPatch).toHaveBeenCalledTimes(1);
+    expect(Object.keys(applyPatch.mock.calls[0][0])).toEqual(['beds.H1C2.clinicalSyncCheckpoint']);
+  });
 });
