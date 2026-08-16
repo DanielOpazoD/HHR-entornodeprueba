@@ -111,7 +111,6 @@ export const verifiedShortStayDischarge = (): EgresoReportRow => ({
   correctedTime: '16:30',
   admissionDay: CURRENT_CLINICAL_DAY,
   admissionTime: '15:20',
-  dischargeStatus: 'Fallecido',
   exactEpisodeVerification: 'verified',
   diagnostico: 'Diagnóstico sintético',
 });

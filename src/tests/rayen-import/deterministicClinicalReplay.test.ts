@@ -237,6 +237,7 @@ describe('deterministic sanitized clinical replay', () => {
         time: '16:30',
       }),
     ]);
+    expect(Object.keys(result.record.beds).length).toBeGreaterThan(0);
     expect(Object.values(result.record.beds).every(patient => !patient.rut)).toBe(true);
   });
 
@@ -277,7 +278,6 @@ describe('deterministic sanitized clinical replay', () => {
       patientName: 'Caso departing',
       bedLabel: 'H2C2',
       destino: 'Domicilio',
-      dischargeStatus: 'Vivo',
     };
     const result = await replay(
       current,
