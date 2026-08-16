@@ -1,7 +1,6 @@
 {
   "files": {
     "src/hooks/useCensusEmail.ts": 640,
-    "src/hooks/useTransferManagement.ts": 360,
     "src/hooks/useBedManagement.ts": 360,
     "src/hooks/useExportManager.ts": 280,
     "src/hooks/useBackupFileBrowser.ts": 320,
@@ -13,12 +12,6 @@
       "reason": "Orquesta bootstrap, destinatarios, envío y auditoría; pendiente de partición adicional por flujo.",
       "owner": "census-email",
       "status": "active"
-    },
-    "src/hooks/useTransferManagement.ts": {
-      "limit": 360,
-      "reason": "Hook de management ya en reducción progresiva tras la fase 3; sigue siendo hotspot controlado.",
-      "owner": "transfers",
-      "status": "shrinking"
     },
     "src/hooks/useBedManagement.ts": {
       "limit": 360,

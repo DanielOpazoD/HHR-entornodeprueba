@@ -13,9 +13,7 @@
     "^assets/vendor-pdfjs-.*\\.js$",
     "^assets/pdf-.*\\.js$",
     "^assets/vendor-pdf-.*\\.js$",
-    "^assets/docxtemplater-.*\\.js$",
     "^assets/LineChart-.*\\.js$",
-    "^assets/documentFallbacks-.*\\.js$",
     "^assets/vendor-excel-.*\\.js$",
     "^assets/vendor-canvas-.*\\.js$",
     "^assets/terminologyService-.*\\.js$",
@@ -96,10 +94,6 @@
       "pattern": "^vendor-pdf-.*\\.js$",
       "_comment": "PDF vendor chunks are async but among the largest payloads; keep a dedicated ceiling so PDF library drift stays visible before it reaches the global chunk budget.",
       "maxBytes": 430000
-    },
-    {
-      "pattern": "^TransferManagementView-.*\\.js$",
-      "maxBytes": 750000
     },
     {
       "pattern": "^vendor-heic2any-.*\\.js$",

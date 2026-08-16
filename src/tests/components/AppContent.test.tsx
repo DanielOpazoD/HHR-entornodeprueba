@@ -345,11 +345,7 @@ describe('AppContent', () => {
   });
 
   it('hides DateStrip for non-clinical modules', () => {
-    render(
-      <AppContent
-        ui={{ ...mockUI, currentModule: 'TRANSFER_MANAGEMENT' } as unknown as AppContentUi}
-      />
-    );
+    render(<AppContent ui={{ ...mockUI, currentModule: 'DIAGNOSTICS' }} />);
     expect(screen.queryByTestId('datestrip')).not.toBeInTheDocument();
   });
 

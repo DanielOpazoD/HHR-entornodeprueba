@@ -56,15 +56,6 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     ],
   },
   {
-    featurePath: 'src/features/transfers/',
-    importPrefix: '@/features/transfers/',
-    ruleId: 'transfers-public-api-boundary',
-    description:
-      'Code outside src/features/transfers must import transfers only from "@/features/transfers"; internal subpaths are reserved for the feature itself.',
-    allowBypass: file =>
-      file.startsWith('src/features/transfers/') || file.startsWith('src/tests/'),
-  },
-  {
     featurePath: 'src/features/clinical-documents/',
     importPrefix: '@/features/clinical-documents/',
     ruleId: 'clinical-documents-public-api-boundary',

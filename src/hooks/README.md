@@ -25,13 +25,12 @@ Cuando una operación necesita coordinar repositorios, clasificar outcomes remot
 
 ## Hooks clave (alta prioridad)
 
-| Hook                         | Responsabilidad                                    |
-| ---------------------------- | -------------------------------------------------- |
-| `useDailyRecord.ts`          | API consolidada de acciones/estado del censo       |
-| `useDailyRecordQuery.ts`     | Lectura/suscripción/cache y optimistic updates     |
-| `useMovements.ts`            | Wrapper de compatibilidad para altas/traslados     |
-| `useTransferViewStates.ts`   | Estado de UX del flujo de traslados en vista censo |
-| `useHandoffCommunication.ts` | Comunicación y envío de handoff                    |
+| Hook                         | Responsabilidad                                |
+| ---------------------------- | ---------------------------------------------- |
+| `useDailyRecord.ts`          | API consolidada de acciones/estado del censo   |
+| `useDailyRecordQuery.ts`     | Lectura/suscripción/cache y optimistic updates |
+| `useMovements.ts`            | Wrapper de compatibilidad para altas/traslados |
+| `useHandoffCommunication.ts` | Comunicación y envío de handoff                |
 
 ## Patrones usados
 
@@ -55,7 +54,6 @@ Cuando una operación necesita coordinar repositorios, clasificar outcomes remot
 - La telemetría operativa del core puede reenviarse a un endpoint externo configurable por `VITE_OPERATIONAL_TELEMETRY_ENDPOINT`; los hooks emiten eventos estructurados y no conocen vendors concretos.
 - Los hooks del core operativo consumen un `errorService` de fachada; la clasificación, retry y fan-out a sinks quedan fuera del hook para evitar mezclar policy con side effects.
 - **LatestRef pattern**: evita stale closures en callbacks largos.
-- `useTransferViewStates.ts` ahora delega preparación/caché documental a [controllers/transferDocumentPackageController.ts](controllers/transferDocumentPackageController.ts) para mantener el hook enfocado en estado de modales y selección.
 
 ## Taxonomía rápida
 

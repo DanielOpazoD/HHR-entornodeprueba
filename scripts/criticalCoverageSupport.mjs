@@ -57,6 +57,13 @@ const normalizeSourceEntries = (zoneKey, config) => {
   return [...new Set(configuredSources.filter(source => typeof source === 'string' && source.trim()))];
 };
 
+const normalizeTestEntries = value => {
+  const configuredTests = Array.isArray(value) ? value : [value];
+  return [
+    ...new Set(configuredTests.filter(test => typeof test === 'string' && test.trim())),
+  ];
+};
+
 const readCoverageMap = root => {
   const coveragePath = path.join(root, COVERAGE_FINAL_PATH);
   if (!fs.existsSync(coveragePath)) {
@@ -208,6 +215,7 @@ export const loadCriticalCoverageConfig = root => {
     root: zoneKey,
     label: config.label || zoneKey,
     tests: config.tests,
+    coverageTests: normalizeTestEntries(config.coverageTests ?? config.tests),
     sources: normalizeSourceEntries(zoneKey, config),
     minTestFileCount: Number(config.minTestFileCount || 0),
     minTestToSourceRatio: Number(config.minTestToSourceRatio || 0),
@@ -221,7 +229,9 @@ export const loadCriticalCoverageConfig = root => {
 
 export const getCriticalCoverageTestTargets = root => {
   const zones = loadCriticalCoverageConfig(root);
-  return [...new Set(zones.map(zone => zone.tests))].sort((left, right) => left.localeCompare(right));
+  return [...new Set(zones.flatMap(zone => zone.coverageTests))].sort((left, right) =>
+    left.localeCompare(right)
+  );
 };
 
 export const buildCriticalCoverageReport = root => {
