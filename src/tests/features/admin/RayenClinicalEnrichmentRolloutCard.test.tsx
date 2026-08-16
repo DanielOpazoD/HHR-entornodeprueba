@@ -17,6 +17,10 @@ const makeSummary = (
   blockedCount: 0,
   permissionDeniedCount: 0,
   evidenceHours: 9,
+  cleanWindowRuns: 4,
+  cleanMatchedShadowRuns: 4,
+  cleanEnforcedWrites: 0,
+  cleanEvidenceHours: 9,
   recommendation: 'ready_for_enforced',
   ...overrides,
 });
@@ -30,7 +34,8 @@ describe('RayenClinicalEnrichmentRolloutCard', () => {
     expect(screen.getByText('Paridad OK')).toBeInTheDocument();
     expect(screen.getByText('Permisos denegados')).toBeInTheDocument();
     expect(screen.getByText(/contrato v2/i)).toBeInTheDocument();
-    expect(screen.getByText('9')).toBeInTheDocument();
+    expect(screen.getByText(/la racha limpia decide el gate/i)).toBeInTheDocument();
+    expect(screen.getAllByText('9')).toHaveLength(2);
   });
 
   it('surfaces mismatches as blocking evidence', () => {

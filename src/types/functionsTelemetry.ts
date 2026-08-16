@@ -59,6 +59,7 @@ export type RayenClinicalEnrichmentRolloutRecommendation = RolloutRecommendation
 
 export interface RayenClinicalEnrichmentRolloutSummary {
   parityContractVersion: number;
+  /** Complete audit totals for the active parity contract. */
   total: number;
   shadowRuns: number;
   enforcedWrites: number;
@@ -71,6 +72,12 @@ export interface RayenClinicalEnrichmentRolloutSummary {
   evidenceHours: number;
   firstEntryAt?: string;
   lastEntryAt?: string;
+  /** Consecutive non-blocking evidence after the latest mismatch or operational failure. */
+  cleanWindowRuns: number;
+  cleanMatchedShadowRuns: number;
+  cleanEnforcedWrites: number;
+  cleanEvidenceHours: number;
+  lastBlockingSignalAt?: string;
   recommendation: RayenClinicalEnrichmentRolloutRecommendation;
 }
 
