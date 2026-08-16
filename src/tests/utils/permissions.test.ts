@@ -34,17 +34,15 @@ describe('permissions.ts - Security Critical Tests', () => {
       expect(canEditModule(ROLES.ADMIN, 'CUDYR')).toBe(true);
       expect(canEditModule(ROLES.ADMIN, 'NURSING_HANDOFF')).toBe(true);
       expect(canEditModule(ROLES.ADMIN, 'MEDICAL_HANDOFF')).toBe(true);
-      expect(canEditModule(ROLES.ADMIN, 'TRANSFER_MANAGEMENT')).toBe(true);
       expect(canEditModule(ROLES.ADMIN, 'BACKUP_FILES')).toBe(true);
       expect(canEditModule(ROLES.ADMIN, 'AUDIT')).toBe(true);
     });
 
-    it('nurse_hospital should edit CENSUS, CUDYR, NURSING_HANDOFF and TRANSFER_MANAGEMENT but not MEDICAL_HANDOFF', () => {
+    it('nurse_hospital should edit CENSUS, CUDYR and NURSING_HANDOFF but not MEDICAL_HANDOFF', () => {
       expect(canEditModule(ROLES.NURSE_HOSPITAL, 'CENSUS')).toBe(true);
       expect(canEditModule(ROLES.NURSE_HOSPITAL, 'CUDYR')).toBe(true);
       expect(canEditModule(ROLES.NURSE_HOSPITAL, 'NURSING_HANDOFF')).toBe(true);
       expect(canEditModule(ROLES.NURSE_HOSPITAL, 'MEDICAL_HANDOFF')).toBe(false);
-      expect(canEditModule(ROLES.NURSE_HOSPITAL, 'TRANSFER_MANAGEMENT')).toBe(true);
       // Should NOT edit these:
       expect(canEditModule(ROLES.NURSE_HOSPITAL, 'BACKUP_FILES')).toBe(false);
       expect(canEditModule(ROLES.NURSE_HOSPITAL, 'AUDIT')).toBe(false);
@@ -85,18 +83,16 @@ describe('permissions.ts - Security Critical Tests', () => {
       expect(modules).toContain('CUDYR');
       expect(modules).toContain('NURSING_HANDOFF');
       expect(modules).toContain('MEDICAL_HANDOFF');
-      expect(modules).toContain('TRANSFER_MANAGEMENT');
       expect(modules).toContain('BACKUP_FILES');
       expect(modules).toContain('AUDIT');
     });
 
-    it('nurse_hospital should see CENSUS, CUDYR, NURSING_HANDOFF, MEDICAL_HANDOFF, TRANSFER_MANAGEMENT', () => {
+    it('nurse_hospital should see CENSUS, CUDYR, NURSING_HANDOFF and MEDICAL_HANDOFF', () => {
       const modules = getVisibleModules(ROLES.NURSE_HOSPITAL);
       expect(modules).toContain('CENSUS');
       expect(modules).toContain('CUDYR');
       expect(modules).toContain('NURSING_HANDOFF');
       expect(modules).toContain('MEDICAL_HANDOFF');
-      expect(modules).toContain('TRANSFER_MANAGEMENT');
       expect(modules).not.toContain('BACKUP_FILES');
       expect(modules).not.toContain('AUDIT');
     });

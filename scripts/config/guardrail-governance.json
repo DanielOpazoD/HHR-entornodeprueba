@@ -205,7 +205,6 @@
       { "id": "check:module-size", "group": "size" },
       { "id": "check:handoff-module-size", "group": "size" },
       { "id": "check:census-module-size", "group": "size" },
-      { "id": "check:transfers-module-size", "group": "size" },
       { "id": "check:hook-hotspots", "group": "size" },
       { "id": "check:hotspot-growth", "group": "size" },
       { "id": "check:extension-hotspots", "group": "size" },

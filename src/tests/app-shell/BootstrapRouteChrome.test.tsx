@@ -134,20 +134,4 @@ describe('BootstrapRouteChrome', () => {
       });
     }
   });
-
-  it('keeps transfer-management on its own navbar without forcing a date strip', () => {
-    window.history.replaceState({}, '', '/transfer-management');
-
-    render(<BootstrapRouteChrome />);
-
-    expect(screen.getByTestId('bootstrap-navbar')).toHaveTextContent('TRANSFER_MANAGEMENT');
-    expect(screen.queryByTestId('bootstrap-date-strip')).not.toBeInTheDocument();
-    expect(mockNavbar).toHaveBeenCalledWith(
-      expect.objectContaining({
-        currentModule: 'TRANSFER_MANAGEMENT',
-      })
-    );
-    expect(mockDateStrip).not.toHaveBeenCalled();
-    expect(screen.getByTestId('view-loader')).toBeInTheDocument();
-  });
 });

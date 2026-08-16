@@ -1,6 +1,6 @@
 import type { ModuleType } from '@/constants/navigationConfig';
 
-export type ModuleTheme = 'census' | 'nursing-handoff' | 'medical-handoff' | 'transfers';
+export type ModuleTheme = 'census' | 'nursing-handoff' | 'medical-handoff';
 
 /**
  * Maps a ModuleType to a theme identifier used by the `data-module` attribute.
@@ -10,7 +10,6 @@ export type ModuleTheme = 'census' | 'nursing-handoff' | 'medical-handoff' | 'tr
  * - 'census' (default): dark medical blue
  * - 'nursing-handoff': sky / celeste
  * - 'medical-handoff': teal / green
- * - 'transfers': purple
  *
  * Laboratory and Clinical Documents are modal-based modules that apply
  * their own `data-module` locally on their modal containers.
@@ -22,8 +21,6 @@ export const resolveModuleTheme = (mod: ModuleType): ModuleTheme => {
       return 'nursing-handoff';
     case 'MEDICAL_HANDOFF':
       return 'medical-handoff';
-    case 'TRANSFER_MANAGEMENT':
-      return 'transfers';
     default:
       return 'census';
   }

@@ -19,7 +19,6 @@ import {
   ReminderAdminView,
   RoleManagementView,
   SystemDiagnosticsView,
-  TransferManagementView,
   WhatsAppIntegrationView,
 } from '@/views/LazyViews';
 import {
@@ -116,11 +115,6 @@ export const SIMPLE_MODULE_ROUTE_DEFINITIONS: readonly SimpleModuleRouteDefiniti
     sectionName: 'Diagnóstico del Sistema',
     requiresAccessCheck: true,
     render: () => <SystemDiagnosticsView />,
-  },
-  {
-    module: 'TRANSFER_MANAGEMENT',
-    sectionName: 'Traslados',
-    render: () => <TransferManagementView />,
   },
   {
     module: 'BACKUP_FILES',

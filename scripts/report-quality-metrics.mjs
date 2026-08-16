@@ -44,11 +44,6 @@ const FEATURE_PUBLIC_BOUNDARIES = [
     allowBypass: file => file.startsWith('src/features/handoff/') || file.startsWith('src/tests/'),
   },
   {
-    importPrefix: '@/features/transfers/',
-    allowBypass: file =>
-      file.startsWith('src/features/transfers/') || file.startsWith('src/tests/'),
-  },
-  {
     importPrefix: '@/features/clinical-documents/',
     allowBypass: file =>
       file.startsWith('src/features/clinical-documents/') ||

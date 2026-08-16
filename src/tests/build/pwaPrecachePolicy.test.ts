@@ -28,9 +28,7 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/vendor-pdfjs-*.js');
     expect(viteConfig).toContain('**/assets/pdf-*.js');
     expect(viteConfig).toContain('**/assets/vendor-pdf-*.js');
-    expect(viteConfig).toContain('**/assets/docxtemplater-*.js');
     expect(viteConfig).toContain('**/assets/LineChart-*.js');
-    expect(viteConfig).toContain('**/assets/documentFallbacks-*.js');
     expect(viteConfig).toContain('**/assets/vendor-excel-*.js');
     expect(viteConfig).toContain('**/assets/vendor-canvas-*.js');
     expect(viteConfig).toContain('**/assets/terminologyService-*.js');

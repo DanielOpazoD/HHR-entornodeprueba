@@ -7,7 +7,7 @@ import {
 describe('appContentEventBridgeController', () => {
   it('accepts known application modules only', () => {
     expect(resolveEventBridgeModule('CUDYR')).toBe('CUDYR');
-    expect(resolveEventBridgeModule('TRANSFER_MANAGEMENT')).toBe('TRANSFER_MANAGEMENT');
+    expect(resolveEventBridgeModule('TRANSFER_MANAGEMENT')).toBeNull();
     expect(resolveEventBridgeModule('NOT_A_MODULE')).toBeNull();
     expect(resolveEventBridgeModule(undefined)).toBeNull();
   });
