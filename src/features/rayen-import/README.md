@@ -226,6 +226,11 @@ clínicos en esa telemetría.
   `requiresReview`, **apply**, Zod del registro producido, settings, navegación y handshake de la
   extensión, estados de salud, captura dual, desfase temporal, cambio de establecimiento y barra
   operativa.
+- `npm run test:clinical-replay`: replay sanitizado y determinista del flujo contextual real
+  (contexto temporal, conciliación, confirmación autoritativa y llenado clínico). Cubre primer
+  ingreso con signos/escalas, D−1 y D−7, reingreso por episodio, hospitalización breve ya egresada,
+  madre/RN, reutilización de camas e idempotencia. Las fuentes y la persistencia son límites
+  controlados; no contiene identidades ni payloads clínicos reales.
 
 ## Referencia funcional
 

@@ -34,6 +34,7 @@
     "test:release-confidence:full": "node scripts/run-release-confidence-pack.mjs --profile full",
     "test:clinical-documents": "vitest run src/tests/features/clinical-documents src/tests/services/repositories/ClinicalDocumentRepository*.test.ts",
     "test:clinical-sync-simulator": "vitest run src/tests/support/clinicalSyncSimulator",
+    "test:clinical-replay": "vitest run src/tests/rayen-import/deterministicClinicalReplay.test.ts",
     "test:sync-load": "vitest run src/tests/services/storage/syncQueueLoad.test.ts",
     "test:e2e": "unset NO_COLOR; playwright test",
     "test:e2e:ui": "playwright test --ui",
