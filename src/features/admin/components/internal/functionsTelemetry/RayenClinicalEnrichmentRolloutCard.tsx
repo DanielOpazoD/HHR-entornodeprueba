@@ -60,8 +60,9 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
             </h2>
           </div>
           <p className="mt-1 text-xs opacity-75">
-            Gate operativo: mínimo {MIN_MATCHED_SHADOW_RUNS} ejecuciones shadow coincidentes,{' '}
-            {MIN_SHADOW_EVIDENCE_HOURS} horas de evidencia y cero señales bloqueantes.
+            Gate operativo: racha de mínimo {MIN_MATCHED_SHADOW_RUNS} ejecuciones shadow
+            coincidentes, {MIN_SHADOW_EVIDENCE_HOURS} horas y cero señales bloqueantes. Un mismatch
+            o fallo reinicia la racha sin borrar la auditoría.
             {summary.parityContractVersion > 0
               ? ` Evidencia del contrato v${summary.parityContractVersion}.`
               : ''}
@@ -73,7 +74,9 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-2 text-sm">
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 text-sm">
+        <Metric label="Racha OK" value={summary.cleanMatchedShadowRuns} />
+        <Metric label="Horas limpias" value={summary.cleanEvidenceHours} />
         <Metric label="Shadow" value={summary.shadowRuns} />
         <Metric label="Paridad OK" value={summary.matchedShadowRuns} />
         <Metric label="Mismatch" value={summary.mismatchedShadowRuns} />
@@ -82,8 +85,12 @@ export const RayenClinicalEnrichmentRolloutCard: React.FC<Props> = ({ summary })
         <Metric label="Fallas" value={summary.failureCount} />
         <Metric label="Bloqueos" value={summary.blockedCount} />
         <Metric label="Permisos denegados" value={summary.permissionDeniedCount} />
-        <Metric label="Horas" value={summary.evidenceHours} />
+        <Metric label="Horas auditadas" value={summary.evidenceHours} />
       </div>
+      <p className="mt-2 text-xs opacity-70">
+        La racha limpia decide el gate; los demás contadores conservan la auditoría completa del
+        contrato.
+      </p>
     </section>
   );
 };

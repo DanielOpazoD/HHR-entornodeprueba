@@ -190,6 +190,11 @@ describe('functionsTelemetryService clinical enrichment rollout summary', () => 
       evidenceHours: 9,
       firstEntryAt: '2026-07-29T08:00:00.000Z',
       lastEntryAt: '2026-07-29T17:00:00.000Z',
+      cleanWindowRuns: 4,
+      cleanMatchedShadowRuns: 4,
+      cleanEnforcedWrites: 0,
+      cleanEvidenceHours: 9,
+      lastBlockingSignalAt: undefined,
       recommendation: 'ready_for_enforced',
     });
   });
@@ -251,7 +256,105 @@ describe('functionsTelemetryService clinical enrichment rollout summary', () => 
       unavailableShadowRuns: 1,
       failureCount: 1,
       blockedCount: 1,
+      cleanWindowRuns: 0,
       recommendation: 'investigate',
+    });
+  });
+
+  it('uses a consecutive clean window without erasing earlier mismatches', () => {
+    const entries = [
+      makeClinicalBatchEntry('mismatch', '2026-07-29T07:00:00.000Z', {
+        mode: 'shadow',
+        resultParity: 'mismatch',
+        authorityStatus: 'ok',
+      }),
+      ...[0, 3, 6, 9].map(hours =>
+        makeClinicalBatchEntry(
+          `clean-${hours}`,
+          `2026-07-29T${String(8 + hours).padStart(2, '0')}:00:00.000Z`,
+          { mode: 'shadow', resultParity: 'matched', authorityStatus: 'idempotent' }
+        )
+      ),
+    ];
+
+    expect(buildRayenClinicalEnrichmentRolloutSummary(entries)).toMatchObject({
+      total: 5,
+      matchedShadowRuns: 4,
+      mismatchedShadowRuns: 1,
+      cleanWindowRuns: 4,
+      cleanMatchedShadowRuns: 4,
+      cleanEvidenceHours: 9,
+      lastBlockingSignalAt: '2026-07-29T07:00:00.000Z',
+      recommendation: 'ready_for_enforced',
+    });
+  });
+
+  it.each([
+    ['mismatch', 'success', undefined, { resultParity: 'mismatch', authorityStatus: 'ok' }],
+    ['failure', 'failure', undefined, { resultParity: 'matched', authorityStatus: 'ok' }],
+    ['timeout', 'timeout', undefined, { resultParity: 'matched', authorityStatus: 'ok' }],
+    [
+      'blocked',
+      'failure',
+      'failed-precondition',
+      { resultParity: 'matched', authorityStatus: 'blocked' },
+    ],
+    [
+      'permission denied',
+      'failure',
+      'permission-denied',
+      { resultParity: 'matched', authorityStatus: 'ok' },
+    ],
+  ] as const)(
+    'restarts the clean window after a latest %s signal',
+    (_label, status, errorCode, context) => {
+      const entries = [0, 3, 6, 9].map(hours =>
+        makeClinicalBatchEntry(
+          `clean-${hours}`,
+          `2026-07-29T${String(8 + hours).padStart(2, '0')}:00:00.000Z`,
+          { mode: 'shadow', resultParity: 'matched', authorityStatus: 'ok' }
+        )
+      );
+      entries.push(
+        makeClinicalBatchEntry(
+          'blocker',
+          '2026-07-29T18:00:00.000Z',
+          { mode: 'shadow', ...context },
+          { status, ...(errorCode ? { errorCode } : {}) }
+        )
+      );
+
+      expect(buildRayenClinicalEnrichmentRolloutSummary(entries)).toMatchObject({
+        cleanWindowRuns: 0,
+        cleanMatchedShadowRuns: 0,
+        cleanEvidenceHours: 0,
+        lastBlockingSignalAt: '2026-07-29T18:00:00.000Z',
+        recommendation: 'investigate',
+      });
+    }
+  );
+
+  it('requires the full clean count after a blocking signal', () => {
+    const entries = [
+      makeClinicalBatchEntry('mismatch', '2026-07-29T07:00:00.000Z', {
+        mode: 'shadow',
+        resultParity: 'mismatch',
+        authorityStatus: 'ok',
+      }),
+      ...[0, 4, 9].map(hours =>
+        makeClinicalBatchEntry(
+          `clean-${hours}`,
+          `2026-07-29T${String(8 + hours).padStart(2, '0')}:00:00.000Z`,
+          { mode: 'shadow', resultParity: 'matched', authorityStatus: 'ok' }
+        )
+      ),
+    ];
+
+    expect(buildRayenClinicalEnrichmentRolloutSummary(entries)).toMatchObject({
+      cleanWindowRuns: 3,
+      cleanMatchedShadowRuns: 3,
+      cleanEvidenceHours: 9,
+      recommendation: 'insufficient_data',
     });
   });
 
