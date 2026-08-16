@@ -90,7 +90,7 @@ export const createClinicalCudyrCoordinator = ({
           ? batchOutcome.results.get(clinicalEpisodeId)
           : await enqueueWrite(() => applySingle!(clinicalEpisodeId, priorCensusDay, priorCudyr));
         const notApplicable = result?.applicable === false;
-        priorPersisted = Boolean(result?.persisted || notApplicable);
+        priorPersisted = Boolean(result?.persisted);
         historicalChanged = Boolean(result?.changed);
         if (historicalChanged) onHistoricalPatch();
         if (!result?.persisted && !notApplicable) {
