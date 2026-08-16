@@ -132,6 +132,7 @@ export const applyHistoricalCudyrBatch = async ({
       clinicalEpisodeId,
       persisted: false,
       changed: false,
+      applicable: false,
     }));
   }
   const input = { dailyRecord, censusDay, items: uniqueItems, writeGuard };
@@ -179,6 +180,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       clinicalEpisodeId,
       persisted: false,
       changed: false,
+      applicable: false,
     }));
   }
 

@@ -200,7 +200,14 @@ describe('applyHistoricalCudyr', () => {
           recordScope: 'historical',
         },
       })
-    ).resolves.toEqual([{ clinicalEpisodeId: '142000', persisted: false, changed: false }]);
+    ).resolves.toEqual([
+      {
+        clinicalEpisodeId: '142000',
+        persisted: false,
+        changed: false,
+        applicable: false,
+      },
+    ]);
 
     expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
     expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
@@ -304,7 +311,14 @@ describe('applyHistoricalCudyr', () => {
         runId: 'run-authoritative',
         applyBatch,
       })
-    ).resolves.toEqual([{ clinicalEpisodeId: '142000', persisted: false, changed: false }]);
+    ).resolves.toEqual([
+      {
+        clinicalEpisodeId: '142000',
+        persisted: false,
+        changed: false,
+        applicable: false,
+      },
+    ]);
 
     expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
     expect(applyBatch).not.toHaveBeenCalled();

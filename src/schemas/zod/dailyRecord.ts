@@ -175,6 +175,13 @@ const RayenSyncPerformanceSchema = z.object({
   ),
 });
 
+const RayenSyncStructuralReviewSchema = z.object({
+  structureConfirmed: nullableOptional(z.boolean()),
+  historicalCorrectionsPending: z.boolean(),
+  historicalCorrectionsRequireFreshCapture: z.boolean(),
+  isolatedConflicts: z.number().int().nonnegative(),
+});
+
 const RayenSyncEventSchema = z.object({
   id: z.string(),
   sourceDate: nullableOptional(z.string().regex(DATE_REGEX)),
@@ -193,6 +200,7 @@ const RayenSyncEventSchema = z.object({
     })
   ),
   staffingObservation: nullableOptional(RayenSyncStaffingObservationSchema),
+  structuralReview: nullableOptional(RayenSyncStructuralReviewSchema),
   performance: nullableOptional(RayenSyncPerformanceSchema),
   failureReason: nullableOptional(
     z.enum([
