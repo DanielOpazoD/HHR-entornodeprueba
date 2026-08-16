@@ -162,10 +162,3 @@ export const WhatsAppIntegrationView = lazyWithRetry(() =>
     default: m.WhatsAppIntegrationView,
   }))
 );
-
-// Transfer Management module
-export const TransferManagementView = lazyWithRetry(() =>
-  import('@/features/transfers').then(module => ({
-    default: module.TransferManagementView,
-  }))
-);

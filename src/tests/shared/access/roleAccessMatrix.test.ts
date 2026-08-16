@@ -50,11 +50,9 @@ describe('roleAccessMatrix', () => {
 
   it('keeps nurse_hospital with medical handoff visibility but without edit permission', () => {
     expect(resolveRoleAccess('nurse_hospital')).toMatchObject({
-      modules: expect.arrayContaining(['CENSUS', 'MEDICAL_HANDOFF', 'TRANSFER_MANAGEMENT']),
+      modules: expect.arrayContaining(['CENSUS', 'MEDICAL_HANDOFF']),
     });
-    expect(resolveRoleAccess('nurse_hospital').canEdit).toEqual(
-      expect.arrayContaining(['CENSUS', 'TRANSFER_MANAGEMENT'])
-    );
+    expect(resolveRoleAccess('nurse_hospital').canEdit).toEqual(expect.arrayContaining(['CENSUS']));
     expect(resolveRoleAccess('nurse_hospital').canEdit).not.toContain('MEDICAL_HANDOFF');
   });
 });

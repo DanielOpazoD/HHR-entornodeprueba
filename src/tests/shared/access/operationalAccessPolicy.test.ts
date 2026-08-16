@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   canAccessAppModuleRoute,
   canEditAnyAppModule,
-  canOpenTransferDocuments,
   canManageGlobalCensusEmailRecipients,
   canManageClinicalConflictCenter,
   canEditMedicalHandoffForDate,
@@ -47,7 +46,7 @@ describe('operationalAccessPolicy', () => {
     expect(canViewOrManageBackupFiles('doctor_specialist')).toBe(false);
   });
 
-  it('centralizes admin, export and transfer-document capabilities by intent', () => {
+  it('centralizes admin and export capabilities by intent', () => {
     expect(canUseAdminMaintenanceActions('admin')).toBe(true);
     expect(canUseAdminMaintenanceActions('nurse_hospital')).toBe(false);
     expect(canEditAnyAppModule('admin')).toBe(true);
@@ -66,9 +65,6 @@ describe('operationalAccessPolicy', () => {
       canTriggerCensusExports({ role: 'doctor_specialist', accessProfile: 'specialist' })
     ).toBe(false);
 
-    expect(canOpenTransferDocuments('admin')).toBe(true);
-    expect(canOpenTransferDocuments('nurse_hospital')).toBe(true);
-    expect(canOpenTransferDocuments('doctor_specialist')).toBe(false);
     expect(
       canAccessAppModuleRoute({
         role: 'admin',

@@ -13,6 +13,5 @@ export const patientAutocompleteLogger = createScopedLogger('usePatientAutocompl
 export const storageMigrationLogger = createScopedLogger('useStorageMigration');
 export const syncQueueMonitorLogger = createScopedLogger('useSyncQueueMonitor');
 export const systemHealthReporterLogger = createScopedLogger('SystemHealthReporter');
-export const transferManagementLogger = createScopedLogger('useTransferManagementActions');
 export const globalPatientSearchLogger = createScopedLogger('useGlobalPatientSearch');
 export const versionCheckLogger = createScopedLogger('VersionCheck');

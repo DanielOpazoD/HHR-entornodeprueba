@@ -67,13 +67,6 @@ vi.mock('@/views/LazyViews', () => ({
   MedicalSignatureView: () => <div data-testid="medical-signature-view" />,
   WhatsAppIntegrationView: () => <div data-testid="whatsapp-view" />,
   SystemDiagnosticsView: () => <div data-testid="system-diagnostics-view" />,
-  TransferManagementView: () => {
-    if (lazyRouteState.suspendedViews.has('transfer-management')) {
-      throw lazyRouteState.pendingViewChunk;
-    }
-
-    return <div data-testid="transfer-management-view" />;
-  },
   BackupFilesView: ({ backupType }: { backupType: string }) => (
     <div data-testid="backup-files-view" data-backup-type={backupType} />
   ),
@@ -132,7 +125,6 @@ describe('AppRouter', () => {
       'NURSING_HANDOFF',
       'MEDICAL_HANDOFF',
       'DIAGNOSTICS',
-      'TRANSFER_MANAGEMENT',
     ]);
     mockCanAccessAppModuleRoute.mockReturnValue(true);
     mockCanForceCreateDayCopyOverride.mockReturnValue(true);
@@ -215,21 +207,6 @@ describe('AppRouter', () => {
     expect(screen.queryByTestId('system-diagnostics-view')).not.toBeInTheDocument();
   });
 
-  it('renders transfer management without requiring the protected-route gate', () => {
-    mockCanAccessAppModuleRoute.mockReturnValue(false);
-
-    render(
-      <AppRouter
-        {...createProps({
-          ui: { currentModule: 'TRANSFER_MANAGEMENT' } as AppRouterProps['ui'],
-        })}
-      />
-    );
-
-    expect(screen.getByTestId('section-Traslados')).toBeInTheDocument();
-    expect(screen.getByTestId('transfer-management-view')).toBeInTheDocument();
-  });
-
   it('shows only the internal content loader while handoff chunks are loading', () => {
     lazyRouteState.suspendedViews.add('handoff-nursing');
     lazyRouteState.suspendedViews.add('handoff-medical');
@@ -255,21 +232,6 @@ describe('AppRouter', () => {
 
     expect(screen.getByTestId('view-loader')).toBeInTheDocument();
     expect(screen.queryByTestId('handoff-medical')).not.toBeInTheDocument();
-  });
-
-  it('shows only the internal content loader while transfer management chunks are loading', () => {
-    lazyRouteState.suspendedViews.add('transfer-management');
-
-    render(
-      <AppRouter
-        {...createProps({
-          ui: { currentModule: 'TRANSFER_MANAGEMENT' } as AppRouterProps['ui'],
-        })}
-      />
-    );
-
-    expect(screen.getByTestId('view-loader')).toBeInTheDocument();
-    expect(screen.queryByTestId('transfer-management-view')).not.toBeInTheDocument();
   });
 
   it('renders the signature route ahead of module-specific content', () => {

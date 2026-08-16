@@ -118,8 +118,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         return 'bg-gradient-to-r from-teal-800 via-teal-700 to-teal-800';
       case 'AUDIT':
         return 'bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800';
-      case 'TRANSFER_MANAGEMENT':
-        return 'bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700';
       case 'BACKUP_FILES':
         return 'bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700';
       case 'PATIENT_MASTER_INDEX':

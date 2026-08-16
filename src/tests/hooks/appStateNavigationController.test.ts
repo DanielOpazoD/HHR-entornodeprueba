@@ -14,7 +14,7 @@ describe('appStateNavigationController', () => {
 
     it('resolves known clean paths to their modules', () => {
       expect(resolveModuleFromPathname('/medical-handoff')).toBe('MEDICAL_HANDOFF');
-      expect(resolveModuleFromPathname('/transfer-management')).toBe('TRANSFER_MANAGEMENT');
+      expect(resolveModuleFromPathname('/transfer-management')).toBeNull();
     });
 
     it('returns null for unknown paths', () => {

@@ -184,7 +184,7 @@ describe('appShellLoadingPolicy', () => {
   it('keeps other authenticated module routes on the route chrome while rehydrating', () => {
     expect(
       resolveRuntimeLoadingScreenMode({
-        pathname: '/transfer-management',
+        pathname: '/diagnostics',
         bootstrapState: createLoadingBootstrapState('rehydrating'),
         hasRecentAuthenticatedSessionHint: false,
         hasPersistedFirebaseAuthHint: true,

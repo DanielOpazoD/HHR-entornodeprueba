@@ -17,7 +17,6 @@ Fuente única de constantes de dominio/UI/config para evitar hardcodes.
 | `export.ts`                | Constantes de exportación                 |
 | `firebaseEnvironments.ts`  | Matriz de entornos Firebase               |
 | `firestorePaths.ts`        | Paths/caminos de colecciones Firestore    |
-| `hospitalConfigs.ts`       | Configuración hospitalaria                |
 | `identities.ts`            | Tipos/constantes de identidad             |
 | `navigationConfig.ts`      | Config de navegación por módulo           |
 | `patient.ts`               | Constantes de paciente                    |

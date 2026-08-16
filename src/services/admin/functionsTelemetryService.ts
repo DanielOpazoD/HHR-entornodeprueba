@@ -201,23 +201,43 @@ const resolveClinicalEnrichmentRecommendation = (
   summary: Omit<RayenClinicalEnrichmentRolloutSummary, 'recommendation'>
 ): RayenClinicalEnrichmentRolloutRecommendation => {
   if (summary.total === 0) return 'insufficient_data';
-  if (
-    summary.failureCount > 0 ||
-    summary.blockedCount > 0 ||
-    summary.permissionDeniedCount > 0 ||
-    summary.mismatchedShadowRuns > 0
-  ) {
+  if (summary.cleanWindowRuns === 0 && summary.lastBlockingSignalAt) {
     return 'investigate';
   }
-  if (summary.enforcedWrites > 0) return 'monitor_enforced';
+  if (summary.cleanEnforcedWrites > 0) return 'monitor_enforced';
   if (
-    summary.matchedShadowRuns >= MIN_MATCHED_SHADOW_RUNS &&
-    summary.unavailableShadowRuns === 0 &&
-    summary.evidenceHours >= MIN_SHADOW_EVIDENCE_HOURS
+    summary.cleanMatchedShadowRuns >= MIN_MATCHED_SHADOW_RUNS &&
+    summary.cleanEvidenceHours >= MIN_SHADOW_EVIDENCE_HOURS
   ) {
     return 'ready_for_enforced';
   }
   return 'insufficient_data';
+};
+
+const isClinicalEnrichmentBlockingSignal = (entry: FunctionsTelemetryEntry): boolean => {
+  const mode = readStringContext(entry.context, 'mode');
+  const parity = readStringContext(entry.context, 'resultParity');
+  const authorityStatus = readStringContext(entry.context, 'authorityStatus');
+  return (
+    entry.status !== 'success' ||
+    (mode !== 'shadow' && mode !== 'enforced') ||
+    (mode === 'shadow' && parity !== 'matched') ||
+    authorityStatus === 'blocked' ||
+    entry.errorCode === 'failed-precondition' ||
+    entry.errorCode === 'permission-denied'
+  );
+};
+
+const calculateEvidenceHours = (entries: FunctionsTelemetryEntry[]): number => {
+  const timestamps = entries
+    .map(entry => Date.parse(entry.timestamp))
+    .filter(Number.isFinite)
+    .sort((left, right) => left - right);
+  const firstTimestamp = timestamps[0];
+  const lastTimestamp = timestamps.at(-1);
+  return firstTimestamp != null && lastTimestamp != null
+    ? Math.floor((lastTimestamp - firstTimestamp) / 3_600_000)
+    : 0;
 };
 
 export const buildRayenClinicalEnrichmentRolloutSummary = (
@@ -234,20 +254,23 @@ export const buildRayenClinicalEnrichmentRolloutSummary = (
     0
   );
   // A parity-contract change invalidates previous rollout evidence without deleting its audit log.
-  const batchEntries = allBatchEntries.filter(entry => {
-    const version = Math.max(1, readNumberContext(entry.context, 'parityContractVersion'));
-    return version === parityContractVersion;
-  });
+  const batchEntries = allBatchEntries
+    .filter(entry => {
+      const version = Math.max(1, readNumberContext(entry.context, 'parityContractVersion'));
+      return version === parityContractVersion;
+    })
+    .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp));
   const timestamps = batchEntries
     .map(entry => Date.parse(entry.timestamp))
     .filter(Number.isFinite)
     .sort((left, right) => left - right);
   const firstTimestamp = timestamps[0];
   const lastTimestamp = timestamps.at(-1);
-  const evidenceHours =
-    firstTimestamp != null && lastTimestamp != null
-      ? Math.floor((lastTimestamp - firstTimestamp) / 3_600_000)
-      : 0;
+  const evidenceHours = calculateEvidenceHours(batchEntries);
+  const lastBlockingSignalIndex = batchEntries.findLastIndex(isClinicalEnrichmentBlockingSignal);
+  const cleanWindowEntries = batchEntries.slice(lastBlockingSignalIndex + 1);
+  const lastBlockingSignal =
+    lastBlockingSignalIndex >= 0 ? batchEntries[lastBlockingSignalIndex] : undefined;
   const base = batchEntries.reduce(
     (summary, entry) => {
       const mode = readStringContext(entry.context, 'mode');
@@ -290,6 +313,17 @@ export const buildRayenClinicalEnrichmentRolloutSummary = (
     evidenceHours,
     firstEntryAt: firstTimestamp != null ? new Date(firstTimestamp).toISOString() : undefined,
     lastEntryAt: lastTimestamp != null ? new Date(lastTimestamp).toISOString() : undefined,
+    cleanWindowRuns: cleanWindowEntries.length,
+    cleanMatchedShadowRuns: cleanWindowEntries.filter(
+      entry =>
+        readStringContext(entry.context, 'mode') === 'shadow' &&
+        readStringContext(entry.context, 'resultParity') === 'matched'
+    ).length,
+    cleanEnforcedWrites: cleanWindowEntries.filter(
+      entry => readStringContext(entry.context, 'mode') === 'enforced'
+    ).length,
+    cleanEvidenceHours: calculateEvidenceHours(cleanWindowEntries),
+    lastBlockingSignalAt: lastBlockingSignal?.timestamp,
   };
   return { ...summary, recommendation: resolveClinicalEnrichmentRecommendation(summary) };
 };

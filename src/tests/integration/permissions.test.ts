@@ -91,7 +91,6 @@ describe('Permissions System (RBAC)', () => {
     it('should only see CENSUS module', () => {
       expect(canViewModule(role, 'CENSUS')).toBe(true);
       expect(canViewModule(role, 'AUDIT')).toBe(false);
-      expect(canViewModule(role, 'TRANSFER_MANAGEMENT')).toBe(false);
     });
 
     it('should be strictly read-only', () => {

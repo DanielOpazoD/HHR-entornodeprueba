@@ -17,7 +17,6 @@ export type ModuleType =
   | 'MEDICAL_HANDOFF'
   | 'AUDIT'
   | 'WHATSAPP'
-  | 'TRANSFER_MANAGEMENT'
   | 'BACKUP_FILES'
   | 'PATIENT_MASTER_INDEX'
   | 'DATA_MAINTENANCE'

@@ -95,9 +95,6 @@ export const canTriggerCensusExports = ({
   accessProfile?: CensusAccessProfile;
 }): boolean => canEditAppModule(role, 'CENSUS') && !isSpecialistCensusAccessProfile(accessProfile);
 
-export const canOpenTransferDocuments = (role: SupportedRole): boolean =>
-  canEditAppModule(role, 'TRANSFER_MANAGEMENT');
-
 export const canViewPatientHistoryFromRestrictedProfiles = ({
   accessProfile = 'default',
   hasRut,
