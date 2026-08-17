@@ -15,7 +15,7 @@ describe('CUDYR evidence contract', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('preserves official-history provenance from the page bridge', async () => {
-    const postMessage = vi.spyOn(window, 'postMessage').mockImplementation(message => {
+    vi.spyOn(window, 'postMessage').mockImplementation(message => {
       const request = message as { reqId: string };
       if ((message as { type?: string }).type !== RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE) return;
       queueMicrotask(() => {
