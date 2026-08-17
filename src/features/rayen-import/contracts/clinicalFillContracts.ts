@@ -3,7 +3,8 @@ import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type { ClinicalIncrementalMetrics } from '../domain/clinicalIncrementalSync';
 import type { DeviceTextItem } from '../mapping/parseInvasiveDevices';
 import type { RayenInvasiveDeviceEntry } from '../mapping/mapDeviceToInstance';
-import type { RayenCudyrCategory, RayenHistoryScaleEvent } from '../bridge/rayenImportBridge';
+import type { RayenHistoryScaleEvent } from '../bridge/rayenImportBridge';
+import type { RayenCudyrCategoriesResponse } from './rayenCudyr';
 import type { NursingStaffingProposal, RayenNursingActivity } from './nursingShiftInference';
 import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
 
@@ -37,7 +38,8 @@ export interface ClinicalFillDeps {
     error?: string;
   }>;
   fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;
-  fetchCudyrCategories: () => Promise<{ items: RayenCudyrCategory[]; error?: string }>;
+  /** One run-level capture; official history is required before clinical work starts. */
+  fetchCudyrCategories: () => Promise<RayenCudyrCategoriesResponse>;
   applyHistoricalCudyr?: (
     encId: string,
     censusDay: string,

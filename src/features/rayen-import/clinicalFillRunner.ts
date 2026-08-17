@@ -20,7 +20,6 @@ import type {
   ClinicalFillProgress,
   ClinicalFillSummary,
 } from './contracts/clinicalFillContracts';
-import type { RayenCudyrCategory } from './bridge/rayenImportBridge';
 import { createClinicalFillPerformance } from './domain/clinicalFillPerformance';
 import { persistClinicalBatch } from './domain/clinicalBatchPersistence';
 import {
@@ -29,6 +28,7 @@ import {
 } from './domain/clinicalHistoryReadPolicy';
 import { buildClinicalPatientPatch } from './domain/clinicalPatientPatch';
 import { createClinicalCudyrCoordinator } from './domain/clinicalCudyrCoordinator';
+import { captureClinicalCudyrSource } from './domain/clinicalCudyrPreflight';
 
 export type {
   ClinicalFillDeps,
@@ -82,6 +82,21 @@ export const runClinicalFill = async (
     summary.performance = performance.finish(summary.incremental!);
     return summary;
   }
+  // CUDYR is a run-level preflight: capture Gestión de Camas exactly once and establish whether
+  // its official per-episode history is available before starting any patient clinical reads.
+  const cudyrPreflight = await captureClinicalCudyrSource({
+    fetch: deps.fetchCudyrCategories,
+    trackRequest: performance.trackRequest,
+    recordTimeout: performance.recordTimeout,
+  });
+  const cudyrSource = cudyrPreflight.source;
+  if (cudyrPreflight.unavailableMessage) {
+    summary.errors.push({
+      bedId: '*',
+      source: 'cudyr',
+      message: cudyrPreflight.unavailableMessage,
+    });
+  }
   const nursingObservations: NursingActivityObservation[] = [];
   const withDeviceReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   const withHistoryReadSlot = createConcurrencyGate(READ_CONCURRENCY);
@@ -93,28 +108,12 @@ export const runClinicalFill = async (
     persist: async () => undefined,
   };
   const pendingBatch: ClinicalFillPatchOperation[] = [];
-  // One bulk CUDYR read shared by every patient; a failure/timeout costs only this source. `ok`
-  // marks the read as authoritative — only then may a stale stored category be removed.
-  const cudyrPromise: Promise<{ map: Map<string, RayenCudyrCategory>; ok: boolean }> = performance
-    .trackRequest(() => deps.fetchCudyrCategories())
-    .then(({ items, error }) => {
-      if (error) {
-        performance.recordTimeout(error);
-        summary.errors.push({ bedId: '*', source: 'cudyr', message: error });
-        return { map: new Map<string, RayenCudyrCategory>(), ok: false };
-      }
-      return { map: new Map(items.map(item => [item.encId, item])), ok: true };
-    })
-    .catch(error => {
-      summary.errors.push({ bedId: '*', source: 'cudyr', message: message(error) });
-      return { map: new Map<string, RayenCudyrCategory>(), ok: false };
-    });
   const cudyr = createClinicalCudyrCoordinator({
     censusDate: fecha,
     clinicalEpisodeIds: eligible.flatMap(({ patient }) =>
       patient.clinicalEpisodeId ? [patient.clinicalEpisodeId] : []
     ),
-    source: cudyrPromise,
+    source: cudyrSource,
     applyBatch: deps.applyHistoricalCudyrBatch,
     applySingle: deps.applyHistoricalCudyr,
     enqueueWrite: writes.enqueue,
@@ -392,7 +391,7 @@ export const runClinicalFill = async (
     deps.nurseCatalog ?? [],
     deps.tensCatalog ?? []
   );
-  const cudyrCacheHits = (await cudyrPromise).ok ? Math.max(0, eligible.length - 1) : 0;
+  const cudyrCacheHits = cudyrSource.historyAvailable ? Math.max(0, eligible.length - 1) : 0;
   summary.performance = performance.finish(summary.incremental!, cudyrCacheHits);
 
   return summary;

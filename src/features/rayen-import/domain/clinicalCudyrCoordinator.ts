@@ -5,18 +5,13 @@ import type {
   HistoricalCudyrBatchItem,
   HistoricalCudyrBatchItemResult,
 } from '../contracts/clinicalFillContracts';
-import type { RayenCudyrCategory } from '../bridge/rayenImportBridge';
+import type { ClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { clinicalValuesEqual } from './clinicalIncrementalSync';
-
-interface CudyrSource {
-  map: Map<string, RayenCudyrCategory>;
-  ok: boolean;
-}
 
 interface ClinicalCudyrCoordinatorInput {
   censusDate: string;
   clinicalEpisodeIds: string[];
-  source: Promise<CudyrSource>;
+  source: ClinicalCudyrSource;
   applyBatch?: (
     censusDay: string,
     items: HistoricalCudyrBatchItem[]
@@ -55,30 +50,39 @@ export const createClinicalCudyrCoordinator = ({
   onError,
 }: ClinicalCudyrCoordinatorInput) => {
   const priorCensusDay = previousCensusIsoDay(censusDate);
-  const batchResults: Promise<SharedBatchOutcome> | null = applyBatch
-    ? source
-        .then(({ map }) => {
-          const items = clinicalEpisodeIds.flatMap<HistoricalCudyrBatchItem>(clinicalEpisodeId => {
-            const row = map.get(clinicalEpisodeId);
-            const cudyr = row ? buildImportedCudyr(row, priorCensusDay) : null;
-            return cudyr ? [{ clinicalEpisodeId, cudyr }] : [];
-          });
-          if (items.length === 0) return new Map<string, HistoricalCudyrApplyResult>();
-          return enqueueWrite(() => applyBatch(priorCensusDay, items)).then(indexBatchResults);
-        })
-        .then<SharedBatchOutcome>(results => ({ status: 'fulfilled', results }))
-        .catch(error => ({ status: 'rejected', error }))
-    : null;
+  const batchResults: Promise<SharedBatchOutcome> | null =
+    applyBatch && source.historyAvailable
+      ? Promise.resolve()
+          .then(() => {
+            const items = clinicalEpisodeIds.flatMap<HistoricalCudyrBatchItem>(
+              clinicalEpisodeId => {
+                const row = source.map.get(clinicalEpisodeId);
+                // A fallback-only row has no official history and cannot be archived retrospectively.
+                const cudyr =
+                  row?.source === 'gestion_camas' ? buildImportedCudyr(row, priorCensusDay) : null;
+                return cudyr ? [{ clinicalEpisodeId, cudyr }] : [];
+              }
+            );
+            if (items.length === 0) return new Map<string, HistoricalCudyrApplyResult>();
+            return enqueueWrite(() => applyBatch(priorCensusDay, items)).then(indexBatchResults);
+          })
+          .then<SharedBatchOutcome>(results => ({ status: 'fulfilled', results }))
+          .catch(error => ({ status: 'rejected', error }))
+      : null;
 
   const apply = async (
     patient: PatientData,
     clinicalEpisodeId: string,
     bedId: string
   ): Promise<{ patient: PatientData; historicalChanged: boolean }> => {
-    const { map, ok } = await source;
-    const row = map.get(clinicalEpisodeId);
+    const row = source.map.get(clinicalEpisodeId);
     const currentCudyr = row ? buildImportedCudyr(row, censusDate) : null;
-    const priorCudyr = row ? buildImportedCudyr(row, priorCensusDay) : null;
+    const priorCudyr =
+      source.historyAvailable && row?.source === 'gestion_camas'
+        ? buildImportedCudyr(row, priorCensusDay)
+        : null;
+    const episodeHistoryAuthoritative =
+      source.historyAvailable && (!row || row.source === 'gestion_camas');
     let priorPersisted = !priorCudyr;
     let historicalChanged = false;
 
@@ -119,7 +123,7 @@ export const createClinicalCudyrCoordinator = ({
         historicalChanged,
       };
     }
-    if (!currentCudyr && ok && existingCudyr && priorPersisted) {
+    if (!currentCudyr && episodeHistoryAuthoritative && existingCudyr && priorPersisted) {
       const { cudyr: _removed, ...evaluationScores } = patient.evaluationScores ?? {};
       return { patient: { ...patient, evaluationScores }, historicalChanged };
     }

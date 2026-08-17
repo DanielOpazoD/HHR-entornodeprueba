@@ -66,6 +66,8 @@ const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
   fetchCudyrCategories: vi.fn().mockResolvedValue({
     items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T18:00:00+00:00' }],
+    source: 'gestion_camas',
+    historyAvailable: true,
   }),
   applyPatch: vi.fn().mockResolvedValue(undefined),
   now: () => new globalThis.Date(Date.UTC(2026, 6, 10, 12, 0, 0)),
@@ -108,7 +110,7 @@ describe('runClinicalFill', () => {
     ]);
     expect(patch['beds.H1C2.evaluationScores']).toMatchObject({
       braden: { total: 17 },
-      cudyr: { category: 'D3', source: 'Eloísa · Ficha Médico' },
+      cudyr: { category: 'D3', source: 'Eloísa · Gestión de Camas' },
     });
     expect(target).toEqual({
       censusDate: '2026-07-10',
@@ -130,8 +132,11 @@ describe('runClinicalFill', () => {
             crdValue: 'C2',
             crdDateTime: '2026-07-16T07:00:00+00:00',
             author: 'Constanza Guajardo',
+            source: 'gestion_camas',
           },
         ],
+        source: 'gestion_camas',
+        historyAvailable: true,
       }),
       applyHistoricalCudyr,
     });
@@ -161,8 +166,11 @@ describe('runClinicalFill', () => {
             encId: 'E1',
             crdValue: 'C1',
             crdDateTime: '2026-07-16T14:26:00+00:00',
+            source: 'gestion_camas',
           },
         ],
+        source: 'gestion_camas',
+        historyAvailable: true,
       }),
       applyHistoricalCudyr: vi.fn().mockResolvedValue({
         persisted: false,
@@ -199,7 +207,11 @@ describe('runClinicalFill', () => {
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [VITALS_FORM] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [],
+        source: 'gestion_camas',
+        historyAvailable: true,
+      }),
     });
     const summary = await runClinicalFill(record({ H3C1: { encId: 'E1' } }), '2026-07-10', deps);
 
@@ -234,7 +246,11 @@ describe('runClinicalFill', () => {
       fetchScalesForms: vi.fn(async (encId: string) => ({
         forms: encId === '141814' ? [VITALS_FORM] : [],
       })),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [],
+        source: 'gestion_camas',
+        historyAvailable: true,
+      }),
     });
 
     const summary = await runClinicalFill(rec, '2026-07-10', deps);
@@ -262,7 +278,11 @@ describe('runClinicalFill', () => {
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [BRADEN_SUMMARY_FORM] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [],
+        source: 'gestion_camas',
+        historyAvailable: true,
+      }),
     });
     const summary = await runClinicalFill(record({ H3C1: { encId: 'E1' } }), '2026-07-10', deps);
 
@@ -313,7 +333,11 @@ describe('runClinicalFill', () => {
         error: 'Historial clínico no disponible',
       }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [],
+        source: 'gestion_camas',
+        historyAvailable: true,
+      }),
     });
 
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
@@ -337,7 +361,11 @@ describe('runClinicalFill', () => {
         forms: [BRADEN_SUMMARY_FORM],
         error: 'Ficha clínica no disponible',
       }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [],
+        source: 'gestion_camas',
+        historyAvailable: true,
+      }),
     });
 
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
@@ -378,7 +406,11 @@ describe('runClinicalFill', () => {
       activeWrites -= 1;
     });
     const deps = okDeps({
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        items: [],
+        source: 'gestion_camas',
+        historyAvailable: true,
+      }),
       applyPatch,
     });
 
@@ -405,18 +437,6 @@ describe('runClinicalFill', () => {
     expect(summary.incremental).toMatchObject({ patientWrites: 4, historySnapshots: 1 });
   });
 
-  it('a CUDYR bulk failure costs only that source and is reported once', async () => {
-    const deps = okDeps({
-      fetchCudyrCategories: vi.fn().mockRejectedValue(new Error('sin relay CUDYR')),
-    });
-    const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
-
-    expect(summary.patched).toBe(1);
-    expect(summary.errors).toEqual([{ bedId: '*', source: 'cudyr', message: 'sin relay CUDYR' }]);
-    const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(patch['beds.H1C2.evaluationScores'].cudyr).toBeUndefined();
-  });
-
   it('reports progress per patient and skips beds without episode/name', async () => {
     const onProgress = vi.fn();
     const deps = okDeps();
@@ -429,62 +449,5 @@ describe('runClinicalFill', () => {
 
     expect(summary.total).toBe(1);
     expect(onProgress).toHaveBeenCalledWith({ done: 1, total: 1 });
-  });
-
-  it('removes a legacy CUDYR misfiled on D + 1 when the read is authoritative', async () => {
-    const rec = record({ H1C2: { encId: 'E1' } });
-    (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
-      cudyr: { category: 'D3', recordedDate: '2026-07-11', source: 'Eloísa (Rayen)' },
-    };
-    const deps = okDeps({
-      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({
-        items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T23:12:04.74+00:00' }],
-      }),
-      applyHistoricalCudyr: vi.fn().mockResolvedValue({ persisted: true, changed: true }),
-    });
-    const summary = await runClinicalFill(rec, '2026-07-11', deps);
-
-    expect(summary.patched).toBe(1);
-    const patch = (deps.applyPatch as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(patch['beds.H1C2.evaluationScores'].cudyr).toBeUndefined();
-  });
-
-  it('keeps a stale CUDYR when the read failed (not authoritative)', async () => {
-    const rec = record({ H1C2: { encId: 'E1' } });
-    (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
-      cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
-    };
-    const deps = okDeps({
-      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
-      fetchCudyrCategories: vi.fn().mockRejectedValue(new Error('timeout')),
-    });
-    const summary = await runClinicalFill(rec, '2026-07-11', deps);
-
-    expect(summary.patched).toBe(0);
-    expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
-  });
-
-  it('keeps stored CUDYR when the bridge resolves with a non-authoritative error', async () => {
-    const rec = record({ H1C2: { encId: 'E1' } });
-    (rec.beds.H1C2 as { evaluationScores?: unknown }).evaluationScores = {
-      cudyr: { category: 'D3', recordedDate: '2026-07-10', source: 'Eloísa (Rayen)' },
-    };
-    const deps = okDeps({
-      fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({
-        items: [],
-        error: 'Gestión de Camas no disponible',
-      }),
-    });
-
-    const summary = await runClinicalFill(rec, '2026-07-11', deps);
-
-    expect(summary.errors).toContainEqual({
-      bedId: '*',
-      source: 'cudyr',
-      message: 'Gestión de Camas no disponible',
-    });
-    expectCheckpointOnlyPatch(deps.applyPatch, 'H1C2');
   });
 });

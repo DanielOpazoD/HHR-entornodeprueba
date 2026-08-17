@@ -22,7 +22,11 @@ const deps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   extractDeviceItems: vi.fn().mockResolvedValue([]),
   fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
   fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-  fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+  fetchCudyrCategories: vi.fn().mockResolvedValue({
+    items: [],
+    source: 'gestion_camas',
+    historyAvailable: true,
+  }),
   applyPatch: vi.fn().mockResolvedValue(undefined),
   now: () => new globalThis.Date(Date.UTC(2026, 6, 10, 12, 0, 0)),
   createId: () => 'id-1',

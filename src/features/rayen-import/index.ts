@@ -205,7 +205,12 @@ export {
   requestPatientFlowReport,
 } from './bridge/patientFlowBridge';
 export type { PatientFlowBridgeResult } from './bridge/patientFlowBridge';
-export type { RayenCudyrCategory, RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
+export type {
+  RayenCudyrCategoriesResponse,
+  RayenCudyrCategory,
+  RayenCudyrSource,
+} from './contracts/rayenCudyr';
+export type { RayenHistoryScaleEvent } from './bridge/rayenImportBridge';
 export type {
   RayenExtensionHealthCheck,
   RayenExtensionHealthReport,
