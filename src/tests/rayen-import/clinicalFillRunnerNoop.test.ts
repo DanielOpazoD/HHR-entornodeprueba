@@ -35,6 +35,12 @@ const record = (beds: Record<string, { encId?: string; name?: string }>): DailyR
     lastUpdated: '',
   }) as unknown as DailyRecord;
 
+const authoritativeEmptyCudyr = {
+  items: [],
+  source: 'gestion_camas' as const,
+  historyAvailable: true as const,
+};
+
 const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),
   extractDeviceItems: vi.fn().mockResolvedValue([]),
@@ -44,6 +50,8 @@ const okDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
   fetchCudyrCategories: vi.fn().mockResolvedValue({
     items: [{ encId: 'E1', crdValue: 'D3', crdDateTime: '2026-07-10T18:00:00+00:00' }],
+    source: 'gestion_camas',
+    historyAvailable: true,
   }),
   applyPatch: vi.fn().mockResolvedValue(undefined),
   now: () => new globalThis.Date(Date.UTC(2026, 6, 10, 12, 0, 0)),
@@ -73,7 +81,7 @@ describe('runClinicalFill no-op behavior', () => {
   it('persists a checkpoint-only patch after the first authoritative empty read', async () => {
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue(authoritativeEmptyCudyr),
     });
     const summary = await runClinicalFill(record({ H1C2: { encId: 'E1' } }), '2026-07-10', deps);
 
@@ -115,7 +123,7 @@ describe('runClinicalFill no-op behavior', () => {
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [], nursingActivity: [] }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue(authoritativeEmptyCudyr),
     });
 
     const summary = await runClinicalFill(rec, '2026-07-10', deps);
@@ -170,7 +178,7 @@ describe('runClinicalFill no-op behavior', () => {
         error: 'Historial clínico no disponible',
       }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue(authoritativeEmptyCudyr),
     });
 
     await runClinicalFill(rec, '2026-07-10', deps);
@@ -194,7 +202,7 @@ describe('runClinicalFill no-op behavior', () => {
     const deps = okDeps({
       fetchHistoryScales: vi.fn().mockResolvedValue({ events: [], nursingActivity: [] }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue(authoritativeEmptyCudyr),
     });
 
     await runClinicalFill(rec, '2026-07-10', deps);
@@ -229,7 +237,7 @@ describe('runClinicalFill no-op behavior', () => {
         coverageWindowEndIsoDay: '2026-07-09',
       }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue(authoritativeEmptyCudyr),
     });
 
     await runClinicalFill(rec, '2026-07-10', deps);
@@ -260,7 +268,7 @@ describe('runClinicalFill no-op behavior', () => {
         effectiveLookbackDays: 14,
       }),
       fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-      fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+      fetchCudyrCategories: vi.fn().mockResolvedValue(authoritativeEmptyCudyr),
     });
 
     await runClinicalFill(rec, '2026-07-10', deps);

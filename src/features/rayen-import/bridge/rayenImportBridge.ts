@@ -11,7 +11,15 @@
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { RayenNursingActivity } from '../contracts/nursingShiftInference';
+import type { RayenCudyrCategoriesResponse, RayenCudyrCategory } from '../contracts/rayenCudyr';
 import type { RayenInvasiveDeviceEntry } from '../mapping/mapDeviceToInstance';
+
+export type {
+  RayenCudyrCategoriesResponse,
+  RayenCudyrCategory,
+  RayenCudyrHistoryEntry,
+  RayenCudyrSource,
+} from '../contracts/rayenCudyr';
 
 export {
   RAYEN_IMPORT_MESSAGE_TYPE,
@@ -39,28 +47,6 @@ export const RAYEN_CUDYR_CATEGORIES_RESULT_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_RE
 
 const optionalString = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : undefined;
-
-export interface RayenCudyrHistoryEntry {
-  id?: string;
-  category: string;
-  recordedAt: string;
-  author?: string;
-  authorRole?: string;
-  dependencyScore?: number | null;
-  riskScore?: number | null;
-  items?: Array<{ fieldId: string; label: string; typeId: number; value: string }>;
-}
-
-/** One patient's official CUDYR history, with a Ficha Médico latest-value fallback. */
-export interface RayenCudyrCategory {
-  encId: string;
-  crdValue: string;
-  crdDateTime: string;
-  author?: string;
-  authorRole?: string;
-  source?: 'gestion_camas' | 'ficha_medico';
-  history?: RayenCudyrHistoryEntry[];
-}
 
 /**
  * One clinical-history event carrying an evaluation-instruments resume (Braden/Downton), slimmed by
@@ -359,9 +345,7 @@ export const requestHistoryScales = (
  * worklists. Rayen exposes only the aggregate category (e.g. "D3") + datetime per encounter, not the
  * 14 variables. Resolves to `[]` if the extension / Ficha Médico tab is unavailable or times out.
  */
-export const requestCudyrCategories = (
-  timeoutMs = 30000
-): Promise<{ items: RayenCudyrCategory[]; error?: string }> =>
+export const requestCudyrCategories = (timeoutMs = 30000): Promise<RayenCudyrCategoriesResponse> =>
   new Promise(resolve => {
     if (typeof window === 'undefined') {
       resolve({ items: [] });
@@ -383,6 +367,15 @@ export const requestCudyrCategories = (
       cleanup();
       resolve({
         items: Array.isArray(data.items) ? (data.items as RayenCudyrCategory[]) : [],
+        source:
+          data.source === 'gestion_camas' ||
+          data.source === 'gestion_camas+ficha_medico' ||
+          data.source === 'ficha_medico'
+            ? data.source
+            : undefined,
+        historyAvailable:
+          typeof data.historyAvailable === 'boolean' ? data.historyAvailable : undefined,
+        warning: typeof data.warning === 'string' ? data.warning : undefined,
         error: typeof data.error === 'string' ? data.error : undefined,
       });
     };

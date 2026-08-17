@@ -44,7 +44,11 @@ const deps = (overrides: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
   extractDeviceItems: vi.fn().mockResolvedValue([]),
   fetchHistoryScales: vi.fn().mockResolvedValue({ events: [SCALE_EVENT] }),
   fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-  fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+  fetchCudyrCategories: vi.fn().mockResolvedValue({
+    items: [],
+    source: 'gestion_camas',
+    historyAvailable: true,
+  }),
   applyPatch: vi.fn().mockResolvedValue(undefined),
   now: () => new Date('2026-07-10T12:00:00.000Z'),
   createId: () => 'device-id',

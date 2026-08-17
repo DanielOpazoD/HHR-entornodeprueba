@@ -130,7 +130,11 @@ const replay = async (
     fetchScalesForms: vi.fn(async (episodeId: string) => ({
       forms: evidence.formsByEpisode?.[episodeId] ?? [],
     })),
-    fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+    fetchCudyrCategories: vi.fn().mockResolvedValue({
+      items: [],
+      source: 'gestion_camas',
+      historyAvailable: true,
+    }),
     applyPatch,
     allowedClinicalEpisodeIds: handoff.safeClinicalEpisodeIds,
     now: () => now,

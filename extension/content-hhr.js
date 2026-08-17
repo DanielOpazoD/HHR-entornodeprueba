@@ -28,7 +28,6 @@
  */
 (() => {
   'use strict';
-
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
@@ -37,7 +36,6 @@
     if (event.source !== window) return;
     const data = event.data;
     if (!data) return;
-
     if (data.type === 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
@@ -54,7 +52,6 @@
         });
       return;
     }
-
     if (data.type === 'HHR_RAYEN_REQUEST_SNAPSHOT') {
       chrome.runtime
         .sendMessage({ type: runtimeMessages.SNAPSHOT_REQUEST })
@@ -237,6 +234,9 @@
             type: 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT',
             reqId,
             items: (response && Array.isArray(response.items) && response.items) || [],
+            source: response && response.source,
+            historyAvailable: response && response.historyAvailable,
+            warning: response && response.warning,
             error: response && response.error,
           });
         })

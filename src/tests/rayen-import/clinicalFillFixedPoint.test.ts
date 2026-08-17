@@ -50,7 +50,11 @@ const deps = (applyPatch: ClinicalFillDeps['applyPatch']): ClinicalFillDeps => (
     coverageWindowEndIsoDay: '2026-07-09',
   }),
   fetchScalesForms: vi.fn().mockResolvedValue({ forms: [] }),
-  fetchCudyrCategories: vi.fn().mockResolvedValue({ items: [] }),
+  fetchCudyrCategories: vi.fn().mockResolvedValue({
+    items: [],
+    source: 'gestion_camas',
+    historyAvailable: true,
+  }),
   applyPatch,
   now: () => new Date('2026-07-10T12:00:00.000Z'),
   createId: () => 'unused-id',
