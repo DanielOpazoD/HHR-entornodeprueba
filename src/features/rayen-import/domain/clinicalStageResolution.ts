@@ -87,7 +87,13 @@ export const resolveClinicalStageResult = (
   completionFailed: boolean
 ): ClinicalStageResult => {
   if (summary.errors.length === 0 && !completionFailed) return { status: 'complete' };
+  const hasRetryableCudyrOutage = summary.errors.some(
+    error => error.bedId === '*' && error.source === 'cudyr'
+  );
   const hasGlobalFailure = completionFailed || summary.errors.some(error => error.bedId === '*');
+  const hasTerminalGlobalFailure =
+    completionFailed ||
+    summary.errors.some(error => error.bedId === '*' && error.source !== 'cudyr');
   const failedBedIds = hasGlobalFailure
     ? undefined
     : new Set(summary.errors.map(error => error.bedId));
@@ -124,6 +130,7 @@ export const resolveClinicalStageResult = (
   const hasCompletedTargets =
     summary.patched > 0 ||
     completionFailed ||
+    (hasRetryableCudyrOutage && !hasTerminalGlobalFailure) ||
     (!hasGlobalFailure && failedEpisodeIds.size < eligibleEpisodeIds.size);
   return hasCompletedTargets
     ? { status: 'partial', retry: retryRequest }

@@ -270,6 +270,12 @@ describe('runClinicalFill historical CUDYR batch', () => {
       },
     ]);
     expectCheckpointOnlyPatch(deps.applyPatch);
+    expect(
+      resolveClinicalStageResult(singleRecord(), singleRecord(), undefined, summary, false)
+    ).toMatchObject({
+      status: 'partial',
+      retry: { pendingClinicalEpisodeIds: ['E1'] },
+    });
   });
 
   it('verifies the shared Gestión de Camas capture before starting patient clinical reads', async () => {
