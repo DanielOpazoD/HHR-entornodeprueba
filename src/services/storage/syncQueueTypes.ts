@@ -38,6 +38,8 @@ export interface SyncTask {
   syncContract?: SyncTaskContract;
 }
 
+export type DailyRecordQueuedWriteState = 'none' | 'active' | 'failed' | 'conflict';
+
 export type SyncTaskResolution =
   | 'accepted'
   | 'replayed'

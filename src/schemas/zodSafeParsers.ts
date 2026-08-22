@@ -7,7 +7,7 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import type { SafeParseReturnType } from 'zod';
 
 import { normalizeLegacyNullsDeep } from './zod/legacyNormalization';
-import { DailyRecordSchema } from './zod/dailyRecord';
+import { DailyRecordSchema, RayenBedCollisionResolutionReceiptSchema } from './zod/dailyRecord';
 import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import { buildFallbackPatientData } from './zodFallbackBuilders';
@@ -135,6 +135,12 @@ export const parseDailyRecordWithDefaultsReport = (
       tensDayShift: Array.isArray(raw.tensDayShift) ? raw.tensDayShift : ['', '', ''],
       tensNightShift: Array.isArray(raw.tensNightShift) ? raw.tensNightShift : ['', '', ''],
       activeExtraBeds: Array.isArray(raw.activeExtraBeds) ? raw.activeExtraBeds : [],
+      rayenBedCollisionResolutions: Array.isArray(raw.rayenBedCollisionResolutions)
+        ? raw.rayenBedCollisionResolutions.flatMap(value => {
+            const parsed = RayenBedCollisionResolutionReceiptSchema.safeParse(value);
+            return parsed.success ? [parsed.data] : [];
+          })
+        : undefined,
       handoffDayChecklist: (raw.handoffDayChecklist as DailyRecord['handoffDayChecklist']) || {},
       handoffNightChecklist:
         (raw.handoffNightChecklist as DailyRecord['handoffNightChecklist']) || {},

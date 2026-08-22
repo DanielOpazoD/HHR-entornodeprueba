@@ -1,9 +1,11 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
-import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import type {
+  BedOccupancyCollisionResolution,
+  CensusImportDiff,
+} from '../contracts/censusImportDiff';
 import {
-  Chip,
   ddmmyyyy,
   HistoricalReconstructionReview,
   Section,
@@ -12,7 +14,9 @@ import {
 import { presentPatientUpdates } from './rayenImportUpdatePresentation';
 import { RayenImportWorkingState } from './RayenImportWorkingState';
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
-
+import { EquivalentBedCollisionReview } from './EquivalentBedCollisionReview';
+import { RayenImportSummaryChips } from './RayenImportSummaryChips';
+import { presentRayenWorkingMessage, reservedRayenTargetBedIds } from './rayenImportPreviewState';
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
   diff: CensusImportDiff | null;
@@ -21,16 +25,17 @@ export interface RayenImportPreviewModalProps {
   isApplied?: boolean;
   targetDate?: string | null;
   /** Whether to also file confirmed cross-day admission/discharge corrections. */
-  onConfirm: (applyPreviousDays: boolean) => void;
+  onConfirm: (
+    applyPreviousDays: boolean,
+    bedCollisionResolutions?: BedOccupancyCollisionResolution[]
+  ) => void;
   onCancel: () => void;
 }
-
 const dischargeKindLabel: Record<string, string> = {
   alta: 'Alta',
   traslado: 'Traslado a otro hospital',
   cma: 'Egreso CMA',
 };
-
 const updateEntryKey = (entry: CensusImportDiff['updates'][number]): string => {
   const subject = entry.source?.encounterId || entry.rut || entry.patientName;
   const fields = entry.changes.map(change => String(change.field)).sort();
@@ -49,32 +54,29 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
 }) => {
   const hasChanges =
     !!diff &&
-    diff.summary.admissions +
+    (diff.summary.admissions +
       diff.summary.updates +
       diff.summary.moves +
       diff.summary.discharges +
       (diff.reportEgresos?.length ?? 0) >
-      0;
+      0 ||
+      (diff.bedOccupancyCollisions?.length ?? 0) > 0);
 
-  // Modifying a previous day requires an explicit acknowledgment; reset it each time the modal opens.
   const previousDayEdits = diff?.previousDayEdits ?? [];
   const needsPreviousDayAck = previousDayEdits.length > 0;
-  // Days that will receive a cross-day correction — used to tag each affected egreso in its own
-  // list ("→ se grabará el …, no hoy"), so the section wording never suggests it lands today.
   const previousDays = new Set(previousDayEdits.map(edit => edit.day));
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
+  const [collisionResolutions, setCollisionResolutions] = React.useState<
+    BedOccupancyCollisionResolution[]
+  >([]);
   React.useEffect(() => {
-    if (isOpen) setAcceptedPreviousDays(false);
-  }, [isOpen]);
+    if (isOpen) {
+      setAcceptedPreviousDays(false);
+      setCollisionResolutions([]);
+    }
+  }, [isOpen, diff?.bedOccupancyCollisions]);
   const hasConflicts = Boolean(diff?.summary.conflicts);
-  const workingMessage =
-    stage?.type === 'persisting_structure'
-      ? 'Guardando los cambios del censo…'
-      : stage?.type === 'verifying_structure'
-        ? 'Confirmando la versión guardada…'
-        : stage?.type === 'syncing_clinical'
-          ? 'Completando signos vitales, escalas y dispositivos…'
-          : null;
+  const workingMessage = presentRayenWorkingMessage(stage);
   const isWorking = workingMessage !== null;
   const presentedUpdates = React.useMemo(
     () => presentPatientUpdates(diff?.updates ?? []),
@@ -83,7 +85,13 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   const historicalConflicts =
     diff?.conflicts.filter(entry => entry.code === 'historical-reconstruction') ?? [];
   const blockingConflicts =
-    diff?.conflicts.filter(entry => entry.code !== 'historical-reconstruction') ?? [];
+    diff?.conflicts.filter(
+      entry =>
+        entry.code !== 'historical-reconstruction' && entry.code !== 'cma-physical-bed-collision'
+    ) ?? [];
+  const bedCollisions = diff?.bedOccupancyCollisions ?? [];
+  const reservedCollisionTargetBedIds = reservedRayenTargetBedIds(diff);
+  const allBedCollisionsResolved = collisionResolutions.length === bedCollisions.length;
   const canReview =
     !stage ||
     stage.type === 'awaiting_review' ||
@@ -126,31 +134,13 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
           <>
             {showReview && (
               <div>
-                <div className="flex flex-wrap gap-2">
-                  <Chip label="Ingresos" value={diff.summary.admissions} tone="green" />
-                  <Chip label="Actualizaciones" value={presentedUpdates.length} tone="blue" />
-                  <Chip label="Movimientos de cama" value={diff.summary.moves} tone="teal" />
-                  <Chip label="Egresos" value={diff.summary.discharges} tone="amber" />
-                  <Chip
-                    label="Pend. alta administrativa"
-                    value={diff.summary.pendingAdministrativeDischarges}
-                    tone="indigo"
-                  />
-                  <Chip label="Sin cambios" value={diff.summary.unchanged} tone="gray" />
-                  {historicalConflicts.length > 0 && (
-                    <Chip label="Por revisar" value={historicalConflicts.length} tone="amber" />
-                  )}
-                  {blockingConflicts.length > 0 && (
-                    <Chip label="Conflictos" value={blockingConflicts.length} tone="red" />
-                  )}
-                  {(diff.reportEgresos?.length ?? 0) > 0 && (
-                    <Chip
-                      label="Egresos no sincronizados"
-                      value={diff.reportEgresos?.length ?? 0}
-                      tone="amber"
-                    />
-                  )}
-                </div>
+                <RayenImportSummaryChips
+                  diff={diff}
+                  presentedUpdates={presentedUpdates.length}
+                  historicalConflicts={historicalConflicts.length}
+                  blockingConflicts={blockingConflicts.length}
+                  bedCollisions={bedCollisions.length}
+                />
 
                 <Section title="Ingresos" count={diff.admissions.length}>
                   {diff.admissions.map(entry => (
@@ -237,6 +227,14 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 </Section>
 
                 <HistoricalReconstructionReview conflicts={historicalConflicts} />
+
+                {bedCollisions.length > 0 && (
+                  <EquivalentBedCollisionReview
+                    collisions={bedCollisions}
+                    reservedTargetBedIds={reservedCollisionTargetBedIds}
+                    onChange={setCollisionResolutions}
+                  />
+                )}
 
                 <Section title="Cambios que requieren revisión" count={blockingConflicts.length}>
                   {blockingConflicts.map((entry, index) => (
@@ -377,11 +375,14 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         {showReview && hasChanges && (
           <button
             type="button"
-            // Today's changes always apply; the días-previos ack only gates the historical copy.
             onClick={() => {
-              onConfirm(acceptedPreviousDays);
+              if (bedCollisions.length > 0) {
+                onConfirm(acceptedPreviousDays, collisionResolutions);
+              } else {
+                onConfirm(acceptedPreviousDays);
+              }
             }}
-            disabled={isWorking || !hasChanges}
+            disabled={isWorking || !hasChanges || !allBedCollisionsResolved}
             className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
           >
             Confirmar e importar

@@ -21,6 +21,7 @@ import {
 import {
   ID_BASED_ARRAY_FIELDS,
   UNIQUE_ARRAY_FIELDS,
+  mergeArrayById,
   mergeBeds,
   mergeUniquePrimitiveArray,
   mergePatientData,
@@ -148,6 +149,12 @@ const resolveWholeRecord = (
       'activeExtraBeds'
     ),
     rayenSyncHistory: mergeRayenSyncHistory(remote.rayenSyncHistory, local.rayenSyncHistory),
+    rayenBedCollisionResolutions: mergeArrayById(
+      remote.rayenBedCollisionResolutions || [],
+      local.rayenBedCollisionResolutions || [],
+      traceContext,
+      'rayenBedCollisionResolutions'
+    ),
     ...mergeRecordObjectFields(remote, local, preferLocal, traceContext),
     lastUpdated: toIso(Math.max(remoteTs, localTs)),
   };

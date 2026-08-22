@@ -76,6 +76,9 @@ describe('useRayenCensusDiffApplication', () => {
         ensureRun: () => run as never,
         applyRunToRecord,
         saveDailyRecord: saveDailyRecord as never,
+        loadLocalRecord: vi
+          .fn()
+          .mockResolvedValue({ record: null, hasPendingWrites: false, writeState: 'none' }),
         recordRunPerformance: vi.fn(),
       })
     );
@@ -135,6 +138,9 @@ describe('useRayenCensusDiffApplication', () => {
         ensureRun: () => run as never,
         applyRunToRecord,
         saveDailyRecord: saveDailyRecord as never,
+        loadLocalRecord: vi
+          .fn()
+          .mockResolvedValue({ record: null, hasPendingWrites: false, writeState: 'none' }),
         recordRunPerformance: vi.fn(),
       })
     );

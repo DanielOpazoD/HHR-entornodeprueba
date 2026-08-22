@@ -5,7 +5,10 @@ import type {
   SyncDailyRecordResult,
   UpdatePartialDailyRecordResult,
 } from '@/services/repositories/contracts/dailyRecordResults';
-import type { DailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import type {
+  DailyRecordReadResult,
+  LocalDailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 import type {
   PartialUpdateDailyRecordOptions,
   SaveDailyRecordOptions,
@@ -101,9 +104,14 @@ const updatePartialDailyRecord = (
 
 const saveDailyRecord = (
   record: DailyRecord,
-  expectedLastUpdated?: string
+  expectedLastUpdated?: string,
+  options?: SaveDailyRecordOptions
 ): Promise<SaveDailyRecordResult> =>
-  withWriteService(service => service.saveDetailed(record, expectedLastUpdated));
+  withWriteService(service =>
+    options
+      ? service.saveDetailed(record, expectedLastUpdated, options)
+      : service.saveDetailed(record, expectedLastUpdated)
+  );
 
 const deleteDailyRecord = (date: string): Promise<void> =>
   withFacadeSupportService(service => service.deleteDailyRecordAcrossStores(date));
@@ -117,6 +125,12 @@ export interface DailyRecordReadPort {
   getMonthRecords: (year: number, monthZeroBased: number) => Promise<DailyRecord[]>;
   getForDate: (date: string) => Promise<DailyRecord | null>;
   getForDateWithMeta: (date: string, syncFromRemote?: boolean) => Promise<DailyRecordReadResult>;
+  /** Exact remote census used as the base for an optimistic structural CAS. */
+  getAuthoritativeForDate: (date: string) => Promise<DailyRecord | null>;
+  /** Exact local candidate used only to retain pending app-managed fields before structural CAS. */
+  getLocalForDate: (date: string) => Promise<DailyRecord | null>;
+  /** Exact local candidate plus proof that its version remains in the active outbox. */
+  getLocalForDateWithMeta: (date: string) => Promise<LocalDailyRecordReadResult>;
   initializeDay: (date: string, copyFromDate?: string) => Promise<DailyRecord>;
   getPreviousDayWithMeta: (date: string) => Promise<DailyRecordReadResult>;
 }
@@ -181,6 +195,11 @@ export const defaultDailyRecordReadPort: DailyRecordReadPort = {
   getForDate: date => withReadService(service => service.getForDate(date)),
   getForDateWithMeta: (date, syncFromRemote = true) =>
     withReadService(service => service.getForDateWithMeta(date, syncFromRemote)),
+  getAuthoritativeForDate: date =>
+    withReadService(service => service.getAuthoritativeForDate(date)),
+  getLocalForDate: date => withReadService(service => service.getLocalForDate(date)),
+  getLocalForDateWithMeta: date =>
+    withReadService(service => service.getLocalForDateWithMeta(date)),
   initializeDay: (date, copyFromDate) =>
     withInitializationService(service => service.initializeDay(date, copyFromDate)),
   getPreviousDayWithMeta: date => withReadService(service => service.getPreviousDayWithMeta(date)),

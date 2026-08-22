@@ -28,6 +28,9 @@ import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryCont
 const buildMockDailyRecordRepository = (): DailyRecordRepositoryPort => ({
   getForDate: vi.fn(),
   getForDateWithMeta: vi.fn(),
+  getAuthoritativeForDate: vi.fn(),
+  getLocalForDate: vi.fn(),
+  getLocalForDateWithMeta: vi.fn(),
   getPreviousDay: vi.fn(),
   getPreviousDayWithMeta: vi.fn(),
   getAvailableDates: vi.fn(),

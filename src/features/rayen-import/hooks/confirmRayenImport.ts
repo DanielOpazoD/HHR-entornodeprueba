@@ -30,6 +30,8 @@ const comparableStructuralPlan = (diff: CensusImportDiff) => ({
   discharges: diff.discharges,
   pendingAdministrativeDischarges: diff.pendingAdministrativeDischarges,
   conflicts: diff.conflicts,
+  bedOccupancyCollisions: diff.bedOccupancyCollisions,
+  bedOccupancyCollisionResolutions: diff.bedOccupancyCollisionResolutions,
   activeClinicalCribs: diff.activeClinicalCribs,
   reportEgresos: diff.reportEgresos,
   previousDayEdits: diff.previousDayEdits,

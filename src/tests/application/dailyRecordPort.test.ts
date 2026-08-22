@@ -9,6 +9,9 @@ import {
 } from '@/application/ports/dailyRecordPort';
 
 const readService = {
+  getAuthoritativeForDate: vi.fn(),
+  getLocalForDate: vi.fn(),
+  getLocalForDateWithMeta: vi.fn(),
   getForDate: vi.fn(),
   getForDateWithMeta: vi.fn(),
   getPreviousDay: vi.fn(),
@@ -59,24 +62,37 @@ describe('dailyRecordPort lazy facade', () => {
     facadeSupportService.deleteDailyRecordAcrossStores.mockResolvedValue(undefined);
 
     await defaultDailyRecordReadPort.getForDate('2026-04-10');
+    await defaultDailyRecordReadPort.getAuthoritativeForDate('2026-04-10');
+    await defaultDailyRecordReadPort.getLocalForDate('2026-04-10');
+    await defaultDailyRecordReadPort.getLocalForDateWithMeta('2026-04-10');
     await defaultDailyRecordReadPort.getMonthRecords(2026, 3);
     await defaultDailyRecordWritePort.updatePartial('2026-04-10', {
       patientName: 'Ana',
     });
     await defaultDailyRecordWritePort.save({ date: '2026-04-10' } as never);
-    await defaultDailyRecordRepositoryPort.saveDetailed({ date: '2026-04-11' } as never);
+    await defaultDailyRecordRepositoryPort.saveDetailed(
+      { date: '2026-04-11' } as never,
+      'revision-1',
+      { requireConfirmedRecord: true, rayenStructuralWriteGuard: true }
+    );
     await defaultDailyRecordRepositoryPort.updatePartialDetailed('2026-04-11', {
       patientName: 'Beto',
     });
     await defaultDailyRecordRepositoryPort.deleteDay('2026-04-10');
 
     expect(readService.getForDate).toHaveBeenCalledWith('2026-04-10');
+    expect(readService.getAuthoritativeForDate).toHaveBeenCalledWith('2026-04-10');
+    expect(readService.getLocalForDate).toHaveBeenCalledWith('2026-04-10');
+    expect(readService.getLocalForDateWithMeta).toHaveBeenCalledWith('2026-04-10');
     expect(readService.getMonthRecords).toHaveBeenCalledWith(2026, 3);
     expect(writeService.updatePartialDetailed).toHaveBeenCalledWith('2026-04-10', {
       patientName: 'Ana',
     });
     expect(writeService.saveDetailed).toHaveBeenCalledWith({ date: '2026-04-10' }, undefined);
-    expect(writeService.saveDetailed).toHaveBeenCalledWith({ date: '2026-04-11' }, undefined);
+    expect(writeService.saveDetailed).toHaveBeenCalledWith({ date: '2026-04-11' }, 'revision-1', {
+      requireConfirmedRecord: true,
+      rayenStructuralWriteGuard: true,
+    });
     expect(writeService.updatePartialDetailed).toHaveBeenCalledWith('2026-04-11', {
       patientName: 'Beto',
     });

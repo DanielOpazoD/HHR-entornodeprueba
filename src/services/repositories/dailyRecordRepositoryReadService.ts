@@ -7,8 +7,11 @@ import {
 import { logLegacyInfo } from '@/services/storage/legacyfirebase/legacyFirebaseLogger';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { bridgeLegacyRecord } from '@/services/repositories/legacyRecordBridgeService';
-import {
+import type {
   DailyRecordReadResult,
+  LocalDailyRecordReadResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
+import {
   createGetDailyRecordQuery,
   createGetPreviousDayQuery,
 } from '@/services/repositories/contracts/dailyRecordQueries';
@@ -29,6 +32,7 @@ import {
   attemptRemoteGoldenPathRead,
   resolveRemoteGoldenPathReadResult,
 } from '@/services/repositories/dailyRecordRemoteReadController';
+import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 
 type FirestoreRecordQueriesModule =
   typeof import('@/services/storage/firestore/firestoreRecordQueries');
@@ -98,6 +102,54 @@ export const getForDate = async (
 ): Promise<DailyRecord | null> => {
   const result = await getForDateWithMeta(date, syncFromRemote);
   return result.record;
+};
+
+/**
+ * Reads the server-authoritative census without combining it with pending IndexedDB state.
+ * Structural Rayen planning must start here: the ordinary golden read intentionally preserves
+ * concurrent local edits and can therefore show one episode in both its old and new bed.
+ */
+export const getAuthoritativeForDate = async (date: string): Promise<DailyRecord | null> => {
+  const e2eOverride = getE2EOverrideRecord(date);
+  if (e2eOverride) return e2eOverride;
+
+  if (!isFirestoreEnabled()) {
+    throw new Error(
+      'La sincronización estructural con Eloísa requiere una versión autoritativa remota.'
+    );
+  }
+
+  return measureRepositoryOperation(
+    'dailyRecord.getAuthoritativeForDate',
+    async () => {
+      const { loadRemoteRecordWithFallback } = await loadDailyRecordRemoteLoader();
+      return (await loadRemoteRecordWithFallback(date)).record;
+    },
+    { thresholdMs: 220, context: date }
+  );
+};
+
+/**
+ * Reads the exact local IndexedDB candidate without hydrating or combining it with Firestore.
+ * Structural persistence uses it only to retain pending local fields while the remote record
+ * remains authoritative for the episode-to-bed placement and CAS revision.
+ */
+export const getLocalForDate = async (date: string): Promise<DailyRecord | null> => {
+  return getE2ELocalStorageRecord(date) || getRecordFromIndexedDB(date);
+};
+
+export const getLocalForDateWithMeta = async (
+  date: string
+): Promise<LocalDailyRecordReadResult> => {
+  const record = await getLocalForDate(date);
+  const writeState = record
+    ? await getDailyRecordWriteStateForVersion(date, record.lastUpdated)
+    : 'none';
+  return {
+    record,
+    hasPendingWrites: writeState === 'active',
+    writeState,
+  };
 };
 
 export const getForDateWithMeta = async (

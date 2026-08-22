@@ -17,6 +17,7 @@ import type {
 } from './dailyRecordMedicalHandoff';
 import type { DailyRecordStaffingDetailsV1 } from './dailyRecordStaffingDetails';
 import type { RayenSyncEvent, RayenSyncMeta } from './rayenSync';
+import type { RayenBedCollisionResolutionReceipt } from './rayenBedCollision';
 
 type PatientFieldPath = `beds.${string}.${keyof PatientData}`;
 type PatientCudyrPath = `beds.${string}.cudyr.${keyof CudyrScore}`;
@@ -63,6 +64,7 @@ type TopLevelValueMap = {
   bedTypeOverrides: Record<string, BedType>;
   rayenSync: RayenSyncMeta | undefined;
   rayenSyncHistory: RayenSyncEvent[] | undefined;
+  rayenBedCollisionResolutions: RayenBedCollisionResolutionReceipt[] | undefined;
 };
 
 type TopLevelPath = keyof TopLevelValueMap;

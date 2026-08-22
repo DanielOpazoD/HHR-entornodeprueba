@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  getAuthoritativeForDate,
   getForDateWithMeta,
+  getLocalForDate,
+  getLocalForDateWithMeta,
   getMonthRecords,
 } from '@/services/repositories/dailyRecordRepositoryReadService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -35,12 +38,18 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
   loadRemoteRecordWithFallback: vi.fn(),
 }));
 
+vi.mock('@/services/storage/sync/dailyRecordSyncQueueReadService', () => ({
+  getDailyRecordWriteStateForVersion: vi.fn(),
+}));
+
 import {
   getRecordForDate as getRecordFromIndexedDB,
   saveRecordStrict as saveToIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import { getMonthRecordsFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
+import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord =>
   ({
@@ -68,6 +77,8 @@ const buildRecord = (date: string, lastUpdated: string): DailyRecord =>
 describe('dailyRecordRepositoryReadService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isFirestoreEnabled).mockReturnValue(true);
+    vi.mocked(getDailyRecordWriteStateForVersion).mockResolvedValue('none');
     window.localStorage.clear();
     window.__HHR_E2E_OVERRIDE__ = undefined;
   });
@@ -107,6 +118,82 @@ describe('dailyRecordRepositoryReadService', () => {
           R2: expect.objectContaining({ patientName: 'REMOTE NEW PATIENT' }),
         }),
       })
+    );
+  });
+
+  it('returns the exact remote census for structural planning without merging local bed state', async () => {
+    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
+    local.beds = {
+      R1: {
+        bedId: 'R1',
+        patientName: 'PATIENT',
+        clinicalEpisodeId: 'episode-move',
+      },
+    } as unknown as DailyRecord['beds'];
+    const remote = buildRecord('2026-03-19', '2026-03-19T12:00:00.000Z');
+    remote.beds = {
+      R4: {
+        bedId: 'R4',
+        patientName: 'PATIENT',
+        clinicalEpisodeId: 'episode-move',
+      },
+    } as unknown as DailyRecord['beds'];
+
+    vi.mocked(loadRemoteRecordWithFallback).mockResolvedValueOnce({
+      record: remote,
+      source: 'firestore',
+      compatibilityTier: 'current_firestore',
+      compatibilityIntensity: 'none',
+      migrationRulesApplied: [],
+      cachedLocally: false,
+    });
+
+    const result = await getAuthoritativeForDate('2026-03-19');
+
+    expect(result).toBe(remote);
+    expect(result?.beds.R1).toBeUndefined();
+    expect(result?.beds.R4.clinicalEpisodeId).toBe('episode-move');
+    expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when structural planning has no remote authority', async () => {
+    vi.mocked(isFirestoreEnabled).mockReturnValue(false);
+
+    await expect(getAuthoritativeForDate('2026-03-19')).rejects.toThrow(
+      'requiere una versión autoritativa remota'
+    );
+    expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
+  });
+
+  it('returns the exact local candidate without merging the remote census', async () => {
+    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
+    local.beds = {
+      R1: {
+        bedId: 'R1',
+        patientName: 'LOCAL PATIENT',
+        clinicalEpisodeId: 'episode-move',
+      },
+    } as unknown as DailyRecord['beds'];
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
+
+    const result = await getLocalForDate('2026-03-19');
+
+    expect(result).toBe(local);
+    expect(loadRemoteRecordWithFallback).not.toHaveBeenCalled();
+  });
+
+  it('reports active outbox proof only for the exact local record version', async () => {
+    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
+    vi.mocked(getDailyRecordWriteStateForVersion).mockResolvedValueOnce('active');
+
+    const result = await getLocalForDateWithMeta('2026-03-19');
+
+    expect(result).toEqual({ record: local, hasPendingWrites: true, writeState: 'active' });
+    expect(getDailyRecordWriteStateForVersion).toHaveBeenCalledWith(
+      '2026-03-19',
+      local.lastUpdated
     );
   });
 

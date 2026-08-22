@@ -104,7 +104,7 @@ describe('useRayenImportConfirmation execution ownership', () => {
         recordRunPerformance: vi.fn(),
         applyDiff: vi.fn() as never,
         runClinicalStage,
-        loadFreshClinicalRecord: vi.fn(),
+        loadAuthoritativeStructuralRecord: vi.fn(),
         runSerializedPersistence: operation => operation(),
       })
     );

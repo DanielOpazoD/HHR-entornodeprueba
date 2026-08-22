@@ -26,7 +26,12 @@ import {
   shouldKeepExplicitLocalCensusValue,
 } from '@/services/repositories/conflictResolutionPatientMergeGuards';
 
-export const ID_BASED_ARRAY_FIELDS = new Set(['discharges', 'transfers', 'cma']);
+export const ID_BASED_ARRAY_FIELDS = new Set([
+  'discharges',
+  'transfers',
+  'cma',
+  'rayenBedCollisionResolutions',
+]);
 export const UNIQUE_ARRAY_FIELDS = new Set(['activeExtraBeds']);
 export const PATIENT_ID_ARRAY_FIELDS = new Set([
   'clinicalEvents',

@@ -11,6 +11,7 @@ import type {
   DailyRecordSourceOfTruth,
   DailyRecordSyncConsistencyState,
 } from '@/services/repositories/contracts/dailyRecordConsistency';
+import type { DailyRecordQueuedWriteState } from '@/services/storage/syncQueueTypes';
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -46,6 +47,14 @@ export interface DailyRecordReadResult {
   observabilityTags: string[];
   userSafeMessage?: string;
   repairApplied: boolean;
+}
+
+export interface LocalDailyRecordReadResult {
+  record: DailyRecord | null;
+  /** The local record is still represented by an active outbox write for this exact version. */
+  hasPendingWrites: boolean;
+  /** Exact outbox state used to block overwriting unresolved failed/conflicted local edits. */
+  writeState: DailyRecordQueuedWriteState;
 }
 
 export type DailyRecordQueryAvailabilityState =

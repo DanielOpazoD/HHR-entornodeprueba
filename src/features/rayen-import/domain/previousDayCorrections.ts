@@ -100,13 +100,25 @@ export const computePreviousDayEdits = async (
   const days = previousDays(diff, censusDay);
   if (days.length === 0) return { edits: [], reportEgresos };
   const records = new Map<string, DailyRecord | null>();
+  const pendingLocalRecords = new Map<string, DailyRecord>();
   await Promise.all(
     days.map(async day => {
-      records.set(day, await port.getForDate(day));
+      const [authoritative, local] = await Promise.all([
+        port.getAuthoritativeForDate(day),
+        port.getLocalForDateWithMeta(day),
+      ]);
+      if (local.writeState === 'failed' || local.writeState === 'conflict') {
+        throw new Error(
+          `El censo del ${day} tiene cambios locales que no pudieron guardarse. Resuélvelos antes de sincronizar con Eloísa.`
+        );
+      }
+      records.set(day, authoritative);
+      if (local.hasPendingWrites && local.record) pendingLocalRecords.set(day, local.record);
     })
   );
   const alreadyDischarged = (day: string, rut: string): boolean =>
-    recordHasEgresoForRut(records.get(day), rut);
+    recordHasEgresoForRut(records.get(day), rut) ||
+    recordHasEgresoForRut(pendingLocalRecords.get(day), rut);
 
   const dischargeEdits = planPreviousDayEdits(diff, censusDay, {
     recordExists: day => !!records.get(day),

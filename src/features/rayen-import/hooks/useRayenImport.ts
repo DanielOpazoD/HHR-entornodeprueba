@@ -41,6 +41,7 @@ import {
   type ClinicalStageResult,
 } from '../contracts/clinicalStageResult';
 import { isConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
+import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
 export const useRayenImport = (selectedCensusDate?: string) => {
   const queryClient = useQueryClient();
   const { data: nursesList = [] } = useNursesQuery();
@@ -95,10 +96,28 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     },
     [dailyRecord]
   );
+  const loadAuthoritativeStructuralRecord = useCallback(
+    async (date: string): Promise<DailyRecord> => {
+      const record = await dailyRecord.getAuthoritativeForDate(date);
+      if (!record) throw new Error('No se pudo obtener la versión autoritativa del censo.');
+      return record as DailyRecord;
+    },
+    [dailyRecord]
+  );
+  const loadLocalStructuralRecord = useCallback(
+    (date: string) => dailyRecord.getLocalForDateWithMeta(date),
+    [dailyRecord]
+  );
   const syncActor = currentUser?.displayName || currentUser?.email || 'Usuario sin nombre';
   const saveRayenCensus = useCallback(
-    (record: DailyRecord, expectedLastUpdated: string) =>
-      saveDailyRecordMutation({ record, expectedLastUpdated, requireConfirmedRecord: true }),
+    (record: DailyRecord, expectedLastUpdated: string, writeLease: DailyRecordWriteLease) =>
+      saveDailyRecordMutation({
+        record,
+        expectedLastUpdated,
+        requireConfirmedRecord: true,
+        rayenStructuralWriteGuard: true,
+        dailyRecordWriteLease: writeLease,
+      }),
     [saveDailyRecordMutation]
   );
   const runSerializedPersistence = useCallback(<T>(operation: () => Promise<T>): Promise<T> => {
@@ -159,6 +178,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     ensureRun,
     applyRunToRecord,
     saveDailyRecord: saveRayenCensus,
+    loadLocalRecord: loadLocalStructuralRecord,
     recordRunPerformance,
   });
   const { applyHistoricalCudyr, applyHistoricalCudyrBatch, applyHistoricalCudyrEnforcedBatch } =
@@ -198,14 +218,12 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     async (request: ClinicalFillRequest): Promise<ClinicalStageResult> => {
       const result = await fillClinicalData(request);
       const source = isClinicalRetryToken(request) ? request.source : request;
-      const runId = isConfirmedRayenCensusHandoff(source)
-        ? source.runId
-        : source.rayenSync?.runId;
+      const runId = isConfirmedRayenCensusHandoff(source) ? source.runId : source.rayenSync?.runId;
       const activeRunId =
         executionRef.current.context?.runId ?? executionRef.current.pending?.runId;
       if (executionRef.current.stage?.type === 'syncing_clinical' && activeRunId === runId) {
         clinicalRetryTokenRef.current =
-          result.status === 'complete' ? null : result.retry ?? null;
+          result.status === 'complete' ? null : (result.retry ?? null);
       }
       finishClinicalSync(result, runId);
       return result;
@@ -229,6 +247,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     preparedSyncContextRef,
     structuralReplanRef,
     runSerializedPersistence,
+    loadAuthoritativeStructuralRecord,
   });
   const triggerImport = useRayenImportCapture({
     currentRecord,
@@ -243,7 +262,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     clearSyncTimeout,
     syncRequestController,
     preparedSyncContextRef,
-    loadFreshRecord: loadFreshClinicalRecord,
+    loadFreshRecord: loadAuthoritativeStructuralRecord,
     startRun,
     failRun: failRunSerialized,
     cancelRun,
@@ -293,7 +312,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     recordRunPerformance,
     applyDiff,
     runClinicalStage,
-    loadFreshClinicalRecord,
+    loadAuthoritativeStructuralRecord,
     runSerializedPersistence,
   });
   const cancel = useCallback(() => {
