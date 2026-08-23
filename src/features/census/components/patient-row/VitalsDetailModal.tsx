@@ -57,11 +57,17 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
   profile,
   onClose,
 }) => {
-  const rows = buildVitalsHistory(history, record =>
-    birthDate
-      ? resolveVitalSignsProfile({ age, birthDate, referenceDate: record.recordedDate })
-      : 'unknown'
-  );
+  const rows = buildVitalsHistory(history, record => {
+    if (birthDate) {
+      return resolveVitalSignsProfile({ age, birthDate, referenceDate: record.recordedDate });
+    }
+
+    // An undated age cannot safely reconstruct an older measurement. Keep only
+    // the latest row consistent with the census cell and leave older rows neutral.
+    return record.recordedDate === vitals.recordedDate && record.recordedAt === vitals.recordedAt
+      ? profile
+      : 'unknown';
+  });
   const days = [...new Set(rows.map(row => row.recordedDate))];
 
   return (

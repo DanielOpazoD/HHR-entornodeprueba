@@ -35,6 +35,16 @@ const explicitAgeInDays = (age: string | undefined): number | null => {
 
 const explicitAgeProfile = (age: string | undefined): VitalSignsProfile | null => {
   const text = (age ?? '').trim();
+
+  // Rayen and manual census edits store completed years without a suffix for
+  // most children and adults (for example, "5" or "52"). A bare zero is not
+  // precise enough to distinguish a newborn from an older infant.
+  const bareYears = text.match(/^(\d{1,3})$/);
+  if (bareYears) {
+    const completedYears = Number(bareYears[1]);
+    return completedYears === 0 ? 'unknown' : profileForCompletedYears(completedYears);
+  }
+
   const days = explicitAgeInDays(text);
   if (days != null) {
     if (days <= NEWBORN_MAX_COMPLETED_DAYS) return 'newborn';

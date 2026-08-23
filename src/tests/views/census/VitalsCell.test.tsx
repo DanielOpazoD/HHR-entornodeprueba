@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { VitalsCell } from '@/features/census/components/patient-row/VitalsCell';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { PatientData } from '@/types/domain/patient';
@@ -104,5 +104,35 @@ describe('VitalsCell', () => {
     expect(screen.getByText('145')).toHaveClass('text-amber-600');
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
     expect(screen.queryByText(/pediátrico|años|perfil/i)).not.toBeInTheDocument();
+  });
+
+  it('uses a bare completed-year age when birth date is unavailable', () => {
+    renderCell(VITALS, 'R3', { age: '52', birthDate: undefined });
+
+    expect(screen.getByText('88')).toHaveClass('text-red-600');
+  });
+
+  it('keeps age-only alert colors consistent between the cell and history table', () => {
+    const latest = { ...VITALS, heartRate: 79 };
+    renderCell(latest, 'R3', {
+      age: '21d',
+      birthDate: undefined,
+      vitalSignsHistory: [
+        latest,
+        {
+          ...VITALS,
+          recordedDate: '2026-07-10',
+          recordedAt: '10-07-2026 08:00',
+          heartRate: 78,
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    const historySection = screen.getByText('Historial · 2 tomas').closest('section');
+    expect(historySection).not.toBeNull();
+    const history = within(historySection as HTMLElement);
+    expect(history.getByText('79')).toHaveClass('text-red-600');
+    expect(history.getByText('78')).toHaveClass('text-slate-500');
   });
 });

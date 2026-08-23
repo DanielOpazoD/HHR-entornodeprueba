@@ -305,11 +305,20 @@ describe('resolveVitalSignsProfile', () => {
     expect(resolveVitalSignsProfile({ age: '18 años' })).toBe('adult');
   });
 
+  it('accepts the bare completed-year format stored by Rayen and manual census edits', () => {
+    expect(resolveVitalSignsProfile({ age: '1' })).toBe('child_1_4');
+    expect(resolveVitalSignsProfile({ age: '5' })).toBe('child_5_11');
+    expect(resolveVitalSignsProfile({ age: '12' })).toBe('adolescent_12_17');
+    expect(resolveVitalSignsProfile({ age: '18' })).toBe('adult');
+    expect(resolveVitalSignsProfile({ age: '52' })).toBe('adult');
+  });
+
   it('uses an unknown neutral profile when age cannot be established safely', () => {
     expect(resolveVitalSignsProfile({})).toBe('unknown');
     expect(resolveVitalSignsProfile({ age: 'sin dato' })).toBe('unknown');
     expect(resolveVitalSignsProfile({ age: '0 meses' })).toBe('unknown');
     expect(resolveVitalSignsProfile({ age: '0 años' })).toBe('unknown');
+    expect(resolveVitalSignsProfile({ age: '0' })).toBe('unknown');
     expect(resolveVitalSignsProfile({ birthDate: '2026-08-24', referenceDate: '2026-08-23' })).toBe(
       'unknown'
     );
