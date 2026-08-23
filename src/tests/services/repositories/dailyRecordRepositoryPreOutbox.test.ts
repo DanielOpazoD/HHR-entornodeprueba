@@ -58,6 +58,7 @@ vi.mock('@/services/repositories/ports/repositoryAuditPort', () => ({
 
 import { saveDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { saveRecordToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
+import { saveRecordStrict as saveToIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   ackDailyRecordSyncTask,
   queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask,
@@ -117,5 +118,25 @@ describe('dailyRecordRepositoryWriteService pre-outbox', () => {
         }),
       })
     );
+  });
+
+  it('does not mutate local state or queue a stale structural plan when remote CAS rejects it', async () => {
+    const record = buildRecord('2026-02-21');
+    record.lastUpdated = '2026-02-21T08:00:00.000Z';
+    const conflict = Object.assign(new Error('remote revision changed'), {
+      name: 'ConcurrencyError',
+    });
+    vi.mocked(saveRecordToFirestore).mockRejectedValueOnce(conflict);
+
+    await expect(
+      saveDetailed(record, '2026-02-21T07:55:00.000Z', {
+        requireConfirmedRecord: true,
+        rayenStructuralWriteGuard: true,
+      })
+    ).rejects.toBe(conflict);
+
+    expect(saveRecordToFirestore).toHaveBeenCalledOnce();
+    expect(queueSyncTask).not.toHaveBeenCalled();
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
 });

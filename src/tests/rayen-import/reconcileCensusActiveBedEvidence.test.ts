@@ -67,4 +67,24 @@ describe('reconcileCensus Gestión de Camas active-bed evidence', () => {
     expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
     expect(diff.moves).toEqual([expect.objectContaining({ fromBedId: 'R1', toBedId: 'R2' })]);
   });
+
+  it('plans an R4 to R1 move on the first pass without duplicating the episode', () => {
+    const encounter = makeEncounter({ encounterId: 'episode-bed-move', room: 'R4', bed: 'R4' });
+    const { patient } = rayenToPatientData(encounter, REFERENCE);
+    const diff = reconcileCensus(
+      makeRecord('R4', patient),
+      snapshotWithActiveBed('episode-bed-move', 'R1'),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
+    expect(diff.conflicts).toHaveLength(0);
+    expect(diff.moves).toEqual([
+      expect.objectContaining({
+        fromBedId: 'R4',
+        toBedId: 'R1',
+        source: expect.objectContaining({ encounterId: 'episode-bed-move' }),
+      }),
+    ]);
+  });
 });

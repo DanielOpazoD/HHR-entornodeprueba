@@ -3,9 +3,7 @@
  * record plus what was applied/skipped. Pure and deterministic given `idFactory`
  * and `now` — no persistence here (that is the use-case's job).
  *
- * Defensive by design: it never overwrites an occupied bed. Any op whose target is
- * still occupied is skipped and reported, so neither preview nor auto mode can clobber
- * a patient. Movement records are appended to discharges[] / transfers[] / cma[].
+ * It never overwrites an occupied bed; skipped operations are reported.
  */
 
 import { CensusManager } from '@/domain/CensusManager';
@@ -15,12 +13,13 @@ import type { DischargeData, TransferData, CMAData } from '@/types/domain/moveme
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
-import { buildMovementProvenance } from '@/application/census/movementProvenancePolicy';
 import { normalizeRut } from '@/utils/rutUtils';
-
+import * as collisionApply from './applyBedOccupancyCollisionResolutions';
+import { buildRayenMovementProvenance } from './rayenMovementProvenance';
+import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
+import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
-
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
 
@@ -56,7 +55,7 @@ export interface ResolvedApplyContext {
 }
 
 export interface SkippedOp {
-  kind: 'admission' | 'move' | 'update' | 'discharge';
+  kind: 'admission' | 'move' | 'update' | 'discharge' | 'bed-collision';
   bedId: string;
   reason: string;
 }
@@ -67,12 +66,25 @@ export interface ApplyResult {
   skipped: SkippedOp[];
 }
 
+export const mergeRayenBedCollisionResolutionReceipts = (
+  current: readonly RayenBedCollisionResolutionReceipt[],
+  latest: readonly RayenBedCollisionResolutionReceipt[]
+): RayenBedCollisionResolutionReceipt[] => {
+  const receipts = new Map(current.map(receipt => [receipt.id, receipt] as const));
+  for (const receipt of latest) {
+    receipts.delete(receipt.id);
+    receipts.set(receipt.id, receipt);
+  }
+  return Array.from(receipts.values()).slice(-50);
+};
+
 export const buildDischarge = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
   ctx: ResolvedApplyContext,
-  isNested = false
+  isNested = false,
+  provenanceSource: 'manual' | 'gestion_camas' = 'gestion_camas'
 ): DischargeData => {
   const id = ctx.idFactory();
   return {
@@ -98,13 +110,7 @@ export const buildDischarge = (
     originalData: { ...patient },
     clinicalEpisodeId: patient.clinicalEpisodeId,
     isNested,
-    movementProvenance: buildMovementProvenance({
-      movementId: id,
-      source: 'gestion_camas',
-      actor: ctx.actor,
-      at: ctx.now.toISOString(),
-      syncRunId: ctx.syncRunId,
-    }),
+    movementProvenance: buildRayenMovementProvenance(id, ctx, provenanceSource),
   };
 };
 
@@ -117,7 +123,8 @@ export const buildTransfer = (
   patient: PatientData,
   entry: DischargeEntry,
   record: DailyRecord,
-  ctx: ResolvedApplyContext
+  ctx: ResolvedApplyContext,
+  provenanceSource: 'manual' | 'gestion_camas' = 'gestion_camas'
 ): TransferData => {
   const id = ctx.idFactory();
   return {
@@ -140,13 +147,7 @@ export const buildTransfer = (
     isRapanui: patient.isRapanui,
     originalData: { ...patient },
     clinicalEpisodeId: patient.clinicalEpisodeId,
-    movementProvenance: buildMovementProvenance({
-      movementId: id,
-      source: 'gestion_camas',
-      actor: ctx.actor,
-      at: ctx.now.toISOString(),
-      syncRunId: ctx.syncRunId,
-    }),
+    movementProvenance: buildRayenMovementProvenance(id, ctx, provenanceSource),
   };
 };
 
@@ -162,13 +163,7 @@ export const buildCma = (
     timestamp: ctx.now.toISOString(),
     dischargeTime: entry.correctedTime || hhmm(ctx.now),
     clinicalEpisodeId: patient.clinicalEpisodeId,
-    movementProvenance: buildMovementProvenance({
-      movementId: id,
-      source: 'gestion_camas',
-      actor: ctx.actor,
-      at: ctx.now.toISOString(),
-      syncRunId: ctx.syncRunId,
-    }),
+    movementProvenance: buildRayenMovementProvenance(id, ctx, 'gestion_camas'),
   };
 };
 
@@ -210,35 +205,6 @@ export const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
   correctedTime: egreso.correctedTime,
 });
 
-const matchesDischargeSubject = (patient: PatientData, entry: DischargeEntry): boolean => {
-  const expected = entry.expectedOccupant;
-  if (expected) {
-    if (expected.clinicalEpisodeId) {
-      return patient.clinicalEpisodeId === expected.clinicalEpisodeId;
-    }
-    const hasAdmissionStamp = Boolean(expected.admissionDate && expected.admissionTime);
-    const patientRun = normalizeRut(patient.rut);
-    const expectedRun = normalizeRut(expected.rut);
-    return Boolean(
-      hasAdmissionStamp &&
-      patientRun &&
-      expectedRun &&
-      patientRun === expectedRun &&
-      patient.admissionDate === expected.admissionDate &&
-      patient.admissionTime === expected.admissionTime
-    );
-  }
-  const entryEpisode = entry.encounterId ?? entry.source?.encounterId;
-  if (patient.clinicalEpisodeId || entryEpisode) {
-    return Boolean(
-      patient.clinicalEpisodeId && entryEpisode && patient.clinicalEpisodeId === entryEpisode
-    );
-  }
-  const patientRun = normalizeRut(patient.rut);
-  const entryRun = normalizeRut(entry.rut);
-  return Boolean(patientRun && entryRun && patientRun === entryRun);
-};
-
 const dischargeIdentityMismatchReason = (patient: PatientData, entry: DischargeEntry): string => {
   const expected = entry.expectedOccupant;
   if (!expected || expected.clinicalEpisodeId) {
@@ -270,9 +236,29 @@ export const applyCensusImportDiff = (
   const cma: CMAData[] = [...current.cma];
   const skipped: SkippedOp[] = [];
   const applied = { admissions: 0, updates: 0, moves: 0, discharges: 0 };
-
-  // 1) Discharges: vacate the bed and append the matching movement record.
+  const collisionResult = collisionApply.applyBedOccupancyCollisionResolutions({
+    current,
+    diff,
+    nextBeds,
+    discharges,
+    transfers,
+    buildDischarge: (patient, entry) =>
+      buildDischarge(patient, entry, current, ctx, false, 'manual'),
+    buildTransfer: (patient, entry) => buildTransfer(patient, entry, current, ctx, 'manual'),
+  });
+  skipped.push(...collisionResult.skipped);
+  for (const key of Object.keys(applied) as (keyof typeof applied)[]) {
+    applied[key] += collisionResult.applied[key];
+  }
+  const collisionReceipts = collisionResult.resolutionReceipts;
+  // Discharges: vacate the bed and append the matching movement record.
   for (const entry of diff.discharges) {
+    // An applied collision choice overrides older discharge evidence.
+    if (
+      collisionResult.consumedDischarges.includes(entry) ||
+      collisionApply.isDischargeOverriddenByCollisionReview(diff, entry, collisionReceipts)
+    )
+      continue;
     const patient = isOccupied(current.beds[entry.bedId]) ? current.beds[entry.bedId] : undefined;
     const subject = patient ?? undefined;
     if (!subject) continue; // nothing to discharge (already gone)
@@ -282,6 +268,13 @@ export const applyCensusImportDiff = (
         bedId: entry.bedId,
         reason: dischargeIdentityMismatchReason(subject, entry),
       });
+      continue;
+    }
+    if (
+      diff.retainedBedCollisionResolutions?.some(
+        receipt => receipt.selectedEpisodeId === subject.clinicalEpisodeId
+      )
+    ) {
       continue;
     }
     delete nextBeds[entry.bedId];
@@ -377,6 +370,10 @@ export const applyCensusImportDiff = (
     discharges,
     transfers,
     cma,
+    rayenBedCollisionResolutions: mergeRayenBedCollisionResolutionReceipts(
+      current.rayenBedCollisionResolutions ?? [],
+      collisionResult.resolutionReceipts
+    ),
     lastUpdated: ctx.now.toISOString(),
   };
 

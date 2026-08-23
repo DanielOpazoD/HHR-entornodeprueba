@@ -8,14 +8,19 @@ import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
 import { isRayenSyncExecutionCurrent, rayenSyncExecutionKey } from './rayenSyncExecutionState';
 import { createRayenSnapshotExecutionReporter } from './rayenSnapshotExecutionReporter';
 import {
-  hasNoApplicableRayenStructuralChanges, resolveRayenSnapshotPlanningStage,
+  hasNoApplicableRayenStructuralChanges,
+  resolveRayenSnapshotPlanningStage,
   shouldOpenRayenSnapshotPreview,
 } from './rayenSnapshotPlanningDecision';
 import type { UseRayenSnapshotPreviewInput } from './rayenSnapshotPreviewContracts';
-import { applyConfirmedRayenImport, committedRayenImportResultFromError } from './confirmRayenImport';
+import {
+  applyConfirmedRayenImport,
+  committedRayenImportResultFromError,
+} from './confirmRayenImport';
 import { prepareRayenStructuralPlan } from './prepareRayenStructuralPlan';
 import { summarizeRayenStructuralCommit } from './rayenStructuralCommitOutcome';
 import {
+  createRayenPlanningMetrics,
   prepareRayenSnapshotEvidence,
   returnRayenReplanToReview,
 } from './rayenSnapshotPreviewPreparation';
@@ -37,6 +42,7 @@ export const useRayenSnapshotPreview = ({
   preparedSyncContextRef,
   structuralReplanRef,
   runSerializedPersistence,
+  loadAuthoritativeStructuralRecord,
 }: UseRayenSnapshotPreviewInput) => {
   const persistenceExecutionKeysRef = useRef(new Set<string>());
   const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
@@ -68,7 +74,7 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
-      const baseRecord = preparedContext.record;
+      const authoritativeBaseRecord = preparedContext.record;
       structuralReplanRef.current = null;
       const executionIdentity = {
         runId: run.id,
@@ -94,17 +100,7 @@ export const useRayenSnapshotPreview = ({
         ),
         run.id
       );
-      const reconciliationStartedAt = Date.now();
-      let historicalEvidenceMs = 0;
-      const counters = { requests: 0, cacheHits: 0, timeouts: 0 };
-      const measureEvidence = async <T>(operation: () => Promise<T>): Promise<T> => {
-        const startedAt = Date.now();
-        try {
-          return await operation();
-        } finally {
-          historicalEvidenceMs += elapsedMilliseconds(startedAt);
-        }
-      };
+      const metrics = createRayenPlanningMetrics();
       const evidence = prepareRayenSnapshotEvidence(preparedContext, snapshot, bundle);
       if (!evidence.valid) {
         execution.transition({ type: 'failed' });
@@ -119,15 +115,15 @@ export const useRayenSnapshotPreview = ({
         return;
       }
       const structuralPlan = await prepareRayenStructuralPlan({
-        baseRecord,
+        baseRecord: authoritativeBaseRecord,
         planningSnapshot,
         bundle,
         isHistoricalDay: evidence.isHistoricalDay,
         reportDate: evidence.reportDate,
         dailyRecord,
         isAdmin,
-        counters,
-        measureEvidence,
+        counters: metrics.counters,
+        measureEvidence: metrics.measureEvidence,
       });
       const { replanDiff } = structuralPlan;
       let diff = structuralPlan.diff;
@@ -140,10 +136,10 @@ export const useRayenSnapshotPreview = ({
       recordRunPerformance(
         {
           stagesMs: {
-            reconciliation: elapsedMilliseconds(reconciliationStartedAt),
-            historicalEvidence: historicalEvidenceMs,
+            reconciliation: elapsedMilliseconds(metrics.reconciliationStartedAt),
+            historicalEvidence: metrics.getHistoricalEvidenceMs(),
           },
-          counters,
+          counters: metrics.counters,
         },
         run.id
       );
@@ -159,14 +155,13 @@ export const useRayenSnapshotPreview = ({
           }
           return applyConfirmedRayenImport({
             applyPreviousDays: false,
-            base: baseRecord,
+            base: authoritativeBaseRecord,
             diff,
             dailyRecord,
             isAdmin,
             ensureRun,
             applyDiff,
-            getFreshRecord: async () =>
-              (await dailyRecord.getForDateWithMeta(baseRecord.date, true)).record,
+            getFreshRecord: () => loadAuthoritativeStructuralRecord(authoritativeBaseRecord.date),
             replanDiff,
             clinicalDay: preparedContext.target.clinicalDay,
             createId: () => crypto.randomUUID(),
@@ -220,15 +215,11 @@ export const useRayenSnapshotPreview = ({
           }
           await runClinicalStage(committed.clinicalHandoff);
         } catch (error) {
-          const committedResult = committedRayenImportResultFromError<
-            Awaited<ReturnType<typeof applyDiff>>
-          >(error);
+          const committedResult =
+            committedRayenImportResultFromError<Awaited<ReturnType<typeof applyDiff>>>(error);
           if (committedResult) {
             const committed = summarizeRayenStructuralCommit(committedResult, true);
-            const isCurrent = isRayenSyncExecutionCurrent(
-              executionRef?.current,
-              executionIdentity
-            );
+            const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
             if (isCurrent) {
               execution.recordOutcome({
                 structuralConflicts: committed.structuralConflicts,
@@ -304,9 +295,8 @@ export const useRayenSnapshotPreview = ({
           }
           await runClinicalStage(committed.clinicalHandoff);
         } catch (error) {
-          const committedResult = committedRayenImportResultFromError<
-            Awaited<ReturnType<typeof applyDiff>>
-          >(error);
+          const committedResult =
+            committedRayenImportResultFromError<Awaited<ReturnType<typeof applyDiff>>>(error);
           if (committedResult) {
             const committed = summarizeRayenStructuralCommit(committedResult, true);
             noChangeResult = committedResult;
@@ -316,10 +306,7 @@ export const useRayenSnapshotPreview = ({
             noChangePersistenceCompleted = true;
             noChangeRequiresFreshCapture = true;
             noChangeCorrectionError = getRayenImportErrorMessage(error);
-            const isCurrent = isRayenSyncExecutionCurrent(
-              executionRef?.current,
-              executionIdentity
-            );
+            const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
             if (isCurrent) {
               execution.transition({ type: 'verifying_structure' });
               preparedSyncContextRef.current = null;
@@ -358,29 +345,29 @@ export const useRayenSnapshotPreview = ({
         !isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)
           ? previous
           : isExecutionDateVisible
-          ? {
-              diff,
-              isPreviewOpen: shouldOpenRayenSnapshotPreview({
-                persistenceCompleted: noChangePersistenceCompleted,
-                hasUnresolvedConflicts,
-                hasNoApplicableChanges,
-                requiresFreshCapture: noChangeRequiresFreshCapture,
-              }),
-              isBusy: false,
-              isSyncing: noChangePersistenceCompleted ? false : hasNoApplicableChanges,
-              result: noChangePersistenceCompleted ? noChangeResult : null,
-              hasSkippedItems: noChangeResult
-                ? noChangeResult.skipped.length > 0 ||
-                  noChangeResult.historicalCorrectionsPending ||
-                  noChangeRequiresFreshCapture
-                : false,
-              error:
-                noChangeCorrectionError ??
-                (!noChangePersistenceCompleted && run.policy?.mode === 'auto' && needsReview
-                  ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
-                  : null),
-            }
-          : { ...previous, isBusy: false }
+            ? {
+                diff,
+                isPreviewOpen: shouldOpenRayenSnapshotPreview({
+                  persistenceCompleted: noChangePersistenceCompleted,
+                  hasUnresolvedConflicts,
+                  hasNoApplicableChanges,
+                  requiresFreshCapture: noChangeRequiresFreshCapture,
+                }),
+                isBusy: false,
+                isSyncing: noChangePersistenceCompleted ? false : hasNoApplicableChanges,
+                result: noChangePersistenceCompleted ? noChangeResult : null,
+                hasSkippedItems: noChangeResult
+                  ? noChangeResult.skipped.length > 0 ||
+                    noChangeResult.historicalCorrectionsPending ||
+                    noChangeRequiresFreshCapture
+                  : false,
+                error:
+                  noChangeCorrectionError ??
+                  (!noChangePersistenceCompleted && run.policy?.mode === 'auto' && needsReview
+                    ? 'El modo automático requiere revisión: hay conflictos, altas administrativas pendientes o correcciones de días previos.'
+                    : null),
+              }
+            : { ...previous, isBusy: false }
       );
       if (!noChangePersistenceCompleted) {
         execution.transition(
@@ -389,11 +376,24 @@ export const useRayenSnapshotPreview = ({
       }
     },
     [
-      applyDiff, clearSyncTimeout, dailyRecord, dispatchExecution,
-      ensureRun, executionRef, failRun, runClinicalStage,
-      getRun, isAdmin, preparedSyncContextRef, prepareTreatingPhysicianSnapshot,
-      recordRunPerformance, runSerializedPersistence, selectedDateRef,
-      setState, structuralReplanRef,
+      applyDiff,
+      clearSyncTimeout,
+      dailyRecord,
+      dispatchExecution,
+      ensureRun,
+      executionRef,
+      failRun,
+      runClinicalStage,
+      getRun,
+      isAdmin,
+      loadAuthoritativeStructuralRecord,
+      preparedSyncContextRef,
+      prepareTreatingPhysicianSnapshot,
+      recordRunPerformance,
+      runSerializedPersistence,
+      selectedDateRef,
+      setState,
+      structuralReplanRef,
     ]
   );
 };

@@ -48,9 +48,12 @@ import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLogger
 import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
 import { classifyConflictChangedContexts } from '@/services/repositories/conflictResolutionDomainPolicy';
-import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import { isMovementReclassificationPatch } from '@/application/census/movementReclassificationConcurrencyPolicy';
+import { runWithDailyRecordWriteLock } from '@/services/repositories/dailyRecordWriteCoordinator';
+import {
+  assertDailyRecordPartialUpdateAccepted,
+  assertDailyRecordSaveAccepted,
+} from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
 
 const runRemoteSaveIntegrityCheck = async (date: string, record: DailyRecord): Promise<void> => {
   if (!isFirestoreEnabled()) return;
@@ -138,7 +141,7 @@ const resolvePartialUpdateBaseRecord = async (
   }
 };
 
-export const saveDetailed = async (
+const saveDetailedWithinLock = async (
   record: DailyRecord,
   expectedLastUpdated?: string,
   options: SaveDailyRecordOptions = {}
@@ -251,6 +254,8 @@ export const saveDetailed = async (
       );
     },
     expectedVersion: command.expectedLastUpdated,
+    allowConflictAutoMerge: !options.rayenStructuralWriteGuard,
+    remoteAuthorityFirst: Boolean(options.rayenStructuralWriteGuard),
   });
   if (nextAction === 'return') {
     return buildSaveResult(command.date, remoteState);
@@ -261,14 +266,20 @@ export const saveDetailed = async (
   return buildSaveResult(command.date, remoteState);
 };
 
+export const saveDetailed = (
+  record: DailyRecord,
+  expectedLastUpdated?: string,
+  options: SaveDailyRecordOptions = {}
+) =>
+  runWithDailyRecordWriteLock(record.date, options.dailyRecordWriteLease, () =>
+    saveDetailedWithinLock(record, expectedLastUpdated, options)
+  );
+
 export const save = async (record: DailyRecord, expectedLastUpdated?: string): Promise<void> => {
-  const result = await saveDetailed(record, expectedLastUpdated);
-  if (result.blockingError) {
-    throw result.blockingError;
-  }
+  assertDailyRecordSaveAccepted(await saveDetailed(record, expectedLastUpdated));
 };
 
-export const updatePartialDetailed = async (
+const updatePartialDetailedWithinLock = async (
   date: string,
   partialData: DailyRecordPatch,
   options: PartialUpdateDailyRecordOptions = {}
@@ -368,17 +379,15 @@ export const updatePartialDetailed = async (
   return buildPartialUpdateResult(command.date, remoteState, patchedFields);
 };
 
+export const updatePartialDetailed = (
+  date: string,
+  partialData: DailyRecordPatch,
+  options: PartialUpdateDailyRecordOptions = {}
+) =>
+  runWithDailyRecordWriteLock(date, undefined, () =>
+    updatePartialDetailedWithinLock(date, partialData, options)
+  );
+
 export const updatePartial = async (date: string, partialData: DailyRecordPatch): Promise<void> => {
-  const result = await updatePartialDetailed(date, partialData);
-  if (result.blockingError) {
-    throw result.blockingError;
-  }
-  if (result.outcome === 'blocked' || isDailyRecordWriteBlockedResult(result)) {
-    throw new Error(
-      resolveApplicationOutcomeMessage(
-        result,
-        'La actualización quedó bloqueada por una validación de consistencia.'
-      )
-    );
-  }
+  assertDailyRecordPartialUpdateAccepted(await updatePartialDetailed(date, partialData));
 };

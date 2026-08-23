@@ -4,6 +4,7 @@ import type { RayenSyncStage } from './rayenSyncExecutionState';
 import type { RayenImportState } from './rayenImportState';
 import { isRayenStructuralPlanChangedError } from './confirmRayenImport';
 import { toIsoReportDate } from './reportDateHelpers';
+import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import {
   validatePreparedRayenSyncContextAtCompletion,
   type PreparedRayenSyncContext,
@@ -12,6 +13,23 @@ import {
 type EvidencePreparation =
   | { valid: false; error: string }
   | { valid: true; isHistoricalDay: boolean; reportDate: string };
+
+export const createRayenPlanningMetrics = () => {
+  let historicalEvidenceMs = 0;
+  return {
+    reconciliationStartedAt: Date.now(),
+    counters: { requests: 0, cacheHits: 0, timeouts: 0 },
+    measureEvidence: async <T>(operation: () => Promise<T>): Promise<T> => {
+      const startedAt = Date.now();
+      try {
+        return await operation();
+      } finally {
+        historicalEvidenceMs += elapsedMilliseconds(startedAt);
+      }
+    },
+    getHistoricalEvidenceMs: () => historicalEvidenceMs,
+  };
+};
 
 export const prepareRayenSnapshotEvidence = (
   context: PreparedRayenSyncContext,

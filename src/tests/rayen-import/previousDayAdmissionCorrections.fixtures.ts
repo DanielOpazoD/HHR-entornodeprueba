@@ -71,8 +71,16 @@ export const motherAndNewbornDiff: CensusImportDiff = {
   },
 };
 
+const getForDate = vi.fn(async (day: string) => (day === '2026-07-25' ? historicalRecord : null));
+
 export const repository = {
-  getForDate: vi.fn(async (day: string) => (day === '2026-07-25' ? historicalRecord : null)),
+  getForDate,
+  getAuthoritativeForDate: getForDate,
+  getLocalForDateWithMeta: vi.fn(async () => ({
+    record: null,
+    hasPendingWrites: false,
+    writeState: 'none' as const,
+  })),
 } as unknown as DailyRecordRepositoryPort;
 
 export const resetPreviousDayAdmissionFixtures = () => {
@@ -82,4 +90,9 @@ export const resetPreviousDayAdmissionFixtures = () => {
   vi.mocked(repository.getForDate).mockImplementation(async day =>
     day === '2026-07-25' ? historicalRecord : null
   );
+  vi.mocked(repository.getLocalForDateWithMeta).mockResolvedValue({
+    record: null,
+    hasPendingWrites: false,
+    writeState: 'none',
+  });
 };

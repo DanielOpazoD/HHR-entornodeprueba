@@ -27,6 +27,99 @@ describe('previous clinical-day admission corrections', () => {
 
   afterEach(() => vi.useRealTimers());
 
+  it('does not plan a duplicate discharge already durable in the active outbox', async () => {
+    vi.mocked(repository.getLocalForDateWithMeta).mockResolvedValue({
+      record: {
+        ...historicalRecord,
+        discharges: [
+          {
+            id: 'pending-discharge',
+            bedName: 'R1',
+            bedId: 'R1',
+            bedType: 'Básica',
+            patientName: 'Paciente pendiente',
+            rut: '19.338.541-9',
+            diagnosis: '',
+            time: '20:54',
+            status: 'Vivo',
+          },
+        ],
+        lastUpdated: 'pending-version',
+      },
+      hasPendingWrites: true,
+      writeState: 'active',
+    });
+    const diff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: [],
+      discharges: [
+        {
+          bedId: 'R1',
+          rut: '19.338.541-9',
+          patientName: 'Paciente pendiente',
+          kind: 'alta',
+          status: 'Vivo',
+          reason: 'administrative-discharge',
+          correctedDay: '2026-07-25',
+          correctedTime: '20:54',
+        },
+      ],
+      summary: { ...motherAndNewbornDiff.summary, admissions: 0, discharges: 1 },
+    };
+
+    const plan = await computePreviousDayEdits(repository, diff, '2026-07-26', false);
+
+    expect(plan.edits).toEqual([]);
+  });
+
+  it.each(['failed', 'conflict'] as const)(
+    'blocks previous-day planning when the exact local version is %s',
+    async writeState => {
+      vi.mocked(repository.getLocalForDateWithMeta).mockResolvedValue({
+        record: {
+          ...historicalRecord,
+          discharges: [
+            {
+              id: 'unresolved-discharge',
+              bedName: 'R1',
+              bedId: 'R1',
+              bedType: 'Básica',
+              patientName: 'Paciente pendiente',
+              rut: '19.338.541-9',
+              diagnosis: '',
+              time: '20:54',
+              status: 'Vivo',
+            },
+          ],
+          lastUpdated: 'unresolved-version',
+        },
+        hasPendingWrites: false,
+        writeState,
+      });
+      const diff: CensusImportDiff = {
+        ...motherAndNewbornDiff,
+        admissions: [],
+        discharges: [
+          {
+            bedId: 'R1',
+            rut: '19.338.541-9',
+            patientName: 'Paciente pendiente',
+            kind: 'alta',
+            status: 'Vivo',
+            reason: 'administrative-discharge',
+            correctedDay: '2026-07-25',
+            correctedTime: '20:54',
+          },
+        ],
+        summary: { ...motherAndNewbornDiff.summary, admissions: 0, discharges: 1 },
+      };
+
+      await expect(computePreviousDayEdits(repository, diff, '2026-07-26', false)).rejects.toThrow(
+        'El censo del 2026-07-25 tiene cambios locales que no pudieron guardarse'
+      );
+    }
+  );
+
   it('offers one confirmed correction containing both mother and clinical crib', async () => {
     const plan = await computePreviousDayEdits(
       repository,

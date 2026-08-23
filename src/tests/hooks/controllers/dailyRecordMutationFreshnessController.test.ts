@@ -18,11 +18,7 @@ describe('saveDailyRecordWithCompatibility', () => {
     const saveDetailed = vi.fn().mockResolvedValue(null);
     const repository = { saveDetailed } as unknown as DailyRecordRepositoryPort;
 
-    await saveDailyRecordWithCompatibility(
-      repository,
-      record,
-      '2026-08-07T23:00:00.000Z'
-    );
+    await saveDailyRecordWithCompatibility(repository, record, '2026-08-07T23:00:00.000Z');
 
     expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z');
   });
@@ -31,15 +27,27 @@ describe('saveDailyRecordWithCompatibility', () => {
     const saveDetailed = vi.fn().mockResolvedValue(null);
     const repository = { saveDetailed } as unknown as DailyRecordRepositoryPort;
 
-    await saveDailyRecordWithCompatibility(
-      repository,
-      record,
-      '2026-08-07T23:00:00.000Z',
-      { requireConfirmedRecord: true }
-    );
+    await saveDailyRecordWithCompatibility(repository, record, '2026-08-07T23:00:00.000Z', {
+      requireConfirmedRecord: true,
+    });
 
     expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z', {
       requireConfirmedRecord: true,
+    });
+  });
+
+  it('forwards the structural CAS guard without weakening the requested confirmation', async () => {
+    const saveDetailed = vi.fn().mockResolvedValue(null);
+    const repository = { saveDetailed } as unknown as DailyRecordRepositoryPort;
+
+    await saveDailyRecordWithCompatibility(repository, record, '2026-08-07T23:00:00.000Z', {
+      requireConfirmedRecord: true,
+      rayenStructuralWriteGuard: true,
+    });
+
+    expect(saveDetailed).toHaveBeenCalledWith(record, '2026-08-07T23:00:00.000Z', {
+      requireConfirmedRecord: true,
+      rayenStructuralWriteGuard: true,
     });
   });
 });

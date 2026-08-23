@@ -226,6 +226,16 @@ const RayenSyncMetaSchema = z.object({
   staffingObservation: nullableOptional(RayenSyncStaffingObservationSchema),
 });
 
+export const RayenBedCollisionResolutionReceiptSchema = z.object({
+  id: z.string(),
+  selectedEpisodeId: z.string(),
+  otherEpisodeId: z.string(),
+  otherDisposition: z.union([
+    z.object({ kind: z.literal('move'), targetBedId: z.string() }),
+    z.object({ kind: z.enum(['discharge', 'transfer', 'remove']) }),
+  ]),
+});
+
 export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = z.preprocess(
   input => {
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -260,6 +270,9 @@ export const DailyRecordSchema: z.ZodType<DailyRecord, z.ZodTypeDef, unknown> = 
       lastUpdated: z.string().default(() => new Date().toISOString()),
       rayenSync: nullableOptional(RayenSyncMetaSchema),
       rayenSyncHistory: nullableOptional(z.array(RayenSyncEventSchema)),
+      rayenBedCollisionResolutions: nullableOptional(
+        z.array(RayenBedCollisionResolutionReceiptSchema)
+      ),
       dateTimestamp: nullableOptional(z.number()),
       schemaVersion: z.number().default(1),
       nurses: nullishDefault(z.array(z.string()), () => ['', '']),

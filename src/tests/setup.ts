@@ -277,6 +277,12 @@ const globalCatalogRepositoryMock = {
 
 const globalDailyRecordRepositoryPortMock = {
   getForDate: vi.fn().mockResolvedValue(null),
+  getForDateWithMeta: vi.fn().mockResolvedValue({ record: null }),
+  getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
+  getLocalForDate: vi.fn().mockResolvedValue(null),
+  getLocalForDateWithMeta: vi
+    .fn()
+    .mockResolvedValue({ record: null, hasPendingWrites: false, writeState: 'none' }),
   getPreviousDay: vi.fn(),
   getPreviousDayWithMeta: vi.fn(),
   save: vi.fn(),

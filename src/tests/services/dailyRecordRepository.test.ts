@@ -9,6 +9,7 @@ import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInit
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { syncWithFirestore } from '@/services/repositories/dailyRecordRepositorySyncService';
 import { deleteDailyRecordAcrossStores as deleteDay } from '@/services/repositories/dailyRecordRepositoryFacadeSupport';
+import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { ensureMonthIntegrity } from '@/services/repositories/monthIntegrity';
 import {
@@ -20,6 +21,14 @@ import {
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { PatientData } from '@/types/domain/patient';
 import { clearAllRecords } from '@/services/storage/indexedDBService';
+
+const createDeferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>(next => {
+    resolve = next;
+  });
+  return { promise, resolve };
+};
 
 vi.unmock('@/services/repositories/dailyRecordRepositoryReadService');
 vi.unmock('@/services/repositories/dailyRecordRepositoryWriteService');
@@ -403,6 +412,26 @@ describe('DailyRecordRepository (Expanded)', () => {
       firestoreMock.getRecordFromFirestore.mockResolvedValue(null);
       await deleteDay('2024-12-28');
       expect(firestoreMock.deleteRecordFromFirestore).toHaveBeenCalled();
+    });
+
+    it('keeps same-day deletion behind an active structural write window', async () => {
+      const date = '2024-12-28';
+      await save(createMockRecord(date));
+      const structuralStarted = createDeferred();
+      const releaseStructural = createDeferred();
+      const structural = runExclusiveDailyRecordWrite(date, async () => {
+        structuralStarted.resolve();
+        await releaseStructural.promise;
+      });
+      await structuralStarted.promise;
+
+      const deletion = deleteDay(date);
+      await Promise.resolve();
+      expect(await getForDate(date, false)).not.toBeNull();
+
+      releaseStructural.resolve();
+      await Promise.all([structural, deletion]);
+      expect(await getForDate(date, false)).toBeNull();
     });
 
     it('syncs from firestore and saves locally', async () => {

@@ -24,6 +24,10 @@ export type {
   ConflictEntry,
   CensusImportSummary,
   CensusImportDiff,
+  BedOccupancyCollision,
+  BedOccupancyCollisionCandidate,
+  BedOccupancyCollisionDisposition,
+  BedOccupancyCollisionResolution,
 } from './contracts/censusImportDiff';
 
 export type {

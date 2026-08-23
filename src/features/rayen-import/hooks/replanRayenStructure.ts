@@ -141,7 +141,7 @@ export const replanRayenStructure = async (
   diff = await measure(() =>
     verifyPreviousDayAdmissionPlacements(diff, evidence.reportDate, {
       fetchReport: dependencies.fetchPatientFlowReport,
-      loadHistoricalRecord: day => dependencies.dailyRecord.getForDate(day),
+      loadHistoricalRecord: day => dependencies.dailyRecord.getAuthoritativeForDate(day),
       snapshot: evidenceSnapshot,
       currentRecord: record,
     })

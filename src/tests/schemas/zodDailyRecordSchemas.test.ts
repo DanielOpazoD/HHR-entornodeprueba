@@ -60,6 +60,29 @@ describe('zod daily record schemas', () => {
       expect(record.beds['uti_01'].patientName).toBe('Test Patient');
     });
 
+    it('preserves reviewed equivalent-bed collision receipts', () => {
+      const record = DailyRecordSchema.parse({
+        date: '2026-01-15',
+        rayenBedCollisionResolutions: [
+          {
+            id: 'R1:episode-a:episode-b',
+            selectedEpisodeId: 'episode-a',
+            otherEpisodeId: 'episode-b',
+            otherDisposition: { kind: 'move', targetBedId: 'H2C1' },
+          },
+        ],
+      });
+
+      expect(record.rayenBedCollisionResolutions).toEqual([
+        {
+          id: 'R1:episode-a:episode-b',
+          selectedEpisodeId: 'episode-a',
+          otherEpisodeId: 'episode-b',
+          otherDisposition: { kind: 'move', targetBedId: 'H2C1' },
+        },
+      ]);
+    });
+
     it('should preserve CMA records with custom free-text specialty', () => {
       const record = DailyRecordSchema.parse({
         date: '2026-01-15',

@@ -34,4 +34,5 @@ export interface UseRayenSnapshotPreviewInput {
   preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
   structuralReplanRef: RefObject<RayenStructuralReplan | null>;
   runSerializedPersistence: RunSerializedRayenPersistence;
+  loadAuthoritativeStructuralRecord: (date: string) => Promise<DailyRecord>;
 }

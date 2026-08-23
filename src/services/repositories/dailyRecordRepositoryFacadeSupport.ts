@@ -25,6 +25,7 @@ import {
   createPartialUpdateDailyRecordCommand,
   createSaveDailyRecordCommand,
 } from './contracts/dailyRecordCommands';
+import { runExclusiveDailyRecordWrite } from './dailyRecordWriteCoordinator';
 
 export const buildDailyRecordQuery = (date: string, syncFromRemote = true) =>
   createGetDailyRecordQuery(date, syncFromRemote);
@@ -52,17 +53,18 @@ const toLocalDeleteError = (result: LocalRecordWriteResult): Error =>
     ? result.error
     : new Error(result.userSafeMessage || 'No fue posible eliminar el registro local.');
 
-export const deleteDailyRecordAcrossStores = async (date: string): Promise<void> => {
-  assertDailyRecordDeleteOutboxPolicy();
-  const command = createDeleteDayCommand(date);
-  const localResult = await deleteFromIndexedDB(command.date);
-  if (!localResult.ok) {
-    throw toLocalDeleteError(localResult);
-  }
-  await softDeleteDailyRecordRemote(command.date, {
-    isRemoteEnabled: isFirestoreEnabled(),
-    loadRecord: getRecordFromFirestore,
-    moveToTrash: moveRecordToTrash,
-    deleteRemote: deleteRecordFromFirestore,
+export const deleteDailyRecordAcrossStores = async (date: string): Promise<void> =>
+  runExclusiveDailyRecordWrite(date, async () => {
+    assertDailyRecordDeleteOutboxPolicy();
+    const command = createDeleteDayCommand(date);
+    const localResult = await deleteFromIndexedDB(command.date);
+    if (!localResult.ok) {
+      throw toLocalDeleteError(localResult);
+    }
+    await softDeleteDailyRecordRemote(command.date, {
+      isRemoteEnabled: isFirestoreEnabled(),
+      loadRecord: getRecordFromFirestore,
+      moveToTrash: moveRecordToTrash,
+      deleteRemote: deleteRecordFromFirestore,
+    });
   });
-};

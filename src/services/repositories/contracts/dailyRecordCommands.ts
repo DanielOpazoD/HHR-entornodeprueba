@@ -1,6 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
+import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
   classifyDailyRecordPatchContexts,
   classifyDailyRecordSaveContexts,
@@ -22,6 +23,13 @@ export interface SaveDailyRecordOptions {
    * Reserved for a structural Rayen import immediately before its clinical handoff.
    */
   requireConfirmedRecord?: boolean;
+  /**
+   * Structural Rayen imports are planned from an authoritative remote revision. Commit that CAS
+   * before touching the local cache and never feed a rejected plan into the generic auto-merge.
+   */
+  rayenStructuralWriteGuard?: boolean;
+  /** Internal lease for the structural read-plan-write critical section. */
+  dailyRecordWriteLease?: DailyRecordWriteLease;
 }
 
 export interface PartialUpdateDailyRecordCommand {

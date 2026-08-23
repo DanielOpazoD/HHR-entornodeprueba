@@ -10,6 +10,7 @@ import type { PatientData } from './rayenDomainContracts';
 import type { RayenEncounter } from './rayenSnapshot';
 import type { DischargeKind } from '../mapping/dischargeMapping';
 import type { ReportEgreso } from './egresoReport';
+import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 
 export type DischargeVerificationState = 'confirmed' | 'not-detected' | 'unknown';
 
@@ -75,7 +76,7 @@ export interface DischargeEntry {
   kind: DischargeKind;
   status: 'Vivo' | 'Fallecido';
   /** Only the Gestión de Camas administrative-discharge report may create this movement. */
-  reason: 'administrative-discharge';
+  reason: 'administrative-discharge' | 'manual-bed-collision-resolution';
   /** Exact Rayen hospitalization when the administrative lookup resolved one episode. */
   encounterId?: string;
   /** Occupant identity observed during preview, used to reject stale same-bed discharges. */
@@ -161,6 +162,7 @@ export interface ConflictEntry {
   code?:
     | 'unconfirmed-principal-bed'
     | 'principal-bed-collision'
+    | 'cma-physical-bed-collision'
     | 'occupied-local-bed'
     | 'historical-reconstruction'
     | 'historical-admission-evidence';
@@ -170,6 +172,40 @@ export interface ConflictEntry {
   blockedMove?: MoveEntry;
   reason: string;
   source?: RayenEncounter;
+}
+
+export type BedOccupancyCollisionSource = 'cma' | 'medical-surgical';
+
+export interface BedOccupancyCollisionCandidate {
+  clinicalEpisodeId: string;
+  sourceKind: BedOccupancyCollisionSource;
+  patient: PatientData;
+  source: RayenEncounter;
+  /** Current HHR position, when this episode is already present in the selected census. */
+  currentBedId?: string;
+}
+
+export type CmaEquivalentBedId = 'R1' | 'R2' | 'R3' | 'R4' | 'NEO1' | 'NEO2';
+
+/** Two distinct Rayen source beds that both map to one physical HHR bed. */
+export interface BedOccupancyCollision {
+  id: string;
+  bedId: CmaEquivalentBedId;
+  candidates: [BedOccupancyCollisionCandidate, BedOccupancyCollisionCandidate];
+  /** Free HHR beds offered for an explicit relocation of the candidate that does not stay. */
+  availableAlternativeBedIds: string[];
+}
+
+export type BedOccupancyCollisionDisposition =
+  | { kind: 'discharge' }
+  | { kind: 'transfer' }
+  | { kind: 'remove' }
+  | { kind: 'move'; targetBedId: string };
+
+export interface BedOccupancyCollisionResolution {
+  collisionId: string;
+  selectedEpisodeId: string;
+  otherDisposition: BedOccupancyCollisionDisposition;
 }
 
 export interface CensusImportSummary {
@@ -192,6 +228,15 @@ export interface CensusImportDiff {
   /** Clinical closure signals kept in bed until Gestión de Camas confirms administrative discharge. */
   pendingAdministrativeDischarges: PendingAdministrativeDischargeEntry[];
   conflicts: ConflictEntry[];
+  /** Explicit review gate for simultaneous CMA and equivalent physical-bed occupancy. */
+  bedOccupancyCollisions?: BedOccupancyCollision[];
+  /** Operator decisions attached only after the preview has been fully reviewed. */
+  bedOccupancyCollisionResolutions?: BedOccupancyCollisionResolution[];
+  /**
+   * Durable collision decisions that still match the live Rayen placements. They protect the
+   * retained episode from an older administrative-discharge row during this import only.
+   */
+  retainedBedCollisionResolutions?: RayenBedCollisionResolutionReceipt[];
   /**
    * Active attached cribs observed in Ficha Médico. The administrative-discharge enrichment uses
    * this evidence to promote a newborn to the physical bed when its mother leaves first.

@@ -14,6 +14,7 @@ import type {
 } from './dailyRecordNursingHandoff';
 import type { DailyRecordStaffingDetailsV1 } from './dailyRecordStaffingDetails';
 import type { RayenSyncEvent, RayenSyncMeta } from './rayenSync';
+import type { RayenBedCollisionResolutionReceipt } from './rayenBedCollision';
 export type {
   MedicalHandoffActor,
   MedicalHandoffBySpecialty,
@@ -53,6 +54,8 @@ export interface DailyRecord {
   rayenSync?: RayenSyncMeta;
   /** Bounded, aggregate-only history of user-initiated Eloísa sync attempts for this day. */
   rayenSyncHistory?: RayenSyncEvent[];
+  /** Reviewed CMA/physical-bed decisions, reused only while the recorded outcome still matches. */
+  rayenBedCollisionResolutions?: RayenBedCollisionResolutionReceipt[];
   /** Unix timestamp (ms) for the start of the day, used for security rule validation */
   dateTimestamp?: number;
   /** Version of the data structure, used to prevent corruption from old clients */

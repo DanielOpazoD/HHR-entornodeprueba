@@ -5,7 +5,13 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
+import type { LocalDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
+import { buildRayenStructuralPersistenceBase } from '../domain/rayenStructuralPersistenceBase';
+import {
+  runExclusiveDailyRecordWrite,
+  type DailyRecordWriteLease,
+} from '@/services/repositories/dailyRecordWriteCoordinator';
 import {
   resolveConfirmedRayenCensusHandoff,
   resolveStructuralStageResult,
@@ -24,8 +30,10 @@ interface RayenCensusDiffApplicationInput {
   applyRunToRecord: (record: DailyRecord, diff: CensusImportDiff) => { record: DailyRecord };
   saveDailyRecord: (
     record: DailyRecord,
-    expectedLastUpdated: string
+    expectedLastUpdated: string,
+    writeLease: DailyRecordWriteLease
   ) => Promise<RayenCensusPersistencePayload>;
+  loadLocalRecord: (date: string) => Promise<LocalDailyRecordReadResult>;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
 }
 
@@ -34,6 +42,7 @@ export const useRayenCensusDiffApplication = ({
   ensureRun,
   applyRunToRecord,
   saveDailyRecord,
+  loadLocalRecord,
   recordRunPerformance,
 }: RayenCensusDiffApplicationInput) =>
   useCallback(
@@ -41,42 +50,52 @@ export const useRayenCensusDiffApplication = ({
       record: DailyRecord,
       diff: CensusImportDiff,
       clinicalDay: string = record.date
-    ): Promise<ConfirmedRayenCensusApplyResult> => {
-      const run = ensureRun();
-      const result = applyCensusImportDiff(record, diff, {
-        idFactory: () => crypto.randomUUID(),
-        actor: run.by,
-        syncRunId: run.id,
-      });
-      const stamped = applyRunToRecord(result.record, diff).record;
-      const startedAt = Date.now();
-      // applyCensusImportDiff stamps a new lastUpdated. The CAS token must remain the revision of
-      // the base record, especially for a historical day, otherwise every legitimate save is 409.
-      const persistence = await saveDailyRecord(stamped, record.lastUpdated);
-      const confirmedHandoff = resolveConfirmedRayenCensusHandoff(persistence, {
-        date: stamped.date,
-        clinicalDay,
-        runId: run.id,
-        diff,
-      });
-      const structuralStage = resolveStructuralStageResult(confirmedHandoff);
-      recordRunPerformance(
-        {
-          stagesMs: { persistence: elapsedMilliseconds(startedAt) },
-          counters: { patches: 1 },
-          coordination: {
-            confirmedEpisodes: confirmedHandoff.safeClinicalEpisodeIds.length,
-            omittedEpisodes: confirmedHandoff.isolatedConflicts.length,
+    ): Promise<ConfirmedRayenCensusApplyResult> =>
+      runExclusiveDailyRecordWrite(record.date, async writeLease => {
+        const run = ensureRun();
+        const localResult = await loadLocalRecord(record.date);
+        const persistenceBase = buildRayenStructuralPersistenceBase(
+          record,
+          localResult.record,
+          diff,
+          {
+            localWriteState: localResult.writeState,
+          }
+        );
+        const result = applyCensusImportDiff(persistenceBase, diff, {
+          idFactory: () => crypto.randomUUID(),
+          actor: run.by,
+          syncRunId: run.id,
+        });
+        const stamped = applyRunToRecord(result.record, diff).record;
+        const startedAt = Date.now();
+        // applyCensusImportDiff stamps a new lastUpdated. CAS must keep the base record revision,
+        // especially for a historical day, otherwise every legitimate save is 409.
+        const persistence = await saveDailyRecord(stamped, record.lastUpdated, writeLease);
+        const confirmedHandoff = resolveConfirmedRayenCensusHandoff(persistence, {
+          date: stamped.date,
+          clinicalDay,
+          runId: run.id,
+          diff,
+        });
+        const structuralStage = resolveStructuralStageResult(confirmedHandoff);
+        recordRunPerformance(
+          {
+            stagesMs: { persistence: elapsedMilliseconds(startedAt) },
+            counters: { patches: 1 },
+            coordination: {
+              confirmedEpisodes: confirmedHandoff.safeClinicalEpisodeIds.length,
+              omittedEpisodes: confirmedHandoff.isolatedConflicts.length,
+            },
           },
-        },
-        run.id
-      );
-      return {
-        ...result,
-        record: confirmedHandoff.record,
-        confirmedHandoff,
-        structuralStage,
-      };
-    },
-    [applyRunToRecord, ensureRun, recordRunPerformance, saveDailyRecord]
+          run.id
+        );
+        return {
+          ...result,
+          record: confirmedHandoff.record,
+          confirmedHandoff,
+          structuralStage,
+        };
+      }),
+    [applyRunToRecord, ensureRun, loadLocalRecord, recordRunPerformance, saveDailyRecord]
   );

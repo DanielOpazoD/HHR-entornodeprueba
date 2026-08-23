@@ -36,6 +36,14 @@ interface FreshnessDependencies {
   queryClient: QueryClient;
 }
 
+export interface SaveDailyRecordMutationInput {
+  record: DailyRecord;
+  expectedLastUpdated?: string;
+  requireConfirmedRecord?: boolean;
+  rayenStructuralWriteGuard?: boolean;
+  dailyRecordWriteLease?: SaveDailyRecordOptions['dailyRecordWriteLease'];
+}
+
 export const saveDailyRecordWithCompatibility = async (
   dailyRecord: DailyRecordRepositoryPort,
   record: DailyRecord,
@@ -50,6 +58,30 @@ export const saveDailyRecordWithCompatibility = async (
 
   await dailyRecord.save(record, expectedLastUpdated);
   return null;
+};
+
+export const persistDailyRecordSaveMutation = async (
+  dailyRecord: DailyRecordRepositoryPort,
+  input: SaveDailyRecordMutationInput
+) => {
+  const {
+    record,
+    expectedLastUpdated,
+    requireConfirmedRecord,
+    rayenStructuralWriteGuard,
+    dailyRecordWriteLease,
+  } = input;
+  const options =
+    requireConfirmedRecord || rayenStructuralWriteGuard || dailyRecordWriteLease
+      ? { requireConfirmedRecord, rayenStructuralWriteGuard, dailyRecordWriteLease }
+      : undefined;
+  const result = await saveDailyRecordWithCompatibility(
+    dailyRecord,
+    record,
+    expectedLastUpdated,
+    options
+  );
+  return { record: result?.confirmedRecord ?? record, result };
 };
 
 export const patchDailyRecordWithCompatibility = async (
@@ -177,6 +209,17 @@ export const ensureFreshClinicalSaveMutation = async (
     );
   }
   return freshness;
+};
+
+export const ensureFreshDailyRecordSaveMutation = async (
+  input: SaveDailyRecordMutationInput,
+  dependencies: FreshnessDependencies
+): Promise<void> => {
+  if (input.rayenStructuralWriteGuard) return;
+  const anchor = input.expectedLastUpdated
+    ? { ...input.record, lastUpdated: input.expectedLastUpdated }
+    : input.record;
+  await ensureFreshClinicalSaveMutation(anchor, dependencies);
 };
 
 export const prefetchDailyRecordQuery = (

@@ -12,10 +12,7 @@ import {
   occupiedLocalBedConflict,
   planVerifiedClosedBedMove,
 } from './principalBedMovePlan';
-import {
-  createCensusPatientIdentityIndex,
-  normalizePatientRut,
-} from './censusPatientIdentityIndex';
+import { createCensusPatientIdentityIndex } from './censusPatientIdentityIndex';
 import { admittedAfterCensusDay, toIsoCensusDay } from './censusDayPolicy';
 import {
   pendingClinicalCribDischargeIdentities,
@@ -29,9 +26,10 @@ import {
 } from './gestionCamasActiveBedPolicy';
 import { createEmptyCensusImportDiff } from './censusImportDiffFactory';
 import { preparePavilionRecoverySyncScope } from './pavilionRecoverySyncPolicy';
+import { prepareEquivalentBedSourceCollisions } from './bedOccupancyCollisionPolicy';
+import { createDischargedEncounterMatcher } from './censusDischargeHistory';
 export { requiresReview } from './censusReconciliationPredicates';
 export interface ReconcileOptions {
-  /** Reference date for age computation (defaults to now). */
   reference?: Date;
 }
 export const reconcileCensus = (
@@ -40,33 +38,12 @@ export const reconcileCensus = (
   options: ReconcileOptions = {}
 ): CensusImportDiff => {
   const reference = options.reference ?? new Date();
-  // The census day being synced — a patient admitted after it must not be added to this (past) census.
   const censusDay = toIsoCensusDay(current.date);
   const { occupiedBedIds, findCurrent, findCurrentCrib } = createCensusPatientIdentityIndex(
     current,
     snapshot.encounters
   );
-  const dischargedEpisodes = new Set<string>();
-  const dischargedRunsWithoutEpisode = new Set<string>();
-  for (const record of [
-    ...(current.discharges ?? []),
-    ...(current.cma ?? []),
-    ...(current.transfers ?? []),
-  ]) {
-    const recordRut = normalizePatientRut(record.rut);
-    if (record.clinicalEpisodeId) {
-      dischargedEpisodes.add(record.clinicalEpisodeId);
-    } else if (recordRut) {
-      // Older movements lack the Rayen episode: use RUN only for those legacy records.
-      dischargedRunsWithoutEpisode.add(recordRut);
-    }
-  }
-  const wasDischargedInHhr = (encounter: RayenEncounter): boolean =>
-    dischargedEpisodes.has(encounter.encounterId) ||
-    dischargedRunsWithoutEpisode.has(normalizePatientRut(encounter.run));
-  const wasClinicalCribDischargedInHhr = (encounter: RayenEncounter): boolean =>
-    dischargedEpisodes.has(encounter.encounterId) ||
-    dischargedRunsWithoutEpisode.has(normalizePatientRut(encounter.run));
+  const wasDischargedInHhr = createDischargedEncounterMatcher(current);
   const diff: CensusImportDiff = createEmptyCensusImportDiff(snapshot.isComplete === true);
   const consumedBedIds = new Set<string>();
   const confirmedPrincipalBedIds = new Set<string>();
@@ -125,9 +102,21 @@ export const reconcileCensus = (
     findCurrentCrib
   );
   const activePrincipals = activeMapped.filter(item =>
-    shouldReconcileAsPrincipal(item, findCurrent, wasClinicalCribDischargedInHhr)
+    shouldReconcileAsPrincipal(item, findCurrent, wasDischargedInHhr)
   );
-  const principalPlacementIntents = activePrincipals.flatMap(({ encounter, mapped }) => {
+  const eligibleActivePrincipals = activePrincipals.filter(
+    ({ encounter }) =>
+      Boolean(findCurrent(encounter)) ||
+      (!admittedAfterCensusDay(encounter, censusDay) && !wasDischargedInHhr(encounter))
+  );
+  const principalPlacements = prepareEquivalentBedSourceCollisions({
+    current,
+    placements: eligibleActivePrincipals,
+    findCurrent,
+    diff,
+    consumedBedIds,
+  });
+  const principalPlacementIntents = principalPlacements.flatMap(({ encounter, mapped }) => {
     const match = findCurrent(encounter);
     if (!match && (admittedAfterCensusDay(encounter, censusDay) || wasDischargedInHhr(encounter)))
       return [];
@@ -154,7 +143,7 @@ export const reconcileCensus = (
     occupiedBedIds
   );
   const retainedClosedCribs: typeof activeMapped = [];
-  for (const { encounter, mapped } of activePrincipals) {
+  for (const { encounter, mapped } of principalPlacements) {
     const { patient, bedId } = mapped;
     const match = findCurrent(encounter);
     if (!match && wasDischargedInHhr(encounter)) continue;
@@ -241,7 +230,7 @@ export const reconcileCensus = (
     const isPromotedPrincipal = promotedMatch?.patient.bedMode === 'Cuna';
     if (mapped.isClinicalCrib || existingCribMatch) {
       if (!isPromotedPrincipal) {
-        if (wasClinicalCribDischargedInHhr(encounter)) continue;
+        if (wasDischargedInHhr(encounter)) continue;
         if (admittedAfterCensusDay(encounter, censusDay)) continue;
         const priorParentBedId = existingCribMatch?.bedId;
         const outgoingParentMove = priorParentBedId
@@ -352,8 +341,8 @@ export const reconcileCensus = (
       ...activeMapped.filter(
         item =>
           item.mapped.isClinicalCrib &&
-          !shouldReconcileAsPrincipal(item, findCurrent, wasClinicalCribDischargedInHhr) &&
-          !wasClinicalCribDischargedInHhr(item.encounter) &&
+          !shouldReconcileAsPrincipal(item, findCurrent, wasDischargedInHhr) &&
+          !wasDischargedInHhr(item.encounter) &&
           !admittedAfterCensusDay(item.encounter, censusDay)
       ),
       ...retainedClosedCribs,

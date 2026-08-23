@@ -21,13 +21,12 @@ import {
   type RayenStructuralReplan,
 } from './rayenStructuralConvergence';
 import type { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
-import type {
-  ClinicalFillRequest,
-  ClinicalStageResult,
-} from '../contracts/clinicalStageResult';
+import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { useRayenSyncAudit } from './useRayenSyncAudit';
 import type { useRayenSyncExecutionController } from './useRayenSyncExecutionController';
 import { applyRayenHistoricalCorrectionState } from './rayenCensusPersistenceGuard';
+import type { BedOccupancyCollisionResolution } from '../contracts/censusImportDiff';
+import { resolveBedOccupancyCollisions } from '../domain/bedOccupancyCollisionPolicy';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;
 type SyncAudit = ReturnType<typeof useRayenSyncAudit>;
@@ -50,7 +49,7 @@ interface UseRayenImportConfirmationInput {
   recordRunPerformance: SyncAudit['recordRunPerformance'];
   applyDiff: ReturnType<typeof useRayenCensusDiffApplication>;
   runClinicalStage: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
-  loadFreshClinicalRecord: (date: string) => Promise<DailyRecord>;
+  loadAuthoritativeStructuralRecord: (date: string) => Promise<DailyRecord>;
   runSerializedPersistence: <T>(operation: () => Promise<T>) => Promise<T>;
 }
 
@@ -72,17 +71,36 @@ export const useRayenImportConfirmation = ({
   recordRunPerformance,
   applyDiff,
   runClinicalStage,
-  loadFreshClinicalRecord,
+  loadAuthoritativeStructuralRecord,
   runSerializedPersistence,
 }: UseRayenImportConfirmationInput) => {
   const confirmationExecutionKeysRef = useRef(new Set<string>());
 
   return useCallback(
-    async (applyPreviousDays: boolean = true) => {
+    async (
+      applyPreviousDays: boolean = true,
+      bedCollisionResolutions: BedOccupancyCollisionResolution[] = []
+    ) => {
       const base =
         preparedSyncContextRef.current?.record ?? currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
-      const diff = state.diff;
+      const diff = resolveBedOccupancyCollisions(state.diff, bedCollisionResolutions);
+      const unresolvedBedCollision = (diff.bedOccupancyCollisions ?? []).some(
+        collision =>
+          !(diff.bedOccupancyCollisionResolutions ?? []).some(
+            resolution => resolution.collisionId === collision.id
+          )
+      );
+      if (unresolvedBedCollision) {
+        setState(previous => ({
+          ...previous,
+          isBusy: false,
+          isSyncing: false,
+          error:
+            'La distribución elegida usa una cama que ya está reservada. Revisa las camas destino antes de confirmar.',
+        }));
+        return;
+      }
       const run = ensureRun();
       const executionIdentity = rayenSyncExecutionIdentity(executionRef.current, run.id);
       if (
@@ -178,8 +196,12 @@ export const useRayenImportConfirmation = ({
             isAdmin,
             ensureRun,
             applyDiff,
-            getFreshRecord: () => loadFreshClinicalRecord(base.date),
-            replanDiff: structuralReplan.replan,
+            getFreshRecord: () => loadAuthoritativeStructuralRecord(base.date),
+            replanDiff: async record =>
+              resolveBedOccupancyCollisions(
+                await structuralReplan.replan(record),
+                bedCollisionResolutions
+              ),
             clinicalDay: structuralReplan.clinicalDay,
             createId: () => crypto.randomUUID(),
             onRetry: () =>
@@ -195,9 +217,8 @@ export const useRayenImportConfirmation = ({
         if (!result) return;
         await continueAfterStructuralCommit(result);
       } catch (error) {
-        const committedResult = committedRayenImportResultFromError<
-          Awaited<ReturnType<typeof applyDiff>>
-        >(error);
+        const committedResult =
+          committedRayenImportResultFromError<Awaited<ReturnType<typeof applyDiff>>>(error);
         if (committedResult) {
           await continueAfterStructuralCommit(
             committedResult,
@@ -266,7 +287,7 @@ export const useRayenImportConfirmation = ({
       dispatchExecution,
       failRun,
       recordRunPerformance,
-      loadFreshClinicalRecord,
+      loadAuthoritativeStructuralRecord,
       runSerializedPersistence,
       setState,
       transitionExecution,

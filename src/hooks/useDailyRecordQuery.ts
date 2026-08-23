@@ -26,13 +26,14 @@ import type { DailyRecordQueryResult } from '@/services/repositories/contracts/d
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 import {
   assertHydratedRemotePatchCanProceed,
+  ensureFreshDailyRecordSaveMutation,
   ensureFreshClinicalPatchMutation,
-  ensureFreshClinicalSaveMutation,
   ensureFreshDailyRecordQuery,
   patchDailyRecordWithCompatibility,
+  persistDailyRecordSaveMutation,
   prefetchDailyRecordQuery,
   releasePendingPatchAfterFallbackTtl,
-  saveDailyRecordWithCompatibility,
+  type SaveDailyRecordMutationInput,
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import {
   createDailyRecordPatchBaseRecordRegistry,
@@ -168,31 +169,16 @@ export const useDailyRecordQuery = (
   };
 };
 
-/** Full record plus the remote revision from which an optimistic mutation was derived. */
-type SaveDailyRecordMutationInput = { record: DailyRecord; expectedLastUpdated?: string; requireConfirmedRecord?: boolean };
-
 export const useSaveDailyRecordMutation = () => {
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
 
   return useMutation({
-    mutationFn: async ({ record, expectedLastUpdated, requireConfirmedRecord }: SaveDailyRecordMutationInput) => {
-      const options = requireConfirmedRecord ? { requireConfirmedRecord: true } : undefined;
-      const result = await saveDailyRecordWithCompatibility(
-        dailyRecord,
-        record,
-        expectedLastUpdated,
-        options
-      );
-      return { record: result?.confirmedRecord ?? record, result };
-    },
-    onMutate: async ({ record: newRecord, expectedLastUpdated }) => {
-      // React Query awaits onMutate before mutationFn. One freshness read is enough; repeating it
-      // inside mutationFn can hydrate a second revision and manufacture a conflict with ourselves.
-      const freshnessAnchor = expectedLastUpdated
-        ? { ...newRecord, lastUpdated: expectedLastUpdated }
-        : newRecord;
-      await ensureFreshClinicalSaveMutation(freshnessAnchor, { dailyRecord, queryClient });
+    mutationFn: (input: SaveDailyRecordMutationInput) =>
+      persistDailyRecordSaveMutation(dailyRecord, input),
+    onMutate: async (input: SaveDailyRecordMutationInput) => {
+      const newRecord = input.record;
+      await ensureFreshDailyRecordSaveMutation(input, { dailyRecord, queryClient });
 
       await queryClient.cancelQueries({
         queryKey: queryKeys.dailyRecord.byDate(newRecord.date),
