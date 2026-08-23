@@ -80,7 +80,7 @@ describe('clinical sync simulator · Rayen acceptance contract', () => {
       pathology: 'Diagnostico fixture actualizado',
       treatingPhysicianId: 'fixture-practitioner-2',
       treatingPhysicianName: 'Profesional Fixture Dos',
-      specialty: 'Med Interna',
+      specialty: 'Especialidad local anterior',
       handoffNote: 'Otra nota local preservada',
     });
     const activeEpisodeIds = Object.values(firstApply.record.beds).map(

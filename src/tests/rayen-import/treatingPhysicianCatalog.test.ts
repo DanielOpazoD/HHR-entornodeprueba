@@ -252,6 +252,43 @@ describe('treating physician catalog', () => {
     expect(changes.some(change => change.field === 'specialty')).toBe(false);
   });
 
+  it('keeps an HHR specialty when Rayen changes the treating physician and its mapping', () => {
+    const current = patient({
+      treatingPhysicianId: 'old',
+      treatingPhysicianName: 'Médico anterior',
+      specialty: 'Cirugía',
+    });
+    const incoming = patient({
+      treatingPhysicianId: '7947',
+      treatingPhysicianName: 'Angelica Vargas',
+      specialty: 'Psiquiatría',
+    });
+    const changes = diffSyncablePatientFields(current, incoming);
+
+    expect(changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'treatingPhysicianId', to: '7947' }),
+        expect.objectContaining({ field: 'treatingPhysicianName', to: 'Angelica Vargas' }),
+      ])
+    );
+    expect(changes.some(change => change.field === 'specialty')).toBe(false);
+  });
+
+  it('fills an empty HHR specialty from the configured physician mapping', () => {
+    const changes = diffSyncablePatientFields(
+      patient({ specialty: '' }),
+      patient({
+        treatingPhysicianId: '7947',
+        treatingPhysicianName: 'Angelica Vargas',
+        specialty: 'Psiquiatría',
+      })
+    );
+
+    expect(changes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'specialty', to: 'Psiquiatría' })])
+    );
+  });
+
   it('does not erase a verified name when the same stable id is temporarily unresolved', () => {
     const current = patient({
       treatingPhysicianId: '7947',
