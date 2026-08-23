@@ -20,8 +20,10 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/features/census/controllers/censusCmaController.ts',
   // Rayen census import builds discharge/transfer movements that carry the pre-movement
   // patient snapshot in originalData for the undo/audit machinery, same as the movement
-  // controllers above.
+  // controllers above. Its recorded-outcome matcher also reads that snapshot only as a
+  // legacy fallback when an older movement lacks clinicalEpisodeId.
   'src/features/rayen-import/domain/applyCensusImportDiff.ts',
+  'src/features/rayen-import/domain/censusDischargeHistory.ts',
   'src/domain/CensusManager.ts',
   'src/services/admin/admissionDateBackfillPlanner.ts',
   // Integrity scoring recognizes a newly persisted movement snapshot as evidence that a

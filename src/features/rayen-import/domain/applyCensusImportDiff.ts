@@ -18,6 +18,7 @@ import * as collisionApply from './applyBedOccupancyCollisionResolutions';
 import { buildRayenMovementProvenance } from './rayenMovementProvenance';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
+import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
@@ -236,9 +237,10 @@ export const applyCensusImportDiff = (
   const cma: CMAData[] = [...current.cma];
   const skipped: SkippedOp[] = [];
   const applied = { admissions: 0, updates: 0, moves: 0, discharges: 0 };
+  const effectiveDiff = filterRecordedOutcomeActions(current, diff);
   const collisionResult = collisionApply.applyBedOccupancyCollisionResolutions({
     current,
-    diff,
+    diff: effectiveDiff,
     nextBeds,
     discharges,
     transfers,
@@ -252,11 +254,11 @@ export const applyCensusImportDiff = (
   }
   const collisionReceipts = collisionResult.resolutionReceipts;
   // Discharges: vacate the bed and append the matching movement record.
-  for (const entry of diff.discharges) {
+  for (const entry of effectiveDiff.discharges) {
     // An applied collision choice overrides older discharge evidence.
     if (
       collisionResult.consumedDischarges.includes(entry) ||
-      collisionApply.isDischargeOverriddenByCollisionReview(diff, entry, collisionReceipts)
+      collisionApply.isDischargeOverriddenByCollisionReview(effectiveDiff, entry, collisionReceipts)
     )
       continue;
     const patient = isOccupied(current.beds[entry.bedId]) ? current.beds[entry.bedId] : undefined;
@@ -271,7 +273,7 @@ export const applyCensusImportDiff = (
       continue;
     }
     if (
-      diff.retainedBedCollisionResolutions?.some(
+      effectiveDiff.retainedBedCollisionResolutions?.some(
         receipt => receipt.selectedEpisodeId === subject.clinicalEpisodeId
       )
     ) {
@@ -305,7 +307,7 @@ export const applyCensusImportDiff = (
   // 1b) Report egresos HHR never synced (unknown RUN): there is no bed to vacate — just append
   //     the movement record so the day's altas census logs them (already reviewed in the
   //     preview). The patient is synthesized from the report row; time comes from the report.
-  for (const egreso of diff.reportEgresos ?? []) {
+  for (const egreso of effectiveDiff.reportEgresos ?? []) {
     // With the report fetched for [D, D+1] (the source files late egresos a day ahead), the list also
     // carries egresos of a DIFFERENT island day. Only log here those whose corrected island day IS
     // this census day; earlier ones are filed on their real day by the cross-day writer, and later
@@ -325,7 +327,7 @@ export const applyCensusImportDiff = (
   }
 
   // 2) Moves: capture sources from the ORIGINAL record, free them, then place targets.
-  const moveOps = diff.moves
+  const moveOps = effectiveDiff.moves
     .map(move => ({ move, source: current.beds[move.fromBedId] }))
     .filter(op => isOccupied(op.source));
   for (const { move } of moveOps) delete nextBeds[move.fromBedId];
@@ -340,7 +342,7 @@ export const applyCensusImportDiff = (
   }
 
   // 3) Admissions: only into a free bed.
-  for (const entry of diff.admissions) {
+  for (const entry of effectiveDiff.admissions) {
     if (isOccupied(nextBeds[entry.bedId])) {
       skipped.push({ kind: 'admission', bedId: entry.bedId, reason: 'Cama ocupada.' });
       continue;
@@ -350,7 +352,7 @@ export const applyCensusImportDiff = (
   }
 
   // 4) Updates: merge only the changed Rayen-sourced fields, preserving app-managed data.
-  for (const entry of diff.updates) {
+  for (const entry of effectiveDiff.updates) {
     const existing = nextBeds[entry.bedId];
     if (!isOccupied(existing)) {
       skipped.push({ kind: 'update', bedId: entry.bedId, reason: 'Sin paciente en la cama.' });
@@ -358,6 +360,9 @@ export const applyCensusImportDiff = (
     }
     const merged = { ...existing } as unknown as Record<string, unknown>;
     for (const change of entry.changes) {
+      // Re-check local authority at apply time too: the user may have selected a specialty after
+      // the preview was built but before confirming it.
+      if (change.field === 'specialty' && String(existing.specialty ?? '').trim()) continue;
       merged[change.field] = change.to;
     }
     nextBeds[entry.bedId] = merged as unknown as PatientData;

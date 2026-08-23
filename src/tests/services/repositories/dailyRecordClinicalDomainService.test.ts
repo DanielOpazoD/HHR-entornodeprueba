@@ -160,6 +160,20 @@ describe('dailyRecordClinicalDomainService', () => {
     expect(carried.isUPC).toBe(false);
   });
 
+  it('preserves the HHR specialty when carrying a patient into the next census day', () => {
+    const source = buildPatient('R1', {
+      specialty: Specialty.CIRUGIA,
+      treatingPhysicianId: 'rayen-1',
+      treatingPhysicianName: 'Médico tratante',
+    });
+
+    const carried = preparePatientForCarryover(source);
+
+    expect(carried.specialty).toBe(Specialty.CIRUGIA);
+    expect(carried.treatingPhysicianId).toBe('rayen-1');
+    expect(carried.treatingPhysicianName).toBe('Médico tratante');
+  });
+
   it('does not carry residual patient identity without admission date into a new day', () => {
     const previousRecord = {
       date: '2026-04-28',

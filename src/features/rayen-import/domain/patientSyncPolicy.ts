@@ -36,8 +36,10 @@ export const diffSyncablePatientFields = (
     if (field === 'clinicalEpisodeId' && !incoming.clinicalEpisodeId) continue;
     // Missing bridge coding is not an instruction to erase locally curated CIE-10 data.
     if ((field === 'cie10Code' || field === 'cie10Description') && !incoming.cie10Code) continue;
-    // A missing/unconfigured physician-specialty mapping must never erase a manual HHR value.
-    if (field === 'specialty' && (!incoming.treatingPhysicianId || !incoming.specialty)) continue;
+    // Specialty is locally curated in HHR. Rayen may fill an empty value for a new/legacy patient,
+    // but a physician change must never replace a specialty already selected by the user.
+    if (field === 'specialty' && (String(current.specialty ?? '').trim() || !incoming.specialty))
+      continue;
     // No Rayen assignment is not authoritative enough to erase a name-only physician selected
     // manually in HHR. Rayen-backed identities still follow the source when it removes them.
     if (
