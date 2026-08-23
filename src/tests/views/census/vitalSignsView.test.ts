@@ -4,6 +4,12 @@ import {
   buildVitalsHistory,
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
+import {
+  classifyVitalSign,
+  VITAL_STATUS_MEANINGS,
+  VITAL_SIGNS_PROFILE_DEFINITIONS,
+} from '@/constants/vitalSignsThresholds';
+import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
 
 const vitals = (over: Partial<PatientVitalSigns> = {}): PatientVitalSigns => ({
   recordedDate: '2026-07-11',
@@ -174,5 +180,185 @@ describe('buildVitalsHistory', () => {
     expect(rows[0].cells.pa?.value).toBe('120/80');
     expect(rows[0].cells.spo2?.status).toBe('alert'); // 88% flagged
     expect(rows[1].cells.fc?.value).toBe('70');
+  });
+});
+
+describe('vital signs threshold configuration', () => {
+  it('keeps every visual state and population definition documented in configuration', () => {
+    expect(Object.keys(VITAL_STATUS_MEANINGS)).toEqual(['neutral', 'normal', 'warn', 'alert']);
+    expect(VITAL_SIGNS_PROFILE_DEFINITIONS.newborn).toContain('0 a 27 días');
+    expect(VITAL_SIGNS_PROFILE_DEFINITIONS.newborn).toContain('La cama o ubicación no define');
+    expect(Object.keys(VITAL_SIGNS_PROFILE_DEFINITIONS)).toEqual([
+      'unknown',
+      'newborn',
+      'infant',
+      'child_1_4',
+      'child_5_11',
+      'adolescent_12_17',
+      'adult',
+    ]);
+  });
+
+  it.each([
+    ['adult', 'pa', 90, 'alert'],
+    ['adult', 'pa', 91, 'warn'],
+    ['adult', 'pa', 100, 'normal'],
+    ['adult', 'pa', 160, 'normal'],
+    ['adult', 'pa', 161, 'warn'],
+    ['adult', 'pa', 181, 'alert'],
+    ['newborn', 'fc', 79, 'alert'],
+    ['newborn', 'fc', 80, 'warn'],
+    ['newborn', 'fc', 100, 'normal'],
+    ['newborn', 'fc', 160, 'normal'],
+    ['newborn', 'fc', 180, 'warn'],
+    ['newborn', 'fc', 181, 'alert'],
+    ['infant', 'fc', 80, 'alert'],
+    ['infant', 'fc', 81, 'warn'],
+    ['infant', 'fc', 100, 'normal'],
+    ['infant', 'fc', 159, 'normal'],
+    ['infant', 'fc', 160, 'warn'],
+    ['infant', 'fc', 190, 'alert'],
+    ['child_1_4', 'fr', 10, 'alert'],
+    ['child_1_4', 'fr', 11, 'warn'],
+    ['child_1_4', 'fr', 16, 'normal'],
+    ['child_1_4', 'fr', 35, 'normal'],
+    ['child_1_4', 'fr', 36, 'warn'],
+    ['child_1_4', 'fr', 50, 'alert'],
+    ['child_5_11', 'pa', 64, 'alert'],
+    ['child_5_11', 'pa', 65, 'warn'],
+    ['child_5_11', 'pa', 85, 'normal'],
+    ['child_5_11', 'pa', 129, 'normal'],
+    ['child_5_11', 'pa', 130, 'warn'],
+    ['adolescent_12_17', 'fc', 40, 'alert'],
+    ['adolescent_12_17', 'fc', 41, 'warn'],
+    ['adolescent_12_17', 'fc', 60, 'normal'],
+    ['adolescent_12_17', 'fc', 119, 'normal'],
+    ['adolescent_12_17', 'fc', 120, 'warn'],
+    ['adolescent_12_17', 'fc', 150, 'alert'],
+  ] as const)('classifies %s %s=%s as %s', (profile, metric, value, expected) => {
+    expect(classifyVitalSign(profile, metric, value)).toBe(expected);
+  });
+
+  it('uses the shared Queensland paediatric temperature and oxygen bands', () => {
+    expect(classifyVitalSign('child_1_4', 'temp', 35.5)).toBe('normal');
+    expect(classifyVitalSign('child_1_4', 'temp', 37.9)).toBe('normal');
+    expect(classifyVitalSign('child_1_4', 'temp', 38)).toBe('warn');
+    expect(classifyVitalSign('child_5_11', 'spo2', 94)).toBe('normal');
+    expect(classifyVitalSign('child_5_11', 'spo2', 90)).toBe('warn');
+    expect(classifyVitalSign('child_5_11', 'spo2', 89)).toBe('alert');
+  });
+
+  it('keeps every metric neutral when age is unknown', () => {
+    expect(classifyVitalSign('unknown', 'pa', 45)).toBe('neutral');
+    expect(classifyVitalSign('unknown', 'fc', 210)).toBe('neutral');
+    expect(classifyVitalSign('unknown', 'spo2', 70)).toBe('neutral');
+  });
+});
+
+describe('resolveVitalSignsProfile', () => {
+  it('uses completed age on the measurement day, including historical measurements', () => {
+    expect(
+      resolveVitalSignsProfile({
+        birthDate: '2026-08-01',
+        referenceDate: '2026-08-28',
+      })
+    ).toBe('newborn');
+    expect(
+      resolveVitalSignsProfile({
+        birthDate: '2026-08-01',
+        referenceDate: '2026-08-29',
+      })
+    ).toBe('infant');
+  });
+
+  it('uses Queensland paediatric age bands on the historical measurement date', () => {
+    expect(resolveVitalSignsProfile({ birthDate: '2025-08-23', referenceDate: '2026-08-22' })).toBe(
+      'infant'
+    );
+    expect(resolveVitalSignsProfile({ birthDate: '2025-08-23', referenceDate: '2026-08-23' })).toBe(
+      'child_1_4'
+    );
+    expect(resolveVitalSignsProfile({ birthDate: '2021-08-23', referenceDate: '2026-08-23' })).toBe(
+      'child_5_11'
+    );
+    expect(resolveVitalSignsProfile({ birthDate: '2014-08-23', referenceDate: '2026-08-23' })).toBe(
+      'adolescent_12_17'
+    );
+    expect(resolveVitalSignsProfile({ birthDate: '2008-08-23', referenceDate: '2026-08-23' })).toBe(
+      'adult'
+    );
+  });
+
+  it('accepts explicit day, month or year ages only when dates are unavailable', () => {
+    expect(resolveVitalSignsProfile({ age: '10d' })).toBe('newborn');
+    expect(resolveVitalSignsProfile({ age: '27 días' })).toBe('newborn');
+    expect(resolveVitalSignsProfile({ age: '28d' })).toBe('infant');
+    expect(resolveVitalSignsProfile({ age: '11 meses' })).toBe('infant');
+    expect(resolveVitalSignsProfile({ age: '400 días' })).toBe('child_1_4');
+    expect(resolveVitalSignsProfile({ age: '18 meses' })).toBe('child_1_4');
+    expect(resolveVitalSignsProfile({ age: '72 meses' })).toBe('child_5_11');
+    expect(resolveVitalSignsProfile({ age: '150 meses' })).toBe('adolescent_12_17');
+    expect(resolveVitalSignsProfile({ age: '240 meses' })).toBe('adult');
+    expect(resolveVitalSignsProfile({ age: '1a' })).toBe('child_1_4');
+    expect(resolveVitalSignsProfile({ age: '5 años' })).toBe('child_5_11');
+    expect(resolveVitalSignsProfile({ age: '12a' })).toBe('adolescent_12_17');
+    expect(resolveVitalSignsProfile({ age: '18 años' })).toBe('adult');
+  });
+
+  it('accepts the bare completed-year format stored by Rayen and manual census edits', () => {
+    expect(resolveVitalSignsProfile({ age: '1' })).toBe('child_1_4');
+    expect(resolveVitalSignsProfile({ age: '5' })).toBe('child_5_11');
+    expect(resolveVitalSignsProfile({ age: '12' })).toBe('adolescent_12_17');
+    expect(resolveVitalSignsProfile({ age: '18' })).toBe('adult');
+    expect(resolveVitalSignsProfile({ age: '52' })).toBe('adult');
+  });
+
+  it('uses an unknown neutral profile when age cannot be established safely', () => {
+    expect(resolveVitalSignsProfile({})).toBe('unknown');
+    expect(resolveVitalSignsProfile({ age: 'sin dato' })).toBe('unknown');
+    expect(resolveVitalSignsProfile({ age: '0 meses' })).toBe('unknown');
+    expect(resolveVitalSignsProfile({ age: '0 años' })).toBe('unknown');
+    expect(resolveVitalSignsProfile({ age: '0' })).toBe('unknown');
+    expect(resolveVitalSignsProfile({ birthDate: '2026-08-24', referenceDate: '2026-08-23' })).toBe(
+      'unknown'
+    );
+  });
+
+  it('does not let the age label override valid dates', () => {
+    expect(
+      resolveVitalSignsProfile({
+        birthDate: '1986-01-01',
+        referenceDate: '2026-08-23',
+        age: '1d',
+      })
+    ).toBe('adult');
+  });
+});
+
+describe('historical profile resolution', () => {
+  it('classifies each measurement using age on that measurement date', () => {
+    const records = [
+      vitals({ recordedDate: '2026-08-29', recordedAt: '29-08-2026 08:00', heartRate: 80 }),
+      vitals({ recordedDate: '2026-08-28', recordedAt: '28-08-2026 08:00', heartRate: 80 }),
+    ];
+    const rows = buildVitalsHistory(records, record =>
+      resolveVitalSignsProfile({ birthDate: '2026-08-01', referenceDate: record.recordedDate })
+    );
+
+    expect(rows[0].cells.fc?.status).toBe('alert'); // 28 days: infant CEWT
+    expect(rows[1].cells.fc?.status).toBe('warn'); // 27 days: neonatal profile
+  });
+
+  it('keeps historical values neutral when no birth date can reconstruct age at each reading', () => {
+    const records = [
+      vitals({ recordedDate: '2026-08-23', recordedAt: '23-08-2026 08:00', heartRate: 45 }),
+      vitals({ recordedDate: '2025-08-23', recordedAt: '23-08-2025 08:00', heartRate: 45 }),
+    ];
+    const rows = buildVitalsHistory(records, record =>
+      resolveVitalSignsProfile({ referenceDate: record.recordedDate })
+    );
+
+    expect(rows[0].cells.fc?.status).toBe('neutral');
+    expect(rows[1].cells.fc?.status).toBe('neutral');
   });
 });

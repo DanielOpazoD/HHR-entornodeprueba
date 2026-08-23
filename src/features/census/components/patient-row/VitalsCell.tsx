@@ -16,6 +16,7 @@ import {
   type VitalReadingView,
   type VitalStatus,
 } from '@/features/census/controllers/vitalSignsView';
+import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
 import { useRayenFillStatus } from '@/features/rayen-import';
 
 /** The four readings surfaced inline in the census cell (the rest live in the modal). */
@@ -53,10 +54,11 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
   }
 
-  const vitalProfile =
-    isSubRow || data.bedMode === 'Cuna' || data.bedId === 'NEO1' || data.bedId === 'NEO2'
-      ? 'newborn'
-      : 'adult';
+  const vitalProfile = resolveVitalSignsProfile({
+    age: data.age,
+    birthDate: data.birthDate,
+    referenceDate: data.vitalSigns?.recordedDate,
+  });
   const vitals = buildVitalSignsView(data.vitalSigns, vitalProfile);
   const readingByKey = (key: VitalReadingView['key']): VitalReadingView | undefined =>
     vitals?.readings.find(reading => reading.key === key);
@@ -128,6 +130,8 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
                 ? [data.vitalSigns]
                 : []
           }
+          age={data.age}
+          birthDate={data.birthDate}
           profile={vitalProfile}
           onClose={() => setIsDetailOpen(false)}
         />
