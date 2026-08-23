@@ -153,6 +153,9 @@ botón IEEH
 - Los tipos compartidos de camas y movimientos deben entrar por
   `contracts/censusBedContracts.ts` y `contracts/censusMovementContracts.ts`,
   no directo desde `src/types/domain/*`.
+- Los límites y significados visuales de signos vitales están documentados en
+  [`docs/VITAL_SIGNS_VISUAL_RANGES.md`](../../../docs/VITAL_SIGNS_VISUAL_RANGES.md); su configuración
+  ejecutable compartida vive en `src/constants/vitalSignsThresholds.ts`.
 
 ## Invariantes
 

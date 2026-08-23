@@ -25,6 +25,7 @@ import {
   SettingsTableTab,
 } from '@/components/modals/SettingsModalTabs';
 import { TreatingPhysiciansSettings } from './TreatingPhysiciansSettings';
+import { VitalSignsVisualRangesSettings } from './VitalSignsVisualRangesSettings';
 
 const LazyClinicalDocumentTemplatesManager = lazy(() =>
   import('./ClinicalDocumentTemplatesManager').then(module => ({
@@ -170,7 +171,10 @@ export const ConfigurationView: React.FC = () => {
 
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1200px] mx-auto px-4 py-6">
         {activeTab === 'VISUAL' && (
-          <SettingsVisualTab settings={settings} updateSetting={updateSetting} />
+          <>
+            <SettingsVisualTab settings={settings} updateSetting={updateSetting} />
+            <VitalSignsVisualRangesSettings />
+          </>
         )}
         {activeTab === 'TABLE' && (
           <SettingsTableTab

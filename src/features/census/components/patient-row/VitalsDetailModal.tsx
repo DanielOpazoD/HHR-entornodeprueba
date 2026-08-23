@@ -16,11 +16,14 @@ import {
   type VitalStatus,
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
+import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
 
 interface VitalsDetailModalProps {
   patientName: string;
   vitals: VitalSignsView;
   history: PatientVitalSigns[];
+  age?: string;
+  birthDate?: string;
   profile: VitalSignsProfile;
   onClose: () => void;
 }
@@ -49,10 +52,16 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
   patientName,
   vitals,
   history,
+  age,
+  birthDate,
   profile,
   onClose,
 }) => {
-  const rows = buildVitalsHistory(history, profile);
+  const rows = buildVitalsHistory(history, record =>
+    birthDate
+      ? resolveVitalSignsProfile({ age, birthDate, referenceDate: record.recordedDate })
+      : 'unknown'
+  );
   const days = [...new Set(rows.map(row => row.recordedDate))];
 
   return (
@@ -68,9 +77,7 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
       <div className="space-y-3">
         <section>
           <div className="mb-1.5 flex items-center justify-between text-[11px] text-slate-400">
-            <span className="font-semibold uppercase tracking-wide">
-              Última toma{profile === 'newborn' ? ' · rangos RN' : ''}
-            </span>
+            <span className="font-semibold uppercase tracking-wide">Última toma</span>
             <span className="tabular-nums">{vitals.recordedAt}</span>
           </div>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">

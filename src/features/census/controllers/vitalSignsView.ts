@@ -3,17 +3,22 @@
  * `PatientVitalSigns` into an ordered list of readings, each flagged normal / warn / alert against
  * conservative reference ranges, plus a worst-status summary and a compact cell chip.
  *
- * These are screening bands, not diagnostic criteria. Newborn rows use their own HR/RR/temperature
- * profile and intentionally avoid applying an adult blood-pressure band.
+ * These are screening bands, not diagnostic criteria. Pediatric rows use age-specific Queensland
+ * Health CEWT profiles. RN remain a separate age-only profile.
  */
 
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
+import {
+  classifyVitalSign,
+  type VitalSignsMetricKey,
+  type VitalSignsProfile,
+  type VitalStatus,
+} from '@/constants/vitalSignsThresholds';
 
-export type VitalStatus = 'neutral' | 'normal' | 'warn' | 'alert';
-export type VitalSignsProfile = 'adult' | 'newborn';
+export type { VitalSignsProfile, VitalStatus } from '@/constants/vitalSignsThresholds';
 
 export interface VitalReadingView {
-  key: 'pa' | 'fc' | 'spo2' | 'temp' | 'fr' | 'eva' | 'hgt' | 'ins';
+  key: VitalSignsMetricKey;
   label: string;
   /** Formatted value, e.g. "130/82" or "36.5". */
   value: string;
@@ -36,34 +41,6 @@ export interface VitalSignsView {
 const RANK: Record<VitalStatus, number> = { neutral: -1, normal: 0, warn: 1, alert: 2 };
 const worseOf = (a: VitalStatus, b: VitalStatus): VitalStatus => (RANK[b] > RANK[a] ? b : a);
 
-/** Classify a value into a band given [alertLow, warnLow, warnHigh, alertHigh] cut points. */
-const band = (
-  value: number,
-  alertLow: number,
-  warnLow: number,
-  warnHigh: number,
-  alertHigh: number
-): VitalStatus => {
-  if (value <= alertLow || value >= alertHigh) return 'alert';
-  if (value < warnLow || value > warnHigh) return 'warn';
-  return 'normal';
-};
-
-const spo2Status = (v: number): VitalStatus => (v < 90 ? 'alert' : v < 94 ? 'warn' : 'normal');
-const tempStatus = (v: number): VitalStatus => band(v, 35, 35.5, 37.7, 39);
-const hrStatus = (v: number): VitalStatus => band(v, 40, 50, 100, 130);
-const rrStatus = (v: number): VitalStatus => band(v, 8, 12, 20, 25);
-const sbpStatus = (v: number): VitalStatus => band(v, 90, 100, 160, 181);
-const newbornHrStatus = (v: number): VitalStatus =>
-  v < 80 || v > 180 ? 'alert' : v < 100 || v > 160 ? 'warn' : 'normal';
-const newbornRrStatus = (v: number): VitalStatus =>
-  v < 20 || v > 70 ? 'alert' : v < 30 || v > 60 ? 'warn' : 'normal';
-const newbornTempStatus = (v: number): VitalStatus =>
-  v <= 35.5 || v >= 38 ? 'alert' : v < 36.5 || v > 37.5 ? 'warn' : 'normal';
-const evaStatus = (v: number): VitalStatus => (v >= 7 ? 'alert' : v >= 4 ? 'warn' : 'normal');
-// Capillary glucose (mg/dL): hypo < 70 (severe < 54), hyper > 180 (severe ≥ 400).
-const hgtStatus = (v: number): VitalStatus => band(v, 54, 70, 180, 400);
-
 /** Trim a trailing ".0" so "36.0" shows as "36". */
 const fmt = (v: number): string => String(Number.isInteger(v) ? v : Number(v.toFixed(1)));
 
@@ -82,9 +59,7 @@ export const buildVitalSignsView = (
       label: 'PA',
       value,
       unit: 'mmHg',
-      // Neonatal BP depends on gestational age, birth weight and postnatal age. Without that
-      // context, showing the value is safer than applying the adult threshold.
-      status: profile === 'newborn' ? 'neutral' : sbpStatus(vitals.systolic),
+      status: classifyVitalSign(profile, 'pa', vitals.systolic),
     });
   }
   if (vitals.heartRate != null) {
@@ -93,8 +68,7 @@ export const buildVitalSignsView = (
       label: 'FC',
       value: fmt(vitals.heartRate),
       unit: 'lpm',
-      status:
-        profile === 'newborn' ? newbornHrStatus(vitals.heartRate) : hrStatus(vitals.heartRate),
+      status: classifyVitalSign(profile, 'fc', vitals.heartRate),
     });
   }
   if (vitals.spo2 != null) {
@@ -103,7 +77,7 @@ export const buildVitalSignsView = (
       label: 'SatO₂',
       value: fmt(vitals.spo2),
       unit: '%',
-      status: spo2Status(vitals.spo2),
+      status: classifyVitalSign(profile, 'spo2', vitals.spo2),
     });
   }
   if (vitals.temperature != null) {
@@ -112,10 +86,7 @@ export const buildVitalSignsView = (
       label: 'T°',
       value: fmt(vitals.temperature),
       unit: '°C',
-      status:
-        profile === 'newborn'
-          ? newbornTempStatus(vitals.temperature)
-          : tempStatus(vitals.temperature),
+      status: classifyVitalSign(profile, 'temp', vitals.temperature),
     });
   }
   if (vitals.respiratoryRate != null) {
@@ -124,10 +95,7 @@ export const buildVitalSignsView = (
       label: 'FR',
       value: fmt(vitals.respiratoryRate),
       unit: 'rpm',
-      status:
-        profile === 'newborn'
-          ? newbornRrStatus(vitals.respiratoryRate)
-          : rrStatus(vitals.respiratoryRate),
+      status: classifyVitalSign(profile, 'fr', vitals.respiratoryRate),
     });
   }
   if (vitals.painEva != null) {
@@ -136,7 +104,7 @@ export const buildVitalSignsView = (
       label: 'EVA',
       value: fmt(vitals.painEva),
       unit: '/10',
-      status: evaStatus(vitals.painEva),
+      status: classifyVitalSign(profile, 'eva', vitals.painEva),
     });
   }
   if (vitals.hgt != null) {
@@ -145,8 +113,7 @@ export const buildVitalSignsView = (
       label: 'HGT',
       value: fmt(vitals.hgt),
       unit: 'mg/dL',
-      // Neonatal glucose thresholds depend on hours of life and perinatal risk factors.
-      status: profile === 'newborn' ? 'neutral' : hgtStatus(vitals.hgt),
+      status: classifyVitalSign(profile, 'hgt', vitals.hgt),
     });
   }
   // Rapid insulin administered: units + abdominal quadrant ("Ins/Cuad"). Not a range — shown neutral.
@@ -161,7 +128,7 @@ export const buildVitalSignsView = (
         label: 'Ins/Cuad',
         value: parts.join(' · '),
         unit: 'UI',
-        status: 'normal',
+        status: classifyVitalSign(profile, 'ins', vitals.insulinUnits ?? 0),
       });
     }
   }
@@ -228,10 +195,11 @@ const timeLabel = (recordedAt: string): string => {
 /** Build table rows (most-recent-first, as given) for the vitals history view. */
 export const buildVitalsHistory = (
   records: readonly PatientVitalSigns[],
-  profile: VitalSignsProfile = 'adult'
+  profile: VitalSignsProfile | ((record: PatientVitalSigns) => VitalSignsProfile) = 'adult'
 ): VitalsHistoryRow[] =>
   records.map((record, index) => {
-    const view = buildVitalSignsView(record, profile);
+    const resolvedProfile = typeof profile === 'function' ? profile(record) : profile;
+    const view = buildVitalSignsView(record, resolvedProfile);
     const cells: VitalsHistoryRow['cells'] = {};
     view?.readings.forEach(reading => {
       cells[reading.key] = { value: reading.value, status: reading.status };
