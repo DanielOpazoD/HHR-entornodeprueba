@@ -36,6 +36,14 @@ export interface AdmissionEntry {
   source?: RayenEncounter;
 }
 
+export type CmaAdmissionDisposition = 'admit' | 'defer';
+
+/** Explicit operator decision for one first-sync admission from an administrative CMA location. */
+export interface CmaAdmissionResolution {
+  admissionKey: string;
+  disposition: CmaAdmissionDisposition;
+}
+
 /** Active newborn observed in an attached Rayen crib, keyed by its mother's physical bed. */
 export interface ActiveClinicalCribEntry {
   parentBedId: string;

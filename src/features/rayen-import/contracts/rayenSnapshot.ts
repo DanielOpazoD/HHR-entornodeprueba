@@ -70,12 +70,16 @@ export interface RayenEncounter {
   /** HHR-only catalog enrichment used while planning an import; never supplied by Rayen. */
   treatingPhysicianSpecialty?: string;
   /**
-   * Latest physical placement proven by official patient-flow evidence, an exact statistical-
+   * Physical placement proven by the matching Ficha/report evidence, an exact statistical-
    * discharge interval, or the already-persisted historical HHR census for the same episode.
    * It is never persisted as a clinical document.
    */
   verifiedBedPlacement?: {
-    source: 'patient-flow-report' | 'statistical-discharge-interval' | 'local-census-history';
+    source:
+      | 'patient-flow-report'
+      | 'ficha-admission-location'
+      | 'statistical-discharge-interval'
+      | 'local-census-history';
     /** HHR bed id resolved from the latest row in the report. */
     bedId: string;
     /** Evidence timestamp or historical-record revision (ISO-like local timestamp). */

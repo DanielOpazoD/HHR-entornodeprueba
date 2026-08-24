@@ -65,21 +65,25 @@ export const reconcileCensus = (
     claimedTargets.set(bedId, patientName);
     return true;
   };
-  // Place a Rayen patient into their mapped bed as an admission, if the target is free. A CMA
-  // patient is admitted as a NORMAL inpatient (isCma: false): "CMA" is a DISCHARGE type, resolved at
-  // egreso — not an admission attribute. So a patient in the virtual CMA service occupies their real
-  // bed like anyone else until they leave.
-  const tryAdmit = (encounter: RayenEncounter, patient: PatientData, bedId: string): boolean => {
+  // Place a Rayen patient into their mapped bed as an admission, if the target is free. `isCma`
+  // remains transient source provenance for explicit first-sync review; it never changes the real
+  // HHR bed or persists the patient as a CMA movement before the administrative discharge.
+  const tryAdmit = (
+    encounter: RayenEncounter,
+    patient: PatientData,
+    bedId: string,
+    isCmaSource: boolean
+  ): boolean => {
     if (!claimTarget(bedId, patient.patientName, encounter)) return false;
     const conflict = occupiedLocalBedConflict(current, bedId, patient, encounter);
     if (conflict && !feasibleMoveSourceBedIds.has(bedId)) {
       diff.conflicts.push({
         ...conflict,
-        blockedAdmission: { bedId, patient, isCma: false, source: encounter },
+        blockedAdmission: { bedId, patient, isCma: isCmaSource, source: encounter },
       });
       return false;
     }
-    diff.admissions.push({ bedId, patient, isCma: false, source: encounter });
+    diff.admissions.push({ bedId, patient, isCma: isCmaSource, source: encounter });
     return true;
   };
   const activeScope = preparePavilionRecoverySyncScope(
@@ -207,7 +211,7 @@ export const reconcileCensus = (
       continue;
     }
     if (admittedAfterCensusDay(encounter, censusDay)) continue;
-    if (tryAdmit(encounter, patient, bedId)) confirmedPrincipalBedIds.add(bedId);
+    if (tryAdmit(encounter, patient, bedId, mapped.isCma)) confirmedPrincipalBedIds.add(bedId);
   }
   reconcileActiveBedAssignments({
     current,
@@ -320,7 +324,7 @@ export const reconcileCensus = (
     // later replace that provisional admission with the definitive statistical movement.
     if (wasDischargedInHhr(encounter)) continue;
     const { patient, bedId } = mapped;
-    if (bedId && tryAdmit(encounter, patient, bedId)) {
+    if (bedId && tryAdmit(encounter, patient, bedId, mapped.isCma)) {
       confirmedPrincipalBedIds.add(bedId);
     }
   }

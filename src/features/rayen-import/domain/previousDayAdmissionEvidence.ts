@@ -16,7 +16,13 @@ import {
   patientAdmissionDay,
 } from './previousDayAdmissionCorrections';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
-import { latestPatientFlowMovement, patientRunFromFlowReport } from '../mapping/parsePatientFlow';
+import {
+  firstPatientFlowTimestamp,
+  isPatientFlowTimelineEmpty,
+  latestPatientFlowMovement,
+  patientRunFromFlowReport,
+} from '../mapping/parsePatientFlow';
+import { mapRayenBed } from '../mapping/bedMapping';
 import { rayenToPatientData } from '../mapping/rayenToPatientData';
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
@@ -297,11 +303,31 @@ const verifyCandidate = async (
       notAfter: secondBefore(`${nextDay}T${nightEnd}:00`),
     });
     if (!movement) {
+      const mappedAdmissionBed = mapRayenBed(source).bedId;
+      if (isPatientFlowTimelineEmpty(text) && mappedAdmissionBed === admission.bedId) {
+        return {
+          admission: {
+            ...admission,
+            source: {
+              ...source,
+              verifiedBedPlacement: {
+                source: 'ficha-admission-location',
+                bedId: mappedAdmissionBed,
+                changedAt: admissionStamp,
+              },
+            },
+          },
+        };
+      }
+      const firstMovementAt = firstPatientFlowTimestamp(text);
+      if (firstMovementAt && firstMovementAt > secondBefore(`${nextDay}T${nightEnd}:00`)) {
+        return { admission: unverifiedAdmission };
+      }
       return {
         admission: unverifiedAdmission,
         conflict: evidenceConflict(
           admission,
-          'el informe no confirma una cama antes del cierre del turno nocturno.'
+          'el informe no permite confirmar una cama antes del cierre del turno nocturno.'
         ),
       };
     }
