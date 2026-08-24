@@ -131,12 +131,12 @@ describe('CI workflow governance', () => {
     expect(workflow).toContain("if: matrix.group == 'governance'");
   });
 
-  it('persists critical coverage as an explicit artifact for governance snapshots', () => {
+  it('enforces and persists critical coverage as an explicit artifact for governance snapshots', () => {
     const workflow = readText('.github/workflows/ci-cd.yml');
 
-    expect(workflow).toContain('critical-coverage-report:');
-    expect(workflow).toContain('name: critical-coverage-report');
-    expect(workflow).toContain('run: npm run report:critical-coverage');
+    expect(workflow).toContain(
+      'run: npm run report:critical-coverage && node scripts/check-critical-coverage.mjs'
+    );
     expect(workflow).toContain('name: critical-coverage');
     expect(workflow).toContain('path: reports/critical-coverage.*');
     expect(workflow).toContain('uses: actions/download-artifact@v7');

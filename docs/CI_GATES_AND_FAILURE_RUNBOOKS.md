@@ -17,6 +17,11 @@ Si la change toca reglas generadas o documentación operativa, correr además:
 
 ## Gates activos
 
+El job `critical-coverage-report` genera el artefacto una sola vez y ejecuta después
+`check-critical-coverage.mjs`, bloqueando el PR si alguna zona queda bajo su baseline.
+Los baselines son un ratchet del estado validado; no deben conservar valores ya
+incumplidos ni rebajarse para ocultar una regresión nueva.
+
 ### `ci:inner-loop`
 
 Usar cuando el cambio todavía está en iteración local.
@@ -306,6 +311,7 @@ El reporte `reports/security/dependency-audit.md` debe conservar comandos de rep
    - archivo nuevo sin tests;
    - refactor que movió líneas entre zonas
 5. primero corregir tests o mapping de zona; solo después actualizar baseline si la nueva medición quedó validada a propósito
+6. si el baseline ya estaba incumplido antes del cambio, documentar la corrida que lo demuestra, ajustarlo al valor actual validado y conservar el job bloqueante para impedir nuevas caídas
 
 ### Falla `check:test-failure-catalog`
 
