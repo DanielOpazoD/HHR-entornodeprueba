@@ -12,6 +12,15 @@ import {
 } from '../../../scripts/lib/dependencyAuditSupport.mjs';
 
 describe('dependency audit support', () => {
+  it('audits production and development dependencies at the blocking threshold', () => {
+    const script = fs.readFileSync('scripts/check-dependency-vulnerabilities.mjs', 'utf8');
+    const workflow = fs.readFileSync('.github/workflows/security-audit.yml', 'utf8');
+
+    expect(script).toContain("const auditArgs = ['audit', '--audit-level=high', '--json'];");
+    expect(script).not.toContain('--omit=dev');
+    expect(workflow).toContain('Audit production and development dependencies');
+  });
+
   it('classifies npm audit certificate trust failures distinctly', () => {
     expect(
       classifyAuditFailure({

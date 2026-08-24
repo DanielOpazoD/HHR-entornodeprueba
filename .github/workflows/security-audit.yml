@@ -52,7 +52,7 @@ jobs:
       - name: Run static security hardening
         run: npm run check:security
 
-      - name: Audit production dependencies
+      - name: Audit production and development dependencies
         run: npm run check:dependency-vulnerabilities
 
       - name: Upload security audit artifacts
