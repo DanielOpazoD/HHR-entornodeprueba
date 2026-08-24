@@ -35,7 +35,7 @@ const workspaceConfigs = [
   },
 ];
 
-const auditArgs = ['audit', '--omit=dev', '--audit-level=high', '--json'];
+const auditArgs = ['audit', '--audit-level=high', '--json'];
 
 const extractCounts = report => {
   const vulnerabilities = report?.metadata?.vulnerabilities;
@@ -201,7 +201,7 @@ const runAuditForWorkspace = workspace => {
     issues:
       status === 'vulnerable'
         ? [
-            `Detected ${counts.high} high and ${counts.critical} critical production vulnerabilities.`,
+            `Detected ${counts.high} high and ${counts.critical} critical vulnerabilities.`,
           ]
         : combinedOutput
           ? [combinedOutput]
@@ -224,7 +224,7 @@ const summary = {
   command: `npm ${auditArgs.join(' ')}`,
   overallStatus,
   policy: {
-    scope: 'production dependencies only',
+    scope: 'all dependencies',
     blockingSeverities: ['high', 'critical'],
     workspaces: workspaceConfigs.map(workspace => workspace.id),
   },
@@ -236,7 +236,7 @@ const markdown = [
   '# Dependency Audit',
   '',
   `- Overall status: \`${overallStatus}\``,
-  '- Scope: `production dependencies only`',
+  '- Scope: `all dependencies`',
   '- Blocking severities: `high`, `critical`',
   '',
   '| Workspace | Status | High | Critical | Total | Notes |',
@@ -293,7 +293,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
 }
 
 if (overallStatus !== 'ok') {
-  console.error('[dependency-vulnerabilities] Production dependency audit failed.');
+  console.error('[dependency-vulnerabilities] Dependency audit failed.');
   console.error(`[dependency-vulnerabilities] Summary written to ${path.relative(root, outputJsonPath)}`);
   process.exit(1);
 }
