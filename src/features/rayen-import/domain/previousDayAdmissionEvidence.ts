@@ -19,7 +19,7 @@ import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import {
   firstPatientFlowTimestamp,
   isPatientFlowTimelineEmpty,
-  latestPatientFlowMovement,
+  latestPatientFlowPlacement,
   patientRunFromFlowReport,
 } from '../mapping/parsePatientFlow';
 import { mapRayenBed } from '../mapping/bedMapping';
@@ -298,11 +298,12 @@ const verifyCandidate = async (
         conflict: evidenceConflict(admission, 'el RUN del informe de trazabilidad no coincide.'),
       };
     }
-    const movement = latestPatientFlowMovement(text, {
+    const nightCutoff = secondBefore(`${nextDay}T${nightEnd}:00`);
+    const placement = latestPatientFlowPlacement(text, {
       notBefore: admissionStamp,
-      notAfter: secondBefore(`${nextDay}T${nightEnd}:00`),
+      notAfter: nightCutoff,
     });
-    if (!movement) {
+    if (!placement) {
       const mappedAdmissionBed = mapRayenBed(source).bedId;
       if (isPatientFlowTimelineEmpty(text) && mappedAdmissionBed === admission.bedId) {
         return {
@@ -319,10 +320,8 @@ const verifyCandidate = async (
           },
         };
       }
-      const firstMovementAt = firstPatientFlowTimestamp(text);
-      if (firstMovementAt && firstMovementAt > secondBefore(`${nextDay}T${nightEnd}:00`)) {
+      if ((firstPatientFlowTimestamp(text) ?? '') > nightCutoff)
         return { admission: unverifiedAdmission };
-      }
       return {
         admission: unverifiedAdmission,
         conflict: evidenceConflict(
@@ -331,6 +330,7 @@ const verifyCandidate = async (
         ),
       };
     }
+    if (!placement.bedId) return { admission: unverifiedAdmission };
     return {
       admission: {
         ...admission,
@@ -338,8 +338,8 @@ const verifyCandidate = async (
           ...source,
           verifiedBedPlacement: {
             source: 'patient-flow-report',
-            bedId: movement.bedId,
-            changedAt: movement.changedAt,
+            bedId: placement.bedId,
+            changedAt: placement.changedAt,
           },
         },
       },

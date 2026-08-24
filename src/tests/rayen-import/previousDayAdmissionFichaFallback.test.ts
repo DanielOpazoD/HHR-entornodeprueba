@@ -68,6 +68,38 @@ describe('previous-day admission Ficha fallback', () => {
     expect(verified.conflicts).toEqual([]);
   });
 
+  it('keeps the current-day admission without a conflict when the pre-cutoff placement is outside HHR', async () => {
+    const unverifiedDiff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: motherAndNewbornDiff.admissions.map(admission => ({
+        ...admission,
+        source: admission.source
+          ? { ...admission.source, verifiedBedPlacement: undefined }
+          : undefined,
+      })),
+    };
+
+    const verified = await verifyPreviousDayAdmissionPlacements(unverifiedDiff, '2026-07-26', {
+      fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+      extractText: vi
+        .fn()
+        .mockResolvedValue(
+          [
+            'RUN: 17.059.646-3',
+            '26/07/2026 03:30:00 Servicio de Urgencia Box 4',
+            '26/07/2026 10:00:00 Habitación 4 C2',
+          ].join('\n')
+        ),
+    });
+
+    expect(verified.admissions[0].source?.verifiedBedPlacement).toBeUndefined();
+    expect(verified.admissions[0].patient.admissionDate).toBe('2026-07-26');
+    expect(verified.admissions[0].patient.admissionTime).toBe(
+      unverifiedDiff.admissions[0].patient.admissionTime
+    );
+    expect(verified.conflicts).toEqual([]);
+  });
+
   it('keeps a conflict when the movement timeline is malformed', async () => {
     const admission = motherAndNewbornDiff.admissions[0];
     const verified = await verifyPreviousDayAdmissionPlacements(
