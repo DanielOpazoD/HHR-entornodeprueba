@@ -404,7 +404,9 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('Parcial')).toBeInTheDocument();
     expect(screen.getAllByText(/1 paciente no se pudo completar/).length).toBeGreaterThan(0);
     expect(
-      screen.getByText(/Esta ejecución no registró el paciente ni la etapa que falló/i)
+      screen.getByText(
+        /Esta ejecución anterior registró 1 paciente con información clínica incompleta y 1 falla de fuente/i
+      )
     ).toBeInTheDocument();
     expect(screen.getByText('Información clínica pendiente')).toBeInTheDocument();
 
@@ -414,5 +416,4 @@ describe('RayenImportButton', () => {
     expect(mocks.refreshHealth).not.toHaveBeenCalled();
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
-
 });

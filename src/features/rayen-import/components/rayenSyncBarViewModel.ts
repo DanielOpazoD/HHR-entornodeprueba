@@ -99,6 +99,12 @@ const withTargetDate = (label: string, targetDate?: string | null): string => {
   return formatted ? `${label} · ${formatted}` : label;
 };
 
+const structuralReviewLabel = (diff: CensusImportDiff | null): string => {
+  const conflicts = Math.max(diff?.conflicts.length ?? 0, diff?.summary.conflicts ?? 0);
+  if (conflicts === 0) return 'Revisar cambios del censo';
+  return `${conflicts} cambio${conflicts === 1 ? '' : 's'} del censo ${conflicts === 1 ? 'requiere' : 'requieren'} revisión`;
+};
+
 const canonicalExecutionViewModel = (
   input: RayenSyncBarViewModelInput
 ): RayenSyncBarViewModel | null => {
@@ -130,7 +136,7 @@ const canonicalExecutionViewModel = (
       return settled(
         'action',
         'warning',
-        withTargetDate('Sincronización requiere revisión', targetDate),
+        withTargetDate(structuralReviewLabel(input.diff), targetDate),
         { detail: input.error ?? undefined, visuallyHidden: false }
       );
     case 'persisting_structure':
@@ -170,7 +176,7 @@ const canonicalExecutionViewModel = (
       return settled(
         'action',
         'warning',
-        withTargetDate('Sincronización requiere revisión', targetDate),
+        withTargetDate('No se pudo completar la sincronización', targetDate),
         { detail: input.error ?? undefined, visuallyHidden: false }
       );
     case 'cancelled':
@@ -207,7 +213,7 @@ export const buildRayenSyncBarViewModel = (
   // Validation can reject a recovery action before a contextual execution is created. Surface
   // that actionable error instead of falling back to a stale persisted or idle presentation.
   if (input.error) {
-    return settled('action', 'warning', 'Sincronización requiere revisión', {
+    return settled('action', 'warning', 'Revisar la última sincronización', {
       detail: input.error,
       visuallyHidden: false,
     });

@@ -120,7 +120,7 @@ describe('RayenImportButton feedback', () => {
 
     const notice = screen.getByTestId('rayen-import-error');
     expect(screen.getAllByRole('status')).toHaveLength(1);
-    expect(screen.getByRole('status')).toHaveTextContent('Sincronización requiere revisión');
+    expect(screen.getByRole('status')).toHaveTextContent('No se pudo completar la sincronización');
     expect(screen.getByText(error)).not.toBeVisible();
     fireEvent.click(screen.getByText('Ver detalle'));
     expect(notice).toHaveAttribute('open');
@@ -183,7 +183,7 @@ describe('RayenImportButton feedback', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByRole('button', { name: 'Revisar conflictos' })).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent('Sincronización requiere revisión');
+    expect(screen.getByRole('status')).toHaveTextContent('1 cambio del censo requiere revisión');
     expect(screen.queryByText('Aplicar enfermería')).not.toBeInTheDocument();
   });
 

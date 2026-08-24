@@ -1,9 +1,5 @@
 import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
-import type {
-  AdmissionEntry,
-  CensusImportDiff,
-  ConflictEntry,
-} from '../contracts/censusImportDiff';
+import type { AdmissionEntry, CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
@@ -190,30 +186,10 @@ const supplementalCandidates = (
   });
 };
 
-const evidenceConflict = (admission: AdmissionEntry, reason: string): ConflictEntry => ({
-  bedId: admission.bedId || null,
-  rut: admission.patient.rut || admission.source?.run,
-  patientName: admission.patient.patientName,
-  code: 'historical-admission-evidence',
-  reason: `No se verificó el ingreso nocturno histórico de ${admission.patient.patientName || 'un paciente'}: ${reason}`,
-  source: admission.source,
-});
-
 interface VerificationResult {
   admission: AdmissionEntry;
-  conflict?: ConflictEntry;
+  deferredHistoricalAdmissionBedId?: string;
 }
-
-const conflictKey = (conflict: ConflictEntry): string =>
-  [
-    conflict.code,
-    conflict.source?.encounterId?.trim(),
-    conflict.bedId,
-    normalizeRut(conflict.rut),
-    conflict.patientName?.trim(),
-  ]
-    .filter(Boolean)
-    .join(':');
 
 const verifyCandidate = async (
   admission: AdmissionEntry,
@@ -228,28 +204,26 @@ const verifyCandidate = async (
   );
   const needsEvidence = isPreviousNightRollover(admission, censusDay) || cribRollover;
   if (!needsEvidence) return { admission };
-  if (!source || !/^\d+$/.test(source.encounterId)) {
-    return {
-      admission,
-      conflict: evidenceConflict(
-        admission,
-        'no se identificó un episodio válido para consultar su trazabilidad.'
-      ),
-    };
-  }
-  const unverifiedAdmission: AdmissionEntry = {
-    ...admission,
-    source: { ...source, verifiedBedPlacement: undefined },
+  // Failure to prove the preceding-night placement must fail closed only for the optional
+  // historical correction. The current-day encounter is still authoritative evidence for the
+  // current census and keeps its original admission date/time. `verifiedBedPlacement` remaining
+  // undefined is the gate that prevents `planPreviousDayAdmissionEdits` from writing D-1.
+  const unverifiedAdmission: AdmissionEntry = source
+    ? { ...admission, source: { ...source, verifiedBedPlacement: undefined } }
+    : admission;
+  const deferredResult: VerificationResult = {
+    admission: unverifiedAdmission,
+    deferredHistoricalAdmissionBedId: admission.bedId,
   };
+  if (!source || !/^\d+$/.test(source.encounterId)) {
+    return deferredResult;
+  }
   const admissionStamp = encounterWallClockInRapaNui(source.admissionDatetime);
   const correctionDay = isPreviousNightRollover(admission, censusDay)
     ? clinicalAdmissionDay(source)
     : patientAdmissionDay(admission.patient.clinicalCrib as PatientData);
   if (!admissionStamp || !correctionDay) {
-    return {
-      admission: unverifiedAdmission,
-      conflict: evidenceConflict(admission, 'la fecha u hora de ingreso no es verificable.'),
-    };
+    return deferredResult;
   }
   const { nextDay, nightEnd } = resolveClinicalDayBounds(correctionDay);
   try {
@@ -283,20 +257,11 @@ const verifyCandidate = async (
     }
     const report = await dependencies.fetchReport(source.encounterId);
     if (!report.base64 || report.error) {
-      return {
-        admission: unverifiedAdmission,
-        conflict: evidenceConflict(
-          admission,
-          report.error || 'la trazabilidad de camas no estuvo disponible.'
-        ),
-      };
+      return deferredResult;
     }
     const text = await extractText(decodePdfBase64(report.base64));
     if (patientRunFromFlowReport(text) !== normalizeRut(source.run)) {
-      return {
-        admission: unverifiedAdmission,
-        conflict: evidenceConflict(admission, 'el RUN del informe de trazabilidad no coincide.'),
-      };
+      return deferredResult;
     }
     const nightCutoff = secondBefore(`${nextDay}T${nightEnd}:00`);
     const placement = latestPatientFlowPlacement(text, {
@@ -320,17 +285,10 @@ const verifyCandidate = async (
           },
         };
       }
-      if ((firstPatientFlowTimestamp(text) ?? '') > nightCutoff)
-        return { admission: unverifiedAdmission };
-      return {
-        admission: unverifiedAdmission,
-        conflict: evidenceConflict(
-          admission,
-          'el informe no permite confirmar una cama antes del cierre del turno nocturno.'
-        ),
-      };
+      if ((firstPatientFlowTimestamp(text) ?? '') > nightCutoff) return deferredResult;
+      return deferredResult;
     }
-    if (!placement.bedId) return { admission: unverifiedAdmission };
+    if (!placement.bedId) return deferredResult;
     return {
       admission: {
         ...admission,
@@ -345,10 +303,7 @@ const verifyCandidate = async (
       },
     };
   } catch {
-    return {
-      admission: unverifiedAdmission,
-      conflict: evidenceConflict(admission, 'falló la lectura del informe de trazabilidad.'),
-    };
+    return deferredResult;
   }
 };
 
@@ -379,20 +334,26 @@ export const verifyPreviousDayAdmissionPlacements = async (
       verifyCandidate(admission, censusDay, cachedDependencies, extractText)
     )
   );
-  const evidenceConflicts = results.flatMap(result => (result.conflict ? [result.conflict] : []));
+  // Remove alerts generated by older planning passes. An unverified placement is represented by
+  // the absence of `verifiedBedPlacement` plus non-blocking historical traceability, never as a
+  // conflict in the current-day census.
   const conflicts = diff.conflicts.filter(
     conflict => conflict.code !== 'historical-admission-evidence'
   );
-  for (const conflict of evidenceConflicts) {
-    const key = conflictKey(conflict);
-    const alreadyPresent = conflicts.some(current => conflictKey(current) === key);
-    if (!alreadyPresent) conflicts.push(conflict);
-  }
   const admissions = results.map(result => result.admission);
+  const deferredHistoricalAdmissionBedIds = [
+    ...new Set(
+      results.flatMap(result =>
+        result.deferredHistoricalAdmissionBedId ? [result.deferredHistoricalAdmissionBedId] : []
+      )
+    ),
+  ];
   return {
     ...diff,
     admissions: admissions.slice(0, diff.admissions.length),
     previousDayAdmissionCandidates: admissions.slice(diff.admissions.length),
+    deferredHistoricalAdmissionBedIds:
+      deferredHistoricalAdmissionBedIds.length > 0 ? deferredHistoricalAdmissionBedIds : undefined,
     conflicts,
     summary: { ...diff.summary, conflicts: conflicts.length },
   };

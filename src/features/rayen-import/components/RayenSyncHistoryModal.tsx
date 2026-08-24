@@ -4,6 +4,7 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import {
   presentRayenCoverage,
+  presentRayenLegacyCoverageGap,
   presentRayenSyncOutcome,
   presentRayenCoverageIssue,
   formatRayenSyncDuration,
@@ -15,6 +16,7 @@ import {
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
 import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
 import { RayenSyncTechnicalMetricsPanel } from './RayenSyncTechnicalMetricsPanel';
+import { RayenSyncStructuralReviewDetail } from './RayenSyncStructuralReviewDetail';
 
 interface RayenSyncHistoryModalProps {
   isOpen: boolean;
@@ -72,7 +74,6 @@ const sourceLabel = (event: RayenSyncEvent): string | null => {
 
 const isQuietSuccessfulRun = (event: RayenSyncEvent): boolean => {
   const changes = event.changes;
-  // Telemetry-bearing runs remain individually inspectable; only legacy quiet runs are grouped.
   if (!changes || event.status !== 'complete' || !event.coverage || event.performance) return false;
   const outcome = presentRayenSyncOutcome(event);
   const hasChanges = changes.admissions + changes.updates + changes.moves + changes.discharges > 0;
@@ -86,6 +87,7 @@ const isQuietSuccessfulRun = (event: RayenSyncEvent): boolean => {
     !outcome.detail &&
     !hasChanges &&
     !hasCoverageIssues &&
+    !event.structuralReview?.deferredHistoricalAdmissionBedIds?.length &&
     !event.staffingObservation
   );
 };
@@ -269,6 +271,7 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
       </div>
 
       <HistoryMetadata event={event} />
+      <RayenSyncStructuralReviewDetail review={event.structuralReview} />
       <RayenSyncTechnicalMetricsPanel performance={event.performance} />
       {event.staffingObservation && (
         <div
@@ -313,25 +316,25 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
           )}
         </div>
       )}
-      {event.coverage && (event.coverage.errors > 0 || Boolean(event.coverage.issues?.length)) && (
-        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
-          <p className="font-bold">Detalle para resolver</p>
-          {event.coverage.issues?.length ? (
-            <ul className="mt-1 space-y-1">
-              {event.coverage.issues.map(issue => (
-                <li key={`${issue.bedId}-${issue.source}-${issue.reason}`}>
-                  {presentRayenCoverageIssue(issue)}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-1">
-              Esta ejecución no registró el paciente ni la etapa que falló. Usa “Reintentar con
-              revisión”; la nueva ejecución mostrará cama, fuente y causa si vuelve a ocurrir.
-            </p>
-          )}
-        </div>
-      )}
+      {event.coverage &&
+        (event.coverage.errors > 0 ||
+          event.coverage.sourceErrors > 0 ||
+          Boolean(event.coverage.issues?.length)) && (
+          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+            <p className="font-bold">Qué quedó pendiente en la información clínica</p>
+            {event.coverage.issues?.length ? (
+              <ul className="mt-1 space-y-1">
+                {event.coverage.issues.map(issue => (
+                  <li key={`${issue.bedId}-${issue.source}-${issue.reason}`}>
+                    {presentRayenCoverageIssue(issue)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1">{presentRayenLegacyCoverageGap(event.coverage)}</p>
+            )}
+          </div>
+        )}
     </li>
   );
 };

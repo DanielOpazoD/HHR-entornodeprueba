@@ -35,7 +35,15 @@ describe('Eloísa sync telemetry schema', () => {
             structureConfirmed: true,
             historicalCorrectionsPending: false,
             historicalCorrectionsRequireFreshCapture: false,
-            isolatedConflicts: 0,
+            isolatedConflicts: 1,
+            deferredHistoricalAdmissionBedIds: ['H5C2'],
+            issues: [
+              {
+                bedId: 'H5C2',
+                reason: 'occupied-local-bed',
+                patientName: 'No persistible',
+              },
+            ],
           },
           performance: {
             stagesMs: { preflight: 120, dualCapture: 900, clinicalReads: 2_500 },
@@ -71,8 +79,13 @@ describe('Eloísa sync telemetry schema', () => {
       structureConfirmed: true,
       historicalCorrectionsPending: false,
       historicalCorrectionsRequireFreshCapture: false,
-      isolatedConflicts: 0,
+      isolatedConflicts: 1,
+      deferredHistoricalAdmissionBedIds: ['H5C2'],
+      issues: [{ bedId: 'H5C2', reason: 'occupied-local-bed' }],
     });
+    expect(JSON.stringify(record.rayenSyncHistory?.[0].structuralReview)).not.toContain(
+      'No persistible'
+    );
     expect(record.rayenSyncHistory?.[0].performance).toEqual({
       stagesMs: { preflight: 120, dualCapture: 900, clinicalReads: 2_500 },
       counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },

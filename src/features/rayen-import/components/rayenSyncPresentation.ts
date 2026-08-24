@@ -4,6 +4,8 @@ import type {
   RayenSyncFailureReason,
   RayenSyncStatus,
   RayenSyncCoverageIssue,
+  RayenSyncStructuralIssue,
+  RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
 import type { RayenExtensionConnectionState } from '../hooks/useRayenExtensionHealth';
 
@@ -70,6 +72,20 @@ export const presentRayenCoverage = (
   return { label: `${coverage.completed}/${coverage.total} completa`, tone: 'success' };
 };
 
+export const presentRayenLegacyCoverageGap = (coverage: RayenSyncCoverage): string => {
+  const gaps: string[] = [];
+  if (coverage.errors > 0) {
+    gaps.push(
+      `${coverage.errors} paciente${coverage.errors === 1 ? '' : 's'} con información clínica incompleta`
+    );
+  }
+  if (coverage.sourceErrors > 0) {
+    gaps.push(`${coverage.sourceErrors} falla${coverage.sourceErrors === 1 ? '' : 's'} de fuente`);
+  }
+  const summary = gaps.join(' y ') || 'información clínica incompleta';
+  return `Esta ejecución anterior registró ${summary}, pero no conservó la cama ni la etapa. Al reintentar, una nueva ejecución mostrará cama, fuente y causa si vuelve a ocurrir.`;
+};
+
 export const rayenPrimaryActionLabel = (
   connection: RayenExtensionConnectionState,
   syncing: boolean
@@ -109,8 +125,75 @@ export const rayenSyncStatusLabel = (status?: RayenSyncStatus): string | null =>
   return null;
 };
 
+export const presentRayenStructuralReviewSummary = (
+  review?: RayenSyncStructuralReviewEvidence
+): string[] => {
+  if (!review) return [];
+  const reasons: string[] = [];
+  if (review.isolatedConflicts > 0) {
+    reasons.push(
+      `${review.isolatedConflicts} cambio${review.isolatedConflicts === 1 ? '' : 's'} del censo no se ${review.isolatedConflicts === 1 ? 'aplicó' : 'aplicaron'}`
+    );
+  }
+  if (review.historicalCorrectionsPending) {
+    reasons.push('Correcciones históricas pendientes de confirmación');
+  }
+  if (review.historicalCorrectionsRequireFreshCapture) {
+    reasons.push('Una corrección histórica requiere una nueva captura');
+  }
+  return reasons;
+};
+
+const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], string> = {
+  'unconfirmed-principal-bed': 'no se confirmó la cama física del ingreso',
+  'principal-bed-collision': 'dos episodios compiten por la misma cama',
+  'cma-physical-bed-collision': 'la cama física asociada a CMA requiere una decisión',
+  'occupied-local-bed': 'la cama está ocupada por otro paciente en HHR',
+  'historical-reconstruction': 'la reconstrucción histórica requiere revisión',
+  'historical-admission-evidence': 'no se confirmó la cama de una corrección nocturna',
+  unclassified: 'el cambio estructural no pudo aplicarse',
+};
+
+export const presentRayenStructuralIssue = (issue: RayenSyncStructuralIssue): string => {
+  const scope = issue.bedId ? `Cama ${issue.bedId}` : 'Censo';
+  return `${scope}: ${structuralIssueReasonLabel[issue.reason]}.`;
+};
+
+export const presentRayenStructuralReviewDetails = (
+  review?: RayenSyncStructuralReviewEvidence
+): string[] => {
+  if (!review) return [];
+  const details = (review.issues ?? []).map(presentRayenStructuralIssue);
+  const unclassifiedCount = Math.max(review.isolatedConflicts - details.length, 0);
+  if (unclassifiedCount > 0) {
+    details.push(
+      `${unclassifiedCount} cambio${unclassifiedCount === 1 ? '' : 's'} del censo no se ${unclassifiedCount === 1 ? 'aplicó' : 'aplicaron'}; esta ejecución anterior no conservó la cama y la causa.`
+    );
+  }
+  if (review.historicalCorrectionsPending) {
+    details.push(
+      'Hay correcciones de días previos guardadas en cola y pendientes de confirmación.'
+    );
+  }
+  if (review.historicalCorrectionsRequireFreshCapture) {
+    details.push('Una corrección de un día previo debe recalcularse con una nueva sincronización.');
+  }
+  return details;
+};
+
+export const presentRayenDeferredHistoricalAdmissionNote = (
+  review?: RayenSyncStructuralReviewEvidence
+): string | null => {
+  const beds = review?.deferredHistoricalAdmissionBedIds ?? [];
+  if (beds.length === 0) return null;
+  const bedLabel = beds.length === 1 ? `la cama ${beds[0]}` : `las camas ${beds.join(', ')}`;
+  const placementLabel = beds.length === 1 ? 'esa ubicación' : 'esas ubicaciones';
+  return `El ingreso del día actual quedó sincronizado. HHR no modificó el día previo para ${bedLabel} porque Eloísa no permitió confirmar ${placementLabel}. Al volver a sincronizar, HHR lo comprobará nuevamente.`;
+};
+
 const partialReasons = (event: RayenSyncEvent): string[] => {
   const reasons: string[] = [];
+  reasons.push(...presentRayenStructuralReviewSummary(event.structuralReview));
   if (event.coverage?.errors) {
     reasons.push(
       `${event.coverage.errors} paciente${event.coverage.errors === 1 ? '' : 's'} no se pudo completar`
@@ -226,9 +309,9 @@ export const presentRayenSyncRecovery = (
   if (connection === 'ready') {
     const structuralReviewPending = Boolean(
       event.structuralReview &&
-        (event.structuralReview.historicalCorrectionsPending ||
-          event.structuralReview.historicalCorrectionsRequireFreshCapture ||
-          event.structuralReview.isolatedConflicts > 0)
+      (event.structuralReview.historicalCorrectionsPending ||
+        event.structuralReview.historicalCorrectionsRequireFreshCapture ||
+        event.structuralReview.isolatedConflicts > 0)
     );
     const structureConfirmed =
       event.status === 'applied' || event.structuralReview?.structureConfirmed === true;

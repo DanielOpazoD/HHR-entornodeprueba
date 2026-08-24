@@ -37,6 +37,7 @@ const comparableStructuralPlan = (diff: CensusImportDiff) => ({
   reportEgresos: diff.reportEgresos,
   previousDayEdits: diff.previousDayEdits,
   previousDayAdmissionCandidates: diff.previousDayAdmissionCandidates,
+  deferredHistoricalAdmissionBedIds: diff.deferredHistoricalAdmissionBedIds,
 });
 
 export const areRayenStructuralPlansEquivalent = (

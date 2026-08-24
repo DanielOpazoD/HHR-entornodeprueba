@@ -41,13 +41,17 @@ const legacyRunEvidence = (runId = 'legacy-run') => ({
   ],
 });
 
-const confirmedHandoff = (record: DailyRecord, clinicalDay = record.date) =>
+const confirmedHandoff = (
+  record: DailyRecord,
+  clinicalDay = record.date,
+  diff?: Pick<CensusImportDiff, 'conflicts' | 'deferredHistoricalAdmissionBedIds'>
+) =>
   resolveConfirmedRayenCensusHandoff(
     {
       record,
       result: { date: record.date, outcome: 'clean' } as SaveDailyRecordResult,
     },
-    { date: record.date, clinicalDay, runId: record.rayenSync?.runId ?? '' }
+    { date: record.date, clinicalDay, runId: record.rayenSync?.runId ?? '', diff }
   );
 
 describe('useRayenClinicalFill confirmed census handoff', () => {
@@ -97,7 +101,14 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       })
     );
 
-    await act(async () => result.current(confirmedHandoff(confirmedRecord)));
+    await act(async () =>
+      result.current(
+        confirmedHandoff(confirmedRecord, confirmedRecord.date, {
+          conflicts: [],
+          deferredHistoricalAdmissionBedIds: ['H5C2'],
+        })
+      )
+    );
 
     expect(loadDailyRecord).not.toHaveBeenCalled();
     expect(completeRun).toHaveBeenCalledWith(
@@ -106,7 +117,10 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
       expect.anything(),
       'run-confirmed',
       expect.objectContaining({
-        structuralReview: expect.objectContaining({ structureConfirmed: true }),
+        structuralReview: expect.objectContaining({
+          structureConfirmed: true,
+          deferredHistoricalAdmissionBedIds: ['H5C2'],
+        }),
       })
     );
   });
@@ -267,6 +281,7 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
           historicalCorrectionsPending: false,
           historicalCorrectionsRequireFreshCapture: false,
           isolatedConflicts: 1,
+          issues: [{ bedId: 'R1', reason: 'unclassified' }],
         },
       }
     );

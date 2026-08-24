@@ -28,6 +28,8 @@ export interface ConfirmedRayenCensusHandoff {
   readonly acceptedRevision: string;
   readonly safeClinicalEpisodeIds: readonly string[];
   readonly isolatedConflicts: readonly StructuralConflict[];
+  /** Optional D-1 backfills omitted because the historical bed could not be proven. */
+  readonly deferredHistoricalAdmissionBedIds?: readonly string[];
   /** The selected-day census won its CAS, but one or more cross-day corrections still need retry. */
   readonly historicalCorrectionsPending?: true;
   /** The selected day is confirmed, but cross-day evidence must be captured again. */
@@ -122,7 +124,7 @@ export const resolveConfirmedRayenCensusHandoff = (
     date: string;
     clinicalDay?: string;
     runId: string;
-    diff?: Pick<CensusImportDiff, 'conflicts'>;
+    diff?: Pick<CensusImportDiff, 'conflicts' | 'deferredHistoricalAdmissionBedIds'>;
   }
 ): ConfirmedRayenCensusHandoff => {
   assertRayenCensusPersistenceConfirmed(payload);
@@ -148,6 +150,13 @@ export const resolveConfirmedRayenCensusHandoff = (
     acceptedRevision: record.lastUpdated,
     safeClinicalEpisodeIds: collectSafeClinicalEpisodeIds(record, isolatedConflicts),
     isolatedConflicts,
+    ...(expected.diff?.deferredHistoricalAdmissionBedIds?.length
+      ? {
+          deferredHistoricalAdmissionBedIds: [
+            ...new Set(expected.diff.deferredHistoricalAdmissionBedIds),
+          ],
+        }
+      : {}),
     [CONFIRMED_RAYEN_CENSUS_HANDOFF]: true,
   };
 };

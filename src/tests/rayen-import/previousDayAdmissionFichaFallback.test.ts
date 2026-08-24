@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import { verifyPreviousDayAdmissionPlacements } from '@/features/rayen-import/domain/previousDayCorrections';
+import { previousDayAdmissionDays } from '@/features/rayen-import/domain/previousDayAdmissionCorrections';
 import { motherAndNewbornDiff } from './previousDayAdmissionCorrections.fixtures';
 
 describe('previous-day admission Ficha fallback', () => {
@@ -100,7 +101,7 @@ describe('previous-day admission Ficha fallback', () => {
     expect(verified.conflicts).toEqual([]);
   });
 
-  it('keeps a conflict when the movement timeline is malformed', async () => {
+  it('keeps the current-day admission without an alert when historical evidence is malformed', async () => {
     const admission = motherAndNewbornDiff.admissions[0];
     const verified = await verifyPreviousDayAdmissionPlacements(
       {
@@ -126,8 +127,13 @@ describe('previous-day admission Ficha fallback', () => {
     );
 
     expect(verified.admissions[0].source?.verifiedBedPlacement).toBeUndefined();
-    expect(verified.conflicts).toEqual([
-      expect.objectContaining({ code: 'historical-admission-evidence' }),
-    ]);
+    expect(verified.admissions[0].patient.admissionDate).toBe(
+      motherAndNewbornDiff.admissions[0].patient.admissionDate
+    );
+    expect(verified.admissions[0].patient.admissionTime).toBe(
+      motherAndNewbornDiff.admissions[0].patient.admissionTime
+    );
+    expect(verified.conflicts).toEqual([]);
+    expect(previousDayAdmissionDays(verified, '2026-07-26')).toEqual([]);
   });
 });

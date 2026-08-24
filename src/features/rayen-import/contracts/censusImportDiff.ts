@@ -272,6 +272,11 @@ export interface CensusImportDiff {
    * a mother already present in HHR. They are used only by the confirmed D/D-1 correction writer.
    */
   previousDayAdmissionCandidates?: AdmissionEntry[];
+  /**
+   * Beds whose optional D-1 admission backfill could not be proven. This is non-blocking for the
+   * authoritative selected-day census, but is retained so history can explain what was not changed.
+   */
+  deferredHistoricalAdmissionBedIds?: string[];
   unchangedCount: number;
   summary: CensusImportSummary;
 }

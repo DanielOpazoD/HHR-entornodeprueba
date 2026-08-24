@@ -173,7 +173,7 @@ describe('buildRayenSyncBarViewModel', () => {
     expect(model).toMatchObject({
       phase: 'action',
       tone: 'warning',
-      label: 'Sincronización requiere revisión',
+      label: 'Revisar la última sincronización',
       detail: 'No hay una sincronización clínica pendiente que se pueda reanudar.',
       visuallyHidden: false,
     });
@@ -256,7 +256,7 @@ describe('buildRayenSyncBarViewModel', () => {
 
     expect(model).toMatchObject({
       phase: 'action',
-      label: 'Sincronización requiere revisión',
+      label: 'No se pudo completar la sincronización',
       detail: 'La captura agotó el tiempo.',
     });
   });

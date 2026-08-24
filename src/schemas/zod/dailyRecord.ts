@@ -4,7 +4,10 @@ import { DATE_REGEX, nullableOptional, nullishDefault } from './helpers';
 import { BedTypeSchema, PatientDataSchema } from './patient';
 import { DischargeDataSchema, TransferDataSchema, CMADataSchema } from './movements';
 import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
-import { MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE } from '@/types/domain/rayenSync';
+import {
+  MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
+  MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,
+} from '@/types/domain/rayenSync';
 
 const MedicalHandoffActorSchema = z.object({
   uid: z.string(),
@@ -180,6 +183,27 @@ const RayenSyncStructuralReviewSchema = z.object({
   historicalCorrectionsPending: z.boolean(),
   historicalCorrectionsRequireFreshCapture: z.boolean(),
   isolatedConflicts: z.number().int().nonnegative(),
+  deferredHistoricalAdmissionBedIds: nullableOptional(
+    z.array(z.string().min(1).max(32)).max(MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES)
+  ),
+  issues: nullableOptional(
+    z
+      .array(
+        z.object({
+          bedId: z.string().nullable(),
+          reason: z.enum([
+            'unconfirmed-principal-bed',
+            'principal-bed-collision',
+            'cma-physical-bed-collision',
+            'occupied-local-bed',
+            'historical-reconstruction',
+            'historical-admission-evidence',
+            'unclassified',
+          ]),
+        })
+      )
+      .max(MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES)
+  ),
 });
 
 const RayenSyncEventSchema = z.object({

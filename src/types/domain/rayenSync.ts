@@ -2,6 +2,7 @@
 
 export const MAX_RAYEN_SYNC_HISTORY = 20;
 export const MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE = 40;
+export const MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES = 12;
 
 export type RayenSyncStatus = 'applied' | 'complete' | 'partial' | 'failed';
 
@@ -44,6 +45,21 @@ export type RayenSyncIssueReason =
   | 'sync_already_running'
   | 'write_failed'
   | 'unexpected';
+
+export type RayenSyncStructuralIssueReason =
+  | 'unconfirmed-principal-bed'
+  | 'principal-bed-collision'
+  | 'cma-physical-bed-collision'
+  | 'occupied-local-bed'
+  | 'historical-reconstruction'
+  | 'historical-admission-evidence'
+  | 'unclassified';
+
+/** Privacy-safe structural diagnostic. It deliberately omits patient and episode identifiers. */
+export interface RayenSyncStructuralIssue {
+  bedId: string | null;
+  reason: RayenSyncStructuralIssueReason;
+}
 
 /** Sanitized patient-scoped diagnostic. Raw Eloísa/Firestore errors are never persisted. */
 export interface RayenSyncCoverageIssue {
@@ -189,6 +205,10 @@ export interface RayenSyncStructuralReviewEvidence {
   historicalCorrectionsPending: boolean;
   historicalCorrectionsRequireFreshCapture: boolean;
   isolatedConflicts: number;
+  /** Bed-only traceability for optional D-1 backfills that were safely omitted. */
+  deferredHistoricalAdmissionBedIds?: string[];
+  /** Bed and reason category for recent runs; absent on legacy events. */
+  issues?: RayenSyncStructuralIssue[];
 }
 
 export interface RayenSyncEvent {
