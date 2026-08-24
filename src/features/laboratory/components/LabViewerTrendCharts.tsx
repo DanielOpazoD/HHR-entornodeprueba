@@ -9,9 +9,7 @@ import { LabChartErrorBoundary } from './LabChartErrorBoundary';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import { LabTrendGroupCard } from './LabTrendGroupCard';
 import { LabTrendToolbar } from './LabTrendToolbar';
-import { LabTrendFocusStrip } from './LabTrendFocusStrip';
 import {
-  collectLabTrendFocusResults,
   countLabTrendVariables,
   filterLabTrendGroups,
   type LabTrendTimeRange,
@@ -28,7 +26,6 @@ export const LabViewerTrendCharts: React.FC<{
   const [timeRange, setTimeRange] = React.useState<LabTrendTimeRange>('all');
   const [searchTerm, setSearchTerm] = React.useState('');
   const [onlyAbnormal, setOnlyAbnormal] = React.useState(false);
-  const [activeDate, setActiveDate] = React.useState<string | null>(null);
   const filteredGroups = React.useMemo(
     () => filterLabTrendGroups(data.trendGroups, { timeRange, searchTerm, onlyAbnormal }),
     [data.trendGroups, onlyAbnormal, searchTerm, timeRange]
@@ -41,11 +38,6 @@ export const LabViewerTrendCharts: React.FC<{
     () => countLabTrendVariables(filteredGroups),
     [filteredGroups]
   );
-  const focusResults = React.useMemo(
-    () => collectLabTrendFocusResults(filteredGroups, activeDate),
-    [activeDate, filteredGroups]
-  );
-
   if (data.trendGroups.length === 0) {
     return (
       <div className="py-8 text-center">
@@ -65,20 +57,10 @@ export const LabViewerTrendCharts: React.FC<{
         onlyAbnormal={onlyAbnormal}
         visibleVariables={visibleVariables}
         totalVariables={totalVariables}
-        onTimeRangeChange={range => {
-          setTimeRange(range);
-          setActiveDate(null);
-        }}
-        onSearchTermChange={value => {
-          setSearchTerm(value);
-          setActiveDate(null);
-        }}
-        onOnlyAbnormalChange={value => {
-          setOnlyAbnormal(value);
-          setActiveDate(null);
-        }}
+        onTimeRangeChange={setTimeRange}
+        onSearchTermChange={setSearchTerm}
+        onOnlyAbnormalChange={setOnlyAbnormal}
       />
-      <LabTrendFocusStrip activeDate={activeDate} results={focusResults} />
       {filteredGroups.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
           <SearchX size={26} className="mx-auto mb-2 text-slate-300" />
@@ -101,11 +83,7 @@ export const LabViewerTrendCharts: React.FC<{
         <div ref={resolvedChartsRef} className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {filteredGroups.map(group => (
             <LabChartErrorBoundary key={group.label} chartLabel={group.label}>
-              <LabTrendGroupCard
-                group={group}
-                syncId="lab-trend-time"
-                onActiveDateChange={setActiveDate}
-              />
+              <LabTrendGroupCard group={group} />
             </LabChartErrorBoundary>
           ))}
         </div>

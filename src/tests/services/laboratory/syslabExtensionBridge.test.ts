@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  downloadSyslabPdfBundleThroughExtension,
   fetchSyslabDetailsThroughExtension,
   openSyslabLoginWindow,
   openSyslabPdfThroughExtension,
@@ -164,5 +165,35 @@ describe('Syslab extension page bridge', () => {
     });
 
     await expect(openSyslabPdfThroughExtension(OPAQUE_LINK)).resolves.toBeUndefined();
+  });
+
+  it('asks the extension to download selected opaque reports as one PDF', async () => {
+    const secondLink = `hhr-syslab-extension://batch/${BATCH_ID}/exam/43091285`;
+    installBridgeResponse(request => {
+      if (request.type === 'HHR_RAYEN_SYSLAB_STATUS_REQUEST') {
+        return { connected: true, pdfBundleSupported: true };
+      }
+      expect(request).toMatchObject({
+        type: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_REQUEST',
+        links: [OPAQUE_LINK, secondLink],
+      });
+      return { ok: true, downloadId: 42 };
+    });
+
+    await expect(
+      downloadSyslabPdfBundleThroughExtension([OPAQUE_LINK, secondLink])
+    ).resolves.toBeUndefined();
+  });
+
+  it('fails quickly when the loaded extension predates combined PDF downloads', async () => {
+    const postMessage = installBridgeResponse(request => {
+      expect(request.type).toBe('HHR_RAYEN_SYSLAB_STATUS_REQUEST');
+      return { connected: true };
+    });
+
+    await expect(downloadSyslabPdfBundleThroughExtension([OPAQUE_LINK])).rejects.toThrow(
+      'no incluye la descarga conjunta'
+    );
+    expect(postMessage).toHaveBeenCalledTimes(1);
   });
 });

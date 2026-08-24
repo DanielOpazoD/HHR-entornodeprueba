@@ -21,7 +21,6 @@ const mockEnrichUrineRatioDetailsFromPdf = vi.fn();
 const mockWriteClipboardText = vi.fn();
 const mockGetPatientByRut = vi.fn();
 const mockExtractPdfText = vi.fn();
-
 vi.mock('@/services/laboratory/syslabService', () => ({
   searchSyslabExams: (...args: unknown[]) => mockSearchSyslabExams(...args),
   fetchSyslabExamDetails: (...args: unknown[]) => mockFetchSyslabExamDetails(...args),

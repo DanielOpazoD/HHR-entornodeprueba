@@ -6,6 +6,7 @@ const REQUEST_TYPES = {
   search: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
   details: 'HHR_RAYEN_SYSLAB_DETAILS_REQUEST',
   pdf: 'HHR_RAYEN_SYSLAB_PDF_REQUEST',
+  pdfBundle: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_REQUEST',
 } as const;
 
 const RESULT_TYPES = {
@@ -14,6 +15,7 @@ const RESULT_TYPES = {
   search: 'HHR_RAYEN_SYSLAB_SEARCH_RESULT',
   details: 'HHR_RAYEN_SYSLAB_DETAILS_RESULT',
   pdf: 'HHR_RAYEN_SYSLAB_PDF_RESULT',
+  pdfBundle: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_RESULT',
 } as const;
 
 type SyslabExtensionOperation = keyof typeof REQUEST_TYPES;
@@ -228,6 +230,41 @@ export const openSyslabPdfThroughExtension = async (link: string): Promise<void>
   const error = responseError(result, 'La extensión no pudo abrir el informe de Syslab.');
   if (error) throw new Error(error);
   if (result.response?.ok !== true) throw new Error('Syslab no pudo abrir el informe solicitado.');
+};
+
+export const downloadSyslabPdfBundleThroughExtension = async (links: string[]): Promise<void> => {
+  if (links.length === 0) throw new Error('Selecciona uno o más informes de laboratorio.');
+  if (links.length > 24) throw new Error('Puedes descargar como máximo 24 informes por operación.');
+  if (links.some(link => !isSyslabExtensionLink(link))) {
+    throw new Error(
+      'La selección de laboratorio contiene un informe no válido. Actualiza el visor.'
+    );
+  }
+
+  const availability = await requestExtension('status', {}, 2_000);
+  if (!availability.bridgeAvailable) {
+    throw new Error('La extensión Eloísa no respondió. Recárgala y vuelve a abrir HHR.');
+  }
+  const availabilityError = responseError(
+    availability,
+    'La extensión no pudo comprobar la descarga conjunta.'
+  );
+  if (availabilityError) throw new Error(availabilityError);
+  if (availability.response?.pdfBundleSupported !== true) {
+    throw new Error(
+      'La extensión Eloísa abierta no incluye la descarga conjunta. Recarga la extensión y luego recarga HHR.'
+    );
+  }
+
+  const result = await requestExtension('pdfBundle', { links }, 10 * 60_000);
+  if (!result.bridgeAvailable) {
+    throw new Error('La extensión Eloísa dejó de responder. Recarga HHR y vuelve a intentarlo.');
+  }
+  const error = responseError(result, 'La extensión no pudo descargar los informes de Syslab.');
+  if (error) throw new Error(error);
+  if (result.response?.ok !== true) {
+    throw new Error('Syslab no pudo preparar la descarga solicitada.');
+  }
 };
 
 export const isSyslabExtensionLink = (link: string): boolean =>

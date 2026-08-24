@@ -28,6 +28,8 @@ describe('LabViewerExamList', () => {
     onSelectByDateRange: vi.fn(),
     onViewPdf: vi.fn(),
     onCopySummary: vi.fn(async () => true),
+    isDownloadingSelectedPdfs: false,
+    onDownloadSelectedPdfs: vi.fn(async () => undefined),
   };
 
   beforeEach(() => vi.clearAllMocks());
@@ -38,6 +40,25 @@ describe('LabViewerExamList', () => {
     expect(heading).toHaveTextContent('Ordenes disponibles');
     expect(heading).toHaveTextContent('1');
     expect(screen.queryByText('1 examenes')).not.toBeInTheDocument();
+  });
+
+  it('downloads the selected exams as one PDF from the first list action', async () => {
+    render(<LabViewerExamList {...defaultProps} selectedIds={new Set(['123'])} />);
+
+    const button = screen.getByRole('button', {
+      name: 'Descargar exámenes seleccionados en un único PDF',
+    });
+    expect(button).toHaveTextContent('Descargar selección');
+    expect(button).toHaveTextContent('1');
+    await userEvent.click(button);
+    expect(defaultProps.onDownloadSelectedPdfs).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables the combined PDF action when no exam is selected', () => {
+    render(<LabViewerExamList {...defaultProps} />);
+    expect(
+      screen.getByRole('button', { name: 'Descargar exámenes seleccionados en un único PDF' })
+    ).toBeDisabled();
   });
 
   it('renders extended monthly quick range buttons', async () => {

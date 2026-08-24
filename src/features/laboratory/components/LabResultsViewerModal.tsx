@@ -84,6 +84,7 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
             isLoading={
               lab.isLoading ||
               lab.isAnalyzing ||
+              lab.isDownloadingSelectedPdfs ||
               syslabAccess.state === 'checking' ||
               syslabAccess.state === 'login-required'
             }
@@ -129,6 +130,8 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
             onSelectByDateRange={lab.selectByDateRange}
             onViewPdf={lab.openPdf}
             onCopySummary={lab.copyExamSummary}
+            isDownloadingSelectedPdfs={lab.isDownloadingSelectedPdfs}
+            onDownloadSelectedPdfs={lab.downloadSelectedPdfs}
           />
           <LabViewerAnalyzeBar
             selectedCount={lab.selectedExamIds.size}

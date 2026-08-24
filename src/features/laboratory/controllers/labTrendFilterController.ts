@@ -8,12 +8,6 @@ export interface LabTrendFilters {
   onlyAbnormal: boolean;
 }
 
-export interface LabTrendFocusResult {
-  analysis: string;
-  point: LabTrendPoint;
-  isAbnormal: boolean;
-}
-
 const RANGE_DURATION_MS: Record<Exclude<LabTrendTimeRange, 'all'>, number> = {
   '24h': 24 * 60 * 60 * 1000,
   '3d': 3 * 24 * 60 * 60 * 1000,
@@ -90,25 +84,6 @@ export const filterLabTrendGroups = (
 
     return Object.keys(variables).length > 0 ? [{ ...group, variables }] : [];
   });
-};
-
-export const collectLabTrendFocusResults = (
-  groups: LabTrendGroup[],
-  activeDate: string | null
-): LabTrendFocusResult[] => {
-  if (!activeDate) return [];
-
-  return groups
-    .flatMap(group =>
-      Object.entries(group.variables).flatMap(([analysis, points]) => {
-        const point = points.find(candidate => candidate.date === activeDate);
-        return point ? [{ analysis, point, isAbnormal: isLabTrendPointAbnormal(point) }] : [];
-      })
-    )
-    .sort(
-      (a, b) =>
-        Number(b.isAbnormal) - Number(a.isAbnormal) || a.analysis.localeCompare(b.analysis, 'es')
-    );
 };
 
 export const countLabTrendVariables = (groups: LabTrendGroup[]): number =>

@@ -470,6 +470,12 @@
       "maxLines": 68,
       "hotspots": {}
     },
+    "syslab-pdf-bundle.js": {
+      "maxLines": 141,
+      "hotspots": {
+        "iife>variable:create>variable:download": 19
+      }
+    },
     "syslab-session-transport.js": {
       "maxLines": 202,
       "hotspots": {}

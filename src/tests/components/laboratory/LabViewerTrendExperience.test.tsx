@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const mockExportChartsAsPng = vi.hoisted(() => vi.fn());
+const mockLineChartProps = vi.hoisted(() => vi.fn());
 
 vi.mock('@/features/laboratory/controllers/labSummaryController', () => ({
   buildLabSummaryText: vi.fn(() => 'mock summary'),
@@ -14,17 +15,10 @@ vi.mock('@/features/laboratory/components/labTrendChartExport', () => ({
 
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  LineChart: ({
-    children,
-    onMouseMove,
-  }: {
-    children: React.ReactNode;
-    onMouseMove?: (state: { activeLabel: string }) => void;
-  }) => (
-    <div data-testid="line-chart" onMouseMove={() => onMouseMove?.({ activeLabel: '02/04/2026' })}>
-      {children}
-    </div>
-  ),
+  LineChart: (props: { children: React.ReactNode; syncId?: string; syncMethod?: string }) => {
+    mockLineChartProps(props);
+    return <div data-testid="line-chart">{props.children}</div>;
+  },
   Line: () => null,
   XAxis: () => null,
   YAxis: () => null,
@@ -93,43 +87,13 @@ describe('LabViewerTrendCharts', () => {
     expect(screen.getByText('Hemograma')).toBeInTheDocument();
   });
 
-  it('shows every plotted result for the synchronized cursor date', async () => {
+  it('keeps each detail tooltip scoped to the chart being inspected', () => {
     render(<LabViewerTrendCharts data={TREND_DATA} />);
 
-    await userEvent.hover(screen.getByTestId('line-chart'));
-
-    expect(
-      screen.getByRole('status', { name: /resultados graficados del 02\/04\/2026/i })
-    ).toBeInTheDocument();
-    expect(screen.getByText('Alto')).toBeInTheDocument();
-    expect(screen.getByText('17')).toBeInTheDocument();
-  });
-
-  it('labels results without reference bounds as unknown instead of normal', async () => {
-    const dataWithoutReference: LabAnalysisData = {
-      ...TREND_DATA,
-      trendGroups: [
-        {
-          label: 'Marcadores',
-          variables: {
-            'CK Total': [
-              {
-                date: '02/04/2026',
-                isoDate: '2026-04-02',
-                value: 120,
-                unit: 'U/L',
-              },
-            ],
-          },
-        },
-      ],
-    };
-
-    render(<LabViewerTrendCharts data={dataWithoutReference} />);
-    await userEvent.hover(screen.getByTestId('line-chart'));
-
-    expect(screen.getByText('Sin referencia')).toBeInTheDocument();
-    expect(screen.queryByText('Normal')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(mockLineChartProps).toHaveBeenCalled();
+    expect(mockLineChartProps.mock.calls[0][0]).not.toHaveProperty('syncId');
+    expect(mockLineChartProps.mock.calls[0][0]).not.toHaveProperty('syncMethod');
   });
 
   it('groups PNG export with the patient actions and reports failures locally', async () => {

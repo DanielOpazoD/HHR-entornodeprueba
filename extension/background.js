@@ -41,7 +41,7 @@ importScripts(
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
   'lab-result-parser.js', 'lab-viewer.js',
-  'syslab-login-window.js', 'syslab-session-transport.js', 'syslab-runtime.js',
+  'syslab-login-window.js', 'syslab-session-transport.js', 'syslab-pdf-bundle.js', 'syslab-runtime.js',
   'exam-request-print.js',
   'xlsx.full.min.js',
   'report-parser.js',
@@ -1131,11 +1131,7 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
   return downloadPdfBuffer({ buffer: result.buffer, filename: `Indicaciones_${encId}.pdf` });
 };
 
-const syslabRuntime = self.HhrSyslabRuntime.create({
-  chrome,
-  labViewer: self.HhrLabViewer,
-  syslabSessionTransport: self.HhrSyslabSessionTransport, withTimeout,
-});
+const syslabRuntime = self.HhrSyslabPdfBundle.createRuntime({ chrome, downloadPdfBuffer, withTimeout });
 
 const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });
 
@@ -1265,6 +1261,10 @@ const runtimeMessageRoutes = Object.freeze({
     (message, sender) =>
       syslabRuntime.openPdf({ batchId: message.batchId, examId: message.examId, sender }),
     'No se pudo abrir el informe de laboratorio.'
+  ),
+  [RUNTIME_MESSAGES.LAB_PDF_BUNDLE_DOWNLOAD_REQUEST]: runtimeRoute(
+    (message, sender) => syslabRuntime.downloadPdfBundle({ ...message, sender }),
+    'No se pudieron descargar los informes de laboratorio.'
   ),
   [RUNTIME_MESSAGES.PRESCRIPTION_OPTIONS_REQUEST]: runtimeRoute(
     message => handlePrescriptionOptionsRequest({ encId: message.encId }),

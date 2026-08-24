@@ -6,9 +6,7 @@ import { UnitSubChart } from './LabTrendChartRenderers';
 /** Render a trend group card -- splits into sub-charts per unit AND scale for readability. */
 export const LabTrendGroupCard: React.FC<{
   group: LabTrendGroup;
-  syncId: string;
-  onActiveDateChange: (date: string) => void;
-}> = ({ group, syncId, onActiveDateChange }) => {
+}> = ({ group }) => {
   const unitGroups = groupVariablesByScale(group.variables);
 
   return (
@@ -29,8 +27,6 @@ export const LabTrendGroupCard: React.FC<{
               varEntries={unitGroup.vars}
               unit={unitGroup.unit}
               colorOffset={prevCount}
-              syncId={syncId}
-              onActiveDateChange={onActiveDateChange}
             />
           );
         })}
