@@ -4,18 +4,47 @@
  */
 
 import React from 'react';
-import { Download, TrendingUp } from 'lucide-react';
+import { SearchX, TrendingUp } from 'lucide-react';
 import { LabChartErrorBoundary } from './LabChartErrorBoundary';
 import type { LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import { LabTrendGroupCard } from './LabTrendGroupCard';
-import { exportChartsAsPng } from './labTrendChartExport';
+import { LabTrendToolbar } from './LabTrendToolbar';
+import { LabTrendFocusStrip } from './LabTrendFocusStrip';
+import {
+  collectLabTrendFocusResults,
+  countLabTrendVariables,
+  filterLabTrendGroups,
+  type LabTrendTimeRange,
+} from '../controllers/labTrendFilterController';
 
 // === MAIN COMPONENT ===
 
-export const LabViewerTrendCharts: React.FC<{ data: LabAnalysisData }> = ({ data }) => {
-  const chartsRef = React.useRef<HTMLDivElement>(null);
-  const [isExporting, setIsExporting] = React.useState(false);
-  const [exportError, setExportError] = React.useState<string | null>(null);
+export const LabViewerTrendCharts: React.FC<{
+  data: LabAnalysisData;
+  chartsRef?: React.RefObject<HTMLDivElement | null>;
+}> = ({ data, chartsRef }) => {
+  const localChartsRef = React.useRef<HTMLDivElement>(null);
+  const resolvedChartsRef = chartsRef || localChartsRef;
+  const [timeRange, setTimeRange] = React.useState<LabTrendTimeRange>('all');
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [onlyAbnormal, setOnlyAbnormal] = React.useState(false);
+  const [activeDate, setActiveDate] = React.useState<string | null>(null);
+  const filteredGroups = React.useMemo(
+    () => filterLabTrendGroups(data.trendGroups, { timeRange, searchTerm, onlyAbnormal }),
+    [data.trendGroups, onlyAbnormal, searchTerm, timeRange]
+  );
+  const totalVariables = React.useMemo(
+    () => countLabTrendVariables(data.trendGroups),
+    [data.trendGroups]
+  );
+  const visibleVariables = React.useMemo(
+    () => countLabTrendVariables(filteredGroups),
+    [filteredGroups]
+  );
+  const focusResults = React.useMemo(
+    () => collectLabTrendFocusResults(filteredGroups, activeDate),
+    [activeDate, filteredGroups]
+  );
 
   if (data.trendGroups.length === 0) {
     return (
@@ -30,40 +59,57 @@ export const LabViewerTrendCharts: React.FC<{ data: LabAnalysisData }> = ({ data
 
   return (
     <div>
-      <div className="flex justify-end mb-3">
-        <button
-          type="button"
-          disabled={isExporting}
-          onClick={async () => {
-            if (!chartsRef.current) return;
-            setIsExporting(true);
-            setExportError(null);
-            try {
-              await exportChartsAsPng(chartsRef.current);
-            } catch {
-              setExportError('No se pudo descargar PNG.');
-            } finally {
-              setIsExporting(false);
-            }
-          }}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-50 disabled:opacity-50"
-        >
-          <Download size={12} />
-          {isExporting ? 'Exportando...' : 'Descargar PNG'}
-        </button>
-      </div>
-      {exportError ? (
-        <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-medium text-red-700">
-          {exportError}
-        </p>
-      ) : null}
-      <div ref={chartsRef} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {data.trendGroups.map(group => (
-          <LabChartErrorBoundary key={group.label} chartLabel={group.label}>
-            <LabTrendGroupCard group={group} />
-          </LabChartErrorBoundary>
-        ))}
-      </div>
+      <LabTrendToolbar
+        timeRange={timeRange}
+        searchTerm={searchTerm}
+        onlyAbnormal={onlyAbnormal}
+        visibleVariables={visibleVariables}
+        totalVariables={totalVariables}
+        onTimeRangeChange={range => {
+          setTimeRange(range);
+          setActiveDate(null);
+        }}
+        onSearchTermChange={value => {
+          setSearchTerm(value);
+          setActiveDate(null);
+        }}
+        onOnlyAbnormalChange={value => {
+          setOnlyAbnormal(value);
+          setActiveDate(null);
+        }}
+      />
+      <LabTrendFocusStrip activeDate={activeDate} results={focusResults} />
+      {filteredGroups.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
+          <SearchX size={26} className="mx-auto mb-2 text-slate-300" />
+          <p className="text-[12px] font-semibold text-slate-600">
+            No hay tendencias para estos filtros.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setTimeRange('all');
+              setSearchTerm('');
+              setOnlyAbnormal(false);
+            }}
+            className="mt-2 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            Mostrar todas
+          </button>
+        </div>
+      ) : (
+        <div ref={resolvedChartsRef} className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {filteredGroups.map(group => (
+            <LabChartErrorBoundary key={group.label} chartLabel={group.label}>
+              <LabTrendGroupCard
+                group={group}
+                syncId="lab-trend-time"
+                onActiveDateChange={setActiveDate}
+              />
+            </LabChartErrorBoundary>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import type { LabTrendPoint } from '@/types/domain/labAnalyticsTypes';
 import {
+  formatLabTrendAxisDate,
   formatLabTrendValue,
   resolveSharedReferenceBand,
   sortByDate,
@@ -32,7 +33,7 @@ export const StaggeredLabel: React.FC<{
       y={y + labelConfig.dy}
       textAnchor="middle"
       fill={color}
-      fontSize={9}
+      fontSize={10.5}
       fontWeight={700}
     >
       {formatLabTrendValue(value)}
@@ -52,23 +53,23 @@ export const LabTrendTooltip: React.FC<{
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-lg">
-      <p className="mb-1 text-[11px] font-semibold text-slate-700">{payload[0]?.payload?.date}</p>
+      <p className="mb-1 text-[12px] font-semibold text-slate-700">{payload[0]?.payload?.date}</p>
       {payload.map(entry => {
         const point = entry.payload.__points[entry.name];
         return (
           <div key={entry.name} className="border-t border-slate-100 py-1 first:border-0">
-            <p className="text-[12px]">
+            <p className="text-[13px]">
               <span className="font-bold">{entry.name}: </span>
               {formatLabTrendValue(entry.value)} {point?.unit}
             </p>
             {point?.rawValue ? (
-              <p className="text-[10px] text-slate-500">Original Syslab: {point.rawValue}</p>
+              <p className="text-[11px] text-slate-500">Original Syslab: {point.rawValue}</p>
             ) : null}
             {point?.sourceSection ? (
-              <p className="text-[10px] text-slate-500">Sección: {point.sourceSection}</p>
+              <p className="text-[11px] text-slate-500">Sección: {point.sourceSection}</p>
             ) : null}
             {point?.refMin != null && point.refMax != null ? (
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[11px] text-slate-500">
                 Ref: {formatLabTrendValue(point.refMin)} - {formatLabTrendValue(point.refMax)}
               </p>
             ) : null}
@@ -83,7 +84,9 @@ export const UnitSubChart: React.FC<{
   varEntries: Record<string, LabTrendPoint[]>;
   unit: string;
   colorOffset: number;
-}> = ({ varEntries, unit, colorOffset }) => {
+  syncId: string;
+  onActiveDateChange: (date: string) => void;
+}> = ({ varEntries, unit, colorOffset, syncId, onActiveDateChange }) => {
   const varNames = Object.keys(varEntries);
   const dateMap: Record<
     string,
@@ -114,17 +117,21 @@ export const UnitSubChart: React.FC<{
   const yMin = Math.floor(Math.min(...allVals) * 0.85);
   const yMax = Math.ceil(Math.max(...allVals) * 1.15);
   const sharedReference = resolveSharedReferenceBand(varEntries);
-  const extraMargin = varNames.length > 2 ? 30 : 18;
+  const extraMargin = varNames.length > 2 ? 27 : 20;
+
+  const handleDateFocus = (state: { activeLabel?: string | number } | null) => {
+    if (typeof state?.activeLabel === 'string') onActiveDateChange(state.activeLabel);
+  };
 
   return (
     <div className="min-w-0">
-      <div className="mb-2 flex flex-wrap gap-3">
+      <div className="mb-1.5 flex flex-wrap gap-x-3 gap-y-1">
         {varNames.map((name, index) => {
           const colorIndex = (index + colorOffset) % LINE_COLORS.length;
           const dash = DASH_PATTERNS[index % DASH_PATTERNS.length];
 
           return (
-            <span key={name} className="inline-flex items-center gap-1.5 text-[10px] font-medium">
+            <span key={name} className="inline-flex items-center gap-1.5 text-[11px] font-semibold">
               <svg width="18" height="8">
                 <line
                   x1="0"
@@ -142,26 +149,36 @@ export const UnitSubChart: React.FC<{
           );
         })}
       </div>
-      <div className="h-52 min-w-0">
+      <div className="h-44 min-w-0">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart
             data={chartData}
-            margin={{ top: extraMargin, right: 25, left: 0, bottom: extraMargin }}
+            syncId={syncId}
+            syncMethod="value"
+            onMouseMove={handleDateFocus}
+            onClick={handleDateFocus}
+            margin={{ top: extraMargin, right: 20, left: 0, bottom: 8 }}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 9, fill: '#64748b' }}
+              tick={{ fontSize: 11, fill: '#475569', fontWeight: 500 }}
+              tickFormatter={formatLabTrendAxisDate}
               tickLine={false}
               axisLine={{ stroke: '#e2e8f0' }}
+              minTickGap={24}
+              interval="preserveStartEnd"
             />
             <YAxis
               domain={[yMin, yMax]}
-              tick={{ fontSize: 9, fill: '#64748b' }}
+              tick={{ fontSize: 11, fill: '#475569', fontWeight: 500 }}
               tickLine={false}
               axisLine={false}
             />
-            <Tooltip content={<LabTrendTooltip />} />
+            <Tooltip
+              content={<LabTrendTooltip />}
+              cursor={{ stroke: '#0f766e', strokeWidth: 1.5, strokeDasharray: '4 3' }}
+            />
 
             {sharedReference && (
               <ReferenceArea

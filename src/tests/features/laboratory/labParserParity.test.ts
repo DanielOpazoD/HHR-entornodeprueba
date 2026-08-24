@@ -11,6 +11,7 @@ import type { LabResultRow } from '@/types/domain/labExamTypes';
 
 interface ExtensionParserApi {
   isSystemicTrendEligible: (finding: LabResultRow) => boolean;
+  normalizeAnalysisName: (value: string, section?: string) => string;
   parseMeasurement: (
     value: string,
     context: Pick<LabResultRow, 'unit' | 'refValue'>
@@ -22,6 +23,17 @@ const extensionParser = (
 ).HhrLabResultParser;
 
 describe('Syslab parser parity', () => {
+  it.each([
+    'CK',
+    'CPK',
+    'CK TOTAL',
+    'Creatina Quinasa Total',
+    'Creatina Fosfoquinasa',
+    'Creatinfosfoquinasa',
+  ])('normalizes the CK alias "%s" consistently in the extension', alias => {
+    expect(extensionParser.normalizeAnalysisName(alias)).toBe('CK Total');
+  });
+
   it.each([
     ['1.071', 'U/L', '40 - 129'],
     ['1.720', 'U/L |', '10 - 71'],

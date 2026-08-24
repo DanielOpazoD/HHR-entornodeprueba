@@ -373,6 +373,20 @@ describe('LabResultsViewerModal', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('keeps patient context and trend actions together in the sticky analysis header', () => {
+    mockUseLabViewer.mockReturnValue({
+      ...DEFAULT_HOOK_STATE,
+      analysisData: MOCK_ANALYSIS,
+      analysisView: 'trends',
+    });
+    render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
+
+    expect(screen.getByTestId('lab-analysis-sticky-header')).toHaveClass('sticky');
+    const copy = screen.getByRole('button', { name: 'Copiar resumen' });
+    const download = screen.getByRole('button', { name: 'Descargar PNG' });
+    expect(copy.parentElement).toBe(download.parentElement);
+  });
+
   it('microbiology tab shows separated microbiology content', () => {
     mockUseLabViewer.mockReturnValue({
       ...DEFAULT_HOOK_STATE,

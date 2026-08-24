@@ -36,6 +36,7 @@
       [/^plaquetas$|^recuento\s+(?:de\s+)?plaquetas$/i, 'Recuento de Plaquetas'],
       [/^prote[ií]na\s+c\s+reactiva$|^pcr\s+cuantitativ[ao]$/i, 'Proteina C Reactiva'],
       [/^nitr[oó]geno\s+ureico$/i, 'Nitrogeno Ureico'],
+      [/^(?:ck|cpk|creatin(?:a\s+)?(?:fosfo)?(?:quinasa|kinasa))(?:\s+total)?$/i, 'CK Total'],
       [/^hco3(?:\s+actual)?$/i, 'HCO3'],
       [/^t4\s+libre$/i, 'T4L'],
       [/^triglic[eé]ridos$/i, 'TG'],

@@ -11,7 +11,6 @@ import userEvent from '@testing-library/user-event';
 /*  Top-level mocks                                                    */
 /* ------------------------------------------------------------------ */
 
-const mockExportChartsAsPng = vi.hoisted(() => vi.fn());
 const mockOpenSyslabPdfThroughExtension = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/laboratory/syslabService', () => ({
@@ -44,19 +43,13 @@ vi.mock('@/features/laboratory/services/labExcelService', () => ({
   exportComparisonToExcel: vi.fn(),
 }));
 
-vi.mock('@/features/laboratory/components/labTrendChartExport', () => ({
-  exportChartsAsPng: (...args: unknown[]) => mockExportChartsAsPng(...args),
-}));
-
 vi.mock('@/features/laboratory/services/labFirestoreService', () => ({
   getLabResults: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  LineChart: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="line-chart">{children}</div>
-  ),
+  LineChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   Line: () => null,
   XAxis: () => null,
   YAxis: () => null,
@@ -80,7 +73,6 @@ import { LabViewerAnalyzeBar } from '@/features/laboratory/components/LabViewerA
 import { LabViewerPdf } from '@/features/laboratory/components/LabViewerPdf';
 import { LabExportConfigDialog } from '@/features/laboratory/components/LabExportConfigDialog';
 import { LabChartErrorBoundary } from '@/features/laboratory/components/LabChartErrorBoundary';
-import { LabViewerTrendCharts } from '@/features/laboratory/components/LabViewerTrendCharts';
 import type { LabPatient, SyslabExamItem } from '@/types/domain/labExamTypes';
 
 /* ------------------------------------------------------------------ */
@@ -332,45 +324,7 @@ describe('LabViewerPdf', () => {
 });
 
 /* ================================================================== */
-/*  6. LabViewerTrendCharts                                            */
-/* ================================================================== */
-
-describe('LabViewerTrendCharts', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('shows a local error instead of leaking an unhandled rejection when PNG export fails', async () => {
-    mockExportChartsAsPng.mockRejectedValue(new Error('tainted canvas'));
-
-    render(
-      <LabViewerTrendCharts
-        data={{
-          trendGroups: [
-            {
-              label: 'Hemograma',
-              variables: {
-                Hemoglobina: [
-                  { date: '01/04/2026', isoDate: '2026-04-01', value: 13, unit: 'g/dL' },
-                  { date: '02/04/2026', isoDate: '2026-04-02', value: 14, unit: 'g/dL' },
-                ],
-              },
-            },
-          ],
-          examDates: ['01/04/2026', '02/04/2026'],
-          comparison: {},
-          microbiologyEntries: [],
-        }}
-      />
-    );
-
-    await userEvent.click(screen.getByRole('button', { name: 'Descargar PNG' }));
-
-    expect(await screen.findByText('No se pudo descargar PNG.')).toBeInTheDocument();
-    expect(mockExportChartsAsPng).toHaveBeenCalledTimes(1);
-  });
-});
-
-/* ================================================================== */
-/*  7. LabExportConfigDialog                                           */
+/*  6. LabExportConfigDialog                                           */
 /* ================================================================== */
 
 describe('LabExportConfigDialog', () => {
@@ -412,7 +366,7 @@ describe('LabExportConfigDialog', () => {
 });
 
 /* ================================================================== */
-/*  8. LabChartErrorBoundary                                           */
+/*  7. LabChartErrorBoundary                                           */
 /* ================================================================== */
 
 describe('LabChartErrorBoundary', () => {

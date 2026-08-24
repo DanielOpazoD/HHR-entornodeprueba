@@ -133,6 +133,17 @@ describe('normalizeAnalysisName', () => {
     expect(normalizeAnalysisName('PCR')).toBe('Proteina C Reactiva');
   });
 
+  it.each([
+    'CK',
+    'CPK',
+    'CK TOTAL',
+    'Creatina Quinasa Total',
+    'Creatina Fosfoquinasa',
+    'Creatinfosfoquinasa',
+  ])('normalizes the Syslab CK alias "%s" to CK Total', alias => {
+    expect(normalizeAnalysisName(alias)).toBe('CK Total');
+  });
+
   it('keeps urine leukocytes as urine findings when section is urinary', () => {
     expect(normalizeAnalysisName('Leucocitos', 'ORINA FISICO-QUIMICO')).toBe('Leucocitos');
     expect(normalizeAnalysisName('Leucocitos', 'SEDIMENTO URINARIO')).toBe('Leucocitos');
