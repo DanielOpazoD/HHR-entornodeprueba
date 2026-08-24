@@ -13,6 +13,7 @@ import { resolveInitialLabViewerRut } from '../controllers/labViewerController';
 import { useLabViewerAnalysis } from './useLabViewerAnalysis';
 import { useLabViewerQuery } from './useLabViewerQuery';
 import { useLabViewerSelection } from './useLabViewerSelection';
+import { useLabViewerPdfDownload } from './useLabViewerPdfDownload';
 
 export interface UseLabViewerReturn {
   uniquePatients: LabPatient[];
@@ -28,6 +29,7 @@ export interface UseLabViewerReturn {
   progress: ProgressState | null;
   selectedExamIds: Set<string>;
   isAnalyzing: boolean;
+  isDownloadingSelectedPdfs: boolean;
   analysisData: LabAnalysisData | null;
   analysisView: AnalysisViewTab;
   selectPatient: (rut: string) => void;
@@ -42,6 +44,7 @@ export interface UseLabViewerReturn {
   selectByDays: (days: number) => void;
   selectByDateRange: (from: Date, to: Date) => void;
   analyzeSelected: () => Promise<void>;
+  downloadSelectedPdfs: () => Promise<void>;
   copyExamSummary: (exam: SyslabExamItem) => Promise<boolean>;
   closeAnalysis: () => void;
   setAnalysisView: (tab: AnalysisViewTab) => void;
@@ -103,27 +106,41 @@ export const useLabViewer = (
     setError,
   });
 
+  const { cancelPdfDownload, downloadSelectedPdfs, isDownloadingSelectedPdfs } =
+    useLabViewerPdfDownload({ examList, selectedExamIds, setError });
+
   const selectPatient = useCallback(
     (rut: string) => {
+      cancelPdfDownload();
       selectQueryPatient(rut);
       resetSelection();
       resetAnalysis();
     },
-    [resetAnalysis, resetSelection, selectQueryPatient]
+    [cancelPdfDownload, resetAnalysis, resetSelection, selectQueryPatient]
   );
 
   const search = useCallback(async () => {
+    cancelPdfDownload();
     resetSelection();
     resetAnalysis();
     await runSearch();
-  }, [resetAnalysis, resetSelection, runSearch]);
+  }, [cancelPdfDownload, resetAnalysis, resetSelection, runSearch]);
 
   const reset = useCallback(() => {
+    cancelPdfDownload();
     resetQueryState();
     resetSelection();
     resetAnalysis();
     setSelectedRut(resolveInitialLabViewerRut(patients, initialPatientRut));
-  }, [initialPatientRut, patients, resetAnalysis, resetQueryState, resetSelection, setSelectedRut]);
+  }, [
+    cancelPdfDownload,
+    initialPatientRut,
+    patients,
+    resetAnalysis,
+    resetQueryState,
+    resetSelection,
+    setSelectedRut,
+  ]);
 
   return {
     uniquePatients,
@@ -139,6 +156,7 @@ export const useLabViewer = (
     progress,
     selectedExamIds,
     isAnalyzing,
+    isDownloadingSelectedPdfs,
     analysisData,
     analysisView,
     selectPatient,
@@ -153,6 +171,7 @@ export const useLabViewer = (
     selectByDays,
     selectByDateRange,
     analyzeSelected,
+    downloadSelectedPdfs,
     copyExamSummary,
     closeAnalysis,
     setAnalysisView,

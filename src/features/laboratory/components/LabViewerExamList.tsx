@@ -1,4 +1,5 @@
 import React from 'react';
+import { Download, Loader2 } from 'lucide-react';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
 import { useTransientFlag } from '@/hooks/useTransientFlag';
 import {
@@ -21,6 +22,8 @@ interface LabViewerExamListProps {
   onSelectByDateRange: (from: Date, to: Date) => void;
   onViewPdf: (exam: SyslabExamItem) => void;
   onCopySummary: (exam: SyslabExamItem) => Promise<boolean>;
+  isDownloadingSelectedPdfs: boolean;
+  onDownloadSelectedPdfs: () => Promise<void>;
 }
 
 export const LabViewerExamList: React.FC<LabViewerExamListProps> = ({
@@ -35,6 +38,8 @@ export const LabViewerExamList: React.FC<LabViewerExamListProps> = ({
   onSelectByDateRange,
   onViewPdf,
   onCopySummary,
+  isDownloadingSelectedPdfs,
+  onDownloadSelectedPdfs,
 }) => {
   const [dateFrom, setDateFrom] = React.useState('');
   const [dateTo, setDateTo] = React.useState('');
@@ -61,7 +66,26 @@ export const LabViewerExamList: React.FC<LabViewerExamListProps> = ({
   return (
     <div className="space-y-2 pb-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void onDownloadSelectedPdfs()}
+            disabled={selectedIds.size === 0 || isDownloadingSelectedPdfs}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-bold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400"
+            aria-label="Descargar exámenes seleccionados en un único PDF"
+          >
+            {isDownloadingSelectedPdfs ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Download size={14} />
+            )}
+            {isDownloadingSelectedPdfs ? 'Preparando PDF…' : 'Descargar selección'}
+            {selectedIds.size > 0 && (
+              <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px]">
+                {selectedIds.size}
+              </span>
+            )}
+          </button>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600">
             Ordenes disponibles
           </p>

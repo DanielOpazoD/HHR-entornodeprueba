@@ -28,7 +28,8 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(background).toContain("'clinical-history-coverage.js'");
     expect(background).toContain("'syslab-login-window.js'");
     expect(background).toContain("'syslab-runtime.js'");
-    expect(background).toContain('self.HhrSyslabRuntime.create({');
+    expect(background).toContain('self.HhrSyslabPdfBundle.createRuntime({');
+    expect(background).toContain("'syslab-pdf-bundle.js'");
     expect(runtime).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
     expect(runtime).toContain('sweepExpiredLabBatches');
     expect(runtime).toContain('Puedes analizar como máximo 24 informes por operación.');
@@ -135,6 +136,6 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(manifest).toContain('"offscreen"');
     expect(manifest).toContain('"all_frames": true');
     expect(manifest).toContain('"syslab-login.html"');
-    expect(manifest).toContain('"version": "0.45.7"');
+    expect(manifest).toContain('"version": "0.45.8"');
   });
 });

@@ -84,9 +84,7 @@ export const UnitSubChart: React.FC<{
   varEntries: Record<string, LabTrendPoint[]>;
   unit: string;
   colorOffset: number;
-  syncId: string;
-  onActiveDateChange: (date: string) => void;
-}> = ({ varEntries, unit, colorOffset, syncId, onActiveDateChange }) => {
+}> = ({ varEntries, unit, colorOffset }) => {
   const varNames = Object.keys(varEntries);
   const dateMap: Record<
     string,
@@ -119,10 +117,6 @@ export const UnitSubChart: React.FC<{
   const sharedReference = resolveSharedReferenceBand(varEntries);
   const extraMargin = varNames.length > 2 ? 27 : 20;
 
-  const handleDateFocus = (state: { activeLabel?: string | number } | null) => {
-    if (typeof state?.activeLabel === 'string') onActiveDateChange(state.activeLabel);
-  };
-
   return (
     <div className="min-w-0">
       <div className="mb-1.5 flex flex-wrap gap-x-3 gap-y-1">
@@ -151,14 +145,7 @@ export const UnitSubChart: React.FC<{
       </div>
       <div className="h-44 min-w-0">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <LineChart
-            data={chartData}
-            syncId={syncId}
-            syncMethod="value"
-            onMouseMove={handleDateFocus}
-            onClick={handleDateFocus}
-            margin={{ top: extraMargin, right: 20, left: 0, bottom: 8 }}
-          >
+          <LineChart data={chartData} margin={{ top: extraMargin, right: 20, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
             <XAxis
               dataKey="date"

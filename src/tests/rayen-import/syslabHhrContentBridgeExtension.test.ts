@@ -13,6 +13,7 @@ const runtimeTypes = {
   LAB_SEARCH_REQUEST: 'RAYEN_LAB_SEARCH_REQUEST',
   LAB_DETAILS_REQUEST: 'RAYEN_LAB_DETAILS_REQUEST',
   LAB_PDF_OPEN_REQUEST: 'RAYEN_LAB_PDF_OPEN_REQUEST',
+  LAB_PDF_BUNDLE_DOWNLOAD_REQUEST: 'RAYEN_LAB_PDF_BUNDLE_DOWNLOAD_REQUEST',
 };
 
 const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
@@ -152,6 +153,31 @@ describe('HHR Syslab content bridge', () => {
         type: 'RAYEN_LAB_PDF_OPEN_REQUEST',
         batchId,
         examId: '43091284',
+      })
+    );
+  });
+
+  it('downloads selected opaque locators only when they belong to one batch', async () => {
+    const { onMessage, sendMessage, windowObject } = createHarness();
+    const batchId = '123e4567-e89b-12d3-a456-426614174000';
+
+    onMessage?.({
+      source: windowObject,
+      data: {
+        type: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_REQUEST',
+        reqId: 'pdf-bundle-1',
+        links: [
+          `hhr-syslab-extension://batch/${batchId}/exam/43091284`,
+          `hhr-syslab-extension://batch/${batchId}/exam/43091285`,
+        ],
+      },
+    });
+
+    await vi.waitFor(() =>
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'RAYEN_LAB_PDF_BUNDLE_DOWNLOAD_REQUEST',
+        batchId,
+        examIds: ['43091284', '43091285'],
       })
     );
   });

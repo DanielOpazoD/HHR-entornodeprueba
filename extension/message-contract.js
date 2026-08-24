@@ -1,7 +1,5 @@
-/** Shared runtime-message contract for the HHR extension service worker and its callers. */
 (function (root) {
   'use strict';
-
   const types = Object.freeze({
     EXTENSION_HEALTH_REQUEST: 'RAYEN_EXTENSION_HEALTH_REQUEST',
     GC_SESSION_CAPTURED: 'RAYEN_GC_SESSION_CAPTURED',
@@ -32,6 +30,7 @@
     SYSLAB_LOGIN_REQUEST: 'RAYEN_SYSLAB_LOGIN_REQUEST',
     LAB_DETAILS_REQUEST: 'RAYEN_LAB_DETAILS_REQUEST',
     LAB_PDF_OPEN_REQUEST: 'RAYEN_LAB_PDF_OPEN_REQUEST',
+    LAB_PDF_BUNDLE_DOWNLOAD_REQUEST: 'RAYEN_LAB_PDF_BUNDLE_DOWNLOAD_REQUEST',
     PRESCRIPTION_OPTIONS_REQUEST: 'RAYEN_PRESCRIPTION_OPTIONS_REQUEST',
     PRESCRIPTION_PRINT_REQUEST: 'RAYEN_PRESCRIPTION_PRINT_REQUEST',
     EPICRISIS_CORRECTED_PRINT_REQUEST: 'RAYEN_EPICRISIS_CORRECTED_PRINT_REQUEST',
@@ -86,6 +85,7 @@
     [types.SYSLAB_LOGIN_REQUEST]: { username: 'string', password: 'string' },
     [types.LAB_DETAILS_REQUEST]: { batchId: 'string', examIds: 'array' },
     [types.LAB_PDF_OPEN_REQUEST]: { batchId: 'string', examId: 'id' },
+    [types.LAB_PDF_BUNDLE_DOWNLOAD_REQUEST]: { batchId: 'string', examIds: 'array' },
     [types.PRESCRIPTION_OPTIONS_REQUEST]: { encId: 'id' },
     [types.PRESCRIPTION_PRINT_REQUEST]: {
       encId: 'id',

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  collectLabTrendFocusResults,
   countLabTrendVariables,
   filterLabTrendGroups,
   isLabTrendPointAbnormal,
@@ -81,11 +80,7 @@ describe('labTrendFilterController', () => {
     expect(isLabTrendPointAbnormal(filtered[0].variables['CK Total'][0])).toBe(true);
   });
 
-  it('collects all plotted values for the synchronized date with abnormal values first', () => {
-    const results = collectLabTrendFocusResults(groups, '09/08/2026 08:00');
-
-    expect(results.map(result => result.analysis)).toEqual(['CK Total', 'Creatinina']);
-    expect(results[0].isAbnormal).toBe(true);
+  it('counts the visible variables across clinical groups', () => {
     expect(countLabTrendVariables(groups)).toBe(2);
   });
 });

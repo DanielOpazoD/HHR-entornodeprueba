@@ -1,9 +1,3 @@
-/**
- * Syslab/Laboratorio runtime for the MV3 background worker.
- *
- * Orchestrates an authenticated Syslab session and the encounter-bound, expiring batches used
- * by the laboratory viewer. Message routing remains in background.js.
- */
 (function (root) {
   'use strict';
 
@@ -21,12 +15,14 @@
       chrome: chromeApi,
       labViewer,
       syslabSessionTransport,
+      syslabPdfBundle,
       withTimeout,
     } = dependencies || {};
 
     if (
       !chromeApi || !labViewer || !syslabSessionTransport ||
       typeof syslabSessionTransport.create !== 'function' ||
+      !syslabPdfBundle || typeof syslabPdfBundle.download !== 'function' ||
       typeof withTimeout !== 'function' ||
       typeof labViewer.normalizeRutBody !== 'function'
     ) {
@@ -87,7 +83,10 @@
       delay,
     });
 
-    const currentSession = () => sessionTransport.currentSession();
+    const currentSession = async () => ({
+      ...await sessionTransport.currentSession(),
+      pdfBundleSupported: true,
+    });
 
     const requireBridgeResponse = (response, fallback) => {
       if (!response || response.error) throw new Error(response && response.error || fallback);
@@ -389,7 +388,14 @@
       return { ok: true, viewerTabId: tab && tab.id };
     };
 
-    return Object.freeze({ currentSession, login, search, details, openPdf });
+    const downloadPdfBundle = syslabPdfBundle.createHandler(
+      readLabBatch,
+      validateLabBatchSender,
+      selectedLabExams,
+      sessionTransport
+    );
+
+    return Object.freeze({ currentSession, login, search, details, openPdf, downloadPdfBundle });
   };
 
   root.HhrSyslabRuntime = Object.freeze({ create });
