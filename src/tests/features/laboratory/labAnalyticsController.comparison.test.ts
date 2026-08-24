@@ -198,6 +198,43 @@ describe('labAnalyticsController comparison output', () => {
     expect(metabolicTrend?.variables['Hb glicosilada']).toHaveLength(2);
   });
 
+  it('builds one CK Total chart from the CK aliases returned by Syslab', () => {
+    const result = buildAnalysisData(
+      [
+        buildDetail({
+          url: 'http://example.com/100',
+          findings: [
+            buildFinding({
+              section: 'BIOQUIMICA',
+              analysis: 'CK',
+              result: '224',
+              unit: 'U/L',
+              refValue: '30-170',
+            }),
+          ],
+        }),
+        buildDetail({
+          url: 'http://example.com/200',
+          findings: [
+            buildFinding({
+              section: 'BIOQUIMICA',
+              analysis: 'Creatina Quinasa Total',
+              result: '181',
+              unit: 'U/L',
+              refValue: '30-170',
+            }),
+          ],
+        }),
+      ],
+      [examWithTime, examWithTime2]
+    );
+
+    expect(result.comparison['CK Total']).toBeDefined();
+    expect(result.comparison.CK).toBeUndefined();
+    const muscleMarkers = result.trendGroups.find(group => group.label === 'Marcadores musculares');
+    expect(muscleMarkers?.variables['CK Total'].map(point => point.value)).toEqual([181, 224]);
+  });
+
   it('returns an empty structure when details are empty', () => {
     const result = buildAnalysisData([], []);
     expect(result.trendGroups).toEqual([]);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatLabTrendAxisDate,
   formatLabTrendValue,
   resolveSharedReferenceBand,
 } from '@/features/laboratory/components/LabTrendChartHelpers';
@@ -16,6 +17,11 @@ const point = (value: number, refMin: number, refMax: number): LabTrendPoint => 
 });
 
 describe('LabTrendChartHelpers clinical presentation', () => {
+  it('uses compact readable date labels on the chart axis', () => {
+    expect(formatLabTrendAxisDate('19/08/2026 12:56')).toBe('19/08 12:56');
+    expect(formatLabTrendAxisDate('6/4/2026')).toBe('06/04');
+  });
+
   it('formats thousands and decimals using the clinical locale', () => {
     expect(formatLabTrendValue(1071)).toBe('1.071');
     expect(formatLabTrendValue(42.4)).toBe('42,4');

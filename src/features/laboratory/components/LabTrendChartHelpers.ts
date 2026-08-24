@@ -18,6 +18,13 @@ const labNumberFormatter = new Intl.NumberFormat('es-CL', {
 /** Formats chart values without turning 1071 into 1.1 or adding false precision. */
 export const formatLabTrendValue = (value: number): string => labNumberFormatter.format(value);
 
+/** Compact axis label that preserves date and time without repeating the year. */
+export const formatLabTrendAxisDate = (date: string): string => {
+  const match = date.match(/^(\d{1,2})\/(\d{1,2})\/\d{4}(?:\s+(\d{1,2}:\d{2}))?/);
+  if (!match) return date;
+  return `${match[1].padStart(2, '0')}/${match[2].padStart(2, '0')}${match[3] ? ` ${match[3]}` : ''}`;
+};
+
 /** A shared band is valid only when every plotted variable has the same reference range. */
 export const resolveSharedReferenceBand = (
   variables: Record<string, LabTrendPoint[]>

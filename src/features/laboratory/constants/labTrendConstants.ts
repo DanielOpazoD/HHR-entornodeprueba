@@ -35,8 +35,12 @@ export const TREND_GROUPS: { label: string; patterns: string[] }[] = [
     patterns: ['pH', 'pCO2', 'pO2', 'HCO3', 'Lactato'],
   },
   {
+    label: 'Marcadores musculares',
+    patterns: ['CK Total'],
+  },
+  {
     label: 'Otros',
-    patterns: ['Troponina', 'CK Total', 'Magnesio', 'Albumina'],
+    patterns: ['Troponina', 'Magnesio', 'Albumina'],
   },
   {
     label: 'RPC / RAC',
