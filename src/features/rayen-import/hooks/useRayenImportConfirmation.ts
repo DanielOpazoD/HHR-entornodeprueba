@@ -25,7 +25,10 @@ import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clin
 import type { useRayenSyncAudit } from './useRayenSyncAudit';
 import type { useRayenSyncExecutionController } from './useRayenSyncExecutionController';
 import { applyRayenHistoricalCorrectionState } from './rayenCensusPersistenceGuard';
-import type { BedOccupancyCollisionResolution } from '../contracts/censusImportDiff';
+import type {
+  BedOccupancyCollisionResolution,
+  CmaAdmissionResolution,
+} from '../contracts/censusImportDiff';
 import { resolveBedOccupancyCollisions } from '../domain/bedOccupancyCollisionPolicy';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;
@@ -79,7 +82,8 @@ export const useRayenImportConfirmation = ({
   return useCallback(
     async (
       applyPreviousDays: boolean = true,
-      bedCollisionResolutions: BedOccupancyCollisionResolution[] = []
+      bedCollisionResolutions: BedOccupancyCollisionResolution[] = [],
+      cmaAdmissionResolutions: CmaAdmissionResolution[] = []
     ) => {
       const base =
         preparedSyncContextRef.current?.record ?? currentRecordRef.current ?? currentRecord;
@@ -190,6 +194,7 @@ export const useRayenImportConfirmation = ({
           }
           return applyConfirmedRayenImport({
             applyPreviousDays,
+            cmaAdmissionResolutions,
             base,
             diff,
             dailyRecord,

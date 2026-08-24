@@ -44,7 +44,7 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
       />
     );
 
-    expect(screen.getByText('Sincronización requiere revisión')).toBeVisible();
+    expect(screen.getByText('Revisar cambios del censo')).toBeVisible();
   });
 
   it('does not restore a partial persisted synchronization as fully successful', () => {
@@ -90,6 +90,6 @@ describe('Rayen synchronization omissions in the pulse bar', () => {
     renderSettledPulse('resolved', { type: 'needs_review', scope: 'structure' });
 
     expect(screen.queryByText('Todo al día')).not.toBeInTheDocument();
-    expect(screen.getByText('Sincronización requiere revisión')).toBeVisible();
+    expect(screen.getByText('Revisar cambios del censo')).toBeVisible();
   });
 });

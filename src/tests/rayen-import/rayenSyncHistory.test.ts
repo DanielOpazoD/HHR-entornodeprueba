@@ -189,6 +189,28 @@ describe('rayen sync history', () => {
     });
   });
 
+  it('retains deferred D-1 admission evidence without marking current-day coverage partial', () => {
+    const applied = buildAppliedRayenSyncEvent(run(), diff(), '2026-07-14T10:01:00.000Z');
+    const completed = completeRayenSyncEvent(
+      applied,
+      buildRayenSyncCoverage(2, [], '2026-07-14T10:03:00.000Z'),
+      undefined,
+      undefined,
+      {
+        structureConfirmed: true,
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 0,
+        deferredHistoricalAdmissionBedIds: ['H5C2'],
+      }
+    );
+
+    expect(completed).toMatchObject({
+      status: 'complete',
+      structuralReview: { deferredHistoricalAdmissionBedIds: ['H5C2'] },
+    });
+  });
+
   it('classifies resumable structural follow-up without persisting raw error text', () => {
     const coverage = buildRayenSyncCoverage(
       0,

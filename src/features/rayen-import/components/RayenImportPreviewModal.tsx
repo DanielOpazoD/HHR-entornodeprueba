@@ -4,6 +4,7 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import type {
   BedOccupancyCollisionResolution,
   CensusImportDiff,
+  CmaAdmissionResolution,
 } from '../contracts/censusImportDiff';
 import {
   ddmmyyyy,
@@ -17,6 +18,8 @@ import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import { EquivalentBedCollisionReview } from './EquivalentBedCollisionReview';
 import { RayenImportSummaryChips } from './RayenImportSummaryChips';
 import { presentRayenWorkingMessage, reservedRayenTargetBedIds } from './rayenImportPreviewState';
+import { RayenAdmissionReview } from './RayenAdmissionReview';
+import { areCmaAdmissionsResolved } from '../domain/cmaAdmissionReview';
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
   diff: CensusImportDiff | null;
@@ -24,10 +27,10 @@ export interface RayenImportPreviewModalProps {
   error: string | null;
   isApplied?: boolean;
   targetDate?: string | null;
-  /** Whether to also file confirmed cross-day admission/discharge corrections. */
   onConfirm: (
     applyPreviousDays: boolean,
-    bedCollisionResolutions?: BedOccupancyCollisionResolution[]
+    bedCollisionResolutions?: BedOccupancyCollisionResolution[],
+    cmaAdmissionResolutions?: CmaAdmissionResolution[]
   ) => void;
   onCancel: () => void;
 }
@@ -41,7 +44,6 @@ const updateEntryKey = (entry: CensusImportDiff['updates'][number]): string => {
   const fields = entry.changes.map(change => String(change.field)).sort();
   return JSON.stringify([entry.bedId, subject, fields]);
 };
-
 export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = ({
   isOpen,
   diff,
@@ -61,20 +63,23 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       (diff.reportEgresos?.length ?? 0) >
       0 ||
       (diff.bedOccupancyCollisions?.length ?? 0) > 0);
-
   const previousDayEdits = diff?.previousDayEdits ?? [];
   const needsPreviousDayAck = previousDayEdits.length > 0;
   const previousDays = new Set(previousDayEdits.map(edit => edit.day));
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
+  const [cmaAdmissionResolutions, setCmaAdmissionResolutions] = React.useState<
+    CmaAdmissionResolution[]
+  >([]);
   const [collisionResolutions, setCollisionResolutions] = React.useState<
     BedOccupancyCollisionResolution[]
   >([]);
   React.useEffect(() => {
     if (isOpen) {
       setAcceptedPreviousDays(false);
+      setCmaAdmissionResolutions([]);
       setCollisionResolutions([]);
     }
-  }, [isOpen, diff?.bedOccupancyCollisions]);
+  }, [isOpen, diff?.admissions, diff?.bedOccupancyCollisions]);
   const hasConflicts = Boolean(diff?.summary.conflicts);
   const workingMessage = presentRayenWorkingMessage(stage);
   const isWorking = workingMessage !== null;
@@ -90,6 +95,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
         entry.code !== 'historical-reconstruction' && entry.code !== 'cma-physical-bed-collision'
     ) ?? [];
   const bedCollisions = diff?.bedOccupancyCollisions ?? [];
+  const needsCmaAdmissionAck = Boolean(diff?.admissions.some(entry => entry.isCma));
   const reservedCollisionTargetBedIds = reservedRayenTargetBedIds(diff);
   const allBedCollisionsResolved = collisionResolutions.length === bedCollisions.length;
   const canReview =
@@ -102,7 +108,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   const handleClose = (): void => {
     if (!isWorking) onCancel();
   };
-
   return (
     <BaseModal
       isOpen={isOpen}
@@ -142,22 +147,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   bedCollisions={bedCollisions.length}
                 />
 
-                <Section title="Ingresos" count={diff.admissions.length}>
-                  {diff.admissions.map(entry => (
-                    <li key={`adm-${entry.bedId}`}>
-                      <div>
-                        <span className="font-semibold">{entry.bedId}</span> —{' '}
-                        {entry.patient.patientName}
-                        {entry.isCma && <span className="ml-1 text-teal-600">(CMA)</span>}
-                      </div>
-                      {entry.patient.clinicalCrib?.patientName && (
-                        <div className="ml-4 text-gray-600">
-                          ↳ Cuna RN — {entry.patient.clinicalCrib.patientName}
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </Section>
+                <RayenAdmissionReview
+                  admissions={diff.admissions}
+                  cmaAdmissionResolutions={cmaAdmissionResolutions}
+                  onCmaAdmissionResolutionsChange={setCmaAdmissionResolutions}
+                />
 
                 <Section title="Actualizaciones" count={presentedUpdates.length}>
                   {presentedUpdates.map(entry => (
@@ -376,13 +370,24 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
           <button
             type="button"
             onClick={() => {
-              if (bedCollisions.length > 0) {
+              if (needsCmaAdmissionAck) {
+                onConfirm(
+                  acceptedPreviousDays,
+                  bedCollisions.length > 0 ? collisionResolutions : undefined,
+                  cmaAdmissionResolutions
+                );
+              } else if (bedCollisions.length > 0) {
                 onConfirm(acceptedPreviousDays, collisionResolutions);
               } else {
                 onConfirm(acceptedPreviousDays);
               }
             }}
-            disabled={isWorking || !hasChanges || !allBedCollisionsResolved}
+            disabled={
+              isWorking ||
+              !hasChanges ||
+              !allBedCollisionsResolved ||
+              (needsCmaAdmissionAck && !areCmaAdmissionsResolved(diff, cmaAdmissionResolutions))
+            }
             className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
           >
             Confirmar e importar

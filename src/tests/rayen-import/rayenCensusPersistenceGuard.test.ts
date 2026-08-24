@@ -208,6 +208,25 @@ describe('rayenCensusPersistenceGuard', () => {
     expect(isConfirmedRayenCensusHandoff(record)).toBe(false);
   });
 
+  it('carries non-blocking historical admission traceability into the confirmed handoff', () => {
+    const record = buildRecord();
+
+    const handoff = resolveConfirmedRayenCensusHandoff(
+      { record, result: buildResult() },
+      {
+        date: record.date,
+        runId: 'run-1',
+        diff: {
+          conflicts: [],
+          deferredHistoricalAdmissionBedIds: ['H5C2', 'H5C2'],
+        },
+      }
+    );
+
+    expect(handoff.deferredHistoricalAdmissionBedIds).toEqual(['H5C2']);
+    expect(resolveStructuralStageResult(handoff)).toMatchObject({ status: 'confirmed' });
+  });
+
   it('accepts an already applied census when a previous clinical attempt marked its audit failed', () => {
     const record = buildRecord('run-1', {
       lastUpdated: '2026-07-28T10:05:00.000Z',

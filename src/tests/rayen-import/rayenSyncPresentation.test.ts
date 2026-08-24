@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   presentRayenCoverageIssue,
+  presentRayenDeferredHistoricalAdmissionNote,
+  presentRayenLegacyCoverageGap,
+  presentRayenStructuralIssue,
+  presentRayenStructuralReviewDetails,
   formatRayenSyncDuration,
   presentRayenCoverage,
   presentRayenSyncOutcome,
@@ -48,6 +52,27 @@ describe('rayen sync presentation', () => {
         true
       ).label
     ).toBe('3/3 · fuente parcial');
+  });
+
+  it('describes legacy coverage gaps with the counter that actually failed', () => {
+    expect(
+      presentRayenLegacyCoverageGap({
+        total: 3,
+        completed: 2,
+        errors: 1,
+        sourceErrors: 0,
+        completedAt: 'now',
+      })
+    ).toContain('1 paciente con información clínica incompleta');
+    expect(
+      presentRayenLegacyCoverageGap({
+        total: 3,
+        completed: 2,
+        errors: 0,
+        sourceErrors: 2,
+        completedAt: 'now',
+      })
+    ).toContain('2 fallas de fuente');
   });
 
   it('names the action the current extension state can actually perform', () => {
@@ -103,6 +128,57 @@ describe('rayen sync presentation', () => {
     );
   });
 
+  it('explains a structurally partial run even when clinical coverage is complete', () => {
+    const event: RayenSyncEvent = {
+      id: 'run-structural-partial',
+      startedAt: '2026-08-23T22:00:00.000Z',
+      by: 'Operador',
+      status: 'partial',
+      structuralReview: {
+        structureConfirmed: true,
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 1,
+        issues: [{ bedId: 'H5C2', reason: 'occupied-local-bed' }],
+      },
+      coverage: {
+        total: 10,
+        completed: 10,
+        errors: 0,
+        sourceErrors: 0,
+        completedAt: '2026-08-23T22:01:00.000Z',
+      },
+      source: { fichaMedico: 'ready', gestionCamas: 'ready' },
+    };
+
+    expect(presentRayenSyncOutcome(event)).toMatchObject({
+      label: 'Parcial',
+      detail: '1 cambio del censo no se aplicó',
+      unresolved: true,
+    });
+    expect(presentRayenSyncRecovery(event, 'ready')).toMatchObject({
+      title: 'Censo pendiente de revisión',
+      detail: '1 cambio del censo no se aplicó. Eloísa está operativa.',
+      action: 'retry_full',
+    });
+    expect(presentRayenStructuralIssue(event.structuralReview!.issues![0])).toBe(
+      'Cama H5C2: la cama está ocupada por otro paciente en HHR.'
+    );
+  });
+
+  it('explains legacy structural partials without inventing a bed or cause', () => {
+    expect(
+      presentRayenStructuralReviewDetails({
+        structureConfirmed: true,
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 1,
+      })
+    ).toEqual([
+      '1 cambio del censo no se aplicó; esta ejecución anterior no conservó la cama y la causa.',
+    ]);
+  });
+
   it('identifies a staffing source failure in user-facing recovery guidance', () => {
     expect(
       presentRayenCoverageIssue({
@@ -151,6 +227,34 @@ describe('rayen sync presentation', () => {
     };
 
     expect(presentRayenSyncOutcome(event).detail).toBe('Enriquecimiento clínico parcial');
+  });
+
+  it('keeps an unverified D-1 backfill informative without reopening the current-day census', () => {
+    const event: RayenSyncEvent = {
+      id: 'run-deferred-history',
+      startedAt: '2026-08-23T22:00:00.000Z',
+      by: 'Operador',
+      status: 'complete',
+      structuralReview: {
+        structureConfirmed: true,
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 0,
+        deferredHistoricalAdmissionBedIds: ['H5C2'],
+      },
+    };
+
+    expect(presentRayenSyncOutcome(event)).toMatchObject({
+      label: 'Completa',
+      unresolved: false,
+    });
+    expect(presentRayenSyncRecovery(event, 'ready')).toBeNull();
+    expect(presentRayenDeferredHistoricalAdmissionNote(event.structuralReview)).toContain(
+      'El ingreso del día actual quedó sincronizado'
+    );
+    expect(presentRayenDeferredHistoricalAdmissionNote(event.structuralReview)).toContain(
+      'la cama H5C2'
+    );
   });
 
   it('offers reviewed recovery only after the connection is ready again', () => {

@@ -107,6 +107,99 @@ describe('RayenImportButton history and progress', () => {
     expect(screen.getByText('Cobertura clínica: 11/11 completa')).toHaveClass('text-emerald-700');
   });
 
+  it('shows what was structurally omitted instead of a generic partial message', () => {
+    mocks.useDailyRecordData.mockReturnValue({
+      record: {
+        rayenSyncHistory: [
+          {
+            id: 'run-structural',
+            startedAt: '2026-08-23T22:00:00.000Z',
+            completedAt: '2026-08-23T22:01:00.000Z',
+            by: 'Operador',
+            status: 'partial',
+            changes: { admissions: 1, updates: 0, moves: 0, discharges: 0, unchanged: 10 },
+            coverage: {
+              total: 10,
+              completed: 10,
+              errors: 0,
+              sourceErrors: 0,
+              completedAt: '2026-08-23T22:01:00.000Z',
+            },
+            structuralReview: {
+              structureConfirmed: true,
+              historicalCorrectionsPending: false,
+              historicalCorrectionsRequireFreshCapture: false,
+              isolatedConflicts: 1,
+              issues: [{ bedId: 'H5C2', reason: 'occupied-local-bed' }],
+            },
+            source: { fichaMedico: 'ready', gestionCamas: 'ready' },
+          },
+        ],
+      },
+    });
+
+    render(<RayenImportButton />);
+    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+
+    expect(screen.getByText('Cobertura clínica: 10/10 completa')).toHaveClass('text-emerald-700');
+    expect(screen.getByTestId('rayen-structural-review-detail')).toHaveTextContent(
+      'Cama H5C2: la cama está ocupada por otro paciente en HHR.'
+    );
+    expect(screen.queryByText('Enriquecimiento clínico parcial')).not.toBeInTheDocument();
+  });
+
+  it('keeps an unverified prior-shift backfill out of the current-day warning state', () => {
+    const coverage = {
+      total: 10,
+      completed: 10,
+      errors: 0,
+      sourceErrors: 0,
+      completedAt: '2026-08-23T22:01:00.000Z',
+    };
+    const structuralReview = {
+      structureConfirmed: true,
+      historicalCorrectionsPending: false,
+      historicalCorrectionsRequireFreshCapture: false,
+      isolatedConflicts: 0,
+      deferredHistoricalAdmissionBedIds: ['H5C2'],
+    };
+    mocks.useDailyRecordData.mockReturnValue({
+      record: {
+        rayenSync: {
+          at: '2026-08-23T22:00:00.000Z',
+          by: 'Operador',
+          runId: 'run-deferred-history',
+          status: 'complete',
+          coverage,
+        },
+        rayenSyncHistory: [
+          {
+            id: 'run-deferred-history',
+            startedAt: '2026-08-23T22:00:00.000Z',
+            completedAt: '2026-08-23T22:01:00.000Z',
+            by: 'Operador',
+            status: 'complete',
+            changes: { admissions: 1, updates: 0, moves: 0, discharges: 0, unchanged: 10 },
+            coverage,
+            structuralReview,
+            source: { fichaMedico: 'ready', gestionCamas: 'ready' },
+          },
+        ],
+      },
+    });
+
+    render(<RayenImportButton />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Todo al día');
+    expect(screen.queryByTestId('rayen-sync-history-indicator')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    expect(screen.getByText('Completa')).toBeInTheDocument();
+    expect(screen.getByTestId('rayen-historical-admission-note')).toHaveTextContent(
+      'El ingreso del día actual quedó sincronizado'
+    );
+    expect(screen.queryByTestId('rayen-structural-review-detail')).not.toBeInTheDocument();
+  });
+
   it('resumes an applied clinical fill without requesting the census snapshot again', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {

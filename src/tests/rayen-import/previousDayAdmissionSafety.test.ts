@@ -50,7 +50,7 @@ describe('previous clinical-day admission evidence and safety', () => {
     });
   });
 
-  it('surfaces an evidence failure as a retryable conflict instead of silently skipping it', async () => {
+  it('keeps the current-day admission and retries historical evidence on a later sync', async () => {
     const unverifiedDiff: CensusImportDiff = {
       ...motherAndNewbornDiff,
       admissions: motherAndNewbornDiff.admissions.map(admission => ({
@@ -66,15 +66,15 @@ describe('previous clinical-day admission evidence and safety', () => {
     });
 
     expect(verified.admissions[0].source?.verifiedBedPlacement).toBeUndefined();
-    expect(verified.conflicts).toEqual([
-      expect.objectContaining({
-        bedId: 'H4C1',
-        patientName: 'Maeva Elisabet Maria Tuki Garcia',
-        code: 'historical-admission-evidence',
-        source: expect.objectContaining({ encounterId: '143100' }),
-      }),
-    ]);
-    expect(verified.summary.conflicts).toBe(1);
+    expect(verified.deferredHistoricalAdmissionBedIds).toEqual(['H4C1']);
+    expect(verified.admissions[0].patient.admissionDate).toBe(
+      unverifiedDiff.admissions[0].patient.admissionDate
+    );
+    expect(verified.admissions[0].patient.admissionTime).toBe(
+      unverifiedDiff.admissions[0].patient.admissionTime
+    );
+    expect(verified.conflicts).toEqual([]);
+    expect(verified.summary.conflicts).toBe(0);
 
     const retried = await verifyPreviousDayAdmissionPlacements(verified, '2026-07-26', {
       fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
@@ -86,8 +86,41 @@ describe('previous clinical-day admission evidence and safety', () => {
     expect(retried.admissions[0].source?.verifiedBedPlacement).toEqual(
       expect.objectContaining({ bedId: 'H4C1' })
     );
+    expect(retried.deferredHistoricalAdmissionBedIds).toBeUndefined();
     expect(retried.conflicts).toEqual([]);
     expect(retried.summary.conflicts).toBe(0);
+  });
+
+  it('clears stale placement evidence when the encounter cannot be verified', async () => {
+    const staleEvidenceDiff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: motherAndNewbornDiff.admissions.map(admission => ({
+        ...admission,
+        source: admission.source
+          ? {
+              ...admission.source,
+              encounterId: 'invalid',
+              verifiedBedPlacement: {
+                source: 'patient-flow-report',
+                bedId: 'H4C1',
+                changedAt: '2026-07-26T03:30:00',
+              },
+            }
+          : undefined,
+      })),
+    };
+    const fetchReport = vi.fn();
+
+    const verified = await verifyPreviousDayAdmissionPlacements(staleEvidenceDiff, '2026-07-26', {
+      fetchReport,
+    });
+    const plan = await computePreviousDayEdits(repository, verified, '2026-07-26', false);
+
+    expect(fetchReport).not.toHaveBeenCalled();
+    expect(verified.admissions[0].source?.verifiedBedPlacement).toBeUndefined();
+    expect(verified.deferredHistoricalAdmissionBedIds).toEqual(['H4C1']);
+    expect(verified.conflicts).toEqual([]);
+    expect(plan.edits).toEqual([]);
   });
 
   it('rebuilds a preceding-night mother and crib candidate when the current sync is unchanged', async () => {
@@ -146,9 +179,7 @@ describe('previous clinical-day admission evidence and safety', () => {
     });
     const plan = await computePreviousDayEdits(repository, verified, '2026-07-26', false);
 
-    expect(failed.conflicts).toEqual([
-      expect.objectContaining({ code: 'historical-admission-evidence' }),
-    ]);
+    expect(failed.conflicts).toEqual([]);
     expect(verified.previousDayAdmissionCandidates).toEqual([
       expect.objectContaining({
         bedId: 'H4C1',

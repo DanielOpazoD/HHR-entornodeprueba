@@ -2,8 +2,9 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import { fileCrossDayCorrections } from '../domain/previousDayCorrections';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
-import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import type { CensusImportDiff, CmaAdmissionResolution } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import { applyCmaAdmissionResolutions } from '../domain/cmaAdmissionReview';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { toIsoReportDate } from './reportDateHelpers';
 
@@ -36,6 +37,7 @@ const comparableStructuralPlan = (diff: CensusImportDiff) => ({
   reportEgresos: diff.reportEgresos,
   previousDayEdits: diff.previousDayEdits,
   previousDayAdmissionCandidates: diff.previousDayAdmissionCandidates,
+  deferredHistoricalAdmissionBedIds: diff.deferredHistoricalAdmissionBedIds,
 });
 
 export const areRayenStructuralPlansEquivalent = (
@@ -110,6 +112,7 @@ export const committedRayenImportResultFromError = <TApplyResult extends ApplyRe
 
 export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult>({
   applyPreviousDays,
+  cmaAdmissionResolutions = [],
   base,
   diff,
   dailyRecord,
@@ -123,6 +126,7 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
   onRetry,
 }: {
   applyPreviousDays: boolean;
+  cmaAdmissionResolutions?: CmaAdmissionResolution[];
   base: DailyRecord;
   diff: CensusImportDiff;
   dailyRecord: DailyRecordRepositoryPort;
@@ -141,7 +145,7 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
   onRetry?: () => void;
 }): Promise<ConfirmedRayenImportResult<TApplyResult>> => {
   let candidate = base;
-  let candidateDiff = diff;
+  let candidateDiff = applyCmaAdmissionResolutions(diff, cmaAdmissionResolutions);
   let lastConflict: unknown;
   let appliedResult: TApplyResult | undefined;
   for (let attempt = 0; attempt <= MAX_FRESH_RECORD_RETRIES; attempt += 1) {
@@ -155,7 +159,13 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
       onRetry?.();
       const fresh = await getFreshRecord();
       if (!fresh) throw error;
-      const replannedDiff = await replanDiff(fresh);
+      const rawReplannedDiff = await replanDiff(fresh);
+      let replannedDiff: CensusImportDiff;
+      try {
+        replannedDiff = applyCmaAdmissionResolutions(rawReplannedDiff, cmaAdmissionResolutions);
+      } catch {
+        throw new RayenStructuralPlanChangedError(fresh, rawReplannedDiff);
+      }
       if (!areRayenStructuralPlansEquivalent(candidateDiff, replannedDiff)) {
         throw new RayenStructuralPlanChangedError(fresh, replannedDiff);
       }

@@ -2,7 +2,10 @@ import type { ClinicalFillSummary } from '../contracts/clinicalFillContracts';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { ClinicalRetryToken, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { ConfirmedRayenCensusHandoff } from '../hooks/rayenCensusPersistenceGuard';
-import type { RayenSyncStructuralReviewEvidence } from '@/types/domain/rayenSync';
+import {
+  MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,
+  type RayenSyncStructuralReviewEvidence,
+} from '@/types/domain/rayenSync';
 import { collectClinicalFillCandidates } from './clinicalFillCandidates';
 import { mergeRayenSyncPerformance } from './rayenSyncPerformance';
 
@@ -70,12 +73,24 @@ export const buildStructuralReviewEvidence = (
   handoff: ConfirmedRayenCensusHandoff | null
 ): RayenSyncStructuralReviewEvidence | undefined => {
   if (!handoff) return undefined;
+  const issues = handoff.isolatedConflicts
+    .slice(0, MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES)
+    .map(conflict => ({
+      bedId: conflict.bedId,
+      reason: conflict.code ?? ('unclassified' as const),
+    }));
+  const deferredHistoricalAdmissionBedIds = handoff.deferredHistoricalAdmissionBedIds?.slice(
+    0,
+    MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES
+  );
   return {
     structureConfirmed: true,
     historicalCorrectionsPending: handoff.historicalCorrectionsPending === true,
     historicalCorrectionsRequireFreshCapture:
       handoff.historicalCorrectionsRequireFreshCapture === true,
     isolatedConflicts: handoff.isolatedConflicts.length,
+    ...(deferredHistoricalAdmissionBedIds?.length ? { deferredHistoricalAdmissionBedIds } : {}),
+    ...(issues.length > 0 ? { issues } : {}),
   };
 };
 

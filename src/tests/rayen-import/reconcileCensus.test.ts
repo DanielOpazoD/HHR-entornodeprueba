@@ -58,7 +58,7 @@ const seedBed = (encounter: RayenEncounter, bedIdOverride?: string): [string, Pa
 };
 
 describe('reconcileCensus', () => {
-  it('admits a CMA-service patient as a NORMAL admission into the real bed (CMA is a discharge type)', () => {
+  it('keeps CMA source provenance for review while admitting into the real bed', () => {
     const diff = reconcileCensus(
       makeRecord({}),
       snapshotOf([
@@ -67,7 +67,7 @@ describe('reconcileCensus', () => {
       { reference: REFERENCE }
     );
     expect(diff.admissions).toHaveLength(1);
-    expect(diff.admissions[0].isCma).toBe(false); // never flagged CMA at admission
+    expect(diff.admissions[0].isCma).toBe(true); // transient review signal; not a CMA movement
     expect(diff.admissions[0].bedId).toBe('R1'); // the real bed, not a virtual CMA slot
   });
 

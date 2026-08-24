@@ -264,7 +264,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
         </div>
 
         <RayenImportFlowStatus
-          diff={result ? null : diff}
+          diff={diff}
           fill={fill}
           error={error}
           hasPersistedSync={Boolean(lastSync)}

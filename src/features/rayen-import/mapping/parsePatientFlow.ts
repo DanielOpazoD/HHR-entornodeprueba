@@ -128,6 +128,12 @@ export const latestPatientFlowMovement = (
   return placement?.bedId ? { ...placement, bedId: placement.bedId } : null;
 };
 
+/** True only when extraction succeeded and the official report contains no dated flow rows. */
+export const isPatientFlowTimelineEmpty = (text: string): boolean => {
+  const parsed = parsePatientFlowRows(text);
+  return !parsed.hasMalformedMovementRow && parsed.rows.length === 0;
+};
+
 /** Earliest valid row, including locations outside HHR, so callers can bound the episode safely. */
 export const firstPatientFlowTimestamp = (text: string): string | null => {
   const parsed = parsePatientFlowRows(text);
