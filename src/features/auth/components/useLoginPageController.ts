@@ -28,6 +28,9 @@ import {
   persistLoginBackgroundMode,
   resolveInitialLoginBackgroundMode,
 } from '@/shared/ui/loginBackgroundModeController';
+import { clearRecentAuthRoleLookups } from '@/services/auth/authRoleLookup';
+import { markPerf } from '@/shared/runtime/perfAudit';
+
 const POPUP_RECOVERY_GRACE_MS = 1800;
 const POPUP_RECOVERY_POLL_MS = 100;
 const POPUP_CANCELLATION_SETTLE_MS = 500;
@@ -162,7 +165,9 @@ export const useLoginPageController = (
       return;
     }
     setIsGoogleLoading(true);
+    clearRecentAuthRoleLookups();
     markGoogleLoginAttemptHint();
+    markPerf('auth-login:click');
 
     try {
       const outcome = await executeGoogleSignIn();

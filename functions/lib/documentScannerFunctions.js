@@ -8,7 +8,6 @@
 
 const crypto = require('crypto');
 const functions = require('firebase-functions/v1');
-const { PDFDocument } = require('pdf-lib');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 
 const MAX_PDF_BYTES = 6 * 1024 * 1024;
@@ -117,6 +116,9 @@ const decodeJpegPages = (values, expectedPageCount) => {
 
 const buildImageOnlyPdf = async pageBuffers => {
   try {
+    // Scanner PDF generation is optional. Keep pdf-lib out of the process
+    // startup graph so unrelated callables do not pay its initialization cost.
+    const { PDFDocument } = require('pdf-lib');
     const pdf = await PDFDocument.create();
     const pageWidth = 595.28;
     const pageHeight = 841.89;

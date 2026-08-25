@@ -24,6 +24,7 @@ import {
 import { signInWithGoogleRedirect } from '@/services/auth/authFallback';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import { markPerf } from '@/shared/runtime/perfAudit';
 
 // Budget for the user to finish the whole Google flow inside the popup
 // (account picker + password + 2FA can easily exceed 30s on shared hospital
@@ -126,8 +127,13 @@ export const signInWithGoogle = async (options?: AuthRuntimeOptions): Promise<Au
         return e2ePopupUser;
       }
 
+      markPerf('auth-login:popup-start');
       const result = await signInWithPopupTimeout(authRuntime);
-      return await authorizeFirebaseUser(result.user, { authRuntime });
+      markPerf('auth-login:popup-done');
+      markPerf('auth-login:role-resolution-start');
+      const authorizedUser = await authorizeFirebaseUser(result.user, { authRuntime });
+      markPerf('auth-login:role-resolution-done');
+      return authorizedUser;
     } catch (error: unknown) {
       const authError = error as { message?: string };
       if (authError.message?.includes('no autorizado')) {

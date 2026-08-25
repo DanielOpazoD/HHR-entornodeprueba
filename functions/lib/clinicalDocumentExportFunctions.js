@@ -1,5 +1,4 @@
 const functions = require('firebase-functions/v1');
-const { google } = require('googleapis');
 const { Readable } = require('stream');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 
@@ -108,6 +107,10 @@ const buildDriveMonthFolderName = date => {
 };
 
 const buildDriveClient = () => {
+  // Drive export is an infrequent, optional workflow. Loading googleapis while
+  // Firebase discovers every function adds its large module graph to cold
+  // starts of latency-sensitive callables such as checkUserRole.
+  const { google } = require('googleapis');
   const auth = new google.auth.GoogleAuth({ scopes: [DRIVE_SCOPE] });
   return google.drive({ version: 'v3', auth });
 };
