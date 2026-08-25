@@ -114,6 +114,35 @@ describe('executeRayenStructuralPersistence', () => {
     });
   });
 
+  it('does not report applicable previous-day work as omitted when confirmation includes it', async () => {
+    const appliedDiff = {
+      ...emptyDiff,
+      previousDayEdits: [
+        {
+          day: '2026-07-27',
+          reason: 'discharge-day-correction',
+          patientNames: ['Paciente prueba'],
+          recordExists: true,
+          withinEditingWindow: true,
+          isSigned: false,
+        },
+      ],
+    } as CensusImportDiff;
+    const result = {
+      appliedDiff,
+      skipped: [],
+      historicalCorrectionsPending: false,
+      confirmedHandoff: {},
+    } as never;
+
+    await expect(
+      executeRayenStructuralPersistence(async () => result, { applyPreviousDays: true })
+    ).resolves.toMatchObject({
+      kind: 'applied',
+      commit: { hasSkippedItems: false, skippedItems: 0 },
+    });
+  });
+
   it('preserves a committed write that requires a fresh capture', async () => {
     const result = committedResult();
     const error = new RayenHistoricalCorrectionAfterCommitError(result, new Error('conflict'));

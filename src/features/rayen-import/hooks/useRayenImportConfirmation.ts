@@ -1,13 +1,7 @@
 import { useCallback, useRef, type RefObject } from 'react';
 import type { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import {
-  applyConfirmedRayenImport,
-  committedRayenImportResultFromError,
-  hasSkippedPreviousDayCorrections,
-  isRayenStructuralPlanChangedError,
-  type ConfirmedRayenImportResult,
-} from './confirmRayenImport';
+import { applyConfirmedRayenImport, isRayenStructuralPlanChangedError } from './confirmRayenImport';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import {
   isRayenSyncExecutionCurrent,
@@ -24,15 +18,19 @@ import type { useRayenCensusDiffApplication } from './useRayenCensusDiffApplicat
 import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { useRayenSyncAudit } from './useRayenSyncAudit';
 import type { useRayenSyncExecutionController } from './useRayenSyncExecutionController';
-import { applyRayenHistoricalCorrectionState } from './rayenCensusPersistenceGuard';
 import type {
   BedOccupancyCollisionResolution,
   CmaAdmissionResolution,
 } from '../contracts/censusImportDiff';
 import { resolveBedOccupancyCollisions } from '../domain/bedOccupancyCollisionPolicy';
+import {
+  executeRayenStructuralPersistence,
+  type RayenStructuralPersistenceOutcome,
+} from './rayenStructuralCommitOutcome';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;
 type SyncAudit = ReturnType<typeof useRayenSyncAudit>;
+type CommittedStructuralOutcome = Exclude<RayenStructuralPersistenceOutcome, { kind: 'failed' }>;
 
 interface UseRayenImportConfirmationInput {
   currentRecord: DailyRecord | null | undefined;
@@ -134,29 +132,19 @@ export const useRayenImportConfirmation = ({
         error: null,
       }));
       const continueAfterStructuralCommit = async (
-        result: ConfirmedRayenImportResult<Awaited<ReturnType<typeof applyDiff>>>,
-        requiresFreshCapture = false,
-        correctionError?: string
+        outcome: CommittedStructuralOutcome
       ): Promise<void> => {
-        const appliedDiff = result.appliedDiff;
-        const skippedPreviousDays = hasSkippedPreviousDayCorrections(
-          appliedDiff,
-          applyPreviousDays
-        );
-        const hasPendingHistoricalCorrections = result.historicalCorrectionsPending;
-        const hasHistoricalFollowUp =
-          skippedPreviousDays || hasPendingHistoricalCorrections || requiresFreshCapture;
-        const structuralConflicts = Math.max(
-          appliedDiff.conflicts.length,
-          appliedDiff.summary.conflicts
-        );
+        const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
+        const correctionError = requiresFreshCapture
+          ? getRayenImportErrorMessage(outcome.error)
+          : null;
         const isCurrent = isRayenSyncExecutionCurrent(executionRef.current, executionIdentity);
         if (isCurrent) {
           dispatchExecution({
             type: 'record_outcome',
             ...executionIdentity,
-            structuralConflicts,
-            skippedItems: Number(hasHistoricalFollowUp) + result.skipped.length,
+            structuralConflicts: outcome.commit.structuralConflicts,
+            skippedItems: outcome.commit.skippedItems,
           });
           const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
           setState(previous => ({
@@ -164,11 +152,11 @@ export const useRayenImportConfirmation = ({
             isBusy: false,
             ...(isExecutionDateVisible
               ? {
-                  diff: appliedDiff,
-                  isPreviewOpen: structuralConflicts > 0 || requiresFreshCapture,
-                  result,
-                  hasSkippedItems: hasHistoricalFollowUp || result.skipped.length > 0,
-                  error: correctionError ?? null,
+                  diff: outcome.commit.diff,
+                  isPreviewOpen: outcome.commit.structuralConflicts > 0 || requiresFreshCapture,
+                  result: outcome.result,
+                  hasSkippedItems: outcome.commit.hasSkippedItems,
+                  error: correctionError,
                 }
               : {}),
           }));
@@ -181,57 +169,9 @@ export const useRayenImportConfirmation = ({
         // The structural CAS already committed. Even if its UI execution was superseded while the
         // write was in flight, enqueue the handoff; the clinical queue revalidates run authority
         // before any patch and discards an obsolete run without touching the newer census.
-        const clinicalHandoff = applyRayenHistoricalCorrectionState(result.confirmedHandoff, {
-          pending: result.historicalCorrectionsPending,
-          requiresFreshCapture,
-        });
-        await runClinicalStage(clinicalHandoff);
+        await runClinicalStage(outcome.commit.clinicalHandoff);
       };
-      try {
-        const result = await runSerializedPersistence(() => {
-          if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
-            return Promise.resolve(null);
-          }
-          return applyConfirmedRayenImport({
-            applyPreviousDays,
-            cmaAdmissionResolutions,
-            base,
-            diff,
-            dailyRecord,
-            isAdmin,
-            ensureRun,
-            applyDiff,
-            getFreshRecord: () => loadAuthoritativeStructuralRecord(base.date),
-            replanDiff: async record =>
-              resolveBedOccupancyCollisions(
-                await structuralReplan.replan(record),
-                bedCollisionResolutions
-              ),
-            clinicalDay: structuralReplan.clinicalDay,
-            createId: () => crypto.randomUUID(),
-            onRetry: () =>
-              recordRunPerformance(
-                {
-                  counters: { retries: 1 },
-                  coordination: { structuralReplans: 1 },
-                },
-                run.id
-              ),
-          });
-        });
-        if (!result) return;
-        await continueAfterStructuralCommit(result);
-      } catch (error) {
-        const committedResult =
-          committedRayenImportResultFromError<Awaited<ReturnType<typeof applyDiff>>>(error);
-        if (committedResult) {
-          await continueAfterStructuralCommit(
-            committedResult,
-            true,
-            getRayenImportErrorMessage(error)
-          );
-          return;
-        }
+      const finishFailedConfirmation = (error: unknown) => {
         if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
         if (isRayenStructuralPlanChangedError(error)) {
           // Returning from this branch still executes `finally`; delete eagerly as well so the
@@ -275,6 +215,57 @@ export const useRayenImportConfirmation = ({
               }
             : {}),
         }));
+      };
+      try {
+        const outcome = await executeRayenStructuralPersistence(
+          () =>
+            runSerializedPersistence(() => {
+              if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
+                return Promise.resolve(null);
+              }
+              return applyConfirmedRayenImport({
+                applyPreviousDays,
+                cmaAdmissionResolutions,
+                base,
+                diff,
+                dailyRecord,
+                isAdmin,
+                ensureRun,
+                applyDiff,
+                getFreshRecord: () => loadAuthoritativeStructuralRecord(base.date),
+                replanDiff: async record =>
+                  resolveBedOccupancyCollisions(
+                    await structuralReplan.replan(record),
+                    bedCollisionResolutions
+                  ),
+                clinicalDay: structuralReplan.clinicalDay,
+                createId: () => crypto.randomUUID(),
+                onRetry: () =>
+                  recordRunPerformance(
+                    {
+                      counters: { retries: 1 },
+                      coordination: { structuralReplans: 1 },
+                    },
+                    run.id
+                  ),
+              });
+            }),
+          { applyPreviousDays }
+        );
+        if (!outcome) return;
+        if (outcome.kind === 'failed') {
+          finishFailedConfirmation(outcome.error);
+          return;
+        }
+        if (outcome.kind === 'requires_fresh_capture') {
+          await continueAfterStructuralCommit(outcome);
+          return;
+        }
+        try {
+          await continueAfterStructuralCommit(outcome);
+        } catch (error) {
+          finishFailedConfirmation(error);
+        }
       } finally {
         confirmationExecutionKeysRef.current.delete(confirmationKey);
       }

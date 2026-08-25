@@ -8,7 +8,8 @@ import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplic
 
 export const summarizeRayenStructuralCommit = (
   result: ConfirmedRayenImportResult<ConfirmedRayenCensusApplyResult>,
-  requiresFreshCapture: boolean
+  requiresFreshCapture: boolean,
+  applyPreviousDays = false
 ) => {
   const structuralConflicts = Math.max(
     result.appliedDiff.conflicts.length,
@@ -16,7 +17,7 @@ export const summarizeRayenStructuralCommit = (
   );
   const hasHistoricalFollowUp =
     result.historicalCorrectionsPending ||
-    hasSkippedPreviousDayCorrections(result.appliedDiff, false) ||
+    hasSkippedPreviousDayCorrections(result.appliedDiff, applyPreviousDays) ||
     requiresFreshCapture;
   const skippedItems = result.skipped.length + Number(hasHistoricalFollowUp);
 
@@ -53,12 +54,13 @@ export type RayenStructuralPersistenceOutcome =
  * result means the originating sync execution is no longer current and must remain silent.
  */
 export const executeRayenStructuralPersistence = async (
-  persist: () => Promise<ConfirmedRayenImportResult<ConfirmedRayenCensusApplyResult> | null>
+  persist: () => Promise<ConfirmedRayenImportResult<ConfirmedRayenCensusApplyResult> | null>,
+  { applyPreviousDays = false }: { applyPreviousDays?: boolean } = {}
 ): Promise<RayenStructuralPersistenceOutcome | null> => {
   try {
     const result = await persist();
     if (!result) return null;
-    const commit = summarizeRayenStructuralCommit(result, false);
+    const commit = summarizeRayenStructuralCommit(result, false, applyPreviousDays);
     return {
       kind: commit.hasSkippedItems ? 'applied_with_omissions' : 'applied',
       result,
@@ -70,7 +72,7 @@ export const executeRayenStructuralPersistence = async (
     return {
       kind: 'requires_fresh_capture',
       result,
-      commit: summarizeRayenStructuralCommit(result, true),
+      commit: summarizeRayenStructuralCommit(result, true, applyPreviousDays),
       error,
     };
   }
