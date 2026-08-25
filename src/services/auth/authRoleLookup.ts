@@ -5,6 +5,7 @@ import { isGeneralLoginRole } from '@/shared/access/roleAccessMatrix';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { FunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { createAuthError } from '@/services/auth/authShared';
+import { AUTH_BOOTSTRAP_TIMEOUTS_MS } from '@/services/auth/authBootstrapBudgets';
 import { markPerf } from '@/shared/runtime/perfAudit';
 
 type CheckUserRoleCallableData = {
@@ -12,6 +13,7 @@ type CheckUserRoleCallableData = {
 };
 
 export const AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE = 'auth/role-lookup-unavailable';
+export const AUTH_ROLE_LOOKUP_TIMEOUT_MS = AUTH_BOOTSTRAP_TIMEOUTS_MS.default;
 const RECENT_ROLE_LOOKUP_REUSE_MS = 10_000;
 
 export const resolveCallableRole = (
@@ -48,7 +50,8 @@ export const createAuthRoleLookupService = (
       const functions = await functionsRuntime.getFunctions();
       const checkUserRole = httpsCallable<Record<string, never>, CheckUserRoleCallableData>(
         functions,
-        'checkUserRole'
+        'checkUserRole',
+        { timeout: AUTH_ROLE_LOOKUP_TIMEOUT_MS }
       );
       const response = await checkUserRole({});
       const role = resolveCallableRole(response.data);
