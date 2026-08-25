@@ -13,12 +13,12 @@ import {
   shouldOpenRayenSnapshotPreview,
 } from './rayenSnapshotPlanningDecision';
 import type { UseRayenSnapshotPreviewInput } from './rayenSnapshotPreviewContracts';
-import {
-  applyConfirmedRayenImport,
-  committedRayenImportResultFromError,
-} from './confirmRayenImport';
+import { applyConfirmedRayenImport } from './confirmRayenImport';
 import { prepareRayenStructuralPlan } from './prepareRayenStructuralPlan';
-import { summarizeRayenStructuralCommit } from './rayenStructuralCommitOutcome';
+import {
+  executeRayenStructuralPersistence,
+  type RayenStructuralCommitSummary,
+} from './rayenStructuralCommitOutcome';
 import {
   createRayenPlanningMetrics,
   prepareRayenSnapshotEvidence,
@@ -175,6 +175,39 @@ export const useRayenSnapshotPreview = ({
               ),
           });
         });
+      const finishFailedPersistence = (error: unknown) => {
+        if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+        if (returnReplanToReview(error)) return;
+        preparedSyncContextRef.current = null;
+        structuralReplanRef.current = null;
+        void failRun('apply_failed', run.id).catch(() => undefined);
+        execution.transition({ type: 'failed' });
+        const isExecutionDateVisible =
+          !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
+        setState(prev => ({
+          ...prev,
+          isBusy: false,
+          isSyncing: false,
+          ...(isExecutionDateVisible ? { error: getRayenImportErrorMessage(error) } : {}),
+        }));
+      };
+      const continueClinicalAfterCommit = async (
+        commit: RayenStructuralCommitSummary,
+        updateVisibleState?: () => void
+      ): Promise<void> => {
+        if (isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) {
+          execution.recordOutcome({
+            structuralConflicts: commit.structuralConflicts,
+            skippedItems: commit.skippedItems,
+          });
+          preparedSyncContextRef.current = null;
+          structuralReplanRef.current = null;
+          updateVisibleState?.();
+          execution.transition({ type: 'verifying_structure' });
+          execution.transition({ type: 'syncing_clinical' });
+        }
+        await runClinicalStage(commit.clinicalHandoff);
+      };
       if (canAutoApply) {
         if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
         const autoApplyKey = rayenSyncExecutionKey(executionIdentity);
@@ -191,71 +224,36 @@ export const useRayenSnapshotPreview = ({
           error: null,
         });
         try {
-          const result = await persistConvergedStructure();
-          if (!result) return;
-          const committed = summarizeRayenStructuralCommit(result, false);
-          const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
-          if (isCurrent) {
-            execution.recordOutcome({
-              structuralConflicts: committed.structuralConflicts,
-              skippedItems: committed.skippedItems,
-            });
-            preparedSyncContextRef.current = null;
-            structuralReplanRef.current = null;
-            setState(prev => ({
-              ...prev,
-              diff: committed.diff,
-              isPreviewOpen: committed.structuralConflicts > 0,
-              isBusy: false,
-              result,
-              hasSkippedItems: committed.hasSkippedItems,
-            }));
-            execution.transition({ type: 'verifying_structure' });
-            execution.transition({ type: 'syncing_clinical' });
-          }
-          await runClinicalStage(committed.clinicalHandoff);
-        } catch (error) {
-          const committedResult =
-            committedRayenImportResultFromError<Awaited<ReturnType<typeof applyDiff>>>(error);
-          if (committedResult) {
-            const committed = summarizeRayenStructuralCommit(committedResult, true);
-            const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
-            if (isCurrent) {
-              execution.recordOutcome({
-                structuralConflicts: committed.structuralConflicts,
-                skippedItems: committed.skippedItems,
-              });
-              preparedSyncContextRef.current = null;
-              structuralReplanRef.current = null;
-              setState(prev => ({
-                ...prev,
-                diff: committed.diff,
-                isPreviewOpen: true,
-                isBusy: false,
-                result: committedResult,
-                hasSkippedItems: true,
-                error: getRayenImportErrorMessage(error),
-              }));
-              execution.transition({ type: 'verifying_structure' });
-              execution.transition({ type: 'syncing_clinical' });
-            }
-            await runClinicalStage(committed.clinicalHandoff);
+          const outcome = await executeRayenStructuralPersistence(persistConvergedStructure);
+          if (!outcome) return;
+          if (outcome.kind === 'failed') {
+            finishFailedPersistence(outcome.error);
             return;
           }
-          if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
-          if (returnReplanToReview(error)) return;
-          preparedSyncContextRef.current = null;
-          structuralReplanRef.current = null;
-          void failRun('apply_failed', run.id).catch(() => undefined);
-          execution.transition({ type: 'failed' });
-          const isExecutionDateVisible =
-            !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
-          setState(prev => ({
-            ...prev,
-            isBusy: false,
-            isSyncing: false,
-            ...(isExecutionDateVisible ? { error: getRayenImportErrorMessage(error) } : {}),
-          }));
+          const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
+          const continueAfterCommit = () =>
+            continueClinicalAfterCommit(outcome.commit, () =>
+              setState(prev => ({
+                ...prev,
+                diff: outcome.commit.diff,
+                isPreviewOpen: requiresFreshCapture || outcome.commit.structuralConflicts > 0,
+                isBusy: false,
+                result: outcome.result,
+                hasSkippedItems: requiresFreshCapture || outcome.commit.hasSkippedItems,
+                ...(requiresFreshCapture
+                  ? { error: getRayenImportErrorMessage(outcome.error) }
+                  : {}),
+              }))
+            );
+          if (requiresFreshCapture) {
+            await continueAfterCommit();
+            return;
+          }
+          try {
+            await continueAfterCommit();
+          } catch (error) {
+            finishFailedPersistence(error);
+          }
         } finally {
           persistenceExecutionKeysRef.current.delete(autoApplyKey);
         }
@@ -274,66 +272,31 @@ export const useRayenSnapshotPreview = ({
         try {
           if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
           execution.transition({ type: 'persisting_structure' });
-          const result = await persistConvergedStructure();
-          if (!result) return;
-          const committed = summarizeRayenStructuralCommit(result, false);
-          noChangeResult = result;
-          diff = committed.diff;
-          hasUnresolvedConflicts = committed.structuralConflicts > 0;
+          const outcome = await executeRayenStructuralPersistence(persistConvergedStructure);
+          if (!outcome) return;
+          if (outcome.kind === 'failed') {
+            finishFailedPersistence(outcome.error);
+            return;
+          }
+          const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
+          noChangeResult = outcome.result;
+          diff = outcome.commit.diff;
+          hasUnresolvedConflicts = outcome.commit.structuralConflicts > 0;
           hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
           noChangePersistenceCompleted = true;
-          const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
-          if (isCurrent) {
-            execution.transition({ type: 'verifying_structure' });
-            preparedSyncContextRef.current = null;
-            structuralReplanRef.current = null;
-            execution.recordOutcome({
-              structuralConflicts: committed.structuralConflicts,
-              skippedItems: committed.skippedItems,
-            });
-            execution.transition({ type: 'syncing_clinical' });
-          }
-          await runClinicalStage(committed.clinicalHandoff);
-        } catch (error) {
-          const committedResult =
-            committedRayenImportResultFromError<Awaited<ReturnType<typeof applyDiff>>>(error);
-          if (committedResult) {
-            const committed = summarizeRayenStructuralCommit(committedResult, true);
-            noChangeResult = committedResult;
-            diff = committed.diff;
-            hasUnresolvedConflicts = committed.structuralConflicts > 0;
-            hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
-            noChangePersistenceCompleted = true;
+          if (requiresFreshCapture) {
             noChangeRequiresFreshCapture = true;
-            noChangeCorrectionError = getRayenImportErrorMessage(error);
-            const isCurrent = isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity);
-            if (isCurrent) {
-              execution.transition({ type: 'verifying_structure' });
-              preparedSyncContextRef.current = null;
-              structuralReplanRef.current = null;
-              execution.recordOutcome({
-                structuralConflicts: committed.structuralConflicts,
-                skippedItems: committed.skippedItems,
-              });
-              execution.transition({ type: 'syncing_clinical' });
-            }
-            await runClinicalStage(committed.clinicalHandoff);
+            noChangeCorrectionError = getRayenImportErrorMessage(outcome.error);
+          }
+          if (requiresFreshCapture) {
+            await continueClinicalAfterCommit(outcome.commit);
           } else {
-            if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
-            if (returnReplanToReview(error)) return;
-            execution.transition({ type: 'failed' });
-            preparedSyncContextRef.current = null;
-            structuralReplanRef.current = null;
-            void failRun('apply_failed', run.id).catch(() => undefined);
-            const isExecutionDateVisible =
-              !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
-            setState(prev => ({
-              ...prev,
-              isBusy: false,
-              isSyncing: false,
-              ...(isExecutionDateVisible ? { error: getRayenImportErrorMessage(error) } : {}),
-            }));
-            return;
+            try {
+              await continueClinicalAfterCommit(outcome.commit);
+            } catch (error) {
+              finishFailedPersistence(error);
+              return;
+            }
           }
         } finally {
           persistenceExecutionKeysRef.current.delete(noChangePersistenceKey);
