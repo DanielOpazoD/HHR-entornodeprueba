@@ -23,6 +23,7 @@
       !chromeApi || !labViewer || !syslabSessionTransport ||
       typeof syslabSessionTransport.create !== 'function' ||
       !syslabPdfBundle || typeof syslabPdfBundle.download !== 'function' ||
+      typeof syslabPdfBundle.buildFilename !== 'function' ||
       typeof withTimeout !== 'function' ||
       typeof labViewer.normalizeRutBody !== 'function'
     ) {
@@ -192,10 +193,14 @@
       if (expiredKeys.length) await chromeApi.storage.session.remove(expiredKeys);
     };
 
-    const search = async ({ rutBody: requestedRutBody, sender }) => {
+    const search = async ({ rutBody: requestedRutBody, rutDisplay, sender }) => {
       const rutBody = labViewer.normalizeRutBody(requestedRutBody);
       if (!/^\d{5,9}$/.test(rutBody) || rutBody !== String(requestedRutBody || '')) {
         return { error: 'HHR no informó un RUT válido, sin dígito verificador, para Syslab.' };
+      }
+      const safeRutDisplay = String(rutDisplay || rutBody).trim();
+      if (labViewer.normalizeRutBody(safeRutDisplay) !== rutBody) {
+        return { error: 'HHR no informó un RUT completo coherente para nombrar los informes.' };
       }
 
       let directSearch;
@@ -223,6 +228,7 @@
         [LAB_BATCH_PREFIX + batchId]: {
           senderTabId: sender && sender.tab && sender.tab.id,
           rutBody,
+          rutDisplay: safeRutDisplay,
           createdAt: Date.now(),
           exams,
           linksByExamId,
@@ -377,7 +383,10 @@
       await chromeApi.storage.session.set({
         [`hhr-pdf-print-${jobId}`]: {
           base64: validation.pdfBase64,
-          filename: `Laboratorio_${exams[0].id}.pdf`,
+          filename: syslabPdfBundle.buildFilename({
+            exams,
+            rutDisplay: batchResult.batch.rutDisplay,
+          }),
           createdAt: Date.now(),
         },
       });
@@ -392,7 +401,20 @@
       readLabBatch,
       validateLabBatchSender,
       selectedLabExams,
-      sessionTransport
+      sessionTransport,
+      async ({ sender, requestId, progress }) => {
+        const senderTabId = sender && sender.tab && sender.tab.id;
+        if (senderTabId == null || !requestId) return;
+        try {
+          await chromeApi.tabs.sendMessage(senderTabId, {
+            type: 'RAYEN_LAB_PDF_BUNDLE_PROGRESS',
+            requestId,
+            progress,
+          });
+        } catch (_error) {
+          // The final request still reports success or failure if the page stops listening.
+        }
+      }
     );
 
     return Object.freeze({ currentSession, login, search, details, openPdf, downloadPdfBundle });

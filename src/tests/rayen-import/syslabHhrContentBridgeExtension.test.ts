@@ -14,10 +14,12 @@ const runtimeTypes = {
   LAB_DETAILS_REQUEST: 'RAYEN_LAB_DETAILS_REQUEST',
   LAB_PDF_OPEN_REQUEST: 'RAYEN_LAB_PDF_OPEN_REQUEST',
   LAB_PDF_BUNDLE_DOWNLOAD_REQUEST: 'RAYEN_LAB_PDF_BUNDLE_DOWNLOAD_REQUEST',
+  LAB_PDF_BUNDLE_PROGRESS: 'RAYEN_LAB_PDF_BUNDLE_PROGRESS',
 };
 
 const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
   let onMessage: ((event: { source: unknown; data: Record<string, unknown> }) => void) | undefined;
+  let onRuntimeMessage: ((message: Record<string, unknown>) => void) | undefined;
   const postMessage = vi.fn();
   const windowObject = {
     location: { origin: 'http://localhost:3000' },
@@ -28,11 +30,20 @@ const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
   };
   const context = vm.createContext({
     window: windowObject,
-    chrome: { runtime: { sendMessage } },
+    chrome: {
+      runtime: {
+        sendMessage,
+        onMessage: {
+          addListener: vi.fn((listener: typeof onRuntimeMessage) => {
+            onRuntimeMessage = listener;
+          }),
+        },
+      },
+    },
     HhrRayenMessageContract: { types: runtimeTypes },
   });
   vm.runInContext(source, context, { filename: 'content-hhr-syslab.js' });
-  return { onMessage, postMessage, sendMessage, windowObject };
+  return { onMessage, onRuntimeMessage, postMessage, sendMessage, windowObject };
 };
 
 describe('HHR Syslab content bridge', () => {
@@ -42,6 +53,7 @@ describe('HHR Syslab content bridge', () => {
       const addEventListener = vi.fn();
       const context = vm.createContext({
         window: { location: { origin }, addEventListener },
+        chrome: { runtime: { onMessage: { addListener: vi.fn() } } },
         HhrRayenMessageContract: { types: runtimeTypes },
       });
 
@@ -81,6 +93,7 @@ describe('HHR Syslab content bridge', () => {
       expect(sendMessage).toHaveBeenCalledWith({
         type: 'RAYEN_LAB_SEARCH_REQUEST',
         rutBody: '28555149',
+        rutDisplay: '',
       })
     );
     expect(postMessage).toHaveBeenCalledWith(
@@ -178,7 +191,26 @@ describe('HHR Syslab content bridge', () => {
         type: 'RAYEN_LAB_PDF_BUNDLE_DOWNLOAD_REQUEST',
         batchId,
         examIds: ['43091284', '43091285'],
+        requestId: 'pdf-bundle-1',
       })
+    );
+  });
+
+  it('forwards real bundle progress from the worker to the requesting HHR page', () => {
+    const { onRuntimeMessage, postMessage } = createHarness();
+    onRuntimeMessage?.({
+      type: 'RAYEN_LAB_PDF_BUNDLE_PROGRESS',
+      requestId: 'pdf-bundle-1',
+      progress: { phase: 'validating', completed: 3, total: 15, pageCount: 6 },
+    });
+
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        type: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_PROGRESS',
+        reqId: 'pdf-bundle-1',
+        progress: { phase: 'validating', completed: 3, total: 15, pageCount: 6 },
+      },
+      'http://localhost:3000'
     );
   });
 

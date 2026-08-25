@@ -192,6 +192,7 @@ const DEFAULT_HOOK_STATE = {
   selectedExamIds: new Set<string>(),
   isAnalyzing: false,
   isDownloadingSelectedPdfs: false,
+  pdfDownloadStatus: null,
   analysisData: null,
   analysisView: 'trends' as const,
   selectPatient: vi.fn(),

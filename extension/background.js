@@ -41,7 +41,7 @@ importScripts(
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
   'lab-result-parser.js', 'lab-viewer.js',
-  'syslab-login-window.js', 'syslab-session-transport.js', 'syslab-pdf-bundle.js', 'syslab-runtime.js',
+  'syslab-login-window.js', 'syslab-session-transport.js', 'syslab-pdf-filename.js', 'syslab-pdf-bundle.js', 'syslab-runtime.js',
   'exam-request-print.js',
   'xlsx.full.min.js',
   'report-parser.js',
@@ -1240,7 +1240,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo cargar el panel clínico.'
   ),
   [RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(
-    (message, sender) => syslabRuntime.search({ rutBody: message.rutBody, sender }),
+    (message, sender) => syslabRuntime.search({ ...message, sender }),
     'No se pudieron buscar los exámenes de laboratorio.'
   ),
   [RUNTIME_MESSAGES.SYSLAB_STATUS_REQUEST]: runtimeRoute(
@@ -1258,8 +1258,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudieron analizar los informes de laboratorio.'
   ),
   [RUNTIME_MESSAGES.LAB_PDF_OPEN_REQUEST]: runtimeRoute(
-    (message, sender) =>
-      syslabRuntime.openPdf({ batchId: message.batchId, examId: message.examId, sender }),
+    (message, sender) => syslabRuntime.openPdf({ ...message, sender }),
     'No se pudo abrir el informe de laboratorio.'
   ),
   [RUNTIME_MESSAGES.LAB_PDF_BUNDLE_DOWNLOAD_REQUEST]: runtimeRoute(

@@ -29,6 +29,7 @@ describe('LabViewerExamList', () => {
     onViewPdf: vi.fn(),
     onCopySummary: vi.fn(async () => true),
     isDownloadingSelectedPdfs: false,
+    pdfDownloadStatus: null,
     onDownloadSelectedPdfs: vi.fn(async () => undefined),
   };
 
@@ -59,6 +60,65 @@ describe('LabViewerExamList', () => {
     expect(
       screen.getByRole('button', { name: 'Descargar exámenes seleccionados en un único PDF' })
     ).toBeDisabled();
+  });
+
+  it('shows real progress and the final PDF confirmation', () => {
+    const { rerender } = render(
+      <LabViewerExamList
+        {...defaultProps}
+        selectedIds={new Set(['123'])}
+        pdfDownloadStatus={{
+          phase: 'validating',
+          completed: 0,
+          total: 1,
+          pageCount: 0,
+        }}
+      />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Validando informe 1 de 1');
+
+    rerender(
+      <LabViewerExamList
+        {...defaultProps}
+        selectedIds={new Set(['123'])}
+        pdfDownloadStatus={{
+          phase: 'success',
+          completed: 1,
+          total: 1,
+          pageCount: 3,
+          filename: 'Laboratorio HHR 08-04-2026, Test, 14.125.562-2.pdf',
+        }}
+      />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'PDF creado correctamente · 1 informe · 3 páginas'
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Laboratorio HHR 08-04-2026, Test, 14.125.562-2.pdf'
+    );
+  });
+
+  it('explains a successful download completed by the previous extension version', () => {
+    render(
+      <LabViewerExamList
+        {...defaultProps}
+        selectedIds={new Set(['123'])}
+        pdfDownloadStatus={{
+          phase: 'success',
+          completed: 1,
+          total: 1,
+          pageCount: 0,
+          filename: 'Examenes_Syslab_seleccionados.pdf',
+          legacyExtension: true,
+        }}
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'PDF descargado · 1 informe. Recarga la extensión Eloísa'
+    );
+    expect(screen.getByRole('status')).not.toHaveTextContent('0 páginas');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Examenes_Syslab_seleccionados.pdf');
   });
 
   it('renders extended monthly quick range buttons', async () => {

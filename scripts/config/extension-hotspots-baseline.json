@@ -131,7 +131,7 @@
       "hotspots": {}
     },
     "content-hhr-syslab.js": {
-      "maxLines": 86,
+      "maxLines": 104,
       "hotspots": {}
     },
     "content-hhr.js": {
@@ -471,10 +471,14 @@
       "hotspots": {}
     },
     "syslab-pdf-bundle.js": {
-      "maxLines": 141,
+      "maxLines": 191,
       "hotspots": {
         "iife>variable:create>variable:download": 19
       }
+    },
+    "syslab-pdf-filename.js": {
+      "maxLines": 60,
+      "hotspots": {}
     },
     "syslab-session-transport.js": {
       "maxLines": 202,

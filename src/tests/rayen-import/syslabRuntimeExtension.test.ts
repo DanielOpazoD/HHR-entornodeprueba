@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as PDFLib from 'pdf-lib';
 
 import '../../../extension/syslab-session-transport.js';
+import '../../../extension/syslab-pdf-filename.js';
 import '../../../extension/syslab-pdf-bundle.js';
 import '../../../extension/syslab-runtime.js';
 
@@ -45,6 +46,7 @@ const createHarness = (
     },
   };
   const syslabPdfBundle = globalThis.HhrSyslabPdfBundle.create({
+    pdfFilename: globalThis.HhrSyslabPdfFilename,
     pdfLib: PDFLib,
     downloadPdfBuffer,
     normalizeRutBody: (value: unknown) =>
@@ -182,9 +184,10 @@ describe('Syslab background runtime', () => {
       }
       return { navigated: false };
     });
-    const { downloadPdfBuffer, runtime } = createHarness(sendMessage);
+    const { chromeApi, downloadPdfBuffer, runtime } = createHarness(sendMessage);
     const search = await runtime.search({
       rutBody: '12345678',
+      rutDisplay: '12.345.678-5',
       sender: { tab: { id: 44, url: 'http://localhost:3000/' } },
     });
 
@@ -192,19 +195,83 @@ describe('Syslab background runtime', () => {
       runtime.downloadPdfBundle({
         batchId: search.batchId,
         examIds: ['43091284'],
+        requestId: 'pdf-bundle-1',
         sender: { tab: { id: 44 } },
       })
-    ).resolves.toEqual({ ok: true, downloadId: 91 });
+    ).resolves.toEqual({
+      ok: true,
+      downloadId: 91,
+      filename: 'Laboratorio HHR 17-07-2026, Paciente, 12.345.678-5.pdf',
+      reportCount: 1,
+      pageCount: 2,
+    });
 
     expect(downloadPdfBuffer).toHaveBeenCalledWith({
       buffer: expect.any(Uint8Array),
-      filename: 'Examenes_Syslab_seleccionados.pdf',
+      filename: 'Laboratorio HHR 17-07-2026, Paciente, 12.345.678-5.pdf',
     });
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      44,
+      expect.objectContaining({
+        type: 'RAYEN_LAB_PDF_BUNDLE_PROGRESS',
+        requestId: 'pdf-bundle-1',
+      })
+    );
     const downloadCalls = downloadPdfBuffer.mock.calls as unknown as Array<
       [{ buffer: Uint8Array }]
     >;
     const merged = await PDFLib.PDFDocument.load(downloadCalls[0][0].buffer);
     expect(merged.getPageCount()).toBe(2);
+  });
+
+  it('assigns the requested HHR filename to an individual secure PDF', async () => {
+    const source = await PDFLib.PDFDocument.create();
+    source.addPage();
+    const pdfBase64 = Buffer.from(await source.save()).toString('base64');
+    const sendMessage = vi.fn(async ({ request }: { request: { type: string } }) => {
+      if (request.type === 'RAYEN_SYSLAB_STATUS') {
+        return { bridgeId: 'bridge-1', loginRequired: false };
+      }
+      if (request.type === 'RAYEN_SYSLAB_READ_RESULTS') {
+        return {
+          rutBody: '12345678',
+          exams: [
+            {
+              id: '43091284',
+              link: '/syslab/report/43091284',
+              date: '24/08/2026',
+              time: '08:30',
+              patientName: 'María Pérez',
+              origin: 'HHR',
+              exams: ['Hemograma'],
+            },
+          ],
+        };
+      }
+      if (request.type === 'RAYEN_SYSLAB_VALIDATE_REPORT') {
+        return { rutBody: '12345678', pdfBase64 };
+      }
+      return { navigated: false };
+    });
+    const { runtime, stored } = createHarness(sendMessage);
+    const search = await runtime.search({
+      rutBody: '12345678',
+      rutDisplay: '12.345.678-5',
+      sender: { tab: { id: 44 } },
+    });
+
+    await expect(
+      runtime.openPdf({
+        batchId: search.batchId,
+        examId: '43091284',
+        sender: { tab: { id: 44 } },
+      })
+    ).resolves.toMatchObject({ ok: true, viewerTabId: 81 });
+
+    const job = Object.entries(stored).find(([key]) => key.startsWith('hhr-pdf-print-'))?.[1];
+    expect(job).toMatchObject({
+      filename: 'Laboratorio HHR 24-08-2026, María Pérez, 12.345.678-5.pdf',
+    });
   });
 
   it('shrinks each report timeout so a large bundle stays within the page deadline', async () => {
@@ -213,6 +280,7 @@ describe('Syslab background runtime', () => {
     const pdfBase64 = Buffer.from(await source.save()).toString('base64');
     const downloadPdfBuffer = vi.fn(async () => ({ ok: true, downloadId: 91 }));
     const bundle = globalThis.HhrSyslabPdfBundle.create({
+      pdfFilename: globalThis.HhrSyslabPdfFilename,
       pdfLib: PDFLib,
       downloadPdfBuffer,
       normalizeRutBody: (value: unknown) => String(value || ''),
@@ -238,14 +306,18 @@ describe('Syslab background runtime', () => {
         session: { kind: 'offscreen', status: { loginRequired: false } },
         sessionTransport: { sendWithVisibleFallback },
         reportTimeoutMs: 90_000,
+        rutDisplay: '12.345.678-5',
       })
-    ).resolves.toEqual({ ok: true, downloadId: 91 });
+    ).resolves.toMatchObject({ ok: true, downloadId: 91, reportCount: 2, pageCount: 2 });
     expect(sendWithVisibleFallback.mock.calls[0][2]).toBe(90_000);
     expect(sendWithVisibleFallback.mock.calls[1][2]).toBe(1_000);
   });
 });
 
 declare global {
+  var HhrSyslabPdfFilename: {
+    build: (input: Record<string, unknown>) => string;
+  };
   var HhrSyslabSessionTransport: {
     create: (dependencies: Record<string, unknown>) => Record<string, unknown>;
   };
@@ -254,6 +326,7 @@ declare global {
       currentSession: () => Promise<Record<string, unknown>>;
       login: (input: { username: string; password: string }) => Promise<Record<string, unknown>>;
       search: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+      openPdf: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
       downloadPdfBundle: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
     };
   };

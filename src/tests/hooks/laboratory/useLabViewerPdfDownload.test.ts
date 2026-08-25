@@ -30,7 +30,14 @@ const exams: SyslabExamItem[] = [
 ];
 
 describe('useLabViewerPdfDownload', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDownloadCombinedSyslabPdf.mockResolvedValue({
+      filename: 'Laboratorio HHR 01-03-2026 a 06-04-2026, Paciente, 14.125.562-2.pdf',
+      reportCount: 2,
+      pageCount: 4,
+    });
+  });
 
   it('downloads every selected report in exam-list order', async () => {
     const setError = vi.fn();
@@ -38,17 +45,22 @@ describe('useLabViewerPdfDownload', () => {
       useLabViewerPdfDownload({
         examList: exams,
         selectedExamIds: new Set(['second', 'first']),
+        selectedRut: '14.125.562-2',
         setError,
       })
     );
 
     await act(() => result.current.downloadSelectedPdfs());
 
-    expect(mockDownloadCombinedSyslabPdf).toHaveBeenCalledWith([
-      'https://syslab.test/first',
-      'https://syslab.test/second',
-    ]);
+    expect(mockDownloadCombinedSyslabPdf).toHaveBeenCalledWith(
+      expect.objectContaining({ exams, rut: '14.125.562-2', onProgress: expect.any(Function) })
+    );
     expect(result.current.isDownloadingSelectedPdfs).toBe(false);
+    expect(result.current.pdfDownloadStatus).toMatchObject({
+      phase: 'success',
+      total: 2,
+      pageCount: 4,
+    });
   });
 
   it('rejects the whole selection when one report has no link', async () => {
@@ -57,6 +69,7 @@ describe('useLabViewerPdfDownload', () => {
       useLabViewerPdfDownload({
         examList: [exams[0], { ...exams[1], link: '' }],
         selectedExamIds: new Set(['first', 'second']),
+        selectedRut: '14.125.562-2',
         setError,
       })
     );
@@ -69,6 +82,32 @@ describe('useLabViewerPdfDownload', () => {
     );
   });
 
+  it('preserves the informative compatibility state returned by an older extension', async () => {
+    mockDownloadCombinedSyslabPdf.mockResolvedValueOnce({
+      filename: 'Examenes_Syslab_seleccionados.pdf',
+      reportCount: 2,
+      pageCount: 0,
+      legacyExtension: true,
+    });
+    const { result } = renderHook(() =>
+      useLabViewerPdfDownload({
+        examList: exams,
+        selectedExamIds: new Set(['first', 'second']),
+        selectedRut: '14.125.562-2',
+        setError: vi.fn(),
+      })
+    );
+
+    await act(() => result.current.downloadSelectedPdfs());
+
+    expect(result.current.pdfDownloadStatus).toMatchObject({
+      phase: 'success',
+      legacyExtension: true,
+      total: 2,
+      pageCount: 0,
+    });
+  });
+
   it('ignores a stale failure after cancellation', async () => {
     let rejectDownload: (error: Error) => void = () => undefined;
     mockDownloadCombinedSyslabPdf.mockImplementation(
@@ -76,7 +115,12 @@ describe('useLabViewerPdfDownload', () => {
     );
     const setError = vi.fn();
     const { result } = renderHook(() =>
-      useLabViewerPdfDownload({ examList: exams, selectedExamIds: new Set(['first']), setError })
+      useLabViewerPdfDownload({
+        examList: exams,
+        selectedExamIds: new Set(['first']),
+        selectedRut: '14.125.562-2',
+        setError,
+      })
     );
 
     let pendingDownload: Promise<void>;

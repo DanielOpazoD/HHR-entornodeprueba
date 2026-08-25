@@ -41,6 +41,7 @@ describe('Syslab extension page bridge', () => {
       expect(request).toMatchObject({
         type: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
         rutBody: '14470055',
+        rutDisplay: '14.470.055-4',
       });
       return {
         ok: true,
@@ -177,12 +178,37 @@ describe('Syslab extension page bridge', () => {
         type: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_REQUEST',
         links: [OPAQUE_LINK, secondLink],
       });
-      return { ok: true, downloadId: 42 };
+      return {
+        ok: true,
+        downloadId: 42,
+        filename: 'Laboratorio HHR 21-07-2026, Paciente Syslab, 14.470.055-4.pdf',
+        reportCount: 2,
+        pageCount: 4,
+      };
     });
 
     await expect(
       downloadSyslabPdfBundleThroughExtension([OPAQUE_LINK, secondLink])
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({
+      filename: 'Laboratorio HHR 21-07-2026, Paciente Syslab, 14.470.055-4.pdf',
+      reportCount: 2,
+      pageCount: 4,
+    });
+  });
+
+  it('confirms a download completed by the previous extension without inventing page metadata', async () => {
+    installBridgeResponse(request =>
+      request.type === 'HHR_RAYEN_SYSLAB_STATUS_REQUEST'
+        ? { connected: true, pdfBundleSupported: true }
+        : { ok: true, downloadId: 42 }
+    );
+
+    await expect(downloadSyslabPdfBundleThroughExtension([OPAQUE_LINK])).resolves.toEqual({
+      filename: 'Examenes_Syslab_seleccionados.pdf',
+      reportCount: 1,
+      pageCount: 0,
+      legacyExtension: true,
+    });
   });
 
   it('fails quickly when the loaded extension predates combined PDF downloads', async () => {

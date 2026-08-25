@@ -13,7 +13,7 @@
   if (!runtimeMessages) return;
 
   const route = (resultType, runtimeType, payload = () => ({})) => ({ resultType, runtimeType, payload });
-  const batchRoute = (resultType, runtimeType) => route(resultType, runtimeType, data => {
+  const batchPayload = data => {
     const parsed = (Array.isArray(data.links) ? data.links : []).map(link => String(link).match(
       /^hhr-syslab-extension:\/\/batch\/([0-9a-f-]{36})\/exam\/(\d+)$/i
     ));
@@ -24,7 +24,9 @@
       batchId: isValid ? parsed[0][1] : '',
       examIds: isValid ? parsed.map(match => match[2]) : [],
     };
-  });
+  };
+  const batchRoute = (resultType, runtimeType) =>
+    route(resultType, runtimeType, batchPayload);
   const routes = {
     HHR_RAYEN_SYSLAB_STATUS_REQUEST: route(
       'HHR_RAYEN_SYSLAB_STATUS_RESULT', runtimeMessages.SYSLAB_STATUS_REQUEST
@@ -34,7 +36,10 @@
     ),
     HHR_RAYEN_SYSLAB_SEARCH_REQUEST: route(
       'HHR_RAYEN_SYSLAB_SEARCH_RESULT', runtimeMessages.LAB_SEARCH_REQUEST,
-      data => ({ rutBody: String(data.rutBody || '') })
+      data => ({
+        rutBody: String(data.rutBody || ''),
+        rutDisplay: String(data.rutDisplay || ''),
+      })
     ),
     HHR_RAYEN_SYSLAB_DETAILS_REQUEST: batchRoute(
       'HHR_RAYEN_SYSLAB_DETAILS_RESULT', runtimeMessages.LAB_DETAILS_REQUEST
@@ -49,8 +54,13 @@
         return { batchId: match ? match[1] : '', examId: match ? match[2] : '' };
       },
     },
-    HHR_RAYEN_SYSLAB_PDF_BUNDLE_REQUEST: batchRoute(
-      'HHR_RAYEN_SYSLAB_PDF_BUNDLE_RESULT', runtimeMessages.LAB_PDF_BUNDLE_DOWNLOAD_REQUEST
+    HHR_RAYEN_SYSLAB_PDF_BUNDLE_REQUEST: route(
+      'HHR_RAYEN_SYSLAB_PDF_BUNDLE_RESULT',
+      runtimeMessages.LAB_PDF_BUNDLE_DOWNLOAD_REQUEST,
+      data => ({
+        ...batchPayload(data),
+        requestId: String(data.reqId || ''),
+      })
     ),
   };
 
@@ -58,6 +68,15 @@
   const errorMessage = error => /extension context invalidated/i.test(String(error))
     ? 'La extensión se actualizó. Recarga HHR y vuelve a intentarlo.'
     : 'No se pudo comunicar con la extensión Eloísa. Recarga HHR y vuelve a intentarlo.';
+
+  chrome.runtime.onMessage.addListener(message => {
+    if (!message || message.type !== runtimeMessages.LAB_PDF_BUNDLE_PROGRESS) return;
+    post({
+      type: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_PROGRESS',
+      reqId: String(message.requestId || ''),
+      progress: message.progress,
+    });
+  });
 
   window.addEventListener('message', event => {
     if (event.source !== window) return;

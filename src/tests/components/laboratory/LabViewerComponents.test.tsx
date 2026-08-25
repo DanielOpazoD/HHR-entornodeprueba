@@ -314,7 +314,9 @@ describe('LabViewerPdf', () => {
     );
 
     await waitFor(() => {
-      expect(mockOpenSyslabPdfThroughExtension).toHaveBeenCalledOnce();
+      expect(mockOpenSyslabPdfThroughExtension).toHaveBeenCalledWith(
+        expect.stringContaining('hhr-syslab-extension://')
+      );
     });
     expect(
       screen.getByText('El informe se abrió en una pestaña segura de la extensión Eloísa.')

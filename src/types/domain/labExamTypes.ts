@@ -9,6 +9,28 @@ export interface SyslabExamItem {
   exams: string[];
 }
 
+export type SyslabPdfDownloadPhase = 'validating' | 'merging' | 'downloading';
+
+export interface SyslabPdfDownloadProgress {
+  phase: SyslabPdfDownloadPhase;
+  completed: number;
+  total: number;
+  pageCount: number;
+}
+
+export interface SyslabPdfDownloadResult {
+  filename: string;
+  reportCount: number;
+  pageCount: number;
+  legacyExtension?: boolean;
+}
+
+export interface SyslabPdfDownloadStatus extends Omit<SyslabPdfDownloadProgress, 'phase'> {
+  phase: SyslabPdfDownloadPhase | 'success';
+  filename?: string;
+  legacyExtension?: boolean;
+}
+
 /** A single parsed lab result row extracted from a PDF report. */
 export interface LabResultRow {
   section: string;
