@@ -15,6 +15,7 @@ vi.mock('firebase/functions', () => ({
 
 import {
   AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
+  AUTH_ROLE_LOOKUP_TIMEOUT_MS,
   createAuthRoleLookupService,
   getDynamicRoleForEmail,
   resolveCallableRole,
@@ -39,6 +40,9 @@ describe('authRoleLookup', () => {
     await expect(getDynamicRoleForEmail('specialist@hospital.cl')).resolves.toBe(
       'doctor_specialist'
     );
+    expect(httpsCallableMock).toHaveBeenCalledWith({}, 'checkUserRole', {
+      timeout: AUTH_ROLE_LOOKUP_TIMEOUT_MS,
+    });
     expect(checkUserRoleCall).toHaveBeenCalledWith({});
   });
 
@@ -62,6 +66,19 @@ describe('authRoleLookup', () => {
     httpsCallableMock.mockReturnValue(checkUserRoleCall);
 
     await expect(getDynamicRoleForEmail('network-failure@hospital.cl')).rejects.toMatchObject({
+      code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
+    });
+  });
+
+  it('maps a callable deadline to the existing retryable role-validation path', async () => {
+    const checkUserRoleCall = vi.fn().mockRejectedValue({
+      code: 'functions/deadline-exceeded',
+      message: 'deadline-exceeded',
+    });
+    httpsCallableMock.mockReturnValue(checkUserRoleCall);
+    const service = createAuthRoleLookupService();
+
+    await expect(service.getDynamicRoleForEmail('slow-network@hospital.cl')).rejects.toMatchObject({
       code: AUTH_ROLE_LOOKUP_UNAVAILABLE_CODE,
     });
   });
