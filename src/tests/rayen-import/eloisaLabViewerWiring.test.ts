@@ -30,6 +30,7 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(background).toContain("'syslab-runtime.js'");
     expect(background).toContain('self.HhrSyslabPdfBundle.createRuntime({');
     expect(background).toContain("'syslab-pdf-bundle.js'");
+    expect(background).toContain("'syslab-pdf-filename.js'");
     expect(runtime).toContain('LAB_BATCH_TTL_MS = 15 * 60 * 1000');
     expect(runtime).toContain('sweepExpiredLabBatches');
     expect(runtime).toContain('Puedes analizar como máximo 24 informes por operación.');
@@ -67,9 +68,7 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(background).toContain(
       'syslabRuntime.details({ batchId: message.batchId, examIds: message.examIds, sender })'
     );
-    expect(background).toContain(
-      'syslabRuntime.openPdf({ batchId: message.batchId, examId: message.examId, sender })'
-    );
+    expect(background).toContain('syslabRuntime.openPdf({ ...message, sender })');
     expect(background).toContain('[RUNTIME_MESSAGES.LAB_PDF_OPEN_REQUEST]: runtimeRoute(');
     expect(runtime).toContain('base64: validation.pdfBase64');
     expect(runtime).toContain('print-pdf.html?job=');
@@ -136,6 +135,6 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(manifest).toContain('"offscreen"');
     expect(manifest).toContain('"all_frames": true');
     expect(manifest).toContain('"syslab-login.html"');
-    expect(manifest).toContain('"version": "0.45.8"');
+    expect(manifest).toContain('"version": "0.45.9"');
   });
 });

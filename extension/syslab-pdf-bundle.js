@@ -6,9 +6,12 @@
   const BRIDGE_TIMEOUT_MS = 35_000;
   const REPORT_TIMEOUT_MS = 90_000;
   const BUNDLE_TIMEOUT_MS = 8 * 60_000;
+  const emitProgress = (onProgress, progress) =>
+    Promise.resolve(typeof onProgress === 'function' ? onProgress(progress) : undefined);
   const create = dependencies => {
-    const { pdfLib, downloadPdfBuffer, normalizeRutBody } = dependencies || {};
+    const { pdfFilename, pdfLib, downloadPdfBuffer, normalizeRutBody } = dependencies || {};
     if (
+      !pdfFilename || typeof pdfFilename.build !== 'function' ||
       !pdfLib || !pdfLib.PDFDocument ||
       typeof downloadPdfBuffer !== 'function' ||
       typeof normalizeRutBody !== 'function'
@@ -29,10 +32,25 @@
       return bytes;
     };
 
-    const download = async ({ batch, exams, session, sessionTransport, reportTimeoutMs }) => {
+    const download = async ({
+      batch,
+      exams,
+      session,
+      sessionTransport,
+      reportTimeoutMs,
+      rutDisplay,
+      onProgress,
+    }) => {
       const output = await pdfLib.PDFDocument.create();
       const deadline = Date.now() + BUNDLE_TIMEOUT_MS;
-      for (const exam of exams) {
+      for (let index = 0; index < exams.length; index += 1) {
+        const exam = exams[index];
+        await emitProgress(onProgress, {
+          phase: 'validating',
+          completed: index,
+          total: exams.length,
+          pageCount: output.getPageCount(),
+        });
         const remainingMs = Math.max(1_000, deadline - Date.now());
         const link = batch.linksByExamId && batch.linksByExamId[exam.id];
         if (!link) return { error: 'La búsqueda vigente no contiene todos los informes requeridos.' };
@@ -68,17 +86,42 @@
           const source = await pdfLib.PDFDocument.load(base64ToBytes(validation.pdfBase64));
           const pages = await output.copyPages(source, source.getPageIndices());
           pages.forEach(page => output.addPage(page));
+          await emitProgress(onProgress, {
+            phase: 'validating',
+            completed: index + 1,
+            total: exams.length,
+            pageCount: output.getPageCount(),
+          });
         } catch (_error) {
           return { error: 'Uno de los informes de Syslab no contiene un PDF válido.' };
         }
       }
 
+      await emitProgress(onProgress, {
+        phase: 'merging',
+        completed: exams.length,
+        total: exams.length,
+        pageCount: output.getPageCount(),
+      });
+      const filename = pdfFilename.build({ exams, rutDisplay });
+      await emitProgress(onProgress, {
+        phase: 'downloading',
+        completed: exams.length,
+        total: exams.length,
+        pageCount: output.getPageCount(),
+      });
       const downloaded = await downloadPdfBuffer({
         buffer: await output.save(),
-        filename: 'Examenes_Syslab_seleccionados.pdf',
+        filename,
       });
       return downloaded && downloaded.ok
-        ? { ok: true, downloadId: downloaded.downloadId }
+        ? {
+            ok: true,
+            downloadId: downloaded.downloadId,
+            filename,
+            reportCount: exams.length,
+            pageCount: output.getPageCount(),
+          }
         : { error: downloaded && downloaded.error || 'No se pudo descargar el PDF combinado.' };
     };
 
@@ -86,8 +129,9 @@
       readLabBatch,
       validateLabBatchSender,
       selectedLabExams,
-      sessionTransport
-    ) => async ({ batchId, examIds, sender }) => {
+      sessionTransport,
+      notifyProgress
+    ) => async ({ batchId, examIds, requestId, sender }) => {
       const batchResult = await readLabBatch(batchId);
       if (batchResult.error) return batchResult;
       const senderError = await validateLabBatchSender(batchResult.batch, sender);
@@ -102,7 +146,6 @@
       if (!exams.length) {
         return { error: 'Selecciona uno o más informes vigentes de esta búsqueda.' };
       }
-
       let session;
       try {
         session = await sessionTransport.resolve({
@@ -119,10 +162,16 @@
         session,
         sessionTransport,
         reportTimeoutMs: REPORT_TIMEOUT_MS,
+        rutDisplay: batchResult.batch.rutDisplay,
+        onProgress: progress => notifyProgress && notifyProgress({
+          sender,
+          requestId: String(requestId || ''),
+          progress,
+        }),
       });
     };
 
-    return Object.freeze({ createHandler, download });
+    return Object.freeze({ buildFilename: pdfFilename.build, createHandler, download });
   };
   const createRuntime = ({ chrome, downloadPdfBuffer, withTimeout }) =>
     root.HhrSyslabRuntime.create({
@@ -130,6 +179,7 @@
       labViewer: root.HhrLabViewer,
       syslabSessionTransport: root.HhrSyslabSessionTransport,
       syslabPdfBundle: create({
+        pdfFilename: root.HhrSyslabPdfFilename,
         pdfLib: root.PDFLib,
         downloadPdfBuffer,
         normalizeRutBody: root.HhrLabViewer.normalizeRutBody,

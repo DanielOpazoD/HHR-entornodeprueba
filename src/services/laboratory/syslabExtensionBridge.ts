@@ -1,4 +1,9 @@
-import type { SyslabDetailsResponse, SyslabSearchResponse } from '@/types/domain/labExamTypes';
+import type {
+  SyslabDetailsResponse,
+  SyslabPdfDownloadProgress,
+  SyslabPdfDownloadResult,
+  SyslabSearchResponse,
+} from '@/types/domain/labExamTypes';
 
 const REQUEST_TYPES = {
   status: 'HHR_RAYEN_SYSLAB_STATUS_REQUEST',
@@ -16,6 +21,10 @@ const RESULT_TYPES = {
   details: 'HHR_RAYEN_SYSLAB_DETAILS_RESULT',
   pdf: 'HHR_RAYEN_SYSLAB_PDF_RESULT',
   pdfBundle: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_RESULT',
+} as const;
+
+const PROGRESS_TYPES = {
+  pdfBundle: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_PROGRESS',
 } as const;
 
 type SyslabExtensionOperation = keyof typeof REQUEST_TYPES;
@@ -46,7 +55,8 @@ export const cleanRutForSyslab = (rut: string): string =>
 const requestExtension = (
   operation: SyslabExtensionOperation,
   payload: Record<string, unknown> = {},
-  timeoutMs = 3_000
+  timeoutMs = 3_000,
+  onProgress?: (progress: SyslabPdfDownloadProgress) => void
 ): Promise<SyslabExtensionResponse> =>
   new Promise(resolve => {
     if (typeof window === 'undefined') {
@@ -68,7 +78,25 @@ const requestExtension = (
     const onMessage = (event: MessageEvent): void => {
       if (event.source !== window || event.origin !== window.location.origin) return;
       const data = event.data;
-      if (!data || data.type !== RESULT_TYPES[operation] || data.reqId !== reqId) return;
+      if (!data || data.reqId !== reqId) return;
+
+      if (operation === 'pdfBundle' && data.type === PROGRESS_TYPES.pdfBundle) {
+        const progress = data.progress as Record<string, unknown> | undefined;
+        const phase = progress?.phase;
+        if (
+          onProgress &&
+          (phase === 'validating' || phase === 'merging' || phase === 'downloading')
+        ) {
+          onProgress({
+            phase,
+            completed: Number(progress?.completed) || 0,
+            total: Number(progress?.total) || 0,
+            pageCount: Number(progress?.pageCount) || 0,
+          });
+        }
+        return;
+      }
+      if (data.type !== RESULT_TYPES[operation]) return;
 
       finish({
         bridgeAvailable: true,
@@ -153,7 +181,7 @@ export const searchSyslabThroughExtension = async (
           : 'Conecta Syslab desde el módulo Laboratorio de la extensión Eloísa.',
     };
   }
-  const result = await requestExtension('search', { rutBody }, 40_000);
+  const result = await requestExtension('search', { rutBody, rutDisplay: rut }, 40_000);
   if (!result.bridgeAvailable) return { bridgeAvailable: false };
   const error = responseError(result, 'La extensión no pudo consultar Syslab.');
   if (error) return { bridgeAvailable: true, error };
@@ -232,7 +260,10 @@ export const openSyslabPdfThroughExtension = async (link: string): Promise<void>
   if (result.response?.ok !== true) throw new Error('Syslab no pudo abrir el informe solicitado.');
 };
 
-export const downloadSyslabPdfBundleThroughExtension = async (links: string[]): Promise<void> => {
+export const downloadSyslabPdfBundleThroughExtension = async (
+  links: string[],
+  onProgress?: (progress: SyslabPdfDownloadProgress) => void
+): Promise<SyslabPdfDownloadResult> => {
   if (links.length === 0) throw new Error('Selecciona uno o más informes de laboratorio.');
   if (links.length > 24) throw new Error('Puedes descargar como máximo 24 informes por operación.');
   if (links.some(link => !isSyslabExtensionLink(link))) {
@@ -256,7 +287,7 @@ export const downloadSyslabPdfBundleThroughExtension = async (links: string[]): 
     );
   }
 
-  const result = await requestExtension('pdfBundle', { links }, 10 * 60_000);
+  const result = await requestExtension('pdfBundle', { links }, 10 * 60_000, onProgress);
   if (!result.bridgeAvailable) {
     throw new Error('La extensión Eloísa dejó de responder. Recarga HHR y vuelve a intentarlo.');
   }
@@ -265,6 +296,18 @@ export const downloadSyslabPdfBundleThroughExtension = async (links: string[]): 
   if (result.response?.ok !== true) {
     throw new Error('Syslab no pudo preparar la descarga solicitada.');
   }
+  const filename = typeof result.response.filename === 'string' ? result.response.filename : '';
+  const reportCount = Number(result.response.reportCount);
+  const pageCount = Number(result.response.pageCount);
+  if (!filename || !Number.isInteger(reportCount) || !Number.isInteger(pageCount)) {
+    return {
+      filename: 'Examenes_Syslab_seleccionados.pdf',
+      reportCount: links.length,
+      pageCount: 0,
+      legacyExtension: true,
+    };
+  }
+  return { filename, reportCount, pageCount };
 };
 
 export const isSyslabExtensionLink = (link: string): boolean =>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Download, Loader2 } from 'lucide-react';
-import type { SyslabExamItem } from '@/types/domain/labExamTypes';
+import type { SyslabExamItem, SyslabPdfDownloadStatus } from '@/types/domain/labExamTypes';
 import { useTransientFlag } from '@/hooks/useTransientFlag';
 import {
   resolveAllSelectableExamsSelected,
@@ -9,6 +9,7 @@ import {
 } from '../controllers/labExamListController';
 import { LabViewerExamCard } from './LabViewerExamCard';
 import { LabViewerExamFilters } from './LabViewerExamFilters';
+import { LabViewerPdfDownloadStatus as PdfDownloadStatusView } from './LabViewerPdfDownloadStatus';
 
 interface LabViewerExamListProps {
   exams: SyslabExamItem[];
@@ -23,6 +24,7 @@ interface LabViewerExamListProps {
   onViewPdf: (exam: SyslabExamItem) => void;
   onCopySummary: (exam: SyslabExamItem) => Promise<boolean>;
   isDownloadingSelectedPdfs: boolean;
+  pdfDownloadStatus: SyslabPdfDownloadStatus | null;
   onDownloadSelectedPdfs: () => Promise<void>;
 }
 
@@ -39,6 +41,7 @@ export const LabViewerExamList: React.FC<LabViewerExamListProps> = ({
   onViewPdf,
   onCopySummary,
   isDownloadingSelectedPdfs,
+  pdfDownloadStatus,
   onDownloadSelectedPdfs,
 }) => {
   const [dateFrom, setDateFrom] = React.useState('');
@@ -94,6 +97,8 @@ export const LabViewerExamList: React.FC<LabViewerExamListProps> = ({
           </span>
         </div>
       </div>
+
+      {pdfDownloadStatus ? <PdfDownloadStatusView status={pdfDownloadStatus} /> : null}
 
       <LabViewerExamFilters
         filterCategories={filterCategories}

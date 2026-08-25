@@ -6,7 +6,11 @@
  */
 
 import { useCallback } from 'react';
-import type { LabPatient, SyslabExamItem } from '@/types/domain/labExamTypes';
+import type {
+  LabPatient,
+  SyslabExamItem,
+  SyslabPdfDownloadStatus,
+} from '@/types/domain/labExamTypes';
 import type { AnalysisViewTab, LabAnalysisData } from '@/types/domain/labAnalyticsTypes';
 import type { ProgressState } from '../types/labViewerTypes';
 import { resolveInitialLabViewerRut } from '../controllers/labViewerController';
@@ -30,6 +34,7 @@ export interface UseLabViewerReturn {
   selectedExamIds: Set<string>;
   isAnalyzing: boolean;
   isDownloadingSelectedPdfs: boolean;
+  pdfDownloadStatus: SyslabPdfDownloadStatus | null;
   analysisData: LabAnalysisData | null;
   analysisView: AnalysisViewTab;
   selectPatient: (rut: string) => void;
@@ -106,8 +111,8 @@ export const useLabViewer = (
     setError,
   });
 
-  const { cancelPdfDownload, downloadSelectedPdfs, isDownloadingSelectedPdfs } =
-    useLabViewerPdfDownload({ examList, selectedExamIds, setError });
+  const { cancelPdfDownload, downloadSelectedPdfs, isDownloadingSelectedPdfs, pdfDownloadStatus } =
+    useLabViewerPdfDownload({ examList, selectedExamIds, selectedRut, setError });
 
   const selectPatient = useCallback(
     (rut: string) => {
@@ -157,6 +162,7 @@ export const useLabViewer = (
     selectedExamIds,
     isAnalyzing,
     isDownloadingSelectedPdfs,
+    pdfDownloadStatus,
     analysisData,
     analysisView,
     selectPatient,

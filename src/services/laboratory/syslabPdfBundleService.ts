@@ -5,9 +5,14 @@ import {
   isSyslabExtensionLink,
 } from './syslabExtensionBridge';
 import { fetchSyslabPdfArrayBuffer } from './syslabService';
+import { buildLabPdfFilename } from './labPdfFilenameController';
+import type {
+  SyslabExamItem,
+  SyslabPdfDownloadProgress,
+  SyslabPdfDownloadResult,
+} from '@/types/domain/labExamTypes';
 
 const MAX_SELECTED_REPORTS = 24;
-const BUNDLE_FILENAME = 'Examenes_Syslab_seleccionados.pdf';
 
 const validateLinks = (links: string[]): string[] => {
   const uniqueLinks = [...new Set(links.map(link => link.trim()).filter(Boolean))];
@@ -18,31 +23,74 @@ const validateLinks = (links: string[]): string[] => {
   return uniqueLinks;
 };
 
-const downloadLegacyWebBundle = async (links: string[]): Promise<void> => {
+interface CombinedSyslabPdfRequest {
+  exams: SyslabExamItem[];
+  rut: string;
+  onProgress?: (progress: SyslabPdfDownloadProgress) => void;
+}
+
+const downloadLegacyWebBundle = async ({
+  exams,
+  rut,
+  onProgress,
+}: CombinedSyslabPdfRequest): Promise<SyslabPdfDownloadResult> => {
   const { PDFDocument } = await loadPdfLibGenerationRuntime();
   const output = await PDFDocument.create();
 
-  for (const link of links) {
-    const source = await PDFDocument.load(await fetchSyslabPdfArrayBuffer(link));
+  for (const [index, exam] of exams.entries()) {
+    onProgress?.({
+      phase: 'validating',
+      completed: index,
+      total: exams.length,
+      pageCount: output.getPageCount(),
+    });
+    const source = await PDFDocument.load(await fetchSyslabPdfArrayBuffer(exam.link!));
     const pages = await output.copyPages(source, source.getPageIndices());
     pages.forEach(page => output.addPage(page));
+    onProgress?.({
+      phase: 'validating',
+      completed: index + 1,
+      total: exams.length,
+      pageCount: output.getPageCount(),
+    });
   }
 
+  onProgress?.({
+    phase: 'merging',
+    completed: exams.length,
+    total: exams.length,
+    pageCount: output.getPageCount(),
+  });
   const bytes = await output.save();
-  downloadBlob(new Blob([bytes], { type: 'application/pdf' }), BUNDLE_FILENAME);
+  const filename = buildLabPdfFilename(exams, rut);
+  onProgress?.({
+    phase: 'downloading',
+    completed: exams.length,
+    total: exams.length,
+    pageCount: output.getPageCount(),
+  });
+  downloadBlob(new Blob([bytes], { type: 'application/pdf' }), filename);
+  return { filename, reportCount: exams.length, pageCount: output.getPageCount() };
 };
 
-export const downloadCombinedSyslabPdf = async (links: string[]): Promise<void> => {
+export const downloadCombinedSyslabPdf = async ({
+  exams,
+  rut,
+  onProgress,
+}: CombinedSyslabPdfRequest): Promise<SyslabPdfDownloadResult> => {
+  const links = exams.map(exam => exam.link || '');
   const validatedLinks = validateLinks(links);
+  if (validatedLinks.length !== exams.length) {
+    throw new Error('Uno de los informes seleccionados no está disponible. Actualiza la búsqueda.');
+  }
   const extensionLinks = validatedLinks.filter(isSyslabExtensionLink);
 
   if (extensionLinks.length === validatedLinks.length) {
-    await downloadSyslabPdfBundleThroughExtension(extensionLinks);
-    return;
+    return downloadSyslabPdfBundleThroughExtension(extensionLinks, onProgress);
   }
   if (extensionLinks.length > 0) {
     throw new Error('Actualiza el visor antes de descargar informes de orígenes distintos.');
   }
 
-  await downloadLegacyWebBundle(validatedLinks);
+  return downloadLegacyWebBundle({ exams, rut, onProgress });
 };

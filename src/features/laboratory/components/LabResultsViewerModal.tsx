@@ -131,6 +131,7 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
             onViewPdf={lab.openPdf}
             onCopySummary={lab.copyExamSummary}
             isDownloadingSelectedPdfs={lab.isDownloadingSelectedPdfs}
+            pdfDownloadStatus={lab.pdfDownloadStatus}
             onDownloadSelectedPdfs={lab.downloadSelectedPdfs}
           />
           <LabViewerAnalyzeBar
