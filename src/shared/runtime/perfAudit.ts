@@ -33,12 +33,12 @@ const isPerformanceSupported = (): boolean =>
 const state: {
   marks: PerfMarkEntry[];
   start: number;
-  reported: boolean;
+  reportedMarkCount: number;
   flushScheduled: boolean;
 } = {
   marks: [],
   start: isPerformanceSupported() ? performance.now() : 0,
-  reported: false,
+  reportedMarkCount: 0,
   flushScheduled: false,
 };
 
@@ -85,11 +85,15 @@ const getNavigationTiming = (): PerformanceNavigationTiming | undefined => {
 };
 
 export const flushPerfReport = (trigger: string): void => {
-  if (state.reported || !isPerfAuditEnabled() || !isPerformanceSupported()) {
+  if (
+    state.marks.length <= state.reportedMarkCount ||
+    !isPerfAuditEnabled() ||
+    !isPerformanceSupported()
+  ) {
     return;
   }
 
-  state.reported = true;
+  state.reportedMarkCount = state.marks.length;
   const startAt = state.marks[0]?.t ?? state.start;
   const nav = getNavigationTiming();
   const byName = new Map(state.marks.map(mark => [mark.name, mark.t]));
@@ -149,6 +153,10 @@ export const flushPerfReport = (trigger: string): void => {
     'current role resolution'
   );
   delta('auth-role:lookup-start', 'auth-role:lookup-done', 'role callable lookup');
+  delta('auth-login:click', 'auth-session:user-event', 'Google interaction');
+  delta('auth-session:user-event', 'auth-role:lookup-done', 'post-Google role validation');
+  delta('auth-login:click', 'auth:ready', 'login click -> authenticated app');
+  delta('auth-login:click', 'daily-record:ready', 'login click -> daily data');
   delta(
     'auth-bootstrap:observer-subscribe',
     'auth-bootstrap:observer-event',

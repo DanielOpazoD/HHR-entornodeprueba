@@ -17,6 +17,7 @@ import {
   createUnauthorizedAuthSessionState,
   toAnonymousSignatureAuthSessionState,
 } from '@/services/auth/authSessionState';
+import { clearRecentAuthRoleLookups } from '@/services/auth/authRoleLookup';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { markPerf } from '@/shared/runtime/perfAudit';
 
@@ -31,6 +32,7 @@ export const signOut = async (options?: AuthRuntimeOptions): Promise<void> => {
   const authRuntime = resolveAuthRuntime(options);
   await authRuntime.ready;
   const userEmail = authRuntime.getCurrentUser()?.email;
+  clearRecentAuthRoleLookups();
   resetAuthClaimSyncSnapshot();
   await firebaseSignOut(authRuntime.auth);
 
@@ -69,7 +71,11 @@ export const onAuthSessionStateChange = (
 
       unsubscribeAuth = onAuthStateChanged(authRuntime.auth, async (firebaseUser: User | null) => {
         markPerf('auth-session:firebase-event', firebaseUser ? 'user' : 'null');
+        if (firebaseUser) {
+          markPerf('auth-session:user-event');
+        }
         if (!firebaseUser) {
+          clearRecentAuthRoleLookups();
           resetAuthClaimSyncSnapshot();
           await callback(createUnauthenticatedAuthSessionState());
           return;
