@@ -1,4 +1,5 @@
 import {
+  committedRayenImportResultFromError,
   hasSkippedPreviousDayCorrections,
   type ConfirmedRayenImportResult,
 } from './confirmRayenImport';
@@ -29,4 +30,48 @@ export const summarizeRayenStructuralCommit = (
       requiresFreshCapture,
     }),
   };
+};
+
+export type RayenStructuralCommitSummary = ReturnType<typeof summarizeRayenStructuralCommit>;
+
+export type RayenStructuralPersistenceOutcome =
+  | {
+      kind: 'applied' | 'applied_with_omissions';
+      result: ConfirmedRayenImportResult<ConfirmedRayenCensusApplyResult>;
+      commit: RayenStructuralCommitSummary;
+    }
+  | {
+      kind: 'requires_fresh_capture';
+      result: ConfirmedRayenImportResult<ConfirmedRayenCensusApplyResult>;
+      commit: RayenStructuralCommitSummary;
+      error: unknown;
+    }
+  | { kind: 'failed'; error: unknown };
+
+/**
+ * Executes the selected-day structural write and classifies its only terminal outcomes. A null
+ * result means the originating sync execution is no longer current and must remain silent.
+ */
+export const executeRayenStructuralPersistence = async (
+  persist: () => Promise<ConfirmedRayenImportResult<ConfirmedRayenCensusApplyResult> | null>
+): Promise<RayenStructuralPersistenceOutcome | null> => {
+  try {
+    const result = await persist();
+    if (!result) return null;
+    const commit = summarizeRayenStructuralCommit(result, false);
+    return {
+      kind: commit.hasSkippedItems ? 'applied_with_omissions' : 'applied',
+      result,
+      commit,
+    };
+  } catch (error) {
+    const result = committedRayenImportResultFromError<ConfirmedRayenCensusApplyResult>(error);
+    if (!result) return { kind: 'failed', error };
+    return {
+      kind: 'requires_fresh_capture',
+      result,
+      commit: summarizeRayenStructuralCommit(result, true),
+      error,
+    };
+  }
 };

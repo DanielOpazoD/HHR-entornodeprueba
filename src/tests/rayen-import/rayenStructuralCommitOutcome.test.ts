@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
-import { summarizeRayenStructuralCommit } from '@/features/rayen-import/hooks/rayenStructuralCommitOutcome';
+import {
+  executeRayenStructuralPersistence,
+  summarizeRayenStructuralCommit,
+} from '@/features/rayen-import/hooks/rayenStructuralCommitOutcome';
+import { RayenHistoricalCorrectionAfterCommitError } from '@/features/rayen-import/hooks/confirmRayenImport';
 
 const emptyDiff: CensusImportDiff = {
   admissions: [],
@@ -20,6 +24,14 @@ const emptyDiff: CensusImportDiff = {
     unchanged: 1,
   },
 };
+
+const committedResult = (skipped: unknown[] = []) =>
+  ({
+    appliedDiff: emptyDiff,
+    skipped,
+    historicalCorrectionsPending: false,
+    confirmedHandoff: {},
+  }) as never;
 
 describe('summarizeRayenStructuralCommit', () => {
   it('keeps unapplied previous-day edits visible as skipped work', () => {
@@ -78,5 +90,57 @@ describe('summarizeRayenStructuralCommit', () => {
 
     expect(summary.skippedItems).toBe(1);
     expect(summary.hasSkippedItems).toBe(true);
+  });
+});
+
+describe('executeRayenStructuralPersistence', () => {
+  it('classifies a complete structural write as applied', async () => {
+    const result = committedResult();
+
+    await expect(executeRayenStructuralPersistence(async () => result)).resolves.toMatchObject({
+      kind: 'applied',
+      result,
+      commit: { hasSkippedItems: false },
+    });
+  });
+
+  it('classifies skipped structural work as applied with omissions', async () => {
+    const result = committedResult([{ kind: 'admission', bedId: 'R1', reason: 'occupied' }]);
+
+    await expect(executeRayenStructuralPersistence(async () => result)).resolves.toMatchObject({
+      kind: 'applied_with_omissions',
+      result,
+      commit: { hasSkippedItems: true, skippedItems: 1 },
+    });
+  });
+
+  it('preserves a committed write that requires a fresh capture', async () => {
+    const result = committedResult();
+    const error = new RayenHistoricalCorrectionAfterCommitError(result, new Error('conflict'));
+
+    await expect(
+      executeRayenStructuralPersistence(async () => {
+        throw error;
+      })
+    ).resolves.toMatchObject({
+      kind: 'requires_fresh_capture',
+      result,
+      error,
+      commit: { hasSkippedItems: true, skippedItems: 1 },
+    });
+  });
+
+  it('returns an uncommitted persistence error as failed', async () => {
+    const error = new Error('write failed');
+
+    await expect(
+      executeRayenStructuralPersistence(async () => {
+        throw error;
+      })
+    ).resolves.toEqual({ kind: 'failed', error });
+  });
+
+  it('keeps a superseded execution silent', async () => {
+    await expect(executeRayenStructuralPersistence(async () => null)).resolves.toBeNull();
   });
 });
