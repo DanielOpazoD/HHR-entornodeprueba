@@ -15,6 +15,14 @@ export interface IndexedDbRuntimeModeState {
 export const hasE2ERuntimeOverride = (): boolean =>
   typeof window !== 'undefined' && Boolean(window.__HHR_E2E_OVERRIDE__);
 
+export const shouldExposeDatabaseFallbackToUi = ({
+  fallbackMode,
+  e2eOverrideActive,
+}: {
+  fallbackMode: boolean;
+  e2eOverrideActive: boolean;
+}): boolean => fallbackMode && !e2eOverrideActive;
+
 export const shouldSkipReadyCheckForMock = ({
   isUsingMock,
   allowRecoveryWhenMock,

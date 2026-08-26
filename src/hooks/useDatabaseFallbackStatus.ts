@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { isDatabaseInFallbackMode } from '@/services/storage/indexeddb/indexedDbCore';
+import {
+  hasE2ERuntimeOverride,
+  shouldExposeDatabaseFallbackToUi,
+} from '@/services/storage/indexeddb/indexedDbRuntimeModeController';
 
 export const DATABASE_FALLBACK_POLL_INTERVAL_MS = 5000;
 
@@ -7,6 +11,12 @@ interface UseDatabaseFallbackStatusOptions {
   enabled?: boolean;
   pollIntervalMs?: number;
 }
+
+const readDatabaseFallbackUiStatus = (): boolean =>
+  shouldExposeDatabaseFallbackToUi({
+    fallbackMode: isDatabaseInFallbackMode(),
+    e2eOverrideActive: hasE2ERuntimeOverride(),
+  });
 
 /**
  * Shared polling hook for IndexedDB fallback state.
@@ -16,13 +26,13 @@ export const useDatabaseFallbackStatus = (
   options: UseDatabaseFallbackStatusOptions = {}
 ): boolean => {
   const { enabled = true, pollIntervalMs = DATABASE_FALLBACK_POLL_INTERVAL_MS } = options;
-  const [isFallback, setIsFallback] = useState(() => isDatabaseInFallbackMode());
+  const [isFallback, setIsFallback] = useState(readDatabaseFallbackUiStatus);
 
   useEffect(() => {
     if (!enabled) return;
 
     const syncStatus = () => {
-      setIsFallback(isDatabaseInFallbackMode());
+      setIsFallback(readDatabaseFallbackUiStatus());
     };
 
     const isDocumentHidden = () =>
