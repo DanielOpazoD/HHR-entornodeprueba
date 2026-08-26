@@ -12,9 +12,11 @@ describe('useDatabaseFallbackStatus', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    window.__HHR_E2E_OVERRIDE__ = undefined;
   });
 
   afterEach(() => {
+    window.__HHR_E2E_OVERRIDE__ = undefined;
     vi.useRealTimers();
   });
 
@@ -35,6 +37,37 @@ describe('useDatabaseFallbackStatus', () => {
 
     act(() => {
       fallback = true;
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(result.current).toBe(true);
+  });
+
+  it('does not expose intentional E2E mock storage as degraded fallback', () => {
+    vi.mocked(isDatabaseInFallbackMode).mockReturnValue(true);
+    window.__HHR_E2E_OVERRIDE__ = {};
+
+    const { result } = renderHook(() => useDatabaseFallbackStatus({ pollIntervalMs: 1000 }));
+
+    expect(result.current).toBe(false);
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(result.current).toBe(false);
+    expect(isDatabaseInFallbackMode).toHaveBeenCalled();
+  });
+
+  it('exposes a real fallback after an E2E override is removed', () => {
+    vi.mocked(isDatabaseInFallbackMode).mockReturnValue(true);
+    window.__HHR_E2E_OVERRIDE__ = {};
+
+    const { result } = renderHook(() => useDatabaseFallbackStatus({ pollIntervalMs: 1000 }));
+    expect(result.current).toBe(false);
+
+    act(() => {
+      window.__HHR_E2E_OVERRIDE__ = undefined;
       vi.advanceTimersByTime(1000);
     });
 
