@@ -392,18 +392,19 @@ jobs:
         env:
           CI: true
           E2E_CRITICAL_BROWSERS: chromium
-          PLAYWRIGHT_JSON_OUTPUT: reports/e2e/playwright-report.json
+          PLAYWRIGHT_JSON_OUTPUT: reports/e2e/critical-playwright-report.json
+          E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT: reports/e2e/flow-performance-playwright-report.json
           E2E_BUDGET_LOGIN_VISIBLE_MS: 4500
           E2E_BUDGET_AUTH_FEEDBACK_MS: 3000
           E2E_BUDGET_CENSO_VISIBLE_MS: 8000
 
       - name: Generate E2E operational metrics (flaky + duration)
         if: always()
-        run: node scripts/report-e2e-operational-metrics.mjs
+        run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json
 
       - name: Enforce E2E operational thresholds
         if: always()
-        run: node scripts/report-e2e-operational-metrics.mjs --enforce
+        run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce
 
       - name: Upload E2E critical artifacts
         if: always()
