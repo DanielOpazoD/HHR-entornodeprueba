@@ -1,10 +1,12 @@
 import { buildImportedCudyr, previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type {
+  ClinicalFillError,
   HistoricalCudyrApplyResult,
   HistoricalCudyrBatchItem,
   HistoricalCudyrBatchItemResult,
 } from '../contracts/clinicalFillContracts';
+import { buildClinicalFillError } from '../observability/rayenSyncDiagnostics';
 import type { ClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { clinicalValuesEqual } from './clinicalIncrementalSync';
 
@@ -23,7 +25,7 @@ interface ClinicalCudyrCoordinatorInput {
   ) => Promise<HistoricalCudyrApplyResult>;
   enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>;
   onHistoricalPatch: () => void;
-  onError: (bedId: string, clinicalEpisodeId: string, message: string) => void;
+  onError: (error: ClinicalFillError) => void;
 }
 
 const errorMessage = (error: unknown): string =>
@@ -99,16 +101,24 @@ export const createClinicalCudyrCoordinator = ({
         if (historicalChanged) onHistoricalPatch();
         if (!result?.persisted && !notApplicable) {
           onError(
-            bedId,
-            clinicalEpisodeId,
-            `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}.`
+            buildClinicalFillError({
+              bedId,
+              clinicalEpisodeId,
+              source: 'cudyr',
+              reason: 'historical_archive_failed',
+              error: `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}.`,
+            })
           );
         }
       } catch (error) {
         onError(
-          bedId,
-          clinicalEpisodeId,
-          `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}: ${errorMessage(error)}`
+          buildClinicalFillError({
+            bedId,
+            clinicalEpisodeId,
+            source: 'cudyr',
+            reason: 'historical_archive_failed',
+            error: `No se pudo archivar el CUDYR en el turno noche ${priorCensusDay}: ${errorMessage(error)}`,
+          })
         );
       }
     }

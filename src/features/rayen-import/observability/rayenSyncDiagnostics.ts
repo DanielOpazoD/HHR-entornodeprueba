@@ -1,4 +1,9 @@
-import type { RayenSyncFailureReason } from '@/types/domain/rayenSync';
+import type {
+  RayenSyncFailureReason,
+  RayenSyncIssueReason,
+  RayenSyncIssueSource,
+} from '@/types/domain/rayenSync';
+import type { ClinicalFillError } from '../contracts/clinicalFillContracts';
 import { logger } from '@/services/utils/loggerService';
 
 const rayenSyncLogger = logger.child('RayenSync');
@@ -35,6 +40,7 @@ interface RayenSyncDiagnosticData {
   failureReason?: RayenSyncFailureReason;
   cancellationReason?: 'operator' | 'superseded';
   errorKind?: RayenSyncOperationalErrorKind;
+  issueReason?: RayenSyncIssueReason;
   issueCount?: number;
   patientCount?: number;
   batchMode?: 'shadow' | 'enforced';
@@ -65,10 +71,50 @@ export const classifyRayenSyncError = (error: unknown): RayenSyncOperationalErro
   }
   if (/timeout|timed out|deadline|abort/.test(detail)) return 'timeout';
   if (/not-found|unimplemented|unsupported|no admite/.test(detail)) return 'unsupported';
-  if (/unavailable|network|fetch|offline|cors/.test(detail)) return 'unavailable';
+  if (/unavailable|network|fetch|offline|cors|\b(?:502|503|504)\b/.test(detail)) {
+    return 'unavailable';
+  }
   if (/invalid|parity|confirmaci[oó]n/.test(detail)) return 'invalid_response';
   return 'unexpected';
 };
+
+/** Maps one runtime classification to the bounded cause persisted for the affected stage. */
+export const classifyRayenSyncIssueReason = (
+  source: RayenSyncIssueSource,
+  error: unknown
+): RayenSyncIssueReason => {
+  const kind = classifyRayenSyncError(error);
+  if (kind === 'concurrency') return 'concurrent_write';
+  if (kind === 'timeout') return 'source_timeout';
+  return source === 'patch' ? 'write_failed' : 'source_unavailable';
+};
+
+type ClinicalFillErrorInput = Omit<ClinicalFillError, 'message' | 'reason'> & {
+  error: unknown;
+  reason?: RayenSyncIssueReason;
+};
+
+/** Builds the transient error and freezes its persisted cause at the producer boundary. */
+export const buildClinicalFillError = ({
+  error,
+  reason,
+  ...scope
+}: ClinicalFillErrorInput): ClinicalFillError => ({
+  ...scope,
+  reason: reason ?? classifyRayenSyncIssueReason(scope.source, error),
+  message: error instanceof Error ? error.message : String(error),
+});
+
+const GLOBAL_CLINICAL_FILL_ERRORS = {
+  clinical_record_load_failed: { source: 'census', reason: 'record_load_failed' },
+  clinical_fill_busy: { source: 'patch', reason: 'sync_already_running' },
+  unexpected_fill_failure: { source: 'patch', reason: 'unexpected' },
+} as const satisfies Record<string, { source: RayenSyncIssueSource; reason: RayenSyncIssueReason }>;
+
+export const buildGlobalClinicalFillError = (
+  code: keyof typeof GLOBAL_CLINICAL_FILL_ERRORS
+): ClinicalFillError =>
+  buildClinicalFillError({ bedId: '*', ...GLOBAL_CLINICAL_FILL_ERRORS[code], error: code });
 
 export const reportRayenSyncWarning = (
   code: RayenSyncDiagnosticCode,

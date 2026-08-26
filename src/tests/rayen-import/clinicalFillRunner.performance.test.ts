@@ -232,7 +232,14 @@ describe('runClinicalFill performance pipeline', () => {
     expect(summary).toMatchObject({
       total: 5,
       patched: 4,
-      errors: [{ bedId: 'R2', source: 'patch', message: 'conflicto paciente 2' }],
+      errors: [
+        {
+          bedId: 'R2',
+          source: 'patch',
+          reason: 'write_failed',
+          message: 'conflicto paciente 2',
+        },
+      ],
       incremental: { patientWrites: 4, historySnapshots: 1 },
     });
   });

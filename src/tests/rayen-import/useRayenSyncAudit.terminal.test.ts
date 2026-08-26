@@ -103,7 +103,14 @@ describe('useRayenSyncAudit terminal outcomes', () => {
       await result.current.completeRun(applied, {
         total: 2,
         patched: 1,
-        errors: [{ bedId: 'R2', source: 'patch', message: 'concurrent_write' }],
+        errors: [
+          {
+            bedId: 'R2',
+            source: 'patch',
+            reason: 'concurrent_write',
+            message: 'concurrent_write',
+          },
+        ],
       });
     });
     const firstPatch = patchDailyRecord.mock.calls[0]?.[0] as Partial<DailyRecord>;

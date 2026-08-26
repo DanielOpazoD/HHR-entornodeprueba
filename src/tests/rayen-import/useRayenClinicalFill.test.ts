@@ -79,7 +79,13 @@ describe('useRayenClinicalFill', () => {
       expect.objectContaining({
         total: 1,
         patched: 0,
-        errors: [expect.objectContaining({ message: 'clinical_fill_busy' })],
+        errors: [
+          expect.objectContaining({
+            source: 'patch',
+            reason: 'sync_already_running',
+            message: 'clinical_fill_busy',
+          }),
+        ],
       }),
       null,
       'legacy-run'
@@ -129,7 +135,13 @@ describe('useRayenClinicalFill', () => {
       expect.objectContaining({
         total: 1,
         patched: 0,
-        errors: [expect.objectContaining({ message: 'clinical_record_load_failed' })],
+        errors: [
+          expect.objectContaining({
+            source: 'census',
+            reason: 'record_load_failed',
+            message: 'clinical_record_load_failed',
+          }),
+        ],
       }),
       null,
       'run-load-failed'
@@ -256,8 +268,18 @@ describe('useRayenClinicalFill', () => {
         total: 2,
         patched: 1,
         errors: [
-          { bedId: 'R2', source: 'patch', message: 'concurrent_write' },
-          { bedId: '*', source: 'patch', message: 'temporary_summary' },
+          {
+            bedId: 'R2',
+            source: 'patch',
+            reason: 'concurrent_write',
+            message: 'concurrent_write',
+          },
+          {
+            bedId: '*',
+            source: 'patch',
+            reason: 'unexpected',
+            message: 'temporary_summary',
+          },
         ],
         incremental: {
           received: 3,
@@ -330,12 +352,14 @@ describe('useRayenClinicalFill', () => {
               bedId: 'R1',
               clinicalEpisodeId: 'episode-mother',
               source: 'patch',
+              reason: 'write_failed',
               message: 'mother_failed',
             },
             {
               bedId: 'R1',
               clinicalEpisodeId: 'episode-newborn',
               source: 'patch',
+              reason: 'write_failed',
               message: 'newborn_failed',
             },
           ],
@@ -382,6 +406,7 @@ describe('useRayenClinicalFill', () => {
               bedId: 'R1',
               clinicalEpisodeId: 'episode-mother',
               source: 'patch',
+              reason: 'write_failed',
               message: 'mother_failed',
             },
           ],
@@ -429,6 +454,7 @@ describe('useRayenClinicalFill', () => {
               bedId: 'R1',
               clinicalEpisodeId: 'episode-moved',
               source: 'patch',
+              reason: 'write_failed',
               message: 'episode_failed',
             },
           ],

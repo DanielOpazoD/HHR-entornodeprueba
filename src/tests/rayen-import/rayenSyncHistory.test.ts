@@ -96,7 +96,11 @@ describe('rayen sync history', () => {
   it('computes patient coverage without treating a global source error as a patient', () => {
     const coverage = buildRayenSyncCoverage(
       4,
-      [{ bedId: 'R1' }, { bedId: 'R1' }, { bedId: '*' }],
+      [
+        { bedId: 'R1', source: 'patch', reason: 'write_failed', message: 'first' },
+        { bedId: 'R1', source: 'patch', reason: 'write_failed', message: 'second' },
+        { bedId: '*', source: 'patch', reason: 'write_failed', message: 'global' },
+      ],
       '2026-07-14T10:04:00.000Z'
     );
 
@@ -113,15 +117,15 @@ describe('rayen sync history', () => {
     });
   });
 
-  it('persists a sanitized actionable reason instead of the raw concurrency error', () => {
+  it('persists the typed reason instead of reclassifying raw error copy', () => {
     const coverage = buildRayenSyncCoverage(
       9,
       [
         {
           bedId: 'R2',
           source: 'patch',
-          message:
-            'ConcurrencyError: El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+          reason: 'concurrent_write',
+          message: 'El proveedor cambió por completo la redacción del conflicto.',
         },
       ],
       '2026-07-17T07:02:25.000Z'
@@ -132,13 +136,20 @@ describe('rayen sync history', () => {
       errors: 1,
       issues: [{ bedId: 'R2', source: 'patch', reason: 'concurrent_write' }],
     });
-    expect(JSON.stringify(coverage)).not.toContain('modificado por otro usuario');
+    expect(JSON.stringify(coverage)).not.toContain('proveedor');
   });
 
   it('preserves staffing as an actionable clinical source without persisting its raw error', () => {
     const coverage = buildRayenSyncCoverage(
       2,
-      [{ bedId: 'H2C1', source: 'staffing', message: 'Error interno de historial 503' }],
+      [
+        {
+          bedId: 'H2C1',
+          source: 'staffing',
+          reason: 'source_unavailable',
+          message: 'Error interno de historial 503',
+        },
+      ],
       '2026-07-17T07:02:25.000Z'
     );
 
@@ -156,7 +167,11 @@ describe('rayen sync history', () => {
     );
     const partial = completeRayenSyncEvent(
       applied,
-      buildRayenSyncCoverage(2, [{ bedId: 'R2' }], '2026-07-14T10:03:00.000Z')
+      buildRayenSyncCoverage(
+        2,
+        [{ bedId: 'R2', source: 'patch', reason: 'write_failed', message: 'failed' }],
+        '2026-07-14T10:03:00.000Z'
+      )
     );
 
     expect(complete).toMatchObject({ id: applied.id, status: 'complete' });
@@ -215,8 +230,18 @@ describe('rayen sync history', () => {
     const coverage = buildRayenSyncCoverage(
       0,
       [
-        { bedId: '*', source: 'patch', message: 'historical_census_write_failed' },
-        { bedId: '*', source: 'patch', message: 'structural_conflicts_pending' },
+        {
+          bedId: '*',
+          source: 'patch',
+          reason: 'historical_census_write_failed',
+          message: 'historical_census_write_failed',
+        },
+        {
+          bedId: '*',
+          source: 'patch',
+          reason: 'structural_conflict',
+          message: 'structural_conflicts_pending',
+        },
       ],
       '2026-07-14T10:03:00.000Z'
     );

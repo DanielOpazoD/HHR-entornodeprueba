@@ -7,7 +7,10 @@ import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRec
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
   MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,
+  RAYEN_SYNC_ISSUE_REASONS,
+  RAYEN_SYNC_ISSUE_SOURCES,
 } from '@/types/domain/rayenSync';
+
 const MedicalHandoffActorSchema = z.object({
   uid: z.string(),
   displayName: z.string(),
@@ -62,18 +65,8 @@ const RayenSyncCoverageSchema = z.object({
     z.array(
       z.object({
         bedId: z.string(),
-        source: z.enum(['devices', 'scales', 'vitals', 'staffing', 'cudyr', 'patch']),
-        reason: z.enum([
-          'concurrent_write',
-          'source_unavailable',
-          'source_timeout',
-          'historical_archive_failed',
-          'historical_census_write_failed',
-          'structural_conflict',
-          'sync_already_running',
-          'write_failed',
-          'unexpected',
-        ]),
+        source: z.enum(RAYEN_SYNC_ISSUE_SOURCES),
+        reason: z.enum(RAYEN_SYNC_ISSUE_REASONS),
       })
     )
   ),

@@ -6,6 +6,7 @@ import type {
   ClinicalFillPersistenceStrategy,
 } from '../contracts/clinicalFillContracts';
 import {
+  buildClinicalFillError,
   classifyRayenSyncError,
   reportRayenSyncWarning,
 } from '../observability/rayenSyncDiagnostics';
@@ -25,9 +26,6 @@ interface PersistClinicalBatchResult {
   errors: ClinicalFillError[];
   batch?: ClinicalFillBatchEvidence;
 }
-
-const message = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error || 'Error desconocido');
 
 const retryCount = (error: unknown): number => {
   const retries = Number((error as { clinicalBatchRetries?: unknown })?.clinicalBatchRetries);
@@ -56,12 +54,12 @@ export const persistClinicalBatch = async ({
           const operation = operations[failure.index];
           return operation
             ? [
-                {
+                buildClinicalFillError({
                   bedId: operation.target.bedId,
                   clinicalEpisodeId: operation.target.clinicalEpisodeId,
                   source: 'patch',
-                  message: failure.message,
-                },
+                  error: failure.message,
+                }),
               ]
             : [];
         }),
@@ -71,12 +69,14 @@ export const persistClinicalBatch = async ({
       recordRetries(retryCount(error));
       return {
         patched: 0,
-        errors: operations.map(operation => ({
-          bedId: operation.target.bedId,
-          clinicalEpisodeId: operation.target.clinicalEpisodeId,
-          source: 'patch',
-          message: message(error),
-        })),
+        errors: operations.map(operation =>
+          buildClinicalFillError({
+            bedId: operation.target.bedId,
+            clinicalEpisodeId: operation.target.clinicalEpisodeId,
+            source: 'patch',
+            error,
+          })
+        ),
       };
     }
   }

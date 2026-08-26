@@ -128,6 +128,33 @@ describe('rayen sync presentation', () => {
     );
   });
 
+  it('identifies a census load failure without presenting it as a save failure', () => {
+    const issue = {
+      bedId: '*',
+      source: 'census' as const,
+      reason: 'record_load_failed' as const,
+    };
+    expect(presentRayenCoverageIssue(issue)).toBe(
+      'General · Carga del censo HHR: no se pudo cargar el censo actual; comprueba la conexión y reintenta.'
+    );
+    expect(
+      presentRayenSyncOutcome({
+        id: 'run-load-failed',
+        startedAt: '2026-08-26T10:00:00.000Z',
+        by: 'Operador',
+        status: 'partial',
+        coverage: {
+          total: 1,
+          completed: 1,
+          errors: 0,
+          sourceErrors: 1,
+          issues: [issue],
+          completedAt: '2026-08-26T10:00:01.000Z',
+        },
+      }).detail
+    ).toBe('No se pudo cargar el censo HHR');
+  });
+
   it('explains a structurally partial run even when clinical coverage is complete', () => {
     const event: RayenSyncEvent = {
       id: 'run-structural-partial',

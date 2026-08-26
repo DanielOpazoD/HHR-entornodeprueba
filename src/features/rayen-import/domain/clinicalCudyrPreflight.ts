@@ -1,4 +1,9 @@
 import type { RayenCudyrCategoriesResponse, RayenCudyrCategory } from '../contracts/rayenCudyr';
+import type { ClinicalFillError } from '../contracts/clinicalFillContracts';
+import {
+  buildClinicalFillError,
+  classifyRayenSyncIssueReason,
+} from '../observability/rayenSyncDiagnostics';
 
 export interface ClinicalCudyrSource {
   map: Map<string, RayenCudyrCategory>;
@@ -7,7 +12,7 @@ export interface ClinicalCudyrSource {
 
 interface ClinicalCudyrPreflightResult {
   source: ClinicalCudyrSource;
-  unavailableMessage?: string;
+  unavailableError?: ClinicalFillError;
 }
 
 interface ClinicalCudyrPreflightDependencies {
@@ -60,12 +65,26 @@ export const captureClinicalCudyrSource = async ({
         map: new Map(normalizeItems(response).map(item => [item.encId, item])),
         historyAvailable,
       },
-      ...(detail ? { unavailableMessage: unavailableMessage(detail) } : {}),
+      ...(detail
+        ? {
+            unavailableError: buildClinicalFillError({
+              bedId: '*',
+              source: 'cudyr',
+              reason: classifyRayenSyncIssueReason('cudyr', detail),
+              error: unavailableMessage(detail),
+            }),
+          }
+        : {}),
     };
   } catch (error) {
     return {
       source: { map: new Map(), historyAvailable: false },
-      unavailableMessage: unavailableMessage(message(error)),
+      unavailableError: buildClinicalFillError({
+        bedId: '*',
+        source: 'cudyr',
+        reason: classifyRayenSyncIssueReason('cudyr', error),
+        error: unavailableMessage(message(error)),
+      }),
     };
   }
 };

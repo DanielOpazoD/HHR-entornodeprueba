@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { classifyRayenSyncError } from '@/features/rayen-import/observability/rayenSyncDiagnostics';
+import {
+  classifyRayenSyncError,
+  classifyRayenSyncIssueReason,
+} from '@/features/rayen-import/observability/rayenSyncDiagnostics';
 
 describe('rayenSyncDiagnostics', () => {
   it.each([
@@ -51,5 +54,20 @@ describe('rayenSyncDiagnostics', () => {
     },
   ])('$label maps to $expected', ({ error, expected }) => {
     expect(classifyRayenSyncError(error)).toBe(expected);
+  });
+
+  it('maps one operational classification to a bounded source-aware history reason', () => {
+    expect(classifyRayenSyncIssueReason('devices', new Error('deadline exceeded'))).toBe(
+      'source_timeout'
+    );
+    expect(classifyRayenSyncIssueReason('staffing', new Error('HTTP 503'))).toBe(
+      'source_unavailable'
+    );
+    expect(classifyRayenSyncIssueReason('patch', new Error('Failed to fetch'))).toBe(
+      'write_failed'
+    );
+    expect(classifyRayenSyncIssueReason('patch', new Error('unknown provider detail'))).toBe(
+      'write_failed'
+    );
   });
 });

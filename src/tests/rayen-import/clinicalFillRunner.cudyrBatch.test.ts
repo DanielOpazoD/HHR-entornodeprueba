@@ -266,6 +266,7 @@ describe('runClinicalFill historical CUDYR batch', () => {
       {
         bedId: '*',
         source: 'cudyr',
+        reason: 'source_unavailable',
         message: 'CUDYR no pudo consultarse en Gestión de Camas: sin relay CUDYR',
       },
     ]);
@@ -339,6 +340,7 @@ describe('runClinicalFill historical CUDYR batch', () => {
     expect(summary.errors).toContainEqual({
       bedId: '*',
       source: 'cudyr',
+      reason: 'source_unavailable',
       message:
         'CUDYR no pudo consultarse en Gestión de Camas: La sesión de Gestión de Camas no está disponible.',
     });
@@ -368,6 +370,7 @@ describe('runClinicalFill historical CUDYR batch', () => {
     expect(summary.errors).toContainEqual({
       bedId: '*',
       source: 'cudyr',
+      reason: 'source_unavailable',
       message:
         'CUDYR no pudo consultarse en Gestión de Camas: la extensión no informó la procedencia CUDYR de cada episodio',
     });
@@ -448,6 +451,7 @@ describe('runClinicalFill historical CUDYR batch', () => {
     expect(unavailable.errors).toContainEqual({
       bedId: '*',
       source: 'cudyr',
+      reason: 'source_unavailable',
       message: 'CUDYR no pudo consultarse en Gestión de Camas: Gestión de Camas no disponible',
     });
     expectCheckpointOnlyPatch(unavailableDeps.applyPatch);
@@ -455,6 +459,7 @@ describe('runClinicalFill historical CUDYR batch', () => {
     expect(erroredOfficial.errors).toContainEqual({
       bedId: '*',
       source: 'cudyr',
+      reason: 'source_unavailable',
       message:
         'CUDYR no pudo consultarse en Gestión de Camas: Gestión de Camas entregó una respuesta incompleta',
     });
