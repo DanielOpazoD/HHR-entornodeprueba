@@ -148,6 +148,60 @@ describe('dailyRecordClinicalDomainService', () => {
     expect(carried.bedId).toBe('R1');
   });
 
+  it('does not carry Rayen-owned clinical values into the next census day', () => {
+    const rayenClinicalValues = {
+      devices: ['CVC'],
+      deviceDetails: { CVC: { installationDate: '2026-03-07' } },
+      deviceInstanceHistory: [
+        {
+          id: 'device-1',
+          type: 'CVC',
+          installationDate: '2026-03-07',
+          status: 'Active',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      evaluationScores: { braden: { total: 17 } },
+      vitalSigns: { recordedDate: '2026-03-08', systolic: 118 },
+      vitalSignsHistory: [{ recordedDate: '2026-03-08', systolic: 118 }],
+      clinicalSyncCheckpoint: { version: 2, fingerprintVersion: 1, sources: {} },
+    } as unknown as Partial<PatientData>;
+    const source = buildPatient('R1', {
+      ...rayenClinicalValues,
+      cie10Code: 'A09',
+      handoffNoteNightShift: 'Nota clínica manual',
+      clinicalCrib: buildPatient('C1', {
+        ...rayenClinicalValues,
+        patientName: 'RN clínico',
+        cie10Code: 'P07',
+        handoffNoteNightShift: 'Nota manual cuna',
+      }),
+    });
+
+    const carried = preparePatientForCarryover(source);
+
+    expect(carried.devices).toEqual([]);
+    expect(carried.deviceDetails).toBeUndefined();
+    expect(carried.deviceInstanceHistory).toBeUndefined();
+    expect(carried.evaluationScores).toBeUndefined();
+    expect(carried.vitalSigns).toBeUndefined();
+    expect(carried.vitalSignsHistory).toBeUndefined();
+    expect(carried.clinicalSyncCheckpoint).toBeUndefined();
+    expect(carried.cie10Code).toBe('A09');
+    expect(carried.handoffNoteDayShift).toBe('Nota clínica manual');
+
+    expect(carried.clinicalCrib?.devices).toEqual([]);
+    expect(carried.clinicalCrib?.deviceDetails).toBeUndefined();
+    expect(carried.clinicalCrib?.deviceInstanceHistory).toBeUndefined();
+    expect(carried.clinicalCrib?.evaluationScores).toBeUndefined();
+    expect(carried.clinicalCrib?.vitalSigns).toBeUndefined();
+    expect(carried.clinicalCrib?.vitalSignsHistory).toBeUndefined();
+    expect(carried.clinicalCrib?.clinicalSyncCheckpoint).toBeUndefined();
+    expect(carried.clinicalCrib?.cie10Code).toBe('P07');
+    expect(carried.clinicalCrib?.handoffNoteDayShift).toBe('Nota manual cuna');
+  });
+
   it('clears UPC during carryover when the target bed is not UPC-eligible', () => {
     const source = buildPatient('R1', {
       patientName: 'Paciente UPC',
