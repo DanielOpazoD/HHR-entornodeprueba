@@ -10,6 +10,11 @@ const readPackageScripts = () => {
 const readCriticalCiScript = () =>
   fs.readFileSync(path.join(process.cwd(), 'scripts/run-e2e-critical-emulator-ci.sh'), 'utf8');
 
+const readCriticalWorkflowJob = () => {
+  const workflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8');
+  return workflow.slice(workflow.indexOf('  e2e-critical-emulator:'), workflow.indexOf('  build:'));
+};
+
 const readClinicalStabilityCiScript = () =>
   fs.readFileSync(path.join(process.cwd(), 'scripts/run-e2e-clinical-stability-ci.sh'), 'utf8');
 
@@ -23,12 +28,41 @@ describe('E2E critical script governance', () => {
     );
   });
 
-  it('runs the release-accurate flow budget as part of critical CI evidence', () => {
-    const script = readCriticalCiScript().replace(/\s+/g, ' ');
-
-    expect(script).toContain(
-      'npm run test:e2e:critical && npm run test:e2e:flow-performance:built && npm run check:flow-performance-budget'
+  it('validates critical evidence before generating an isolated flow performance report', () => {
+    const script = readCriticalCiScript().replace(/\s+/g, ' ').replaceAll('\\"', '"');
+    const pathGuard = script.indexOf('node scripts/check-playwright-report-path-isolation.mjs');
+    const criticalRun = script.indexOf(
+      'PLAYWRIGHT_JSON_OUTPUT="\\$E2E_CRITICAL_PLAYWRIGHT_JSON_OUTPUT" npm run test:e2e:critical'
     );
+    const criticalGate = script.indexOf(
+      'node scripts/check-playwright-report-clean.mjs "\\$E2E_CRITICAL_PLAYWRIGHT_JSON_OUTPUT" --label critical-e2e'
+    );
+    const performanceRun = script.indexOf(
+      'PLAYWRIGHT_JSON_OUTPUT="\\$E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT" npm run test:e2e:flow-performance:built'
+    );
+
+    expect(script).toContain('reports/e2e/critical-playwright-report.json');
+    expect(script).toContain('reports/e2e/flow-performance-playwright-report.json');
+    expect(pathGuard).toBeGreaterThanOrEqual(0);
+    expect(criticalRun).toBeGreaterThan(pathGuard);
+    expect(criticalGate).toBeGreaterThan(criticalRun);
+    expect(performanceRun).toBeGreaterThan(criticalGate);
+    expect(script.indexOf('npm run check:flow-performance-budget')).toBeGreaterThan(performanceRun);
+  });
+
+  it('reads operational metrics explicitly from the preserved critical report', () => {
+    const workflowJob = readCriticalWorkflowJob();
+
+    expect(workflowJob).toContain(
+      'PLAYWRIGHT_JSON_OUTPUT: reports/e2e/critical-playwright-report.json'
+    );
+    expect(workflowJob).toContain(
+      'E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT: reports/e2e/flow-performance-playwright-report.json'
+    );
+    expect(workflowJob).toContain(
+      'node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json'
+    );
+    expect(workflowJob).toContain('path: |\n            reports/e2e/**');
   });
 
   it('keeps a focused clinical stability smoke for high-churn clinical flows', () => {
