@@ -35,6 +35,7 @@ import {
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { RayenSyncStructuralReviewEvidence } from '@/types/domain/rayenSync';
 import {
+  buildGlobalClinicalFillError,
   classifyRayenSyncError,
   reportRayenSyncWarning,
 } from '../observability/rayenSyncDiagnostics';
@@ -163,27 +164,25 @@ export const useRayenClinicalFill = ({
               }
               runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
             } catch (error) {
+              const errorKind = classifyRayenSyncError(error);
               reportRayenSyncWarning('clinical_record_load_failed', {
                 runId: requestedRunId,
-                errorKind: classifyRayenSyncError(error),
+                errorKind,
+                issueReason: 'record_load_failed',
               });
               await completeRun(
                 record,
                 {
                   total: requestedEligibleCount,
                   patched: 0,
-                  errors: [{ bedId: '*', source: 'patch', message: 'clinical_record_load_failed' }],
+                  errors: [buildGlobalClinicalFillError('clinical_record_load_failed')],
                 },
                 null,
                 requestedRunId
               ).catch(() => undefined);
               return {
                 status: 'failed',
-                retry: buildClinicalRetryToken(
-                  source,
-                  record,
-                  allowedClinicalEpisodeIds
-                ),
+                retry: buildClinicalRetryToken(source, record, allowedClinicalEpisodeIds),
               };
             }
           }
@@ -249,7 +248,7 @@ export const useRayenClinicalFill = ({
               {
                 total: eligibleCount,
                 patched: 0,
-                errors: [{ bedId: '*', source: 'patch', message: 'clinical_fill_busy' }],
+                errors: [buildGlobalClinicalFillError('clinical_fill_busy')],
               },
               null,
               requestedRunId
@@ -316,7 +315,7 @@ export const useRayenClinicalFill = ({
             summary = {
               total: eligibleCount,
               patched: 0,
-              errors: [{ bedId: '*', source: 'patch', message: 'unexpected_fill_failure' }],
+              errors: [buildGlobalClinicalFillError('unexpected_fill_failure')],
             };
           }
 

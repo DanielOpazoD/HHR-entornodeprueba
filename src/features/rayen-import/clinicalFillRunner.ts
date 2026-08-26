@@ -29,6 +29,7 @@ import {
 import { buildClinicalPatientPatch } from './domain/clinicalPatientPatch';
 import { createClinicalCudyrCoordinator } from './domain/clinicalCudyrCoordinator';
 import { captureClinicalCudyrSource } from './domain/clinicalCudyrPreflight';
+import { buildClinicalFillError } from './observability/rayenSyncDiagnostics';
 
 export type {
   ClinicalFillDeps,
@@ -90,13 +91,7 @@ export const runClinicalFill = async (
     recordTimeout: performance.recordTimeout,
   });
   const cudyrSource = cudyrPreflight.source;
-  if (cudyrPreflight.unavailableMessage) {
-    summary.errors.push({
-      bedId: '*',
-      source: 'cudyr',
-      message: cudyrPreflight.unavailableMessage,
-    });
-  }
+  if (cudyrPreflight.unavailableError) summary.errors.push(cudyrPreflight.unavailableError);
   const nursingObservations: NursingActivityObservation[] = [];
   const withDeviceReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   const withHistoryReadSlot = createConcurrencyGate(READ_CONCURRENCY);
@@ -118,8 +113,7 @@ export const runClinicalFill = async (
     applySingle: deps.applyHistoricalCudyr,
     enqueueWrite: writes.enqueue,
     onHistoricalPatch: performance.recordHistoricalPatch,
-    onError: (bedId, clinicalEpisodeId, errorMessage) =>
-      summary.errors.push({ bedId, clinicalEpisodeId, source: 'cudyr', message: errorMessage }),
+    onError: error => summary.errors.push(error),
   });
   let done = 0;
   const report = () => void onProgress?.({ done: ++done, total: eligible.length });
@@ -131,7 +125,9 @@ export const runClinicalFill = async (
     const encId = patient.clinicalEpisodeId;
     if (!encId) return;
     const reportPatientError = (source: ClinicalFillError['source'], errorMessage: string): void =>
-      void summary.errors.push({ bedId, clinicalEpisodeId: encId, source, message: errorMessage });
+      void summary.errors.push(
+        buildClinicalFillError({ bedId, clinicalEpisodeId: encId, source, error: errorMessage })
+      );
     let merged = patient;
     let historicalCudyrPatched = false;
     const recordIncrementalFacts = createClinicalCheckpointAccumulator(

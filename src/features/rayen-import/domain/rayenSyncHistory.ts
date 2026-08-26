@@ -6,13 +6,13 @@ import type {
   RayenSyncMeta,
   RayenSyncSource,
   RayenSyncCoverageIssue,
-  RayenSyncIssueReason,
   RayenSyncStaffingObservation,
   RayenStaffingSection,
   RayenSyncPerformance,
   RayenSyncPolicy,
   RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
+import type { ClinicalFillError } from '../contracts/clinicalFillContracts';
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
   MAX_RAYEN_SYNC_HISTORY,
@@ -90,41 +90,16 @@ export const buildFailedRayenSyncEvent = (
 
 export const buildRayenSyncCoverage = (
   total: number,
-  errors: Array<{ bedId: string; source?: string; message?: string }>,
+  errors: ClinicalFillError[],
   completedAt: string
 ): RayenSyncCoverage => {
   const failedPatients = new Set(errors.map(error => error.bedId).filter(bedId => bedId !== '*'));
-  const issueReason = (
-    error: (typeof errors)[number],
-    source: RayenSyncCoverageIssue['source']
-  ): RayenSyncIssueReason => {
-    const detail = String(error.message || '').toLowerCase();
-    if (detail.includes('modificado por otro usuario') || detail.includes('concurrencyerror')) {
-      return 'concurrent_write';
-    }
-    if (detail.includes('no se pudo archivar el cudyr')) return 'historical_archive_failed';
-    if (detail.includes('historical_census_write_failed')) {
-      return 'historical_census_write_failed';
-    }
-    if (detail.includes('structural_conflicts_pending')) return 'structural_conflict';
-    if (detail.includes('clinical_fill_busy')) return 'sync_already_running';
-    if (detail.includes('timeout') || detail.includes('tiempo de espera')) return 'source_timeout';
-    if (source === 'patch') {
-      return detail.includes('unexpected') ? 'unexpected' : 'write_failed';
-    }
-    return detail.includes('unexpected') ? 'unexpected' : 'source_unavailable';
-  };
   const issueMap = new Map<string, RayenSyncCoverageIssue>();
   errors.forEach(error => {
-    const source = ['devices', 'scales', 'vitals', 'staffing', 'cudyr', 'patch'].includes(
-      error.source ?? ''
-    )
-      ? (error.source as RayenSyncCoverageIssue['source'])
-      : 'patch';
     const issue: RayenSyncCoverageIssue = {
       bedId: error.bedId,
-      source,
-      reason: issueReason(error, source),
+      source: error.source,
+      reason: error.reason,
     };
     issueMap.set(`${issue.bedId}:${issue.source}:${issue.reason}`, issue);
   });

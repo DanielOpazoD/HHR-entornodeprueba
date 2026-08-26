@@ -33,18 +33,30 @@ export interface RayenClinicalWriteGuard {
 
 export type RayenExtensionEndpointStatus = 'ready' | 'missing' | 'stale';
 
-export type RayenSyncIssueSource = 'devices' | 'scales' | 'vitals' | 'staffing' | 'cudyr' | 'patch';
+export const RAYEN_SYNC_ISSUE_SOURCES = [
+  'census',
+  'devices',
+  'scales',
+  'vitals',
+  'staffing',
+  'cudyr',
+  'patch',
+] as const;
+export type RayenSyncIssueSource = (typeof RAYEN_SYNC_ISSUE_SOURCES)[number];
 
-export type RayenSyncIssueReason =
-  | 'concurrent_write'
-  | 'source_unavailable'
-  | 'source_timeout'
-  | 'historical_archive_failed'
-  | 'historical_census_write_failed'
-  | 'structural_conflict'
-  | 'sync_already_running'
-  | 'write_failed'
-  | 'unexpected';
+export const RAYEN_SYNC_ISSUE_REASONS = [
+  'concurrent_write',
+  'source_unavailable',
+  'source_timeout',
+  'historical_archive_failed',
+  'historical_census_write_failed',
+  'structural_conflict',
+  'sync_already_running',
+  'record_load_failed',
+  'write_failed',
+  'unexpected',
+] as const;
+export type RayenSyncIssueReason = (typeof RAYEN_SYNC_ISSUE_REASONS)[number];
 
 export type RayenSyncStructuralIssueReason =
   | 'unconfirmed-principal-bed'

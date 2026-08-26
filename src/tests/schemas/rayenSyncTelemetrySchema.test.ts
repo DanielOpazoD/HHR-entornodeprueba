@@ -15,7 +15,10 @@ describe('Eloísa sync telemetry schema', () => {
           completed: 2,
           errors: 0,
           sourceErrors: 0,
-          issues: [{ bedId: 'R2', source: 'patch', reason: 'concurrent_write' }],
+          issues: [
+            { bedId: 'R2', source: 'patch', reason: 'concurrent_write' },
+            { bedId: '*', source: 'census', reason: 'record_load_failed' },
+          ],
           completedAt: '2026-07-14T10:03:00.000Z',
         },
         staffingObservation: {
@@ -76,6 +79,11 @@ describe('Eloísa sync telemetry schema', () => {
     expect(record.rayenSync?.coverage?.issues?.[0]).toMatchObject({
       bedId: 'R2',
       reason: 'concurrent_write',
+    });
+    expect(record.rayenSync?.coverage?.issues?.[1]).toEqual({
+      bedId: '*',
+      source: 'census',
+      reason: 'record_load_failed',
     });
     expect(record.rayenSync?.staffingObservation).toEqual({
       ambiguousSections: ['nurse_night'],

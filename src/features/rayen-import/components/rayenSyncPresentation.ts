@@ -202,10 +202,14 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
   const recordedSourceIssue = event.coverage?.issues?.some(
     issue => issue.reason === 'source_unavailable' || issue.reason === 'source_timeout'
   );
+  const recordLoadFailed = event.coverage?.issues?.some(
+    issue => issue.reason === 'record_load_failed'
+  );
   const hasStructuredIssues = Boolean(event.coverage?.issues?.length);
   if (event.coverage?.sourceErrors && (recordedSourceIssue === true || !hasStructuredIssues)) {
     reasons.push('Fuente clínica incompleta');
   }
+  if (recordLoadFailed) reasons.push('No se pudo cargar el censo HHR');
   if (event.source?.gestionCamas && event.source.gestionCamas !== 'ready') {
     reasons.push('Gestión de Camas no disponible');
   }
@@ -213,6 +217,7 @@ const partialReasons = (event: RayenSyncEvent): string[] => {
 };
 
 const issueSourceLabel: Record<RayenSyncCoverageIssue['source'], string> = {
+  census: 'Carga del censo HHR',
   devices: 'Dispositivos',
   scales: 'Escalas de riesgo',
   vitals: 'Signos vitales',
@@ -231,6 +236,7 @@ const issueReasonLabel: Record<RayenSyncCoverageIssue['reason'], string> = {
   structural_conflict:
     'la estructura de este episodio requiere revisión; los demás pacientes sí continuaron',
   sync_already_running: 'ya había otra sincronización clínica en curso; espera y reintenta',
+  record_load_failed: 'no se pudo cargar el censo actual; comprueba la conexión y reintenta',
   write_failed: 'no se pudo confirmar el guardado; comprueba la conexión y reintenta',
   unexpected: 'ocurrió un error no esperado; reintenta y revisa el nuevo detalle',
 };

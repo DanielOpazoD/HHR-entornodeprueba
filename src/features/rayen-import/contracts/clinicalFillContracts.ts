@@ -6,7 +6,11 @@ import type { RayenInvasiveDeviceEntry } from '../mapping/mapDeviceToInstance';
 import type { RayenHistoryScaleEvent } from '../bridge/rayenImportBridge';
 import type { RayenCudyrCategoriesResponse } from './rayenCudyr';
 import type { NursingStaffingProposal, RayenNursingActivity } from './nursingShiftInference';
-import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
+import type {
+  RayenSyncIssueReason,
+  RayenSyncIssueSource,
+  RayenSyncPerformance,
+} from '@/types/domain/rayenSync';
 
 export interface ClinicalFillDeps {
   /** Correlates aggregate diagnostics with the user-initiated synchronization run. */
@@ -133,7 +137,10 @@ export interface HistoricalCudyrBatchItemResult extends HistoricalCudyrApplyResu
 export interface ClinicalFillError {
   bedId: string;
   clinicalEpisodeId?: string;
-  source: 'devices' | 'scales' | 'vitals' | 'staffing' | 'cudyr' | 'patch';
+  source: RayenSyncIssueSource;
+  /** Bounded cause shared by telemetry and persisted history; never inferred from message copy. */
+  reason: RayenSyncIssueReason;
+  /** Transient diagnostic detail. This value is never persisted in synchronization history. */
   message: string;
 }
 

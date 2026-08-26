@@ -93,7 +93,13 @@ const patientError = (
   message: string,
   bedId = 'H1C2',
   clinicalEpisodeId = 'E1'
-): ClinicalFillError => ({ bedId, clinicalEpisodeId, source, message });
+): ClinicalFillError => ({
+  bedId,
+  clinicalEpisodeId,
+  source,
+  reason: source === 'patch' ? 'write_failed' : 'source_unavailable',
+  message,
+});
 
 describe('runClinicalFill', () => {
   it('applies one granular patch per patient (scales + CUDYR), never a full-record save', async () => {
