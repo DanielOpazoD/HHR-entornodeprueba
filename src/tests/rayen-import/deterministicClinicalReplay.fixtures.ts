@@ -4,7 +4,12 @@ import type {
   RayenEncounter,
   RayenSyncBundle,
 } from '@/features/rayen-import';
-import { rayenToPatientData } from '@/features/rayen-import';
+import {
+  cancelRayenSyncBundleRequest,
+  rayenToPatientData,
+  requestRayenSyncBundle,
+  subscribeToRayenSnapshots,
+} from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 export const REPLAY_NOW = new Date('2026-08-16T01:05:00.000Z');
@@ -86,6 +91,48 @@ export const captureFor = (
 ): SyntheticRayenCapture => {
   const snapshot = snapshotFor(date, encounters, isComplete);
   return { snapshot, bundle: syncBundleFor(date, snapshot, egresoRows) };
+};
+
+/** Delivers capture evidence through the same request-correlation guard used in production. */
+export const receiveCorrelatedCapture = (capture: SyntheticRayenCapture): SyntheticRayenCapture => {
+  const delivery: { accepted: SyntheticRayenCapture | null } = { accepted: null };
+  const unsubscribe = subscribeToRayenSnapshots((snapshot, bundle) => {
+    delivery.accepted = { snapshot, bundle };
+  });
+  const requestId = requestRayenSyncBundle(capture.bundle.dateStart, capture.bundle.dateEnd);
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      origin: window.location.origin,
+      data: {
+        type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
+        requestId: `${requestId}-stale`,
+        snapshot: capture.snapshot,
+        bundle: capture.bundle,
+      },
+    })
+  );
+  if (delivery.accepted) {
+    unsubscribe();
+    cancelRayenSyncBundleRequest(requestId);
+    throw new Error('El puente aceptó evidencia de una solicitud no correlacionada.');
+  }
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      origin: window.location.origin,
+      data: {
+        type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
+        requestId,
+        snapshot: capture.snapshot,
+        bundle: capture.bundle,
+      },
+    })
+  );
+  unsubscribe();
+  if (!delivery.accepted) {
+    cancelRayenSyncBundleRequest(requestId);
+    throw new Error('La captura sintética no superó el contrato correlacionado de Rayen.');
+  }
+  return delivery.accepted;
 };
 
 export const emptyRecordFor = (date: string, overrides: Partial<DailyRecord> = {}): DailyRecord =>

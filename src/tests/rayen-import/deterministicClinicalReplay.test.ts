@@ -3,11 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   applyCensusImportDiff,
   applyEgresoReport,
-  cancelRayenSyncBundleRequest,
   reconcileCensus,
-  requestRayenSyncBundle,
   runClinicalFill,
-  subscribeToRayenSnapshots,
   type ClinicalFillDeps,
   type EgresoReportRow,
   type RayenHistoryScaleEvent,
@@ -31,6 +28,7 @@ import {
   CURRENT_CLINICAL_DAY,
   emptyRecordFor,
   patientAt,
+  receiveCorrelatedCapture,
   REPLAY_NOW,
   type SyntheticRayenCapture,
   syntheticEncounter,
@@ -56,47 +54,6 @@ interface ReplayResult {
 }
 
 let runSequence = 0;
-
-const receiveCorrelatedCapture = (capture: SyntheticRayenCapture): SyntheticRayenCapture => {
-  const delivery: { accepted: SyntheticRayenCapture | null } = { accepted: null };
-  const unsubscribe = subscribeToRayenSnapshots((snapshot, bundle) => {
-    delivery.accepted = { snapshot, bundle };
-  });
-  const requestId = requestRayenSyncBundle(capture.bundle.dateStart, capture.bundle.dateEnd);
-  window.dispatchEvent(
-    new MessageEvent('message', {
-      origin: window.location.origin,
-      data: {
-        type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
-        requestId: `${requestId}-stale`,
-        snapshot: capture.snapshot,
-        bundle: capture.bundle,
-      },
-    })
-  );
-  if (delivery.accepted) {
-    unsubscribe();
-    cancelRayenSyncBundleRequest(requestId);
-    throw new Error('El puente aceptó evidencia de una solicitud no correlacionada.');
-  }
-  window.dispatchEvent(
-    new MessageEvent('message', {
-      origin: window.location.origin,
-      data: {
-        type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
-        requestId,
-        snapshot: capture.snapshot,
-        bundle: capture.bundle,
-      },
-    })
-  );
-  unsubscribe();
-  if (!delivery.accepted) {
-    cancelRayenSyncBundleRequest(requestId);
-    throw new Error('La captura sintética no superó el contrato correlacionado de Rayen.');
-  }
-  return delivery.accepted;
-};
 
 const replay = async (
   current: DailyRecord,
