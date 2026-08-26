@@ -15,10 +15,8 @@ import {
 import type { UseRayenSnapshotPreviewInput } from './rayenSnapshotPreviewContracts';
 import { applyConfirmedRayenImport } from './confirmRayenImport';
 import { prepareRayenStructuralPlan } from './prepareRayenStructuralPlan';
-import {
-  executeRayenStructuralPersistence,
-  type RayenStructuralCommitSummary,
-} from './rayenStructuralCommitOutcome';
+import type { RayenStructuralCommitSummary } from './rayenStructuralCommitOutcome';
+import { runRayenSnapshotPersistence } from './rayenSnapshotPersistenceExecution';
 import {
   createRayenPlanningMetrics,
   prepareRayenSnapshotEvidence,
@@ -208,31 +206,38 @@ export const useRayenSnapshotPreview = ({
         }
         await runClinicalStage(commit.clinicalHandoff);
       };
-      if (canAutoApply) {
-        if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
-        const autoApplyKey = rayenSyncExecutionKey(executionIdentity);
-        if (persistenceExecutionKeysRef.current.has(autoApplyKey)) return;
-        persistenceExecutionKeysRef.current.add(autoApplyKey);
-        execution.transition({ type: 'persisting_structure' });
-        setState({
-          diff,
-          isPreviewOpen: false,
-          isBusy: true,
-          isSyncing: true,
-          result: null,
-          hasSkippedItems: false,
-          error: null,
+      const runPreparedStructuralPersistence = (
+        startPersistence: () => void,
+        continueAfterCommit: Parameters<
+          typeof runRayenSnapshotPersistence
+        >[0]['continueAfterCommit']
+      ) =>
+        runRayenSnapshotPersistence({
+          executionKey: rayenSyncExecutionKey(executionIdentity),
+          activeExecutionKeys: persistenceExecutionKeysRef.current,
+          isCurrent: () => isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity),
+          startPersistence,
+          persist: persistConvergedStructure,
+          continueAfterCommit,
+          finishFailedPersistence,
         });
-        try {
-          const outcome = await executeRayenStructuralPersistence(persistConvergedStructure);
-          if (!outcome) return;
-          if (outcome.kind === 'failed') {
-            finishFailedPersistence(outcome.error);
-            return;
-          }
-          const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
-          const continueAfterCommit = () =>
-            continueClinicalAfterCommit(outcome.commit, () =>
+      if (canAutoApply) {
+        await runPreparedStructuralPersistence(
+          () => {
+            execution.transition({ type: 'persisting_structure' });
+            setState({
+              diff,
+              isPreviewOpen: false,
+              isBusy: true,
+              isSyncing: true,
+              result: null,
+              hasSkippedItems: false,
+              error: null,
+            });
+          },
+          outcome => {
+            const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
+            return continueClinicalAfterCommit(outcome.commit, () =>
               setState(prev => ({
                 ...prev,
                 diff: outcome.commit.diff,
@@ -245,18 +250,8 @@ export const useRayenSnapshotPreview = ({
                   : {}),
               }))
             );
-          if (requiresFreshCapture) {
-            await continueAfterCommit();
-            return;
           }
-          try {
-            await continueAfterCommit();
-          } catch (error) {
-            finishFailedPersistence(error);
-          }
-        } finally {
-          persistenceExecutionKeysRef.current.delete(autoApplyKey);
-        }
+        );
         return;
       }
       let hasUnresolvedConflicts = structuralConflictCount > 0;
@@ -266,41 +261,23 @@ export const useRayenSnapshotPreview = ({
       let noChangeCorrectionError: string | null = null;
       let noChangeResult: Awaited<ReturnType<typeof persistConvergedStructure>> = null;
       if (hasNoApplicableChanges) {
-        const noChangePersistenceKey = rayenSyncExecutionKey(executionIdentity);
-        if (persistenceExecutionKeysRef.current.has(noChangePersistenceKey)) return;
-        persistenceExecutionKeysRef.current.add(noChangePersistenceKey);
-        try {
-          if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
-          execution.transition({ type: 'persisting_structure' });
-          const outcome = await executeRayenStructuralPersistence(persistConvergedStructure);
-          if (!outcome) return;
-          if (outcome.kind === 'failed') {
-            finishFailedPersistence(outcome.error);
-            return;
-          }
-          const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
-          noChangeResult = outcome.result;
-          diff = outcome.commit.diff;
-          hasUnresolvedConflicts = outcome.commit.structuralConflicts > 0;
-          hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
-          noChangePersistenceCompleted = true;
-          if (requiresFreshCapture) {
-            noChangeRequiresFreshCapture = true;
-            noChangeCorrectionError = getRayenImportErrorMessage(outcome.error);
-          }
-          if (requiresFreshCapture) {
-            await continueClinicalAfterCommit(outcome.commit);
-          } else {
-            try {
-              await continueClinicalAfterCommit(outcome.commit);
-            } catch (error) {
-              finishFailedPersistence(error);
-              return;
+        const persistence = await runPreparedStructuralPersistence(
+          () => execution.transition({ type: 'persisting_structure' }),
+          outcome => {
+            const requiresFreshCapture = outcome.kind === 'requires_fresh_capture';
+            noChangeResult = outcome.result;
+            diff = outcome.commit.diff;
+            hasUnresolvedConflicts = outcome.commit.structuralConflicts > 0;
+            hasNoApplicableChanges = hasNoApplicableRayenStructuralChanges(diff);
+            noChangePersistenceCompleted = true;
+            if (requiresFreshCapture) {
+              noChangeRequiresFreshCapture = true;
+              noChangeCorrectionError = getRayenImportErrorMessage(outcome.error);
             }
+            return continueClinicalAfterCommit(outcome.commit);
           }
-        } finally {
-          persistenceExecutionKeysRef.current.delete(noChangePersistenceKey);
-        }
+        );
+        if (persistence.kind !== 'committed') return;
       }
       const isExecutionDateVisible =
         !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
