@@ -8,6 +8,11 @@ import {
 } from '@/features/rayen-import/hooks/confirmRayenImport';
 import { useRayenImportConfirmation } from '@/features/rayen-import/hooks/useRayenImportConfirmation';
 import type { RayenImportState } from '@/features/rayen-import/hooks/rayenImportState';
+import type {
+  ClinicalFillRequest,
+  ClinicalStageResult,
+} from '@/features/rayen-import/contracts/clinicalStageResult';
+import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 
 const mocks = vi.hoisted(() => ({
   applyConfirmedRayenImport: vi.fn(),
@@ -89,6 +94,15 @@ const createExecutionRef = () => ({
 const renderConfirmation = ({
   executionRef = createExecutionRef(),
   runClinicalStage = vi.fn().mockResolvedValue({ status: 'complete' }),
+  reviewStartedAtMs,
+  monotonicNow = Date.now,
+  recordRunPerformance = vi.fn(),
+}: {
+  executionRef?: ReturnType<typeof createExecutionRef>;
+  runClinicalStage?: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
+  reviewStartedAtMs?: number;
+  monotonicNow?: () => number;
+  recordRunPerformance?: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
 } = {}) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
@@ -101,6 +115,7 @@ const renderConfirmation = ({
       requestId: 'request-1',
       selectedDate: record.date,
       clinicalDay: record.date,
+      ...(reviewStartedAtMs == null ? {} : { reviewStartedAtMs }),
       replan: vi.fn(),
     },
   };
@@ -120,11 +135,12 @@ const renderConfirmation = ({
       isAdmin: false,
       ensureRun: vi.fn().mockReturnValue({ id: 'run-1' }),
       failRun,
-      recordRunPerformance: vi.fn(),
+      recordRunPerformance,
       applyDiff: vi.fn() as never,
       runClinicalStage,
       loadAuthoritativeStructuralRecord: vi.fn(),
       runSerializedPersistence: operation => operation(),
+      monotonicNow,
     })
   );
   return {
@@ -133,8 +149,10 @@ const renderConfirmation = ({
     executionRef,
     failRun,
     preparedSyncContextRef,
+    recordRunPerformance,
     runClinicalStage,
     setState,
+    structuralReplanRef,
     transitionExecution,
   };
 };
@@ -171,6 +189,75 @@ describe('useRayenImportConfirmation execution ownership', () => {
       hasSkippedItems: false,
       error: null,
     });
+  });
+
+  it('separates human review wait from structural persistence time', async () => {
+    mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult());
+    const monotonicNow = vi
+      .fn()
+      .mockReturnValueOnce(1_600)
+      .mockReturnValueOnce(1_700)
+      .mockReturnValueOnce(1_825);
+    const harness = renderConfirmation({ reviewStartedAtMs: 1_000, monotonicNow });
+
+    await act(async () => harness.result.current());
+
+    expect(harness.recordRunPerformance).toHaveBeenCalledWith(
+      { stagesMs: { reviewWait: 600 } },
+      'run-1'
+    );
+    expect(harness.recordRunPerformance).toHaveBeenCalledWith(
+      { stagesMs: { structuralPersistence: 125 } },
+      'run-1'
+    );
+    expect(harness.structuralReplanRef.current).toBeNull();
+  });
+
+  it('continues the confirmed import if aggregate telemetry reporting fails', async () => {
+    mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult());
+    const recordRunPerformance = vi.fn(() => {
+      throw new Error('telemetry failed');
+    });
+    const harness = renderConfirmation({
+      reviewStartedAtMs: 1_000,
+      monotonicNow: vi
+        .fn()
+        .mockReturnValueOnce(1_500)
+        .mockReturnValueOnce(1_600)
+        .mockReturnValueOnce(1_700),
+      recordRunPerformance,
+    });
+
+    await act(async () => harness.result.current());
+
+    expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce();
+    expect(harness.runClinicalStage).toHaveBeenCalledOnce();
+    expect(harness.failRun).not.toHaveBeenCalled();
+  });
+
+  it('starts a fresh review interval after structural replanning', async () => {
+    const freshRecord = { ...record, lastUpdated: '2026-07-28T10:01:00.000Z' };
+    const error = new RayenStructuralPlanChangedError(freshRecord, diff);
+    mocks.applyConfirmedRayenImport.mockRejectedValue(error);
+    const monotonicNow = vi
+      .fn()
+      .mockReturnValueOnce(1_500)
+      .mockReturnValueOnce(1_600)
+      .mockReturnValueOnce(1_700)
+      .mockReturnValueOnce(1_800);
+    const harness = renderConfirmation({ reviewStartedAtMs: 1_000, monotonicNow });
+
+    await act(async () => harness.result.current());
+
+    expect(harness.recordRunPerformance).toHaveBeenCalledWith(
+      { stagesMs: { reviewWait: 500 } },
+      'run-1'
+    );
+    expect(harness.recordRunPerformance).toHaveBeenCalledWith(
+      { stagesMs: { structuralPersistence: 100 } },
+      'run-1'
+    );
+    expect(harness.structuralReplanRef.current).toMatchObject({ reviewStartedAtMs: 1_800 });
   });
 
   it('surfaces an applied outcome with omissions without failing the run', async () => {
@@ -328,5 +415,11 @@ describe('useRayenImportConfirmation execution ownership', () => {
 
     expect(runClinicalStage).toHaveBeenCalledOnce();
     expect(runClinicalStage).toHaveBeenCalledWith({});
+    expect(harness.recordRunPerformance).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        stagesMs: expect.objectContaining({ structuralPersistence: expect.anything() }),
+      }),
+      expect.anything()
+    );
   });
 });

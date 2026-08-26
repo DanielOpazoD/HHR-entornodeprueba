@@ -109,11 +109,15 @@ const initialState: RayenImportState = {
   error: null,
 };
 
-const renderPreview = (mode: 'auto' | 'preview') => {
+const renderPreview = (
+  mode: 'auto' | 'preview',
+  { monotonicNow = Date.now }: { monotonicNow?: () => number } = {}
+) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
   const runClinicalStage = vi.fn().mockResolvedValue({ status: 'complete' });
   const failRun = vi.fn().mockResolvedValue(undefined);
+  const recordRunPerformance = vi.fn();
   const preparedSyncContextRef = {
     current: {
       runId: 'run-1',
@@ -141,6 +145,7 @@ const renderPreview = (mode: 'auto' | 'preview') => {
       outcome: { structuralConflicts: 0, skippedItems: 0 },
     },
   };
+  const structuralReplanRef = { current: null };
   const run = {
     id: 'run-1',
     sourceDate: record.date,
@@ -162,11 +167,12 @@ const renderPreview = (mode: 'auto' | 'preview') => {
       failRun,
       ensureRun: vi.fn().mockReturnValue(run),
       getRun: vi.fn().mockReturnValue(run),
-      recordRunPerformance: vi.fn(),
+      recordRunPerformance,
       preparedSyncContextRef: preparedSyncContextRef as never,
-      structuralReplanRef: { current: null },
+      structuralReplanRef,
       runSerializedPersistence: operation => operation(),
       loadAuthoritativeStructuralRecord: vi.fn(),
+      monotonicNow,
     })
   );
   return {
@@ -175,8 +181,10 @@ const renderPreview = (mode: 'auto' | 'preview') => {
     executionRef,
     failRun,
     preparedSyncContextRef,
+    recordRunPerformance,
     runClinicalStage,
     setState,
+    structuralReplanRef,
   };
 };
 
@@ -215,6 +223,48 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       hasSkippedItems: false,
     });
     expect(harness.failRun).not.toHaveBeenCalled();
+  });
+
+  it('starts review timing only when a structural plan waits for a person', async () => {
+    mocks.prepareRayenStructuralPlan.mockResolvedValue({
+      diff: autoApplyDiff,
+      replanDiff: vi.fn(),
+    });
+    const harness = renderPreview('preview', { monotonicNow: () => 4_200 });
+
+    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+
+    expect(harness.structuralReplanRef.current).toMatchObject({ reviewStartedAtMs: 4_200 });
+    expect(harness.recordRunPerformance).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        stagesMs: expect.objectContaining({ reviewWait: expect.anything() }),
+      }),
+      expect.anything()
+    );
+    expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
+  });
+
+  it('measures automatic structural persistence without inventing review wait', async () => {
+    mocks.prepareRayenStructuralPlan.mockResolvedValue({
+      diff: autoApplyDiff,
+      replanDiff: vi.fn(),
+    });
+    mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult(autoApplyDiff));
+    const monotonicNow = vi.fn().mockReturnValueOnce(1_000).mockReturnValueOnce(1_240);
+    const harness = renderPreview('auto', { monotonicNow });
+
+    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+
+    expect(harness.recordRunPerformance).toHaveBeenCalledWith(
+      { stagesMs: { structuralPersistence: 240 } },
+      'run-1'
+    );
+    expect(harness.recordRunPerformance).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        stagesMs: expect.objectContaining({ reviewWait: expect.anything() }),
+      }),
+      expect.anything()
+    );
   });
 
   it('persists and continues clinical work through the no-change route', async () => {
@@ -360,5 +410,11 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
 
     expect(harness.runClinicalStage).toHaveBeenCalledOnce();
     expect(harness.runClinicalStage).toHaveBeenCalledWith({ source: 'snapshot-commit' });
+    expect(harness.recordRunPerformance).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        stagesMs: expect.objectContaining({ structuralPersistence: expect.anything() }),
+      }),
+      expect.anything()
+    );
   });
 });

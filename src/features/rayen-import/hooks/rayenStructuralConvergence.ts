@@ -1,13 +1,33 @@
 import type { CensusImportDiff, ConflictEntry } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenSyncExecutionIdentity } from './rayenSyncExecutionState';
+import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 
 export interface RayenStructuralReplan extends RayenSyncExecutionIdentity {
   requestId: string;
   selectedDate: string;
   clinicalDay: string;
+  /** Aggregate-only marker used to separate human review from active processing. */
+  reviewStartedAtMs?: number;
   replan: (record: DailyRecord) => Promise<CensusImportDiff>;
 }
+
+export const startRayenStructuralReviewTiming = (
+  plan: RayenStructuralReplan,
+  now: () => number = defaultMonotonicNow
+): RayenStructuralReplan => ({ ...plan, reviewStartedAtMs: now() });
+
+export const consumeRayenStructuralReviewTiming = (
+  plan: RayenStructuralReplan,
+  now: () => number = defaultMonotonicNow
+): { plan: RayenStructuralReplan; durationMs: number | null } => {
+  if (plan.reviewStartedAtMs == null) return { plan, durationMs: null };
+  const { reviewStartedAtMs, ...unmeasuredPlan } = plan;
+  return {
+    plan: unmeasuredPlan,
+    durationMs: elapsedMilliseconds(reviewStartedAtMs, now()),
+  };
+};
 
 export const matchesRayenStructuralReplan = (
   plan: RayenStructuralReplan | null | undefined,

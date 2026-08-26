@@ -67,5 +67,8 @@ export const mergeRayenSyncPerformance = (
 export const elapsedMilliseconds = (startedAt: number, now = Date.now()): number =>
   safeInteger(now - startedAt);
 
+/** Monotonic elapsed-time source; wall-clock changes must not distort sync stage durations. */
+export const defaultMonotonicNow = (): number => performance.now();
+
 export const isRayenTimeoutMessage = (value: unknown): boolean =>
   /timeout|tiempo de espera|agotado/i.test(String(value ?? ''));

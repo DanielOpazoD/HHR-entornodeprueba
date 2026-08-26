@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { requiresReview } from '../domain/reconcileCensus';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { getRayenImportErrorMessage } from './rayenImportState';
-import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
+import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import { useTreatingPhysicianCatalogSync } from './useTreatingPhysicianCatalogSync';
 import { buildRayenCapturePerformance } from '../domain/rayenSyncSourceQuality';
 import { isRayenSyncExecutionCurrent, rayenSyncExecutionKey } from './rayenSyncExecutionState';
@@ -17,6 +17,10 @@ import { applyConfirmedRayenImport } from './confirmRayenImport';
 import { prepareRayenStructuralPlan } from './prepareRayenStructuralPlan';
 import type { RayenStructuralCommitSummary } from './rayenStructuralCommitOutcome';
 import { runRayenSnapshotPersistence } from './rayenSnapshotPersistenceExecution';
+import {
+  matchesRayenStructuralReplan,
+  startRayenStructuralReviewTiming,
+} from './rayenStructuralConvergence';
 import {
   createRayenPlanningMetrics,
   prepareRayenSnapshotEvidence,
@@ -41,6 +45,7 @@ export const useRayenSnapshotPreview = ({
   structuralReplanRef,
   runSerializedPersistence,
   loadAuthoritativeStructuralRecord,
+  monotonicNow = defaultMonotonicNow,
 }: UseRayenSnapshotPreviewInput) => {
   const persistenceExecutionKeysRef = useRef(new Set<string>());
   const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
@@ -175,7 +180,13 @@ export const useRayenSnapshotPreview = ({
         });
       const finishFailedPersistence = (error: unknown) => {
         if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
-        if (returnReplanToReview(error)) return;
+        if (returnReplanToReview(error)) {
+          const replan = structuralReplanRef.current;
+          if (matchesRayenStructuralReplan(replan, executionIdentity)) {
+            structuralReplanRef.current = startRayenStructuralReviewTiming(replan, monotonicNow);
+          }
+          return;
+        }
         preparedSyncContextRef.current = null;
         structuralReplanRef.current = null;
         void failRun('apply_failed', run.id).catch(() => undefined);
@@ -218,6 +229,13 @@ export const useRayenSnapshotPreview = ({
           isCurrent: () => isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity),
           startPersistence,
           persist: persistConvergedStructure,
+          persistenceOptions: {
+            now: monotonicNow,
+            onDuration: durationMs => {
+              if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+              recordRunPerformance({ stagesMs: { structuralPersistence: durationMs } }, run.id);
+            },
+          },
           continueAfterCommit,
           finishFailedPersistence,
         });
@@ -310,9 +328,18 @@ export const useRayenSnapshotPreview = ({
             : { ...previous, isBusy: false }
       );
       if (!noChangePersistenceCompleted) {
-        execution.transition(
-          resolveRayenSnapshotPlanningStage(hasNoApplicableChanges, hasUnresolvedConflicts)
+        const reviewStage = resolveRayenSnapshotPlanningStage(
+          hasNoApplicableChanges,
+          hasUnresolvedConflicts
         );
+        const replan = structuralReplanRef.current;
+        if (
+          (reviewStage.type === 'awaiting_review' || reviewStage.type === 'needs_review') &&
+          matchesRayenStructuralReplan(replan, executionIdentity)
+        ) {
+          structuralReplanRef.current = startRayenStructuralReviewTiming(replan, monotonicNow);
+        }
+        execution.transition(reviewStage);
       }
     },
     [
@@ -327,6 +354,7 @@ export const useRayenSnapshotPreview = ({
       getRun,
       isAdmin,
       loadAuthoritativeStructuralRecord,
+      monotonicNow,
       preparedSyncContextRef,
       prepareTreatingPhysicianSnapshot,
       recordRunPerformance,

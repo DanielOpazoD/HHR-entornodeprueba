@@ -8,7 +8,6 @@ import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
   MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,
 } from '@/types/domain/rayenSync';
-
 const MedicalHandoffActorSchema = z.object({
   uid: z.string(),
   displayName: z.string(),
@@ -16,7 +15,6 @@ const MedicalHandoffActorSchema = z.object({
   specialty: nullableOptional(z.string()),
   role: nullableOptional(z.string()),
 });
-
 const MedicalHandoffDailyContinuityEntrySchema = z.object({
   status: z.enum(['updated_by_specialist', 'confirmed_no_changes']),
   confirmedBy: nullableOptional(MedicalHandoffActorSchema),
@@ -152,6 +150,8 @@ const RayenSyncPerformanceSchema = z.object({
     dualCapture: nullableOptional(z.number().int().nonnegative()),
     reconciliation: nullableOptional(z.number().int().nonnegative()),
     historicalEvidence: nullableOptional(z.number().int().nonnegative()),
+    reviewWait: nullableOptional(z.number().int().nonnegative()),
+    structuralPersistence: nullableOptional(z.number().int().nonnegative()),
     clinicalReads: nullableOptional(z.number().int().nonnegative()),
     writeQueueWait: nullableOptional(z.number().int().nonnegative()),
     persistence: nullableOptional(z.number().int().nonnegative()),
