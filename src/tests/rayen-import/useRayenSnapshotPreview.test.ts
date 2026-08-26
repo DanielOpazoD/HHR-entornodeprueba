@@ -146,6 +146,7 @@ const renderPreview = (
     },
   };
   const structuralReplanRef = { current: null };
+  const structuralPersistenceExecutionKeysRef = { current: new Set<string>() };
   const run = {
     id: 'run-1',
     sourceDate: record.date,
@@ -170,6 +171,7 @@ const renderPreview = (
       recordRunPerformance,
       preparedSyncContextRef: preparedSyncContextRef as never,
       structuralReplanRef,
+      structuralPersistenceExecutionKeysRef,
       runSerializedPersistence: operation => operation(),
       loadAuthoritativeStructuralRecord: vi.fn(),
       monotonicNow,
@@ -185,6 +187,7 @@ const renderPreview = (
     runClinicalStage,
     setState,
     structuralReplanRef,
+    structuralPersistenceExecutionKeysRef,
   };
 };
 

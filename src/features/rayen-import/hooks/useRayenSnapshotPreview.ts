@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { requiresReview } from '../domain/reconcileCensus';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import { getRayenImportErrorMessage } from './rayenImportState';
@@ -16,7 +16,7 @@ import type { UseRayenSnapshotPreviewInput } from './rayenSnapshotPreviewContrac
 import { applyConfirmedRayenImport } from './confirmRayenImport';
 import { prepareRayenStructuralPlan } from './prepareRayenStructuralPlan';
 import type { RayenStructuralCommitSummary } from './rayenStructuralCommitOutcome';
-import { runRayenSnapshotPersistence } from './rayenSnapshotPersistenceExecution';
+import { runRayenStructuralPersistenceLifecycle } from './rayenSnapshotPersistenceExecution';
 import {
   matchesRayenStructuralReplan,
   startRayenStructuralReviewTiming,
@@ -43,11 +43,11 @@ export const useRayenSnapshotPreview = ({
   recordRunPerformance,
   preparedSyncContextRef,
   structuralReplanRef,
+  structuralPersistenceExecutionKeysRef,
   runSerializedPersistence,
   loadAuthoritativeStructuralRecord,
   monotonicNow = defaultMonotonicNow,
 }: UseRayenSnapshotPreviewInput) => {
-  const persistenceExecutionKeysRef = useRef(new Set<string>());
   const prepareTreatingPhysicianSnapshot = useTreatingPhysicianCatalogSync();
   return useCallback(
     async (
@@ -220,12 +220,12 @@ export const useRayenSnapshotPreview = ({
       const runPreparedStructuralPersistence = (
         startPersistence: () => void,
         continueAfterCommit: Parameters<
-          typeof runRayenSnapshotPersistence
+          typeof runRayenStructuralPersistenceLifecycle
         >[0]['continueAfterCommit']
       ) =>
-        runRayenSnapshotPersistence({
+        runRayenStructuralPersistenceLifecycle({
           executionKey: rayenSyncExecutionKey(executionIdentity),
-          activeExecutionKeys: persistenceExecutionKeysRef.current,
+          activeExecutionKeys: structuralPersistenceExecutionKeysRef.current,
           isCurrent: () => isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity),
           startPersistence,
           persist: persistConvergedStructure,
@@ -362,6 +362,7 @@ export const useRayenSnapshotPreview = ({
       selectedDateRef,
       setState,
       structuralReplanRef,
+      structuralPersistenceExecutionKeysRef,
     ]
   );
 };
