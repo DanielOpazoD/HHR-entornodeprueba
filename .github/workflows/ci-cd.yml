@@ -569,6 +569,7 @@ jobs:
   ci-strict-summary:
     name: ci-summary
     runs-on: ubuntu-latest
+    if: ${{ always() }}
     permissions: {}
     needs:
       [
@@ -580,16 +581,42 @@ jobs:
         build,
         ci-runtime-telemetry,
       ]
+    env:
+      QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
+      UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
+      CLINICAL_SYNC_RESULT: ${{ needs['clinical-sync-release-gate'].result }}
+      RULES_EMULATOR_RESULT: ${{ needs['rules-emulator'].result }}
+      E2E_CRITICAL_RESULT: ${{ needs['e2e-critical-emulator'].result }}
+      BUILD_RESULT: ${{ needs.build.result }}
+      CI_RUNTIME_TELEMETRY_RESULT: ${{ needs['ci-runtime-telemetry'].result }}
     steps:
-      - name: CI strict gates passed
+      - name: Enforce strict gate outcomes
+        shell: bash
         run: |
-          echo "quality-static: passed"
-          echo "unit-risk: passed"
-          echo "clinical-sync-release-gate: passed"
-          echo "rules-emulator: passed"
-          echo "e2e-critical: passed"
-          echo "build-budget: passed"
-          echo "ci-runtime-telemetry: passed"
+          failures=0
+
+          for gate in \
+            "quality-static:$QUALITY_STATIC_RESULT" \
+            "unit-risk:$UNIT_RISK_RESULT" \
+            "clinical-sync-release-gate:$CLINICAL_SYNC_RESULT" \
+            "rules-emulator:$RULES_EMULATOR_RESULT" \
+            "e2e-critical-emulator:$E2E_CRITICAL_RESULT" \
+            "build:$BUILD_RESULT" \
+            "ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT"
+          do
+            name="${gate%%:*}"
+            result="${gate#*:}"
+            echo "$name: $result"
+
+            if [[ "$result" != "success" ]]; then
+              failures=$((failures + 1))
+            fi
+          done
+
+          if (( failures > 0 )); then
+            echo "::error::$failures required CI gate(s) did not pass."
+            exit 1
+          fi
 
   postmerge-evidence:
     name: postmerge-evidence

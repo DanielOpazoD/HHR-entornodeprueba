@@ -179,7 +179,7 @@ describe('CI workflow governance', () => {
       'needs: [quality-static, unit-risk, clinical-sync-release-gate, rules-emulator, e2e-critical-emulator]'
     );
     expect(summaryJob).toContain('ci-runtime-telemetry');
-    expect(summaryJob).toContain('clinical-sync-release-gate: passed');
+    expect(summaryJob).toContain('clinical-sync-release-gate:$CLINICAL_SYNC_RESULT');
   });
 
   it('collects real GitHub Actions runtime after PR-blocking gates finish', () => {
@@ -223,7 +223,7 @@ describe('CI workflow governance', () => {
     expect(telemetryJob).toContain('path: reports/ci-runtime-observed-*');
     expect(summaryJob).toContain('ci-runtime-telemetry');
     expect(summaryJob).toContain('permissions: {}');
-    expect(summaryJob).toContain('ci-runtime-telemetry: passed');
+    expect(summaryJob).toContain('ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT');
   });
 
   it('keeps expensive clinical/runtime suites in a scheduled nightly workflow', () => {
