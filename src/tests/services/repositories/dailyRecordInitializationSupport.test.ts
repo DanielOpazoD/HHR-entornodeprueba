@@ -139,4 +139,29 @@ describe('dailyRecordInitializationSupport', () => {
     expect(result.tensDayShift).toEqual(['', '', '']);
     expect(result.handoffNovedadesDayShift).toBe('Novedades noche');
   });
+
+  it('builds copied days without historical Rayen clinical values', () => {
+    const previous = buildRecord('2026-02-18');
+    previous.beds.R1 = buildPatient('R1', {
+      devices: ['CVC'],
+      deviceDetails: { CVC: { installationDate: '2026-02-17' } },
+      evaluationScores: { braden: { total: 17 } } as never,
+      vitalSigns: { recordedDate: '2026-02-18', systolic: 118 } as never,
+      clinicalSyncCheckpoint: {
+        version: 2,
+        fingerprintVersion: 1,
+        sources: {},
+      },
+    });
+
+    const result = buildInitializedDayRecord('2026-02-19', previous);
+
+    expect(result.beds.R1.devices).toEqual([]);
+    expect(result.beds.R1.deviceDetails).toBeUndefined();
+    expect(result.beds.R1.evaluationScores).toBeUndefined();
+    expect(result.beds.R1.vitalSigns).toBeUndefined();
+    expect(result.beds.R1.clinicalSyncCheckpoint).toBeUndefined();
+    expect(result.beds.R1.patientName).toBe('Paciente');
+    expect(result.beds.R1.admissionDate).toBe('2026-02-19');
+  });
 });

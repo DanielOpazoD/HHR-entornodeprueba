@@ -6,13 +6,19 @@ import {
   makeContext,
   makeRecord,
 } from './dailyRecordWriteAuthorityFunctions.test-support';
+import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 
 const require = createRequire(import.meta.url);
 const {
+  RAYEN_CLINICAL_FIELDS,
   preserveRayenClinicalFields,
 } = require('../../../functions/lib/dailyRecordClinicalFieldPreservation.js');
 
 describe('daily-record authoritative clinical field fence', () => {
+  it('keeps the client ownership contract aligned with the server fence', () => {
+    expect([...RAYEN_OWNED_CLINICAL_FIELDS]).toEqual([...RAYEN_CLINICAL_FIELDS]);
+  });
+
   it.each(['off', 'shadow', 'enforced'] as const)(
     'preserves server clinical fields after schema-v2 migration in %s mode',
     async clinicalBatchMode => {

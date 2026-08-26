@@ -1,22 +1,18 @@
 import { httpsCallable } from 'firebase/functions';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
+import {
+  RAYEN_OWNED_CLINICAL_FIELDS,
+  type RayenOwnedClinicalField,
+} from '@/types/domain/rayenClinicalFields';
 
-export const RAYEN_CLINICAL_ENRICHMENT_FIELDS = [
-  'devices',
-  'deviceDetails',
-  'deviceInstanceHistory',
-  'evaluationScores',
-  'vitalSigns',
-  'vitalSignsHistory',
-  'clinicalSyncCheckpoint',
-] as const;
+export const RAYEN_CLINICAL_ENRICHMENT_FIELDS = RAYEN_OWNED_CLINICAL_FIELDS;
 
 export const RAYEN_CLINICAL_ENRICHMENT_MAX_BATCH_BYTES = 500_000;
 export const RAYEN_CLINICAL_ENRICHMENT_MAX_TARGETS = 32;
 export const RAYEN_CLINICAL_ENRICHMENT_TIMEOUT_MS = 20_000;
 export const RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION = 2 as const;
 
-export type RayenClinicalEnrichmentField = (typeof RAYEN_CLINICAL_ENRICHMENT_FIELDS)[number];
+export type RayenClinicalEnrichmentField = RayenOwnedClinicalField;
 
 export interface RayenClinicalEnrichmentTarget {
   bedId: string;

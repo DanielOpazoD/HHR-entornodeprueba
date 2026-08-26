@@ -1,12 +1,6 @@
-const RAYEN_GUARDED_CLINICAL_FIELDS = new Set([
-  'devices',
-  'deviceDetails',
-  'deviceInstanceHistory',
-  'evaluationScores',
-  'vitalSigns',
-  'vitalSignsHistory',
-  'clinicalSyncCheckpoint',
-]);
+import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
+
+const RAYEN_GUARDED_CLINICAL_FIELDS = new Set<string>(RAYEN_OWNED_CLINICAL_FIELDS);
 const UNSAFE_FIELD_PATH_PARTS = new Set(['__proto__', 'prototype', 'constructor']);
 
 const isGuardedRayenClinicalPath = (parts: string[]): boolean => {

@@ -12,6 +12,7 @@ import {
 } from '@/services/repositories/dailyRecordHandoffDomainService';
 import { touchDailyRecordLastUpdated } from '@/services/repositories/dailyRecordMetadataDomainService';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
+import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 
 const normalizeComparablePatientName = (patientName: string | undefined): string =>
   String(patientName || '')
@@ -40,6 +41,22 @@ const resetCarryoverCudyr = (patient: PatientData): void => {
   }
 };
 
+const resetCarryoverRayenClinicalFields = (patient: PatientData): void => {
+  const patientFields = patient as unknown as Record<string, unknown>;
+
+  RAYEN_OWNED_CLINICAL_FIELDS.forEach(field => {
+    if (field === 'devices') {
+      patient.devices = [];
+      return;
+    }
+    delete patientFields[field];
+  });
+
+  if (patient.clinicalCrib) {
+    resetCarryoverRayenClinicalFields(patient.clinicalCrib);
+  }
+};
+
 const shouldClonePreviousPatient = (prevPatient: PatientData): boolean =>
   Boolean(prevPatient.isBlocked || hasCarryoverIdentity(prevPatient));
 
@@ -49,6 +66,7 @@ export const preparePatientForCarryover = (
 ): PatientData => {
   const clonedPatient = parsePatientDataWithDefaults(clonePatient(sourcePatient), targetBedId);
   resetCarryoverCudyr(clonedPatient);
+  resetCarryoverRayenClinicalFields(clonedPatient);
   inheritPatientHandoffNotes(clonedPatient, sourcePatient);
   inheritPatientMedicalHandoff(clonedPatient, sourcePatient);
 
