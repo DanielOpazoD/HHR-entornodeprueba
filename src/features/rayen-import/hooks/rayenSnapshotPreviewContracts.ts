@@ -35,4 +35,5 @@ export interface UseRayenSnapshotPreviewInput {
   structuralReplanRef: RefObject<RayenStructuralReplan | null>;
   runSerializedPersistence: RunSerializedRayenPersistence;
   loadAuthoritativeStructuralRecord: (date: string) => Promise<DailyRecord>;
+  monotonicNow?: () => number;
 }

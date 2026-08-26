@@ -167,6 +167,8 @@ export interface RayenSyncPerformance {
     dualCapture: number;
     reconciliation: number;
     historicalEvidence: number;
+    reviewWait: number;
+    structuralPersistence: number;
     clinicalReads: number;
     writeQueueWait: number;
     persistence: number;

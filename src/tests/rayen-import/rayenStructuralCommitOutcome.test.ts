@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import {
   executeRayenStructuralPersistence,
@@ -94,6 +94,31 @@ describe('summarizeRayenStructuralCommit', () => {
 });
 
 describe('executeRayenStructuralPersistence', () => {
+  it('reports one deterministic aggregate duration without changing the outcome', async () => {
+    const result = committedResult();
+    const now = vi.fn().mockReturnValueOnce(1_000).mockReturnValueOnce(1_275);
+    const onDuration = vi.fn();
+
+    await expect(
+      executeRayenStructuralPersistence(async () => result, { now, onDuration })
+    ).resolves.toMatchObject({ kind: 'applied', result });
+
+    expect(onDuration).toHaveBeenCalledOnce();
+    expect(onDuration).toHaveBeenCalledWith(275);
+  });
+
+  it('keeps persistence classification authoritative if telemetry reporting fails', async () => {
+    const result = committedResult();
+
+    await expect(
+      executeRayenStructuralPersistence(async () => result, {
+        onDuration: () => {
+          throw new Error('telemetry failed');
+        },
+      })
+    ).resolves.toMatchObject({ kind: 'applied', result });
+  });
+
   it('classifies a complete structural write as applied', async () => {
     const result = committedResult();
 
@@ -170,6 +195,12 @@ describe('executeRayenStructuralPersistence', () => {
   });
 
   it('keeps a superseded execution silent', async () => {
-    await expect(executeRayenStructuralPersistence(async () => null)).resolves.toBeNull();
+    const onDuration = vi.fn();
+
+    await expect(
+      executeRayenStructuralPersistence(async () => null, { onDuration })
+    ).resolves.toBeNull();
+
+    expect(onDuration).not.toHaveBeenCalled();
   });
 });

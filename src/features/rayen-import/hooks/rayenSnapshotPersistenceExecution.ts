@@ -19,6 +19,7 @@ interface RunRayenSnapshotPersistenceInput {
   isCurrent: () => boolean;
   startPersistence: () => void;
   persist: Parameters<typeof executeRayenStructuralPersistence>[0];
+  persistenceOptions?: Parameters<typeof executeRayenStructuralPersistence>[1];
   continueAfterCommit: (outcome: CommittedRayenSnapshotPersistenceOutcome) => Promise<void>;
   finishFailedPersistence: (error: unknown) => void;
 }
@@ -30,6 +31,7 @@ export const runRayenSnapshotPersistence = async ({
   isCurrent,
   startPersistence,
   persist,
+  persistenceOptions,
   continueAfterCommit,
   finishFailedPersistence,
 }: RunRayenSnapshotPersistenceInput): Promise<RayenSnapshotPersistenceExecutionResult> => {
@@ -37,7 +39,7 @@ export const runRayenSnapshotPersistence = async ({
   activeExecutionKeys.add(executionKey);
   try {
     startPersistence();
-    const outcome = await executeRayenStructuralPersistence(persist);
+    const outcome = await executeRayenStructuralPersistence(persist, persistenceOptions);
     if (!outcome) return { kind: 'not_started' };
     if (outcome.kind === 'failed') {
       finishFailedPersistence(outcome.error);

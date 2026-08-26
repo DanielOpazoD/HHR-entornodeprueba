@@ -11,7 +11,9 @@ import {
 } from './rayenSyncExecutionState';
 import type { PreparedRayenSyncContext } from './rayenSyncTemporalContext';
 import {
+  consumeRayenStructuralReviewTiming,
   matchesRayenStructuralReplan,
+  startRayenStructuralReviewTiming,
   type RayenStructuralReplan,
 } from './rayenStructuralConvergence';
 import type { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
@@ -27,6 +29,7 @@ import {
   executeRayenStructuralPersistence,
   type RayenStructuralPersistenceOutcome,
 } from './rayenStructuralCommitOutcome';
+import { defaultMonotonicNow } from '../domain/rayenSyncPerformance';
 
 type ExecutionController = ReturnType<typeof useRayenSyncExecutionController>;
 type SyncAudit = ReturnType<typeof useRayenSyncAudit>;
@@ -52,6 +55,7 @@ interface UseRayenImportConfirmationInput {
   runClinicalStage: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
   loadAuthoritativeStructuralRecord: (date: string) => Promise<DailyRecord>;
   runSerializedPersistence: <T>(operation: () => Promise<T>) => Promise<T>;
+  monotonicNow?: () => number;
 }
 
 export const useRayenImportConfirmation = ({
@@ -74,6 +78,7 @@ export const useRayenImportConfirmation = ({
   runClinicalStage,
   loadAuthoritativeStructuralRecord,
   runSerializedPersistence,
+  monotonicNow = defaultMonotonicNow,
 }: UseRayenImportConfirmationInput) => {
   const confirmationExecutionKeysRef = useRef(new Set<string>());
 
@@ -123,6 +128,15 @@ export const useRayenImportConfirmation = ({
         return;
       }
       confirmationExecutionKeysRef.current.add(confirmationKey);
+      const reviewTiming = consumeRayenStructuralReviewTiming(structuralReplan, monotonicNow);
+      structuralReplanRef.current = reviewTiming.plan;
+      if (reviewTiming.durationMs != null) {
+        try {
+          recordRunPerformance({ stagesMs: { reviewWait: reviewTiming.durationMs } }, run.id);
+        } catch {
+          // Aggregate observability must never block a confirmed structural import.
+        }
+      }
       transitionExecution({ type: 'persisting_structure' }, run.id);
       setState(previous => ({
         ...previous,
@@ -190,6 +204,10 @@ export const useRayenImportConfirmation = ({
               : { type: 'awaiting_review' },
             run.id
           );
+          structuralReplanRef.current = startRayenStructuralReviewTiming(
+            reviewTiming.plan,
+            monotonicNow
+          );
           setState(previous => ({
             ...previous,
             diff: error.replannedDiff,
@@ -250,7 +268,14 @@ export const useRayenImportConfirmation = ({
                   ),
               });
             }),
-          { applyPreviousDays }
+          {
+            applyPreviousDays,
+            now: monotonicNow,
+            onDuration: durationMs => {
+              if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
+              recordRunPerformance({ stagesMs: { structuralPersistence: durationMs } }, run.id);
+            },
+          }
         );
         if (!outcome) return;
         if (outcome.kind === 'failed') {
@@ -285,6 +310,7 @@ export const useRayenImportConfirmation = ({
       recordRunPerformance,
       loadAuthoritativeStructuralRecord,
       runSerializedPersistence,
+      monotonicNow,
       setState,
       transitionExecution,
       preparedSyncContextRef,

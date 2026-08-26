@@ -13,6 +13,8 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
             dualCapture: 1_500,
             reconciliation: 2_000,
             historicalEvidence: 700,
+            reviewWait: 45_000,
+            structuralPersistence: 2_100,
             clinicalReads: 3_500,
             writeQueueWait: 80,
             persistence: 400,
@@ -46,6 +48,8 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     expect(panel).toHaveTextContent('Preflight');
     expect(panel).toHaveTextContent('Captura dual');
     expect(panel).toHaveTextContent('Evidencia histórica incluida');
+    expect(panel).toHaveTextContent('Revisión humana');
+    expect(panel).toHaveTextContent('Guardado estructural');
     expect(panel).toHaveTextContent('Espera interna sumada');
     expect(panel).toHaveTextContent('Persistencia sumada');
     expect(panel).toHaveTextContent(

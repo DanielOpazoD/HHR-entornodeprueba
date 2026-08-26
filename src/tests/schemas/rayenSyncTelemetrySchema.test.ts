@@ -46,7 +46,14 @@ describe('Eloísa sync telemetry schema', () => {
             ],
           },
           performance: {
-            stagesMs: { preflight: 120, dualCapture: 900, clinicalReads: 2_500 },
+            stagesMs: {
+              preflight: 120,
+              dualCapture: 900,
+              reviewWait: 45_000,
+              structuralPersistence: 2_100,
+              clinicalReads: 2_500,
+              patientName: 'No persistible',
+            },
             counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },
             sourceQuality: {
               treatingPhysicians: {
@@ -87,7 +94,13 @@ describe('Eloísa sync telemetry schema', () => {
       'No persistible'
     );
     expect(record.rayenSyncHistory?.[0].performance).toEqual({
-      stagesMs: { preflight: 120, dualCapture: 900, clinicalReads: 2_500 },
+      stagesMs: {
+        preflight: 120,
+        dualCapture: 900,
+        reviewWait: 45_000,
+        structuralPersistence: 2_100,
+        clinicalReads: 2_500,
+      },
       counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },
       sourceQuality: {
         treatingPhysicians: {

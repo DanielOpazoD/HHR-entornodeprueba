@@ -5,6 +5,7 @@ import {
 } from './confirmRayenImport';
 import { applyRayenHistoricalCorrectionState } from './rayenCensusPersistenceGuard';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
+import { defaultMonotonicNow, elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 
 export const summarizeRayenStructuralCommit = (
   result: ConfirmedRayenImportResult<ConfirmedRayenCensusApplyResult>,
@@ -55,11 +56,22 @@ export type RayenStructuralPersistenceOutcome =
  */
 export const executeRayenStructuralPersistence = async (
   persist: () => Promise<ConfirmedRayenImportResult<ConfirmedRayenCensusApplyResult> | null>,
-  { applyPreviousDays = false }: { applyPreviousDays?: boolean } = {}
+  {
+    applyPreviousDays = false,
+    now = defaultMonotonicNow,
+    onDuration,
+  }: {
+    applyPreviousDays?: boolean;
+    now?: () => number;
+    onDuration?: (durationMs: number) => void;
+  } = {}
 ): Promise<RayenStructuralPersistenceOutcome | null> => {
+  const startedAt = now();
+  let persistenceAttempted = false;
   try {
     const result = await persist();
     if (!result) return null;
+    persistenceAttempted = true;
     const commit = summarizeRayenStructuralCommit(result, false, applyPreviousDays);
     return {
       kind: commit.hasSkippedItems ? 'applied_with_omissions' : 'applied',
@@ -67,6 +79,7 @@ export const executeRayenStructuralPersistence = async (
       commit,
     };
   } catch (error) {
+    persistenceAttempted = true;
     const result = committedRayenImportResultFromError<ConfirmedRayenCensusApplyResult>(error);
     if (!result) return { kind: 'failed', error };
     return {
@@ -75,5 +88,12 @@ export const executeRayenStructuralPersistence = async (
       commit: summarizeRayenStructuralCommit(result, true, applyPreviousDays),
       error,
     };
+  } finally {
+    // Observability must never alter the structural outcome if its consumer fails.
+    try {
+      if (persistenceAttempted) onDuration?.(elapsedMilliseconds(startedAt, now()));
+    } catch {
+      // Best-effort aggregate telemetry only.
+    }
   }
 };

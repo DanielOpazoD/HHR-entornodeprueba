@@ -6,6 +6,8 @@ const STAGE_LABELS: Array<[keyof RayenSyncPerformance['stagesMs'], string]> = [
   ['dualCapture', 'Captura dual'],
   ['reconciliation', 'Reconciliación total'],
   ['historicalEvidence', 'Evidencia histórica incluida'],
+  ['reviewWait', 'Revisión humana'],
+  ['structuralPersistence', 'Guardado estructural'],
   ['clinicalReads', 'Lecturas clínicas'],
   ['writeQueueWait', 'Espera interna sumada'],
   ['persistence', 'Persistencia sumada'],
@@ -67,11 +69,7 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
             )}{' '}
             · {coordination.confirmedEpisodes} episodios confirmados ·{' '}
             {coordination.omittedEpisodes} omitidos ·{' '}
-            {countLabel(
-              coordination.clinicalRetries,
-              'reintento clínico',
-              'reintentos clínicos'
-            )}
+            {countLabel(coordination.clinicalRetries, 'reintento clínico', 'reintentos clínicos')}
           </p>
         )}
         {physicianQuality && (
