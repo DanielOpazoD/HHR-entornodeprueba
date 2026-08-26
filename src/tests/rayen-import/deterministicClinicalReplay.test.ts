@@ -1,32 +1,38 @@
+import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyCensusImportDiff,
   applyEgresoReport,
+  cancelRayenSyncBundleRequest,
   reconcileCensus,
+  requestRayenSyncBundle,
   runClinicalFill,
+  subscribeToRayenSnapshots,
   type ClinicalFillDeps,
   type EgresoReportRow,
-  type RayenCensusSnapshot,
   type RayenHistoryScaleEvent,
 } from '@/features/rayen-import';
+import { buildStructuralReviewEvidence } from '@/features/rayen-import/domain/clinicalStageResolution';
 import {
-  buildAppliedRayenSyncEvent,
-  upsertRayenSyncEvent,
-  type RayenSyncRun,
-} from '@/features/rayen-import/domain/rayenSyncHistory';
+  presentRayenSyncOutcome,
+  presentRayenSyncRecovery,
+} from '@/features/rayen-import/components/rayenSyncPresentation';
 import { prepareRayenSyncTemporalContext } from '@/features/rayen-import/hooks/rayenSyncTemporalContext';
 import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
+import { useRayenSyncAudit } from '@/features/rayen-import/hooks/useRayenSyncAudit';
 import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
+import { DailyRecordSchema } from '@/schemas/zodSchemas';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { applyPatches } from '@/utils/patchUtils';
 import {
   bradenHistoryEvent,
+  captureFor,
   CURRENT_CLINICAL_DAY,
   emptyRecordFor,
   patientAt,
   REPLAY_NOW,
-  snapshotFor,
+  type SyntheticRayenCapture,
   syntheticEncounter,
   verifiedShortStayDischarge,
   vitalSignsForm,
@@ -35,7 +41,7 @@ import {
 interface ReplayEvidence {
   historyByEpisode?: Record<string, RayenHistoryScaleEvent[]>;
   formsByEpisode?: Record<string, unknown[]>;
-  egresos?: EgresoReportRow[];
+  formsErrorByEpisode?: Record<string, string>;
 }
 
 interface ReplayResult {
@@ -44,17 +50,87 @@ interface ReplayResult {
   structural: ReturnType<typeof applyCensusImportDiff>;
   clinical: Awaited<ReturnType<typeof runClinicalFill>>;
   clinicalWrites: number;
+  terminalEvent: NonNullable<DailyRecord['rayenSyncHistory']>[number];
+  presentation: ReturnType<typeof presentRayenSyncOutcome>;
+  recovery: ReturnType<typeof presentRayenSyncRecovery>;
 }
 
 let runSequence = 0;
 
+const receiveCorrelatedCapture = (capture: SyntheticRayenCapture): SyntheticRayenCapture => {
+  const delivery: { accepted: SyntheticRayenCapture | null } = { accepted: null };
+  const unsubscribe = subscribeToRayenSnapshots((snapshot, bundle) => {
+    delivery.accepted = { snapshot, bundle };
+  });
+  const requestId = requestRayenSyncBundle(capture.bundle.dateStart, capture.bundle.dateEnd);
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      origin: window.location.origin,
+      data: {
+        type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
+        requestId: `${requestId}-stale`,
+        snapshot: capture.snapshot,
+        bundle: capture.bundle,
+      },
+    })
+  );
+  if (delivery.accepted) {
+    unsubscribe();
+    cancelRayenSyncBundleRequest(requestId);
+    throw new Error('El puente aceptó evidencia de una solicitud no correlacionada.');
+  }
+  window.dispatchEvent(
+    new MessageEvent('message', {
+      origin: window.location.origin,
+      data: {
+        type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
+        requestId,
+        snapshot: capture.snapshot,
+        bundle: capture.bundle,
+      },
+    })
+  );
+  unsubscribe();
+  if (!delivery.accepted) {
+    cancelRayenSyncBundleRequest(requestId);
+    throw new Error('La captura sintética no superó el contrato correlacionado de Rayen.');
+  }
+  return delivery.accepted;
+};
+
 const replay = async (
   current: DailyRecord,
-  snapshot: RayenCensusSnapshot,
+  capture: SyntheticRayenCapture,
   evidence: ReplayEvidence = {},
   now = REPLAY_NOW
 ): Promise<ReplayResult> => {
   const runId = `synthetic-replay-${++runSequence}`;
+  const { snapshot, bundle } = receiveCorrelatedCapture(capture);
+  let stored = current;
+  const currentRecordRef: { current: DailyRecord } = { current: stored };
+  const persistPatch = async (patch: DailyRecordPatch): Promise<void> => {
+    stored = DailyRecordSchema.parse(
+      JSON.parse(
+        JSON.stringify(prepareDailyRecordForPersistence(applyPatches(stored, patch), current.date))
+      )
+    );
+    currentRecordRef.current = stored;
+  };
+  let auditClockTick = 0;
+  const audit = renderHook(() =>
+    useRayenSyncAudit({
+      currentRecordRef,
+      patchDailyRecord: persistPatch,
+      actor: 'Operador sintético',
+      now: () => new Date(now.getTime() + auditClockTick++ * 1_000),
+      createId: () => runId,
+    })
+  );
+  const run = audit.result.current.startRun(undefined, undefined, {
+    mode: 'preview',
+    revision: 1,
+    clinicalBatchMode: 'shadow',
+  });
   const prepared = await prepareRayenSyncTemporalContext({
     displayedRecord: current,
     runId,
@@ -63,9 +139,10 @@ const replay = async (
   });
   const reference = new Date(snapshot.capturedAt);
   const planned = reconcileCensus(prepared.record, snapshot, { reference });
-  const diff = evidence.egresos
-    ? applyEgresoReport(planned, evidence.egresos, prepared.record)
-    : planned;
+  const diff =
+    bundle.egresoRows.length > 0
+      ? applyEgresoReport(planned, bundle.egresoRows, prepared.record)
+      : planned;
   let movementSequence = 0;
   const structural = applyCensusImportDiff(prepared.record, diff, {
     idFactory: () => `${runId}-movement-${++movementSequence}`,
@@ -73,27 +150,13 @@ const replay = async (
     actor: 'Operador sintético',
     syncRunId: runId,
   });
-  const run: RayenSyncRun = {
-    id: runId,
-    sourceDate: prepared.selectedDate,
-    startedAt: prepared.preparedAt,
-    by: 'Operador sintético',
-    policy: { mode: 'preview', revision: 1, clinicalBatchMode: 'shadow' },
-  };
-  const completedAt = new Date(now.getTime() + 1_000).toISOString();
-  const appliedEvent = buildAppliedRayenSyncEvent(run, diff, completedAt);
-  const confirmed = prepareDailyRecordForPersistence(
-    {
-      ...structural.record,
-      rayenSync: { at: completedAt, by: run.by, runId, status: 'applied' },
-      rayenSyncHistory: upsertRayenSyncEvent(structural.record.rayenSyncHistory, appliedEvent),
-      lastUpdated: completedAt,
-    },
-    prepared.selectedDate
-  );
+  const applied = audit.result.current.applyRunToRecord(structural.record, diff);
+  const confirmed = prepareDailyRecordForPersistence(applied.record, prepared.selectedDate);
+  stored = DailyRecordSchema.parse(JSON.parse(JSON.stringify(confirmed)));
+  currentRecordRef.current = stored;
   const handoff = resolveConfirmedRayenCensusHandoff(
     {
-      record: confirmed,
+      record: stored,
       result: {
         date: prepared.selectedDate,
         outcome: 'clean',
@@ -108,14 +171,13 @@ const replay = async (
         conflictSummary: null,
         observabilityTags: ['synthetic_replay'],
         repairApplied: false,
-        confirmedRecord: confirmed,
+        confirmedRecord: stored,
       },
     },
     { date: prepared.selectedDate, clinicalDay: prepared.target.clinicalDay, runId, diff }
   );
-  let stored = handoff.record;
   const applyPatch = vi.fn(async (patch: DailyRecordPatch) => {
-    stored = prepareDailyRecordForPersistence(applyPatches(stored, patch), prepared.selectedDate);
+    await persistPatch(patch);
   });
   const deps: ClinicalFillDeps = {
     fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),
@@ -129,6 +191,7 @@ const replay = async (
     })),
     fetchScalesForms: vi.fn(async (episodeId: string) => ({
       forms: evidence.formsByEpisode?.[episodeId] ?? [],
+      error: evidence.formsErrorByEpisode?.[episodeId],
     })),
     fetchCudyrCategories: vi.fn().mockResolvedValue({
       items: [],
@@ -141,12 +204,23 @@ const replay = async (
     createId: () => `${runId}-clinical`,
   };
   const clinical = await runClinicalFill(handoff.record, handoff.clinicalDay, deps);
+  await audit.result.current.completeRun(handoff.record, clinical, null, run.id, {
+    structuralReview: buildStructuralReviewEvidence(handoff),
+  });
+  const persistedTerminalEvent = stored.rayenSyncHistory?.find(event => event.id === runId);
+  if (!persistedTerminalEvent) {
+    throw new Error('El cierre terminal no sobrevivió a la persistencia del censo.');
+  }
+  audit.unmount();
   return {
     record: stored,
     target: prepared.target,
     structural,
     clinical,
     clinicalWrites: applyPatch.mock.calls.length,
+    terminalEvent: persistedTerminalEvent,
+    presentation: presentRayenSyncOutcome(persistedTerminalEvent),
+    recovery: presentRayenSyncRecovery(persistedTerminalEvent, 'ready'),
   };
 };
 
@@ -155,7 +229,7 @@ describe('deterministic sanitized clinical replay', () => {
     const admission = syntheticEncounter('admission');
     const result = await replay(
       emptyRecordFor(CURRENT_CLINICAL_DAY),
-      snapshotFor(CURRENT_CLINICAL_DAY, [admission]),
+      captureFor(CURRENT_CLINICAL_DAY, [admission]),
       {
         historyByEpisode: { [admission.encounterId]: [bradenHistoryEvent(CURRENT_CLINICAL_DAY)] },
         formsByEpisode: { [admission.encounterId]: [vitalSignsForm(CURRENT_CLINICAL_DAY, 1001)] },
@@ -164,6 +238,21 @@ describe('deterministic sanitized clinical replay', () => {
 
     expect(result.structural.applied.admissions).toBe(1);
     expect(result.clinical).toMatchObject({ total: 1, patched: 1, errors: [] });
+    expect(result.terminalEvent).toMatchObject({
+      status: 'complete',
+      coverage: { total: 1, completed: 1, errors: 0, sourceErrors: 0 },
+    });
+    expect(result.presentation).toEqual({
+      label: 'Completa',
+      detail: null,
+      tone: 'success',
+      unresolved: false,
+    });
+    expect(result.recovery).toBeNull();
+    expect(result.record.rayenSync).toMatchObject({
+      runId: result.terminalEvent.id,
+      status: 'complete',
+    });
     expect(result.record.beds.H1C1).toMatchObject({
       clinicalEpisodeId: admission.encounterId,
       vitalSigns: { systolic: 118, diastolic: 72, heartRate: 76, spo2: 98 },
@@ -180,7 +269,7 @@ describe('deterministic sanitized clinical replay', () => {
       const admission = syntheticEncounter('admission', {
         admissionDatetime: `${date}T10:00:00-06:00`,
       });
-      const result = await replay(emptyRecordFor(date), snapshotFor(date, [admission]), {
+      const result = await replay(emptyRecordFor(date), captureFor(date, [admission]), {
         historyByEpisode: { [admission.encounterId]: [bradenHistoryEvent(date)] },
         formsByEpisode: { [admission.encounterId]: [vitalSignsForm(date, 1100 + days)] },
       });
@@ -195,6 +284,87 @@ describe('deterministic sanitized clinical replay', () => {
       });
     }
   );
+
+  it('persists a typed clinical failure and offers only the safe clinical retry', async () => {
+    const admission = syntheticEncounter('admission');
+    const result = await replay(
+      emptyRecordFor(CURRENT_CLINICAL_DAY),
+      captureFor(CURRENT_CLINICAL_DAY, [admission]),
+      {
+        formsErrorByEpisode: {
+          [admission.encounterId]: 'Detalle externo deliberadamente cambiante.',
+        },
+      }
+    );
+
+    expect(result.terminalEvent).toMatchObject({
+      status: 'partial',
+      structuralReview: { structureConfirmed: true, isolatedConflicts: 0 },
+      coverage: {
+        total: 1,
+        completed: 0,
+        errors: 1,
+        sourceErrors: 2,
+        issues: [
+          { bedId: 'H1C1', source: 'scales', reason: 'source_unavailable' },
+          { bedId: 'H1C1', source: 'vitals', reason: 'source_unavailable' },
+        ],
+      },
+    });
+    expect(result.presentation).toMatchObject({
+      label: 'Parcial',
+      detail: '1 paciente no se pudo completar · Fuente clínica incompleta',
+      tone: 'warning',
+      unresolved: true,
+    });
+    expect(result.recovery).toMatchObject({
+      title: 'Información clínica pendiente',
+      action: 'retry_clinical',
+      actionLabel: 'Reintentar información clínica',
+    });
+    expect(result.record.rayenSync).toMatchObject({
+      runId: result.terminalEvent.id,
+      status: 'partial',
+    });
+    expect(
+      result.record.rayenSyncHistory?.filter(event => event.id === result.terminalEvent.id)
+    ).toHaveLength(1);
+    expect(JSON.stringify(result.terminalEvent)).not.toContain(
+      'Detalle externo deliberadamente cambiante.'
+    );
+  });
+
+  it('keeps an isolated structural conflict visible after the clinical stage settles', async () => {
+    const occupant = syntheticEncounter('departing');
+    const incoming = syntheticEncounter('incoming');
+    const result = await replay(
+      emptyRecordFor(CURRENT_CLINICAL_DAY, {
+        beds: { H1C1: patientAt(occupant, 'H1C1') },
+      }),
+      captureFor(CURRENT_CLINICAL_DAY, [incoming])
+    );
+
+    expect(result.terminalEvent).toMatchObject({
+      status: 'partial',
+      coverage: { total: 0, completed: 0, errors: 0, sourceErrors: 0 },
+      structuralReview: {
+        structureConfirmed: true,
+        isolatedConflicts: 1,
+        issues: [{ bedId: 'H1C1', reason: 'occupied-local-bed' }],
+      },
+    });
+    expect(result.presentation).toMatchObject({
+      label: 'Parcial',
+      detail: '1 cambio del censo no se aplicó',
+      tone: 'warning',
+      unresolved: true,
+    });
+    expect(result.recovery).toMatchObject({
+      title: 'Censo pendiente de revisión',
+      action: 'retry_full',
+      actionLabel: 'Revisar censo',
+    });
+  });
 
   it('admits a new clinicalEpisodeId when the same synthetic RUN has an older discharge', async () => {
     const readmission = syntheticEncounter('readmission', {
@@ -218,7 +388,7 @@ describe('deterministic sanitized clinical replay', () => {
         },
       ],
     });
-    const result = await replay(current, snapshotFor(CURRENT_CLINICAL_DAY, [readmission]));
+    const result = await replay(current, captureFor(CURRENT_CLINICAL_DAY, [readmission]));
 
     expect(result.structural.applied.admissions).toBe(1);
     expect(result.record.beds.H1C1.clinicalEpisodeId).toBe('episode-readmission-new');
@@ -227,10 +397,7 @@ describe('deterministic sanitized clinical replay', () => {
   it('records a verified brief hospitalization that was already discharged before capture', async () => {
     const result = await replay(
       emptyRecordFor(CURRENT_CLINICAL_DAY),
-      snapshotFor(CURRENT_CLINICAL_DAY, []),
-      {
-        egresos: [verifiedShortStayDischarge()],
-      }
+      captureFor(CURRENT_CLINICAL_DAY, [], [verifiedShortStayDischarge()])
     );
 
     expect(result.record.discharges).toEqual([
@@ -255,7 +422,7 @@ describe('deterministic sanitized clinical replay', () => {
     });
     const result = await replay(
       emptyRecordFor(CURRENT_CLINICAL_DAY),
-      snapshotFor(CURRENT_CLINICAL_DAY, [mother, newborn])
+      captureFor(CURRENT_CLINICAL_DAY, [mother, newborn])
     );
 
     expect(result.record.beds.H5C1).toMatchObject({
@@ -285,14 +452,11 @@ describe('deterministic sanitized clinical replay', () => {
     };
     const result = await replay(
       current,
-      snapshotFor(CURRENT_CLINICAL_DAY, [
-        incoming,
-        moving,
-        { ...departing, hasMedicalDischarge: true },
-      ]),
-      {
-        egresos: [egreso],
-      }
+      captureFor(
+        CURRENT_CLINICAL_DAY,
+        [incoming, moving, { ...departing, hasMedicalDischarge: true }],
+        [egreso]
+      )
     );
 
     expect(result.structural.skipped).toEqual([]);
@@ -315,12 +479,12 @@ describe('deterministic sanitized clinical replay', () => {
     };
     const first = await replay(
       emptyRecordFor(CURRENT_CLINICAL_DAY),
-      snapshotFor(CURRENT_CLINICAL_DAY, [admission]),
+      captureFor(CURRENT_CLINICAL_DAY, [admission]),
       evidence
     );
     const second = await replay(
       first.record,
-      snapshotFor(CURRENT_CLINICAL_DAY, [admission]),
+      captureFor(CURRENT_CLINICAL_DAY, [admission]),
       evidence
     );
 
@@ -332,6 +496,8 @@ describe('deterministic sanitized clinical replay', () => {
     });
     expect(second.clinical).toMatchObject({ total: 1, patched: 0, errors: [] });
     expect(second.clinicalWrites).toBe(0);
+    expect(second.terminalEvent.status).toBe('complete');
+    expect(second.presentation.unresolved).toBe(false);
     expect(second.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
     expect(second.record.beds.H1C1.evaluationScores?.history).toHaveLength(1);
   });

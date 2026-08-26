@@ -1,4 +1,9 @@
-import type { EgresoReportRow, RayenCensusSnapshot, RayenEncounter } from '@/features/rayen-import';
+import type {
+  EgresoReportRow,
+  RayenCensusSnapshot,
+  RayenEncounter,
+  RayenSyncBundle,
+} from '@/features/rayen-import';
 import { rayenToPatientData } from '@/features/rayen-import';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -44,6 +49,44 @@ export const snapshotFor = (
   encounters,
   isComplete,
 });
+
+/** Guarded, synthetic dual-source evidence matching the snapshot capture instant. */
+export const syncBundleFor = (
+  date: string,
+  snapshot: RayenCensusSnapshot,
+  egresoRows: EgresoReportRow[] = []
+): RayenSyncBundle => {
+  const fichaCapturedAt = Date.parse(snapshot.capturedAt);
+  const gestionCapturedAt = fichaCapturedAt + 1_000;
+  return {
+    id: `synthetic-bundle-${date}`,
+    startedAt: new Date(fichaCapturedAt - 1_000).toISOString(),
+    completedAt: new Date(gestionCapturedAt + 1_000).toISOString(),
+    facilityId: snapshot.facilityId,
+    dateStart: date,
+    dateEnd: date,
+    fichaMedicoCapturedAt: snapshot.capturedAt,
+    gestionCamasCapturedAt: new Date(gestionCapturedAt).toISOString(),
+    sourceSkewMs: 1_000,
+    egresoRows,
+  };
+};
+
+export interface SyntheticRayenCapture {
+  snapshot: RayenCensusSnapshot;
+  bundle: RayenSyncBundle;
+}
+
+/** Production-shaped evidence emitted together by the guarded extension capture. */
+export const captureFor = (
+  date: string,
+  encounters: RayenEncounter[],
+  egresoRows: EgresoReportRow[] = [],
+  isComplete = true
+): SyntheticRayenCapture => {
+  const snapshot = snapshotFor(date, encounters, isComplete);
+  return { snapshot, bundle: syncBundleFor(date, snapshot, egresoRows) };
+};
 
 export const emptyRecordFor = (date: string, overrides: Partial<DailyRecord> = {}): DailyRecord =>
   ({
