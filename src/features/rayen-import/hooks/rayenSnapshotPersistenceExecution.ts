@@ -3,29 +3,29 @@ import {
   type RayenStructuralPersistenceOutcome,
 } from './rayenStructuralCommitOutcome';
 
-export type CommittedRayenSnapshotPersistenceOutcome = Exclude<
+export type CommittedRayenStructuralPersistenceOutcome = Exclude<
   RayenStructuralPersistenceOutcome,
   { kind: 'failed' }
 >;
 
-export type RayenSnapshotPersistenceExecutionResult =
+export type RayenStructuralPersistenceExecutionResult =
   | { kind: 'not_started' }
   | { kind: 'failed' }
-  | { kind: 'committed'; outcome: CommittedRayenSnapshotPersistenceOutcome };
+  | { kind: 'committed'; outcome: CommittedRayenStructuralPersistenceOutcome };
 
-interface RunRayenSnapshotPersistenceInput {
+interface RunRayenStructuralPersistenceLifecycleInput {
   executionKey: string;
   activeExecutionKeys: Set<string>;
   isCurrent: () => boolean;
-  startPersistence: () => void;
+  startPersistence: () => boolean | void;
   persist: Parameters<typeof executeRayenStructuralPersistence>[0];
   persistenceOptions?: Parameters<typeof executeRayenStructuralPersistence>[1];
-  continueAfterCommit: (outcome: CommittedRayenSnapshotPersistenceOutcome) => Promise<void>;
+  continueAfterCommit: (outcome: CommittedRayenStructuralPersistenceOutcome) => Promise<void>;
   finishFailedPersistence: (error: unknown) => void;
 }
 
-/** Owns the single automatic/no-change snapshot persistence lifecycle. */
-export const runRayenSnapshotPersistence = async ({
+/** Owns the shared automatic, no-change, and confirmed structural persistence lifecycle. */
+export const runRayenStructuralPersistenceLifecycle = async ({
   executionKey,
   activeExecutionKeys,
   isCurrent,
@@ -34,11 +34,11 @@ export const runRayenSnapshotPersistence = async ({
   persistenceOptions,
   continueAfterCommit,
   finishFailedPersistence,
-}: RunRayenSnapshotPersistenceInput): Promise<RayenSnapshotPersistenceExecutionResult> => {
+}: RunRayenStructuralPersistenceLifecycleInput): Promise<RayenStructuralPersistenceExecutionResult> => {
   if (!isCurrent() || activeExecutionKeys.has(executionKey)) return { kind: 'not_started' };
   activeExecutionKeys.add(executionKey);
   try {
-    startPersistence();
+    if (startPersistence() === false) return { kind: 'not_started' };
     const outcome = await executeRayenStructuralPersistence(persist, persistenceOptions);
     if (!outcome) return { kind: 'not_started' };
     if (outcome.kind === 'failed') {

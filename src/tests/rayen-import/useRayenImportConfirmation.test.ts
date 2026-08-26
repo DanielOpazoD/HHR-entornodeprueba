@@ -97,12 +97,14 @@ const renderConfirmation = ({
   reviewStartedAtMs,
   monotonicNow = Date.now,
   recordRunPerformance = vi.fn(),
+  structuralPersistenceExecutionKeys = new Set<string>(),
 }: {
   executionRef?: ReturnType<typeof createExecutionRef>;
   runClinicalStage?: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
   reviewStartedAtMs?: number;
   monotonicNow?: () => number;
   recordRunPerformance?: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
+  structuralPersistenceExecutionKeys?: Set<string>;
 } = {}) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
@@ -119,6 +121,9 @@ const renderConfirmation = ({
       replan: vi.fn(),
     },
   };
+  const structuralPersistenceExecutionKeysRef = {
+    current: structuralPersistenceExecutionKeys,
+  };
   const hook = renderHook(() =>
     useRayenImportConfirmation({
       currentRecord: record,
@@ -130,6 +135,7 @@ const renderConfirmation = ({
       transitionExecution,
       preparedSyncContextRef: preparedSyncContextRef as never,
       structuralReplanRef,
+      structuralPersistenceExecutionKeysRef,
       selectedDateRef: { current: record.date },
       dailyRecord: {} as never,
       isAdmin: false,
@@ -153,6 +159,7 @@ const renderConfirmation = ({
     runClinicalStage,
     setState,
     structuralReplanRef,
+    structuralPersistenceExecutionKeysRef,
     transitionExecution,
   };
 };
@@ -345,6 +352,59 @@ describe('useRayenImportConfirmation execution ownership', () => {
     });
     expect(harness.failRun).not.toHaveBeenCalled();
     expect(harness.runClinicalStage).not.toHaveBeenCalled();
+  });
+
+  it('releases shared ownership so the same reviewed execution can retry after replanning', async () => {
+    const freshRecord = { ...record, lastUpdated: '2026-07-28T10:01:00.000Z' };
+    const error = new RayenStructuralPlanChangedError(freshRecord, diff);
+    const result = committedResult({ confirmedHandoff: { source: 'retried-confirmation' } });
+    mocks.applyConfirmedRayenImport.mockRejectedValueOnce(error).mockResolvedValueOnce(result);
+    const harness = renderConfirmation();
+
+    await act(async () => harness.result.current());
+    await act(async () => harness.result.current());
+
+    expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledTimes(2);
+    expect(mocks.applyConfirmedRayenImport.mock.calls[1]?.[0]).toMatchObject({
+      base: freshRecord,
+    });
+    expect(harness.runClinicalStage).toHaveBeenCalledOnce();
+    expect(harness.runClinicalStage).toHaveBeenCalledWith({ source: 'retried-confirmation' });
+    expect(harness.failRun).not.toHaveBeenCalled();
+  });
+
+  it('ignores a duplicate confirmation while the shared lifecycle owns the execution', async () => {
+    let resolvePersistence!: (value: unknown) => void;
+    mocks.applyConfirmedRayenImport.mockReturnValue(
+      new Promise(resolve => {
+        resolvePersistence = resolve;
+      })
+    );
+    const harness = renderConfirmation();
+
+    const firstConfirmation = harness.result.current();
+    const duplicateConfirmation = harness.result.current();
+
+    expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce();
+    resolvePersistence(committedResult());
+    await act(async () => Promise.all([firstConfirmation, duplicateConfirmation]));
+
+    expect(mocks.applyConfirmedRayenImport).toHaveBeenCalledOnce();
+    expect(harness.runClinicalStage).toHaveBeenCalledOnce();
+    expect(harness.failRun).not.toHaveBeenCalled();
+  });
+
+  it('does not start confirmation when another structural route owns the execution', async () => {
+    const executionKey = `run-1:request-1:${record.date}`;
+    const structuralPersistenceExecutionKeys = new Set([executionKey]);
+    const harness = renderConfirmation({ structuralPersistenceExecutionKeys });
+
+    await act(async () => harness.result.current());
+
+    expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
+    expect(harness.transitionExecution).not.toHaveBeenCalled();
+    expect(harness.setState).not.toHaveBeenCalled();
+    expect(structuralPersistenceExecutionKeys).toEqual(new Set([executionKey]));
   });
 
   it('handles a clinical failure after a normal commit through the existing failure path', async () => {

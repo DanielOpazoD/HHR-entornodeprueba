@@ -70,6 +70,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     useRayenSyncRequestController();
   const preparedSyncContextRef = useRef<PreparedRayenSyncContext | null>(null);
   const structuralReplanRef = useRef<RayenStructuralReplan | null>(null);
+  const structuralPersistenceExecutionKeysRef = useRef(new Set<string>());
   const clinicalRetryTokenRef = useRef<ClinicalRetryToken | null>(null);
   const persistenceQueueRef = useRef(createRayenSyncPersistenceQueue());
   const currentRecord = dailyRecordData.record as DailyRecord | null | undefined;
@@ -150,8 +151,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   const selectedDate = selectedCensusDate ?? currentRecord?.date;
   const selectedDateRef = useRef(selectedDate);
   useEffect(() => {
-    // The route selection changes before its record finishes loading. Cancel from that explicit
-    // date instead of waiting for the replacement record, while same-date refetches remain inert.
+    // Cancel from the selected date before its replacement record loads; same-date refetches stay inert.
     if (!selectedDate) return;
     const previousDate = selectedDateRef.current;
     selectedDateRef.current = selectedDate;
@@ -160,8 +160,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     const stage = executionRef.current.stage;
     const cancellableBeforeCommit = isRayenSyncExecutionCancellableBeforeCommit(stage);
     if (isRayenSyncExecutionActive(stage) && !cancellableBeforeCommit) {
-      // The structural handoff is already being persisted or clinical work is running. Changing
-      // the route only dismisses its old-day view; the correlated execution must still converge.
+      // After persistence starts, a route change only hides the old-day view; convergence continues.
       setState(previous => ({ ...previous, isPreviewOpen: false }));
       return;
     }
@@ -246,6 +245,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     recordRunPerformance,
     preparedSyncContextRef,
     structuralReplanRef,
+    structuralPersistenceExecutionKeysRef,
     runSerializedPersistence,
     loadAuthoritativeStructuralRecord,
   });
@@ -304,6 +304,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     transitionExecution,
     preparedSyncContextRef,
     structuralReplanRef,
+    structuralPersistenceExecutionKeysRef,
     selectedDateRef,
     dailyRecord,
     isAdmin,

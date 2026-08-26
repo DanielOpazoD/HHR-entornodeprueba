@@ -33,6 +33,7 @@ export interface UseRayenSnapshotPreviewInput {
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
   preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
   structuralReplanRef: RefObject<RayenStructuralReplan | null>;
+  structuralPersistenceExecutionKeysRef: RefObject<Set<string>>;
   runSerializedPersistence: RunSerializedRayenPersistence;
   loadAuthoritativeStructuralRecord: (date: string) => Promise<DailyRecord>;
   monotonicNow?: () => number;

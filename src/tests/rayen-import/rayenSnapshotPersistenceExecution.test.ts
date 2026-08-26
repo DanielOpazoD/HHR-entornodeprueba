@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import { RayenHistoricalCorrectionAfterCommitError } from '@/features/rayen-import/hooks/confirmRayenImport';
-import { runRayenSnapshotPersistence } from '@/features/rayen-import/hooks/rayenSnapshotPersistenceExecution';
+import { runRayenStructuralPersistenceLifecycle } from '@/features/rayen-import/hooks/rayenSnapshotPersistenceExecution';
 
 const diff = {
   admissions: [],
@@ -44,11 +44,11 @@ const createInput = ({
   finishFailedPersistence: vi.fn(),
 });
 
-describe('runRayenSnapshotPersistence', () => {
+describe('runRayenStructuralPersistenceLifecycle', () => {
   it('owns one applied persistence lifecycle and releases its execution key', async () => {
     const input = createInput();
 
-    const result = await runRayenSnapshotPersistence(input);
+    const result = await runRayenStructuralPersistenceLifecycle(input);
 
     expect(result).toMatchObject({ kind: 'committed', outcome: { kind: 'applied' } });
     expect(input.startPersistence).toHaveBeenCalledOnce();
@@ -65,8 +65,10 @@ describe('runRayenSnapshotPersistence', () => {
     const activeExecutionKeys = new Set(['run-1:request-1:2026-08-25']);
     const duplicate = createInput({ activeExecutionKeys });
 
-    await expect(runRayenSnapshotPersistence(stale)).resolves.toEqual({ kind: 'not_started' });
-    await expect(runRayenSnapshotPersistence(duplicate)).resolves.toEqual({
+    await expect(runRayenStructuralPersistenceLifecycle(stale)).resolves.toEqual({
+      kind: 'not_started',
+    });
+    await expect(runRayenStructuralPersistenceLifecycle(duplicate)).resolves.toEqual({
       kind: 'not_started',
     });
 
@@ -81,7 +83,9 @@ describe('runRayenSnapshotPersistence', () => {
     const error = new Error('write failed');
     const input = createInput({ persist: vi.fn().mockRejectedValue(error) });
 
-    await expect(runRayenSnapshotPersistence(input)).resolves.toEqual({ kind: 'failed' });
+    await expect(runRayenStructuralPersistenceLifecycle(input)).resolves.toEqual({
+      kind: 'failed',
+    });
 
     expect(input.finishFailedPersistence).toHaveBeenCalledWith(error);
     expect(input.continueAfterCommit).not.toHaveBeenCalled();
@@ -94,7 +98,9 @@ describe('runRayenSnapshotPersistence', () => {
       continueAfterCommit: vi.fn().mockRejectedValue(error),
     });
 
-    await expect(runRayenSnapshotPersistence(input)).resolves.toEqual({ kind: 'failed' });
+    await expect(runRayenStructuralPersistenceLifecycle(input)).resolves.toEqual({
+      kind: 'failed',
+    });
 
     expect(input.finishFailedPersistence).toHaveBeenCalledWith(error);
     expect(input.activeExecutionKeys).toEqual(new Set());
@@ -111,7 +117,7 @@ describe('runRayenSnapshotPersistence', () => {
       continueAfterCommit: vi.fn().mockRejectedValue(clinicalError),
     });
 
-    await expect(runRayenSnapshotPersistence(input)).rejects.toBe(clinicalError);
+    await expect(runRayenStructuralPersistenceLifecycle(input)).rejects.toBe(clinicalError);
 
     expect(input.continueAfterCommit).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'requires_fresh_capture' })
@@ -123,10 +129,25 @@ describe('runRayenSnapshotPersistence', () => {
   it('silently releases ownership when persistence belongs to a superseded execution', async () => {
     const input = createInput({ persist: vi.fn().mockResolvedValue(null) });
 
-    await expect(runRayenSnapshotPersistence(input)).resolves.toEqual({ kind: 'not_started' });
+    await expect(runRayenStructuralPersistenceLifecycle(input)).resolves.toEqual({
+      kind: 'not_started',
+    });
 
     expect(input.continueAfterCommit).not.toHaveBeenCalled();
     expect(input.finishFailedPersistence).not.toHaveBeenCalled();
+    expect(input.activeExecutionKeys).toEqual(new Set());
+  });
+
+  it('releases ownership when a route-specific precondition declines to start', async () => {
+    const input = createInput();
+    input.startPersistence.mockReturnValue(false);
+
+    await expect(runRayenStructuralPersistenceLifecycle(input)).resolves.toEqual({
+      kind: 'not_started',
+    });
+
+    expect(input.persist).not.toHaveBeenCalled();
+    expect(input.continueAfterCommit).not.toHaveBeenCalled();
     expect(input.activeExecutionKeys).toEqual(new Set());
   });
 });
