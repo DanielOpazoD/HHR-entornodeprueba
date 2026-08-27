@@ -29,16 +29,24 @@ const collectPatientEpisodeKeys = (patient: PatientData | undefined): string[] =
   return keys;
 };
 
-const resolveRecordBaseRevision = (record: DailyRecord): number | undefined => {
-  const revision = Number((record as { meta?: { revision?: unknown } }).meta?.revision);
-  return Number.isFinite(revision) && revision >= 0 ? revision : undefined;
+const resolveOptionalBaseRevision = (value: unknown): number | undefined => {
+  if (value === null || value === undefined || value === '') return undefined;
+  const revision = Number(value);
+  return Number.isInteger(revision) && revision >= 0 ? revision : undefined;
 };
+
+const resolveRecordBaseRevision = (record: DailyRecord): number | undefined =>
+  resolveOptionalBaseRevision((record as { meta?: { revision?: unknown } }).meta?.revision);
 
 export const buildDailyRecordSyncContract = (
   record: DailyRecord,
   baseContract: SyncTaskContract = {}
 ): SyncTaskContract => {
   const mutationIdentity = buildSyncMutationIdentity();
+  const baseContractWithoutRevision = { ...baseContract };
+  delete baseContractWithoutRevision.baseRevision;
+  const baseRevision =
+    resolveOptionalBaseRevision(baseContract.baseRevision) ?? resolveRecordBaseRevision(record);
   const clinicalEpisodeKeys = Array.from(
     new Set([
       ...(baseContract.clinicalEpisodeKeys || []),
@@ -47,9 +55,9 @@ export const buildDailyRecordSyncContract = (
   ).filter(Boolean);
 
   return {
-    ...baseContract,
+    ...baseContractWithoutRevision,
     expectedVersion: baseContract.expectedVersion || record.lastUpdated,
-    baseRevision: baseContract.baseRevision ?? resolveRecordBaseRevision(record),
+    ...(baseRevision !== undefined ? { baseRevision } : {}),
     recordRevision: record.lastUpdated,
     clinicalEpisodeKeys,
     changedPaths: baseContract.changedPaths?.length ? baseContract.changedPaths : undefined,

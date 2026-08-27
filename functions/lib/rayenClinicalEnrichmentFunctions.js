@@ -77,7 +77,8 @@ const summarizeRequest = data => {
       ) + checkpoints.length,
     clinicalCribCount: patches.filter(target => target?.clinicalCrib === true).length,
     hasExpectedVersion: typeof data?.expectedLastUpdated === 'string',
-    hasBaseRevision: data?.baseRevision !== undefined,
+    hasBaseRevision:
+      data?.baseRevision !== undefined && data?.baseRevision !== null && data?.baseRevision !== '',
     fieldContractVersion: data?.fieldContractVersion === 2 ? 2 : 1,
     versionGuardEnforced: mode === 'enforced',
   };
