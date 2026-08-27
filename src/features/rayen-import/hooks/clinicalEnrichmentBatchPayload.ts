@@ -134,9 +134,11 @@ export const prepareClinicalEnrichmentBatchPayload = ({
     return { payload: null, evidence };
   }
 
-  const revision = Number(
-    (record as DailyRecord & { meta?: { revision?: unknown } }).meta?.revision
-  );
+  const rawRevision = (record as DailyRecord & { meta?: { revision?: unknown } }).meta?.revision;
+  const revision =
+    rawRevision === null || rawRevision === undefined || rawRevision === ''
+      ? undefined
+      : Number(rawRevision);
   return {
     payload: {
       date: record.date,
@@ -145,7 +147,9 @@ export const prepareClinicalEnrichmentBatchPayload = ({
       mutationId,
       expectedLastUpdated: record.lastUpdated,
       fieldContractVersion: RAYEN_CLINICAL_ENRICHMENT_FIELD_CONTRACT_VERSION,
-      ...(Number.isFinite(revision) && revision >= 0 ? { baseRevision: revision } : {}),
+      ...(revision !== undefined && Number.isInteger(revision) && revision >= 0
+        ? { baseRevision: revision }
+        : {}),
       mode: effectiveMode,
       dryRun: effectiveMode === 'shadow',
       ...sectionsPayload,

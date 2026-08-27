@@ -120,6 +120,17 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
+  it('treats a null baseRevision as absent while preserving the exact timestamp guard', async () => {
+    const admin = createClinicalAdminMock();
+    const payload = { ...makePayload(), baseRevision: null };
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+    ).resolves.toMatchObject({ success: true, revision: 5 });
+
+    expect(admin.set).toHaveBeenCalledOnce();
+  });
+
   it('rejects a target whose clinical episode no longer matches the bed', async () => {
     const admin = createClinicalAdminMock();
     const payload = makePayload();

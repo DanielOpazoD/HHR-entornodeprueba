@@ -395,8 +395,15 @@ const resolveCurrentRevision = record => {
 };
 
 const resolveBaseRevision = syncContract => {
+  if (
+    syncContract?.baseRevision === null ||
+    syncContract?.baseRevision === undefined ||
+    syncContract?.baseRevision === ''
+  ) {
+    return undefined;
+  }
   const revision = Number(syncContract?.baseRevision);
-  return Number.isFinite(revision) && revision >= 0 ? revision : undefined;
+  return Number.isInteger(revision) && revision >= 0 ? revision : undefined;
 };
 
 const assertExpectedRevision = ({ snapshot, syncContract }) => {

@@ -355,7 +355,10 @@ const parseClinicalEnrichmentPayload = data => {
     );
   }
 
-  const baseRevision = Number(data?.baseRevision);
+  const baseRevision =
+    data?.baseRevision === null || data?.baseRevision === undefined || data?.baseRevision === ''
+      ? undefined
+      : Number(data.baseRevision);
   return {
     date,
     authorityDate,
@@ -381,7 +384,7 @@ const parseClinicalEnrichmentPayload = data => {
         Number(left.clinicalCrib) - Number(right.clinicalCrib)
     ),
     expectedLastUpdated,
-    baseRevision: Number.isFinite(baseRevision) && baseRevision >= 0 ? baseRevision : undefined,
+    baseRevision: Number.isInteger(baseRevision) && baseRevision >= 0 ? baseRevision : undefined,
   };
 };
 
