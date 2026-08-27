@@ -60,7 +60,7 @@ describe('resolveHistoricalCudyrPatch', () => {
     });
   });
 
-  it('preserves the other canonical scores in an authoritative historical batch', () => {
+  it('sends only CUDYR and leaves adjacent-score preservation to server authority', () => {
     const stale = { ...official, category: 'D3' };
     const record = recordWith(stale);
     record.beds.H5C1.evaluationScores = {
@@ -73,11 +73,7 @@ describe('resolveHistoricalCudyrPatch', () => {
       matched: true,
       operation: expect.objectContaining({
         patch: {
-          'beds.H5C1.evaluationScores': {
-            braden: { total: 17 },
-            downton: { total: 2 },
-            cudyr: official,
-          },
+          'beds.H5C1.evaluationScores': { cudyr: official },
         },
         target: expect.objectContaining({
           censusDate: '2026-07-15',

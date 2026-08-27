@@ -21,6 +21,7 @@ const {
   digestValue,
   parseClinicalEnrichmentPayload,
   resolveRecordRevision,
+  resolveHistoricalCudyrTargets,
   summarizeClinicalEnrichmentMismatches,
 } = require('./rayenClinicalEnrichmentPolicy');
 
@@ -237,7 +238,8 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           idempotency.status === 'legacy-replay'
             ? assertLegacyReplayRevision(remoteData, payload, idempotency.receipt)
             : assertRecordRevision(remoteData, payload);
-        if (clinicalEnrichmentMatches(remoteData, payload.targets, payload.fieldContractVersion)) {
+        const effectiveTargets = resolveHistoricalCudyrTargets(remoteData, payload);
+        if (clinicalEnrichmentMatches(remoteData, effectiveTargets, payload.fieldContractVersion)) {
           // Reuse the established status so older clients remain compatible
           // while the callable rolls out. A new canonical no-op is accepted only after proving
           // that its base revision still describes the remote record; exact receipts returned
@@ -254,7 +256,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         const historyRefSnapshot = historyRef ? await transaction.get(historyRef) : null;
         const nextRecord = applyClinicalEnrichment(
           remoteData,
-          payload.targets,
+          effectiveTargets,
           payload.fieldContractVersion
         );
         // Shadow runs after the established per-patient writes. Compare against that independently
@@ -262,7 +264,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         const parityRecord = payload.dryRun ? remoteData : nextRecord;
         parityDiagnostics = summarizeClinicalEnrichmentMismatches(
           parityRecord,
-          payload.targets,
+          effectiveTargets,
           payload.fieldContractVersion
         );
         resultParity = parityDiagnostics.mismatchFieldCount === 0 ? 'matched' : 'mismatch';

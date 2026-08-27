@@ -1,4 +1,5 @@
 import { BedType } from '@/types/domain/beds';
+import { OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import {
   assignCarriedPatientToRecord,
@@ -30,6 +31,13 @@ export const buildInitializedDayRecord = (
     ? buildClinicalBedsFromPreviousRecord(initialBeds, prevRecord)
     : initialBeds;
   const movements = createEmptyDailyRecordMovements();
+  const inheritedExtraBeds = prevRecord ? [...(prevRecord.activeExtraBeds || [])] : [];
+  const activeExtraBeds = [
+    ...inheritedExtraBeds.filter(bedId => !OCCUPANCY_ONLY_EXTRA_BED_IDS.has(bedId)),
+    ...[...OCCUPANCY_ONLY_EXTRA_BED_IDS].filter(
+      bedId => Boolean(beds[bedId]?.patientName?.trim()) && beds[bedId]?.isBlocked !== true
+    ),
+  ];
 
   return {
     date,
@@ -46,7 +54,7 @@ export const buildInitializedDayRecord = (
     nursesNightShift: inheritedStaff.nursesNight,
     tensDayShift: inheritedStaff.tensDay,
     tensNightShift: inheritedStaff.tensNight,
-    activeExtraBeds: prevRecord ? [...(prevRecord.activeExtraBeds || [])] : [],
+    activeExtraBeds: [...new Set(activeExtraBeds)],
     handoffNovedadesDayShift: resolveInitialDayHandoff(prevRecord),
   };
 };

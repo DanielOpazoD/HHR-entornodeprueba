@@ -69,7 +69,11 @@ export const resolveHistoricalCudyrPatch = (
   return { matched: true, patch };
 };
 
-/** Builds the canonical top-level score value required by the v2 backend batch contract. */
+/**
+ * Builds the narrow historical CUDYR delta accepted by the backend authority.
+ * The server merges it into its current score object so a normalized client read cannot erase or
+ * appear to modify adjacent scales such as Braden or Downton.
+ */
 export const resolveHistoricalCudyrBatchOperation = (
   record: DailyRecord,
   clinicalEpisodeId: string,
@@ -82,10 +86,7 @@ export const resolveHistoricalCudyrBatchOperation = (
   }
   const prefix = `beds.${target.bedId}${target.clinicalCrib ? '.clinicalCrib' : ''}`;
   const patch = {
-    [`${prefix}.evaluationScores`]: {
-      ...target.evaluationScores,
-      cudyr,
-    },
+    [`${prefix}.evaluationScores`]: { cudyr },
   } as DailyRecordPatch;
   return {
     matched: true,

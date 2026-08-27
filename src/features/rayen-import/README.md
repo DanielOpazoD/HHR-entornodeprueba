@@ -179,6 +179,11 @@ clínicos en esa telemetría.
   Nunca infiere un médico desde la cama, el diagnóstico o la especialidad. Una fila visible sin
   médico también es autoritativa y elimina una asignación antigua.
 - **Camas:** `Habitacion N`+`Cn`→`H{N}C{n}`; `Recuperacion k`/`Rk`→`Rk` (UTI); `Neo k`→`NEOk`.
+  Las ubicaciones `B1UEA`/`B2UEA` de Hospitalización de Urgencias se representan como
+  `BOX1`/`BOX2`: son camas extra activadas por ocupación y nunca se ofrecen vacías como
+  disponibilidad manual. Al copiar el día, una ocupación vigente se conserva hasta que una
+  conciliación segura confirme su egreso o traslado; HHR no oculta pacientes sólo por ausencia o
+  ambigüedad de una captura.
 - **CMA = tipo de egreso, no ubicación:** un paciente del servicio CMA (`CMA*`) ocupa la misma
   cama real (`CMAR1→R1`, `CMAN1→NEO1`, …); solo su egreso se traduce a tipo CMA (`record.cma[]`).
 - **Apply defensivo:** nunca sobrescribe una cama ocupada; reporta lo omitido (`skipped`).
@@ -203,6 +208,9 @@ clínicos en esa telemetría.
 - **Concurrencia por fuente:** dispositivos, historial y formularios usan colas independientes de
   máximo cuatro lecturas. Un PDF lento no bloquea las otras fuentes; los guardados del censo
   permanecen serializados para evitar conflictos de escritura.
+- **CUDYR histórico estrecho:** el cliente envía sólo la corrección CUDYR; la autoridad del
+  servidor la fusiona con las demás escalas vigentes para no depender de una proyección local
+  normalizada ni modificar Braden, Downton u otros puntajes.
 - **Horizonte temporal acotado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
   promete retención ilimitada. D−1…D−7 combinan snapshot vivo, reporte administrativo, censo local
   y flujo oficial por episodio; el snapshot actual nunca proyecta por sí solo la cama vigente hacia atrás.

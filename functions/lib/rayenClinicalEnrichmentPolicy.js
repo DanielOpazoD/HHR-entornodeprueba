@@ -457,18 +457,42 @@ const assertHistoricalCudyrPayload = (record, payload) => {
         'Historical clinical enrichment accepts only canonical CUDYR score values.'
       );
     }
+    // Rolling compatibility: the previous frontend echoed the complete score object. Accept that
+    // form only when every adjacent score still matches the authoritative record; new clients send
+    // the narrower `{ cudyr }` delta and avoid depending on normalized local projections.
+    if (Object.keys(requestedScores).length > 1) {
+      const currentScores = isPlainObject(patient.evaluationScores)
+        ? clonePlainValue(patient.evaluationScores)
+        : {};
+      const requestedWithoutCudyr = clonePlainValue(requestedScores);
+      delete currentScores.cudyr;
+      delete requestedWithoutCudyr.cudyr;
+      if (canonicalize(currentScores) !== canonicalize(requestedWithoutCudyr)) {
+        throw new functions.https.HttpsError(
+          'invalid-argument',
+          'Historical CUDYR enrichment cannot modify other evaluation scores.'
+        );
+      }
+    }
+  });
+};
+
+const resolveHistoricalCudyrTargets = (record, payload) => {
+  if (payload.date === payload.authorityDate) return payload.targets;
+  return payload.targets.map(target => {
+    const patient = assertTargetMatchesEpisode(record, target);
     const currentScores = isPlainObject(patient.evaluationScores)
       ? clonePlainValue(patient.evaluationScores)
       : {};
-    const requestedWithoutCudyr = clonePlainValue(requestedScores);
-    delete currentScores.cudyr;
-    delete requestedWithoutCudyr.cudyr;
-    if (canonicalize(currentScores) !== canonicalize(requestedWithoutCudyr)) {
-      throw new functions.https.HttpsError(
-        'invalid-argument',
-        'Historical CUDYR enrichment cannot modify other evaluation scores.'
-      );
-    }
+    return {
+      ...target,
+      fields: {
+        evaluationScores: {
+          ...currentScores,
+          cudyr: clonePlainValue(target.fields.evaluationScores.cudyr),
+        },
+      },
+    };
   });
 };
 
@@ -673,6 +697,7 @@ module.exports = {
   digestValue,
   hasClinicalReceiptForRun,
   parseClinicalEnrichmentPayload,
+  resolveHistoricalCudyrTargets,
   resolveRecordRevision,
   summarizeClinicalEnrichmentMismatches,
 };

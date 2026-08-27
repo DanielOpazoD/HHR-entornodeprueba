@@ -6,6 +6,7 @@
  *     Habitacion N / C{n}  → H{N}C{n}      (general, MEDIA)
  *     Recuperacion k / R{k} → R{k}          (UTI)
  *     Neo k / Neo{k}        → NEO{k}         (MEDIA)
+ *     B1UEA/B2UEA            → BOX1/BOX2       (Urgencias, occupied-only)
  *   Virtual CMA service "Área quirúrgica indiferenciada" (codes CMA*):
  *     CMA R{k} / CMAR{k}    → R{k}   (same physical bed, isCma=true)
  *     CMA NEO{k} / CMAN{k}  → NEO{k} (same physical bed, isCma=true)
@@ -17,7 +18,13 @@
  */
 
 /** Reason the bed was resolved — useful for diagnostics and preview UI. */
-export type BedMatchKind = 'general' | 'recovery' | 'neo' | 'clinical-crib' | 'none';
+export type BedMatchKind =
+  | 'general'
+  | 'recovery'
+  | 'neo'
+  | 'urgency-box'
+  | 'clinical-crib'
+  | 'none';
 
 export interface BedMappingResult {
   /** HHR `bedId`, or `null` if the location could not be mapped. */
@@ -75,9 +82,18 @@ export interface RayenBedLocation {
 }
 
 export const CLINICAL_CRIB_PARENT_BEDS = new Set([
-  'R1', 'R2', 'R3', 'R4',
-  'H4C1', 'H4C2', 'H5C1', 'H5C2', 'H6C1', 'H6C2',
-  'NEO1', 'NEO2',
+  'R1',
+  'R2',
+  'R3',
+  'R4',
+  'H4C1',
+  'H4C2',
+  'H5C1',
+  'H5C2',
+  'H6C1',
+  'H6C2',
+  'NEO1',
+  'NEO2',
 ]);
 
 export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
@@ -115,6 +131,14 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
   });
 
   if (clinicalCribParent) return ok(clinicalCribParent, 'clinical-crib', true);
+
+  // Hospitalización de Urgencias: Gestión de Camas currently exposes the compact B1UEA/B2UEA
+  // labels, while other views show BOX 1 UEA / BOX 2 UEA. They are HHR overflow beds and are
+  // activated by occupied encounters, never advertised as available capacity.
+  const urgencyBox =
+    /^(?:B([12])UEA|BOX([12])(?:UEA)?)$/.exec(bed) ||
+    /^(?:B([12])UEA|BOX([12])(?:UEA)?)$/.exec(room);
+  if (urgencyBox) return ok(`BOX${urgencyBox[1] ?? urgencyBox[2]}`, 'urgency-box');
 
   // Recovery / UTI: R1–R4 (bed code "R1", room "Rk" or "Recuperacion k").
   let m = /^R([1-4])$/.exec(bed) || /^R([1-4])$/.exec(room) || /RECUPERACION0*([1-4])$/.exec(room);
