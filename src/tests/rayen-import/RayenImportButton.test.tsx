@@ -1,8 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
-import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
+import {
+  RAYEN_EXTENSION_PROTOCOL_VERSION,
+  RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+} from '@/features/rayen-import/bridge/extensionHealthBridge';
 
 const mocks = vi.hoisted(() => ({
   triggerImport: vi.fn(),
@@ -252,6 +255,9 @@ describe('RayenImportButton', () => {
 
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshHealth).toHaveBeenCalledWith({
+      timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+    });
     expect(mocks.triggerImport).toHaveBeenCalledWith(
       expect.objectContaining({ connection: 'ready', canSync: true }),
       expect.objectContaining({
@@ -259,6 +265,30 @@ describe('RayenImportButton', () => {
         counters: { requests: 1 },
       })
     );
+  });
+
+  it('starts only one preflight and one import when the button is clicked twice rapidly', async () => {
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    let resolveHealth!: (value: ReturnType<typeof mocks.useRayenExtensionHealth>) => void;
+    mocks.refreshHealth.mockImplementationOnce(
+      () =>
+        new Promise<ReturnType<typeof mocks.useRayenExtensionHealth>>(
+          resolve => (resolveHealth = resolve)
+        )
+    );
+
+    render(<RayenImportButton />);
+    const syncButton = screen.getByRole('button', { name: 'Sincronizar' });
+    fireEvent.click(syncButton);
+    fireEvent.click(syncButton);
+
+    expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveHealth(mocks.useRayenExtensionHealth());
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
   });
 
   it('blocks census synchronization when Gestión de Camas is unavailable', async () => {

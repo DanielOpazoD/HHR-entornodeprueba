@@ -8,6 +8,8 @@
 
 export const RAYEN_EXTENSION_HEALTH_REQUEST_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST';
 export const RAYEN_EXTENSION_HEALTH_RESULT_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_RESULT';
+export const RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS = 2_500;
+export const RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS = 12_000;
 export const RAYEN_EXTENSION_PROTOCOL_VERSION = 5;
 export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';
 export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-discharge-evidence';
@@ -69,7 +71,9 @@ export const supportsStatisticalDischargeEvidence = (
 ): boolean =>
   report?.capabilities?.includes(RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY) === true;
 
-export const requestRayenExtensionHealth = (timeoutMs = 2500): Promise<RayenExtensionHealthCheck> =>
+export const requestRayenExtensionHealth = (
+  timeoutMs = RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS
+): Promise<RayenExtensionHealthCheck> =>
   new Promise(resolve => {
     if (typeof window === 'undefined') {
       resolve({ report: null, error: 'El diagnóstico Eloísa requiere el navegador.' });
