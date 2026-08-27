@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   RAYEN_EXTENSION_HEALTH_REQUEST_TYPE,
   RAYEN_EXTENSION_HEALTH_RESULT_TYPE,
+  RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
   isRayenExtensionHealthReport,
   requestRayenExtensionHealth,
   supportsPatientFlowReport,
@@ -51,11 +52,62 @@ describe('extensionHealthBridge', () => {
     await expect(request).resolves.toEqual({ report });
   });
 
-  it('returns an actionable error without a long synchronization timeout', async () => {
+  it('accepts a valid synchronization preflight response after five seconds', async () => {
     vi.useFakeTimers();
-    const request = requestRayenExtensionHealth(50);
+    const postMessageSpy = vi.spyOn(window, 'postMessage');
+    const request = requestRayenExtensionHealth(RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS);
+    const payload = postMessageSpy.mock.calls[0]?.[0] as { reqId: string };
 
-    await vi.advanceTimersByTimeAsync(51);
+    setTimeout(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: window.location.origin,
+          data: { type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE, reqId: payload.reqId, report },
+        })
+      );
+    }, 5_000);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await expect(request).resolves.toEqual({ report });
+  });
+
+  it('ignores a late response whose reqId belongs to an earlier request', async () => {
+    const postMessageSpy = vi.spyOn(window, 'postMessage');
+    const request = requestRayenExtensionHealth(1_000);
+    const payload = postMessageSpy.mock.calls[0]?.[0] as { reqId: string };
+    let settled = false;
+    void request.then(() => {
+      settled = true;
+    });
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE,
+          reqId: `${payload.reqId}-anterior`,
+          report,
+        },
+      })
+    );
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: { type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE, reqId: payload.reqId, report },
+      })
+    );
+    await expect(request).resolves.toEqual({ report });
+  });
+
+  it('ends a synchronization preflight at its explicit bounded timeout', async () => {
+    vi.useFakeTimers();
+    const request = requestRayenExtensionHealth(RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS);
+
+    await vi.advanceTimersByTimeAsync(RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS + 1);
 
     await expect(request).resolves.toEqual({
       report: null,

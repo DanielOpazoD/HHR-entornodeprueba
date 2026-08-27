@@ -47,6 +47,55 @@ const policy = { mode: 'preview' as const, clinicalBatchMode: 'enforced' as cons
 describe('useRayenImportCapture lifecycle guards', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('records one preflight failure without reading or writing the census', async () => {
+    const loadFreshRecord = vi.fn().mockResolvedValue(record);
+    const startRequest = vi.fn();
+    const failRun = vi.fn().mockResolvedValue(undefined);
+    const startRun = vi.fn(() => ({
+      id: 'run-offline',
+      startedAt: '2026-08-02T10:00:00.000Z',
+      by: 'Operador HHR',
+      sourceDate: '2026-08-02',
+    }));
+    const { result } = renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        setState: vi.fn(),
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: startRequest,
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue(null),
+        },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord,
+        startRun,
+        failRun,
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current({
+        connection: 'offline',
+        report: null,
+        message: 'La extensión Eloísa no respondió.',
+        canSync: false,
+      });
+    });
+
+    expect(startRun).toHaveBeenCalledOnce();
+    expect(failRun).toHaveBeenCalledOnce();
+    expect(failRun).toHaveBeenCalledWith('extension_unavailable', 'run-offline');
+    expect(loadFreshRecord).not.toHaveBeenCalled();
+    expect(startRequest).not.toHaveBeenCalled();
+  });
+
   it('closes the request and terminalizes the active run when the extension reports an error', () => {
     const clearSyncTimeout = vi.fn();
     const failRun = vi.fn().mockResolvedValue(undefined);

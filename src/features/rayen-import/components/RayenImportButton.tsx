@@ -4,6 +4,7 @@ import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
+import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
@@ -53,6 +54,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const syncPreflightInFlightRef = React.useRef(false);
   const {
     mode,
     execution,
@@ -120,12 +122,20 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     : 'Eloísa está disponible para sincronizar.';
 
   const handleSync = async (): Promise<void> => {
-    const startedAt = Date.now();
-    const health = await extension.refresh();
-    await triggerImport(health, {
-      stagesMs: { preflight: elapsedMilliseconds(startedAt) },
-      counters: { requests: 1 },
-    });
+    if (syncPreflightInFlightRef.current) return;
+    syncPreflightInFlightRef.current = true;
+    try {
+      const startedAt = Date.now();
+      const health = await extension.refresh({
+        timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+      });
+      await triggerImport(health, {
+        stagesMs: { preflight: elapsedMilliseconds(startedAt) },
+        counters: { requests: 1 },
+      });
+    } finally {
+      syncPreflightInFlightRef.current = false;
+    }
   };
   const pendingChangeCount = diff
     ? diff.summary.admissions +

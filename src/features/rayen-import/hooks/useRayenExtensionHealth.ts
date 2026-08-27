@@ -20,6 +20,10 @@ export interface RayenExtensionHealthState {
   canSync: boolean;
 }
 
+export interface RayenExtensionHealthRefreshOptions {
+  timeoutMs?: number;
+}
+
 const CHECKING_STATE: RayenExtensionHealthState = {
   connection: 'checking',
   report: null,
@@ -79,18 +83,23 @@ export const useRayenExtensionHealth = () => {
   const [health, setHealth] = useState<RayenExtensionHealthState>(CHECKING_STATE);
   const requestSequence = useRef(0);
 
-  const refresh = useCallback(async (): Promise<RayenExtensionHealthState> => {
-    const sequence = ++requestSequence.current;
-    setHealth(previous => ({
-      ...previous,
-      connection: 'checking',
-      message: 'Comprobando conexión…',
-    }));
-    const result = await requestRayenExtensionHealth();
-    const next = deriveHealthState(result.report, result.error);
-    if (sequence === requestSequence.current) setHealth(next);
-    return next;
-  }, []);
+  const refresh = useCallback(
+    async (
+      options: RayenExtensionHealthRefreshOptions = {}
+    ): Promise<RayenExtensionHealthState> => {
+      const sequence = ++requestSequence.current;
+      setHealth(previous => ({
+        ...previous,
+        connection: 'checking',
+        message: 'Comprobando conexión…',
+      }));
+      const result = await requestRayenExtensionHealth(options.timeoutMs);
+      const next = deriveHealthState(result.report, result.error);
+      if (sequence === requestSequence.current) setHealth(next);
+      return next;
+    },
+    []
+  );
 
   useEffect(() => {
     const sequence = ++requestSequence.current;
