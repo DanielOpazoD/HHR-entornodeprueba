@@ -15,6 +15,7 @@ const {
 const {
   createDailyRecordWriteAuthorityFunctions,
 } = require('./lib/dailyRecordWriteAuthorityFunctions');
+const { createAdminCudyrResultFunctions } = require('./lib/adminCudyrResultFunctions');
 const {
   createRayenClinicalEnrichmentFunctions,
 } = require('./lib/rayenClinicalEnrichmentFunctions');
@@ -55,6 +56,11 @@ module.exports = {
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createDailyRecordWriteAuthorityFunctions({
+    firestore,
+    Timestamp,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
+  ...createAdminCudyrResultFunctions({
     firestore,
     Timestamp,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
