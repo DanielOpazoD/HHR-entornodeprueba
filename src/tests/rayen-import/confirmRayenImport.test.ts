@@ -14,6 +14,7 @@ import {
   motherAndNewbornDiff,
   repository,
 } from './previousDayAdmissionCorrections.fixtures';
+import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn(),
@@ -147,20 +148,25 @@ describe('applyConfirmedRayenImport', () => {
       .mockResolvedValueOnce(record('fresh-2'));
     const replanDiff = vi.fn().mockResolvedValue({} as CensusImportDiff);
 
-    await expect(
-      applyConfirmedRayenImport({
-        applyPreviousDays: false,
-        base: record('stale'),
-        diff: {} as CensusImportDiff,
-        dailyRecord: {} as DailyRecordRepositoryPort,
-        isAdmin: false,
-        ensureRun: vi.fn(),
-        applyDiff,
-        getFreshRecord,
-        replanDiff,
-        createId: () => 'id',
-      })
-    ).rejects.toBe(conflict);
+    const rejection = await applyConfirmedRayenImport({
+      applyPreviousDays: false,
+      base: record('stale'),
+      diff: {} as CensusImportDiff,
+      dailyRecord: {} as DailyRecordRepositoryPort,
+      isAdmin: false,
+      ensureRun: vi.fn(),
+      applyDiff,
+      getFreshRecord,
+      replanDiff,
+      createId: () => 'id',
+    }).catch((error: unknown) => error);
+
+    expect(rejection).toBeInstanceOf(ConcurrencyError);
+    expect(rejection).toMatchObject({
+      name: 'ConcurrencyError',
+      message: expect.stringMatching(/HHR recargó y recalculó la propuesta automáticamente/i),
+      cause: conflict,
+    });
 
     expect(applyDiff).toHaveBeenCalledTimes(3);
     expect(getFreshRecord).toHaveBeenCalledTimes(2);

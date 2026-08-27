@@ -32,7 +32,7 @@ export const resolveExtraBedsGridItems = (
   activeExtraBeds: string[] | null | undefined
 ): BedManagerExtraGridItem[] =>
   beds
-    .filter(bed => bed.isExtra)
+    .filter(bed => bed.isExtra && bed.activationMode !== 'occupied')
     .map(bed => ({
       id: bed.id,
       name: bed.name,

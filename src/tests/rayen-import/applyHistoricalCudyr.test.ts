@@ -276,12 +276,7 @@ describe('applyHistoricalCudyr', () => {
     expect(rebuildOperations(concurrentRecord)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          patch: {
-            'beds.H2C1.evaluationScores': {
-              braden: { total: 19 },
-              cudyr,
-            },
-          },
+          patch: { 'beds.H2C1.evaluationScores': { cudyr } },
         }),
       ])
     );

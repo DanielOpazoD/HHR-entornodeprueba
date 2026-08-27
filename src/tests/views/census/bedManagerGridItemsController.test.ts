@@ -46,4 +46,11 @@ describe('bedManagerGridItemsController', () => {
     expect(e2?.isEnabled).toBe(false);
     expect(r1).toBeUndefined();
   });
+
+  it('does not offer occupied-only Urgencias boxes as manually available beds', () => {
+    const items = resolveExtraBedsGridItems(BEDS, ['BOX1']);
+
+    expect(items.some(item => item.id === 'BOX1')).toBe(false);
+    expect(items.some(item => item.id === 'BOX2')).toBe(false);
+  });
 });

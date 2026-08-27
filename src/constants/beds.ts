@@ -35,9 +35,32 @@ export const BEDS: BedDefinition[] = [
   { id: 'E3', name: 'E3', type: BedType.MEDIA, isCuna: false, isExtra: true },
   { id: 'E4', name: 'E4', type: BedType.MEDIA, isCuna: false, isExtra: true },
   { id: 'E5', name: 'E5', type: BedType.MEDIA, isCuna: false, isExtra: true },
+  // Virtual beds for hospitalized patients who remain physically in Urgencias.
+  // Visibility follows the occupied HHR census: synchronization adds/removes verified encounters,
+  // while day carryover keeps a patient visible until a safe reconciliation confirms a change.
+  {
+    id: 'BOX1',
+    name: 'BOX 1 UEA',
+    type: BedType.MEDIA,
+    isCuna: false,
+    isExtra: true,
+    activationMode: 'occupied',
+  },
+  {
+    id: 'BOX2',
+    name: 'BOX 2 UEA',
+    type: BedType.MEDIA,
+    isCuna: false,
+    isExtra: true,
+    activationMode: 'occupied',
+  },
 ];
 
 export const EXTRA_BEDS = BEDS.filter(b => b.isExtra);
+export const OCCUPANCY_ONLY_EXTRA_BEDS = EXTRA_BEDS.filter(
+  bed => bed.activationMode === 'occupied'
+);
+export const OCCUPANCY_ONLY_EXTRA_BED_IDS = new Set(OCCUPANCY_ONLY_EXTRA_BEDS.map(bed => bed.id));
 export const REGULAR_BEDS = BEDS.filter(b => !b.isExtra);
 export const UTI_BEDS = BEDS.filter(b => b.type === BedType.UTI);
 export const MEDIA_BEDS = BEDS.filter(b => b.type === BedType.MEDIA && !b.isExtra);

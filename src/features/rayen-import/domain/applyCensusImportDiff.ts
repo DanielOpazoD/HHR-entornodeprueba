@@ -7,7 +7,7 @@
  */
 
 import { CensusManager } from '@/domain/CensusManager';
-import { BEDS } from '@/constants/beds';
+import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
@@ -369,9 +369,15 @@ export const applyCensusImportDiff = (
     applied.updates += 1;
   }
 
+  const activeExtraBeds = [
+    ...(current.activeExtraBeds ?? []).filter(bedId => !OCCUPANCY_ONLY_EXTRA_BED_IDS.has(bedId)),
+    ...[...OCCUPANCY_ONLY_EXTRA_BED_IDS].filter(bedId => isOccupied(nextBeds[bedId])),
+  ];
+
   const record: DailyRecord = {
     ...current,
     beds: nextBeds,
+    activeExtraBeds: [...new Set(activeExtraBeds)],
     discharges,
     transfers,
     cma,

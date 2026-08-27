@@ -70,6 +70,19 @@ describe('mapRayenBed', () => {
     });
   });
 
+  it.each([
+    [{ room: 'B1UEA', bed: 'B1UEA' }, 'BOX1'],
+    [{ room: 'BOX 2 UEA', bed: 'BOX 2 UEA' }, 'BOX2'],
+    [{ bed: 'BOX1' }, 'BOX1'],
+  ])('maps occupied Urgencias boxes without treating them as CMA', (location, bedId) => {
+    expect(mapRayenBed(location)).toEqual({
+      bedId,
+      isCma: false,
+      isClinicalCrib: false,
+      matchedBy: 'urgency-box',
+    });
+  });
+
   it('maps CMA beds to the same physical bed and flags isCma', () => {
     expect(mapRayenBed({ room: 'CMA R1', bed: 'CMAR1' })).toEqual({
       bedId: 'R1',
@@ -132,8 +145,13 @@ describe('mapRayenBed', () => {
   });
 
   it.each([
-    ['CH4C1', 'H4C1'], ['CH5C2', 'H5C2'], ['CH6C1', 'H6C1'],
-    ['C-R1', 'R1'], ['C-R4', 'R4'], ['CNEO1', 'NEO1'], ['CNeo2', 'NEO2'],
+    ['CH4C1', 'H4C1'],
+    ['CH5C2', 'H5C2'],
+    ['CH6C1', 'H6C1'],
+    ['C-R1', 'R1'],
+    ['C-R4', 'R4'],
+    ['CNEO1', 'NEO1'],
+    ['CNeo2', 'NEO2'],
   ])('maps attached crib %s to parent bed %s', (cribLabel, parentBedId) => {
     expect(mapRayenBed({ bed: cribLabel, clinicalCribParentBedId: parentBedId })).toEqual({
       bedId: parentBedId,

@@ -285,6 +285,16 @@ describe('applyEgresoReport', () => {
     expect(requiresReview(enriched)).toBe(true);
   });
 
+  it('normalizes an Urgencias box in the administrative egreso report', () => {
+    const enriched = applyEgresoReport(
+      makeDiff(),
+      [row({ run: '11.044.046-4', patientName: 'Paciente Box', bedLabel: 'B1UEA' })],
+      makeRecord()
+    );
+
+    expect(enriched.reportEgresos?.[0]?.bedLabel).toBe('BOX1');
+  });
+
   it('does not duplicate a RUN already represented by a movement', () => {
     const current = makeRecord({}, { discharges: [{ rut: '11.044.046-4' } as never] });
     const enriched = applyEgresoReport(

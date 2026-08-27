@@ -108,6 +108,23 @@ describe('reconcileCensus', () => {
     expect(diff.admissions[0].patient.patientName).toBe('Ana Perez');
   });
 
+  it('reconciles an occupied Urgencias box instead of reporting an unmapped-bed conflict', () => {
+    const diff = reconcileCensus(
+      makeRecord({}),
+      snapshotOf([
+        makeEncounter({
+          service: 'Área Médico Quirúrgica Indiferenciada',
+          room: 'B1UEA',
+          bed: 'B1UEA',
+        }),
+      ]),
+      { reference: REFERENCE }
+    );
+
+    expect(diff.admissions).toEqual([expect.objectContaining({ bedId: 'BOX1' })]);
+    expect(diff.conflicts).toHaveLength(0);
+  });
+
   it('does not admit a patient admitted AFTER the census day being synced', () => {
     // Syncing the 07-08 census; this patient entered 07-09 → belongs only from 07-09 onward.
     const diff = reconcileCensus(

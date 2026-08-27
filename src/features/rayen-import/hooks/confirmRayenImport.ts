@@ -7,6 +7,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { applyCmaAdmissionResolutions } from '../domain/cmaAdmissionReview';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { toIsoReportDate } from './reportDateHelpers';
+import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 const isVersionConflict = (error: unknown): boolean =>
   (error instanceof Error && error.name === 'ConcurrencyError') ||
@@ -174,7 +175,13 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
     }
   }
 
-  if (!appliedResult) throw lastConflict;
+  if (!appliedResult) {
+    const exhausted = new ConcurrencyError(
+      'Otra actualización modificó este censo de HHR mientras se confirmaba. HHR recargó y recalculó la propuesta automáticamente, pero no pudo guardarla sin riesgo de sobrescribir cambios. Vuelve a sincronizar.'
+    );
+    if (lastConflict !== undefined) exhausted.cause = lastConflict;
+    throw exhausted;
+  }
 
   // Historical edits must correspond to the structural plan that actually won the CAS. Running
   // them before the selected-day save can persist an obsolete plan and a later replan can then be

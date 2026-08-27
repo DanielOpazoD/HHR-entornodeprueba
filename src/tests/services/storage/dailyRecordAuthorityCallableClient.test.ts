@@ -14,7 +14,7 @@ describe('dailyRecordAuthorityCallableClient', () => {
 
     expect(normalized).toBeInstanceOf(ConcurrencyError);
     expect(normalized).toMatchObject({ name: 'ConcurrencyError' });
-    expect(String((normalized as Error).message)).toMatch(/recargará la versión vigente/i);
+    expect(String((normalized as Error).message)).toMatch(/versión más reciente/i);
   });
 
   it.each(['functions/invalid-argument', 'functions/permission-denied', 'functions/aborted'])(

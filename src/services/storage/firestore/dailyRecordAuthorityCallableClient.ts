@@ -32,7 +32,7 @@ export const normalizeDailyRecordAuthorityError = (error: unknown): unknown => {
     /revision_mismatch|version_mismatch|base revision|remote revision/i.test(message)
   ) {
     return new ConcurrencyError(
-      'El censo cambió mientras se guardaba. HHR recargará la versión vigente y reintentará.'
+      'HHR detectó una versión más reciente de este censo y evitó sobrescribirla.'
     );
   }
   return error;

@@ -164,4 +164,16 @@ describe('dailyRecordInitializationSupport', () => {
     expect(result.beds.R1.patientName).toBe('Paciente');
     expect(result.beds.R1.admissionDate).toBe('2026-02-19');
   });
+
+  it('carries an Urgencias box only when it still has an occupant', () => {
+    const previous = buildRecord('2026-02-18');
+    previous.activeExtraBeds = ['E1', 'BOX1', 'BOX2'];
+    previous.beds.BOX1 = buildPatient('BOX1');
+
+    const result = buildInitializedDayRecord('2026-02-19', previous);
+
+    expect(result.activeExtraBeds).toEqual(['E1', 'BOX1']);
+    expect(result.beds.BOX1.patientName).toBe('Paciente');
+    expect(result.beds.BOX2.patientName).toBe('');
+  });
 });

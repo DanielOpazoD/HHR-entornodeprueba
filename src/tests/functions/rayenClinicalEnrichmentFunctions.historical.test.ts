@@ -76,6 +76,40 @@ describe('applyRayenClinicalEnrichmentBatch historical authority', () => {
     );
   });
 
+  it('merges a narrow CUDYR correction without changing adjacent historical scores', async () => {
+    const target = makeClinicalRecord();
+    target.date = '2026-07-27';
+    target.lastUpdated = '2026-07-27T10:00:00.000Z';
+    (target.beds.H2C1 as { evaluationScores?: unknown }).evaluationScores = {
+      braden: { total: 17 },
+      downton: { total: 3 },
+    };
+    const admin = createClinicalAdminMock(target, {
+      authorityDate: '2026-07-28',
+      authorityRemoteData: makeClinicalRecord(),
+    });
+
+    await createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(
+      makeHistoricalCudyrPayload(),
+      makeContext()
+    );
+
+    expect(admin.set).toHaveBeenCalledWith(
+      admin.docRef,
+      expect.objectContaining({
+        beds: expect.objectContaining({
+          H2C1: expect.objectContaining({
+            evaluationScores: {
+              braden: { total: 17 },
+              downton: { total: 3 },
+              cudyr: expect.objectContaining({ category: 'C1' }),
+            },
+          }),
+        }),
+      })
+    );
+  });
+
   it('requires an administrator for a previous-day CUDYR correction', async () => {
     const admin = createHistoricalAdmin();
 
