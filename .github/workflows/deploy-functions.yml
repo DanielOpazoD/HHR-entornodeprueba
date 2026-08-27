@@ -139,7 +139,8 @@ jobs:
             --json > "$RUNNER_TEMP/firebase/functions-list.json"
           node scripts/check-deployed-firebase-functions.mjs \
             "$RUNNER_TEMP/firebase/functions-list.json" \
-            applyRayenClinicalEnrichmentBatch
+            applyRayenClinicalEnrichmentBatch \
+            setAdminCudyrResult
 
       - name: Cleanup credentials
         if: always()

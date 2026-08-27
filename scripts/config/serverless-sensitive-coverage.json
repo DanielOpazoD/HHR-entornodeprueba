@@ -39,6 +39,12 @@
       "testFiles": ["src/tests/functions/rayenClinicalEnrichmentFunctions.test.ts"]
     },
     {
+      "id": "admin_cudyr_result",
+      "functionFile": "functions/lib/adminCudyrResultFunctions.js",
+      "endpoint": "setAdminCudyrResult",
+      "testFiles": ["src/tests/functions/adminCudyrResultFunctions.test.ts"]
+    },
+    {
       "id": "medical_handoff_spreadsheet",
       "functionFile": "functions/lib/medicalHandoffSpreadsheetFunctions.js",
       "endpoint": "openMedicalHandoffSpreadsheet",

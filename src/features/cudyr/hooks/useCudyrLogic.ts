@@ -11,6 +11,7 @@ import { resolveCudyrEligibility } from '@/features/cudyr/controllers/cudyrEligi
 import { canEditCudyrRecord } from '@/features/cudyr/controllers/cudyrEditAccessController';
 import { useNotification } from '@/context/UIContext';
 import { resolveCudyrRecordCompletion } from '@/domain/cudyr/cudyrCompletion';
+import { useAdminCudyrResult } from '@/features/cudyr/hooks/useAdminCudyrResult';
 
 type CudyrDraft = {
   beds: NonNullable<CudyrBatchUpdate['beds']>;
@@ -142,6 +143,7 @@ export const useCudyrLogic = (readOnly: boolean) => {
   const { success, error: notifyError } = useNotification();
   const [draft, setDraft] = useState<CudyrDraft>(createEmptyCudyrDraft);
   const [isSavingCudyrChanges, setIsSavingCudyrChanges] = useState(false);
+  const adminCudyrResult = useAdminCudyrResult({ record, readOnly });
 
   useEffect(() => {
     setDraft(createEmptyCudyrDraft());
@@ -364,6 +366,7 @@ export const useCudyrLogic = (readOnly: boolean) => {
     handleCribScoreChange,
     saveCudyrChanges,
     discardCudyrChanges,
+    ...adminCudyrResult,
     resolveCudyrEligibility: resolvePatientCudyrEligibility,
   };
 };

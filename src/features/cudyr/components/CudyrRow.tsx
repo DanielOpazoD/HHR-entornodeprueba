@@ -6,6 +6,8 @@ import clsx from 'clsx';
 import { buildCudyrRowViewModel } from '@/features/cudyr/controllers/cudyrRowViewController';
 import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
+import type { CudyrResultOption } from '@/domain/cudyr/adminCudyrResult';
+import { AdminCudyrResultEditor } from './AdminCudyrResultEditor';
 
 interface CudyrRowProps {
   bed: BedDefinition;
@@ -16,6 +18,15 @@ interface CudyrRowProps {
   eligibilityBlocked?: boolean;
   eligibilityBlockedReason?: string;
   censusDate: string;
+  adminBedId?: string;
+  canAdminAdjustResult?: boolean;
+  adminCudyrBusy?: boolean;
+  onAdminCudyrResultSave?: (input: {
+    bedId: string;
+    clinicalCrib: boolean;
+    clinicalEpisodeId: string;
+    category: CudyrResultOption | null;
+  }) => Promise<boolean>;
 }
 
 // Reusable Header Cell for Vertical Text
@@ -82,6 +93,10 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
   eligibilityBlocked = false,
   eligibilityBlockedReason,
   censusDate,
+  adminBedId,
+  canAdminAdjustResult = false,
+  adminCudyrBusy = false,
+  onAdminCudyrResultSave,
 }) => {
   const viewModel = buildCudyrRowViewModel({
     bed,
@@ -328,6 +343,26 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
         >
           {importedCudyr ? importedCudyr.category : viewModel.finalCat}
         </span>
+        {canAdminAdjustResult && onAdminCudyrResultSave && (
+          <AdminCudyrResultEditor
+            currentCategory={importedCudyr?.category ?? null}
+            disabledReason={
+              adminCudyrBusy
+                ? 'Hay otro ajuste CUDYR en curso.'
+                : !occupiedPatient.clinicalEpisodeId
+                  ? 'Este paciente no tiene un episodio clínico verificable.'
+                  : undefined
+            }
+            onSave={category =>
+              onAdminCudyrResultSave({
+                bedId: adminBedId ?? bed.id,
+                clinicalCrib: isCrib,
+                clinicalEpisodeId: occupiedPatient.clinicalEpisodeId ?? '',
+                category,
+              })
+            }
+          />
+        )}
       </td>
     </tr>
   );

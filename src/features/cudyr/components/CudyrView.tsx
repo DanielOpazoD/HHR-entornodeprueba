@@ -25,6 +25,9 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
     handleCribScoreChange,
     saveCudyrChanges,
     discardCudyrChanges,
+    saveAdminCudyrResult,
+    canAdminAdjustCudyrResult,
+    adminCudyrMutationKey,
     resolveCudyrEligibility,
   } = useCudyrLogic(readOnly);
 
@@ -253,6 +256,10 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                       readOnly={isEditingLocked || patientEligibility.isBlocked}
                       eligibilityBlocked={patientEligibility.isBlocked}
                       eligibilityBlockedReason={patientEligibility.blockedReason}
+                      adminBedId={bed.id}
+                      canAdminAdjustResult={canAdminAdjustCudyrResult}
+                      adminCudyrBusy={Boolean(adminCudyrMutationKey)}
+                      onAdminCudyrResultSave={saveAdminCudyrResult}
                     />
                     {hasCrib && cribPatient && (
                       <CudyrRow
@@ -266,6 +273,10 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                         eligibilityBlocked={cribEligibility.isBlocked}
                         eligibilityBlockedReason={cribEligibility.blockedReason}
                         isCrib={true}
+                        adminBedId={bed.id}
+                        canAdminAdjustResult={canAdminAdjustCudyrResult}
+                        adminCudyrBusy={Boolean(adminCudyrMutationKey)}
+                        onAdminCudyrResultSave={saveAdminCudyrResult}
                       />
                     )}
                   </React.Fragment>

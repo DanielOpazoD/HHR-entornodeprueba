@@ -29,10 +29,15 @@
 | Endpoint                            | Auth               | Roles                                                                      | Autoridad                                                                  |
 | ----------------------------------- | ------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | `applyRayenClinicalEnrichmentBatch` | Firebase requerida | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor` | allowlist de campos, episodio y revisión verificados dentro de transacción |
+| `setAdminCudyrResult`               | Firebase requerida | `admin`                                                                    | categoría cerrada, episodio y versión exacta verificados en transacción    |
 | `openMedicalHandoffSpreadsheet`     | Firebase requerida | `admin`, `nurse_hospital`, `doctor_urgency`, `doctor_specialist`, `editor` | filas clínicas validadas y envío exclusivo a Apps Script institucional     |
 
 Este callable recibe un lote acotado, no acepta rutas arbitrarias y registra únicamente
 telemetría agregada sin identificadores de pacientes ni valores clínicos.
+
+`setAdminCudyrResult` acepta únicamente las categorías CUDYR `A1` a `D3` o `null`
+para eliminar el resultado. Exige administrador, coincidencia exacta del episodio clínico y
+control optimista de versión; conserva las demás escalas y guarda historia y auditoría.
 
 `openMedicalHandoffSpreadsheet` recibe como máximo 80 filas, no acepta RUT ni columnas
 arbitrarias, valida claves estables y envía la carga únicamente a una URL institucional
