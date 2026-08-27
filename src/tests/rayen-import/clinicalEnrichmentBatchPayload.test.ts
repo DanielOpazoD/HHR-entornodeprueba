@@ -23,6 +23,48 @@ const prepare = (operations: ClinicalFillPatchOperation[]) =>
   });
 
 describe('clinicalEnrichmentBatchPayload', () => {
+  it('includes a numeric base revision', () => {
+    const { payload } = prepare([
+      {
+        target: {
+          censusDate: record.date,
+          bedId: 'H2C1',
+          clinicalEpisodeId: 'episode-1',
+        },
+        patch: { 'beds.H2C1.vitalSigns': { systolic: 120 } },
+        clinicalFieldCount: 1,
+      },
+    ]);
+
+    expect(payload).toMatchObject({ baseRevision: 7 });
+  });
+
+  it('omits baseRevision when the record revision is null', () => {
+    const recordWithoutRevision = {
+      ...record,
+      meta: { revision: null },
+    } as unknown as DailyRecord;
+    const { payload } = prepareClinicalEnrichmentBatchPayload({
+      mode: 'enforced',
+      record: recordWithoutRevision,
+      runId: 'run-payload',
+      mutationId: 'mutation-payload',
+      operations: [
+        {
+          target: {
+            censusDate: record.date,
+            bedId: 'H2C1',
+            clinicalEpisodeId: 'episode-1',
+          },
+          patch: { 'beds.H2C1.vitalSigns': { systolic: 120 } },
+          clinicalFieldCount: 1,
+        },
+      ],
+    });
+
+    expect(payload).not.toHaveProperty('baseRevision');
+  });
+
   it('keeps a checkpoint-only update inside the transactional fast path', () => {
     const { payload, evidence } = prepare([
       {

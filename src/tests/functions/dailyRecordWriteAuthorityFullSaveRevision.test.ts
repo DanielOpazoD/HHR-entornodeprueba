@@ -50,6 +50,44 @@ describe('dailyRecordWriteAuthorityFunctions full save revisions', () => {
     expect(set).not.toHaveBeenCalled();
   });
 
+  it('treats a null baseRevision as absent while preserving the timestamp guard', async () => {
+    const remote = {
+      ...makeRecord(),
+      lastUpdated: '2026-05-13T10:00:00.000Z',
+      meta: { revision: 9 },
+    };
+    const { admin, docRef, set } = createAdminMock({ remoteData: remote });
+    const functionsApi = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+    });
+
+    await expect(
+      functionsApi.saveDailyRecordWithClinicalAuthority.run(
+        {
+          date: remote.date,
+          expectedLastUpdated: remote.lastUpdated,
+          mode: 'enforced',
+          origin: 'direct_save',
+          syncContract: {
+            expectedVersion: remote.lastUpdated,
+            baseRevision: null,
+            changedPaths: ['*'],
+            mutationId: 'null-base-revision-mutation',
+          },
+          record: remote,
+        },
+        makeContext()
+      )
+    ).resolves.toMatchObject({ success: true, revision: 10 });
+
+    expect(set).toHaveBeenCalledWith(
+      docRef,
+      expect.objectContaining({ meta: expect.objectContaining({ revision: 10 }) })
+    );
+  });
+
   it('rejects a nurse full save after the editing window closes', async () => {
     const staleTimestamp = Date.parse('2026-05-13T00:00:00.000Z');
     const remote = { ...makeRecord(), dateTimestamp: staleTimestamp };
