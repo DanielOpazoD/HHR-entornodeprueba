@@ -5,12 +5,17 @@ import { CudyrRow, VerticalHeader } from './CudyrRow';
 import { useCudyrLogic } from '../hooks/useCudyrLogic';
 import { resolveNightShiftNurses } from '@/services/staff/dailyRecordStaffing';
 import { buildCudyrViewShellModel } from '@/features/cudyr/controllers/cudyrViewController';
+import { adminCudyrTargetKey } from '@/domain/cudyr/adminCudyrResult';
+import { AdminCudyrBulkRemovalToolbar } from './AdminCudyrBulkRemovalToolbar';
+import { useAdminCudyrBulkRemoval } from '../hooks/useAdminCudyrBulkRemoval';
+import { useNotification } from '@/context/UIContext';
 
 interface CudyrViewProps {
   readOnly?: boolean;
 }
 
 export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
+  const { error: notifyError } = useNotification();
   const {
     record,
     visibleBeds,
@@ -26,10 +31,22 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
     saveCudyrChanges,
     discardCudyrChanges,
     saveAdminCudyrResult,
+    saveAdminCudyrResults,
     canAdminAdjustCudyrResult,
     adminCudyrMutationKey,
     resolveCudyrEligibility,
   } = useCudyrLogic(readOnly);
+
+  const adminBulkRemoval = useAdminCudyrBulkRemoval({
+    record,
+    visibleBeds,
+    saveResults: saveAdminCudyrResults,
+    onSelectionInvalidated: () =>
+      notifyError(
+        'La selección CUDYR cambió',
+        'El censo recibió información nueva. La selección se canceló para evitar eliminar un resultado distinto.'
+      ),
+  });
 
   if (!record) {
     return (
@@ -111,6 +128,20 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
             currentRecord={record}
           />
         </div>
+
+        {canAdminAdjustCudyrResult && (
+          <AdminCudyrBulkRemovalToolbar
+            availableCount={adminBulkRemoval.targets.length}
+            selectedCount={adminBulkRemoval.selected.size}
+            isActive={adminBulkRemoval.isActive}
+            isBusy={Boolean(adminCudyrMutationKey)}
+            onStart={adminBulkRemoval.start}
+            onCancel={adminBulkRemoval.cancel}
+            onSelectAll={adminBulkRemoval.selectAll}
+            onClearSelection={adminBulkRemoval.clearSelection}
+            onConfirmRemoval={adminBulkRemoval.confirm}
+          />
+        )}
 
         {isCompletionLocked && hasConfirmedCompletion && (
           <div
@@ -245,6 +276,14 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                 const hasCrib = !!patient?.clinicalCrib?.patientName;
                 const cribPatient = patient?.clinicalCrib;
                 const cribEligibility = resolveCudyrEligibility(cribPatient);
+                const patientAdminTargetKey = adminCudyrTargetKey({
+                  bedId: bed.id,
+                  clinicalCrib: false,
+                });
+                const cribAdminTargetKey = adminCudyrTargetKey({
+                  bedId: bed.id,
+                  clinicalCrib: true,
+                });
 
                 return (
                   <React.Fragment key={bed.id}>
@@ -259,6 +298,12 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                       adminBedId={bed.id}
                       canAdminAdjustResult={canAdminAdjustCudyrResult}
                       adminCudyrBusy={Boolean(adminCudyrMutationKey)}
+                      adminBulkSelectionEnabled={adminBulkRemoval.isActive}
+                      adminBulkSelectable={adminBulkRemoval.targetMap.has(patientAdminTargetKey)}
+                      adminBulkSelected={adminBulkRemoval.selected.has(patientAdminTargetKey)}
+                      onAdminBulkSelectionChange={selected =>
+                        adminBulkRemoval.setTargetSelected(patientAdminTargetKey, selected)
+                      }
                       onAdminCudyrResultSave={saveAdminCudyrResult}
                     />
                     {hasCrib && cribPatient && (
@@ -276,6 +321,12 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
                         adminBedId={bed.id}
                         canAdminAdjustResult={canAdminAdjustCudyrResult}
                         adminCudyrBusy={Boolean(adminCudyrMutationKey)}
+                        adminBulkSelectionEnabled={adminBulkRemoval.isActive}
+                        adminBulkSelectable={adminBulkRemoval.targetMap.has(cribAdminTargetKey)}
+                        adminBulkSelected={adminBulkRemoval.selected.has(cribAdminTargetKey)}
+                        onAdminBulkSelectionChange={selected =>
+                          adminBulkRemoval.setTargetSelected(cribAdminTargetKey, selected)
+                        }
                         onAdminCudyrResultSave={saveAdminCudyrResult}
                       />
                     )}

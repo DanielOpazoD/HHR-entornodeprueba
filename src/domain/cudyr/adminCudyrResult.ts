@@ -15,5 +15,20 @@ export const CUDYR_RESULT_OPTIONS = [
 
 export type CudyrResultOption = (typeof CUDYR_RESULT_OPTIONS)[number];
 
+export interface AdminCudyrResultAdjustment {
+  bedId: string;
+  clinicalCrib: boolean;
+  clinicalEpisodeId: string;
+  category: CudyrResultOption | null;
+  expectedCurrentCategory?: CudyrResultOption | null;
+  expectedRecordedAt?: string | null;
+  expectedRecordedDate?: string | null;
+  expectedSource?: string | null;
+}
+
+export const adminCudyrTargetKey = (
+  target: Pick<AdminCudyrResultAdjustment, 'bedId' | 'clinicalCrib'>
+): string => `${target.bedId}:${target.clinicalCrib ? 'crib' : 'bed'}`;
+
 export const isCudyrResultOption = (value: string): value is CudyrResultOption =>
   CUDYR_RESULT_OPTIONS.includes(value as CudyrResultOption);

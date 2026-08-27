@@ -62,8 +62,19 @@ const makeContext = () => ({
   auth: { uid: 'admin-uid', token: { email: 'admin@example.com' } },
 });
 
+const containsUndefined = (value: unknown): boolean => {
+  if (value === undefined) return true;
+  if (Array.isArray(value)) return value.some(containsUndefined);
+  if (value && typeof value === 'object') {
+    return Object.values(value).some(containsUndefined);
+  }
+  return false;
+};
+
 const createHarness = ({ role = 'admin', remote = makeRemoteRecord() } = {}) => {
-  const set = vi.fn();
+  const set = vi.fn((_ref: unknown, value: unknown) => {
+    if (containsUndefined(value)) throw new Error('Firestore payload contains undefined.');
+  });
   const recordRef = {
     id: '2026-08-26',
     collection: vi.fn(() => ({ doc: vi.fn(() => ({ id: 'history-1', kind: 'history' })) })),
@@ -172,6 +183,135 @@ describe('setAdminCudyrResult', () => {
     expect(
       findRecordWrite(set, recordRef).beds.H3C2.clinicalCrib.evaluationScores.cudyr.category
     ).toBe('A3');
+  });
+
+  it('removes several imported results in one revision, history snapshot and audit entry', async () => {
+    const { functionsApi, payload, set, recordRef, auditRef } = createHarness();
+
+    await expect(
+      functionsApi.setAdminCudyrResult.run(
+        {
+          date: payload.date,
+          expectedLastUpdated: payload.expectedLastUpdated,
+          adjustments: [
+            {
+              bedId: 'H3C2',
+              clinicalCrib: false,
+              clinicalEpisodeId: 'episode-1',
+              category: null,
+            },
+            {
+              bedId: 'H3C2',
+              clinicalCrib: true,
+              clinicalEpisodeId: 'crib-episode-1',
+              category: null,
+            },
+          ],
+        },
+        makeContext()
+      )
+    ).resolves.toMatchObject({
+      success: true,
+      changed: true,
+      changedCount: 2,
+      revision: 6,
+      changes: [
+        { bedId: 'H3C2', clinicalCrib: false, previousCategory: 'C1', category: null },
+        { bedId: 'H3C2', clinicalCrib: true, previousCategory: 'D2', category: null },
+      ],
+    });
+
+    const written = findRecordWrite(set, recordRef);
+    expect(written.beds.H3C2.evaluationScores.cudyr).toBeUndefined();
+    expect(written.beds.H3C2.clinicalCrib.evaluationScores).toBeUndefined();
+    expect(written.beds.H3C2.evaluationScores.braden.total).toBe(15);
+    expect(written.beds.H3C2.evaluationScores.downton.total).toBe(2);
+    expect(written.meta.revision).toBe(6);
+    expect(written.meta.lastChangedPaths).toHaveLength(2);
+    expect(set).toHaveBeenCalledTimes(3);
+    expect(set).toHaveBeenCalledWith(
+      auditRef,
+      expect.objectContaining({
+        details: expect.objectContaining({ changedCount: 2 }),
+      })
+    );
+  });
+
+  it('rejects a repeated batch target before opening a transaction', async () => {
+    const { functionsApi, payload, set } = createHarness();
+    const adjustment = {
+      bedId: 'H3C2',
+      clinicalCrib: false,
+      clinicalEpisodeId: 'episode-1',
+      category: null,
+    };
+
+    await expect(
+      functionsApi.setAdminCudyrResult.run(
+        {
+          date: payload.date,
+          expectedLastUpdated: payload.expectedLastUpdated,
+          adjustments: [adjustment, adjustment],
+        },
+        makeContext()
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects the complete batch when one clinical episode changed', async () => {
+    const { functionsApi, payload, set } = createHarness();
+
+    await expect(
+      functionsApi.setAdminCudyrResult.run(
+        {
+          date: payload.date,
+          expectedLastUpdated: payload.expectedLastUpdated,
+          adjustments: [
+            {
+              bedId: 'H3C2',
+              clinicalCrib: false,
+              clinicalEpisodeId: 'episode-1',
+              category: null,
+            },
+            {
+              bedId: 'H3C2',
+              clinicalCrib: true,
+              clinicalEpisodeId: 'stale-crib-episode',
+              category: null,
+            },
+          ],
+        },
+        makeContext()
+      )
+    ).rejects.toMatchObject({ code: 'aborted' });
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects the complete batch when a selected CUDYR snapshot changed', async () => {
+    const { functionsApi, payload, set } = createHarness();
+
+    await expect(
+      functionsApi.setAdminCudyrResult.run(
+        {
+          date: payload.date,
+          expectedLastUpdated: payload.expectedLastUpdated,
+          adjustments: [
+            {
+              bedId: 'H3C2',
+              clinicalCrib: false,
+              clinicalEpisodeId: 'episode-1',
+              category: null,
+              expectedCurrentCategory: 'B2',
+              expectedRecordedDate: '2026-08-26',
+              expectedSource: 'Eloísa · Gestión de Camas',
+            },
+          ],
+        },
+        makeContext()
+      )
+    ).rejects.toMatchObject({ code: 'aborted' });
+    expect(set).not.toHaveBeenCalled();
   });
 
   it('rejects free text instead of accepting an arbitrary result', async () => {

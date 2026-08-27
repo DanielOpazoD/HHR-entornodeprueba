@@ -21,6 +21,10 @@ interface CudyrRowProps {
   adminBedId?: string;
   canAdminAdjustResult?: boolean;
   adminCudyrBusy?: boolean;
+  adminBulkSelectionEnabled?: boolean;
+  adminBulkSelectable?: boolean;
+  adminBulkSelected?: boolean;
+  onAdminBulkSelectionChange?: (selected: boolean) => void;
   onAdminCudyrResultSave?: (input: {
     bedId: string;
     clinicalCrib: boolean;
@@ -96,6 +100,10 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
   adminBedId,
   canAdminAdjustResult = false,
   adminCudyrBusy = false,
+  adminBulkSelectionEnabled = false,
+  adminBulkSelectable = false,
+  adminBulkSelected = false,
+  onAdminBulkSelectionChange,
   onAdminCudyrResultSave,
 }) => {
   const viewModel = buildCudyrRowViewModel({
@@ -334,6 +342,20 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
         {viewModel.displayedRiskScore}
       </td>
       <td className="p-1 text-center print:p-0.5">
+        {adminBulkSelectionEnabled && adminBulkSelectable && onAdminBulkSelectionChange && (
+          <label className="mb-1 flex cursor-pointer items-center justify-center gap-1 text-[9px] font-bold text-indigo-800 print:hidden">
+            <input
+              type="checkbox"
+              checked={adminBulkSelected}
+              onChange={event => onAdminBulkSelectionChange(event.target.checked)}
+              disabled={adminCudyrBusy}
+              className="h-3.5 w-3.5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+              aria-label={`Seleccionar resultado CUDYR de ${bed.name}`}
+              data-testid="admin-cudyr-bulk-checkbox"
+            />
+            Seleccionar
+          </label>
+        )}
         <span
           className={clsx(
             'px-2 py-0.5 rounded font-bold text-xs block w-full shadow-sm print:px-1 print:text-[10px]',
@@ -343,7 +365,7 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
         >
           {importedCudyr ? importedCudyr.category : viewModel.finalCat}
         </span>
-        {canAdminAdjustResult && onAdminCudyrResultSave && (
+        {canAdminAdjustResult && onAdminCudyrResultSave && !adminBulkSelectionEnabled && (
           <AdminCudyrResultEditor
             currentCategory={importedCudyr?.category ?? null}
             disabledReason={

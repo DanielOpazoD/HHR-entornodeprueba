@@ -1,5 +1,5 @@
 const functions = require('firebase-functions/v1');
-const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
+const { HOSPITAL_CAPACITY, HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { sanitizeLogValue } = require('./logging/redaction');
 
@@ -18,6 +18,8 @@ const VALID_CUDYR_CATEGORIES = new Set([
   'D3',
 ]);
 const ADMIN_CUDYR_SOURCE = 'HHR · ajuste administrativo';
+// One physical bed and, when applicable, its nested clinical crib.
+const MAX_ADMIN_CUDYR_ADJUSTMENTS = HOSPITAL_CAPACITY * 2;
 
 const assertString = (value, fieldName, maxLength = 120) => {
   if (typeof value !== 'string' || !value.trim()) {
@@ -46,12 +48,7 @@ const toMillis = value => {
   return Number.isFinite(millis) ? millis : null;
 };
 
-const parsePayload = data => {
-  const date = assertString(data?.date, 'date', 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new functions.https.HttpsError('invalid-argument', 'date must use YYYY-MM-DD.');
-  }
-
+const parseAdjustment = data => {
   const rawCategory = data?.category;
   const category =
     rawCategory === null ? null : assertString(rawCategory, 'category', 2).toUpperCase();
@@ -59,6 +56,84 @@ const parsePayload = data => {
     throw new functions.https.HttpsError(
       'invalid-argument',
       'category must be one of the supported CUDYR results or null for removal.'
+    );
+  }
+
+  const expectedCurrentCategory =
+    data?.expectedCurrentCategory === undefined
+      ? undefined
+      : data.expectedCurrentCategory === null
+        ? null
+        : assertString(data.expectedCurrentCategory, 'expectedCurrentCategory', 2).toUpperCase();
+  if (
+    expectedCurrentCategory !== undefined &&
+    expectedCurrentCategory !== null &&
+    !VALID_CUDYR_CATEGORIES.has(expectedCurrentCategory)
+  ) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'expectedCurrentCategory must be a supported CUDYR result, null or omitted.'
+    );
+  }
+  const parseOptionalSnapshotString = (value, fieldName, maxLength) => {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    return assertString(value, fieldName, maxLength);
+  };
+
+  return {
+    bedId: assertString(data?.bedId, 'bedId', 80),
+    clinicalCrib: data?.clinicalCrib === true,
+    clinicalEpisodeId: assertString(data?.clinicalEpisodeId, 'clinicalEpisodeId', 160),
+    category,
+    ...(expectedCurrentCategory !== undefined ? { expectedCurrentCategory } : {}),
+    ...(data?.expectedRecordedAt !== undefined
+      ? {
+          expectedRecordedAt: parseOptionalSnapshotString(
+            data.expectedRecordedAt,
+            'expectedRecordedAt',
+            80
+          ),
+        }
+      : {}),
+    ...(data?.expectedRecordedDate !== undefined
+      ? {
+          expectedRecordedDate: parseOptionalSnapshotString(
+            data.expectedRecordedDate,
+            'expectedRecordedDate',
+            10
+          ),
+        }
+      : {}),
+    ...(data?.expectedSource !== undefined
+      ? {
+          expectedSource: parseOptionalSnapshotString(data.expectedSource, 'expectedSource', 160),
+        }
+      : {}),
+  };
+};
+
+const parsePayload = data => {
+  const date = assertString(data?.date, 'date', 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new functions.https.HttpsError('invalid-argument', 'date must use YYYY-MM-DD.');
+  }
+
+  const rawAdjustments = Array.isArray(data?.adjustments) ? data.adjustments : [data];
+  if (rawAdjustments.length === 0 || rawAdjustments.length > MAX_ADMIN_CUDYR_ADJUSTMENTS) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `adjustments must contain between 1 and ${MAX_ADMIN_CUDYR_ADJUSTMENTS} entries.`
+    );
+  }
+  const adjustments = rawAdjustments.map(parseAdjustment);
+  const targetKeys = adjustments.map(
+    adjustment => `${adjustment.bedId}:${adjustment.clinicalCrib ? 'crib' : 'bed'}`
+  );
+  if (new Set(targetKeys).size !== targetKeys.length) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'adjustments cannot contain the same patient target more than once.'
     );
   }
 
@@ -72,10 +147,7 @@ const parsePayload = data => {
 
   return {
     date,
-    bedId: assertString(data?.bedId, 'bedId', 80),
-    clinicalCrib: data?.clinicalCrib === true,
-    clinicalEpisodeId: assertString(data?.clinicalEpisodeId, 'clinicalEpisodeId', 160),
-    category,
+    adjustments,
     expectedLastUpdated,
   };
 };
@@ -139,9 +211,8 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
     const recordRef = hospitalRef.collection('dailyRecords').doc(payload.date);
     const historyRef = recordRef.collection('history').doc();
     const auditRef = hospitalRef.collection('auditLogs').doc();
-    let previousCategory = null;
     let revision = null;
-    let changed = false;
+    let changes = [];
 
     try {
       await firestore.runTransaction(async transaction => {
@@ -165,50 +236,83 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
           );
         }
 
-        const bed = remoteRecord.beds?.[payload.bedId];
-        const patient = payload.clinicalCrib ? bed?.clinicalCrib : bed;
-        if (!patient || typeof patient !== 'object') {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'The selected patient is no longer present in this bed.'
-          );
-        }
-        if (patient.clinicalEpisodeId !== payload.clinicalEpisodeId) {
-          throw new functions.https.HttpsError(
-            'aborted',
-            'The clinical episode changed before the administrative CUDYR adjustment.'
-          );
-        }
-
         const now = Timestamp.now();
-        const { nextPatient, previousCategory: resolvedPreviousCategory } = updatePatientCudyr({
-          patient,
-          category: payload.category,
-          date: payload.date,
-          email,
-        });
-        previousCategory = resolvedPreviousCategory;
         revision = resolveCurrentRevision(remoteRecord);
-        if (previousCategory === payload.category) return;
-
-        changed = true;
         const nextRecord = clone(remoteRecord);
         nextRecord.beds = clone(remoteRecord.beds || {});
-        nextRecord.beds[payload.bedId] = clone(bed);
-        if (payload.clinicalCrib) {
-          nextRecord.beds[payload.bedId].clinicalCrib = nextPatient;
-        } else {
-          nextRecord.beds[payload.bedId] = nextPatient;
-        }
+        const resolvedAdjustments = payload.adjustments.map(adjustment => {
+          const bed = remoteRecord.beds?.[adjustment.bedId];
+          const patient = adjustment.clinicalCrib ? bed?.clinicalCrib : bed;
+          if (!patient || typeof patient !== 'object') {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              'A selected patient is no longer present in the expected bed.'
+            );
+          }
+          if (patient.clinicalEpisodeId !== adjustment.clinicalEpisodeId) {
+            throw new functions.https.HttpsError(
+              'aborted',
+              'A clinical episode changed before the administrative CUDYR adjustment.'
+            );
+          }
+          const { nextPatient, previousCategory } = updatePatientCudyr({
+            patient,
+            category: adjustment.category,
+            date: payload.date,
+            email,
+          });
+          const currentImportedCudyr = patient.evaluationScores?.cudyr;
+          if (
+            (adjustment.expectedCurrentCategory !== undefined &&
+              previousCategory !== adjustment.expectedCurrentCategory) ||
+            (adjustment.expectedRecordedAt !== undefined &&
+              (currentImportedCudyr?.recordedAt ?? null) !== adjustment.expectedRecordedAt) ||
+            (adjustment.expectedRecordedDate !== undefined &&
+              (currentImportedCudyr?.recordedDate ?? null) !== adjustment.expectedRecordedDate) ||
+            (adjustment.expectedSource !== undefined &&
+              (currentImportedCudyr?.source ?? null) !== adjustment.expectedSource)
+          ) {
+            throw new functions.https.HttpsError(
+              'aborted',
+              'A selected CUDYR result changed before the administrative adjustment.'
+            );
+          }
+          return {
+            ...adjustment,
+            previousCategory,
+            nextPatient,
+            changed: previousCategory !== adjustment.category,
+          };
+        });
+
+        changes = resolvedAdjustments.map(({ nextPatient: _nextPatient, ...change }) => change);
+        const changedAdjustments = resolvedAdjustments.filter(adjustment => adjustment.changed);
+        if (changedAdjustments.length === 0) return;
+
+        changedAdjustments.forEach(adjustment => {
+          const currentBed = nextRecord.beds[adjustment.bedId];
+          if (adjustment.clinicalCrib) {
+            currentBed.clinicalCrib = adjustment.nextPatient;
+          } else {
+            nextRecord.beds[adjustment.bedId] = {
+              ...adjustment.nextPatient,
+              clinicalCrib: currentBed?.clinicalCrib,
+            };
+            if (!currentBed?.clinicalCrib) {
+              delete nextRecord.beds[adjustment.bedId].clinicalCrib;
+            }
+          }
+        });
         revision += 1;
         nextRecord.meta = {
           ...(remoteRecord.meta && typeof remoteRecord.meta === 'object'
             ? clone(remoteRecord.meta)
             : {}),
           revision,
-          lastChangedPaths: [
-            `beds.${payload.bedId}${payload.clinicalCrib ? '.clinicalCrib' : ''}.evaluationScores.cudyr`,
-          ],
+          lastChangedPaths: changedAdjustments.map(
+            adjustment =>
+              `beds.${adjustment.bedId}${adjustment.clinicalCrib ? '.clinicalCrib' : ''}.evaluationScores.cudyr`
+          ),
           updatedAt: now,
         };
         nextRecord.lastUpdated = now;
@@ -230,36 +334,49 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
           entityType: 'dailyRecord',
           entityId: payload.date,
           summary:
-            payload.category === null
-              ? 'Resultado CUDYR eliminado por administrador'
-              : 'Resultado CUDYR ajustado por administrador',
+            changedAdjustments.length === 1
+              ? changedAdjustments[0].category === null
+                ? 'Resultado CUDYR eliminado por administrador'
+                : 'Resultado CUDYR ajustado por administrador'
+              : `${changedAdjustments.length} resultados CUDYR ajustados por administrador`,
           details: {
-            event: 'admin_cudyr_result_adjusted',
-            bedId: payload.bedId,
-            clinicalCrib: payload.clinicalCrib,
-            clinicalEpisodeId: payload.clinicalEpisodeId,
-            previousCategory,
-            category: payload.category,
+            event: 'admin_cudyr_results_adjusted',
+            changedCount: changedAdjustments.length,
+            changes: changedAdjustments.map(
+              ({ nextPatient: _nextPatient, changed: _changed, ...change }) => change
+            ),
           },
           recordDate: payload.date,
         });
       });
 
+      const firstChange = changes[0] || null;
       return {
         success: true,
         date: payload.date,
-        bedId: payload.bedId,
-        clinicalCrib: payload.clinicalCrib,
-        previousCategory,
-        category: payload.category,
+        ...(firstChange && payload.adjustments.length === 1
+          ? {
+              bedId: firstChange.bedId,
+              clinicalCrib: firstChange.clinicalCrib,
+              previousCategory: firstChange.previousCategory,
+              category: firstChange.category,
+            }
+          : {}),
         revision,
-        changed,
+        changed: changes.some(change => change.changed),
+        changedCount: changes.filter(change => change.changed).length,
+        changes,
       };
     } catch (error) {
       if (error instanceof functions.https.HttpsError) throw error;
       console.error(
         'Error adjusting CUDYR result as administrator',
-        sanitizeLogValue({ email, date: payload.date, bedId: payload.bedId, error })
+        sanitizeLogValue({
+          email,
+          date: payload.date,
+          targetCount: payload.adjustments.length,
+          error,
+        })
       );
       throw new functions.https.HttpsError('internal', 'Failed to adjust the CUDYR result.');
     }
@@ -268,6 +385,7 @@ const createAdminCudyrResultFunctions = ({ firestore, Timestamp, resolveRoleForE
 
 module.exports = {
   ADMIN_CUDYR_SOURCE,
+  MAX_ADMIN_CUDYR_ADJUSTMENTS,
   VALID_CUDYR_CATEGORIES,
   createAdminCudyrResultFunctions,
   parsePayload,
