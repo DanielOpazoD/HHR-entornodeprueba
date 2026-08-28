@@ -116,6 +116,7 @@ export const runClinicalFill = async (
     onPersistenceEvidence: performance.recordPersistenceEvidence,
     onRetries: performance.recordRetries,
     onHistoricalPatch: performance.recordHistoricalPatch,
+    onAdministrativeOverridePreserved: performance.recordAdministrativeOverridePreserved,
     onError: error => summary.errors.push(error),
   });
   let done = 0;

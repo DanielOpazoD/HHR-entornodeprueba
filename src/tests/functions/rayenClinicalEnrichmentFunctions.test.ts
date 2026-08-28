@@ -142,6 +142,73 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set).not.toHaveBeenCalled();
   });
 
+  it('rejects replacing a current administrative CUDYR adjustment', async () => {
+    const remote = makeClinicalRecord();
+    (remote.beds.H2C1 as { evaluationScores?: unknown }).evaluationScores = {
+      braden: { total: 17 },
+      cudyr: {
+        category: 'D2',
+        recordedDate: remote.date,
+        source: 'HHR · ajuste administrativo',
+      },
+    } as never;
+    const admin = createClinicalAdminMock(remote);
+    const payload = makePayload();
+    payload.patches = [
+      {
+        bedId: 'H2C1',
+        clinicalEpisodeId: 'episode-secret-1',
+        fields: {
+          evaluationScores: {
+            cudyr: {
+              category: 'C1',
+              recordedDate: remote.date,
+              source: 'Eloísa · Gestión de Camas',
+            },
+          },
+        },
+      },
+    ] as never;
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+    ).rejects.toMatchObject({
+      code: 'failed-precondition',
+      message: 'An administrative CUDYR adjustment cannot be replaced by synchronization.',
+    });
+
+    expect(admin.set).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { label: 'omits CUDYR from the canonical score object', evaluationScores: { braden: { total: 18 } } },
+    { label: 'sets CUDYR to null', evaluationScores: { cudyr: null } },
+  ])('rejects a canonical patch that $label', async ({ evaluationScores }) => {
+    const remote = makeClinicalRecord();
+    (remote.beds.H2C1 as { evaluationScores?: unknown }).evaluationScores = {
+      braden: { total: 17 },
+      cudyr: {
+        category: 'D2',
+        recordedDate: remote.date,
+        source: 'HHR · ajuste administrativo',
+      },
+    };
+    const admin = createClinicalAdminMock(remote);
+    const payload = makePayload();
+    payload.patches = [
+      {
+        bedId: 'H2C1',
+        clinicalEpisodeId: 'episode-secret-1',
+        fields: { evaluationScores },
+      },
+    ] as never;
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(payload, makeContext())
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(admin.set).not.toHaveBeenCalled();
+  });
+
   it('updates a clinical crib only when its own episode matches', async () => {
     const admin = createClinicalAdminMock();
     const payload = makePayload();

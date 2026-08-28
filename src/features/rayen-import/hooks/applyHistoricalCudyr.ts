@@ -37,7 +37,7 @@ const writeHistoricalCudyrBatch = async ({
   items: HistoricalCudyrBatchItem[];
   writeGuard?: RayenClinicalWriteGuard;
 }): Promise<HistoricalCudyrBatchItemResult[]> => {
-  const historicalRecord = (await dailyRecord.getForDateWithMeta(censusDay, true)).record;
+  const historicalRecord = await dailyRecord.getAuthoritativeForDate(censusDay);
   if (!historicalRecord) {
     return items.map(({ clinicalEpisodeId }) => ({
       clinicalEpisodeId,
@@ -58,9 +58,12 @@ const writeHistoricalCudyrBatch = async ({
   if (Object.keys(patch).length === 0) {
     return resolutions.map(({ clinicalEpisodeId, resolution }) => ({
       clinicalEpisodeId,
-      persisted: resolution.matched,
+      persisted: resolution.matched && !resolution.administrativeOverridePreserved,
       changed: false,
       ...(!resolution.matched ? { applicable: false as const } : {}),
+      ...(resolution.administrativeOverridePreserved
+        ? { administrativeOverridePreserved: true as const }
+        : {}),
     }));
   }
 
@@ -78,9 +81,12 @@ const writeHistoricalCudyrBatch = async ({
   if (result?.blockingError) throw result.blockingError;
   return resolutions.map(({ clinicalEpisodeId, resolution }) => ({
     clinicalEpisodeId,
-    persisted: resolution.matched,
+    persisted: resolution.matched && !resolution.administrativeOverridePreserved,
     changed: Boolean(resolution.patch),
     ...(!resolution.matched ? { applicable: false as const } : {}),
+    ...(resolution.administrativeOverridePreserved
+      ? { administrativeOverridePreserved: true as const }
+      : {}),
   }));
 };
 
@@ -188,7 +194,7 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   }
 
   const loadHistoricalRecord = async (): Promise<DailyRecord> => {
-    const historicalRecord = (await dailyRecord.getForDateWithMeta(censusDay, true)).record;
+    const historicalRecord = await dailyRecord.getAuthoritativeForDate(censusDay);
     if (!historicalRecord) throw new Error('No existe el censo histórico para archivar CUDYR.');
     return historicalRecord;
   };
@@ -197,6 +203,9 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
     clinicalEpisodeId,
     ...resolveHistoricalCudyrBatchOperation(historicalRecord, clinicalEpisodeId, cudyr),
   }));
+  const effectiveResolutions = new Map(
+    resolutions.map(resolution => [resolution.clinicalEpisodeId, resolution])
+  );
   const authoritativeItems = uniqueItems.filter(item =>
     resolutions.some(
       resolution =>
@@ -204,12 +213,16 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
     )
   );
   const rebuildOperations = (record: DailyRecord) => {
-    const rebuilt = authoritativeItems.map(({ clinicalEpisodeId, cudyr }) =>
-      resolveHistoricalCudyrBatchOperation(record, clinicalEpisodeId, cudyr)
-    );
+    const rebuilt = authoritativeItems.map(({ clinicalEpisodeId, cudyr }) => ({
+      clinicalEpisodeId,
+      ...resolveHistoricalCudyrBatchOperation(record, clinicalEpisodeId, cudyr),
+    }));
     if (rebuilt.some(resolution => !resolution.matched)) {
       throw new Error('El episodio histórico cambió durante la actualización de CUDYR.');
     }
+    rebuilt.forEach(resolution =>
+      effectiveResolutions.set(resolution.clinicalEpisodeId, resolution)
+    );
     return rebuilt.flatMap(({ operation }) => (operation ? [operation] : []));
   };
   const operations = resolutions.flatMap(({ operation }) => (operation ? [operation] : []));
@@ -235,12 +248,19 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   }
 
   return {
-    results: resolutions.map(({ clinicalEpisodeId, matched, operation }) => ({
-      clinicalEpisodeId,
-      persisted: matched,
-      changed: Boolean(operation),
-      ...(!matched ? { applicable: false as const } : {}),
-    })),
+    results: uniqueItems.map(({ clinicalEpisodeId }) => {
+      const resolution = effectiveResolutions.get(clinicalEpisodeId);
+      const matched = Boolean(resolution?.matched);
+      return {
+        clinicalEpisodeId,
+        persisted: matched && !resolution?.administrativeOverridePreserved,
+        changed: Boolean(resolution?.operation),
+        ...(!matched ? { applicable: false as const } : {}),
+        ...(resolution?.administrativeOverridePreserved
+          ? { administrativeOverridePreserved: true as const }
+          : {}),
+      };
+    }),
     ...(persistence ? { persistence } : {}),
     ...(!persistence && retries > 0 ? { retries } : {}),
   };

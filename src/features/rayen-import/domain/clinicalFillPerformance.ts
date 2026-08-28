@@ -19,6 +19,7 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
   let historicalCudyrPersistenceObserved = false;
   const persistenceTrace: NonNullable<RayenSyncPerformance['persistenceTrace']> = {};
   let historicalPatches = 0;
+  let administrativeOverridesPreserved = 0;
   let retries = 0;
   let timeouts = 0;
 
@@ -60,6 +61,10 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     historicalPatches += 1;
   };
 
+  const recordAdministrativeOverridePreserved = (): void => {
+    administrativeOverridesPreserved += 1;
+  };
+
   const recordRetries = (count: number): void => {
     if (Number.isFinite(count) && count > 0) retries += Math.floor(count);
   };
@@ -97,6 +102,7 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
         patches: writeMetrics.patientWrites + historicalPatches,
         retries,
         timeouts,
+        ...(administrativeOverridesPreserved > 0 ? { administrativeOverridesPreserved } : {}),
       },
       ...(Object.keys(persistenceTrace).length > 0 ? { persistenceTrace } : {}),
     };
@@ -107,6 +113,7 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     recordTimeout,
     writeObserver,
     recordHistoricalPatch,
+    recordAdministrativeOverridePreserved,
     recordRetries,
     recordPersistenceEvidence,
     finish,

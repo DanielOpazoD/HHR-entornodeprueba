@@ -127,6 +127,37 @@ describe('applyRayenClinicalEnrichmentBatch historical authority', () => {
     );
   });
 
+  it('rejects replacing a historical administrative CUDYR adjustment', async () => {
+    const target = makeClinicalRecord();
+    target.date = '2026-07-27';
+    target.lastUpdated = '2026-07-27T10:00:00.000Z';
+    (target.beds.H2C1 as { evaluationScores?: unknown }).evaluationScores = {
+      braden: { total: 17 },
+      downton: { total: 3 },
+      cudyr: {
+        category: 'D2',
+        recordedDate: '2026-07-27',
+        source: 'HHR · ajuste administrativo',
+      },
+    };
+    const admin = createClinicalAdminMock(target, {
+      authorityDate: '2026-07-28',
+      authorityRemoteData: makeClinicalRecord(),
+    });
+
+    await expect(
+      createApi(admin, 'admin').applyRayenClinicalEnrichmentBatch.run(
+        makeHistoricalCudyrPayload(),
+        makeContext()
+      )
+    ).rejects.toMatchObject({
+      code: 'failed-precondition',
+      message: 'An administrative CUDYR adjustment cannot be replaced by synchronization.',
+    });
+
+    expect(admin.set).not.toHaveBeenCalled();
+  });
+
   it('requires an administrator for a previous-day CUDYR correction', async () => {
     const admin = createHistoricalAdmin();
 

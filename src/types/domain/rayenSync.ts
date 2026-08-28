@@ -202,6 +202,8 @@ export interface RayenSyncPerformance {
     patches: number;
     retries: number;
     timeouts: number;
+    /** CUDYR proposals intentionally omitted because an administrative correction owns the value. */
+    administrativeOverridesPreserved?: number;
   };
   sourceQuality?: {
     treatingPhysicians?: RayenTreatingPhysicianSourceQuality;

@@ -56,10 +56,10 @@ describe('applyHistoricalCudyr', () => {
 
   it('rehydrates and retries once after a concurrent daily-record change', async () => {
     const repository = {
-      getForDateWithMeta: vi
+      getAuthoritativeForDate: vi
         .fn()
-        .mockResolvedValueOnce({ record: record('revision-1') })
-        .mockResolvedValueOnce({ record: record('revision-2') }),
+        .mockResolvedValueOnce(record('revision-1'))
+        .mockResolvedValueOnce(record('revision-2')),
     } as unknown as DailyRecordRepositoryPort;
     vi.mocked(patchDailyRecordWithCompatibility)
       .mockResolvedValueOnce({
@@ -82,7 +82,7 @@ describe('applyHistoricalCudyr', () => {
       })
     ).resolves.toEqual({ persisted: true, changed: true });
 
-    expect(repository.getForDateWithMeta).toHaveBeenCalledTimes(2);
+    expect(repository.getAuthoritativeForDate).toHaveBeenCalledTimes(2);
     expect(patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(2);
     expect(patchDailyRecordWithCompatibility).toHaveBeenNthCalledWith(
       2,
@@ -95,7 +95,7 @@ describe('applyHistoricalCudyr', () => {
 
   it('does not retry a non-concurrent rejection', async () => {
     const repository = {
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('revision-1') }),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
     } as unknown as DailyRecordRepositoryPort;
     vi.mocked(patchDailyRecordWithCompatibility).mockResolvedValueOnce({
       outcome: 'blocked',
@@ -113,15 +113,13 @@ describe('applyHistoricalCudyr', () => {
       })
     ).rejects.toThrow('Validación fallida.');
 
-    expect(repository.getForDateWithMeta).toHaveBeenCalledOnce();
+    expect(repository.getAuthoritativeForDate).toHaveBeenCalledOnce();
     expect(patchDailyRecordWithCompatibility).toHaveBeenCalledOnce();
   });
 
   it('persists several historical patients with one census read and one patch', async () => {
     const repository = {
-      getForDateWithMeta: vi
-        .fn()
-        .mockResolvedValue({ record: recordWithTwoEpisodes('revision-1') }),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(recordWithTwoEpisodes('revision-1')),
     } as unknown as DailyRecordRepositoryPort;
     vi.mocked(patchDailyRecordWithCompatibility).mockResolvedValueOnce(null);
     const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
@@ -141,7 +139,7 @@ describe('applyHistoricalCudyr', () => {
       { clinicalEpisodeId: '142001', persisted: true, changed: true },
     ]);
 
-    expect(repository.getForDateWithMeta).toHaveBeenCalledOnce();
+    expect(repository.getAuthoritativeForDate).toHaveBeenCalledOnce();
     expect(patchDailyRecordWithCompatibility).toHaveBeenCalledOnce();
     expect(patchDailyRecordWithCompatibility).toHaveBeenCalledWith(
       repository,
@@ -156,7 +154,7 @@ describe('applyHistoricalCudyr', () => {
 
   it('authorizes a delayed guarded retry from the frozen synchronization date', async () => {
     const repository = {
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('revision-1') }),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
     } as unknown as DailyRecordRepositoryPort;
     vi.mocked(patchDailyRecordWithCompatibility).mockResolvedValueOnce(null);
 
@@ -182,7 +180,7 @@ describe('applyHistoricalCudyr', () => {
 
   it('does not send a guarded historical patch to a day outside its frozen run', async () => {
     const repository = {
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('revision-1') }),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
     } as unknown as DailyRecordRepositoryPort;
 
     await expect(
@@ -209,14 +207,14 @@ describe('applyHistoricalCudyr', () => {
       },
     ]);
 
-    expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
+    expect(repository.getAuthoritativeForDate).not.toHaveBeenCalled();
     expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
   });
 
   it('persists historical CUDYR through one enforced batch authorized by the source run', async () => {
     const historicalRecord = recordWithTwoEpisodes('revision-1');
     const repository = {
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: historicalRecord }),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
     } as unknown as DailyRecordRepositoryPort;
     const applyBatch = vi.fn().mockResolvedValue({
       patientWrites: 2,
@@ -260,7 +258,7 @@ describe('applyHistoricalCudyr', () => {
       },
     });
 
-    expect(repository.getForDateWithMeta).toHaveBeenCalledOnce();
+    expect(repository.getAuthoritativeForDate).toHaveBeenCalledOnce();
     expect(applyBatch).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: 'enforced',
@@ -303,7 +301,7 @@ describe('applyHistoricalCudyr', () => {
   it('preserves aggregate retries when an older callable cannot provide scoped evidence', async () => {
     const historicalRecord = recordWithTwoEpisodes('revision-1');
     const repository = {
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: historicalRecord }),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(historicalRecord),
     } as unknown as DailyRecordRepositoryPort;
     const sourceRecord = {
       ...record('revision-source'),
@@ -333,7 +331,7 @@ describe('applyHistoricalCudyr', () => {
     { censusDay: '2026-07-29', isAdmin: false, label: 'a non-admin writer' },
   ])('does not invoke authority for $label', async ({ censusDay, isAdmin }) => {
     const repository = {
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: record('revision-1') }),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(record('revision-1')),
     } as unknown as DailyRecordRepositoryPort;
     const applyBatch = vi.fn();
     const sourceRecord = {
@@ -362,7 +360,7 @@ describe('applyHistoricalCudyr', () => {
       ],
     });
 
-    expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
+    expect(repository.getAuthoritativeForDate).not.toHaveBeenCalled();
     expect(applyBatch).not.toHaveBeenCalled();
   });
 
@@ -378,7 +376,7 @@ describe('applyHistoricalCudyr', () => {
       },
     } as unknown as DailyRecord;
     const repository = {
-      getForDateWithMeta: vi.fn().mockResolvedValue({ record: initialRecord }),
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(initialRecord),
     } as unknown as DailyRecordRepositoryPort;
     const applyBatch = vi.fn().mockResolvedValue({ patientWrites: 1, historySnapshots: 1 });
     const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };

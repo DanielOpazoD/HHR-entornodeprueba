@@ -480,6 +480,39 @@ const assertHistoricalCudyrPayload = (record, payload) => {
   });
 };
 
+const ADMIN_CUDYR_SOURCE = 'HHR · ajuste administrativo';
+
+/**
+ * A synchronization proposal cannot replace an administrator-owned CUDYR result. The client
+ * normally removes these operations after its authoritative read; this backend fence covers stale
+ * or older clients without exposing any patient or clinical value in the error.
+ */
+const assertAdministrativeCudyrAuthority = (record, payload) => {
+  payload.patches.forEach(target => {
+    if (!Object.prototype.hasOwnProperty.call(target.fields, 'evaluationScores')) return;
+    const requestedScores = target.fields.evaluationScores;
+    const patient = assertTargetMatchesEpisode(record, target);
+    const currentCudyr = patient?.evaluationScores?.cudyr;
+    if (!isPlainObject(currentCudyr) || currentCudyr.source !== ADMIN_CUDYR_SOURCE) return;
+    const hasRequestedCudyr =
+      isPlainObject(requestedScores) &&
+      Object.prototype.hasOwnProperty.call(requestedScores, 'cudyr');
+    const preservesAdministrativeCudyr =
+      hasRequestedCudyr &&
+      isPlainObject(requestedScores.cudyr) &&
+      canonicalize(currentCudyr) === canonicalize(requestedScores.cudyr);
+    const legacyPatchCannotRemoveCudyr =
+      isPlainObject(requestedScores) &&
+      !hasRequestedCudyr &&
+      payload.fieldContractVersion < CANONICAL_FIELD_CONTRACT_VERSION;
+    if (preservesAdministrativeCudyr || legacyPatchCannotRemoveCudyr) return;
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'An administrative CUDYR adjustment cannot be replaced by synchronization.'
+    );
+  });
+};
+
 const resolveHistoricalCudyrTargets = (record, payload) => {
   if (payload.date === payload.authorityDate) return payload.targets;
   return payload.targets.map(target => {
@@ -688,6 +721,7 @@ module.exports = {
   ALLOWED_FIELDS,
   MAX_BATCH_TARGETS,
   applyClinicalEnrichment,
+  assertAdministrativeCudyrAuthority,
   assertHistoricalCudyrPayload,
   clinicalEnrichmentMatches,
   assertLegacyReplayRevision,

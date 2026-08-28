@@ -27,6 +27,7 @@ export const RayenSyncPerformanceSchema = z.object({
     patches: z.number().int().nonnegative(),
     retries: z.number().int().nonnegative(),
     timeouts: z.number().int().nonnegative(),
+    administrativeOverridesPreserved: nullableOptional(z.number().int().nonnegative()),
   }),
   sourceQuality: nullableOptional(
     z.object({

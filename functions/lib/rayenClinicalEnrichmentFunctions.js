@@ -10,6 +10,7 @@ const {
 const {
   applyClinicalEnrichment,
   assertHistoricalCudyrPayload,
+  assertAdministrativeCudyrAuthority,
   assertPersistedDocumentSize,
   assertLegacyReplayRevision,
   assertRecordRevision,
@@ -264,6 +265,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           idempotency.status === 'legacy-replay'
             ? assertLegacyReplayRevision(remoteData, payload, idempotency.receipt)
             : assertRecordRevision(remoteData, payload);
+        assertAdministrativeCudyrAuthority(remoteData, payload);
         const effectiveTargets = resolveHistoricalCudyrTargets(remoteData, payload);
         if (clinicalEnrichmentMatches(remoteData, effectiveTargets, payload.fieldContractVersion)) {
           // Reuse the established status so older clients remain compatible
