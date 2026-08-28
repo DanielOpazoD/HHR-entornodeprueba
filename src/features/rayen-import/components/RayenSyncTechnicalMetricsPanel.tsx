@@ -11,6 +11,8 @@ const STAGE_LABELS: Array<[keyof RayenSyncPerformance['stagesMs'], string]> = [
   ['clinicalReads', 'Lecturas clínicas'],
   ['writeQueueWait', 'Espera interna sumada'],
   ['persistence', 'Persistencia sumada'],
+  ['currentClinicalPersistence', 'Persistencia clínica actual'],
+  ['historicalCudyrPersistence', 'Persistencia CUDYR histórica'],
 ];
 
 const formatDuration = (durationMs: number): string =>
@@ -32,6 +34,9 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
   const { counters } = performance;
   const physicianQuality = performance.sourceQuality?.treatingPhysicians;
   const coordination = performance.coordination;
+  const persistenceTrace = performance.persistenceTrace;
+  const currentPersistence = persistenceTrace?.current;
+  const historicalPersistence = persistenceTrace?.historical;
 
   return (
     <details
@@ -57,6 +62,36 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
           {countLabel(counters.retries, 'reintento', 'reintentos')} ·{' '}
           {countLabel(counters.timeouts, 'timeout', 'timeouts')}
         </p>
+        {(currentPersistence || historicalPersistence) && (
+          <p className="tabular-nums text-slate-500">
+            Persistencia autoritativa:{' '}
+            {currentPersistence
+              ? `${currentPersistence.callableAttempts} actual${
+                  currentPersistence.callableAttempts === 1 ? '' : 'es'
+                }`
+              : '0 actuales'}{' '}
+            ·{' '}
+            {historicalPersistence
+              ? `${historicalPersistence.callableAttempts} histórica${
+                  historicalPersistence.callableAttempts === 1 ? '' : 's'
+                }`
+              : '0 históricas'}{' '}
+            ·{' '}
+            {countLabel(
+              (currentPersistence?.clientRetries ?? 0) +
+                (historicalPersistence?.clientRetries ?? 0),
+              'reintento cliente',
+              'reintentos cliente'
+            )}{' '}
+            ·{' '}
+            {countLabel(
+              (currentPersistence?.transactionRetries ?? 0) +
+                (historicalPersistence?.transactionRetries ?? 0),
+              'reintento Firestore',
+              'reintentos Firestore'
+            )}
+          </p>
+        )}
         {coordination && (
           <p className="tabular-nums text-slate-500">
             {coordination.target

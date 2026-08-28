@@ -4,12 +4,14 @@ import type {
   ClinicalFillError,
   ClinicalFillPatchOperation,
   ClinicalFillPersistenceStrategy,
+  ClinicalPersistenceEvidence,
 } from '../contracts/clinicalFillContracts';
 import {
   buildClinicalFillError,
   classifyRayenSyncError,
   reportRayenSyncWarning,
 } from '../observability/rayenSyncDiagnostics';
+import { readPersistenceFailureEvidence } from '../hooks/clinicalEnrichmentBatchExecutionSupport';
 
 interface PersistClinicalBatchInput {
   operations: ClinicalFillPatchOperation[];
@@ -19,6 +21,7 @@ interface PersistClinicalBatchInput {
     operation: () => Promise<ClinicalFillBatchApplyResult>
   ) => Promise<ClinicalFillBatchApplyResult>;
   recordRetries: (count: number) => void;
+  recordPersistenceEvidence: (evidence: ClinicalPersistenceEvidence) => void;
 }
 
 interface PersistClinicalBatchResult {
@@ -39,11 +42,13 @@ export const persistClinicalBatch = async ({
   strategy,
   applyWithMetrics,
   recordRetries,
+  recordPersistenceEvidence,
 }: PersistClinicalBatchInput): Promise<PersistClinicalBatchResult> => {
   if (strategy.disposition === 'deferred' && operations.length > 0) {
     try {
       const result = await applyWithMetrics(() => strategy.persist(operations));
-      recordRetries(result.retries ?? 0);
+      if (result.persistence) recordPersistenceEvidence(result.persistence);
+      else recordRetries(result.retries ?? 0);
       const failedIndexes = new Set((result.failures ?? []).map(failure => failure.index));
       const clinicalTargets = operations.filter(
         (operation, index) => !failedIndexes.has(index) && (operation.clinicalFieldCount ?? 1) > 0
@@ -66,7 +71,10 @@ export const persistClinicalBatch = async ({
         batch: result.batch,
       };
     } catch (error) {
-      recordRetries(retryCount(error));
+      const persistenceEvidence = readPersistenceFailureEvidence(error);
+      if (persistenceEvidence) recordPersistenceEvidence(persistenceEvidence);
+      const retries = retryCount(error);
+      if (!persistenceEvidence) recordRetries(retries);
       return {
         patched: 0,
         errors: operations.map(operation =>

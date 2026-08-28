@@ -7,10 +7,18 @@ import type { RayenHistoryScaleEvent } from '../bridge/rayenImportBridge';
 import type { RayenCudyrCategoriesResponse } from './rayenCudyr';
 import type { NursingStaffingProposal, RayenNursingActivity } from './nursingShiftInference';
 import type {
+  RayenClinicalPersistenceScope,
   RayenSyncIssueReason,
   RayenSyncIssueSource,
   RayenSyncPerformance,
 } from '@/types/domain/rayenSync';
+
+export interface ClinicalPersistenceEvidence {
+  scope: RayenClinicalPersistenceScope;
+  callableAttempts: number;
+  clientRetries: number;
+  transactionRetries: number;
+}
 
 export interface ClinicalFillDeps {
   /** Correlates aggregate diagnostics with the user-initiated synchronization run. */
@@ -52,7 +60,7 @@ export interface ClinicalFillDeps {
   applyHistoricalCudyrBatch?: (
     censusDay: string,
     items: HistoricalCudyrBatchItem[]
-  ) => Promise<HistoricalCudyrBatchItemResult[]>;
+  ) => Promise<HistoricalCudyrBatchItemResult[] | HistoricalCudyrBatchExecutionResult>;
   applyPatch: (patch: DailyRecordPatch, target: ClinicalFillPatchTarget) => Promise<void>;
   /** Selects exactly one persistence owner for the whole fill run. */
   persistenceStrategy?: ClinicalFillPersistenceStrategy;
@@ -84,6 +92,7 @@ export interface ClinicalFillBatchApplyResult {
   patientWrites: number;
   historySnapshots: number;
   retries?: number;
+  persistence?: ClinicalPersistenceEvidence;
   failures?: ClinicalFillBatchApplyFailure[];
   batch?: ClinicalFillBatchEvidence;
 }
@@ -132,6 +141,13 @@ export interface HistoricalCudyrBatchItem {
 
 export interface HistoricalCudyrBatchItemResult extends HistoricalCudyrApplyResult {
   clinicalEpisodeId: string;
+}
+
+export interface HistoricalCudyrBatchExecutionResult {
+  results: HistoricalCudyrBatchItemResult[];
+  persistence?: ClinicalPersistenceEvidence;
+  /** Aggregate client retries retained while an older callable cannot prove scoped evidence. */
+  retries?: number;
 }
 
 export interface ClinicalFillError {

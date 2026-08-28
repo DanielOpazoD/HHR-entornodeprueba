@@ -11,6 +11,7 @@ import type {
 import type {
   HistoricalCudyrBatchItem,
   HistoricalCudyrBatchItemResult,
+  HistoricalCudyrBatchExecutionResult,
 } from '../contracts/clinicalFillContracts';
 import {
   beginRayenFill,
@@ -81,7 +82,7 @@ interface UseRayenClinicalFillInput {
     censusDay: string,
     items: HistoricalCudyrBatchItem[],
     runId: string
-  ) => Promise<HistoricalCudyrBatchItemResult[]>;
+  ) => Promise<HistoricalCudyrBatchExecutionResult>;
   completeRun: (
     record: DailyRecord,
     summary: ClinicalFillSummary,

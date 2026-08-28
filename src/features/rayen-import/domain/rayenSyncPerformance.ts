@@ -33,6 +33,29 @@ export const mergeRayenSyncPerformance = (
     counters[key] = safeInteger(counters[key]) + safeInteger(delta?.counters?.[key]);
   }
   const sourceQuality = delta?.sourceQuality ?? merged.sourceQuality;
+  const mergePersistenceScope = (
+    scope: 'current' | 'historical'
+  ): NonNullable<RayenSyncPerformance['persistenceTrace']>[typeof scope] | undefined => {
+    const current = merged.persistenceTrace?.[scope];
+    const incoming = delta?.persistenceTrace?.[scope];
+    if (!current && !incoming) return undefined;
+    return {
+      callableAttempts:
+        safeInteger(current?.callableAttempts) + safeInteger(incoming?.callableAttempts),
+      clientRetries: safeInteger(current?.clientRetries) + safeInteger(incoming?.clientRetries),
+      transactionRetries:
+        safeInteger(current?.transactionRetries) + safeInteger(incoming?.transactionRetries),
+    };
+  };
+  const currentPersistence = mergePersistenceScope('current');
+  const historicalPersistence = mergePersistenceScope('historical');
+  const persistenceTrace =
+    currentPersistence || historicalPersistence
+      ? {
+          ...(currentPersistence ? { current: currentPersistence } : {}),
+          ...(historicalPersistence ? { historical: historicalPersistence } : {}),
+        }
+      : undefined;
   const currentCoordination = merged.coordination;
   const coordinationDelta = delta?.coordination;
   const hasCoordination = Boolean(currentCoordination || coordinationDelta);
@@ -60,6 +83,7 @@ export const mergeRayenSyncPerformance = (
     stagesMs,
     counters,
     ...(sourceQuality ? { sourceQuality } : {}),
+    ...(persistenceTrace ? { persistenceTrace } : {}),
     ...(coordination ? { coordination } : {}),
   };
 };

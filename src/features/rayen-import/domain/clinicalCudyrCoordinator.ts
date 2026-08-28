@@ -1,12 +1,15 @@
 import { buildImportedCudyr, previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type {
+  ClinicalPersistenceEvidence,
   ClinicalFillError,
   HistoricalCudyrApplyResult,
+  HistoricalCudyrBatchExecutionResult,
   HistoricalCudyrBatchItem,
   HistoricalCudyrBatchItemResult,
 } from '../contracts/clinicalFillContracts';
 import { buildClinicalFillError } from '../observability/rayenSyncDiagnostics';
+import { readPersistenceFailureEvidence } from '../hooks/clinicalEnrichmentBatchExecutionSupport';
 import type { ClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { clinicalValuesEqual } from './clinicalIncrementalSync';
 
@@ -17,19 +20,26 @@ interface ClinicalCudyrCoordinatorInput {
   applyBatch?: (
     censusDay: string,
     items: HistoricalCudyrBatchItem[]
-  ) => Promise<HistoricalCudyrBatchItemResult[]>;
+  ) => Promise<HistoricalCudyrBatchItemResult[] | HistoricalCudyrBatchExecutionResult>;
   applySingle?: (
     clinicalEpisodeId: string,
     censusDay: string,
     cudyr: HistoricalCudyrBatchItem['cudyr']
   ) => Promise<HistoricalCudyrApplyResult>;
   enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>;
+  onPersistenceEvidence: (evidence: ClinicalPersistenceEvidence) => void;
+  onRetries: (count: number) => void;
   onHistoricalPatch: () => void;
   onError: (error: ClinicalFillError) => void;
 }
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+const batchRetryCount = (error: unknown): number => {
+  const retries = Number((error as { clinicalBatchRetries?: unknown })?.clinicalBatchRetries);
+  return Number.isFinite(retries) && retries > 0 ? Math.floor(retries) : 0;
+};
 
 const indexBatchResults = (
   results: HistoricalCudyrBatchItemResult[]
@@ -48,6 +58,8 @@ export const createClinicalCudyrCoordinator = ({
   applyBatch,
   applySingle,
   enqueueWrite,
+  onPersistenceEvidence,
+  onRetries,
   onHistoricalPatch,
   onError,
 }: ClinicalCudyrCoordinatorInput) => {
@@ -66,10 +78,21 @@ export const createClinicalCudyrCoordinator = ({
               }
             );
             if (items.length === 0) return new Map<string, HistoricalCudyrApplyResult>();
-            return enqueueWrite(() => applyBatch(priorCensusDay, items)).then(indexBatchResults);
+            return enqueueWrite(() => applyBatch(priorCensusDay, items)).then(outcome => {
+              if (Array.isArray(outcome)) return indexBatchResults(outcome);
+              if (outcome.persistence) onPersistenceEvidence(outcome.persistence);
+              else onRetries(outcome.retries ?? 0);
+              return indexBatchResults(outcome.results);
+            });
           })
           .then<SharedBatchOutcome>(results => ({ status: 'fulfilled', results }))
-          .catch(error => ({ status: 'rejected', error }))
+          .catch(error => {
+            const persistenceEvidence = readPersistenceFailureEvidence(error);
+            if (persistenceEvidence) onPersistenceEvidence(persistenceEvidence);
+            const clientRetries = batchRetryCount(error);
+            if (!persistenceEvidence) onRetries(clientRetries);
+            return { status: 'rejected', error };
+          })
       : null;
 
   const apply = async (

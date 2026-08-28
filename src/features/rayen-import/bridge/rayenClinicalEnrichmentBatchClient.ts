@@ -57,6 +57,9 @@ export interface RayenClinicalEnrichmentBatchResponse {
   resultParity?: 'matched' | 'mismatch';
   patientWrites?: number;
   historySnapshots?: number;
+  targetScope?: 'current' | 'historical';
+  transactionAttempts?: number;
+  transactionRetries?: number;
 }
 
 export const callRayenClinicalEnrichmentBatch = async (

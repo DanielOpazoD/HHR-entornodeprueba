@@ -18,6 +18,8 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
             clinicalReads: 3_500,
             writeQueueWait: 80,
             persistence: 400,
+            currentClinicalPersistence: 250,
+            historicalCudyrPersistence: 150,
           },
           counters: { requests: 14, cacheHits: 3, patches: 2, retries: 1, timeouts: 0 },
           coordination: {
@@ -26,6 +28,10 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
             confirmedEpisodes: 10,
             omittedEpisodes: 1,
             clinicalRetries: 1,
+          },
+          persistenceTrace: {
+            current: { callableAttempts: 1, clientRetries: 0, transactionRetries: 0 },
+            historical: { callableAttempts: 2, clientRetries: 1, transactionRetries: 1 },
           },
           sourceQuality: {
             treatingPhysicians: {
@@ -52,6 +58,8 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     expect(panel).toHaveTextContent('Guardado estructural');
     expect(panel).toHaveTextContent('Espera interna sumada');
     expect(panel).toHaveTextContent('Persistencia sumada');
+    expect(panel).toHaveTextContent('Persistencia clínica actual');
+    expect(panel).toHaveTextContent('Persistencia CUDYR histórica');
     expect(panel).toHaveTextContent(
       'Las esperas y persistencias se suman entre pacientes; pueden superar la duración total'
     );
@@ -60,6 +68,9 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     );
     expect(panel).toHaveTextContent(
       'Contexto histórico · 2 replanteamientos estructurales · 10 episodios confirmados · 1 omitidos · 1 reintento clínico'
+    );
+    expect(panel).toHaveTextContent(
+      'Persistencia autoritativa: 1 actual · 2 históricas · 1 reintento cliente · 1 reintento Firestore'
     );
     expect(panel).toHaveTextContent(
       'Médicos tratantes: 8 asignados · 6 nombres desde Eloísa · 8 disponibles para sincronizar · 14 en catálogo · 11 encuentros'

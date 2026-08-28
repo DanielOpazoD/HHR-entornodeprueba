@@ -44,6 +44,10 @@ const dependencies = () => ({
     resultParity: 'matched' as const,
     patientWrites: 1,
     historySnapshots: 1,
+    targetScope:
+      payload.date === payload.authorityDate ? ('current' as const) : ('historical' as const),
+    transactionAttempts: 1,
+    transactionRetries: 0,
   })),
   createMutationId: vi.fn(() => 'mutation-fixed'),
 });
@@ -59,6 +63,7 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
     deps.invoke.mockRejectedValueOnce({
       code: 'functions/aborted',
       message: 'revision_mismatch: expected 7, received 8.',
+      details: { transactionRetries: 2 },
     });
 
     const result = await applyClinicalEnrichmentBatch({
@@ -81,7 +86,46 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
     });
     expect(deps.refreshRecord).toHaveBeenCalledTimes(2);
     expect(deps.applyPatch).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ patientWrites: 1, retries: 1 });
+    expect(result).toMatchObject({
+      patientWrites: 1,
+      retries: 1,
+      persistence: {
+        scope: 'current',
+        callableAttempts: 2,
+        clientRetries: 1,
+        transactionRetries: 2,
+      },
+    });
+  });
+
+  it('preserves actual callable attempts when refresh fails before a second invocation', async () => {
+    const deps = dependencies();
+    deps.invoke.mockRejectedValueOnce({
+      code: 'functions/aborted',
+      message: 'revision_mismatch: expected 7, received 8.',
+      details: { transactionRetries: 1 },
+    });
+    deps.refreshRecord.mockRejectedValueOnce(new Error('refresh unavailable'));
+
+    await expect(
+      applyClinicalEnrichmentBatch({
+        mode: 'enforced',
+        record,
+        runId: 'run-refresh-failed',
+        operations,
+        ...deps,
+      })
+    ).rejects.toMatchObject({
+      clinicalBatchRetries: 1,
+      clinicalPersistenceEvidence: {
+        scope: 'current',
+        callableAttempts: 1,
+        clientRetries: 1,
+        transactionRetries: 1,
+      },
+    });
+
+    expect(deps.invoke).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a changed bed or episode blocked after refreshing a stale census revision', async () => {
@@ -123,6 +167,7 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
     deps.invoke.mockRejectedValue({
       code: 'functions/aborted',
       message: 'The transaction was cancelled by policy.',
+      details: { transactionRetries: 1 },
     });
 
     await expect(
@@ -133,7 +178,15 @@ describe('applyClinicalEnrichmentBatch version conflicts', () => {
         operations,
         ...deps,
       })
-    ).rejects.toMatchObject({ code: 'functions/aborted' });
+    ).rejects.toMatchObject({
+      code: 'functions/aborted',
+      clinicalPersistenceEvidence: {
+        scope: 'current',
+        callableAttempts: 1,
+        clientRetries: 0,
+        transactionRetries: 1,
+      },
+    });
 
     expect(deps.invoke).toHaveBeenCalledTimes(1);
     expect(deps.refreshRecord).not.toHaveBeenCalled();

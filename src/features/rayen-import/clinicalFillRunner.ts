@@ -41,6 +41,7 @@ export type {
   ClinicalFillProgress,
   ClinicalFillSummary,
   HistoricalCudyrApplyResult,
+  HistoricalCudyrBatchExecutionResult,
   HistoricalCudyrBatchItem,
   HistoricalCudyrBatchItemResult,
 } from './contracts/clinicalFillContracts';
@@ -111,7 +112,9 @@ export const runClinicalFill = async (
     source: cudyrSource,
     applyBatch: deps.applyHistoricalCudyrBatch,
     applySingle: deps.applyHistoricalCudyr,
-    enqueueWrite: writes.enqueue,
+    enqueueWrite: operation => writes.enqueue(operation, { scope: 'historical' }),
+    onPersistenceEvidence: performance.recordPersistenceEvidence,
+    onRetries: performance.recordRetries,
     onHistoricalPatch: performance.recordHistoricalPatch,
     onError: error => summary.errors.push(error),
   });
@@ -370,8 +373,9 @@ export const runClinicalFill = async (
     operations: pendingBatch,
     diagnosticRunId: deps.diagnosticRunId,
     strategy: persistenceStrategy,
-    applyWithMetrics: writes.applyBatch,
+    applyWithMetrics: operation => writes.applyBatch(operation, { scope: 'current' }),
     recordRetries: performance.recordRetries,
+    recordPersistenceEvidence: performance.recordPersistenceEvidence,
   });
   summary.patched += batchPersistence.patched;
   summary.errors.push(...batchPersistence.errors);

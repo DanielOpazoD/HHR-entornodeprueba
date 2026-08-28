@@ -108,6 +108,12 @@ describe('applyClinicalEnrichmentBatch', () => {
       patientWrites: 1,
       historySnapshots: 1,
       retries: 0,
+      persistence: {
+        scope: 'current',
+        callableAttempts: 1,
+        clientRetries: 0,
+        transactionRetries: 0,
+      },
       batch: { parity: 'matched', clinicalTargets: 2, checkpointOnlyTargets: 0 },
     });
   });
@@ -138,6 +144,7 @@ describe('applyClinicalEnrichmentBatch', () => {
 
     expect(deps.refreshRecord).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({ patientWrites: 0, historySnapshots: 0, retries: 0 });
+    expect(result).not.toHaveProperty('persistence');
   });
 
   it('accepts an exact idempotent replay from a pre-parity backend during rollout', async () => {
@@ -173,6 +180,7 @@ describe('applyClinicalEnrichmentBatch', () => {
       historySnapshots: 0,
       batch: { parity: 'matched' },
     });
+    expect(result).not.toHaveProperty('persistence');
   });
 
   it('rejects a resolved response that does not confirm the requested batch', async () => {
@@ -363,15 +371,19 @@ describe('applyClinicalEnrichmentBatch', () => {
     const deps = createDependencies();
     deps.invoke.mockRejectedValue({ code: 'functions/unavailable' });
 
-    await expect(
-      applyClinicalEnrichmentBatch({
-        mode: 'enforced',
-        record,
-        runId: 'run-1',
-        operations,
-        ...deps,
-      })
-    ).rejects.toMatchObject({ code: 'functions/unavailable', clinicalBatchRetries: 1 });
+    const failure = await applyClinicalEnrichmentBatch({
+      mode: 'enforced',
+      record,
+      runId: 'run-1',
+      operations,
+      ...deps,
+    }).catch((error: unknown) => error);
+
+    expect(failure).toMatchObject({
+      code: 'functions/unavailable',
+      clinicalBatchRetries: 1,
+    });
+    expect(failure).not.toHaveProperty('clinicalPersistenceEvidence');
 
     expect(deps.invoke).toHaveBeenCalledTimes(2);
     expect(deps.applyPatch).not.toHaveBeenCalled();

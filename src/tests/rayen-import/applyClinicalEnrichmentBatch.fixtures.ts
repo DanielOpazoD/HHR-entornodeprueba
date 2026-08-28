@@ -54,6 +54,9 @@ export const createDependencies = () => ({
     resultParity: 'matched' as const,
     patientWrites: 1,
     historySnapshots: Number(payload.patches.length > 0),
+    targetScope: payload.date === payload.authorityDate ? 'current' : 'historical',
+    transactionAttempts: 1,
+    transactionRetries: 0,
   })),
   createMutationId: vi.fn(() => 'mutation-fixed'),
 });

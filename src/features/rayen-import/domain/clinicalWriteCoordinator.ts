@@ -11,7 +11,7 @@ interface ClinicalBatchWriteMetrics {
 export interface ClinicalWritePerformanceObserver {
   now: () => number;
   onWait: (durationMs: number) => void;
-  onPersistence: (durationMs: number) => void;
+  onPersistence: (durationMs: number, scope: 'current' | 'historical') => void;
 }
 
 export const createClinicalWriteCoordinator = (
@@ -20,7 +20,10 @@ export const createClinicalWriteCoordinator = (
 ) => {
   let queue: Promise<void> = Promise.resolve();
   let historySnapshotCaptured = false;
-  const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
+  const enqueue = <T>(
+    operation: () => Promise<T>,
+    options: { scope?: 'current' | 'historical' } = {}
+  ): Promise<T> => {
     const queuedAt = observer?.now();
     const pending = queue.then(async () => {
       if (queuedAt != null) observer?.onWait(observer.now() - queuedAt);
@@ -28,7 +31,9 @@ export const createClinicalWriteCoordinator = (
       try {
         return await operation();
       } finally {
-        if (startedAt != null) observer?.onPersistence(observer.now() - startedAt);
+        if (startedAt != null) {
+          observer?.onPersistence(observer.now() - startedAt, options.scope ?? 'current');
+        }
       }
     });
     queue = pending.then(
@@ -42,23 +47,29 @@ export const createClinicalWriteCoordinator = (
     operation: (captureHistorySnapshot: boolean) => Promise<void>,
     options: { clinicalChange?: boolean } = {}
   ) =>
-    enqueue(async () => {
-      const captureHistorySnapshot = options.clinicalChange !== false && !historySnapshotCaptured;
-      await operation(captureHistorySnapshot);
-      if (captureHistorySnapshot) {
-        historySnapshotCaptured = true;
-        metrics.historySnapshots += 1;
-      }
-      metrics.patientWrites += 1;
-    });
+    enqueue(
+      async () => {
+        const captureHistorySnapshot = options.clinicalChange !== false && !historySnapshotCaptured;
+        await operation(captureHistorySnapshot);
+        if (captureHistorySnapshot) {
+          historySnapshotCaptured = true;
+          metrics.historySnapshots += 1;
+        }
+        metrics.patientWrites += 1;
+      },
+      { scope: 'current' }
+    );
 
-  const applyBatch = <T extends ClinicalBatchWriteMetrics>(operation: () => Promise<T>) =>
+  const applyBatch = <T extends ClinicalBatchWriteMetrics>(
+    operation: () => Promise<T>,
+    options: { scope?: 'current' | 'historical' } = {}
+  ) =>
     enqueue(async () => {
       const result = await operation();
       metrics.patientWrites += result.patientWrites;
       metrics.historySnapshots += result.historySnapshots;
       return result;
-    });
+    }, options);
 
   return { enqueue, applyPatientPatch, applyBatch };
 };
