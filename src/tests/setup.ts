@@ -280,9 +280,12 @@ const globalDailyRecordRepositoryPortMock = {
   getForDateWithMeta: vi.fn().mockResolvedValue({ record: null }),
   getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
   getLocalForDate: vi.fn().mockResolvedValue(null),
-  getLocalForDateWithMeta: vi
-    .fn()
-    .mockResolvedValue({ record: null, hasPendingWrites: false, writeState: 'none' }),
+  getLocalForDateWithMeta: vi.fn().mockResolvedValue({
+    record: null,
+    hasPendingWrites: false,
+    hasPendingWritesForDate: false,
+    writeState: 'none',
+  }),
   getPreviousDay: vi.fn(),
   getPreviousDayWithMeta: vi.fn(),
   save: vi.fn(),

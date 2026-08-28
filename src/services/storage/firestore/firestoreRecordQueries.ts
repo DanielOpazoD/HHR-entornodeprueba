@@ -1,4 +1,13 @@
-import { doc, getDoc, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  getDocFromServer,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
 import { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import { COLLECTIONS, getActiveHospitalId } from '@/constants/firestorePaths';
 import {
@@ -36,12 +45,19 @@ export interface FirestoreRecordSnapshotMetadata {
   fromCache: boolean;
 }
 
+interface FirestoreSingleRecordReadOptions {
+  /** Bypasses local Firestore cache when an accepted write needs an authoritative readback. */
+  source?: 'default' | 'server';
+}
+
 export const getRecordFromFirestoreDetailed = async (
-  date: string
+  date: string,
+  options: FirestoreSingleRecordReadOptions = {}
 ): Promise<FirestoreSingleRecordReadResult> => {
   try {
     const docRef = getRecordDocRef(date);
-    const docSnap = await getDoc(docRef);
+    const docSnap =
+      options.source === 'server' ? await getDocFromServer(docRef) : await getDoc(docRef);
 
     if (docSnap.exists()) {
       return {
@@ -78,8 +94,11 @@ export const getAvailableDatesFromFirestore = async (): Promise<string[]> => {
   }
 };
 
-export const getRecordFromFirestore = async (date: string): Promise<DailyRecord | null> => {
-  const result = await getRecordFromFirestoreDetailed(date);
+export const getRecordFromFirestore = async (
+  date: string,
+  options: FirestoreSingleRecordReadOptions = {}
+): Promise<DailyRecord | null> => {
+  const result = await getRecordFromFirestoreDetailed(date, options);
   return result.record;
 };
 

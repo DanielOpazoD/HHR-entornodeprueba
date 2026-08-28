@@ -54,7 +54,10 @@ import {
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
-import { buildGuardedRayenFallbackData, extractGuardedRayenClinicalPatch } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
+import {
+  buildGuardedRayenFallbackData,
+  extractGuardedRayenClinicalPatch,
+} from '@/services/storage/firestore/firestoreRayenGuardedPatch';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
@@ -157,7 +160,7 @@ export const updateRecordPartial = async (
 ): Promise<DailyRecordAuthorityCallableResponse | void> => {
   try {
     const docRef = getRecordDocRef(date);
-    if (!options.rayenClinicalWriteGuard) {
+    if (!options.rayenClinicalWriteGuard && !options.requireAtomicCas) {
       await assertFirestoreConcurrency(
         docRef,
         expectedLastUpdated,
@@ -357,7 +360,9 @@ export const updateRecordPartial = async (
       const storageError = error as { code?: string };
       if (storageError?.code === 'not-found') {
         firestoreWriteLogger.warn('Firestore write fallback: partialUpdateNotFound', { date });
-        await withRetry(() => setDoc(docRef, guardedFallbackData ?? sanitizedData, { merge: true }));
+        await withRetry(() =>
+          setDoc(docRef, guardedFallbackData ?? sanitizedData, { merge: true })
+        );
       } else {
         throw error;
       }

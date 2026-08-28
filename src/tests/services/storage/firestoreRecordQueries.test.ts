@@ -10,6 +10,7 @@ vi.mock('firebase/firestore', async () => {
     ...actual,
     doc: vi.fn(() => 'availability-doc-ref'),
     getDoc: vi.fn(),
+    getDocFromServer: vi.fn(),
     getDocs: vi.fn(),
     onSnapshot: vi.fn(),
     orderBy: vi.fn((field: string, direction: string) => ({ field, direction })),
@@ -44,7 +45,7 @@ vi.mock('@/services/storage/storageLoggers', () => ({
   },
 }));
 
-import { getDoc, getDocs, onSnapshot } from 'firebase/firestore';
+import { getDoc, getDocFromServer, getDocs, onSnapshot } from 'firebase/firestore';
 import {
   getAllRecordsFromFirestore,
   getAvailableDatesFromFirestore,
@@ -123,6 +124,21 @@ describe('firestoreRecordQueries', () => {
       status: 'failed',
       record: null,
     });
+  });
+
+  it('bypasses local cache for a server-confirmed write readback', async () => {
+    vi.mocked(getDocFromServer).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ beds: {}, marker: 'server-confirmed' }),
+    } as never);
+
+    await expect(getRecordFromFirestore('2026-03-19', { source: 'server' })).resolves.toEqual({
+      date: '2026-03-19',
+      beds: {},
+      marker: 'server-confirmed',
+    });
+    expect(getDocFromServer).toHaveBeenCalledOnce();
+    expect(getDoc).not.toHaveBeenCalled();
   });
 
   it('maps all records and date ranges from snapshots', async () => {

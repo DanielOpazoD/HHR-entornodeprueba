@@ -1,7 +1,10 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hospitalDB } from '@/services/storage/indexedDBService';
-import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import {
+  getDailyRecordWriteStateForVersion,
+  hasUnresolvedDailyRecordWriteForDate,
+} from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -41,6 +44,17 @@ describe('dailyRecordSyncQueueReadService', () => {
     await expect(
       getDailyRecordWriteStateForVersion(pending.date, '2026-08-17T20:00:01.000Z')
     ).resolves.toBe('none');
+    await expect(hasUnresolvedDailyRecordWriteForDate(pending.date)).resolves.toBe(true);
+  });
+
+  it('detects an active write for the date even when it belongs to another revision', async () => {
+    const queued = record('2026-08-17T20:00:00.000Z');
+    await hospitalDB.syncQueue.add(task(queued, 'PROCESSING'));
+
+    await expect(
+      getDailyRecordWriteStateForVersion(queued.date, '2026-08-17T20:00:01.000Z')
+    ).resolves.toBe('none');
+    await expect(hasUnresolvedDailyRecordWriteForDate(queued.date)).resolves.toBe(true);
   });
 
   it('keeps failed and conflicted exact versions visible to block structural overwrite', async () => {
@@ -56,4 +70,17 @@ describe('dailyRecordSyncQueueReadService', () => {
       'conflict'
     );
   });
+
+  it.each(['FAILED', 'CONFLICT'] as const)(
+    'blocks a date-level checkpoint for an unresolved %s write from another revision',
+    async status => {
+      const unresolved = record('2026-08-17T20:00:00.000Z');
+      await hospitalDB.syncQueue.add(task(unresolved, status));
+
+      await expect(
+        getDailyRecordWriteStateForVersion(unresolved.date, '2026-08-17T20:00:01.000Z')
+      ).resolves.toBe('none');
+      await expect(hasUnresolvedDailyRecordWriteForDate(unresolved.date)).resolves.toBe(true);
+    }
+  );
 });

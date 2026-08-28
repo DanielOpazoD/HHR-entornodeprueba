@@ -41,6 +41,7 @@ interface RayenCensusDiffApplicationInput {
   ) => Promise<RayenCensusPersistencePayload>;
   checkpointRepository: Pick<DailyRecordRepositoryPort, 'updatePartialDetailed'>;
   queryClient: QueryClient;
+  loadAuthoritativeRecord: (date: string) => Promise<DailyRecord>;
   loadLocalRecord: (date: string) => Promise<LocalDailyRecordReadResult>;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
 }
@@ -52,6 +53,7 @@ export const useRayenCensusDiffApplication = ({
   saveDailyRecord,
   checkpointRepository,
   queryClient,
+  loadAuthoritativeRecord,
   loadLocalRecord,
   recordRunPerformance,
 }: RayenCensusDiffApplicationInput) =>
@@ -83,18 +85,31 @@ export const useRayenCensusDiffApplication = ({
         // especially for a historical day, otherwise every legitimate save is 409.
         const canUseMetadataCheckpoint =
           !localResult.hasPendingWrites &&
+          !localResult.hasPendingWritesForDate &&
           localResult.writeState === 'none' &&
           hasUnchangedRayenStructuralState(persistenceBase, result.record);
         let persistence: RayenCensusPersistencePayload;
         if (canUseMetadataCheckpoint) {
+          const authoritativeCheckpointBase = await loadAuthoritativeRecord(persistenceBase.date);
+          if (!hasUnchangedRayenStructuralState(persistenceBase, authoritativeCheckpointBase)) {
+            const stalePlan = new Error(
+              'El censo cambió mientras se preparaba el checkpoint de sincronización.'
+            );
+            stalePlan.name = 'ConcurrencyError';
+            throw stalePlan;
+          }
+          // The structural state is unchanged, but audit metadata may have advanced since planning
+          // (for example, when a previous failed run was recorded). Stamp the current run onto the
+          // fresh server base so the metadata patch cannot overwrite newer history or use stale CAS.
+          const checkpointStamped = applyRunToRecord(authoritativeCheckpointBase, diff).record;
           const checkpointResult = await checkpointRepository.updatePartialDetailed(
             persistenceBase.date,
             {
-              rayenSync: stamped.rayenSync,
-              rayenSyncHistory: stamped.rayenSyncHistory,
+              rayenSync: checkpointStamped.rayenSync,
+              rayenSyncHistory: checkpointStamped.rayenSyncHistory,
             } satisfies DailyRecordPatch,
             {
-              baseRecord: persistenceBase,
+              baseRecord: authoritativeCheckpointBase,
               historyPolicy: 'skip',
               requireAtomicCas: true,
               requireConfirmedRecord: true,
@@ -151,6 +166,7 @@ export const useRayenCensusDiffApplication = ({
       applyRunToRecord,
       checkpointRepository,
       ensureRun,
+      loadAuthoritativeRecord,
       loadLocalRecord,
       queryClient,
       recordRunPerformance,

@@ -245,7 +245,7 @@ const saveDetailedWithinLock = async (
         buildPreOutboxRemoteAckOptions(syncContract)
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
-    readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date),
+    readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
     requireConfirmedRecord: options.requireConfirmedRecord,
     onRemoteFailure: err => {
       dailyRecordWriteLogger.warn(
@@ -364,7 +364,7 @@ const updatePartialDetailedWithinLock = async (
         buildPreOutboxRemoteAckOptions(syncContract)
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
-    readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date),
+    readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
     requireConfirmedRecord: options.requireConfirmedRecord,
     onRemoteFailure: err => {
       dailyRecordWriteLogger.warn(`Firestore partial update failed for ${command.date}`, err);

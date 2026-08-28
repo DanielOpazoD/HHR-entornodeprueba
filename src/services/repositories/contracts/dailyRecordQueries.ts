@@ -53,6 +53,8 @@ export interface LocalDailyRecordReadResult {
   record: DailyRecord | null;
   /** The local record is still represented by an active outbox write for this exact version. */
   hasPendingWrites: boolean;
+  /** Some local outbox write for this census date can still reach Firestore. */
+  hasPendingWritesForDate: boolean;
   /** Exact outbox state used to block overwriting unresolved failed/conflicted local edits. */
   writeState: DailyRecordQueuedWriteState;
 }

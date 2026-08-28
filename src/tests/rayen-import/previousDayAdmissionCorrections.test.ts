@@ -47,6 +47,7 @@ describe('previous clinical-day admission corrections', () => {
         lastUpdated: 'pending-version',
       },
       hasPendingWrites: true,
+      hasPendingWritesForDate: true,
       writeState: 'active',
     });
     const diff: CensusImportDiff = {
@@ -94,6 +95,7 @@ describe('previous clinical-day admission corrections', () => {
           lastUpdated: 'unresolved-version',
         },
         hasPendingWrites: false,
+        hasPendingWritesForDate: false,
         writeState,
       });
       const diff: CensusImportDiff = {

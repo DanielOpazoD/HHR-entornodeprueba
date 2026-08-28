@@ -21,6 +21,11 @@ export interface DailyRecordRemoteLoadResult {
 
 const remoteLoadInFlight = new Map<string, Promise<DailyRecordRemoteLoadResult>>();
 
+interface DailyRecordRemoteLoadOptions {
+  /** Structural CAS planning must bypass the Firestore SDK cache. */
+  source?: 'default' | 'server';
+}
+
 const normalizeRemoteRecord = (
   record: DailyRecord,
   date: string
@@ -53,9 +58,12 @@ const createRemoteLoadResult = (
 });
 
 export const loadRemoteRecordWithFallback = async (
-  date: string
+  date: string,
+  options: DailyRecordRemoteLoadOptions = {}
 ): Promise<DailyRecordRemoteLoadResult> => {
-  const existingRequest = remoteLoadInFlight.get(date);
+  const source = options.source ?? 'default';
+  const requestKey = `${source}:${date}`;
+  const existingRequest = remoteLoadInFlight.get(requestKey);
   if (existingRequest) {
     return existingRequest;
   }
@@ -63,7 +71,7 @@ export const loadRemoteRecordWithFallback = async (
   const request = measureRepositoryOperation(
     'dailyRecord.loadRemoteWithFallback',
     async () => {
-      const remoteRead = await getRecordFromFirestoreDetailed(date);
+      const remoteRead = await getRecordFromFirestoreDetailed(date, { source });
       if (remoteRead.status === 'failed') {
         throw remoteRead.error ?? new Error(`Remote Firestore read failed for ${date}`);
       }
@@ -83,9 +91,9 @@ export const loadRemoteRecordWithFallback = async (
     },
     { thresholdMs: 220, context: date }
   ).finally(() => {
-    remoteLoadInFlight.delete(date);
+    remoteLoadInFlight.delete(requestKey);
   });
 
-  remoteLoadInFlight.set(date, request);
+  remoteLoadInFlight.set(requestKey, request);
   return request;
 };

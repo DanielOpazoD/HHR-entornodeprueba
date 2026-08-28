@@ -426,6 +426,7 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       })
     );
     expect(result.confirmedRecord).toEqual(confirmedRecord);
+    expect(getRecordFromFirestore).toHaveBeenCalledWith('2026-02-18', { source: 'server' });
     expect(saveToIndexedDB).toHaveBeenLastCalledWith(confirmedRecord);
     expect(saveToIndexedDB).toHaveBeenCalledTimes(1);
   });

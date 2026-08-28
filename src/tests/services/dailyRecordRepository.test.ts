@@ -270,7 +270,9 @@ describe('DailyRecordRepository (Expanded)', () => {
       const initialized = await initializeDay('2024-12-28');
 
       expect(initialized.lastUpdated).toBe(remote.lastUpdated);
-      expect(firestoreMock.getRecordFromFirestoreDetailed).toHaveBeenCalledWith('2024-12-28');
+      expect(firestoreMock.getRecordFromFirestoreDetailed).toHaveBeenCalledWith('2024-12-28', {
+        source: 'default',
+      });
     });
   });
 
@@ -440,7 +442,9 @@ describe('DailyRecordRepository (Expanded)', () => {
 
       const result = await syncWithFirestore('2024-12-28');
       expect(result).toMatchObject(remote);
-      expect(firestoreMock.getRecordFromFirestoreDetailed).toHaveBeenCalledWith('2024-12-28');
+      expect(firestoreMock.getRecordFromFirestoreDetailed).toHaveBeenCalledWith('2024-12-28', {
+        source: 'default',
+      });
 
       const savedLocal = await getForDate('2024-12-28');
       expect(savedLocal?.date).toEqual(remote.date);

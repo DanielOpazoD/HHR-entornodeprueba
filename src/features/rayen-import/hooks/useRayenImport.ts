@@ -156,7 +156,6 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     const previousDate = selectedDateRef.current;
     selectedDateRef.current = selectedDate;
     if (!previousDate || previousDate === selectedDate) return;
-
     const stage = executionRef.current.stage;
     const cancellableBeforeCommit = isRayenSyncExecutionCancellableBeforeCommit(stage);
     if (isRayenSyncExecutionActive(stage) && !cancellableBeforeCommit) {
@@ -178,6 +177,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     saveDailyRecord: saveRayenCensus,
     checkpointRepository: dailyRecord,
     queryClient,
+    loadAuthoritativeRecord: loadAuthoritativeStructuralRecord,
     loadLocalRecord: loadLocalStructuralRecord,
     recordRunPerformance,
   });
