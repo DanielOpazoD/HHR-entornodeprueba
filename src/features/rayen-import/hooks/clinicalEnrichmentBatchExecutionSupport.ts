@@ -2,6 +2,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type {
   ClinicalFillBatchEvidence,
   ClinicalFillPatchOperation,
+  ClinicalPersistenceEvidence,
 } from '../contracts/clinicalFillContracts';
 import {
   callRayenClinicalEnrichmentBatch,
@@ -47,12 +48,63 @@ export const isClinicalBatchVersionConflict = (error: unknown): boolean => {
   );
 };
 
-export const withRetryCount = (error: unknown, retries: number): unknown => {
-  if (error && typeof error === 'object') {
-    Object.assign(error, { clinicalBatchRetries: retries });
-    return error;
+const isPersistenceScope = (value: unknown): value is ClinicalPersistenceEvidence['scope'] =>
+  value === 'current' || value === 'historical';
+
+const safeCount = (value: unknown): number | null => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? Math.floor(numeric) : null;
+};
+
+export const readReportedTransactionRetries = (value: unknown): number | null =>
+  safeCount((value as { transactionRetries?: unknown } | null)?.transactionRetries);
+
+export const readServerTransactionRetries = (error: unknown): number | null => {
+  const details = (error as { details?: { transactionRetries?: unknown } })?.details;
+  return readReportedTransactionRetries(details);
+};
+
+export const resolveClinicalPersistenceScope = (
+  payload: Pick<RayenClinicalEnrichmentBatchPayload, 'date' | 'authorityDate'>
+): ClinicalPersistenceEvidence['scope'] =>
+  payload.date === payload.authorityDate ? 'current' : 'historical';
+
+export const withClinicalBatchRetryCount = (error: unknown, clientRetries: number): unknown => {
+  const target = error && typeof error === 'object' ? error : new Error(failureMessage(error));
+  Object.assign(target, { clinicalBatchRetries: clientRetries });
+  return target;
+};
+
+export const withPersistenceFailureEvidence = (
+  error: unknown,
+  evidence: ClinicalPersistenceEvidence
+): unknown => {
+  const target = error && typeof error === 'object' ? error : new Error(failureMessage(error));
+  Object.assign(target, {
+    clinicalBatchRetries: evidence.clientRetries,
+    clinicalPersistenceEvidence: evidence,
+  });
+  return target;
+};
+
+export const readPersistenceFailureEvidence = (
+  error: unknown
+): ClinicalPersistenceEvidence | null => {
+  const evidence = (error as { clinicalPersistenceEvidence?: Record<string, unknown> })
+    ?.clinicalPersistenceEvidence;
+  const scope = evidence?.scope;
+  const callableAttempts = safeCount(evidence?.callableAttempts);
+  const clientRetries = safeCount(evidence?.clientRetries);
+  const transactionRetries = safeCount(evidence?.transactionRetries);
+  if (
+    !isPersistenceScope(scope) ||
+    callableAttempts == null ||
+    clientRetries == null ||
+    transactionRetries == null
+  ) {
+    return null;
   }
-  return Object.assign(new Error(failureMessage(error)), { clinicalBatchRetries: retries });
+  return { scope, callableAttempts, clientRetries, transactionRetries };
 };
 
 export const assertCommittedResponse = (
@@ -112,6 +164,23 @@ export const operationTargetKey = (operation: ClinicalFillPatchOperation): strin
 
 export const operationLogicalTargetKey = (operation: ClinicalFillPatchOperation): string =>
   `${operation.target.clinicalEpisodeId}|${operation.target.clinicalCrib ? 'crib' : 'patient'}`;
+
+export const selectRebuiltChunkOperations = (
+  rebuiltOperations: ClinicalFillPatchOperation[],
+  originalChunkOperations: ClinicalFillPatchOperation[]
+): ClinicalFillPatchOperation[] => {
+  const expectedKeys = new Set(originalChunkOperations.map(operationLogicalTargetKey));
+  const selectedKeys = new Set<string>();
+  return rebuiltOperations.filter(operation => {
+    const key = operationLogicalTargetKey(operation);
+    if (!expectedKeys.has(key)) return false;
+    if (selectedKeys.has(key)) {
+      throw new Error('La reconstrucción clínica produjo un episodio ambiguo para el fragmento.');
+    }
+    selectedKeys.add(key);
+    return true;
+  });
+};
 
 const coalesceOperationsByTarget = (
   operations: ClinicalFillPatchOperation[]

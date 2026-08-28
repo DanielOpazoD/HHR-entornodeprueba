@@ -58,7 +58,24 @@ describe('applyRayenClinicalEnrichmentBatch historical authority', () => {
         makeHistoricalCudyrPayload(),
         makeContext()
       )
-    ).resolves.toMatchObject({ success: true, authorityStatus: 'ok', revision: 5 });
+    ).resolves.toMatchObject({
+      success: true,
+      authorityStatus: 'ok',
+      revision: 5,
+      targetScope: 'historical',
+      transactionAttempts: 1,
+      transactionRetries: 0,
+    });
+
+    expect(admin.telemetryAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          targetScope: 'historical',
+          transactionAttempts: 1,
+          transactionRetries: 0,
+        }),
+      })
+    );
 
     expect(admin.policyGet).toHaveBeenCalledOnce();
     expect(admin.recordGet).toHaveBeenCalledTimes(2);

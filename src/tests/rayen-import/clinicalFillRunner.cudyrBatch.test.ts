@@ -111,7 +111,7 @@ describe('runClinicalFill historical CUDYR batch', () => {
     });
     const applyHistoricalCudyrBatch = vi.fn().mockImplementation(async () => {
       confirmBatchAttempt?.();
-      throw new Error('write unavailable');
+      throw Object.assign(new Error('write unavailable'), { clinicalBatchRetries: 1 });
     });
     const deps: ClinicalFillDeps = {
       fetchDeviceReport: vi.fn().mockImplementation(async () => {
@@ -159,6 +159,10 @@ describe('runClinicalFill historical CUDYR batch', () => {
         message: expect.stringContaining('write unavailable'),
       }),
     ]);
+    expect(summary.performance).toMatchObject({
+      counters: { retries: 1 },
+    });
+    expect(summary.performance).not.toHaveProperty('persistenceTrace');
   });
 
   it('keeps a stored CUDYR when its historical archive is not applicable', async () => {

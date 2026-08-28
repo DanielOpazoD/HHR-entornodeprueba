@@ -3,6 +3,7 @@ import type {
   ClinicalWritePerformanceObserver,
 } from './clinicalWriteCoordinator';
 import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
+import type { ClinicalPersistenceEvidence } from '../contracts/clinicalFillContracts';
 import { elapsedMilliseconds, isRayenTimeoutMessage } from './rayenSyncPerformance';
 
 /** Request-scoped aggregate collector. Its API accepts no patient or clinical values. */
@@ -12,6 +13,11 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
   let requests = 0;
   let writeQueueWaitMs = 0;
   let persistenceMs = 0;
+  let currentClinicalPersistenceMs = 0;
+  let historicalCudyrPersistenceMs = 0;
+  let currentClinicalPersistenceObserved = false;
+  let historicalCudyrPersistenceObserved = false;
+  const persistenceTrace: NonNullable<RayenSyncPerformance['persistenceTrace']> = {};
   let historicalPatches = 0;
   let retries = 0;
   let timeouts = 0;
@@ -38,8 +44,15 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     onWait: durationMs => {
       writeQueueWaitMs += durationMs;
     },
-    onPersistence: durationMs => {
+    onPersistence: (durationMs, scope) => {
       persistenceMs += durationMs;
+      if (scope === 'historical') {
+        historicalCudyrPersistenceObserved = true;
+        historicalCudyrPersistenceMs += durationMs;
+      } else {
+        currentClinicalPersistenceObserved = true;
+        currentClinicalPersistenceMs += durationMs;
+      }
     },
   };
 
@@ -51,23 +64,43 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     if (Number.isFinite(count) && count > 0) retries += Math.floor(count);
   };
 
+  const recordPersistenceEvidence = (evidence: ClinicalPersistenceEvidence): void => {
+    const current = persistenceTrace[evidence.scope];
+    persistenceTrace[evidence.scope] = {
+      callableAttempts: (current?.callableAttempts ?? 0) + evidence.callableAttempts,
+      clientRetries: (current?.clientRetries ?? 0) + evidence.clientRetries,
+      transactionRetries: (current?.transactionRetries ?? 0) + evidence.transactionRetries,
+    };
+    recordRetries(evidence.clientRetries + evidence.transactionRetries);
+  };
+
   const finish = (
     writeMetrics: ClinicalWriteMetrics,
     cacheHits: number = 0
-  ): RayenSyncPerformance => ({
-    stagesMs: {
+  ): RayenSyncPerformance => {
+    const stagesMs: RayenSyncPerformance['stagesMs'] = {
       clinicalReads: clinicalReadsMs,
       writeQueueWait: writeQueueWaitMs,
       persistence: persistenceMs,
-    },
-    counters: {
-      requests,
-      cacheHits,
-      patches: writeMetrics.patientWrites + historicalPatches,
-      retries,
-      timeouts,
-    },
-  });
+      ...(currentClinicalPersistenceObserved
+        ? { currentClinicalPersistence: currentClinicalPersistenceMs }
+        : {}),
+      ...(historicalCudyrPersistenceObserved
+        ? { historicalCudyrPersistence: historicalCudyrPersistenceMs }
+        : {}),
+    };
+    return {
+      stagesMs,
+      counters: {
+        requests,
+        cacheHits,
+        patches: writeMetrics.patientWrites + historicalPatches,
+        retries,
+        timeouts,
+      },
+      ...(Object.keys(persistenceTrace).length > 0 ? { persistenceTrace } : {}),
+    };
+  };
 
   return {
     trackRequest,
@@ -75,6 +108,7 @@ export const createClinicalFillPerformance = (now: () => number = Date.now) => {
     writeObserver,
     recordHistoricalPatch,
     recordRetries,
+    recordPersistenceEvidence,
     finish,
   };
 };

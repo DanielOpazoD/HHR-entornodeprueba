@@ -40,6 +40,20 @@ const EMPTY_PARITY_DIAGNOSTICS = Object.freeze({
 const countFields = patches =>
   patches.reduce((total, target) => total + Object.keys(target.fields).length, 0);
 
+const correlationId = value =>
+  typeof value === 'string' && value.length > 0 ? digestValue(value).slice(0, 16) : null;
+
+const resolveTargetScope = ({ date, authorityDate }) =>
+  typeof date === 'string' && typeof authorityDate === 'string' && date !== authorityDate
+    ? 'historical'
+    : 'current';
+
+const buildPersistenceFailureDetails = (requestSummary, transactionAttempts) => ({
+  targetScope: requestSummary.targetScope,
+  transactionAttempts,
+  transactionRetries: Math.max(0, transactionAttempts - 1),
+});
+
 const summarizeRequest = data => {
   const patches = Array.isArray(data?.patches) ? data.patches : [];
   const checkpoints = Array.isArray(data?.checkpoints) ? data.checkpoints : [];
@@ -81,6 +95,9 @@ const summarizeRequest = data => {
       data?.baseRevision !== undefined && data?.baseRevision !== null && data?.baseRevision !== '',
     fieldContractVersion: data?.fieldContractVersion === 2 ? 2 : 1,
     versionGuardEnforced: mode === 'enforced',
+    targetScope: resolveTargetScope(data || {}),
+    runCorrelationId: correlationId(data?.runId),
+    mutationCorrelationId: correlationId(data?.mutationId),
   };
 };
 
@@ -103,6 +120,9 @@ const summarizePayload = payload => ({
   hasBaseRevision: payload.baseRevision !== undefined,
   fieldContractVersion: payload.fieldContractVersion,
   versionGuardEnforced: payload.mode === 'enforced',
+  targetScope: resolveTargetScope(payload),
+  runCorrelationId: correlationId(payload.runId),
+  mutationCorrelationId: correlationId(payload.mutationId),
 });
 
 const recordTelemetry = async ({
@@ -115,6 +135,7 @@ const recordTelemetry = async ({
   parityDiagnostics,
   revision,
   policyRevision,
+  transactionAttempts,
   error,
 }) => {
   try {
@@ -127,8 +148,8 @@ const recordTelemetry = async ({
         operation,
         hospitalId: HOSPITAL_ID,
         durationMs: Date.now() - startedAt,
-        attempt: 1,
-        totalAttempts: 1,
+        attempt: transactionAttempts,
+        totalAttempts: transactionAttempts,
         status,
         errorCode: error?.code || null,
         timestamp: new Date().toISOString(),
@@ -140,6 +161,8 @@ const recordTelemetry = async ({
           ...parityDiagnostics,
           revision: Number.isFinite(revision) ? revision : null,
           policyRevision: Number.isFinite(policyRevision) ? policyRevision : null,
+          transactionAttempts,
+          transactionRetries: Math.max(0, transactionAttempts - 1),
         },
       });
   } catch (telemetryError) {
@@ -159,6 +182,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
     let parityDiagnostics = EMPTY_PARITY_DIAGNOSTICS;
     let revision;
     let policyRevision;
+    let transactionAttempts = 0;
 
     try {
       const payload = parseClinicalEnrichmentPayload(data);
@@ -179,6 +203,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
       const docRef = hospitalRef.collection('dailyRecords').doc(payload.date);
       const authorityRef = hospitalRef.collection('dailyRecords').doc(payload.authorityDate);
       const transactionOutcome = await firestore.runTransaction(async transaction => {
+        transactionAttempts += 1;
         const snapshot = await transaction.get(docRef);
         if (!snapshot.exists) {
           throw new functions.https.HttpsError(
@@ -325,6 +350,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         parityDiagnostics,
         revision,
         policyRevision,
+        transactionAttempts,
       });
       return {
         success: true,
@@ -340,6 +366,9 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         resultParity,
         patientWrites: authorityStatus === 'ok' && !payload.dryRun ? 1 : 0,
         historySnapshots: transactionOutcome.historySnapshotWritten ? 1 : 0,
+        targetScope: resolveTargetScope(payload),
+        transactionAttempts,
+        transactionRetries: Math.max(0, transactionAttempts - 1),
       };
     } catch (error) {
       if (context.auth) {
@@ -353,10 +382,14 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           parityDiagnostics,
           revision,
           policyRevision,
+          transactionAttempts,
           error,
         });
       }
-      if (error instanceof functions.https.HttpsError) throw error;
+      const failureDetails = buildPersistenceFailureDetails(requestSummary, transactionAttempts);
+      if (error instanceof functions.https.HttpsError) {
+        throw new functions.https.HttpsError(error.code, error.message, failureDetails);
+      }
 
       console.error(
         'Error applying Rayen clinical enrichment batch',
@@ -364,7 +397,8 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
       );
       throw new functions.https.HttpsError(
         'internal',
-        'Failed to apply Rayen clinical enrichment batch.'
+        'Failed to apply Rayen clinical enrichment batch.',
+        failureDetails
       );
     }
   }),

@@ -4,6 +4,7 @@ import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contra
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type {
   HistoricalCudyrApplyResult,
+  HistoricalCudyrBatchExecutionResult,
   HistoricalCudyrBatchItem,
   HistoricalCudyrBatchItemResult,
 } from '../contracts/clinicalFillContracts';
@@ -166,9 +167,9 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
   isAdmin: boolean;
   runId: string;
   applyBatch?: ApplyClinicalEnrichmentBatch;
-}): Promise<HistoricalCudyrBatchItemResult[]> => {
+}): Promise<HistoricalCudyrBatchExecutionResult> => {
   const uniqueItems = uniqueBatchItems(items);
-  if (uniqueItems.length === 0) return [];
+  if (uniqueItems.length === 0) return { results: [] };
   if (
     !canWriteAuthoritativeHistoricalDay({
       censusDay,
@@ -176,12 +177,14 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       isAdmin,
     })
   ) {
-    return uniqueItems.map(({ clinicalEpisodeId }) => ({
-      clinicalEpisodeId,
-      persisted: false,
-      changed: false,
-      applicable: false,
-    }));
+    return {
+      results: uniqueItems.map(({ clinicalEpisodeId }) => ({
+        clinicalEpisodeId,
+        persisted: false,
+        changed: false,
+        applicable: false,
+      })),
+    };
   }
 
   const loadHistoricalRecord = async (): Promise<DailyRecord> => {
@@ -210,10 +213,12 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
     return rebuilt.flatMap(({ operation }) => (operation ? [operation] : []));
   };
   const operations = resolutions.flatMap(({ operation }) => (operation ? [operation] : []));
+  let persistence: HistoricalCudyrBatchExecutionResult['persistence'];
+  let retries = 0;
   if (operations.length > 0) {
     const authoritativeApplyBatch =
       applyBatch ?? (await import('./applyClinicalEnrichmentBatch')).applyClinicalEnrichmentBatch;
-    await authoritativeApplyBatch({
+    const batchResult = await authoritativeApplyBatch({
       mode: 'enforced',
       record: historicalRecord,
       authorityDate: sourceRecord.date,
@@ -225,14 +230,20 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
       },
       refreshRecord: loadHistoricalRecord,
     });
+    persistence = batchResult.persistence;
+    retries = batchResult.retries ?? 0;
   }
 
-  return resolutions.map(({ clinicalEpisodeId, matched, operation }) => ({
-    clinicalEpisodeId,
-    persisted: matched,
-    changed: Boolean(operation),
-    ...(!matched ? { applicable: false as const } : {}),
-  }));
+  return {
+    results: resolutions.map(({ clinicalEpisodeId, matched, operation }) => ({
+      clinicalEpisodeId,
+      persisted: matched,
+      changed: Boolean(operation),
+      ...(!matched ? { applicable: false as const } : {}),
+    })),
+    ...(persistence ? { persistence } : {}),
+    ...(!persistence && retries > 0 ? { retries } : {}),
+  };
 };
 
 export const applyHistoricalCudyr = async ({

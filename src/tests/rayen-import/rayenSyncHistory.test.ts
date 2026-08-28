@@ -350,6 +350,34 @@ describe('rayen sync history', () => {
     );
   });
 
+  it('merges current and historical persistence traces without identifiers', () => {
+    const merged = mergeRayenSyncPerformance(
+      {
+        stagesMs: { currentClinicalPersistence: 1_000 },
+        counters: { requests: 0, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+        persistenceTrace: {
+          current: { callableAttempts: 1, clientRetries: 0, transactionRetries: 1 },
+        },
+      },
+      {
+        stagesMs: { historicalCudyrPersistence: 2_000 },
+        persistenceTrace: {
+          current: { callableAttempts: 1, clientRetries: 1, transactionRetries: 0 },
+          historical: { callableAttempts: 1, clientRetries: 0, transactionRetries: 0 },
+        },
+      }
+    );
+
+    expect(merged).toMatchObject({
+      stagesMs: { currentClinicalPersistence: 1_000, historicalCudyrPersistence: 2_000 },
+      persistenceTrace: {
+        current: { callableAttempts: 2, clientRetries: 1, transactionRetries: 1 },
+        historical: { callableAttempts: 1, clientRetries: 0, transactionRetries: 0 },
+      },
+    });
+    expect(JSON.stringify(merged?.persistenceTrace)).not.toMatch(/rut|patient|bed|encounter/i);
+  });
+
   it('omits an unknown target when adding coordination to legacy telemetry', () => {
     const merged = mergeRayenSyncPerformance(undefined, {
       coordination: { clinicalRetries: 1 },

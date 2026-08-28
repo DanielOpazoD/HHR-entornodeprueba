@@ -218,7 +218,16 @@ describe('applyHistoricalCudyr', () => {
     const repository = {
       getForDateWithMeta: vi.fn().mockResolvedValue({ record: historicalRecord }),
     } as unknown as DailyRecordRepositoryPort;
-    const applyBatch = vi.fn().mockResolvedValue({ patientWrites: 2, historySnapshots: 1 });
+    const applyBatch = vi.fn().mockResolvedValue({
+      patientWrites: 2,
+      historySnapshots: 1,
+      persistence: {
+        scope: 'historical',
+        callableAttempts: 2,
+        clientRetries: 1,
+        transactionRetries: 0,
+      },
+    });
     const secondCudyr: ImportedCudyr = { ...cudyr, category: 'B2', author: 'Otra enfermera' };
     const sourceRecord = {
       ...record('revision-source'),
@@ -238,10 +247,18 @@ describe('applyHistoricalCudyr', () => {
         runId: 'run-authoritative',
         applyBatch,
       })
-    ).resolves.toEqual([
-      { clinicalEpisodeId: '142000', persisted: true, changed: true },
-      { clinicalEpisodeId: '142001', persisted: true, changed: true },
-    ]);
+    ).resolves.toEqual({
+      results: [
+        { clinicalEpisodeId: '142000', persisted: true, changed: true },
+        { clinicalEpisodeId: '142001', persisted: true, changed: true },
+      ],
+      persistence: {
+        scope: 'historical',
+        callableAttempts: 2,
+        clientRetries: 1,
+        transactionRetries: 0,
+      },
+    });
 
     expect(repository.getForDateWithMeta).toHaveBeenCalledOnce();
     expect(applyBatch).toHaveBeenCalledWith(
@@ -283,6 +300,34 @@ describe('applyHistoricalCudyr', () => {
     expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
   });
 
+  it('preserves aggregate retries when an older callable cannot provide scoped evidence', async () => {
+    const historicalRecord = recordWithTwoEpisodes('revision-1');
+    const repository = {
+      getForDateWithMeta: vi.fn().mockResolvedValue({ record: historicalRecord }),
+    } as unknown as DailyRecordRepositoryPort;
+    const sourceRecord = {
+      ...record('revision-source'),
+      date: '2026-07-30',
+    } as unknown as DailyRecord;
+
+    const result = await applyHistoricalCudyrBatchAuthoritatively({
+      dailyRecord: repository,
+      sourceRecord,
+      censusDay: '2026-07-29',
+      items: [{ clinicalEpisodeId: '142000', cudyr }],
+      isAdmin: true,
+      runId: 'run-legacy-telemetry',
+      applyBatch: vi.fn().mockResolvedValue({
+        patientWrites: 1,
+        historySnapshots: 1,
+        retries: 1,
+      }),
+    });
+
+    expect(result).toMatchObject({ retries: 1 });
+    expect(result).not.toHaveProperty('persistence');
+  });
+
   it.each([
     { censusDay: '2026-07-28', isAdmin: true, label: 'a day outside the source run' },
     { censusDay: '2026-07-29', isAdmin: false, label: 'a non-admin writer' },
@@ -306,14 +351,16 @@ describe('applyHistoricalCudyr', () => {
         runId: 'run-authoritative',
         applyBatch,
       })
-    ).resolves.toEqual([
-      {
-        clinicalEpisodeId: '142000',
-        persisted: false,
-        changed: false,
-        applicable: false,
-      },
-    ]);
+    ).resolves.toEqual({
+      results: [
+        {
+          clinicalEpisodeId: '142000',
+          persisted: false,
+          changed: false,
+          applicable: false,
+        },
+      ],
+    });
 
     expect(repository.getForDateWithMeta).not.toHaveBeenCalled();
     expect(applyBatch).not.toHaveBeenCalled();

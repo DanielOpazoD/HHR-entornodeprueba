@@ -55,6 +55,8 @@ describe('Eloísa sync telemetry schema', () => {
               reviewWait: 45_000,
               structuralPersistence: 2_100,
               clinicalReads: 2_500,
+              currentClinicalPersistence: 1_200,
+              historicalCudyrPersistence: 800,
               patientName: 'No persistible',
             },
             counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },
@@ -66,6 +68,20 @@ describe('Eloísa sync telemetry schema', () => {
                 sourceResolvedNames: 1,
                 plannedResolvedNames: 2,
                 physicianName: 'No persistible',
+              },
+            },
+            persistenceTrace: {
+              current: {
+                callableAttempts: 1,
+                clientRetries: 0,
+                transactionRetries: 1,
+                bedId: 'No persistible',
+              },
+              historical: {
+                callableAttempts: 2,
+                clientRetries: 1,
+                transactionRetries: 0,
+                clinicalEpisodeId: 'No persistible',
               },
             },
             rut: '11.111.111-1',
@@ -108,6 +124,8 @@ describe('Eloísa sync telemetry schema', () => {
         reviewWait: 45_000,
         structuralPersistence: 2_100,
         clinicalReads: 2_500,
+        currentClinicalPersistence: 1_200,
+        historicalCudyrPersistence: 800,
       },
       counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },
       sourceQuality: {
@@ -118,6 +136,10 @@ describe('Eloísa sync telemetry schema', () => {
           sourceResolvedNames: 1,
           plannedResolvedNames: 2,
         },
+      },
+      persistenceTrace: {
+        current: { callableAttempts: 1, clientRetries: 0, transactionRetries: 1 },
+        historical: { callableAttempts: 2, clientRetries: 1, transactionRetries: 0 },
       },
     });
     expect(JSON.stringify(record.rayenSyncHistory?.[0].performance)).not.toContain(

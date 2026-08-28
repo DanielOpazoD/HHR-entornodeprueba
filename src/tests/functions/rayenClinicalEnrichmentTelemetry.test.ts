@@ -39,11 +39,64 @@ describe('Rayen clinical enrichment telemetry', () => {
           parityContractVersion: 2,
           mismatchTargetCount: 0,
           mismatchFieldCount: 0,
+          targetScope: 'current',
+          runCorrelationId: expect.stringMatching(/^[a-f0-9]{16}$/),
+          mutationCorrelationId: expect.stringMatching(/^[a-f0-9]{16}$/),
+          transactionAttempts: 1,
+          transactionRetries: 0,
         }),
       })
     );
     expect(JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0])).not.toMatch(
-      /H2C1|episode-secret|Paciente reservado|11\.111|braden|120/
+      /H2C1|episode-secret|Paciente reservado|11\.111|braden|120|run-1|mutation-1/
+    );
+  });
+
+  it('reports internal Firestore transaction retries truthfully', async () => {
+    const admin = createClinicalAdminMock();
+    admin.runTransaction.mockImplementation(async callback => {
+      await callback(admin.transaction);
+      return callback(admin.transaction);
+    });
+
+    const result = await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
+      makePayload(),
+      makeContext()
+    );
+
+    expect(result).toMatchObject({ transactionAttempts: 2, transactionRetries: 1 });
+    expect(admin.telemetryAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attempt: 2,
+        totalAttempts: 2,
+        context: expect.objectContaining({
+          transactionAttempts: 2,
+          transactionRetries: 1,
+        }),
+      })
+    );
+  });
+
+  it('returns sanitized transaction retry details when the callable fails', async () => {
+    const admin = createClinicalAdminMock();
+    admin.runTransaction.mockImplementation(async callback => {
+      await callback(admin.transaction);
+      await callback(admin.transaction);
+      throw new Error('transaction failed');
+    });
+
+    await expect(
+      createApi(admin).applyRayenClinicalEnrichmentBatch.run(makePayload(), makeContext())
+    ).rejects.toMatchObject({
+      code: 'internal',
+      details: {
+        targetScope: 'current',
+        transactionAttempts: 2,
+        transactionRetries: 1,
+      },
+    });
+    expect(JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0])).not.toMatch(
+      /H2C1|episode-secret|Paciente reservado|11\.111|run-1|mutation-1/
     );
   });
 
@@ -86,7 +139,13 @@ describe('Rayen clinical enrichment telemetry', () => {
 
     expect(admin.telemetryAdd).toHaveBeenCalledWith(
       expect.objectContaining({
-        context: expect.objectContaining({ resultParity: 'unavailable' }),
+        attempt: 0,
+        totalAttempts: 0,
+        context: expect.objectContaining({
+          resultParity: 'unavailable',
+          transactionAttempts: 0,
+          transactionRetries: 0,
+        }),
       })
     );
   });

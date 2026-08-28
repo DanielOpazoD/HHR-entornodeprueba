@@ -172,6 +172,15 @@ export interface RayenTreatingPhysicianSourceQuality {
   plannedResolvedNames: number;
 }
 
+export type RayenClinicalPersistenceScope = 'current' | 'historical';
+
+/** Aggregate-only authority-call evidence. It never contains record or patient identifiers. */
+export interface RayenClinicalPersistenceTrace {
+  callableAttempts: number;
+  clientRetries: number;
+  transactionRetries: number;
+}
+
 /** Aggregate-only performance evidence. It must never contain patient or clinical identifiers. */
 export interface RayenSyncPerformance {
   stagesMs: Partial<{
@@ -184,6 +193,8 @@ export interface RayenSyncPerformance {
     clinicalReads: number;
     writeQueueWait: number;
     persistence: number;
+    currentClinicalPersistence: number;
+    historicalCudyrPersistence: number;
   }>;
   counters: {
     requests: number;
@@ -195,6 +206,8 @@ export interface RayenSyncPerformance {
   sourceQuality?: {
     treatingPhysicians?: RayenTreatingPhysicianSourceQuality;
   };
+  /** Counts authority calls and retries independently for current and historical writes. */
+  persistenceTrace?: Partial<Record<RayenClinicalPersistenceScope, RayenClinicalPersistenceTrace>>;
   /** Aggregate coordination evidence; never includes dates, beds or episode identifiers. */
   coordination?: {
     target?: 'current' | 'historical';
@@ -209,6 +222,7 @@ export interface RayenSyncPerformanceDelta {
   stagesMs?: RayenSyncPerformance['stagesMs'];
   counters?: Partial<RayenSyncPerformance['counters']>;
   sourceQuality?: RayenSyncPerformance['sourceQuality'];
+  persistenceTrace?: RayenSyncPerformance['persistenceTrace'];
   coordination?: Partial<NonNullable<RayenSyncPerformance['coordination']>>;
 }
 

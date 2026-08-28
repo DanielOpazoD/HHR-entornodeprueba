@@ -25,27 +25,14 @@ import {
   isClinicalBatchRetryableError,
   isClinicalBatchVersionConflict,
   mergeBatchEvidence,
-  operationLogicalTargetKey,
-  withRetryCount,
+  readReportedTransactionRetries,
+  readServerTransactionRetries,
+  resolveClinicalPersistenceScope,
+  selectRebuiltChunkOperations,
+  withClinicalBatchRetryCount,
+  withPersistenceFailureEvidence,
   type BoundedClinicalBatchChunk,
 } from './clinicalEnrichmentBatchExecutionSupport';
-
-const selectRebuiltChunkOperations = (
-  rebuiltOperations: ClinicalFillPatchOperation[],
-  originalChunkOperations: ClinicalFillPatchOperation[]
-): ClinicalFillPatchOperation[] => {
-  const expectedKeys = new Set(originalChunkOperations.map(operationLogicalTargetKey));
-  const selectedKeys = new Set<string>();
-  return rebuiltOperations.filter(operation => {
-    const key = operationLogicalTargetKey(operation);
-    if (!expectedKeys.has(key)) return false;
-    if (selectedKeys.has(key)) {
-      throw new Error('La reconstrucción clínica produjo un episodio ambiguo para el fragmento.');
-    }
-    selectedKeys.add(key);
-    return true;
-  });
-};
 
 const applyLegacyOperations = async (
   operations: ClinicalFillPatchOperation[],
@@ -274,6 +261,9 @@ export const applyClinicalEnrichmentBatch = async ({
   let patientWrites = 0;
   let historySnapshots = 0;
   let retries = 0;
+  let callableAttempts = 0;
+  let transactionRetries = 0;
+  let transactionEvidenceComplete = true;
   const batchEvidence: ClinicalFillBatchEvidence[] = [];
   const chunk = chunks[0]!;
   let activeOperations = chunk.operations;
@@ -291,9 +281,25 @@ export const applyClinicalEnrichmentBatch = async ({
 
   let activePayload = prepared.payload;
   let checked: Awaited<ReturnType<typeof invokeChecked>>;
+  const invokeEnforced = async (payload: RayenClinicalEnrichmentBatchPayload) => {
+    callableAttempts += 1;
+    let response: Awaited<ReturnType<typeof callRayenClinicalEnrichmentBatch>>;
+    try {
+      response = await invoke(payload);
+    } catch (error) {
+      const reportedRetries = readServerTransactionRetries(error);
+      if (reportedRetries == null) transactionEvidenceComplete = false;
+      else transactionRetries += reportedRetries;
+      throw error;
+    }
+    const reportedRetries = readReportedTransactionRetries(response);
+    if (reportedRetries == null) transactionEvidenceComplete = false;
+    else transactionRetries += reportedRetries;
+    return { response, batch: assertCommittedResponse(response, payload) };
+  };
   try {
     try {
-      checked = await invokeChecked(activePayload);
+      checked = await invokeEnforced(activePayload);
     } catch (error) {
       if (!isClinicalBatchVersionConflict(error) && !isClinicalBatchRetryableError(error)) {
         throw error;
@@ -324,6 +330,16 @@ export const applyClinicalEnrichmentBatch = async ({
               patientWrites: 0,
               historySnapshots: 0,
               retries,
+              ...(transactionEvidenceComplete
+                ? {
+                    persistence: {
+                      scope: resolveClinicalPersistenceScope(activePayload),
+                      callableAttempts,
+                      clientRetries: retries,
+                      transactionRetries,
+                    },
+                  }
+                : {}),
               batch: prepared.evidence,
             };
           }
@@ -331,14 +347,22 @@ export const applyClinicalEnrichmentBatch = async ({
         }
         activePayload = prepared.payload;
       }
-      checked = await invokeChecked(activePayload);
+      checked = await invokeEnforced(activePayload);
     }
   } catch (error) {
-    if (retries > 0) throw withRetryCount(error, retries);
-    throw error;
+    if (!transactionEvidenceComplete) {
+      throw withClinicalBatchRetryCount(error, retries);
+    }
+    throw withPersistenceFailureEvidence(error, {
+      scope: resolveClinicalPersistenceScope(activePayload),
+      callableAttempts,
+      clientRetries: retries,
+      transactionRetries,
+    });
   }
 
   const response = checked.response;
+  const scope = response.targetScope ?? resolveClinicalPersistenceScope(activePayload);
   if (response.authorityStatus === 'ok') {
     patientWrites += response.patientWrites ?? 1;
     historySnapshots += response.historySnapshots ?? Number(activePayload.patches.length > 0);
@@ -359,6 +383,16 @@ export const applyClinicalEnrichmentBatch = async ({
     patientWrites,
     historySnapshots,
     retries,
+    ...(transactionEvidenceComplete
+      ? {
+          persistence: {
+            scope,
+            callableAttempts,
+            clientRetries: retries,
+            transactionRetries,
+          },
+        }
+      : {}),
     batch: mergeBatchEvidence(batchEvidence, 'enforced'),
   };
 };

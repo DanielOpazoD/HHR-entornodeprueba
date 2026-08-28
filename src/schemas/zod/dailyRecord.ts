@@ -3,6 +3,7 @@ import { DailyRecord } from '@/types/domain/dailyRecord';
 import { DATE_REGEX, nullableOptional, nullishDefault } from './helpers';
 import { BedTypeSchema, PatientDataSchema } from './patient';
 import { DischargeDataSchema, TransferDataSchema, CMADataSchema } from './movements';
+import { RayenSyncPerformanceSchema } from './rayenSyncPerformance';
 import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRecordStaffing';
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
@@ -134,40 +135,6 @@ const RayenSyncStaffingObservationSchema = z.object({
         })
       )
       .max(MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE)
-  ),
-});
-
-const RayenSyncPerformanceSchema = z.object({
-  stagesMs: z.object({
-    preflight: nullableOptional(z.number().int().nonnegative()),
-    dualCapture: nullableOptional(z.number().int().nonnegative()),
-    reconciliation: nullableOptional(z.number().int().nonnegative()),
-    historicalEvidence: nullableOptional(z.number().int().nonnegative()),
-    reviewWait: nullableOptional(z.number().int().nonnegative()),
-    structuralPersistence: nullableOptional(z.number().int().nonnegative()),
-    clinicalReads: nullableOptional(z.number().int().nonnegative()),
-    writeQueueWait: nullableOptional(z.number().int().nonnegative()),
-    persistence: nullableOptional(z.number().int().nonnegative()),
-  }),
-  counters: z.object({
-    requests: z.number().int().nonnegative(),
-    cacheHits: z.number().int().nonnegative(),
-    patches: z.number().int().nonnegative(),
-    retries: z.number().int().nonnegative(),
-    timeouts: z.number().int().nonnegative(),
-  }),
-  sourceQuality: nullableOptional(
-    z.object({
-      treatingPhysicians: nullableOptional(
-        z.object({
-          encounters: z.number().int().nonnegative(),
-          catalogEntries: z.number().int().nonnegative(),
-          assignedEncounters: z.number().int().nonnegative(),
-          sourceResolvedNames: z.number().int().nonnegative(),
-          plannedResolvedNames: z.number().int().nonnegative(),
-        })
-      ),
-    })
   ),
 });
 

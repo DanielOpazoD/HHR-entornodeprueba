@@ -168,6 +168,34 @@ describe('runClinicalFill performance pipeline', () => {
     });
   });
 
+  it('preserves a zero-millisecond scoped stage when persistence was observed', async () => {
+    const applyBatch = vi.fn().mockResolvedValue({
+      patientWrites: 1,
+      historySnapshots: 1,
+      persistence: {
+        scope: 'current' as const,
+        callableAttempts: 1,
+        clientRetries: 0,
+        transactionRetries: 0,
+      },
+    });
+
+    const summary = await runClinicalFill(
+      record(1),
+      '2026-07-10',
+      deps({
+        monotonicNow: () => 0,
+        persistenceStrategy: deferredPersistence(applyBatch),
+      })
+    );
+
+    expect(summary.performance).toMatchObject({
+      stagesMs: { persistence: 0, currentClinicalPersistence: 0 },
+      persistenceTrace: { current: { callableAttempts: 1 } },
+    });
+    expect(summary.performance?.stagesMs).not.toHaveProperty('historicalCudyrPersistence');
+  });
+
   it('starts the next patient read as soon as a slot is free without waiting for a slow write', async () => {
     let releaseWrite: (() => void) | undefined;
     const writeBarrier = new Promise<void>(resolve => {
@@ -259,8 +287,11 @@ describe('runClinicalFill performance pipeline', () => {
     expect(summary).toMatchObject({
       total: 2,
       patched: 0,
-      performance: { counters: { retries: 1 } },
+      performance: {
+        counters: { retries: 1 },
+      },
     });
+    expect(summary.performance).not.toHaveProperty('persistenceTrace');
     expect(summary.errors).toHaveLength(2);
   });
 
