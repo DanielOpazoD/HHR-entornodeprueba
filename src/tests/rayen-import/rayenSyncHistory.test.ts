@@ -378,6 +378,26 @@ describe('rayen sync history', () => {
     expect(JSON.stringify(merged?.persistenceTrace)).not.toMatch(/rut|patient|bed|encounter/i);
   });
 
+  it('adds privacy-safe administrative CUDYR preservation evidence', () => {
+    const merged = mergeRayenSyncPerformance(
+      {
+        stagesMs: {},
+        counters: {
+          requests: 0,
+          cacheHits: 0,
+          patches: 0,
+          retries: 0,
+          timeouts: 0,
+          administrativeOverridesPreserved: 1,
+        },
+      },
+      { counters: { administrativeOverridesPreserved: 2 } }
+    );
+
+    expect(merged?.counters.administrativeOverridesPreserved).toBe(3);
+    expect(JSON.stringify(merged?.counters)).not.toMatch(/patient|bed|episode|category|rut/i);
+  });
+
   it('omits an unknown target when adding coordination to legacy telemetry', () => {
     const merged = mergeRayenSyncPerformance(undefined, {
       coordination: { clinicalRetries: 1 },

@@ -31,6 +31,27 @@ const recordWith = (cudyr: ImportedCudyr): DailyRecord =>
   }) as unknown as DailyRecord;
 
 describe('resolveHistoricalCudyrPatch', () => {
+  it('preserves an administrative adjustment instead of treating it as imported state', () => {
+    const administrative: ImportedCudyr = {
+      category: 'D2',
+      recordedDate: '2026-07-15',
+      source: 'HHR · ajuste administrativo',
+    };
+
+    expect(resolveHistoricalCudyrPatch(recordWith(administrative), 'episode-1', official)).toEqual({
+      matched: true,
+      patch: null,
+      administrativeOverridePreserved: true,
+    });
+    expect(
+      resolveHistoricalCudyrBatchOperation(recordWith(administrative), 'episode-1', official)
+    ).toEqual({
+      matched: true,
+      operation: null,
+      administrativeOverridePreserved: true,
+    });
+  });
+
   it('replaces an old imported score instead of only filling empty fields', () => {
     const stale: ImportedCudyr = {
       ...official,

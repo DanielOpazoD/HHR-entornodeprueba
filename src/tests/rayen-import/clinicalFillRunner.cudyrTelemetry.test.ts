@@ -31,6 +31,40 @@ const singleDeps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => (
 });
 
 describe('runClinicalFill historical CUDYR telemetry', () => {
+  it('persists aggregate evidence when a historical administrative override wins', async () => {
+    const summary = await runClinicalFill(
+      singleRecord('2026-07-16'),
+      '2026-07-16',
+      singleDeps({
+        fetchCudyrCategories: vi.fn().mockResolvedValue({
+          items: [
+            {
+              encId: 'E1',
+              crdValue: 'C2',
+              crdDateTime: '2026-07-16T07:00:00+00:00',
+              source: 'gestion_camas',
+            },
+          ],
+          source: 'gestion_camas',
+          historyAvailable: true,
+        }),
+        applyHistoricalCudyrBatch: vi.fn().mockResolvedValue({
+          results: [
+            {
+              clinicalEpisodeId: 'E1',
+              persisted: false,
+              changed: false,
+              administrativeOverridePreserved: true,
+            },
+          ],
+        }),
+      })
+    );
+
+    expect(summary.errors).toEqual([]);
+    expect(summary.performance?.counters.administrativeOverridesPreserved).toBe(1);
+  });
+
   it('separates historical persistence and counts every retry in aggregate history', async () => {
     let clock = 0;
     const applyHistoricalCudyrBatch = vi.fn().mockImplementation(async (_day, items) => ({

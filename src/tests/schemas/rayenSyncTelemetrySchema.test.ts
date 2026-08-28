@@ -59,7 +59,14 @@ describe('Eloísa sync telemetry schema', () => {
               historicalCudyrPersistence: 800,
               patientName: 'No persistible',
             },
-            counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },
+            counters: {
+              requests: 8,
+              cacheHits: 2,
+              patches: 1,
+              retries: 0,
+              timeouts: 0,
+              administrativeOverridesPreserved: 2,
+            },
             sourceQuality: {
               treatingPhysicians: {
                 encounters: 2,
@@ -127,7 +134,14 @@ describe('Eloísa sync telemetry schema', () => {
         currentClinicalPersistence: 1_200,
         historicalCudyrPersistence: 800,
       },
-      counters: { requests: 8, cacheHits: 2, patches: 1, retries: 0, timeouts: 0 },
+      counters: {
+        requests: 8,
+        cacheHits: 2,
+        patches: 1,
+        retries: 0,
+        timeouts: 0,
+        administrativeOverridesPreserved: 2,
+      },
       sourceQuality: {
         treatingPhysicians: {
           encounters: 2,

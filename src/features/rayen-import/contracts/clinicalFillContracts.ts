@@ -132,6 +132,8 @@ export interface HistoricalCudyrApplyResult {
   persisted: boolean;
   changed: boolean;
   applicable?: boolean;
+  /** An existing administrative correction intentionally won over the Eloísa proposal. */
+  administrativeOverridePreserved?: boolean;
 }
 
 export interface HistoricalCudyrBatchItem {

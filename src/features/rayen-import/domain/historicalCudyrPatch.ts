@@ -2,10 +2,12 @@ import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { ClinicalFillPatchOperation } from '../contracts/clinicalFillContracts';
+import { isAdministrativeCudyrAdjustment } from '@/domain/evaluationScales/importedCudyr';
 
 export interface HistoricalCudyrPatchResolution {
   matched: boolean;
   patch: DailyRecordPatch | null;
+  administrativeOverridePreserved?: boolean;
 }
 
 interface LocatedHistoricalCudyrTarget {
@@ -50,7 +52,8 @@ const sameCudyr = (current: ImportedCudyr | undefined, cudyr: ImportedCudyr): bo
 
 /**
  * Builds the narrow historical patch for an official CUDYR result.
- * A different local copy is stale and must be replaced, not treated as an already-filled field.
+ * A different imported copy is stale and must be replaced. Administrative corrections retain
+ * authority until an administrator explicitly changes or removes them.
  */
 export const resolveHistoricalCudyrPatch = (
   record: DailyRecord,
@@ -60,6 +63,9 @@ export const resolveHistoricalCudyrPatch = (
   const target = locateHistoricalCudyrTarget(record, clinicalEpisodeId);
   if (!target) return { matched: false, patch: null };
   if (sameCudyr(target.evaluationScores?.cudyr, cudyr)) return { matched: true, patch: null };
+  if (isAdministrativeCudyrAdjustment(target.evaluationScores?.cudyr)) {
+    return { matched: true, patch: null, administrativeOverridePreserved: true };
+  }
 
   const path = target.clinicalCrib
     ? `beds.${target.bedId}.clinicalCrib.evaluationScores.cudyr`
@@ -78,11 +84,18 @@ export const resolveHistoricalCudyrBatchOperation = (
   record: DailyRecord,
   clinicalEpisodeId: string,
   cudyr: ImportedCudyr
-): { matched: boolean; operation: ClinicalFillPatchOperation | null } => {
+): {
+  matched: boolean;
+  operation: ClinicalFillPatchOperation | null;
+  administrativeOverridePreserved?: boolean;
+} => {
   const target = locateHistoricalCudyrTarget(record, clinicalEpisodeId);
   if (!target) return { matched: false, operation: null };
   if (sameCudyr(target.evaluationScores?.cudyr, cudyr)) {
     return { matched: true, operation: null };
+  }
+  if (isAdministrativeCudyrAdjustment(target.evaluationScores?.cudyr)) {
+    return { matched: true, operation: null, administrativeOverridePreserved: true };
   }
   const prefix = `beds.${target.bedId}${target.clinicalCrib ? '.clinicalCrib' : ''}`;
   const patch = {

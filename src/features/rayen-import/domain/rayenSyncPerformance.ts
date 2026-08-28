@@ -32,6 +32,12 @@ export const mergeRayenSyncPerformance = (
   for (const key of Object.keys(EMPTY_COUNTERS) as Array<keyof typeof EMPTY_COUNTERS>) {
     counters[key] = safeInteger(counters[key]) + safeInteger(delta?.counters?.[key]);
   }
+  const administrativeOverridesPreserved =
+    safeInteger(merged.counters.administrativeOverridesPreserved) +
+    safeInteger(delta?.counters?.administrativeOverridesPreserved);
+  if (administrativeOverridesPreserved > 0) {
+    counters.administrativeOverridesPreserved = administrativeOverridesPreserved;
+  }
   const sourceQuality = delta?.sourceQuality ?? merged.sourceQuality;
   const mergePersistenceScope = (
     scope: 'current' | 'historical'

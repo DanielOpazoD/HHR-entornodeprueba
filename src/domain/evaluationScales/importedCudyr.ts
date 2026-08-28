@@ -72,6 +72,12 @@ export const importedCudyrBelongsToCensus = (
 /** Provenance label shown for the preferred official source. */
 export const CUDYR_IMPORT_SOURCE = 'Eloísa · Gestión de Camas';
 export const CUDYR_FALLBACK_SOURCE = 'Eloísa · Ficha Médico';
+export const CUDYR_ADMIN_ADJUSTMENT_SOURCE = 'HHR · ajuste administrativo';
+
+/** Administrative results remain authoritative until an administrator explicitly changes them. */
+export const isAdministrativeCudyrAdjustment = (
+  cudyr: Pick<ImportedCudyr, 'source'> | null | undefined
+): boolean => cudyr?.source === CUDYR_ADMIN_ADJUSTMENT_SOURCE;
 
 export interface CudyrHistoryInput {
   category: string;

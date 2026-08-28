@@ -1,4 +1,8 @@
-import { buildImportedCudyr, previousCensusIsoDay } from '@/domain/evaluationScales/importedCudyr';
+import {
+  buildImportedCudyr,
+  isAdministrativeCudyrAdjustment,
+  previousCensusIsoDay,
+} from '@/domain/evaluationScales/importedCudyr';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type {
   ClinicalPersistenceEvidence,
@@ -30,6 +34,7 @@ interface ClinicalCudyrCoordinatorInput {
   onPersistenceEvidence: (evidence: ClinicalPersistenceEvidence) => void;
   onRetries: (count: number) => void;
   onHistoricalPatch: () => void;
+  onAdministrativeOverridePreserved: () => void;
   onError: (error: ClinicalFillError) => void;
 }
 
@@ -61,6 +66,7 @@ export const createClinicalCudyrCoordinator = ({
   onPersistenceEvidence,
   onRetries,
   onHistoricalPatch,
+  onAdministrativeOverridePreserved,
   onError,
 }: ClinicalCudyrCoordinatorInput) => {
   const priorCensusDay = previousCensusIsoDay(censusDate);
@@ -119,10 +125,12 @@ export const createClinicalCudyrCoordinator = ({
           ? batchOutcome.results.get(clinicalEpisodeId)
           : await enqueueWrite(() => applySingle!(clinicalEpisodeId, priorCensusDay, priorCudyr));
         const notApplicable = result?.applicable === false;
-        priorPersisted = Boolean(result?.persisted);
+        const administrativeOverridePreserved = Boolean(result?.administrativeOverridePreserved);
+        priorPersisted = Boolean(result?.persisted || administrativeOverridePreserved);
         historicalChanged = Boolean(result?.changed);
         if (historicalChanged) onHistoricalPatch();
-        if (!result?.persisted && !notApplicable) {
+        if (administrativeOverridePreserved) onAdministrativeOverridePreserved();
+        if (!result?.persisted && !administrativeOverridePreserved && !notApplicable) {
           onError(
             buildClinicalFillError({
               bedId,
@@ -147,6 +155,15 @@ export const createClinicalCudyrCoordinator = ({
     }
 
     const existingCudyr = patient.evaluationScores?.cudyr;
+    if (
+      isAdministrativeCudyrAdjustment(existingCudyr) &&
+      (currentCudyr
+        ? !clinicalValuesEqual(existingCudyr, currentCudyr)
+        : episodeHistoryAuthoritative)
+    ) {
+      onAdministrativeOverridePreserved();
+      return { patient, historicalChanged };
+    }
     if (currentCudyr && !clinicalValuesEqual(existingCudyr, currentCudyr)) {
       return {
         patient: {

@@ -205,7 +205,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   const fillClinicalData = useRayenClinicalFill({
     nurseCatalog: nursesList,
     tensCatalog: tensList,
-    loadDailyRecord: loadFreshClinicalRecord,
+    loadDailyRecord: loadAuthoritativeStructuralRecord,
     patchDailyRecord: patchClinicalRecord,
     applyHistoricalCudyr,
     applyHistoricalCudyrBatch,
