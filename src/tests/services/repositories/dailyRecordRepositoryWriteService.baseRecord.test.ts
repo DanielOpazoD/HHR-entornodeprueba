@@ -87,7 +87,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
     hydratedBase.beds = {
       R2: buildPatient('R2', 'Paciente Hidratado'),
     };
-
     const result = await updatePartialDetailed(
       '2026-02-18',
       {
@@ -95,7 +94,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       },
       { baseRecord: hydratedBase }
     );
-
     expect(result.outcome).toBe('clean');
     expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
     expect(getRecordFromFirestore).not.toHaveBeenCalled();
@@ -108,7 +106,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       expectSyncContract('2026-02-18T09:30:00.000Z', ['beds.R2.patientName'])
     );
   });
-
   it('persists clinical fields and device removals from a visible base when local cache is missing', async () => {
     const hydratedBase = buildRecord('2026-02-18');
     hydratedBase.lastUpdated = '2026-02-18T09:45:00.000Z';
@@ -118,7 +115,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         devices: ['VVP#1', 'Sonda Foley'],
       },
     };
-
     const result = await updatePartialDetailed(
       '2026-02-18',
       {
@@ -129,7 +125,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       },
       { baseRecord: hydratedBase }
     );
-
     expect(result.outcome).toBe('clean');
     expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
     expect(getRecordFromFirestore).not.toHaveBeenCalled();
@@ -150,7 +145,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       ])
     );
   });
-
   it('persists venous access device edits from a visible base when local cache is missing', async () => {
     const hydratedBase = buildRecord('2026-02-18');
     hydratedBase.lastUpdated = '2026-02-18T09:40:00.000Z';
@@ -378,8 +372,9 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         time: '10:15',
       },
     ];
-
-    await updatePartialDetailed(
+    const confirmedRecord = { ...hydratedBase, lastUpdated: '2026-02-18T10:21:00.000Z' };
+    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(confirmedRecord);
+    const result = await updatePartialDetailed(
       '2026-02-18',
       {
         discharges: [
@@ -410,9 +405,12 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
           },
         ],
       },
-      { baseRecord: hydratedBase }
+      {
+        baseRecord: hydratedBase,
+        requireConfirmedRecord: true,
+        requireRemoteAuthorityFirst: true,
+      }
     );
-
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
       expect.objectContaining({
@@ -427,8 +425,10 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         }),
       })
     );
+    expect(result.confirmedRecord).toEqual(confirmedRecord);
+    expect(saveToIndexedDB).toHaveBeenLastCalledWith(confirmedRecord);
+    expect(saveToIndexedDB).toHaveBeenCalledTimes(1);
   });
-
   it('persists guarded Rayen patches remotely before local cache without queuing a stale retry', async () => {
     const hydratedBase = buildRecord('2026-02-13');
     hydratedBase.lastUpdated = '2026-02-13T08:00:00.000Z';

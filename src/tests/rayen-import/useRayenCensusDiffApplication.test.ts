@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { useRayenCensusDiffApplication } from '@/features/rayen-import/hooks/useRayenCensusDiffApplication';
+import { QueryClient } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 const baseRecord = {
   date: '2026-08-07',
@@ -76,9 +79,11 @@ describe('useRayenCensusDiffApplication', () => {
         ensureRun: () => run as never,
         applyRunToRecord,
         saveDailyRecord: saveDailyRecord as never,
+        checkpointRepository: { updatePartialDetailed: vi.fn() as never },
+        queryClient,
         loadLocalRecord: vi
           .fn()
-          .mockResolvedValue({ record: null, hasPendingWrites: false, writeState: 'none' }),
+          .mockResolvedValue({ record: null, hasPendingWrites: true, writeState: 'active' }),
         recordRunPerformance: vi.fn(),
       })
     );
@@ -122,15 +127,16 @@ describe('useRayenCensusDiffApplication', () => {
         ],
       } as DailyRecord,
     }));
-    const saveDailyRecord = vi.fn(async (record: DailyRecord) => {
-      const confirmedRecord = { ...record, lastUpdated: confirmedAt } as DailyRecord;
+    const saveDailyRecord = vi.fn();
+    const checkpointDailyRecord = vi.fn(async (_date: string, patch: object) => {
+      const base = baseRecord;
+      const confirmedRecord = { ...base, lastUpdated: confirmedAt } as DailyRecord;
+      Object.assign(confirmedRecord, patch);
       return {
-        record: confirmedRecord,
-        result: {
-          date: confirmedRecord.date,
-          outcome: 'clean',
-          confirmedRecord,
-        },
+        date: confirmedRecord.date,
+        outcome: 'clean',
+        updatedRemotely: true,
+        confirmedRecord,
       };
     });
     const { result } = renderHook(() =>
@@ -138,6 +144,8 @@ describe('useRayenCensusDiffApplication', () => {
         ensureRun: () => run as never,
         applyRunToRecord,
         saveDailyRecord: saveDailyRecord as never,
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        queryClient,
         loadLocalRecord: vi
           .fn()
           .mockResolvedValue({ record: null, hasPendingWrites: false, writeState: 'none' }),
@@ -154,5 +162,62 @@ describe('useRayenCensusDiffApplication', () => {
     expect(applied?.confirmedHandoff.acceptedRevision).toBe(confirmedAt);
     expect(applied?.confirmedHandoff.record).toBe(applied?.record);
     expect(applied?.structuralStage.status).toBe('confirmed');
+    expect(checkpointDailyRecord).toHaveBeenCalledTimes(1);
+    expect(saveDailyRecord).not.toHaveBeenCalled();
+  });
+
+  it('keeps the full structural save when a local write remains queued', async () => {
+    const run = {
+      id: 'run-pending-local',
+      startedAt: '2026-08-08T01:00:00.000Z',
+      by: 'Operador HHR',
+      sourceDate: baseRecord.date,
+    };
+    const stamped = {
+      ...baseRecord,
+      rayenSync: {
+        at: run.startedAt,
+        by: run.by,
+        runId: run.id,
+        status: 'applied',
+      },
+      rayenSyncHistory: [
+        {
+          id: run.id,
+          sourceDate: run.sourceDate,
+          startedAt: run.startedAt,
+          by: run.by,
+          status: 'applied',
+          policy: { mode: 'preview', revision: 1, clinicalBatchMode: 'enforced' },
+        },
+      ],
+    } as DailyRecord;
+    const saveDailyRecord = vi.fn(async () => ({
+      record: stamped,
+      result: { date: stamped.date, outcome: 'clean', confirmedRecord: stamped },
+    }));
+    const checkpointDailyRecord = vi.fn();
+    const { result } = renderHook(() =>
+      useRayenCensusDiffApplication({
+        ensureRun: () => run as never,
+        applyRunToRecord: () => ({ record: stamped }),
+        saveDailyRecord: saveDailyRecord as never,
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        queryClient,
+        loadLocalRecord: vi.fn().mockResolvedValue({
+          record: baseRecord,
+          hasPendingWrites: true,
+          writeState: 'none',
+        }),
+        recordRunPerformance: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current(baseRecord, diff);
+    });
+
+    expect(saveDailyRecord).toHaveBeenCalledTimes(1);
+    expect(checkpointDailyRecord).not.toHaveBeenCalled();
   });
 });

@@ -55,6 +55,20 @@ export interface PartialUpdateDailyRecordOptions {
    * local persistence/outbox. Reserved for synchronization code; ordinary census edits omit it.
    */
   rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
+  /**
+   * Requires the expected record version to be checked inside the same transaction as the patch.
+   * Used by metadata checkpoints that precede an authoritative clinical handoff.
+   */
+  requireAtomicCas?: boolean;
+  /**
+   * Reads back the exact remote record accepted by the patch before returning.
+   * Callers must fail closed when the confirmed record is unavailable.
+   */
+  requireConfirmedRecord?: boolean;
+  /** Commits remote authority before local persistence, so a rejected CAS cannot queue stale data. */
+  requireRemoteAuthorityFirst?: boolean;
+  /** Internal lease for a patch executed inside an existing daily-record write critical section. */
+  dailyRecordWriteLease?: DailyRecordWriteLease;
 }
 
 const assertDate = (date: string, operation: string): void => {

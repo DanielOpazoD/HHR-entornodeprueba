@@ -1,4 +1,7 @@
-import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import type {
+  SaveDailyRecordResult,
+  UpdatePartialDailyRecordResult,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
@@ -10,7 +13,7 @@ import {
 
 export interface RayenCensusPersistencePayload {
   record: DailyRecord;
-  result: SaveDailyRecordResult | null;
+  result: SaveDailyRecordResult | UpdatePartialDailyRecordResult | null;
 }
 
 const CONFIRMED_RAYEN_CENSUS_HANDOFF = Symbol('confirmed-rayen-census-handoff');

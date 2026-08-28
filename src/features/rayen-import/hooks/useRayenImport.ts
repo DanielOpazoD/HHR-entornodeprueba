@@ -164,7 +164,6 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       setState(previous => ({ ...previous, isPreviewOpen: false }));
       return;
     }
-
     clearSyncTimeout();
     preparedSyncContextRef.current = null;
     structuralReplanRef.current = null;
@@ -177,6 +176,8 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     ensureRun,
     applyRunToRecord,
     saveDailyRecord: saveRayenCensus,
+    checkpointRepository: dailyRecord,
+    queryClient,
     loadLocalRecord: loadLocalStructuralRecord,
     recordRunPerformance,
   });
@@ -325,7 +326,6 @@ export const useRayenImport = (selectedCensusDate?: string) => {
       setState(previous => ({ ...previous, isPreviewOpen: false }));
       return;
     }
-
     const runId = executionRef.current.context?.runId ?? executionRef.current.pending?.runId;
     if (cancellableBeforeCommit) {
       dispatchExecution({ type: 'cancel', runId });

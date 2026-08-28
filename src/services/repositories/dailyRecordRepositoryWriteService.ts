@@ -347,7 +347,7 @@ const updatePartialDetailedWithinLock = async (
     remoteWrite: () =>
       updateRecordPartialToFirestore(command.date, mergedPatches, current.lastUpdated, {
         syncContract,
-        requireAtomicCas: isReclassification,
+        requireAtomicCas: isReclassification || options.requireAtomicCas,
         ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
         ...(options.rayenClinicalWriteGuard
           ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
@@ -365,12 +365,16 @@ const updatePartialDetailedWithinLock = async (
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date),
+    requireConfirmedRecord: options.requireConfirmedRecord,
     onRemoteFailure: err => {
       dailyRecordWriteLogger.warn(`Firestore partial update failed for ${command.date}`, err);
     },
     expectedVersion: current.lastUpdated,
-    allowConflictAutoMerge: !isReclassification && !options.rayenClinicalWriteGuard,
-    remoteAuthorityFirst: Boolean(options.rayenClinicalWriteGuard),
+    allowConflictAutoMerge:
+      !isReclassification && !options.rayenClinicalWriteGuard && !options.requireAtomicCas,
+    remoteAuthorityFirst: Boolean(
+      options.rayenClinicalWriteGuard || options.requireRemoteAuthorityFirst
+    ),
   });
   if (nextAction === 'return') {
     return buildPartialUpdateResult(command.date, remoteState, patchedFields);
@@ -384,7 +388,7 @@ export const updatePartialDetailed = (
   partialData: DailyRecordPatch,
   options: PartialUpdateDailyRecordOptions = {}
 ) =>
-  runWithDailyRecordWriteLock(date, undefined, () =>
+  runWithDailyRecordWriteLock(date, options.dailyRecordWriteLease, () =>
     updatePartialDetailedWithinLock(date, partialData, options)
   );
 
