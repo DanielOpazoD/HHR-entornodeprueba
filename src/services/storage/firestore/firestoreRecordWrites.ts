@@ -151,7 +151,6 @@ export const saveRecordToFirestore = async (
     throw error;
   }
 };
-
 export const updateRecordPartial = async (
   date: string,
   partialData: DailyRecordPatch,
@@ -169,7 +168,6 @@ export const updateRecordPartial = async (
         { toleranceMs: 0, failClosed: true }
       );
     }
-
     // Specialist patches arrive in correct dot-notation (e.g. "beds.R1.medicalHandoffAudit").
     // flattenObject would recursively expand nested objects into sub-field paths
     // (e.g. "beds.R1.medicalHandoffAudit.lastEditor"), which causes Firestore rules
@@ -346,7 +344,6 @@ export const updateRecordPartial = async (
           }
         );
       };
-
       try {
         return await persist();
       } catch (error) {
@@ -372,7 +369,6 @@ export const updateRecordPartial = async (
     throw error;
   }
 };
-
 export const deleteRecordFromFirestore = async (date: string): Promise<void> => {
   try {
     const docRef = getRecordDocRef(date);
@@ -385,11 +381,9 @@ export const deleteRecordFromFirestore = async (date: string): Promise<void> => 
     throw error;
   }
 };
-
 export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
   try {
     const trashRef = createDeletedRecordRef(record.date);
-
     await withRetry(() =>
       setDoc(trashRef, {
         ...(sanitizeForFirestore(record) as Record<string, unknown>),

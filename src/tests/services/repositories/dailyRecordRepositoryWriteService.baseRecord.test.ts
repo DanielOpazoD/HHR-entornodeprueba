@@ -472,7 +472,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
         } as unknown as DailyRecord,
       },
     });
-
     const result = await updatePartialDetailed(
       '2026-02-13',
       { 'beds.R1.vitalSigns': { heartRate: 72 } },
