@@ -54,7 +54,10 @@ import {
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
-import { buildGuardedRayenFallbackData, extractGuardedRayenClinicalPatch } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
+import {
+  buildGuardedRayenFallbackData,
+  extractGuardedRayenClinicalPatch,
+} from '@/services/storage/firestore/firestoreRayenGuardedPatch';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
@@ -148,7 +151,6 @@ export const saveRecordToFirestore = async (
     throw error;
   }
 };
-
 export const updateRecordPartial = async (
   date: string,
   partialData: DailyRecordPatch,
@@ -157,7 +159,7 @@ export const updateRecordPartial = async (
 ): Promise<DailyRecordAuthorityCallableResponse | void> => {
   try {
     const docRef = getRecordDocRef(date);
-    if (!options.rayenClinicalWriteGuard) {
+    if (!options.rayenClinicalWriteGuard && !options.requireAtomicCas) {
       await assertFirestoreConcurrency(
         docRef,
         expectedLastUpdated,
@@ -166,7 +168,6 @@ export const updateRecordPartial = async (
         { toleranceMs: 0, failClosed: true }
       );
     }
-
     // Specialist patches arrive in correct dot-notation (e.g. "beds.R1.medicalHandoffAudit").
     // flattenObject would recursively expand nested objects into sub-field paths
     // (e.g. "beds.R1.medicalHandoffAudit.lastEditor"), which causes Firestore rules
@@ -343,7 +344,6 @@ export const updateRecordPartial = async (
           }
         );
       };
-
       try {
         return await persist();
       } catch (error) {
@@ -357,7 +357,9 @@ export const updateRecordPartial = async (
       const storageError = error as { code?: string };
       if (storageError?.code === 'not-found') {
         firestoreWriteLogger.warn('Firestore write fallback: partialUpdateNotFound', { date });
-        await withRetry(() => setDoc(docRef, guardedFallbackData ?? sanitizedData, { merge: true }));
+        await withRetry(() =>
+          setDoc(docRef, guardedFallbackData ?? sanitizedData, { merge: true })
+        );
       } else {
         throw error;
       }
@@ -367,7 +369,6 @@ export const updateRecordPartial = async (
     throw error;
   }
 };
-
 export const deleteRecordFromFirestore = async (date: string): Promise<void> => {
   try {
     const docRef = getRecordDocRef(date);
@@ -380,11 +381,9 @@ export const deleteRecordFromFirestore = async (date: string): Promise<void> => 
     throw error;
   }
 };
-
 export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
   try {
     const trashRef = createDeletedRecordRef(record.date);
-
     await withRetry(() =>
       setDoc(trashRef, {
         ...(sanitizeForFirestore(record) as Record<string, unknown>),

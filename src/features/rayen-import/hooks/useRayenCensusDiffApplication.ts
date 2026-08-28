@@ -19,6 +19,12 @@ import {
   type RayenCensusPersistencePayload,
   type StructuralStageResult,
 } from './rayenCensusPersistenceGuard';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import { hasUnchangedRayenStructuralState } from '../domain/rayenStructuralCheckpoint';
+import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
+import type { QueryClient } from '@tanstack/react-query';
+import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
+import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;
@@ -33,6 +39,9 @@ interface RayenCensusDiffApplicationInput {
     expectedLastUpdated: string,
     writeLease: DailyRecordWriteLease
   ) => Promise<RayenCensusPersistencePayload>;
+  checkpointRepository: Pick<DailyRecordRepositoryPort, 'updatePartialDetailed'>;
+  queryClient: QueryClient;
+  loadAuthoritativeRecord: (date: string) => Promise<DailyRecord>;
   loadLocalRecord: (date: string) => Promise<LocalDailyRecordReadResult>;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;
 }
@@ -42,6 +51,9 @@ export const useRayenCensusDiffApplication = ({
   ensureRun,
   applyRunToRecord,
   saveDailyRecord,
+  checkpointRepository,
+  queryClient,
+  loadAuthoritativeRecord,
   loadLocalRecord,
   recordRunPerformance,
 }: RayenCensusDiffApplicationInput) =>
@@ -71,7 +83,60 @@ export const useRayenCensusDiffApplication = ({
         const startedAt = Date.now();
         // applyCensusImportDiff stamps a new lastUpdated. CAS must keep the base record revision,
         // especially for a historical day, otherwise every legitimate save is 409.
-        const persistence = await saveDailyRecord(stamped, record.lastUpdated, writeLease);
+        const canUseMetadataCheckpoint =
+          !localResult.hasPendingWrites &&
+          !localResult.hasPendingWritesForDate &&
+          localResult.writeState === 'none' &&
+          hasUnchangedRayenStructuralState(persistenceBase, result.record);
+        let persistence: RayenCensusPersistencePayload;
+        if (canUseMetadataCheckpoint) {
+          const authoritativeCheckpointBase = await loadAuthoritativeRecord(persistenceBase.date);
+          if (!hasUnchangedRayenStructuralState(persistenceBase, authoritativeCheckpointBase)) {
+            const stalePlan = new Error(
+              'El censo cambió mientras se preparaba el checkpoint de sincronización.'
+            );
+            stalePlan.name = 'ConcurrencyError';
+            throw stalePlan;
+          }
+          // The structural state is unchanged, but audit metadata may have advanced since planning
+          // (for example, when a previous failed run was recorded). Stamp the current run onto the
+          // fresh server base so the metadata patch cannot overwrite newer history or use stale CAS.
+          const checkpointStamped = applyRunToRecord(authoritativeCheckpointBase, diff).record;
+          const checkpointResult = await checkpointRepository.updatePartialDetailed(
+            persistenceBase.date,
+            {
+              rayenSync: checkpointStamped.rayenSync,
+              rayenSyncHistory: checkpointStamped.rayenSyncHistory,
+            } satisfies DailyRecordPatch,
+            {
+              baseRecord: authoritativeCheckpointBase,
+              historyPolicy: 'skip',
+              requireAtomicCas: true,
+              requireConfirmedRecord: true,
+              requireRemoteAuthorityFirst: true,
+              dailyRecordWriteLease: writeLease,
+            }
+          );
+          persistence = {
+            record: checkpointResult.confirmedRecord ?? persistenceBase,
+            result: checkpointResult,
+          };
+          if (checkpointResult.confirmedRecord) {
+            markDailyRecordRemoteConfirmed(persistenceBase.date, {
+              source: 'write',
+              remoteLastUpdated: checkpointResult.confirmedRecord.lastUpdated,
+              previousRecord: persistenceBase,
+              confirmedRecord: checkpointResult.confirmedRecord,
+            });
+            setDailyRecordQueryData(
+              queryClient,
+              persistenceBase.date,
+              checkpointResult.confirmedRecord
+            );
+          }
+        } else {
+          persistence = await saveDailyRecord(stamped, record.lastUpdated, writeLease);
+        }
         const confirmedHandoff = resolveConfirmedRayenCensusHandoff(persistence, {
           date: stamped.date,
           clinicalDay,
@@ -97,5 +162,14 @@ export const useRayenCensusDiffApplication = ({
           structuralStage,
         };
       }),
-    [applyRunToRecord, ensureRun, loadLocalRecord, recordRunPerformance, saveDailyRecord]
+    [
+      applyRunToRecord,
+      checkpointRepository,
+      ensureRun,
+      loadAuthoritativeRecord,
+      loadLocalRecord,
+      queryClient,
+      recordRunPerformance,
+      saveDailyRecord,
+    ]
   );

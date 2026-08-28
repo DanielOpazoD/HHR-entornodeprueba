@@ -66,6 +66,8 @@ export interface UpdatePartialDailyRecordResult {
   blockingReason?: 'regression' | 'version_mismatch' | 'validation';
   repairApplied: boolean;
   blockingError?: Error;
+  /** Exact server-confirmed state returned or read back after the patch, when requested. */
+  confirmedRecord?: DailyRecord;
 }
 
 type UpdatePartialDailyRecordResultInput = Pick<

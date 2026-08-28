@@ -79,6 +79,7 @@ export const repository = {
   getLocalForDateWithMeta: vi.fn(async () => ({
     record: null,
     hasPendingWrites: false,
+    hasPendingWritesForDate: false,
     writeState: 'none' as const,
   })),
 } as unknown as DailyRecordRepositoryPort;
@@ -93,6 +94,7 @@ export const resetPreviousDayAdmissionFixtures = () => {
   vi.mocked(repository.getLocalForDateWithMeta).mockResolvedValue({
     record: null,
     hasPendingWrites: false,
+    hasPendingWritesForDate: false,
     writeState: 'none',
   });
 };

@@ -128,6 +128,7 @@ export const buildPartialUpdateResult = (
     blockingReason: state.blockingReason,
     repairApplied: false,
     blockingError: state.blockingError,
+    confirmedRecord: state.confirmedRecord,
   });
 
 export const buildBlockedSaveResult = (date: string, state: RemoteWriteState) =>

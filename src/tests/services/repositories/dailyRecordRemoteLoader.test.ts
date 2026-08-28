@@ -80,6 +80,37 @@ describe('dailyRecordRemoteLoader', () => {
     expect(secondResult.record?.date).toBe(date);
   });
 
+  it('does not let a cached read satisfy a concurrent server-authoritative read', async () => {
+    const resolvers: Array<
+      (value: {
+        status: 'resolved';
+        record: ReturnType<typeof DataFactory.createMockDailyRecord>;
+      }) => void
+    > = [];
+    vi.mocked(getRecordFromFirestoreDetailed).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolvers.push(resolve);
+        })
+    );
+
+    const cachedRead = loadRemoteRecordWithFallback(date);
+    const serverRead = loadRemoteRecordWithFallback(date, { source: 'server' });
+
+    expect(getRecordFromFirestoreDetailed).toHaveBeenCalledTimes(2);
+    expect(getRecordFromFirestoreDetailed).toHaveBeenNthCalledWith(1, date, {
+      source: 'default',
+    });
+    expect(getRecordFromFirestoreDetailed).toHaveBeenNthCalledWith(2, date, {
+      source: 'server',
+    });
+    resolvers.forEach(resolve =>
+      resolve({ status: 'resolved', record: DataFactory.createMockDailyRecord(date) })
+    );
+
+    await expect(Promise.all([cachedRead, serverRead])).resolves.toHaveLength(2);
+  });
+
   it('does not consult legacy storage in the hot path anymore', async () => {
     vi.mocked(getRecordFromFirestoreDetailed).mockResolvedValue({
       status: 'missing',

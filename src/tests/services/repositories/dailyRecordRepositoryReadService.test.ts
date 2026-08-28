@@ -40,6 +40,7 @@ vi.mock('@/services/repositories/dailyRecordRemoteLoader', () => ({
 
 vi.mock('@/services/storage/sync/dailyRecordSyncQueueReadService', () => ({
   getDailyRecordWriteStateForVersion: vi.fn(),
+  hasUnresolvedDailyRecordWriteForDate: vi.fn(),
 }));
 
 import {
@@ -48,7 +49,10 @@ import {
 } from '@/services/storage/indexeddb/indexedDbRecordService';
 import { loadRemoteRecordWithFallback } from '@/services/repositories/dailyRecordRemoteLoader';
 import { getMonthRecordsFromFirestore } from '@/services/storage/firestore/firestoreRecordQueries';
-import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import {
+  getDailyRecordWriteStateForVersion,
+  hasUnresolvedDailyRecordWriteForDate,
+} from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 
 const buildRecord = (date: string, lastUpdated: string): DailyRecord =>
@@ -79,6 +83,7 @@ describe('dailyRecordRepositoryReadService', () => {
     vi.clearAllMocks();
     vi.mocked(isFirestoreEnabled).mockReturnValue(true);
     vi.mocked(getDailyRecordWriteStateForVersion).mockResolvedValue('none');
+    vi.mocked(hasUnresolvedDailyRecordWriteForDate).mockResolvedValue(false);
     window.localStorage.clear();
     window.__HHR_E2E_OVERRIDE__ = undefined;
   });
@@ -153,6 +158,9 @@ describe('dailyRecordRepositoryReadService', () => {
     expect(result).toBe(remote);
     expect(result?.beds.R1).toBeUndefined();
     expect(result?.beds.R4.clinicalEpisodeId).toBe('episode-move');
+    expect(loadRemoteRecordWithFallback).toHaveBeenCalledWith('2026-03-19', {
+      source: 'server',
+    });
     expect(getRecordFromIndexedDB).not.toHaveBeenCalled();
     expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
@@ -190,11 +198,30 @@ describe('dailyRecordRepositoryReadService', () => {
 
     const result = await getLocalForDateWithMeta('2026-03-19');
 
-    expect(result).toEqual({ record: local, hasPendingWrites: true, writeState: 'active' });
+    expect(result).toEqual({
+      record: local,
+      hasPendingWrites: true,
+      hasPendingWritesForDate: false,
+      writeState: 'active',
+    });
     expect(getDailyRecordWriteStateForVersion).toHaveBeenCalledWith(
       '2026-03-19',
       local.lastUpdated
     );
+  });
+
+  it('reports a pending write for the date even when the local revision does not match it', async () => {
+    const local = buildRecord('2026-03-19', '2026-03-19T12:00:05.000Z');
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(local);
+    vi.mocked(getDailyRecordWriteStateForVersion).mockResolvedValueOnce('none');
+    vi.mocked(hasUnresolvedDailyRecordWriteForDate).mockResolvedValueOnce(true);
+
+    await expect(getLocalForDateWithMeta('2026-03-19')).resolves.toEqual({
+      record: local,
+      hasPendingWrites: false,
+      hasPendingWritesForDate: true,
+      writeState: 'none',
+    });
   });
 
   it('keeps first status and specialty selections for a newly admitted patient when Firebase still has empty fields', async () => {

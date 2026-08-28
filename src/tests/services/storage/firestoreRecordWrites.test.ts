@@ -58,6 +58,7 @@ vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
   createDeletedRecordRef: vi.fn((date: string) => ({ trashRef: date })),
   saveHistorySnapshot: vi.fn(),
   saveRecordAtomically: vi.fn(),
+  updateRecordPartiallyAtomically: vi.fn(),
 }));
 
 vi.mock('@/services/storage/storageLoggers', () => ({
@@ -100,6 +101,7 @@ import {
   createDeletedRecordRef,
   saveHistorySnapshot,
   saveRecordAtomically,
+  updateRecordPartiallyAtomically,
 } from '@/services/storage/firestore/firestoreWriteSupport';
 import { withRetry } from '@/utils/networkUtils';
 
@@ -292,6 +294,25 @@ describe('firestoreRecordWrites', () => {
       'Firestore write fallback: partialUpdateNotFound',
       expect.objectContaining({ date: '2026-03-15' })
     );
+  });
+
+  it('lets atomic partial updates perform the only authoritative concurrency check', async () => {
+    await updateRecordPartial(
+      '2026-03-14',
+      { rayenSync: { runId: 'run-1' } } as never,
+      '2026-03-14T10:00:00.000Z',
+      { requireAtomicCas: true, historyPolicy: 'skip' }
+    );
+    expect(assertFirestoreConcurrency).not.toHaveBeenCalled();
+    expect(updateRecordPartiallyAtomically).toHaveBeenCalledWith(
+      { date: '2026-03-14' },
+      expect.objectContaining({ rayenSync: { runId: 'run-1' }, lastUpdated: expect.anything() }),
+      '2026-03-14T10:00:00.000Z',
+      'El egreso fue modificado por otro usuario. Recarga el censo antes de reclasificarlo.',
+      'movement reclassification'
+    );
+    expect(saveHistorySnapshot).not.toHaveBeenCalled();
+    expect(updateDoc).not.toHaveBeenCalled();
   });
 
   it('refreshes the current user role claim and retries partial updates after permission-denied', async () => {

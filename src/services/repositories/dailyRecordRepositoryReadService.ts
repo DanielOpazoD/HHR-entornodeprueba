@@ -32,7 +32,11 @@ import {
   attemptRemoteGoldenPathRead,
   resolveRemoteGoldenPathReadResult,
 } from '@/services/repositories/dailyRecordRemoteReadController';
-import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import {
+  getDailyRecordWriteStateForVersion,
+  hasUnresolvedDailyRecordWriteForDate,
+} from '@/services/storage/sync/dailyRecordSyncQueueReadService';
+import type { DailyRecordQueuedWriteState } from '@/services/storage/syncQueueTypes';
 
 type FirestoreRecordQueriesModule =
   typeof import('@/services/storage/firestore/firestoreRecordQueries');
@@ -123,7 +127,7 @@ export const getAuthoritativeForDate = async (date: string): Promise<DailyRecord
     'dailyRecord.getAuthoritativeForDate',
     async () => {
       const { loadRemoteRecordWithFallback } = await loadDailyRecordRemoteLoader();
-      return (await loadRemoteRecordWithFallback(date)).record;
+      return (await loadRemoteRecordWithFallback(date, { source: 'server' })).record;
     },
     { thresholdMs: 220, context: date }
   );
@@ -142,12 +146,16 @@ export const getLocalForDateWithMeta = async (
   date: string
 ): Promise<LocalDailyRecordReadResult> => {
   const record = await getLocalForDate(date);
-  const writeState = record
-    ? await getDailyRecordWriteStateForVersion(date, record.lastUpdated)
-    : 'none';
+  const [writeState, hasPendingWritesForDate] = await Promise.all([
+    record
+      ? getDailyRecordWriteStateForVersion(date, record.lastUpdated)
+      : Promise.resolve<DailyRecordQueuedWriteState>('none'),
+    hasUnresolvedDailyRecordWriteForDate(date),
+  ]);
   return {
     record,
     hasPendingWrites: writeState === 'active',
+    hasPendingWritesForDate,
     writeState,
   };
 };
