@@ -5,6 +5,8 @@ import {
   makeContext,
   makeRecord,
 } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+import { sanitizeForFirestore } from '@/services/storage/firestore/firestoreShared';
 
 const makeCanonicalEmptyBed = () => ({
   bedId: 'R1',
@@ -60,9 +62,11 @@ const makeCanonicalEmptyBed = () => ({
 const executeClear = async ({
   remoteBed,
   confirmedOccupant,
+  requestedBed = makeCanonicalEmptyBed(),
 }: {
   remoteBed: Record<string, unknown>;
   confirmedOccupant?: Record<string, unknown>;
+  requestedBed?: Record<string, unknown>;
 }) => {
   const base = makeRecord();
   const remote = {
@@ -89,7 +93,7 @@ const executeClear = async ({
         confirmedLastUpdated: remote.lastUpdated,
         confirmedOccupant,
       },
-      patch: { 'beds.R1': makeCanonicalEmptyBed() },
+      patch: { 'beds.R1': requestedBed },
     },
     makeContext()
   );
@@ -186,6 +190,27 @@ describe('daily record intentional clear occupant identity', () => {
 
   it('keeps exact-version compatibility with an already-loaded legacy client', async () => {
     const { result, set } = await executeClear({ remoteBed: {}, confirmedOccupant: undefined });
+
+    await expect(result).resolves.toMatchObject({ success: true });
+    expect(set).toHaveBeenCalled();
+  });
+
+  it('accepts the empty-bed shape produced by the real client factory', async () => {
+    const requestedBed = sanitizeForFirestore({
+      ...createEmptyPatient('R1'),
+      location: '',
+    }) as Record<string, unknown>;
+    const { result, set } = await executeClear({
+      remoteBed: {},
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+        admissionDate: '2026-05-13',
+        admissionTime: '08:00',
+      },
+      requestedBed,
+    });
 
     await expect(result).resolves.toMatchObject({ success: true });
     expect(set).toHaveBeenCalled();

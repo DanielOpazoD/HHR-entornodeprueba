@@ -36,6 +36,7 @@ const makeCanonicalEmptyBed = (bedId = 'R1', location = '') => ({
   treatingPhysicianName: null,
   specialty: '',
   ginecobstetriciaType: null,
+  secondarySpecialty: null,
   status: '',
   admissionDate: '',
   admissionTime: '',

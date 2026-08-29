@@ -426,6 +426,7 @@ const EMPTY_BED_NULL_FIELDS = new Set([
   'treatingPhysicianId',
   'treatingPhysicianName',
   'ginecobstetriciaType',
+  'secondarySpecialty',
   'medicalHandoffAudit',
   'firstSeenDate',
   'deliveryRoute',
@@ -462,7 +463,9 @@ const buildCanonicalEmptyBed = ({ bedId, requestedBed, remoteBed }) => {
   const invalidEmptyString = [...EMPTY_BED_STRING_FIELDS].find(field => requestedBed[field] !== '');
   const invalidFalse = [...EMPTY_BED_FALSE_FIELDS].find(field => requestedBed[field] !== false);
   const invalidTrue = [...EMPTY_BED_TRUE_FIELDS].find(field => requestedBed[field] !== true);
-  const invalidNull = [...EMPTY_BED_NULL_FIELDS].find(field => requestedBed[field] !== null);
+  const invalidNull = [...EMPTY_BED_NULL_FIELDS].find(
+    field => requestedBed[field] !== undefined && requestedBed[field] !== null
+  );
   const invalidArray = [...EMPTY_BED_ARRAY_FIELDS].find(
     field => !Array.isArray(requestedBed[field]) || requestedBed[field].length !== 0
   );
@@ -525,6 +528,7 @@ const buildCanonicalEmptyBed = ({ bedId, requestedBed, remoteBed }) => {
     treatingPhysicianName: null,
     specialty: '',
     ginecobstetriciaType: null,
+    secondarySpecialty: null,
     status: '',
     admissionDate: '',
     admissionTime: '',
