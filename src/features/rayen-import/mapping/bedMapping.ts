@@ -6,7 +6,7 @@
  *     Habitacion N / C{n}  → H{N}C{n}      (general, MEDIA)
  *     Recuperacion k / R{k} → R{k}          (UTI)
  *     Neo k / Neo{k}        → NEO{k}         (MEDIA)
- *     B1UEA/B2UEA            → BOX1/BOX2       (Urgencias, occupied-only)
+ *     B1UEA/B2UEA/B3UEA      → BOX1/BOX2/BOX3  (Urgencias, occupied-only)
  *   Virtual CMA service "Área quirúrgica indiferenciada" (codes CMA*):
  *     CMA R{k} / CMAR{k}    → R{k}   (same physical bed, isCma=true)
  *     CMA NEO{k} / CMAN{k}  → NEO{k} (same physical bed, isCma=true)
@@ -132,12 +132,12 @@ export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
 
   if (clinicalCribParent) return ok(clinicalCribParent, 'clinical-crib', true);
 
-  // Hospitalización de Urgencias: Gestión de Camas currently exposes the compact B1UEA/B2UEA
-  // labels, while other views show BOX 1 UEA / BOX 2 UEA. They are HHR overflow beds and are
+  // Hospitalización de Urgencias: Gestión de Camas exposes the compact B1UEA/B2UEA/B3UEA
+  // labels, while other views show BOX 1 UEA / BOX 2 UEA / BOX 3 UEA. They are HHR overflow beds and are
   // activated by occupied encounters, never advertised as available capacity.
   const urgencyBox =
-    /^(?:B([12])UEA|BOX([12])(?:UEA)?)$/.exec(bed) ||
-    /^(?:B([12])UEA|BOX([12])(?:UEA)?)$/.exec(room);
+    /^(?:B([123])UEA|BOX([123])(?:UEA)?)$/.exec(bed) ||
+    /^(?:B([123])UEA|BOX([123])(?:UEA)?)$/.exec(room);
   if (urgencyBox) return ok(`BOX${urgencyBox[1] ?? urgencyBox[2]}`, 'urgency-box');
 
   // Recovery / UTI: R1–R4 (bed code "R1", room "Rk" or "Recuperacion k").

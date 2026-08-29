@@ -232,6 +232,7 @@ export const useRayenImportConfirmation = ({
           transitionExecution({ type: 'persisting_structure' }, run.id);
           setState(previous => ({
             ...previous,
+            isPreviewOpen: false,
             isBusy: true,
             isSyncing: true,
             hasSkippedItems: false,

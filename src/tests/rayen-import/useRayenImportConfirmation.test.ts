@@ -174,14 +174,29 @@ describe('useRayenImportConfirmation execution ownership', () => {
   beforeEach(() => {
     mocks.applyConfirmedRayenImport.mockReset();
   });
-
   it('continues clinical work from an applied structural outcome', async () => {
     const result = committedResult({ confirmedHandoff: { source: 'confirmed' } });
-    mocks.applyConfirmedRayenImport.mockResolvedValue(result);
+    let completePersistence!: () => void;
+    mocks.applyConfirmedRayenImport.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          completePersistence = () => resolve(result);
+        })
+    );
     const harness = renderConfirmation();
-
-    await act(async () => harness.result.current());
-
+    let confirmation!: Promise<void>;
+    act(() => {
+      confirmation = harness.result.current();
+    });
+    expect(appliedState(harness.setState)).toMatchObject({
+      isPreviewOpen: false,
+      isBusy: true,
+      isSyncing: true,
+    });
+    await act(async () => {
+      completePersistence();
+      await confirmation;
+    });
     expect(harness.dispatchExecution).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'record_outcome',
@@ -197,7 +212,6 @@ describe('useRayenImportConfirmation execution ownership', () => {
       error: null,
     });
   });
-
   it('separates human review wait from structural persistence time', async () => {
     mocks.applyConfirmedRayenImport.mockResolvedValue(committedResult());
     const monotonicNow = vi

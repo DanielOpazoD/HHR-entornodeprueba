@@ -73,6 +73,8 @@ describe('mapRayenBed', () => {
   it.each([
     [{ room: 'B1UEA', bed: 'B1UEA' }, 'BOX1'],
     [{ room: 'BOX 2 UEA', bed: 'BOX 2 UEA' }, 'BOX2'],
+    [{ room: 'B3UEA', bed: 'B3UEA' }, 'BOX3'],
+    [{ room: 'BOX 3 UEA', bed: 'BOX 3 UEA' }, 'BOX3'],
     [{ bed: 'BOX1' }, 'BOX1'],
   ])('maps occupied Urgencias boxes without treating them as CMA', (location, bedId) => {
     expect(mapRayenBed(location)).toEqual({

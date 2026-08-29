@@ -46,6 +46,7 @@ describe('daily record confirmed state handoff', () => {
 
   it('exposes the exact server-confirmed record for the next clinical stage', async () => {
     const state = createRemoteWriteState();
+    const staleReadback = vi.fn().mockResolvedValue(buildRecord());
     const confirmedMeta = {
       revision: 40,
       lastMutationId: 'mutation-40',
@@ -69,6 +70,7 @@ describe('daily record confirmed state handoff', () => {
           record: confirmedRecord,
         },
       }),
+      readRemoteConfirmedRecord: staleReadback,
       onRemoteFailure: vi.fn(),
       remoteAuthorityFirst: true,
     });
@@ -76,6 +78,7 @@ describe('daily record confirmed state handoff', () => {
     expect(result).toBe('continue');
     expect(state.confirmedRecord).toBe(confirmedRecord);
     expect(saveToIndexedDBMock).toHaveBeenCalledWith(confirmedRecord);
+    expect(staleReadback).not.toHaveBeenCalled();
   });
 
   it('reads back the committed record when an older callable omits recordState', async () => {

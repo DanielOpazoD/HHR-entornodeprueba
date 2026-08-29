@@ -179,8 +179,8 @@ clínicos en esa telemetría.
   Nunca infiere un médico desde la cama, el diagnóstico o la especialidad. Una fila visible sin
   médico también es autoritativa y elimina una asignación antigua.
 - **Camas:** `Habitacion N`+`Cn`→`H{N}C{n}`; `Recuperacion k`/`Rk`→`Rk` (UTI); `Neo k`→`NEOk`.
-  Las ubicaciones `B1UEA`/`B2UEA` de Hospitalización de Urgencias se representan como
-  `BOX1`/`BOX2`: son camas extra activadas por ocupación y nunca se ofrecen vacías como
+  Las ubicaciones `B1UEA`/`B2UEA`/`B3UEA` de Hospitalización de Urgencias se representan como
+  `BOX1`/`BOX2`/`BOX3`: son camas extra activadas por ocupación y nunca se ofrecen vacías como
   disponibilidad manual. Al copiar el día, una ocupación vigente se conserva hasta que una
   conciliación segura confirme su egreso o traslado; HHR no oculta pacientes sólo por ausencia o
   ambigüedad de una captura.
