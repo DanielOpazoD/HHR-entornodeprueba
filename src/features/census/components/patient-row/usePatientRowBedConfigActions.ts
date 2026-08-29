@@ -49,7 +49,7 @@ export const usePatientRowBedConfigActions = ({
   updatePatient,
   updateClinicalCrib,
   confirm,
-  alert,
+  alert: showAlert,
 }: UsePatientRowBedConfigActionsParams): PatientRowBedConfigActions => {
   const toggleBedMode = useCallback(async () => {
     await executeToggleBedModeController({
@@ -67,9 +67,9 @@ export const usePatientRowBedConfigActions = ({
       isCunaMode,
       hasCompanion,
       actions: { updatePatient },
-      dialogs: { alert },
+      dialogs: { alert: showAlert },
     });
-  }, [alert, bedId, hasCompanion, isCunaMode, updatePatient]);
+  }, [bedId, hasCompanion, isCunaMode, showAlert, updatePatient]);
 
   const toggleClinicalCrib = useCallback(() => {
     executeToggleClinicalCribController({
@@ -81,7 +81,7 @@ export const usePatientRowBedConfigActions = ({
 
   const removeClinicalCrib = useCallback(async () => {
     if (!clinicalCrib || !confirmedLastUpdated) {
-      await alert(
+      await showAlert(
         'No fue posible confirmar la versión vigente de la cuna. Recarga el censo antes de volver a intentar.',
         'Acción bloqueada'
       );
@@ -98,7 +98,7 @@ export const usePatientRowBedConfigActions = ({
     if (confirmed) {
       await updateClinicalCrib(bedId, 'remove', undefined, confirmedLastUpdated, confirmedOccupant);
     }
-  }, [alert, bedId, clinicalCrib, confirm, confirmedLastUpdated, updateClinicalCrib]);
+  }, [bedId, clinicalCrib, confirm, confirmedLastUpdated, showAlert, updateClinicalCrib]);
 
   return {
     toggleBedMode,
