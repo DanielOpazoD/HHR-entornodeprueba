@@ -57,7 +57,7 @@ const makeCanonicalEmptyBed = (bedId = 'R1', location = '') => ({
   deliveryCesareanLabor: null,
 });
 
-const makeClearableRecord = () => ({
+const makeClearableRecord = (): ReturnType<typeof makeRecord> => ({
   ...makeRecord(),
   beds: {
     R1: {
@@ -67,6 +67,25 @@ const makeClearableRecord = () => ({
     },
   },
 });
+
+const makeIntentionalBedClear = (
+  remote: ReturnType<typeof makeRecord>,
+  confirmedLastUpdated: string = remote.lastUpdated
+) => {
+  const occupant = remote.beds.R1 ?? {};
+  return {
+    bedId: 'R1',
+    confirmedLastUpdated,
+    confirmedOccupant: {
+      clinicalEpisodeId: occupant.clinicalEpisodeId,
+      rut: occupant.rut,
+      patientName: occupant.patientName,
+      firstSeenDate: occupant.firstSeenDate,
+      admissionDate: occupant.admissionDate,
+      admissionTime: occupant.admissionTime,
+    },
+  };
+};
 
 describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
   beforeEach(() => {
@@ -142,7 +161,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
         mode: 'enforced',
         origin: 'direct_partial_update',
         historyPolicy: 'skip',
-        intentionalBedClear: { bedId: 'R1', confirmedLastUpdated: remote.lastUpdated },
+        intentionalBedClear: makeIntentionalBedClear(remote),
         syncContract: {
           expectedVersion: remote.lastUpdated,
           changedPaths: ['beds.R1'],
@@ -228,7 +247,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
           date: remote.date,
           expectedLastUpdated: remote.lastUpdated,
           mode: 'enforced',
-          intentionalBedClear: { bedId: 'R1', confirmedLastUpdated: remote.lastUpdated },
+          intentionalBedClear: makeIntentionalBedClear(remote),
           patch: {
             'beds.R1': {
               ...makeCanonicalEmptyBed(),
@@ -264,7 +283,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
           date: remote.date,
           expectedLastUpdated: remote.lastUpdated,
           mode: 'enforced',
-          intentionalBedClear: { bedId: 'R1', confirmedLastUpdated: remote.lastUpdated },
+          intentionalBedClear: makeIntentionalBedClear(remote),
           patch: {
             'beds.R1': { ...makeCanonicalEmptyBed('R1', ''), bedMode: 'Cuna' },
           },
@@ -298,10 +317,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
           date: remote.date,
           expectedLastUpdated: '2026-05-13T10:00:00.000Z',
           mode: 'enforced',
-          intentionalBedClear: {
-            bedId: 'R1',
-            confirmedLastUpdated: '2026-05-13T10:00:00.000Z',
-          },
+          intentionalBedClear: makeIntentionalBedClear(remote, '2026-05-13T10:00:00.000Z'),
           patch: {
             'beds.R1': {
               bedId: 'R1',
@@ -340,9 +356,53 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
           date: remote.date,
           expectedLastUpdated: remote.lastUpdated,
           mode: 'enforced',
+          intentionalBedClear: makeIntentionalBedClear(remote, '2026-05-13T09:59:59.000Z'),
+          patch: { 'beds.R1': makeCanonicalEmptyBed() },
+        },
+        makeContext()
+      )
+    ).rejects.toMatchObject({ code: 'aborted' });
+
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects an exact-version clear when another episode replaced the confirmed occupant', async () => {
+    const remote = {
+      ...makeClearableRecord(),
+      dateTimestamp: Date.now(),
+      beds: {
+        R1: {
+          ...makeClearableRecord().beds.R1,
+          clinicalEpisodeId: 'ep-replacement',
+          rut: '22.222.222-2',
+          patientName: 'Paciente reemplazante',
+        },
+      },
+    };
+    const { admin, set } = createAdminMock({
+      remoteData: remote,
+      policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
+    });
+    const functionsApi = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+    });
+
+    await expect(
+      functionsApi.patchDailyRecordWithClinicalAuthority.run(
+        {
+          date: remote.date,
+          expectedLastUpdated: remote.lastUpdated,
+          mode: 'enforced',
           intentionalBedClear: {
             bedId: 'R1',
-            confirmedLastUpdated: '2026-05-13T09:59:59.000Z',
+            confirmedLastUpdated: remote.lastUpdated,
+            confirmedOccupant: {
+              clinicalEpisodeId: 'ep-confirmed',
+              rut: '11.111.111-1',
+              patientName: 'Paciente confirmado',
+            },
           },
           patch: { 'beds.R1': makeCanonicalEmptyBed() },
         },
@@ -384,7 +444,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
           date: remote.date,
           expectedLastUpdated: remote.lastUpdated,
           mode: 'enforced',
-          intentionalBedClear: { bedId: 'R1', confirmedLastUpdated: remote.lastUpdated },
+          intentionalBedClear: makeIntentionalBedClear(remote),
           patch: {
             'beds.R1': {
               bedId: 'R1',

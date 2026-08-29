@@ -30,6 +30,11 @@ import {
   type DailyRecordPatchBaseRecordRegistry,
 } from '@/hooks/controllers/dailyRecordPatchBaseRecordController';
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
+import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+import {
+  canRebaseIntentionalBedClear,
+  rebaseIntentionalBedClear,
+} from '@/hooks/controllers/intentionalBedClearController';
 
 type PatchMutationInput =
   | DailyRecordPatch
@@ -92,12 +97,39 @@ export const usePatchDailyRecordMutation = (date: string) => {
     mutationFn: async (input: PatchMutationInput) => {
       const { partial, options } = resolveInput(input);
       const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
-      const result = await patchDailyRecordWithCompatibility(
-        dailyRecord,
-        date,
-        partial,
-        baseRecord || options ? { ...options, ...(baseRecord ? { baseRecord } : {}) } : undefined
-      );
+      const buildOptions = (record: DailyRecord | undefined) => ({
+        ...options,
+        ...(record ? { baseRecord: record } : {}),
+        ...(options?.intentionalBedClear && record
+          ? {
+              intentionalBedClear: rebaseIntentionalBedClear(options.intentionalBedClear, record),
+            }
+          : {}),
+      });
+      const write = (record: DailyRecord | undefined) =>
+        patchDailyRecordWithCompatibility(
+          dailyRecord,
+          date,
+          partial,
+          record || options ? buildOptions(record) : undefined
+        );
+
+      let result;
+      try {
+        result = await write(baseRecord);
+      } catch (error) {
+        if (!(error instanceof ConcurrencyError) || !options?.intentionalBedClear) {
+          throw error;
+        }
+
+        const latestRecord = await dailyRecord.getAuthoritativeForDate(date);
+        if (!canRebaseIntentionalBedClear(options.intentionalBedClear, latestRecord)) {
+          throw error;
+        }
+        setDailyRecordQueryData(queryClient, date, latestRecord);
+        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, latestRecord);
+        result = await write(latestRecord);
+      }
       return { partial, options, result };
     },
     onMutate: async input => {
@@ -108,18 +140,29 @@ export const usePatchDailyRecordMutation = (date: string) => {
           getDailyRecordQueryKey(date)
         )?.record;
         const remoteConfirmedAtBeforeMutation = getDailyRecordLastRemoteConfirmedAt(date);
-        const freshness = await ensureFreshClinicalPatchMutation(date, {
-          dailyRecord,
-          queryClient,
-        });
-        assertHydratedRemotePatchCanProceed({
-          date,
-          attemptedPatch: partial,
-          previousRecord: previousRecordBeforeFreshness,
-          freshness,
-          remoteConfirmedAtBeforeMutation,
-        });
-        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, freshness.record);
+        let freshRecord: DailyRecord | null;
+        if (options?.intentionalBedClear) {
+          freshRecord = await dailyRecord.getAuthoritativeForDate(date);
+          if (!canRebaseIntentionalBedClear(options.intentionalBedClear, freshRecord)) {
+            throw new ConcurrencyError(
+              'La cama cambió desde que se confirmó la limpieza. Recargue antes de intentarlo nuevamente.'
+            );
+          }
+        } else {
+          const freshness = await ensureFreshClinicalPatchMutation(date, {
+            dailyRecord,
+            queryClient,
+          });
+          assertHydratedRemotePatchCanProceed({
+            date,
+            attemptedPatch: partial,
+            previousRecord: previousRecordBeforeFreshness,
+            freshness,
+            remoteConfirmedAtBeforeMutation,
+          });
+          freshRecord = freshness.record;
+        }
+        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, freshRecord);
 
         await queryClient.cancelQueries({ queryKey: queryKeys.dailyRecord.byDate(date) });
         const isRemoteAuthorityFirst = options?.requireRemoteAuthorityFirst === true;

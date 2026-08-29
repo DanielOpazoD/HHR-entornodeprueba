@@ -14,6 +14,7 @@ import { bedManagementDispatchLogger } from '@/hooks/controllers/hookControllerL
 import { buildBedMovementAuditDetails } from '@/services/admin/auditClinicalEventCatalog';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
+import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -242,6 +243,9 @@ export const executeBedManagementAction = async ({
           intentionalBedClear: {
             bedId: validatedAction.bedId,
             confirmedLastUpdated: validatedAction.confirmedLastUpdated ?? currentRecord.lastUpdated,
+            confirmedOccupant:
+              validatedAction.confirmedOccupant ??
+              buildConfirmedBedOccupantIdentity(currentRecord.beds[validatedAction.bedId]),
           },
         });
       } else {

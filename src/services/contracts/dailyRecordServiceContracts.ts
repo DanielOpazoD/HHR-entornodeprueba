@@ -1,5 +1,6 @@
 import type { DailyRecord as RootDailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch as RootDailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
 import type {
   DailyRecordBackfillRef as RootDailyRecordBackfillRef,
   DailyRecordBedLayoutState as RootDailyRecordBedLayoutState,
@@ -39,7 +40,7 @@ export type DailyRecord = RootDailyRecord;
 export type DailyRecordPatch = RootDailyRecordPatch;
 export type ApplyDailyRecordPatchOptions = {
   consistency?: 'eventual' | 'remote_confirmed';
-  intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
+  intentionalBedClear?: IntentionalBedClearRequest;
 };
 export type ApplyDailyRecordPatch = (
   patch: DailyRecordPatch,

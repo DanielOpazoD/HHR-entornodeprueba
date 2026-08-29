@@ -13,6 +13,7 @@ import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
 import { useBedManagementActionCreators } from '@/hooks/useBedManagementActionCreators';
 import type { StaleDayEditGuard } from '@/hooks/useStaleDayEditGuard';
+import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
 /**
  * Interface defining the actions available for bed management.
@@ -59,7 +60,11 @@ export interface BedManagementActions {
   /**
    * Clears patient data from a bed (Discharge/Cleanup).
    */
-  clearPatient: (bedId: string, confirmedLastUpdated?: string) => Promise<boolean>;
+  clearPatient: (
+    bedId: string,
+    confirmedLastUpdated?: string,
+    confirmedOccupant?: ConfirmedBedOccupantIdentity
+  ) => Promise<boolean>;
 
   /**
    * Clears all beds in the current record.

@@ -350,9 +350,57 @@ describe('bedManagementDispatchController', () => {
         intentionalBedClear: {
           bedId: 'R1',
           confirmedLastUpdated: '2026-03-06T10:00:00.000Z',
+          confirmedOccupant: expect.objectContaining({
+            patientName: 'Paciente',
+            rut: '11.111.111-1',
+          }),
         },
       }
     );
     expect(auditPatientCleared).toHaveBeenCalledWith('R1', 'Paciente', '11.111.111-1');
+  });
+
+  it('does not start the clear write until the final stale-day dialog is confirmed', async () => {
+    let confirmStaleDay!: (confirmed: boolean) => void;
+    const ensureStaleDayEditAllowed = vi.fn(
+      () =>
+        new Promise<boolean>(resolve => {
+          confirmStaleDay = resolve;
+        })
+    );
+    const patchRecord = vi.fn().mockResolvedValue(undefined);
+    const pending = executeBedManagementAction({
+      currentRecord: buildRecord(),
+      action: {
+        type: 'CLEAR_PATIENT',
+        bedId: 'R1',
+        confirmedLastUpdated: '2026-03-06T10:00:00.000Z',
+        confirmedOccupant: {
+          patientName: 'Paciente',
+          rut: '11.111.111-1',
+          admissionDate: '2026-03-06',
+        },
+      },
+      validation: {
+        processFieldValue: vi.fn((_field, value) => ({ valid: true, value })),
+      },
+      bedAudit: {
+        auditPatientChange: vi.fn(),
+        auditCudyrChange: vi.fn(),
+        auditCribCudyrChange: vi.fn(),
+        auditPatientCleared: vi.fn(),
+        auditPatientModified: vi.fn(),
+        auditPatientMovement: vi.fn(),
+      },
+      patchRecord,
+      ensureStaleDayEditAllowed,
+    });
+
+    expect(ensureStaleDayEditAllowed).toHaveBeenCalledWith('2026-03-06');
+    expect(patchRecord).not.toHaveBeenCalled();
+    confirmStaleDay(true);
+
+    await expect(pending).resolves.toBe(true);
+    expect(patchRecord).toHaveBeenCalledTimes(1);
   });
 });

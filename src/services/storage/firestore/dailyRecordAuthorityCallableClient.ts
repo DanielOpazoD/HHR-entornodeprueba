@@ -4,6 +4,7 @@ import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
+import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 const NON_RETRYABLE_AUTHORITY_CODES = new Set([
@@ -89,7 +90,7 @@ export interface DailyRecordAuthorityPatchCallablePayload {
   syncContract?: SyncTaskContract;
   rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
   historyPolicy?: 'snapshot' | 'skip';
-  intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
+  intentionalBedClear?: IntentionalBedClearRequest;
   dryRun?: boolean;
 }
 

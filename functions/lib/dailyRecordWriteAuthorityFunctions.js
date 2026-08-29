@@ -88,13 +88,78 @@ const parseIntentionalBedClear = value => {
     value.confirmedLastUpdated,
     'intentionalBedClear.confirmedLastUpdated'
   );
+  if (value.confirmedOccupant === undefined || value.confirmedOccupant === null) {
+    return { bedId, confirmedLastUpdated, confirmedOccupant: null };
+  }
+  if (!isPlainObject(value.confirmedOccupant)) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Intentional bed clear requires the confirmed occupant identity.'
+    );
+  }
+  const confirmedOccupant = {
+    clinicalEpisodeId: normalizeShortString(value.confirmedOccupant.clinicalEpisodeId),
+    rut: normalizeShortString(value.confirmedOccupant.rut),
+    patientName: normalizeShortString(value.confirmedOccupant.patientName),
+    firstSeenDate: normalizeShortString(value.confirmedOccupant.firstSeenDate),
+    admissionDate: normalizeShortString(value.confirmedOccupant.admissionDate),
+    admissionTime: normalizeShortString(value.confirmedOccupant.admissionTime),
+  };
+  if (
+    !confirmedOccupant.clinicalEpisodeId &&
+    !confirmedOccupant.rut &&
+    !confirmedOccupant.patientName
+  ) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Intentional bed clear requires a non-empty occupant identity.'
+    );
+  }
   if (bedId.includes('.') || FORBIDDEN_PATCH_PATH_SEGMENTS.has(bedId)) {
     throw new functions.https.HttpsError(
       'invalid-argument',
       'Intentional bed clear contains an invalid bed id.'
     );
   }
-  return { bedId, confirmedLastUpdated };
+  return { bedId, confirmedLastUpdated, confirmedOccupant };
+};
+
+const normalizeEpisodeIdentityScalar = value =>
+  String(value || '')
+    .trim()
+    .toLowerCase();
+
+const sameConfirmedBedEpisode = (confirmed, remote) => {
+  if (!isPlainObject(confirmed) || !isPlainObject(remote)) return false;
+  const confirmedEpisodeId = normalizeEpisodeIdentityScalar(confirmed.clinicalEpisodeId);
+  const remoteEpisodeId = normalizeEpisodeIdentityScalar(remote.clinicalEpisodeId);
+  if (confirmedEpisodeId || remoteEpisodeId) {
+    return Boolean(confirmedEpisodeId && remoteEpisodeId && confirmedEpisodeId === remoteEpisodeId);
+  }
+
+  const confirmedRut = normalizeEpisodeIdentityScalar(confirmed.rut);
+  const remoteRut = normalizeEpisodeIdentityScalar(remote.rut);
+  const confirmedAnchor = normalizeEpisodeIdentityScalar(
+    confirmed.firstSeenDate || confirmed.admissionDate
+  );
+  const remoteAnchor = normalizeEpisodeIdentityScalar(remote.firstSeenDate || remote.admissionDate);
+  if (confirmedRut || remoteRut) {
+    if (!confirmedRut || !remoteRut || confirmedRut !== remoteRut) return false;
+    if (!confirmedAnchor || !remoteAnchor) return true;
+    if (confirmedAnchor !== remoteAnchor) return false;
+    const confirmedTime = normalizeEpisodeIdentityScalar(confirmed.admissionTime);
+    const remoteTime = normalizeEpisodeIdentityScalar(remote.admissionTime);
+    return !confirmedTime && !remoteTime ? true : confirmedTime === remoteTime;
+  }
+
+  const confirmedName = normalizeEpisodeIdentityScalar(confirmed.patientName);
+  const remoteName = normalizeEpisodeIdentityScalar(remote.patientName);
+  if (!confirmedName || confirmedName !== remoteName) return false;
+  if (!confirmedAnchor && !remoteAnchor) return true;
+  if (!confirmedAnchor || confirmedAnchor !== remoteAnchor) return false;
+  const confirmedTime = normalizeEpisodeIdentityScalar(confirmed.admissionTime);
+  const remoteTime = normalizeEpisodeIdentityScalar(remote.admissionTime);
+  return !confirmedTime && !remoteTime ? true : confirmedTime === remoteTime;
 };
 
 const clonePlainValue = value => {
@@ -508,6 +573,16 @@ const assertIntentionalBedClearRequest = ({
       'Intentional bed clear no longer matches the census version confirmed by the user.'
     );
   }
+  const remoteBed = remoteData?.beds?.[intentionalBedClear.bedId];
+  if (
+    intentionalBedClear.confirmedOccupant &&
+    !sameConfirmedBedEpisode(intentionalBedClear.confirmedOccupant, remoteBed)
+  ) {
+    throw new functions.https.HttpsError(
+      'aborted',
+      'Intentional bed clear no longer targets the occupant confirmed by the user.'
+    );
+  }
   const expectedPath = `beds.${intentionalBedClear.bedId}`;
   const paths = Object.keys(patch);
   const requestedBed = patch[expectedPath];
@@ -520,7 +595,7 @@ const assertIntentionalBedClearRequest = ({
   const canonicalBed = buildCanonicalEmptyBed({
     bedId: intentionalBedClear.bedId,
     requestedBed,
-    remoteBed: remoteData?.beds?.[intentionalBedClear.bedId],
+    remoteBed,
   });
   return { [expectedPath]: canonicalBed };
 };

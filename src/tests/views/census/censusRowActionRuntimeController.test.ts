@@ -54,7 +54,15 @@ describe('censusRowActionRuntimeController', () => {
     });
 
     expect(result).toEqual({ ok: true, value: { applied: true } });
-    expect(clearPatient).toHaveBeenCalledWith('R1', '2026-03-06T10:00:00.000Z');
+    expect(clearPatient).toHaveBeenCalledWith(
+      'R1',
+      '2026-03-06T10:00:00.000Z',
+      expect.objectContaining({
+        patientName: 'Paciente 1',
+        rut: '12345678-9',
+        admissionDate: '2026-01-01',
+      })
+    );
   });
 
   it('does not apply clear when confirm is rejected', async () => {
@@ -76,6 +84,36 @@ describe('censusRowActionRuntimeController', () => {
 
     expect(result).toEqual({ ok: true, value: { applied: false } });
     expect(clearPatient).not.toHaveBeenCalled();
+  });
+
+  it('preserves the confirmed occupant identity when the local version is unavailable', async () => {
+    const clearPatient = vi.fn().mockResolvedValue(true);
+    await executeRowActionController({
+      action: 'clear',
+      bedId: 'R1',
+      patient: DataFactory.createMockPatient('R1', {
+        patientName: 'Paciente confirmado',
+        rut: '11.111.111-1',
+      }),
+      stabilityRules: unlockedRules,
+      actions: {
+        clearPatient,
+        addCMA: vi.fn(),
+        setMovement: vi.fn(),
+        openDischarge: vi.fn(),
+        openTransfer: vi.fn(),
+      },
+      confirmRuntime: { confirm: vi.fn().mockResolvedValue(true) },
+    });
+
+    expect(clearPatient).toHaveBeenCalledWith(
+      'R1',
+      undefined,
+      expect.objectContaining({
+        patientName: 'Paciente confirmado',
+        rut: '11.111.111-1',
+      })
+    );
   });
 
   it('does not report a clear as applied when persistence was not confirmed', async () => {

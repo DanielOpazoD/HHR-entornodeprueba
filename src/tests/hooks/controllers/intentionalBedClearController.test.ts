@@ -1,0 +1,170 @@
+import { describe, expect, it } from 'vitest';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import {
+  canRebaseIntentionalBedClear,
+  rebaseIntentionalBedClear,
+} from '@/hooks/controllers/intentionalBedClearController';
+
+describe('intentionalBedClearController', () => {
+  const intent = {
+    bedId: 'R1',
+    confirmedLastUpdated: '2026-08-28T10:00:00.000Z',
+    confirmedOccupant: {
+      clinicalEpisodeId: 'ep-confirmed',
+      rut: '11.111.111-1',
+      patientName: 'Paciente confirmado',
+      admissionDate: '2026-08-27',
+    },
+  };
+
+  it('rebases the version when the same episode remains in the bed', () => {
+    const refreshed = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'ep-confirmed',
+          rut: '11.111.111-1',
+          patientName: 'Nombre actualizado',
+          admissionDate: '2026-08-27',
+        }),
+      },
+    });
+
+    expect(canRebaseIntentionalBedClear(intent, refreshed)).toBe(true);
+    expect(rebaseIntentionalBedClear(intent, refreshed).confirmedLastUpdated).toBe(
+      refreshed.lastUpdated
+    );
+  });
+
+  it('blocks rebasing when another episode replaced the occupant', () => {
+    const replacement = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'ep-replacement',
+          rut: '22.222.222-2',
+          patientName: 'Paciente reemplazante',
+        }),
+      },
+    });
+
+    expect(canRebaseIntentionalBedClear(intent, replacement)).toBe(false);
+  });
+
+  it('treats any two different episode ids as different occupants', () => {
+    const replacement = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'legacy-replacement',
+          rut: '11.111.111-1',
+          patientName: 'Paciente confirmado',
+          admissionDate: '2026-08-27',
+        }),
+      },
+    });
+
+    expect(
+      canRebaseIntentionalBedClear(
+        {
+          ...intent,
+          confirmedOccupant: {
+            ...intent.confirmedOccupant,
+            clinicalEpisodeId: 'legacy-confirmed',
+          },
+        },
+        replacement
+      )
+    ).toBe(false);
+  });
+
+  it('does not fall back to legacy fields when only one side has an episode id', () => {
+    const replacement = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: undefined,
+          rut: '11.111.111-1',
+          patientName: 'Paciente confirmado',
+          admissionDate: '2026-08-27',
+        }),
+      },
+    });
+
+    expect(canRebaseIntentionalBedClear(intent, replacement)).toBe(false);
+  });
+
+  it('rejects a same-name legacy occupant when admission time changed', () => {
+    const replacement = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: undefined,
+          rut: '',
+          patientName: 'Paciente confirmado',
+          admissionDate: '2026-08-27',
+          admissionTime: '11:00',
+        }),
+      },
+    });
+
+    expect(
+      canRebaseIntentionalBedClear(
+        {
+          ...intent,
+          confirmedOccupant: {
+            patientName: 'Paciente confirmado',
+            admissionDate: '2026-08-27',
+            admissionTime: '08:00',
+          },
+        },
+        replacement
+      )
+    ).toBe(false);
+  });
+
+  it('allows a name-only legacy occupant only at the exact confirmed version', () => {
+    const exactRecord = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: intent.confirmedLastUpdated,
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: undefined,
+          rut: '',
+          patientName: 'Paciente confirmado',
+          firstSeenDate: '',
+          admissionDate: '',
+        }),
+      },
+    });
+    const changedRecord = { ...exactRecord, lastUpdated: '2026-08-28T10:00:03.000Z' };
+    const nameOnlyIntent = {
+      ...intent,
+      confirmedOccupant: { patientName: 'Paciente confirmado' },
+    };
+
+    expect(canRebaseIntentionalBedClear(nameOnlyIntent, exactRecord)).toBe(true);
+    expect(canRebaseIntentionalBedClear(nameOnlyIntent, changedRecord)).toBe(false);
+  });
+
+  it('allows a matching RUT without dates only at the exact confirmed version', () => {
+    const exactRecord = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: intent.confirmedLastUpdated,
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: undefined,
+          rut: '11.111.111-1',
+          firstSeenDate: '',
+          admissionDate: '',
+        }),
+      },
+    });
+    const changedRecord = { ...exactRecord, lastUpdated: '2026-08-28T10:00:03.000Z' };
+    const rutOnlyIntent = {
+      ...intent,
+      confirmedOccupant: { rut: '11.111.111-1', patientName: 'Paciente confirmado' },
+    };
+
+    expect(canRebaseIntentionalBedClear(rutOnlyIntent, exactRecord)).toBe(true);
+    expect(canRebaseIntentionalBedClear(rutOnlyIntent, changedRecord)).toBe(false);
+  });
+});

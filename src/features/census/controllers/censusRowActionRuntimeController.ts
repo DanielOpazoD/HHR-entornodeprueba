@@ -11,6 +11,7 @@ import type {
   RowActionRuntimeActions,
   RowActionRuntimeConfirm,
 } from '@/features/census/types/censusRowActionRuntimeTypes';
+import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 
 export interface RowActionRuntimeSuccess {
   applied: boolean;
@@ -53,9 +54,11 @@ export const executeRowActionController = async ({
       if (!isConfirmed) {
         return ok({ applied: false });
       }
-      const persisted = confirmedLastUpdated
-        ? await actions.clearPatient(command.bedId, confirmedLastUpdated)
-        : await actions.clearPatient(command.bedId);
+      const persisted = await actions.clearPatient(
+        command.bedId,
+        confirmedLastUpdated,
+        buildConfirmedBedOccupantIdentity(patient)
+      );
       if (!persisted) {
         return {
           ok: false,

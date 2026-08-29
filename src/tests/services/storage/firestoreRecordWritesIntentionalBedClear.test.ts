@@ -146,6 +146,10 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
         intentionalBedClear: {
           bedId: 'R1',
           confirmedLastUpdated: '2026-03-14T10:00:00.000Z',
+          confirmedOccupant: {
+            clinicalEpisodeId: 'ep-r1',
+            patientName: 'Paciente Uno',
+          },
         },
         syncContract: {
           expectedVersion: '2026-03-14T10:00:00.000Z',
@@ -164,6 +168,10 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
         intentionalBedClear: {
           bedId: 'R1',
           confirmedLastUpdated: '2026-03-14T10:00:00.000Z',
+          confirmedOccupant: {
+            clinicalEpisodeId: 'ep-r1',
+            patientName: 'Paciente Uno',
+          },
         },
         patch: { 'beds.R1': emptyBed },
         syncContract: expect.objectContaining({
@@ -192,6 +200,7 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
           intentionalBedClear: {
             bedId: 'R1',
             confirmedLastUpdated: '2026-03-14T10:00:00.000Z',
+            confirmedOccupant: { patientName: 'Paciente Uno', admissionDate: '2026-03-14' },
           },
         }
       )
@@ -218,6 +227,7 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
           intentionalBedClear: {
             bedId: 'R1',
             confirmedLastUpdated: '2026-03-14T10:00:00.000Z',
+            confirmedOccupant: { patientName: 'Paciente Uno', admissionDate: '2026-03-14' },
           },
         }
       )

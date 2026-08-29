@@ -24,6 +24,7 @@ import {
 import type { UserRole } from '@/types/authRoleTypes';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
+import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
 
 export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
@@ -34,7 +35,7 @@ export interface DailyRecordPartialWriteOptions {
   /** Frozen Rayen run policy revalidated atomically with the legacy clinical write. */
   rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
   /** Explicit, CAS-protected request to replace exactly one occupied bed with an empty bed. */
-  intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
+  intentionalBedClear?: IntentionalBedClearRequest;
 }
 
 export interface DailyRecordSaveWriteOptions {
