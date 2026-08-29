@@ -18,7 +18,7 @@ export type {
   RowActionConfirmDescriptor,
 } from '@/features/census/types/censusRowActionCommandTypes';
 
-export type RowActionErrorCode = 'ACTIONS_LOCKED' | 'PATIENT_NAME_REQUIRED';
+export type RowActionErrorCode = 'ACTIONS_LOCKED' | 'PATIENT_NAME_REQUIRED' | 'PERSISTENCE_FAILED';
 
 export type RowActionError = ControllerError<RowActionErrorCode>;
 

@@ -14,7 +14,7 @@ interface UsePatientRowEditingRuntimeParams {
   documentType?: PatientRowPatientDocumentType;
   updatePatient: (bedId: string, field: PatientRowPatientField, value: PatientFieldValue) => void;
   updatePatientMultiple: (bedId: string, fields: PatientRowPatientPatch) => void;
-  clearPatient: (bedId: string) => void;
+  clearPatient: (bedId: string) => Promise<boolean>;
   updateClinicalCrib: (
     bedId: string,
     field: PatientRowPatientField,

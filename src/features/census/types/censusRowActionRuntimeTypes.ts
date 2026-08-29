@@ -5,9 +5,14 @@ import type {
   TransferState,
 } from '@/features/census/types/censusActionTypes';
 import type { RowActionConfirmDescriptor } from '@/features/census/types/censusRowActionCommandTypes';
+import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
 export interface RowActionRuntimeActions {
-  clearPatient: (bedId: string) => void;
+  clearPatient: (
+    bedId: string,
+    confirmedLastUpdated?: string,
+    confirmedOccupant?: ConfirmedBedOccupantIdentity
+  ) => Promise<boolean>;
   addCMA: (data: Omit<CMAData, 'id' | 'timestamp'>) => void;
   setMovement: (nextActionState: ActionState) => void;
   openDischarge: (dischargePatch: Partial<DischargeState>) => void;

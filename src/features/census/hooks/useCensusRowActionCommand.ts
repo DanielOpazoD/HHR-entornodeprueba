@@ -19,7 +19,7 @@ import type {
 
 interface UseCensusRowActionCommandParams extends Pick<
   CensusActionRuntimeRefs,
-  'stabilityRulesRef' | 'clearPatientRef' | 'addCmaRef' | 'confirmRef'
+  'recordRef' | 'stabilityRulesRef' | 'clearPatientRef' | 'addCmaRef' | 'confirmRef'
 > {
   setActionState: Dispatch<SetStateAction<ActionState>>;
   setDischargeState: Dispatch<SetStateAction<DischargeState>>;
@@ -29,6 +29,7 @@ interface UseCensusRowActionCommandParams extends Pick<
 
 export const useCensusRowActionCommand = ({
   stabilityRulesRef,
+  recordRef,
   clearPatientRef,
   addCmaRef,
   confirmRef,
@@ -40,6 +41,7 @@ export const useCensusRowActionCommand = ({
   useCallback(
     async (action: PatientRowAction, bedId: string, patient: PatientData) => {
       try {
+        const confirmedLastUpdated = recordRef.current?.lastUpdated;
         const result = await executeRowActionController({
           action,
           bedId,
@@ -53,6 +55,7 @@ export const useCensusRowActionCommand = ({
             setTransferState,
           }),
           confirmRuntime: { confirm: confirmRef.current },
+          confirmedLastUpdated,
         });
 
         if (!result.ok) {
@@ -67,6 +70,7 @@ export const useCensusRowActionCommand = ({
       clearPatientRef,
       confirmRef,
       notifyError,
+      recordRef,
       setActionState,
       setDischargeState,
       setTransferState,

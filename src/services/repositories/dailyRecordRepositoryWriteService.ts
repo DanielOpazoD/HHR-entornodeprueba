@@ -229,9 +229,6 @@ const saveDetailedWithinLock = async (
       saveRecordToFirestore(validatedRecord, command.expectedLastUpdated, {
         syncContract,
         returnCommittedRecord: options.requireConfirmedRecord,
-        // Atomic backstop: re-check inside the write transaction against the freshly-read remote,
-        // so an erasure is blocked even if a patient was admitted after the pre-write check or
-        // when no base version (expectedLastUpdated) is available to the optimistic CAS.
         assertSafeOverwrite: remoteData =>
           assertNoPatientErasures(docToRecord(remoteData, command.date), validatedRecord),
       }),
@@ -352,6 +349,9 @@ const updatePartialDetailedWithinLock = async (
         ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
         ...(options.rayenClinicalWriteGuard
           ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
+          : {}),
+        ...(options.intentionalBedClear
+          ? { intentionalBedClear: options.intentionalBedClear }
           : {}),
       }),
     queueLocalBeforeRemote: () =>

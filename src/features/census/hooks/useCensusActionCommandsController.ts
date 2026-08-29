@@ -63,6 +63,7 @@ export const useCensusActionCommandsController = ({
 
   const handleRowAction = useCensusRowActionCommand({
     stabilityRulesRef,
+    recordRef,
     clearPatientRef,
     addCmaRef,
     confirmRef,

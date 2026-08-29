@@ -2,6 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
+import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
 import {
   classifyDailyRecordPatchContexts,
   classifyDailyRecordSaveContexts,
@@ -67,6 +68,8 @@ export interface PartialUpdateDailyRecordOptions {
   requireConfirmedRecord?: boolean;
   /** Commits remote authority before local persistence, so a rejected CAS cannot queue stale data. */
   requireRemoteAuthorityFirst?: boolean;
+  /** User-confirmed replacement of one occupied bed with its canonical empty shape. */
+  intentionalBedClear?: IntentionalBedClearRequest;
   /** Internal lease for a patch executed inside an existing daily-record write critical section. */
   dailyRecordWriteLease?: DailyRecordWriteLease;
 }

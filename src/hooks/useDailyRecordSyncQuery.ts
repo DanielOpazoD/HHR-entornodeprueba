@@ -15,7 +15,11 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
 import { SyncStatus, UseDailyRecordSyncResult } from '@/context/dailyRecordContextContracts';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type {
+  ApplyDailyRecordPatchOptions,
+  DailyRecord,
+  DailyRecordPatch,
+} from '@/application/shared/dailyRecordCoreContracts';
 import { useRepositories } from '@/services/RepositoryContext';
 import { useNotification } from '@/context/UIContext';
 import { useVersion } from '@/context/VersionContext';
@@ -252,9 +256,22 @@ export const useDailyRecordSyncQuery = (
   );
 
   const patchRecord = useCallback(
-    async (partial: DailyRecordPatch) => {
+    async (partial: DailyRecordPatch, options?: ApplyDailyRecordPatchOptions) => {
       try {
-        const payload = await patchMutation.mutateAsync(partial);
+        const payload = await patchMutation.mutateAsync(
+          options?.consistency === 'remote_confirmed' || options?.intentionalBedClear
+            ? {
+                partial,
+                options: {
+                  requireConfirmedRecord: true,
+                  requireRemoteAuthorityFirst: true,
+                  ...(options.intentionalBedClear
+                    ? { intentionalBedClear: options.intentionalBedClear }
+                    : {}),
+                },
+              }
+            : partial
+        );
         presentChannelNotice(resolvePatchOutcomeFeedback(payload.result), 'Actualización');
         assertDailyRecordWriteAccepted(payload.result);
       } catch (err) {

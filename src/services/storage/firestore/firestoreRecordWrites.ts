@@ -10,7 +10,6 @@ import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDa
 import { withRetry } from '@/utils/networkUtils';
 import { DataRegressionError } from '@/utils/integrityGuard';
 import {
-  flattenObject,
   getRecordDocRef,
   sanitizeForFirestore,
 } from '@/services/storage/firestore/firestoreShared';
@@ -53,31 +52,17 @@ import {
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
-import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import {
   buildGuardedRayenFallbackData,
   extractGuardedRayenClinicalPatch,
 } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
 import { createDirectFirestoreWriteReceipt } from './firestoreDirectWriteReceipt';
+import {
+  buildAuthorityPatchSyncContract,
+  prepareFirestorePartialData,
+} from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-const buildAuthorityPatchSyncContract = (
-  syncContract: SyncTaskContract | undefined,
-  authorityPatch: Record<string, unknown>
-): SyncTaskContract | undefined => {
-  if (!syncContract) {
-    return undefined;
-  }
-  const authorityPaths = Object.keys(authorityPatch);
-  const changedPaths = (syncContract.changedPaths ?? []).filter(path =>
-    authorityPaths.includes(path)
-  );
-
-  return {
-    ...syncContract,
-    changedPaths: changedPaths.length > 0 ? changedPaths : authorityPaths,
-  };
-};
 
 export const saveRecordToFirestore = async (
   record: DailyRecord,
@@ -174,9 +159,12 @@ export const updateRecordPartial = async (
     // (e.g. "beds.R1.medicalHandoffAudit.lastEditor"), which causes Firestore rules
     // to reject the write because the diff shape changes at the bed level.
     const specialistScopedPatch = isSpecialistScopedDailyRecordPatch(partialData);
-    const flatData = specialistScopedPatch
-      ? (partialData as unknown as Record<string, unknown>)
-      : flattenObject(partialData as unknown as Record<string, unknown>);
+    const intentionalBedClear = options.intentionalBedClear;
+    const flatData = prepareFirestorePartialData({
+      partialData: partialData as unknown as Record<string, unknown>,
+      specialistScopedPatch,
+      intentionalBedClear,
+    });
     const sanitizedPatch = sanitizeForFirestore(flatData) as Record<string, unknown>;
     const sanitizedData = sanitizeForFirestore({
       ...sanitizedPatch,
@@ -288,7 +276,9 @@ export const updateRecordPartial = async (
             : null;
         if (
           shouldUseAuthorityCallable &&
-          (callableAuthorityMode === 'enforced' || bedTreeAuthorityFenced)
+          (callableAuthorityMode === 'enforced' ||
+            bedTreeAuthorityFenced ||
+            Boolean(intentionalBedClear))
         ) {
           return withRetry(
             () =>
@@ -298,6 +288,7 @@ export const updateRecordPartial = async (
                 expectedLastUpdated,
                 mode: callableAuthorityMode || 'shadow',
                 origin: 'direct_partial_update',
+                intentionalBedClear,
                 syncContract: buildAuthorityPatchSyncContract(options.syncContract, callablePatch),
               }),
             {

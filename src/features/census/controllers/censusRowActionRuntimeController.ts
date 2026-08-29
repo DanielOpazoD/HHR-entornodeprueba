@@ -11,6 +11,7 @@ import type {
   RowActionRuntimeActions,
   RowActionRuntimeConfirm,
 } from '@/features/census/types/censusRowActionRuntimeTypes';
+import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 
 export interface RowActionRuntimeSuccess {
   applied: boolean;
@@ -29,6 +30,7 @@ interface ExecuteRowActionParams {
   stabilityRules: StabilityRules;
   actions: RowActionRuntimeActions;
   confirmRuntime: RowActionRuntimeConfirm;
+  confirmedLastUpdated?: string;
 }
 
 export const executeRowActionController = async ({
@@ -38,6 +40,7 @@ export const executeRowActionController = async ({
   stabilityRules,
   actions,
   confirmRuntime,
+  confirmedLastUpdated,
 }: ExecuteRowActionParams): Promise<RowActionRuntimeResult> => {
   const resolution = resolveRowActionCommand({ action, bedId, patient, stabilityRules });
   if (!resolution.ok) {
@@ -51,7 +54,21 @@ export const executeRowActionController = async ({
       if (!isConfirmed) {
         return ok({ applied: false });
       }
-      actions.clearPatient(command.bedId);
+      const persisted = await actions.clearPatient(
+        command.bedId,
+        confirmedLastUpdated,
+        buildConfirmedBedOccupantIdentity(patient)
+      );
+      if (!persisted) {
+        return {
+          ok: false,
+          error: {
+            code: 'PERSISTENCE_FAILED',
+            message:
+              'No fue posible confirmar la limpieza de la cama. Los datos vigentes se conservaron.',
+          },
+        };
+      }
       return ok({ applied: true });
     }
     case 'setMovement':

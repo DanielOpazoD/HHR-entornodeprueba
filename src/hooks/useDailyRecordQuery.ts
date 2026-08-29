@@ -1,10 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
-import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { useRepositories } from '@/services/RepositoryContext';
 import { useEffect, useRef } from 'react';
 import {
-  applyOptimisticDailyRecordPatch,
   createDailyRecordQueryFn,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
@@ -14,34 +13,22 @@ import {
   shouldUseDailyRecordRealtimeSync,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import {
-  getDailyRecordLastRemoteConfirmedAt,
   markDailyRecordRemoteConfirmed,
   markDailyRecordStaleBaseline,
   markDailyRecordTabHidden,
   markDailyRecordTabVisible,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
-import { registerPendingDailyRecordPatch } from '@/hooks/controllers/dailyRecordPendingPatchController';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 import {
-  assertHydratedRemotePatchCanProceed,
   ensureFreshDailyRecordSaveMutation,
-  ensureFreshClinicalPatchMutation,
   ensureFreshDailyRecordQuery,
-  patchDailyRecordWithCompatibility,
   persistDailyRecordSaveMutation,
   prefetchDailyRecordQuery,
-  releasePendingPatchAfterFallbackTtl,
   type SaveDailyRecordMutationInput,
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
-import {
-  createDailyRecordPatchBaseRecordRegistry,
-  forgetDailyRecordPatchBaseRecord,
-  getDailyRecordPatchBaseRecord,
-  rememberDailyRecordPatchBaseRecord,
-  type DailyRecordPatchBaseRecordRegistry,
-} from '@/hooks/controllers/dailyRecordPatchBaseRecordController';
+export { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 
 export const useDailyRecordQuery = (
   date: string,
@@ -213,99 +200,6 @@ export const useSaveDailyRecordMutation = () => {
       if (payload?.record) {
         invalidateDailyRecordQuery(queryClient, payload.record.date);
       }
-    },
-  });
-};
-
-/** Hook for granular partial updates with optimistic cache state. */
-export const usePatchDailyRecordMutation = (date: string) => {
-  const queryClient = useQueryClient();
-  const { dailyRecord } = useRepositories();
-  const patchBaseRecordsRef = useRef<DailyRecordPatchBaseRecordRegistry | null>(null);
-  if (patchBaseRecordsRef.current == null) {
-    patchBaseRecordsRef.current = createDailyRecordPatchBaseRecordRegistry();
-  }
-  const patchBaseRecords = patchBaseRecordsRef.current;
-
-  return useMutation({
-    mutationFn: async (partial: DailyRecordPatch) => {
-      const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
-      const result = await patchDailyRecordWithCompatibility(
-        dailyRecord,
-        date,
-        partial,
-        baseRecord ? { baseRecord } : undefined
-      );
-      return { partial, result };
-    },
-    onMutate: async partial => {
-      const previousRecordBeforeFreshness = queryClient.getQueryData<DailyRecordQueryResult>(
-        getDailyRecordQueryKey(date)
-      )?.record;
-      const remoteConfirmedAtBeforeMutation = getDailyRecordLastRemoteConfirmedAt(date);
-      const freshness = await ensureFreshClinicalPatchMutation(date, { dailyRecord, queryClient });
-      assertHydratedRemotePatchCanProceed({
-        date,
-        attemptedPatch: partial,
-        previousRecord: previousRecordBeforeFreshness,
-        freshness,
-        remoteConfirmedAtBeforeMutation,
-      });
-      rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, freshness.record);
-
-      await queryClient.cancelQueries({
-        queryKey: queryKeys.dailyRecord.byDate(date),
-      });
-      const unregisterPendingPatch = registerPendingDailyRecordPatch(date, partial);
-
-      const previousRecord = queryClient.getQueryData<DailyRecordQueryResult>(
-        getDailyRecordQueryKey(date)
-      )?.record;
-
-      if (previousRecord) {
-        setDailyRecordQueryData(
-          queryClient,
-          date,
-          applyOptimisticDailyRecordPatch(previousRecord, partial)
-        );
-      }
-
-      return { previousRecord, unregisterPendingPatch };
-    },
-    onError: (err, partial, context) => {
-      if (context?.previousRecord) {
-        setDailyRecordQueryData(queryClient, date, context.previousRecord);
-      }
-    },
-    onSuccess: (payload, _partial, context) => {
-      if (isDailyRecordWriteRejectedResult(payload.result)) {
-        setDailyRecordQueryData(queryClient, date, context?.previousRecord ?? null);
-        return;
-      }
-      if (!payload.result?.updatedRemotely) return;
-      const current = queryClient.getQueryData<DailyRecordQueryResult>(
-        getDailyRecordQueryKey(date)
-      )?.record;
-      if (!current) {
-        return;
-      }
-      markDailyRecordRemoteConfirmed(date, {
-        source: 'write',
-        remoteLastUpdated: current.lastUpdated,
-        confirmedRecord: current,
-      });
-    },
-    onSettled: (payload, error, partial, context) => {
-      if (!context?.unregisterPendingPatch) {
-        return;
-      }
-      if (error || isDailyRecordWriteRejectedResult(payload?.result)) {
-        context.unregisterPendingPatch();
-        forgetDailyRecordPatchBaseRecord(patchBaseRecords, partial);
-        return;
-      }
-      forgetDailyRecordPatchBaseRecord(patchBaseRecords, partial);
-      releasePendingPatchAfterFallbackTtl(context.unregisterPendingPatch);
     },
   });
 };

@@ -3,6 +3,7 @@ import type { CudyrBatchUpdate, CudyrScore, CudyrScorePatch } from '@/types/doma
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import type { PatientFieldValue } from '@/types/valueTypes';
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
+import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
 type BedManagementDispatch = (action: BedAction) => void;
 type BedManagementAsyncDispatch = (action: BedAction) => Promise<boolean>;
@@ -91,10 +92,24 @@ export const useBedManagementActionCreators = (
   );
 
   const clearPatient = useCallback(
-    (bedId: string) => {
-      dispatch({ type: 'CLEAR_PATIENT', bedId });
+    (
+      bedId: string,
+      confirmedLastUpdated?: string,
+      confirmedOccupant?: ConfirmedBedOccupantIdentity
+    ): Promise<boolean> => {
+      const action: BedAction = {
+        type: 'CLEAR_PATIENT',
+        bedId,
+        ...(confirmedLastUpdated ? { confirmedLastUpdated } : {}),
+        ...(confirmedOccupant ? { confirmedOccupant } : {}),
+      };
+      if (dispatchAndWait) {
+        return dispatchAndWait(action);
+      }
+
+      return Promise.resolve(false);
     },
-    [dispatch]
+    [dispatchAndWait]
   );
 
   const clearAllBeds = useCallback(() => {
