@@ -25,6 +25,7 @@ const { mockDailyRecordPorts } = vi.hoisted(() => ({
   mockDailyRecordPorts: {
     getForDate: vi.fn(),
     getForDateWithMeta: vi.fn(),
+    getAuthoritativeForDate: vi.fn(),
     getPreviousDayWithMeta: vi.fn(),
     getPreviousDay: vi.fn(),
     getAvailableDates: vi.fn(),
@@ -202,6 +203,9 @@ const setupRecordStore = (record: DailyRecord) => {
   mockDailyRecordPorts.getForDateWithMeta.mockImplementation(async requestedDate =>
     buildReadResult(recordsMap[requestedDate] ?? null)
   );
+  mockDailyRecordPorts.getAuthoritativeForDate.mockImplementation(async requestedDate => {
+    return recordsMap[requestedDate] ?? null;
+  });
   mockDailyRecordPorts.updatePartialDetailed.mockImplementation(async (requestedDate, patch) => {
     if (recordsMap[requestedDate]) {
       recordsMap[requestedDate] = applyPatches(recordsMap[requestedDate], patch);
