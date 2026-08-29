@@ -203,9 +203,7 @@ const setupRecordStore = (record: DailyRecord) => {
   mockDailyRecordPorts.getForDateWithMeta.mockImplementation(async requestedDate =>
     buildReadResult(recordsMap[requestedDate] ?? null)
   );
-  mockDailyRecordPorts.getAuthoritativeForDate.mockImplementation(async requestedDate => {
-    return recordsMap[requestedDate] ?? null;
-  });
+  mockDailyRecordPorts.getAuthoritativeForDate.mockImplementation(mockDailyRecordPorts.getForDate);
   mockDailyRecordPorts.updatePartialDetailed.mockImplementation(async (requestedDate, patch) => {
     if (recordsMap[requestedDate]) {
       recordsMap[requestedDate] = applyPatches(recordsMap[requestedDate], patch);
