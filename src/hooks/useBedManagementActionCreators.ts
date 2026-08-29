@@ -54,20 +54,35 @@ export const useBedManagementActionCreators = (
   );
 
   const updateClinicalCrib = useCallback(
-    (bedId: string, field: keyof PatientData | 'create' | 'remove', value?: PatientFieldValue) => {
+    (
+      bedId: string,
+      field: keyof PatientData | 'create' | 'remove',
+      value?: PatientFieldValue,
+      confirmedLastUpdated?: string,
+      confirmedOccupant?: ConfirmedBedOccupantIdentity
+    ) => {
       if (field === 'create') {
         dispatch({ type: 'CREATE_CLINICAL_CRIB', bedId });
         return;
       }
 
       if (field === 'remove') {
-        dispatch({ type: 'REMOVE_CLINICAL_CRIB', bedId });
+        const action: BedAction = {
+          type: 'REMOVE_CLINICAL_CRIB',
+          bedId,
+          ...(confirmedLastUpdated ? { confirmedLastUpdated } : {}),
+          ...(confirmedOccupant ? { confirmedOccupant } : {}),
+        };
+        if (dispatchAndWait) {
+          return dispatchAndWait(action);
+        }
+        dispatch(action);
         return;
       }
 
       dispatch({ type: 'UPDATE_CLINICAL_CRIB', bedId, field, value: value! });
     },
-    [dispatch]
+    [dispatch, dispatchAndWait]
   );
 
   const updateClinicalCribMultiple = useCallback(

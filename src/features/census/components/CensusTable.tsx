@@ -325,6 +325,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
           <CensusTableHeader {...headerProps} />
           <CensusTableBody
             {...bodyProps}
+            recordLastUpdated={record?.lastUpdated}
             unifiedRows={filteredUnifiedRows}
             onActivateEmptyBed={openEmptyBedDemographics}
             dragDrop={readOnly || clinicalEditingDisabled ? undefined : dragDrop}

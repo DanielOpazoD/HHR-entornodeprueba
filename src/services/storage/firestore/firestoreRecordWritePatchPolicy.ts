@@ -32,19 +32,34 @@ export const prepareFirestorePartialData = ({
   }
 
   const bedPath = `beds.${intentionalBedClear.bedId}`;
-  const allowedPaths = new Set([bedPath, `${bedPath}.clinicalEpisodeId`, 'dateTimestamp']);
+  const targetPath =
+    intentionalBedClear.target === 'clinicalCrib' ? `${bedPath}.clinicalCrib` : bedPath;
+  const allowedPaths = new Set(
+    intentionalBedClear.target === 'clinicalCrib'
+      ? [targetPath, 'dateTimestamp']
+      : [bedPath, `${bedPath}.clinicalEpisodeId`, 'dateTimestamp']
+  );
   const generatedEpisodePath = `${bedPath}.clinicalEpisodeId`;
   const unexpectedPath = Object.keys(partialData).find(path => !allowedPaths.has(path));
   if (
     !intentionalBedClear.bedId ||
     intentionalBedClear.bedId.includes('.') ||
-    !Object.prototype.hasOwnProperty.call(partialData, bedPath) ||
+    !Object.prototype.hasOwnProperty.call(partialData, targetPath) ||
     unexpectedPath ||
-    (partialData[generatedEpisodePath] !== undefined && partialData[generatedEpisodePath] !== '')
+    (intentionalBedClear.target !== 'clinicalCrib' &&
+      partialData[generatedEpisodePath] !== undefined &&
+      partialData[generatedEpisodePath] !== '')
   ) {
     throw new ConcurrencyError(
       'La limpieza confirmada debe contener únicamente una cama completa y sus metadatos vacíos.'
     );
   }
-  return { [bedPath]: partialData[bedPath] };
+  if (
+    intentionalBedClear.target === 'clinicalCrib' &&
+    partialData[targetPath] !== null &&
+    partialData[targetPath] !== undefined
+  ) {
+    throw new ConcurrencyError('La limpieza confirmada de la cuna debe dejarla vacía.');
+  }
+  return { [targetPath]: partialData[targetPath] ?? null };
 };

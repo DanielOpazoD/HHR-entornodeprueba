@@ -241,6 +241,7 @@ describe('PatientRow crib and demographics', () => {
             data={clinicalCrib}
             bed={mockBedDef}
             currentDateString="2023-01-01"
+            recordLastUpdated="2023-01-01T10:00:00.000Z"
             onAction={mockOnAction}
             isSubRow={true}
             bedType={BedType.UTI}
@@ -294,6 +295,7 @@ describe('PatientRow crib and demographics', () => {
             data={clinicalCrib}
             bed={mockBedDef}
             currentDateString="2023-01-01"
+            recordLastUpdated="2023-01-01T10:00:00.000Z"
             onAction={mockOnAction}
             isSubRow={true}
             bedType={BedType.UTI}
@@ -319,7 +321,13 @@ describe('PatientRow crib and demographics', () => {
       })
     );
     await waitFor(() => {
-      expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith('R1', 'remove');
+      expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith(
+        'R1',
+        'remove',
+        undefined,
+        '2023-01-01T10:00:00.000Z',
+        expect.objectContaining({ patientName: 'Sub Patient' })
+      );
     });
     expect(mockOnAction).not.toHaveBeenCalled();
   });
@@ -338,6 +346,7 @@ describe('PatientRow crib and demographics', () => {
             data={clinicalCrib}
             bed={mockBedDef}
             currentDateString="2023-01-01"
+            recordLastUpdated="2023-01-01T10:00:00.000Z"
             onAction={mockOnAction}
             isSubRow={true}
             bedType={BedType.UTI}

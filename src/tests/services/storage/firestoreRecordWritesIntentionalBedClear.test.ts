@@ -184,6 +184,51 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
   });
 
+  it('routes an intentional clinical crib clear without replacing the parent bed', async () => {
+    (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE =
+      'enforced';
+    mockGetCurrentUser.mockReturnValue({
+      uid: 'nurse-1',
+      email: 'nurse@example.com',
+      isAnonymous: false,
+    });
+
+    await updateRecordPartial(
+      '2026-03-14',
+      { 'beds.R1.clinicalCrib': null } as never,
+      '2026-03-14T10:00:00.000Z',
+      {
+        intentionalBedClear: {
+          bedId: 'R1',
+          target: 'clinicalCrib',
+          confirmedLastUpdated: '2026-03-14T10:00:00.000Z',
+          confirmedOccupant: {
+            clinicalEpisodeId: 'crib-ep-r1',
+            patientName: 'RN Uno',
+          },
+        },
+        syncContract: {
+          expectedVersion: '2026-03-14T10:00:00.000Z',
+          changedPaths: ['beds.R1.clinicalCrib'],
+          mutationId: 'mutation-clear-r1-crib',
+          clientId: 'client-1',
+          tabId: 'tab-1',
+        },
+      }
+    );
+
+    expect(mockAuthorityCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        intentionalBedClear: expect.objectContaining({
+          bedId: 'R1',
+          target: 'clinicalCrib',
+        }),
+        patch: { 'beds.R1.clinicalCrib': null },
+      })
+    );
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
   it('rejects an intentional clear whose declared bed does not match the whole-bed patch', async () => {
     await expect(
       updateRecordPartial(

@@ -53,6 +53,7 @@ describe('usePatientRowInputHandlers', () => {
 
     expect(updatePatient).toHaveBeenCalledWith('R1', 'patientName', 'Paciente X');
     expect(updatePatient).toHaveBeenCalledWith('R1', 'isUPC', true);
+    expect(updatePatient).toHaveBeenCalledWith('R1', 'status', 'De cuidado');
     expect(updatePatient).toHaveBeenCalledWith('R1', 'documentType', 'Pasaporte');
     expect(updatePatientMultiple).toHaveBeenCalledWith('R1', { age: '40' });
     expect(harmonizeEpisodeDemographicsHistorySafely).toHaveBeenCalledWith({
@@ -70,7 +71,7 @@ describe('usePatientRowInputHandlers', () => {
       vi.advanceTimersByTime(450);
     });
 
-    expect(updatePatientMultiple).toHaveBeenCalledWith('R1', { status: 'De cuidado' });
+    expect(updatePatientMultiple).not.toHaveBeenCalledWith('R1', { status: 'De cuidado' });
   });
 
   it('coalesces rapid initial clinical fields into one daily record patch', () => {
@@ -103,7 +104,7 @@ describe('usePatientRowInputHandlers', () => {
 
     expect(updatePatient).not.toHaveBeenCalledWith('R1', 'pathology', 'Neumonia');
     expect(updatePatient).not.toHaveBeenCalledWith('R1', 'specialty', 'Med Interna');
-    expect(updatePatient).not.toHaveBeenCalledWith('R1', 'status', 'Estable');
+    expect(updatePatient).toHaveBeenCalledWith('R1', 'status', 'Estable');
     expect(updatePatientMultiple).not.toHaveBeenCalled();
 
     act(() => {
@@ -114,7 +115,6 @@ describe('usePatientRowInputHandlers', () => {
     expect(updatePatientMultiple).toHaveBeenCalledWith('R1', {
       pathology: 'Neumonia',
       specialty: 'Med Interna',
-      status: 'Estable',
     });
   });
 

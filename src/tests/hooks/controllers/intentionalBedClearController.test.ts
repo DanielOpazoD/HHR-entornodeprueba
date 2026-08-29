@@ -51,6 +51,45 @@ describe('intentionalBedClearController', () => {
     expect(canRebaseIntentionalBedClear(intent, replacement)).toBe(false);
   });
 
+  it('rebases a crib clear against the crib occupant, not the parent bed', () => {
+    const refreshed = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: {
+          ...DataFactory.createMockPatient('R1', {
+            clinicalEpisodeId: 'parent-ep',
+            patientName: 'Paciente madre',
+          }),
+          clinicalCrib: DataFactory.createMockPatient('R1', {
+            bedMode: 'Cuna',
+            clinicalEpisodeId: 'crib-ep',
+            rut: '22.222.222-2',
+            patientName: 'RN Uno',
+          }),
+        },
+      },
+    });
+    const cribIntent = {
+      bedId: 'R1',
+      target: 'clinicalCrib' as const,
+      confirmedLastUpdated: intent.confirmedLastUpdated,
+      confirmedOccupant: {
+        clinicalEpisodeId: 'crib-ep',
+        rut: '22.222.222-2',
+        patientName: 'RN Uno',
+      },
+    };
+
+    expect(canRebaseIntentionalBedClear(cribIntent, refreshed)).toBe(true);
+
+    refreshed.beds.R1.clinicalCrib = DataFactory.createMockPatient('R1', {
+      bedMode: 'Cuna',
+      clinicalEpisodeId: 'replacement-crib-ep',
+      patientName: 'RN Dos',
+    });
+    expect(canRebaseIntentionalBedClear(cribIntent, refreshed)).toBe(false);
+  });
+
   it('treats any two different episode ids as different occupants', () => {
     const replacement = DataFactory.createMockDailyRecord('2026-08-28', {
       lastUpdated: '2026-08-28T10:00:03.000Z',

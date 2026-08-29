@@ -84,12 +84,19 @@ const parseIntentionalBedClear = value => {
     );
   }
   const bedId = assertStringField(value.bedId, 'intentionalBedClear.bedId');
+  const target = value.target === 'clinicalCrib' ? 'clinicalCrib' : 'bed';
+  if (value.target !== undefined && value.target !== 'bed' && value.target !== 'clinicalCrib') {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Intentional bed clear contains an invalid target.'
+    );
+  }
   const confirmedLastUpdated = assertStringField(
     value.confirmedLastUpdated,
     'intentionalBedClear.confirmedLastUpdated'
   );
   if (value.confirmedOccupant === undefined || value.confirmedOccupant === null) {
-    return { bedId, confirmedLastUpdated, confirmedOccupant: null };
+    return { bedId, target, confirmedLastUpdated, confirmedOccupant: null };
   }
   if (!isPlainObject(value.confirmedOccupant)) {
     throw new functions.https.HttpsError(
@@ -121,7 +128,7 @@ const parseIntentionalBedClear = value => {
       'Intentional bed clear contains an invalid bed id.'
     );
   }
-  return { bedId, confirmedLastUpdated, confirmedOccupant };
+  return { bedId, target, confirmedLastUpdated, confirmedOccupant };
 };
 
 const normalizeEpisodeIdentityScalar = value =>
@@ -231,13 +238,16 @@ const parseAuthorizedPatchPath = (
 
   if (
     intentionalBedClear &&
-    path === `beds.${intentionalBedClear.bedId}` &&
+    path ===
+      (intentionalBedClear.target === 'clinicalCrib'
+        ? `beds.${intentionalBedClear.bedId}.clinicalCrib`
+        : `beds.${intentionalBedClear.bedId}`) &&
     STRUCTURAL_DAILY_RECORD_PATCH_ROLES.has(role)
   ) {
     return {
       kind: 'structuralField',
       bedId: intentionalBedClear.bedId,
-      field: 'bed',
+      field: intentionalBedClear.target === 'clinicalCrib' ? 'clinicalCrib' : 'bed',
     };
   }
 
@@ -578,27 +588,48 @@ const assertIntentionalBedClearRequest = ({
     );
   }
   const remoteBed = remoteData?.beds?.[intentionalBedClear.bedId];
+  const remoteOccupant =
+    intentionalBedClear.target === 'clinicalCrib' ? remoteBed?.clinicalCrib : remoteBed;
   if (
     intentionalBedClear.confirmedOccupant &&
-    !sameConfirmedBedEpisode(intentionalBedClear.confirmedOccupant, remoteBed)
+    !sameConfirmedBedEpisode(intentionalBedClear.confirmedOccupant, remoteOccupant)
   ) {
     throw new functions.https.HttpsError(
       'aborted',
       'Intentional bed clear no longer targets the occupant confirmed by the user.'
     );
   }
-  const expectedPath = `beds.${intentionalBedClear.bedId}`;
+  const bedPath = `beds.${intentionalBedClear.bedId}`;
+  const expectedPath =
+    intentionalBedClear.target === 'clinicalCrib' ? `${bedPath}.clinicalCrib` : bedPath;
   const paths = Object.keys(patch);
-  const requestedBed = patch[expectedPath];
-  if (paths.length !== 1 || paths[0] !== expectedPath || !isPlainObject(requestedBed)) {
+  const requestedTarget = patch[expectedPath];
+  if (
+    paths.length !== 1 ||
+    paths[0] !== expectedPath ||
+    (intentionalBedClear.target === 'clinicalCrib'
+      ? requestedTarget !== null && requestedTarget !== undefined
+      : !isPlainObject(requestedTarget))
+  ) {
     throw new functions.https.HttpsError(
       'invalid-argument',
-      'Intentional bed clear must replace exactly one matching bed with an empty patient.'
+      intentionalBedClear.target === 'clinicalCrib'
+        ? 'Intentional crib clear must remove exactly one matching clinical crib.'
+        : 'Intentional bed clear must replace exactly one matching bed with an empty patient.'
     );
+  }
+  if (intentionalBedClear.target === 'clinicalCrib') {
+    if (!isPlainObject(remoteOccupant)) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'Intentional crib clear requires an existing remote clinical crib.'
+      );
+    }
+    return { [expectedPath]: null };
   }
   const canonicalBed = buildCanonicalEmptyBed({
     bedId: intentionalBedClear.bedId,
-    requestedBed,
+    requestedBed: requestedTarget,
     remoteBed,
   });
   return { [expectedPath]: canonicalBed };
@@ -1065,6 +1096,9 @@ const assertNoPatientErasures = ({ snapshot, record, intentionalBedClear = null 
   }
   const erasures = findPatientErasures(snapshot.data() || {}, record).filter(erasure => {
     if (!intentionalBedClear) return true;
+    if (intentionalBedClear.target === 'clinicalCrib') {
+      return erasure.bedId !== `${intentionalBedClear.bedId} (cuna RN)`;
+    }
     return (
       erasure.bedId !== intentionalBedClear.bedId &&
       erasure.bedId !== `${intentionalBedClear.bedId} (cuna RN)`

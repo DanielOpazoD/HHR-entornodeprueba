@@ -83,7 +83,16 @@ export const canRebaseIntentionalBedClear = (
   intent: IntentionalBedClearRequest,
   candidate: DailyRecord | null | undefined
 ): candidate is DailyRecord =>
-  Boolean(candidate && isSameConfirmedOccupant(intent, candidate, candidate.beds[intent.bedId]));
+  Boolean(
+    candidate &&
+    isSameConfirmedOccupant(
+      intent,
+      candidate,
+      intent.target === 'clinicalCrib'
+        ? candidate.beds[intent.bedId]?.clinicalCrib
+        : candidate.beds[intent.bedId]
+    )
+  );
 
 export const rebaseIntentionalBedClear = (
   intent: IntentionalBedClearRequest,

@@ -5,18 +5,29 @@ import {
   executeToggleCompanionCribController,
 } from '@/features/census/controllers/patientRowBedConfigRuntimeController';
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
+import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
+import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
+import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 
 interface UsePatientRowBedConfigActionsParams {
   bedId: string;
   isCunaMode: boolean;
   hasCompanion: boolean;
   hasClinicalCrib: boolean;
+  clinicalCrib?: PatientData;
+  confirmedLastUpdated?: string;
   updatePatient: (
     bedId: string,
     field: 'bedMode' | 'hasCompanionCrib',
     value: 'Cama' | 'Cuna' | boolean
   ) => void;
-  updateClinicalCrib: (bedId: string, field: 'create' | 'remove') => void;
+  updateClinicalCrib: (
+    bedId: string,
+    field: 'create' | 'remove',
+    value?: undefined,
+    confirmedLastUpdated?: string,
+    confirmedOccupant?: ConfirmedBedOccupantIdentity
+  ) => void | Promise<boolean>;
   confirm: (options: ControllerConfirmDescriptor) => Promise<boolean>;
   alert: (message: string, title?: string) => Promise<void>;
 }
@@ -33,6 +44,8 @@ export const usePatientRowBedConfigActions = ({
   isCunaMode,
   hasCompanion,
   hasClinicalCrib,
+  clinicalCrib,
+  confirmedLastUpdated,
   updatePatient,
   updateClinicalCrib,
   confirm,
@@ -67,6 +80,14 @@ export const usePatientRowBedConfigActions = ({
   }, [bedId, hasClinicalCrib, updateClinicalCrib]);
 
   const removeClinicalCrib = useCallback(async () => {
+    if (!clinicalCrib || !confirmedLastUpdated) {
+      await alert(
+        'No fue posible confirmar la versión vigente de la cuna. Recarga el censo antes de volver a intentar.',
+        'Acción bloqueada'
+      );
+      return;
+    }
+    const confirmedOccupant = buildConfirmedBedOccupantIdentity(clinicalCrib);
     const confirmed = await confirm({
       title: 'Limpiar cuna',
       message: '¿Está seguro de limpiar los datos de esta cuna?',
@@ -75,9 +96,9 @@ export const usePatientRowBedConfigActions = ({
       variant: 'warning',
     });
     if (confirmed) {
-      updateClinicalCrib(bedId, 'remove');
+      await updateClinicalCrib(bedId, 'remove', undefined, confirmedLastUpdated, confirmedOccupant);
     }
-  }, [bedId, confirm, updateClinicalCrib]);
+  }, [alert, bedId, clinicalCrib, confirm, confirmedLastUpdated, updateClinicalCrib]);
 
   return {
     toggleBedMode,

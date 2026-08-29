@@ -19,6 +19,7 @@ export const CensusTableBody: React.FC<
 > = ({
   unifiedRows,
   currentDateString,
+  recordLastUpdated,
   readOnly,
   clinicalEditingDisabled = false,
   clinicalFieldLocksByBedId,
@@ -79,6 +80,7 @@ export const CensusTableBody: React.FC<
             bed={row.bed}
             data={row.data}
             currentDateString={currentDateString}
+            recordLastUpdated={recordLastUpdated}
             onAction={onAction}
             readOnly={readOnly}
             clinicalEditingDisabled={rowClinicalEditingDisabled}

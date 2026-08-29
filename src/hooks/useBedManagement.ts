@@ -43,8 +43,10 @@ export interface BedManagementActions {
   updateClinicalCrib: (
     bedId: string,
     field: keyof PatientData | 'create' | 'remove',
-    value?: PatientFieldValue
-  ) => void;
+    value?: PatientFieldValue,
+    confirmedLastUpdated?: string,
+    confirmedOccupant?: ConfirmedBedOccupantIdentity
+  ) => void | Promise<boolean>;
 
   /**
    * Updates multiple clinical crib fields atomically.

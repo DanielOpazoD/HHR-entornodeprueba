@@ -17,6 +17,7 @@ import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTy
 import type { DailyRecordBootstrapPhase } from '@/hooks/controllers/dailyRecordBootstrapController';
 import type { StabilityRules } from '@/hooks/useStabilityRules';
 import type { DailyRecordStaffingDetailsV1 } from '@/types/domain/dailyRecordStaffingDetails';
+import type { ConfirmedBedOccupantIdentity } from '@/types/domain/intentionalBedClear';
 
 export type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 
@@ -91,8 +92,10 @@ export interface DailyRecordBedActions {
   updateClinicalCrib: (
     bedId: string,
     field: keyof PatientData | 'create' | 'remove',
-    value?: PatientFieldValue
-  ) => void;
+    value?: PatientFieldValue,
+    confirmedLastUpdated?: string,
+    confirmedOccupant?: ConfirmedBedOccupantIdentity
+  ) => void | Promise<boolean>;
   updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => void;
   updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
   updateClinicalCribCudyrMultiple?: (bedId: string, fields: CudyrScorePatch) => void;
