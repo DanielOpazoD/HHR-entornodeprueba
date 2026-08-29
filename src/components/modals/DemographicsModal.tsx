@@ -1,5 +1,5 @@
 import React from 'react';
-import { User } from 'lucide-react';
+import { ClipboardPaste, User } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { DemographicsModalProps } from './demographics/types';
 import { useDemographicsLogic } from './demographics/useDemographicsLogic';
@@ -21,6 +21,7 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({
   isClinicalCribPatient = false,
   requiresCompleteDemographics = false,
   canUseArbitraryAdmissionDate = false,
+  onImportEloisaCode,
 }) => {
   const {
     localData,
@@ -109,7 +110,17 @@ export const DemographicsModal: React.FC<DemographicsModalProps> = ({
             </div>
           ) : null}
 
-          <div className="flex justify-end items-center gap-3">
+          <div className="flex flex-wrap justify-end items-center gap-3">
+            {requiresCompleteDemographics && onImportEloisaCode ? (
+              <button
+                type="button"
+                onClick={onImportEloisaCode}
+                className="mr-auto inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-[13px] font-bold text-teal-800 transition-colors hover:bg-teal-100"
+              >
+                <ClipboardPaste size={15} />
+                Importar código de Eloísa
+              </button>
+            ) : null}
             <button
               onClick={handleCancel}
               className="text-slate-400 hover:text-slate-600 text-[13px] font-bold transition-colors px-2"

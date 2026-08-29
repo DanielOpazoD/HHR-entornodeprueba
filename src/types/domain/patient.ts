@@ -8,6 +8,7 @@ import type { PatientVitalSigns } from './vitalSigns';
 import type { ClinicalSyncCheckpoint } from './clinicalSync';
 import type { FhirResource } from './fhir';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
+import type { EloisaManualImportAudit } from '@/shared/contracts/eloisaManualImport';
 
 export interface MedicalHandoffAuditActor {
   uid: string;
@@ -113,6 +114,9 @@ export interface PatientData {
   firstSeenDate?: string;
   /** Stable episode identifier. Optional during legacy tuple-to-ID migration. */
   clinicalEpisodeId?: string;
+
+  /** Technical/audit-only metadata. It is not rendered in the clinical census. */
+  eloisaManualImportAudit?: EloisaManualImportAudit;
 
   // CUDYR Data
   cudyr?: CudyrScore;

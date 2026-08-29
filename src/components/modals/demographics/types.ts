@@ -41,6 +41,7 @@ export interface DemographicsModalProps {
   isClinicalCribPatient?: boolean;
   requiresCompleteDemographics?: boolean;
   canUseArbitraryAdmissionDate?: boolean;
+  onImportEloisaCode?: () => void;
 }
 
 export interface LocalDemographicsState {

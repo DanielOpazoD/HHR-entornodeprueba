@@ -145,6 +145,12 @@
         "iife>variable:ensureButton": 22
       }
     },
+    "eloisa-patient-code-contract.js": {
+      "maxLines": 81,
+      "hotspots": {
+        "iife>variable:buildPayload": 18
+      }
+    },
     "encounter-navigation.js": {
       "maxLines": 60,
       "hotspots": {}
@@ -183,6 +189,14 @@
     },
     "fichamedico-isolation-normalization.js": {
       "maxLines": 47,
+      "hotspots": {}
+    },
+    "fichamedico-manual-patient-code-runtime.js": {
+      "maxLines": 63,
+      "hotspots": {}
+    },
+    "fichamedico-manual-patient-copy.js": {
+      "maxLines": 136,
       "hotspots": {}
     },
     "fichamedico-treating-physician-dom.js": {

@@ -44,6 +44,42 @@ describe('buildAdmitPatientPatch', () => {
     const patch = buildAdmitPatientPatch(baseInput({ pathology: '' })) as Record<string, unknown>;
     expect(patch['beds.H5C1.pathology']).toBe('');
   });
+
+  it('persists imported demographics, devices and provenance in the same atomic patch', () => {
+    const patch = buildAdmitPatientPatch(
+      baseInput({
+        clinicalEpisodeId: '98765',
+        admissionTime: '06:35',
+        firstName: 'José Ángel',
+        lastName: 'Muñoz',
+        secondLastName: 'Rapa Nui',
+        birthDate: '1980-05-04',
+        biologicalSex: 'Masculino',
+        devices: ['VVP', 'CVC'],
+        eloisaManualImportAudit: {
+          method: 'eloisa_manual_code',
+          importedBy: 'nurse@hospital.cl',
+          importedAt: '2026-08-28T20:20:00.000Z',
+          capturedAt: '2026-08-28T20:15:00.000Z',
+          formatVersion: 1,
+          encounterId: '98765',
+        },
+      })
+    ) as Record<string, unknown>;
+    expect(patch).toMatchObject({
+      'beds.H5C1.admissionTime': '06:35',
+      'beds.H5C1.firstName': 'José Ángel',
+      'beds.H5C1.lastName': 'Muñoz',
+      'beds.H5C1.secondLastName': 'Rapa Nui',
+      'beds.H5C1.birthDate': '1980-05-04',
+      'beds.H5C1.biologicalSex': 'Masculino',
+      'beds.H5C1.devices': ['VVP', 'CVC'],
+      'beds.H5C1.eloisaManualImportAudit': expect.objectContaining({
+        method: 'eloisa_manual_code',
+        encounterId: '98765',
+      }),
+    });
+  });
 });
 
 describe('createDailyRecordAdmitPatientPort', () => {

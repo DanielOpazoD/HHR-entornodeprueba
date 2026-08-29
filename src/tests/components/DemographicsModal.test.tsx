@@ -29,6 +29,24 @@ const createEmptyDemographics = (): DemographicSubset =>
   });
 
 describe('DemographicsModal', () => {
+  it('offers the Eloísa code fallback only in the new-patient flow', () => {
+    const onImportEloisaCode = vi.fn();
+    render(
+      <DemographicsModal
+        isOpen
+        onClose={vi.fn()}
+        data={createEmptyDemographics()}
+        onSave={vi.fn()}
+        bedId="R1"
+        recordDate="2026-05-01"
+        requiresCompleteDemographics
+        onImportEloisaCode={onImportEloisaCode}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /importar código de eloísa/i }));
+    expect(onImportEloisaCode).toHaveBeenCalledTimes(1);
+  });
+
   it('does not close a new patient admission when the backdrop is clicked', () => {
     const onClose = vi.fn();
     const onCancel = vi.fn();

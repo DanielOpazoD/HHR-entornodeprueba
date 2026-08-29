@@ -178,6 +178,45 @@ describe('executeAdmitPatientCommand', () => {
     );
   });
 
+  it('adds private provenance for an Eloísa code without putting the code in audit', async () => {
+    const port = buildPort();
+    await executeAdmitPatientCommand(
+      validInput({
+        clinicalEpisodeId: '98765',
+        eloisaManualAdmissionSource: {
+          method: 'eloisa_manual_code',
+          capturedAt: '2026-08-28T20:15:00.000Z',
+          formatVersion: 1,
+          encounterId: '98765',
+        },
+      }),
+      { port, writeAuditEvent, now: () => new Date('2026-08-28T20:20:00.000Z') }
+    );
+
+    expect(port.persistAdmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eloisaManualImportAudit: {
+          method: 'eloisa_manual_code',
+          importedBy: 'nurse@hospital.cl',
+          importedAt: '2026-08-28T20:20:00.000Z',
+          capturedAt: '2026-08-28T20:15:00.000Z',
+          formatVersion: 1,
+          encounterId: '98765',
+        },
+      })
+    );
+    const auditCalls = (writeAuditEvent as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(JSON.stringify(auditCalls)).not.toContain('HHR-PACIENTE-1');
+    expect(writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({
+          admissionMethod: 'eloisa_manual_code',
+          formatVersion: 1,
+        }),
+      })
+    );
+  });
+
   it('returns degraded when persistence succeeds but the audit event is rejected', async () => {
     const port = buildPort();
     writeAuditEvent = vi.fn().mockResolvedValue({

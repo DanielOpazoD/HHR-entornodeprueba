@@ -40,6 +40,19 @@ export const buildAdmitPatientPatch = (input: AdmitPatientInput): DailyRecordPat
   if (input.pathology !== undefined) {
     patch[`beds.${input.bedId}.pathology`] = input.pathology;
   }
+  const optionalFields = {
+    admissionTime: input.admissionTime,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    secondLastName: input.secondLastName,
+    birthDate: input.birthDate,
+    biologicalSex: input.biologicalSex,
+    devices: input.devices,
+    eloisaManualImportAudit: input.eloisaManualImportAudit,
+  };
+  Object.entries(optionalFields).forEach(([field, value]) => {
+    if (value !== undefined) patch[`beds.${input.bedId}.${field}`] = value;
+  });
   return patch as DailyRecordPatch;
 };
 
