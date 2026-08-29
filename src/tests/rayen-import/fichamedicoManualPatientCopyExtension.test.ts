@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import '../../../extension/fichamedico-manual-patient-copy.js';
 
 type CopyFactory = {
@@ -19,6 +21,18 @@ describe('Ficha Médico manual patient copy action', () => {
     window.history.replaceState({}, '', '/dashboard/encounter-list-nurse');
     document.body.innerHTML =
       '<table><tbody><tr><td>Ana Pérez · 12.345.678-5</td><td></td></tr></tbody></table>';
+  });
+
+  it('is registered as an isolated Ficha Médico content script', () => {
+    const manifest = JSON.parse(
+      readFileSync(path.resolve('extension/manifest.json'), 'utf8')
+    ) as { content_scripts?: Array<{ matches?: string[]; js?: string[]; world?: string }> };
+    const entry = manifest.content_scripts?.find(candidate =>
+      candidate.js?.includes('fichamedico-manual-patient-copy.js')
+    );
+
+    expect(entry?.matches).toContain('https://fichamedico.rayensalud.cl/*');
+    expect(entry?.world).not.toBe('MAIN');
   });
 
   it('adds one action per row, copies the selected patient code and never duplicates it', async () => {

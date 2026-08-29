@@ -19,6 +19,33 @@ import type { UpdatePartialDailyRecordResult } from '@/services/repositories/con
 import { isDailyRecordWriteBlockedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
+import { createEmptyPatient } from '@/services/factories/patientFactory';
+
+const buildManualEloisaAdmissionPatient = (input: AdmitPatientInput) => {
+  const emptyPatient = createEmptyPatient(input.bedId);
+  const currentBed = input.baseRecord?.beds?.[input.bedId];
+  return {
+    ...emptyPatient,
+    bedName: currentBed?.bedName,
+    location: currentBed?.location ?? emptyPatient.location,
+    bedMode: currentBed?.bedMode ?? emptyPatient.bedMode,
+    isBlocked: currentBed?.isBlocked ?? emptyPatient.isBlocked,
+    blockedReason: currentBed?.blockedReason ?? emptyPatient.blockedReason,
+    patientName: input.patientName,
+    firstName: input.firstName ?? '',
+    lastName: input.lastName ?? '',
+    secondLastName: input.secondLastName ?? '',
+    rut: input.rut,
+    birthDate: input.birthDate ?? '',
+    biologicalSex: input.biologicalSex ?? 'Indeterminado',
+    pathology: input.pathology ?? '',
+    admissionDate: input.admissionDate,
+    admissionTime: input.admissionTime ?? '',
+    devices: input.devices ?? [],
+    clinicalEpisodeId: resolveClinicalEpisodeIdForAdmission(input),
+    eloisaManualImportAudit: input.eloisaManualImportAudit,
+  };
+};
 
 export type AdmitPatientPersistenceFn = (
   date: string,
@@ -27,6 +54,11 @@ export type AdmitPatientPersistenceFn = (
 ) => Promise<void | UpdatePartialDailyRecordResult>;
 
 export const buildAdmitPatientPatch = (input: AdmitPatientInput): DailyRecordPatch => {
+  if (input.eloisaManualAdmissionSource) {
+    return {
+      [`beds.${input.bedId}`]: buildManualEloisaAdmissionPatient(input),
+    } as DailyRecordPatch;
+  }
   // Patch keys use computed string template paths; the strict
   // DailyRecordPatch index signature carries a different value type per path
   // and TS cannot prove the narrowing through the dynamic bedId, so we

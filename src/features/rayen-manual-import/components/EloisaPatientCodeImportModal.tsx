@@ -104,9 +104,14 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
     }
     setSaving(true);
     setError('');
-    const failure = await onConfirm(payload, bedId);
-    if (failure) {
-      setError(failure);
+    try {
+      const failure = await onConfirm(payload, bedId);
+      if (failure) setError(failure);
+    } catch {
+      setError(
+        'No se pudo guardar el paciente. Intenta nuevamente; no se realizó una escritura parcial.'
+      );
+    } finally {
       setSaving(false);
     }
   }, [bedId, onConfirm, payload, saving]);

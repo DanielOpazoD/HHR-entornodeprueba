@@ -81,6 +81,7 @@
         "lab-viewer.js",
         "exam-request-print.js",
         "content-fichamedico.js",
+        "fichamedico-manual-patient-copy.js",
         "content-exam-request-print.js",
         "content-prescription-print.js"
       ],

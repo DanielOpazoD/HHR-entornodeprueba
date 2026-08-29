@@ -139,4 +139,26 @@ describe('EloisaPatientCodeImportModal', () => {
     expect(onConfirm).not.toHaveBeenCalled();
     now.mockRestore();
   });
+
+  it('recovers after an unexpected admission failure and allows retrying', async () => {
+    const onConfirm = vi.fn().mockRejectedValueOnce(new Error('offline'));
+    render(
+      <EloisaPatientCodeImportModal
+        isOpen
+        emptyBeds={[{ id: 'H3C1', label: 'H3C1' }]}
+        onClose={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+    fireEvent.change(screen.getByLabelText(/código copiado/i), {
+      target: { value: await createEloisaPatientCode(payload) },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /validar y revisar/i }));
+    expect(await screen.findByText('José Ángel Muñoz Rapa Nui')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/cama de destino/i), { target: { value: 'H3C1' } });
+    fireEvent.click(screen.getByRole('button', { name: /confirmar ingreso/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no se pudo guardar/i);
+    expect(screen.getByRole('button', { name: /confirmar ingreso/i })).toBeEnabled();
+  });
 });

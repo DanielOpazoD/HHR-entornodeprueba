@@ -83,6 +83,66 @@ describe('buildAdmitPatientPatch', () => {
       }),
     });
   });
+
+  it('replaces residual data in an empty bed for a manual Eloísa admission', () => {
+    const input = baseInput({
+      pathology: undefined,
+      secondLastName: undefined,
+      birthDate: undefined,
+      admissionTime: undefined,
+      biologicalSex: undefined,
+      devices: undefined,
+      eloisaManualAdmissionSource: {
+        method: 'eloisa_manual_code',
+        capturedAt: '2026-08-28T20:15:00.000Z',
+        formatVersion: 1,
+        encounterId: '98765',
+      },
+      eloisaManualImportAudit: {
+        method: 'eloisa_manual_code',
+        importedBy: 'nurse@hospital.cl',
+        importedAt: '2026-08-28T20:20:00.000Z',
+        capturedAt: '2026-08-28T20:15:00.000Z',
+        formatVersion: 1,
+        encounterId: '98765',
+        integrity: 'sha256_checksum',
+        sourceTrust: 'user_confirmed_unverified',
+      },
+      baseRecord: {
+        date: '2026-05-03',
+        lastUpdated: '2026-05-03T09:00:00.000Z',
+        beds: {
+          H5C1: {
+            patientName: '',
+            pathology: 'Diagnóstico residual',
+            secondLastName: 'Residual',
+            birthDate: '1950-01-01',
+            admissionTime: '01:23',
+            biologicalSex: 'Femenino',
+            devices: ['CVC'],
+            bedName: 'Cama 5-1',
+          } as NonNullable<AdmitPatientInput['baseRecord']>['beds'][string],
+        },
+        discharges: [],
+        transfers: [],
+        cma: [],
+        activeExtraBeds: [],
+      },
+    });
+
+    const patch = buildAdmitPatientPatch(input) as Record<string, unknown>;
+    expect(patch['beds.H5C1']).toMatchObject({
+      bedName: 'Cama 5-1',
+      patientName: 'Paciente Demo',
+      pathology: '',
+      secondLastName: '',
+      birthDate: '',
+      admissionTime: '',
+      biologicalSex: 'Indeterminado',
+      devices: [],
+      eloisaManualImportAudit: expect.objectContaining({ encounterId: '98765' }),
+    });
+  });
 });
 
 describe('createDailyRecordAdmitPatientPort', () => {
