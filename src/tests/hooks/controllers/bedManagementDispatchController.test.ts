@@ -308,7 +308,16 @@ describe('bedManagementDispatchController', () => {
     warnSpy.mockRestore();
   });
 
-  it('requires remote confirmation before reporting a manual bed clear as applied', async () => {
+  it('remotely confirms a bed clear and removes its associated crib', async () => {
+    const record = buildRecord();
+    record.beds.R1.hasCompanionCrib = true;
+    record.beds.R1.clinicalCrib = {
+      ...record.beds.R1,
+      bedMode: 'Cuna',
+      patientName: 'RN asociado',
+      rut: '22.222.222-2',
+      clinicalEpisodeId: 'crib-associated-r1',
+    };
     const patchRecord = vi.fn().mockResolvedValue(undefined);
     const auditPatientCleared = vi.fn();
     const validation: BedManagementValidationPort = {
@@ -324,7 +333,7 @@ describe('bedManagementDispatchController', () => {
     };
 
     const result = await executeBedManagementAction({
-      currentRecord: buildRecord(),
+      currentRecord: record,
       action: {
         type: 'CLEAR_PATIENT',
         bedId: 'R1',
@@ -343,6 +352,8 @@ describe('bedManagementDispatchController', () => {
           patientName: '',
           rut: '',
           pathology: '',
+          hasCompanionCrib: false,
+          clinicalCrib: undefined,
         }),
       },
       {
