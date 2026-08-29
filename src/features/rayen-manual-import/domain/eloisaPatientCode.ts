@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
-export const ELOISA_PATIENT_CODE_PREFIX = 'HHR-PACIENTE-1';
-export const ELOISA_PATIENT_CODE_FORMAT_VERSION = 1 as const;
+export const ELOISA_PATIENT_CODE_PREFIX = 'HHR-PACIENTE-2';
+export const ELOISA_PATIENT_CODE_FORMAT_VERSION = 2 as const;
+const ELOISA_PATIENT_CODE_LEGACY_PREFIX = 'HHR-PACIENTE-1';
 export const ELOISA_PATIENT_CODE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 export const ELOISA_PATIENT_CODE_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 const MAX_CODE_LENGTH = 16_384;
@@ -17,43 +18,78 @@ const isRealIsoDate = (value: string): boolean => {
 
 const IsoDateSchema = z.string().refine(isRealIsoDate, 'Fecha calendario no válida.');
 
-const EloisaManualPatientSchema = z
+const EloisaManualDeviceEntrySchema = z
   .object({
-    version: z.literal(ELOISA_PATIENT_CODE_FORMAT_VERSION),
-    capturedAt: z.string().datetime({ offset: true }),
-    encounterId: z.string().trim().regex(/^\d+$/),
-    firstName: z.string().trim().min(1),
-    middleNames: z.string().trim().optional(),
-    lastName: z.string().trim().min(1),
-    secondLastName: z.string().trim().optional(),
-    rut: z.string().trim().min(2),
-    birthDate: IsoDateSchema.optional(),
-    biologicalSex: z.enum(['Masculino', 'Femenino', 'Indeterminado']).optional(),
-    admissionDate: IsoDateSchema,
-    admissionTime: z
-      .string()
-      .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
-      .optional(),
-    diagnosis: z.string().trim().optional(),
-    devices: z.array(z.string().trim().min(1)).max(30).default([]),
+    name: z.string().trim().min(1).max(160),
+    location: z.string().trim().max(160).optional(),
+    measuredNumber: z.string().trim().max(40).optional(),
+    installationDatetime: z.string().trim().max(80).optional(),
+    expirationDatetime: z.string().trim().max(80).optional(),
+  })
+  .strict();
+
+const EloisaManualPatientBaseShape = {
+  capturedAt: z.string().datetime({ offset: true }),
+  encounterId: z.string().trim().regex(/^\d+$/),
+  firstName: z.string().trim().min(1),
+  middleNames: z.string().trim().optional(),
+  lastName: z.string().trim().min(1),
+  secondLastName: z.string().trim().optional(),
+  rut: z.string().trim().min(2),
+  birthDate: IsoDateSchema.optional(),
+  biologicalSex: z.enum(['Masculino', 'Femenino', 'Indeterminado']).optional(),
+  admissionDate: IsoDateSchema,
+  admissionTime: z
+    .string()
+    .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  diagnosis: z.string().trim().optional(),
+  devices: z.array(z.string().trim().min(1)).max(30).default([]),
+};
+
+const validateClinicalDates = (
+  payload: { birthDate?: string; admissionDate: string; capturedAt: string },
+  context: z.RefinementCtx
+) => {
+  if (payload.birthDate && payload.birthDate > payload.admissionDate) {
+    context.addIssue({
+      code: 'custom',
+      path: ['birthDate'],
+      message: 'La fecha de nacimiento no puede ser posterior al ingreso.',
+    });
+  }
+  if (payload.admissionDate > payload.capturedAt.slice(0, 10)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['admissionDate'],
+      message: 'La fecha de ingreso no puede ser posterior a la captura.',
+    });
+  }
+};
+
+const LegacyEloisaManualPatientSchema = z
+  .object({
+    version: z.literal(1),
+    ...EloisaManualPatientBaseShape,
   })
   .strict()
-  .superRefine((payload, context) => {
-    if (payload.birthDate && payload.birthDate > payload.admissionDate) {
-      context.addIssue({
-        code: 'custom',
-        path: ['birthDate'],
-        message: 'La fecha de nacimiento no puede ser posterior al ingreso.',
-      });
-    }
-    if (payload.admissionDate > payload.capturedAt.slice(0, 10)) {
-      context.addIssue({
-        code: 'custom',
-        path: ['admissionDate'],
-        message: 'La fecha de ingreso no puede ser posterior a la captura.',
-      });
-    }
-  });
+  .superRefine(validateClinicalDates)
+  .transform(payload => ({ ...payload, deviceEntries: [], encounterRoute: undefined }));
+
+const CurrentEloisaManualPatientSchema = z
+  .object({
+    version: z.literal(ELOISA_PATIENT_CODE_FORMAT_VERSION),
+    ...EloisaManualPatientBaseShape,
+    deviceEntries: z.array(EloisaManualDeviceEntrySchema).max(30).default([]),
+    encounterRoute: z.enum(['medical', 'nurse']).optional(),
+  })
+  .strict()
+  .superRefine(validateClinicalDates);
+
+const EloisaManualPatientSchema = z.union([
+  LegacyEloisaManualPatientSchema,
+  CurrentEloisaManualPatientSchema,
+]);
 
 export type EloisaManualPatientPayload = z.infer<typeof EloisaManualPatientSchema>;
 
@@ -128,7 +164,7 @@ export const serializeEloisaPatientPayload = (payload: EloisaManualPatientPayloa
   JSON.stringify(canonicalize(EloisaManualPatientSchema.parse(payload)));
 
 export const createEloisaPatientCode = async (
-  payload: EloisaManualPatientPayload
+  payload: Extract<EloisaManualPatientPayload, { version: 2 }>
 ): Promise<string> => {
   const encoded = toBase64Url(new TextEncoder().encode(serializeEloisaPatientPayload(payload)));
   const material = `${ELOISA_PATIENT_CODE_PREFIX}.${encoded}`;
@@ -148,7 +184,13 @@ export const parseEloisaPatientCode = async (
     throw new EloisaPatientCodeError('incomplete', 'El código está incompleto o fue truncado.');
   }
   const [prefix, encoded, checksum] = parts;
-  if (prefix !== ELOISA_PATIENT_CODE_PREFIX) {
+  const payloadSchema =
+    prefix === ELOISA_PATIENT_CODE_PREFIX
+      ? CurrentEloisaManualPatientSchema
+      : prefix === ELOISA_PATIENT_CODE_LEGACY_PREFIX
+        ? LegacyEloisaManualPatientSchema
+        : null;
+  if (!payloadSchema) {
     if (/^HHR-PACIENTE-\d+$/.test(prefix)) {
       throw new EloisaPatientCodeError(
         'unsupported_version',
@@ -171,7 +213,7 @@ export const parseEloisaPatientCode = async (
     if (error instanceof EloisaPatientCodeError) throw error;
     throw new EloisaPatientCodeError('corrupt', 'El contenido del código no es válido.');
   }
-  const result = EloisaManualPatientSchema.safeParse(decoded);
+  const result = payloadSchema.safeParse(decoded);
   if (!result.success) {
     throw new EloisaPatientCodeError(
       'invalid_payload',

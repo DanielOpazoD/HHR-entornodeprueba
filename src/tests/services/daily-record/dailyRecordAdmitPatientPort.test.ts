@@ -56,6 +56,22 @@ describe('buildAdmitPatientPatch', () => {
         birthDate: '1980-05-04',
         biologicalSex: 'Masculino',
         devices: ['VVP', 'CVC'],
+        deviceDetails: {
+          'VVP#1': { installationDate: '2026-08-28' },
+          CVC: { installationDate: '2026-08-27' },
+        },
+        deviceInstanceHistory: [
+          {
+            id: 'device-1',
+            type: 'VVP#1',
+            clinicalEpisodeId: '98765',
+            installationDate: '2026-08-28',
+            installationTime: '07:15',
+            status: 'Active',
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
         eloisaManualImportAudit: {
           method: 'eloisa_manual_code',
           importedBy: 'nurse@hospital.cl',
@@ -76,6 +92,17 @@ describe('buildAdmitPatientPatch', () => {
       'beds.H5C1.birthDate': '1980-05-04',
       'beds.H5C1.biologicalSex': 'Masculino',
       'beds.H5C1.devices': ['VVP', 'CVC'],
+      'beds.H5C1.deviceDetails': {
+        'VVP#1': { installationDate: '2026-08-28' },
+        CVC: { installationDate: '2026-08-27' },
+      },
+      'beds.H5C1.deviceInstanceHistory': [
+        expect.objectContaining({
+          type: 'VVP#1',
+          installationDate: '2026-08-28',
+          installationTime: '07:15',
+        }),
+      ],
       'beds.H5C1.eloisaManualImportAudit': expect.objectContaining({
         method: 'eloisa_manual_code',
         encounterId: '98765',

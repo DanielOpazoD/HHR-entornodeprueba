@@ -12,7 +12,7 @@ import {
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
 
 const payload: EloisaManualPatientPayload = {
-  version: 1,
+  version: 2,
   capturedAt: '2026-08-28T20:15:00.000Z',
   encounterId: '98765',
   firstName: 'José',
@@ -26,11 +26,16 @@ const payload: EloisaManualPatientPayload = {
   admissionTime: '06:35',
   diagnosis: 'Neumonía adquirida en la comunidad',
   devices: ['VVP', 'CVC'],
+  deviceEntries: [
+    { name: 'VVP', installationDatetime: '2026-08-28T07:15:00-06:00' },
+    { name: 'CVC', installationDatetime: '2026-08-27T19:40:00-06:00' },
+  ],
+  encounterRoute: 'nurse',
 };
 
-const buildUncheckedCode = async (value: unknown): Promise<string> => {
+const buildUncheckedCode = async (value: unknown, prefix = 'HHR-PACIENTE-2'): Promise<string> => {
   const encoded = Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
-  const material = `HHR-PACIENTE-1.${encoded}`;
+  const material = `${prefix}.${encoded}`;
   const checksum = Buffer.from(
     await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(material))
   ).toString('base64url');
@@ -46,6 +51,21 @@ describe('eloisa patient code contract', () => {
     expect(serializeEloisaPatientPayload(payload)).toContain('José');
   });
 
+  it('keeps version 1 codes created before structured device evidence compatible', async () => {
+    const {
+      deviceEntries: _deviceEntries,
+      encounterRoute: _encounterRoute,
+      ...currentPayload
+    } = payload;
+    const legacyPayload = { ...currentPayload, version: 1 };
+    const code = await buildUncheckedCode(legacyPayload, 'HHR-PACIENTE-1');
+
+    await expect(parseEloisaPatientCode(code)).resolves.toMatchObject({
+      devices: ['VVP', 'CVC'],
+      deviceEntries: [],
+    });
+  });
+
   it('rejects truncation and accidental modification', async () => {
     const code = await createEloisaPatientCode(payload);
     await expect(parseEloisaPatientCode(code.slice(0, -8))).rejects.toThrow(
@@ -58,7 +78,7 @@ describe('eloisa patient code contract', () => {
   it('rejects an unknown format version before attempting to import', async () => {
     const code = await createEloisaPatientCode(payload);
     await expect(
-      parseEloisaPatientCode(code.replace('HHR-PACIENTE-1', 'HHR-PACIENTE-2'))
+      parseEloisaPatientCode(code.replace('HHR-PACIENTE-2', 'HHR-PACIENTE-3'))
     ).rejects.toThrow(/versión/i);
   });
 

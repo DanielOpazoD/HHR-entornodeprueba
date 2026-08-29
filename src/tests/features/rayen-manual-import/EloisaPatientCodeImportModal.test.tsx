@@ -7,7 +7,7 @@ import {
 } from '@/features/rayen-manual-import/domain/eloisaPatientCode';
 
 const payload: EloisaManualPatientPayload = {
-  version: 1,
+  version: 2,
   capturedAt: new Date().toISOString(),
   encounterId: '98765',
   firstName: 'José',
@@ -21,6 +21,8 @@ const payload: EloisaManualPatientPayload = {
   admissionTime: '06:35',
   diagnosis: 'Neumonía',
   devices: ['VVP'],
+  deviceEntries: [{ name: 'VVP', installationDatetime: '2026-08-28T07:15:00-06:00' }],
+  encounterRoute: 'nurse',
 };
 
 describe('EloisaPatientCodeImportModal', () => {
@@ -43,6 +45,7 @@ describe('EloisaPatientCodeImportModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /validar y revisar/i }));
 
     expect(await screen.findByText('José Ángel Muñoz Rapa Nui')).toBeInTheDocument();
+    expect(screen.getByText(/VVP · instalado 2026-08-28T07:15/)).toBeInTheDocument();
     expect(screen.getByText('Neumonía')).toBeInTheDocument();
     expect(confirm).toBeDisabled();
     fireEvent.change(screen.getByLabelText(/cama de destino/i), { target: { value: 'H3C1' } });
@@ -51,6 +54,33 @@ describe('EloisaPatientCodeImportModal', () => {
 
     await vi.waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
     expect(onConfirm).toHaveBeenCalledWith(payload, 'H3C1');
+  });
+
+  it('shows every structured device instance even when legacy names are empty or repeated', async () => {
+    const structuredPayload = {
+      ...payload,
+      devices: [],
+      deviceEntries: [
+        { name: 'VVP', installationDatetime: '2026-08-28T07:15:00-06:00' },
+        { name: 'VVP', installationDatetime: '2026-08-28T11:40:00-06:00' },
+      ],
+    };
+    render(
+      <EloisaPatientCodeImportModal
+        isOpen
+        emptyBeds={[{ id: 'H3C1', label: 'H3C1' }]}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    fireEvent.change(screen.getByLabelText(/código copiado/i), {
+      target: { value: await createEloisaPatientCode(structuredPayload) },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /validar y revisar/i }));
+
+    expect(await screen.findByText(/VVP · instalado 2026-08-28T07:15/)).toHaveTextContent(
+      'VVP · instalado 2026-08-28T11:40'
+    );
   });
 
   it('rejects an invalid RUT and never enables confirmation', async () => {

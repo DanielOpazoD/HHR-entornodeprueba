@@ -24,11 +24,12 @@
       if (!row) return { error: 'El paciente ya no figura en las listas activas de Eloísa.' };
       try {
         const header = await fetchPatientHeader(encounterId, session.info);
+        const normalizedPatient = normalizePatient(row, header);
         const patient = {
-          ...normalizePatient(row, header),
+          ...normalizedPatient,
           admissionDatetime: header.encStartPeriod || row.startDatetime || '',
-          administrativeSex: header.adseName || row.patientAdministrativeSex || '',
-          gender: header.gendName || row.gender || '',
+          administrativeSex: [header.adseName, row.patientAdministrativeSex, normalizedPatient.administrativeSex, ''].find(Boolean),
+          gender: [header.gendName, row.gender, normalizedPatient.gender, ''].find(Boolean),
         };
         const deviceResult = await fetchDeviceEvidence({
           encId: encounterId,
@@ -56,7 +57,6 @@
       }
     };
   };
-  const api = Object.freeze({ create });
-  root.HhrFichaMedicoManualPatientCodeRuntime = api;
+  const api = Object.freeze({ create }); root.HhrFichaMedicoManualPatientCodeRuntime = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

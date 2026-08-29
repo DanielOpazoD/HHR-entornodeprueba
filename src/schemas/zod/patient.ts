@@ -211,8 +211,9 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
           importedBy: z.string(),
           importedAt: z.string(),
           capturedAt: z.string(),
-          formatVersion: z.literal(1),
+          formatVersion: z.union([z.literal(1), z.literal(2)]),
           encounterId: z.string(),
+          encounterRoute: z.enum(['medical', 'nurse']).optional(),
           integrity: z.literal('sha256_checksum'),
           sourceTrust: z.literal('user_confirmed_unverified'),
         })

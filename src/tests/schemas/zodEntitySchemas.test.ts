@@ -125,6 +125,26 @@ describe('zod entity schemas', () => {
       expect(patient.specialty).toBe('ORL');
     });
 
+    it('preserves the nursing encounter route for a manual Eloísa import', () => {
+      const patient = PatientDataSchema.parse({
+        bedId: 'R1',
+        patientName: 'Paciente Demo',
+        eloisaManualImportAudit: {
+          method: 'eloisa_manual_code',
+          importedBy: 'demo-user',
+          importedAt: '2026-08-28T20:20:00.000Z',
+          capturedAt: '2026-08-28T20:15:00.000Z',
+          formatVersion: 1,
+          encounterId: '98765',
+          encounterRoute: 'nurse',
+          integrity: 'sha256_checksum',
+          sourceTrust: 'user_confirmed_unverified',
+        },
+      });
+
+      expect(patient.eloisaManualImportAudit?.encounterRoute).toBe('nurse');
+    });
+
     it('should derive split name fields from legacy patientName', () => {
       const patient = PatientDataSchema.parse({
         patientName: 'Juan Carlos Pérez Soto',

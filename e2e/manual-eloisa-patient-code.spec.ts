@@ -31,17 +31,22 @@ const buildPatientCode = (date: string): string => {
     birthDate: '1986-05-12',
     capturedAt: new Date().toISOString(),
     devices: ['CVC', 'Sonda Foley'],
+    deviceEntries: [
+      { name: 'CVC', installationDatetime: `${date}T07:15:00-06:00` },
+      { name: 'Sonda Foley', installationDatetime: `${date}T07:30:00-06:00` },
+    ],
     diagnosis: 'Diagnóstico de prueba E2E',
     encounterId: ENCOUNTER_ID,
+    encounterRoute: 'nurse',
     firstName: 'Ana',
     lastName: 'Pérez',
     middleNames: 'María',
     rut: TEST_RUT,
     secondLastName: 'Soto',
-    version: 1,
+    version: 2,
   });
   const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
-  const material = `HHR-PACIENTE-1.${encoded}`;
+  const material = `HHR-PACIENTE-2.${encoded}`;
   return `${material}.${createHash('sha256').update(material).digest('base64url')}`;
 };
 
@@ -72,7 +77,7 @@ test.describe('Manual Eloísa patient code', () => {
 
     const modal = page.getByRole('dialog', { name: 'Importar código de Eloísa' });
     await expect(modal).toBeVisible();
-    await modal.getByPlaceholder('HHR-PACIENTE-1.…').fill(buildPatientCode(date));
+    await modal.getByPlaceholder('HHR-PACIENTE-2.…').fill(buildPatientCode(date));
     await modal.getByRole('button', { name: 'Validar y revisar' }).click();
 
     await expect(modal.getByLabel('Vista previa del paciente')).toContainText(TEST_NAME);
@@ -91,6 +96,40 @@ test.describe('Manual Eloísa patient code', () => {
         clinicalEpisodeId: ENCOUNTER_ID,
         pathology: 'Diagnóstico de prueba E2E',
       },
+    });
+    const structuredFields = await page.evaluate(
+      ({ recordDate, bedId }) => {
+        const records = JSON.parse(
+          window.localStorage.getItem('hanga_roa_hospital_data') || '{}'
+        ) as Record<string, { beds?: Record<string, Record<string, unknown>> }>;
+        const bed = records[recordDate]?.beds?.[bedId] || {};
+        return {
+          deviceDetails: bed.deviceDetails,
+          deviceInstanceHistory: bed.deviceInstanceHistory,
+          encounterRoute: (bed.eloisaManualImportAudit as { encounterRoute?: string } | undefined)
+            ?.encounterRoute,
+        };
+      },
+      { recordDate: date, bedId: TARGET_BED }
+    );
+    expect(structuredFields).toMatchObject({
+      deviceDetails: {
+        CVC: { installationDate: date },
+        CUP: { installationDate: date },
+      },
+      deviceInstanceHistory: expect.arrayContaining([
+        expect.objectContaining({
+          type: 'CVC',
+          installationDate: date,
+          installationTime: '07:15',
+        }),
+        expect.objectContaining({
+          type: 'CUP',
+          installationDate: date,
+          installationTime: '07:30',
+        }),
+      ]),
+      encounterRoute: 'nurse',
     });
   });
 });

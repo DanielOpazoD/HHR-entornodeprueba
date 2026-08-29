@@ -10,13 +10,16 @@ vi.mock('@/features/census/controllers/clinicalPanelNavigationController', () =>
 vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
   ClinicalPanelDrawer: ({
     patientName,
+    encounterRouteHint,
     onNavigateNext,
   }: {
     patientName: string;
+    encounterRouteHint?: 'medical' | 'nurse';
     onNavigateNext: () => void;
   }) => (
     <div role="dialog">
       Panel de {patientName}
+      <span data-testid="drawer-route">{encounterRouteHint || 'sin ruta'}</span>
       <button type="button" onClick={onNavigateNext}>
         Siguiente paciente
       </button>
@@ -84,6 +87,49 @@ describe('ClinicalPanelTrigger', () => {
     expect(mocks.resolveNavigation.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(staleClick).not.toHaveBeenCalled();
     expect(activeClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the adjacent patient with that patient route hint', () => {
+    mocks.resolveNavigation.mockImplementation((_root: ParentNode, currentKey: string) => {
+      const triggers = [
+        ...document.querySelectorAll<HTMLButtonElement>('[data-clinical-panel-key]'),
+      ];
+      const currentIndex = triggers.findIndex(
+        trigger => trigger.dataset.clinicalPanelKey === currentKey
+      );
+      return {
+        previous: currentIndex > 0 ? triggers[currentIndex - 1] : null,
+        next:
+          currentIndex >= 0 && currentIndex < triggers.length - 1
+            ? triggers[currentIndex + 1]
+            : null,
+      };
+    });
+    render(
+      <>
+        <ClinicalPanelTrigger
+          bedId="R1"
+          patientName="Paciente manual"
+          patientRun="17.752.753-1"
+          clinicalEpisodeId="141336"
+          encounterRouteHint="nurse"
+        />
+        <ClinicalPanelTrigger
+          bedId="R2"
+          patientName="Paciente sincronizado"
+          patientRun="16.914.348-1"
+          clinicalEpisodeId="141337"
+          encounterRouteHint="medical"
+        />
+      </>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente manual' }));
+    expect(screen.getByTestId('drawer-route')).toHaveTextContent('nurse');
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente paciente' }));
+
+    expect(screen.getByRole('dialog')).toHaveTextContent('Panel de Paciente sincronizado');
+    expect(screen.getByTestId('drawer-route')).toHaveTextContent('medical');
   });
 
   it('opens the episode-aware reports menu', () => {

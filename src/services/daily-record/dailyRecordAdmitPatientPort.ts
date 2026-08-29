@@ -42,6 +42,8 @@ const buildManualEloisaAdmissionPatient = (input: AdmitPatientInput) => {
     admissionDate: input.admissionDate,
     admissionTime: input.admissionTime ?? '',
     devices: input.devices ?? [],
+    deviceDetails: input.deviceDetails ?? {},
+    deviceInstanceHistory: input.deviceInstanceHistory ?? [],
     clinicalEpisodeId: resolveClinicalEpisodeIdForAdmission(input),
     eloisaManualImportAudit: input.eloisaManualImportAudit,
   };
@@ -80,6 +82,8 @@ export const buildAdmitPatientPatch = (input: AdmitPatientInput): DailyRecordPat
     birthDate: input.birthDate,
     biologicalSex: input.biologicalSex,
     devices: input.devices,
+    deviceDetails: input.deviceDetails,
+    deviceInstanceHistory: input.deviceInstanceHistory,
     eloisaManualImportAudit: input.eloisaManualImportAudit,
   };
   Object.entries(optionalFields).forEach(([field, value]) => {

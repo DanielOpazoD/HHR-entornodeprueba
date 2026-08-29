@@ -222,6 +222,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               patientName={fullName}
               patientRun={data.rut}
               clinicalEpisodeId={data.clinicalEpisodeId}
+              encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
               admissionDate={data.admissionDate}
             />
           )}

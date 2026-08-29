@@ -74,7 +74,7 @@
     if (data.type === 'HHR_RAYEN_OPEN_ENCOUNTER_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
-        .sendMessage({ type: runtimeMessages.OPEN_ENCOUNTER_REQUEST, encId: data.encId })
+        .sendMessage({ type: runtimeMessages.OPEN_ENCOUNTER_REQUEST, encId: data.encId, routeHint: data.routeHint })
         .then(response => {
           post({
             type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT',

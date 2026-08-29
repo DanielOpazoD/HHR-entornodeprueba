@@ -60,7 +60,7 @@
     [types.GC_SESSION_CAPTURED]: { info: 'object' },
     [types.GC_CONNECT_REQUEST]: { renew: 'boolean?' },
     [types.SYNC_BUNDLE_REQUEST]: { requestId: 'string', dateStart: 'string', dateEnd: 'string' },
-    [types.OPEN_ENCOUNTER_REQUEST]: { encId: 'id' },
+    [types.OPEN_ENCOUNTER_REQUEST]: { encId: 'id', routeHint: 'string?' },
     [types.EGRESO_LOOKUP_REQUEST]: { runs: 'array', targets: 'array?' },
     [types.EGRESO_REPORT_REQUEST]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.EGRESO_REPORT_SAVE]: { dateStart: 'string?', dateEnd: 'string?' },

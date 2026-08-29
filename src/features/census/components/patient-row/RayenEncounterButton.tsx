@@ -7,12 +7,14 @@ interface RayenEncounterButtonProps {
   bedId: string;
   patientName: string;
   clinicalEpisodeId: string;
+  routeHint?: 'medical' | 'nurse';
 }
 
 export const RayenEncounterButton: React.FC<RayenEncounterButtonProps> = ({
   bedId,
   patientName,
   clinicalEpisodeId,
+  routeHint,
 }) => {
   const [isOpening, setIsOpening] = useState(false);
   const { success, error: notifyError } = useNotification();
@@ -21,7 +23,7 @@ export const RayenEncounterButton: React.FC<RayenEncounterButtonProps> = ({
     if (isOpening) return;
     setIsOpening(true);
     try {
-      const result = await requestRayenEncounterNavigation(clinicalEpisodeId);
+      const result = await requestRayenEncounterNavigation(clinicalEpisodeId, 8000, routeHint);
       if (result.ok) {
         success(
           'Eloísa abierta',

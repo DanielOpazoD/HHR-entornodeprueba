@@ -26,6 +26,22 @@ const formatCapturedAt = (value: string): string => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('es-CL');
 };
 
+const formatDevices = (payload: EloisaManualPatientPayload): string => {
+  if (payload.deviceEntries.length) {
+    return payload.deviceEntries
+      .map(entry => {
+        const details = [
+          entry.location ? `ubicación ${entry.location}` : '',
+          entry.installationDatetime ? `instalado ${entry.installationDatetime}` : '',
+        ].filter(Boolean);
+        return details.length ? `${entry.name} · ${details.join(' · ')}` : entry.name;
+      })
+      .join(', ');
+  }
+  if (!payload.devices.length) return 'No informados';
+  return payload.devices.join(', ');
+};
+
 export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModalProps> = ({
   isOpen,
   emptyBeds,
@@ -86,7 +102,7 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
         `${payload.admissionDate}${payload.admissionTime ? ` · ${payload.admissionTime}` : ''}`,
       ],
       ['Diagnóstico', payload.diagnosis || 'No informado'],
-      ['Dispositivos', payload.devices.length ? payload.devices.join(', ') : 'No informados'],
+      ['Dispositivos', formatDevices(payload)],
       ['Episodio Eloísa', payload.encounterId],
       ['Capturado', formatCapturedAt(payload.capturedAt)],
     ];
@@ -149,7 +165,7 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
           spellCheck={false}
           disabled={validating || saving}
           className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
-          placeholder="HHR-PACIENTE-1.…"
+          placeholder="HHR-PACIENTE-2.…"
         />
       </label>
 

@@ -39,12 +39,14 @@ import {
 import { resolveClinicalEpisodeIdForAdmission } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import type { EloisaManualImportAudit } from '@/shared/contracts/eloisaManualImport';
+import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
 
 export interface EloisaManualAdmissionSource {
   method: 'eloisa_manual_code';
   capturedAt: string;
-  formatVersion: 1;
+  formatVersion: 1 | 2;
   encounterId: string;
+  encounterRoute?: 'medical' | 'nurse';
 }
 
 export interface AdmitPatientInput {
@@ -60,6 +62,8 @@ export interface AdmitPatientInput {
   birthDate?: string;
   biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
   devices?: string[];
+  deviceDetails?: DeviceDetails;
+  deviceInstanceHistory?: DeviceInstance[];
   clinicalEpisodeId?: string;
   eloisaManualAdmissionSource?: EloisaManualAdmissionSource;
   eloisaManualImportAudit?: EloisaManualImportAudit;

@@ -187,6 +187,7 @@ describe('ClinicalPanelDrawer', () => {
         bedId="H1C2"
         patientName="Paciente de prueba"
         clinicalEpisodeId="141121"
+        encounterRouteHint="nurse"
         onClose={vi.fn()}
       />
     );
@@ -195,7 +196,7 @@ describe('ClinicalPanelDrawer', () => {
     expect(button.querySelector('img')).toHaveAttribute('src', '/images/logos/rayen-mark.png');
     fireEvent.click(button);
 
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('141121'));
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('141121', 8000, 'nurse'));
     expect(mocks.success).toHaveBeenCalledWith(
       'Eloísa abierta',
       'Se activó la pestaña de Ficha Médico en el episodio seleccionado.'

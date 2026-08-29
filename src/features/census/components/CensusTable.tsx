@@ -27,6 +27,7 @@ import {
   findManualPatientDuplicate,
   type EloisaManualPatientPayload,
 } from '@/features/rayen-manual-import';
+import { mapRayenInvasiveDeviceEntries, mergeReportDevices } from '@/features/rayen-import';
 
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
@@ -143,9 +144,23 @@ export const CensusTable: React.FC<CensusTableProps> = ({
           ? `Este RUT ya está presente en la cama ${duplicate.bedId}. No se creó otro ingreso.`
           : `Este episodio de Eloísa ya está presente en la cama ${duplicate.bedId}.`;
       }
+      const patientName = buildEloisaPatientDisplayName(payload);
+      const patientWithDevices = mergeReportDevices(
+        {
+          ...createEmptyPatient(targetBedId),
+          patientName,
+          rut: payload.rut,
+          clinicalEpisodeId: payload.encounterId,
+        },
+        mapRayenInvasiveDeviceEntries(payload.deviceEntries),
+        {
+          now: new Date(),
+          createId: () => globalThis.crypto.randomUUID(),
+        }
+      );
       const outcome = await admitPatient({
         bedId: targetBedId,
-        patientName: buildEloisaPatientDisplayName(payload),
+        patientName,
         firstName: [payload.firstName, payload.middleNames].filter(Boolean).join(' '),
         lastName: payload.lastName,
         secondLastName: payload.secondLastName,
@@ -155,13 +170,16 @@ export const CensusTable: React.FC<CensusTableProps> = ({
         admissionDate: payload.admissionDate,
         admissionTime: payload.admissionTime,
         pathology: payload.diagnosis,
-        devices: payload.devices,
+        devices: patientWithDevices.devices.length ? patientWithDevices.devices : payload.devices,
+        deviceDetails: patientWithDevices.deviceDetails,
+        deviceInstanceHistory: patientWithDevices.deviceInstanceHistory,
         clinicalEpisodeId: payload.encounterId,
         eloisaManualAdmissionSource: {
           method: 'eloisa_manual_code',
           capturedAt: payload.capturedAt,
           formatVersion: payload.version,
           encounterId: payload.encounterId,
+          encounterRoute: payload.encounterRoute,
         },
         recordDate: currentDateString,
         baseRecord: record,

@@ -1165,7 +1165,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo capturar Ficha Médico y Gestión de Camas en una misma sincronización.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
-    message => handleOpenEncounter(message.encId),
+    message => handleOpenEncounter(message.encId, message.routeHint),
     'No se pudo abrir el episodio clínico.'
   ),
   [RUNTIME_MESSAGES.EGRESO_LOOKUP_REQUEST]: runtimeRoute(
