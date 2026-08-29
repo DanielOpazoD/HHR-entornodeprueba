@@ -153,23 +153,6 @@ describe('definitive bed clear serialization', () => {
     repairApplied: false,
   });
 
-  const buildUnavailableReadResult = () => ({
-    date: mockDate,
-    record: null,
-    source: 'not_found' as const,
-    compatibilityTier: 'none' as const,
-    compatibilityIntensity: 'none' as const,
-    migrationRulesApplied: [],
-    consistencyState: 'unavailable' as const,
-    sourceOfTruth: 'none' as const,
-    retryability: 'automatic_retry' as const,
-    recoveryAction: 'defer_remote_sync' as const,
-    conflictSummary: null,
-    observabilityTags: ['daily_record', 'read', 'remote_unavailable'],
-    userSafeMessage: 'No se pudo consultar el registro remoto.',
-    repairApplied: false,
-  });
-
   it('serializes a newer mutation behind a definitive clear', async () => {
     const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
       ...mockRecord,

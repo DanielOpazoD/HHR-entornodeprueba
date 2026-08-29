@@ -6,7 +6,6 @@ import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
   mockDailyRecordRepositoryPort: {
@@ -150,23 +149,6 @@ describe('definitive bed clear confirmation', () => {
     recoveryAction: 'none' as const,
     conflictSummary: null,
     observabilityTags: ['daily_record', 'read'],
-    repairApplied: false,
-  });
-
-  const buildUnavailableReadResult = () => ({
-    date: mockDate,
-    record: null,
-    source: 'not_found' as const,
-    compatibilityTier: 'none' as const,
-    compatibilityIntensity: 'none' as const,
-    migrationRulesApplied: [],
-    consistencyState: 'unavailable' as const,
-    sourceOfTruth: 'none' as const,
-    retryability: 'automatic_retry' as const,
-    recoveryAction: 'defer_remote_sync' as const,
-    conflictSummary: null,
-    observabilityTags: ['daily_record', 'read', 'remote_unavailable'],
-    userSafeMessage: 'No se pudo consultar el registro remoto.',
     repairApplied: false,
   });
 

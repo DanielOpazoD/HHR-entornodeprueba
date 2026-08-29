@@ -13,7 +13,6 @@ import {
   shouldUseDailyRecordRealtimeSync,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import {
-  getDailyRecordLastRemoteConfirmedAt,
   markDailyRecordRemoteConfirmed,
   markDailyRecordStaleBaseline,
   markDailyRecordTabHidden,
@@ -23,7 +22,6 @@ import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contra
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
 import {
-  assertHydratedRemotePatchCanProceed,
   ensureFreshDailyRecordSaveMutation,
   ensureFreshDailyRecordQuery,
   persistDailyRecordSaveMutation,
