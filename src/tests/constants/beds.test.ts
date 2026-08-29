@@ -24,7 +24,7 @@ describe('beds constants', () => {
 
   describe('BEDS array', () => {
     it('should have correct total count', () => {
-      expect(BEDS.length).toBe(25); // 18 regular + 5 manual extra + 2 occupied-only
+      expect(BEDS.length).toBe(26); // 18 regular + 5 manual extra + 3 occupied-only
     });
 
     it('should have unique IDs', () => {
@@ -94,8 +94,8 @@ describe('beds constants', () => {
   });
 
   describe('EXTRA_BEDS', () => {
-    it('should have 5 extra beds', () => {
-      expect(EXTRA_BEDS.length).toBe(7);
+    it('should have 8 extra beds', () => {
+      expect(EXTRA_BEDS.length).toBe(8);
     });
 
     it('should all have isExtra true', () => {
@@ -117,6 +117,7 @@ describe('beds constants', () => {
       expect(OCCUPANCY_ONLY_EXTRA_BEDS).toEqual([
         expect.objectContaining({ id: 'BOX1', name: 'BOX 1 UEA' }),
         expect.objectContaining({ id: 'BOX2', name: 'BOX 2 UEA' }),
+        expect.objectContaining({ id: 'BOX3', name: 'BOX 3 UEA' }),
       ]);
     });
   });

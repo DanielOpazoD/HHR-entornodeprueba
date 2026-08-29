@@ -58,9 +58,9 @@ import {
   buildGuardedRayenFallbackData,
   extractGuardedRayenClinicalPatch,
 } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
+import { createDirectFirestoreWriteReceipt } from './firestoreDirectWriteReceipt';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-
 const buildAuthorityPatchSyncContract = (
   syncContract: SyncTaskContract | undefined,
   authorityPatch: Record<string, unknown>
@@ -68,7 +68,6 @@ const buildAuthorityPatchSyncContract = (
   if (!syncContract) {
     return undefined;
   }
-
   const authorityPaths = Object.keys(authorityPatch);
   const changedPaths = (syncContract.changedPaths ?? []).filter(path =>
     authorityPaths.includes(path)
@@ -84,10 +83,9 @@ export const saveRecordToFirestore = async (
   record: DailyRecord,
   expectedLastUpdated?: string,
   options: DailyRecordSaveWriteOptions = {}
-): Promise<DailyRecordAuthorityCallableResponse | void> => {
+) => {
   try {
     const docRef = getRecordDocRef(record.date);
-
     assertDailyRecordClinicalAuthority(record);
 
     const callableAuthorityMode = await resolveAuthenticatedDailyRecordAuthorityMode();
@@ -113,9 +111,11 @@ export const saveRecordToFirestore = async (
 
     await tryShadowDailyRecordSaveViaCallable(record, expectedLastUpdated, options.syncContract);
 
+    const committedAt = Timestamp.now();
+    const receipt = createDirectFirestoreWriteReceipt(record, committedAt.toDate());
     const sanitizedRecord = sanitizeForFirestore({
-      ...record,
-      lastUpdated: Timestamp.now(),
+      ...receipt.recordState.record,
+      lastUpdated: committedAt,
     }) as Record<string, unknown>;
 
     const persist = () =>
@@ -146,6 +146,7 @@ export const saveRecordToFirestore = async (
         throw error;
       }
     }
+    if (options.returnCommittedRecord) return receipt;
   } catch (error) {
     logFirestoreWriteError('save', record.date, error);
     throw error;

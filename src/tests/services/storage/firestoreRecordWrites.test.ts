@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
 const { firestoreWriteLoggerWarn, firestoreWriteLoggerError } = vi.hoisted(() => ({
   firestoreWriteLoggerWarn: vi.fn(),
   firestoreWriteLoggerError: vi.fn(),
 }));
-
 const { mockEnsureUserRoleClaim, mockResolveFirebaseUserRole, mockGetCurrentUser, mockAuthReady } =
   vi.hoisted(() => ({
     mockEnsureUserRoleClaim: vi.fn(),
@@ -12,18 +10,18 @@ const { mockEnsureUserRoleClaim, mockResolveFirebaseUserRole, mockGetCurrentUser
     mockGetCurrentUser: vi.fn(),
     mockAuthReady: Promise.resolve(),
   }));
-
 const { mockHttpsCallable, mockSpecialistCallable, mockGetFunctions } = vi.hoisted(() => ({
   mockHttpsCallable: vi.fn(),
   mockSpecialistCallable: vi.fn(),
   mockGetFunctions: vi.fn().mockResolvedValue({ name: 'functions-runtime' }),
 }));
-
 vi.mock('firebase/firestore', async () => {
   const actual = await vi.importActual('firebase/firestore');
 
   class MockTimestamp {
     static now = vi.fn(() => new MockTimestamp());
+
+    toDate = () => new Date('2026-03-14T12:34:56.789Z');
   }
 
   return {
@@ -36,21 +34,17 @@ vi.mock('firebase/firestore', async () => {
     updateDoc: vi.fn(),
   };
 });
-
 vi.mock('firebase/functions', () => ({
   httpsCallable: (...args: unknown[]) => mockHttpsCallable(...args),
 }));
-
 vi.mock('@/utils/networkUtils', () => ({
   withRetry: vi.fn((operation: () => Promise<unknown> | unknown) => operation()),
 }));
-
 vi.mock('@/services/storage/firestore/firestoreShared', () => ({
   flattenObject: vi.fn((value: Record<string, unknown>) => value),
   getRecordDocRef: vi.fn((date: string) => ({ date })),
   sanitizeForFirestore: vi.fn((value: unknown) => value),
 }));
-
 vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
   ConcurrencyError: class ConcurrencyError extends Error {},
   asFirestoreUpdatePayload: vi.fn((payload: Record<string, unknown>) => payload),
@@ -60,35 +54,29 @@ vi.mock('@/services/storage/firestore/firestoreWriteSupport', () => ({
   saveRecordAtomically: vi.fn(),
   updateRecordPartiallyAtomically: vi.fn(),
 }));
-
 vi.mock('@/services/storage/storageLoggers', () => ({
   firestoreWriteLogger: {
     warn: firestoreWriteLoggerWarn,
     error: firestoreWriteLoggerError,
   },
 }));
-
 vi.mock('@/services/auth/authClaimSyncService', () => ({
   ensureUserRoleClaim: (...args: unknown[]) => mockEnsureUserRoleClaim(...args),
 }));
-
 vi.mock('@/services/auth/authAccessResolution', () => ({
   resolveFirebaseUserRole: (...args: unknown[]) => mockResolveFirebaseUserRole(...args),
 }));
-
 vi.mock('@/services/firebase-runtime/authRuntime', () => ({
   defaultAuthRuntime: {
     ready: mockAuthReady,
     getCurrentUser: () => mockGetCurrentUser(),
   },
 }));
-
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: {
     getFunctions: () => mockGetFunctions(),
   },
 }));
-
 import { deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
 import {
   deleteRecordFromFirestore,
@@ -119,10 +107,11 @@ describe('firestoreRecordWrites', () => {
   });
 
   it('saves full records after concurrency and history checks', async () => {
-    await saveRecordToFirestore({
-      date: '2026-03-14',
-      beds: {},
-    } as never);
+    const result = await saveRecordToFirestore(
+      { date: '2026-03-14', beds: {} } as never,
+      undefined,
+      { returnCommittedRecord: true }
+    );
 
     expect(saveRecordAtomically).toHaveBeenCalledWith(
       { date: '2026-03-14' },
@@ -133,6 +122,12 @@ describe('firestoreRecordWrites', () => {
       undefined
     );
     expect(setDoc).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      recordState: {
+        lastUpdated: '2026-03-14T12:34:56.789Z',
+        record: { date: '2026-03-14', lastUpdated: '2026-03-14T12:34:56.789Z' },
+      },
+    });
   });
 
   it('blocks full-record writes that violate clinical episode authority', async () => {
@@ -183,7 +178,7 @@ describe('firestoreRecordWrites', () => {
     });
     mockSpecialistCallable.mockRejectedValueOnce(new Error('shadow unavailable'));
 
-    await saveRecordToFirestore(
+    const result = await saveRecordToFirestore(
       {
         date: '2026-03-16',
         beds: {},
@@ -216,6 +211,7 @@ describe('firestoreRecordWrites', () => {
       'save',
       undefined
     );
+    expect(result).toBeUndefined();
   });
 
   it('routes authenticated full-record saves through the clinical authority callable when enabled', async () => {

@@ -15,6 +15,8 @@ const URGENCY_BOX_BY_CANONICAL = new Map([
   ['BOX1UEA', 'BOX1'],
   ['B2UEA', 'BOX2'],
   ['BOX2UEA', 'BOX2'],
+  ['B3UEA', 'BOX3'],
+  ['BOX3UEA', 'BOX3'],
 ]);
 
 export const resolveReportBedId = (bedLabel: string): string =>

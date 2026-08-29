@@ -54,6 +54,14 @@ export const BEDS: BedDefinition[] = [
     isExtra: true,
     activationMode: 'occupied',
   },
+  {
+    id: 'BOX3',
+    name: 'BOX 3 UEA',
+    type: BedType.MEDIA,
+    isCuna: false,
+    isExtra: true,
+    activationMode: 'occupied',
+  },
 ];
 
 export const EXTRA_BEDS = BEDS.filter(b => b.isExtra);

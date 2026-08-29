@@ -61,8 +61,8 @@ const boxSnapshot = (): RayenCensusSnapshot => ({
       firstFamilyName: 'Prueba',
       birthDate: '1980-01-01',
       service: 'Área Médico Quirúrgica Indiferenciada',
-      room: 'B1UEA',
-      bed: 'B1UEA',
+      room: 'B3UEA',
+      bed: 'B3UEA',
       admissionDatetime: '2026-07-08T10:00:00-06:00',
       diagnosis: 'Diagnóstico de prueba',
     } satisfies RayenEncounter,
@@ -79,17 +79,17 @@ describe('applyCensusImportDiff Urgencias occupancy-only beds', () => {
     });
     const admitted = applyCensusImportDiff(current, diff, makeCtx());
 
-    expect(admitted.record.beds.BOX1?.patientName).toBe('Paciente Prueba');
-    expect(admitted.record.activeExtraBeds).toEqual(['BOX1']);
+    expect(admitted.record.beds.BOX3?.patientName).toBe('Paciente Prueba');
+    expect(admitted.record.activeExtraBeds).toEqual(['BOX3']);
 
     const discharged = applyCensusImportDiff(
       admitted.record,
       makeDiff({
         discharges: [
           {
-            bedId: 'BOX1',
-            rut: admitted.record.beds.BOX1.rut,
-            patientName: admitted.record.beds.BOX1.patientName,
+            bedId: 'BOX3',
+            rut: admitted.record.beds.BOX3.rut,
+            patientName: admitted.record.beds.BOX3.patientName,
             encounterId: 'BOX-EPISODE',
             kind: 'alta',
             status: 'Vivo',
@@ -100,8 +100,8 @@ describe('applyCensusImportDiff Urgencias occupancy-only beds', () => {
       makeCtx()
     );
 
-    expect(discharged.record.beds.BOX1).toBeUndefined();
-    expect(discharged.record.activeExtraBeds).not.toContain('BOX1');
+    expect(discharged.record.beds.BOX3).toBeUndefined();
+    expect(discharged.record.activeExtraBeds).not.toContain('BOX3');
   });
 
   it('does not expose an empty Urgencias box and preserves manually enabled extra beds', () => {
