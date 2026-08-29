@@ -236,7 +236,17 @@ export const executeBedManagementAction = async ({
     }
 
     try {
-      await patchRecord(patch);
+      if (validatedAction.type === 'CLEAR_PATIENT') {
+        await patchRecord(patch, {
+          consistency: 'remote_confirmed',
+          intentionalBedClear: {
+            bedId: validatedAction.bedId,
+            confirmedLastUpdated: validatedAction.confirmedLastUpdated ?? currentRecord.lastUpdated,
+          },
+        });
+      } else {
+        await patchRecord(patch);
+      }
       try {
         auditActionIntent(validatedAction, currentRecord, bedAudit);
       } catch (error) {

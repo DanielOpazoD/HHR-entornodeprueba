@@ -75,6 +75,28 @@ const normalizeOrigin = (value, fallback = 'direct_save') =>
 const normalizeShortString = (value, maxLength = 120) =>
   typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : undefined;
 
+const parseIntentionalBedClear = value => {
+  if (value === undefined || value === null) return null;
+  if (!isPlainObject(value)) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Intentional bed clear metadata must be an object.'
+    );
+  }
+  const bedId = assertStringField(value.bedId, 'intentionalBedClear.bedId');
+  const confirmedLastUpdated = assertStringField(
+    value.confirmedLastUpdated,
+    'intentionalBedClear.confirmedLastUpdated'
+  );
+  if (bedId.includes('.') || FORBIDDEN_PATCH_PATH_SEGMENTS.has(bedId)) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Intentional bed clear contains an invalid bed id.'
+    );
+  }
+  return { bedId, confirmedLastUpdated };
+};
+
 const clonePlainValue = value => {
   if (Array.isArray(value)) {
     return value.map(clonePlainValue);
@@ -134,12 +156,25 @@ const parseAuthorizedPatchPath = (
   path,
   role,
   guardedClinicalWrite = false,
-  guardedRecordScope = 'run'
+  guardedRecordScope = 'run',
+  intentionalBedClear = null
 ) => {
   const parts = String(path)
     .split('.')
     .map(part => part.trim())
     .filter(Boolean);
+
+  if (
+    intentionalBedClear &&
+    path === `beds.${intentionalBedClear.bedId}` &&
+    STRUCTURAL_DAILY_RECORD_PATCH_ROLES.has(role)
+  ) {
+    return {
+      kind: 'structuralField',
+      bedId: intentionalBedClear.bedId,
+      field: 'bed',
+    };
+  }
 
   if (
     guardedClinicalWrite &&
@@ -229,6 +264,7 @@ const inspectAuthorizedPatch = ({
   role,
   guardedClinicalWrite = false,
   guardedRecordScope = 'run',
+  intentionalBedClear = null,
 }) => {
   const patchPaths = new Set(Object.keys(patch));
   let requiresStructuralAuthority = false;
@@ -237,7 +273,8 @@ const inspectAuthorizedPatch = ({
       path,
       role,
       guardedClinicalWrite,
-      guardedRecordScope
+      guardedRecordScope,
+      intentionalBedClear
     );
     if (parsedPath.kind === 'structuralField') {
       const patient = remoteData?.beds?.[parsedPath.bedId];
@@ -284,6 +321,208 @@ const inspectAuthorizedPatch = ({
     }
   });
   return { requiresStructuralAuthority };
+};
+
+const EMPTY_BED_STRING_FIELDS = new Set([
+  'blockedReason',
+  'patientName',
+  'firstName',
+  'lastName',
+  'secondLastName',
+  'rut',
+  'age',
+  'birthDate',
+  'admissionOriginDetails',
+  'pathology',
+  'specialty',
+  'status',
+  'admissionDate',
+  'admissionTime',
+  'handoffNote',
+  'handoffNoteDayShift',
+  'handoffNoteNightShift',
+  'medicalHandoffNote',
+]);
+const EMPTY_BED_FALSE_FIELDS = new Set([
+  'isBlocked',
+  'hasCompanionCrib',
+  'isRapanui',
+  'surgicalComplication',
+  'isUPC',
+]);
+const EMPTY_BED_TRUE_FIELDS = new Set(['hasWristband']);
+const EMPTY_BED_NULL_FIELDS = new Set([
+  'clinicalCrib',
+  'insurance',
+  'admissionOrigin',
+  'origin',
+  'cie10Code',
+  'cie10Description',
+  'treatingPhysicianId',
+  'treatingPhysicianName',
+  'ginecobstetriciaType',
+  'medicalHandoffAudit',
+  'firstSeenDate',
+  'deliveryRoute',
+  'deliveryDate',
+  'deliveryCesareanLabor',
+]);
+const EMPTY_BED_ARRAY_FIELDS = new Set(['devices', 'medicalHandoffEntries', 'clinicalEvents']);
+const EMPTY_BED_OPTIONAL_EMPTY_STRING_FIELDS = new Set(['clinicalEpisodeId']);
+const EMPTY_BED_ALLOWED_FIELDS = new Set([
+  'bedId',
+  'bedMode',
+  'location',
+  'identityStatus',
+  'documentType',
+  'biologicalSex',
+  ...EMPTY_BED_STRING_FIELDS,
+  ...EMPTY_BED_FALSE_FIELDS,
+  ...EMPTY_BED_TRUE_FIELDS,
+  ...EMPTY_BED_NULL_FIELDS,
+  ...EMPTY_BED_ARRAY_FIELDS,
+  ...EMPTY_BED_OPTIONAL_EMPTY_STRING_FIELDS,
+]);
+
+const buildCanonicalEmptyBed = ({ bedId, requestedBed, remoteBed }) => {
+  if (!isPlainObject(remoteBed)) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Intentional bed clear requires an existing remote bed.'
+    );
+  }
+  const invalidField = Object.keys(requestedBed).find(
+    field => !EMPTY_BED_ALLOWED_FIELDS.has(field)
+  );
+  const invalidEmptyString = [...EMPTY_BED_STRING_FIELDS].find(field => requestedBed[field] !== '');
+  const invalidFalse = [...EMPTY_BED_FALSE_FIELDS].find(field => requestedBed[field] !== false);
+  const invalidTrue = [...EMPTY_BED_TRUE_FIELDS].find(field => requestedBed[field] !== true);
+  const invalidNull = [...EMPTY_BED_NULL_FIELDS].find(field => requestedBed[field] !== null);
+  const invalidArray = [...EMPTY_BED_ARRAY_FIELDS].find(
+    field => !Array.isArray(requestedBed[field]) || requestedBed[field].length !== 0
+  );
+  const invalidOptionalEmptyString = [...EMPTY_BED_OPTIONAL_EMPTY_STRING_FIELDS].find(
+    field => requestedBed[field] !== undefined && requestedBed[field] !== ''
+  );
+  const remoteLocation = typeof remoteBed.location === 'string' ? remoteBed.location : null;
+  const remoteBedMode =
+    remoteBed.bedMode === 'Cama' || remoteBed.bedMode === 'Cuna' ? remoteBed.bedMode : null;
+  if (
+    invalidField ||
+    invalidEmptyString ||
+    invalidFalse ||
+    invalidTrue ||
+    invalidNull ||
+    invalidArray ||
+    invalidOptionalEmptyString ||
+    requestedBed.bedId !== bedId ||
+    !remoteBedMode ||
+    requestedBed.bedMode !== remoteBedMode ||
+    remoteLocation === null ||
+    requestedBed.location !== remoteLocation ||
+    requestedBed.identityStatus !== 'official' ||
+    requestedBed.documentType !== 'RUT' ||
+    requestedBed.biologicalSex !== 'Indeterminado'
+  ) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Intentional bed clear must use the canonical empty-bed shape.'
+    );
+  }
+
+  return {
+    bedId,
+    isBlocked: false,
+    blockedReason: '',
+    bedMode: remoteBedMode,
+    hasCompanionCrib: false,
+    clinicalCrib: null,
+    patientName: '',
+    firstName: '',
+    lastName: '',
+    secondLastName: '',
+    identityStatus: 'official',
+    rut: '',
+    clinicalEpisodeId: '',
+    documentType: 'RUT',
+    age: '',
+    birthDate: '',
+    biologicalSex: 'Indeterminado',
+    insurance: null,
+    admissionOrigin: null,
+    admissionOriginDetails: '',
+    origin: null,
+    isRapanui: false,
+    pathology: '',
+    cie10Code: null,
+    cie10Description: null,
+    treatingPhysicianId: null,
+    treatingPhysicianName: null,
+    specialty: '',
+    ginecobstetriciaType: null,
+    status: '',
+    admissionDate: '',
+    admissionTime: '',
+    hasWristband: true,
+    devices: [],
+    surgicalComplication: false,
+    isUPC: false,
+    location: remoteLocation,
+    handoffNote: '',
+    handoffNoteDayShift: '',
+    handoffNoteNightShift: '',
+    medicalHandoffNote: '',
+    medicalHandoffAudit: null,
+    medicalHandoffEntries: [],
+    clinicalEvents: [],
+    firstSeenDate: null,
+    deliveryRoute: null,
+    deliveryDate: null,
+    deliveryCesareanLabor: null,
+  };
+};
+
+const assertIntentionalBedClearRequest = ({
+  patch,
+  role,
+  expectedLastUpdated,
+  intentionalBedClear,
+  remoteData,
+}) => {
+  if (!intentionalBedClear) return null;
+  if (!STRUCTURAL_DAILY_RECORD_PATCH_ROLES.has(role)) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'Only an administrator or hospital nurse can clear an occupied bed.'
+    );
+  }
+  if (!normalizeShortString(expectedLastUpdated)) {
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'Intentional bed clear requires an exact census version.'
+    );
+  }
+  if (toMillis(intentionalBedClear.confirmedLastUpdated) !== toMillis(expectedLastUpdated)) {
+    throw new functions.https.HttpsError(
+      'aborted',
+      'Intentional bed clear no longer matches the census version confirmed by the user.'
+    );
+  }
+  const expectedPath = `beds.${intentionalBedClear.bedId}`;
+  const paths = Object.keys(patch);
+  const requestedBed = patch[expectedPath];
+  if (paths.length !== 1 || paths[0] !== expectedPath || !isPlainObject(requestedBed)) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Intentional bed clear must replace exactly one matching bed with an empty patient.'
+    );
+  }
+  const canonicalBed = buildCanonicalEmptyBed({
+    bedId: intentionalBedClear.bedId,
+    requestedBed,
+    remoteBed: remoteData?.beds?.[intentionalBedClear.bedId],
+  });
+  return { [expectedPath]: canonicalBed };
 };
 
 const isRayenClinicalOwnedPatchPath = path => {
@@ -595,6 +834,7 @@ const parsePatchPayload = data => {
     dryRun: data?.dryRun === true,
     syncContract,
     rayenClinicalWriteGuard: parseRayenClinicalWriteGuard(data?.rayenClinicalWriteGuard),
+    intentionalBedClear: parseIntentionalBedClear(data?.intentionalBedClear),
     historyPolicy: data?.historyPolicy === 'skip' ? 'skip' : 'snapshot',
     expectedLastUpdated:
       typeof data?.expectedLastUpdated === 'string'
@@ -740,11 +980,17 @@ const assertAuthorizedDailyRecordWriter = async ({
   return { email, role: resolvedRole };
 };
 
-const assertNoPatientErasures = ({ snapshot, record }) => {
+const assertNoPatientErasures = ({ snapshot, record, intentionalBedClear = null }) => {
   if (!snapshot.exists) {
     return;
   }
-  const erasures = findPatientErasures(snapshot.data() || {}, record);
+  const erasures = findPatientErasures(snapshot.data() || {}, record).filter(erasure => {
+    if (!intentionalBedClear) return true;
+    return (
+      erasure.bedId !== intentionalBedClear.bedId &&
+      erasure.bedId !== `${intentionalBedClear.bedId} (cuna RN)`
+    );
+  });
   if (erasures.length === 0) {
     return;
   }
@@ -939,6 +1185,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
       syncContract,
       expectedLastUpdated,
       rayenClinicalWriteGuard,
+      intentionalBedClear,
     } = parsePatchPayload(data);
     const db = firestore;
     const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
@@ -988,7 +1235,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
           return;
         }
 
-        if (rayenClinicalWriteGuard) {
+        if (rayenClinicalWriteGuard || intentionalBedClear) {
           assertExactExpectedVersion({ snapshot, expectedLastUpdated });
         } else {
           assertExpectedVersion({ snapshot, expectedLastUpdated });
@@ -1014,29 +1261,52 @@ const createDailyRecordWriteAuthorityFunctions = ({
             role,
           });
         }
+        const canonicalIntentionalBedClearPatch = assertIntentionalBedClearRequest({
+          patch,
+          role,
+          expectedLastUpdated,
+          intentionalBedClear,
+          remoteData,
+        });
+        const authorizedPatch = canonicalIntentionalBedClearPatch || patch;
         const patchInspection = inspectAuthorizedPatch({
           remoteData,
-          patch,
+          patch: authorizedPatch,
           role,
           guardedClinicalWrite: Boolean(rayenClinicalWriteGuard),
           guardedRecordScope: rayenClinicalWriteGuard?.recordScope,
+          intentionalBedClear,
         });
-        if (isRayenClinicalWriteFenceActive(policySnapshot) && !rayenClinicalWriteGuard) {
+        if (
+          isRayenClinicalWriteFenceActive(policySnapshot) &&
+          !rayenClinicalWriteGuard &&
+          !intentionalBedClear
+        ) {
           assertNoRayenClinicalOwnedPatch(patch);
         }
         if (patchInspection.requiresStructuralAuthority) {
           assertStructuralPatchPolicy({ date, policySnapshot, remoteData, role });
         }
         const now = Timestamp.now();
-        const patchedCandidate = applyPatchToRecord({ date, remoteData, patch });
+        const patchedCandidate = applyPatchToRecord({
+          date,
+          remoteData,
+          patch: authorizedPatch,
+        });
         const patchedRecord =
-          isRayenClinicalWriteFenceActive(policySnapshot) && !rayenClinicalWriteGuard
+          isRayenClinicalWriteFenceActive(policySnapshot) &&
+          !rayenClinicalWriteGuard &&
+          !intentionalBedClear
             ? preserveRayenClinicalFields({
                 remoteRecord: remoteData,
                 incomingRecord: patchedCandidate,
               })
             : patchedCandidate;
-        assertNoPatientErasures({ snapshot, record: patchedRecord });
+        assertNoPatientErasures({
+          snapshot,
+          record: patchedRecord,
+          intentionalBedClear,
+        });
         patchedRecord.meta = buildNextMeta({ remoteData, syncContract, now });
 
         authority = assertClinicalAuthority(patchedRecord);

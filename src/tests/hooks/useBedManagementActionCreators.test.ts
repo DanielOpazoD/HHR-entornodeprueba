@@ -55,4 +55,32 @@ describe('useBedManagementActionCreators', () => {
       targetBedId: 'R2',
     });
   });
+
+  it('fails closed when definitive clear has no confirmed async dispatcher', async () => {
+    const dispatch = vi.fn();
+    const { result } = renderHook(() => useBedManagementActionCreators(dispatch));
+
+    let accepted = true;
+    await act(async () => {
+      accepted = await result.current.clearPatient('R1');
+    });
+
+    expect(accepted).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('returns the confirmed result from the async clear dispatcher', async () => {
+    const dispatch = vi.fn();
+    const dispatchAndWait = vi.fn().mockResolvedValue(true);
+    const { result } = renderHook(() => useBedManagementActionCreators(dispatch, dispatchAndWait));
+
+    let accepted = false;
+    await act(async () => {
+      accepted = await result.current.clearPatient('R1');
+    });
+
+    expect(accepted).toBe(true);
+    expect(dispatchAndWait).toHaveBeenCalledWith({ type: 'CLEAR_PATIENT', bedId: 'R1' });
+    expect(dispatch).not.toHaveBeenCalled();
+  });
 });

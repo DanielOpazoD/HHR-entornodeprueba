@@ -353,6 +353,9 @@ const updatePartialDetailedWithinLock = async (
         ...(options.rayenClinicalWriteGuard
           ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
           : {}),
+        ...(options.intentionalBedClear
+          ? { intentionalBedClear: options.intentionalBedClear }
+          : {}),
       }),
     queueLocalBeforeRemote: () =>
       queueDailyRecordSyncTaskWithLocalRecord(

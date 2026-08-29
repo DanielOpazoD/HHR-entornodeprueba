@@ -33,6 +33,8 @@ export interface DailyRecordPartialWriteOptions {
   historyPolicy?: 'snapshot' | 'skip';
   /** Frozen Rayen run policy revalidated atomically with the legacy clinical write. */
   rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
+  /** Explicit, CAS-protected request to replace exactly one occupied bed with an empty bed. */
+  intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
 }
 
 export interface DailyRecordSaveWriteOptions {

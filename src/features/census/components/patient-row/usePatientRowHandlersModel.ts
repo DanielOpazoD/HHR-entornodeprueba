@@ -18,7 +18,7 @@ interface UsePatientRowHandlersModelParams {
   documentType?: PatientRowPatientDocumentType;
   updatePatient: (bedId: string, field: PatientRowPatientField, value: PatientFieldValue) => void;
   updatePatientMultiple: (bedId: string, fields: PatientRowPatientPatch) => void;
-  clearPatient: (bedId: string) => void;
+  clearPatient: (bedId: string) => Promise<boolean>;
   updateClinicalCrib: (
     bedId: string,
     field: PatientRowPatientField,
@@ -77,7 +77,9 @@ export const usePatientRowHandlersModel = ({
     modalSavers: {
       onSaveDemographics: mainHandlers.handleDemographicsSave,
       onSaveCribDemographics: cribHandlers.handleCribDemographicsSave,
-      onRevertEmptyDemographics: () => clearPatient(bedId),
+      onRevertEmptyDemographics: () => {
+        void clearPatient(bedId);
+      },
     },
   };
 };

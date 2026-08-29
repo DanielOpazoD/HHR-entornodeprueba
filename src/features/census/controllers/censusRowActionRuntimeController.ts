@@ -29,6 +29,7 @@ interface ExecuteRowActionParams {
   stabilityRules: StabilityRules;
   actions: RowActionRuntimeActions;
   confirmRuntime: RowActionRuntimeConfirm;
+  confirmedLastUpdated?: string;
 }
 
 export const executeRowActionController = async ({
@@ -38,6 +39,7 @@ export const executeRowActionController = async ({
   stabilityRules,
   actions,
   confirmRuntime,
+  confirmedLastUpdated,
 }: ExecuteRowActionParams): Promise<RowActionRuntimeResult> => {
   const resolution = resolveRowActionCommand({ action, bedId, patient, stabilityRules });
   if (!resolution.ok) {
@@ -51,7 +53,19 @@ export const executeRowActionController = async ({
       if (!isConfirmed) {
         return ok({ applied: false });
       }
-      actions.clearPatient(command.bedId);
+      const persisted = confirmedLastUpdated
+        ? await actions.clearPatient(command.bedId, confirmedLastUpdated)
+        : await actions.clearPatient(command.bedId);
+      if (!persisted) {
+        return {
+          ok: false,
+          error: {
+            code: 'PERSISTENCE_FAILED',
+            message:
+              'No fue posible confirmar la limpieza de la cama. Los datos vigentes se conservaron.',
+          },
+        };
+      }
       return ok({ applied: true });
     }
     case 'setMovement':

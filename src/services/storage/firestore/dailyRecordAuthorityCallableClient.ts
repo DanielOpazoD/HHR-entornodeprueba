@@ -89,6 +89,7 @@ export interface DailyRecordAuthorityPatchCallablePayload {
   syncContract?: SyncTaskContract;
   rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
   historyPolicy?: 'snapshot' | 'skip';
+  intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
   dryRun?: boolean;
 }
 

@@ -12,5 +12,19 @@ export type DailyRecord = RootDailyRecord;
 export type DailyRecordPatch = RootDailyRecordPatch;
 export type DailyRecordDateRef = RootDailyRecordDateRef;
 
-export type ApplyDailyRecordPatch = (patch: DailyRecordPatch) => Promise<void>;
+export type ApplyDailyRecordPatchOptions = {
+  /**
+   * Wait for the remote authority to return the exact committed record before
+   * exposing the mutation as successful. Reserved for destructive actions
+   * whose optimistic state must never be mistaken for durable persistence.
+   */
+  consistency?: 'eventual' | 'remote_confirmed';
+  /** Explicit user-confirmed destructive intent; never inferred from an empty patch. */
+  intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
+};
+
+export type ApplyDailyRecordPatch = (
+  patch: DailyRecordPatch,
+  options?: ApplyDailyRecordPatchOptions
+) => Promise<void>;
 export type PersistDailyRecord = (record: DailyRecord) => Promise<void>;

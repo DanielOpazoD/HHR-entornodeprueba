@@ -37,7 +37,14 @@ import type {
  */
 export type DailyRecord = RootDailyRecord;
 export type DailyRecordPatch = RootDailyRecordPatch;
-export type ApplyDailyRecordPatch = (patch: DailyRecordPatch) => Promise<void>;
+export type ApplyDailyRecordPatchOptions = {
+  consistency?: 'eventual' | 'remote_confirmed';
+  intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
+};
+export type ApplyDailyRecordPatch = (
+  patch: DailyRecordPatch,
+  options?: ApplyDailyRecordPatchOptions
+) => Promise<void>;
 export type PersistDailyRecord = (record: DailyRecord) => Promise<void>;
 export type MedicalHandoffActor = RootMedicalHandoffActor;
 export type MedicalSpecialty = RootMedicalSpecialty;

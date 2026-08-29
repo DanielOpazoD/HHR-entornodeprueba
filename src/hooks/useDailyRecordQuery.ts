@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../config/queryClient';
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
+import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import { useRepositories } from '@/services/RepositoryContext';
 import { useEffect, useRef } from 'react';
 import {
@@ -42,6 +43,33 @@ import {
   rememberDailyRecordPatchBaseRecord,
   type DailyRecordPatchBaseRecordRegistry,
 } from '@/hooks/controllers/dailyRecordPatchBaseRecordController';
+import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
+
+const dailyRecordPatchMutationTails = new Map<string, Promise<void>>();
+
+const isDailyRecordNewerThan = (candidate: DailyRecord, baseline: DailyRecord): boolean =>
+  toRecordTimestamp(candidate.lastUpdated) > toRecordTimestamp(baseline.lastUpdated);
+
+const acquireDailyRecordPatchMutationTurn = async (date: string): Promise<() => void> => {
+  const previousTurn = dailyRecordPatchMutationTails.get(date) ?? Promise.resolve();
+  let releaseCurrentTurn!: () => void;
+  const currentTurn = new Promise<void>(resolve => {
+    releaseCurrentTurn = resolve;
+  });
+  dailyRecordPatchMutationTails.set(date, currentTurn);
+
+  await previousTurn;
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    releaseCurrentTurn();
+    if (dailyRecordPatchMutationTails.get(date) === currentTurn) {
+      dailyRecordPatchMutationTails.delete(date);
+    }
+  };
+};
 
 export const useDailyRecordQuery = (
   date: string,
@@ -227,75 +255,139 @@ export const usePatchDailyRecordMutation = (date: string) => {
   }
   const patchBaseRecords = patchBaseRecordsRef.current;
 
+  type PatchMutationInput =
+    | DailyRecordPatch
+    | {
+        partial: DailyRecordPatch;
+        options?: PartialUpdateDailyRecordOptions;
+      };
+
+  const resolveInput = (
+    input: PatchMutationInput
+  ): { partial: DailyRecordPatch; options?: PartialUpdateDailyRecordOptions } => {
+    if (
+      'partial' in input &&
+      input.partial !== null &&
+      typeof input.partial === 'object' &&
+      !Array.isArray(input.partial)
+    ) {
+      return input as {
+        partial: DailyRecordPatch;
+        options?: PartialUpdateDailyRecordOptions;
+      };
+    }
+    return { partial: input as DailyRecordPatch };
+  };
+
   return useMutation({
-    mutationFn: async (partial: DailyRecordPatch) => {
+    mutationFn: async (input: PatchMutationInput) => {
+      const { partial, options } = resolveInput(input);
       const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
       const result = await patchDailyRecordWithCompatibility(
         dailyRecord,
         date,
         partial,
-        baseRecord ? { baseRecord } : undefined
+        baseRecord || options
+          ? {
+              ...options,
+              ...(baseRecord ? { baseRecord } : {}),
+            }
+          : undefined
       );
-      return { partial, result };
+      return { partial, options, result };
     },
-    onMutate: async partial => {
-      const previousRecordBeforeFreshness = queryClient.getQueryData<DailyRecordQueryResult>(
-        getDailyRecordQueryKey(date)
-      )?.record;
-      const remoteConfirmedAtBeforeMutation = getDailyRecordLastRemoteConfirmedAt(date);
-      const freshness = await ensureFreshClinicalPatchMutation(date, { dailyRecord, queryClient });
-      assertHydratedRemotePatchCanProceed({
-        date,
-        attemptedPatch: partial,
-        previousRecord: previousRecordBeforeFreshness,
-        freshness,
-        remoteConfirmedAtBeforeMutation,
-      });
-      rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, freshness.record);
-
-      await queryClient.cancelQueries({
-        queryKey: queryKeys.dailyRecord.byDate(date),
-      });
-      const unregisterPendingPatch = registerPendingDailyRecordPatch(date, partial);
-
-      const previousRecord = queryClient.getQueryData<DailyRecordQueryResult>(
-        getDailyRecordQueryKey(date)
-      )?.record;
-
-      if (previousRecord) {
-        setDailyRecordQueryData(
+    onMutate: async input => {
+      const releaseMutationTurn = await acquireDailyRecordPatchMutationTurn(date);
+      try {
+        const { partial, options } = resolveInput(input);
+        const previousRecordBeforeFreshness = queryClient.getQueryData<DailyRecordQueryResult>(
+          getDailyRecordQueryKey(date)
+        )?.record;
+        const remoteConfirmedAtBeforeMutation = getDailyRecordLastRemoteConfirmedAt(date);
+        const freshness = await ensureFreshClinicalPatchMutation(date, {
+          dailyRecord,
           queryClient,
+        });
+        assertHydratedRemotePatchCanProceed({
           date,
-          applyOptimisticDailyRecordPatch(previousRecord, partial)
-        );
-      }
+          attemptedPatch: partial,
+          previousRecord: previousRecordBeforeFreshness,
+          freshness,
+          remoteConfirmedAtBeforeMutation,
+        });
+        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, freshness.record);
 
-      return { previousRecord, unregisterPendingPatch };
+        await queryClient.cancelQueries({
+          queryKey: queryKeys.dailyRecord.byDate(date),
+        });
+        const isRemoteAuthorityFirst = options?.requireRemoteAuthorityFirst === true;
+        const unregisterPendingPatch = isRemoteAuthorityFirst
+          ? () => {}
+          : registerPendingDailyRecordPatch(date, partial);
+
+        const previousRecord = queryClient.getQueryData<DailyRecordQueryResult>(
+          getDailyRecordQueryKey(date)
+        )?.record;
+        const optimisticApplied = Boolean(previousRecord && !isRemoteAuthorityFirst);
+
+        if (previousRecord && optimisticApplied) {
+          setDailyRecordQueryData(
+            queryClient,
+            date,
+            applyOptimisticDailyRecordPatch(previousRecord, partial)
+          );
+        }
+
+        return {
+          previousRecord,
+          unregisterPendingPatch,
+          optimisticApplied,
+          releaseMutationTurn,
+        };
+      } catch (error) {
+        releaseMutationTurn();
+        throw error;
+      }
     },
-    onError: (err, partial, context) => {
-      if (context?.previousRecord) {
+    onError: (err, input, context) => {
+      if (context?.optimisticApplied && context.previousRecord) {
         setDailyRecordQueryData(queryClient, date, context.previousRecord);
       }
+      forgetDailyRecordPatchBaseRecord(patchBaseRecords, resolveInput(input).partial);
     },
     onSuccess: (payload, _partial, context) => {
       if (isDailyRecordWriteRejectedResult(payload.result)) {
-        setDailyRecordQueryData(queryClient, date, context?.previousRecord ?? null);
+        if (context?.optimisticApplied) {
+          setDailyRecordQueryData(queryClient, date, context.previousRecord ?? null);
+        }
         return;
       }
       if (!payload.result?.updatedRemotely) return;
-      const current = queryClient.getQueryData<DailyRecordQueryResult>(
+      const confirmedRecord = payload.result.confirmedRecord;
+      const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
         getDailyRecordQueryKey(date)
       )?.record;
-      if (!current) {
+      if (
+        confirmedRecord &&
+        cachedRecord &&
+        isDailyRecordNewerThan(cachedRecord, confirmedRecord)
+      ) {
         return;
       }
+      if (confirmedRecord) {
+        setDailyRecordQueryData(queryClient, date, confirmedRecord);
+      }
+      const currentRecord = confirmedRecord ?? cachedRecord;
+      if (!currentRecord) return;
       markDailyRecordRemoteConfirmed(date, {
         source: 'write',
-        remoteLastUpdated: current.lastUpdated,
-        confirmedRecord: current,
+        remoteLastUpdated: currentRecord.lastUpdated,
+        confirmedRecord: currentRecord,
       });
     },
-    onSettled: (payload, error, partial, context) => {
+    onSettled: (payload, error, input, context) => {
+      context?.releaseMutationTurn();
+      const partial = resolveInput(input).partial;
       if (!context?.unregisterPendingPatch) {
         return;
       }

@@ -19,7 +19,13 @@ describe('dailyRecordCoreContracts', () => {
 
   it('keeps persistence callbacks promise-based and patch-scoped', () => {
     expectTypeOf<ApplyDailyRecordPatch>().toEqualTypeOf<
-      (patch: RootDailyRecordPatch) => Promise<void>
+      (
+        patch: RootDailyRecordPatch,
+        options?: {
+          consistency?: 'eventual' | 'remote_confirmed';
+          intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
+        }
+      ) => Promise<void>
     >();
     expectTypeOf<PersistDailyRecord>().toEqualTypeOf<(record: RootDailyRecord) => Promise<void>>();
   });

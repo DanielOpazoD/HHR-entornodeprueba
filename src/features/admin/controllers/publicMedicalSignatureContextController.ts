@@ -4,6 +4,7 @@ import type { MedicalHandoffScope } from '@/types/medicalHandoff';
 
 const noop = () => {};
 const asyncNoop = async () => {};
+const asyncFalse = async () => false;
 
 const buildEmptyInventory = () => ({
   occupiedCount: 0,
@@ -53,7 +54,7 @@ export const createPublicMedicalSignatureContextValue = ({
   updateClinicalCribMultiple: noop,
   updateClinicalCribCudyr: noop,
   updateCudyr: noop,
-  clearPatient: noop,
+  clearPatient: asyncFalse,
   clearAllBeds: noop,
   moveOrCopyPatient: noop,
   toggleBlockBed: noop,

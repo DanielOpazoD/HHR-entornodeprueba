@@ -8,7 +8,7 @@ export type BedAction =
   | { type: 'UPDATE_CUDYR'; bedId: string; field: keyof CudyrScore; value: number }
   | { type: 'UPDATE_CUDYR_MULTIPLE'; bedId: string; fields: CudyrScorePatch }
   | { type: 'UPDATE_CUDYR_BATCH'; changes: CudyrBatchUpdate }
-  | { type: 'CLEAR_PATIENT'; bedId: string }
+  | { type: 'CLEAR_PATIENT'; bedId: string; confirmedLastUpdated?: string }
   | { type: 'CLEAR_ALL_BEDS' }
   | { type: 'MOVE_PATIENT'; sourceBedId: string; targetBedId: string }
   | { type: 'COPY_PATIENT'; sourceBedId: string; targetBedId: string }

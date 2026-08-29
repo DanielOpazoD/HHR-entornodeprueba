@@ -91,10 +91,19 @@ export const useBedManagementActionCreators = (
   );
 
   const clearPatient = useCallback(
-    (bedId: string) => {
-      dispatch({ type: 'CLEAR_PATIENT', bedId });
+    (bedId: string, confirmedLastUpdated?: string): Promise<boolean> => {
+      const action: BedAction = {
+        type: 'CLEAR_PATIENT',
+        bedId,
+        ...(confirmedLastUpdated ? { confirmedLastUpdated } : {}),
+      };
+      if (dispatchAndWait) {
+        return dispatchAndWait(action);
+      }
+
+      return Promise.resolve(false);
     },
-    [dispatch]
+    [dispatchAndWait]
   );
 
   const clearAllBeds = useCallback(() => {

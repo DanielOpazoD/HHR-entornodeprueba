@@ -67,6 +67,8 @@ export interface PartialUpdateDailyRecordOptions {
   requireConfirmedRecord?: boolean;
   /** Commits remote authority before local persistence, so a rejected CAS cannot queue stale data. */
   requireRemoteAuthorityFirst?: boolean;
+  /** User-confirmed replacement of one occupied bed with its canonical empty shape. */
+  intentionalBedClear?: { bedId: string; confirmedLastUpdated: string };
   /** Internal lease for a patch executed inside an existing daily-record write critical section. */
   dailyRecordWriteLease?: DailyRecordWriteLease;
 }

@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useDailyRecordSyncQuery } from '@/hooks/useDailyRecordSyncQuery';
 import { defaultDailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
   mockDailyRecordRepositoryPort: {
@@ -231,6 +233,439 @@ describe('useDailyRecordSyncQuery', () => {
       updatedRecord,
       updatedRecord.lastUpdated
     );
+  });
+
+  it('keeps the patient visible until a definitive clear is remotely confirmed', async () => {
+    const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
+      ...mockRecord,
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: 'Paciente a limpiar',
+          rut: '11.111.111-1',
+          pathology: 'Diagnóstico vigente',
+        }),
+      },
+    });
+    const clearedRecord = DataFactory.createMockDailyRecord(mockDate, {
+      ...occupiedRecord,
+      beds: {
+        ...occupiedRecord.beds,
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: '',
+          rut: '',
+          pathology: '',
+          admissionDate: '',
+        }),
+      },
+      lastUpdated: '2026-01-01T00:00:02.000Z',
+    });
+    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    let remoteWriteConfirmed = false;
+
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
+      buildReadResult(remoteWriteConfirmed ? clearedRecord : occupiedRecord)
+    );
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementation(
+      () => write.promise
+    );
+
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente a limpiar');
+    });
+
+    let clearPromise!: Promise<void>;
+    act(() => {
+      clearPromise = result.current.patchRecord(
+        {
+          'beds.R1': clearedRecord.beds.R1,
+        },
+        {
+          consistency: 'remote_confirmed',
+          intentionalBedClear: {
+            bedId: 'R1',
+            confirmedLastUpdated: occupiedRecord.lastUpdated,
+          },
+        }
+      );
+    });
+
+    await waitFor(() => {
+      expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalled();
+    });
+    expect(result.current.record?.beds.R1.patientName).toBe('Paciente a limpiar');
+    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledWith(
+      mockDate,
+      { 'beds.R1': clearedRecord.beds.R1 },
+      expect.objectContaining({
+        baseRecord: expect.objectContaining({ date: mockDate }),
+        intentionalBedClear: {
+          bedId: 'R1',
+          confirmedLastUpdated: occupiedRecord.lastUpdated,
+        },
+        requireConfirmedRecord: true,
+        requireRemoteAuthorityFirst: true,
+      })
+    );
+
+    remoteWriteConfirmed = true;
+    write.resolve(
+      createUpdatePartialDailyRecordResult({
+        date: mockDate,
+        outcome: 'clean',
+        savedLocally: true,
+        updatedRemotely: true,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: 1,
+        confirmedRecord: clearedRecord,
+      })
+    );
+
+    await act(async () => {
+      await clearPromise;
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('');
+    });
+  });
+
+  it('forces remote confirmation whenever an intentional clear is declared', async () => {
+    const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
+      ...mockRecord,
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: 'Paciente vigente',
+          rut: '11.111.111-1',
+        }),
+      },
+    });
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
+      buildReadResult(occupiedRecord)
+    );
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente vigente');
+    });
+
+    await act(async () => {
+      await result.current.patchRecord(
+        {
+          'beds.R1': DataFactory.createMockPatient('R1', { patientName: '', rut: '' }),
+        },
+        {
+          intentionalBedClear: {
+            bedId: 'R1',
+            confirmedLastUpdated: occupiedRecord.lastUpdated,
+          },
+        }
+      );
+    });
+
+    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledWith(
+      mockDate,
+      expect.objectContaining({ 'beds.R1': expect.any(Object) }),
+      expect.objectContaining({
+        intentionalBedClear: {
+          bedId: 'R1',
+          confirmedLastUpdated: occupiedRecord.lastUpdated,
+        },
+        requireConfirmedRecord: true,
+        requireRemoteAuthorityFirst: true,
+      })
+    );
+  });
+
+  it('serializes a newer mutation behind a definitive clear', async () => {
+    const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
+      ...mockRecord,
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: 'Paciente vigente',
+          rut: '11.111.111-1',
+          pathology: 'Diagnóstico inicial',
+        }),
+      },
+    });
+    const clearedRecord = {
+      ...occupiedRecord,
+      beds: {
+        ...occupiedRecord.beds,
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: '',
+          rut: '',
+          pathology: '',
+          admissionDate: '',
+        }),
+      },
+      lastUpdated: '2026-01-01T00:00:01.000Z',
+    };
+    const newerRecord = {
+      ...occupiedRecord,
+      beds: {
+        ...occupiedRecord.beds,
+        R1: {
+          ...occupiedRecord.beds.R1,
+          pathology: 'Diagnóstico más reciente',
+        },
+      },
+      lastUpdated: '2026-01-01T00:00:02.000Z',
+    };
+    const clearWrite = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const newerWrite = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    let remotelyVisibleRecord = occupiedRecord;
+
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
+      buildReadResult(remotelyVisibleRecord)
+    );
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed)
+      .mockImplementationOnce(() => clearWrite.promise)
+      .mockImplementationOnce(() => newerWrite.promise);
+
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente vigente');
+    });
+
+    let clearPromise!: Promise<void>;
+    act(() => {
+      clearPromise = result.current.patchRecord(
+        { 'beds.R1': clearedRecord.beds.R1 },
+        { consistency: 'remote_confirmed' }
+      );
+    });
+    await waitFor(() => {
+      expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
+    });
+
+    remotelyVisibleRecord = newerRecord;
+    let newerPromise!: Promise<void>;
+    act(() => {
+      newerPromise = result.current.patchRecord({
+        'beds.R1.pathology': 'Diagnóstico más reciente',
+      });
+    });
+    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
+    expect(result.current.record?.beds.R1.pathology).toBe('Diagnóstico inicial');
+
+    clearWrite.resolve(
+      createUpdatePartialDailyRecordResult({
+        date: mockDate,
+        outcome: 'clean',
+        savedLocally: true,
+        updatedRemotely: true,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: 1,
+        confirmedRecord: clearedRecord,
+      })
+    );
+    await act(async () => {
+      await clearPromise;
+    });
+    await waitFor(() => {
+      expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(2);
+    });
+
+    newerWrite.resolve(
+      createUpdatePartialDailyRecordResult({
+        date: mockDate,
+        outcome: 'clean',
+        savedLocally: true,
+        updatedRemotely: true,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: 1,
+        confirmedRecord: newerRecord,
+      })
+    );
+    await act(async () => {
+      await newerPromise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente vigente');
+      expect(result.current.record?.beds.R1.pathology).toBe('Diagnóstico más reciente');
+    });
+  });
+
+  it('does not replace a newer realtime census with an older confirmed write response', async () => {
+    const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
+      ...mockRecord,
+      lastUpdated: '2026-01-01T00:00:00.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: 'Paciente inicial',
+          rut: '11.111.111-1',
+        }),
+      },
+    });
+    const confirmedClear = DataFactory.createMockDailyRecord(mockDate, {
+      ...occupiedRecord,
+      lastUpdated: '2026-01-01T00:00:01.000Z',
+      beds: {
+        ...occupiedRecord.beds,
+        R1: DataFactory.createMockPatient('R1', { patientName: '', rut: '' }),
+      },
+    });
+    const realtimeNewer = DataFactory.createMockDailyRecord(mockDate, {
+      ...occupiedRecord,
+      lastUpdated: '2026-01-01T00:00:02.000Z',
+      beds: {
+        ...occupiedRecord.beds,
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: 'Paciente nuevo',
+          rut: '22.222.222-2',
+        }),
+      },
+    });
+    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
+      buildReadResult(occupiedRecord)
+    );
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementation(
+      () => write.promise
+    );
+    const testRuntime = createQueryClientTestWrapper({
+      wrapChildren: children => <UIProvider>{children}</UIProvider>,
+    });
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: testRuntime.wrapper,
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente inicial');
+    });
+
+    let clearPromise!: Promise<void>;
+    act(() => {
+      clearPromise = result.current.patchRecord(
+        { 'beds.R1': confirmedClear.beds.R1 },
+        { consistency: 'remote_confirmed' }
+      );
+    });
+    await waitFor(() => {
+      expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalled();
+    });
+
+    act(() => {
+      testRuntime.queryClient.setQueryData(
+        getDailyRecordQueryKey(mockDate),
+        buildReadResult(realtimeNewer)
+      );
+    });
+    write.resolve(
+      createUpdatePartialDailyRecordResult({
+        date: mockDate,
+        outcome: 'clean',
+        savedLocally: true,
+        updatedRemotely: true,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: 1,
+        confirmedRecord: confirmedClear,
+      })
+    );
+
+    await act(async () => {
+      await clearPromise;
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente nuevo');
+      expect(result.current.record?.lastUpdated).toBe('2026-01-01T00:00:02.000Z');
+    });
+  });
+
+  it('rolls a failed later mutation back to the confirmed definitive clear', async () => {
+    const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
+      ...mockRecord,
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: 'Paciente vigente',
+          rut: '11.111.111-1',
+          pathology: 'Diagnóstico inicial',
+        }),
+      },
+    });
+    const clearedRecord = {
+      ...occupiedRecord,
+      beds: {
+        ...occupiedRecord.beds,
+        R1: DataFactory.createMockPatient('R1', { patientName: '', rut: '', pathology: '' }),
+      },
+      lastUpdated: '2026-01-01T00:00:01.000Z',
+    };
+    const clearWrite = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    const newerWrite = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    let remotelyVisibleRecord = occupiedRecord;
+
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
+      buildReadResult(remotelyVisibleRecord)
+    );
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed)
+      .mockImplementationOnce(() => clearWrite.promise)
+      .mockImplementationOnce(() => newerWrite.promise);
+
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente vigente');
+    });
+
+    let clearPromise!: Promise<void>;
+    act(() => {
+      clearPromise = result.current.patchRecord(
+        { 'beds.R1': DataFactory.createMockPatient('R1', { patientName: '', rut: '' }) },
+        { consistency: 'remote_confirmed' }
+      );
+    });
+    await waitFor(() => {
+      expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
+    });
+
+    let newerPromise!: Promise<void>;
+    act(() => {
+      newerPromise = result.current.patchRecord({
+        'beds.R1.pathology': 'Diagnóstico posterior',
+      });
+    });
+    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
+
+    remotelyVisibleRecord = clearedRecord;
+    clearWrite.resolve(
+      createUpdatePartialDailyRecordResult({
+        date: mockDate,
+        outcome: 'clean',
+        savedLocally: true,
+        updatedRemotely: true,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: 1,
+        confirmedRecord: clearedRecord,
+      })
+    );
+    await act(async () => {
+      await clearPromise;
+    });
+    await waitFor(() => {
+      expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(2);
+    });
+
+    newerWrite.reject(new Error('Fallo remoto posterior simulado'));
+    await act(async () => {
+      await expect(newerPromise).rejects.toThrow('Fallo remoto posterior simulado');
+    });
+
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('');
+      expect(result.current.record?.beds.R1.pathology).toBe('');
+    });
   });
 
   it('refreshes through detailed sync before refetching', async () => {

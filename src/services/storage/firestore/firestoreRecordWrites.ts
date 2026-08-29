@@ -174,9 +174,42 @@ export const updateRecordPartial = async (
     // (e.g. "beds.R1.medicalHandoffAudit.lastEditor"), which causes Firestore rules
     // to reject the write because the diff shape changes at the bed level.
     const specialistScopedPatch = isSpecialistScopedDailyRecordPatch(partialData);
-    const flatData = specialistScopedPatch
-      ? (partialData as unknown as Record<string, unknown>)
-      : flattenObject(partialData as unknown as Record<string, unknown>);
+    const intentionalBedClear = options.intentionalBedClear;
+    const intentionalBedClearPath = intentionalBedClear
+      ? `beds.${intentionalBedClear.bedId}`
+      : null;
+    const intentionalBedClearAllowedPaths = intentionalBedClearPath
+      ? new Set([
+          intentionalBedClearPath,
+          `${intentionalBedClearPath}.clinicalEpisodeId`,
+          'dateTimestamp',
+        ])
+      : null;
+    const unexpectedIntentionalBedClearPath = intentionalBedClearAllowedPaths
+      ? Object.keys(partialData).find(path => !intentionalBedClearAllowedPaths.has(path))
+      : undefined;
+    const generatedEpisodePath = intentionalBedClearPath
+      ? `${intentionalBedClearPath}.clinicalEpisodeId`
+      : null;
+    if (
+      intentionalBedClearPath &&
+      (!intentionalBedClear?.bedId ||
+        intentionalBedClear.bedId.includes('.') ||
+        !Object.prototype.hasOwnProperty.call(partialData, intentionalBedClearPath) ||
+        unexpectedIntentionalBedClearPath ||
+        (generatedEpisodePath &&
+          partialData[generatedEpisodePath] !== undefined &&
+          partialData[generatedEpisodePath] !== ''))
+    ) {
+      throw new ConcurrencyError(
+        'La limpieza confirmada debe contener únicamente una cama completa y sus metadatos vacíos.'
+      );
+    }
+    const flatData = intentionalBedClearPath
+      ? { [intentionalBedClearPath]: partialData[intentionalBedClearPath] }
+      : specialistScopedPatch
+        ? (partialData as unknown as Record<string, unknown>)
+        : flattenObject(partialData as unknown as Record<string, unknown>);
     const sanitizedPatch = sanitizeForFirestore(flatData) as Record<string, unknown>;
     const sanitizedData = sanitizeForFirestore({
       ...sanitizedPatch,
@@ -288,7 +321,9 @@ export const updateRecordPartial = async (
             : null;
         if (
           shouldUseAuthorityCallable &&
-          (callableAuthorityMode === 'enforced' || bedTreeAuthorityFenced)
+          (callableAuthorityMode === 'enforced' ||
+            bedTreeAuthorityFenced ||
+            Boolean(intentionalBedClear))
         ) {
           return withRetry(
             () =>
@@ -298,6 +333,7 @@ export const updateRecordPartial = async (
                 expectedLastUpdated,
                 mode: callableAuthorityMode || 'shadow',
                 origin: 'direct_partial_update',
+                intentionalBedClear,
                 syncContract: buildAuthorityPatchSyncContract(options.syncContract, callablePatch),
               }),
             {

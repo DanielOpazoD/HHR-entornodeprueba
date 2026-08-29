@@ -59,7 +59,7 @@ export interface BedManagementActions {
   /**
    * Clears patient data from a bed (Discharge/Cleanup).
    */
-  clearPatient: (bedId: string) => void;
+  clearPatient: (bedId: string, confirmedLastUpdated?: string) => Promise<boolean>;
 
   /**
    * Clears all beds in the current record.

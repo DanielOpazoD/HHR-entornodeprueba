@@ -7,7 +7,7 @@ import type {
 import type { RowActionConfirmDescriptor } from '@/features/census/types/censusRowActionCommandTypes';
 
 export interface RowActionRuntimeActions {
-  clearPatient: (bedId: string) => void;
+  clearPatient: (bedId: string, confirmedLastUpdated?: string) => Promise<boolean>;
   addCMA: (data: Omit<CMAData, 'id' | 'timestamp'>) => void;
   setMovement: (nextActionState: ActionState) => void;
   openDischarge: (dischargePatch: Partial<DischargeState>) => void;

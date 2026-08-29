@@ -307,4 +307,52 @@ describe('bedManagementDispatchController', () => {
     );
     warnSpy.mockRestore();
   });
+
+  it('requires remote confirmation before reporting a manual bed clear as applied', async () => {
+    const patchRecord = vi.fn().mockResolvedValue(undefined);
+    const auditPatientCleared = vi.fn();
+    const validation: BedManagementValidationPort = {
+      processFieldValue: vi.fn((_field, value) => ({ valid: true, value })),
+    };
+    const bedAudit: BedManagementAuditPort = {
+      auditPatientChange: vi.fn(),
+      auditCudyrChange: vi.fn(),
+      auditCribCudyrChange: vi.fn(),
+      auditPatientCleared,
+      auditPatientModified: vi.fn(),
+      auditPatientMovement: vi.fn(),
+    };
+
+    const result = await executeBedManagementAction({
+      currentRecord: buildRecord(),
+      action: {
+        type: 'CLEAR_PATIENT',
+        bedId: 'R1',
+        confirmedLastUpdated: '2026-03-06T10:00:00.000Z',
+      },
+      validation,
+      bedAudit,
+      patchRecord,
+    });
+
+    expect(result).toBe(true);
+    expect(patchRecord).toHaveBeenCalledWith(
+      {
+        'beds.R1': expect.objectContaining({
+          bedId: 'R1',
+          patientName: '',
+          rut: '',
+          pathology: '',
+        }),
+      },
+      {
+        consistency: 'remote_confirmed',
+        intentionalBedClear: {
+          bedId: 'R1',
+          confirmedLastUpdated: '2026-03-06T10:00:00.000Z',
+        },
+      }
+    );
+    expect(auditPatientCleared).toHaveBeenCalledWith('R1', 'Paciente', '11.111.111-1');
+  });
 });
