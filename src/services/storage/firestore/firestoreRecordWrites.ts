@@ -10,7 +10,6 @@ import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDa
 import { withRetry } from '@/utils/networkUtils';
 import { DataRegressionError } from '@/utils/integrityGuard';
 import {
-  flattenObject,
   getRecordDocRef,
   sanitizeForFirestore,
 } from '@/services/storage/firestore/firestoreShared';
@@ -53,31 +52,17 @@ import {
   type DailyRecordPartialWriteOptions,
   type DailyRecordSaveWriteOptions,
 } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
-import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import {
   buildGuardedRayenFallbackData,
   extractGuardedRayenClinicalPatch,
 } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
 import { createDirectFirestoreWriteReceipt } from './firestoreDirectWriteReceipt';
+import {
+  buildAuthorityPatchSyncContract,
+  prepareFirestorePartialData,
+} from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-const buildAuthorityPatchSyncContract = (
-  syncContract: SyncTaskContract | undefined,
-  authorityPatch: Record<string, unknown>
-): SyncTaskContract | undefined => {
-  if (!syncContract) {
-    return undefined;
-  }
-  const authorityPaths = Object.keys(authorityPatch);
-  const changedPaths = (syncContract.changedPaths ?? []).filter(path =>
-    authorityPaths.includes(path)
-  );
-
-  return {
-    ...syncContract,
-    changedPaths: changedPaths.length > 0 ? changedPaths : authorityPaths,
-  };
-};
 
 export const saveRecordToFirestore = async (
   record: DailyRecord,
@@ -175,41 +160,11 @@ export const updateRecordPartial = async (
     // to reject the write because the diff shape changes at the bed level.
     const specialistScopedPatch = isSpecialistScopedDailyRecordPatch(partialData);
     const intentionalBedClear = options.intentionalBedClear;
-    const intentionalBedClearPath = intentionalBedClear
-      ? `beds.${intentionalBedClear.bedId}`
-      : null;
-    const intentionalBedClearAllowedPaths = intentionalBedClearPath
-      ? new Set([
-          intentionalBedClearPath,
-          `${intentionalBedClearPath}.clinicalEpisodeId`,
-          'dateTimestamp',
-        ])
-      : null;
-    const unexpectedIntentionalBedClearPath = intentionalBedClearAllowedPaths
-      ? Object.keys(partialData).find(path => !intentionalBedClearAllowedPaths.has(path))
-      : undefined;
-    const generatedEpisodePath = intentionalBedClearPath
-      ? `${intentionalBedClearPath}.clinicalEpisodeId`
-      : null;
-    if (
-      intentionalBedClearPath &&
-      (!intentionalBedClear?.bedId ||
-        intentionalBedClear.bedId.includes('.') ||
-        !Object.prototype.hasOwnProperty.call(partialData, intentionalBedClearPath) ||
-        unexpectedIntentionalBedClearPath ||
-        (generatedEpisodePath &&
-          partialData[generatedEpisodePath] !== undefined &&
-          partialData[generatedEpisodePath] !== ''))
-    ) {
-      throw new ConcurrencyError(
-        'La limpieza confirmada debe contener únicamente una cama completa y sus metadatos vacíos.'
-      );
-    }
-    const flatData = intentionalBedClearPath
-      ? { [intentionalBedClearPath]: partialData[intentionalBedClearPath] }
-      : specialistScopedPatch
-        ? (partialData as unknown as Record<string, unknown>)
-        : flattenObject(partialData as unknown as Record<string, unknown>);
+    const flatData = prepareFirestorePartialData({
+      partialData: partialData as unknown as Record<string, unknown>,
+      specialistScopedPatch,
+      intentionalBedClear,
+    });
     const sanitizedPatch = sanitizeForFirestore(flatData) as Record<string, unknown>;
     const sanitizedData = sanitizeForFirestore({
       ...sanitizedPatch,
