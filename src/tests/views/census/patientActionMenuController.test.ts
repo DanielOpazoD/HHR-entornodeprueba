@@ -84,4 +84,20 @@ describe('patientActionMenuController', () => {
 
     expect(model.utilityActions).toEqual([]);
   });
+
+  it('limits utility actions to the explicitly allowed subset', () => {
+    const model = buildPatientActionMenuModel({
+      isBlocked: false,
+      readOnly: false,
+      allowedActions: ['clear'],
+      callbackAvailability: {
+        hasHistoryAction: true,
+        hasClinicalDocumentsAction: false,
+        hasExamRequestAction: false,
+        hasImagingRequestAction: false,
+      },
+    });
+
+    expect(model.utilityActions.map(action => action.action)).toEqual(['clear']);
+  });
 });

@@ -9,6 +9,7 @@ import type {
   MainPatientInputChangeHandlers,
 } from '@/features/census/components/patient-row/inputCellTypes';
 import type {
+  PatientActionMenuActionFilter,
   PatientActionMenuCallbacks,
   PatientActionMenuIndicators,
 } from '@/features/census/components/patient-row/patientRowActionContracts';
@@ -18,7 +19,10 @@ import type { PatientMainRowViewState } from '@/features/census/controllers/pati
 import type { HydratedRemoteClinicalFieldLocks } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
 export interface PatientMainRowActionCellProps
-  extends PatientActionMenuCallbacks, Required<PatientActionMenuIndicators> {
+  extends
+    PatientActionMenuCallbacks,
+    PatientActionMenuActionFilter,
+    Required<PatientActionMenuIndicators> {
   isBlocked: boolean;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
@@ -79,5 +83,7 @@ export interface PatientSubRowViewProps {
   accessProfile?: CensusAccessProfile;
   style?: CSSProperties;
   onOpenDemographics: () => void;
+  onOpenHistory: () => void;
+  onRemoveClinicalCrib: () => Promise<void>;
   onChange: ClinicalCribInputChangeHandlers;
 }

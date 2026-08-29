@@ -16,6 +16,8 @@ describe('PatientSubRowView', () => {
     diagnosisMode: 'cie10' as const,
     style: undefined,
     onOpenDemographics: vi.fn(),
+    onOpenHistory: vi.fn(),
+    onRemoveClinicalCrib: vi.fn().mockResolvedValue(undefined),
     onChange: {
       text: vi.fn(),
       check: vi.fn(),
@@ -35,7 +37,8 @@ describe('PatientSubRowView', () => {
       </table>
     );
 
-    expect(screen.getByTitle('Datos demográficos')).toBeInTheDocument();
+    expect(screen.getByTitle('Datos del Paciente')).toBeInTheDocument();
+    expect(screen.getByTitle('Acciones')).toBeInTheDocument();
     expect(screen.getByTestId('sub-input-cells')).toBeInTheDocument();
     expect(screen.getByTestId('sub-input-cells')).toHaveAttribute('data-diagnosis-mode', 'cie10');
   });
@@ -49,7 +52,8 @@ describe('PatientSubRowView', () => {
       </table>
     );
 
-    expect(screen.queryByTitle('Datos demográficos')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Datos del Paciente')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Acciones')).not.toBeInTheDocument();
   });
 
   it('hides demographics shortcut for specialist census access even when editable', () => {
@@ -61,7 +65,8 @@ describe('PatientSubRowView', () => {
       </table>
     );
 
-    expect(screen.queryByTitle('Datos demográficos')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Datos del Paciente')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Acciones')).not.toBeInTheDocument();
   });
 
   it('renders attached clinical cribs with a white row background', () => {

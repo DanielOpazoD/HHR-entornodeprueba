@@ -25,6 +25,7 @@ export interface PatientRowBedConfigActions {
   toggleBedMode: () => Promise<void>;
   toggleCompanionCrib: () => Promise<void>;
   toggleClinicalCrib: () => void;
+  removeClinicalCrib: () => Promise<void>;
 }
 
 export const usePatientRowBedConfigActions = ({
@@ -65,9 +66,23 @@ export const usePatientRowBedConfigActions = ({
     });
   }, [bedId, hasClinicalCrib, updateClinicalCrib]);
 
+  const removeClinicalCrib = useCallback(async () => {
+    const confirmed = await confirm({
+      title: 'Limpiar cuna',
+      message: '¿Está seguro de limpiar los datos de esta cuna?',
+      confirmText: 'Sí, limpiar',
+      cancelText: 'Cancelar',
+      variant: 'warning',
+    });
+    if (confirmed) {
+      updateClinicalCrib(bedId, 'remove');
+    }
+  }, [bedId, confirm, updateClinicalCrib]);
+
   return {
     toggleBedMode,
     toggleCompanionCrib,
     toggleClinicalCrib,
+    removeClinicalCrib,
   };
 };

@@ -60,6 +60,7 @@ describe('patientRowBindingSectionsController', () => {
         toggleBedMode: vi.fn(),
         toggleCompanionCrib: vi.fn(),
         toggleClinicalCrib: vi.fn(),
+        removeClinicalCrib: vi.fn(),
       },
       handleAction: vi.fn(),
     });

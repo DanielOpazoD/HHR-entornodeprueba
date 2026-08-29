@@ -61,6 +61,7 @@ describe('patientRowBindingsController', () => {
         toggleBedMode: vi.fn(),
         toggleCompanionCrib: vi.fn(),
         toggleClinicalCrib: vi.fn(),
+        removeClinicalCrib: vi.fn(),
       },
       handleAction: vi.fn(),
     });
@@ -145,6 +146,7 @@ describe('patientRowBindingsController', () => {
         toggleBedMode: vi.fn(),
         toggleCompanionCrib: vi.fn(),
         toggleClinicalCrib: vi.fn(),
+        removeClinicalCrib: vi.fn(),
       },
       handleAction: vi.fn(),
     });
@@ -245,6 +247,7 @@ describe('patientRowBindingsController', () => {
         toggleBedMode: vi.fn(),
         toggleCompanionCrib: vi.fn(),
         toggleClinicalCrib: vi.fn(),
+        removeClinicalCrib: vi.fn(),
       },
       handleAction: vi.fn(),
     });

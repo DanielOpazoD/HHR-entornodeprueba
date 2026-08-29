@@ -1,10 +1,10 @@
 import React from 'react';
-import { User } from 'lucide-react';
 import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 import { PatientInputCells } from './PatientInputCells';
 import { shouldShowSubRowDemographicsButton } from '@/features/census/controllers/patientRowSubViewController';
 import type { PatientSubRowViewProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusAccessProfile';
+import { PatientActionMenu } from '@/features/census/components/patient-row/PatientActionMenu';
 
 export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
   data,
@@ -16,6 +16,8 @@ export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
   accessProfile = 'default',
   style,
   onOpenDemographics,
+  onOpenHistory,
+  onRemoveClinicalCrib,
   onChange,
 }) => {
   const showDemographicsButton = shouldShowSubRowDemographicsButton({
@@ -32,13 +34,20 @@ export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
       <td className="p-0 text-right border-r border-slate-200 align-middle group/crib-config">
         <div className="flex justify-center items-center h-full gap-1">
           {showDemographicsButton && (
-            <button
-              onClick={onOpenDemographics}
-              className="p-0.5 rounded bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
-              title="Datos demográficos"
-            >
-              <User size={12} />
-            </button>
+            <PatientActionMenu
+              isBlocked={false}
+              readOnly={readOnly}
+              clinicalEditingDisabled={clinicalEditingDisabled}
+              accessProfile={accessProfile}
+              hasPatientIdentity={true}
+              showCmaAction={false}
+              allowedActions={['clear']}
+              onAction={action => {
+                if (action === 'clear') void onRemoveClinicalCrib();
+              }}
+              onViewDemographics={onOpenDemographics}
+              onViewHistory={onOpenHistory}
+            />
           )}
         </div>
       </td>

@@ -61,6 +61,74 @@ describe('censusTableViewController', () => {
     expect(emptyIds).toEqual(['E1']);
   });
 
+  it('does not render an empty clinical crib placeholder as an occupied cuna row', () => {
+    const bedsMap = {
+      R1: DataFactory.createMockPatient('R1', {
+        patientName: 'Paciente principal',
+        clinicalCrib: DataFactory.createMockPatient('R1-cuna', {
+          patientName: '   ',
+          rut: '',
+        }),
+      }),
+    };
+
+    const result = buildCensusBedRows({
+      visibleBeds: TEST_BEDS,
+      beds: bedsMap,
+    });
+
+    expect(result.unifiedRows.filter(row => row.kind === 'occupied').map(row => row.id)).toEqual([
+      'R1',
+    ]);
+  });
+
+  it('keeps an intentional Cuna-mode draft visible before identity is completed', () => {
+    const bedsMap = {
+      R1: DataFactory.createMockPatient('R1', {
+        patientName: 'Paciente principal',
+        clinicalCrib: DataFactory.createMockPatient('R1-cuna', {
+          patientName: '',
+          rut: '',
+          bedMode: 'Cuna',
+          identityStatus: 'provisional',
+        }),
+      }),
+    };
+
+    const result = buildCensusBedRows({
+      visibleBeds: TEST_BEDS,
+      beds: bedsMap,
+    });
+
+    expect(result.unifiedRows.filter(row => row.kind === 'occupied').map(row => row.id)).toEqual([
+      'R1',
+      'R1-cuna',
+    ]);
+  });
+
+  it('does not revive an identity-less Cuna-mode residue without the provisional draft marker', () => {
+    const bedsMap = {
+      R1: DataFactory.createMockPatient('R1', {
+        patientName: 'Paciente principal',
+        clinicalCrib: DataFactory.createMockPatient('R1-cuna', {
+          patientName: '',
+          rut: '',
+          bedMode: 'Cuna',
+          identityStatus: undefined,
+        }),
+      }),
+    };
+
+    const result = buildCensusBedRows({
+      visibleBeds: TEST_BEDS,
+      beds: bedsMap,
+    });
+
+    expect(result.unifiedRows.filter(row => row.kind === 'occupied').map(row => row.id)).toEqual([
+      'R1',
+    ]);
+  });
+
   it('resolveVisibleBedTypes applies only valid overrides', () => {
     const bedTypes = resolveVisibleBedTypes({
       visibleBeds: TEST_BEDS,

@@ -138,6 +138,8 @@ export const buildPatientSubSectionBindings = ({
   accessProfile,
   style,
   onOpenDemographics: buildPatientRowModalOpenBindings(runtime).onOpenDemographics,
+  onOpenHistory: buildPatientRowModalOpenBindings(runtime).onOpenHistory,
+  onRemoveClinicalCrib: runtime.bedConfigActions.removeClinicalCrib,
   onChange: runtime.handlers.cribInputChangeHandlers,
 });
 

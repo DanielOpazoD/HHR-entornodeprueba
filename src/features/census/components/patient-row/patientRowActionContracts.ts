@@ -18,6 +18,10 @@ export interface PatientActionMenuCallbacks {
   onViewHistory?: () => void;
 }
 
+export interface PatientActionMenuActionFilter {
+  allowedActions?: readonly PatientRowAction[];
+}
+
 export interface PatientActionMenuAvailability {
   showDemographicsAction: boolean;
   showMenuTrigger: boolean;

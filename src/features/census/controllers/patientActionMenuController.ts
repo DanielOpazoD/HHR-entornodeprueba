@@ -9,6 +9,7 @@ import type {
   PatientActionMenuIndicators,
 } from '@/features/census/components/patient-row/patientRowActionContracts';
 import type { RowMenuAlign } from '@/features/census/components/patient-row/patientRowUiContracts';
+import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import { resolvePatientActionMenuBinding } from '@/features/census/controllers/patientActionMenuBindingController';
 
 export interface PatientActionMenuCallbackAvailability {
@@ -62,6 +63,7 @@ interface BuildPatientActionMenuModelParams {
   showCmaAction?: boolean;
   indicators?: Required<PatientActionMenuIndicators>;
   callbackAvailability: PatientActionMenuCallbackAvailability;
+  allowedActions?: readonly PatientRowAction[];
 }
 
 export interface PatientActionMenuModel {
@@ -79,6 +81,7 @@ export const buildPatientActionMenuModel = ({
   showCmaAction,
   indicators,
   callbackAvailability,
+  allowedActions,
 }: BuildPatientActionMenuModelParams): PatientActionMenuModel => ({
   binding: resolvePatientActionMenuBinding({
     align,
@@ -95,6 +98,8 @@ export const buildPatientActionMenuModel = ({
     readOnly: readOnly || clinicalEditingDisabled,
     accessProfile,
   })
-    ? getVisibleUtilityActions(isBlocked)
+    ? getVisibleUtilityActions(isBlocked).filter(
+        action => !allowedActions || allowedActions.includes(action.action)
+      )
     : [],
 });

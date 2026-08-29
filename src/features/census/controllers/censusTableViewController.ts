@@ -28,6 +28,13 @@ const isAllowedBedTypeOverride = (value: string | undefined): value is BedType =
 const hasVisibleBedOccupant = (bedData: PatientData | null | undefined): bedData is PatientData =>
   Boolean(bedData && (bedData.isBlocked || hasMeaningfulPatientIdentity(bedData)));
 
+const hasVisibleClinicalCrib = (clinicalCrib: PatientData | null | undefined): boolean =>
+  Boolean(
+    clinicalCrib &&
+    (hasMeaningfulPatientIdentity(clinicalCrib) ||
+      (clinicalCrib.bedMode === 'Cuna' && clinicalCrib.identityStatus === 'provisional'))
+  );
+
 const buildOccupiedBedRows = (bed: BedDefinition, bedData: PatientData): UnifiedBedRow[] => {
   const occupiedRows: UnifiedBedRow[] = [
     {
@@ -39,7 +46,7 @@ const buildOccupiedBedRows = (bed: BedDefinition, bedData: PatientData): Unified
     },
   ];
 
-  if (bedData.clinicalCrib && !bedData.isBlocked) {
+  if (bedData.clinicalCrib && !bedData.isBlocked && hasVisibleClinicalCrib(bedData.clinicalCrib)) {
     occupiedRows.push({
       kind: 'occupied',
       id: `${bed.id}-cuna`,

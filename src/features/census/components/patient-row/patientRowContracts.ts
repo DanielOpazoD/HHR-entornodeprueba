@@ -32,6 +32,7 @@ export type {
 } from '@/features/census/components/patient-row/patientRowUiContracts';
 export type { PatientBedConfigCallbacks } from '@/features/census/components/patient-row/patientRowBedConfigContracts';
 export type {
+  PatientActionMenuActionFilter,
   PatientActionMenuAvailability,
   PatientActionMenuBinding,
   PatientActionMenuCallbacks,
