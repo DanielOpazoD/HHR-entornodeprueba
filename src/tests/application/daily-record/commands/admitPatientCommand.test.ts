@@ -202,6 +202,8 @@ describe('executeAdmitPatientCommand', () => {
           capturedAt: '2026-08-28T20:15:00.000Z',
           formatVersion: 1,
           encounterId: '98765',
+          integrity: 'sha256_checksum',
+          sourceTrust: 'user_confirmed_unverified',
         },
       })
     );
@@ -212,6 +214,7 @@ describe('executeAdmitPatientCommand', () => {
         details: expect.objectContaining({
           admissionMethod: 'eloisa_manual_code',
           formatVersion: 1,
+          sourceTrust: 'user_confirmed_unverified',
         }),
       })
     );

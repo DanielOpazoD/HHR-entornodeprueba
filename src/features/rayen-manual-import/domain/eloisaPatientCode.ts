@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const ELOISA_PATIENT_CODE_PREFIX = 'HHR-PACIENTE-1';
 export const ELOISA_PATIENT_CODE_FORMAT_VERSION = 1 as const;
+export const ELOISA_PATIENT_CODE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+export const ELOISA_PATIENT_CODE_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 const MAX_CODE_LENGTH = 16_384;
 
 const EloisaManualPatientSchema = z
@@ -33,6 +35,7 @@ export type EloisaPatientCodeErrorCode =
   | 'incomplete'
   | 'unsupported_version'
   | 'corrupt'
+  | 'expired'
   | 'invalid_payload';
 
 export class EloisaPatientCodeError extends Error {
@@ -149,6 +152,25 @@ export const parseEloisaPatientCode = async (
     );
   }
   return result.data;
+};
+
+export const assertEloisaPatientCodeFreshness = (
+  payload: EloisaManualPatientPayload,
+  now = Date.now()
+): void => {
+  const capturedAt = Date.parse(payload.capturedAt);
+  if (capturedAt > now + ELOISA_PATIENT_CODE_MAX_FUTURE_SKEW_MS) {
+    throw new EloisaPatientCodeError(
+      'invalid_payload',
+      'La hora de captura del código está en el futuro. Copia un código nuevo desde Eloísa.'
+    );
+  }
+  if (capturedAt < now - ELOISA_PATIENT_CODE_MAX_AGE_MS) {
+    throw new EloisaPatientCodeError(
+      'expired',
+      'El código venció. Copia nuevamente al paciente desde Eloísa antes de importarlo.'
+    );
+  }
 };
 
 export const buildEloisaPatientDisplayName = (payload: EloisaManualPatientPayload): string =>

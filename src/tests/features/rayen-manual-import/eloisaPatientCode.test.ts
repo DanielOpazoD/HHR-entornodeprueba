@@ -2,6 +2,7 @@
 import { webcrypto } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  assertEloisaPatientCodeFreshness,
   createEloisaPatientCode,
   parseEloisaPatientCode,
   serializeEloisaPatientPayload,
@@ -58,5 +59,16 @@ describe('eloisa patient code contract', () => {
     await parseEloisaPatientCode(code);
     spies.forEach(spy => expect(spy).not.toHaveBeenCalled());
     spies.forEach(spy => spy.mockRestore());
+  });
+
+  it('accepts a recent capture and rejects expired or future codes', () => {
+    const now = Date.parse('2026-08-29T01:00:00.000Z');
+    expect(() => assertEloisaPatientCodeFreshness(payload, now)).not.toThrow();
+    expect(() =>
+      assertEloisaPatientCodeFreshness({ ...payload, capturedAt: '2026-08-28T12:59:59.999Z' }, now)
+    ).toThrow(/venció/i);
+    expect(() =>
+      assertEloisaPatientCodeFreshness({ ...payload, capturedAt: '2026-08-29T01:05:00.001Z' }, now)
+    ).toThrow(/futuro/i);
   });
 });

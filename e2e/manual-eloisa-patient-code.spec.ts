@@ -29,7 +29,7 @@ const buildPatientCode = (date: string): string => {
     admissionTime: '08:15',
     biologicalSex: 'Femenino',
     birthDate: '1986-05-12',
-    capturedAt: `${date}T14:30:00.000Z`,
+    capturedAt: new Date().toISOString(),
     devices: ['CVC', 'Sonda Foley'],
     diagnosis: 'Diagnóstico de prueba E2E',
     encounterId: ENCOUNTER_ID,

@@ -1,4 +1,3 @@
-/** Builds the offline patient code from the authenticated active-encounter readers. */
 (function (root) {
   'use strict';
   const create = dependencies => {
@@ -37,6 +36,7 @@
           info: session.info,
           acceptEntries: true,
         });
+        if (deviceResult.error) return deviceResult;
         const payload = codeContract.buildPayload({
           patient,
           deviceEntries: Array.isArray(deviceResult.entries) ? deviceResult.entries : [],

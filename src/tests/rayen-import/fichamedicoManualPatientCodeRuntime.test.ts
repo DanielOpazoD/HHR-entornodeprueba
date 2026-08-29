@@ -59,4 +59,26 @@ describe('manual patient code background runtime', () => {
     });
     expect(fetchPatientHeader).not.toHaveBeenCalled();
   });
+
+  it('fails closed when device evidence cannot be read', async () => {
+    const buildPayload = vi.fn();
+    const runtime = factory.create({
+      resolveSession: vi.fn().mockResolvedValue({ info: { authenticated: true } }),
+      fetchActiveEncounterRows: vi.fn().mockResolvedValue({ rows: [{ id: 91 }] }),
+      fetchPatientHeader: vi.fn().mockResolvedValue({ firstGivenName: 'Ana' }),
+      fetchDeviceEvidence: vi
+        .fn()
+        .mockResolvedValue({ error: 'No se pudieron leer dispositivos.' }),
+      normalizePatient: vi.fn().mockReturnValue({ encounterId: '91', firstGivenName: 'Ana' }),
+      clinicalDayAt: vi.fn().mockReturnValue('2026-08-28'),
+      codeContract: { buildPayload },
+      cryptoApi: {},
+      now: Date.now,
+    });
+
+    await expect(runtime({ encId: '91' })).resolves.toEqual({
+      error: 'No se pudieron leer dispositivos.',
+    });
+    expect(buildPayload).not.toHaveBeenCalled();
+  });
 });

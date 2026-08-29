@@ -8,7 +8,7 @@ import {
 
 const payload: EloisaManualPatientPayload = {
   version: 1,
-  capturedAt: '2026-08-28T20:15:00.000Z',
+  capturedAt: new Date().toISOString(),
   encounterId: '98765',
   firstName: 'José',
   middleNames: 'Ángel',
@@ -67,6 +67,49 @@ describe('EloisaPatientCodeImportModal', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /validar y revisar/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/RUT.*no es válido/i);
+    expect(screen.getByRole('button', { name: /confirmar ingreso/i })).toBeDisabled();
+  });
+
+  it('rejects an expired code before enabling confirmation', async () => {
+    render(
+      <EloisaPatientCodeImportModal
+        isOpen
+        emptyBeds={[{ id: 'H3C1', label: 'H3C1' }]}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    fireEvent.change(screen.getByLabelText(/código copiado/i), {
+      target: {
+        value: await createEloisaPatientCode({
+          ...payload,
+          capturedAt: new Date(Date.now() - 13 * 60 * 60 * 1000).toISOString(),
+        }),
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /validar y revisar/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/código venció/i);
+    expect(screen.getByRole('button', { name: /confirmar ingreso/i })).toBeDisabled();
+  });
+
+  it('cannot restore a stale validation result after the pasted code changes', async () => {
+    const firstCode = await createEloisaPatientCode(payload);
+    const secondCode = await createEloisaPatientCode({ ...payload, encounterId: '98766' });
+    render(
+      <EloisaPatientCodeImportModal
+        isOpen
+        emptyBeds={[{ id: 'H3C1', label: 'H3C1' }]}
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+      />
+    );
+    const input = screen.getByLabelText(/código copiado/i);
+    fireEvent.change(input, { target: { value: firstCode } });
+    fireEvent.click(screen.getByRole('button', { name: /validar y revisar/i }));
+    fireEvent.change(input, { target: { value: secondCode } });
+
+    await vi.waitFor(() => expect(input).toHaveValue(secondCode));
+    expect(screen.queryByLabelText('Vista previa del paciente')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /confirmar ingreso/i })).toBeDisabled();
   });
 });

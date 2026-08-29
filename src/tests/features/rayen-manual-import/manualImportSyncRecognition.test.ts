@@ -34,6 +34,8 @@ describe('automatic sync after an Eloísa code import', () => {
         capturedAt: '2026-07-08T11:55:00.000Z',
         formatVersion: 1 as const,
         encounterId: '98765',
+        integrity: 'sha256_checksum' as const,
+        sourceTrust: 'user_confirmed_unverified' as const,
       },
     };
     const current: DailyRecord = {

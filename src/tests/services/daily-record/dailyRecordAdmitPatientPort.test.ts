@@ -63,6 +63,8 @@ describe('buildAdmitPatientPatch', () => {
           capturedAt: '2026-08-28T20:15:00.000Z',
           formatVersion: 1,
           encounterId: '98765',
+          integrity: 'sha256_checksum',
+          sourceTrust: 'user_confirmed_unverified',
         },
       })
     ) as Record<string, unknown>;
@@ -77,6 +79,7 @@ describe('buildAdmitPatientPatch', () => {
       'beds.H5C1.eloisaManualImportAudit': expect.objectContaining({
         method: 'eloisa_manual_code',
         encounterId: '98765',
+        sourceTrust: 'user_confirmed_unverified',
       }),
     });
   });

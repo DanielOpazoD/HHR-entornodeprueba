@@ -153,6 +153,8 @@ export const executeAdmitPatientCommand = async (
             ...input.eloisaManualAdmissionSource,
             importedBy: input.actor,
             importedAt: (deps.now?.() ?? new Date()).toISOString(),
+            integrity: 'sha256_checksum',
+            sourceTrust: 'user_confirmed_unverified',
           },
         }
       : {}),
@@ -189,6 +191,7 @@ export const executeAdmitPatientCommand = async (
         ? {
             admissionMethod: input.eloisaManualAdmissionSource.method,
             formatVersion: input.eloisaManualAdmissionSource.formatVersion,
+            sourceTrust: 'user_confirmed_unverified',
           }
         : {}),
     },

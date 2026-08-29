@@ -213,6 +213,8 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
           capturedAt: z.string(),
           formatVersion: z.literal(1),
           encounterId: z.string(),
+          integrity: z.literal('sha256_checksum'),
+          sourceTrust: z.literal('user_confirmed_unverified'),
         })
       ),
       hasWristband: z.boolean().default(true),

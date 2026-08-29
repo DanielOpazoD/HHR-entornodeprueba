@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ClipboardPaste, ShieldCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { formatRut, isValidRut } from '@/utils/rutUtils';
 import {
+  assertEloisaPatientCodeFreshness,
   buildEloisaPatientDisplayName,
   parseEloisaPatientCode,
   type EloisaManualPatientPayload,
@@ -37,9 +38,11 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
   const [error, setError] = useState('');
   const [validating, setValidating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const validationSequence = useRef(0);
 
   useEffect(() => {
     if (!isOpen) return;
+    validationSequence.current += 1;
     setCode('');
     setPayload(null);
     setBedId('');
@@ -49,20 +52,25 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
   }, [isOpen]);
 
   const validate = useCallback(async () => {
+    const validationId = ++validationSequence.current;
+    const candidateCode = code;
     setValidating(true);
     setError('');
     setPayload(null);
     try {
-      const parsed = await parseEloisaPatientCode(code);
+      const parsed = await parseEloisaPatientCode(candidateCode);
+      if (validationId !== validationSequence.current) return;
+      assertEloisaPatientCodeFreshness(parsed);
       if (!isValidRut(parsed.rut)) {
         setError('El RUT contenido en el código no es válido.');
         return;
       }
       setPayload(parsed);
     } catch (caught) {
+      if (validationId !== validationSequence.current) return;
       setError(caught instanceof Error ? caught.message : 'El código no pudo validarse.');
     } finally {
-      setValidating(false);
+      if (validationId === validationSequence.current) setValidating(false);
     }
   }, [code]);
 
@@ -107,7 +115,8 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
       bodyClassName="space-y-4 p-5"
     >
       <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-        Este código contiene datos clínicos codificados, no cifrados. Pégalo sólo en HHR y evita
+        Este código contiene datos clínicos codificados, no cifrados. Su verificación detecta daños
+        accidentales, pero no autentica el origen. Compáralo con Eloísa antes de confirmar y evita
         conservarlo en notas o mensajería.
       </div>
 
@@ -116,13 +125,16 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
         <textarea
           value={code}
           onChange={event => {
+            validationSequence.current += 1;
             setCode(event.target.value);
             setPayload(null);
             setError('');
+            setValidating(false);
           }}
           rows={4}
           autoComplete="off"
           spellCheck={false}
+          disabled={validating || saving}
           className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
           placeholder="HHR-PACIENTE-1.…"
         />

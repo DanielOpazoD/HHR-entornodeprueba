@@ -40,7 +40,7 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `content-fichamedico.js` | ISOLATED en Rayen: relé background ⇄ mundo principal |
 | `fichamedico-clinical-client.js` | Cliente read-only: valida la sesión, construye rutas relativas y centraliza GET JSON/PDF autenticados de Ficha Médico |
 | `fichamedico-patient-context.js` | Contexto clínico read-only: caché de cabeceras, modelo normalizado de hospitalizados y revalidación de episodios activos |
-| `eloisa-patient-code-contract.js` | Serializa en UTF-8 y firma con checksum SHA-256 el código manual (codificado, no cifrado) |
+| `eloisa-patient-code-contract.js` | Serializa en UTF-8 y agrega un checksum SHA-256 contra daños accidentales; el código no está cifrado ni autentica criptográficamente su origen |
 | `fichamedico-manual-patient-copy.js` | Inserta una única acción “Copiar para HHR” en las listas dinámicas de Gestión de cuidados |
 | `fichamedico-manual-patient-code-runtime.js` | Revalida el episodio y reúne cabecera y dispositivos mediante los lectores autenticados existentes |
 | `hhr-ui.js` | Design system de la extensión: tokens (paleta navy/teal), iconos de trazo, estilos de la barra (Shadow DOM), tooltips y foco por teclado |

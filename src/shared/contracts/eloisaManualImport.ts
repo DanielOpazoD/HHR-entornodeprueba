@@ -5,4 +5,6 @@ export interface EloisaManualImportAudit {
   capturedAt: string;
   formatVersion: 1;
   encounterId: string;
+  integrity: 'sha256_checksum';
+  sourceTrust: 'user_confirmed_unverified';
 }
