@@ -32,6 +32,7 @@ export interface PatientMainRowActionCellProps
   hasPatientIdentity?: boolean;
   medicalIndicationsPatient?: MedicalIndicationsPatientOption;
   clinicalDocumentCount?: number;
+  isPendingClear?: boolean;
 }
 
 export interface PatientMainRowViewProps
@@ -71,6 +72,7 @@ export interface PatientMainRowViewProps
   onDragStart?: (e: DragEvent) => void;
   onDragEnd?: () => void;
   clinicalDocumentCount?: number;
+  isPendingClear?: boolean;
 }
 
 export interface PatientSubRowViewProps {
@@ -82,6 +84,7 @@ export interface PatientSubRowViewProps {
   diagnosisMode: DiagnosisMode;
   accessProfile?: CensusAccessProfile;
   style?: CSSProperties;
+  isPendingClear?: boolean;
   onOpenDemographics: () => void;
   onOpenHistory: () => void;
   onRemoveClinicalCrib: () => Promise<void>;

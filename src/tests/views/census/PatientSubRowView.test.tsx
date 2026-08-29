@@ -100,4 +100,20 @@ describe('PatientSubRowView', () => {
     // the complete fixed-layout table, which was the regression seen after adding an attached crib.
     expect(row?.querySelectorAll(':scope > td')).toHaveLength(3);
   });
+
+  it('locks only the crib row and shows progress while remote deletion is pending', () => {
+    const { container } = render(
+      <table>
+        <tbody>
+          <PatientSubRowView {...baseProps} readOnly isPendingClear />
+        </tbody>
+      </table>
+    );
+
+    const row = container.querySelector('tr[data-testid="patient-row"]');
+    expect(row).toHaveAttribute('aria-busy', 'true');
+    expect(row).toHaveAttribute('data-clear-pending', 'true');
+    expect(screen.getByRole('status')).toHaveAccessibleName('Confirmando limpieza de la cuna');
+    expect(screen.queryByTitle('Acciones')).not.toBeInTheDocument();
+  });
 });

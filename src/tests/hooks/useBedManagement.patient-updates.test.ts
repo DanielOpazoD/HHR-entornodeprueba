@@ -299,7 +299,7 @@ describe('useBedManagement patient updates', () => {
       });
     });
 
-    it('handles updateClinicalCrib remove', () => {
+    it('handles updateClinicalCrib remove with confirmed crib authority', async () => {
       const patient = createMockPatient('R1', {
         clinicalCrib: { patientName: 'Baby', rut: '1-1' } as PatientData,
       });
@@ -308,13 +308,28 @@ describe('useBedManagement patient updates', () => {
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
-        result.current.updateClinicalCrib('R1', 'remove');
+      await act(async () => {
+        await result.current.updateClinicalCrib('R1', 'remove', undefined, record.lastUpdated, {
+          patientName: 'Baby',
+          rut: '1-1',
+        });
       });
 
-      expect(mockPatchRecord).toHaveBeenCalledWith({
-        'beds.R1.clinicalCrib': null,
-      });
+      expect(mockPatchRecord).toHaveBeenCalledWith(
+        { 'beds.R1.clinicalCrib': null },
+        {
+          consistency: 'remote_confirmed',
+          intentionalBedClear: {
+            bedId: 'R1',
+            target: 'clinicalCrib',
+            confirmedLastUpdated: record.lastUpdated,
+            confirmedOccupant: {
+              patientName: 'Baby',
+              rut: '1-1',
+            },
+          },
+        }
+      );
     });
   });
 });

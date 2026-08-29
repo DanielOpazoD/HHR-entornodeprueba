@@ -9,12 +9,14 @@ vi.mock('@/features/census/components/patient-row/PatientMainRowActionCell', () 
     onViewClinicalDocuments?: () => void;
     onViewExamRequest?: () => void;
     onViewHistory?: () => void;
+    isPendingClear?: boolean;
   }) => (
     <td
       data-testid="action-cell"
       data-clinical-documents={String(Boolean(props.onViewClinicalDocuments))}
       data-exam={String(Boolean(props.onViewExamRequest))}
       data-history={String(Boolean(props.onViewHistory))}
+      data-clear-pending={String(Boolean(props.isPendingClear))}
     />
   ),
 }));
@@ -143,5 +145,20 @@ describe('PatientMainRowView', () => {
     expect(screen.getByTestId('action-cell')).toHaveAttribute('data-clinical-documents', 'false');
     expect(screen.getByTestId('action-cell')).toHaveAttribute('data-exam', 'false');
     expect(screen.getByTestId('action-cell')).toHaveAttribute('data-history', 'true');
+  });
+
+  it('marks the row while the destructive clear is being confirmed', () => {
+    render(
+      <table>
+        <tbody>
+          <PatientMainRowView {...baseProps} isPendingClear />
+        </tbody>
+      </table>
+    );
+
+    const row = screen.getByTestId('patient-row');
+    expect(row).toHaveAttribute('aria-busy', 'true');
+    expect(row).toHaveAttribute('data-clear-pending', 'true');
+    expect(screen.getByTestId('action-cell')).toHaveAttribute('data-clear-pending', 'true');
   });
 });

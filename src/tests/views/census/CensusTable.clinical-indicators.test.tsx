@@ -65,6 +65,13 @@ vi.mock('@/features/census/hooks/useClinicalDocumentPresenceByBed', () => ({
   useClinicalDocumentPresenceByBed: vi.fn(() => ({ byBedId: {}, infoByBedId: {} })),
 }));
 
+vi.mock('@/features/census/hooks/usePendingBedClearIds', () => ({
+  usePendingIntentionalClearTargets: vi.fn(() => ({
+    bedIds: new Set<string>(),
+    clinicalCribBedIds: new Set<string>(),
+  })),
+}));
+
 vi.mock('@/context/AuthContext', () => ({
   useAuth: vi.fn(() => ({
     role: 'viewer',

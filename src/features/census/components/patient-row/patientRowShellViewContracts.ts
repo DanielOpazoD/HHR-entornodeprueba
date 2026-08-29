@@ -53,6 +53,7 @@ export interface PatientRowProps {
   style?: CSSProperties;
   draggable?: boolean;
   isDragging?: boolean;
+  isPendingClear?: boolean;
   onDragStart?: (e: DragEvent) => void;
   onDragEnd?: () => void;
   clinicalDocumentCount?: number;
