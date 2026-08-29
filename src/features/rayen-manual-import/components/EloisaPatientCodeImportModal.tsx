@@ -94,6 +94,14 @@ export const EloisaPatientCodeImportModal: React.FC<EloisaPatientCodeImportModal
 
   const confirm = useCallback(async () => {
     if (!payload || !bedId || saving) return;
+    try {
+      assertEloisaPatientCodeFreshness(payload);
+    } catch (caught) {
+      setPayload(null);
+      setBedId('');
+      setError(caught instanceof Error ? caught.message : 'El código ya no está vigente.');
+      return;
+    }
     setSaving(true);
     setError('');
     const failure = await onConfirm(payload, bedId);

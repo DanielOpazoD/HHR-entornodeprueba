@@ -1,9 +1,7 @@
-/** Adds one compact, read-only “Copiar para HHR” action to each nursing worklist patient row. */
 (function (root) {
   'use strict';
   const normalizeIdentity = value => String(value || '').replace(/[^0-9kK]/g, '').toUpperCase();
   const normalizeText = value => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
-
   const create = dependencies => {
     const {
       document,
@@ -17,7 +15,6 @@
     let timer = null;
     let patients = [];
     let patientsReadAt = 0;
-
     const readPatients = async () => {
       if (patients.length && Date.now() - patientsReadAt < 20_000) return patients;
       const result = await sendMessage({ type: 'RAYEN_CENSUS_LIST_REQUEST' });
@@ -26,18 +23,21 @@
       patientsReadAt = Date.now();
       return patients;
     };
-
     const patientForRow = (row, candidates) => {
       const explicit = row.getAttribute('data-encounter-id') || row.getAttribute('data-enc-id');
       if (explicit) return candidates.find(patient => String(patient.encounterId) === explicit) || null;
       const rowText = normalizeText(row.textContent);
-      return candidates.find(patient => {
+      const rowIdentity = normalizeIdentity(rowText);
+      const identityMatches = candidates.filter(patient => {
         const rut = normalizeIdentity(patient.run);
-        const rowIdentity = normalizeIdentity(rowText);
-        if (rut && rowIdentity.includes(rut)) return true;
+        return rut && rowIdentity.includes(rut);
+      });
+      if (identityMatches.length) return identityMatches.length === 1 ? identityMatches[0] : null;
+      const nameMatches = candidates.filter(patient => {
         const name = normalizeText(patient.name);
         return name.length >= 8 && rowText.includes(name);
-      }) || null;
+      });
+      return nameMatches.length === 1 ? nameMatches[0] : null;
     };
 
     const copy = async (button, patient) => {

@@ -6,6 +6,17 @@ export const ELOISA_PATIENT_CODE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 export const ELOISA_PATIENT_CODE_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 const MAX_CODE_LENGTH = 16_384;
 
+const isRealIsoDate = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+};
+
+const IsoDateSchema = z.string().refine(isRealIsoDate, 'Fecha calendario no válida.');
+
 const EloisaManualPatientSchema = z
   .object({
     version: z.literal(ELOISA_PATIENT_CODE_FORMAT_VERSION),
@@ -16,17 +27,33 @@ const EloisaManualPatientSchema = z
     lastName: z.string().trim().min(1),
     secondLastName: z.string().trim().optional(),
     rut: z.string().trim().min(2),
-    birthDate: z.string().trim().optional(),
+    birthDate: IsoDateSchema.optional(),
     biologicalSex: z.enum(['Masculino', 'Femenino', 'Indeterminado']).optional(),
-    admissionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    admissionDate: IsoDateSchema,
     admissionTime: z
       .string()
-      .regex(/^\d{2}:\d{2}$/)
+      .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
       .optional(),
     diagnosis: z.string().trim().optional(),
     devices: z.array(z.string().trim().min(1)).max(30).default([]),
   })
-  .strict();
+  .strict()
+  .superRefine((payload, context) => {
+    if (payload.birthDate && payload.birthDate > payload.admissionDate) {
+      context.addIssue({
+        code: 'custom',
+        path: ['birthDate'],
+        message: 'La fecha de nacimiento no puede ser posterior al ingreso.',
+      });
+    }
+    if (payload.admissionDate > payload.capturedAt.slice(0, 10)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['admissionDate'],
+        message: 'La fecha de ingreso no puede ser posterior a la captura.',
+      });
+    }
+  });
 
 export type EloisaManualPatientPayload = z.infer<typeof EloisaManualPatientSchema>;
 

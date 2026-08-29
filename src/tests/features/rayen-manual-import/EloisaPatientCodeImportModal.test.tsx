@@ -112,4 +112,31 @@ describe('EloisaPatientCodeImportModal', () => {
     expect(screen.queryByLabelText('Vista previa del paciente')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /confirmar ingreso/i })).toBeDisabled();
   });
+
+  it('rechecks expiry at confirmation and performs no write after the code expires', async () => {
+    const capturedAt = Date.parse(payload.capturedAt);
+    const now = vi.spyOn(Date, 'now').mockReturnValue(capturedAt + 11 * 60 * 60 * 1000);
+    const onConfirm = vi.fn();
+    render(
+      <EloisaPatientCodeImportModal
+        isOpen
+        emptyBeds={[{ id: 'H3C1', label: 'H3C1' }]}
+        onClose={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+    fireEvent.change(screen.getByLabelText(/código copiado/i), {
+      target: { value: await createEloisaPatientCode(payload) },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /validar y revisar/i }));
+    expect(await screen.findByText('José Ángel Muñoz Rapa Nui')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/cama de destino/i), { target: { value: 'H3C1' } });
+
+    now.mockReturnValue(capturedAt + 13 * 60 * 60 * 1000);
+    fireEvent.click(screen.getByRole('button', { name: /confirmar ingreso/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/código venció/i);
+    expect(onConfirm).not.toHaveBeenCalled();
+    now.mockRestore();
+  });
 });

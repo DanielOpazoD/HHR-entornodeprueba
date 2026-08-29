@@ -28,6 +28,15 @@ const payload: EloisaManualPatientPayload = {
   devices: ['VVP', 'CVC'],
 };
 
+const buildUncheckedCode = async (value: unknown): Promise<string> => {
+  const encoded = Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+  const material = `HHR-PACIENTE-1.${encoded}`;
+  const checksum = Buffer.from(
+    await webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(material))
+  ).toString('base64url');
+  return `${material}.${checksum}`;
+};
+
 describe('eloisa patient code contract', () => {
   it('round-trips deterministic UTF-8 clinical data', async () => {
     const first = await createEloisaPatientCode(payload);
@@ -70,5 +79,16 @@ describe('eloisa patient code contract', () => {
     expect(() =>
       assertEloisaPatientCodeFreshness({ ...payload, capturedAt: '2026-08-29T01:05:00.001Z' }, now)
     ).toThrow(/futuro/i);
+  });
+
+  it.each([
+    [{ admissionDate: '2026-02-31' }, /obligatorios/i],
+    [{ admissionTime: '29:99' }, /obligatorios/i],
+    [{ birthDate: 'desconocida' }, /obligatorios/i],
+    [{ birthDate: '2026-08-29', admissionDate: '2026-08-28' }, /obligatorios/i],
+    [{ admissionDate: '2026-08-29' }, /obligatorios/i],
+  ])('rejects semantically invalid demographics %#', async (override, message) => {
+    const code = await buildUncheckedCode({ ...payload, ...override });
+    await expect(parseEloisaPatientCode(code)).rejects.toThrow(message);
   });
 });
