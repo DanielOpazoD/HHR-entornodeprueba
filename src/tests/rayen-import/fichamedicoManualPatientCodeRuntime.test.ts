@@ -18,7 +18,7 @@ describe('manual patient code background runtime', () => {
   it('revalidates the active episode and uses authenticated readers without writing Eloísa', async () => {
     const createCode = vi.fn().mockResolvedValue('HHR-PACIENTE-1.payload.checksum');
     const runtime = factory.create({
-      resolveSession: vi.fn().mockResolvedValue({ info: { token: 'synthetic-session' } }),
+      resolveSession: vi.fn().mockResolvedValue({ info: { authenticated: true } }),
       fetchActiveEncounterRows: vi.fn().mockResolvedValue({ rows: [{ id: 91 }] }),
       fetchPatientHeader: vi.fn().mockResolvedValue({ firstGivenName: 'Ana' }),
       fetchDeviceEvidence: vi.fn().mockResolvedValue({ entries: [{ name: 'VVP' }] }),
