@@ -38,6 +38,16 @@ import {
 } from '@/shared/contracts/runtimeOperationStatus';
 import { resolveClinicalEpisodeIdForAdmission } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { EloisaManualImportAudit } from '@/shared/contracts/eloisaManualImport';
+import type { DeviceDetails, DeviceInstance } from '@/types/domain/devices';
+
+export interface EloisaManualAdmissionSource {
+  method: 'eloisa_manual_code';
+  capturedAt: string;
+  formatVersion: 1 | 2;
+  encounterId: string;
+  encounterRoute?: 'medical' | 'nurse';
+}
 
 export interface AdmitPatientInput {
   bedId: string;
@@ -45,7 +55,18 @@ export interface AdmitPatientInput {
   rut: string;
   pathology?: string;
   admissionDate: string;
+  admissionTime?: string;
+  firstName?: string;
+  lastName?: string;
+  secondLastName?: string;
+  birthDate?: string;
+  biologicalSex?: 'Masculino' | 'Femenino' | 'Indeterminado';
+  devices?: string[];
+  deviceDetails?: DeviceDetails;
+  deviceInstanceHistory?: DeviceInstance[];
   clinicalEpisodeId?: string;
+  eloisaManualAdmissionSource?: EloisaManualAdmissionSource;
+  eloisaManualImportAudit?: EloisaManualImportAudit;
   baseRecord?: DailyRecord | null;
   recordDate: string;
   /** uid / email of the authenticated actor performing the admission. */
@@ -69,6 +90,7 @@ export interface AdmitPatientCommandDependencies {
   port: AdmitPatientPort;
   writeAuditEvent?: WriteAuditEvent;
   createClinicalEpisodeId?: () => string;
+  now?: () => Date;
 }
 
 export interface AdmitPatientOutcome {
@@ -129,6 +151,17 @@ export const executeAdmitPatientCommand = async (
   const inputWithEpisodeId: AdmitPatientInput = {
     ...input,
     clinicalEpisodeId: resolveClinicalEpisodeIdForAdmission(input, deps.createClinicalEpisodeId),
+    ...(input.eloisaManualAdmissionSource
+      ? {
+          eloisaManualImportAudit: {
+            ...input.eloisaManualAdmissionSource,
+            importedBy: input.actor,
+            importedAt: (deps.now?.() ?? new Date()).toISOString(),
+            integrity: 'sha256_checksum',
+            sourceTrust: 'user_confirmed_unverified',
+          },
+        }
+      : {}),
   };
   try {
     snapshot = await deps.port.persistAdmission(inputWithEpisodeId);
@@ -158,6 +191,13 @@ export const executeAdmitPatientCommand = async (
       rut: input.rut,
       pathology: input.pathology ?? '',
       clinicalEpisodeId: inputWithEpisodeId.clinicalEpisodeId,
+      ...(input.eloisaManualAdmissionSource
+        ? {
+            admissionMethod: input.eloisaManualAdmissionSource.method,
+            formatVersion: input.eloisaManualAdmissionSource.formatVersion,
+            sourceTrust: 'user_confirmed_unverified',
+          }
+        : {}),
     },
     patientRut: input.rut,
     recordDate: input.recordDate,

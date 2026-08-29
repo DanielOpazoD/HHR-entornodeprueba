@@ -10,7 +10,8 @@
 
   var ENCOUNTER_ROUTE_BASE = 'https://fichamedico.rayensalud.cl/dashboard/encounter-list/';
   var FICHAMEDICO_ORIGIN = 'https://fichamedico.rayensalud.cl';
-
+  var ROUTE_BASES = { medical: ENCOUNTER_ROUTE_BASE,
+    nurse: FICHAMEDICO_ORIGIN + '/dashboard/encounter-list-nurse/' };
   var normalizeEncounterId = function (value) {
     var normalized = String(value == null ? '' : value).trim();
     return /^\d+$/.test(normalized) ? normalized : '';
@@ -31,11 +32,10 @@
     return ENCOUNTER_ROUTE_BASE;
   };
 
-  var buildEncounterUrl = function (encounterId, currentUrl) {
+  var buildEncounterUrl = function (encounterId, currentUrl, routeHint) {
     var normalized = normalizeEncounterId(encounterId);
-    return normalized
-      ? resolveEncounterRouteBase(currentUrl) + encodeURIComponent(normalized)
-      : '';
+    return normalized ? (ROUTE_BASES[routeHint] || resolveEncounterRouteBase(currentUrl)) +
+      encodeURIComponent(normalized) : '';
   };
 
   var orderEncounterTabs = function (tabs) {

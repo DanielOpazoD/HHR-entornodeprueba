@@ -316,7 +316,7 @@
         ok: true,
         patients: (result.patients || []).map(patient => ({
           encounterId: String(patient.encounterId),
-          name: String(patient.name || '').trim(),
+          name: [patient.firstGivenName, patient.nextGivenNames, patient.firstFamilyName, patient.secondFamilyName].filter(Boolean).join(' ').trim(),
           run: formatRun(patient.run) || String(patient.run || ''),
           bed: patient.bed || patient.room || '',
           service: patient.service || '',
@@ -334,7 +334,7 @@
         const report = await fetchScalesReportWithInfo(patient.encounterId, infoResult.info);
         return {
           encounterId: String(patient.encounterId),
-          name: String(patient.name || '').trim(),
+          name: [patient.firstGivenName, patient.nextGivenNames, patient.firstFamilyName, patient.secondFamilyName].filter(Boolean).join(' ').trim(),
           run: formatRun(patient.run) || String(patient.run || ''),
           bed: patient.bed || patient.room || '',
           service: patient.service || '',

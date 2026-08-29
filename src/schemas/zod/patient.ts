@@ -205,6 +205,19 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       admissionDate: z.string().default(''),
       admissionTime: z.string().default(''),
       clinicalEpisodeId: nullableOptional(z.string()),
+      eloisaManualImportAudit: nullableOptional(
+        z.object({
+          method: z.literal('eloisa_manual_code'),
+          importedBy: z.string(),
+          importedAt: z.string(),
+          capturedAt: z.string(),
+          formatVersion: z.union([z.literal(1), z.literal(2)]),
+          encounterId: z.string(),
+          encounterRoute: z.enum(['medical', 'nurse']).optional(),
+          integrity: z.literal('sha256_checksum'),
+          sourceTrust: z.literal('user_confirmed_unverified'),
+        })
+      ),
       hasWristband: z.boolean().default(true),
       devices: nullishDefault(z.array(z.string()), () => []),
       deviceDetails: nullableOptional(DeviceDetailsSchema),

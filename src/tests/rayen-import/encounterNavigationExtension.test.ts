@@ -5,7 +5,11 @@ import '../../../extension/encounter-navigation.js';
 const navigation = (
   globalThis as typeof globalThis & {
     HhrEncounterNavigation: {
-      buildEncounterUrl: (encounterId: unknown, currentUrl?: unknown) => string;
+      buildEncounterUrl: (
+        encounterId: unknown,
+        currentUrl?: unknown,
+        routeHint?: 'medical' | 'nurse'
+      ) => string;
       normalizeEncounterId: (encounterId: unknown) => string;
       resolveEncounterRouteBase: (currentUrl: unknown) => string;
       orderEncounterTabs: <T extends { active?: boolean; lastAccessed?: number }>(tabs: T[]) => T[];
@@ -39,6 +43,16 @@ describe('extension encounter navigation helpers', () => {
     expect(
       navigation.buildEncounterUrl('141336', 'https://example.com/dashboard/encounter-list-nurse/1')
     ).toBe('https://fichamedico.rayensalud.cl/dashboard/encounter-list/141336');
+  });
+
+  it('honors an explicit nursing route when the current tab is outside an encounter', () => {
+    expect(
+      navigation.buildEncounterUrl(
+        '141336',
+        'https://fichamedico.rayensalud.cl/dashboard/home',
+        'nurse'
+      )
+    ).toBe('https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse/141336');
   });
 
   it('prefers the active tab, then the most recently accessed tab', () => {

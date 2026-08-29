@@ -29,6 +29,7 @@ interface ClinicalPanelDrawerProps {
   bedId: string;
   patientName: string;
   clinicalEpisodeId: string;
+  encounterRouteHint?: 'medical' | 'nurse';
   canNavigatePrevious?: boolean;
   canNavigateNext?: boolean;
   onNavigatePrevious?: () => void;
@@ -62,6 +63,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   bedId,
   patientName,
   clinicalEpisodeId,
+  encounterRouteHint,
   canNavigatePrevious = false,
   canNavigateNext = false,
   onNavigatePrevious,
@@ -171,6 +173,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 bedId={bedId}
                 patientName={patientName}
                 clinicalEpisodeId={clinicalEpisodeId}
+                routeHint={encounterRouteHint}
               />
             </div>
             <p className="text-[10px] text-slate-400">

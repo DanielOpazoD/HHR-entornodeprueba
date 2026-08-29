@@ -17,7 +17,7 @@
 // evaluation. Register every PDF/XLS dependency here; runtime-loader.js then acts as a readiness
 // guard for the workflows that use them instead of attempting a forbidden late import.
 importScripts(
-  'message-contract.js',
+  'message-contract.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js',
@@ -232,7 +232,7 @@ const {
   handleCensusListRequest,
   handleVitalsCensusRequest,
 } = fichaMedicoPatientContext;
-
+const handleManualPatientCodeRequest = self.HhrFichaMedicoManualPatientCodeRuntime.create({ resolveSession: resolveFichaClinicalSession, fetchActiveEncounterRows, fetchPatientHeader, fetchDeviceEvidence, normalizePatient: fichaMedicoPatientContext.normalizeHospitalizedEncounter, clinicalDayAt: self.HhrClinicalDayRuntime.clinicalDayAt, codeContract: self.HhrEloisaPatientCodeContract, cryptoApi: crypto, now: () => Date.now() });
 const gestionCamasRuntime = self.HhrGestionCamasRuntime.create({
   chrome,
   session: self.HhrGestionCamasSession,
@@ -1165,7 +1165,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo capturar Ficha Médico y Gestión de Camas en una misma sincronización.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
-    message => handleOpenEncounter(message.encId),
+    message => handleOpenEncounter(message.encId, message.routeHint),
     'No se pudo abrir el episodio clínico.'
   ),
   [RUNTIME_MESSAGES.EGRESO_LOOKUP_REQUEST]: runtimeRoute(
@@ -1205,6 +1205,7 @@ const runtimeMessageRoutes = Object.freeze({
     (message, sender) => handlePatientHeaderRequest({ encId: message.encId, sender }),
     'No se pudo identificar al paciente.'
   ),
+  [RUNTIME_MESSAGES.MANUAL_PATIENT_CODE_REQUEST]: runtimeRoute((message, sender) => handleManualPatientCodeRequest({ encId: message.encId, sender }), 'No se pudo preparar el código manual del paciente.'),
   [RUNTIME_MESSAGES.CENSUS_LIST_REQUEST]: runtimeRoute(
     (message, sender) =>
       handleCensusListRequest({ currentEncId: message.currentEncId, sender }),

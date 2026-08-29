@@ -70,6 +70,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   handoffNoteNightShift: 'localNarrative',
   medicalHandoffNote: 'localNarrative',
   medicalHandoffAudit: 'localNarrative',
+  eloisaManualImportAudit: 'localNarrative',
   clinicalCrib: 'movementInvariant',
 
   devices: 'mergeById',

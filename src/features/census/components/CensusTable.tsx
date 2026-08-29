@@ -22,6 +22,12 @@ import {
   getCensusAttentionFilterLabel,
   type CensusAttentionFilter,
 } from '@/features/census/controllers/rowAcuityController';
+import {
+  buildEloisaPatientDisplayName,
+  findManualPatientDuplicate,
+  type EloisaManualPatientPayload,
+} from '@/features/rayen-manual-import';
+import { mapRayenInvasiveDeviceEntries, mergeReportDevices } from '@/features/rayen-import';
 
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
@@ -29,6 +35,11 @@ export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 const LazyDemographicsModal = lazy(() =>
   import('@/components/modals/DemographicsModal').then(module => ({
     default: module.DemographicsModal,
+  }))
+);
+const LazyEloisaPatientCodeImportModal = lazy(() =>
+  import('@/features/rayen-manual-import').then(module => ({
+    default: module.EloisaPatientCodeImportModal,
   }))
 );
 
@@ -48,6 +59,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   onClearAttentionFilter,
 }) => {
   const [activeEmptyBedId, setActiveEmptyBedId] = useState<string | null>(null);
+  const [isEloisaCodeImportOpen, setIsEloisaCodeImportOpen] = useState(false);
   const tableRootRef = useRef<HTMLDivElement>(null);
   const freshnessUi = useDailyRecordFreshnessUi(currentDateString);
   const clinicalEditingDisabled = freshnessUi.isClinicalEditingBlocked;
@@ -63,7 +75,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   const { record } = useDailyRecordData();
   const beds = useDailyRecordBeds();
   const admitPatient = useAdmitPatient();
-  const { error: notifyError } = useNotification();
+  const { error: notifyError, success: notifySuccess } = useNotification();
 
   const handleMoveToBed = useCallback(
     (sourceBedId: string, targetBedId: string) => {
@@ -105,6 +117,85 @@ export const CensusTable: React.FC<CensusTableProps> = ({
       setActiveEmptyBedId(bedId);
     },
     [clinicalEditingDisabled]
+  );
+
+  const openEloisaCodeImport = useCallback(() => {
+    setActiveEmptyBedId(null);
+    setIsEloisaCodeImportOpen(true);
+  }, []);
+
+  const emptyBedOptions = useMemo(
+    () =>
+      Object.entries(beds ?? {})
+        .filter(([, patient]) => !patient?.patientName?.trim() && !patient?.isBlocked)
+        .map(([bedId, patient]) => ({ id: bedId, label: patient?.bedName || bedId })),
+    [beds]
+  );
+
+  const importEloisaPatient = useCallback(
+    async (payload: EloisaManualPatientPayload, targetBedId: string): Promise<string | null> => {
+      const target = record?.beds?.[targetBedId];
+      if (!target || target.patientName?.trim() || target.isBlocked) {
+        return 'La cama seleccionada ya no está disponible. Actualiza la selección.';
+      }
+      const duplicate = findManualPatientDuplicate(record, payload);
+      if (duplicate) {
+        return duplicate.kind === 'rut'
+          ? `Este RUT ya está presente en la cama ${duplicate.bedId}. No se creó otro ingreso.`
+          : `Este episodio de Eloísa ya está presente en la cama ${duplicate.bedId}.`;
+      }
+      const patientName = buildEloisaPatientDisplayName(payload);
+      const patientWithDevices = mergeReportDevices(
+        {
+          ...createEmptyPatient(targetBedId),
+          patientName,
+          rut: payload.rut,
+          clinicalEpisodeId: payload.encounterId,
+        },
+        mapRayenInvasiveDeviceEntries(payload.deviceEntries),
+        {
+          now: new Date(),
+          createId: () => globalThis.crypto.randomUUID(),
+        }
+      );
+      const outcome = await admitPatient({
+        bedId: targetBedId,
+        patientName,
+        firstName: [payload.firstName, payload.middleNames].filter(Boolean).join(' '),
+        lastName: payload.lastName,
+        secondLastName: payload.secondLastName,
+        rut: payload.rut,
+        birthDate: payload.birthDate,
+        biologicalSex: payload.biologicalSex,
+        admissionDate: payload.admissionDate,
+        admissionTime: payload.admissionTime,
+        pathology: payload.diagnosis,
+        devices: patientWithDevices.devices.length ? patientWithDevices.devices : payload.devices,
+        deviceDetails: patientWithDevices.deviceDetails,
+        deviceInstanceHistory: patientWithDevices.deviceInstanceHistory,
+        clinicalEpisodeId: payload.encounterId,
+        eloisaManualAdmissionSource: {
+          method: 'eloisa_manual_code',
+          capturedAt: payload.capturedAt,
+          formatVersion: payload.version,
+          encounterId: payload.encounterId,
+          encounterRoute: payload.encounterRoute,
+        },
+        recordDate: currentDateString,
+        baseRecord: record,
+      });
+      if (outcome.status.status === 'ready' || outcome.status.status === 'degraded') {
+        setIsEloisaCodeImportOpen(false);
+        notifySuccess('Paciente incorporado', `Se agregó a la cama ${targetBedId}.`);
+        return null;
+      }
+      return (
+        outcome.applicationOutcome.userSafeMessage ||
+        outcome.applicationOutcome.issues[0]?.message ||
+        'No se pudo guardar el paciente. No se realizó una escritura parcial.'
+      );
+    },
+    [admitPatient, currentDateString, notifySuccess, record]
   );
 
   const saveEmptyBedDemographics = useCallback(
@@ -262,6 +353,18 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             bedId={activeEmptyBedId}
             recordDate={currentDateString}
             requiresCompleteDemographics
+            onImportEloisaCode={openEloisaCodeImport}
+          />
+        </Suspense>
+      ) : null}
+
+      {isEloisaCodeImportOpen ? (
+        <Suspense fallback={null}>
+          <LazyEloisaPatientCodeImportModal
+            isOpen
+            emptyBeds={emptyBedOptions}
+            onClose={() => setIsEloisaCodeImportOpen(false)}
+            onConfirm={importEloisaPatient}
           />
         </Suspense>
       ) : null}

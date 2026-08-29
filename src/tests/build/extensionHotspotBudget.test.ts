@@ -61,13 +61,13 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    expect(metrics.authoredFiles).toHaveLength(92);
+    expect(metrics.authoredFiles).toHaveLength(95);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
         0
       )
-    ).toBe(87);
+    ).toBe(88);
     expect(evaluateExtensionHotspots({ baseline, metrics })).toEqual([]);
   });
 

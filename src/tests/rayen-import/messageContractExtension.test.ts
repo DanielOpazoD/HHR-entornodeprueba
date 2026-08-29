@@ -40,7 +40,7 @@ describe('shared Rayen runtime-message contract', () => {
   it('registers every service-worker request type once', () => {
     const values = Object.values(contract.types);
 
-    expect(values).toHaveLength(52);
+    expect(values).toHaveLength(53);
     expect(new Set(values).size).toBe(values.length);
     expect(values.every(value => /^RAYEN_[A-Z0-9_]+$/.test(value))).toBe(true);
   });
@@ -75,6 +75,18 @@ describe('shared Rayen runtime-message contract', () => {
         currentEncId: '',
       })
     ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.MANUAL_PATIENT_CODE_REQUEST,
+        encId: '141121',
+      })
+    ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.MANUAL_PATIENT_CODE_REQUEST,
+        encId: '',
+      })
+    ).toMatchObject({ ok: false, known: true });
     expect(
       contract.validateRuntimeMessage({
         type: contract.types.LAB_SEARCH_REQUEST,

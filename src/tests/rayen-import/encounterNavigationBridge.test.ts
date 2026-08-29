@@ -40,6 +40,29 @@ describe('encounterNavigationBridge', () => {
     await expect(request).resolves.toEqual({ ok: true, reused: true, error: undefined });
   });
 
+  it('forwards the manual-import route hint without changing the encounter id', async () => {
+    const postMessageSpy = vi.spyOn(window, 'postMessage');
+    const request = requestRayenEncounterNavigation('141336', 1000, 'nurse');
+    const payload = postMessageSpy.mock.calls[0]?.[0] as {
+      reqId: string;
+      routeHint?: string;
+    };
+
+    expect(payload).toMatchObject({ routeHint: 'nurse' });
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_OPEN_ENCOUNTER_RESULT_TYPE,
+          reqId: payload.reqId,
+          ok: true,
+          reused: true,
+        },
+      })
+    );
+    await expect(request).resolves.toMatchObject({ ok: true });
+  });
+
   it('returns an actionable timeout when the extension does not answer', async () => {
     vi.useFakeTimers();
     const request = requestRayenEncounterNavigation('141336', 50);

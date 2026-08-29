@@ -96,7 +96,7 @@
         'No se pudo leer Rayen. Recarga la pestaña de Ficha Médico (Cmd+R) para activar la extensión y reintenta.'
       );
 
-    const handleOpenEncounter = async encId => {
+    const handleOpenEncounter = async (encId, routeHint) => {
       const normalizedEncounterId = encounterNavigation.normalizeEncounterId(encId);
       if (!normalizedEncounterId) {
         return { ok: false, reused: false, error: 'El episodio clínico no es válido.' };
@@ -108,9 +108,7 @@
         const existingTab = orderedTabs[0];
         const reused = Boolean(existingTab && existingTab.id != null);
         const targetUrl = encounterNavigation.buildEncounterUrl(
-          normalizedEncounterId,
-          existingTab && existingTab.url
-        );
+          normalizedEncounterId, existingTab && existingTab.url, routeHint);
         const tab = reused
           ? await tabs.update(existingTab.id, { url: targetUrl, active: true })
           : await tabs.create({ url: targetUrl, active: true });

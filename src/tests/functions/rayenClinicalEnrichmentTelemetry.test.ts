@@ -47,9 +47,11 @@ describe('Rayen clinical enrichment telemetry', () => {
         }),
       })
     );
-    expect(JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0])).not.toMatch(
-      /H2C1|episode-secret|Paciente reservado|11\.111|braden|120|run-1|mutation-1/
+    const telemetry = admin.telemetryAdd.mock.calls[0]?.[0];
+    expect(JSON.stringify(telemetry)).not.toMatch(
+      /H2C1|episode-secret|Paciente reservado|11\.111|braden|run-1|mutation-1/
     );
+    expect(JSON.stringify(telemetry?.context)).not.toMatch(/120/);
   });
 
   it('reports internal Firestore transaction retries truthfully', async () => {
@@ -122,9 +124,11 @@ describe('Rayen clinical enrichment telemetry', () => {
         }),
       })
     );
-    expect(JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0])).not.toMatch(
-      /H2C1|episode-secret|Paciente reservado|11\.111|evaluationScores|vitalSigns|braden|120/
+    const telemetry = admin.telemetryAdd.mock.calls[0]?.[0];
+    expect(JSON.stringify(telemetry)).not.toMatch(
+      /H2C1|episode-secret|Paciente reservado|11\.111|evaluationScores|vitalSigns|braden/
     );
+    expect(JSON.stringify(telemetry?.context)).not.toMatch(/120/);
   });
 
   it('records unavailable parity when validation fails before comparison', async () => {

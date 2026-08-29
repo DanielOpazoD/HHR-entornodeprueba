@@ -15,7 +15,8 @@ export interface RayenEncounterNavigationResult {
 
 export const requestRayenEncounterNavigation = (
   clinicalEpisodeId: string,
-  timeoutMs = 8000
+  timeoutMs = 8000,
+  routeHint?: 'medical' | 'nurse'
 ): Promise<RayenEncounterNavigationResult> =>
   new Promise(resolve => {
     const encounterId = clinicalEpisodeId.trim();
@@ -54,7 +55,7 @@ export const requestRayenEncounterNavigation = (
 
     window.addEventListener('message', onMessage);
     window.postMessage(
-      { type: RAYEN_OPEN_ENCOUNTER_REQUEST_TYPE, reqId, encId: encounterId },
+      { type: RAYEN_OPEN_ENCOUNTER_REQUEST_TYPE, reqId, encId: encounterId, routeHint },
       window.location.origin
     );
 

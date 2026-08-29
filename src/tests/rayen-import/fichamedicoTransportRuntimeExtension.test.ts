@@ -35,7 +35,10 @@ const globals = globalThis as typeof globalThis & {
         noAnswerError: string
       ) => Promise<Record<string, unknown>>;
       handleSnapshotRequest: () => Promise<Record<string, unknown>>;
-      handleOpenEncounter: (encId: unknown) => Promise<Record<string, unknown>>;
+      handleOpenEncounter: (
+        encId: unknown,
+        routeHint?: 'medical' | 'nurse'
+      ) => Promise<Record<string, unknown>>;
       health: () => Promise<Record<string, unknown>>;
       getFetchInfo: (sender?: Record<string, unknown>) => Promise<Record<string, unknown>>;
     };
@@ -174,6 +177,21 @@ describe('Ficha Médico transport runtime', () => {
     });
     expect(chrome.tabs.create).toHaveBeenCalledWith({
       url: 'https://fichamedico.rayensalud.cl/dashboard/encounter-list/141336',
+      active: true,
+    });
+  });
+
+  it('opens the nursing encounter route when HHR supplies the manual-import hint', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.create.mockResolvedValue({ id: 10 });
+    const { runtime } = createRuntime(chrome);
+
+    await expect(runtime.handleOpenEncounter('141336', 'nurse')).resolves.toEqual({
+      ok: true,
+      reused: false,
+    });
+    expect(chrome.tabs.create).toHaveBeenCalledWith({
+      url: 'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse/141336',
       active: true,
     });
   });

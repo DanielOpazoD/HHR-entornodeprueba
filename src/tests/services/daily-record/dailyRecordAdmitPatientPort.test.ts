@@ -44,6 +44,132 @@ describe('buildAdmitPatientPatch', () => {
     const patch = buildAdmitPatientPatch(baseInput({ pathology: '' })) as Record<string, unknown>;
     expect(patch['beds.H5C1.pathology']).toBe('');
   });
+
+  it('persists imported demographics, devices and provenance in the same atomic patch', () => {
+    const patch = buildAdmitPatientPatch(
+      baseInput({
+        clinicalEpisodeId: '98765',
+        admissionTime: '06:35',
+        firstName: 'José Ángel',
+        lastName: 'Muñoz',
+        secondLastName: 'Rapa Nui',
+        birthDate: '1980-05-04',
+        biologicalSex: 'Masculino',
+        devices: ['VVP', 'CVC'],
+        deviceDetails: {
+          'VVP#1': { installationDate: '2026-08-28' },
+          CVC: { installationDate: '2026-08-27' },
+        },
+        deviceInstanceHistory: [
+          {
+            id: 'device-1',
+            type: 'VVP#1',
+            clinicalEpisodeId: '98765',
+            installationDate: '2026-08-28',
+            installationTime: '07:15',
+            status: 'Active',
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        ],
+        eloisaManualImportAudit: {
+          method: 'eloisa_manual_code',
+          importedBy: 'nurse@hospital.cl',
+          importedAt: '2026-08-28T20:20:00.000Z',
+          capturedAt: '2026-08-28T20:15:00.000Z',
+          formatVersion: 1,
+          encounterId: '98765',
+          integrity: 'sha256_checksum',
+          sourceTrust: 'user_confirmed_unverified',
+        },
+      })
+    ) as Record<string, unknown>;
+    expect(patch).toMatchObject({
+      'beds.H5C1.admissionTime': '06:35',
+      'beds.H5C1.firstName': 'José Ángel',
+      'beds.H5C1.lastName': 'Muñoz',
+      'beds.H5C1.secondLastName': 'Rapa Nui',
+      'beds.H5C1.birthDate': '1980-05-04',
+      'beds.H5C1.biologicalSex': 'Masculino',
+      'beds.H5C1.devices': ['VVP', 'CVC'],
+      'beds.H5C1.deviceDetails': {
+        'VVP#1': { installationDate: '2026-08-28' },
+        CVC: { installationDate: '2026-08-27' },
+      },
+      'beds.H5C1.deviceInstanceHistory': [
+        expect.objectContaining({
+          type: 'VVP#1',
+          installationDate: '2026-08-28',
+          installationTime: '07:15',
+        }),
+      ],
+      'beds.H5C1.eloisaManualImportAudit': expect.objectContaining({
+        method: 'eloisa_manual_code',
+        encounterId: '98765',
+        sourceTrust: 'user_confirmed_unverified',
+      }),
+    });
+  });
+
+  it('replaces residual data in an empty bed for a manual Eloísa admission', () => {
+    const input = baseInput({
+      pathology: undefined,
+      secondLastName: undefined,
+      birthDate: undefined,
+      admissionTime: undefined,
+      biologicalSex: undefined,
+      devices: undefined,
+      eloisaManualAdmissionSource: {
+        method: 'eloisa_manual_code',
+        capturedAt: '2026-08-28T20:15:00.000Z',
+        formatVersion: 1,
+        encounterId: '98765',
+      },
+      eloisaManualImportAudit: {
+        method: 'eloisa_manual_code',
+        importedBy: 'nurse@hospital.cl',
+        importedAt: '2026-08-28T20:20:00.000Z',
+        capturedAt: '2026-08-28T20:15:00.000Z',
+        formatVersion: 1,
+        encounterId: '98765',
+        integrity: 'sha256_checksum',
+        sourceTrust: 'user_confirmed_unverified',
+      },
+      baseRecord: {
+        date: '2026-05-03',
+        lastUpdated: '2026-05-03T09:00:00.000Z',
+        beds: {
+          H5C1: {
+            patientName: '',
+            pathology: 'Diagnóstico residual',
+            secondLastName: 'Residual',
+            birthDate: '1950-01-01',
+            admissionTime: '01:23',
+            biologicalSex: 'Femenino',
+            devices: ['CVC'],
+            bedName: 'Cama 5-1',
+          } as NonNullable<AdmitPatientInput['baseRecord']>['beds'][string],
+        },
+        discharges: [],
+        transfers: [],
+        cma: [],
+        activeExtraBeds: [],
+      },
+    });
+
+    const patch = buildAdmitPatientPatch(input) as Record<string, unknown>;
+    expect(patch['beds.H5C1']).toMatchObject({
+      bedName: 'Cama 5-1',
+      patientName: 'Paciente Demo',
+      pathology: '',
+      secondLastName: '',
+      birthDate: '',
+      admissionTime: '',
+      biologicalSex: 'Indeterminado',
+      devices: [],
+      eloisaManualImportAudit: expect.objectContaining({ encounterId: '98765' }),
+    });
+  });
 });
 
 describe('createDailyRecordAdmitPatientPort', () => {
