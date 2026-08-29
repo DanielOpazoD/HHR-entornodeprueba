@@ -88,6 +88,45 @@ describe('Ficha Médico manual patient copy action', () => {
     expect(document.querySelector('tr')?.textContent).toContain('Copiar para HHR');
   });
 
+  it('rebinds the action when Eloísa reuses a row for another patient', async () => {
+    const sendMessage = vi.fn(async message =>
+      (message as { type: string }).type === 'RAYEN_CENSUS_LIST_REQUEST'
+        ? {
+            patients: [
+              { encounterId: '91', name: 'Ana Pérez', run: '12.345.678-5' },
+              { encounterId: '92', name: 'Tomás Riroroko', run: '11.111.111-1' },
+            ],
+          }
+        : { ok: true, code: 'HHR-PACIENTE-1.payload.checksum' }
+    );
+    const runtime = factory.create({
+      document,
+      MutationObserver,
+      sendMessage,
+      writeClipboard: vi.fn().mockResolvedValue(undefined),
+      setTimeout,
+      clearTimeout,
+    });
+    await runtime.scan();
+
+    document.querySelector('tr td:first-child')!.textContent =
+      'Tomás Riroroko · 11.111.111-1';
+    await runtime.scan();
+    const button = document.querySelector(
+      '[data-hhr-patient-code-action="1"]'
+    ) as HTMLButtonElement;
+    expect(document.querySelectorAll('[data-hhr-patient-code-action="1"]')).toHaveLength(1);
+    expect(button.dataset.hhrEncounterId).toBe('92');
+    button.click();
+
+    await vi.waitFor(() =>
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'RAYEN_MANUAL_PATIENT_CODE_REQUEST',
+        encId: '92',
+      })
+    );
+  });
+
   it('prefers the unique RUT match when two active patients share a name', async () => {
     document.body.innerHTML =
       '<table><tbody><tr><td>Ana Pérez · 11.111.111-1</td><td></td></tr></tbody></table>';

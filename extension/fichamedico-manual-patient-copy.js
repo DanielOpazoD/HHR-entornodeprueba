@@ -72,13 +72,20 @@
       const candidates = await readPatients();
       if (!candidates.length) return;
       document.querySelectorAll('tr, [role="row"]').forEach(row => {
-        if (row.querySelector('[data-hhr-patient-code-action="1"]')) return;
+        const existing = row.querySelector('[data-hhr-patient-code-action="1"]');
         const patient = patientForRow(row, candidates);
-        if (!patient) return;
+        if (!patient) {
+          if (existing) existing.remove();
+          return;
+        }
+        const encounterId = String(patient.encounterId);
+        if (existing?.dataset.hhrEncounterId === encounterId) return;
+        if (existing) existing.remove();
         const host = row.querySelector('td:last-child, [role="cell"]:last-child') || row;
         const button = document.createElement('button');
         button.type = 'button';
         button.dataset.hhrPatientCodeAction = '1';
+        button.dataset.hhrEncounterId = encounterId;
         button.textContent = 'Copiar para HHR';
         button.title = 'Copia un código clínico temporal para ingresarlo manualmente en HHR';
         button.style.cssText = 'margin:2px 4px;padding:4px 8px;border:1px solid #0f9f8f;border-radius:6px;background:#effcf9;color:#08786d;font:600 12px/1.2 system-ui;cursor:pointer;white-space:nowrap';
@@ -98,7 +105,13 @@
     const start = () => {
       if (observer) return;
       observer = new MutationObserver(schedule);
-      observer.observe(document.documentElement, { childList: true, subtree: true });
+      observer.observe(document.documentElement, {
+        childList: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['data-encounter-id', 'data-enc-id'],
+        subtree: true,
+      });
       schedule();
     };
     const stop = () => {
