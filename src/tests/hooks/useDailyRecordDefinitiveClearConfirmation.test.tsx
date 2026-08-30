@@ -6,7 +6,6 @@ import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
   mockDailyRecordRepositoryPort: {
@@ -262,6 +261,7 @@ describe('definitive bed clear confirmation', () => {
     await waitFor(() => {
       expect(result.current.record?.beds.R1.patientName).toBe('');
     });
+    expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).not.toHaveBeenCalled();
   });
 
   it('forces remote confirmation whenever an intentional clear is declared', async () => {
@@ -321,155 +321,98 @@ describe('definitive bed clear confirmation', () => {
     );
   });
 
-  it('refreshes and retries once when the confirmed episode is still in the bed', async () => {
+  it('keeps the patient visible if remote authority rejects the clear', async () => {
     const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
       ...mockRecord,
       beds: {
         R1: DataFactory.createMockPatient('R1', {
-          patientName: 'Paciente vigente',
+          patientName: 'Paciente protegido',
           rut: '11.111.111-1',
-          clinicalEpisodeId: 'ep-confirmed',
-          admissionDate: '2025-12-26',
-          pathology: 'Diagnóstico inicial',
         }),
       },
     });
-    const refreshedRecord = DataFactory.createMockDailyRecord(mockDate, {
-      ...occupiedRecord,
-      lastUpdated: '2026-01-01T00:00:01.000Z',
-      beds: {
-        ...occupiedRecord.beds,
-        R1: { ...occupiedRecord.beds.R1, pathology: 'Diagnóstico actualizado' },
-      },
-    });
-    const clearedRecord = DataFactory.createMockDailyRecord(mockDate, {
-      ...refreshedRecord,
-      lastUpdated: '2026-01-01T00:00:02.000Z',
-      beds: {
-        ...refreshedRecord.beds,
-        R1: DataFactory.createMockPatient('R1', { patientName: '', rut: '' }),
-      },
-    });
-    let remotelyVisibleRecord = occupiedRecord;
-    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
-      buildReadResult(remotelyVisibleRecord)
+    const clearedBed = DataFactory.createMockPatient('R1', { patientName: '', rut: '' });
+    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
+      buildReadResult(occupiedRecord)
     );
-    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed)
-      .mockRejectedValueOnce(new ConcurrencyError('remote changed'))
-      .mockResolvedValueOnce(
-        createUpdatePartialDailyRecordResult({
-          date: mockDate,
-          outcome: 'clean',
-          savedLocally: true,
-          updatedRemotely: true,
-          queuedForRetry: false,
-          autoMerged: false,
-          patchedFields: 1,
-          confirmedRecord: clearedRecord,
-        })
-      );
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementation(
+      () => write.promise
+    );
 
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
-      expect(result.current.record?.beds.R1.patientName).toBe('Paciente vigente');
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente protegido');
     });
-    remotelyVisibleRecord = refreshedRecord;
 
-    await act(async () => {
-      await result.current.patchRecord(
-        { 'beds.R1': clearedRecord.beds.R1 },
+    let clearPromise!: Promise<void>;
+    act(() => {
+      clearPromise = result.current.patchRecord(
+        { 'beds.R1': clearedBed },
         {
+          consistency: 'remote_confirmed',
           intentionalBedClear: {
             bedId: 'R1',
             confirmedLastUpdated: occupiedRecord.lastUpdated,
             confirmedOccupant: {
-              clinicalEpisodeId: 'ep-confirmed',
-              patientName: 'Paciente vigente',
-              rut: '11.111.111-1',
-              admissionDate: '2025-12-26',
+              patientName: occupiedRecord.beds.R1.patientName,
+              rut: occupiedRecord.beds.R1.rut,
             },
           },
         }
       );
     });
 
-    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(2);
-    expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledWith(mockDate);
-    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenLastCalledWith(
-      mockDate,
-      expect.objectContaining({ 'beds.R1': expect.any(Object) }),
-      expect.objectContaining({
-        baseRecord: expect.objectContaining({ lastUpdated: refreshedRecord.lastUpdated }),
-        intentionalBedClear: expect.objectContaining({
-          confirmedLastUpdated: refreshedRecord.lastUpdated,
-          confirmedOccupant: expect.objectContaining({ clinicalEpisodeId: 'ep-confirmed' }),
-        }),
-      })
-    );
+    expect(result.current.record?.beds.R1.patientName).toBe('Paciente protegido');
+    write.reject(new Error('remote unavailable'));
+
+    await expect(clearPromise).rejects.toThrow('remote unavailable');
     await waitFor(() => {
-      expect(result.current.record?.beds.R1.patientName).toBe('');
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente protegido');
     });
   });
 
-  it('does not retry a conflicted clear when the bed now contains another episode', async () => {
+  it('preserves the existing rollback for an ordinary optimistic patch failure', async () => {
     const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
       ...mockRecord,
       beds: {
         R1: DataFactory.createMockPatient('R1', {
-          patientName: 'Paciente confirmado',
-          rut: '11.111.111-1',
-          clinicalEpisodeId: 'ep-confirmed',
+          patientName: 'Paciente vigente',
+          pathology: 'Diagnóstico original',
         }),
       },
     });
-    const replacementRecord = DataFactory.createMockDailyRecord(mockDate, {
-      ...occupiedRecord,
-      lastUpdated: '2026-01-01T00:00:01.000Z',
-      beds: {
-        R1: DataFactory.createMockPatient('R1', {
-          patientName: 'Paciente reemplazante',
-          rut: '22.222.222-2',
-          clinicalEpisodeId: 'ep-replacement',
-        }),
-      },
-    });
-    let remotelyVisibleRecord = occupiedRecord;
-    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
-      buildReadResult(remotelyVisibleRecord)
+    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
+      buildReadResult(occupiedRecord)
     );
-    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockRejectedValueOnce(
-      new ConcurrencyError('remote changed')
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementation(
+      () => write.promise
     );
 
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
     });
     await waitFor(() => {
-      expect(result.current.record?.beds.R1.patientName).toBe('Paciente confirmado');
+      expect(result.current.record?.beds.R1.pathology).toBe('Diagnóstico original');
     });
-    remotelyVisibleRecord = replacementRecord;
 
-    await expect(
-      act(async () => {
-        await result.current.patchRecord(
-          { 'beds.R1': DataFactory.createMockPatient('R1', { patientName: '', rut: '' }) },
-          {
-            intentionalBedClear: {
-              bedId: 'R1',
-              confirmedLastUpdated: occupiedRecord.lastUpdated,
-              confirmedOccupant: {
-                clinicalEpisodeId: 'ep-confirmed',
-                patientName: 'Paciente confirmado',
-                rut: '11.111.111-1',
-              },
-            },
-          }
-        );
-      })
-    ).rejects.toThrow('La cama cambió desde que se confirmó la limpieza');
-    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).not.toHaveBeenCalled();
-    expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledWith(mockDate);
+    let patchPromise!: Promise<void>;
+    act(() => {
+      patchPromise = result.current.patchRecord({
+        'beds.R1.pathology': 'Diagnóstico no confirmado',
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.pathology).toBe('Diagnóstico no confirmado');
+    });
+
+    write.reject(new Error('remote unavailable'));
+    await expect(patchPromise).rejects.toThrow('remote unavailable');
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.pathology).toBe('Diagnóstico original');
+    });
   });
 });

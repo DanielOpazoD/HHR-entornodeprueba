@@ -10,7 +10,7 @@ describe('clinicalInitialBlockCoalescingController', () => {
     expect(isClinicalInitialBlockField('pathology')).toBe(true);
     expect(isClinicalInitialBlockField('specialty')).toBe(true);
     expect(isClinicalInitialBlockField('secondarySpecialty')).toBe(true);
-    expect(isClinicalInitialBlockField('status')).toBe(true);
+    expect(isClinicalInitialBlockField('status')).toBe(false);
     expect(isClinicalInitialBlockField('patientName')).toBe(false);
   });
 
@@ -28,10 +28,10 @@ describe('clinicalInitialBlockCoalescingController', () => {
         pathology: 'Neumonia',
         specialty: Specialty.MEDICINA,
         secondarySpecialty: undefined,
-        status: PatientStatus.ESTABLE,
       },
       immediateFields: {
         patientName: 'Paciente X',
+        status: PatientStatus.ESTABLE,
       },
     });
   });

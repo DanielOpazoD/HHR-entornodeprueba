@@ -5,6 +5,7 @@ import { buildResolvedOccupiedRows } from '@/features/census/controllers/censusT
 import type { CensusTableBodyProps } from '@/features/census/types/censusTableComponentContracts';
 import type { CensusTableDragDropBundle } from '@/features/census/drag-drop/dragDropContracts';
 import type { ClinicalDocumentPresenceInfo } from '@/features/census/controllers/clinicalDocumentPresenceController';
+import { usePendingIntentionalClearTargets } from '@/features/census/hooks/usePendingBedClearIds';
 
 export interface CensusTableBodyDragDropProps {
   dragDrop?: CensusTableDragDropBundle;
@@ -19,6 +20,7 @@ export const CensusTableBody: React.FC<
 > = ({
   unifiedRows,
   currentDateString,
+  recordLastUpdated,
   readOnly,
   clinicalEditingDisabled = false,
   clinicalFieldLocksByBedId,
@@ -35,6 +37,7 @@ export const CensusTableBody: React.FC<
   dragDrop,
   clinicalDocumentInfoByBedId,
 }) => {
+  const pendingClearTargets = usePendingIntentionalClearTargets(currentDateString);
   const resolvedOccupiedMap = React.useMemo(() => {
     const resolved = buildResolvedOccupiedRows({
       unifiedRows,
@@ -50,6 +53,7 @@ export const CensusTableBody: React.FC<
   return (
     <tbody>
       {unifiedRows.map(row => {
+        const isPendingBedClear = pendingClearTargets.bedIds.has(row.bed.id);
         if (row.kind === 'empty') {
           return (
             <EmptyBedRow
@@ -57,21 +61,29 @@ export const CensusTableBody: React.FC<
               bed={row.bed}
               columns={columns}
               visibleColumnCount={visibleColumnCount}
-              readOnly={readOnly}
+              readOnly={readOnly || isPendingBedClear}
+              isPendingClear={isPendingBedClear}
               onClick={() => onActivateEmptyBed(row.bed.id)}
-              isDragOver={dragDrop?.state.dragOverBedId === row.bed.id}
-              onDragOver={dragDrop?.emptyBedHandlers.onDragOver(row.bed.id)}
-              onDragEnter={dragDrop?.emptyBedHandlers.onDragEnter(row.bed.id)}
+              isDragOver={!isPendingBedClear && dragDrop?.state.dragOverBedId === row.bed.id}
+              onDragOver={
+                isPendingBedClear ? undefined : dragDrop?.emptyBedHandlers.onDragOver(row.bed.id)
+              }
+              onDragEnter={
+                isPendingBedClear ? undefined : dragDrop?.emptyBedHandlers.onDragEnter(row.bed.id)
+              }
               onDragLeave={dragDrop?.emptyBedHandlers.onDragLeave}
-              onDrop={dragDrop?.emptyBedHandlers.onDrop(row.bed.id)}
+              onDrop={isPendingBedClear ? undefined : dragDrop?.emptyBedHandlers.onDrop(row.bed.id)}
             />
           );
         }
 
+        const isPendingClear = row.isSubRow
+          ? isPendingBedClear || pendingClearTargets.clinicalCribBedIds.has(row.bed.id)
+          : isPendingBedClear;
         const resolved = resolvedOccupiedMap.get(row.id);
         if (!resolved) return null;
         const clinicalFieldLocks = clinicalFieldLocksByBedId?.[row.bed.id];
-        const rowClinicalEditingDisabled = clinicalEditingDisabled;
+        const rowClinicalEditingDisabled = clinicalEditingDisabled || isPendingClear;
 
         return (
           <PatientRow
@@ -79,8 +91,9 @@ export const CensusTableBody: React.FC<
             bed={row.bed}
             data={row.data}
             currentDateString={currentDateString}
+            recordLastUpdated={recordLastUpdated}
             onAction={onAction}
-            readOnly={readOnly}
+            readOnly={readOnly || isPendingClear}
             clinicalEditingDisabled={rowClinicalEditingDisabled}
             clinicalFieldLocks={clinicalFieldLocks}
             actionMenuAlign={resolved.actionMenuAlign}
@@ -90,8 +103,9 @@ export const CensusTableBody: React.FC<
             role={role}
             accessProfile={accessProfile}
             indicators={resolved.indicators}
-            draggable={!readOnly && !row.isSubRow && !!dragDrop}
+            draggable={!readOnly && !isPendingClear && !row.isSubRow && !!dragDrop}
             isDragging={dragDrop?.state.dragSourceBedId === row.bed.id}
+            isPendingClear={isPendingClear}
             onDragStart={dragDrop?.patientHandlers.onDragStart(row.bed.id)}
             onDragEnd={dragDrop?.patientHandlers.onDragEnd}
             clinicalDocumentCount={clinicalDocumentInfoByBedId?.[row.bed.id]?.totalCount}

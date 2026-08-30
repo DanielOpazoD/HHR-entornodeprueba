@@ -251,14 +251,7 @@ describe('PatientRow layout and actions', () => {
     fireEvent.click(screen.getByRole('button', { name: /estado: estable/i }));
     fireEvent.click(screen.getByText('Grave'));
 
-    // status is a clinical-initial-block field → coalesced (400ms) into a multiple update.
-    act(() => {
-      vi.advanceTimersByTime(450);
-    });
-
-    expect(mockContext.updatePatientMultiple).toHaveBeenCalledWith('R1', {
-      status: PatientStatus.GRAVE,
-    });
+    expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'status', PatientStatus.GRAVE);
   });
 
   it('renders blocked message and reason instead of inputs', () => {

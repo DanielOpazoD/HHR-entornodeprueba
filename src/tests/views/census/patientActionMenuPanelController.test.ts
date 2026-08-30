@@ -81,4 +81,25 @@ describe('patientActionMenuPanelController', () => {
 
     expect(model.clinicalActions).toEqual([]);
   });
+
+  it('does not expose built-in clinical actions outside the allowed subset', () => {
+    const model = resolvePatientActionMenuPanelModel({
+      viewState: {
+        showDemographicsAction: true,
+        showMenuTrigger: true,
+        showHistoryAction: true,
+        showUtilityActions: true,
+        showClinicalSection: true,
+        showBuiltInClinicalActions: true,
+        showClinicalDocumentsAction: false,
+        showExamRequestAction: false,
+        showImagingRequestAction: false,
+        showMedicalIndicationsAction: false,
+      },
+      utilityActions: [],
+      allowedActions: ['clear'],
+    });
+
+    expect(model.clinicalActions).toEqual([]);
+  });
 });

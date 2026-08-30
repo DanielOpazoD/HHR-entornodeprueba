@@ -38,21 +38,54 @@ describe('useBedManagementActionCreators', () => {
 
   it('should route remove clinical crib and move actions correctly', () => {
     const dispatch = vi.fn();
-    const { result } = renderHook(() => useBedManagementActionCreators(dispatch));
+    const dispatchAndWait = vi.fn().mockResolvedValue(true);
+    const { result } = renderHook(() => useBedManagementActionCreators(dispatch, dispatchAndWait));
+    const confirmedOccupant = { patientName: 'RN Uno', rut: '22.222.222-2' };
 
     act(() => {
-      result.current.updateClinicalCrib('R1', 'remove');
+      result.current.updateClinicalCrib(
+        'R1',
+        'remove',
+        undefined,
+        '2026-08-29T10:00:00.000Z',
+        confirmedOccupant
+      );
       result.current.moveOrCopyPatient('move', 'R1', 'R2');
     });
 
-    expect(dispatch).toHaveBeenNthCalledWith(1, {
+    expect(dispatchAndWait).toHaveBeenCalledWith({
       type: 'REMOVE_CLINICAL_CRIB',
       bedId: 'R1',
+      confirmedLastUpdated: '2026-08-29T10:00:00.000Z',
+      confirmedOccupant,
     });
-    expect(dispatch).toHaveBeenNthCalledWith(2, {
+    expect(dispatch).toHaveBeenCalledWith({
       type: 'MOVE_PATIENT',
       sourceBedId: 'R1',
       targetBedId: 'R2',
+    });
+  });
+
+  it('preserves clinical crib removal for callers without an async dispatcher', () => {
+    const dispatch = vi.fn();
+    const { result } = renderHook(() => useBedManagementActionCreators(dispatch));
+    const confirmedOccupant = { patientName: 'RN Uno', rut: '22.222.222-2' };
+
+    act(() => {
+      result.current.updateClinicalCrib(
+        'R1',
+        'remove',
+        undefined,
+        '2026-08-29T10:00:00.000Z',
+        confirmedOccupant
+      );
+    });
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'REMOVE_CLINICAL_CRIB',
+      bedId: 'R1',
+      confirmedLastUpdated: '2026-08-29T10:00:00.000Z',
+      confirmedOccupant,
     });
   });
 

@@ -4,6 +4,7 @@ import { MedicalButton } from '@/components/ui/base/MedicalButton';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { PatientRowOrbitalQuickActions } from '@/features/census/components/patient-row/PatientRowOrbitalQuickActions';
 import type {
+  PatientActionMenuActionFilter,
   PatientActionMenuCallbacks,
   PatientActionMenuIndicators,
 } from './patientRowActionContracts';
@@ -24,7 +25,8 @@ const LazyMedicalIndicationsDialog = lazy(() =>
   }))
 );
 
-interface PatientActionMenuProps extends PatientActionMenuCallbacks, PatientActionMenuIndicators {
+interface PatientActionMenuProps
+  extends PatientActionMenuCallbacks, PatientActionMenuIndicators, PatientActionMenuActionFilter {
   isBlocked: boolean;
   readOnly?: boolean;
   clinicalEditingDisabled?: boolean;
@@ -78,6 +80,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
   hasPatientIdentity = true,
   medicalIndicationsPatient,
   clinicalDocumentCount,
+  allowedActions,
 }) => {
   const {
     isOpen,
@@ -112,6 +115,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
     onViewExamRequest,
     onViewImagingRequest,
     onViewMedicalIndications,
+    allowedActions,
   });
 
   const handleViewDemographics = resolvePatientActionMenuDemographicsInteraction({
@@ -168,6 +172,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
             isOpen={isOpen}
             binding={binding}
             utilityActions={utilityActions}
+            allowedActions={allowedActions}
             onClose={close}
             onAction={handleAction}
             onViewHistory={handleViewHistory}

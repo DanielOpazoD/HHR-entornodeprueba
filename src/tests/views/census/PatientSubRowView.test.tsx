@@ -16,6 +16,8 @@ describe('PatientSubRowView', () => {
     diagnosisMode: 'cie10' as const,
     style: undefined,
     onOpenDemographics: vi.fn(),
+    onOpenHistory: vi.fn(),
+    onRemoveClinicalCrib: vi.fn().mockResolvedValue(undefined),
     onChange: {
       text: vi.fn(),
       check: vi.fn(),
@@ -35,7 +37,8 @@ describe('PatientSubRowView', () => {
       </table>
     );
 
-    expect(screen.getByTitle('Datos demográficos')).toBeInTheDocument();
+    expect(screen.getByTitle('Datos del Paciente')).toBeInTheDocument();
+    expect(screen.getByTitle('Acciones')).toBeInTheDocument();
     expect(screen.getByTestId('sub-input-cells')).toBeInTheDocument();
     expect(screen.getByTestId('sub-input-cells')).toHaveAttribute('data-diagnosis-mode', 'cie10');
   });
@@ -49,7 +52,8 @@ describe('PatientSubRowView', () => {
       </table>
     );
 
-    expect(screen.queryByTitle('Datos demográficos')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Datos del Paciente')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Acciones')).not.toBeInTheDocument();
   });
 
   it('hides demographics shortcut for specialist census access even when editable', () => {
@@ -61,7 +65,8 @@ describe('PatientSubRowView', () => {
       </table>
     );
 
-    expect(screen.queryByTitle('Datos demográficos')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Datos del Paciente')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Acciones')).not.toBeInTheDocument();
   });
 
   it('renders attached clinical cribs with a white row background', () => {
@@ -94,5 +99,21 @@ describe('PatientSubRowView', () => {
     // two leading table cells used by every main row: actions and bed. A third leading cell shifts
     // the complete fixed-layout table, which was the regression seen after adding an attached crib.
     expect(row?.querySelectorAll(':scope > td')).toHaveLength(3);
+  });
+
+  it('locks only the crib row and shows progress while remote deletion is pending', () => {
+    const { container } = render(
+      <table>
+        <tbody>
+          <PatientSubRowView {...baseProps} readOnly isPendingClear />
+        </tbody>
+      </table>
+    );
+
+    const row = container.querySelector('tr[data-testid="patient-row"]');
+    expect(row).toHaveAttribute('aria-busy', 'true');
+    expect(row).toHaveAttribute('data-clear-pending', 'true');
+    expect(screen.getByRole('status')).toHaveAccessibleName('Confirmando limpieza de la cuna');
+    expect(screen.queryByTitle('Acciones')).not.toBeInTheDocument();
   });
 });

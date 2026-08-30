@@ -7,7 +7,6 @@ const CLINICAL_INITIAL_BLOCK_FIELDS = new Set<PatientRowPatientField>([
   'pathology',
   'specialty',
   'secondarySpecialty',
-  'status',
 ]);
 
 export interface SplitClinicalInitialBlockPatchResult {

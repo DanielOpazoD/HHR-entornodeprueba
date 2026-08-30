@@ -9,6 +9,7 @@ export interface ConfirmedBedOccupantIdentity {
 
 export interface IntentionalBedClearRequest {
   bedId: string;
+  target?: 'bed' | 'clinicalCrib';
   confirmedLastUpdated: string;
   confirmedOccupant: ConfirmedBedOccupantIdentity;
 }

@@ -17,6 +17,7 @@ interface PatientActionMenuPanelProps {
   onClose: () => void;
   onAction: (action: PatientRowAction) => void;
   onViewHistory: () => void;
+  allowedActions?: readonly PatientRowAction[];
 }
 
 export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
@@ -26,6 +27,7 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
   onClose,
   onAction,
   onViewHistory,
+  allowedActions,
 }) => {
   if (!isOpen) {
     return null;
@@ -35,6 +37,7 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
     viewState: binding.availability,
     utilityActions,
     showCmaAction: binding.showCmaAction,
+    allowedActions,
   });
 
   if (!model.shouldRender) {

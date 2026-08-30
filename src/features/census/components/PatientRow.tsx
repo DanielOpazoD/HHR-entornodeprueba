@@ -17,6 +17,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
   bed,
   data,
   currentDateString,
+  recordLastUpdated,
   onAction,
   readOnly = false,
   clinicalEditingDisabled = false,
@@ -31,6 +32,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
   style,
   draggable,
   isDragging,
+  isPendingClear = false,
   onDragStart,
   onDragEnd,
   clinicalDocumentCount,
@@ -40,6 +42,7 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
     bedType,
     data,
     currentDateString,
+    recordLastUpdated,
     onAction,
     readOnly,
     clinicalEditingDisabled,
@@ -63,12 +66,13 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
   return (
     <>
       {isSubRow ? (
-        <PatientSubRowView {...bindings.subRowProps} />
+        <PatientSubRowView {...bindings.subRowProps} isPendingClear={isPendingClear} />
       ) : (
         <PatientMainRowView
           {...bindings.mainRowProps}
           draggable={draggable}
           isDragging={isDragging}
+          isPendingClear={isPendingClear}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
           clinicalDocumentCount={clinicalDocumentCount}

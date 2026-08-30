@@ -29,6 +29,7 @@ interface UsePatientActionMenuParams {
   onViewExamRequest?: () => void;
   onViewImagingRequest?: () => void;
   onViewMedicalIndications?: () => void;
+  allowedActions?: readonly PatientRowAction[];
 }
 
 interface UsePatientActionMenuResult {
@@ -64,6 +65,7 @@ export const usePatientActionMenu = ({
   onViewExamRequest,
   onViewImagingRequest,
   onViewMedicalIndications,
+  allowedActions,
 }: UsePatientActionMenuParams): UsePatientActionMenuResult => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
   const [isMedicalIndicationsOpen, setIsMedicalIndicationsOpen] = useState(false);
@@ -86,9 +88,11 @@ export const usePatientActionMenu = ({
           onViewImagingRequest,
           onViewMedicalIndications,
         }),
+        allowedActions,
       }),
     [
       align,
+      allowedActions,
       indicators,
       isBlocked,
       onViewClinicalDocuments,

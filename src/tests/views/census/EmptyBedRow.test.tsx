@@ -45,4 +45,27 @@ describe('EmptyBedRow', () => {
     fireEvent.click(screen.getByRole('button', { name: /agregar paciente/i }));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it('locks the bed and reports progress while a clear awaits remote confirmation', () => {
+    const onClick = vi.fn();
+
+    render(
+      <table>
+        <tbody>
+          <EmptyBedRow
+            bed={{ id: 'R4', name: 'R4', type: BedType.MEDIA, isCuna: false }}
+            columns={columns}
+            visibleColumnCount={9}
+            onClick={onClick}
+            isPendingClear
+          />
+        </tbody>
+      </table>
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Confirmando limpieza');
+    expect(screen.queryByRole('button', { name: /agregar paciente/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('row')).toHaveAttribute('aria-busy', 'true');
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });

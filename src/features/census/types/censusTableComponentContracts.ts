@@ -28,6 +28,7 @@ export interface CensusTableHeaderProps {
 export interface CensusTableBodyProps {
   unifiedRows: UnifiedBedRow[];
   currentDateString: string;
+  recordLastUpdated?: string;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;
   clinicalFieldLocksByBedId?: HydratedRemoteClinicalFieldLocksByBedId;

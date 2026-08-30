@@ -6,10 +6,13 @@ import { buildPatientRowInteractionRuntime } from '../../controllers/patientRowR
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
+import type { PatientRowDependencies } from '@/features/census/components/patient-row/usePatientRowDependencies';
 
 interface UsePatientRowInteractionRuntimeParams {
   bedId: string;
   data: PatientData;
+  recordLastUpdated?: string;
+  isSubRow?: boolean;
   onAction: (action: PatientRowAction, bedId: string, patient: PatientData) => void;
   rowState: {
     isCunaMode: boolean;
@@ -21,7 +24,7 @@ interface UsePatientRowInteractionRuntimeParams {
     field: 'bedMode' | 'hasCompanionCrib',
     value: 'Cama' | 'Cuna' | boolean
   ) => void;
-  updateClinicalCrib: (bedId: string, field: 'create' | 'remove') => void;
+  updateClinicalCrib: PatientRowDependencies['updateClinicalCrib'];
   toggleBedType: (bedId: string) => void;
   confirm: (options: ControllerConfirmDescriptor) => Promise<boolean>;
   alert: (message: string, title?: string) => Promise<void>;
@@ -30,6 +33,8 @@ interface UsePatientRowInteractionRuntimeParams {
 export const usePatientRowInteractionRuntime = ({
   bedId,
   data,
+  recordLastUpdated,
+  isSubRow = false,
   onAction,
   rowState,
   updatePatient,
@@ -45,6 +50,8 @@ export const usePatientRowInteractionRuntime = ({
     isCunaMode: rowState.isCunaMode,
     hasCompanion: rowState.hasCompanion,
     hasClinicalCrib: rowState.hasClinicalCrib,
+    clinicalCrib: isSubRow ? data : data.clinicalCrib,
+    confirmedLastUpdated: recordLastUpdated,
     updatePatient,
     updateClinicalCrib,
     confirm,

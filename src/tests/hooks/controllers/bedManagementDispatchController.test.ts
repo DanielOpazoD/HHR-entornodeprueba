@@ -308,7 +308,16 @@ describe('bedManagementDispatchController', () => {
     warnSpy.mockRestore();
   });
 
-  it('requires remote confirmation before reporting a manual bed clear as applied', async () => {
+  it('remotely confirms a bed clear and removes its associated crib', async () => {
+    const record = buildRecord();
+    record.beds.R1.hasCompanionCrib = true;
+    record.beds.R1.clinicalCrib = {
+      ...record.beds.R1,
+      bedMode: 'Cuna',
+      patientName: 'RN asociado',
+      rut: '22.222.222-2',
+      clinicalEpisodeId: 'crib-associated-r1',
+    };
     const patchRecord = vi.fn().mockResolvedValue(undefined);
     const auditPatientCleared = vi.fn();
     const validation: BedManagementValidationPort = {
@@ -324,7 +333,7 @@ describe('bedManagementDispatchController', () => {
     };
 
     const result = await executeBedManagementAction({
-      currentRecord: buildRecord(),
+      currentRecord: record,
       action: {
         type: 'CLEAR_PATIENT',
         bedId: 'R1',
@@ -343,6 +352,8 @@ describe('bedManagementDispatchController', () => {
           patientName: '',
           rut: '',
           pathology: '',
+          hasCompanionCrib: false,
+          clinicalCrib: undefined,
         }),
       },
       {
@@ -358,6 +369,65 @@ describe('bedManagementDispatchController', () => {
       }
     );
     expect(auditPatientCleared).toHaveBeenCalledWith('R1', 'Paciente', '11.111.111-1');
+  });
+
+  it('clears an occupied clinical crib through its own remotely confirmed intent', async () => {
+    const record = buildRecord();
+    record.beds.R1.clinicalCrib = {
+      ...record.beds.R1,
+      bedMode: 'Cuna',
+      patientName: 'RN Uno',
+      rut: '22.222.222-2',
+      clinicalEpisodeId: 'crib-ep-1',
+    };
+    const patchRecord = vi.fn().mockResolvedValue(undefined);
+    const auditPatientCleared = vi.fn();
+
+    const result = await executeBedManagementAction({
+      currentRecord: record,
+      action: {
+        type: 'REMOVE_CLINICAL_CRIB',
+        bedId: 'R1',
+        confirmedLastUpdated: record.lastUpdated,
+        confirmedOccupant: {
+          clinicalEpisodeId: 'crib-ep-1',
+          rut: '22.222.222-2',
+          patientName: 'RN Uno',
+          admissionDate: record.beds.R1.clinicalCrib!.admissionDate,
+        },
+      },
+      validation: {
+        processFieldValue: vi.fn((_field, value) => ({ valid: true, value })),
+      },
+      bedAudit: {
+        auditPatientChange: vi.fn(),
+        auditCudyrChange: vi.fn(),
+        auditCribCudyrChange: vi.fn(),
+        auditPatientCleared,
+        auditPatientModified: vi.fn(),
+        auditPatientMovement: vi.fn(),
+      },
+      patchRecord,
+    });
+
+    expect(result).toBe(true);
+    expect(patchRecord).toHaveBeenCalledWith(
+      { 'beds.R1.clinicalCrib': null },
+      {
+        consistency: 'remote_confirmed',
+        intentionalBedClear: {
+          bedId: 'R1',
+          target: 'clinicalCrib',
+          confirmedLastUpdated: record.lastUpdated,
+          confirmedOccupant: expect.objectContaining({
+            patientName: 'RN Uno',
+            rut: '22.222.222-2',
+            clinicalEpisodeId: 'crib-ep-1',
+          }),
+        },
+      }
+    );
+    expect(auditPatientCleared).toHaveBeenCalledWith('R1 (cuna RN)', 'RN Uno', '22.222.222-2');
   });
 
   it('does not start the clear write until the final stale-day dialog is confirmed', async () => {

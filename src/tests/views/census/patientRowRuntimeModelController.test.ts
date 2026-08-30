@@ -125,6 +125,8 @@ describe('patientRowRuntimeModelController', () => {
     expect(result.interactionRuntimeParams).toEqual({
       bedId: 'R1',
       data: patient,
+      recordLastUpdated: undefined,
+      isSubRow: false,
       onAction,
       rowState: {
         isCunaMode: false,

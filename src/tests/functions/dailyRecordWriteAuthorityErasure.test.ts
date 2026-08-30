@@ -81,9 +81,6 @@ const makeIntentionalBedClear = (
       clinicalEpisodeId: occupant.clinicalEpisodeId,
       rut: occupant.rut,
       patientName: occupant.patientName,
-      firstSeenDate: occupant.firstSeenDate,
-      admissionDate: occupant.admissionDate,
-      admissionTime: occupant.admissionTime,
     },
   };
 };

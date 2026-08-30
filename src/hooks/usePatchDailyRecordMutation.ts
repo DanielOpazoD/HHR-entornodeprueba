@@ -35,13 +35,12 @@ import {
   canRebaseIntentionalBedClear,
   rebaseIntentionalBedClear,
 } from '@/hooks/controllers/intentionalBedClearController';
+import {
+  getDailyRecordPatchMutationKey,
+  type DailyRecordPatchMutationVariables,
+} from '@/hooks/controllers/dailyRecordPatchMutationController';
 
-type PatchMutationInput =
-  | DailyRecordPatch
-  | {
-      partial: DailyRecordPatch;
-      options?: PartialUpdateDailyRecordOptions;
-    };
+type PatchMutationInput = DailyRecordPatchMutationVariables;
 
 const resolveInput = (
   input: PatchMutationInput
@@ -94,6 +93,7 @@ export const usePatchDailyRecordMutation = (date: string) => {
   const patchBaseRecords = patchBaseRecordsRef.current;
 
   return useMutation({
+    mutationKey: getDailyRecordPatchMutationKey(date),
     mutationFn: async (input: PatchMutationInput) => {
       const { partial, options } = resolveInput(input);
       const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
@@ -124,7 +124,9 @@ export const usePatchDailyRecordMutation = (date: string) => {
 
         const latestRecord = await dailyRecord.getAuthoritativeForDate(date);
         if (!canRebaseIntentionalBedClear(options.intentionalBedClear, latestRecord)) {
-          throw error;
+          throw new ConcurrencyError(
+            'La cama cambió desde que se confirmó la limpieza. Recargue antes de intentarlo nuevamente.'
+          );
         }
         setDailyRecordQueryData(queryClient, date, latestRecord);
         rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, latestRecord);
@@ -142,7 +144,13 @@ export const usePatchDailyRecordMutation = (date: string) => {
         const remoteConfirmedAtBeforeMutation = getDailyRecordLastRemoteConfirmedAt(date);
         let freshRecord: DailyRecord | null;
         if (options?.intentionalBedClear) {
-          freshRecord = await dailyRecord.getAuthoritativeForDate(date);
+          // The callable is the definitive authority: it validates both the expected
+          // version and confirmed occupant before applying a destructive clear. Use
+          // the record currently shown to the user for the first attempt so the
+          // common path does not pay for a redundant server read. A real CAS conflict
+          // still triggers the existing authoritative reload and single safe retry in
+          // mutationFn above.
+          freshRecord = previousRecordBeforeFreshness ?? null;
           if (!canRebaseIntentionalBedClear(options.intentionalBedClear, freshRecord)) {
             throw new ConcurrencyError(
               'La cama cambió desde que se confirmó la limpieza. Recargue antes de intentarlo nuevamente.'

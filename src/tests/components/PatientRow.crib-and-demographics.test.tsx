@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { PatientRow } from '@/features/census/components/PatientRow';
@@ -241,6 +241,7 @@ describe('PatientRow crib and demographics', () => {
             data={clinicalCrib}
             bed={mockBedDef}
             currentDateString="2023-01-01"
+            recordLastUpdated="2023-01-01T10:00:00.000Z"
             onAction={mockOnAction}
             isSubRow={true}
             bedType={BedType.UTI}
@@ -278,6 +279,87 @@ describe('PatientRow crib and demographics', () => {
 
     expect(screen.getByText('CUNA', { selector: 'span' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Sub Patient')).toBeInTheDocument();
+    expect(screen.getByTitle('Acciones')).toBeInTheDocument();
+  });
+
+  it('offers only safe cuna actions and removes the clinical crib after confirmation', async () => {
+    const clinicalCrib = DataFactory.createMockPatient('R1-C', {
+      patientName: 'Sub Patient',
+      bedMode: 'Cuna',
+    });
+
+    const { mockContext } = render(
+      <table>
+        <tbody>
+          <PatientRow
+            data={clinicalCrib}
+            bed={mockBedDef}
+            currentDateString="2023-01-01"
+            recordLastUpdated="2023-01-01T10:00:00.000Z"
+            onAction={mockOnAction}
+            isSubRow={true}
+            bedType={BedType.UTI}
+          />
+        </tbody>
+      </table>
+    );
+
+    fireEvent.click(screen.getByTitle('Acciones'));
+
+    expect(await screen.findByText('Ver Historial')).toBeInTheDocument();
+    expect(screen.getByText('Limpiar')).toBeInTheDocument();
+    expect(screen.queryByText('Copiar')).not.toBeInTheDocument();
+    expect(screen.queryByText('Mover')).not.toBeInTheDocument();
+    expect(screen.queryByText('Dar de Alta')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Limpiar'));
+
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Limpiar cuna',
+        confirmText: 'Sí, limpiar',
+      })
+    );
+    await waitFor(() => {
+      expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith(
+        'R1',
+        'remove',
+        undefined,
+        '2023-01-01T10:00:00.000Z',
+        expect.objectContaining({ patientName: 'Sub Patient' })
+      );
+    });
+    expect(mockOnAction).not.toHaveBeenCalled();
+  });
+
+  it('keeps the clinical crib when its cleanup is cancelled', async () => {
+    mockConfirm.mockResolvedValueOnce(false);
+    const clinicalCrib = DataFactory.createMockPatient('R1-C', {
+      patientName: 'Sub Patient',
+      bedMode: 'Cuna',
+    });
+
+    const { mockContext } = render(
+      <table>
+        <tbody>
+          <PatientRow
+            data={clinicalCrib}
+            bed={mockBedDef}
+            currentDateString="2023-01-01"
+            recordLastUpdated="2023-01-01T10:00:00.000Z"
+            onAction={mockOnAction}
+            isSubRow={true}
+            bedType={BedType.UTI}
+          />
+        </tbody>
+      </table>
+    );
+
+    fireEvent.click(screen.getByTitle('Acciones'));
+    fireEvent.click(await screen.findByText('Limpiar'));
+
+    await waitFor(() => expect(mockConfirm).toHaveBeenCalled());
+    expect(mockContext.updateClinicalCrib).not.toHaveBeenCalled();
   });
 
   it('opens sub-row demographics modal', async () => {

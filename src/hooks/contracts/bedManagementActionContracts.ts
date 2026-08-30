@@ -22,7 +22,12 @@ export type BedAction =
   | { type: 'UPDATE_BLOCKED_REASON'; bedId: string; reason: string }
   | { type: 'TOGGLE_EXTRA_BED'; bedId: string }
   | { type: 'CREATE_CLINICAL_CRIB'; bedId: string }
-  | { type: 'REMOVE_CLINICAL_CRIB'; bedId: string }
+  | {
+      type: 'REMOVE_CLINICAL_CRIB';
+      bedId: string;
+      confirmedLastUpdated?: string;
+      confirmedOccupant?: ConfirmedBedOccupantIdentity;
+    }
   | {
       type: 'UPDATE_CLINICAL_CRIB';
       bedId: string;

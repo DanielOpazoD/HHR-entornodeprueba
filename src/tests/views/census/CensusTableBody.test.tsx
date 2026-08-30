@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -10,6 +10,16 @@ import type { TableColumnConfig } from '@/context/TableConfigContext';
 
 const patientRowSpy = vi.fn();
 const emptyBedRowSpy = vi.fn();
+const { pendingClearTargetsMock } = vi.hoisted(() => ({
+  pendingClearTargetsMock: {
+    bedIds: new Set<string>(),
+    clinicalCribBedIds: new Set<string>(),
+  },
+}));
+
+vi.mock('@/features/census/hooks/usePendingBedClearIds', () => ({
+  usePendingIntentionalClearTargets: () => pendingClearTargetsMock,
+}));
 
 vi.mock('@/features/census/components/PatientRow', () => ({
   PatientRow: (props: { bed: BedDefinition; actionMenuAlign: 'top' | 'bottom' }) => {
@@ -39,6 +49,11 @@ vi.mock('@/features/census/components/EmptyBedRow', () => ({
 }));
 
 describe('CensusTableBody', () => {
+  beforeEach(() => {
+    pendingClearTargetsMock.bedIds.clear();
+    pendingClearTargetsMock.clinicalCribBedIds.clear();
+  });
+
   const columns: TableColumnConfig = {
     actions: 42,
     bed: 96,
@@ -262,5 +277,115 @@ describe('CensusTableBody', () => {
 
     fireEvent.click(screen.getByTestId('empty-bed-button-R9'));
     expect(onActivateEmptyBed).toHaveBeenCalledWith('R9');
+  });
+
+  it('locks an occupied bed while its clear is being retried from remote authority', () => {
+    patientRowSpy.mockClear();
+    pendingClearTargetsMock.bedIds.add('R1');
+    const unifiedRows: UnifiedBedRow[] = [
+      {
+        kind: 'occupied',
+        id: 'row-1',
+        bed: { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false },
+        data: DataFactory.createMockPatient('R1'),
+        isSubRow: false,
+      },
+    ];
+
+    render(
+      <table>
+        <CensusTableBody
+          unifiedRows={unifiedRows}
+          currentDateString="2026-02-15"
+          readOnly={false}
+          diagnosisMode="free"
+          columns={columns}
+          visibleColumnCount={9}
+          bedTypes={{}}
+          role="nurse_hospital"
+          clinicalDocumentPresenceByBedId={{}}
+          onAction={vi.fn()}
+          onActivateEmptyBed={vi.fn()}
+          dragDrop={{
+            state: { dragSourceBedId: null, dragOverBedId: null, pendingMove: null },
+            patientHandlers: {
+              onDragStart: vi.fn(() => vi.fn()),
+              onDragEnd: vi.fn(),
+            },
+            emptyBedHandlers: {
+              onDragOver: vi.fn(() => vi.fn()),
+              onDragEnter: vi.fn(() => vi.fn()),
+              onDragLeave: vi.fn(),
+              onDrop: vi.fn(() => vi.fn()),
+            },
+            confirmationHandlers: { onConfirm: vi.fn(), onCancel: vi.fn() },
+          }}
+        />
+      </table>
+    );
+
+    expect(patientRowSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        readOnly: true,
+        clinicalEditingDisabled: true,
+        draggable: false,
+        isPendingClear: true,
+      })
+    );
+  });
+
+  it('locks only the clinical crib while its own clear is pending', () => {
+    patientRowSpy.mockClear();
+    pendingClearTargetsMock.clinicalCribBedIds.add('R1');
+    const unifiedRows: UnifiedBedRow[] = [
+      {
+        kind: 'occupied',
+        id: 'row-main',
+        bed: { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false },
+        data: DataFactory.createMockPatient('R1'),
+        isSubRow: false,
+      },
+      {
+        kind: 'occupied',
+        id: 'row-crib',
+        bed: { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false },
+        data: DataFactory.createMockPatient('R1-crib'),
+        isSubRow: true,
+      },
+    ];
+
+    render(
+      <table>
+        <CensusTableBody
+          unifiedRows={unifiedRows}
+          currentDateString="2026-02-15"
+          readOnly={false}
+          diagnosisMode="free"
+          columns={columns}
+          visibleColumnCount={9}
+          bedTypes={{}}
+          role="nurse_hospital"
+          clinicalDocumentPresenceByBedId={{}}
+          onAction={vi.fn()}
+          onActivateEmptyBed={vi.fn()}
+        />
+      </table>
+    );
+
+    expect(patientRowSpy.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        isSubRow: false,
+        readOnly: false,
+        isPendingClear: false,
+      })
+    );
+    expect(patientRowSpy.mock.calls[1][0]).toEqual(
+      expect.objectContaining({
+        isSubRow: true,
+        readOnly: true,
+        clinicalEditingDisabled: true,
+        isPendingClear: true,
+      })
+    );
   });
 });
