@@ -338,6 +338,11 @@ describe('bedManagementDispatchController', () => {
         type: 'CLEAR_PATIENT',
         bedId: 'R1',
         confirmedLastUpdated: '2026-03-06T10:00:00.000Z',
+        confirmedAssociatedCrib: {
+          patientName: 'RN asociado',
+          rut: '22.222.222-2',
+          clinicalEpisodeId: 'crib-associated-r1',
+        },
       },
       validation,
       bedAudit,
@@ -365,10 +370,17 @@ describe('bedManagementDispatchController', () => {
             patientName: 'Paciente',
             rut: '11.111.111-1',
           }),
+          confirmedAssociatedCrib: expect.objectContaining({
+            patientName: 'RN asociado',
+            rut: '22.222.222-2',
+            clinicalEpisodeId: 'crib-associated-r1',
+          }),
         },
       }
     );
     expect(auditPatientCleared).toHaveBeenCalledWith('R1', 'Paciente', '11.111.111-1');
+    expect(auditPatientCleared).toHaveBeenCalledWith('R1 (cuna RN)', 'RN asociado', '22.222.222-2');
+    expect(auditPatientCleared).toHaveBeenCalledTimes(2);
   });
 
   it('clears an occupied clinical crib through its own remotely confirmed intent', async () => {

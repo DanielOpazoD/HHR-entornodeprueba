@@ -55,7 +55,9 @@ export const resolveRowActionCommand = ({
         bedId,
         confirm: {
           title: 'Limpiar cama',
-          message: '¿Está seguro de limpiar los datos de esta cama?',
+          message: patient.clinicalCrib
+            ? '¿Está seguro de limpiar los datos de esta cama y de su cuna asociada?'
+            : '¿Está seguro de limpiar los datos de esta cama?',
           confirmText: 'Sí, limpiar',
           variant: 'warning',
         },

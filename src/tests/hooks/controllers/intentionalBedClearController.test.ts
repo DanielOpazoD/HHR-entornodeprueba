@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import {
+  buildConfirmedAssociatedCribIdentity,
   canRebaseIntentionalBedClear,
   rebaseIntentionalBedClear,
 } from '@/hooks/controllers/intentionalBedClearController';
@@ -49,6 +50,178 @@ describe('intentionalBedClearController', () => {
     });
 
     expect(canRebaseIntentionalBedClear(intent, replacement)).toBe(false);
+  });
+
+  it('blocks rebasing when a crib was added after an absent crib was confirmed', () => {
+    const refreshed = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: {
+          ...DataFactory.createMockPatient('R1', {
+            clinicalEpisodeId: 'ep-confirmed',
+            rut: '11.111.111-1',
+            patientName: 'Paciente confirmado',
+            admissionDate: '2026-08-27',
+          }),
+          clinicalCrib: DataFactory.createMockPatient('R1', {
+            bedMode: 'Cuna',
+            clinicalEpisodeId: 'new-crib-episode',
+            patientName: 'RN Nuevo',
+          }),
+        },
+      },
+    });
+
+    expect(
+      canRebaseIntentionalBedClear({ ...intent, confirmedAssociatedCrib: null }, refreshed)
+    ).toBe(false);
+  });
+
+  it('represents an unidentified crib but never rebases its confirmation to a new version', () => {
+    const blankCrib = DataFactory.createMockPatient('R1', {
+      bedMode: 'Cuna',
+      clinicalEpisodeId: '   ',
+      rut: ' ',
+      patientName: '  ',
+    });
+    const confirmedVersion = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: intent.confirmedLastUpdated,
+      beds: {
+        R1: {
+          ...DataFactory.createMockPatient('R1', {
+            clinicalEpisodeId: 'ep-confirmed',
+            rut: '11.111.111-1',
+            patientName: 'Paciente confirmado',
+            admissionDate: '2026-08-27',
+          }),
+          clinicalCrib: blankCrib,
+        },
+      },
+    });
+    const presenceOnly = buildConfirmedAssociatedCribIdentity(blankCrib);
+
+    expect(presenceOnly).toEqual({ presenceOnly: true });
+    expect(
+      canRebaseIntentionalBedClear(
+        { ...intent, confirmedAssociatedCrib: presenceOnly },
+        confirmedVersion
+      )
+    ).toBe(true);
+
+    const refreshed = {
+      ...confirmedVersion,
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+    };
+    expect(
+      canRebaseIntentionalBedClear({ ...intent, confirmedAssociatedCrib: presenceOnly }, refreshed)
+    ).toBe(false);
+
+    confirmedVersion.beds.R1.clinicalCrib = {
+      ...blankCrib,
+      patientName: 'RN identificado después de confirmar',
+    };
+    expect(
+      canRebaseIntentionalBedClear(
+        { ...intent, confirmedAssociatedCrib: presenceOnly },
+        confirmedVersion
+      )
+    ).toBe(false);
+  });
+
+  it('allows rebasing when the same parent and associated crib episodes remain', () => {
+    const refreshed = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: {
+          ...DataFactory.createMockPatient('R1', {
+            clinicalEpisodeId: 'ep-confirmed',
+            rut: '11.111.111-1',
+            patientName: 'Paciente confirmado',
+            admissionDate: '2026-08-27',
+          }),
+          clinicalCrib: DataFactory.createMockPatient('R1', {
+            bedMode: 'Cuna',
+            clinicalEpisodeId: 'crib-confirmed',
+            patientName: 'RN Uno',
+            pathology: 'Dato actualizado',
+          }),
+        },
+      },
+    });
+
+    expect(
+      canRebaseIntentionalBedClear(
+        {
+          ...intent,
+          confirmedAssociatedCrib: {
+            clinicalEpisodeId: 'crib-confirmed',
+            patientName: 'RN Uno',
+          },
+        },
+        refreshed
+      )
+    ).toBe(true);
+  });
+
+  it('blocks rebasing when the associated crib episode was replaced', () => {
+    const refreshed = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: {
+          ...DataFactory.createMockPatient('R1', {
+            clinicalEpisodeId: 'ep-confirmed',
+            rut: '11.111.111-1',
+            patientName: 'Paciente confirmado',
+            admissionDate: '2026-08-27',
+          }),
+          clinicalCrib: DataFactory.createMockPatient('R1', {
+            bedMode: 'Cuna',
+            clinicalEpisodeId: 'replacement-crib',
+            patientName: 'RN Dos',
+          }),
+        },
+      },
+    });
+
+    expect(
+      canRebaseIntentionalBedClear(
+        {
+          ...intent,
+          confirmedAssociatedCrib: {
+            clinicalEpisodeId: 'crib-confirmed',
+            patientName: 'RN Uno',
+          },
+        },
+        refreshed
+      )
+    ).toBe(false);
+  });
+
+  it('blocks rebasing when the confirmed associated crib was removed', () => {
+    const refreshed = DataFactory.createMockDailyRecord('2026-08-28', {
+      lastUpdated: '2026-08-28T10:00:03.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'ep-confirmed',
+          rut: '11.111.111-1',
+          patientName: 'Paciente confirmado',
+          admissionDate: '2026-08-27',
+        }),
+      },
+    });
+
+    expect(
+      canRebaseIntentionalBedClear(
+        {
+          ...intent,
+          confirmedAssociatedCrib: {
+            clinicalEpisodeId: 'crib-confirmed',
+            patientName: 'RN Uno',
+          },
+        },
+        refreshed
+      )
+    ).toBe(false);
   });
 
   it('rebases a crib clear against the crib occupant, not the parent bed', () => {

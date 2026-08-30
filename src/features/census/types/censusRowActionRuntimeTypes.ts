@@ -11,7 +11,8 @@ export interface RowActionRuntimeActions {
   clearPatient: (
     bedId: string,
     confirmedLastUpdated?: string,
-    confirmedOccupant?: ConfirmedBedOccupantIdentity
+    confirmedOccupant?: ConfirmedBedOccupantIdentity,
+    confirmedAssociatedCrib?: ConfirmedBedOccupantIdentity | null
   ) => Promise<boolean>;
   addCMA: (data: Omit<CMAData, 'id' | 'timestamp'>) => void;
   setMovement: (nextActionState: ActionState) => void;

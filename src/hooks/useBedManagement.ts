@@ -65,7 +65,8 @@ export interface BedManagementActions {
   clearPatient: (
     bedId: string,
     confirmedLastUpdated?: string,
-    confirmedOccupant?: ConfirmedBedOccupantIdentity
+    confirmedOccupant?: ConfirmedBedOccupantIdentity,
+    confirmedAssociatedCrib?: ConfirmedBedOccupantIdentity | null
   ) => Promise<boolean>;
 
   /**

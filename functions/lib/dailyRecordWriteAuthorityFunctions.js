@@ -75,6 +75,47 @@ const normalizeOrigin = (value, fallback = 'direct_save') =>
 const normalizeShortString = (value, maxLength = 120) =>
   typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : undefined;
 
+const parseConfirmedBedOccupantIdentity = (
+  value,
+  fieldName,
+  { allowPresenceOnly = false } = {}
+) => {
+  if (!isPlainObject(value)) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `Intentional bed clear requires ${fieldName} to be an occupant identity.`
+    );
+  }
+  const presenceOnly = value.presenceOnly === true;
+  if (presenceOnly && !allowPresenceOnly) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `Intentional bed clear does not allow presence-only confirmation for ${fieldName}.`
+    );
+  }
+  const confirmedOccupant = {
+    ...(presenceOnly ? { presenceOnly: true } : {}),
+    clinicalEpisodeId: normalizeShortString(value.clinicalEpisodeId),
+    rut: normalizeShortString(value.rut),
+    patientName: normalizeShortString(value.patientName),
+    firstSeenDate: normalizeShortString(value.firstSeenDate),
+    admissionDate: normalizeShortString(value.admissionDate),
+    admissionTime: normalizeShortString(value.admissionTime),
+  };
+  if (
+    !confirmedOccupant.clinicalEpisodeId &&
+    !confirmedOccupant.rut &&
+    !confirmedOccupant.patientName &&
+    !presenceOnly
+  ) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `Intentional bed clear requires ${fieldName} to be non-empty.`
+    );
+  }
+  return confirmedOccupant;
+};
+
 const parseIntentionalBedClear = value => {
   if (value === undefined || value === null) return null;
   if (!isPlainObject(value)) {
@@ -95,32 +136,23 @@ const parseIntentionalBedClear = value => {
     value.confirmedLastUpdated,
     'intentionalBedClear.confirmedLastUpdated'
   );
-  if (value.confirmedOccupant === undefined || value.confirmedOccupant === null) {
-    return { bedId, target, confirmedLastUpdated, confirmedOccupant: null };
-  }
-  if (!isPlainObject(value.confirmedOccupant)) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Intentional bed clear requires the confirmed occupant identity.'
-    );
-  }
-  const confirmedOccupant = {
-    clinicalEpisodeId: normalizeShortString(value.confirmedOccupant.clinicalEpisodeId),
-    rut: normalizeShortString(value.confirmedOccupant.rut),
-    patientName: normalizeShortString(value.confirmedOccupant.patientName),
-    firstSeenDate: normalizeShortString(value.confirmedOccupant.firstSeenDate),
-    admissionDate: normalizeShortString(value.confirmedOccupant.admissionDate),
-    admissionTime: normalizeShortString(value.confirmedOccupant.admissionTime),
-  };
-  if (
-    !confirmedOccupant.clinicalEpisodeId &&
-    !confirmedOccupant.rut &&
-    !confirmedOccupant.patientName
-  ) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Intentional bed clear requires a non-empty occupant identity.'
-    );
+  const confirmedOccupant =
+    value.confirmedOccupant === undefined || value.confirmedOccupant === null
+      ? null
+      : parseConfirmedBedOccupantIdentity(
+          value.confirmedOccupant,
+          'intentionalBedClear.confirmedOccupant'
+        );
+  let confirmedAssociatedCrib;
+  if (target === 'bed') {
+    confirmedAssociatedCrib =
+      value.confirmedAssociatedCrib === undefined || value.confirmedAssociatedCrib === null
+        ? value.confirmedAssociatedCrib
+        : parseConfirmedBedOccupantIdentity(
+            value.confirmedAssociatedCrib,
+            'intentionalBedClear.confirmedAssociatedCrib',
+            { allowPresenceOnly: true }
+          );
   }
   if (bedId.includes('.') || FORBIDDEN_PATCH_PATH_SEGMENTS.has(bedId)) {
     throw new functions.https.HttpsError(
@@ -128,7 +160,13 @@ const parseIntentionalBedClear = value => {
       'Intentional bed clear contains an invalid bed id.'
     );
   }
-  return { bedId, target, confirmedLastUpdated, confirmedOccupant };
+  return {
+    bedId,
+    target,
+    confirmedLastUpdated,
+    confirmedOccupant,
+    ...(target === 'bed' ? { confirmedAssociatedCrib } : {}),
+  };
 };
 
 const normalizeEpisodeIdentityScalar = value =>
@@ -138,6 +176,13 @@ const normalizeEpisodeIdentityScalar = value =>
 
 const sameConfirmedBedEpisode = (confirmed, remote) => {
   if (!isPlainObject(confirmed) || !isPlainObject(remote)) return false;
+  if (confirmed.presenceOnly === true) {
+    return Boolean(
+      !normalizeEpisodeIdentityScalar(remote.clinicalEpisodeId) &&
+      !normalizeEpisodeIdentityScalar(remote.rut) &&
+      !normalizeEpisodeIdentityScalar(remote.patientName)
+    );
+  }
   const confirmedEpisodeId = normalizeEpisodeIdentityScalar(confirmed.clinicalEpisodeId);
   const remoteEpisodeId = normalizeEpisodeIdentityScalar(remote.clinicalEpisodeId);
   if (confirmedEpisodeId || remoteEpisodeId) {
@@ -598,6 +643,35 @@ const assertIntentionalBedClearRequest = ({
       'aborted',
       'Intentional bed clear no longer targets the occupant confirmed by the user.'
     );
+  }
+  if (intentionalBedClear.target === 'bed') {
+    const remoteAssociatedCrib = remoteBed?.clinicalCrib;
+    const confirmedAssociatedCrib = intentionalBedClear.confirmedAssociatedCrib;
+    if (confirmedAssociatedCrib === undefined && isPlainObject(remoteAssociatedCrib)) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'Intentional bed clear requires confirming the associated clinical crib.'
+      );
+    }
+    if (
+      confirmedAssociatedCrib?.presenceOnly === true &&
+      toMillis(remoteData?.lastUpdated) !== toMillis(intentionalBedClear.confirmedLastUpdated)
+    ) {
+      throw new functions.https.HttpsError(
+        'aborted',
+        'Presence-only clinical crib confirmation requires the exact census version.'
+      );
+    }
+    if (
+      (confirmedAssociatedCrib === null && isPlainObject(remoteAssociatedCrib)) ||
+      (isPlainObject(confirmedAssociatedCrib) &&
+        !sameConfirmedBedEpisode(confirmedAssociatedCrib, remoteAssociatedCrib))
+    ) {
+      throw new functions.https.HttpsError(
+        'aborted',
+        'The associated clinical crib changed after the bed clear was confirmed.'
+      );
+    }
   }
   const bedPath = `beds.${intentionalBedClear.bedId}`;
   const expectedPath =

@@ -6,6 +6,11 @@ import type {
 } from '@/types/domain/intentionalBedClear';
 import type { PatientData } from '@/types/domain/patient';
 
+const normalizeIdentityValue = (value: unknown): string =>
+  String(value || '')
+    .trim()
+    .toLowerCase();
+
 export const buildConfirmedBedOccupantIdentity = (
   patient: PatientData
 ): ConfirmedBedOccupantIdentity => ({
@@ -17,10 +22,19 @@ export const buildConfirmedBedOccupantIdentity = (
   admissionTime: patient.admissionTime,
 });
 
-const normalizeIdentityValue = (value: unknown): string =>
-  String(value || '')
-    .trim()
-    .toLowerCase();
+export const buildConfirmedAssociatedCribIdentity = (
+  patient: PatientData
+): ConfirmedBedOccupantIdentity => {
+  const identity = buildConfirmedBedOccupantIdentity(patient);
+  if (
+    normalizeIdentityValue(identity.clinicalEpisodeId) ||
+    normalizeIdentityValue(identity.rut) ||
+    normalizeIdentityValue(identity.patientName)
+  ) {
+    return identity;
+  }
+  return { presenceOnly: true };
+};
 
 const hasSameOptionalAdmissionTime = (
   confirmed: ConfirmedBedOccupantIdentity,
@@ -38,11 +52,19 @@ const isSameConfirmedOccupant = (
 ): boolean => {
   if (!candidate) return false;
   const confirmed = intent.confirmedOccupant;
-  const confirmedEpisodeId = normalizeIdentityValue(confirmed.clinicalEpisodeId);
-  const candidateEpisodeId = normalizeIdentityValue(candidate.clinicalEpisodeId);
   const isExactConfirmedVersion =
     toRecordTimestamp(intent.confirmedLastUpdated) ===
     toRecordTimestamp(candidateRecord.lastUpdated);
+  if (confirmed.presenceOnly) {
+    return Boolean(
+      isExactConfirmedVersion &&
+      !normalizeIdentityValue(candidate.clinicalEpisodeId) &&
+      !normalizeIdentityValue(candidate.rut) &&
+      !normalizeIdentityValue(candidate.patientName)
+    );
+  }
+  const confirmedEpisodeId = normalizeIdentityValue(confirmed.clinicalEpisodeId);
+  const candidateEpisodeId = normalizeIdentityValue(candidate.clinicalEpisodeId);
   if (confirmedEpisodeId || candidateEpisodeId) {
     return Boolean(
       confirmedEpisodeId && candidateEpisodeId && confirmedEpisodeId === candidateEpisodeId
@@ -79,6 +101,25 @@ const isSameConfirmedOccupant = (
   return isExactConfirmedVersion;
 };
 
+const hasSameConfirmedAssociatedCrib = (
+  intent: IntentionalBedClearRequest,
+  candidateRecord: DailyRecord
+): boolean => {
+  if (intent.target === 'clinicalCrib') return true;
+
+  const candidateCrib = candidateRecord.beds[intent.bedId]?.clinicalCrib;
+  const confirmedCrib = intent.confirmedAssociatedCrib;
+  if (confirmedCrib === undefined || confirmedCrib === null) {
+    return !candidateCrib;
+  }
+
+  return isSameConfirmedOccupant(
+    { ...intent, confirmedOccupant: confirmedCrib },
+    candidateRecord,
+    candidateCrib
+  );
+};
+
 export const canRebaseIntentionalBedClear = (
   intent: IntentionalBedClearRequest,
   candidate: DailyRecord | null | undefined
@@ -91,7 +132,8 @@ export const canRebaseIntentionalBedClear = (
       intent.target === 'clinicalCrib'
         ? candidate.beds[intent.bedId]?.clinicalCrib
         : candidate.beds[intent.bedId]
-    )
+    ) &&
+    hasSameConfirmedAssociatedCrib(intent, candidate)
   );
 
 export const rebaseIntentionalBedClear = (

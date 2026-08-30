@@ -11,7 +11,10 @@ import type {
   RowActionRuntimeActions,
   RowActionRuntimeConfirm,
 } from '@/features/census/types/censusRowActionRuntimeTypes';
-import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
+import {
+  buildConfirmedAssociatedCribIdentity,
+  buildConfirmedBedOccupantIdentity,
+} from '@/hooks/controllers/intentionalBedClearController';
 
 export interface RowActionRuntimeSuccess {
   applied: boolean;
@@ -54,10 +57,24 @@ export const executeRowActionController = async ({
       if (!isConfirmed) {
         return ok({ applied: false });
       }
+      const confirmedAssociatedCrib = patient.clinicalCrib
+        ? buildConfirmedAssociatedCribIdentity(patient.clinicalCrib)
+        : null;
+      if (confirmedAssociatedCrib?.presenceOnly && !confirmedLastUpdated) {
+        return {
+          ok: false,
+          error: {
+            code: 'PERSISTENCE_FAILED',
+            message:
+              'No fue posible confirmar la versión de la cuna asociada. Recargue el censo antes de limpiar la cama.',
+          },
+        };
+      }
       const persisted = await actions.clearPatient(
         command.bedId,
         confirmedLastUpdated,
-        buildConfirmedBedOccupantIdentity(patient)
+        buildConfirmedBedOccupantIdentity(patient),
+        confirmedAssociatedCrib
       );
       if (!persisted) {
         return {

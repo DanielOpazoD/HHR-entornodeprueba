@@ -61,8 +61,92 @@ describe('censusRowActionRuntimeController', () => {
         patientName: 'Paciente 1',
         rut: '12345678-9',
         admissionDate: '2026-01-01',
+      }),
+      null
+    );
+  });
+
+  it('captures the associated crib identity before clearing the parent bed', async () => {
+    const clearPatient = vi.fn().mockResolvedValue(true);
+    const confirm = vi.fn().mockResolvedValue(true);
+    const patient = DataFactory.createMockPatient('R1', {
+      patientName: 'Paciente 1',
+      clinicalEpisodeId: 'parent-episode',
+    });
+    patient.clinicalCrib = DataFactory.createMockPatient('R1', {
+      bedMode: 'Cuna',
+      patientName: 'RN Uno',
+      rut: '22.222.222-2',
+      clinicalEpisodeId: 'crib-episode',
+    });
+
+    await executeRowActionController({
+      action: 'clear',
+      bedId: 'R1',
+      patient,
+      stabilityRules: unlockedRules,
+      actions: {
+        clearPatient,
+        addCMA: vi.fn(),
+        setMovement: vi.fn(),
+        openDischarge: vi.fn(),
+        openTransfer: vi.fn(),
+      },
+      confirmRuntime: { confirm },
+      confirmedLastUpdated: '2026-03-06T10:00:00.000Z',
+    });
+
+    expect(clearPatient).toHaveBeenCalledWith(
+      'R1',
+      '2026-03-06T10:00:00.000Z',
+      expect.objectContaining({ clinicalEpisodeId: 'parent-episode' }),
+      expect.objectContaining({
+        clinicalEpisodeId: 'crib-episode',
+        patientName: 'RN Uno',
+        rut: '22.222.222-2',
       })
     );
+    expect(confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: '¿Está seguro de limpiar los datos de esta cama y de su cuna asociada?',
+      })
+    );
+  });
+
+  it('blocks an unidentified associated crib when the confirmed version is missing', async () => {
+    const clearPatient = vi.fn().mockResolvedValue(true);
+    const patient = DataFactory.createMockPatient('R1', {
+      clinicalCrib: DataFactory.createMockPatient('R1', {
+        bedMode: 'Cuna',
+        clinicalEpisodeId: ' ',
+        rut: '',
+        patientName: '  ',
+      }),
+    });
+
+    const result = await executeRowActionController({
+      action: 'clear',
+      bedId: 'R1',
+      patient,
+      stabilityRules: unlockedRules,
+      actions: {
+        clearPatient,
+        addCMA: vi.fn(),
+        setMovement: vi.fn(),
+        openDischarge: vi.fn(),
+        openTransfer: vi.fn(),
+      },
+      confirmRuntime: { confirm: vi.fn().mockResolvedValue(true) },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: expect.objectContaining({
+        code: 'PERSISTENCE_FAILED',
+        message: expect.stringContaining('Recargue el censo'),
+      }),
+    });
+    expect(clearPatient).not.toHaveBeenCalled();
   });
 
   it('does not apply clear when confirm is rejected', async () => {
@@ -112,7 +196,8 @@ describe('censusRowActionRuntimeController', () => {
       expect.objectContaining({
         patientName: 'Paciente confirmado',
         rut: '11.111.111-1',
-      })
+      }),
+      null
     );
   });
 

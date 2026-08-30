@@ -110,13 +110,15 @@ export const useBedManagementActionCreators = (
     (
       bedId: string,
       confirmedLastUpdated?: string,
-      confirmedOccupant?: ConfirmedBedOccupantIdentity
+      confirmedOccupant?: ConfirmedBedOccupantIdentity,
+      confirmedAssociatedCrib?: ConfirmedBedOccupantIdentity | null
     ): Promise<boolean> => {
       const action: BedAction = {
         type: 'CLEAR_PATIENT',
         bedId,
         ...(confirmedLastUpdated ? { confirmedLastUpdated } : {}),
         ...(confirmedOccupant ? { confirmedOccupant } : {}),
+        ...(confirmedAssociatedCrib !== undefined ? { confirmedAssociatedCrib } : {}),
       };
       if (dispatchAndWait) {
         return dispatchAndWait(action);
