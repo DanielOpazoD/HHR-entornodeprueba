@@ -116,4 +116,29 @@ describe('useBedManagementActionCreators', () => {
     expect(dispatchAndWait).toHaveBeenCalledWith({ type: 'CLEAR_PATIENT', bedId: 'R1' });
     expect(dispatch).not.toHaveBeenCalled();
   });
+
+  it('preserves the associated crib snapshot in a definitive parent-bed clear', async () => {
+    const dispatch = vi.fn();
+    const dispatchAndWait = vi.fn().mockResolvedValue(true);
+    const { result } = renderHook(() => useBedManagementActionCreators(dispatch, dispatchAndWait));
+    const confirmedOccupant = { clinicalEpisodeId: 'parent-episode' };
+    const confirmedAssociatedCrib = { clinicalEpisodeId: 'crib-episode' };
+
+    await act(async () => {
+      await result.current.clearPatient(
+        'R1',
+        '2026-08-29T10:00:00.000Z',
+        confirmedOccupant,
+        confirmedAssociatedCrib
+      );
+    });
+
+    expect(dispatchAndWait).toHaveBeenCalledWith({
+      type: 'CLEAR_PATIENT',
+      bedId: 'R1',
+      confirmedLastUpdated: '2026-08-29T10:00:00.000Z',
+      confirmedOccupant,
+      confirmedAssociatedCrib,
+    });
+  });
 });

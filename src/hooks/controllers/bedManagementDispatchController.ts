@@ -165,6 +165,13 @@ const auditActionIntent = (
       if (bed.patientName) {
         bedAudit.auditPatientCleared(action.bedId, bed.patientName, bed.rut);
       }
+      if (bed.clinicalCrib?.patientName) {
+        bedAudit.auditPatientCleared(
+          `${action.bedId} (cuna RN)`,
+          bed.clinicalCrib.patientName,
+          bed.clinicalCrib.rut
+        );
+      }
       break;
     }
     case 'REMOVE_CLINICAL_CRIB': {
@@ -245,14 +252,17 @@ export const executeBedManagementAction = async ({
 
     try {
       if (validatedAction.type === 'CLEAR_PATIENT') {
+        const currentBed = currentRecord.beds[validatedAction.bedId]!;
         await patchRecord(patch, {
           consistency: 'remote_confirmed',
           intentionalBedClear: {
             bedId: validatedAction.bedId,
             confirmedLastUpdated: validatedAction.confirmedLastUpdated ?? currentRecord.lastUpdated,
             confirmedOccupant:
-              validatedAction.confirmedOccupant ??
-              buildConfirmedBedOccupantIdentity(currentRecord.beds[validatedAction.bedId]),
+              validatedAction.confirmedOccupant ?? buildConfirmedBedOccupantIdentity(currentBed),
+            ...(validatedAction.confirmedAssociatedCrib !== undefined
+              ? { confirmedAssociatedCrib: validatedAction.confirmedAssociatedCrib }
+              : {}),
           },
         });
       } else if (validatedAction.type === 'REMOVE_CLINICAL_CRIB') {

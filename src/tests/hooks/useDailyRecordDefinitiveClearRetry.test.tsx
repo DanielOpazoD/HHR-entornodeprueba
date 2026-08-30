@@ -256,4 +256,68 @@ describe('definitive bed clear conflict retry', () => {
     expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
     expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledWith(mockDate);
   });
+
+  it('does not retry when a crib was added after the parent-bed clear was confirmed', async () => {
+    const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
+      ...mockRecord,
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: 'Paciente confirmado',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'ep-confirmed',
+        }),
+      },
+    });
+    const recordWithNewCrib = DataFactory.createMockDailyRecord(mockDate, {
+      ...occupiedRecord,
+      lastUpdated: '2026-01-01T00:00:01.000Z',
+      beds: {
+        R1: {
+          ...occupiedRecord.beds.R1,
+          clinicalCrib: DataFactory.createMockPatient('R1', {
+            bedMode: 'Cuna',
+            patientName: 'RN agregado',
+            clinicalEpisodeId: 'new-crib-episode',
+          }),
+        },
+      },
+    });
+    let remotelyVisibleRecord = occupiedRecord;
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
+      buildReadResult(remotelyVisibleRecord)
+    );
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockRejectedValueOnce(
+      new ConcurrencyError('remote changed')
+    );
+
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() =>
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente confirmado')
+    );
+    remotelyVisibleRecord = recordWithNewCrib;
+
+    await expect(
+      act(async () => {
+        await result.current.patchRecord(
+          { 'beds.R1': DataFactory.createMockPatient('R1', { patientName: '', rut: '' }) },
+          {
+            intentionalBedClear: {
+              bedId: 'R1',
+              confirmedLastUpdated: occupiedRecord.lastUpdated,
+              confirmedOccupant: {
+                clinicalEpisodeId: 'ep-confirmed',
+                patientName: 'Paciente confirmado',
+                rut: '11.111.111-1',
+              },
+              confirmedAssociatedCrib: null,
+            },
+          }
+        );
+      })
+    ).rejects.toThrow('La cama cambió desde que se confirmó la limpieza');
+    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
+    expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledWith(mockDate);
+  });
 });

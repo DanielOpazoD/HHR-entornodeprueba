@@ -272,7 +272,7 @@ const matrixCases: CensusActionMatrixCase[] = [
   {
     name: 'limpiar paciente',
     failureClass: 'persistencia_local_sin_firebase',
-    run: actions => actions.clearPatient('R1'),
+    run: actions => actions.clearPatient('R5'),
   },
   {
     name: 'copiar cama',

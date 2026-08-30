@@ -62,10 +62,14 @@ const makeCanonicalEmptyBed = () => ({
 const executeClear = async ({
   remoteBed,
   confirmedOccupant,
+  confirmedAssociatedCrib,
+  requestVersion,
   requestedBed = makeCanonicalEmptyBed(),
 }: {
   remoteBed: Record<string, unknown>;
   confirmedOccupant?: Record<string, unknown>;
+  confirmedAssociatedCrib?: Record<string, unknown> | null;
+  requestVersion?: string;
   requestedBed?: Record<string, unknown>;
 }) => {
   const base = makeRecord();
@@ -86,12 +90,13 @@ const executeClear = async ({
   const result = functionsApi.patchDailyRecordWithClinicalAuthority.run(
     {
       date: remote.date,
-      expectedLastUpdated: remote.lastUpdated,
+      expectedLastUpdated: requestVersion ?? remote.lastUpdated,
       mode: 'enforced',
       intentionalBedClear: {
         bedId: 'R1',
-        confirmedLastUpdated: remote.lastUpdated,
+        confirmedLastUpdated: requestVersion ?? remote.lastUpdated,
         confirmedOccupant,
+        ...(confirmedAssociatedCrib !== undefined ? { confirmedAssociatedCrib } : {}),
       },
       patch: { 'beds.R1': requestedBed },
     },
@@ -214,5 +219,190 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).resolves.toMatchObject({ success: true });
     expect(set).toHaveBeenCalled();
+  });
+
+  it('allows clearing a parent bed when its associated crib identity is confirmed', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {
+        clinicalCrib: {
+          patientName: 'RN Uno',
+          rut: '22.222.222-2',
+          clinicalEpisodeId: 'crib-episode',
+        },
+      },
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+      },
+      confirmedAssociatedCrib: {
+        clinicalEpisodeId: 'crib-episode',
+        rut: '22.222.222-2',
+        patientName: 'RN Uno',
+      },
+    });
+
+    await expect(result).resolves.toMatchObject({ success: true });
+    expect(set).toHaveBeenCalled();
+  });
+
+  it('allows confirming a present associated crib before it has occupant identity', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {
+        clinicalCrib: {
+          patientName: '  ',
+          rut: ' ',
+          clinicalEpisodeId: '   ',
+          bedMode: 'Cuna',
+        },
+      },
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+      },
+      confirmedAssociatedCrib: { presenceOnly: true },
+    });
+
+    await expect(result).resolves.toMatchObject({ success: true });
+    expect(set).toHaveBeenCalled();
+  });
+
+  it('rejects presence-only confirmation for the parent occupant', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {
+        patientName: '',
+        rut: '',
+        clinicalEpisodeId: '',
+      },
+      confirmedOccupant: { presenceOnly: true },
+      confirmedAssociatedCrib: null,
+    });
+
+    await expect(result).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects a presence-only confirmation after the crib receives occupant identity', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {
+        clinicalCrib: {
+          patientName: 'RN identificado',
+          clinicalEpisodeId: 'crib-episode',
+        },
+      },
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+      },
+      confirmedAssociatedCrib: { presenceOnly: true },
+    });
+
+    await expect(result).rejects.toMatchObject({ code: 'aborted' });
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale presence-only crib confirmation at the server boundary', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {
+        clinicalCrib: {
+          patientName: '',
+          rut: '',
+          clinicalEpisodeId: '',
+          bedMode: 'Cuna',
+        },
+      },
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+      },
+      confirmedAssociatedCrib: { presenceOnly: true },
+      requestVersion: '2026-05-13T07:00:00.000Z',
+    });
+
+    await expect(result).rejects.toMatchObject({ code: 'aborted' });
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects a legacy parent clear that did not confirm an existing associated crib', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {
+        clinicalCrib: {
+          patientName: 'RN Uno',
+          clinicalEpisodeId: 'crib-episode',
+        },
+      },
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+      },
+    });
+
+    await expect(result).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects a parent clear when a crib appeared after its absence was confirmed', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {
+        clinicalCrib: {
+          patientName: 'RN agregado',
+          clinicalEpisodeId: 'new-crib',
+        },
+      },
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+      },
+      confirmedAssociatedCrib: null,
+    });
+
+    await expect(result).rejects.toMatchObject({ code: 'aborted' });
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects a parent clear when the associated crib differs from the confirmation', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {
+        clinicalCrib: {
+          patientName: 'RN reemplazado',
+          clinicalEpisodeId: 'replacement-crib',
+        },
+      },
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+      },
+      confirmedAssociatedCrib: {
+        clinicalEpisodeId: 'confirmed-crib',
+        patientName: 'RN confirmado',
+      },
+    });
+
+    await expect(result).rejects.toMatchObject({ code: 'aborted' });
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('rejects a parent clear when the confirmed associated crib was removed', async () => {
+    const { result, set } = await executeClear({
+      remoteBed: {},
+      confirmedOccupant: {
+        clinicalEpisodeId: 'ep-uno',
+        rut: '11.111.111-1',
+        patientName: 'Paciente Uno',
+      },
+      confirmedAssociatedCrib: {
+        clinicalEpisodeId: 'crib-episode',
+        patientName: 'RN Uno',
+      },
+    });
+
+    await expect(result).rejects.toMatchObject({ code: 'aborted' });
+    expect(set).not.toHaveBeenCalled();
   });
 });

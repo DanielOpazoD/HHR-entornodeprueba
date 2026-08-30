@@ -14,6 +14,7 @@ export type BedAction =
       bedId: string;
       confirmedLastUpdated?: string;
       confirmedOccupant?: ConfirmedBedOccupantIdentity;
+      confirmedAssociatedCrib?: ConfirmedBedOccupantIdentity | null;
     }
   | { type: 'CLEAR_ALL_BEDS' }
   | { type: 'MOVE_PATIENT'; sourceBedId: string; targetBedId: string }
