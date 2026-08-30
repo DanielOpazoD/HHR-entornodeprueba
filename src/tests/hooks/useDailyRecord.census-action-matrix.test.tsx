@@ -20,10 +20,6 @@ import {
   markDailyRecordRemoteConfirmed,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import {
-  buildConfirmedAssociatedCribIdentity,
-  buildConfirmedBedOccupantIdentity,
-} from '@/hooks/controllers/intentionalBedClearController';
 
 const { mockDailyRecordPorts } = vi.hoisted(() => ({
   mockDailyRecordPorts: {
@@ -276,15 +272,7 @@ const matrixCases: CensusActionMatrixCase[] = [
   {
     name: 'limpiar paciente',
     failureClass: 'persistencia_local_sin_firebase',
-    run: (actions, record) => {
-      const patient = record.beds.R1!;
-      return actions.clearPatient(
-        'R1',
-        record.lastUpdated,
-        buildConfirmedBedOccupantIdentity(patient),
-        patient.clinicalCrib ? buildConfirmedAssociatedCribIdentity(patient.clinicalCrib) : null
-      );
-    },
+    run: actions => actions.clearPatient('R5'),
   },
   {
     name: 'copiar cama',
