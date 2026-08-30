@@ -182,6 +182,7 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
     );
     expect(updateDoc).not.toHaveBeenCalled();
     expect(saveHistorySnapshot).not.toHaveBeenCalled();
+    expect(mockAssertFirestoreConcurrency).not.toHaveBeenCalled();
   });
 
   it('routes an intentional clinical crib clear without replacing the parent bed', async () => {
@@ -227,6 +228,7 @@ describe('firestoreRecordWrites intentional bed clear routing', () => {
       })
     );
     expect(updateDoc).not.toHaveBeenCalled();
+    expect(mockAssertFirestoreConcurrency).not.toHaveBeenCalled();
   });
 
   it('rejects an intentional clear whose declared bed does not match the whole-bed patch', async () => {

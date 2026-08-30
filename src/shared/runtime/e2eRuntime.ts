@@ -17,6 +17,9 @@ export const isE2EEditableRecordOverrideEnabled = (): boolean =>
 export const isE2ELocalOnlySyncForced = (): boolean =>
   isE2ERuntimeEnabled() && readLocalStorageFlag('hhr_e2e_force_local_only_sync');
 
+export const isE2EDailyRecordAuthorityCallableForced = (): boolean =>
+  isE2ERuntimeEnabled() && readLocalStorageFlag('hhr_e2e_force_authority_callable');
+
 export const recordE2EClipboardText = (text: string): void => {
   if (!isE2ERuntimeEnabled() || !hasWindow()) {
     return;
