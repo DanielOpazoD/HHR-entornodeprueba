@@ -7,6 +7,7 @@
 import { useCallback } from 'react';
 import type {
   ApplyDailyRecordPatch,
+  DailyRecord,
   DailyRecordPatch,
   PersistDailyRecord,
 } from '@/application/shared/dailyRecordCoreContracts';
@@ -21,6 +22,7 @@ import {
   isClinicalCribFieldUpdateAllowed,
   sanitizeClinicalCribUpdates,
 } from '@/hooks/controllers/clinicalCribController';
+import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 
 export interface ClinicalCribActions {
   createCrib: (bedId: string) => Promise<void>;
@@ -34,7 +36,7 @@ export interface ClinicalCribActions {
 }
 
 export const useClinicalCrib = (
-  record: DailyRecordBedsState | null,
+  record: (DailyRecordBedsState & Pick<DailyRecord, 'lastUpdated'>) | null,
   _saveAndUpdate: PersistDailyRecord,
   patchRecord: ApplyDailyRecordPatch
 ): ClinicalCribActions => {
@@ -53,7 +55,15 @@ export const useClinicalCrib = (
         return Promise.resolve();
       }
 
-      return patchRecord(buildClinicalCribPatch(bedId, parentPatient)).catch(error => {
+      return patchRecord(buildClinicalCribPatch(bedId, parentPatient), {
+        consistency: 'remote_confirmed',
+        optimisticRemoteConfirmed: true,
+        clinicalCribCreate: {
+          bedId,
+          confirmedLastUpdated: record.lastUpdated,
+          confirmedParent: buildConfirmedBedOccupantIdentity(parentPatient),
+        },
+      }).catch(error => {
         clinicalCribLogger.warn('Clinical crib create failed', error);
       });
     },

@@ -43,6 +43,8 @@ import {
   resolveSyncTaskNextAttemptAt,
   type SyncQueueEnqueueOptions,
 } from '@/services/storage/sync/syncQueueEnqueuePolicy';
+import { replacePendingDailyRecordTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
+import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 
 const SYNC_QUEUE_LEASE_MS = 30_000;
 
@@ -286,7 +288,19 @@ export const createSyncQueueEngine = ({
       maxPendingTasks,
     };
   };
-
+  const replacePendingDailyRecordTaskWithLocalRecord = async (
+    record: DailyRecord,
+    meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
+    expectedTask?: PendingDailyRecordSyncTaskIdentity
+  ): Promise<boolean> =>
+    replacePendingDailyRecordTask({
+      record,
+      meta,
+      store,
+      runtime,
+      triggerProcessing,
+      expectedTask,
+    });
   const getTelemetry = async (): Promise<SyncQueueTelemetry> => {
     const ownerKey = runtime.getOwnerKey();
     const rows = await store.listAll(ownerKey);
@@ -364,21 +378,21 @@ export const createSyncQueueEngine = ({
       isProcessing = false;
     }
   };
-
   const ensureOnlineListener = (): void => {
     runtime.onOnline(() => {
       triggerProcessing();
     });
   };
-
   return {
     queueTask,
     queueDailyRecordTaskWithLocalRecord,
+    replacePendingDailyRecordTaskWithLocalRecord,
     processQueue,
     getTelemetry,
     getDomainMetrics,
     getStats,
     listRecentOperations,
     ensureOnlineListener,
+    triggerProcessing,
   };
 };

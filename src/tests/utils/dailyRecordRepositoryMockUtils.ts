@@ -3,14 +3,20 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { vi } from 'vitest';
 import { deepClone } from '@/utils/deepClone';
+import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 interface DailyRecordRepositoryMockLike {
   getForDate: (date: string) => Promise<DailyRecord | null>;
   getForDateWithMeta?: (date: string, syncFromRemote?: boolean) => Promise<unknown>;
+  getAuthoritativeForDate?: (date: string) => Promise<DailyRecord>;
   save: (record: DailyRecord) => Promise<void>;
   saveDetailed?: (record: DailyRecord) => Promise<unknown>;
   updatePartial: (date: string, partial: DailyRecordPatch) => Promise<void>;
-  updatePartialDetailed?: (date: string, partial: DailyRecordPatch) => Promise<unknown>;
+  updatePartialDetailed?: (
+    date: string,
+    partial: DailyRecordPatch,
+    options?: { requireConfirmedRecord?: boolean }
+  ) => Promise<unknown>;
   initializeDay?: (date: string, copyFromDate?: string) => Promise<unknown>;
   initializeDayDetailed?: (date: string, copyFromDate?: string) => Promise<unknown>;
   syncWithFirestore?: (date: string) => Promise<unknown>;
@@ -28,6 +34,14 @@ export const wireStatefulDailyRecordRepoMock = (
   options: StatefulWireOptions
 ): void => {
   vi.mocked(repo.getForDate).mockImplementation(async () => options.getCurrentRecord());
+
+  if (repo.getAuthoritativeForDate) {
+    vi.mocked(repo.getAuthoritativeForDate).mockImplementation(async () => {
+      const record = options.getCurrentRecord();
+      if (!record) throw new Error('No authoritative test record is available.');
+      return cloneRecord(record);
+    });
+  }
 
   if (repo.getForDateWithMeta) {
     vi.mocked(repo.getForDateWithMeta).mockImplementation(async (date: string) => {
@@ -72,12 +86,23 @@ export const wireStatefulDailyRecordRepoMock = (
 
   if (repo.updatePartialDetailed) {
     vi.mocked(repo.updatePartialDetailed).mockImplementation(
-      async (_date: string, partial: DailyRecordPatch) => {
+      async (date: string, partial: DailyRecordPatch, writeOptions) => {
         const currentRecord = options.getCurrentRecord();
         if (!currentRecord) return null;
         const nextRecord = applyPatches(cloneRecord(currentRecord), partial);
         options.setCurrentRecord(nextRecord);
-        return null;
+        return writeOptions?.requireConfirmedRecord
+          ? createUpdatePartialDailyRecordResult({
+              date,
+              outcome: 'clean',
+              savedLocally: true,
+              updatedRemotely: true,
+              queuedForRetry: false,
+              autoMerged: false,
+              patchedFields: Object.keys(partial).length,
+              confirmedRecord: cloneRecord(nextRecord),
+            })
+          : null;
       }
     );
   }

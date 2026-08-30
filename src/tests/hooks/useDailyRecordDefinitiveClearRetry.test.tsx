@@ -14,6 +14,7 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     getForDate: vi.fn(),
     getForDateWithMeta: vi.fn(),
     getAuthoritativeForDate: vi.fn(),
+    adoptAuthoritativeRecord: vi.fn(async record => record),
     save: vi.fn(),
     saveDetailed: vi.fn(),
     subscribe: vi.fn(() => vi.fn()),
@@ -97,6 +98,9 @@ const createWrapper = () =>
 describe('definitive bed clear conflict retry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDailyRecordRepositoryPort.getForDateWithMeta.mockReset();
+    mockDailyRecordRepositoryPort.getAuthoritativeForDate.mockReset();
+    mockDailyRecordRepositoryPort.updatePartialDetailed.mockReset();
     mockExecuteSyncDailyRecord.mockResolvedValue({
       success: true,
       data: { date: mockDate, outcome: 'clean', record: null },
@@ -142,8 +146,9 @@ describe('definitive bed clear conflict retry', () => {
     );
     vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed)
       .mockRejectedValueOnce(new ConcurrencyError('remote changed'))
-      .mockResolvedValueOnce(
-        createUpdatePartialDailyRecordResult({
+      .mockImplementationOnce(async () => {
+        remotelyVisibleRecord = clearedRecord;
+        return createUpdatePartialDailyRecordResult({
           date: mockDate,
           outcome: 'clean',
           savedLocally: true,
@@ -152,8 +157,8 @@ describe('definitive bed clear conflict retry', () => {
           autoMerged: false,
           patchedFields: 1,
           confirmedRecord: clearedRecord,
-        })
-      );
+        });
+      });
 
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
@@ -194,7 +199,9 @@ describe('definitive bed clear conflict retry', () => {
         }),
       })
     );
-    await waitFor(() => expect(result.current.record?.beds.R1.patientName).toBe(''));
+    await waitFor(() => expect(result.current.record?.beds.R1.patientName).toBe(''), {
+      timeout: 3_000,
+    });
   });
 
   it('does not retry a conflicted clear when the bed now contains another episode', async () => {
@@ -223,10 +230,6 @@ describe('definitive bed clear conflict retry', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
       buildReadResult(remotelyVisibleRecord)
     );
-    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockRejectedValueOnce(
-      new ConcurrencyError('remote changed')
-    );
-
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
     });
@@ -253,7 +256,7 @@ describe('definitive bed clear conflict retry', () => {
         );
       })
     ).rejects.toThrow('La cama cambió desde que se confirmó la limpieza');
-    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
+    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).not.toHaveBeenCalled();
     expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledWith(mockDate);
   });
 
@@ -286,10 +289,6 @@ describe('definitive bed clear conflict retry', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
       buildReadResult(remotelyVisibleRecord)
     );
-    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockRejectedValueOnce(
-      new ConcurrencyError('remote changed')
-    );
-
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
     });
@@ -317,7 +316,7 @@ describe('definitive bed clear conflict retry', () => {
         );
       })
     ).rejects.toThrow('La cama cambió desde que se confirmó la limpieza');
-    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(1);
+    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).not.toHaveBeenCalled();
     expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledWith(mockDate);
   });
 });

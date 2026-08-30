@@ -23,7 +23,7 @@ import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyR
 import { preparePatchedRecordForPersistence } from '@/services/repositories/dailyRecordPatchPreparation';
 import {
   assertNoPatientErasures,
-  assertRemoteSaveCompatibility,
+  runRemoteSaveIntegrityCheck,
 } from '@/services/repositories/dailyRecordRemoteWriteController';
 import { attemptConflictAutoMergeRecovery } from '@/services/repositories/dailyRecordConflictAutoMergeController';
 import { syncPatientsToMasterInBackground } from '@/services/repositories/dailyRecordBackgroundMasterSyncController';
@@ -54,23 +54,11 @@ import {
   assertDailyRecordPartialUpdateAccepted,
   assertDailyRecordSaveAccepted,
 } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
-
-const runRemoteSaveIntegrityCheck = async (date: string, record: DailyRecord): Promise<void> => {
-  if (!isFirestoreEnabled()) return;
-
-  try {
-    await assertRemoteSaveCompatibility(date, record);
-  } catch (err) {
-    if (
-      err instanceof Error &&
-      (err.name === 'DataRegressionError' || err.name === 'VersionMismatchError')
-    ) {
-      throw err;
-    }
-    dailyRecordWriteLogger.warn('Could not perform integrity check, proceeding anyway', err);
-  }
-};
-
+import {
+  buildGuardedDailyRecordPatchPolicy,
+  buildGuardedDailyRecordRemoteWriteOptions,
+} from '@/services/repositories/dailyRecordGuardedCommandPolicy';
+import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 const tryAutoMergeBlockedFullSaveRegression = async (
   date: string,
   record: DailyRecord,
@@ -81,7 +69,6 @@ const tryAutoMergeBlockedFullSaveRegression = async (
   if (mergeResult?.status !== 'auto_merged') {
     return false;
   }
-
   state.queuedForRetry = true;
   state.autoMerged = true;
   applyRecoveryDecisionToState(state, {
@@ -101,7 +88,6 @@ const tryAutoMergeBlockedFullSaveRegression = async (
   });
   return true;
 };
-
 const resolvePartialUpdateBaseRecord = async (
   date: string,
   options: PartialUpdateDailyRecordOptions = {}
@@ -317,10 +303,23 @@ const updatePartialDetailedWithinLock = async (
   }
   const patchedFields = Object.keys(mergedPatches).length;
   const semanticChangedPaths = Object.keys(command.patch);
+  const guardedCommandPolicy = buildGuardedDailyRecordPatchPolicy({
+    patch: command.patch,
+    mergedPatches,
+    baseRecord: current,
+    options,
+    readRemoteRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
+  });
   const isReclassification = isMovementReclassificationPatch(command.patch);
   const syncContract = buildDailyRecordSyncContract(validatedRecord, {
     expectedVersion: current.lastUpdated,
     changedPaths: semanticChangedPaths,
+  });
+  const remoteWriteOptions = buildGuardedDailyRecordRemoteWriteOptions({
+    options,
+    policy: guardedCommandPolicy,
+    syncContract,
+    isReclassification,
   });
 
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
@@ -343,17 +342,12 @@ const updatePartialDetailedWithinLock = async (
     changedPaths: semanticChangedPaths,
     remoteState,
     remoteWrite: () =>
-      updateRecordPartialToFirestore(command.date, mergedPatches, current.lastUpdated, {
-        syncContract,
-        requireAtomicCas: isReclassification || options.requireAtomicCas,
-        ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
-        ...(options.rayenClinicalWriteGuard
-          ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
-          : {}),
-        ...(options.intentionalBedClear
-          ? { intentionalBedClear: options.intentionalBedClear }
-          : {}),
-      }),
+      updateRecordPartialToFirestore(
+        command.date,
+        guardedCommandPolicy.remoteAuthorityPatch,
+        current.lastUpdated,
+        remoteWriteOptions
+      ),
     queueLocalBeforeRemote: () =>
       queueDailyRecordSyncTaskWithLocalRecord(
         validatedRecord,
@@ -366,16 +360,23 @@ const updatePartialDetailedWithinLock = async (
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
-    requireConfirmedRecord: options.requireConfirmedRecord,
+    resolveAlreadyAppliedRemoteRecord: guardedCommandPolicy.resolveAlreadyAppliedRemoteRecord,
+    adoptRemoteAuthorityRecord: authoritativeRecord =>
+      adoptAuthoritativeRecord(
+        authoritativeRecord,
+        guardedCommandPolicy.remoteAuthorityPatch as DailyRecordPatch
+      ),
+    requireConfirmedRecord: guardedCommandPolicy.requireConfirmedRecord,
     onRemoteFailure: err => {
       dailyRecordWriteLogger.warn(`Firestore partial update failed for ${command.date}`, err);
     },
     expectedVersion: current.lastUpdated,
     allowConflictAutoMerge:
-      !isReclassification && !options.rayenClinicalWriteGuard && !options.requireAtomicCas,
-    remoteAuthorityFirst: Boolean(
-      options.rayenClinicalWriteGuard || options.requireRemoteAuthorityFirst
-    ),
+      !isReclassification &&
+      !options.rayenClinicalWriteGuard &&
+      !options.requireAtomicCas &&
+      !guardedCommandPolicy.requireAtomicCas,
+    remoteAuthorityFirst: guardedCommandPolicy.remoteAuthorityFirst,
   });
   if (nextAction === 'return') {
     return buildPartialUpdateResult(command.date, remoteState, patchedFields);

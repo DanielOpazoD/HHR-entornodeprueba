@@ -2,7 +2,10 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
-import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
+import type {
+  ClinicalCribCreateRequest,
+  IntentionalBedClearRequest,
+} from '@/types/domain/intentionalBedClear';
 import {
   classifyDailyRecordPatchContexts,
   classifyDailyRecordSaveContexts,
@@ -68,6 +71,10 @@ export interface PartialUpdateDailyRecordOptions {
   requireConfirmedRecord?: boolean;
   /** Commits remote authority before local persistence, so a rejected CAS cannot queue stale data. */
   requireRemoteAuthorityFirst?: boolean;
+  /** Apply the query-cache patch immediately, but roll it back if remote authority rejects it. */
+  optimisticRemoteConfirmed?: boolean;
+  /** Create-only clinical crib command, bound to the parent episode confirmed by the user. */
+  clinicalCribCreate?: ClinicalCribCreateRequest;
   /** User-confirmed replacement of one occupied bed with its canonical empty shape. */
   intentionalBedClear?: IntentionalBedClearRequest;
   /** Internal lease for a patch executed inside an existing daily-record write critical section. */

@@ -6,12 +6,6 @@ import type { RowMenuAlign } from '@/features/census/components/patient-row/pati
 
 interface PatientBedConfigMenuBindings {
   align: RowMenuAlign;
-  bedModeModel: {
-    label: string;
-    emoji: string;
-    className: string;
-    dotClassName: string;
-  };
   clinicalCribModel: {
     className: string;
     dotClassName: string;
@@ -19,7 +13,6 @@ interface PatientBedConfigMenuBindings {
   showClinicalCribToggle: boolean;
   showClinicalCribActions: boolean;
   showLegacyCompanionCleanup: boolean;
-  onToggleMode: () => void;
   onToggleClinicalCrib: () => void;
   onClearLegacyCompanion: () => void;
   onRemoveClinicalCrib: MouseEventHandler<HTMLButtonElement>;
@@ -53,7 +46,7 @@ export interface PatientBedConfigSections {
 }
 
 interface BuildPatientBedConfigSectionsParams {
-  props: PatientBedConfigProps;
+  props: Omit<PatientBedConfigProps, 'onToggleMode'>;
   viewState: {
     daysHospitalized: number | null;
     indicators: Array<{
@@ -62,7 +55,6 @@ interface BuildPatientBedConfigSectionsParams {
       title?: string;
       label: string;
     }>;
-    bedModeModel: PatientBedConfigMenuBindings['bedModeModel'];
     clinicalCribModel: PatientBedConfigMenuBindings['clinicalCribModel'];
     showDaysCounter: boolean;
     showIndicators: boolean;
@@ -72,7 +64,6 @@ interface BuildPatientBedConfigSectionsParams {
     showLegacyCompanionCleanup: boolean;
   };
   handlers: {
-    handleToggleMode: () => void;
     handleToggleCompanion: () => void;
     handleToggleClinicalCrib: () => void;
     handleRemoveClinicalCrib: MouseEventHandler<HTMLButtonElement>;
@@ -94,12 +85,10 @@ export const buildPatientBedConfigSections = ({
   },
   menu: {
     align: props.align || 'top',
-    bedModeModel: viewState.bedModeModel,
     clinicalCribModel: viewState.clinicalCribModel,
     showClinicalCribToggle: viewState.showClinicalCribToggle,
     showClinicalCribActions: viewState.showClinicalCribActions,
     showLegacyCompanionCleanup: viewState.showLegacyCompanionCleanup,
-    onToggleMode: handlers.handleToggleMode,
     onToggleClinicalCrib: handlers.handleToggleClinicalCrib,
     onClearLegacyCompanion: handlers.handleToggleCompanion,
     onRemoveClinicalCrib: handlers.handleRemoveClinicalCrib,

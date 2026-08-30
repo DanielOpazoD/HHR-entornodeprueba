@@ -28,6 +28,10 @@ vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
 }));
 vi.mock('@/services/storage/sync', () => ({
   ackDailyRecordSyncTask: vi.fn(),
+  adoptAuthoritativeDailyRecordAtomically: vi.fn(async (record: DailyRecord) => ({
+    status: 'adopted',
+    record,
+  })),
   isRetryableSyncError: vi.fn(),
   queueDailyRecordSyncTaskWithLocalRecord: vi.fn(),
   releaseDailyRecordPreOutboxHold: vi.fn().mockResolvedValue(true),
@@ -59,6 +63,7 @@ import { getRecordFromFirestore } from '@/services/storage/firestore/firestoreRe
 import { updateRecordPartial as updateRecordPartialToFirestore } from '@/services/storage/firestore/firestoreRecordWrites';
 import {
   ackDailyRecordSyncTask,
+  adoptAuthoritativeDailyRecordAtomically,
   queueDailyRecordSyncTaskWithLocalRecord as queueSyncTask,
 } from '@/services/storage/sync';
 const expectSyncContract = (expectedVersion: string, changedPaths: string[]) =>
@@ -203,11 +208,9 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       movementKey: 'discharges',
       sourceBedIds: ['NEO2'],
     });
-
     const result = await updatePartialDetailed('2026-02-18', patch, {
       baseRecord: hydratedBase,
     });
-
     expect(result.outcome).toBe('clean');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
@@ -293,7 +296,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       expectSyncContract('2026-02-18T10:00:00.000Z', ['transfers', 'beds.NEO2'])
     );
   });
-
   it('persists CMA movement patches and leaves the source bed available from a visible base', async () => {
     const hydratedBase = buildRecord('2026-02-18');
     hydratedBase.lastUpdated = '2026-02-18T10:10:00.000Z';
@@ -326,11 +328,9 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       movementKey: 'cma',
       sourceBedIds: ['NEO1'],
     });
-
     const result = await updatePartialDetailed('2026-02-18', patch, {
       baseRecord: hydratedBase,
     });
-
     expect(result.outcome).toBe('clean');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-18',
@@ -354,7 +354,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       expectSyncContract('2026-02-18T10:10:00.000Z', ['cma', 'beds.NEO1'])
     );
   });
-
   it('marks a movement reclassification for transactional CAS persistence', async () => {
     const hydratedBase = buildRecord('2026-02-18');
     hydratedBase.lastUpdated = '2026-02-18T10:20:00.000Z';
@@ -427,8 +426,11 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
     );
     expect(result.confirmedRecord).toEqual(confirmedRecord);
     expect(getRecordFromFirestore).toHaveBeenCalledWith('2026-02-18', { source: 'server' });
-    expect(saveToIndexedDB).toHaveBeenLastCalledWith(confirmedRecord);
-    expect(saveToIndexedDB).toHaveBeenCalledTimes(1);
+    expect(adoptAuthoritativeDailyRecordAtomically).toHaveBeenCalledWith(
+      confirmedRecord,
+      expect.any(Function)
+    );
+    expect(saveToIndexedDB).not.toHaveBeenCalled();
   });
   it('persists guarded Rayen patches remotely before local cache without queuing a stale retry', async () => {
     const hydratedBase = buildRecord('2026-02-13');
@@ -477,7 +479,6 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       { 'beds.R1.vitalSigns': { heartRate: 72 } },
       { baseRecord: hydratedBase, rayenClinicalWriteGuard }
     );
-
     expect(result.outcome).toBe('clean');
     expect(updateRecordPartialToFirestore).toHaveBeenCalledWith(
       '2026-02-13',
@@ -486,13 +487,11 @@ describe('dailyRecordRepositoryWriteService explicit base records', () => {
       expect.objectContaining({ rayenClinicalWriteGuard })
     );
     expect(vi.mocked(updateRecordPartialToFirestore).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(saveToIndexedDB).mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+      vi.mocked(adoptAuthoritativeDailyRecordAtomically).mock.invocationCallOrder[0]
     );
-    expect(saveToIndexedDB).toHaveBeenCalledWith(
-      expect.objectContaining({
-        lastUpdated: '2026-02-13T08:05:00.000Z',
-        meta: expect.objectContaining({ revision: 2 }),
-      })
+    expect(adoptAuthoritativeDailyRecordAtomically).toHaveBeenCalledWith(
+      expect.objectContaining({ lastUpdated: '2026-02-13T08:05:00.000Z' }),
+      expect.any(Function)
     );
     expect(queueSyncTask).not.toHaveBeenCalled();
   });

@@ -24,7 +24,10 @@ import {
 import type { UserRole } from '@/types/authRoleTypes';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
-import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
+import type {
+  ClinicalCribCreateRequest,
+  IntentionalBedClearRequest,
+} from '@/types/domain/intentionalBedClear';
 
 export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
@@ -36,6 +39,8 @@ export interface DailyRecordPartialWriteOptions {
   rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
   /** Explicit, CAS-protected request to replace exactly one occupied bed with an empty bed. */
   intentionalBedClear?: IntentionalBedClearRequest;
+  /** Explicit create-only command whose empty Rayen fields must not overwrite server authority. */
+  clinicalCribCreate?: ClinicalCribCreateRequest;
 }
 
 export interface DailyRecordSaveWriteOptions {

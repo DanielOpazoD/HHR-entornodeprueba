@@ -54,7 +54,24 @@ export const CensusTableBody: React.FC<
     <tbody>
       {unifiedRows.map(row => {
         const isPendingBedClear = pendingClearTargets.bedIds.has(row.bed.id);
-        if (row.kind === 'empty') {
+        const isPendingClinicalCribClear = pendingClearTargets.clinicalCribBedIds.has(row.bed.id);
+
+        // A confirmed clear is an optimistic, reversible command. Project its visible result as
+        // soon as React Query marks the mutation pending, even when the mutation is still waiting
+        // for an earlier write on this date. Remote authority remains definitive: on rejection the
+        // pending target disappears and the authoritative occupied row is rendered again.
+        if (
+          row.kind === 'occupied' &&
+          row.isSubRow &&
+          (isPendingBedClear || isPendingClinicalCribClear)
+        ) {
+          return null;
+        }
+
+        if (
+          row.kind === 'empty' ||
+          (row.kind === 'occupied' && !row.isSubRow && isPendingBedClear)
+        ) {
           return (
             <EmptyBedRow
               key={row.id}
@@ -77,13 +94,9 @@ export const CensusTableBody: React.FC<
           );
         }
 
-        const isPendingClear = row.isSubRow
-          ? isPendingBedClear || pendingClearTargets.clinicalCribBedIds.has(row.bed.id)
-          : isPendingBedClear;
         const resolved = resolvedOccupiedMap.get(row.id);
         if (!resolved) return null;
         const clinicalFieldLocks = clinicalFieldLocksByBedId?.[row.bed.id];
-        const rowClinicalEditingDisabled = clinicalEditingDisabled || isPendingClear;
 
         return (
           <PatientRow
@@ -93,8 +106,8 @@ export const CensusTableBody: React.FC<
             currentDateString={currentDateString}
             recordLastUpdated={recordLastUpdated}
             onAction={onAction}
-            readOnly={readOnly || isPendingClear}
-            clinicalEditingDisabled={rowClinicalEditingDisabled}
+            readOnly={readOnly}
+            clinicalEditingDisabled={clinicalEditingDisabled}
             clinicalFieldLocks={clinicalFieldLocks}
             actionMenuAlign={resolved.actionMenuAlign}
             diagnosisMode={diagnosisMode}
@@ -103,9 +116,8 @@ export const CensusTableBody: React.FC<
             role={role}
             accessProfile={accessProfile}
             indicators={resolved.indicators}
-            draggable={!readOnly && !isPendingClear && !row.isSubRow && !!dragDrop}
+            draggable={!readOnly && !row.isSubRow && !!dragDrop}
             isDragging={dragDrop?.state.dragSourceBedId === row.bed.id}
-            isPendingClear={isPendingClear}
             onDragStart={dragDrop?.patientHandlers.onDragStart(row.bed.id)}
             onDragEnd={dragDrop?.patientHandlers.onDragEnd}
             clinicalDocumentCount={clinicalDocumentInfoByBedId?.[row.bed.id]?.totalCount}

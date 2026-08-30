@@ -23,15 +23,7 @@ import {
   shouldAnchorFirstSeenDate,
   shouldResetClinicalEpisodeOwnership,
 } from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
-
-const resolveMotherLabel = (patient: PatientData): string => {
-  const fullNameFromParts = [patient.firstName, patient.lastName, patient.secondLastName]
-    .map(part => (part || '').trim())
-    .filter(Boolean)
-    .join(' ');
-  const fallbackName = (patient.patientName || '').trim();
-  return fullNameFromParts || fallbackName || 'Madre';
-};
+import { buildClinicalCribDraft } from '@/hooks/controllers/clinicalCribController';
 
 const buildPatientFieldPatches = ({
   bedId,
@@ -158,19 +150,6 @@ const buildClearedBedPatient = ({
   const cleanPatient = createEmptyPatient(bedId);
   cleanPatient.location = location;
   return cleanPatient;
-};
-
-const buildClinicalCribDraft = (bedId: string, parentPatient: PatientData): PatientData => {
-  const clinicalCrib = createEmptyPatient(bedId);
-  clinicalCrib.bedMode = 'Cuna';
-  clinicalCrib.identityStatus = 'provisional';
-  clinicalCrib.patientName = `RN de ${resolveMotherLabel(parentPatient)}`;
-  clinicalCrib.firstName = '';
-  clinicalCrib.lastName = '';
-  clinicalCrib.secondLastName = '';
-  clinicalCrib.rut = '';
-  clinicalCrib.documentType = 'RUT';
-  return clinicalCrib;
 };
 
 export const buildClearAllBedsPatches = (state: DailyRecord): DailyRecordPatch => {

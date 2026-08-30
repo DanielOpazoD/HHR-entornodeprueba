@@ -255,6 +255,7 @@ export const executeBedManagementAction = async ({
         const currentBed = currentRecord.beds[validatedAction.bedId]!;
         await patchRecord(patch, {
           consistency: 'remote_confirmed',
+          optimisticRemoteConfirmed: true,
           intentionalBedClear: {
             bedId: validatedAction.bedId,
             confirmedLastUpdated: validatedAction.confirmedLastUpdated ?? currentRecord.lastUpdated,
@@ -275,11 +276,26 @@ export const executeBedManagementAction = async ({
         }
         await patchRecord(patch, {
           consistency: 'remote_confirmed',
+          optimisticRemoteConfirmed: true,
           intentionalBedClear: {
             bedId: validatedAction.bedId,
             target: 'clinicalCrib',
             confirmedLastUpdated: validatedAction.confirmedLastUpdated,
             confirmedOccupant: validatedAction.confirmedOccupant,
+          },
+        });
+      } else if (validatedAction.type === 'CREATE_CLINICAL_CRIB') {
+        // Reflect the reversible row immediately, while remote authority remains the only durable
+        // source and a rejection restores the previous census.
+        await patchRecord(patch, {
+          consistency: 'remote_confirmed',
+          optimisticRemoteConfirmed: true,
+          clinicalCribCreate: {
+            bedId: validatedAction.bedId,
+            confirmedLastUpdated: currentRecord.lastUpdated,
+            confirmedParent: buildConfirmedBedOccupantIdentity(
+              currentRecord.beds[validatedAction.bedId]!
+            ),
           },
         });
       } else {

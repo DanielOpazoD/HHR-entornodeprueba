@@ -1,5 +1,6 @@
-import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
+import { hasSameValuesAtPaths } from '@/services/repositories/conflictResolutionUtils';
 import type {
   ConfirmedBedOccupantIdentity,
   IntentionalBedClearRequest,
@@ -135,6 +136,20 @@ export const canRebaseIntentionalBedClear = (
     ) &&
     hasSameConfirmedAssociatedCrib(intent, candidate)
   );
+
+/** The remote command may already have committed even if its response was lost locally. */
+export const isIntentionalBedClearAlreadyApplied = (
+  intent: IntentionalBedClearRequest,
+  candidate: DailyRecord | null | undefined,
+  expectedPatch: DailyRecordPatch
+): candidate is DailyRecord => {
+  if (!candidate) return false;
+  const candidateBed = candidate.beds[intent.bedId];
+  if (intent.target === 'clinicalCrib') return !candidateBed?.clinicalCrib;
+  return Boolean(
+    candidateBed && !candidateBed.clinicalCrib && hasSameValuesAtPaths(candidate, expectedPatch)
+  );
+};
 
 export const rebaseIntentionalBedClear = (
   intent: IntentionalBedClearRequest,

@@ -68,6 +68,8 @@ export interface UpdatePartialDailyRecordResult {
   blockingError?: Error;
   /** Exact server-confirmed state returned or read back after the patch, when requested. */
   confirmedRecord?: DailyRecord;
+  /** Local projection rebased onto that confirmed state while another granular write is pending. */
+  localProjectionRecord?: DailyRecord;
 }
 
 type UpdatePartialDailyRecordResultInput = Pick<

@@ -25,6 +25,7 @@ describe('bedManagementReducer bed state controls', () => {
         identityStatus: 'provisional',
         patientName: 'RN de Ana Perez Soto',
         documentType: 'RUT',
+        clinicalEpisodeId: expect.stringMatching(/^ep_/),
       }),
       'beds.R1.hasCompanionCrib': false,
     });

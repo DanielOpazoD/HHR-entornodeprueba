@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { createRemoteWriteState } from '@/services/repositories/dailyRecordWriteState';
-
 const { saveToIndexedDBMock, isFirestoreEnabledMock, resolveRemoteWriteRecoveryMock } = vi.hoisted(
   () => ({
     saveToIndexedDBMock: vi.fn(),
@@ -223,6 +222,7 @@ describe('dailyRecordRemotePersistenceController', () => {
       };
     });
     const queueLocalBeforeRemote = vi.fn();
+    const ackLocalAfterRemote = vi.fn().mockResolvedValue(undefined);
 
     const result = await persistLocalAndAttemptRemoteSync({
       date: '2026-05-23',
@@ -232,6 +232,7 @@ describe('dailyRecordRemotePersistenceController', () => {
       remoteWrite,
       onRemoteFailure: vi.fn(),
       queueLocalBeforeRemote,
+      ackLocalAfterRemote,
       remoteAuthorityFirst: true,
     });
 

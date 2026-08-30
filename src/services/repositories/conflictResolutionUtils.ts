@@ -21,6 +21,28 @@ export const getValueAtPath = (source: unknown, path: string): unknown => {
   return cursor;
 };
 
+const toComparablePatchValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(toComparablePatchValue);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entryValue]) => [key, toComparablePatchValue(entryValue)])
+  );
+};
+
+/** Compare every requested patch path after normalizing Firestore-omitted undefined values. */
+export const hasSameValuesAtPaths = (
+  source: unknown,
+  expectedValues: Record<string, unknown>
+): boolean =>
+  Object.entries(expectedValues).every(
+    ([path, expected]) =>
+      JSON.stringify(toComparablePatchValue(getValueAtPath(source, path))) ===
+      JSON.stringify(toComparablePatchValue(expected))
+  );
+
 export const normalizeChangedPaths = (changedPaths?: string[]): string[] => {
   if (!changedPaths || changedPaths.length === 0) return [];
   return Array.from(new Set(changedPaths.map(path => path.trim()).filter(Boolean)));

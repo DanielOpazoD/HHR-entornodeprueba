@@ -12,7 +12,6 @@ const buildBaseParams = () => ({
   hasClinicalCrib: true,
   isCunaMode: false,
   readOnly: false,
-  onToggleMode: vi.fn(),
   onToggleCompanion: vi.fn(),
   onToggleClinicalCrib: vi.fn(),
   onUpdateClinicalCrib: vi.fn(),
@@ -33,7 +32,6 @@ describe('usePatientBedConfigController', () => {
     const { result } = renderHook(() => usePatientBedConfigController(params));
 
     act(() => {
-      result.current.handleToggleMode();
       result.current.handleToggleCompanion();
       result.current.handleToggleClinicalCrib();
       result.current.handleRemoveClinicalCrib({
@@ -41,7 +39,6 @@ describe('usePatientBedConfigController', () => {
       } as unknown as MouseEvent<HTMLElement>);
     });
 
-    expect(params.onToggleMode).toHaveBeenCalledTimes(1);
     expect(params.onToggleCompanion).toHaveBeenCalledTimes(1);
     expect(params.onToggleClinicalCrib).toHaveBeenCalledTimes(1);
     expect(params.onUpdateClinicalCrib).toHaveBeenCalledWith('remove');

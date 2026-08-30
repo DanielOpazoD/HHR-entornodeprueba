@@ -11,6 +11,13 @@ import {
   type RemoteWriteState,
 } from '@/services/repositories/dailyRecordWriteState';
 import type { SyncQueueEnqueueResult } from '@/services/storage/sync';
+import {
+  applyLocalPersistenceFailure,
+  isValidRemoteAuthorityRecord,
+  markLocalWriteSucceeded,
+  markRemoteWriteSucceeded,
+  recoverAlreadyAppliedRemoteWrite,
+} from '@/services/repositories/dailyRecordRemotePersistenceState';
 
 export interface RemoteAuthorityWriteResult {
   recordState?: {
@@ -19,61 +26,6 @@ export interface RemoteAuthorityWriteResult {
     record: DailyRecord;
   };
 }
-
-const markRemoteWriteSucceeded = (state: RemoteWriteState): void => {
-  state.savedRemotely = true;
-  state.consistencyState = 'persisted_and_synced';
-  state.recoveryAction = 'none';
-  state.retryability = 'not_applicable';
-  state.observabilityTags = ['daily_record', 'write', 'persisted_and_synced'];
-};
-
-const markLocalWriteSucceeded = (state: RemoteWriteState): void => {
-  state.savedLocally = true;
-};
-
-const toLocalPersistenceError = (result: LocalRecordWriteResult): Error => {
-  if (result.error instanceof Error) {
-    return result.error;
-  }
-
-  return new Error(result.userSafeMessage || 'No fue posible guardar el registro local.');
-};
-
-const applyLocalPersistenceFailure = (
-  date: string,
-  changedPaths: string[],
-  result: LocalRecordWriteResult,
-  state: RemoteWriteState,
-  { remoteCommitted = false }: { remoteCommitted?: boolean } = {}
-): void => {
-  const error = toLocalPersistenceError(result);
-  if (remoteCommitted) {
-    state.savedLocally = false;
-  }
-  const userSafeMessage = remoteCommitted
-    ? 'Los cambios ya quedaron guardados en el servidor, pero no se pudo actualizar la copia local. Recarga la página antes de continuar.'
-    : result.userSafeMessage || 'No fue posible guardar el registro local.';
-  applyRecoveryDecisionToState(
-    state,
-    {
-      consistencyState: 'unrecoverable',
-      retryability: 'manual_review',
-      recoveryAction: 'block_and_surface',
-      conflictSummary: {
-        kind: 'local_persistence_failed',
-        sourceOfTruth: remoteCommitted ? 'remote' : 'none',
-        changedPaths,
-        message: userSafeMessage,
-      },
-      observabilityTags: remoteCommitted
-        ? ['daily_record', 'write', 'remote_committed', 'local_cache_stale']
-        : ['daily_record', 'write', 'local_persistence_failed'],
-      userSafeMessage,
-    },
-    error
-  );
-};
 
 const toRejectedOutboxPersistenceResult = (
   result: SyncQueueEnqueueResult
@@ -171,17 +123,6 @@ const applyRemoteAuthorityState = (
   return authoritativeRecord;
 };
 
-const isValidRemoteAuthorityRecord = (
-  candidate: DailyRecord | null | undefined,
-  expectedDate: string
-): candidate is DailyRecord =>
-  Boolean(
-    candidate &&
-      candidate.date === expectedDate &&
-      typeof candidate.lastUpdated === 'string' &&
-      candidate.lastUpdated
-  );
-
 /**
  * Older deployed authority callables can confirm a write without returning `recordState`.
  * Read the committed document once in that compatibility case so the next clinical stage receives
@@ -228,6 +169,8 @@ export const persistLocalAndAttemptRemoteSync = async ({
   renewLocalPreOutboxHold,
   renewLocalPreOutboxHoldEveryMs,
   readRemoteConfirmedRecord,
+  resolveAlreadyAppliedRemoteRecord,
+  adoptRemoteAuthorityRecord,
   requireConfirmedRecord = false,
   allowConflictAutoMerge = true,
   remoteAuthorityFirst = false,
@@ -240,12 +183,20 @@ export const persistLocalAndAttemptRemoteSync = async ({
   onRemoteFailure: (error: unknown) => void;
   expectedVersion?: string;
   queueLocalBeforeRemote?: () => Promise<SyncQueueEnqueueResult>;
-  ackLocalAfterRemote?: () => Promise<void>;
+  ackLocalAfterRemote?: () => Promise<boolean | void>;
   releaseLocalPreOutboxHold?: () => Promise<void>;
   renewLocalPreOutboxHold?: () => Promise<void>;
   renewLocalPreOutboxHoldEveryMs?: number;
   /** Compatibility readback when a deployed callable confirms without returning recordState. */
   readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>;
+  /**
+   * A guarded command can lose its CAS race after another writer already reached the same desired
+   * state. When that can be proven from a fresh authoritative read, adopt that exact record instead
+   * of treating an idempotent command as a failed write.
+   */
+  resolveAlreadyAppliedRemoteRecord?: (error: unknown) => Promise<DailyRecord | null>;
+  /** Reconciles a confirmed guarded record with any exact pending local outbox projection. */
+  adoptRemoteAuthorityRecord?: (record: DailyRecord) => Promise<DailyRecord>;
   /**
    * Require the exact server-confirmed revision even when the remote adapter returns `void`.
    * Rayen structural imports need this handoff before starting their clinical stage; ordinary
@@ -268,6 +219,16 @@ export const persistLocalAndAttemptRemoteSync = async ({
     try {
       remoteResult = await remoteWrite();
     } catch (error) {
+      const alreadyAppliedRecovery = await recoverAlreadyAppliedRemoteWrite({
+        error,
+        date,
+        changedPaths,
+        state: remoteState,
+        resolveAlreadyAppliedRemoteRecord,
+        adoptAlreadyAppliedRemoteRecord: adoptRemoteAuthorityRecord,
+      });
+      if (alreadyAppliedRecovery !== 'not_applied') return alreadyAppliedRecovery;
+
       onRemoteFailure(error);
       throw error;
     }
@@ -290,12 +251,35 @@ export const persistLocalAndAttemptRemoteSync = async ({
     }
     remoteState.confirmedRecord = authoritativeRecord;
 
-    const localResult = await saveToIndexedDB(authoritativeRecord);
-    if (!localResult.ok) {
-      applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState, {
-        remoteCommitted: true,
-      });
-      return 'return';
+    if (adoptRemoteAuthorityRecord) {
+      try {
+        remoteState.localProjectionRecord = await adoptRemoteAuthorityRecord(authoritativeRecord);
+      } catch (error) {
+        applyLocalPersistenceFailure(
+          date,
+          changedPaths,
+          {
+            ok: false,
+            operation: 'save',
+            store: 'none',
+            dates: [date],
+            error,
+            userSafeMessage:
+              'El cambio quedó confirmado en el servidor, pero la cola local no pudo reconciliarse.',
+          },
+          remoteState,
+          { remoteCommitted: true }
+        );
+        return 'return';
+      }
+    } else {
+      const localResult = await saveToIndexedDB(authoritativeRecord);
+      if (!localResult.ok) {
+        applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState, {
+          remoteCommitted: true,
+        });
+        return 'return';
+      }
     }
     markLocalWriteSucceeded(remoteState);
     return 'continue';

@@ -265,6 +265,13 @@ export const useDailyRecordSyncQuery = (
                 options: {
                   requireConfirmedRecord: true,
                   requireRemoteAuthorityFirst: true,
+                  ...(options.optimisticRemoteConfirmed && !options.intentionalBedClear
+                    ? { requireAtomicCas: true }
+                    : {}),
+                  ...(options.optimisticRemoteConfirmed ? { optimisticRemoteConfirmed: true } : {}),
+                  ...(options.clinicalCribCreate
+                    ? { clinicalCribCreate: options.clinicalCribCreate }
+                    : {}),
                   ...(options.intentionalBedClear
                     ? { intentionalBedClear: options.intentionalBedClear }
                     : {}),

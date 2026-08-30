@@ -14,7 +14,7 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({
 }));
 
 vi.mock('@/services/storage/sync/browserSyncRuntime', () => ({
-  createBrowserSyncRuntime: () => ({}),
+  createBrowserSyncRuntime: () => ({ getOwnerKey: () => null }),
 }));
 
 vi.mock('@/services/storage/sync/dexieSyncQueueStore', () => ({
@@ -33,6 +33,7 @@ vi.mock('@/services/storage/sync/syncQueueEngine', () => ({
     getDomainMetrics,
     queueTask,
     processQueue,
+    triggerProcessing: vi.fn(),
     ensureOnlineListener: vi.fn(),
   }),
 }));

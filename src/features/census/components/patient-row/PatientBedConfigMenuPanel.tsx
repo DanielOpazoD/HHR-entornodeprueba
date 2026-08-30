@@ -5,12 +5,6 @@ import type { MouseEventHandler } from 'react';
 
 interface PatientBedConfigMenuPanelProps {
   align: RowMenuAlign;
-  bedModeModel: {
-    label: string;
-    emoji: string;
-    className: string;
-    dotClassName: string;
-  };
   clinicalCribModel: {
     className: string;
     dotClassName: string;
@@ -18,7 +12,6 @@ interface PatientBedConfigMenuPanelProps {
   showClinicalCribToggle: boolean;
   showClinicalCribActions: boolean;
   showLegacyCompanionCleanup: boolean;
-  onToggleMode: () => void;
   onToggleClinicalCrib: () => void;
   onClearLegacyCompanion: () => void;
   onRemoveClinicalCrib: MouseEventHandler<HTMLButtonElement>;
@@ -26,12 +19,10 @@ interface PatientBedConfigMenuPanelProps {
 
 export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps> = ({
   align,
-  bedModeModel,
   clinicalCribModel,
   showClinicalCribToggle,
   showClinicalCribActions,
   showLegacyCompanionCleanup,
-  onToggleMode,
   onToggleClinicalCrib,
   onClearLegacyCompanion,
   onRemoveClinicalCrib,
@@ -48,14 +39,6 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
         <span>⚙️</span>
       </div>
 
-      <button onClick={onToggleMode} className={bedModeModel.className}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm">{bedModeModel.emoji}</span>
-          <span className="text-left leading-none">{bedModeModel.label}</span>
-        </div>
-        <div className={bedModeModel.dotClassName} />
-      </button>
-
       {showLegacyCompanionCleanup && (
         <button
           onClick={onClearLegacyCompanion}
@@ -70,7 +53,7 @@ export const PatientBedConfigMenuPanel: React.FC<PatientBedConfigMenuPanelProps>
         <button onClick={onToggleClinicalCrib} className={clinicalCribModel.className}>
           <div className="flex items-center gap-2">
             <span className="text-sm">➕</span>
-            <span>Agregar Cuna RN</span>
+            <span>Agregar Cuna</span>
           </div>
           <div className={clinicalCribModel.dotClassName} />
         </button>

@@ -5,7 +5,10 @@ import type { MaybePromiseVoid } from './patientRowUiContracts';
 import { runPatientRowAsyncActionSafely } from '@/features/census/controllers/patientRowAsyncActionController';
 import { buildPatientBedConfigCardState } from '@/features/census/controllers/patientBedConfigCardController';
 
-interface UsePatientBedConfigControllerParams extends PatientBedConfigCallbacks {
+interface UsePatientBedConfigControllerParams extends Omit<
+  PatientBedConfigCallbacks,
+  'onToggleMode'
+> {
   admissionDate?: string;
   currentDateString: string;
   patientName?: string;
@@ -25,7 +28,6 @@ export const usePatientBedConfigController = ({
   hasClinicalCrib,
   isCunaMode,
   readOnly,
-  onToggleMode,
   onToggleCompanion,
   onToggleClinicalCrib,
   onUpdateClinicalCrib,
@@ -48,10 +50,6 @@ export const usePatientBedConfigController = ({
     []
   );
 
-  const handleToggleMode = useCallback(() => {
-    runAsyncSafe(onToggleMode);
-  }, [onToggleMode, runAsyncSafe]);
-
   const handleToggleCompanion = useCallback(() => {
     runAsyncSafe(onToggleCompanion);
   }, [onToggleCompanion, runAsyncSafe]);
@@ -73,7 +71,6 @@ export const usePatientBedConfigController = ({
     menuRef,
     toggleMenu: toggle,
     viewState,
-    handleToggleMode,
     handleToggleCompanion,
     handleToggleClinicalCrib,
     handleRemoveClinicalCrib,

@@ -66,8 +66,21 @@ describe('useClinicalCrib', () => {
             identityStatus: 'provisional',
             patientName: 'RN de Mother Patient',
             rut: '',
+            clinicalEpisodeId: expect.stringMatching(/^ep_/),
           }),
-        })
+        }),
+        {
+          consistency: 'remote_confirmed',
+          optimisticRemoteConfirmed: true,
+          clinicalCribCreate: {
+            bedId: 'R1',
+            confirmedLastUpdated: record.lastUpdated,
+            confirmedParent: expect.objectContaining({
+              patientName: 'Mother Patient',
+              rut: '12.345.678-9',
+            }),
+          },
+        }
       );
     });
   });

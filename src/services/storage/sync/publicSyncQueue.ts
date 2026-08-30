@@ -27,12 +27,7 @@ const syncObservability = createDomainObservability('sync', 'SyncQueue');
 const syncQueueStore = createDexieSyncQueueStore();
 const syncRuntime = createBrowserSyncRuntime();
 
-const getSyncOwnerKey = (): string | null => {
-  if (typeof syncRuntime.getOwnerKey === 'function') {
-    return syncRuntime.getOwnerKey();
-  }
-  return null;
-};
+const getSyncOwnerKey = (): string | null => syncRuntime.getOwnerKey();
 
 const toSyncIssueMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
@@ -84,6 +79,9 @@ const syncQueueEngine = createSyncQueueEngine({
 
 export const {
   ackDailyRecordSyncTask,
+  getPendingDailyRecordSyncTaskSnapshot,
+  replacePendingDailyRecordSyncTaskWithLocalRecord,
+  adoptAuthoritativeDailyRecordAtomically,
   releaseDailyRecordPreOutboxHold,
   renewDailyRecordPreOutboxHold,
 } = createDailyRecordSyncQueueActions({
@@ -91,6 +89,8 @@ export const {
   store: syncQueueStore,
   getOwnerKey: getSyncOwnerKey,
   logger: syncObservability.logger,
+  replacePendingTask: syncQueueEngine.replacePendingDailyRecordTaskWithLocalRecord,
+  triggerProcessing: syncQueueEngine.triggerProcessing,
 });
 
 export const recordSyncQueueOwnershipTelemetry = (

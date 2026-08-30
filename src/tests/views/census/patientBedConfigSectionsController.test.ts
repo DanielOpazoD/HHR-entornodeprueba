@@ -17,7 +17,6 @@ describe('patientBedConfigSectionsController', () => {
         hasCompanion: true,
         hasClinicalCrib: true,
         isCunaMode: false,
-        onToggleMode: vi.fn(),
         onToggleCompanion: vi.fn(),
         onToggleClinicalCrib: vi.fn(),
         onTextChange,
@@ -35,12 +34,6 @@ describe('patientBedConfigSectionsController', () => {
             label: 'C',
           },
         ],
-        bedModeModel: {
-          label: 'Modo cama',
-          emoji: '🛏️',
-          className: 'bed',
-          dotClassName: 'dot',
-        },
         clinicalCribModel: {
           className: 'crib',
           dotClassName: 'crib-dot',
@@ -53,7 +46,6 @@ describe('patientBedConfigSectionsController', () => {
         showLegacyCompanionCleanup: true,
       },
       handlers: {
-        handleToggleMode: vi.fn(),
         handleToggleCompanion: vi.fn(),
         handleToggleClinicalCrib: vi.fn(),
         handleRemoveClinicalCrib: vi.fn(),

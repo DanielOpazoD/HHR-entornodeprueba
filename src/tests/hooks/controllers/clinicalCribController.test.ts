@@ -41,6 +41,7 @@ describe('clinicalCribController', () => {
           bedMode: 'Cuna',
           identityStatus: 'provisional',
           patientName: 'RN de Ana Perez Diaz',
+          clinicalEpisodeId: expect.stringMatching(/^ep_/),
         }),
         'beds.R1.hasCompanionCrib': false,
       })
