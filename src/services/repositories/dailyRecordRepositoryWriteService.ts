@@ -54,7 +54,10 @@ import {
   assertDailyRecordPartialUpdateAccepted,
   assertDailyRecordSaveAccepted,
 } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
-import { buildGuardedDailyRecordPatchPolicy } from '@/services/repositories/dailyRecordGuardedCommandPolicy';
+import {
+  buildGuardedDailyRecordPatchPolicy,
+  buildGuardedDailyRecordRemoteWriteOptions,
+} from '@/services/repositories/dailyRecordGuardedCommandPolicy';
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
 const tryAutoMergeBlockedFullSaveRegression = async (
   date: string,
@@ -312,6 +315,12 @@ const updatePartialDetailedWithinLock = async (
     expectedVersion: current.lastUpdated,
     changedPaths: semanticChangedPaths,
   });
+  const remoteWriteOptions = buildGuardedDailyRecordRemoteWriteOptions({
+    options,
+    policy: guardedCommandPolicy,
+    syncContract,
+    isReclassification,
+  });
 
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
     command.date,
@@ -337,21 +346,7 @@ const updatePartialDetailedWithinLock = async (
         command.date,
         guardedCommandPolicy.remoteAuthorityPatch,
         current.lastUpdated,
-        {
-          syncContract,
-          requireAtomicCas:
-            isReclassification || options.requireAtomicCas || guardedCommandPolicy.requireAtomicCas,
-          ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
-          ...(options.rayenClinicalWriteGuard
-            ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
-            : {}),
-          ...(options.intentionalBedClear
-            ? { intentionalBedClear: options.intentionalBedClear }
-            : {}),
-          ...(guardedCommandPolicy.clinicalCribCreate
-            ? { clinicalCribCreate: guardedCommandPolicy.clinicalCribCreate }
-            : {}),
-        }
+        remoteWriteOptions
       ),
     queueLocalBeforeRemote: () =>
       queueDailyRecordSyncTaskWithLocalRecord(

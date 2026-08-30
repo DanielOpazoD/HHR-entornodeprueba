@@ -3,6 +3,8 @@ import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { PatientData } from '@/types/domain/patient';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
 import type { ClinicalCribCreateRequest } from '@/types/domain/intentionalBedClear';
+import type { DailyRecordPartialWriteOptions } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
+import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import { hasSameValuesAtPaths } from '@/services/repositories/conflictResolutionUtils';
 import { prepareFirestorePartialData } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
@@ -14,7 +16,7 @@ interface ManualClinicalCribCreationIntent {
   request: ClinicalCribCreateRequest;
 }
 
-interface GuardedDailyRecordPatchPolicy {
+export interface GuardedDailyRecordPatchPolicy {
   remoteAuthorityPatch: DailyRecordPatch;
   resolveAlreadyAppliedRemoteRecord?: (error: unknown) => Promise<DailyRecord | null>;
   requireConfirmedRecord: boolean;
@@ -22,6 +24,28 @@ interface GuardedDailyRecordPatchPolicy {
   remoteAuthorityFirst: boolean;
   clinicalCribCreate?: ClinicalCribCreateRequest;
 }
+
+export const buildGuardedDailyRecordRemoteWriteOptions = ({
+  options,
+  policy,
+  syncContract,
+  isReclassification,
+}: {
+  options: PartialUpdateDailyRecordOptions;
+  policy: GuardedDailyRecordPatchPolicy;
+  syncContract: SyncTaskContract;
+  isReclassification: boolean;
+}): DailyRecordPartialWriteOptions => ({
+  syncContract,
+  requireAtomicCas:
+    isReclassification || Boolean(options.requireAtomicCas) || policy.requireAtomicCas,
+  ...(options.historyPolicy ? { historyPolicy: options.historyPolicy } : {}),
+  ...(options.rayenClinicalWriteGuard
+    ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
+    : {}),
+  ...(options.intentionalBedClear ? { intentionalBedClear: options.intentionalBedClear } : {}),
+  ...(policy.clinicalCribCreate ? { clinicalCribCreate: policy.clinicalCribCreate } : {}),
+});
 
 const normalizeIdentityValue = (value: unknown): string =>
   String(value ?? '')
