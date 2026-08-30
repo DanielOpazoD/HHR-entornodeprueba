@@ -4,7 +4,10 @@ import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRe
 import { queryKeys } from '@/config/queryClient';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { PartialUpdateDailyRecordOptions } from '@/services/repositories/contracts/dailyRecordCommands';
-import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import {
+  createUpdatePartialDailyRecordResult,
+  isDailyRecordWriteRejectedResult,
+} from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import {
   applyOptimisticDailyRecordPatch,
@@ -32,13 +35,24 @@ import {
 import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import {
+  canApplyClinicalCribCreate,
+  rebaseClinicalCribCreate,
+  rebaseClinicalCribCreatePatch,
+} from '@/hooks/controllers/clinicalCribController';
+import {
   canRebaseIntentionalBedClear,
+  isIntentionalBedClearAlreadyApplied,
   rebaseIntentionalBedClear,
 } from '@/hooks/controllers/intentionalBedClearController';
 import {
   getDailyRecordPatchMutationKey,
   type DailyRecordPatchMutationVariables,
 } from '@/hooks/controllers/dailyRecordPatchMutationController';
+import {
+  rebaseLocalProjectionOntoNewerRecord,
+  shouldPublishAuthoritativeConflictRecord,
+  shouldRollbackOptimisticDailyRecord,
+} from '@/hooks/controllers/dailyRecordLocalProjectionController';
 
 type PatchMutationInput = DailyRecordPatchMutationVariables;
 
@@ -82,6 +96,16 @@ const acquireMutationTurn = async (date: string): Promise<() => void> => {
 const isNewerThan = (candidate: DailyRecord, baseline: DailyRecord): boolean =>
   toRecordTimestamp(candidate.lastUpdated) > toRecordTimestamp(baseline.lastUpdated);
 
+class AuthoritativeDailyRecordConflictError extends ConcurrencyError {
+  constructor(
+    message: string,
+    readonly authoritativeRecord: DailyRecord
+  ) {
+    super(message);
+    this.name = 'AuthoritativeDailyRecordConflictError';
+  }
+}
+
 /** Granular daily-record writes, serialized per date and confirmed remotely when required. */
 export const usePatchDailyRecordMutation = (date: string) => {
   const queryClient = useQueryClient();
@@ -96,6 +120,7 @@ export const usePatchDailyRecordMutation = (date: string) => {
     mutationKey: getDailyRecordPatchMutationKey(date),
     mutationFn: async (input: PatchMutationInput) => {
       const { partial, options } = resolveInput(input);
+      let writePatch = partial;
       const baseRecord = getDailyRecordPatchBaseRecord(patchBaseRecords, partial);
       const buildOptions = (record: DailyRecord | undefined) => ({
         ...options,
@@ -105,32 +130,103 @@ export const usePatchDailyRecordMutation = (date: string) => {
               intentionalBedClear: rebaseIntentionalBedClear(options.intentionalBedClear, record),
             }
           : {}),
+        ...(options?.clinicalCribCreate && record
+          ? { clinicalCribCreate: rebaseClinicalCribCreate(options.clinicalCribCreate, record) }
+          : {}),
       });
       const write = (record: DailyRecord | undefined) =>
         patchDailyRecordWithCompatibility(
           dailyRecord,
           date,
-          partial,
+          writePatch,
           record || options ? buildOptions(record) : undefined
         );
+      const adoptAlreadyAppliedClear = async (record: DailyRecord) => {
+        const adoptedRecord = await dailyRecord.adoptAuthoritativeRecord(record, partial);
+        return createUpdatePartialDailyRecordResult({
+          date,
+          outcome: 'clean',
+          savedLocally: true,
+          updatedRemotely: true,
+          queuedForRetry: false,
+          autoMerged: false,
+          patchedFields: Math.max(1, Object.keys(partial).length),
+          confirmedRecord: record,
+          localProjectionRecord: adoptedRecord,
+          observabilityTags: ['daily_record', 'write', 'persisted_and_synced', 'already_applied'],
+        });
+      };
+
+      let writeBaseRecord = baseRecord;
+      if (options?.intentionalBedClear) {
+        // The visible census can legitimately lag one Firestore revision behind a background
+        // update. Keep the row optimistic, but bind the destructive command to a fresh server
+        // snapshot before its first write. The occupant/crib identity guard makes this a safe
+        // rebase; it is not a blind retry.
+        const authoritativeRecord = await dailyRecord.getAuthoritativeForDate(date);
+        if (
+          isIntentionalBedClearAlreadyApplied(
+            options.intentionalBedClear,
+            authoritativeRecord,
+            partial
+          )
+        ) {
+          return {
+            partial,
+            options,
+            result: await adoptAlreadyAppliedClear(authoritativeRecord),
+          };
+        }
+        if (!canRebaseIntentionalBedClear(options.intentionalBedClear, authoritativeRecord)) {
+          throw new ConcurrencyError(
+            'La cama cambió desde que se confirmó la limpieza. Recargue antes de intentarlo nuevamente.'
+          );
+        }
+        writeBaseRecord = authoritativeRecord;
+        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, authoritativeRecord);
+      } else if (options?.clinicalCribCreate) {
+        const authoritativeRecord = await dailyRecord.getAuthoritativeForDate(date);
+        if (!authoritativeRecord) {
+          throw new ConcurrencyError(
+            'No fue posible confirmar la versión vigente del censo. Recargue antes de crear la cuna.'
+          );
+        }
+        if (!canApplyClinicalCribCreate(options.clinicalCribCreate, authoritativeRecord)) {
+          throw new AuthoritativeDailyRecordConflictError(
+            'La cama o su cuna cambiaron antes de confirmar la creación. Se cargó la versión vigente del censo.',
+            authoritativeRecord
+          );
+        }
+        writePatch = rebaseClinicalCribCreatePatch(
+          partial,
+          options.clinicalCribCreate,
+          authoritativeRecord
+        );
+        writeBaseRecord = authoritativeRecord;
+        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, authoritativeRecord);
+      }
 
       let result;
       try {
-        result = await write(baseRecord);
+        result = await write(writeBaseRecord);
       } catch (error) {
         if (!(error instanceof ConcurrencyError) || !options?.intentionalBedClear) {
           throw error;
         }
 
         const latestRecord = await dailyRecord.getAuthoritativeForDate(date);
-        if (!canRebaseIntentionalBedClear(options.intentionalBedClear, latestRecord)) {
+        if (
+          isIntentionalBedClearAlreadyApplied(options.intentionalBedClear, latestRecord, partial)
+        ) {
+          result = await adoptAlreadyAppliedClear(latestRecord);
+        } else if (!canRebaseIntentionalBedClear(options.intentionalBedClear, latestRecord)) {
           throw new ConcurrencyError(
             'La cama cambió desde que se confirmó la limpieza. Recargue antes de intentarlo nuevamente.'
           );
+        } else {
+          rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, latestRecord);
+          result = await write(latestRecord);
         }
-        setDailyRecordQueryData(queryClient, date, latestRecord);
-        rememberDailyRecordPatchBaseRecord(patchBaseRecords, partial, latestRecord);
-        result = await write(latestRecord);
       }
       return { partial, options, result };
     },
@@ -144,18 +240,20 @@ export const usePatchDailyRecordMutation = (date: string) => {
         const remoteConfirmedAtBeforeMutation = getDailyRecordLastRemoteConfirmedAt(date);
         let freshRecord: DailyRecord | null;
         if (options?.intentionalBedClear) {
-          // The callable is the definitive authority: it validates both the expected
-          // version and confirmed occupant before applying a destructive clear. Use
-          // the record currently shown to the user for the first attempt so the
-          // common path does not pay for a redundant server read. A real CAS conflict
-          // still triggers the existing authoritative reload and single safe retry in
-          // mutationFn above.
+          // Optimistic UI is reversible and must not make the durable concurrency decision. The
+          // mutation itself independently binds the destructive write to a fresh server snapshot
+          // before committing it, and rolls this visual change back on rejection.
           freshRecord = previousRecordBeforeFreshness ?? null;
-          if (!canRebaseIntentionalBedClear(options.intentionalBedClear, freshRecord)) {
-            throw new ConcurrencyError(
-              'La cama cambió desde que se confirmó la limpieza. Recargue antes de intentarlo nuevamente.'
-            );
-          }
+        } else if (
+          options?.optimisticRemoteConfirmed === true &&
+          options.requireRemoteAuthorityFirst === true &&
+          options.requireAtomicCas === true
+        ) {
+          // Clinical-crib creation is an exact, reversible command. Start from the census the user
+          // sees and let the atomic remote CAS accept or reject that version. This avoids a
+          // redundant remote freshness read before the row can appear; rejection still rolls the
+          // optimistic row back and never enters the local outbox.
+          freshRecord = previousRecordBeforeFreshness ?? null;
         } else {
           const freshness = await ensureFreshClinicalPatchMutation(date, {
             dailyRecord,
@@ -180,42 +278,95 @@ export const usePatchDailyRecordMutation = (date: string) => {
         const previousRecord = queryClient.getQueryData<DailyRecordQueryResult>(
           getDailyRecordQueryKey(date)
         )?.record;
-        const optimisticApplied = Boolean(previousRecord && !isRemoteAuthorityFirst);
+        const optimisticApplied = Boolean(
+          previousRecord && (!isRemoteAuthorityFirst || options?.optimisticRemoteConfirmed === true)
+        );
 
+        let optimisticRecord: DailyRecord | undefined;
         if (previousRecord && optimisticApplied) {
-          setDailyRecordQueryData(
-            queryClient,
-            date,
-            applyOptimisticDailyRecordPatch(previousRecord, partial)
-          );
+          optimisticRecord = applyOptimisticDailyRecordPatch(previousRecord, partial);
+          setDailyRecordQueryData(queryClient, date, optimisticRecord);
         }
-        return { previousRecord, unregisterPendingPatch, optimisticApplied, releaseMutationTurn };
+        return {
+          previousRecord,
+          optimisticRecord,
+          unregisterPendingPatch,
+          optimisticApplied,
+          releaseMutationTurn,
+        };
       } catch (error) {
         releaseMutationTurn();
         throw error;
       }
     },
-    onError: (_error, input, context) => {
-      if (context?.optimisticApplied && context.previousRecord) {
-        setDailyRecordQueryData(queryClient, date, context.previousRecord);
+    onError: (error, input, context) => {
+      if (error instanceof AuthoritativeDailyRecordConflictError) {
+        const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
+          getDailyRecordQueryKey(date)
+        )?.record;
+        if (
+          shouldPublishAuthoritativeConflictRecord(
+            cachedRecord,
+            context?.optimisticRecord,
+            error.authoritativeRecord
+          )
+        ) {
+          setDailyRecordQueryData(queryClient, date, error.authoritativeRecord);
+        }
+      } else if (context?.optimisticApplied && context.previousRecord) {
+        const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
+          getDailyRecordQueryKey(date)
+        )?.record;
+        if (shouldRollbackOptimisticDailyRecord(cachedRecord, context.optimisticRecord)) {
+          setDailyRecordQueryData(queryClient, date, context.previousRecord);
+        }
       }
       forgetDailyRecordPatchBaseRecord(patchBaseRecords, resolveInput(input).partial);
     },
     onSuccess: (payload, _input, context) => {
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         if (context?.optimisticApplied) {
-          setDailyRecordQueryData(queryClient, date, context.previousRecord ?? null);
+          const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
+            getDailyRecordQueryKey(date)
+          )?.record;
+          if (shouldRollbackOptimisticDailyRecord(cachedRecord, context.optimisticRecord)) {
+            setDailyRecordQueryData(queryClient, date, context.previousRecord ?? null);
+          }
         }
         return;
       }
       if (!payload.result?.updatedRemotely) return;
       const confirmedRecord = payload.result.confirmedRecord;
+      const displayRecord = payload.result.localProjectionRecord ?? confirmedRecord;
       const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
         getDailyRecordQueryKey(date)
       )?.record;
-      if (confirmedRecord && cachedRecord && isNewerThan(cachedRecord, confirmedRecord)) return;
-      if (confirmedRecord) setDailyRecordQueryData(queryClient, date, confirmedRecord);
-      const currentRecord = confirmedRecord ?? cachedRecord;
+      const cacheIsOwnOptimisticProjection = Boolean(
+        cachedRecord &&
+        context?.optimisticRecord &&
+        cachedRecord.lastUpdated === context.optimisticRecord.lastUpdated
+      );
+      // Only the server-confirmed revision participates in ordering. A client-generated projection
+      // may have a future wall-clock timestamp, but it must be rebased onto any newer realtime
+      // server record instead of hiding that record.
+      const cacheAdvancedBeyondConfirmation = Boolean(
+        confirmedRecord &&
+        cachedRecord &&
+        !cacheIsOwnOptimisticProjection &&
+        isNewerThan(cachedRecord, confirmedRecord)
+      );
+      const nextDisplayRecord =
+        cacheAdvancedBeyondConfirmation && confirmedRecord && cachedRecord
+          ? payload.result.localProjectionRecord
+            ? rebaseLocalProjectionOntoNewerRecord(
+                confirmedRecord,
+                payload.result.localProjectionRecord,
+                cachedRecord
+              )
+            : cachedRecord
+          : displayRecord;
+      if (nextDisplayRecord) setDailyRecordQueryData(queryClient, date, nextDisplayRecord);
+      const currentRecord = confirmedRecord ?? cachedRecord ?? displayRecord;
       if (!currentRecord) return;
       markDailyRecordRemoteConfirmed(date, {
         source: 'write',

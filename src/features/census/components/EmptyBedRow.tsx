@@ -50,8 +50,18 @@ export const EmptyBedRow: React.FC<EmptyBedRowProps> = ({
     >
       <td
         style={{ width: columns.actions }}
-        className="py-0 px-1 border-r border-slate-100 print:hidden"
-      />
+        className="py-0 px-1 border-r border-slate-100 text-center print:hidden"
+      >
+        {isPendingClear ? (
+          <span
+            className="inline-flex items-center justify-center text-amber-600"
+            role="status"
+            aria-label="Guardando limpieza de la cama"
+          >
+            <LoaderCircle size={13} className="animate-spin" aria-hidden="true" />
+          </span>
+        ) : null}
+      </td>
 
       <td
         style={{ width: columns.bed }}
@@ -65,15 +75,7 @@ export const EmptyBedRow: React.FC<EmptyBedRowProps> = ({
         style={{ width: remainingWidth }}
         className="py-0 pl-3"
       >
-        {isPendingClear ? (
-          <span
-            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700"
-            role="status"
-          >
-            <LoaderCircle size={12} className="animate-spin" aria-hidden="true" />
-            Confirmando limpieza…
-          </span>
-        ) : !readOnly ? (
+        {!readOnly && !isPendingClear ? (
           <button
             type="button"
             className="flex items-center gap-1 px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 bg-slate-50 hover:bg-medical-100 border border-transparent group-hover:border-slate-200 text-slate-400 hover:text-medical-600 text-[11px] transition-all duration-200"

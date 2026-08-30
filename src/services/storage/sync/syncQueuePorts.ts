@@ -1,5 +1,6 @@
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
+import type { PendingDailyRecordSyncTaskIdentity } from '@/services/storage/sync/pendingDailyRecordSyncTask';
 
 export type SyncQueueTaskWriteMode = 'created' | 'reused';
 
@@ -7,6 +8,11 @@ export interface SyncQueueLeaseClaim {
   leaseOwner: string;
   leaseUntil: number;
   attemptId: string;
+}
+
+export interface DailyRecordAuthorityAdoptionResult {
+  status: 'adopted' | 'replaced' | 'blocked';
+  record?: DailyRecord;
 }
 
 export interface SyncQueueStorePort {
@@ -25,6 +31,21 @@ export interface SyncQueueStorePort {
   ): Promise<SyncTask | null>;
   add(task: SyncTask): Promise<void>;
   saveDailyRecordWithTask(record: DailyRecord, task: SyncTask): Promise<SyncQueueTaskWriteMode>;
+  /** Atomically replace an existing pending daily-record task; never creates a second task. */
+  replacePendingDailyRecordWithTask?(
+    record: DailyRecord,
+    task: SyncTask,
+    expectedTask?: PendingDailyRecordSyncTaskIdentity
+  ): Promise<boolean>;
+  /** Atomically inspect every unresolved write for a date and adopt or replace exactly one task. */
+  adoptAuthoritativeDailyRecord?(
+    authoritativeRecord: DailyRecord,
+    ownerKey: string | null,
+    buildReplacement: (
+      localRecord: DailyRecord,
+      pendingTask: SyncTask
+    ) => { record: DailyRecord; task: SyncTask } | null
+  ): Promise<DailyRecordAuthorityAdoptionResult>;
   deletePendingByKey(
     type: SyncTask['type'],
     key: string,

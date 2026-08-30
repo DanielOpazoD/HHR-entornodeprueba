@@ -3,6 +3,7 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   buildConfirmedAssociatedCribIdentity,
   canRebaseIntentionalBedClear,
+  isIntentionalBedClearAlreadyApplied,
   rebaseIntentionalBedClear,
 } from '@/hooks/controllers/intentionalBedClearController';
 
@@ -378,5 +379,73 @@ describe('intentionalBedClearController', () => {
 
     expect(canRebaseIntentionalBedClear(rutOnlyIntent, exactRecord)).toBe(true);
     expect(canRebaseIntentionalBedClear(rutOnlyIntent, changedRecord)).toBe(false);
+  });
+
+  it('recognizes an already-cleared normal bed only when its associated crib is also absent', () => {
+    const cleared = DataFactory.createMockDailyRecord('2026-08-28', {
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: '',
+          rut: '',
+          pathology: '',
+          admissionDate: '',
+        }),
+      },
+    });
+    const clearedWithCrib = DataFactory.createMockDailyRecord('2026-08-28', {
+      ...cleared,
+      beds: {
+        R1: {
+          ...cleared.beds.R1,
+          clinicalCrib: DataFactory.createMockPatient('R1', {
+            bedMode: 'Cuna',
+            patientName: 'RN nuevo',
+          }),
+        },
+      },
+    });
+
+    const expectedPatch = { 'beds.R1': cleared.beds.R1 };
+
+    expect(isIntentionalBedClearAlreadyApplied(intent, cleared, expectedPatch)).toBe(true);
+    expect(isIntentionalBedClearAlreadyApplied(intent, clearedWithCrib, expectedPatch)).toBe(false);
+
+    const residualClinicalState = {
+      ...cleared,
+      beds: {
+        R1: {
+          ...cleared.beds.R1,
+          clinicalEpisodeId: 'episodio-aun-vigente',
+          devices: ['CVC'],
+        },
+      },
+    };
+    expect(isIntentionalBedClearAlreadyApplied(intent, residualClinicalState, expectedPatch)).toBe(
+      false
+    );
+  });
+
+  it('recognizes an already-removed attached crib without treating an occupied crib as applied', () => {
+    const withoutCrib = DataFactory.createMockDailyRecord('2026-08-28', {
+      beds: { R1: DataFactory.createMockPatient('R1', { patientName: 'Paciente principal' }) },
+    });
+    const withCrib = DataFactory.createMockDailyRecord('2026-08-28', {
+      ...withoutCrib,
+      beds: {
+        R1: {
+          ...withoutCrib.beds.R1,
+          clinicalCrib: DataFactory.createMockPatient('R1', {
+            bedMode: 'Cuna',
+            patientName: 'RN vigente',
+          }),
+        },
+      },
+    });
+    const cribIntent = { ...intent, target: 'clinicalCrib' as const };
+
+    const expectedPatch = { 'beds.R1.clinicalCrib': null };
+
+    expect(isIntentionalBedClearAlreadyApplied(cribIntent, withoutCrib, expectedPatch)).toBe(true);
+    expect(isIntentionalBedClearAlreadyApplied(cribIntent, withCrib, expectedPatch)).toBe(false);
   });
 });

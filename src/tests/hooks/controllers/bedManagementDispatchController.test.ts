@@ -363,6 +363,7 @@ describe('bedManagementDispatchController', () => {
       },
       {
         consistency: 'remote_confirmed',
+        optimisticRemoteConfirmed: true,
         intentionalBedClear: {
           bedId: 'R1',
           confirmedLastUpdated: '2026-03-06T10:00:00.000Z',
@@ -427,6 +428,7 @@ describe('bedManagementDispatchController', () => {
       { 'beds.R1.clinicalCrib': null },
       {
         consistency: 'remote_confirmed',
+        optimisticRemoteConfirmed: true,
         intentionalBedClear: {
           bedId: 'R1',
           target: 'clinicalCrib',

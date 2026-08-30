@@ -319,6 +319,7 @@ describe('useBedManagement patient updates', () => {
         { 'beds.R1.clinicalCrib': null },
         {
           consistency: 'remote_confirmed',
+          optimisticRemoteConfirmed: true,
           intentionalBedClear: {
             bedId: 'R1',
             target: 'clinicalCrib',

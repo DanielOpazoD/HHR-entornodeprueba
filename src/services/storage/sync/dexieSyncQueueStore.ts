@@ -41,6 +41,13 @@ const matchesClaim = (task: SyncTask | undefined, claim: SyncQueueLeaseClaim): b
 const matchesMutation = (task: SyncTask, mutationId?: string): boolean =>
   !mutationId || task.syncContract?.mutationId === mutationId;
 
+const UNRESOLVED_DAILY_RECORD_STATES = new Set<SyncTask['status']>([
+  'PENDING',
+  'PROCESSING',
+  'FAILED',
+  'CONFLICT',
+]);
+
 const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
   if (isE2ERuntimeEnabled() && typeof window !== 'undefined' && window.__HHR_E2E_OVERRIDE__) {
     try {
@@ -145,6 +152,82 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
 
     mirrorTransactionalDailyRecordWrite(record);
     return mode;
+  },
+  async replacePendingDailyRecordWithTask(record, task, expectedTask) {
+    if (!task.id) return false;
+    const replaced = await hospitalDB.transaction(
+      'rw',
+      hospitalDB.dailyRecords,
+      hospitalDB.syncQueue,
+      async () => {
+        const existing = await hospitalDB.syncQueue.get(task.id!);
+        if (
+          !existing ||
+          existing.status !== 'PENDING' ||
+          existing.type !== task.type ||
+          existing.key !== task.key ||
+          !matchesOwner(task.ownerKey, existing.ownerKey) ||
+          (expectedTask &&
+            (existing.id !== expectedTask.taskId ||
+              (existing.payload as Partial<DailyRecord> | null | undefined)?.lastUpdated !==
+                expectedTask.recordRevision ||
+              existing.syncContract?.mutationId !== expectedTask.mutationId))
+        ) {
+          return false;
+        }
+        await hospitalDB.dailyRecords.put(record);
+        await hospitalDB.syncQueue.put({ ...existing, ...task, id: existing.id });
+        return true;
+      }
+    );
+    if (replaced) mirrorTransactionalDailyRecordWrite(record);
+    return replaced;
+  },
+  async adoptAuthoritativeDailyRecord(authoritativeRecord, ownerKey, buildReplacement) {
+    const outcome = await hospitalDB.transaction(
+      'rw',
+      hospitalDB.dailyRecords,
+      hospitalDB.syncQueue,
+      async () => {
+        const key = `daily:${authoritativeRecord.date}`;
+        const unresolvedTasks = (
+          await hospitalDB.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray()
+        ).filter(
+          task =>
+            task.key === key &&
+            matchesOwner(ownerKey, task.ownerKey) &&
+            UNRESOLVED_DAILY_RECORD_STATES.has(task.status)
+        );
+        if (unresolvedTasks.length === 0) {
+          await hospitalDB.dailyRecords.put(authoritativeRecord);
+          return { status: 'adopted' as const, record: authoritativeRecord };
+        }
+        if (unresolvedTasks.length !== 1) return { status: 'blocked' as const };
+        const [pendingTask] = unresolvedTasks;
+        const localRecord = await hospitalDB.dailyRecords.get(authoritativeRecord.date);
+        const pendingPayload = pendingTask.payload as Partial<DailyRecord> | null | undefined;
+        if (
+          pendingTask.status !== 'PENDING' ||
+          !matchesOwner(ownerKey, pendingTask.ownerKey) ||
+          !localRecord ||
+          pendingPayload?.date !== localRecord.date ||
+          pendingPayload.lastUpdated !== localRecord.lastUpdated
+        ) {
+          return { status: 'blocked' as const };
+        }
+        const replacement = buildReplacement(localRecord, pendingTask);
+        if (!replacement || !pendingTask.id) return { status: 'blocked' as const };
+        await hospitalDB.dailyRecords.put(replacement.record);
+        await hospitalDB.syncQueue.put({
+          ...pendingTask,
+          ...replacement.task,
+          id: pendingTask.id,
+        });
+        return { status: 'replaced' as const, record: replacement.record };
+      }
+    );
+    if (outcome.record) mirrorTransactionalDailyRecordWrite(outcome.record);
+    return outcome;
   },
   async deletePendingByKey(type, key, ownerKey, mutationId) {
     return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {

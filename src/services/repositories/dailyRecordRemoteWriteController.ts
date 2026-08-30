@@ -26,6 +26,8 @@ import {
 } from '@/services/repositories/dailyRecordRemoteRecoveryController';
 import { resolveBlockedRemoteWriteRecovery } from '@/services/repositories/dailyRecordWriteBlockingRecoveryController';
 import { resolveConcurrencyRemoteWriteRecovery } from '@/services/repositories/dailyRecordWriteConcurrencyRecoveryController';
+import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
 
 const isConcurrencyError = (error: unknown): boolean =>
   error instanceof Error && error.name === 'ConcurrencyError';
@@ -82,6 +84,19 @@ export const assertRemoteSaveCompatibility = async (
   }
 
   assertNoPatientErasures(remoteRecord, record);
+};
+
+export const runRemoteSaveIntegrityCheck = async (
+  date: string,
+  record: DailyRecord
+): Promise<void> => {
+  if (!isFirestoreEnabled()) return;
+  try {
+    await assertRemoteSaveCompatibility(date, record);
+  } catch (error) {
+    if (error instanceof DataRegressionError || error instanceof VersionMismatchError) throw error;
+    dailyRecordWriteLogger.warn('Could not perform integrity check, proceeding anyway', error);
+  }
 };
 
 export const queueRetryForRecord = async (record: DailyRecord): Promise<boolean> => {

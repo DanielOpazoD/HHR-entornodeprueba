@@ -52,6 +52,8 @@ describe('CensusTableBody', () => {
   beforeEach(() => {
     pendingClearTargetsMock.bedIds.clear();
     pendingClearTargetsMock.clinicalCribBedIds.clear();
+    patientRowSpy.mockClear();
+    emptyBedRowSpy.mockClear();
   });
 
   const columns: TableColumnConfig = {
@@ -279,8 +281,7 @@ describe('CensusTableBody', () => {
     expect(onActivateEmptyBed).toHaveBeenCalledWith('R9');
   });
 
-  it('locks an occupied bed while its clear is being retried from remote authority', () => {
-    patientRowSpy.mockClear();
+  it('projects an occupied bed as empty immediately while its clear is pending', () => {
     pendingClearTargetsMock.bedIds.add('R1');
     const unifiedRows: UnifiedBedRow[] = [
       {
@@ -289,6 +290,13 @@ describe('CensusTableBody', () => {
         bed: { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false },
         data: DataFactory.createMockPatient('R1'),
         isSubRow: false,
+      },
+      {
+        kind: 'occupied',
+        id: 'row-crib',
+        bed: { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false },
+        data: DataFactory.createMockPatient('R1-crib'),
+        isSubRow: true,
       },
     ];
 
@@ -324,18 +332,16 @@ describe('CensusTableBody', () => {
       </table>
     );
 
-    expect(patientRowSpy).toHaveBeenCalledWith(
+    expect(patientRowSpy).not.toHaveBeenCalled();
+    expect(emptyBedRowSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         readOnly: true,
-        clinicalEditingDisabled: true,
-        draggable: false,
         isPendingClear: true,
       })
     );
   });
 
-  it('locks only the clinical crib while its own clear is pending', () => {
-    patientRowSpy.mockClear();
+  it('hides only the clinical crib immediately while its own clear is pending', () => {
     pendingClearTargetsMock.clinicalCribBedIds.add('R1');
     const unifiedRows: UnifiedBedRow[] = [
       {
@@ -376,16 +382,8 @@ describe('CensusTableBody', () => {
       expect.objectContaining({
         isSubRow: false,
         readOnly: false,
-        isPendingClear: false,
       })
     );
-    expect(patientRowSpy.mock.calls[1][0]).toEqual(
-      expect.objectContaining({
-        isSubRow: true,
-        readOnly: true,
-        clinicalEditingDisabled: true,
-        isPendingClear: true,
-      })
-    );
+    expect(patientRowSpy).toHaveBeenCalledTimes(1);
   });
 });

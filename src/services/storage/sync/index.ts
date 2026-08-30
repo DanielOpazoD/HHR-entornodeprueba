@@ -6,9 +6,11 @@
 
 export {
   ackDailyRecordSyncTask,
+  adoptAuthoritativeDailyRecordAtomically,
   clearAllSyncQueue,
   clearSyncQueueForOwner,
   ensureSyncQueueOnlineListener,
+  getPendingDailyRecordSyncTaskSnapshot,
   getSyncQueueDomainMetrics,
   getSyncQueueStats,
   getSyncQueueTelemetry,
@@ -17,11 +19,17 @@ export {
   listRecentSyncQueueOperations,
   processSyncQueue,
   queueDailyRecordSyncTaskWithLocalRecord,
+  replacePendingDailyRecordSyncTaskWithLocalRecord,
   queueSyncTask,
   releaseDailyRecordPreOutboxHold,
   renewDailyRecordPreOutboxHold,
   recordSyncQueueOwnershipTelemetry,
 } from '@/services/storage/sync/publicSyncQueue';
+
+export type {
+  PendingDailyRecordSyncTaskIdentity,
+  PendingDailyRecordSyncTaskSnapshot,
+} from '@/services/storage/sync/pendingDailyRecordSyncTask';
 
 export type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
 

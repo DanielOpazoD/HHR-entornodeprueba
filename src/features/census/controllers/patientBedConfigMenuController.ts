@@ -7,7 +7,7 @@ export interface PatientBedIndicatorsParams {
 }
 
 export interface PatientBedIndicator {
-  key: 'cuna' | 'cc';
+  key: 'cuna';
   label: string;
   title?: string;
   className: string;
@@ -16,7 +16,7 @@ export interface PatientBedIndicator {
 export const resolvePatientBedIndicators = ({
   isCunaMode,
   hasCompanion: _hasCompanion,
-  hasClinicalCrib,
+  hasClinicalCrib: _hasClinicalCrib,
 }: PatientBedIndicatorsParams): PatientBedIndicator[] => {
   const indicators: PatientBedIndicator[] = [];
 
@@ -29,33 +29,8 @@ export const resolvePatientBedIndicators = ({
     });
   }
 
-  if (hasClinicalCrib) {
-    indicators.push({
-      key: 'cc',
-      label: '+RN',
-      title: 'Cuna RN',
-      className:
-        'text-[8px] bg-slate-100 text-slate-600 font-bold px-1 rounded-sm border border-slate-200',
-    });
-  }
-
   return indicators;
 };
-
-export const resolveBedModeButtonModel = (isCunaMode: boolean) => ({
-  emoji: isCunaMode ? '🛏️' : '👶',
-  label: isCunaMode ? 'Cambiar a Cama' : 'Cambiar a Cuna RN',
-  className: clsx(
-    'text-[10px] font-bold uppercase tracking-tight px-2 py-2.5 rounded-md flex items-center justify-between transition-all w-full group/item',
-    isCunaMode
-      ? 'bg-pink-50 text-pink-700 hover:bg-pink-100'
-      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-  ),
-  dotClassName: clsx(
-    'w-1.5 h-1.5 rounded-full transition-all',
-    isCunaMode ? 'bg-pink-500 scale-125 shadow-[0_0_8px_rgba(236,72,153,0.5)]' : 'bg-slate-300'
-  ),
-});
 
 export const resolveCompanionButtonModel = (hasCompanion: boolean) => ({
   className: clsx(

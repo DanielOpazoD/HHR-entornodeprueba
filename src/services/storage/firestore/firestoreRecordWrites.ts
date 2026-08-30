@@ -164,6 +164,7 @@ export const updateRecordPartial = async (
       partialData: partialData as unknown as Record<string, unknown>,
       specialistScopedPatch,
       intentionalBedClear,
+      clinicalCribCreate: Boolean(options.clinicalCribCreate),
     });
     const sanitizedPatch = sanitizeForFirestore(flatData) as Record<string, unknown>;
     const sanitizedData = sanitizeForFirestore({

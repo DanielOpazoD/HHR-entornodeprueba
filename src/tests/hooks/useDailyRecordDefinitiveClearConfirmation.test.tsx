@@ -12,6 +12,7 @@ const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
     getForDate: vi.fn(),
     getForDateWithMeta: vi.fn(),
     getAuthoritativeForDate: vi.fn(),
+    adoptAuthoritativeRecord: vi.fn(async record => record),
     save: vi.fn().mockResolvedValue(undefined),
     saveDetailed: vi.fn().mockResolvedValue({
       date: '2025-12-27',
@@ -261,7 +262,7 @@ describe('definitive bed clear confirmation', () => {
     await waitFor(() => {
       expect(result.current.record?.beds.R1.patientName).toBe('');
     });
-    expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).not.toHaveBeenCalled();
+    expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledOnce();
   });
 
   it('forces remote confirmation whenever an intentional clear is declared', async () => {
@@ -371,6 +372,80 @@ describe('definitive bed clear confirmation', () => {
     await expect(clearPromise).rejects.toThrow('remote unavailable');
     await waitFor(() => {
       expect(result.current.record?.beds.R1.patientName).toBe('Paciente protegido');
+    });
+  });
+
+  it('clears a normal bed and its associated crib immediately, then restores both on rejection', async () => {
+    const associatedCrib = DataFactory.createMockPatient('R1', {
+      bedMode: 'Cuna',
+      patientName: 'RN asociado',
+      rut: '22.222.222-2',
+    });
+    const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
+      ...mockRecord,
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          patientName: 'Paciente principal',
+          rut: '11.111.111-1',
+          clinicalCrib: associatedCrib,
+        }),
+      },
+    });
+    const clearedBed = DataFactory.createMockPatient('R1', {
+      patientName: '',
+      rut: '',
+      clinicalCrib: undefined,
+    });
+    const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
+      buildReadResult(occupiedRecord)
+    );
+    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementation(
+      () => write.promise
+    );
+
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente principal');
+    });
+
+    let clearPromise!: Promise<void>;
+    act(() => {
+      clearPromise = result.current.patchRecord(
+        { 'beds.R1': clearedBed },
+        {
+          consistency: 'remote_confirmed',
+          optimisticRemoteConfirmed: true,
+          intentionalBedClear: {
+            bedId: 'R1',
+            confirmedLastUpdated: occupiedRecord.lastUpdated,
+            confirmedOccupant: {
+              patientName: occupiedRecord.beds.R1.patientName,
+              rut: occupiedRecord.beds.R1.rut,
+              admissionDate: occupiedRecord.beds.R1.admissionDate,
+            },
+            confirmedAssociatedCrib: {
+              patientName: associatedCrib.patientName,
+              rut: associatedCrib.rut,
+              admissionDate: associatedCrib.admissionDate,
+            },
+          },
+        }
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('');
+      expect(result.current.record?.beds.R1.clinicalCrib).toBeFalsy();
+    });
+
+    write.reject(new Error('remote unavailable'));
+    await expect(clearPromise).rejects.toThrow('remote unavailable');
+    await waitFor(() => {
+      expect(result.current.record?.beds.R1.patientName).toBe('Paciente principal');
+      expect(result.current.record?.beds.R1.clinicalCrib?.patientName).toBe('RN asociado');
     });
   });
 

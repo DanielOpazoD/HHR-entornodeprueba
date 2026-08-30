@@ -34,6 +34,7 @@ export interface RemoteWriteState {
   blockingReason?: 'regression' | 'version_mismatch' | 'validation';
   blockingError?: Error;
   confirmedRecord?: DailyRecord;
+  localProjectionRecord?: DailyRecord;
 }
 
 export const createRemoteWriteState = (): RemoteWriteState => ({
@@ -129,6 +130,7 @@ export const buildPartialUpdateResult = (
     repairApplied: false,
     blockingError: state.blockingError,
     confirmedRecord: state.confirmedRecord,
+    localProjectionRecord: state.localProjectionRecord,
   });
 
 export const buildBlockedSaveResult = (date: string, state: RemoteWriteState) =>

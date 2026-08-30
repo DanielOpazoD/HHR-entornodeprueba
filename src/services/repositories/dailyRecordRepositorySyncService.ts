@@ -1,4 +1,5 @@
 import { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import { getRecordForDate as getRecordFromIndexedDB } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   subscribeToRecord,
@@ -15,6 +16,14 @@ import { resolveDailyRecordPersistenceGoldenPath } from '@/services/repositories
 import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { AdmissionDatePolicyViolationError } from '@/application/patient-flow/admissionDatePolicy';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { buildDailyRecordSyncContract } from '@/services/storage/sync/syncTaskContractPolicy';
+import { adoptAuthoritativeDailyRecordAtomically } from '@/services/storage/sync';
+import { classifyConflictChangedContexts } from '@/services/repositories/conflictResolutionDomainPolicy';
+import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+import { rebasePendingDailyRecordWrite } from '@/services/repositories/dailyRecordPendingWriteRebase';
+import { prepareDailyRecordForPersistence } from '@/services/repositories/dailyRecordPersistencePreparation';
+import { buildPendingDailyRecordReplacementTask } from '@/services/storage/sync/syncQueuePendingDailyRecordReplacement';
+import type { DailyRecord as StoredDailyRecord } from '@/services/storage/storageDailyRecordContracts';
 
 const resolveSubscriptionResult = async (
   date: string,
@@ -213,6 +222,63 @@ export const syncWithFirestoreDetailed = async (date: string) => {
     },
     { thresholdMs: 200, context: date }
   );
+};
+
+/**
+ * Adopts a server-proven record. When a legacy pending write exists, first replace that exact
+ * pending payload with the already-applied patch so it cannot replay stale state later.
+ */
+export const adoptAuthoritativeRecord = async (
+  record: DailyRecord,
+  alreadyAppliedPatch?: DailyRecordPatch
+): Promise<DailyRecord> => {
+  if (!alreadyAppliedPatch) {
+    return persistHydratedRecordToLocalCache(record, record.date);
+  }
+  const authoritativeRecord = prepareDailyRecordForPersistence(record, record.date);
+  const adoption = await adoptAuthoritativeDailyRecordAtomically(
+    authoritativeRecord,
+    (localRecord, task) => {
+      const pendingRecord = task.payload as StoredDailyRecord | null | undefined;
+      if (!task.id || !pendingRecord || pendingRecord.lastUpdated !== localRecord.lastUpdated) {
+        return null;
+      }
+      const pendingTask = {
+        taskId: task.id,
+        record: pendingRecord,
+        recordRevision: pendingRecord.lastUpdated,
+        changedPaths: task.syncContract?.changedPaths || [],
+        mutationId: task.syncContract?.mutationId,
+      };
+      const { record: rebasedRecord, changedPaths } = rebasePendingDailyRecordWrite({
+        authoritativeRecord,
+        pendingTask,
+        alreadyAppliedPatch,
+      });
+      const syncContract = buildDailyRecordSyncContract(rebasedRecord, {
+        expectedVersion: authoritativeRecord.lastUpdated,
+        changedPaths,
+      });
+      return {
+        record: rebasedRecord,
+        task: buildPendingDailyRecordReplacementTask({
+          record: rebasedRecord,
+          existing: task,
+          meta: {
+            contexts: classifyConflictChangedContexts(changedPaths),
+            origin: 'partial_update_retry',
+            syncContract,
+          },
+        }),
+      };
+    }
+  );
+  if (adoption.status === 'blocked' || !adoption.record) {
+    throw new ConcurrencyError(
+      'La sincronización local pendiente cambió o comenzó a procesarse. Recargue el censo antes de reintentar la limpieza.'
+    );
+  }
+  return adoption.record;
 };
 
 export const syncWithFirestore = async (date: string): Promise<DailyRecord | null> => {

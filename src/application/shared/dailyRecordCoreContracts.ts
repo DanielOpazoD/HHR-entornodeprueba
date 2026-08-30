@@ -1,7 +1,10 @@
 import type { DailyRecord as RootDailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch as RootDailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecordDateRef as RootDailyRecordDateRef } from '@/types/domain/dailyRecordSlices';
-import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
+import type {
+  ClinicalCribCreateRequest,
+  IntentionalBedClearRequest,
+} from '@/types/domain/intentionalBedClear';
 
 /**
  * Core application-facing daily record contracts.
@@ -20,6 +23,13 @@ export type ApplyDailyRecordPatchOptions = {
    * whose optimistic state must never be mistaken for durable persistence.
    */
   consistency?: 'eventual' | 'remote_confirmed';
+  /**
+   * Reflect a remote-confirmed mutation immediately in the census while retaining rollback on
+   * rejection. Reserved for narrow, reversible UI transitions such as clinical-crib lifecycle.
+   */
+  optimisticRemoteConfirmed?: boolean;
+  /** Create-only intent bound to the parent episode and an empty remote crib slot. */
+  clinicalCribCreate?: ClinicalCribCreateRequest;
   /** Explicit user-confirmed destructive intent; never inferred from an empty patch. */
   intentionalBedClear?: IntentionalBedClearRequest;
 };

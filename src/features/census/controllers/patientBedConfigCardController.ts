@@ -1,5 +1,4 @@
 import {
-  resolveBedModeButtonModel,
   resolveClinicalCribButtonModel,
   resolvePatientBedIndicators,
 } from '@/features/census/controllers/patientBedConfigMenuController';
@@ -36,14 +35,12 @@ export const buildPatientBedConfigCardState = ({
     hasCompanion,
     hasClinicalCrib,
   });
-  const bedModeModel = resolveBedModeButtonModel(isCunaMode);
   const clinicalCribModel = resolveClinicalCribButtonModel(hasClinicalCrib);
 
   return {
     daysHospitalized,
     hasPatient,
     indicators,
-    bedModeModel,
     clinicalCribModel,
     showDaysCounter: !isBlocked && hasPatient && daysHospitalized !== null,
     showIndicators: !isBlocked,

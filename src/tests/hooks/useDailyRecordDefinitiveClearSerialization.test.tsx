@@ -6,7 +6,7 @@ import { createQueryClientTestWrapper } from '@/tests/utils/queryClientTestUtils
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createUpdatePartialDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
+import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
 
 const { mockDailyRecordRepositoryPort } = vi.hoisted(() => ({
   mockDailyRecordRepositoryPort: {
@@ -299,8 +299,9 @@ describe('definitive bed clear serialization', () => {
       },
     });
     const write = createDeferred<ReturnType<typeof createUpdatePartialDailyRecordResult>>();
-    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
-      buildReadResult(occupiedRecord)
+    let remotelyVisibleRecord = occupiedRecord;
+    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockImplementation(async () =>
+      buildReadResult(remotelyVisibleRecord)
     );
     vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockImplementation(
       () => write.promise
@@ -327,10 +328,8 @@ describe('definitive bed clear serialization', () => {
     });
 
     act(() => {
-      testRuntime.queryClient.setQueryData(
-        getDailyRecordQueryKey(mockDate),
-        buildReadResult(realtimeNewer)
-      );
+      remotelyVisibleRecord = realtimeNewer;
+      setDailyRecordQueryData(testRuntime.queryClient, mockDate, realtimeNewer);
     });
     write.resolve(
       createUpdatePartialDailyRecordResult({

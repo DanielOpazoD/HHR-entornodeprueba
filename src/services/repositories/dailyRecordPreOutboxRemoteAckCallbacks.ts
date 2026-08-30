@@ -14,7 +14,7 @@ export const buildPreOutboxRemoteAckCallbacks = (
   record: DailyRecord,
   syncContract: SyncTaskContract
 ) => ({
-  ackLocalAfterRemote: () => ackDailyRecordSyncTask(record, syncContract).then(() => {}),
+  ackLocalAfterRemote: () => ackDailyRecordSyncTask(record, syncContract),
   releaseLocalPreOutboxHold: () =>
     releaseDailyRecordPreOutboxHold(record, syncContract).then(() => {}),
   renewLocalPreOutboxHold: () =>

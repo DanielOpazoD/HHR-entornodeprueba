@@ -40,6 +40,9 @@ import {
   queueSyncTask,
 } from '@/services/storage/sync';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
+import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const TEST_TASK_TIMESTAMP_MS = 1760000000000;
@@ -175,6 +178,119 @@ describe('sync queue transactional outbox and leases', () => {
     await expect(hospitalDB.dailyRecords.get('2025-01-18')).resolves.toBeUndefined();
     await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(0);
     addSpy.mockRestore();
+  });
+
+  it('removes a stale queued crib create before adopting an already-cleared remote record', async () => {
+    const date = '2025-01-27';
+    window.__HHR_E2E_OVERRIDE__ = {};
+    const localCrib = DataFactory.createMockPatient('R1', {
+      bedMode: 'Cuna',
+      clinicalEpisodeId: 'crib-pending',
+      patientName: 'RN local pendiente',
+      rut: '',
+    });
+    const localRecord = DataFactory.createMockDailyRecord(date, {
+      ...makeRecord(date, '2025-01-27T10:00:00.000Z'),
+      nursesDayShift: ['Turno local antiguo'],
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'parent-episode',
+          pathology: 'Edición local pendiente',
+          clinicalCrib: localCrib,
+        }),
+      },
+    });
+    const remoteRecord = DataFactory.createMockDailyRecord(date, {
+      ...localRecord,
+      lastUpdated: '2025-01-27T10:00:01.000Z',
+      nursesDayShift: ['Turno remoto vigente'],
+      beds: {
+        R1: {
+          ...localRecord.beds.R1,
+          pathology: 'Versión remota anterior',
+          clinicalCrib: undefined,
+        },
+      },
+    });
+    await queueDailyRecordSyncTaskWithLocalRecord(localRecord, {
+      contexts: ['clinical'],
+      origin: 'partial_update_retry',
+      syncContract: {
+        expectedVersion: '2025-01-27T09:59:59.000Z',
+        changedPaths: ['beds.R1.pathology', 'beds.R1.clinicalCrib'],
+      },
+    });
+    const storedBeforeClear = await hospitalDB.dailyRecords.get(date);
+    const [taskBeforeClear] = await hospitalDB.syncQueue.toArray();
+    expect((taskBeforeClear.payload as DailyRecord).lastUpdated).toBe(
+      storedBeforeClear?.lastUpdated
+    );
+    await expect(
+      getDailyRecordWriteStateForVersion(date, storedBeforeClear!.lastUpdated)
+    ).resolves.toBe('active');
+
+    const projection = await adoptAuthoritativeRecord(remoteRecord, {
+      'beds.R1.clinicalCrib': null,
+    });
+    expect(projection.beds.R1.pathology).toBe('Edición local pendiente');
+    expect(projection.beds.R1.clinicalCrib).toBeFalsy();
+    expect(projection.nursesDayShift).toEqual(['Turno remoto vigente']);
+
+    const [task] = await hospitalDB.syncQueue.toArray();
+    const queuedRecord = task.payload as DailyRecord;
+    expect(task.status).toBe('PENDING');
+    expect(queuedRecord.beds.R1.pathology).toBe('Edición local pendiente');
+    expect(queuedRecord.beds.R1.clinicalCrib).toBeFalsy();
+    expect(queuedRecord.nursesDayShift).toEqual(['Turno remoto vigente']);
+    expect(task.syncContract).toEqual(
+      expect.objectContaining({
+        expectedVersion: remoteRecord.lastUpdated,
+        changedPaths: expect.arrayContaining(['beds.R1.pathology', 'beds.R1.clinicalCrib']),
+      })
+    );
+    await expect(hospitalDB.dailyRecords.get(date)).resolves.toMatchObject({
+      beds: { R1: { pathology: 'Edición local pendiente' } },
+    });
+  });
+
+  it('fails closed when the stale queued crib create has already begun processing', async () => {
+    const date = '2025-01-28';
+    window.__HHR_E2E_OVERRIDE__ = {};
+    const localRecord = DataFactory.createMockDailyRecord(date, {
+      ...makeRecord(date, '2025-01-28T10:00:00.000Z'),
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'parent-episode',
+          clinicalCrib: DataFactory.createMockPatient('R1', {
+            bedMode: 'Cuna',
+            clinicalEpisodeId: 'crib-processing',
+            patientName: 'RN procesando',
+            rut: '',
+          }),
+        }),
+      },
+    });
+    const remoteRecord = DataFactory.createMockDailyRecord(date, {
+      ...localRecord,
+      lastUpdated: '2025-01-28T10:00:01.000Z',
+      beds: {
+        R1: { ...localRecord.beds.R1, clinicalCrib: undefined },
+      },
+    });
+    await queueDailyRecordSyncTaskWithLocalRecord(localRecord);
+    await hospitalDB.syncQueue
+      .where('status')
+      .equals('PENDING')
+      .modify(task => {
+        task.status = 'PROCESSING';
+      });
+
+    await expect(
+      adoptAuthoritativeRecord(remoteRecord, { 'beds.R1.clinicalCrib': null })
+    ).rejects.toThrow('sincronización local pendiente');
+
+    const [task] = await hospitalDB.syncQueue.toArray();
+    expect((task.payload as DailyRecord).beds.R1.clinicalCrib?.patientName).toBe('RN procesando');
   });
 
   it('claims ready pending tasks with a durable lease so another worker cannot claim them', async () => {

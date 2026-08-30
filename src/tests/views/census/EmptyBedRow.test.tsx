@@ -46,7 +46,7 @@ describe('EmptyBedRow', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('locks the bed and reports progress while a clear awaits remote confirmation', () => {
+  it('shows the bed as visually empty while a clear awaits remote confirmation', () => {
     const onClick = vi.fn();
 
     render(
@@ -63,7 +63,8 @@ describe('EmptyBedRow', () => {
       </table>
     );
 
-    expect(screen.getByRole('status')).toHaveTextContent('Confirmando limpieza');
+    expect(screen.getByRole('status', { name: 'Guardando limpieza de la cama' })).toBeVisible();
+    expect(screen.queryByText(/Confirmando limpieza/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /agregar paciente/i })).not.toBeInTheDocument();
     expect(screen.getByRole('row')).toHaveAttribute('aria-busy', 'true');
     expect(onClick).not.toHaveBeenCalled();

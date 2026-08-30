@@ -73,8 +73,8 @@ describe('PatientRow crib and demographics', () => {
 
   const mockOnAction = vi.fn();
 
-  it('toggles bed mode when config button is clicked', () => {
-    const { mockContext } = render(
+  it('does not expose the retired primary-bed Cuna RN mode', () => {
+    render(
       <table>
         <tbody>
           <PatientRow
@@ -89,9 +89,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByText(/Cambiar a Cuna RN/i));
-
-    expect(mockContext.updatePatient).toHaveBeenCalledWith('R1', 'bedMode', 'Cuna');
+    expect(screen.queryByText(/Cambiar a Cuna RN/i)).not.toBeInTheDocument();
   });
 
   it('does not offer the retired RN Sano classification', () => {
@@ -113,7 +111,7 @@ describe('PatientRow crib and demographics', () => {
     expect(screen.queryByText(/^RN Sano$/i)).not.toBeInTheDocument();
   });
 
-  it('toggles the RN crib when the Cuna RN button is clicked', () => {
+  it('adds the associated crib when the Cuna button is clicked', () => {
     const { mockContext } = render(
       <table>
         <tbody>
@@ -129,7 +127,7 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    fireEvent.click(screen.getByText(/Agregar Cuna RN/i));
+    fireEvent.click(screen.getByText(/^Agregar Cuna$/i));
 
     expect(mockContext.updateClinicalCrib).toHaveBeenCalledWith('R1', 'create');
   });
@@ -150,10 +148,10 @@ describe('PatientRow crib and demographics', () => {
     );
 
     fireEvent.click(screen.getByTitle('Configuración de cama'));
-    expect(screen.getByText(/Agregar Cuna RN/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Agregar Cuna$/i)).toBeInTheDocument();
 
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByText(/Agregar Cuna RN/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Agregar Cuna$/i)).not.toBeInTheDocument();
   });
 
   it('opens demographics modal and saves changes', async () => {

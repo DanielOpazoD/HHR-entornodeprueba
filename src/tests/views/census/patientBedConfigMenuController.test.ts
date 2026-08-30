@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  resolveBedModeButtonModel,
   resolveClinicalCribButtonModel,
   resolveCompanionButtonModel,
   resolvePatientBedIndicators,
@@ -14,15 +13,11 @@ describe('patientBedConfigMenuController', () => {
       hasClinicalCrib: true,
     });
 
-    expect(indicators.map(item => item.key)).toEqual(['cuna', 'cc']);
-    expect(indicators.map(item => item.label)).toEqual(['CUNA', '+RN']);
+    expect(indicators.map(item => item.key)).toEqual(['cuna']);
+    expect(indicators.map(item => item.label)).toEqual(['CUNA']);
   });
 
-  it('resolves bed mode/companion/clinical crib visual models', () => {
-    const bedMode = resolveBedModeButtonModel(true);
-    expect(bedMode.label).toBe('Cambiar a Cama');
-    expect(bedMode.className).toContain('bg-pink-50');
-
+  it('resolves companion and clinical crib visual models', () => {
     const companion = resolveCompanionButtonModel(true);
     expect(companion.className).toContain('bg-emerald-50');
 

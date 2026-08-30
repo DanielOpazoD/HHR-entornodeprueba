@@ -37,6 +37,7 @@ const buildMockDailyRecordRepository = (): DailyRecordRepositoryPort => ({
   updatePartial: vi.fn(),
   updatePartialDetailed: vi.fn(),
   syncWithFirestoreDetailed: vi.fn(),
+  adoptAuthoritativeRecord: vi.fn(async record => record),
   subscribe: vi.fn(() => vi.fn()),
   subscribeDetailed: vi.fn(() => vi.fn()),
   delete: vi.fn(),

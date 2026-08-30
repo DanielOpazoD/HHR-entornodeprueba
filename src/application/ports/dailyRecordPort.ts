@@ -119,6 +119,12 @@ const deleteDailyRecord = (date: string): Promise<void> =>
 const syncDailyRecordWithFirestore = (date: string): Promise<SyncDailyRecordResult | null> =>
   withSyncService(service => service.syncWithFirestoreDetailed(date));
 
+const adoptAuthoritativeDailyRecord = (
+  record: DailyRecord,
+  alreadyAppliedPatch?: DailyRecordPatch
+): Promise<DailyRecord> =>
+  withSyncService(service => service.adoptAuthoritativeRecord(record, alreadyAppliedPatch));
+
 export interface DailyRecordReadPort {
   getPreviousDay: (date: string) => Promise<DailyRecord | null>;
   getAvailableDates: () => Promise<string[]>;
@@ -160,6 +166,11 @@ export type DailyRecordAnalysisPort = Pick<
  */
 export interface DailyRecordRepositoryPort
   extends DailyRecordReadPort, DailyRecordWritePort, DailyRecordSyncPort {
+  /** Persist a record already confirmed by server authority without issuing another remote write. */
+  adoptAuthoritativeRecord: (
+    record: DailyRecord,
+    alreadyAppliedPatch?: DailyRecordPatch
+  ) => Promise<DailyRecord>;
   saveDetailed: (
     record: DailyRecord,
     expectedLastUpdated?: string,
@@ -225,6 +236,7 @@ export const defaultDailyRecordRepositoryPort: DailyRecordRepositoryPort = {
   ...defaultDailyRecordReadPort,
   ...defaultDailyRecordWritePort,
   ...defaultDailyRecordSyncPort,
+  adoptAuthoritativeRecord: adoptAuthoritativeDailyRecord,
   saveDetailed: saveDailyRecord,
   updatePartialDetailed: updatePartialDailyRecord,
   subscribe: (date, callback) =>

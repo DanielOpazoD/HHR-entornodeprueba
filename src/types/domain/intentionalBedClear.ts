@@ -20,3 +20,9 @@ export interface IntentionalBedClearRequest {
    */
   confirmedAssociatedCrib?: ConfirmedBedOccupantIdentity | null;
 }
+
+export interface ClinicalCribCreateRequest {
+  bedId: string;
+  confirmedLastUpdated: string;
+  confirmedParent: ConfirmedBedOccupantIdentity;
+}
