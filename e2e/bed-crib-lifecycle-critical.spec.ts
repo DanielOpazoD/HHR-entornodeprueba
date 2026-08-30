@@ -84,6 +84,31 @@ const getCribRow = (page: Page) =>
     .filter({ hasText: /\bCUNA\b/ })
     .first();
 
+const expectLocalMirrorState = async (
+  page: Page,
+  expected: { patientName: string; hasClinicalCrib: boolean }
+) => {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(date => {
+          const records = JSON.parse(
+            localStorage.getItem('hanga_roa_hospital_data') || '{}'
+          ) as Record<
+            string,
+            { beds?: Record<string, { patientName?: string; clinicalCrib?: unknown }> }
+          >;
+          const bed = records[date]?.beds?.R1;
+          return {
+            patientName: bed?.patientName || '',
+            hasClinicalCrib: Boolean(bed?.clinicalCrib),
+          };
+        }, E2E_DATE),
+      { timeout: 10_000 }
+    )
+    .toEqual(expected);
+};
+
 const openCensus = async (page: Page, record: Record<string, unknown>) => {
   const authority = await installDailyRecordAuthorityRoute(page, record);
   await bootstrapSeededRecord(page, {
@@ -162,6 +187,13 @@ test.describe('Critical bed and attached-crib lifecycle', () => {
     });
     await confirmedClear.succeed();
 
+    // The HTTP response being released is not yet proof that the browser consumed it. Wait for
+    // the confirmed record to reach the durable local mirror before exercising a real reload.
+    await expectLocalMirrorState(page, {
+      patientName: 'Paciente Ciclo Cuna',
+      hasClinicalCrib: false,
+    });
+
     await page.reload();
     await expect(getParentRow(page)).toBeVisible({ timeout: 15_000 });
     await expect(getCribRow(page)).toHaveCount(0);
@@ -193,6 +225,8 @@ test.describe('Critical bed and attached-crib lifecycle', () => {
       patientName: '',
     });
     await clearCall.succeed();
+
+    await expectLocalMirrorState(page, { patientName: '', hasClinicalCrib: false });
 
     await page.reload();
     await expect(getParentRow(page)).toHaveCount(0);
