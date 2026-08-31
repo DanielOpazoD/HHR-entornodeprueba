@@ -147,7 +147,7 @@ describe('daily-record authoritative clinical field fence', () => {
         },
       },
     };
-    const { admin, set, docRef } = createAdminMock({
+    const { admin, update, docRef } = createAdminMock({
       remoteData: remote,
       policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
     });
@@ -168,16 +168,12 @@ describe('daily-record authoritative clinical field fence', () => {
       makeContext()
     );
 
-    expect(set).toHaveBeenCalledWith(
+    // La transacción escribe sólo el path tocado; los campos server-owned no
+    // viajan porque no cambiaron (viven intactos en el documento).
+    expect(update).toHaveBeenCalledWith(
       docRef,
       expect.objectContaining({
-        beds: {
-          R1: expect.objectContaining({
-            patientName: 'Nombre estructural actualizado',
-            vitalSigns: { systolic: 118 },
-            evaluationScores: { braden: { total: 17 } },
-          }),
-        },
+        'beds.R1.patientName': 'Nombre estructural actualizado',
       })
     );
   });
@@ -271,7 +267,7 @@ describe('daily-record authoritative clinical field fence', () => {
       ],
       beds: { R1: { ...makeRecord().beds.R1, vitalSigns: { systolic: 118 } } },
     };
-    const { admin, set, docRef, historyDoc } = createAdminMock({
+    const { admin, set, update, docRef, historyDoc } = createAdminMock({
       remoteData: remote,
       policyData: policy,
     });
@@ -300,10 +296,10 @@ describe('daily-record authoritative clinical field fence', () => {
       makeContext()
     );
 
-    expect(set).toHaveBeenCalledWith(
+    expect(update).toHaveBeenCalledWith(
       docRef,
       expect.objectContaining({
-        beds: { R1: expect.objectContaining({ vitalSigns: { systolic: 120 } }) },
+        'beds.R1.vitalSigns': { systolic: 120 },
       })
     );
     expect(set).toHaveBeenCalledWith(

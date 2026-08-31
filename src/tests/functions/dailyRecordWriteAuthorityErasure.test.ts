@@ -142,7 +142,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
       meta: { revision: 4, lastMutationId: 'previous' },
     };
     const emptyBed = makeCanonicalEmptyBed();
-    const { admin, set, docRef, historySet } = createAdminMock({
+    const { admin, update, docRef, historySet } = createAdminMock({
       remoteData: remote,
       policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
     });
@@ -177,10 +177,11 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
         beds: { R1: expect.objectContaining({ patientName: 'Paciente Uno' }) },
       })
     );
-    expect(set).toHaveBeenCalledWith(
+    // La transacción escribe sólo el path del clear canónico, no el registro completo.
+    expect(update).toHaveBeenCalledWith(
       docRef,
       expect.objectContaining({
-        beds: { R1: emptyBed },
+        'beds.R1': emptyBed,
         meta: expect.objectContaining({ revision: 5, lastMutationId: 'clear-r1' }),
       })
     );

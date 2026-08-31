@@ -73,7 +73,10 @@ describe('daily-record historical CUDYR authority', () => {
 
   it('allows an administrator to persist canonical historical CUDYR evidence', async () => {
     const remote = historicalRecord();
-    const { admin, set, docRef } = createAdminMock({ remoteData: remote, policyData: policy });
+    const { admin, update, docRef } = createAdminMock({
+      remoteData: remote,
+      policyData: policy,
+    });
     const functionsApi = createFunctionsApi(admin, 'admin');
 
     await functionsApi.patchDailyRecordWithClinicalAuthority.run(
@@ -86,14 +89,10 @@ describe('daily-record historical CUDYR authority', () => {
       makeContext()
     );
 
-    expect(set).toHaveBeenCalledWith(
+    expect(update).toHaveBeenCalledWith(
       docRef,
       expect.objectContaining({
-        beds: {
-          R1: expect.objectContaining({
-            evaluationScores: { cudyr: cudyrPatch['beds.R1.evaluationScores.cudyr'] },
-          }),
-        },
+        'beds.R1.evaluationScores.cudyr': cudyrPatch['beds.R1.evaluationScores.cudyr'],
       })
     );
   });

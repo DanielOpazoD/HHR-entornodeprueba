@@ -269,6 +269,67 @@ const applyPatchToRecord = ({ date, remoteData, patch }) => {
   return record;
 };
 
+// Campos derivados/históricos por cama que inflan el registro (~17KB, ~13KB y
+// ~7,5KB por cama medidos): duplicarlos en cada snapshot de historial es
+// cuadrático y no aporta a la auditoría del censo (viven en el registro vigente
+// y/o son historiales por sí mismos).
+const HEAVY_DERIVED_BED_FIELDS = [
+  'clinicalSyncCheckpoint',
+  'vitalSignsHistory',
+  'evaluationScores',
+];
+
+const slimHistoryBed = bed => {
+  if (!bed || typeof bed !== 'object' || Array.isArray(bed)) {
+    return bed;
+  }
+  const copy = { ...bed };
+  HEAVY_DERIVED_BED_FIELDS.forEach(field => {
+    delete copy[field];
+  });
+  if (
+    copy.clinicalCrib &&
+    typeof copy.clinicalCrib === 'object' &&
+    !Array.isArray(copy.clinicalCrib)
+  ) {
+    const crib = { ...copy.clinicalCrib };
+    HEAVY_DERIVED_BED_FIELDS.forEach(field => {
+      delete crib[field];
+    });
+    copy.clinicalCrib = crib;
+  }
+  return copy;
+};
+
+/**
+ * Snapshot de historial adelgazado: conserva la foto auditable del censo
+ * (identidad, camas, diagnóstico, movimientos) sin los campos derivados
+ * pesados ni el historial Rayen embebido. Nadie lee estos snapshots
+ * programáticamente (la restauración de versiones usa conflictSnapshots/).
+ */
+const buildSlimHistorySnapshot = (record, now) => {
+  const beds = {};
+  Object.entries(record.beds || {}).forEach(([bedId, bed]) => {
+    beds[bedId] = slimHistoryBed(bed);
+  });
+  const snapshot = {
+    ...record,
+    beds,
+    snapshotTimestamp: now,
+    historyCompression: 'slim-v1',
+  };
+  delete snapshot.rayenSyncHistory;
+  return snapshot;
+};
+
+const readValueAtPath = (record, path) =>
+  String(path)
+    .split('.')
+    .reduce((current, segment) => {
+      if (!current || typeof current !== 'object') return undefined;
+      return current[segment];
+    }, record);
+
 const parseAuthorizedPatchPath = (
   path,
   role,
@@ -1308,13 +1369,10 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
           const now = Timestamp.now();
           if (snapshot.exists) {
-            // El snapshot de historial se escribe DESPUÉS del commit: dentro de la
-            // transacción duplicaba el payload del registro completo y alargaba
-            // cada escritura autoritativa sin proteger ningún invariante.
-            pendingHistoryData = {
-              ...(snapshot.data() || {}),
-              snapshotTimestamp: now,
-            };
+            // El snapshot de historial se escribe DESPUÉS del commit y adelgazado:
+            // dentro de la transacción duplicaba el payload del registro completo
+            // y alargaba cada escritura autoritativa sin proteger ningún invariante.
+            pendingHistoryData = buildSlimHistorySnapshot(snapshot.data() || {}, now);
           }
 
           const nextMeta = buildNextMeta({
@@ -1585,25 +1643,25 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
           if (guardedHistoryRef) {
             if (!guardedHistorySnapshot?.exists) {
-              transaction.set(guardedHistoryRef, {
-                ...remoteData,
-                snapshotTimestamp: now,
-              });
+              transaction.set(guardedHistoryRef, buildSlimHistorySnapshot(remoteData, now));
             }
           } else {
-            // El snapshot de historial se escribe DESPUÉS del commit: dentro de la
-            // transacción duplicaba el payload del registro completo y alargaba
-            // cada comando cama–cuna sin proteger ningún invariante.
-            pendingHistoryData = {
-              ...remoteData,
-              snapshotTimestamp: now,
-            };
+            // El snapshot de historial se escribe DESPUÉS del commit y adelgazado:
+            // dentro de la transacción duplicaba el payload del registro completo
+            // y alargaba cada comando cama–cuna sin proteger ningún invariante.
+            pendingHistoryData = buildSlimHistorySnapshot(remoteData, now);
           }
 
-          transaction.set(docRef, {
-            ...patchedRecord,
-            lastUpdated: now,
+          // Escribir sólo los paths tocados (con sus valores FINALES, ya
+          // canonicalizados en patchedRecord) en lugar de reescribir el registro
+          // completo (~0,5MB): el documento resultante es idéntico al set()
+          // anterior y el payload de la transacción baja de cientos de KB a KBs.
+          const txnUpdate = { date, meta: patchedRecord.meta, lastUpdated: now };
+          Object.keys(authorizedPatch).forEach(path => {
+            const finalValue = readValueAtPath(patchedRecord, path);
+            txnUpdate[path] = finalValue === undefined ? null : finalValue;
           });
+          transaction.update(docRef, txnUpdate);
         });
         txnMs = Date.now() - txnStartedAt;
 

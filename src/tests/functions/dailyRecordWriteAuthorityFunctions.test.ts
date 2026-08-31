@@ -96,7 +96,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
   });
 
   it('applies partial patches inside the authority transaction against the current remote record', async () => {
-    const { admin, set, docRef, historySet, telemetryAdd } = createAdminMock({
+    const { admin, set, update, docRef, historySet, telemetryAdd } = createAdminMock({
       remoteData: {
         ...makeRecord(),
         lastUpdated: '2026-05-13T10:00:05.000Z',
@@ -146,16 +146,12 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
         snapshotTimestamp: expect.anything(),
       })
     );
-    expect(set).toHaveBeenCalledWith(
+    // La transacción escribe sólo los paths tocados (update), no el registro completo.
+    expect(update).toHaveBeenCalledWith(
       docRef,
       expect.objectContaining({
         date: '2026-05-13',
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({
-            pathology: 'Diagnostico local nuevo',
-            status: 'Grave',
-          }),
-        }),
+        'beds.R1.pathology': 'Diagnostico local nuevo',
         meta: expect.objectContaining({
           revision: 5,
           lastMutationId: 'mutation-1',
@@ -166,6 +162,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
         lastUpdated: expect.anything(),
       })
     );
+    expect(set).not.toHaveBeenCalledWith(docRef, expect.anything());
     expect(result).toEqual(
       expect.objectContaining({
         success: true,
@@ -189,7 +186,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
   });
 
   it('applies Qx and derived UPC bed type patches inside the authority transaction', async () => {
-    const { admin, set, docRef } = createAdminMock({
+    const { admin, update, docRef } = createAdminMock({
       remoteData: {
         ...makeRecord(),
         bedTypeOverrides: {},
@@ -239,21 +236,15 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       makeContext()
     );
 
-    expect(set).toHaveBeenCalledWith(
+    expect(update).toHaveBeenCalledWith(
       docRef,
       expect.objectContaining({
-        beds: expect.objectContaining({
-          R1: expect.objectContaining({
-            surgicalComplication: true,
-            isUPC: true,
-            upcChecklist: expect.objectContaining({
-              classification: 'UPC_UCI',
-            }),
-          }),
+        'beds.R1.surgicalComplication': true,
+        'beds.R1.isUPC': true,
+        'beds.R1.upcChecklist': expect.objectContaining({
+          classification: 'UPC_UCI',
         }),
-        bedTypeOverrides: expect.objectContaining({
-          R1: 'UCI',
-        }),
+        'bedTypeOverrides.R1': 'UCI',
       })
     );
   });

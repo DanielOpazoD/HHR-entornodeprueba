@@ -78,7 +78,7 @@ const executeClear = async ({
     dateTimestamp: Date.now(),
     beds: { R1: { ...base.beds.R1, ...remoteBed, bedMode: 'Cama', location: '' } },
   };
-  const { admin, set } = createAdminMock({
+  const { admin, set, update } = createAdminMock({
     remoteData: remote,
     policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
   });
@@ -102,7 +102,7 @@ const executeClear = async ({
     },
     makeContext()
   );
-  return { result, set };
+  return { result, set, update };
 };
 
 describe('daily record intentional clear occupant identity', () => {
@@ -111,7 +111,7 @@ describe('daily record intentional clear occupant identity', () => {
   });
 
   it('rejects two different episode ids even when their legacy tuple matches', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: { clinicalEpisodeId: 'legacy-remote' },
       confirmedOccupant: {
         clinicalEpisodeId: 'legacy-confirmed',
@@ -123,10 +123,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'aborted' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('rejects a one-sided episode id instead of falling back to legacy fields', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: { clinicalEpisodeId: '' },
       confirmedOccupant: {
         clinicalEpisodeId: 'ep-confirmed',
@@ -138,10 +139,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'aborted' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('rejects a same-name legacy occupant with a different admission time', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: {
         clinicalEpisodeId: '',
         rut: '',
@@ -158,10 +160,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'aborted' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('allows a name-only legacy occupant at the exact confirmed version', async () => {
-    const { result, set } = await executeClear({
+    const { result, update } = await executeClear({
       remoteBed: {
         clinicalEpisodeId: '',
         rut: '',
@@ -174,11 +177,11 @@ describe('daily record intentional clear occupant identity', () => {
     });
 
     await expect(result).resolves.toMatchObject({ success: true });
-    expect(set).toHaveBeenCalled();
+    expect(update).toHaveBeenCalled();
   });
 
   it('allows a matching RUT without dates at the exact confirmed version', async () => {
-    const { result, set } = await executeClear({
+    const { result, update } = await executeClear({
       remoteBed: {
         clinicalEpisodeId: '',
         rut: '11.111.111-1',
@@ -190,14 +193,17 @@ describe('daily record intentional clear occupant identity', () => {
     });
 
     await expect(result).resolves.toMatchObject({ success: true });
-    expect(set).toHaveBeenCalled();
+    expect(update).toHaveBeenCalled();
   });
 
   it('keeps exact-version compatibility with an already-loaded legacy client', async () => {
-    const { result, set } = await executeClear({ remoteBed: {}, confirmedOccupant: undefined });
+    const { result, update } = await executeClear({
+      remoteBed: {},
+      confirmedOccupant: undefined,
+    });
 
     await expect(result).resolves.toMatchObject({ success: true });
-    expect(set).toHaveBeenCalled();
+    expect(update).toHaveBeenCalled();
   });
 
   it('accepts the empty-bed shape produced by the real client factory', async () => {
@@ -205,7 +211,7 @@ describe('daily record intentional clear occupant identity', () => {
       ...createEmptyPatient('R1'),
       location: '',
     }) as Record<string, unknown>;
-    const { result, set } = await executeClear({
+    const { result, update } = await executeClear({
       remoteBed: {},
       confirmedOccupant: {
         clinicalEpisodeId: 'ep-uno',
@@ -218,11 +224,11 @@ describe('daily record intentional clear occupant identity', () => {
     });
 
     await expect(result).resolves.toMatchObject({ success: true });
-    expect(set).toHaveBeenCalled();
+    expect(update).toHaveBeenCalled();
   });
 
   it('allows clearing a parent bed when its associated crib identity is confirmed', async () => {
-    const { result, set } = await executeClear({
+    const { result, update } = await executeClear({
       remoteBed: {
         clinicalCrib: {
           patientName: 'RN Uno',
@@ -243,11 +249,11 @@ describe('daily record intentional clear occupant identity', () => {
     });
 
     await expect(result).resolves.toMatchObject({ success: true });
-    expect(set).toHaveBeenCalled();
+    expect(update).toHaveBeenCalled();
   });
 
   it('allows confirming a present associated crib before it has occupant identity', async () => {
-    const { result, set } = await executeClear({
+    const { result, update } = await executeClear({
       remoteBed: {
         clinicalCrib: {
           patientName: '  ',
@@ -265,11 +271,11 @@ describe('daily record intentional clear occupant identity', () => {
     });
 
     await expect(result).resolves.toMatchObject({ success: true });
-    expect(set).toHaveBeenCalled();
+    expect(update).toHaveBeenCalled();
   });
 
   it('rejects presence-only confirmation for the parent occupant', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: {
         patientName: '',
         rut: '',
@@ -281,10 +287,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'invalid-argument' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('rejects a presence-only confirmation after the crib receives occupant identity', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: {
         clinicalCrib: {
           patientName: 'RN identificado',
@@ -301,10 +308,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'aborted' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('rejects a stale presence-only crib confirmation at the server boundary', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: {
         clinicalCrib: {
           patientName: '',
@@ -324,10 +332,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'aborted' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('rejects a legacy parent clear that did not confirm an existing associated crib', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: {
         clinicalCrib: {
           patientName: 'RN Uno',
@@ -343,10 +352,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'failed-precondition' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('rejects a parent clear when a crib appeared after its absence was confirmed', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: {
         clinicalCrib: {
           patientName: 'RN agregado',
@@ -363,10 +373,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'aborted' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('rejects a parent clear when the associated crib differs from the confirmation', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: {
         clinicalCrib: {
           patientName: 'RN reemplazado',
@@ -386,10 +397,11 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'aborted' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('rejects a parent clear when the confirmed associated crib was removed', async () => {
-    const { result, set } = await executeClear({
+    const { result, set, update } = await executeClear({
       remoteBed: {},
       confirmedOccupant: {
         clinicalEpisodeId: 'ep-uno',
@@ -404,5 +416,6 @@ describe('daily record intentional clear occupant identity', () => {
 
     await expect(result).rejects.toMatchObject({ code: 'aborted' });
     expect(set).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });
