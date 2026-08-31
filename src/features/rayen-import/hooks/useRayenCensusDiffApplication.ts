@@ -20,6 +20,7 @@ import {
   type StructuralStageResult,
 } from './rayenCensusPersistenceGuard';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
+import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { hasUnchangedRayenStructuralState } from '../domain/rayenStructuralCheckpoint';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { QueryClient } from '@tanstack/react-query';
@@ -117,22 +118,31 @@ export const useRayenCensusDiffApplication = ({
               dailyRecordWriteLease: writeLease,
             }
           );
+          let confirmedCheckpointRecord = checkpointResult.confirmedRecord ?? null;
+          const checkpointCommitted = !isDailyRecordWriteRejectedResult(checkpointResult);
+          if (checkpointCommitted && confirmedCheckpointRecord?.rayenSync?.runId !== run.id) {
+            // Verificado en vivo (31-08): la transacción del checkpoint commitea
+            // y estampa el run en el servidor, pero la confirmación devuelta
+            // puede venir de una lectura anterior al commit y llegar SIN el
+            // sello. La verificación del handoff rechazaba entonces una corrida
+            // realmente commiteada («El guardado del censo no confirmó la
+            // versión…») y la marcaba fallida. Una única relectura autoritativa
+            // recupera el estado real; el guard vuelve a validar el sello y
+            // sigue fallando ruidosamente si de verdad no está.
+            confirmedCheckpointRecord = await loadAuthoritativeRecord(persistenceBase.date);
+          }
           persistence = {
-            record: checkpointResult.confirmedRecord ?? persistenceBase,
+            record: confirmedCheckpointRecord ?? persistenceBase,
             result: checkpointResult,
           };
-          if (checkpointResult.confirmedRecord) {
+          if (confirmedCheckpointRecord) {
             markDailyRecordRemoteConfirmed(persistenceBase.date, {
               source: 'write',
-              remoteLastUpdated: checkpointResult.confirmedRecord.lastUpdated,
+              remoteLastUpdated: confirmedCheckpointRecord.lastUpdated,
               previousRecord: persistenceBase,
-              confirmedRecord: checkpointResult.confirmedRecord,
+              confirmedRecord: confirmedCheckpointRecord,
             });
-            setDailyRecordQueryData(
-              queryClient,
-              persistenceBase.date,
-              checkpointResult.confirmedRecord
-            );
+            setDailyRecordQueryData(queryClient, persistenceBase.date, confirmedCheckpointRecord);
           }
         } else {
           persistence = await saveDailyRecord(stamped, record.lastUpdated, writeLease);
