@@ -85,21 +85,27 @@ describe('Identity-based Diagnosis Clearing', () => {
     const { result } = renderHook(() => useBedManagement(mockRecord, saveAndUpdate, patchRecord));
 
     // Update RUT to a different one
-    act(() => {
+    await act(async () => {
       result.current.updatePatient('R1', 'rut', '22.222.222-2');
     });
 
-    // Check if patchRecord was called with cleared diagnosis fields
+    // El cambio de identidad mezcla campos estructurales con la limpieza del
+    // envelope clínico; el despacho lo divide en dos comandos secuenciales
+    // (la separación enforced rechaza el patch mezclado).
     expect(patchRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         [`beds.R1.rut`]: '22.222.222-2',
-        [`beds.R1.cie10Code`]: undefined,
-        [`beds.R1.cie10Description`]: undefined,
-        [`beds.R1.pathology`]: '',
         [`beds.R1.clinicalEvents`]: [],
         [`beds.R1.cudyr`]: undefined,
         [`beds.R1.deviceDetails`]: {},
         [`beds.R1.devices`]: [],
+      })
+    );
+    expect(patchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        [`beds.R1.cie10Code`]: undefined,
+        [`beds.R1.cie10Description`]: undefined,
+        [`beds.R1.pathology`]: '',
       })
     );
   });
@@ -108,21 +114,25 @@ describe('Identity-based Diagnosis Clearing', () => {
     const { result } = renderHook(() => useBedManagement(mockRecord, saveAndUpdate, patchRecord));
 
     // Update Name to a different one
-    act(() => {
+    await act(async () => {
       result.current.updatePatient('R1', 'patientName', 'Different Patient');
     });
 
-    // Check if patchRecord was called with cleared diagnosis fields
+    // Igual que con el RUT: estructural/identidad primero, envelope clínico después.
     expect(patchRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         [`beds.R1.patientName`]: 'Different Patient',
-        [`beds.R1.cie10Code`]: undefined,
-        [`beds.R1.cie10Description`]: undefined,
-        [`beds.R1.pathology`]: '',
         [`beds.R1.clinicalEvents`]: [],
         [`beds.R1.cudyr`]: undefined,
         [`beds.R1.deviceDetails`]: {},
         [`beds.R1.devices`]: [],
+      })
+    );
+    expect(patchRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        [`beds.R1.cie10Code`]: undefined,
+        [`beds.R1.cie10Description`]: undefined,
+        [`beds.R1.pathology`]: '',
       })
     );
   });

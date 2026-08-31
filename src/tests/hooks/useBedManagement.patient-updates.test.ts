@@ -205,7 +205,7 @@ describe('useBedManagement patient updates', () => {
       consoleSpy.mockRestore();
     });
 
-    it('updates multiple patient fields', () => {
+    it('updates multiple patient fields', async () => {
       const patient = createMockPatient('R1');
       const record = createMockRecord({ R1: patient });
 
@@ -213,15 +213,19 @@ describe('useBedManagement patient updates', () => {
         useBedManagement(record, mockSaveAndUpdate, mockPatchRecord)
       );
 
-      act(() => {
+      await act(async () => {
         result.current.updatePatientMultiple('R1', {
           age: '50',
           pathology: 'New Diagnosis',
         });
       });
 
-      expect(mockPatchRecord).toHaveBeenCalledWith({
+      // Un guardado que mezcla campos estructurales y clínicos se divide en dos
+      // comandos secuenciales (la separación enforced rechaza el patch mezclado).
+      expect(mockPatchRecord).toHaveBeenNthCalledWith(1, {
         'beds.R1.age': '50',
+      });
+      expect(mockPatchRecord).toHaveBeenNthCalledWith(2, {
         'beds.R1.pathology': 'New Diagnosis',
       });
     });
