@@ -21,23 +21,20 @@ describe('Rayen contextual synchronization presentation', () => {
     );
   });
 
-  it('shows the canonical working stage instead of an empty modal', () => {
+  it('ya no existe estado de espera dentro del modal: el progreso vive en la barra', () => {
     render(
       <RayenImportPreviewModal
         isOpen
         diff={null}
         stage={{ type: 'verifying_structure' }}
-        error="mensaje antiguo"
+        error={null}
         targetDate="2026-08-01"
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
       />
     );
 
-    expect(screen.getByTestId('rayen-import-working-state')).toHaveTextContent(
-      'Confirmando la versión guardada…'
-    );
-    expect(screen.queryByText('mensaje antiguo')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rayen-import-working-state')).not.toBeInTheDocument();
   });
 
   it('labels history with the selected census date instead of today', () => {

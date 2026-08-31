@@ -67,13 +67,22 @@ describe('hasNoApplicableRayenStructuralChanges', () => {
     });
   });
 
-  it('keeps recovery visible when a committed historical correction needs fresh evidence', () => {
+  it('no abre un modal informativo tras persistir: la corrección histórica pendiente vive en el aviso de revisión', () => {
     expect(
       shouldOpenRayenSnapshotPreview({
         persistenceCompleted: true,
         hasUnresolvedConflicts: false,
         hasNoApplicableChanges: true,
-        requiresFreshCapture: true,
+      })
+    ).toBe(false);
+  });
+
+  it('mantiene la revisión de conflictos pendientes tras persistir sin cambios', () => {
+    expect(
+      shouldOpenRayenSnapshotPreview({
+        persistenceCompleted: true,
+        hasUnresolvedConflicts: true,
+        hasNoApplicableChanges: true,
       })
     ).toBe(true);
   });

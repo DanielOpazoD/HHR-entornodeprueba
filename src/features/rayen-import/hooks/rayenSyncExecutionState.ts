@@ -237,9 +237,9 @@ export const isRayenSyncExecutionCancellableBeforeCommit = (
 export const isRayenSyncReviewStage = (stage: RayenSyncStage | null): boolean =>
   stage?.type === 'awaiting_review' || stage?.type === 'needs_review';
 
+// El modal existe sólo para decidir (revisión) o para explicar un fallo. El
+// trabajo post-confirmación (persistir, verificar, fase clínica) se comunica en
+// la barra de la toolbar; mantener el modal abierto durante esas etapas creaba
+// una ventana de espera bloqueante y, al final, un cuerpo vacío con «Listo».
 export const isRayenSyncPreviewStage = (stage: RayenSyncStage | null): boolean =>
-  isRayenSyncReviewStage(stage) ||
-  stage?.type === 'persisting_structure' ||
-  stage?.type === 'verifying_structure' ||
-  stage?.type === 'syncing_clinical' ||
-  stage?.type === 'failed';
+  isRayenSyncReviewStage(stage) || stage?.type === 'failed';
