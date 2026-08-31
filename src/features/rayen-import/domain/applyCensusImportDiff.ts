@@ -6,6 +6,7 @@
  * It never overwrites an occupied bed; skipped operations are reported.
  */
 
+import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 import { CensusManager } from '@/domain/CensusManager';
 import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
@@ -108,7 +109,7 @@ export const buildDischarge = (
     insurance: patient.insurance,
     origin: patient.origin,
     isRapanui: patient.isRapanui,
-    originalData: { ...patient },
+    originalData: buildMovementUndoSnapshot(patient),
     clinicalEpisodeId: patient.clinicalEpisodeId,
     isNested,
     movementProvenance: buildRayenMovementProvenance(id, ctx, provenanceSource),
@@ -146,7 +147,7 @@ export const buildTransfer = (
     insurance: patient.insurance,
     origin: patient.origin,
     isRapanui: patient.isRapanui,
-    originalData: { ...patient },
+    originalData: buildMovementUndoSnapshot(patient),
     clinicalEpisodeId: patient.clinicalEpisodeId,
     movementProvenance: buildRayenMovementProvenance(id, ctx, provenanceSource),
   };
