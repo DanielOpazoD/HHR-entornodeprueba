@@ -10,6 +10,7 @@ import { parseVitalSigns } from './mapping/parseVitalSigns';
 import { mergeReportVitals } from './domain/mergeReportVitals';
 import { inferNursingShifts, type NursingActivityObservation } from './domain/inferNursingShifts';
 import { createConcurrencyGate } from './domain/concurrencyGate';
+import { readClinicalPatientSources } from './domain/clinicalPatientReaders';
 import { collectClinicalFillCandidates } from './domain/clinicalFillCandidates';
 import { createClinicalCheckpointAccumulator } from './domain/clinicalCheckpointAccumulator';
 import { createClinicalWriteCoordinator } from './domain/clinicalWriteCoordinator';
@@ -146,37 +147,18 @@ export const runClinicalFill = async (
       fecha,
       deps.now()
     );
-    const [deviceResult, historyResult, formsResult] = await Promise.allSettled([
-      withDeviceReadSlot(async () => {
-        const { entries, base64, error, source } = await performance.trackRequest(() =>
-          deps.fetchDeviceReport(encId, fecha)
-        );
-        if (error) {
-          performance.recordTimeout(error);
-          throw new Error(error);
-        }
-        if (Array.isArray(entries)) {
-          return {
-            entries,
-            source,
-            textItems: [] as Awaited<ReturnType<typeof deps.extractDeviceItems>>,
-          };
-        }
-        return {
-          entries: [],
-          source,
-          textItems: base64 ? await deps.extractDeviceItems(base64) : [],
-        };
-      }),
-      withHistoryReadSlot(() =>
-        performance.trackRequest(() =>
-          deps.fetchHistoryScales(encId, fecha, {
-            lookbackDays: historyReadPolicy.lookbackDays,
-          })
-        )
-      ),
-      withFormsReadSlot(() => performance.trackRequest(() => deps.fetchScalesForms(encId))),
-    ]);
+    const [deviceResult, historyResult, formsResult] = await readClinicalPatientSources({
+      encId,
+      fecha,
+      lookbackDays: historyReadPolicy.lookbackDays,
+      deps,
+      performance,
+      slots: {
+        devices: withDeviceReadSlot,
+        history: withHistoryReadSlot,
+        forms: withFormsReadSlot,
+      },
+    });
     if (deviceResult.status === 'rejected') {
       reportPatientError('devices', message(deviceResult.reason));
     } else {

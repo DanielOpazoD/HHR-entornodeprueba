@@ -124,19 +124,28 @@ describe('runClinicalFill performance pipeline', () => {
     expect(JSON.stringify(summary.performance)).not.toMatch(/Paciente 1|E1|R1|rut|encounter/i);
   });
 
-  it('counts source timeouts as sanitized aggregates', async () => {
-    const summary = await runClinicalFill(
-      record(1),
-      '2026-07-10',
-      deps({
-        fetchDeviceReport: vi
-          .fn()
-          .mockResolvedValue({ base64: '', error: 'Tiempo de espera agotado leyendo PDF.' }),
-      })
-    );
+  it('counts source timeouts as sanitized aggregates (incluye el reintento único)', async () => {
+    const fetchDeviceReport = vi
+      .fn()
+      .mockResolvedValue({ base64: '', error: 'Tiempo de espera agotado leyendo PDF.' });
+    const summary = await runClinicalFill(record(1), '2026-07-10', deps({ fetchDeviceReport }));
 
-    expect(summary.performance?.counters.timeouts).toBe(1);
+    // La lectura fallida se reintenta UNA vez: dos intentos, dos timeouts, un retry.
+    expect(fetchDeviceReport).toHaveBeenCalledTimes(2);
+    expect(summary.performance?.counters.timeouts).toBe(2);
+    expect(summary.performance?.counters.retries).toBe(1);
     expect(summary.performance).not.toHaveProperty('errors');
+  });
+
+  it('una lectura que falla y luego responde queda completa sin error de paciente', async () => {
+    const fetchDeviceReport = vi
+      .fn()
+      .mockResolvedValueOnce({ base64: '', error: 'Tiempo de espera agotado leyendo PDF.' })
+      .mockResolvedValue({ entries: [], base64: '', source: 'json' });
+    const summary = await runClinicalFill(record(1), '2026-07-10', deps({ fetchDeviceReport }));
+
+    expect(fetchDeviceReport).toHaveBeenCalledTimes(2);
+    expect(summary.errors.filter(e => e.source === 'devices')).toEqual([]);
   });
 
   it('counts one timed-out request once even when it affects multiple clinical sources', async () => {
