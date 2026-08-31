@@ -1203,10 +1203,11 @@ const createDailyRecordWriteAuthorityFunctions = ({
   resolveRoleForEmail,
 }) => ({
   saveDailyRecordWithClinicalAuthority: functions
-    // Junto a Firestore (southamerica-west1): la transacción y el historial
+    // Cerca de Firestore (Firestore: southamerica-west1; Gen1 no existe en esa
+    // región, así que se usa southamerica-east1): la transacción y el historial
     // mueven el registro completo y us-central1 costaba un cruce de continente.
     // Debe coincidir con DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION del cliente.
-    .region('southamerica-west1', 'us-central1')
+    .region('southamerica-east1', 'us-central1')
     .runWith({ memory: '512MB' })
     .https.onCall(async (data, context) => {
       const startedAt = Date.now();
@@ -1406,7 +1407,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
     }),
 
   patchDailyRecordWithClinicalAuthority: functions
-    .region('southamerica-west1', 'us-central1')
+    .region('southamerica-east1', 'us-central1')
     .runWith({ memory: '512MB' })
     .https.onCall(async (data, context) => {
       const startedAt = Date.now();

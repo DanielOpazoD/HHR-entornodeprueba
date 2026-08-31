@@ -95,12 +95,13 @@ export interface DailyRecordAuthorityPatchCallablePayload {
 }
 
 /**
- * Las callables de autoridad del censo se sirven desde la región de Firestore
- * (southamerica-west1): cada transacción mueve el registro completo y servirla
+ * Las callables de autoridad del censo se sirven cerca de Firestore
+ * (Firestore: southamerica-west1; Functions Gen1 no existe ahí, así que se usa
+ * southamerica-east1): cada transacción mueve el registro completo y servirla
  * desde us-central1 costaba un cruce de continente por operación. Debe coincidir
  * con functions.region(...) en functions/lib/dailyRecordWriteAuthorityFunctions.js.
  */
-export const DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION = 'southamerica-west1';
+export const DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION = 'southamerica-east1';
 
 export const saveDailyRecordWithClinicalAuthorityCallable = async (
   payload: DailyRecordAuthorityCallablePayload
