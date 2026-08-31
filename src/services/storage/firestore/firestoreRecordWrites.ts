@@ -145,22 +145,20 @@ export const updateRecordPartial = async (
 ): Promise<DailyRecordAuthorityCallableResponse | void> => {
   try {
     const docRef = getRecordDocRef(date);
-    // Intentional clears are version- and identity-checked inside the authority callable. A direct
-    // Firestore pre-read would duplicate that CAS and could block a safe command before it reaches
-    // the only component allowed to commit it.
-    if (
-      !options.rayenClinicalWriteGuard &&
-      !options.requireAtomicCas &&
-      !options.intentionalBedClear
-    ) {
-      await assertFirestoreConcurrency(
+    // La verificación de concurrencia por lectura directa sólo protege las rutas
+    // SIN CAS del lado servidor (updateDoc directo y el callable specialist).
+    // Las rutas del callable de autoridad y la transacción atómica ya validan
+    // versión/revisión al commitear: duplicar la lectura aquí costaba un viaje
+    // remoto extra por edición y rechazaba ráfagas legítimas cuando el eco de la
+    // edición anterior aún no se adoptaba localmente.
+    const assertDirectWriteConcurrency = () =>
+      assertFirestoreConcurrency(
         docRef,
         expectedLastUpdated,
         'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
         'partial update',
         { toleranceMs: 0, failClosed: true }
       );
-    }
     // Specialist patches arrive in correct dot-notation (e.g. "beds.R1.medicalHandoffAudit").
     // flattenObject would recursively expand nested objects into sub-field paths
     // (e.g. "beds.R1.medicalHandoffAudit.lastEditor"), which causes Firestore rules
@@ -193,6 +191,7 @@ export const updateRecordPartial = async (
     try {
       const persist = async () => {
         if (specialistScopedPatch && (await shouldRouteSpecialistPatchViaCallable())) {
+          await assertDirectWriteConcurrency();
           return withRetry(() => updateSpecialistMedicalHandoffViaCallable(date, sanitizedPatch), {
             onRetry: (err: unknown, attempt: number) =>
               logFirestoreWriteRetry('partialUpdate', date, attempt, err),
@@ -333,6 +332,7 @@ export const updateRecordPartial = async (
           );
         }
 
+        await assertDirectWriteConcurrency();
         if (options.historyPolicy !== 'skip') await saveHistorySnapshot(date);
 
         return withRetry(

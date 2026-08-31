@@ -171,6 +171,8 @@ export const persistLocalAndAttemptRemoteSync = async ({
   readRemoteConfirmedRecord,
   resolveAlreadyAppliedRemoteRecord,
   adoptRemoteAuthorityRecord,
+  retryRemoteWriteOnStaleVersion,
+  canRebaseStaleVersionConflict,
   requireConfirmedRecord = false,
   allowConflictAutoMerge = true,
   remoteAuthorityFirst = false,
@@ -189,6 +191,17 @@ export const persistLocalAndAttemptRemoteSync = async ({
   renewLocalPreOutboxHoldEveryMs?: number;
   /** Compatibility readback when a deployed callable confirms without returning recordState. */
   readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>;
+  /**
+   * Reintento acotado para un patch granular que perdió el CAS sólo por versión:
+   * si los campos del patch no cambiaron remotamente (canRebaseStaleVersionConflict),
+   * se reintenta UNA vez la escritura remota re-basada en la versión fresca en
+   * lugar de degradar a auto-merge + cola de registro completo. Un segundo
+   * conflicto sigue la recuperación normal.
+   */
+  retryRemoteWriteOnStaleVersion?: (
+    freshRemoteRecord: DailyRecord
+  ) => Promise<RemoteAuthorityWriteResult | void>;
+  canRebaseStaleVersionConflict?: (freshRemoteRecord: DailyRecord) => boolean;
   /**
    * A guarded command can lose its CAS race after another writer already reached the same desired
    * state. When that can be proven from a fresh authoritative read, adopt that exact record instead
@@ -311,11 +324,34 @@ export const persistLocalAndAttemptRemoteSync = async ({
   }
 
   try {
-    const remoteResult = await runRemoteWriteWithOptionalPreOutboxRenewal(
-      remoteWrite,
-      renewLocalPreOutboxHold,
-      renewLocalPreOutboxHoldEveryMs
-    );
+    let remoteResult: RemoteAuthorityWriteResult | void;
+    try {
+      remoteResult = await runRemoteWriteWithOptionalPreOutboxRenewal(
+        remoteWrite,
+        renewLocalPreOutboxHold,
+        renewLocalPreOutboxHoldEveryMs
+      );
+    } catch (writeError) {
+      if (
+        !retryRemoteWriteOnStaleVersion ||
+        !canRebaseStaleVersionConflict ||
+        !readRemoteConfirmedRecord ||
+        !(writeError instanceof Error) ||
+        writeError.name !== 'ConcurrencyError'
+      ) {
+        throw writeError;
+      }
+      const freshRemoteRecord = await readRemoteConfirmedRecord();
+      if (
+        !isValidRemoteAuthorityRecord(freshRemoteRecord, record.date) ||
+        !canRebaseStaleVersionConflict(freshRemoteRecord)
+      ) {
+        throw writeError;
+      }
+      // Sólo la versión quedó vieja (los campos editados no cambiaron
+      // remotamente): reintentar una única vez re-basado en la versión fresca.
+      remoteResult = await retryRemoteWriteOnStaleVersion(freshRemoteRecord);
+    }
     markRemoteWriteSucceeded(remoteState);
     // Callable-backed writes return an authority payload. A Rayen structural import can also use
     // the direct Firestore adapter (which returns `void`), so that one flow explicitly requests a
