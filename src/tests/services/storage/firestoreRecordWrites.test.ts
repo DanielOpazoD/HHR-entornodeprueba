@@ -75,6 +75,7 @@ vi.mock('@/services/firebase-runtime/authRuntime', () => ({
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: {
     getFunctions: () => mockGetFunctions(),
+    getRegionalFunctions: () => mockGetFunctions(),
   },
 }));
 import { deleteDoc, setDoc, updateDoc } from 'firebase/firestore';

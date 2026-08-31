@@ -17,6 +17,7 @@ import {
 import {
   createFirebaseLazyServicesState,
   resolveFunctionsInstance,
+  resolveRegionalFunctionsInstance,
   resolveStorageInstance,
 } from '@/services/firebase-runtime/firebaseLazyServices';
 import { createScopedLogger } from '@/services/utils/loggerScope';
@@ -60,6 +61,9 @@ export const getStorageInstance = async (): Promise<FirebaseStorage> =>
 
 export const getFunctionsInstance = async (): Promise<Functions> =>
   resolveFunctionsInstance(await getFirebaseApp(), lazyServicesState);
+
+export const getRegionalFunctionsInstance = async (region: string): Promise<Functions> =>
+  resolveRegionalFunctionsInstance(await getFirebaseApp(), lazyServicesState, region);
 
 const loadValidatedFirebaseConfig = async (): Promise<FirebaseOptions> => {
   try {

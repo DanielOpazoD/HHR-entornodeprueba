@@ -42,6 +42,7 @@ vi.mock('firebase/functions', () => ({
 vi.mock('@/services/firebase-runtime/functionsRuntime', () => ({
   defaultFunctionsRuntime: {
     getFunctions: () => mockGetFunctions(),
+    getRegionalFunctions: () => mockGetFunctions(),
   },
 }));
 

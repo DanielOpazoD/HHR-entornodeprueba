@@ -23,6 +23,7 @@ const createAdapterStub = (): FirebaseConfigRuntimeAdapter => {
     getDb: () => db as never,
     getOptionalDb: () => db as never,
     getFunctions: vi.fn(async () => functions as never),
+    getRegionalFunctions: vi.fn(async () => functions as never),
     getStorage: vi.fn(async () => storage as never),
   };
 };
