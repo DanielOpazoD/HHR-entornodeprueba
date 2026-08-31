@@ -145,7 +145,14 @@ export const updateRecordPartial = async (
 ): Promise<DailyRecordAuthorityCallableResponse | void> => {
   try {
     const docRef = getRecordDocRef(date);
-    if (!options.rayenClinicalWriteGuard && !options.requireAtomicCas) {
+    // Intentional clears are version- and identity-checked inside the authority callable. A direct
+    // Firestore pre-read would duplicate that CAS and could block a safe command before it reaches
+    // the only component allowed to commit it.
+    if (
+      !options.rayenClinicalWriteGuard &&
+      !options.requireAtomicCas &&
+      !options.intentionalBedClear
+    ) {
       await assertFirestoreConcurrency(
         docRef,
         expectedLastUpdated,

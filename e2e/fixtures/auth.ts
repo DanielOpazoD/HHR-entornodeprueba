@@ -39,6 +39,9 @@ interface BootstrapSeededRecordOptions {
   record: Record<string, unknown>;
   useRuntimeOverride?: boolean;
   forceEditableRecord?: boolean;
+  forceLocalOnlySync?: boolean;
+  seedRemoteAuthority?: boolean;
+  forceAuthorityCallable?: boolean;
 }
 
 const BASE_BED_IDS = [
@@ -359,6 +362,9 @@ export async function bootstrapSeededRecord(
     record,
     useRuntimeOverride = true,
     forceEditableRecord = true,
+    forceLocalOnlySync = true,
+    seedRemoteAuthority = false,
+    forceAuthorityCallable = false,
   }: BootstrapSeededRecordOptions
 ) {
   const mockUser = MOCK_USERS[role];
@@ -367,12 +373,31 @@ export async function bootstrapSeededRecord(
     ({
       user,
       editableRecordOverride,
+      localOnlySync,
+      authorityCallable,
+      dateStr,
+      seededRecord,
+      remoteAuthoritySeed,
     }: {
       user: typeof mockUser;
       editableRecordOverride: boolean;
+      localOnlySync: boolean;
+      authorityCallable: boolean;
+      dateStr: string;
+      seededRecord: Record<string, unknown>;
+      remoteAuthoritySeed: boolean;
     }) => {
       localStorage.setItem('hhr_e2e_bootstrap_user', JSON.stringify(user));
-      localStorage.setItem('hhr_e2e_force_local_only_sync', 'true');
+      if (localOnlySync) {
+        localStorage.setItem('hhr_e2e_force_local_only_sync', 'true');
+      } else {
+        localStorage.removeItem('hhr_e2e_force_local_only_sync');
+      }
+      if (authorityCallable) {
+        localStorage.setItem('hhr_e2e_force_authority_callable', 'true');
+      } else {
+        localStorage.removeItem('hhr_e2e_force_authority_callable');
+      }
       if (editableRecordOverride) {
         localStorage.setItem('hhr_e2e_force_editable_record', 'true');
       } else {
@@ -382,7 +407,38 @@ export async function bootstrapSeededRecord(
 
       const runtimeWindow = window as Window & {
         __HHR_E2E_OVERRIDE__?: Record<string, unknown>;
+        __HHR_E2E_SET_REMOTE_AUTHORITY__?: (date: string, record: unknown) => void;
       };
+      if (remoteAuthoritySeed) {
+        const remoteShadow = localStorage.getItem('hhr_e2e_remote_override_shadow');
+        const parsedShadow = remoteShadow
+          ? (JSON.parse(remoteShadow) as { date: string; record: unknown })
+          : null;
+        const authoritativeRecord =
+          parsedShadow?.date === dateStr ? parsedShadow.record : seededRecord;
+        const target = {
+          ...(runtimeWindow.__HHR_E2E_OVERRIDE__ || {}),
+          [dateStr]: authoritativeRecord,
+        };
+        const lockedDates = new Set([dateStr]);
+        runtimeWindow.__HHR_E2E_SET_REMOTE_AUTHORITY__ = (nextDate, nextRecord) => {
+          lockedDates.add(nextDate);
+          target[nextDate] = nextRecord;
+          localStorage.setItem(
+            'hhr_e2e_remote_override_shadow',
+            JSON.stringify({ date: nextDate, record: nextRecord })
+          );
+        };
+        runtimeWindow.__HHR_E2E_OVERRIDE__ = new Proxy(target, {
+          set(currentTarget, property, value) {
+            const key = String(property);
+            if (!lockedDates.has(key)) currentTarget[key] = value;
+            return true;
+          },
+        });
+        runtimeWindow.__HHR_E2E_SET_REMOTE_AUTHORITY__(dateStr, authoritativeRecord);
+        return;
+      }
       const remoteShadow = localStorage.getItem('hhr_e2e_remote_override_shadow');
       if (remoteShadow) {
         const parsed = JSON.parse(remoteShadow) as { date: string; record: unknown };
@@ -396,10 +452,17 @@ export async function bootstrapSeededRecord(
     {
       user: mockUser,
       editableRecordOverride: forceEditableRecord,
+      localOnlySync: forceLocalOnlySync,
+      authorityCallable: forceAuthorityCallable,
+      dateStr: date,
+      seededRecord: record,
+      remoteAuthoritySeed: seedRemoteAuthority,
     }
   );
 
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto(seedRemoteAuthority ? `/censo?date=${date}` : '/', {
+    waitUntil: 'domcontentloaded',
+  });
 
   await page.evaluate(
     ({
@@ -407,11 +470,17 @@ export async function bootstrapSeededRecord(
       seededRecord,
       runtimeOverride,
       editableRecordOverride,
+      localOnlySync,
+      remoteAuthoritySeed,
+      authorityCallable,
     }: {
       dateStr: string;
       seededRecord: Record<string, unknown>;
       runtimeOverride: boolean;
       editableRecordOverride: boolean;
+      localOnlySync: boolean;
+      remoteAuthoritySeed: boolean;
+      authorityCallable: boolean;
     }) => {
       const STORAGE_KEY = 'hanga_roa_hospital_data';
       const records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Record<
@@ -422,7 +491,16 @@ export async function bootstrapSeededRecord(
       records[dateStr] = seededRecord;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
       localStorage.setItem('hhr_db_initialized', 'true');
-      localStorage.setItem('hhr_e2e_force_local_only_sync', 'true');
+      if (localOnlySync) {
+        localStorage.setItem('hhr_e2e_force_local_only_sync', 'true');
+      } else {
+        localStorage.removeItem('hhr_e2e_force_local_only_sync');
+      }
+      if (authorityCallable) {
+        localStorage.setItem('hhr_e2e_force_authority_callable', 'true');
+      } else {
+        localStorage.removeItem('hhr_e2e_force_authority_callable');
+      }
       localStorage.removeItem('indexeddb_migration_complete');
 
       if (editableRecordOverride) {
@@ -433,9 +511,12 @@ export async function bootstrapSeededRecord(
 
       const runtimeWindow = window as Window & {
         __HHR_E2E_OVERRIDE__?: Record<string, unknown>;
+        __HHR_E2E_SET_REMOTE_AUTHORITY__?: (date: string, record: unknown) => void;
       };
 
-      if (runtimeOverride) {
+      if (remoteAuthoritySeed) {
+        runtimeWindow.__HHR_E2E_SET_REMOTE_AUTHORITY__?.(dateStr, seededRecord);
+      } else if (runtimeOverride) {
         runtimeWindow.__HHR_E2E_OVERRIDE__ = {
           ...(runtimeWindow.__HHR_E2E_OVERRIDE__ || {}),
         };
@@ -448,6 +529,9 @@ export async function bootstrapSeededRecord(
       seededRecord: record,
       runtimeOverride: useRuntimeOverride,
       editableRecordOverride: forceEditableRecord,
+      localOnlySync: forceLocalOnlySync,
+      remoteAuthoritySeed: seedRemoteAuthority,
+      authorityCallable: forceAuthorityCallable,
     }
   );
 

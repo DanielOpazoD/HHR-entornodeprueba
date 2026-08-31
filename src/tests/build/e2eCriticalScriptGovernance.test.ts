@@ -83,4 +83,10 @@ describe('E2E critical script governance', () => {
     );
     expect(clinicalStabilityCi).toContain('npm run test:e2e:clinical-stability');
   });
+
+  it('keeps the remotely confirmed bed and crib lifecycle in the critical gate', () => {
+    const scripts = readPackageScripts();
+
+    expect(scripts['test:e2e:critical']).toContain('bed-crib-lifecycle-critical.spec.ts');
+  });
 });

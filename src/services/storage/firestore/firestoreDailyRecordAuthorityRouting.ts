@@ -28,6 +28,7 @@ import type {
   ClinicalCribCreateRequest,
   IntentionalBedClearRequest,
 } from '@/types/domain/intentionalBedClear';
+import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 
 export interface DailyRecordPartialWriteOptions {
   syncContract?: SyncTaskContract;
@@ -193,6 +194,7 @@ export const shouldRouteDailyRecordSaveViaCallable = async (): Promise<boolean> 
 export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
   'shadow' | 'enforced' | null
 > => {
+  if (isE2EDailyRecordAuthorityCallableForced()) return 'enforced';
   const mode = await resolveEffectiveDailyRecordAuthorityMode();
   if (mode === 'client_only') return null;
   try {
@@ -207,6 +209,7 @@ export const resolveAuthenticatedDailyRecordAuthorityMode = async (): Promise<
 
 /** Structural bed routing is owned by the schema-v2 server fence, never by the legacy flag. */
 export const shouldRouteStructuralBedPatchViaCallable = async (): Promise<boolean> => {
+  if (isE2EDailyRecordAuthorityCallableForced()) return true;
   if (!(await isServerClinicalWriteFenceActive(defaultFirestoreServiceRuntime))) return false;
   try {
     await defaultAuthRuntime.ready;
