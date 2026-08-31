@@ -1,5 +1,6 @@
 import {
   CLINICAL_SYNC_CHECKPOINT_VERSION,
+  CLINICAL_SYNC_COMPATIBLE_CHECKPOINT_VERSIONS,
   CLINICAL_SYNC_FINGERPRINT_VERSION,
   type ClinicalSyncCheckpoint,
   type ClinicalSyncFactCheckpoint,
@@ -78,8 +79,41 @@ const compareWatermarks = (left: string, right: string): number => {
 const isCompatibleCheckpoint = (
   checkpoint: ClinicalSyncCheckpoint | undefined
 ): checkpoint is ClinicalSyncCheckpoint =>
-  checkpoint?.version === CLINICAL_SYNC_CHECKPOINT_VERSION &&
+  checkpoint != null &&
+  CLINICAL_SYNC_COMPATIBLE_CHECKPOINT_VERSIONS.includes(checkpoint.version) &&
   checkpoint.fingerprintVersion === CLINICAL_SYNC_FINGERPRINT_VERSION;
+
+const FINGERPRINT_PREFIX = `v${CLINICAL_SYNC_FINGERPRINT_VERSION}-`;
+
+const stripPrefix = (value: string): string =>
+  value.startsWith(FINGERPRINT_PREFIX) ? value.slice(FINGERPRINT_PREFIX.length) : value;
+
+const packFact = (fact: ClinicalSyncFactCheckpoint): string =>
+  `${stripPrefix(fact.identity)}|${stripPrefix(fact.fingerprint)}|${fact.watermark ?? ''}`;
+
+const unpackFact = (packed: string): ClinicalSyncFactCheckpoint | null => {
+  const [identity, fingerprintPart, ...rest] = packed.split('|');
+  if (!identity || !fingerprintPart) return null;
+  const watermark = rest.join('|');
+  return {
+    identity: `${FINGERPRINT_PREFIX}${identity}`,
+    fingerprint: `${FINGERPRINT_PREFIX}${fingerprintPart}`,
+    ...(watermark ? { watermark } : {}),
+  };
+};
+
+/** Lee los hechos de una fuente aceptando la forma v3 (packed) y la legada v2. */
+export const readSourceCheckpointFacts = (
+  source: ClinicalSyncSourceCheckpoint | undefined
+): ClinicalSyncFactCheckpoint[] => {
+  if (!source) return [];
+  if (source.packedFacts) {
+    return source.packedFacts
+      .map(unpackFact)
+      .filter((fact): fact is ClinicalSyncFactCheckpoint => fact !== null);
+  }
+  return source.facts ?? [];
+};
 
 const sameSourceCheckpoint = (
   left: ClinicalSyncSourceCheckpoint | undefined,
@@ -90,12 +124,9 @@ const sameSourceCheckpoint = (
   left?.lastFullValidationLookbackDays === right.lastFullValidationLookbackDays &&
   left?.lastFullValidationAttemptAt === right.lastFullValidationAttemptAt &&
   left?.lastFullValidationAttemptLookbackDays === right.lastFullValidationAttemptLookbackDays &&
-  left?.facts.length === right.facts.length &&
-  left.facts.every(
-    (fact, index) =>
-      fact.identity === right.facts[index]?.identity &&
-      fact.fingerprint === right.facts[index]?.fingerprint
-  );
+  left?.packedFacts !== undefined &&
+  left.packedFacts.length === (right.packedFacts?.length ?? 0) &&
+  left.packedFacts.every((fact, index) => fact === right.packedFacts?.[index]);
 
 export const mergeClinicalSourceCheckpoint = (
   checkpoint: ClinicalSyncCheckpoint | undefined,
@@ -113,9 +144,8 @@ export const mergeClinicalSourceCheckpoint = (
 } => {
   const compatible = isCompatibleCheckpoint(checkpoint);
   const previous = compatible ? checkpoint.sources[source] : undefined;
-  const previousByIdentity = new Map(
-    (previous?.facts ?? []).map(fact => [fact.identity, fact.fingerprint])
-  );
+  const previousFacts = readSourceCheckpointFacts(previous);
+  const previousByIdentity = new Map(previousFacts.map(fact => [fact.identity, fact.fingerprint]));
   const current = facts.map(fact => ({
     checkpoint: toFactCheckpoint(fact),
     watermark: normalizeWatermark(fact.watermark),
@@ -128,9 +158,7 @@ export const mergeClinicalSourceCheckpoint = (
     }
   }
   const uniqueFacts = [...uniqueByIdentity.values()];
-  const mergedFactsByIdentity = new Map(
-    (previous?.facts ?? []).map(fact => [fact.identity, fact] as const)
-  );
+  const mergedFactsByIdentity = new Map(previousFacts.map(fact => [fact.identity, fact] as const));
   for (const item of uniqueFacts) {
     mergedFactsByIdentity.set(item.checkpoint.identity, item.checkpoint);
   }
@@ -169,7 +197,7 @@ export const mergeClinicalSourceCheckpoint = (
     ...(validationAttemptAt && validationAttemptLookbackDays !== undefined
       ? { lastFullValidationAttemptLookbackDays: validationAttemptLookbackDays }
       : {}),
-    facts: retainedFacts,
+    packedFacts: retainedFacts.map(packFact),
   };
   const metrics = uniqueFacts.reduce<ClinicalIncrementalMetrics>(
     (result, item) => {
