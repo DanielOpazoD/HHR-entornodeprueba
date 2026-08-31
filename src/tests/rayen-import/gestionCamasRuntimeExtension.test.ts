@@ -99,7 +99,7 @@ const createFixture = (
     healthProbeTimeoutMs: 5_000,
   });
 
-  return { runtime, values, storage, fetchWithTimeout };
+  return { runtime, values, storage, fetchWithTimeout, chromeApi };
 };
 
 describe('Gestión de Camas connection runtime', () => {
@@ -114,7 +114,7 @@ describe('Gestión de Camas connection runtime', () => {
   });
 
   it('binds an initial captured session to its source tab and rejects stale captures', async () => {
-    const { runtime, values } = createFixture();
+    const { runtime, values } = createFixture({}, { tabs: [{ id: 17 }] });
     const info = {
       accessValue: 'fixture',
       apiBase: 'https://hospbackend.rayensalud.cl/api',
@@ -132,6 +132,35 @@ describe('Gestión de Camas connection runtime', () => {
     await expect(runtime.captureSession(info, { tab: { id: 18 } })).rejects.toThrow(
       /intento de conexión anterior/
     );
+  });
+
+  it('adopta la captura de una pestaña viva cuando la sesión vigente quedó huérfana', async () => {
+    // La pestaña 17 (dueña de la sesión) ya no existe; la 18 está viva y
+    // autenticada. La sesión huérfana no debe exigir reconexión manual.
+    const { runtime, values } = createFixture(
+      {
+        'gc-session': {
+          accessValue: 'huérfana',
+          apiBase: 'https://hospbackend.rayensalud.cl/api',
+          facId: '1342',
+          sourceTabId: 17,
+          connectionAttemptId: '',
+        },
+      },
+      { tabs: [{ id: 18 }] }
+    );
+
+    await expect(
+      runtime.captureSession(
+        {
+          accessValue: 'viva',
+          apiBase: 'https://hospbackend.rayensalud.cl/api',
+          facId: '1342',
+        },
+        { tab: { id: 18 } }
+      )
+    ).resolves.toMatchObject({ ok: true, connection: { status: 'ready' } });
+    expect(values['gc-session']).toMatchObject({ accessValue: 'viva', sourceTabId: 18 });
   });
 
   it('forgets the temporary session and blocks silent recapture on disconnect', async () => {
@@ -184,11 +213,41 @@ describe('Gestión de Camas connection runtime', () => {
       message: 'Abre Gestión de Camas.',
     });
 
+    // Con una pestaña de reemplazo abierta, el health intenta adoptar su sesión
+    // en vivo; si el relé no entrega credencial, queda stale (no ready).
     const replacementTab = createFixture({ 'gc-session': record }, { tabs: [{ id: 8 }] });
     await expect(replacementTab.runtime.health()).resolves.toMatchObject({
       status: 'stale',
-      message: expect.stringContaining('pestaña cerrada'),
     });
+  });
+
+  it('el health adopta en vivo la sesión de una pestaña de reemplazo autenticada', async () => {
+    const record = {
+      accessValue: 'huérfana',
+      apiBase: 'https://hospbackend.rayensalud.cl/api',
+      facId: '1342',
+      sourceTabId: 7,
+      connectionAttemptId: '',
+      lastVerifiedAt: FINITE_SESSION_TIMESTAMP,
+    };
+    const fixture = createFixture({ 'gc-session': record }, { tabs: [{ id: 8 }] });
+    // La pestaña viva entrega su credencial al relé y el probe la verifica.
+    fixture.chromeApi.tabs.sendMessage.mockImplementation(
+      async (...args: unknown[]): Promise<never> =>
+        ((args[1] as { type?: string } | undefined)?.type === 'RAYEN_GC_GET_FETCH_INFO'
+          ? {
+              info: {
+                accessValue: 'viva',
+                apiBase: 'https://hospbackend.rayensalud.cl/api',
+                facId: '1342',
+              },
+            }
+          : { ready: true, message: 'Pestaña disponible.' }) as never
+    );
+    fixture.fetchWithTimeout.mockResolvedValue({ ok: true });
+
+    await expect(fixture.runtime.health()).resolves.toMatchObject({ status: 'ready' });
+    expect(fixture.values['gc-session']).toMatchObject({ accessValue: 'viva', sourceTabId: 8 });
   });
 
   it('clears only the matching session when Rayen returns an unauthorized response', async () => {

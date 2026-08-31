@@ -258,13 +258,13 @@
       "hotspots": {}
     },
     "gestion-camas-health.js": {
-      "maxLines": 74,
+      "maxLines": 85,
       "hotspots": {}
     },
     "gestion-camas-runtime.js": {
-      "maxLines": 498,
+      "maxLines": 505,
       "hotspots": {
-        "iife>variable:create>variable:persistGestionCamasSession>callback:mutateGestionCamasSession:0": 19,
+        "iife>variable:create>variable:persistGestionCamasSession>callback:mutateGestionCamasSession:0": 21,
         "iife>variable:create>variable:requestLiveGestionCamasSession": 23
       }
     },
