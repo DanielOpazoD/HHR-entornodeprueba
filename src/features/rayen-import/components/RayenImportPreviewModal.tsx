@@ -285,7 +285,9 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                               ? 'Ingreso turno noche: '
                               : 'Egreso: '}
                           </span>
-                          {edit.patientNames.join(', ')}
+                          {edit.patientNames.length > 0
+                            ? edit.patientNames.join(', ')
+                            : 'sin cambios aplicables'}
                           {!edit.withinEditingWindow && (
                             <span className="ml-1 font-medium text-red-600">
                               (requiere administrador — se omitirá)
@@ -301,6 +303,14 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                               (no existe registro para ese día — se omitirá)
                             </span>
                           )}
+                          {(edit.omittedAdmissions ?? []).map(omission => (
+                            <div
+                              key={`${edit.day}-om-${omission.patientName}`}
+                              className="ml-4 font-medium text-red-600"
+                            >
+                              ↳ {omission.patientName}: {omission.reason} — se omitirá
+                            </div>
+                          ))}
                         </li>
                       ))}
                     </ul>

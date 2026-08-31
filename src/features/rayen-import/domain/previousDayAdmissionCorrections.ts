@@ -127,6 +127,39 @@ export const previousDayAdmissionDays = (diff: CensusImportDiff, censusDay: stri
     .flatMap(entry => admissionSubjects(entry, censusDay).map(subject => subject.day))
     .filter(day => day < censusDay);
 
+/**
+ * Una condición de dominio que hace inaplicable un ingreso histórico (la cama
+ * del día previo sigue ocupada por otro paciente, la madre no está ese día,
+ * la cama no admite cuna, la cuna ya tiene otro RN). Se detecta en la
+ * PLANIFICACIÓN para mostrarse como omisión en la revisión — antes se
+ * descubría recién al escribir, post-commit, y dejaba la corrida marcada
+ * «requiere una nueva captura» para siempre (ninguna captura la arregla).
+ */
+const resolveHistoricalAdmissionBlock = (
+  record: DailyRecord | null | undefined,
+  subject: HistoricalAdmissionSubject
+): string | null => {
+  if (!record) return null;
+  if (subject.kind === 'principal') {
+    const occupant = record.beds[subject.bedId];
+    return isOccupied(occupant) && !samePatient(occupant, subject.patient)
+      ? `${subject.bedId} está ocupada ese día por ${occupant.patientName}`
+      : null;
+  }
+  const principalBed = Object.entries(record.beds).find(([, patient]) =>
+    samePatient(patient, subject.principal)
+  );
+  if (!principalBed) return 'la madre no está en el censo de ese día';
+  const [bedId, principal] = principalBed;
+  if (!mapRayenBed({ clinicalCribParentBedId: bedId }).isClinicalCrib) {
+    return `${bedId} no admite una cuna RN`;
+  }
+  if (principal.clinicalCrib && !samePatient(principal.clinicalCrib, subject.patient)) {
+    return `${bedId} ya conserva otro recién nacido`;
+  }
+  return null;
+};
+
 export const planPreviousDayAdmissionEdits = (
   diff: CensusImportDiff,
   censusDay: string,
@@ -149,8 +182,18 @@ export const planPreviousDayAdmissionEdits = (
       subjectsByDay.set(subject.day, subjects);
     }
   }
-  return [...subjectsByDay.entries()].map(([day, subjects]) => {
+  return [...subjectsByDay.keys()].sort().map(day => {
+    const candidates = subjectsByDay.get(day) ?? [];
     const record = records.get(day);
+    // La MISMA aplicación (pura) que usará la escritura decide qué sujetos son
+    // aplicables y cuáles se omiten con motivo — así una cuna cuya madre llega
+    // en esta misma corrección no queda bloqueada por evaluar el registro sin
+    // simular el orden.
+    const simulation = record ? applyHistoricalAdmissions(record, candidates) : null;
+    const subjects = simulation
+      ? candidates.filter(subject => recordHasSubject(simulation.record, subject))
+      : candidates;
+    const omitted = simulation?.omitted ?? [];
     return {
       day,
       reason: 'admission-night-shift-correction',
@@ -166,28 +209,43 @@ export const planPreviousDayAdmissionEdits = (
         clinicalEpisodeId: subject.patient.clinicalEpisodeId,
         rut: subject.patient.rut,
       })),
+      ...(omitted.length > 0 ? { omittedAdmissions: omitted } : {}),
     };
   });
 };
 
+export interface OmittedHistoricalAdmission {
+  patientName: string;
+  reason: string;
+}
+
+/**
+ * Aplica los ingresos históricos aplicables y OMITE (con motivo) los que una
+ * condición de dominio hace inaplicables, en vez de lanzar: un error duro aquí
+ * corre post-commit del día actual y condenaba la corrida a «requiere una
+ * nueva captura» permanente. Las omisiones ya se anticipan en la planificación
+ * (resolveHistoricalAdmissionBlock); este camino cubre además la carrera en
+ * que el día previo cambió entre la revisión y el commit.
+ */
 export const applyHistoricalAdmissions = (
   record: DailyRecord,
   subjects: HistoricalAdmissionSubject[]
-): { record: DailyRecord; applied: number } => {
+): { record: DailyRecord; applied: number; omitted: OmittedHistoricalAdmission[] } => {
   const beds = { ...record.beds };
   let applied = 0;
+  const omitted: OmittedHistoricalAdmission[] = [];
   const ordered = [...subjects].sort((left, right) =>
     left.kind === right.kind ? 0 : left.kind === 'principal' ? -1 : 1
   );
   for (const subject of ordered) {
     const current = { ...record, beds };
     if (recordHasSubject(current, subject)) continue;
+    const block = resolveHistoricalAdmissionBlock(current, subject);
+    if (block) {
+      omitted.push({ patientName: subject.patient.patientName, reason: block });
+      continue;
+    }
     if (subject.kind === 'principal') {
-      if (isOccupied(beds[subject.bedId])) {
-        throw new Error(
-          `No se aplicó el ingreso histórico de ${subject.patient.patientName}: ${subject.bedId} está ocupada por otro paciente.`
-        );
-      }
       beds[subject.bedId] = {
         ...subject.patient,
         bedId: subject.bedId,
@@ -200,21 +258,13 @@ export const applyHistoricalAdmissions = (
       samePatient(patient, subject.principal)
     );
     if (!principalBed) {
-      throw new Error(
-        `No se aplicó la cuna histórica de ${subject.patient.patientName}: la madre no está en el censo de ese día.`
-      );
+      omitted.push({
+        patientName: subject.patient.patientName,
+        reason: 'la madre no está en el censo de ese día',
+      });
+      continue;
     }
     const [bedId, principal] = principalBed;
-    if (!mapRayenBed({ clinicalCribParentBedId: bedId }).isClinicalCrib) {
-      throw new Error(
-        `No se aplicó la cuna histórica de ${subject.patient.patientName}: ${bedId} no admite una cuna RN.`
-      );
-    }
-    if (principal.clinicalCrib && !samePatient(principal.clinicalCrib, subject.patient)) {
-      throw new Error(
-        `No se aplicó la cuna histórica de ${subject.patient.patientName}: ${bedId} ya conserva otro recién nacido.`
-      );
-    }
     beds[bedId] = {
       ...principal,
       clinicalCrib: { ...subject.patient, bedId },
@@ -224,6 +274,7 @@ export const applyHistoricalAdmissions = (
   return {
     record: applied > 0 ? { ...record, beds, lastUpdated: new Date().toISOString() } : record,
     applied,
+    omitted,
   };
 };
 

@@ -140,6 +140,13 @@ export interface PreviousDayEdit {
     clinicalEpisodeId?: string;
     rut?: string;
   }>;
+  /**
+   * Ingresos históricos que NO se aplicarán ese día, con su motivo (p.ej. la
+   * cama del día previo sigue ocupada por otro paciente). Se muestran en la
+   * revisión y no participan de la escritura: una condición de dominio
+   * inaplicable no debe degradar la corrida a «requiere una nueva captura».
+   */
+  omittedAdmissions?: Array<{ patientName: string; reason: string }>;
 }
 
 /**

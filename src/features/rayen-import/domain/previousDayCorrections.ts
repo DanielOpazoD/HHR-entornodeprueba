@@ -61,6 +61,8 @@ const classifyHistoricalPatchOutcome = (
 export interface CrossDayCorrectionResult {
   confirmed: number;
   durablyQueued: number;
+  /** Ingresos históricos omitidos por condición de dominio (ver planificación). */
+  omitted: Array<{ day: string; patientName: string; reason: string }>;
 }
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
@@ -238,6 +240,7 @@ export const fileCrossDayCorrections = async (
   }
 
   const preparedCorrections = [];
+  const omitted: CrossDayCorrectionResult['omitted'] = [];
   for (const day of affectedDays) {
     const record = records.get(day);
     if (!record) continue;
@@ -250,6 +253,7 @@ export const fileCrossDayCorrections = async (
       movementResult.record,
       admissionsByDay.get(day) ?? []
     );
+    omitted.push(...admissionResult.omitted.map(entry => ({ day, ...entry })));
     if (movementResult.applied === 0 && admissionResult.applied === 0) continue;
     // La separación clínico/estructural del servidor rechaza un patch que
     // mezcla el árbol de camas con otros campos («La edición mezcla cambios de
@@ -272,7 +276,7 @@ export const fileCrossDayCorrections = async (
     preparedCorrections.push({ day, record, patches });
   }
 
-  const result: CrossDayCorrectionResult = { confirmed: 0, durablyQueued: 0 };
+  const result: CrossDayCorrectionResult = { confirmed: 0, durablyQueued: 0, omitted };
   for (const correction of preparedCorrections) {
     let dayOutcome: HistoricalPatchOutcome = 'confirmed';
     for (const patch of correction.patches) {

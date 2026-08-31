@@ -174,7 +174,7 @@ describe('previous clinical-day admission corrections', () => {
       }),
       { baseRecord: historicalRecord }
     );
-    expect(result).toEqual({ confirmed: 1, durablyQueued: 0 });
+    expect(result).toEqual({ confirmed: 1, durablyQueued: 0, omitted: [] });
   });
 
   it('does not backdate a newborn admitted after the clinical-day handoff', async () => {
@@ -402,46 +402,6 @@ describe('previous clinical-day admission corrections', () => {
         admissionSubjects: [expect.objectContaining({ kind: 'principal' })],
       }),
     ]);
-  });
-
-  it('rejects instead of replacing a different newborn attached to the historical mother', async () => {
-    const recordWithDifferentCrib: DailyRecord = {
-      ...historicalRecord,
-      beds: {
-        H4C1: {
-          ...motherAndNewbornDiff.admissions[0].patient,
-          clinicalCrib: {
-            ...EMPTY_PATIENT,
-            bedId: 'H4C1',
-            patientName: 'RN histórico distinto',
-            clinicalEpisodeId: 'existing-crib',
-          },
-        },
-      },
-    };
-    vi.mocked(repository.getForDate).mockImplementation(async day =>
-      day === '2026-07-25' ? recordWithDifferentCrib : null
-    );
-    const plan = await computePreviousDayEdits(
-      repository,
-      motherAndNewbornDiff,
-      '2026-07-26',
-      false
-    );
-
-    await expect(
-      fileCrossDayCorrections(
-        repository,
-        { ...historicalRecord, date: '2026-07-26' },
-        { ...motherAndNewbornDiff, previousDayEdits: plan.edits },
-        '2026-07-26',
-        false,
-        () => 'movement-id',
-        { actor: 'Enfermera prueba', syncRunId: 'sync-run' }
-      )
-    ).rejects.toThrow('ya conserva otro recién nacido');
-
-    expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
   });
 
   it('stores a crib under the historical bed occupied by its mother', async () => {
