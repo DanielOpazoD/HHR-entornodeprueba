@@ -174,6 +174,80 @@ describe('useRayenCensusDiffApplication', () => {
     expect(saveDailyRecord).not.toHaveBeenCalled();
   });
 
+  it('relee la versión autoritativa cuando la confirmación del checkpoint llega sin el sello del run', async () => {
+    const run = {
+      id: 'run-stale-confirmation',
+      startedAt: '2026-08-08T01:00:00.000Z',
+      by: 'Operador HHR',
+      sourceDate: baseRecord.date,
+    };
+    const confirmedAt = '2026-08-08T01:00:05.000Z';
+    const applyRunToRecord = vi.fn((record: DailyRecord) => ({
+      record: {
+        ...record,
+        rayenSync: { at: run.startedAt, by: run.by, runId: run.id, status: 'applied' },
+        rayenSyncHistory: [
+          {
+            id: run.id,
+            sourceDate: run.sourceDate,
+            startedAt: run.startedAt,
+            completedAt: confirmedAt,
+            by: run.by,
+            status: 'applied',
+          },
+        ],
+      } as DailyRecord,
+    }));
+    // El commit ocurrió, pero la confirmación devuelta es una lectura ANTERIOR
+    // sin el sello (reproducido en vivo el 31-08: la verificación del handoff
+    // marcaba fallida una corrida realmente commiteada).
+    const staleConfirmation = {
+      ...baseRecord,
+      rayenSync: { runId: 'run-anterior', status: 'applied' },
+    } as DailyRecord;
+    const checkpointDailyRecord = vi.fn(async () => ({
+      date: baseRecord.date,
+      outcome: 'clean',
+      updatedRemotely: true,
+      confirmedRecord: staleConfirmation,
+    }));
+    const stampedAuthoritative = {
+      ...applyRunToRecord(baseRecord).record,
+      lastUpdated: confirmedAt,
+    } as DailyRecord;
+    const loadAuthoritativeRecord = vi
+      .fn()
+      .mockResolvedValueOnce(baseRecord)
+      .mockResolvedValueOnce(stampedAuthoritative);
+    const { result } = renderHook(() =>
+      useRayenCensusDiffApplication({
+        ensureRun: () => run as never,
+        applyRunToRecord,
+        saveDailyRecord: vi.fn() as never,
+        checkpointRepository: { updatePartialDetailed: checkpointDailyRecord as never },
+        queryClient,
+        loadAuthoritativeRecord,
+        loadLocalRecord: vi.fn().mockResolvedValue({
+          record: null,
+          hasPendingWrites: false,
+          hasPendingWritesForDate: false,
+          writeState: 'none',
+        }),
+        recordRunPerformance: vi.fn(),
+      })
+    );
+
+    let applied: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      applied = await result.current(baseRecord, diff);
+    });
+
+    expect(loadAuthoritativeRecord).toHaveBeenCalledTimes(2);
+    expect(applied?.confirmedHandoff.acceptedRevision).toBe(confirmedAt);
+    expect(applied?.record.rayenSync?.runId).toBe(run.id);
+    expect(applied?.structuralStage.status).toBe('confirmed');
+  });
+
   it('rebases a metadata checkpoint on the latest server revision and preserves newer audit history', async () => {
     const run = {
       id: 'run-rebased-checkpoint',
