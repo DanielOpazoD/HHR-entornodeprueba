@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
+import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import {
   computePreviousDayEdits,
   fileCrossDayCorrections,
@@ -86,6 +87,113 @@ describe('fileCrossDayCorrections · escrituras puras por día', () => {
       'discharges',
       'transfers',
     ]);
-    expect(result).toEqual({ confirmed: 1, durablyQueued: 0 });
+    expect(result).toEqual({ confirmed: 1, durablyQueued: 0, omitted: [] });
+  });
+
+  it('omite (con motivo visible en el plan) el RN cuando la madre histórica ya conserva otro recién nacido', async () => {
+    const recordWithDifferentCrib: DailyRecord = {
+      ...historicalRecord,
+      beds: {
+        H4C1: {
+          ...motherAndNewbornDiff.admissions[0].patient,
+          clinicalCrib: {
+            ...EMPTY_PATIENT,
+            bedId: 'H4C1',
+            patientName: 'RN histórico distinto',
+            clinicalEpisodeId: 'existing-crib',
+          },
+        },
+      },
+    };
+    vi.mocked(repository.getForDate).mockImplementation(async day =>
+      day === '2026-07-25' ? recordWithDifferentCrib : null
+    );
+    const plan = await computePreviousDayEdits(
+      repository,
+      motherAndNewbornDiff,
+      '2026-07-26',
+      false
+    );
+
+    // La condición inaplicable se anticipa en la revisión (antes se descubría
+    // post-commit y dejaba «requiere nueva captura» permanente).
+    expect(plan.edits).toEqual([
+      expect.objectContaining({
+        day: '2026-07-25',
+        patientNames: [],
+        omittedAdmissions: [
+          expect.objectContaining({
+            patientName: 'RN de Maeva Tuki Garcia',
+            reason: expect.stringContaining('ya conserva otro recién nacido'),
+          }),
+        ],
+      }),
+    ]);
+
+    const result = await fileCrossDayCorrections(
+      repository,
+      { ...historicalRecord, date: '2026-07-26' },
+      { ...motherAndNewbornDiff, previousDayEdits: plan.edits },
+      '2026-07-26',
+      false,
+      () => 'movement-id',
+      { actor: 'Enfermera prueba', syncRunId: 'sync-run' }
+    );
+
+    expect(result).toEqual({ confirmed: 0, durablyQueued: 0, omitted: [] });
+    expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
+  });
+
+  it('omite el ingreso histórico cuando la cama del día previo la ocupa otro paciente (caso NEO1)', async () => {
+    // Caso real del 31-08: Claudia ingresó de madrugada a NEO1, pero en el
+    // censo del día previo NEO1 aún la ocupaba otra paciente. Antes esto se
+    // descubría post-commit y dejaba «requiere una nueva captura» permanente.
+    const occupiedHistorical: DailyRecord = {
+      ...historicalRecord,
+      beds: {
+        H4C1: {
+          ...EMPTY_PATIENT,
+          bedId: 'H4C1',
+          patientName: 'Ocupante Histórica Real',
+          rut: '3.827.053-2',
+          clinicalEpisodeId: 'occupant-ep',
+        },
+      },
+    };
+    vi.mocked(repository.getForDate).mockImplementation(async day =>
+      day === '2026-07-25' ? occupiedHistorical : null
+    );
+    const plan = await computePreviousDayEdits(
+      repository,
+      motherAndNewbornDiff,
+      '2026-07-26',
+      false
+    );
+
+    expect(plan.edits).toEqual([
+      expect.objectContaining({
+        day: '2026-07-25',
+        patientNames: [],
+        omittedAdmissions: expect.arrayContaining([
+          expect.objectContaining({
+            patientName: 'Maeva Elisabet Maria Tuki Garcia',
+            reason: expect.stringContaining('ocupada ese día por Ocupante Histórica Real'),
+          }),
+        ]),
+      }),
+    ]);
+
+    const result = await fileCrossDayCorrections(
+      repository,
+      { ...historicalRecord, date: '2026-07-26' },
+      { ...motherAndNewbornDiff, previousDayEdits: plan.edits },
+      '2026-07-26',
+      false,
+      () => 'movement-id',
+      { actor: 'Enfermera prueba', syncRunId: 'sync-run' }
+    );
+
+    expect(result).toEqual({ confirmed: 0, durablyQueued: 0, omitted: [] });
+    expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
   });
 });
