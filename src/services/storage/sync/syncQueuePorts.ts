@@ -37,14 +37,19 @@ export interface SyncQueueStorePort {
     task: SyncTask,
     expectedTask?: PendingDailyRecordSyncTaskIdentity
   ): Promise<boolean>;
-  /** Atomically inspect every unresolved write for a date and adopt or replace exactly one task. */
+  /**
+   * Atomically inspect every unresolved write for a date and adopt, replace or
+   * supersede exactly one task. A replacement with `task: null` means the confirmed
+   * command fully covered the pending work: the task is deleted in the same
+   * transaction so it can never replay already-applied state.
+   */
   adoptAuthoritativeDailyRecord?(
     authoritativeRecord: DailyRecord,
     ownerKey: string | null,
     buildReplacement: (
       localRecord: DailyRecord,
       pendingTask: SyncTask
-    ) => { record: DailyRecord; task: SyncTask } | null
+    ) => { record: DailyRecord; task: SyncTask | null } | null
   ): Promise<DailyRecordAuthorityAdoptionResult>;
   deletePendingByKey(
     type: SyncTask['type'],

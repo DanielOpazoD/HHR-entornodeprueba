@@ -148,12 +148,13 @@ export const rebasePendingDailyRecordWrite = ({
   authoritativeRecord: DailyRecord;
   pendingTask: PendingDailyRecordSyncTaskSnapshot;
   alreadyAppliedPatch: DailyRecordPatch;
-}): { record: DailyRecord; changedPaths: string[] } => {
+}): { record: DailyRecord; changedPaths: string[]; pendingPaths: string[] } => {
   const pendingPatch = buildSafePendingPatch({
     authoritativeRecord,
     pendingTask,
     alreadyAppliedPatch,
   });
+  const pendingPaths = Object.keys(pendingPatch);
   const authoritativeClinicalProtection = buildAuthoritativeClinicalFieldProtection(
     authoritativeRecord,
     pendingPatch
@@ -163,5 +164,18 @@ export const rebasePendingDailyRecordWrite = ({
     authoritativeRecord.date,
     { ...pendingPatch, ...alreadyAppliedPatch, ...authoritativeClinicalProtection }
   );
-  return { record, changedPaths: Object.keys(mergedPatches) };
+  // El replacement sólo declara lo genuinamente pendiente. Los paths del comando
+  // ya aplicado son durables en el registro autoritativo: volver a declararlos
+  // mantenía viva la propiedad del subárbol cama–cuna y hacía que la adopción del
+  // siguiente comando (p. ej. recrear la cuna) fallara contra la guardia de
+  // identidad. La protección clínica autoritativa tampoco es un cambio: fija los
+  // valores que el registro base ya tiene.
+  const replacementChangedPaths = Object.keys(mergedPatches).filter(path =>
+    isAffectedByAppliedPatch(path, pendingPaths)
+  );
+  return {
+    record,
+    changedPaths: replacementChangedPaths.length > 0 ? replacementChangedPaths : pendingPaths,
+    pendingPaths,
+  };
 };

@@ -152,7 +152,7 @@ export const createDailyRecordSyncQueueActions = ({
     buildReplacement: (
       localRecord: DailyRecord,
       pendingTask: SyncTask
-    ) => { record: DailyRecord; task: SyncTask } | null
+    ) => { record: DailyRecord; task: SyncTask | null } | null
   ): Promise<DailyRecordAuthorityAdoptionResult> => {
     try {
       await ensureReady();
