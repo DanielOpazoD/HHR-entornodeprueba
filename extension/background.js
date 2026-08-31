@@ -28,6 +28,7 @@ importScripts(
   'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'gestion-camas-cudyr.js',
+  'patient-clinical-bundle-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
@@ -264,7 +265,11 @@ const handleExtensionHealth = async () => {
   return {
     version: chrome.runtime.getManifest().version,
     protocolVersion: EXTENSION_PROTOCOL_VERSION,
-    capabilities: ['patient-flow-report', 'statistical-discharge-evidence'],
+    capabilities: [
+      'patient-flow-report',
+      'statistical-discharge-evidence',
+      'patient-clinical-bundle',
+    ],
     checkedAt: new Date().toISOString(),
     fichaMedico,
     gestionCamas,
@@ -1135,6 +1140,12 @@ const syslabRuntime = self.HhrSyslabPdfBundle.createRuntime({ chrome, downloadPd
 
 const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });
 
+const handlePatientClinicalBundleRequest = self.HhrPatientClinicalBundleRuntime.create({
+  readDevices: handleDeviceReportRequest,
+  readHistory: handleHistoryScalesRequest,
+  readForms: handleScalesReportRequest,
+});
+
 const runtimeMessageRoutes = Object.freeze({
   [RUNTIME_MESSAGES.EXTENSION_HEALTH_REQUEST]: runtimeRoute(
     () => handleExtensionHealth(),
@@ -1235,6 +1246,10 @@ const runtimeMessageRoutes = Object.freeze({
         lookbackDays: message.lookbackDays,
       }),
     'No se pudo leer el historial de escalas.'
+  ),
+  [RUNTIME_MESSAGES.PATIENT_CLINICAL_BUNDLE_REQUEST]: runtimeRoute(
+    (message, sender) => handlePatientClinicalBundleRequest({ ...message, sender }),
+    'No se pudo leer el paquete clínico del paciente.'
   ),
   [RUNTIME_MESSAGES.CLINICAL_PANEL_REQUEST]: runtimeRoute(
     message => handleClinicalPanelRequest({ encId: message.encId }),

@@ -50,6 +50,16 @@ export interface ClinicalFillDeps {
     error?: string;
   }>;
   fetchScalesForms: (encId: string) => Promise<{ forms: unknown[]; error?: string }>;
+  /**
+   * Las tres lecturas del paciente en un solo mensaje (capability
+   * `patient-clinical-bundle` de la extensión). `null` cuando la extensión
+   * instalada no la soporta — el lector usa entonces los canales individuales.
+   */
+  fetchPatientClinicalBundle?: (
+    encId: string,
+    fecha: string,
+    options: { censusDate?: string; lookbackDays?: number }
+  ) => Promise<import('./patientClinicalBundle').RayenPatientClinicalBundle | null>;
   /** One run-level capture; official history is required before clinical work starts. */
   fetchCudyrCategories: () => Promise<RayenCudyrCategoriesResponse>;
   applyHistoricalCudyr?: (

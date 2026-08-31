@@ -164,7 +164,12 @@ describe('Ficha Médico patient-context owner', () => {
     expect(source).toContain('const normalizeHospitalizedEncounter =');
     expect(source).toContain('const getClinicalReportContext = async');
     expect(source).not.toMatch(/method:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/);
-    expect(background.split('\n').length).toBeLessThanOrEqual(1_425);
+    // El paquete clínico por paciente también vive extraído; en background sólo
+    // queda su cableado (create + ruta), igual que el contexto de pacientes.
+    expect(background).toContain('self.HhrPatientClinicalBundleRuntime.create({');
+    expect(background).not.toContain('const section = async read');
+    // Presupuesto-trinquete: sube únicamente junto a lógica ya extraída.
+    expect(background.split('\n').length).toBeLessThanOrEqual(1_430);
     expect(source.split('\n').length).toBeLessThanOrEqual(380);
     expect(() => factory.create({})).toThrow('Falta la dependencia resolveSession.');
   });
