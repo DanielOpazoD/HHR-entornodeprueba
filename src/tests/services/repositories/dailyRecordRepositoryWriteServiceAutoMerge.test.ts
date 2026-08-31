@@ -321,7 +321,7 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     );
   });
 
-  it('auto-merges a bed move without resurrecting the cleared source bed', async () => {
+  it('auto-merges a bed move when the rebase retry also conflicts, without resurrecting the cleared source bed', async () => {
     const current = buildRecord('2026-02-15');
     current.beds = {
       R1: buildPatient('R1', 'Paciente movido'),
@@ -359,7 +359,12 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
     concurrencyError.name = 'ConcurrencyError';
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
-    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
+    // El remoto no tocó las camas del patch, así que primero corre el retry
+    // re-basado; sólo cuando ese segundo intento también pierde el CAS se
+    // degrada a la recuperación por auto-merge.
+    vi.mocked(updateRecordPartialToFirestore)
+      .mockRejectedValueOnce(concurrencyError)
+      .mockRejectedValueOnce(concurrencyError);
     vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
 
     await expect(
@@ -368,6 +373,8 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
         'beds.R1': clearedSource,
       })
     ).resolves.toBeUndefined();
+
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(2);
 
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -463,7 +470,7 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
     vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(concurrencyError);
-    vi.mocked(getRecordFromFirestore).mockResolvedValueOnce(null);
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(null);
 
     const result = await updatePartialDetailed('2026-02-14', {
       'beds.R1.patientName': 'Paciente actualizado',

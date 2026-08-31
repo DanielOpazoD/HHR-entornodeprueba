@@ -285,8 +285,19 @@ describe('Multi-tab regression — stale snapshot writes are detected', () => {
     // auto-merge instead of dropping the patch.
     const date = '2026-02-19';
     const baseline = buildDenseRecord(date);
+    // Tab B ganó el CAS escribiendo el MISMO campo: el retry re-basado no
+    // aplica (el campo sí cambió remotamente) y debe correr el auto-merge.
+    const remoteFromTabB = {
+      ...baseline,
+      lastUpdated: '2026-02-19T10:05:00.000Z',
+      beds: {
+        ...baseline.beds,
+        R1: { ...baseline.beds.R1, pathology: 'Diagnostico actualizado por Tab B' },
+      },
+    };
 
     vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(baseline);
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remoteFromTabB);
     const concurrencyError = new Error('Concurrency conflict');
     concurrencyError.name = 'ConcurrencyError';
     vi.mocked(updateRecordPartialToFirestore).mockReset();

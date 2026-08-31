@@ -35,6 +35,7 @@ import {
   buildSaveResult,
   createRemoteWriteState,
   type RemoteWriteState,
+  applyBlockedSaveRecoveryToState,
 } from '@/services/repositories/dailyRecordWriteState';
 import {
   buildFieldShrinkageBlockedPartialUpdateResult,
@@ -42,6 +43,7 @@ import {
   buildValidationBlockedPartialUpdateResult,
 } from '@/services/repositories/dailyRecordPartialUpdateBlockingController';
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
+import { buildGranularPatchStaleVersionRetryHooks } from '@/services/repositories/dailyRecordStaleVersionRebase';
 import { buildPreOutboxRemoteAckOptions } from '@/services/repositories/dailyRecordPreOutboxRemoteAckPolicy';
 import { buildPreOutboxRemoteAckCallbacks } from '@/services/repositories/dailyRecordPreOutboxRemoteAckCallbacks';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
@@ -157,46 +159,7 @@ const saveDetailedWithinLock = async (
       err instanceof VersionMismatchError ||
       err instanceof AdmissionDatePolicyViolationError
     ) {
-      applyRecoveryDecisionToState(
-        remoteState,
-        {
-          consistencyState:
-            err instanceof DataRegressionError
-              ? 'blocked_regression'
-              : err instanceof VersionMismatchError
-                ? 'blocked_version_mismatch'
-                : 'blocked_validation',
-          retryability: 'blocked',
-          recoveryAction: 'block_and_surface',
-          blockingReason:
-            err instanceof DataRegressionError
-              ? 'regression'
-              : err instanceof VersionMismatchError
-                ? 'version_mismatch'
-                : 'validation',
-          conflictSummary: {
-            kind:
-              err instanceof DataRegressionError
-                ? 'regression_blocked'
-                : err instanceof VersionMismatchError
-                  ? 'version_mismatch'
-                  : 'validation_blocked',
-            sourceOfTruth: 'none',
-            message: err.message,
-          },
-          observabilityTags: [
-            'daily_record',
-            'write',
-            err instanceof DataRegressionError
-              ? 'regression_blocked'
-              : err instanceof VersionMismatchError
-                ? 'version_mismatch'
-                : 'validation_blocked',
-          ],
-          userSafeMessage: err.message,
-        },
-        err
-      );
+      applyBlockedSaveRecoveryToState(remoteState, err);
       return buildBlockedSaveResult(command.date, remoteState);
     }
     throw err;
@@ -360,6 +323,15 @@ const updatePartialDetailedWithinLock = async (
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
+    ...buildGranularPatchStaleVersionRetryHooks({
+      date: command.date,
+      options,
+      policy: guardedCommandPolicy,
+      isReclassification,
+      semanticChangedPaths,
+      baseRecord: current,
+      validatedRecord,
+    }),
     resolveAlreadyAppliedRemoteRecord: guardedCommandPolicy.resolveAlreadyAppliedRemoteRecord,
     adoptRemoteAuthorityRecord: authoritativeRecord =>
       adoptAuthoritativeRecord(

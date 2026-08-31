@@ -87,15 +87,24 @@ const isClinicalAuthorityDerivedPatchPath = (path: string): boolean => {
   }
 
   const [root, bedId, field, nestedField, ...rest] = path.split('.');
-  if (root !== 'beds' || !bedId || rest.length > 0) {
+  if (root !== 'beds' || !bedId || !field) {
     return false;
   }
 
-  return (
-    field === 'fhir_resource' ||
-    field === 'clinicalEpisodeId' ||
-    (field === 'clinicalCrib' && nestedField === 'fhir_resource')
-  );
+  // El acompañante FHIR llega APLANADO por prepareFirestorePartialData, con
+  // sub-paths de profundidad arbitraria (p.ej. beds.R3.fhir_resource.meta.profile).
+  // Reconocer sólo el primer nivel dejaba el resto clasificado como estructural,
+  // convirtiendo cada patch clínico de una cama con paciente en una "mezcla"
+  // rechazada — y degradando cada cambio de estado/especialidad a
+  // auto-merge + guardado del registro completo.
+  if (field === 'fhir_resource') {
+    return true;
+  }
+  if (field === 'clinicalCrib' && nestedField === 'fhir_resource') {
+    return true;
+  }
+
+  return field === 'clinicalEpisodeId' && nestedField === undefined && rest.length === 0;
 };
 
 const isDoctorSpecialistRole = (role: UserRole | null): role is 'doctor_specialist' =>

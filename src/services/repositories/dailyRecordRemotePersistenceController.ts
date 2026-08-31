@@ -18,6 +18,7 @@ import {
   markRemoteWriteSucceeded,
   recoverAlreadyAppliedRemoteWrite,
 } from '@/services/repositories/dailyRecordRemotePersistenceState';
+import { attemptStaleVersionRebaseRetry } from '@/services/repositories/dailyRecordStaleVersionRebase';
 
 export interface RemoteAuthorityWriteResult {
   recordState?: {
@@ -171,6 +172,8 @@ export const persistLocalAndAttemptRemoteSync = async ({
   readRemoteConfirmedRecord,
   resolveAlreadyAppliedRemoteRecord,
   adoptRemoteAuthorityRecord,
+  retryRemoteWriteOnStaleVersion,
+  canRebaseStaleVersionConflict,
   requireConfirmedRecord = false,
   allowConflictAutoMerge = true,
   remoteAuthorityFirst = false,
@@ -189,6 +192,11 @@ export const persistLocalAndAttemptRemoteSync = async ({
   renewLocalPreOutboxHoldEveryMs?: number;
   /** Compatibility readback when a deployed callable confirms without returning recordState. */
   readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>;
+  /** Reintento acotado por versión vieja — ver dailyRecordStaleVersionRebase. */
+  retryRemoteWriteOnStaleVersion?: (
+    freshRemoteRecord: DailyRecord
+  ) => Promise<RemoteAuthorityWriteResult | void>;
+  canRebaseStaleVersionConflict?: (freshRemoteRecord: DailyRecord) => boolean;
   /**
    * A guarded command can lose its CAS race after another writer already reached the same desired
    * state. When that can be proven from a fresh authoritative read, adopt that exact record instead
@@ -311,11 +319,25 @@ export const persistLocalAndAttemptRemoteSync = async ({
   }
 
   try {
-    const remoteResult = await runRemoteWriteWithOptionalPreOutboxRenewal(
-      remoteWrite,
-      renewLocalPreOutboxHold,
-      renewLocalPreOutboxHoldEveryMs
-    );
+    let remoteResult: RemoteAuthorityWriteResult | void;
+    try {
+      remoteResult = await runRemoteWriteWithOptionalPreOutboxRenewal(
+        remoteWrite,
+        renewLocalPreOutboxHold,
+        renewLocalPreOutboxHoldEveryMs
+      );
+    } catch (writeError) {
+      const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({
+        writeError,
+        date: record.date,
+        hooks: { retryRemoteWriteOnStaleVersion, canRebaseStaleVersionConflict },
+        readRemoteConfirmedRecord,
+      });
+      if (!rebased) {
+        throw writeError;
+      }
+      remoteResult = rebased.result;
+    }
     markRemoteWriteSucceeded(remoteState);
     // Callable-backed writes return an authority payload. A Rayen structural import can also use
     // the direct Firestore adapter (which returns `void`), so that one flow explicitly requests a

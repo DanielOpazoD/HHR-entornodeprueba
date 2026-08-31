@@ -1,4 +1,5 @@
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
+import { DataRegressionError, VersionMismatchError } from '@/utils/integrityGuard';
 import {
   createSaveDailyRecordResult,
   createUpdatePartialDailyRecordResult,
@@ -177,3 +178,51 @@ export const buildBlockedPartialUpdateResult = (
     repairApplied: false,
     blockingError: state.blockingError,
   });
+
+/**
+ * Clasifica un error de integridad bloqueante de un guardado completo
+ * (regresión, versión o validación de fecha de ingreso) y lo aplica al estado.
+ */
+export const applyBlockedSaveRecoveryToState = (state: RemoteWriteState, err: Error): void => {
+  const blockedKind =
+    err instanceof DataRegressionError
+      ? 'regression'
+      : err instanceof VersionMismatchError
+        ? 'version_mismatch'
+        : 'validation';
+  applyRecoveryDecisionToState(
+    state,
+    {
+      consistencyState:
+        blockedKind === 'regression'
+          ? 'blocked_regression'
+          : blockedKind === 'version_mismatch'
+            ? 'blocked_version_mismatch'
+            : 'blocked_validation',
+      retryability: 'blocked',
+      recoveryAction: 'block_and_surface',
+      blockingReason: blockedKind,
+      conflictSummary: {
+        kind:
+          blockedKind === 'regression'
+            ? 'regression_blocked'
+            : blockedKind === 'version_mismatch'
+              ? 'version_mismatch'
+              : 'validation_blocked',
+        sourceOfTruth: 'none',
+        message: err.message,
+      },
+      observabilityTags: [
+        'daily_record',
+        'write',
+        blockedKind === 'regression'
+          ? 'regression_blocked'
+          : blockedKind === 'version_mismatch'
+            ? 'version_mismatch'
+            : 'validation_blocked',
+      ],
+      userSafeMessage: err.message,
+    },
+    err
+  );
+};
