@@ -1116,8 +1116,10 @@ const recordAuthorityTelemetry = async ({
         attempt: 1,
         totalAttempts: 1,
         status,
-        errorCode,
-        errorMessage,
+        // Firestore rechaza undefined: en éxito estos campos no existen y el
+        // .add() fallaba silenciosamente — por eso nunca hubo telemetría de éxito.
+        errorCode: errorCode ?? null,
+        errorMessage: errorMessage ?? null,
         timestamp: new Date().toISOString(),
         context: {
           date,
