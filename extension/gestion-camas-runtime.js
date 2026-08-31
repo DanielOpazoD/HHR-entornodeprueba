@@ -97,6 +97,13 @@
         return null;
       });
 
+    const isGestionCamasTabOpen = async tabId => {
+      const normalized = Number(tabId);
+      if (!Number.isInteger(normalized)) return false;
+      const tabs = await chromeApi.tabs.query({ url: MATCH_PATTERN });
+      return tabs.some(tab => Number(tab && tab.id) === normalized);
+    };
+
     const persistGestionCamasSession = async (info, { sourceTabId } = {}) =>
       mutateGestionCamasSession(async () => {
         const record = session.buildSessionRecord(info);
@@ -121,10 +128,22 @@
           Number(current.sourceTabId) === normalizedSourceTabId &&
           String(current.connectionAttemptId || '') === suppliedAttemptId
         );
-        const acceptsInitialUnscopedCapture = Boolean(
-          !current && !pending && !suppliedAttemptId && !(control && control.blocked)
+        // Una sesión atada a una pestaña que YA NO EXISTE no debe bloquear la
+        // adopción de una pestaña viva y autenticada: ese candado dejaba al
+        // usuario logueado en Gestión de Camas pero con la extensión exigiendo
+        // reconexión manual. La captura huérfana se reemplaza igual que la
+        // inicial (misma superficie: pestaña real verificada por sender y
+        // token comprobado por el probe antes de usarse).
+        const currentSourceTabAlive = current
+          ? await isGestionCamasTabOpen(current.sourceTabId)
+          : false;
+        const acceptsUnscopedCapture = Boolean(
+          (!current || !currentSourceTabAlive) &&
+          !pending &&
+          !suppliedAttemptId &&
+          !(control && control.blocked)
         );
-        if (!matchesPendingAttempt && !matchesCurrentBinding && !acceptsInitialUnscopedCapture) {
+        if (!matchesPendingAttempt && !matchesCurrentBinding && !acceptsUnscopedCapture) {
           throw new Error('La captura pertenece a un intento de conexión anterior.');
         }
 

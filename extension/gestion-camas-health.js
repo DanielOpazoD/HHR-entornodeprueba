@@ -38,9 +38,18 @@
         session.isUsable(record) &&
         !matchingTabs.some(tab => Number(tab?.id) === Number(record.sourceTabId))
       ) {
+        // La pestaña de origen murió, pero hay pestañas de Gestión de Camas
+        // vivas (el probe de arriba ya respondió): adoptar su sesión en vivo
+        // en lugar de exigir una reconexión manual.
+        const live = await requestLiveSession({
+          verificationTimeoutMs: healthProbeTimeoutMs,
+          tabTimeoutMs: healthProbeTimeoutMs,
+        });
+        if (live.record) return session.publicStatus(live.record);
         return {
           status: 'stale',
           message:
+            live.error ||
             'La sesión guardada pertenece a una pestaña cerrada. Vuelve a conectar Gestión de Camas.',
         };
       }
