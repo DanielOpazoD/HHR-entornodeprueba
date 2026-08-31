@@ -35,6 +35,7 @@ import {
   buildSaveResult,
   createRemoteWriteState,
   type RemoteWriteState,
+  applyBlockedSaveRecoveryToState,
 } from '@/services/repositories/dailyRecordWriteState';
 import {
   buildFieldShrinkageBlockedPartialUpdateResult,
@@ -42,10 +43,7 @@ import {
   buildValidationBlockedPartialUpdateResult,
 } from '@/services/repositories/dailyRecordPartialUpdateBlockingController';
 import { persistLocalAndAttemptRemoteSync } from '@/services/repositories/dailyRecordRemotePersistenceController';
-import {
-  getValueAtPath,
-  hasSameValuesAtPaths,
-} from '@/services/repositories/conflictResolutionUtils';
+import { buildGranularPatchStaleVersionRetryHooks } from '@/services/repositories/dailyRecordStaleVersionRebase';
 import { buildPreOutboxRemoteAckOptions } from '@/services/repositories/dailyRecordPreOutboxRemoteAckPolicy';
 import { buildPreOutboxRemoteAckCallbacks } from '@/services/repositories/dailyRecordPreOutboxRemoteAckCallbacks';
 import { dailyRecordWriteLogger } from '@/services/repositories/repositoryLoggers';
@@ -161,46 +159,7 @@ const saveDetailedWithinLock = async (
       err instanceof VersionMismatchError ||
       err instanceof AdmissionDatePolicyViolationError
     ) {
-      applyRecoveryDecisionToState(
-        remoteState,
-        {
-          consistencyState:
-            err instanceof DataRegressionError
-              ? 'blocked_regression'
-              : err instanceof VersionMismatchError
-                ? 'blocked_version_mismatch'
-                : 'blocked_validation',
-          retryability: 'blocked',
-          recoveryAction: 'block_and_surface',
-          blockingReason:
-            err instanceof DataRegressionError
-              ? 'regression'
-              : err instanceof VersionMismatchError
-                ? 'version_mismatch'
-                : 'validation',
-          conflictSummary: {
-            kind:
-              err instanceof DataRegressionError
-                ? 'regression_blocked'
-                : err instanceof VersionMismatchError
-                  ? 'version_mismatch'
-                  : 'validation_blocked',
-            sourceOfTruth: 'none',
-            message: err.message,
-          },
-          observabilityTags: [
-            'daily_record',
-            'write',
-            err instanceof DataRegressionError
-              ? 'regression_blocked'
-              : err instanceof VersionMismatchError
-                ? 'version_mismatch'
-                : 'validation_blocked',
-          ],
-          userSafeMessage: err.message,
-        },
-        err
-      );
+      applyBlockedSaveRecoveryToState(remoteState, err);
       return buildBlockedSaveResult(command.date, remoteState);
     }
     throw err;
@@ -326,23 +285,6 @@ const updatePartialDetailedWithinLock = async (
     isReclassification,
   });
 
-  // Un patch granular corriente (sin CAS atómico ni guardas Rayen) puede perder
-  // el CAS del servidor sólo porque otra escritura propia avanzó la versión
-  // entre medio (ráfagas de edición). Si los campos de ESTE patch no cambiaron
-  // remotamente respecto de la base local, re-basar la versión y reintentar una
-  // vez es seguro y evita degradar a auto-merge + re-encolar el registro entero.
-  const canRetryGranularPatchOnStaleVersion =
-    !isReclassification &&
-    !options.rayenClinicalWriteGuard &&
-    !options.requireAtomicCas &&
-    !guardedCommandPolicy.requireAtomicCas &&
-    !guardedCommandPolicy.remoteAuthorityFirst &&
-    semanticChangedPaths.length > 0 &&
-    !semanticChangedPaths.includes('*');
-  const baseValuesAtPatchPaths = Object.fromEntries(
-    semanticChangedPaths.map(path => [path, getValueAtPath(current, path)])
-  );
-
   const suspiciousShrinkages = await resolveBlockingFieldShrinkages(
     command.date,
     current,
@@ -381,26 +323,15 @@ const updatePartialDetailedWithinLock = async (
       ),
     ...buildPreOutboxRemoteAckCallbacks(validatedRecord, syncContract),
     readRemoteConfirmedRecord: () => getRecordFromFirestore(command.date, { source: 'server' }),
-    retryRemoteWriteOnStaleVersion: canRetryGranularPatchOnStaleVersion
-      ? freshRemoteRecord =>
-          updateRecordPartialToFirestore(
-            command.date,
-            guardedCommandPolicy.remoteAuthorityPatch,
-            freshRemoteRecord.lastUpdated,
-            buildGuardedDailyRecordRemoteWriteOptions({
-              options,
-              policy: guardedCommandPolicy,
-              syncContract: buildDailyRecordSyncContract(validatedRecord, {
-                expectedVersion: freshRemoteRecord.lastUpdated,
-                changedPaths: semanticChangedPaths,
-              }),
-              isReclassification,
-            })
-          )
-      : undefined,
-    canRebaseStaleVersionConflict: canRetryGranularPatchOnStaleVersion
-      ? freshRemoteRecord => hasSameValuesAtPaths(freshRemoteRecord, baseValuesAtPatchPaths)
-      : undefined,
+    ...buildGranularPatchStaleVersionRetryHooks({
+      date: command.date,
+      options,
+      policy: guardedCommandPolicy,
+      isReclassification,
+      semanticChangedPaths,
+      baseRecord: current,
+      validatedRecord,
+    }),
     resolveAlreadyAppliedRemoteRecord: guardedCommandPolicy.resolveAlreadyAppliedRemoteRecord,
     adoptRemoteAuthorityRecord: authoritativeRecord =>
       adoptAuthoritativeRecord(

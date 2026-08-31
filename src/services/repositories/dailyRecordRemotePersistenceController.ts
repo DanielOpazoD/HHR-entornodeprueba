@@ -18,6 +18,7 @@ import {
   markRemoteWriteSucceeded,
   recoverAlreadyAppliedRemoteWrite,
 } from '@/services/repositories/dailyRecordRemotePersistenceState';
+import { attemptStaleVersionRebaseRetry } from '@/services/repositories/dailyRecordStaleVersionRebase';
 
 export interface RemoteAuthorityWriteResult {
   recordState?: {
@@ -191,13 +192,7 @@ export const persistLocalAndAttemptRemoteSync = async ({
   renewLocalPreOutboxHoldEveryMs?: number;
   /** Compatibility readback when a deployed callable confirms without returning recordState. */
   readRemoteConfirmedRecord?: () => Promise<DailyRecord | null>;
-  /**
-   * Reintento acotado para un patch granular que perdió el CAS sólo por versión:
-   * si los campos del patch no cambiaron remotamente (canRebaseStaleVersionConflict),
-   * se reintenta UNA vez la escritura remota re-basada en la versión fresca en
-   * lugar de degradar a auto-merge + cola de registro completo. Un segundo
-   * conflicto sigue la recuperación normal.
-   */
+  /** Reintento acotado por versión vieja — ver dailyRecordStaleVersionRebase. */
   retryRemoteWriteOnStaleVersion?: (
     freshRemoteRecord: DailyRecord
   ) => Promise<RemoteAuthorityWriteResult | void>;
@@ -332,25 +327,16 @@ export const persistLocalAndAttemptRemoteSync = async ({
         renewLocalPreOutboxHoldEveryMs
       );
     } catch (writeError) {
-      if (
-        !retryRemoteWriteOnStaleVersion ||
-        !canRebaseStaleVersionConflict ||
-        !readRemoteConfirmedRecord ||
-        !(writeError instanceof Error) ||
-        writeError.name !== 'ConcurrencyError'
-      ) {
+      const rebased = await attemptStaleVersionRebaseRetry<RemoteAuthorityWriteResult>({
+        writeError,
+        date: record.date,
+        hooks: { retryRemoteWriteOnStaleVersion, canRebaseStaleVersionConflict },
+        readRemoteConfirmedRecord,
+      });
+      if (!rebased) {
         throw writeError;
       }
-      const freshRemoteRecord = await readRemoteConfirmedRecord();
-      if (
-        !isValidRemoteAuthorityRecord(freshRemoteRecord, record.date) ||
-        !canRebaseStaleVersionConflict(freshRemoteRecord)
-      ) {
-        throw writeError;
-      }
-      // Sólo la versión quedó vieja (los campos editados no cambiaron
-      // remotamente): reintentar una única vez re-basado en la versión fresca.
-      remoteResult = await retryRemoteWriteOnStaleVersion(freshRemoteRecord);
+      remoteResult = rebased.result;
     }
     markRemoteWriteSucceeded(remoteState);
     // Callable-backed writes return an authority payload. A Rayen structural import can also use
