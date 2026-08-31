@@ -28,6 +28,21 @@ import {
   isHydratedRemotePatchRiskBlocking,
 } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 import { resolveDailyRecordClinicalPatchLockDecision } from '@/hooks/controllers/dailyRecordClinicalFieldAcknowledgementController';
+import { getSyncClientId } from '@/services/storage/sync/syncMutationIdentity';
+
+/**
+ * Una confirmación remota escrita por ESTE mismo cliente no es un cambio ajeno:
+ * es el eco de la edición anterior del propio usuario. Bloquear (y descartar en
+ * silencio) la siguiente edición de una ráfaga por ese eco era la causa de los
+ * cambios de estado/especialidad "que no se graban". El CAS remoto sigue
+ * protegiendo contra escritores concurrentes reales.
+ */
+const isOwnClientRemoteConfirmation = (record: DailyRecord | null | undefined): boolean => {
+  const lastWriterClientId = (
+    record as { meta?: { lastWriterClientId?: unknown } } | null | undefined
+  )?.meta?.lastWriterClientId;
+  return typeof lastWriterClientId === 'string' && lastWriterClientId === getSyncClientId();
+};
 
 type FreshnessReason = 'resume' | 'clinical_patch' | 'clinical_save';
 
@@ -168,6 +183,10 @@ export const assertHydratedRemotePatchCanProceed = ({
 
   const didHydrateNewerRemote = didDailyRecordFreshnessHydrateNewerRemote(freshness);
   if (!didHydrateNewerRemote) {
+    return;
+  }
+
+  if (isOwnClientRemoteConfirmation(freshness.record)) {
     return;
   }
 
