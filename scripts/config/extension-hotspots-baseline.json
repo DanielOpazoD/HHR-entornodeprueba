@@ -6,7 +6,7 @@
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
-      "maxLines": 1415,
+      "maxLines": 1430,
       "hotspots": {
         "variable:handleEgresoLookup": 20,
         "variable:handleExamRequestCombinePrint": 25,
@@ -14,14 +14,6 @@
         "variable:handlePrescriptionPrintRequest": 30,
         "variable:parseClinicalTimestamp": 18
       }
-    },
-    "clinical-day-runtime.js": {
-      "maxLines": 35,
-      "hotspots": {}
-    },
-    "clinical-history-coverage.js": {
-      "maxLines": 37,
-      "hotspots": {}
     },
     "census-sync-horizon-runtime.js": {
       "maxLines": 43,
@@ -35,6 +27,10 @@
         "iife>variable:create>variable:handleHospitalizedPrescriptionPrintRequest": 16
       }
     },
+    "clinical-day-runtime.js": {
+      "maxLines": 35,
+      "hotspots": {}
+    },
     "clinical-handoff-runtime.js": {
       "maxLines": 568,
       "hotspots": {
@@ -43,6 +39,10 @@
         "iife>variable:create>variable:performSaveRequest>callback:refreshed.entries.filter:0": 20,
         "iife>variable:create>variable:readFinishRegisterEvent": 27
       }
+    },
+    "clinical-history-coverage.js": {
+      "maxLines": 37,
+      "hotspots": {}
     },
     "clinical-panel-fetch.js": {
       "maxLines": 65,
@@ -135,8 +135,10 @@
       "hotspots": {}
     },
     "content-hhr.js": {
-      "maxLines": 252,
-      "hotspots": {}
+      "maxLines": 280,
+      "hotspots": {
+        "iife>callback:window.addEventListener:1": 16
+      }
     },
     "content-prescription-print.js": {
       "maxLines": 943,
@@ -199,18 +201,6 @@
       "maxLines": 149,
       "hotspots": {}
     },
-    "fichamedico-treating-physician-dom.js": {
-      "maxLines": 64,
-      "hotspots": {}
-    },
-    "fichamedico-treating-physician-normalization.js": {
-      "maxLines": 80,
-      "hotspots": {}
-    },
-    "fichamedico-treating-physician-sources.js": {
-      "maxLines": 143,
-      "hotspots": {}
-    },
     "fichamedico-normalization.js": {
       "maxLines": 134,
       "hotspots": {
@@ -231,8 +221,16 @@
       "maxLines": 204,
       "hotspots": {}
     },
-    "gestion-camas-cudyr.js": {
-      "maxLines": 158,
+    "fichamedico-treating-physician-dom.js": {
+      "maxLines": 64,
+      "hotspots": {}
+    },
+    "fichamedico-treating-physician-normalization.js": {
+      "maxLines": 80,
+      "hotspots": {}
+    },
+    "fichamedico-treating-physician-sources.js": {
+      "maxLines": 143,
       "hotspots": {}
     },
     "gestion-camas-active-beds.js": {
@@ -243,16 +241,12 @@
       "maxLines": 102,
       "hotspots": {}
     },
+    "gestion-camas-cudyr.js": {
+      "maxLines": 158,
+      "hotspots": {}
+    },
     "gestion-camas-discharge-report-runtime.js": {
       "maxLines": 42,
-      "hotspots": {}
-    },
-    "gestion-camas-statistical-evidence-runtime.js": {
-      "maxLines": 18,
-      "hotspots": {}
-    },
-    "gestion-camas-statistical-report-fetcher.js": {
-      "maxLines": 30,
       "hotspots": {}
     },
     "gestion-camas-egreso-lookup.js": {
@@ -279,6 +273,14 @@
       "hotspots": {
         "iife>variable:publicStatus": 17
       }
+    },
+    "gestion-camas-statistical-evidence-runtime.js": {
+      "maxLines": 18,
+      "hotspots": {}
+    },
+    "gestion-camas-statistical-report-fetcher.js": {
+      "maxLines": 30,
+      "hotspots": {}
     },
     "health-check.js": {
       "maxLines": 41,
@@ -419,7 +421,11 @@
       }
     },
     "message-contract.js": {
-      "maxLines": 272,
+      "maxLines": 280,
+      "hotspots": {}
+    },
+    "patient-clinical-bundle-runtime.js": {
+      "maxLines": 45,
       "hotspots": {}
     },
     "pdf-print.js": {
@@ -494,10 +500,6 @@
       "maxLines": 60,
       "hotspots": {}
     },
-    "syslab-session-transport.js": {
-      "maxLines": 202,
-      "hotspots": {}
-    },
     "syslab-runtime.js": {
       "maxLines": 437,
       "hotspots": {
@@ -505,6 +507,10 @@
         "iife>variable:create>variable:login": 20,
         "iife>variable:create>variable:openPdf": 19
       }
+    },
+    "syslab-session-transport.js": {
+      "maxLines": 202,
+      "hotspots": {}
     },
     "tab-encounter-authorization.js": {
       "maxLines": 60,
