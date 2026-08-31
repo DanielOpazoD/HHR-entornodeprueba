@@ -144,7 +144,8 @@ describe('firestoreRecordWrites authority patch routing', () => {
     expect(mockGetFunctions).toHaveBeenCalled();
     expect(mockHttpsCallable).toHaveBeenCalledWith(
       { name: 'functions-runtime' },
-      'patchDailyRecordWithClinicalAuthority'
+      'patchDailyRecordWithClinicalAuthority',
+      { timeout: 45_000 }
     );
     expect(mockAuthorityCallable).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -196,7 +197,8 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
     expect(mockHttpsCallable).toHaveBeenCalledWith(
       { name: 'functions-runtime' },
-      'patchDailyRecordWithClinicalAuthority'
+      'patchDailyRecordWithClinicalAuthority',
+      { timeout: 45_000 }
     );
     expect(mockAuthorityCallable).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -240,7 +242,8 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
     expect(mockHttpsCallable).toHaveBeenCalledWith(
       { name: 'functions-runtime' },
-      'patchDailyRecordWithClinicalAuthority'
+      'patchDailyRecordWithClinicalAuthority',
+      { timeout: 45_000 }
     );
     expect(mockAuthorityCallable).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -293,7 +296,8 @@ describe('firestoreRecordWrites authority patch routing', () => {
 
     expect(mockHttpsCallable).toHaveBeenCalledWith(
       { name: 'functions-runtime' },
-      'patchDailyRecordWithClinicalAuthority'
+      'patchDailyRecordWithClinicalAuthority',
+      { timeout: 45_000 }
     );
     expect(mockAuthorityCallable).toHaveBeenCalledWith(
       expect.objectContaining({

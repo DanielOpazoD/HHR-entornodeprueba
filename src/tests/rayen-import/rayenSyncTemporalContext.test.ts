@@ -138,3 +138,24 @@ describe('prepareRayenSyncTemporalContext', () => {
     ).toMatchObject({ valid: false, reason: 'clinical_day_changed' });
   });
 });
+
+describe('prepareRayenSyncTemporalContext · techo de lectura', () => {
+  it('falla con mensaje claro si la lectura fresca nunca resuelve', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = prepareRayenSyncTemporalContext({
+        displayedRecord: recordFor('2026-08-07', '2026-08-07T10:00:00.000Z'),
+        runId: 'run-timeout',
+        loadFreshRecord: () => new Promise<never>(() => {}),
+        loadTimeoutMs: 5_000,
+      });
+      const expectation = expect(pending).rejects.toThrow(
+        'No se pudo leer la versión vigente del censo'
+      );
+      await vi.advanceTimersByTimeAsync(5_001);
+      await expectation;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

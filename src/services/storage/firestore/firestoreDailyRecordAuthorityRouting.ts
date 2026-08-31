@@ -173,7 +173,7 @@ export const updateSpecialistMedicalHandoffViaCallable = async (
   const callable = httpsCallable<
     SpecialistMedicalHandoffCallablePayload,
     { success: boolean; date: string; bedId: string }
-  >(functions, 'updateSpecialistMedicalHandoff');
+  >(functions, 'updateSpecialistMedicalHandoff', { timeout: 45_000 });
 
   await callable({
     date,

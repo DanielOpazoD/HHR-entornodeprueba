@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   beginRayenFill,
   endRayenFill,
+  RAYEN_FILL_STALE_AFTER_MS,
   invalidateRayenFillAttempt,
   isRayenFillAttemptCurrent,
   reportRayenFillProgress,
@@ -110,6 +111,43 @@ describe('useRayenFillStatus attempt identity', () => {
 
     act(() => {
       expect(resetRayenFillProgress()).toBe(true);
+    });
+  });
+
+  it('el vigilante libera un fill colgado más allá del techo y permite sincronizar de nuevo', () => {
+    const { result } = renderHook(() => useRayenFillProgress());
+    const t0 = 1_000_000;
+
+    act(() => {
+      expect(beginRayenFill(9, t0)).toBe(true);
+    });
+    // Dentro de la ventana el single-flight sigue mandando.
+    act(() => {
+      expect(beginRayenFill(9, t0 + RAYEN_FILL_STALE_AFTER_MS - 1)).toBe(false);
+    });
+    expect(result.current.running).toBe(true);
+
+    // Pasado el techo, el candado se libera: el run viejo queda 'partial' con
+    // error y un intento nuevo puede partir sin recargar la página.
+    act(() => {
+      expect(beginRayenFill(9, t0 + RAYEN_FILL_STALE_AFTER_MS + 1)).toBe(true);
+    });
+    expect(result.current).toMatchObject({ running: true, outcome: 'running' });
+
+    act(() => {
+      endRayenFill(0);
+      expect(resetRayenFillProgress()).toBe(true);
+    });
+  });
+
+  it('resetRayenFillProgress también libera una corrida vencida', () => {
+    renderHook(() => useRayenFillProgress());
+    const t0 = 2_000_000;
+
+    act(() => {
+      expect(beginRayenFill(3, t0)).toBe(true);
+      expect(resetRayenFillProgress(t0 + 1_000)).toBe(false);
+      expect(resetRayenFillProgress(t0 + RAYEN_FILL_STALE_AFTER_MS + 1)).toBe(true);
     });
   });
 
