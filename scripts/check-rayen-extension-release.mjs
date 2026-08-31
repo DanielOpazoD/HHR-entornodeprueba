@@ -253,6 +253,7 @@ const allowedHosts = new Set([
   'http://localhost:3000/*',
   'http://localhost:3001/*',
   'https://testinghhr.netlify.app/*',
+  'https://hhr-entornodeprueba.vercel.app/*',
 ]);
 for (const host of manifest.host_permissions || []) {
   if (!allowedHosts.has(host)) fail(`Permiso de host no revisado: ${host}`);
