@@ -6,7 +6,7 @@
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
-      "maxLines": 1455,
+      "maxLines": 1460,
       "hotspots": {
         "variable:handleEgresoLookup": 20,
         "variable:handleExamRequestCombinePrint": 25,
@@ -466,6 +466,10 @@
     },
     "rayen-sync-bundle-runtime.js": {
       "maxLines": 182,
+      "hotspots": {}
+    },
+    "relay-reinjection-runtime.js": {
+      "maxLines": 72,
       "hotspots": {}
     },
     "report-parser.js": {

@@ -169,10 +169,10 @@ describe('Ficha Médico patient-context owner', () => {
     expect(background).toContain('self.HhrPatientClinicalBundleRuntime.create({');
     expect(background).not.toContain('const section = async read');
     // Presupuesto-trinquete: sube únicamente junto a lógica ya extraída.
-    // 1455: +latido de salud (instancia del runtime, capability health-push y
+    // 1460: +latido de salud y re-inyección de relés al instalar (instancias y
     // tres rutas GC envueltas con pushAfter); la lógica vive en
-    // health-heartbeat-runtime.js.
-    expect(background.split('\n').length).toBeLessThanOrEqual(1_455);
+    // health-heartbeat-runtime.js y relay-reinjection-runtime.js.
+    expect(background.split('\n').length).toBeLessThanOrEqual(1_460);
     expect(source.split('\n').length).toBeLessThanOrEqual(380);
     expect(() => factory.create({})).toThrow('Falta la dependencia resolveSession.');
   });

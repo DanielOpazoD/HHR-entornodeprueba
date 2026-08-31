@@ -30,6 +30,7 @@ importScripts(
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
   'health-heartbeat-runtime.js',
+  'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
@@ -289,6 +290,12 @@ const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({
   hhrMatchPatterns: HHR_TAB_MATCH_PATTERNS,
 });
 healthHeartbeat.start();
+// Al instalar/actualizar la extensión, los relés de las pestañas abiertas
+// quedan huérfanos: re-inyectarlos y empujar el estado fresco de inmediato.
+self.HhrRelayReinjectionRuntime.create({
+  chromeApi: chrome,
+  onReinjected: () => healthHeartbeat.pushNow('relays-reinjected'),
+}).start();
 
 const handleEgresoLookup = async (runs, targets, sender) => {
   const session = await resolveGestionCamasSession();
