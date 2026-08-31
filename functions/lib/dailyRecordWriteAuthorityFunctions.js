@@ -1208,7 +1208,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
     // mueven el registro completo y us-central1 costaba un cruce de continente.
     // Debe coincidir con DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION del cliente.
     .region('southamerica-east1', 'us-central1')
-    .runWith({ memory: '512MB' })
+    .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
       const startedAt = Date.now();
       const { email, role } = await assertAuthorizedDailyRecordWriter({
@@ -1408,7 +1408,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
   patchDailyRecordWithClinicalAuthority: functions
     .region('southamerica-east1', 'us-central1')
-    .runWith({ memory: '512MB' })
+    .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
       const startedAt = Date.now();
       const { email, role } = await assertAuthorizedDailyRecordWriter({
