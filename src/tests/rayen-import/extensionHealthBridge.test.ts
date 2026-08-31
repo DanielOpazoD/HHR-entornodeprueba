@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  RAYEN_EXTENSION_HEALTH_PUSH_TYPE,
   RAYEN_EXTENSION_HEALTH_REQUEST_TYPE,
   RAYEN_EXTENSION_HEALTH_RESULT_TYPE,
   RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+  hasRayenExtensionCapability,
   isRayenExtensionHealthReport,
   requestRayenExtensionHealth,
+  resetRayenExtensionCapabilitiesForTests,
+  subscribeToRayenExtensionHealthPush,
   supportsPatientFlowReport,
   type RayenExtensionHealthReport,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
@@ -101,6 +105,47 @@ describe('extensionHealthBridge', () => {
       })
     );
     await expect(request).resolves.toEqual({ report });
+  });
+
+  it('entrega los reportes empujados por la extensión y recuerda sus capabilities', () => {
+    resetRayenExtensionCapabilitiesForTests();
+    const received: RayenExtensionHealthReport[] = [];
+    const unsubscribe = subscribeToRayenExtensionHealthPush(pushed => received.push(pushed));
+    const pushedReport = { ...report, capabilities: ['health-push'] };
+
+    // Un push malformado o de otro origen no llega al suscriptor.
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: 'https://otro-origen.example',
+        data: { type: RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: pushedReport },
+      })
+    );
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: { type: RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: { version: 42 } },
+      })
+    );
+    expect(received).toEqual([]);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: { type: RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: pushedReport, reason: 'heartbeat' },
+      })
+    );
+    expect(received).toEqual([pushedReport]);
+    expect(hasRayenExtensionCapability('health-push')).toBe(true);
+
+    unsubscribe();
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: { type: RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: pushedReport },
+      })
+    );
+    expect(received).toHaveLength(1);
+    resetRayenExtensionCapabilitiesForTests();
   });
 
   it('ends a synchronization preflight at its explicit bounded timeout', async () => {

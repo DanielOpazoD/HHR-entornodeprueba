@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   RAYEN_EXTENSION_PROTOCOL_VERSION,
   requestRayenExtensionHealth,
+  subscribeToRayenExtensionHealthPush,
   type RayenExtensionHealthReport,
 } from '../bridge/extensionHealthBridge';
 
@@ -139,10 +140,17 @@ export const useRayenExtensionHealth = () => {
       void refresh();
     };
     window.addEventListener('focus', onFocus);
+    // La extensión empuja el estado sola (latido + transiciones de sesión):
+    // un push fresco manda sobre cualquier chequeo en vuelo más antiguo.
+    const unsubscribePush = subscribeToRayenExtensionHealthPush(report => {
+      requestSequence.current += 1;
+      setHealth(deriveHealthState(report));
+    });
     return () => {
       active = false;
       requestSequence.current += 1;
       window.removeEventListener('focus', onFocus);
+      unsubscribePush();
     };
   }, [refresh]);
 

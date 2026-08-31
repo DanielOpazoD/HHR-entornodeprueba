@@ -64,7 +64,7 @@ describe('CUDYR evidence contract', () => {
     };
     const context = vm.createContext({
       window: windowObject,
-      chrome: { runtime: { sendMessage } },
+      chrome: { runtime: { sendMessage, onMessage: { addListener: vi.fn() } } },
       console,
       HhrRayenMessageContract: {
         types: { CUDYR_CATEGORIES_REQUEST: 'RAYEN_CUDYR_CATEGORIES_REQUEST' },

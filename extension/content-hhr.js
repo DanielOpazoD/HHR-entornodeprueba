@@ -25,6 +25,9 @@
  * Capability health (no clinical data or token access):
  *   Page → us:  { type: 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST', reqId }
  *   us  → page: { type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT', reqId, report, error? }
+ * Health heartbeat (background-initiated; same report, no request needed):
+ *   bg → us   : { type: 'RAYEN_EXTENSION_HEALTH_PUSH', report, reason }
+ *   us → page : { type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH', report, reason }
  */
 (() => {
   'use strict';
@@ -32,6 +35,15 @@
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
   const post = message => window.postMessage(message, window.location.origin);
+  chrome.runtime.onMessage.addListener(message => {
+    if (message && message.type === 'RAYEN_EXTENSION_HEALTH_PUSH' && message.report) {
+      post({
+        type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH',
+        report: message.report,
+        reason: message.reason,
+      });
+    }
+  });
   window.addEventListener('message', event => {
     if (event.source !== window) return;
     const data = event.data;
