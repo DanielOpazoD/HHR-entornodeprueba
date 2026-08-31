@@ -53,12 +53,18 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   onConfirm,
   onCancel,
 }) => {
+  // Todo lo que el plan considera revisable debe contar aquí: si el
+  // planificador abre la revisión por egresos administrativos pendientes o por
+  // ediciones de días previos y este conteo los omite, el modal aparece VACÍO
+  // con un botón «Listo» y la decisión queda inaccesible.
   const hasChanges =
     !!diff &&
     (diff.summary.admissions +
       diff.summary.updates +
       diff.summary.moves +
       diff.summary.discharges +
+      diff.pendingAdministrativeDischarges.length +
+      (diff.previousDayEdits?.length ?? 0) +
       (diff.reportEgresos?.length ?? 0) >
       0 ||
       (diff.bedOccupancyCollisions?.length ?? 0) > 0);
