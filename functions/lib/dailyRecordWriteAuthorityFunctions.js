@@ -1095,6 +1095,7 @@ const recordAuthorityTelemetry = async ({
   errorCode,
   errorMessage,
   startedAt,
+  timings,
 }) => {
   try {
     const changedPaths = collectChangedPaths(syncContract);
@@ -1109,6 +1110,9 @@ const recordAuthorityTelemetry = async ({
         operation,
         hospitalId: HOSPITAL_ID,
         durationMs: Date.now() - startedAt,
+        // Fases del handler: separa autenticación, transacción (con reintentos)
+        // e historial post-commit para poder atacar la tajada dominante.
+        timings: timings || null,
         attempt: 1,
         totalAttempts: 1,
         status,
@@ -1196,139 +1200,33 @@ const createDailyRecordWriteAuthorityFunctions = ({
   Timestamp,
   resolveRoleForEmail,
 }) => ({
-  saveDailyRecordWithClinicalAuthority: functions.https.onCall(async (data, context) => {
-    const startedAt = Date.now();
-    const { email, role } = await assertAuthorizedDailyRecordWriter({
-      context,
-      resolveRoleForEmail,
-    });
-
-    const { date, record, expectedLastUpdated, mode, origin, dryRun, syncContract } =
-      parsePayload(data);
-    const authority = assertClinicalAuthority(record);
-    const coverage = collectClinicalEpisodeCoverage(record);
-
-    if (authority.status !== 'ok') {
-      await recordAuthorityTelemetry({
-        firestore,
-        date,
-        mode,
-        origin,
-        dryRun,
-        authority,
-        coverage,
-        syncContract,
-        status: 'failure',
-        errorCode: 'failed-precondition',
-        errorMessage: 'Daily record clinical authority blocked write.',
-        startedAt,
+  saveDailyRecordWithClinicalAuthority: functions
+    .runWith({ memory: '512MB' })
+    .https.onCall(async (data, context) => {
+      const startedAt = Date.now();
+      const { email, role } = await assertAuthorizedDailyRecordWriter({
+        context,
+        resolveRoleForEmail,
       });
-      throw new functions.https.HttpsError(
-        'failed-precondition',
-        authority.violations.map(violation => violation.message).join(' ')
-      );
-    }
-
-    const db = firestore;
-    const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
-    const docRef = hospitalRef.collection('dailyRecords').doc(date);
-    const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
-    let revision;
-    let recordState;
-    let responseAuthority = authority;
-    let responseCoverage = coverage;
-
-    try {
-      await db.runTransaction(async transaction => {
-        const snapshot = await transaction.get(docRef);
-        if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
-          const remoteData = snapshot.data() || {};
-          responseAuthority = idempotentAuthority;
-          responseCoverage = collectClinicalEpisodeCoverage(remoteData);
-          revision = resolveCurrentRevision(remoteData);
-          recordState = buildAuthorityRecordState({
-            record: remoteData,
-            lastUpdated: remoteData.lastUpdated,
-            meta: remoteData.meta,
-          });
-          return;
-        }
-
-        assertFullRecordWritePolicy({ date, snapshot, record, role });
-
-        assertExpectedVersion({ snapshot, expectedLastUpdated });
-        assertExpectedRevision({ snapshot, syncContract });
-        assertNoPatientErasures({ snapshot, record });
-
-        const policySnapshot = await transaction.get(policyRef);
-        const remoteData = snapshot.exists ? snapshot.data() || {} : {};
-        const recordForPersistence = isRayenClinicalWriteFenceActive(policySnapshot)
-          ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
-          : record;
-        responseAuthority = assertClinicalAuthority(recordForPersistence);
-        responseCoverage = collectClinicalEpisodeCoverage(recordForPersistence);
-        if (responseAuthority.status !== 'ok') {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            responseAuthority.violations.map(violation => violation.message).join(' ')
-          );
-        }
-
-        if (dryRun) {
-          return;
-        }
-
-        const now = Timestamp.now();
-        if (snapshot.exists) {
-          const historyRef = docRef.collection('history').doc(new Date().toISOString());
-          transaction.set(historyRef, {
-            ...(snapshot.data() || {}),
-            snapshotTimestamp: now,
-          });
-        }
-
-        const nextMeta = buildNextMeta({
-          remoteData,
-          syncContract,
-          now,
-        });
-        revision = nextMeta.revision;
-        recordState = buildAuthorityRecordState({
-          record: recordForPersistence,
-          lastUpdated: now,
-          meta: nextMeta,
-        });
-        transaction.set(docRef, {
-          ...recordForPersistence,
-          meta: nextMeta,
-          lastUpdated: now,
-        });
+      const authMs = Date.now() - startedAt;
+      let txnStartedAt = 0;
+      let txnMs = 0;
+      let txnAttempts = 0;
+      let historyMs = 0;
+      let pendingHistoryData = null;
+      const buildTimings = () => ({
+        authMs,
+        txnMs: txnMs || (txnStartedAt ? Date.now() - txnStartedAt : 0),
+        txnAttempts,
+        historyMs,
       });
 
-      await recordAuthorityTelemetry({
-        firestore,
-        date,
-        mode,
-        origin,
-        dryRun,
-        authority: responseAuthority,
-        coverage: responseCoverage,
-        syncContract,
-        status: 'success',
-        startedAt,
-      });
+      const { date, record, expectedLastUpdated, mode, origin, dryRun, syncContract } =
+        parsePayload(data);
+      const authority = assertClinicalAuthority(record);
+      const coverage = collectClinicalEpisodeCoverage(record);
 
-      return buildAuthorityResponse({
-        date,
-        mode,
-        authority: responseAuthority,
-        coverage: responseCoverage,
-        revision,
-        mutationId: normalizeShortString(syncContract?.mutationId),
-        recordState,
-      });
-    } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      if (authority.status !== 'ok') {
         await recordAuthorityTelemetry({
           firestore,
           date,
@@ -1339,229 +1237,384 @@ const createDailyRecordWriteAuthorityFunctions = ({
           coverage,
           syncContract,
           status: 'failure',
-          errorCode: error.code,
-          errorMessage: error.message,
+          errorCode: 'failed-precondition',
+          errorMessage: 'Daily record clinical authority blocked write.',
           startedAt,
         });
-        throw error;
+        throw new functions.https.HttpsError(
+          'failed-precondition',
+          authority.violations.map(violation => violation.message).join(' ')
+        );
       }
 
-      console.error(
-        'Error saving daily record with clinical authority',
-        sanitizeLogValue({ email, date, error })
-      );
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to save daily record with clinical authority.'
-      );
-    }
-  }),
+      const db = firestore;
+      const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
+      const docRef = hospitalRef.collection('dailyRecords').doc(date);
+      const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
+      let revision;
+      let recordState;
+      let responseAuthority = authority;
+      let responseCoverage = coverage;
 
-  patchDailyRecordWithClinicalAuthority: functions.https.onCall(async (data, context) => {
-    const startedAt = Date.now();
-    const { email, role } = await assertAuthorizedDailyRecordWriter({
-      context,
-      resolveRoleForEmail,
-    });
-    const {
-      date,
-      patch,
-      mode,
-      origin,
-      dryRun,
-      syncContract,
-      expectedLastUpdated,
-      rayenClinicalWriteGuard,
-      intentionalBedClear,
-    } = parsePatchPayload(data);
-    const db = firestore;
-    const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
-    const docRef = hospitalRef.collection('dailyRecords').doc(date);
-    const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
-    const sourceRef =
-      rayenClinicalWriteGuard?.recordScope === 'historical'
-        ? hospitalRef.collection('dailyRecords').doc(rayenClinicalWriteGuard.sourceDate)
-        : docRef;
-    let authority;
-    let coverage;
-    let revision;
-    let recordState;
-    const mutationId = normalizeShortString(syncContract?.mutationId);
-    const guardedHistoryRef = rayenClinicalWriteGuard
-      ? docRef.collection('history').doc(`rayen-${rayenClinicalWriteGuard.runId}`)
-      : null;
-
-    try {
-      await db.runTransaction(async transaction => {
-        const [snapshot, policySnapshot, sourceSnapshot, guardedHistorySnapshot] =
-          await Promise.all([
-            transaction.get(docRef),
-            transaction.get(policyRef),
-            rayenClinicalWriteGuard?.recordScope === 'historical'
-              ? transaction.get(sourceRef)
-              : Promise.resolve(null),
-            guardedHistoryRef ? transaction.get(guardedHistoryRef) : Promise.resolve(null),
-          ]);
-        if (!snapshot.exists) {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            'Daily record partial patch requires an existing record.'
-          );
-        }
-
-        const remoteData = snapshot.data() || {};
-        if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
-          authority = idempotentAuthority;
-          coverage = collectClinicalEpisodeCoverage(remoteData);
-          revision = resolveCurrentRevision(remoteData);
-          recordState = buildAuthorityRecordState({
-            record: remoteData,
-            lastUpdated: remoteData.lastUpdated,
-            meta: remoteData.meta,
-          });
-          return;
-        }
-
-        if (rayenClinicalWriteGuard || intentionalBedClear) {
-          assertExactExpectedVersion({ snapshot, expectedLastUpdated });
-        } else {
-          assertExpectedVersion({ snapshot, expectedLastUpdated });
-        }
-        assertExpectedRevision({ snapshot, syncContract });
-        if (rayenClinicalWriteGuard) {
-          assertGuardedClinicalPatch({
-            patch,
-            clinicalFields: RAYEN_CLINICAL_PATCH_FIELDS,
-            recordScope: rayenClinicalWriteGuard.recordScope,
-          });
-          const runRecord =
-            rayenClinicalWriteGuard.recordScope === 'historical'
-              ? sourceSnapshot?.exists
-                ? sourceSnapshot.data() || {}
-                : null
-              : remoteData;
-          assertRayenLegacyClinicalWriteAuthority({
-            policySnapshot,
-            runRecord,
-            targetDate: date,
-            guard: rayenClinicalWriteGuard,
-            role,
-          });
-        }
-        const canonicalIntentionalBedClearPatch = assertIntentionalBedClearRequest({
-          patch,
-          role,
-          expectedLastUpdated,
-          intentionalBedClear,
-          remoteData,
-        });
-        const authorizedPatch = canonicalIntentionalBedClearPatch || patch;
-        const patchInspection = inspectAuthorizedPatch({
-          remoteData,
-          patch: authorizedPatch,
-          role,
-          guardedClinicalWrite: Boolean(rayenClinicalWriteGuard),
-          guardedRecordScope: rayenClinicalWriteGuard?.recordScope,
-          intentionalBedClear,
-        });
-        if (
-          isRayenClinicalWriteFenceActive(policySnapshot) &&
-          !rayenClinicalWriteGuard &&
-          !intentionalBedClear
-        ) {
-          assertNoRayenClinicalOwnedPatch(patch);
-        }
-        if (patchInspection.requiresStructuralAuthority) {
-          assertStructuralPatchPolicy({ date, policySnapshot, remoteData, role });
-        }
-        const now = Timestamp.now();
-        const patchedCandidate = applyPatchToRecord({
-          date,
-          remoteData,
-          patch: authorizedPatch,
-        });
-        const patchedRecord =
-          isRayenClinicalWriteFenceActive(policySnapshot) &&
-          !rayenClinicalWriteGuard &&
-          !intentionalBedClear
-            ? preserveRayenClinicalFields({
-                remoteRecord: remoteData,
-                incomingRecord: patchedCandidate,
-              })
-            : patchedCandidate;
-        assertNoPatientErasures({
-          snapshot,
-          record: patchedRecord,
-          intentionalBedClear,
-        });
-        patchedRecord.meta = buildNextMeta({ remoteData, syncContract, now });
-
-        authority = assertClinicalAuthority(patchedRecord);
-        coverage = collectClinicalEpisodeCoverage(patchedRecord);
-        revision = patchedRecord.meta.revision;
-        recordState = buildAuthorityRecordState({
-          record: patchedRecord,
-          lastUpdated: now,
-          meta: patchedRecord.meta,
-        });
-
-        if (authority.status !== 'ok') {
-          throw new functions.https.HttpsError(
-            'failed-precondition',
-            authority.violations.map(violation => violation.message).join(' ')
-          );
-        }
-
-        if (dryRun) {
-          return;
-        }
-
-        if (guardedHistoryRef) {
-          if (!guardedHistorySnapshot?.exists) {
-            transaction.set(guardedHistoryRef, {
-              ...remoteData,
-              snapshotTimestamp: now,
+      try {
+        txnStartedAt = Date.now();
+        await db.runTransaction(async transaction => {
+          txnAttempts += 1;
+          pendingHistoryData = null;
+          const snapshot = await transaction.get(docRef);
+          if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
+            const remoteData = snapshot.data() || {};
+            responseAuthority = idempotentAuthority;
+            responseCoverage = collectClinicalEpisodeCoverage(remoteData);
+            revision = resolveCurrentRevision(remoteData);
+            recordState = buildAuthorityRecordState({
+              record: remoteData,
+              lastUpdated: remoteData.lastUpdated,
+              meta: remoteData.meta,
             });
+            return;
           }
-        } else {
-          const historyRef = docRef.collection('history').doc(new Date().toISOString());
-          transaction.set(historyRef, {
-            ...remoteData,
-            snapshotTimestamp: now,
+
+          assertFullRecordWritePolicy({ date, snapshot, record, role });
+
+          assertExpectedVersion({ snapshot, expectedLastUpdated });
+          assertExpectedRevision({ snapshot, syncContract });
+          assertNoPatientErasures({ snapshot, record });
+
+          const policySnapshot = await transaction.get(policyRef);
+          const remoteData = snapshot.exists ? snapshot.data() || {} : {};
+          const recordForPersistence = isRayenClinicalWriteFenceActive(policySnapshot)
+            ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
+            : record;
+          responseAuthority = assertClinicalAuthority(recordForPersistence);
+          responseCoverage = collectClinicalEpisodeCoverage(recordForPersistence);
+          if (responseAuthority.status !== 'ok') {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              responseAuthority.violations.map(violation => violation.message).join(' ')
+            );
+          }
+
+          if (dryRun) {
+            return;
+          }
+
+          const now = Timestamp.now();
+          if (snapshot.exists) {
+            // El snapshot de historial se escribe DESPUÉS del commit: dentro de la
+            // transacción duplicaba el payload del registro completo y alargaba
+            // cada escritura autoritativa sin proteger ningún invariante.
+            pendingHistoryData = {
+              ...(snapshot.data() || {}),
+              snapshotTimestamp: now,
+            };
+          }
+
+          const nextMeta = buildNextMeta({
+            remoteData,
+            syncContract,
+            now,
           });
+          revision = nextMeta.revision;
+          recordState = buildAuthorityRecordState({
+            record: recordForPersistence,
+            lastUpdated: now,
+            meta: nextMeta,
+          });
+          transaction.set(docRef, {
+            ...recordForPersistence,
+            meta: nextMeta,
+            lastUpdated: now,
+          });
+        });
+        txnMs = Date.now() - txnStartedAt;
+
+        if (pendingHistoryData) {
+          const historyStartedAt = Date.now();
+          try {
+            await docRef
+              .collection('history')
+              .doc(new Date().toISOString())
+              .set(pendingHistoryData);
+          } catch (historyError) {
+            console.error(
+              'Daily record history snapshot failed after commit',
+              sanitizeLogValue({ date, error: historyError })
+            );
+          }
+          historyMs = Date.now() - historyStartedAt;
         }
 
-        transaction.set(docRef, {
-          ...patchedRecord,
-          lastUpdated: now,
+        await recordAuthorityTelemetry({
+          firestore,
+          date,
+          mode,
+          origin,
+          dryRun,
+          authority: responseAuthority,
+          coverage: responseCoverage,
+          syncContract,
+          status: 'success',
+          startedAt,
+          timings: buildTimings(),
         });
-      });
 
-      await recordAuthorityTelemetry({
-        firestore,
+        return buildAuthorityResponse({
+          date,
+          mode,
+          authority: responseAuthority,
+          coverage: responseCoverage,
+          revision,
+          mutationId: normalizeShortString(syncContract?.mutationId),
+          recordState,
+        });
+      } catch (error) {
+        if (error instanceof functions.https.HttpsError) {
+          await recordAuthorityTelemetry({
+            firestore,
+            date,
+            mode,
+            origin,
+            dryRun,
+            authority,
+            coverage,
+            syncContract,
+            status: 'failure',
+            errorCode: error.code,
+            errorMessage: error.message,
+            startedAt,
+            timings: buildTimings(),
+          });
+          throw error;
+        }
+
+        console.error(
+          'Error saving daily record with clinical authority',
+          sanitizeLogValue({ email, date, error })
+        );
+        throw new functions.https.HttpsError(
+          'internal',
+          'Failed to save daily record with clinical authority.'
+        );
+      }
+    }),
+
+  patchDailyRecordWithClinicalAuthority: functions
+    .runWith({ memory: '512MB' })
+    .https.onCall(async (data, context) => {
+      const startedAt = Date.now();
+      const { email, role } = await assertAuthorizedDailyRecordWriter({
+        context,
+        resolveRoleForEmail,
+      });
+      const authMs = Date.now() - startedAt;
+      let txnStartedAt = 0;
+      let txnMs = 0;
+      let txnAttempts = 0;
+      let historyMs = 0;
+      let pendingHistoryData = null;
+      const buildTimings = () => ({
+        authMs,
+        txnMs: txnMs || (txnStartedAt ? Date.now() - txnStartedAt : 0),
+        txnAttempts,
+        historyMs,
+      });
+      const {
         date,
+        patch,
         mode,
         origin,
         dryRun,
-        authority,
-        coverage,
         syncContract,
-        operation: 'patchDailyRecordWithClinicalAuthority',
-        status: 'success',
-        startedAt,
-      });
+        expectedLastUpdated,
+        rayenClinicalWriteGuard,
+        intentionalBedClear,
+      } = parsePatchPayload(data);
+      const db = firestore;
+      const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
+      const docRef = hospitalRef.collection('dailyRecords').doc(date);
+      const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
+      const sourceRef =
+        rayenClinicalWriteGuard?.recordScope === 'historical'
+          ? hospitalRef.collection('dailyRecords').doc(rayenClinicalWriteGuard.sourceDate)
+          : docRef;
+      let authority;
+      let coverage;
+      let revision;
+      let recordState;
+      const mutationId = normalizeShortString(syncContract?.mutationId);
+      const guardedHistoryRef = rayenClinicalWriteGuard
+        ? docRef.collection('history').doc(`rayen-${rayenClinicalWriteGuard.runId}`)
+        : null;
 
-      return buildAuthorityResponse({
-        date,
-        mode,
-        authority,
-        coverage,
-        revision,
-        mutationId,
-        recordState,
-      });
-    } catch (error) {
-      if (error instanceof functions.https.HttpsError) {
+      try {
+        txnStartedAt = Date.now();
+        await db.runTransaction(async transaction => {
+          txnAttempts += 1;
+          pendingHistoryData = null;
+          const [snapshot, policySnapshot, sourceSnapshot, guardedHistorySnapshot] =
+            await Promise.all([
+              transaction.get(docRef),
+              transaction.get(policyRef),
+              rayenClinicalWriteGuard?.recordScope === 'historical'
+                ? transaction.get(sourceRef)
+                : Promise.resolve(null),
+              guardedHistoryRef ? transaction.get(guardedHistoryRef) : Promise.resolve(null),
+            ]);
+          if (!snapshot.exists) {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              'Daily record partial patch requires an existing record.'
+            );
+          }
+
+          const remoteData = snapshot.data() || {};
+          if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
+            authority = idempotentAuthority;
+            coverage = collectClinicalEpisodeCoverage(remoteData);
+            revision = resolveCurrentRevision(remoteData);
+            recordState = buildAuthorityRecordState({
+              record: remoteData,
+              lastUpdated: remoteData.lastUpdated,
+              meta: remoteData.meta,
+            });
+            return;
+          }
+
+          if (rayenClinicalWriteGuard || intentionalBedClear) {
+            assertExactExpectedVersion({ snapshot, expectedLastUpdated });
+          } else {
+            assertExpectedVersion({ snapshot, expectedLastUpdated });
+          }
+          assertExpectedRevision({ snapshot, syncContract });
+          if (rayenClinicalWriteGuard) {
+            assertGuardedClinicalPatch({
+              patch,
+              clinicalFields: RAYEN_CLINICAL_PATCH_FIELDS,
+              recordScope: rayenClinicalWriteGuard.recordScope,
+            });
+            const runRecord =
+              rayenClinicalWriteGuard.recordScope === 'historical'
+                ? sourceSnapshot?.exists
+                  ? sourceSnapshot.data() || {}
+                  : null
+                : remoteData;
+            assertRayenLegacyClinicalWriteAuthority({
+              policySnapshot,
+              runRecord,
+              targetDate: date,
+              guard: rayenClinicalWriteGuard,
+              role,
+            });
+          }
+          const canonicalIntentionalBedClearPatch = assertIntentionalBedClearRequest({
+            patch,
+            role,
+            expectedLastUpdated,
+            intentionalBedClear,
+            remoteData,
+          });
+          const authorizedPatch = canonicalIntentionalBedClearPatch || patch;
+          const patchInspection = inspectAuthorizedPatch({
+            remoteData,
+            patch: authorizedPatch,
+            role,
+            guardedClinicalWrite: Boolean(rayenClinicalWriteGuard),
+            guardedRecordScope: rayenClinicalWriteGuard?.recordScope,
+            intentionalBedClear,
+          });
+          if (
+            isRayenClinicalWriteFenceActive(policySnapshot) &&
+            !rayenClinicalWriteGuard &&
+            !intentionalBedClear
+          ) {
+            assertNoRayenClinicalOwnedPatch(patch);
+          }
+          if (patchInspection.requiresStructuralAuthority) {
+            assertStructuralPatchPolicy({ date, policySnapshot, remoteData, role });
+          }
+          const now = Timestamp.now();
+          const patchedCandidate = applyPatchToRecord({
+            date,
+            remoteData,
+            patch: authorizedPatch,
+          });
+          const patchedRecord =
+            isRayenClinicalWriteFenceActive(policySnapshot) &&
+            !rayenClinicalWriteGuard &&
+            !intentionalBedClear
+              ? preserveRayenClinicalFields({
+                  remoteRecord: remoteData,
+                  incomingRecord: patchedCandidate,
+                })
+              : patchedCandidate;
+          assertNoPatientErasures({
+            snapshot,
+            record: patchedRecord,
+            intentionalBedClear,
+          });
+          patchedRecord.meta = buildNextMeta({ remoteData, syncContract, now });
+
+          authority = assertClinicalAuthority(patchedRecord);
+          coverage = collectClinicalEpisodeCoverage(patchedRecord);
+          revision = patchedRecord.meta.revision;
+          recordState = buildAuthorityRecordState({
+            record: patchedRecord,
+            lastUpdated: now,
+            meta: patchedRecord.meta,
+          });
+
+          if (authority.status !== 'ok') {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              authority.violations.map(violation => violation.message).join(' ')
+            );
+          }
+
+          if (dryRun) {
+            return;
+          }
+
+          if (guardedHistoryRef) {
+            if (!guardedHistorySnapshot?.exists) {
+              transaction.set(guardedHistoryRef, {
+                ...remoteData,
+                snapshotTimestamp: now,
+              });
+            }
+          } else {
+            // El snapshot de historial se escribe DESPUÉS del commit: dentro de la
+            // transacción duplicaba el payload del registro completo y alargaba
+            // cada comando cama–cuna sin proteger ningún invariante.
+            pendingHistoryData = {
+              ...remoteData,
+              snapshotTimestamp: now,
+            };
+          }
+
+          transaction.set(docRef, {
+            ...patchedRecord,
+            lastUpdated: now,
+          });
+        });
+        txnMs = Date.now() - txnStartedAt;
+
+        if (pendingHistoryData) {
+          const historyStartedAt = Date.now();
+          try {
+            await docRef
+              .collection('history')
+              .doc(new Date().toISOString())
+              .set(pendingHistoryData);
+          } catch (historyError) {
+            console.error(
+              'Daily record history snapshot failed after commit',
+              sanitizeLogValue({ date, error: historyError })
+            );
+          }
+          historyMs = Date.now() - historyStartedAt;
+        }
+
         await recordAuthorityTelemetry({
           firestore,
           date,
@@ -1572,24 +1625,51 @@ const createDailyRecordWriteAuthorityFunctions = ({
           coverage,
           syncContract,
           operation: 'patchDailyRecordWithClinicalAuthority',
-          status: 'failure',
-          errorCode: error.code,
-          errorMessage: error.message,
+          status: 'success',
           startedAt,
+          timings: buildTimings(),
         });
-        throw error;
-      }
 
-      console.error(
-        'Error patching daily record with clinical authority',
-        sanitizeLogValue({ email, date, error })
-      );
-      throw new functions.https.HttpsError(
-        'internal',
-        'Failed to patch daily record with clinical authority.'
-      );
-    }
-  }),
+        return buildAuthorityResponse({
+          date,
+          mode,
+          authority,
+          coverage,
+          revision,
+          mutationId,
+          recordState,
+        });
+      } catch (error) {
+        if (error instanceof functions.https.HttpsError) {
+          await recordAuthorityTelemetry({
+            firestore,
+            date,
+            mode,
+            origin,
+            dryRun,
+            authority,
+            coverage,
+            syncContract,
+            operation: 'patchDailyRecordWithClinicalAuthority',
+            status: 'failure',
+            errorCode: error.code,
+            errorMessage: error.message,
+            startedAt,
+            timings: buildTimings(),
+          });
+          throw error;
+        }
+
+        console.error(
+          'Error patching daily record with clinical authority',
+          sanitizeLogValue({ email, date, error })
+        );
+        throw new functions.https.HttpsError(
+          'internal',
+          'Failed to patch daily record with clinical authority.'
+        );
+      }
+    }),
 });
 
 module.exports = {

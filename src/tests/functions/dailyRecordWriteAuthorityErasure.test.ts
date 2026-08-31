@@ -142,7 +142,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
       meta: { revision: 4, lastMutationId: 'previous' },
     };
     const emptyBed = makeCanonicalEmptyBed();
-    const { admin, set, docRef, historyDoc } = createAdminMock({
+    const { admin, set, docRef, historySet } = createAdminMock({
       remoteData: remote,
       policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
     });
@@ -171,8 +171,8 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
     );
 
     expect(result).toMatchObject({ success: true, mutationId: 'clear-r1' });
-    expect(set).toHaveBeenCalledWith(
-      historyDoc,
+    // El historial se escribe después del commit, fuera de la transacción.
+    expect(historySet).toHaveBeenCalledWith(
       expect.objectContaining({
         beds: { R1: expect.objectContaining({ patientName: 'Paciente Uno' }) },
       })
