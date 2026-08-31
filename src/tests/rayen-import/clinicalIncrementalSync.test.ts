@@ -41,7 +41,7 @@ describe('clinical incremental checkpoint', () => {
     ]);
 
     expect(result.changed).toBe(true);
-    expect(result.checkpoint).toMatchObject({ version: 2, fingerprintVersion: 1 });
+    expect(result.checkpoint).toMatchObject({ version: 3, fingerprintVersion: 1 });
     expect(result.metrics.newFacts).toBe(1);
   });
 
@@ -59,7 +59,7 @@ describe('clinical incremental checkpoint', () => {
       duplicates: 0,
       corrections: 0,
     });
-    expect(first.checkpoint.sources.vitals?.facts).toHaveLength(128);
+    expect(first.checkpoint.sources.vitals?.packedFacts).toHaveLength(128);
     expect(first.checkpoint.sources.vitals?.watermark).toBe('199');
 
     const newestRetry = mergeClinicalSourceCheckpoint(first.checkpoint, 'vitals', [facts[199]]);
@@ -88,7 +88,7 @@ describe('clinical incremental checkpoint', () => {
     ]);
     const empty = mergeClinicalSourceCheckpoint(partial.checkpoint, 'vitals', []);
 
-    expect(partial.checkpoint.sources.vitals?.facts).toHaveLength(2);
+    expect(partial.checkpoint.sources.vitals?.packedFacts).toHaveLength(2);
     expect(empty.changed).toBe(false);
     expect(empty.checkpoint).toBe(partial.checkpoint);
   });
@@ -148,5 +148,37 @@ describe('clinical incremental checkpoint', () => {
     expect(
       withoutCoverage.checkpoint.sources.scales?.lastFullValidationAttemptLookbackDays
     ).toBeUndefined();
+  });
+
+  it('migra un checkpoint v2 (facts legados): los reconoce como conocidos y reescribe empaquetado', () => {
+    const fact = { sourceId: 'braden-1', watermark: '100', value: { score: 17 } };
+    const modern = mergeClinicalSourceCheckpoint(undefined, 'scales', [fact]);
+    const packed = modern.checkpoint.sources.scales?.packedFacts;
+    expect(packed).toHaveLength(1);
+    // Los strings empaquetados no llevan el prefijo v1- (vive a nivel checkpoint)
+    // y pesan aprox. la mitad que el objeto por hecho de la v2.
+    expect(packed?.[0]).not.toContain('v1-');
+    expect(packed?.[0]).toContain('|');
+
+    const legacyV2 = {
+      version: 2,
+      fingerprintVersion: 1,
+      sources: {
+        scales: {
+          watermark: '100',
+          facts: modern.checkpoint.sources.scales!.packedFacts!.map(item => {
+            const [identity, fingerprint, watermark] = item.split('|');
+            return { identity: `v1-${identity}`, fingerprint: `v1-${fingerprint}`, watermark };
+          }),
+        },
+      },
+    };
+
+    const migrated = mergeClinicalSourceCheckpoint(legacyV2, 'scales', [fact]);
+    // El hecho ya era conocido en la forma v2: no cuenta como nuevo.
+    expect(migrated.metrics).toMatchObject({ newFacts: 0, duplicates: 1, corrections: 0 });
+    expect(migrated.checkpoint.version).toBe(3);
+    expect(migrated.checkpoint.sources.scales?.packedFacts).toHaveLength(1);
+    expect(migrated.checkpoint.sources.scales?.facts).toBeUndefined();
   });
 });

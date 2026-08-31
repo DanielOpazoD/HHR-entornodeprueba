@@ -1,6 +1,14 @@
 /** Persisted cursor for the incremental Eloisa clinical enrichment pass. */
 
-export const CLINICAL_SYNC_CHECKPOINT_VERSION = 2 as const;
+/**
+ * v3: los hechos se persisten EMPAQUETADOS (`packedFacts`, un string por hecho)
+ * en lugar de un objeto por hecho — el checkpoint pesaba ~180 KB de los ~500 KB
+ * del documento diario y cada transacción lo movía completo. Un lector v3
+ * acepta también la forma v2 (`facts`); un cliente v2 que vea la versión 3 lo
+ * descarta y reconstruye, que es el comportamiento seguro.
+ */
+export const CLINICAL_SYNC_CHECKPOINT_VERSION = 3 as const;
+export const CLINICAL_SYNC_COMPATIBLE_CHECKPOINT_VERSIONS: readonly number[] = [2, 3];
 export const CLINICAL_SYNC_FINGERPRINT_VERSION = 1 as const;
 
 export type ClinicalSyncSource = 'vitals' | 'scales' | 'staffing';
@@ -27,8 +35,14 @@ export interface ClinicalSyncSourceCheckpoint {
   lastFullValidationAttemptAt?: string;
   /** History lookback requested by the last bounded full-window attempt. */
   lastFullValidationAttemptLookbackDays?: number;
-  /** Bounded overlap window used to recognize retries and late corrections. */
-  facts: ClinicalSyncFactCheckpoint[];
+  /**
+   * Bounded overlap window used to recognize retries and late corrections.
+   * v3: one packed string per fact — `identity|fingerprint|watermark`, with the
+   * `v{fingerprintVersion}-` prefixes stripped (they live at checkpoint level).
+   */
+  packedFacts?: string[];
+  /** Legacy v2 shape; readers must accept it, writers emit `packedFacts`. */
+  facts?: ClinicalSyncFactCheckpoint[];
 }
 
 export interface ClinicalSyncCheckpoint {
