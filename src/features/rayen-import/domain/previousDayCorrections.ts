@@ -251,27 +251,39 @@ export const fileCrossDayCorrections = async (
       admissionsByDay.get(day) ?? []
     );
     if (movementResult.applied === 0 && admissionResult.applied === 0) continue;
-    preparedCorrections.push({
-      day,
-      record,
-      patch: {
-        beds: admissionResult.record.beds,
+    // La separación clínico/estructural del servidor rechaza un patch que
+    // mezcla el árbol de camas con otros campos («La edición mezcla cambios de
+    // cama con otros campos…»), así que cada día se corrige con hasta dos
+    // escrituras PURAS e idempotentes: primero los movimientos (arrays que se
+    // unen por id) y luego las camas de ingresos históricos. El patch mixto
+    // anterior fallaba en TODAS las corridas y dejaba el run marcado
+    // «requiere una nueva captura».
+    const patches = [];
+    if (movementResult.applied > 0) {
+      patches.push({
         discharges: admissionResult.record.discharges,
         transfers: admissionResult.record.transfers,
         cma: admissionResult.record.cma,
-        lastUpdated: admissionResult.record.lastUpdated,
-      },
-    });
+      });
+    }
+    if (admissionResult.applied > 0) {
+      patches.push({ beds: admissionResult.record.beds });
+    }
+    preparedCorrections.push({ day, record, patches });
   }
 
   const result: CrossDayCorrectionResult = { confirmed: 0, durablyQueued: 0 };
   for (const correction of preparedCorrections) {
-    const outcome = classifyHistoricalPatchOutcome(
-      await patchDailyRecordWithCompatibility(port, correction.day, correction.patch, {
-        baseRecord: correction.record,
-      })
-    );
-    if (outcome === 'confirmed') result.confirmed += 1;
+    let dayOutcome: HistoricalPatchOutcome = 'confirmed';
+    for (const patch of correction.patches) {
+      const outcome = classifyHistoricalPatchOutcome(
+        await patchDailyRecordWithCompatibility(port, correction.day, patch, {
+          baseRecord: correction.record,
+        })
+      );
+      if (outcome === 'durably_queued') dayOutcome = 'durably_queued';
+    }
+    if (dayOutcome === 'confirmed') result.confirmed += 1;
     else result.durablyQueued += 1;
   }
   return result;
