@@ -186,6 +186,88 @@ describe('rebasePendingDailyRecordWrite', () => {
     expect(result.record.beds.R2.isBlocked).toBe(true);
     expect(result.record.beds.R2.blockedReason).toBe('Aseo');
   });
+
+  it('signals total supersession when the applied command covers every pending path', () => {
+    const date = '2026-08-29';
+    const pendingCrib = DataFactory.createMockPatient('R1', {
+      bedMode: 'Cuna',
+      clinicalEpisodeId: 'crib-old',
+      patientName: 'RN editado localmente',
+    });
+    const pendingRecord = DataFactory.createMockDailyRecord(date, {
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'parent-episode',
+          clinicalCrib: pendingCrib,
+        }),
+      },
+    });
+    const authoritativeRecord = DataFactory.createMockDailyRecord(date, {
+      lastUpdated: '2026-08-29T10:01:00.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'parent-episode',
+          clinicalCrib: undefined,
+        }),
+      },
+    });
+
+    // Una edición pendiente de la cuna queda totalmente cubierta por la limpieza
+    // confirmada de esa misma cuna: no debe quedar tarea que la re-declare.
+    const result = rebasePendingDailyRecordWrite({
+      authoritativeRecord,
+      pendingTask: {
+        taskId: 1,
+        record: pendingRecord,
+        recordRevision: pendingRecord.lastUpdated,
+        changedPaths: ['beds.R1.clinicalCrib.patientName'],
+      },
+      alreadyAppliedPatch: { 'beds.R1.clinicalCrib': null },
+    });
+
+    expect(result.pendingPaths).toEqual([]);
+  });
+
+  it('declares only genuinely pending paths in the replacement contract', () => {
+    const date = '2026-08-29';
+    const pendingRecord = DataFactory.createMockDailyRecord(date, {
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'parent-episode',
+          pathology: 'Diagnóstico pendiente',
+          clinicalCrib: undefined,
+        }),
+        R2: { ...createEmptyPatient('R2'), isBlocked: true, blockedReason: 'Aseo' },
+      },
+    });
+    const authoritativeRecord = DataFactory.createMockDailyRecord(date, {
+      lastUpdated: '2026-08-29T10:01:00.000Z',
+      beds: {
+        R1: DataFactory.createMockPatient('R1', {
+          clinicalEpisodeId: 'parent-episode',
+          clinicalCrib: undefined,
+        }),
+        R2: createEmptyPatient('R2'),
+      },
+    });
+
+    const result = rebasePendingDailyRecordWrite({
+      authoritativeRecord,
+      pendingTask: {
+        taskId: 1,
+        record: pendingRecord,
+        recordRevision: pendingRecord.lastUpdated,
+        changedPaths: ['beds.R1.pathology', 'beds.R2.isBlocked', 'beds.R2.blockedReason'],
+      },
+      alreadyAppliedPatch: { 'beds.R1.pathology': 'Diagnóstico pendiente' },
+    });
+
+    // beds.R1.pathology quedó superseded; los paths de R2 siguen pendientes y son
+    // los únicos que el replacement puede volver a declarar como propios.
+    expect(result.pendingPaths.sort()).toEqual(['beds.R2.blockedReason', 'beds.R2.isBlocked']);
+    expect(result.changedPaths).not.toContain('beds.R1.pathology');
+    expect(result.changedPaths.every(path => path.startsWith('beds.R2'))).toBe(true);
+  });
 });
 
 describe('atomic authoritative daily-record adoption', () => {
@@ -268,5 +350,38 @@ describe('atomic authoritative daily-record adoption', () => {
     expect(buildReplacement).not.toHaveBeenCalled();
     await expect(hospitalDB.dailyRecords.get(date)).resolves.toEqual(authoritativeRecord);
     await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(1);
+  });
+
+  it('deletes the pending task in the same transaction on total supersession', async () => {
+    const date = '2026-08-29';
+    const localRecord = DataFactory.createMockDailyRecord(date, {
+      lastUpdated: '2026-08-29T10:00:00.000Z',
+    });
+    const authoritativeRecord = DataFactory.createMockDailyRecord(date, {
+      lastUpdated: '2026-08-29T10:01:00.000Z',
+    });
+    await hospitalDB.dailyRecords.put(localRecord);
+    await hospitalDB.syncQueue.add({
+      opId: 'fully-superseded-write',
+      type: 'UPDATE_DAILY_RECORD',
+      payload: localRecord,
+      timestamp: 1,
+      retryCount: 0,
+      status: 'PENDING',
+      key: `daily:${date}`,
+    });
+    const buildReplacement = vi.fn(() => ({ record: authoritativeRecord, task: null }));
+
+    const result = await createDexieSyncQueueStore().adoptAuthoritativeDailyRecord!(
+      authoritativeRecord,
+      null,
+      buildReplacement
+    );
+
+    expect(result).toEqual({ status: 'adopted', record: authoritativeRecord });
+    expect(buildReplacement).toHaveBeenCalledTimes(1);
+    await expect(hospitalDB.dailyRecords.get(date)).resolves.toEqual(authoritativeRecord);
+    // La tarea no se reemplaza: desaparece, y nada puede reaplicar estado viejo.
+    await expect(hospitalDB.syncQueue.toArray()).resolves.toHaveLength(0);
   });
 });

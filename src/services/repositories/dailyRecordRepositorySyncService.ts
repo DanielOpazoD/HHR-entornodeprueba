@@ -250,11 +250,21 @@ export const adoptAuthoritativeRecord = async (
         changedPaths: task.syncContract?.changedPaths || [],
         mutationId: task.syncContract?.mutationId,
       };
-      const { record: rebasedRecord, changedPaths } = rebasePendingDailyRecordWrite({
+      const {
+        record: rebasedRecord,
+        changedPaths,
+        pendingPaths,
+      } = rebasePendingDailyRecordWrite({
         authoritativeRecord,
         pendingTask,
         alreadyAppliedPatch,
       });
+      if (pendingPaths.length === 0) {
+        // Supersesión total: el comando confirmado cubrió todo lo que la tarea
+        // tenía pendiente. Adoptar el registro autoritativo y eliminar la tarea
+        // en la misma transacción; re-emitirla sólo replicaría estado ya durable.
+        return { record: authoritativeRecord, task: null };
+      }
       const syncContract = buildDailyRecordSyncContract(rebasedRecord, {
         expectedVersion: authoritativeRecord.lastUpdated,
         changedPaths,

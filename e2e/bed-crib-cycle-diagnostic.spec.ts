@@ -288,6 +288,14 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
   }) => {
     test.setTimeout(90_000);
     const scenario = 'T1-ciclo-completo';
+    // Gate de convergencia: un comando confirmado por el servidor jamás puede
+    // quedar bloqueado en la adopción local por una tarea de outbox pendiente.
+    const adoptionFailures: string[] = [];
+    page.on('console', message => {
+      if (message.text().includes('Failed to atomically adopt')) {
+        adoptionFailures.push(message.text().slice(0, 200));
+      }
+    });
     const authority = await openCensus(page, buildRecord());
 
     // ---- CREATE ----
@@ -378,6 +386,42 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
     expect(
       Object.keys(recreateCall.payload.patch).some(path => path.startsWith('beds.R1.clinicalCrib'))
     ).toBe(true);
+
+    // Convergencia estricta: ninguna adopción del ACK quedó bloqueada por el
+    // outbox (la edición pendiente de la cuna debió quedar totalmente superseded
+    // y eliminada por la limpieza confirmada), y no sobrevive ninguna tarea que
+    // pueda reaplicar el árbol cama–cuna.
+    expect(adoptionFailures).toEqual([]);
+    const pendingDailyRecordTasks = await page.evaluate(
+      () =>
+        new Promise<number>(resolve => {
+          const request = indexedDB.open('HangaRoaDB');
+          request.onsuccess = () => {
+            const db = request.result;
+            try {
+              const tx = db.transaction(['syncQueue'], 'readonly');
+              const getAll = tx.objectStore('syncQueue').getAll();
+              getAll.onsuccess = () => {
+                db.close();
+                resolve(
+                  (getAll.result || []).filter(
+                    (task: { type?: string }) => task.type === 'UPDATE_DAILY_RECORD'
+                  ).length
+                );
+              };
+              getAll.onerror = () => {
+                db.close();
+                resolve(-1);
+              };
+            } catch {
+              db.close();
+              resolve(-1);
+            }
+          };
+          request.onerror = () => resolve(-1);
+        })
+    );
+    expect(pendingDailyRecordTasks).toBe(0);
   });
 
   test('T3 · desacople: el CREATE proyecta antes del ACK ajeno y el commit sigue serializado', async ({

@@ -218,6 +218,13 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         const replacement = buildReplacement(localRecord, pendingTask);
         if (!replacement || !pendingTask.id) return { status: 'blocked' as const };
         await hospitalDB.dailyRecords.put(replacement.record);
+        if (replacement.task === null) {
+          // Supersesión total: el comando confirmado ya cubre todo lo pendiente.
+          // Reemplazarla re-declararía paths ya aplicados y mantendría viva la
+          // propiedad del subárbol, bloqueando el siguiente comando cama–cuna.
+          await hospitalDB.syncQueue.delete(pendingTask.id);
+          return { status: 'adopted' as const, record: replacement.record };
+        }
         await hospitalDB.syncQueue.put({
           ...pendingTask,
           ...replacement.task,
