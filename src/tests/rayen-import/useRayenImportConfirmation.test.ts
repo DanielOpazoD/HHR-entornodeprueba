@@ -315,8 +315,6 @@ describe('useRayenImportConfirmation execution ownership', () => {
     );
     expect(appliedState(harness.setState)).toMatchObject({
       result,
-      // El commit ya ocurrió: el usuario sigue en el censo y la corrección
-      // pendiente se comunica por el aviso de revisión, no reabriendo el modal.
       isPreviewOpen: false,
       hasSkippedItems: true,
       error: error.message,
