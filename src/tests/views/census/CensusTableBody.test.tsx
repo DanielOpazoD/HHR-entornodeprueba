@@ -10,15 +10,17 @@ import type { TableColumnConfig } from '@/context/TableConfigContext';
 
 const patientRowSpy = vi.fn();
 const emptyBedRowSpy = vi.fn();
-const { pendingClearTargetsMock } = vi.hoisted(() => ({
+const { pendingClearTargetsMock, pendingCribCreatesMock } = vi.hoisted(() => ({
   pendingClearTargetsMock: {
     bedIds: new Set<string>(),
     clinicalCribBedIds: new Set<string>(),
   },
+  pendingCribCreatesMock: new Map<string, unknown>(),
 }));
 
 vi.mock('@/features/census/hooks/usePendingBedClearIds', () => ({
   usePendingIntentionalClearTargets: () => pendingClearTargetsMock,
+  usePendingClinicalCribCreates: () => pendingCribCreatesMock,
 }));
 
 vi.mock('@/features/census/components/PatientRow', () => ({
@@ -52,6 +54,7 @@ describe('CensusTableBody', () => {
   beforeEach(() => {
     pendingClearTargetsMock.bedIds.clear();
     pendingClearTargetsMock.clinicalCribBedIds.clear();
+    pendingCribCreatesMock.clear();
     patientRowSpy.mockClear();
     emptyBedRowSpy.mockClear();
   });
@@ -385,5 +388,51 @@ describe('CensusTableBody', () => {
       })
     );
     expect(patientRowSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('projects a read-only provisional crib row while its guarded creation is pending', () => {
+    pendingCribCreatesMock.set('R1', {
+      ...DataFactory.createMockPatient('R1'),
+      bedMode: 'Cuna',
+      identityStatus: 'provisional',
+      patientName: 'RN de Paciente',
+    });
+    const unifiedRows: UnifiedBedRow[] = [
+      {
+        kind: 'occupied',
+        id: 'R1',
+        bed: { id: 'R1', name: 'R1', type: BedType.MEDIA, isCuna: false },
+        data: DataFactory.createMockPatient('R1'),
+        isSubRow: false,
+      },
+    ];
+
+    render(
+      <table>
+        <CensusTableBody
+          unifiedRows={unifiedRows}
+          currentDateString="2026-02-15"
+          readOnly={false}
+          diagnosisMode="free"
+          columns={columns}
+          visibleColumnCount={9}
+          bedTypes={{}}
+          role="nurse_hospital"
+          clinicalDocumentPresenceByBedId={{}}
+          onAction={vi.fn()}
+          onActivateEmptyBed={vi.fn()}
+        />
+      </table>
+    );
+
+    expect(patientRowSpy).toHaveBeenCalledTimes(2);
+    // La fila provisional se proyecta como sub-fila de sólo lectura hasta el ACK.
+    expect(patientRowSpy.mock.calls[1][0]).toEqual(
+      expect.objectContaining({
+        isSubRow: true,
+        readOnly: true,
+        data: expect.objectContaining({ patientName: 'RN de Paciente' }),
+      })
+    );
   });
 });

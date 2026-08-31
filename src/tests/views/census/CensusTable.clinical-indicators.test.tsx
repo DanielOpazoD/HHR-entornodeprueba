@@ -70,6 +70,7 @@ vi.mock('@/features/census/hooks/usePendingBedClearIds', () => ({
     bedIds: new Set<string>(),
     clinicalCribBedIds: new Set<string>(),
   })),
+  usePendingClinicalCribCreates: vi.fn(() => new Map<string, unknown>()),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
