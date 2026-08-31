@@ -341,6 +341,28 @@ describe('Rayen synchronization decisions and pulse', () => {
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
+  it('un diff con SOLO egresos administrativos pendientes muestra la revisión, no un modal vacío', () => {
+    const pendingOnlyDiff: CensusImportDiff = {
+      ...diff,
+      discharges: [],
+      summary: { ...diff.summary, discharges: 0 },
+    };
+
+    render(
+      <RayenImportPreviewModal
+        isOpen
+        diff={pendingOnlyDiff}
+        stage={{ type: 'awaiting_review' }}
+        error={null}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Paciente Pendiente/)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Confirmar e importar' })).toBeVisible();
+  });
+
   it('muestra los conflictos como revisión ANTES de confirmar; tras aplicar no se reabre el modal', () => {
     const conflictDiff: CensusImportDiff = {
       ...diff,
@@ -379,6 +401,7 @@ describe('Rayen synchronization decisions and pulse', () => {
       moves: [],
       discharges: [],
       reportEgresos: [],
+      pendingAdministrativeDischarges: [],
       conflicts: [
         {
           bedId: 'H5C1',
@@ -391,6 +414,7 @@ describe('Rayen synchronization decisions and pulse', () => {
         updates: 0,
         moves: 0,
         discharges: 0,
+        pendingAdministrativeDischarges: 0,
         conflicts: 1,
       },
     };
