@@ -86,7 +86,9 @@ export const createAdminMock = ({
   };
   collection.mockReturnValue({ doc: vi.fn(() => hospitalDoc) });
 
+  const update = vi.fn();
   const transaction = {
+    update,
     get: vi.fn((reference: unknown) =>
       Promise.resolve(
         reference === policyRef
@@ -111,6 +113,7 @@ export const createAdminMock = ({
   return {
     transaction,
     set,
+    update,
     telemetryAdd,
     docRef,
     historyDoc,

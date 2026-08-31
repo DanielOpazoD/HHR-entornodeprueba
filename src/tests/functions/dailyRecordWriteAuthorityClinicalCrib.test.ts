@@ -55,7 +55,7 @@ describe('dailyRecordWriteAuthorityFunctions clinical crib erasure guard', () =>
       dateTimestamp: Date.now(),
       meta: { revision: 4, lastMutationId: 'previous' },
     };
-    const { admin, set, docRef } = createAdminMock({
+    const { admin, update, docRef } = createAdminMock({
       remoteData: remote,
       policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
     });
@@ -84,15 +84,12 @@ describe('dailyRecordWriteAuthorityFunctions clinical crib erasure guard', () =>
       )
     ).resolves.toMatchObject({ success: true, mutationId: 'clear-r1-crib' });
 
-    expect(set).toHaveBeenCalledWith(
+    // La transacción escribe sólo los paths tocados: el clear de la cuna viaja
+    // como beds.R1.clinicalCrib = null, sin reescribir el registro completo.
+    expect(update).toHaveBeenCalledWith(
       docRef,
       expect.objectContaining({
-        beds: {
-          R1: expect.objectContaining({
-            patientName: 'Paciente Uno',
-            clinicalCrib: null,
-          }),
-        },
+        'beds.R1.clinicalCrib': null,
       })
     );
   });
