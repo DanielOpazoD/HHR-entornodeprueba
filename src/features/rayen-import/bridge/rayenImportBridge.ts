@@ -8,6 +8,7 @@
  * Only the message SHAPE is trusted here; the app still previews/confirms before writing.
  */
 
+import { requestViaBridgeChannel } from './bridgeRequestChannel';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { RayenNursingActivity } from '../contracts/nursingShiftInference';
@@ -68,43 +69,23 @@ export interface RayenHistoryScaleEvent {
 export const requestEgresoLookup = (
   requested: Array<string | EgresoLookupTarget>,
   timeoutMs = 30000
-): Promise<EgresoLookupResult[]> =>
-  new Promise(resolve => {
-    if (typeof window === 'undefined' || !Array.isArray(requested) || requested.length === 0) {
-      resolve([]);
-      return;
-    }
-    const targets = requested
-      .map(value => (typeof value === 'string' ? { run: value, encounterId: '' } : value))
-      .filter(value => value && typeof value.run === 'string');
-    const runs = targets.map(target => target.run);
-    const reqId = `egreso-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener('message', onMessage);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_EGRESO_LOOKUP_RESULT_TYPE || data.reqId !== reqId) return;
-      cleanup();
-      resolve(Array.isArray(data.results) ? (data.results as EgresoLookupResult[]) : []);
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_EGRESO_LOOKUP_REQUEST_TYPE, reqId, runs, targets },
-      window.location.origin
-    );
-    setTimeout(() => {
-      cleanup();
-      resolve([]);
-    }, timeoutMs);
+): Promise<EgresoLookupResult[]> => {
+  if (typeof window === 'undefined' || !Array.isArray(requested) || requested.length === 0) {
+    return Promise.resolve([]);
+  }
+  const targets = requested
+    .map(value => (typeof value === 'string' ? { run: value, encounterId: '' } : value))
+    .filter(value => value && typeof value.run === 'string');
+  return requestViaBridgeChannel({
+    prefix: 'egreso',
+    requestType: RAYEN_EGRESO_LOOKUP_REQUEST_TYPE,
+    resultType: RAYEN_EGRESO_LOOKUP_RESULT_TYPE,
+    payload: { runs: targets.map(target => target.run), targets },
+    timeoutMs,
+    onTimeout: () => [],
+    mapResult: data => (Array.isArray(data.results) ? (data.results as EgresoLookupResult[]) : []),
   });
+};
 
 /**
  * Ask the extension to download + parse the bulk "Alta Administrativa" egreso report for a date
@@ -120,45 +101,23 @@ export const requestEgresoReport = (
   dateStart: string,
   dateEnd: string,
   timeoutMs = 40000
-): Promise<EgresoReportRequestResult> =>
-  new Promise(resolve => {
-    if (typeof window === 'undefined' || !dateStart || !dateEnd) {
-      resolve({ ok: false, reason: 'invalid-request' });
-      return;
-    }
-    const reqId = `egreso-report-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener('message', onMessage);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_EGRESO_REPORT_RESULT_TYPE || data.reqId !== reqId) return;
-      cleanup();
-      if (data.ok !== true || !Array.isArray(data.rows)) {
-        resolve({ ok: false, reason: 'unavailable' });
-        return;
-      }
-      resolve({ ok: true, rows: data.rows as EgresoReportRow[] });
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_EGRESO_REPORT_REQUEST_TYPE, reqId, dateStart, dateEnd },
-      window.location.origin
-    );
-    timeoutId = setTimeout(() => {
-      cleanup();
-      resolve({ ok: false, reason: 'timeout' });
-    }, timeoutMs);
+): Promise<EgresoReportRequestResult> => {
+  if (typeof window === 'undefined' || !dateStart || !dateEnd) {
+    return Promise.resolve({ ok: false, reason: 'invalid-request' });
+  }
+  return requestViaBridgeChannel<EgresoReportRequestResult>({
+    prefix: 'egreso-report',
+    requestType: RAYEN_EGRESO_REPORT_REQUEST_TYPE,
+    resultType: RAYEN_EGRESO_REPORT_RESULT_TYPE,
+    payload: { dateStart, dateEnd },
+    timeoutMs,
+    onTimeout: () => ({ ok: false, reason: 'timeout' }),
+    mapResult: data =>
+      data.ok === true && Array.isArray(data.rows)
+        ? { ok: true, rows: data.rows as EgresoReportRow[] }
+        : { ok: false, reason: 'unavailable' },
   });
+};
 
 /**
  * Ask the extension to download one patient's "Resumen diario paciente" PDF (which carries the
@@ -175,46 +134,35 @@ export const requestDeviceReport = (
   base64: string;
   source?: 'json' | 'pdf';
   error?: string;
-}> =>
-  new Promise(resolve => {
-    if (typeof window === 'undefined' || !encId || !fecha) {
-      resolve({ base64: '' });
-      return;
-    }
-    const reqId = `device-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener('message', onMessage);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_DEVICE_REPORT_RESULT_TYPE || data.reqId !== reqId) return;
-      cleanup();
-      resolve({
-        entries: Array.isArray(data.entries)
-          ? (data.entries as RayenInvasiveDeviceEntry[])
-          : undefined,
-        base64: typeof data.base64 === 'string' ? data.base64 : '',
-        source: data.source === 'json' || data.source === 'pdf' ? data.source : undefined,
-        error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_DEVICE_REPORT_REQUEST_TYPE, reqId, encId, fecha, acceptEntries: true },
-      window.location.origin
-    );
-    setTimeout(() => {
-      cleanup();
-      resolve({ base64: '', error: 'Tiempo de espera agotado bajando el PDF de dispositivos.' });
-    }, timeoutMs);
+}> => {
+  if (typeof window === 'undefined' || !encId || !fecha) {
+    return Promise.resolve({ base64: '' });
+  }
+  return requestViaBridgeChannel<{
+    entries?: RayenInvasiveDeviceEntry[];
+    base64: string;
+    source?: 'json' | 'pdf';
+    error?: string;
+  }>({
+    prefix: 'device',
+    requestType: RAYEN_DEVICE_REPORT_REQUEST_TYPE,
+    resultType: RAYEN_DEVICE_REPORT_RESULT_TYPE,
+    payload: { encId, fecha, acceptEntries: true },
+    timeoutMs,
+    onTimeout: () => ({
+      base64: '',
+      error: 'Tiempo de espera agotado bajando el PDF de dispositivos.',
+    }),
+    mapResult: data => ({
+      entries: Array.isArray(data.entries)
+        ? (data.entries as RayenInvasiveDeviceEntry[])
+        : undefined,
+      base64: typeof data.base64 === 'string' ? data.base64 : '',
+      source: data.source === 'json' || data.source === 'pdf' ? data.source : undefined,
+      error: typeof data.error === 'string' ? data.error : undefined,
+    }),
   });
+};
 
 /**
  * Ask the extension for one patient's evaluation-scale instruments (Braden/Downton) as the raw
@@ -225,42 +173,26 @@ export const requestDeviceReport = (
 export const requestScalesReport = (
   encId: string,
   timeoutMs = 30000
-): Promise<{ forms: unknown[]; error?: string }> =>
-  new Promise(resolve => {
-    if (typeof window === 'undefined' || !encId) {
-      resolve({ forms: [] });
-      return;
-    }
-    const reqId = `scales-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener('message', onMessage);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_SCALES_REPORT_RESULT_TYPE || data.reqId !== reqId) return;
-      cleanup();
-      resolve({
-        forms: Array.isArray(data.forms) ? (data.forms as unknown[]) : [],
-        error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_SCALES_REPORT_REQUEST_TYPE, reqId, encId },
-      window.location.origin
-    );
-    setTimeout(() => {
-      cleanup();
-      resolve({ forms: [], error: 'Tiempo de espera agotado bajando las escalas de evaluación.' });
-    }, timeoutMs);
+): Promise<{ forms: unknown[]; error?: string }> => {
+  if (typeof window === 'undefined' || !encId) {
+    return Promise.resolve({ forms: [] });
+  }
+  return requestViaBridgeChannel<{ forms: unknown[]; error?: string }>({
+    prefix: 'scales',
+    requestType: RAYEN_SCALES_REPORT_REQUEST_TYPE,
+    resultType: RAYEN_SCALES_REPORT_RESULT_TYPE,
+    payload: { encId },
+    timeoutMs,
+    onTimeout: () => ({
+      forms: [],
+      error: 'Tiempo de espera agotado bajando las escalas de evaluación.',
+    }),
+    mapResult: data => ({
+      forms: Array.isArray(data.forms) ? (data.forms as unknown[]) : [],
+      error: typeof data.error === 'string' ? data.error : undefined,
+    }),
   });
+};
 
 /**
  * Ask the extension for one patient's evaluation scales (Braden/Downton) as clinical-history events
@@ -283,110 +215,75 @@ export const requestHistoryScales = (
   coverageWindowStartIsoDay?: string;
   coverageWindowEndIsoDay?: string;
   error?: string;
-}> =>
-  new Promise(resolve => {
-    const options = typeof optionsOrTimeout === 'number' ? {} : optionsOrTimeout;
-    const timeoutMs = typeof optionsOrTimeout === 'number' ? optionsOrTimeout : explicitTimeoutMs;
-    if (typeof window === 'undefined' || !encId) {
-      resolve({ events: [], nursingActivity: [] });
-      return;
-    }
-    const reqId = `hist-scales-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener('message', onMessage);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_HISTORY_SCALES_RESULT_TYPE || data.reqId !== reqId) return;
-      cleanup();
-      resolve({
-        events: Array.isArray(data.events) ? (data.events as RayenHistoryScaleEvent[]) : [],
-        nursingActivity: Array.isArray(data.nursingActivity)
-          ? (data.nursingActivity as RayenNursingActivity[])
-          : [],
-        effectiveLookbackDays: Number.isFinite(Number(data.effectiveLookbackDays))
-          ? Number(data.effectiveLookbackDays)
-          : undefined,
-        coverageWindowStartIsoDay: optionalString(data.coverageWindowStartIsoDay),
-        coverageWindowEndIsoDay: optionalString(data.coverageWindowEndIsoDay),
-        error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      {
-        type: RAYEN_HISTORY_SCALES_REQUEST_TYPE,
-        reqId,
-        encId,
-        censusDate,
-        lookbackDays: options.lookbackDays,
-      },
-      window.location.origin
-    );
-    setTimeout(() => {
-      cleanup();
-      resolve({
-        events: [],
-        nursingActivity: [],
-        error: 'Tiempo de espera agotado bajando el historial clínico.',
-      });
-    }, timeoutMs);
+}> => {
+  const options = typeof optionsOrTimeout === 'number' ? {} : optionsOrTimeout;
+  const timeoutMs = typeof optionsOrTimeout === 'number' ? optionsOrTimeout : explicitTimeoutMs;
+  if (typeof window === 'undefined' || !encId) {
+    return Promise.resolve({ events: [], nursingActivity: [] });
+  }
+  return requestViaBridgeChannel<{
+    events: RayenHistoryScaleEvent[];
+    nursingActivity: RayenNursingActivity[];
+    effectiveLookbackDays?: number;
+    coverageWindowStartIsoDay?: string;
+    coverageWindowEndIsoDay?: string;
+    error?: string;
+  }>({
+    prefix: 'hist-scales',
+    requestType: RAYEN_HISTORY_SCALES_REQUEST_TYPE,
+    resultType: RAYEN_HISTORY_SCALES_RESULT_TYPE,
+    payload: { encId, censusDate, lookbackDays: options.lookbackDays },
+    timeoutMs,
+    onTimeout: () => ({
+      events: [],
+      nursingActivity: [],
+      error: 'Tiempo de espera agotado bajando el historial clínico.',
+    }),
+    mapResult: data => ({
+      events: Array.isArray(data.events) ? (data.events as RayenHistoryScaleEvent[]) : [],
+      nursingActivity: Array.isArray(data.nursingActivity)
+        ? (data.nursingActivity as RayenNursingActivity[])
+        : [],
+      effectiveLookbackDays: Number.isFinite(Number(data.effectiveLookbackDays))
+        ? Number(data.effectiveLookbackDays)
+        : undefined,
+      coverageWindowStartIsoDay: optionalString(data.coverageWindowStartIsoDay),
+      coverageWindowEndIsoDay: optionalString(data.coverageWindowEndIsoDay),
+      error: typeof data.error === 'string' ? data.error : undefined,
+    }),
   });
+};
 
 /**
  * Ask the extension for the CUDYR (CRD) composite result of every patient across Ficha Médico's nurse
  * worklists. Rayen exposes only the aggregate category (e.g. "D3") + datetime per encounter, not the
  * 14 variables. Resolves to `[]` if the extension / Ficha Médico tab is unavailable or times out.
  */
-export const requestCudyrCategories = (timeoutMs = 30000): Promise<RayenCudyrCategoriesResponse> =>
-  new Promise(resolve => {
-    if (typeof window === 'undefined') {
-      resolve({ items: [] });
-      return;
-    }
-    const reqId = `cudyr-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    let settled = false;
-
-    const cleanup = (): void => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener('message', onMessage);
-    };
-
-    const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data;
-      if (!data || data.type !== RAYEN_CUDYR_CATEGORIES_RESULT_TYPE || data.reqId !== reqId) return;
-      cleanup();
-      resolve({
-        items: Array.isArray(data.items) ? (data.items as RayenCudyrCategory[]) : [],
-        source:
-          data.source === 'gestion_camas' ||
-          data.source === 'gestion_camas+ficha_medico' ||
-          data.source === 'ficha_medico'
-            ? data.source
-            : undefined,
-        historyAvailable:
-          typeof data.historyAvailable === 'boolean' ? data.historyAvailable : undefined,
-        warning: typeof data.warning === 'string' ? data.warning : undefined,
-        error: typeof data.error === 'string' ? data.error : undefined,
-      });
-    };
-
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE, reqId },
-      window.location.origin
-    );
-    setTimeout(() => {
-      cleanup();
-      resolve({ items: [], error: 'Tiempo de espera agotado leyendo CUDYR.' });
-    }, timeoutMs);
+export const requestCudyrCategories = (
+  timeoutMs = 30000
+): Promise<RayenCudyrCategoriesResponse> => {
+  if (typeof window === 'undefined') {
+    return Promise.resolve({ items: [] });
+  }
+  return requestViaBridgeChannel<RayenCudyrCategoriesResponse>({
+    prefix: 'cudyr',
+    requestType: RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE,
+    resultType: RAYEN_CUDYR_CATEGORIES_RESULT_TYPE,
+    payload: {},
+    timeoutMs,
+    onTimeout: () => ({ items: [], error: 'Tiempo de espera agotado leyendo CUDYR.' }),
+    mapResult: data => ({
+      items: Array.isArray(data.items) ? (data.items as RayenCudyrCategory[]) : [],
+      source:
+        data.source === 'gestion_camas' ||
+        data.source === 'gestion_camas+ficha_medico' ||
+        data.source === 'ficha_medico'
+          ? data.source
+          : undefined,
+      historyAvailable:
+        typeof data.historyAvailable === 'boolean' ? data.historyAvailable : undefined,
+      warning: typeof data.warning === 'string' ? data.warning : undefined,
+      error: typeof data.error === 'string' ? data.error : undefined,
+    }),
   });
+};

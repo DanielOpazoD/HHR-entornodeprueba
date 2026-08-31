@@ -103,6 +103,13 @@ export interface DailyRecordAuthorityPatchCallablePayload {
  */
 export const DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION = 'southamerica-east1';
 
+/**
+ * Techo explícito por llamada. El default del SDK (70 s) alargaba los cuelgues:
+ * un patch caliente tarda 1,4–2,5 s y un guardado completo frío < 20 s, así que
+ * 45 s ya es patológico y conviene fallar para que la recuperación actúe.
+ */
+export const DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS = 45_000;
+
 export const saveDailyRecordWithClinicalAuthorityCallable = async (
   payload: DailyRecordAuthorityCallablePayload
 ): Promise<DailyRecordAuthorityCallableResponse> => {
@@ -112,7 +119,9 @@ export const saveDailyRecordWithClinicalAuthorityCallable = async (
   const callable = httpsCallable<
     DailyRecordAuthorityCallablePayload,
     DailyRecordAuthorityCallableResponse
-  >(functions, 'saveDailyRecordWithClinicalAuthority');
+  >(functions, 'saveDailyRecordWithClinicalAuthority', {
+    timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS,
+  });
 
   try {
     const result = await callable(payload);
@@ -131,7 +140,9 @@ export const patchDailyRecordWithClinicalAuthorityCallable = async (
   const callable = httpsCallable<
     DailyRecordAuthorityPatchCallablePayload,
     DailyRecordAuthorityCallableResponse
-  >(functions, 'patchDailyRecordWithClinicalAuthority');
+  >(functions, 'patchDailyRecordWithClinicalAuthority', {
+    timeout: DAILY_RECORD_AUTHORITY_CALLABLE_TIMEOUT_MS,
+  });
 
   try {
     const result = await callable(payload);

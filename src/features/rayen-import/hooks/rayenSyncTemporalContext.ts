@@ -27,7 +27,38 @@ interface PrepareRayenSyncTemporalContextInput {
   runId: string;
   loadFreshRecord: (date: string) => Promise<DailyRecord>;
   now?: () => Date;
+  loadTimeoutMs?: number;
 }
+
+/**
+ * La lectura fresca corre ANTES de que exista el vigilante de 75 s del bundle
+ * (etapa preparing_context). Sin techo propio, un backend inalcanzable dejaba
+ * la sincronización pegada en «Preparando el contexto del censo» y el candado
+ * tomado hasta recargar la página.
+ */
+export const RAYEN_SYNC_CONTEXT_LOAD_TIMEOUT_MS = 30_000;
+
+const withLoadTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                'No se pudo leer la versión vigente del censo para preparar la sincronización. Revisa la conexión y reintenta.'
+              )
+            ),
+          timeoutMs
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
 
 /**
  * Freezes the selected census day and its freshest persisted state before requesting Rayen.
@@ -38,9 +69,10 @@ export const prepareRayenSyncTemporalContext = async ({
   runId,
   loadFreshRecord,
   now = () => new Date(),
+  loadTimeoutMs = RAYEN_SYNC_CONTEXT_LOAD_TIMEOUT_MS,
 }: PrepareRayenSyncTemporalContextInput): Promise<PreparedRayenSyncContext> => {
   const selectedDate = toIsoReportDate(displayedRecord);
-  const record = await loadFreshRecord(selectedDate);
+  const record = await withLoadTimeout(loadFreshRecord(selectedDate), loadTimeoutMs);
   if (toIsoReportDate(record) !== selectedDate) {
     throw new Error('La versión vigente no corresponde al día de censo seleccionado.');
   }

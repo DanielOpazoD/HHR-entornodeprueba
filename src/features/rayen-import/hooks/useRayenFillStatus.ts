@@ -9,6 +9,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
+import { logger } from '@/services/utils/loggerService';
 
 export interface RayenFillProgress {
   running: boolean;
@@ -37,9 +38,44 @@ const IDLE: RayenFillProgress = {
   staffingOutcome: 'idle',
 };
 
+/**
+ * Techo del vigilante del single-flight. Un fill legítimo de ~20 pacientes toma
+ * 2–3 min; si el candado sigue tomado mucho más allá de eso es que algún await
+ * interno nunca resolvió (pestaña de Rayen cerrada a mitad de corrida, service
+ * worker reciclado, promesa perdida). Sin este techo, el botón «Sincronizar»
+ * respondía «la revisión clínica anterior todavía está terminando» hasta
+ * recargar la página.
+ */
+export const RAYEN_FILL_STALE_AFTER_MS = 8 * 60 * 1000;
+
 let progress: RayenFillProgress = IDLE;
 let activeAttemptId: number | null = null;
+let runningSinceMs: number | null = null;
 const listeners = new Set<() => void>();
+
+const releaseStaleFill = (nowMs: number): boolean => {
+  if (!progress.running) return false;
+  if (runningSinceMs === null) {
+    // Corrida heredada sin marca de inicio (p. ej. recarga en caliente): se le
+    // da una ventana completa antes de poder considerarla colgada.
+    runningSinceMs = nowMs;
+    return false;
+  }
+  if (nowMs - runningSinceMs < RAYEN_FILL_STALE_AFTER_MS) return false;
+  logger.warn(
+    '[RayenFill] Un fill clínico quedó colgado más allá del techo del vigilante; se libera el candado.',
+    { attemptId: progress.attemptId, runningForMs: runningSinceMs ? nowMs - runningSinceMs : null }
+  );
+  activeAttemptId = null;
+  runningSinceMs = null;
+  emit({
+    ...progress,
+    running: false,
+    outcome: 'partial',
+    errors: Math.max(progress.errors, 1),
+  });
+  return true;
+};
 
 const emit = (next: RayenFillProgress): void => {
   progress = next;
@@ -47,7 +83,8 @@ const emit = (next: RayenFillProgress): void => {
 };
 
 /** Start a fill run. Returns false (and does nothing) if one is already running — single flight. */
-export const beginRayenFill = (total: number): boolean => {
+export const beginRayenFill = (total: number, nowMs: number = Date.now()): boolean => {
+  releaseStaleFill(nowMs);
   const attemptId = progress.attemptId + 1;
   if (progress.running) {
     // Preserve the older in-flight work, but make the latest rejected attempt explicit so its UI
@@ -56,6 +93,7 @@ export const beginRayenFill = (total: number): boolean => {
     return false;
   }
   activeAttemptId = attemptId;
+  runningSinceMs = nowMs;
   emit({
     running: true,
     outcome: 'running',
@@ -70,9 +108,11 @@ export const beginRayenFill = (total: number): boolean => {
 };
 
 /** Clear evidence from an earlier run before requesting a new Eloísa snapshot. */
-export const resetRayenFillProgress = (): boolean => {
+export const resetRayenFillProgress = (nowMs: number = Date.now()): boolean => {
+  releaseStaleFill(nowMs);
   if (progress.running || progress.staffingOutcome === 'applying') return false;
   activeAttemptId = null;
+  runningSinceMs = null;
   emit({ ...IDLE, attemptId: progress.attemptId });
   return true;
 };
@@ -118,6 +158,7 @@ export const reportRayenFillProgress = (done: number, total: number): void => {
 export const endRayenFill = (errors: number, hasAnyError: boolean = errors > 0): void => {
   const completedLatestAttempt = activeAttemptId === progress.attemptId;
   activeAttemptId = null;
+  runningSinceMs = null;
   emit({
     running: false,
     outcome: completedLatestAttempt ? (hasAnyError ? 'partial' : 'complete') : progress.outcome,

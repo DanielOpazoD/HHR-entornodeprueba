@@ -181,7 +181,8 @@ describe('sync queue clinical authority', () => {
     expect(mockGetFunctions).toHaveBeenCalled();
     expect(mockHttpsCallable).toHaveBeenCalledWith(
       { name: 'functions-runtime' },
-      'saveDailyRecordWithClinicalAuthority'
+      'saveDailyRecordWithClinicalAuthority',
+      { timeout: 45_000 }
     );
     expect(mockAuthorityCallable).toHaveBeenCalledWith(
       expect.objectContaining({

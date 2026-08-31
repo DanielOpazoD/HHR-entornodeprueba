@@ -246,7 +246,8 @@ describe('firestoreRecordWrites', () => {
     expect(mockGetFunctions).toHaveBeenCalled();
     expect(mockHttpsCallable).toHaveBeenCalledWith(
       { name: 'functions-runtime' },
-      'saveDailyRecordWithClinicalAuthority'
+      'saveDailyRecordWithClinicalAuthority',
+      { timeout: 45_000 }
     );
     expect(mockSpecialistCallable).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -360,7 +361,8 @@ describe('firestoreRecordWrites', () => {
     expect(mockGetFunctions).toHaveBeenCalled();
     expect(mockHttpsCallable).toHaveBeenCalledWith(
       { name: 'functions-runtime' },
-      'updateSpecialistMedicalHandoff'
+      'updateSpecialistMedicalHandoff',
+      { timeout: 45_000 }
     );
     expect(mockSpecialistCallable).toHaveBeenCalledWith({
       date: '2026-03-20',
