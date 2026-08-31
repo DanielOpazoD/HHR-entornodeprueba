@@ -66,7 +66,8 @@ export const createAdminMock = ({
   const set = vi.fn();
   const telemetryAdd = vi.fn().mockResolvedValue({ id: 'telemetry-1' });
   const collection = vi.fn();
-  const historyDoc = { path: 'history-doc', kind: 'history' };
+  const historySet = vi.fn().mockResolvedValue(undefined);
+  const historyDoc = { path: 'history-doc', kind: 'history', set: historySet };
   const historyCollection = { doc: vi.fn(() => historyDoc) };
   const docRef = {
     path: 'daily-record-doc',
@@ -113,6 +114,7 @@ export const createAdminMock = ({
     telemetryAdd,
     docRef,
     historyDoc,
+    historySet,
     policyRef,
     admin: {
       firestore: Object.assign(

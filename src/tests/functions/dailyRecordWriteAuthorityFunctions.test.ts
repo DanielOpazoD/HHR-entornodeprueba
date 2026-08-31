@@ -12,7 +12,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
   });
 
   it('writes daily records in a transaction after clinical authority validation', async () => {
-    const { admin, set, docRef, historyDoc, telemetryAdd } = createAdminMock({
+    const { admin, set, docRef, historySet, telemetryAdd } = createAdminMock({
       remoteData: {
         date: '2026-05-13',
         lastUpdated: '2026-05-13T10:00:00.000Z',
@@ -40,8 +40,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       makeContext()
     );
 
-    expect(set).toHaveBeenCalledWith(
-      historyDoc,
+    // El historial se escribe después del commit, fuera de la transacción.
+    expect(historySet).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-05-13',
         snapshotTimestamp: expect.anything(),
@@ -96,7 +96,7 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
   });
 
   it('applies partial patches inside the authority transaction against the current remote record', async () => {
-    const { admin, set, docRef, historyDoc, telemetryAdd } = createAdminMock({
+    const { admin, set, docRef, historySet, telemetryAdd } = createAdminMock({
       remoteData: {
         ...makeRecord(),
         lastUpdated: '2026-05-13T10:00:05.000Z',
@@ -139,8 +139,8 @@ describe('dailyRecordWriteAuthorityFunctions', () => {
       makeContext()
     );
 
-    expect(set).toHaveBeenCalledWith(
-      historyDoc,
+    // El historial se escribe después del commit, fuera de la transacción.
+    expect(historySet).toHaveBeenCalledWith(
       expect.objectContaining({
         date: '2026-05-13',
         snapshotTimestamp: expect.anything(),
