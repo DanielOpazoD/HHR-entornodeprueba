@@ -134,6 +134,49 @@ describe('Gestión de Camas connection runtime', () => {
     );
   });
 
+  it('acepta la captura adelantada al handshake desde la pestaña del intento pendiente', async () => {
+    // La ventana oficial emite su bootstrap autenticado antes de recibir el id
+    // del intento: la captura llega sin attemptId pero desde la pestaña del
+    // intento. Debe aceptarse y adoptar el id pendiente para que la
+    // verificación pueda completar el flujo (cerrar el popup).
+    const { runtime, values } = createFixture(
+      { 'gc-pending': { tabId: 21, attemptId: 'attempt-x' } },
+      { tabs: [{ id: 21 }] }
+    );
+
+    await expect(
+      runtime.captureSession(
+        {
+          accessValue: 'bootstrap',
+          apiBase: 'https://hospbackend.rayensalud.cl/api',
+          facId: '1342',
+        },
+        { tab: { id: 21 } }
+      )
+    ).resolves.toMatchObject({ ok: true });
+    expect(values['gc-session']).toMatchObject({
+      sourceTabId: 21,
+      connectionAttemptId: 'attempt-x',
+    });
+
+    // Desde OTRA pestaña, la captura sin attemptId sigue rechazada mientras
+    // el intento pendiente está vivo.
+    const other = createFixture(
+      { 'gc-pending': { tabId: 21, attemptId: 'attempt-x' } },
+      { tabs: [{ id: 21 }, { id: 22 }] }
+    );
+    await expect(
+      other.runtime.captureSession(
+        {
+          accessValue: 'ajena',
+          apiBase: 'https://hospbackend.rayensalud.cl/api',
+          facId: '1342',
+        },
+        { tab: { id: 22 } }
+      )
+    ).rejects.toThrow(/intento de conexión anterior/);
+  });
+
   it('adopta la captura de una pestaña viva cuando la sesión vigente quedó huérfana', async () => {
     // La pestaña 17 (dueña de la sesión) ya no existe; la 18 está viva y
     // autenticada. La sesión huérfana no debe exigir reconexión manual.

@@ -239,10 +239,14 @@
     // (host_permissions bypass CORS) and returns the bytes to HHR. Token stays in-extension.
     if (d.type === 'RAYEN_GC_FETCHINFO_REQUEST') {
       const requestedAttemptId = String(d.connectionAttemptId || '');
-      if (
-        requestedAttemptId !== activeConnectionAttemptId ||
-        requestedAttemptId !== capturedAuthConnectionAttemptId
-      ) {
+      // Rechaza solo cuando el solicitante fija OTRA generación que la activa
+      // (carrera real de renovación). Exigir además que la credencial se haya
+      // observado bajo esa misma generación dejaba la pestaña bloqueada para
+      // siempre cuando el bootstrap autenticado se adelantaba al handshake del
+      // intento: una SPA quieta no vuelve a emitir tráfico que la re-capture.
+      // La vigencia real la comprueba el background con su probe autenticado
+      // antes de usar cualquier credencial entregada aquí.
+      if (requestedAttemptId && requestedAttemptId !== activeConnectionAttemptId) {
         reply('RAYEN_GC_FETCHINFO_RESULT', {
           error: 'El intento de conexión cambió antes de leer la sesión.',
         });

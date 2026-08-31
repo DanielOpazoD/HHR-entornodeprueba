@@ -262,9 +262,9 @@
       "hotspots": {}
     },
     "gestion-camas-runtime.js": {
-      "maxLines": 505,
+      "maxLines": 512,
       "hotspots": {
-        "iife>variable:create>variable:persistGestionCamasSession>callback:mutateGestionCamasSession:0": 21,
+        "iife>variable:create>variable:persistGestionCamasSession>callback:mutateGestionCamasSession:0": 25,
         "iife>variable:create>variable:requestLiveGestionCamasSession": 23
       }
     },
@@ -402,7 +402,7 @@
       }
     },
     "inject-gestioncamas.js": {
-      "maxLines": 261,
+      "maxLines": 266,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 17
       }

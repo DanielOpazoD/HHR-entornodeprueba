@@ -118,10 +118,14 @@
         const pending = await readPendingGestionCamasConnection();
         const control = await readGestionCamasConnectionControl();
         const suppliedAttemptId = String(info && info.connectionAttemptId || '');
+        // La ventana oficial puede emitir su bootstrap autenticado ANTES de
+        // recibir el id del intento (el handshake viaja por mensajes con
+        // reintentos): esa captura llega sin attemptId pero proviene de la
+        // pestaña del intento, verificada por sender. No debe rechazarse.
         const matchesPendingAttempt = Boolean(
           pending &&
           Number(pending.tabId) === normalizedSourceTabId &&
-          String(pending.attemptId) === suppliedAttemptId
+          (String(pending.attemptId) === suppliedAttemptId || !suppliedAttemptId)
         );
         const matchesCurrentBinding = Boolean(
           current &&
@@ -148,7 +152,11 @@
         }
 
         record.sourceTabId = normalizedSourceTabId;
-        record.connectionAttemptId = suppliedAttemptId;
+        // La captura adelantada al handshake llega sin attemptId: adopta el del
+        // intento pendiente para que la verificación pueda completar el flujo
+        // (cerrar la ventana oficial y limpiar el intento).
+        record.connectionAttemptId =
+          matchesPendingAttempt && pending ? String(pending.attemptId || '') : suppliedAttemptId;
         await chromeApi.storage.session.set({ [session.SESSION_STORAGE_KEY]: record });
         return record;
       });
