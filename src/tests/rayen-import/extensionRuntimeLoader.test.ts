@@ -268,7 +268,11 @@ describe('extension heavy runtime loading', () => {
     expect(gestionCamasSource).not.toContain('verified: Boolean(verified)');
     expect(gestionCamasRuntimeSource).toContain('sameGestionCamasSession(current, record)');
     expect(gestionCamasRuntimeSource).toContain('record.sourceTabId = normalizedSourceTabId');
-    expect(gestionCamasRuntimeSource).toContain('record.connectionAttemptId = suppliedAttemptId');
+    // La captura adelantada al handshake adopta el id del intento pendiente;
+    // cualquier otra conserva el id con el que llegó.
+    expect(gestionCamasRuntimeSource).toContain(
+      "matchesPendingAttempt && pending ? String(pending.attemptId || '') : suppliedAttemptId"
+    );
     expect(gestionCamasRuntimeSource).toContain('attemptId: crypto.randomUUID()');
     expect(gestionCamasRuntimeSource).toContain('RAYEN_GC_SET_CONNECTION_ATTEMPT');
     expect(backgroundSource).toContain('[RUNTIME_MESSAGES.GC_DOCUMENT_READY]: runtimeRoute(');

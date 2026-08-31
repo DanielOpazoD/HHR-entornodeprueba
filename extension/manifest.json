@@ -2,9 +2,15 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.47.1",
+  "version": "0.47.2",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
-  "permissions": ["tabs", "downloads", "storage", "offscreen", "clipboardWrite"],
+  "permissions": [
+    "tabs",
+    "downloads",
+    "storage",
+    "offscreen",
+    "clipboardWrite"
+  ],
   "host_permissions": [
     "https://fichamedico.rayensalud.cl/*",
     "https://fichamedicoback.rayensalud.cl/*",
@@ -35,16 +41,25 @@
         "forms/solicitud-imagen.pdf",
         "forms/solicitud_imagenologia.png"
       ],
-      "matches": ["https://fichamedico.rayensalud.cl/*"]
+      "matches": [
+        "https://fichamedico.rayensalud.cl/*"
+      ]
     },
     {
-      "resources": ["pdf.min.mjs", "pdf.worker.min.mjs"],
-      "matches": ["http://10.4.69.90/*"]
+      "resources": [
+        "pdf.min.mjs",
+        "pdf.worker.min.mjs"
+      ],
+      "matches": [
+        "http://10.4.69.90/*"
+      ]
     }
   ],
   "content_scripts": [
     {
-      "matches": ["https://fichamedico.rayensalud.cl/*"],
+      "matches": [
+        "https://fichamedico.rayensalud.cl/*"
+      ],
       "js": [
         "fichamedico-isolation-normalization.js",
         "fichamedico-treating-physician-dom.js",
@@ -57,7 +72,9 @@
       "world": "MAIN"
     },
     {
-      "matches": ["https://fichamedico.rayensalud.cl/*"],
+      "matches": [
+        "https://fichamedico.rayensalud.cl/*"
+      ],
       "js": [
         "message-contract.js",
         "hhr-ui.js",
@@ -89,25 +106,54 @@
       "run_at": "document_start"
     },
     {
-      "matches": ["https://hospitalizado.rayensalud.cl/*"],
-      "js": ["inject-gestioncamas.js"],
+      "matches": [
+        "https://hospitalizado.rayensalud.cl/*"
+      ],
+      "js": [
+        "inject-gestioncamas.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["https://hospitalizado.rayensalud.cl/*"],
-      "js": ["message-contract.js", "content-gestioncamas.js"],
+      "matches": [
+        "https://hospitalizado.rayensalud.cl/*"
+      ],
+      "js": [
+        "message-contract.js",
+        "content-gestioncamas.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["http://10.4.69.90/syslab/*"],
-      "js": ["lab-result-parser.js", "lab-viewer.js", "syslab-bridge.js"],
+      "matches": [
+        "http://10.4.69.90/syslab/*"
+      ],
+      "js": [
+        "lab-result-parser.js",
+        "lab-viewer.js",
+        "syslab-bridge.js"
+      ],
       "run_at": "document_idle",
       "all_frames": true
     },
     {
-      "matches": ["http://localhost:3000/*", "http://localhost:3001/*", "https://testinghhr.netlify.app/*", "https://hhr-entornodeprueba.vercel.app/*"],
-      "js": ["message-contract.js", "content-hhr-sync-bundle.js", "content-hhr.js", "content-hhr-patient-flow.js", "content-hhr-epicrisis.js", "content-hhr-statistical-discharge.js", "content-hhr-statistical-evidence.js", "content-hhr-syslab.js"],
+      "matches": [
+        "http://localhost:3000/*",
+        "http://localhost:3001/*",
+        "https://testinghhr.netlify.app/*",
+        "https://hhr-entornodeprueba.vercel.app/*"
+      ],
+      "js": [
+        "message-contract.js",
+        "content-hhr-sync-bundle.js",
+        "content-hhr.js",
+        "content-hhr-patient-flow.js",
+        "content-hhr-epicrisis.js",
+        "content-hhr-statistical-discharge.js",
+        "content-hhr-statistical-evidence.js",
+        "content-hhr-syslab.js"
+      ],
       "run_at": "document_idle"
     }
   ]
