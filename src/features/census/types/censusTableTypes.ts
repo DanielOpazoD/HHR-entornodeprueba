@@ -11,7 +11,15 @@ export interface OccupiedBedRow {
 }
 
 export type UnifiedBedRow =
-  | { kind: 'occupied'; id: string; bed: BedDefinition; data: PatientData; isSubRow: boolean }
+  | {
+      kind: 'occupied';
+      id: string;
+      bed: BedDefinition;
+      data: PatientData;
+      isSubRow: boolean;
+      /** Provisional crib row projected from a pending guarded creation; read-only until the ACK. */
+      isPendingCreate?: boolean;
+    }
   | { kind: 'empty'; id: string; bed: BedDefinition };
 
 export interface CensusBedRows {

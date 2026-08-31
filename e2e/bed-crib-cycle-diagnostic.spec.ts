@@ -13,7 +13,8 @@
  *
  * La fase mutation_turn no es visible desde fuera; se demuestra causalmente:
  * el escenario T3 retiene el ACK de una escritura no relacionada y verifica que
- * projection_visible del CREATE queda bloqueado exactamente hasta ese ACK.
+ * la proyección del CREATE aparece de inmediato (estado pending) mientras el
+ * commit remoto sigue serializado detrás de ese ACK.
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import fs from 'node:fs';
@@ -379,7 +380,7 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
     ).toBe(true);
   });
 
-  test('T3 · causalidad: la proyección del CREATE espera el ACK de una escritura no relacionada', async ({
+  test('T3 · desacople: el CREATE proyecta antes del ACK ajeno y el commit sigue serializado', async ({
     page,
   }) => {
     test.setTimeout(60_000);
@@ -394,28 +395,24 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
     mark(scenario, 'create.action_clicked_while_unrelated_ack_held');
     await clickAgregarCuna(page);
 
-    // Mientras el ACK no relacionado está retenido, la fila CUNA no puede aparecer.
-    await expect(getCribRow(page)).toHaveCount(0);
+    // La proyección aparece de inmediato aunque el ACK ajeno siga retenido: la
+    // fila provisional viene del estado pending de la mutación, no del turno.
+    await expect(getCribRow(page)).toBeVisible({ timeout: 2_000 });
     const beforeRelease = await readDiag(page);
-    expect(beforeRelease.tCribVisible).toBe(0);
-
-    // Marca en el reloj de página el instante exacto de liberación del ACK ajeno.
-    const tReleasePage = await page.evaluate(() => performance.now());
+    expect(beforeRelease.tCribVisible).toBeGreaterThan(0);
+    mark(scenario, 'create.projection_visible_before_unrelated_ack', {
+      projectionMsFromClick: beforeRelease.tCribVisible - beforeRelease.t0,
+    });
+    // El commit sigue serializado: el callable del CREATE sólo parte después de
+    // liberar el ACK de la escritura anterior.
     mark(scenario, 'unrelated.server_commit_and_ack_released');
     await heldCall.succeed();
 
-    // Recién liberado el ACK ajeno, el turno avanza y la proyección aparece.
-    await expect(getCribRow(page)).toBeVisible({ timeout: 10_000 });
-    const afterRelease = await readDiag(page);
-    // Causalidad en un solo reloj: la proyección ocurrió DESPUÉS de liberar el ACK.
-    expect(afterRelease.tCribVisible).toBeGreaterThan(tReleasePage);
-    mark(scenario, 'create.projection_visible', {
-      projectionMsFromClick: afterRelease.tCribVisible - afterRelease.t0,
-      projectionMsAfterUnrelatedAck: afterRelease.tCribVisible - tReleasePage,
-    });
-
     const createCall = await authority.nextCall();
-    mark(scenario, 'create.callable_started', {
+    expect(
+      Object.keys(createCall.payload.patch).some(path => path.startsWith('beds.R1.clinicalCrib'))
+    ).toBe(true);
+    mark(scenario, 'create.callable_started_after_unrelated_ack', {
       commandId: createCall.payload.syncContract?.mutationId,
     });
     await createCall.succeed();
@@ -493,7 +490,7 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
     mark(scenario, 'clear.indexeddb_committed_after_retry');
   });
 
-  test('T2 · presupuesto (FALLA ESPERADA): crear cuna detrás de una escritura lenta no relacionada debe proyectarse en ≤ 200 ms', async ({
+  test('T2 · presupuesto: crear cuna detrás de una escritura lenta no relacionada se proyecta en ≤ 200 ms', async ({
     page,
   }) => {
     test.setTimeout(60_000);
@@ -510,9 +507,9 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
     await clickAgregarCuna(page);
 
     // Presupuesto provisional del dossier: clic → proyección visible p95 ≤ 200 ms,
-    // independiente de la latencia de red. Hoy la proyección del CREATE espera el
-    // turno de la cola por fecha (usePatchDailyRecordMutation.onMutate), por lo que
-    // esta aserción FALLA sobre main/PR #252: ésa es la evidencia del incidente.
+    // independiente de la latencia de red. La fila provisional viene del estado
+    // pending de la mutación (usePendingClinicalCribCreates), así que no depende
+    // del turno de la cola por fecha ni del viaje remoto en curso.
     await expect(getCribRow(page)).toBeVisible({ timeout: PROJECTION_BUDGET_MS });
   });
 });
