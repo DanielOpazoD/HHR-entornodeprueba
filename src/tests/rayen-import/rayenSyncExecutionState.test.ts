@@ -202,10 +202,14 @@ describe('rayenSyncExecutionReducer', () => {
     expect(releaseRayenSyncExecutionLock(newKey, newKey)).toBeNull();
   });
 
-  it.each(['syncing_clinical', 'failed'] as const)(
-    'keeps current-run review or error content visible during %s',
+  it('keeps error content visible during failed', () => {
+    expect(isRayenSyncPreviewStage({ type: 'failed' })).toBe(true);
+  });
+
+  it.each(['persisting_structure', 'verifying_structure', 'syncing_clinical'] as const)(
+    'devuelve al censo durante %s: el progreso vive en la barra, no en el modal',
     stage => {
-      expect(isRayenSyncPreviewStage({ type: stage })).toBe(true);
+      expect(isRayenSyncPreviewStage({ type: stage })).toBe(false);
     }
   );
 

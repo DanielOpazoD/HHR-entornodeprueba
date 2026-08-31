@@ -315,7 +315,7 @@ describe('useRayenImportConfirmation execution ownership', () => {
     );
     expect(appliedState(harness.setState)).toMatchObject({
       result,
-      isPreviewOpen: true,
+      isPreviewOpen: false,
       hasSkippedItems: true,
       error: error.message,
     });

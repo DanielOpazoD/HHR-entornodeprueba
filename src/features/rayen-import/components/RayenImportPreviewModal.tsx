@@ -13,11 +13,10 @@ import {
   VerificationBadges,
 } from './RayenImportDiffReviewParts';
 import { presentPatientUpdates } from './rayenImportUpdatePresentation';
-import { RayenImportWorkingState } from './RayenImportWorkingState';
 import type { RayenSyncStage } from '../hooks/rayenSyncExecutionState';
 import { EquivalentBedCollisionReview } from './EquivalentBedCollisionReview';
 import { RayenImportSummaryChips } from './RayenImportSummaryChips';
-import { presentRayenWorkingMessage, reservedRayenTargetBedIds } from './rayenImportPreviewState';
+import { reservedRayenTargetBedIds } from './rayenImportPreviewState';
 import { RayenAdmissionReview } from './RayenAdmissionReview';
 import { areCmaAdmissionsResolved } from '../domain/cmaAdmissionReview';
 export interface RayenImportPreviewModalProps {
@@ -81,8 +80,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     }
   }, [isOpen, diff?.admissions, diff?.bedOccupancyCollisions]);
   const hasConflicts = Boolean(diff?.summary.conflicts);
-  const workingMessage = presentRayenWorkingMessage(stage);
-  const isWorking = workingMessage !== null;
   const presentedUpdates = React.useMemo(
     () => presentPatientUpdates(diff?.updates ?? []),
     [diff?.updates]
@@ -103,15 +100,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     stage.type === 'awaiting_review' ||
     (stage.type === 'needs_review' && stage.scope === 'structure');
   const showReview = (hasChanges || hasConflicts) && canReview && !isApplied;
-  const showAppliedConflicts =
-    isApplied && diff != null && diff.summary.conflicts > 0 && !isWorking;
-  const handleClose = (): void => {
-    if (!isWorking) onCancel();
-  };
   return (
     <BaseModal
       isOpen={isOpen}
-      onClose={handleClose}
+      onClose={onCancel}
       title="Sincronizar censo · Eloísa"
       icon={<RefreshCw size={20} />}
       size="2xl"
@@ -119,8 +111,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       headerIconColor="text-teal-600"
       dataModule="rayen-import"
       dataTestId="rayen-import-preview"
-      closeOnBackdrop={!isWorking}
-      showCloseButton={!isWorking}
     >
       <div className="max-h-[60vh] overflow-y-auto">
         {targetDate && (
@@ -131,9 +121,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             Censo del {ddmmyyyy(targetDate)}
           </p>
         )}
-        {workingMessage ? (
-          <RayenImportWorkingState message={workingMessage} />
-        ) : !diff ? (
+        {!diff ? (
           <p className="text-sm text-gray-500">Preparando la revisión del censo…</p>
         ) : (
           <>
@@ -323,28 +311,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 )}
               </div>
             )}
-            {showAppliedConflicts && (
-              <div>
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  {blockingConflicts.length > 0
-                    ? 'Los demás cambios fueron aplicados. Los conflictos pendientes se conservaron sin modificaciones.'
-                    : 'Los cambios verificables fueron aplicados. Los pacientes indicados se conservaron sin modificaciones.'}
-                </div>
-                <HistoricalReconstructionReview conflicts={historicalConflicts} />
-                <Section title="Conflictos pendientes" count={blockingConflicts.length}>
-                  {blockingConflicts.map((entry, index) => (
-                    <li key={`pending-con-${index}`} className="text-amber-900">
-                      {entry.bedId ? `${entry.bedId}: ` : ''}
-                      {entry.reason}
-                    </li>
-                  ))}
-                </Section>
-              </div>
-            )}
           </>
         )}
 
-        {error && !isWorking && (
+        {error && (
           <details
             className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
             open
@@ -360,9 +330,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       <div className="mt-6 flex justify-end gap-3 border-t pt-4">
         <button
           type="button"
-          onClick={handleClose}
-          disabled={isWorking}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          onClick={onCancel}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           {!hasChanges || isApplied ? 'Listo' : 'Cancelar'}
         </button>
@@ -383,7 +352,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
               }
             }}
             disabled={
-              isWorking ||
               !hasChanges ||
               !allBedCollisionsResolved ||
               (needsCmaAdmissionAck && !areCmaAdmissionsResolved(diff, cmaAdmissionResolutions))

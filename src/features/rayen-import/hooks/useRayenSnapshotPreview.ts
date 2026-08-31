@@ -259,7 +259,7 @@ export const useRayenSnapshotPreview = ({
               setState(prev => ({
                 ...prev,
                 diff: outcome.commit.diff,
-                isPreviewOpen: requiresFreshCapture || outcome.commit.structuralConflicts > 0,
+                isPreviewOpen: false,
                 isBusy: false,
                 result: outcome.result,
                 hasSkippedItems: requiresFreshCapture || outcome.commit.hasSkippedItems,
@@ -309,7 +309,6 @@ export const useRayenSnapshotPreview = ({
                   persistenceCompleted: noChangePersistenceCompleted,
                   hasUnresolvedConflicts,
                   hasNoApplicableChanges,
-                  requiresFreshCapture: noChangeRequiresFreshCapture,
                 }),
                 isBusy: false,
                 isSyncing: noChangePersistenceCompleted ? false : hasNoApplicableChanges,

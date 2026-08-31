@@ -140,7 +140,11 @@ export const useRayenImportConfirmation = ({
             ...(isExecutionDateVisible
               ? {
                   diff: outcome.commit.diff,
-                  isPreviewOpen: outcome.commit.structuralConflicts > 0 || requiresFreshCapture,
+                  // Tras el commit el usuario vuelve al censo; conflictos y
+                  // correcciones pendientes se comunican por el aviso de
+                  // revisión y el historial, no reabriendo el modal a mitad
+                  // de la fase clínica.
+                  isPreviewOpen: false,
                   result: outcome.result,
                   hasSkippedItems: outcome.commit.hasSkippedItems,
                   error: correctionError,

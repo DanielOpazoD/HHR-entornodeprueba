@@ -341,7 +341,7 @@ describe('Rayen synchronization decisions and pulse', () => {
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
-  it('keeps unresolved conflict details visible after the other changes are applied', () => {
+  it('muestra los conflictos como revisión ANTES de confirmar; tras aplicar no se reabre el modal', () => {
     const conflictDiff: CensusImportDiff = {
       ...diff,
       conflicts: [
@@ -359,17 +359,16 @@ describe('Rayen synchronization decisions and pulse', () => {
       <RayenImportPreviewModal
         isOpen
         diff={conflictDiff}
+        stage={{ type: 'awaiting_review' }}
         error={null}
-        isApplied
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
       />
     );
 
-    expect(screen.getByText('Conflictos pendientes')).toBeVisible();
+    // Los conflictos se deciden en la revisión previa; después del commit la
+    // información vive en el aviso «Censo pendiente de revisión» y el historial.
     expect(screen.getByText('H2C1: La cama tiene dos identidades diferentes.')).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Confirmar e importar' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Listo' })).toBeVisible();
   });
 
   it('shows a conflict-only review without offering an empty import', () => {
