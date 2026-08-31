@@ -3,6 +3,7 @@ import type { DailyRecord } from '@/features/census/contracts/censusRecordContra
 import type { PatientData } from '@/features/census/domain/movements/contracts/patient';
 import { ControllerResult, failWithCode, ok } from '@/features/census/controllers/controllerResult';
 import { deepClone } from '@/utils/deepClone';
+import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 
 export type MovementCreationErrorCode = 'BED_NOT_FOUND' | 'SOURCE_BED_EMPTY';
 
@@ -20,7 +21,9 @@ export interface MovementAuditEntry {
   clinicalEpisodeId?: string;
 }
 
-export const clonePatientSnapshot = (patient: PatientData): PatientData => deepClone(patient);
+/** Snapshot para deshacer un movimiento — sin el caché de sincronización (ver util). */
+export const clonePatientSnapshot = (patient: PatientData): PatientData =>
+  buildMovementUndoSnapshot(deepClone(patient));
 
 export const resolveMovementBedDefinition = (
   bedId: string,
