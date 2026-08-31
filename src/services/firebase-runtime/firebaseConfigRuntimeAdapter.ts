@@ -16,6 +16,7 @@ export interface FirebaseConfigRuntimeAdapter {
   getDb: () => Firestore;
   getOptionalDb: () => Firestore | null;
   getFunctions: () => Promise<Functions>;
+  getRegionalFunctions: (region: string) => Promise<Functions>;
   getStorage: () => Promise<FirebaseStorage>;
 }
 
@@ -59,6 +60,7 @@ export const createFirebaseConfigRuntimeAdapter = (
   },
   getOptionalDb: () => (firebaseConfig as { db?: Firestore }).db ?? null,
   getFunctions: () => firebaseConfig.getFunctionsInstance(),
+  getRegionalFunctions: region => firebaseConfig.getRegionalFunctionsInstance(region),
   getStorage: () => firebaseConfig.getStorageInstance(),
   ...overrides,
 });

@@ -1116,8 +1116,10 @@ const recordAuthorityTelemetry = async ({
         attempt: 1,
         totalAttempts: 1,
         status,
-        errorCode,
-        errorMessage,
+        // Firestore rechaza undefined: en éxito estos campos no existen y el
+        // .add() fallaba silenciosamente — por eso nunca hubo telemetría de éxito.
+        errorCode: errorCode ?? null,
+        errorMessage: errorMessage ?? null,
         timestamp: new Date().toISOString(),
         context: {
           date,
@@ -1201,7 +1203,12 @@ const createDailyRecordWriteAuthorityFunctions = ({
   resolveRoleForEmail,
 }) => ({
   saveDailyRecordWithClinicalAuthority: functions
-    .runWith({ memory: '512MB' })
+    // Cerca de Firestore (Firestore: southamerica-west1; Gen1 no existe en esa
+    // región, así que se usa southamerica-east1): la transacción y el historial
+    // mueven el registro completo y us-central1 costaba un cruce de continente.
+    // Debe coincidir con DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION del cliente.
+    .region('southamerica-east1', 'us-central1')
+    .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
       const startedAt = Date.now();
       const { email, role } = await assertAuthorizedDailyRecordWriter({
@@ -1400,7 +1407,8 @@ const createDailyRecordWriteAuthorityFunctions = ({
     }),
 
   patchDailyRecordWithClinicalAuthority: functions
-    .runWith({ memory: '512MB' })
+    .region('southamerica-east1', 'us-central1')
+    .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
       const startedAt = Date.now();
       const { email, role } = await assertAuthorizedDailyRecordWriter({

@@ -7,6 +7,7 @@ import {
 export interface FunctionsRuntime {
   ready: Promise<unknown>;
   getFunctions: () => Promise<Functions>;
+  getRegionalFunctions: (region: string) => Promise<Functions>;
 }
 
 export const createFunctionsRuntime = (
@@ -14,6 +15,7 @@ export const createFunctionsRuntime = (
 ): FunctionsRuntime => ({
   ready: adapter.ready,
   getFunctions: () => adapter.getFunctions(),
+  getRegionalFunctions: region => adapter.getRegionalFunctions(region),
 });
 
 export const defaultFunctionsRuntime: FunctionsRuntime = createFunctionsRuntime();

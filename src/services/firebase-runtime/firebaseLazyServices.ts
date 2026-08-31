@@ -8,12 +8,16 @@ interface FirebaseLazyServicesState {
   storage?: FirebaseStorage;
   functions?: Functions;
   functionsEmulatorConnected: boolean;
+  regionalFunctions: Map<string, Functions>;
+  regionalFunctionsEmulatorConnected: Set<string>;
 }
 
 export const createFirebaseLazyServicesState = (): FirebaseLazyServicesState => ({
   storage: undefined,
   functions: undefined,
   functionsEmulatorConnected: false,
+  regionalFunctions: new Map(),
+  regionalFunctionsEmulatorConnected: new Set(),
 });
 
 export const resolveStorageInstance = async (
@@ -54,4 +58,41 @@ export const resolveFunctionsInstance = async (
   }
 
   return state.functions;
+};
+
+/**
+ * Instancia de Functions fijada a una región distinta de la default. Las
+ * callables de autoridad del censo viven junto a Firestore
+ * (southamerica-west1) para no pagar un cruce de continente por operación.
+ */
+export const resolveRegionalFunctionsInstance = async (
+  app: FirebaseApp,
+  state: FirebaseLazyServicesState,
+  region: string
+): Promise<Functions> => {
+  let instance = state.regionalFunctions.get(region);
+  if (!instance) {
+    const { getFunctions } = await import('firebase/functions');
+    instance = getFunctions(app, region);
+    state.regionalFunctions.set(region, instance);
+  }
+
+  if (import.meta.env.DEV && !state.regionalFunctionsEmulatorConnected.has(region)) {
+    const functionsEmulatorHost = import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST;
+    if (functionsEmulatorHost) {
+      const emulatorHost = parseEmulatorHost(functionsEmulatorHost);
+      if (!emulatorHost) {
+        firebaseLazyServicesLogger.warn(
+          '[FirebaseConfig] Invalid functions emulator host:',
+          functionsEmulatorHost
+        );
+        return instance;
+      }
+      const { connectFunctionsEmulator } = await import('firebase/functions');
+      connectFunctionsEmulator(instance, emulatorHost.host, emulatorHost.port);
+      state.regionalFunctionsEmulatorConnected.add(region);
+    }
+  }
+
+  return instance;
 };
