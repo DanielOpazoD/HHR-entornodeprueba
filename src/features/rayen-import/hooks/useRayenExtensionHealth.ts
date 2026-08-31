@@ -24,6 +24,15 @@ export interface RayenExtensionHealthRefreshOptions {
   timeoutMs?: number;
 }
 
+/**
+ * Una corrida usa Gestión de Camas al inicio (informe de egresos) y de nuevo
+ * en la fase clínica (CUDYR/egresos), varios minutos después si el usuario se
+ * detiene en la revisión. Si el token temporal vence antes, esos pacientes
+ * quedaban con «fuente clínica incompleta» a mitad de corrida; mejor pedir la
+ * renovación ANTES de partir.
+ */
+export const GESTION_CAMAS_MIN_REMAINING_SECONDS = 240;
+
 const CHECKING_STATE: RayenExtensionHealthState = {
   connection: 'checking',
   report: null,
@@ -67,6 +76,23 @@ const deriveHealthState = (
       connection: 'blocked',
       report,
       message: `${report.gestionCamas.message} Se requieren Ficha Médico y Gestión de Camas para sincronizar.`,
+      canSync: false,
+    };
+  }
+
+  const gestionCamasRemainingSeconds = report.gestionCamas.remainingSeconds;
+  if (
+    typeof gestionCamasRemainingSeconds === 'number' &&
+    Number.isFinite(gestionCamasRemainingSeconds) &&
+    gestionCamasRemainingSeconds < GESTION_CAMAS_MIN_REMAINING_SECONDS
+  ) {
+    const minutes = Math.max(1, Math.ceil(gestionCamasRemainingSeconds / 60));
+    return {
+      connection: 'blocked',
+      report,
+      message:
+        `La sesión de Gestión de Camas vence en ~${minutes} min y no alcanzaría a cubrir la ` +
+        'sincronización. Renuévala desde Conexiones en el Centro HHR de la pestaña de Eloísa y vuelve a intentar.',
       canSync: false,
     };
   }

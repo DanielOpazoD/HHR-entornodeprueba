@@ -68,6 +68,51 @@ describe('deriveHealthState', () => {
     expectConnection(deriveHealthState(makeReport({ protocolVersion: 1 })), 'incompatible', false);
     expectConnection(deriveHealthState(null, 'Sin extensión.'), 'offline', false);
   });
+
+  it('bloquea el arranque cuando la sesión de Gestión de Camas está por vencer', () => {
+    const expiring = deriveHealthState(
+      makeReport({
+        gestionCamas: {
+          status: 'ready',
+          message: 'Gestión de Camas conectada; la sesión vencerá pronto.',
+          remainingSeconds: 120,
+          expiring: true,
+        },
+      })
+    );
+    expectConnection(expiring, 'blocked', false);
+    expect(expiring.message).toContain('vence en ~2 min');
+    expect(expiring.message).toContain('Renuévala');
+  });
+
+  it('permite sincronizar con vigencia holgada o sin expiración informada', () => {
+    expectConnection(
+      deriveHealthState(
+        makeReport({
+          gestionCamas: {
+            status: 'ready',
+            message: 'Gestión de Camas conectada con sesión vigente.',
+            remainingSeconds: 1800,
+          },
+        })
+      ),
+      'ready',
+      true
+    );
+    expectConnection(
+      deriveHealthState(
+        makeReport({
+          gestionCamas: {
+            status: 'ready',
+            message: 'Gestión de Camas conectada.',
+            remainingSeconds: null,
+          },
+        })
+      ),
+      'ready',
+      true
+    );
+  });
 });
 
 describe('useRayenExtensionHealth', () => {

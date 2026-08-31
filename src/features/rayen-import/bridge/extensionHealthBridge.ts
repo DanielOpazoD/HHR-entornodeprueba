@@ -19,6 +19,10 @@ export type RayenSourceAvailability = 'ready' | 'missing' | 'stale';
 export interface RayenSourceHealth {
   status: RayenSourceAvailability;
   message: string;
+  /** Segundos de vigencia restantes del token temporal (solo Gestión de Camas). */
+  remainingSeconds?: number | null;
+  /** La extensión marca la sesión como próxima a vencer (ventana de 10 min). */
+  expiring?: boolean;
 }
 
 export interface RayenExtensionHealthReport {
@@ -42,7 +46,11 @@ const isSourceHealth = (value: unknown): value is RayenSourceHealth => {
     (candidate.status === 'ready' ||
       candidate.status === 'missing' ||
       candidate.status === 'stale') &&
-    typeof candidate.message === 'string'
+    typeof candidate.message === 'string' &&
+    (candidate.remainingSeconds === undefined ||
+      candidate.remainingSeconds === null ||
+      typeof candidate.remainingSeconds === 'number') &&
+    (candidate.expiring === undefined || typeof candidate.expiring === 'boolean')
   );
 };
 
