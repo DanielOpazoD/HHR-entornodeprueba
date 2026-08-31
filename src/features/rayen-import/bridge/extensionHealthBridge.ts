@@ -8,12 +8,14 @@
 
 export const RAYEN_EXTENSION_HEALTH_REQUEST_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST';
 export const RAYEN_EXTENSION_HEALTH_RESULT_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_RESULT';
+export const RAYEN_EXTENSION_HEALTH_PUSH_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_PUSH';
 export const RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS = 2_500;
 export const RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS = 12_000;
 export const RAYEN_EXTENSION_PROTOCOL_VERSION = 5;
 export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';
 export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-discharge-evidence';
 export const RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY = 'patient-clinical-bundle';
+export const RAYEN_HEALTH_PUSH_CAPABILITY = 'health-push';
 
 /**
  * Última lista de capabilities reportada por la extensión en esta pestaña.
@@ -101,6 +103,28 @@ export const supportsStatisticalDischargeEvidence = (
   report: RayenExtensionHealthReport | null
 ): boolean =>
   report?.capabilities?.includes(RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY) === true;
+
+/**
+ * Escucha los reportes de salud que la extensión empuja sola (capability
+ * `health-push`): un latido periódico con chrome.alarms y un push inmediato
+ * tras cada transición de sesión de Gestión de Camas. Es la contraparte pasiva
+ * de requestRayenExtensionHealth — mismo reporte, sin pregunta previa.
+ */
+export const subscribeToRayenExtensionHealthPush = (
+  onReport: (report: RayenExtensionHealthReport) => void
+): (() => void) => {
+  if (typeof window === 'undefined') return () => {};
+  const onMessage = (event: MessageEvent): void => {
+    if (event.origin !== window.location.origin) return;
+    const data = event.data as { type?: unknown; report?: unknown } | null;
+    if (!data || data.type !== RAYEN_EXTENSION_HEALTH_PUSH_TYPE) return;
+    if (!isRayenExtensionHealthReport(data.report)) return;
+    rememberRayenExtensionCapabilities(data.report);
+    onReport(data.report);
+  };
+  window.addEventListener('message', onMessage);
+  return () => window.removeEventListener('message', onMessage);
+};
 
 export const requestRayenExtensionHealth = (
   timeoutMs = RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS

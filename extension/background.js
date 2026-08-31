@@ -29,6 +29,7 @@ importScripts(
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
+  'health-heartbeat-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
@@ -269,12 +270,25 @@ const handleExtensionHealth = async () => {
       'patient-flow-report',
       'statistical-discharge-evidence',
       'patient-clinical-bundle',
+      'health-push',
     ],
     checkedAt: new Date().toISOString(),
     fichaMedico,
     gestionCamas,
   };
 };
+
+// Los hosts HHR viven SOLO en el manifest: el latido empuja a las pestañas
+// donde está inyectado content-hhr.js, sin duplicar la lista aquí.
+const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
+  .filter(entry => (entry.js || []).includes('content-hhr.js'))
+  .flatMap(entry => entry.matches || []);
+const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({
+  chromeApi: chrome,
+  readHealth: handleExtensionHealth,
+  hhrMatchPatterns: HHR_TAB_MATCH_PATTERNS,
+});
+healthHeartbeat.start();
 
 const handleEgresoLookup = async (runs, targets, sender) => {
   const session = await resolveGestionCamasSession();
@@ -1152,11 +1166,17 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo verificar el estado de la extensión.'
   ),
   [RUNTIME_MESSAGES.GC_SESSION_CAPTURED]: runtimeRoute(
-    (message, sender) => captureGestionCamasSession(message.info, sender),
+    healthHeartbeat.pushAfter(
+      (message, sender) => captureGestionCamasSession(message.info, sender),
+      'gc-captured'
+    ),
     'No se pudo conservar la sesión temporal de Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.GC_DOCUMENT_READY]: runtimeRoute(
-    (_message, sender) => handleGestionCamasDocumentReady(sender),
+    healthHeartbeat.pushAfter(
+      (_message, sender) => handleGestionCamasDocumentReady(sender),
+      'gc-document-ready'
+    ),
     'No se pudo restaurar el intento de conexión de Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.GC_CONNECT_REQUEST]: runtimeRoute(
@@ -1164,7 +1184,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo abrir Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.GC_DISCONNECT_REQUEST]: runtimeRoute(
-    () => handleDisconnectGestionCamas(),
+    healthHeartbeat.pushAfter(() => handleDisconnectGestionCamas(), 'gc-disconnected'),
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
   [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(

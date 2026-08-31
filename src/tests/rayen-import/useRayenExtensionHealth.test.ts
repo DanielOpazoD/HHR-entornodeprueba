@@ -153,4 +153,37 @@ describe('useRayenExtensionHealth', () => {
     expect(result.current.connection).toBe('ready');
     expect(result.current.message).toContain('operativa');
   });
+
+  it('adopta el estado empujado por la extensión y le da prioridad sobre chequeos en vuelo', async () => {
+    let resolvePassive!: (value: RayenExtensionHealthCheck) => void;
+    mocks.requestHealth.mockImplementationOnce(
+      () => new Promise<RayenExtensionHealthCheck>(resolve => (resolvePassive = resolve))
+    );
+
+    const { result } = renderHook(() => useRayenExtensionHealth());
+    expect(result.current.connection).toBe('checking');
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: window.location.origin,
+          data: {
+            type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH',
+            report: makeReport(),
+            reason: 'heartbeat',
+          },
+        })
+      );
+      await Promise.resolve();
+    });
+    expect(result.current.connection).toBe('ready');
+    expect(result.current.canSync).toBe(true);
+
+    // El chequeo pasivo que quedó en vuelo NO pisa el push más fresco.
+    await act(async () => {
+      resolvePassive({ report: null, error: 'Respuesta pasiva obsoleta.' });
+      await Promise.resolve();
+    });
+    expect(result.current.connection).toBe('ready');
+  });
 });

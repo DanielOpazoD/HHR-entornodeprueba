@@ -6,7 +6,7 @@
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
-      "maxLines": 1430,
+      "maxLines": 1455,
       "hotspots": {
         "variable:handleEgresoLookup": 20,
         "variable:handleExamRequestCombinePrint": 25,
@@ -135,7 +135,7 @@
       "hotspots": {}
     },
     "content-hhr.js": {
-      "maxLines": 280,
+      "maxLines": 293,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 16
       }
@@ -284,6 +284,10 @@
     },
     "health-check.js": {
       "maxLines": 41,
+      "hotspots": {}
+    },
+    "health-heartbeat-runtime.js": {
+      "maxLines": 85,
       "hotspots": {}
     },
     "hhr-center-shell-runtime.js": {
