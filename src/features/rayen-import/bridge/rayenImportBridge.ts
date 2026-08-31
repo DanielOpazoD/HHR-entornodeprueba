@@ -9,6 +9,12 @@
  */
 
 import { requestViaBridgeChannel } from './bridgeRequestChannel';
+import {
+  mapDeviceReportPayload,
+  mapHistoryScalesPayload,
+  mapScalesFormsPayload,
+} from './patientClinicalBundleChannel';
+import type { RayenHistoryScaleEvent as HistoryScaleEvent } from '../contracts/patientClinicalBundle';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { RayenNursingActivity } from '../contracts/nursingShiftInference';
@@ -46,19 +52,12 @@ export const RAYEN_HISTORY_SCALES_RESULT_TYPE = 'HHR_RAYEN_HISTORY_SCALES_RESULT
 export const RAYEN_CUDYR_CATEGORIES_REQUEST_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST';
 export const RAYEN_CUDYR_CATEGORIES_RESULT_TYPE = 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT';
 
-const optionalString = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
-
-/**
- * One clinical-history event carrying an evaluation-instruments resume (Braden/Downton), slimmed by
- * the extension from Ficha Médico's "panel de historial". `publishDatetime` is the real application
- * timestamp (unlike encounterFormEntry's stale startDateTime) — HHR parses these with
- * `parseHistoryScales` to pick the last score applied on the census day being synced.
- */
-export interface RayenHistoryScaleEvent {
-  publishDatetime: string;
-  evaluationInstrumentsResume: unknown[];
-}
+export type { RayenHistoryScaleEvent } from '../contracts/patientClinicalBundle';
+export {
+  requestPatientClinicalBundle,
+  RAYEN_PATIENT_CLINICAL_BUNDLE_REQUEST_TYPE,
+  RAYEN_PATIENT_CLINICAL_BUNDLE_RESULT_TYPE,
+} from './patientClinicalBundleChannel';
 
 /**
  * Ask the extension to look up the egresos of the given RUNs in gestión de camas — used to
@@ -153,14 +152,7 @@ export const requestDeviceReport = (
       base64: '',
       error: 'Tiempo de espera agotado bajando el PDF de dispositivos.',
     }),
-    mapResult: data => ({
-      entries: Array.isArray(data.entries)
-        ? (data.entries as RayenInvasiveDeviceEntry[])
-        : undefined,
-      base64: typeof data.base64 === 'string' ? data.base64 : '',
-      source: data.source === 'json' || data.source === 'pdf' ? data.source : undefined,
-      error: typeof data.error === 'string' ? data.error : undefined,
-    }),
+    mapResult: mapDeviceReportPayload,
   });
 };
 
@@ -187,10 +179,7 @@ export const requestScalesReport = (
       forms: [],
       error: 'Tiempo de espera agotado bajando las escalas de evaluación.',
     }),
-    mapResult: data => ({
-      forms: Array.isArray(data.forms) ? (data.forms as unknown[]) : [],
-      error: typeof data.error === 'string' ? data.error : undefined,
-    }),
+    mapResult: mapScalesFormsPayload,
   });
 };
 
@@ -209,7 +198,7 @@ export const requestHistoryScales = (
   optionsOrTimeout: { lookbackDays?: number } | number = {},
   explicitTimeoutMs = 30000
 ): Promise<{
-  events: RayenHistoryScaleEvent[];
+  events: HistoryScaleEvent[];
   nursingActivity: RayenNursingActivity[];
   effectiveLookbackDays?: number;
   coverageWindowStartIsoDay?: string;
@@ -222,7 +211,7 @@ export const requestHistoryScales = (
     return Promise.resolve({ events: [], nursingActivity: [] });
   }
   return requestViaBridgeChannel<{
-    events: RayenHistoryScaleEvent[];
+    events: HistoryScaleEvent[];
     nursingActivity: RayenNursingActivity[];
     effectiveLookbackDays?: number;
     coverageWindowStartIsoDay?: string;
@@ -239,18 +228,7 @@ export const requestHistoryScales = (
       nursingActivity: [],
       error: 'Tiempo de espera agotado bajando el historial clínico.',
     }),
-    mapResult: data => ({
-      events: Array.isArray(data.events) ? (data.events as RayenHistoryScaleEvent[]) : [],
-      nursingActivity: Array.isArray(data.nursingActivity)
-        ? (data.nursingActivity as RayenNursingActivity[])
-        : [],
-      effectiveLookbackDays: Number.isFinite(Number(data.effectiveLookbackDays))
-        ? Number(data.effectiveLookbackDays)
-        : undefined,
-      coverageWindowStartIsoDay: optionalString(data.coverageWindowStartIsoDay),
-      coverageWindowEndIsoDay: optionalString(data.coverageWindowEndIsoDay),
-      error: typeof data.error === 'string' ? data.error : undefined,
-    }),
+    mapResult: mapHistoryScalesPayload,
   });
 };
 

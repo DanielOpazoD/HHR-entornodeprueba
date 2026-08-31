@@ -98,6 +98,7 @@ export const runClinicalFill = async (
   const withDeviceReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   const withHistoryReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   const withFormsReadSlot = createConcurrencyGate(READ_CONCURRENCY);
+  const withBundleReadSlot = createConcurrencyGate(READ_CONCURRENCY);
   // Reads are concurrent; writes are serialized to preserve the census revision contract.
   const writes = createClinicalWriteCoordinator(summary.incremental!, performance.writeObserver);
   const persistenceStrategy = deps.persistenceStrategy ?? {
@@ -157,6 +158,7 @@ export const runClinicalFill = async (
         devices: withDeviceReadSlot,
         history: withHistoryReadSlot,
         forms: withFormsReadSlot,
+        bundle: withBundleReadSlot,
       },
     });
     if (deviceResult.status === 'rejected') {

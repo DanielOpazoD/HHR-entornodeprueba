@@ -13,6 +13,29 @@ export const RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS = 12_000;
 export const RAYEN_EXTENSION_PROTOCOL_VERSION = 5;
 export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';
 export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-discharge-evidence';
+export const RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY = 'patient-clinical-bundle';
+
+/**
+ * Última lista de capabilities reportada por la extensión en esta pestaña.
+ * Permite que canales opcionales (p.ej. el paquete clínico por paciente)
+ * decidan sin plumbing extra si la extensión instalada los soporta; una
+ * extensión antigua simplemente no declara la capability y el caller usa su
+ * camino legado sin pagar timeouts.
+ */
+let lastKnownCapabilities: readonly string[] = [];
+
+export const rememberRayenExtensionCapabilities = (
+  report: RayenExtensionHealthReport | null
+): void => {
+  if (report?.capabilities) lastKnownCapabilities = [...report.capabilities];
+};
+
+export const hasRayenExtensionCapability = (capability: string): boolean =>
+  lastKnownCapabilities.includes(capability);
+
+export const resetRayenExtensionCapabilitiesForTests = (): void => {
+  lastKnownCapabilities = [];
+};
 
 export type RayenSourceAvailability = 'ready' | 'missing' | 'stale';
 
@@ -108,6 +131,7 @@ export const requestRayenExtensionHealth = (
       }
       cleanup();
       if (isRayenExtensionHealthReport(data.report)) {
+        rememberRayenExtensionCapabilities(data.report);
         resolve({ report: data.report });
         return;
       }

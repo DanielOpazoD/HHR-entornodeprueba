@@ -24,6 +24,7 @@ import {
   requestCudyrCategories,
   requestDeviceReport,
   requestHistoryScales,
+  requestPatientClinicalBundle,
   requestScalesReport,
 } from '../bridge/rayenImportBridge';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
@@ -294,6 +295,7 @@ export const useRayenClinicalFill = ({
                 extractDeviceItems: extractDeviceTextItems,
                 fetchHistoryScales: requestHistoryScales,
                 fetchScalesForms: requestScalesReport,
+                fetchPatientClinicalBundle: requestPatientClinicalBundle,
                 fetchCudyrCategories: () => requestCudyrCategories(15000),
                 applyPatch: async (patch, target) => {
                   await patchDailyRecord(patch, target, runPolicy);

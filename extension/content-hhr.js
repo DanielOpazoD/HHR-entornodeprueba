@@ -196,6 +196,33 @@
         });
       return;
     }
+    if (data.type === 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_REQUEST') {
+      const reqId = data.reqId;
+      chrome.runtime
+        .sendMessage({
+          type: runtimeMessages.PATIENT_CLINICAL_BUNDLE_REQUEST,
+          encId: data.encId,
+          fecha: data.fecha,
+          censusDate: data.censusDate,
+          lookbackDays: data.lookbackDays,
+        })
+        .then(response => {
+          post({
+            type: 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_RESULT',
+            reqId,
+            devices: response && response.devices,
+            history: response && response.history,
+            forms: response && response.forms,
+            error: response && response.error,
+          });
+        })
+        .catch(error => {
+          // Degrade gracefully: HHR falls back to the three individual channels.
+          console.warn('[Rayen→HHR] Patient clinical bundle error:', error);
+          post({ type: 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_RESULT', reqId, error: String(error) });
+        });
+      return;
+    }
     if (data.type === 'HHR_RAYEN_CLINICAL_PANEL_REQUEST') {
       const reqId = data.reqId;
       chrome.runtime
