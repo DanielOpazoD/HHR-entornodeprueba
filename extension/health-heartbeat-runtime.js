@@ -58,12 +58,26 @@
       return { pushed };
     };
 
+    // El service worker MV3 re-evalúa TODO su top-level cada vez que despierta,
+    // y chrome.alarms.create con el mismo nombre REINICIA el contador: crear la
+    // alarma sin proteger hacía que nunca alcanzara a disparar (las pestañas de
+    // Rayen despiertan al worker más seguido que el período). Solo se crea si
+    // no existe; onInstalled la recrea para tomar cambios de período.
+    const ensureAlarm = async ({ recreate = false } = {}) => {
+      const existing = await chromeApi.alarms.get(alarmName).catch(() => null);
+      if (existing && !recreate) return;
+      chromeApi.alarms.create(alarmName, { periodInMinutes: periodMinutes });
+    };
+
     const start = () => {
       if (!chromeApi.alarms) return false;
-      chromeApi.alarms.create(alarmName, { periodInMinutes: periodMinutes });
       chromeApi.alarms.onAlarm.addListener(alarm => {
         if (alarm && alarm.name === alarmName) void pushNow('heartbeat');
       });
+      if (chromeApi.runtime && chromeApi.runtime.onInstalled) {
+        chromeApi.runtime.onInstalled.addListener(() => void ensureAlarm({ recreate: true }));
+      }
+      void ensureAlarm();
       return true;
     };
 

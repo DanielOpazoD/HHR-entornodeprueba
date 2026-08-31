@@ -26,12 +26,14 @@ const createFixture = (overrides: Record<string, unknown> = {}) => {
   const chromeApi = {
     alarms: {
       create: vi.fn(),
+      get: vi.fn(async () => undefined),
       onAlarm: {
         addListener: vi.fn((listener: (alarm: { name: string }) => void) => {
           alarmListeners.push(listener);
         }),
       },
     },
+    runtime: { onInstalled: { addListener: vi.fn() } },
     tabs: {
       query: vi.fn(async () => [{ id: 3 }, { id: 9 }]),
       sendMessage: vi.fn(async () => undefined),
@@ -53,9 +55,11 @@ describe('health heartbeat runtime (extension)', () => {
     const { runtime, chromeApi, alarmListeners } = createFixture();
 
     expect(runtime.start()).toBe(true);
-    expect(chromeApi.alarms.create).toHaveBeenCalledWith('hhr-health-heartbeat', {
-      periodInMinutes: 1,
-    });
+    await vi.waitFor(() =>
+      expect(chromeApi.alarms.create).toHaveBeenCalledWith('hhr-health-heartbeat', {
+        periodInMinutes: 1,
+      })
+    );
 
     alarmListeners.forEach(listener => listener({ name: 'hhr-health-heartbeat' }));
     await vi.waitFor(() => expect(chromeApi.tabs.sendMessage).toHaveBeenCalledTimes(2));
@@ -76,6 +80,22 @@ describe('health heartbeat runtime (extension)', () => {
 
     chromeApi.tabs.sendMessage.mockRejectedValueOnce(new Error('sin content script'));
     await expect(runtime.pushNow('gc-captured')).resolves.toEqual({ pushed: 1 });
+  });
+
+  it('no recrea una alarma existente: el despertar del worker no reinicia el contador', async () => {
+    const { runtime, chromeApi } = createFixture();
+    chromeApi.alarms.get.mockResolvedValue({ name: 'hhr-health-heartbeat' } as never);
+
+    expect(runtime.start()).toBe(true);
+    await vi.waitFor(() => expect(chromeApi.alarms.get).toHaveBeenCalled());
+    expect(chromeApi.alarms.create).not.toHaveBeenCalled();
+
+    // onInstalled sí la recrea (punto seguro para tomar cambios de período).
+    const installedListener = (
+      chromeApi.runtime.onInstalled.addListener as ReturnType<typeof vi.fn>
+    ).mock.calls[0]?.[0] as () => void;
+    installedListener();
+    await vi.waitFor(() => expect(chromeApi.alarms.create).toHaveBeenCalledTimes(1));
   });
 
   it('sin permiso de alarms no arranca, pero pushNow sigue disponible', async () => {
