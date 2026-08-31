@@ -1,6 +1,7 @@
 import type {
   ApplyDailyRecordPatch,
   DailyRecord,
+  DailyRecordPatch,
 } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import type { CudyrScore } from '@/types/domain/cudyr';
@@ -15,6 +16,7 @@ import { buildBedMovementAuditDetails } from '@/services/admin/auditClinicalEven
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
+import { EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS } from '@/services/repositories/explicitLocalCensusPatchPolicy';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -51,6 +53,41 @@ interface ExecuteBedManagementActionInput {
 }
 
 const MULTIPLE_PATIENT_AUDIT_FIELD_PRIORITY = ['rut', 'patientName'];
+
+const isClinicalEnvelopeBedFieldPath = (path: string): boolean => {
+  const [root, bedId, field, ...rest] = path.split('.');
+  return (
+    root === 'beds' &&
+    Boolean(bedId) &&
+    Boolean(field) &&
+    rest.length === 0 &&
+    EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS.has(field)
+  );
+};
+
+/**
+ * Con la autoridad clínica enforced, un patch que mezcla campos clínicos
+ * (diagnóstico, estado, especialidad…) con campos estructurales/identidad es
+ * rechazado por el servidor («debe guardarse por separado») y, al ser una
+ * escritura local-first, quedaba reintentando para siempre en el outbox: así se
+ * perdía en silencio una admisión con diagnóstico. Este split convierte ese
+ * guardado en dos comandos secuenciales válidos.
+ */
+export const splitMixedClinicalStructuralPatch = (
+  patch: DailyRecordPatch
+): { structural: DailyRecordPatch; clinical: DailyRecordPatch } | null => {
+  const entries = Object.entries(patch);
+  const clinicalEntries = entries.filter(([path]) => isClinicalEnvelopeBedFieldPath(path));
+  if (clinicalEntries.length === 0 || clinicalEntries.length === entries.length) {
+    return null;
+  }
+  return {
+    structural: Object.fromEntries(
+      entries.filter(([path]) => !isClinicalEnvelopeBedFieldPath(path))
+    ) as DailyRecordPatch,
+    clinical: Object.fromEntries(clinicalEntries) as DailyRecordPatch,
+  };
+};
 
 const getOrderedPatientAuditFields = (
   fields: Partial<PatientData>
@@ -299,7 +336,15 @@ export const executeBedManagementAction = async ({
           },
         });
       } else {
-        await patchRecord(patch);
+        const mixedSplit = splitMixedClinicalStructuralPatch(patch);
+        if (mixedSplit) {
+          // Estructural/identidad primero (ancla el episodio), clínico después.
+          // La cola por fecha serializa ambos comandos en orden.
+          await patchRecord(mixedSplit.structural);
+          await patchRecord(mixedSplit.clinical);
+        } else {
+          await patchRecord(patch);
+        }
       }
       try {
         auditActionIntent(validatedAction, currentRecord, bedAudit);
