@@ -62,6 +62,78 @@ describe('egreso report eligibility', () => {
     expect(result.diff.conflicts).toEqual([]);
   });
 
+  it('un alta ya registrada en HHR no reaparece como conflicto en cada re-sincronización', () => {
+    // El informe de GC re-enumera las altas del día completo; si la vinculación
+    // exacta degrada (lookup ambiguo, PDF caído), la fila queda 'unverified' y
+    // antes exigía revisión aunque el paciente ya estuviera egresado en HHR.
+    const record: DailyRecord = {
+      date: '2026-07-10',
+      beds: {},
+      discharges: [{ rut: '11.111.111-1', patientName: 'Paciente Egresado' } as never],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const row = {
+      encounterId: '',
+      run: '11.111.111-1',
+      patientName: 'Paciente Egresado',
+      bedLabel: 'R2',
+      servicio: 'Medicina',
+      edad: '50',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: '10-07-2026 09:00',
+      exactEpisodeVerification: 'unverified' as const,
+    };
+
+    const result = selectEligibleEgresoRows(emptyDiff(), [row], record);
+
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toEqual([]);
+  });
+
+  it('el mismo RUN reingresado y aún en cama sí conserva la exigencia de revisión', () => {
+    const record: DailyRecord = {
+      date: '2026-07-10',
+      beds: {
+        R3: {
+          ...EMPTY_PATIENT,
+          bedId: 'R3',
+          patientName: 'Paciente Reingresado',
+          rut: '11.111.111-1',
+          clinicalEpisodeId: 'EP-NUEVO',
+          admissionDate: '2026-07-10',
+          admissionTime: '08:00',
+        },
+      },
+      discharges: [{ rut: '11.111.111-1', patientName: 'Paciente Reingresado' } as never],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const row = {
+      encounterId: '',
+      run: '11.111.111-1',
+      patientName: 'Paciente Reingresado',
+      bedLabel: 'R3',
+      servicio: 'Medicina',
+      edad: '50',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: '10-07-2026 12:00',
+      exactEpisodeVerification: 'unverified' as const,
+    };
+
+    const result = selectEligibleEgresoRows(emptyDiff(), [row], record);
+
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toHaveLength(1);
+    expect(result.diff.conflicts[0]?.reason).toContain('no pudo vincularse');
+  });
+
   it('does not duplicate the same report conflict when evidence is reconciled twice', () => {
     const record: DailyRecord = {
       date: '2026-07-10',

@@ -40,10 +40,28 @@ export const prepareRayenStructuralPlan = async ({
   const { fetchPatientFlowReport, fetchStatisticalDischarge, lookupEgresos } =
     createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
   const { enrichReportOnlyDischarges } = await import('../domain/enrichReportOnlyDischarges');
+  const {
+    hasRecordedMovement,
+    occupiedBedsByRun,
+    occupiedClinicalCribsByRun,
+    findOccupiedBed,
+    findOccupiedClinicalCrib,
+  } = await import('../domain/egresoReportPolicy');
+  const { normalizeRut } = await import('@/utils/rutUtils');
+  const occupied = occupiedBedsByRun(baseRecord);
+  const occupiedCribs = occupiedClinicalCribsByRun(baseRecord);
   const egresoRows = await measureEvidence(() =>
     enrichReportOnlyDischarges(bundle.egresoRows, reportDate, {
       fetchStatisticalDischarge,
       lookupEgresos,
+      alreadyApplied: row => {
+        const run = normalizeRut(row.run);
+        if (!run || !hasRecordedMovement(baseRecord, run)) return false;
+        return (
+          !findOccupiedBed(occupied, row.run, '') &&
+          !findOccupiedClinicalCrib(occupiedCribs, row.run, '')
+        );
+      },
     })
   );
 

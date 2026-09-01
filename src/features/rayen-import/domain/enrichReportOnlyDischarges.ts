@@ -12,6 +12,11 @@ interface ReportOnlyDischargeDependencies {
   lookupEgresos: (targets: EgresoLookupTarget[]) => Promise<EgresoLookupResult[]>;
   fetchStatisticalDischarge: (encounterId: string) => Promise<PatientFlowReportResult>;
   extractText?: (buffer: ArrayBuffer) => Promise<string>;
+  /**
+   * Fila cuyo egreso ya está aplicado en HHR: se salta la verificación cara
+   * (lookup + PDF) — la elegibilidad la descarta de todos modos como historia.
+   */
+  alreadyApplied?: (row: EgresoReportRow) => boolean;
 }
 
 const exactDay = (timestamp: string): string => timestamp.slice(0, 10);
@@ -38,7 +43,7 @@ export const enrichReportOnlyDischarges = async (
   const ambiguousKeys = new Set<string>();
   for (const row of rows) {
     const key = candidateKey(row, reportDate);
-    if (!key || ambiguousKeys.has(key)) continue;
+    if (!key || ambiguousKeys.has(key) || dependencies.alreadyApplied?.(row)) continue;
     if (keys.has(key)) {
       keys.delete(key);
       ambiguousKeys.add(key);

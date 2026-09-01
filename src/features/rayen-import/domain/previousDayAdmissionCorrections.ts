@@ -182,7 +182,8 @@ export const planPreviousDayAdmissionEdits = (
       subjectsByDay.set(subject.day, subjects);
     }
   }
-  return [...subjectsByDay.keys()].sort().map(day => {
+  const edits: PreviousDayEdit[] = [];
+  for (const day of [...subjectsByDay.keys()].sort()) {
     const candidates = subjectsByDay.get(day) ?? [];
     const record = records.get(day);
     // La MISMA aplicación (pura) que usará la escritura decide qué sujetos son
@@ -194,7 +195,10 @@ export const planPreviousDayAdmissionEdits = (
       ? candidates.filter(subject => recordHasSubject(simulation.record, subject))
       : candidates;
     const omitted = simulation?.omitted ?? [];
-    return {
+    // Un día donde TODO quedó omitido no es una edición: confirmar no escribiría
+    // nada, y mostrarlo con casilla de aceptación era ruido en cada corrida.
+    if (subjects.length === 0) continue;
+    edits.push({
       day,
       reason: 'admission-night-shift-correction',
       patientNames: subjects.map(subject => subject.patient.patientName),
@@ -210,8 +214,9 @@ export const planPreviousDayAdmissionEdits = (
         rut: subject.patient.rut,
       })),
       ...(omitted.length > 0 ? { omittedAdmissions: omitted } : {}),
-    };
-  });
+    });
+  }
+  return edits;
 };
 
 export interface OmittedHistoricalAdmission {
