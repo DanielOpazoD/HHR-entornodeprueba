@@ -327,8 +327,15 @@ describe('RayenImportButton', () => {
 
     // El estado y las acciones viven en el monitor de conexiones.
     expect(screen.getByText('Conectar Gestión de Camas')).toBeInTheDocument();
+    expect(screen.getByTestId('rayen-operations-bar')).not.toHaveAttribute('data-overlay-open');
     fireEvent.click(screen.getByTestId('rayen-connection-monitor-trigger'));
     expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('relative', 'z-[70]');
+    // Contrato con CensusStaffHeader: su animate-fade-in crea un stacking
+    // context que aplana el z-[70] de la barra, y el header solo se eleva
+    // (has-[[data-overlay-open]]) mientras este atributo esté publicado. Sin
+    // él los popovers vuelven a quedar bajo la tabla; con él SIEMPRE puesto,
+    // el header tapa los menús del toolbar y de la primera fila (e2e 01-09).
+    expect(screen.getByTestId('rayen-operations-bar')).toHaveAttribute('data-overlay-open', 'true');
     expect(screen.getByTestId('rayen-connection-monitor')).toBeVisible();
     expect(screen.getByText('Gestión de Camas no está abierta.')).toBeVisible();
     expect(screen.getByTestId('rayen-monitor-connect-gc')).toBeVisible();

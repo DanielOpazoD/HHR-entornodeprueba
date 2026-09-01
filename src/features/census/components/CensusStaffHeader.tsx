@@ -68,12 +68,13 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   });
 
   return (
-    // relative z-40: animate-fade-in crea un stacking context propio (z auto),
-    // así que los popovers internos de la barra (monitor Eloísa, chip de
-    // pendientes) quedaban DEBAJO de la tabla aunque la barra suba a z-70. El
-    // z explícito eleva el header completo sobre la sección de la tabla
-    // (columnas sticky z≤30 incluidas) — verificado en vivo 01-09.
-    <div className="relative z-40 flex w-full flex-col items-center gap-2 animate-fade-in">
+    // animate-fade-in crea un stacking context propio (z auto), así que los
+    // popovers de la barra (monitor Eloísa, chip de pendientes) quedaban
+    // DEBAJO de la tabla aunque la barra suba a z-70. La elevación es
+    // CONDICIONAL (has-[[data-overlay-open]], atributo que la barra publica
+    // solo con un popover abierto): un z estático aquí tapaba los menús del
+    // toolbar y de la primera fila que solapan el header (cazado por e2e).
+    <div className="flex w-full flex-col items-center gap-2 animate-fade-in has-[[data-overlay-open]]:relative has-[[data-overlay-open]]:z-40">
       <div className="flex w-fit max-w-full flex-col items-stretch gap-2">
         <div className="flex flex-wrap items-start justify-center gap-3">
           {/* Staff Selectors */}
