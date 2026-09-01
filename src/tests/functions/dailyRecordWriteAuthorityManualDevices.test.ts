@@ -59,3 +59,55 @@ describe('daily-record clinical fence · edición manual de dispositivos', () =>
     );
   });
 });
+
+describe('daily-record clinical fence · toggle manual de tipo de cama', () => {
+  it('un bedTypeOverrides solitario sigue rechazado (pin del contrato de acompañamiento)', async () => {
+    const remote = { ...makeRecord(), dateTimestamp: Date.now() };
+    const { admin, update } = createAdminMock({
+      remoteData: remote,
+      policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
+    });
+    const functionsApi = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+    });
+
+    await expect(
+      functionsApi.patchDailyRecordWithClinicalAuthority.run(
+        { date: remote.date, mode: 'enforced', patch: { 'bedTypeOverrides.R1': 'UCI' } },
+        makeContext()
+      )
+    ).rejects.toMatchObject({ message: expect.stringContaining('accompany a UPC patch') });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('el parche del toggle (override + isUPC acompañante) es aceptado y escrito', async () => {
+    // Bug latente confirmado 01-09: el toggle manual UCI/UTI enviaba el
+    // override solitario y quedó roto bajo la valla; ahora viaja con isUPC.
+    const remote = { ...makeRecord(), dateTimestamp: Date.now() };
+    const { admin, update, docRef } = createAdminMock({
+      remoteData: remote,
+      policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
+    });
+    const functionsApi = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin.firestore(),
+      Timestamp: admin.firestore.Timestamp,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+    });
+
+    await functionsApi.patchDailyRecordWithClinicalAuthority.run(
+      {
+        date: remote.date,
+        mode: 'enforced',
+        patch: { 'bedTypeOverrides.R1': 'UCI', 'beds.R1.isUPC': false },
+      },
+      makeContext()
+    );
+
+    expect(update).toHaveBeenCalledWith(
+      docRef,
+      expect.objectContaining({ 'bedTypeOverrides.R1': 'UCI' })
+    );
+  });
+});

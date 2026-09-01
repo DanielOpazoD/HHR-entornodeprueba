@@ -5,7 +5,10 @@ import {
   recordClinicalAuthorityTelemetry,
   recordClinicalEpisodeIdCoverageTelemetry,
 } from '@/services/repositories/dailyRecordClinicalAuthorityPolicy';
-import { CLINICAL_CENSUS_EDITABLE_FIELDS } from '@/services/repositories/explicitLocalCensusPatchPolicy';
+import {
+  isClinicalAuthorityBedScalarPath,
+  isClinicalAuthorityCallablePatchPath,
+} from '@/services/storage/dailyRecordAuthorityContract';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import { firestoreWriteLogger } from '@/services/storage/storageLoggers';
 import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
@@ -60,26 +63,12 @@ interface SpecialistMedicalHandoffCallablePayload {
   patch: Record<string, unknown>;
 }
 
-const CLINICAL_AUTHORITY_PATCH_FIELDS = new Set<string>(CLINICAL_CENSUS_EDITABLE_FIELDS);
+// Clasificación de rutas: delega en el CONTRATO ÚNICO de autoridad (la
+// misma definición que consumen el splitter del dispatch, el aplanador y las
+// functions). Los alias locales conservan los nombres históricos.
+const isClinicalAuthorityPatchPath = isClinicalAuthorityBedScalarPath;
 
-const isClinicalAuthorityPatchPath = (path: string): boolean => {
-  const [root, bedId, field, ...rest] = path.split('.');
-  return (
-    root === 'beds' &&
-    Boolean(bedId) &&
-    Boolean(field) &&
-    rest.length === 0 &&
-    CLINICAL_AUTHORITY_PATCH_FIELDS.has(field)
-  );
-};
-
-const isClinicalAuthorityBedTypeOverridePath = (path: string): boolean => {
-  const [root, bedId, ...rest] = path.split('.');
-  return root === 'bedTypeOverrides' && Boolean(bedId) && rest.length === 0;
-};
-
-export const isClinicalAuthorityCallablePatchPath = (path: string): boolean =>
-  isClinicalAuthorityPatchPath(path) || isClinicalAuthorityBedTypeOverridePath(path);
+export { isClinicalAuthorityCallablePatchPath };
 
 const isClinicalAuthorityDerivedPatchPath = (path: string): boolean => {
   if (path === 'dateTimestamp') {

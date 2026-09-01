@@ -281,8 +281,14 @@ export const buildToggleBedTypePatches = (
   const nextType = currentType === BedType.UTI ? BedType.UCI : BedType.UTI;
   const patchValue = nextType === bedDef.type ? undefined : nextType;
 
+  // El servidor exige que bedTypeOverrides viaje en la MISMA escritura que un
+  // parche UPC de la cama («bed type override must accompany a UPC patch»):
+  // un override solitario era rechazado y el toggle manual quedó roto bajo la
+  // valla schema-v2 (bug latente confirmado 01-09). isUPC viaja con su valor
+  // vigente como acompañante del sobre clínico.
   return {
     [`bedTypeOverrides.${bedId}`]: patchValue,
+    [`beds.${bedId}.isUPC`]: state.beds[bedId]?.isUPC === true,
   } as DailyRecordPatch;
 };
 

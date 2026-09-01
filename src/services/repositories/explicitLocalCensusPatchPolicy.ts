@@ -1,22 +1,9 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
-export const CLINICAL_CENSUS_EDITABLE_FIELDS = [
-  'pathology',
-  'diagnosisComments',
-  'snomedCode',
-  'cie10Code',
-  'cie10Description',
-  'specialty',
-  'secondarySpecialty',
-  'status',
-  'ginecobstetriciaType',
-  'deliveryRoute',
-  'deliveryDate',
-  'deliveryCesareanLabor',
-  'isUPC',
-  'upcChecklist',
-  'surgicalComplication',
-] as const;
+import { CLINICAL_AUTHORITY_BED_FIELDS } from '@/services/storage/dailyRecordAuthorityContract';
+
+// Fuente de verdad: el contrato único de autoridad (compartido con functions).
+export const CLINICAL_CENSUS_EDITABLE_FIELDS = CLINICAL_AUTHORITY_BED_FIELDS;
 
 export const EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS: ReadonlySet<string> = new Set(
   CLINICAL_CENSUS_EDITABLE_FIELDS
