@@ -5,7 +5,7 @@
  * toggle criteria, compute classification, save, clear, reset.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveUpcClassification } from '@/domain/upc/upcClassification';
 import type { UpcClassification } from '@/domain/upc/upcClassification';
 import type { UpcChecklistRecord, UpcChecklistAuditActor } from '@/domain/upc/upcContracts';
@@ -21,6 +21,16 @@ interface UseUpcChecklistStateParams {
   uciAllowed: boolean;
   actor: UpcChecklistAuditActor | null;
 }
+
+/**
+ * «Se guarda al seleccionar» generaba UNA escritura por checkbox: marcar dos
+ * criterios seguidos lanzaba dos escrituras al callable clínico (~1-2 s cada
+ * una) que se pisaban por versión — la segunda se perdía y «había que
+ * seleccionarlo dos veces». La ráfaga se coalesce: la UI sigue optimista al
+ * instante y una única escritura viaja con el estado FINAL; al desmontar el
+ * popover se descarga lo pendiente sin esperar el timer.
+ */
+export const UPC_SAVE_COALESCE_MS = 400;
 
 export interface UpcChecklistDraftState {
   persistedChecklist: UpcChecklistRecord | undefined;
@@ -90,6 +100,24 @@ export const useUpcChecklistState = ({
     [actor]
   );
 
+  const pendingSaveRef = useRef<UpcChecklistRecord | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+
+  const flushPendingSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const pending = pendingSaveRef.current;
+    if (!pending) return;
+    pendingSaveRef.current = null;
+    onSaveRef.current(pending);
+  }, []);
+
+  useEffect(() => flushPendingSave, [flushPendingSave]);
+
   const persistDraft = useCallback(
     (nextUci: Set<string>, nextUti: Set<string>) => {
       const nextClassification = resolveUpcClassification({
@@ -98,9 +126,11 @@ export const useUpcChecklistState = ({
       });
       const nextRecord = buildRecord(nextUci, nextUti, nextClassification);
       setPersistedChecklist(nextRecord);
-      onSave(nextRecord);
+      pendingSaveRef.current = nextRecord;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(flushPendingSave, UPC_SAVE_COALESCE_MS);
     },
-    [buildRecord, onSave]
+    [buildRecord, flushPendingSave]
   );
 
   const toggleUciCriterion = useCallback(

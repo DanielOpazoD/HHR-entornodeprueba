@@ -1,6 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useUpcChecklistState } from '@/features/census/components/patient-row/useUpcChecklistState';
+import {
+  UPC_SAVE_COALESCE_MS,
+  useUpcChecklistState,
+} from '@/features/census/components/patient-row/useUpcChecklistState';
 import type { UpcChecklistRecord, UpcChecklistAuditActor } from '@/domain/upc/upcContracts';
 
 const ACTOR: UpcChecklistAuditActor = { uid: 'u1', displayName: 'Dr. Test' };
@@ -25,7 +28,14 @@ describe('useUpcChecklistState', () => {
 
   beforeEach(() => {
     onSave = createSaveMock();
+    vi.useFakeTimers();
   });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const flushCoalescedSave = () => act(() => vi.advanceTimersByTime(UPC_SAVE_COALESCE_MS));
 
   // ── Initial state ──────────────────────────────────────────────
 
@@ -127,6 +137,7 @@ describe('useUpcChecklistState', () => {
     );
 
     act(() => result.current.toggleUtiCriterion('uti_materno_fetal'));
+    flushCoalescedSave();
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const saved = onSave.mock.calls[0][0] as UpcChecklistRecord;
@@ -156,6 +167,7 @@ describe('useUpcChecklistState', () => {
     );
 
     act(() => result.current.toggleUciCriterion('uci_vmi'));
+    flushCoalescedSave();
 
     const saved = onSave.mock.calls[0][0] as UpcChecklistRecord;
     expect(saved.evaluatedBy).toBeUndefined();
@@ -171,6 +183,7 @@ describe('useUpcChecklistState', () => {
     (onSave as unknown as { mockClear: () => void }).mockClear();
 
     act(() => result.current.toggleUtiCriterion('uti_mon_cardiaca'));
+    flushCoalescedSave();
 
     expect(result.current.draftUti.size).toBe(0);
     const saved = onSave.mock.calls[0][0] as UpcChecklistRecord;
@@ -179,7 +192,10 @@ describe('useUpcChecklistState', () => {
     expect(saved.utiCriteria).toEqual([]);
   });
 
-  it('persists each draft change immediately', () => {
+  it('coalesce la ráfaga de toggles en UNA escritura con el estado final', () => {
+    // Antes: una escritura por checkbox → dos writes al callable clínico se
+    // pisaban por versión y el segundo criterio se perdía («seleccionar dos
+    // veces»). La UI sigue optimista al instante; el write viaja coalescido.
     const { result } = renderHook(() =>
       useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
     );
@@ -189,7 +205,26 @@ describe('useUpcChecklistState', () => {
       result.current.toggleUtiCriterion('uti_mon_cardiaca');
       result.current.toggleUciCriterion('uci_vmi'); // untoggle
     });
+    expect(onSave).toHaveBeenCalledTimes(0);
+    flushCoalescedSave();
 
-    expect(onSave).toHaveBeenCalledTimes(3);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const saved = onSave.mock.calls[0][0] as UpcChecklistRecord;
+    expect(saved.uciCriteria).toEqual([]);
+    expect(saved.utiCriteria).toEqual(['uti_mon_cardiaca']);
+    expect(saved.classification).toBe('UPC_UTI');
+  });
+
+  it('al desmontar descarga la escritura pendiente sin esperar el timer', () => {
+    const { result, unmount } = renderHook(() =>
+      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
+    );
+
+    act(() => result.current.toggleUciCriterion('uci_vmi'));
+    expect(onSave).toHaveBeenCalledTimes(0);
+    unmount();
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect((onSave.mock.calls[0][0] as UpcChecklistRecord).uciCriteria).toEqual(['uci_vmi']);
   });
 });

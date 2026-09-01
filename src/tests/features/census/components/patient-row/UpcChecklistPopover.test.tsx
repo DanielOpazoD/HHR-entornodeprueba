@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UpcChecklistPopover } from '@/features/census/components/patient-row/UpcChecklistPopover';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
@@ -33,7 +33,8 @@ describe('UpcChecklistPopover', () => {
       await screen.findByRole('checkbox', { name: /Monitorización cardíaca continua/i })
     );
 
-    expect(onSave).toHaveBeenCalledTimes(1);
+    // La escritura viaja coalescida (~400 ms); la UI es optimista al instante.
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1), { timeout: 1500 });
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         classification: 'UPC_UTI',
