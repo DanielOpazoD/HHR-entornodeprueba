@@ -31,6 +31,12 @@ interface UseDemographicsLogicProps {
   requiresCompleteDemographics?: boolean;
 }
 
+// El guardado demográfico es ESTRICTAMENTE estructural: nunca incluye campos
+// de autoridad clínica (pathology/diagnóstico, especialidad, etc.). Incluir
+// pathology mezclaba autoridades → la separación rechazaba TODO guardado
+// demográfico (409 sistemático) y el auto-merge posterior podía perder el
+// diagnóstico. El diagnóstico se edita solo en su campo del censo, por su
+// canal clínico.
 export const useDemographicsLogic = ({
   data,
   isClinicalCribPatient,
@@ -141,7 +147,6 @@ export const useDemographicsLogic = ({
         origin: localData.origin as Origin,
         isRapanui: localData.isRapanui,
         biologicalSex: localData.biologicalSex as BiologicalSex,
-        pathology: localData.pathology,
         age,
       });
       onClose();
@@ -180,7 +185,6 @@ export const useDemographicsLogic = ({
       origin: localData.origin as Origin,
       isRapanui: localData.isRapanui,
       biologicalSex: localData.biologicalSex as BiologicalSex,
-      pathology: localData.pathology,
       age,
     });
     onClose();
