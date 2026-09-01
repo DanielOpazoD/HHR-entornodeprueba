@@ -1,12 +1,12 @@
 # CI Runtime Observed Profile
 
-- Generated: 2026-09-01T07:06:13.482Z
-- Git SHA: `7e936009`
+- Generated: 2026-09-01T07:35:31.575Z
+- Git SHA: `ce8b9602`
 - Worktree dirty: `true`
 - Source: `github-actions`
 - Repository: `DanielOpazoD/HHR-ServicioHospitalizados`
 - Run: `28767128242`
-- Input: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/ci-runtime-observed-aac6690d-2a53-4738-a7fe-c5d7c051c250.json`
+- Input: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/ci-runtime-observed-ed30383b-49d5-4404-9db6-b24527a5846a.json`
 - Status: `observed_ci_data`
 - Observed shards: 4/4
 - Spread: 16.4% (tolerance 25%)

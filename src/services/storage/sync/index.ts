@@ -9,6 +9,8 @@ export {
   adoptAuthoritativeDailyRecordAtomically,
   clearAllSyncQueue,
   clearSyncQueueForOwner,
+  discardQuarantinedSyncTask,
+  retryQuarantinedSyncTask,
   ensureSyncQueueOnlineListener,
   getPendingDailyRecordSyncTaskSnapshot,
   getSyncQueueDomainMetrics,

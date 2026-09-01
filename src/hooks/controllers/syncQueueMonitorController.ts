@@ -7,6 +7,8 @@ export interface SyncQueueStats {
   retrying: number;
   acked: number;
   conflict: number;
+  /** Edad de la tarea pendiente más antigua; distingue el vuelo normal de un atasco. */
+  oldestPendingAgeMs: number;
   batchSize?: number;
   runtimeState?: SyncQueueRuntimeState;
   readState?: 'ok' | 'unavailable';
@@ -38,6 +40,7 @@ export const EMPTY_SYNC_QUEUE_STATS: SyncQueueStats = {
   retrying: 0,
   acked: 0,
   conflict: 0,
+  oldestPendingAgeMs: 0,
 };
 
 export const buildSyncQueueStats = (
@@ -49,6 +52,7 @@ export const buildSyncQueueStats = (
   retrying: telemetry.retrying,
   acked: 0,
   conflict: telemetry.conflict || 0,
+  oldestPendingAgeMs: telemetry.oldestPendingAgeMs || 0,
   batchSize: telemetry.batchSize,
   runtimeState: telemetry.runtimeState,
   readState: telemetry.readState,

@@ -10,9 +10,12 @@ import { recordOperationalErrorTelemetry } from '@/services/observability/operat
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
-
-const matchesOwner = (ownerKey: string | null | undefined, taskOwnerKey?: string): boolean =>
-  ownerKey ? taskOwnerKey === ownerKey || !taskOwnerKey : !taskOwnerKey;
+import {
+  discardQuarantinedTask,
+  matchesOwner,
+  requeueQuarantinedTask,
+  REUSABLE_TASK_STATES,
+} from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
   if ((task.preOutboxHoldUntil || 0) > now) {
@@ -111,7 +114,9 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     return (
       existing.find(
         task =>
-          matchesOwner(ownerKey, task.ownerKey) && task.key === key && task.status === 'PENDING'
+          matchesOwner(ownerKey, task.ownerKey) &&
+          task.key === key &&
+          REUSABLE_TASK_STATES.has(task.status)
       ) || null
     );
   },
@@ -136,7 +141,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
             candidate =>
               matchesOwner(task.ownerKey, candidate.ownerKey) &&
               candidate.key === task.key &&
-              candidate.status === 'PENDING'
+              REUSABLE_TASK_STATES.has(candidate.status)
           );
 
           if (existing?.id) {
@@ -299,6 +304,8 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       return true;
     });
   },
+  requeueQuarantinedTask,
+  discardQuarantinedTask,
   async update(taskId, patch) {
     await hospitalDB.syncQueue.update(taskId, patch);
   },

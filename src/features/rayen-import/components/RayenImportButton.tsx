@@ -10,6 +10,7 @@ import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
+import { SyncQueueStatusChip } from './SyncQueueStatusChip';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
@@ -53,6 +54,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionMonitorOpen, setConnectionMonitorOpen] = React.useState(false);
+  const [queuePanelOpen, setQueuePanelOpen] = React.useState(false);
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);
@@ -180,7 +182,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   return (
     <div
       className={`w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
-        connectionMonitorOpen ? 'relative z-[70]' : ''
+        connectionMonitorOpen || queuePanelOpen ? 'relative z-[70]' : ''
       }`}
       data-testid="rayen-operations-bar"
     >
@@ -204,6 +206,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
         />
 
         <div className="flex shrink-0 items-center justify-end gap-1.5 border-slate-200 xl:border-l xl:pl-2.5">
+          <SyncQueueStatusChip open={queuePanelOpen} onOpenChange={setQueuePanelOpen} />
           <button
             ref={historyTriggerRef}
             type="button"

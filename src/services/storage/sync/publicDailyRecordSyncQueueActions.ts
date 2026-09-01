@@ -115,6 +115,9 @@ export const createDailyRecordSyncQueueActions = ({
       const payload = task?.payload as DailyRecord | null | undefined;
       if (
         !task?.id ||
+        // findReusableTask también entrega tareas en cuarentena (para que la
+        // edición fresca las superseda); este snapshot describe SOLO pendientes.
+        task.status !== 'PENDING' ||
         payload?.date !== record.date ||
         payload.lastUpdated !== record.lastUpdated
       ) {
