@@ -64,7 +64,7 @@ describe('Identity-based Diagnosis Clearing', () => {
           specialty: Specialty.MEDICINA,
           status: PatientStatus.ESTABLE,
           admissionDate: '2026-01-10',
-          devices: [],
+          devices: ['VVP'],
           isBlocked: false,
           bedMode: 'Cama',
           hasCompanionCrib: false,
@@ -95,9 +95,6 @@ describe('Identity-based Diagnosis Clearing', () => {
     expect(patchRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         [`beds.R1.rut`]: '22.222.222-2',
-        [`beds.R1.clinicalEvents`]: [],
-        [`beds.R1.cudyr`]: undefined,
-        [`beds.R1.deviceDetails`]: {},
         [`beds.R1.devices`]: [],
       })
     );
@@ -108,6 +105,12 @@ describe('Identity-based Diagnosis Clearing', () => {
         [`beds.R1.pathology`]: '',
       })
     );
+    // Contrato de diff (Fase 2): los clears de campos que YA están vacíos en la
+    // cama (clinicalEvents [], cudyr ausente) no se re-emiten.
+    for (const call of vi.mocked(patchRecord).mock.calls) {
+      expect(call[0]).not.toHaveProperty(`beds.R1.clinicalEvents`);
+      expect(call[0]).not.toHaveProperty(`beds.R1.cudyr`);
+    }
   });
 
   it('cambiar solo el nombre con el MISMO RUT no limpia el diagnóstico (misma persona)', async () => {

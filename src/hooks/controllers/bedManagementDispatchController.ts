@@ -275,6 +275,12 @@ export const executeBedManagementAction = async ({
     if (!patch) {
       return false;
     }
+    if (Object.keys(patch).length === 0) {
+      // Diff vacío: el gesto no cambia nada respecto del registro vigente.
+      // No hay nada que escribir, auditar ni confirmar (tampoco prompt de día
+      // anterior) — el gesto se considera aplicado.
+      return true;
+    }
 
     // Wrong-day guard: only after we know there is a real patch (no prompt on no-ops)
     // and before any local/remote mutation, so a cancel aborts cleanly.

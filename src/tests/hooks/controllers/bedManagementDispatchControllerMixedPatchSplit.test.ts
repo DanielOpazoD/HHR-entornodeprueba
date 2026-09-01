@@ -77,14 +77,13 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     expect(result).toBe(true);
     // Con separación enforced el patch mezclado sería rechazado por la
     // autoridad; el despacho lo divide: estructural primero, clínico después.
+    // El diff (Fase 2) poda los reenvíos idénticos del fixture (admissionDate
+    // y status no cambian), así que cada mitad queda mínima.
     expect(patchRecord).toHaveBeenCalledTimes(2);
     const [structuralPatch] = patchRecord.mock.calls[0];
     const [clinicalPatch] = patchRecord.mock.calls[1];
-    expect(Object.keys(structuralPatch)).toEqual(
-      expect.arrayContaining(['beds.R1.admissionDate', 'beds.R1.admissionTime'])
-    );
-    expect(Object.keys(structuralPatch)).not.toEqual(expect.arrayContaining(['beds.R1.pathology']));
-    expect(Object.keys(clinicalPatch).sort()).toEqual(['beds.R1.pathology', 'beds.R1.status']);
+    expect(Object.keys(structuralPatch)).toEqual(['beds.R1.admissionTime']);
+    expect(Object.keys(clinicalPatch)).toEqual(['beds.R1.pathology']);
   });
 
   it('la clasificación UPC viaja en UN solo comando clínico con su bedTypeOverrides', async () => {
@@ -132,6 +131,46 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     expect(Object.keys(patch)).toEqual(
       expect.arrayContaining(['beds.R1.upcChecklist', 'beds.R1.isUPC', 'bedTypeOverrides.R1'])
     );
+  });
+
+  it('un guardado sin cambios reales no escribe ni audita y retorna true', async () => {
+    const patchRecord = vi.fn<(patch: Record<string, unknown>) => Promise<void>>();
+    patchRecord.mockResolvedValue(undefined);
+    const record = buildRecord();
+    const action: BedAction = {
+      type: 'UPDATE_PATIENT_MULTIPLE',
+      bedId: 'R1',
+      fields: {
+        patientName: record.beds.R1.patientName,
+        rut: record.beds.R1.rut,
+        pathology: record.beds.R1.pathology,
+        status: record.beds.R1.status,
+      },
+    };
+    const validation: BedManagementValidationPort = {
+      processFieldValue: vi.fn((field, value) => ({ valid: true, value })),
+    };
+    const auditPatientChange = vi.fn();
+    const bedAudit: BedManagementAuditPort = {
+      auditPatientChange,
+      auditCudyrChange: vi.fn(),
+      auditCribCudyrChange: vi.fn(),
+      auditPatientCleared: vi.fn(),
+      auditPatientModified: vi.fn(),
+      auditPatientMovement: vi.fn(),
+    };
+
+    const result = await executeBedManagementAction({
+      currentRecord: record,
+      action,
+      validation,
+      bedAudit,
+      patchRecord,
+    });
+
+    expect(result).toBe(true);
+    expect(patchRecord).not.toHaveBeenCalled();
+    expect(auditPatientChange).not.toHaveBeenCalled();
   });
 
   it('keeps a purely clinical multi-field update as a single command', async () => {

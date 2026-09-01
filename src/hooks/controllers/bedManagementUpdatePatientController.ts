@@ -1,7 +1,10 @@
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import type { PatientFieldValue } from '@/types/valueTypes';
-import { buildUpdatePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
+import {
+  buildUpdatePatientPatches,
+  filterUnchangedBedFieldPatches,
+} from '@/hooks/controllers/bedManagementPatchController';
 
 interface UpdatePatientActionInput {
   bedId: string;
@@ -22,5 +25,8 @@ export const buildUpdatePatientActionPatch = (
     patches[`beds.${bedId}.cie10Description`] = undefined;
   }
 
-  return patches as DailyRecordPatch;
+  // Segundo diff: los clears de CIE-10 recién agregados también se emiten solo
+  // si borran algo; el guard de acompañamiento del filtro re-ancla isUPC si el
+  // override sigue presente.
+  return filterUnchangedBedFieldPatches(state, bedId, patches) as DailyRecordPatch;
 };
