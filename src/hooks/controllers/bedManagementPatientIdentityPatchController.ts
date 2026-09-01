@@ -62,6 +62,41 @@ export const shouldResetClinicalEpisodeOwnership = ({
   );
 };
 
+/**
+ * ¿La cama pasa a hospedar a OTRA persona? Con RUT en ambos lados, manda el
+ * RUT: corregir un nombre o apellido del MISMO paciente no es un reemplazo.
+ * El heurístico anterior («cualquier cambio de nombre = paciente nuevo»)
+ * disparaba la limpieza clínica completa de la cama —diagnóstico incluido—
+ * al editar Datos Demográficos, y el bedTypeOverrides de esa limpieza volvía
+ * mixto el guardado, que la separación de autoridades rechazaba entero.
+ */
+export const isDifferentPatientIdentity = ({
+  currentPatientName,
+  currentRut,
+  nextPatientName,
+  nextRut,
+}: {
+  currentPatientName?: string;
+  currentRut?: string;
+  nextPatientName?: string;
+  nextRut?: string;
+}): boolean => {
+  const normalizedCurrentRut = normalizeIdentityValue(currentRut);
+  const normalizedNextRut = normalizeIdentityValue(nextRut);
+  if (normalizedCurrentRut && normalizedNextRut) {
+    return normalizedCurrentRut !== normalizedNextRut;
+  }
+  if (normalizedCurrentRut || normalizedNextRut) {
+    return true;
+  }
+  const normalizedCurrentName = normalizeIdentityValue(currentPatientName);
+  const normalizedNextName = normalizeIdentityValue(nextPatientName);
+  return (
+    Boolean(normalizedCurrentName || normalizedNextName) &&
+    normalizedCurrentName !== normalizedNextName
+  );
+};
+
 export const getClearClinicalDataPatches = (bedId: string): Record<string, unknown> => ({
   [`beds.${bedId}.cie10Code`]: undefined,
   [`beds.${bedId}.cie10Description`]: undefined,
