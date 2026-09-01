@@ -11,7 +11,9 @@ import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSup
 
 const isVersionConflict = (error: unknown): boolean =>
   (error instanceof Error && error.name === 'ConcurrencyError') ||
-  /actualizó hace un momento/i.test(getRayenImportErrorMessage(error));
+  /actualizó hace un momento|modificado por otro usuario|cambió mientras se preparaba/i.test(
+    getRayenImportErrorMessage(error)
+  );
 
 const MAX_FRESH_RECORD_RETRIES = 2;
 

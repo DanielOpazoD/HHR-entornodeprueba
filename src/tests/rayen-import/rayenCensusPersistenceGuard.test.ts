@@ -130,6 +130,48 @@ describe('rayenCensusPersistenceGuard', () => {
     }
   );
 
+  it('un rechazo por concurrencia viaja con nombre ConcurrencyError aunque falte blockingError', () => {
+    // Verificado en vivo (31-08): el CAS rechazado llegaba como Error genérico,
+    // el lazo de replan no lo reconocía (0 reintentos) y la escritura encolada
+    // del evento de fallo chocaba con la corrida siguiente — fallos en cascada.
+    let thrown: unknown;
+    try {
+      assertRayenCensusPersistenceConfirmed({
+        record: buildRecord(),
+        result: buildResult({
+          outcome: 'blocked',
+          savedRemotely: false,
+          sourceOfTruth: 'none',
+          conflictSummary: { kind: 'concurrency' } as never,
+          userSafeMessage:
+            'El registro ha sido modificado por otro usuario. Por favor recarga la página.',
+        }),
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).name).toBe('ConcurrencyError');
+
+    // Con blockingError explícito genérico, también se reclasifica.
+    let thrownWithBlocking: unknown;
+    try {
+      assertRayenCensusPersistenceConfirmed({
+        record: buildRecord(),
+        result: buildResult({
+          outcome: 'blocked',
+          savedRemotely: false,
+          sourceOfTruth: 'none',
+          conflictSummary: { kind: 'concurrency' } as never,
+          blockingError: new Error('conflicto plano'),
+        }),
+      });
+    } catch (error) {
+      thrownWithBlocking = error;
+    }
+    expect((thrownWithBlocking as Error).name).toBe('ConcurrencyError');
+  });
+
   it('does not misclassify an operationally queued write as a concurrency conflict', () => {
     let thrown: unknown;
     try {
