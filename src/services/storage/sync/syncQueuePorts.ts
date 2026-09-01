@@ -72,6 +72,10 @@ export interface SyncQueueStorePort {
     now: number,
     holdForMs: number
   ): Promise<boolean>;
+  /** Revive una tarea FAILED/CONFLICT como PENDING limpia (acción explícita del usuario). */
+  requeueQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
+  /** Elimina una tarea FAILED/CONFLICT; nunca toca tareas activas (acción explícita del usuario). */
+  discardQuarantinedTask?(taskId: number, ownerKey?: string | null): Promise<boolean>;
   update(taskId: number, patch: Partial<SyncTask>): Promise<void>;
   updateClaimed(
     taskId: number,

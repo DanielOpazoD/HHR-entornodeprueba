@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4792000,
-  "_precacheMaxBytesComment": "Raised 12 KB (31-08-2026, #278) for the resync eligibility guard and previous-day ack gating in the census shell; Rayen online-only chunks remain excluded and independently governed.",
+  "precacheMaxBytes": 4808000,
+  "_precacheMaxBytesComment": "Raised 16 KB (01-09-2026) for the sync-queue pending/quarantine indicator in the census bar (chip + monitor wiring pulled the queue telemetry reader into the shell). Previous raise: 12 KB (31-08-2026, #278) for the resync eligibility guard. Rayen online-only chunks remain excluded and independently governed.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",

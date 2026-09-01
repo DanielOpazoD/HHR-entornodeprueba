@@ -5,6 +5,7 @@ import { createBrowserSyncRuntime } from '@/services/storage/sync/browserSyncRun
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { createFirestoreSyncTransport } from '@/services/storage/sync/firestoreSyncTransport';
 import { createDailyRecordSyncQueueActions } from '@/services/storage/sync/publicDailyRecordSyncQueueActions';
+import { createQuarantinedSyncTaskActions } from '@/services/storage/sync/publicQuarantinedSyncTaskActions';
 import { createSyncQueueEngine } from '@/services/storage/sync/syncQueueEngine';
 import type { SyncQueueEnqueueResult } from '@/services/storage/sync/syncQueueEngineContracts';
 import type { SyncQueueEnqueueOptions } from '@/services/storage/sync/syncQueueEnqueuePolicy';
@@ -314,6 +315,16 @@ export const queueDailyRecordSyncTaskWithLocalRecord = async (
     };
   }
 };
+
+export const { retryQuarantinedSyncTask, discardQuarantinedSyncTask } =
+  createQuarantinedSyncTaskActions({
+    ensureReady: ensureDbReady,
+    store: syncQueueStore,
+    getOwnerKey: getSyncOwnerKey,
+    logger: syncObservability.logger,
+    recordReadFailure: recordSyncRuntimeReadFailure,
+    triggerProcessing: syncQueueEngine.triggerProcessing,
+  });
 
 export const processSyncQueue = async (): Promise<void> => {
   try {

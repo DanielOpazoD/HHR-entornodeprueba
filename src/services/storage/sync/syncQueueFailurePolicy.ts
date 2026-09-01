@@ -95,7 +95,9 @@ export const resolveSyncQueueFailureDecision = ({
       retryCount: task.retryCount,
       contexts,
       recoveryPolicy,
-      shouldLogPermanentFailure: false,
+      // Un no-retryable ES un fallo permanente desde el primer intento: sin
+      // este log, la píldora venenosa entraba a cuarentena en silencio.
+      shouldLogPermanentFailure: true,
       ...errorMeta,
     };
   }
