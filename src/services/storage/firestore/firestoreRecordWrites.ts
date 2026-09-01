@@ -57,6 +57,7 @@ import {
   extractGuardedRayenClinicalPatch,
 } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
 import { createDirectFirestoreWriteReceipt } from './firestoreDirectWriteReceipt';
+import { runPartialUpdatePersistWithPermissionFallbacks } from '@/services/storage/firestore/firestoreBedTreePermissionFallback';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import {
   buildAuthorityPatchSyncContract,
@@ -345,15 +346,14 @@ export const updateRecordPartial = async (
           }
         );
       };
-      try {
-        return await persist();
-      } catch (error) {
-        if (isPermissionDeniedError(error) && (await tryRefreshCurrentUserRoleClaim(date))) {
-          return await persist();
-        } else {
-          throw error;
-        }
-      }
+      return await runPartialUpdatePersistWithPermissionFallbacks({
+        persist,
+        date,
+        sanitizedPatch,
+        expectedLastUpdated,
+        syncContract: options.syncContract,
+        tryRefreshCurrentUserRoleClaim,
+      });
     } catch (error: unknown) {
       const storageError = error as { code?: string };
       if (storageError?.code === 'not-found') {
