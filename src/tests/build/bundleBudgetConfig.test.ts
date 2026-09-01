@@ -67,7 +67,9 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    expect(config.precacheMaxBytes).toBe(4780000);
+    // 4792000: +12 KB (31-08-2026, #278/#279) por el guard de re-sincronización
+    // y el gating de días previos en el shell precacheado del censo.
+    expect(config.precacheMaxBytes).toBe(4792000);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([
         '^docs/',
