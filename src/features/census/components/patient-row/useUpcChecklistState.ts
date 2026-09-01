@@ -114,7 +114,7 @@ export const useUpcChecklistState = ({
     if (!pending) return;
     pendingSaveRef.current = null;
     onSaveRef.current(pending);
-  }, []);
+  }, [onSaveRef]);
 
   useEffect(() => flushPendingSave, [flushPendingSave]);
 
