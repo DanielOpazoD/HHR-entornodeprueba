@@ -33,7 +33,6 @@ export const DemographicsHeader: React.FC<DemographicsHeaderProps> = ({
       documentType: 'RUT',
       rut: '17.752.753-K',
       birthDate: '1990-11-15',
-      pathology: 'Neumonía (Probando)',
     }));
   };
 

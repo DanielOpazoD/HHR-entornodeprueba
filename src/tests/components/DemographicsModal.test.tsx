@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DemographicsModal } from '@/components/modals/DemographicsModal';
 import type { DemographicSubset } from '@/components/modals/DemographicsModal';
 import { DataFactory } from '@/tests/factories/DataFactory';
+import { CLINICAL_CENSUS_EDITABLE_FIELDS } from '@/services/repositories/explicitLocalCensusPatchPolicy';
 
 vi.mock('@/context/AuditContext', () => ({
   useAuditContext: () => ({
@@ -272,9 +273,37 @@ describe('DemographicsModal', () => {
         patientName: 'Daniel Opazo Damiani',
         rut: '17.752.753-K',
         birthDate: '1990-11-15',
-        pathology: 'Neumonía (Probando)',
       })
     );
+    // El guardado demográfico es estrictamente estructural: incluir pathology
+    // mezclaba autoridades clínica/estructural y el 409 sistemático impedía
+    // persistir CUALQUIER cambio demográfico (borrando además el diagnóstico
+    // vía el auto-merge posterior).
+    expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('pathology');
+  });
+
+  it('nunca emite campos de autoridad clínica: el guardado demográfico es estructural puro', () => {
+    // Contrato con la separación de autoridad del repositorio: si el payload
+    // incluyera un campo de CLINICAL_CENSUS_EDITABLE_FIELDS, todo guardado
+    // demográfico sería rechazado con «mezcla campos clínicos y estructurales».
+    const onSave = vi.fn();
+    render(
+      <DemographicsModal
+        isOpen
+        onClose={vi.fn()}
+        data={{ ...createEmptyDemographics(), pathology: 'Bradicardia' }}
+        onSave={onSave}
+        bedId="R1"
+        recordDate="2026-05-01"
+      />
+    );
+    fireEvent.change(screen.getByPlaceholderText('Nombre'), { target: { value: 'Ana' } });
+    fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const emitted = Object.keys(onSave.mock.calls[0]?.[0] ?? {});
+    const clinical = new Set<string>(CLINICAL_CENSUS_EDITABLE_FIELDS);
+    expect(emitted.filter(field => clinical.has(field))).toEqual([]);
   });
 
   it('keeps rapid name-part edits when saving official demographics', () => {
