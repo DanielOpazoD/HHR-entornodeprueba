@@ -1,26 +1,9 @@
-// Campos que el lote clínico Rayen escribe, separados por gobernanza:
-// - Los dispositivos son datos operacionales que enfermería TAMBIÉN gestiona a
-//   mano entre corridas (agregar/retirar VVP, LA, SNG…): un parche parcial de
-//   rol autorizado puede editarlos directamente.
-// - Las mediciones y el checkpoint son exclusivos del lote autoritativo: la
-//   valla los protege de cualquier escritura no guardada.
-const RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS = Object.freeze([
-  'devices',
-  'deviceDetails',
-  'deviceInstanceHistory',
-]);
-
-const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = Object.freeze([
-  'evaluationScores',
-  'vitalSigns',
-  'vitalSignsHistory',
-  'clinicalSyncCheckpoint',
-]);
-
-const RAYEN_CLINICAL_FIELDS = Object.freeze([
-  ...RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS,
-  ...RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
-]);
+// Fuente de verdad: el CONTRATO ÚNICO de autoridad, compartido con el cliente.
+const {
+  RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS,
+  RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
+  RAYEN_CLINICAL_FIELDS,
+} = require('./dailyRecordAuthorityContract');
 
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 

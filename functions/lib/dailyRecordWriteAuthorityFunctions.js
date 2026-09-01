@@ -29,24 +29,14 @@ const ALLOWED_DAILY_RECORD_WRITE_ROLES = new Set([
   'editor',
 ]);
 
+// Fuente de verdad: contrato único de autoridad + campos exclusivos del server.
+const {
+  CLINICAL_AUTHORITY_BED_FIELDS,
+  SERVER_ONLY_CLINICAL_PATCH_FIELDS,
+} = require('./dailyRecordAuthorityContract');
 const ALLOWED_DAILY_RECORD_PATCH_FIELDS = new Set([
-  'pathology',
-  'diagnosisComments',
-  'snomedCode',
-  'cie10Code',
-  'cie10Description',
-  'treatingPhysicianId',
-  'treatingPhysicianName',
-  'specialty',
-  'secondarySpecialty',
-  'status',
-  'ginecobstetriciaType',
-  'deliveryRoute',
-  'deliveryDate',
-  'deliveryCesareanLabor',
-  'isUPC',
-  'upcChecklist',
-  'surgicalComplication',
+  ...CLINICAL_AUTHORITY_BED_FIELDS,
+  ...SERVER_ONLY_CLINICAL_PATCH_FIELDS,
 ]);
 
 const ALLOWED_DAILY_RECORD_BED_TYPE_OVERRIDE_VALUES = new Set(['UTI', 'UCI', 'MEDIA', null]);

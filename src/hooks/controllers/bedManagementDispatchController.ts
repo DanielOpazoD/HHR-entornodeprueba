@@ -16,7 +16,7 @@ import { buildBedMovementAuditDetails } from '@/services/admin/auditClinicalEven
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
-import { EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS } from '@/services/repositories/explicitLocalCensusPatchPolicy';
+import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -54,24 +54,11 @@ interface ExecuteBedManagementActionInput {
 
 const MULTIPLE_PATIENT_AUDIT_FIELD_PRIORITY = ['rut', 'patientName'];
 
-const isClinicalEnvelopeBedFieldPath = (path: string): boolean => {
-  const [root, bedId, field, ...rest] = path.split('.');
-  // bedTypeOverrides es autoridad clínica en el servidor y DEBE viajar en la
-  // misma escritura que upcChecklist/isUPC («bed type override must accompany
-  // a UPC patch»). El split lo dejaba huérfano en la mitad estructural junto a
-  // dateTimestamp, y esa mitad era rechazada — la clasificación UPC quedaba a
-  // medias (verificado en vivo 31-08 marcando criterios en R3).
-  if (root === 'bedTypeOverrides' && Boolean(bedId) && field === undefined) {
-    return true;
-  }
-  return (
-    root === 'beds' &&
-    Boolean(bedId) &&
-    Boolean(field) &&
-    rest.length === 0 &&
-    EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS.has(field)
-  );
-};
+// Sobre clínico = CONTRATO ÚNICO de autoridad: la misma definición que usan
+// el enrutamiento, el aplanador y las functions. La divergencia histórica de
+// este splitter (no conocía bedTypeOverrides) dejaba la clasificación UPC a
+// medias — verificado en vivo 31-08.
+const isClinicalEnvelopeBedFieldPath = isClinicalAuthorityCallablePatchPath;
 
 /**
  * Con la autoridad clínica enforced, un patch que mezcla campos clínicos

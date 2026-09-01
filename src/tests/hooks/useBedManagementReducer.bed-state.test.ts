@@ -69,6 +69,9 @@ describe('bedManagementReducer bed state controls', () => {
     });
 
     expect(patch).toHaveProperty('bedTypeOverrides.R1');
+    // El servidor exige acompañante UPC en la MISMA escritura: sin él, el
+    // toggle manual era rechazado bajo la valla (bug latente confirmado 01-09).
+    expect(patch).toHaveProperty('beds.R1.isUPC');
   });
 
   it('forces the bed type to UCI when the patient is classified as UPC_UCI', () => {
