@@ -78,7 +78,7 @@ const isClinicalAuthorityBedTypeOverridePath = (path: string): boolean => {
   return root === 'bedTypeOverrides' && Boolean(bedId) && rest.length === 0;
 };
 
-const isClinicalAuthorityCallablePatchPath = (path: string): boolean =>
+export const isClinicalAuthorityCallablePatchPath = (path: string): boolean =>
   isClinicalAuthorityPatchPath(path) || isClinicalAuthorityBedTypeOverridePath(path);
 
 const isClinicalAuthorityDerivedPatchPath = (path: string): boolean => {

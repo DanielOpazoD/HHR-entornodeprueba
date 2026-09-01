@@ -1,5 +1,6 @@
 import type { DailyRecordPartialWriteOptions } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { flattenObject } from '@/services/storage/firestore/firestoreShared';
+import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/firestore/firestoreDailyRecordAuthorityRouting';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import type { SyncTaskContract } from '@/services/storage/syncQueueTypes';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
@@ -58,6 +59,44 @@ export const buildAuthorityPatchSyncContract = (
   };
 };
 
+/**
+ * Aplana el parche SIN expandir los objetos de autoridad clínica: aplanar
+ * `beds.X.upcChecklist` en sub-rutas de 4 segmentos hacía que dejaran de
+ * clasificar como clínicas y la separación de autoridades rechazaba el
+ * guardado completo («mezcla campos clínicos y estructurales», verificado en
+ * vivo 31-08 con la clasificación UPC). Los objetos clínicos viajan atómicos,
+ * igual que el envelope guardado de Rayen y los parches de especialista.
+ */
+const flattenClinicalAwareDailyRecordPatch = (
+  partialData: Record<string, unknown>
+): Record<string, unknown> => {
+  const flattened = flattenObject(partialData);
+  const result: Record<string, unknown> = {};
+  const atomicRoots: string[] = [];
+  const walk = (value: unknown, parts: string[]): void => {
+    if (isClinicalAuthorityCallablePatchPath(parts.join('.'))) {
+      atomicRoots.push(parts.join('.'));
+      result[parts.join('.')] = value;
+      return;
+    }
+    if (value !== null && typeof value === 'object' && !Array.isArray(value) && parts.length < 4) {
+      for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+        walk(nested, [...parts, ...key.split('.')]);
+      }
+    }
+  };
+  for (const [key, value] of Object.entries(partialData)) {
+    walk(value, key.split('.'));
+  }
+  if (atomicRoots.length === 0) return flattened;
+  for (const [path, value] of Object.entries(flattened)) {
+    if (!atomicRoots.some(root => path === root || path.startsWith(`${root}.`))) {
+      result[path] = value;
+    }
+  }
+  return result;
+};
+
 export const prepareFirestorePartialData = ({
   partialData,
   specialistScopedPatch,
@@ -71,7 +110,7 @@ export const prepareFirestorePartialData = ({
 }): Record<string, unknown> => {
   if (!intentionalBedClear) {
     if (specialistScopedPatch) return partialData;
-    const flattenedData = flattenObject(partialData);
+    const flattenedData = flattenClinicalAwareDailyRecordPatch(partialData);
     return clinicalCribCreate
       ? stripServerOwnedFieldsFromClinicalCribCreates(partialData, flattenedData)
       : flattenedData;
