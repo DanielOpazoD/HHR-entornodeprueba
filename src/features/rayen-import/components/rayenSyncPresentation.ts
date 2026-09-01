@@ -92,10 +92,10 @@ export const rayenPrimaryActionLabel = (
 ): string => {
   if (syncing) return 'Sincronizando…';
   if (connection === 'checking') return 'Comprobando…';
-  if (connection === 'ready') return 'Sincronizar';
-  if (connection === 'degraded' || connection === 'blocked') return 'Revisar conexión';
-  if (connection === 'incompatible') return 'Actualizar extensión';
-  return 'Comprobar conexión';
+  // Botón honesto: cuando no es factible, el botón queda DESHABILITADO con la
+  // razón en el title y las acciones viven en el monitor de conexiones; la
+  // etiqueta ya no muta a un llamado a la acción que el clic no cumple.
+  return 'Sincronizar';
 };
 
 export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string => {

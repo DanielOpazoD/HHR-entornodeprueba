@@ -101,6 +101,7 @@
         identity: { fullName: '', username: '' },
         expiresAt: null,
         remainingSeconds: null,
+        lastVerifiedAt: null,
         connectionSource: 'none',
       };
     }
@@ -111,6 +112,7 @@
         message: 'La sesión de Gestión de Camas venció. Vuelve a conectarla.',
         identity: record.identity || { fullName: '', username: '' },
         expiresAt,
+        lastVerifiedAt: Number.isFinite(record.lastVerifiedAt) ? record.lastVerifiedAt : null,
         remainingSeconds: expiresAt ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : null,
         connectionSource: 'session',
       };
@@ -123,6 +125,7 @@
           : 'La sesión fue capturada, pero todavía no ha sido verificada por Rayen.',
         identity: record.identity || { fullName: '', username: '' },
         expiresAt,
+        lastVerifiedAt: Number.isFinite(record.lastVerifiedAt) ? record.lastVerifiedAt : null,
         remainingSeconds: expiresAt ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : null,
         connectionSource: 'session',
         verification: 'pending',
@@ -139,6 +142,7 @@
           : 'Gestión de Camas conectada; Rayen verificará la vigencia al utilizarla.',
       identity: record.identity || { fullName: '', username: '' },
       expiresAt,
+      lastVerifiedAt: Number.isFinite(record.lastVerifiedAt) ? record.lastVerifiedAt : null,
       remainingSeconds: remainingMs === null ? null : Math.max(0, Math.floor(remainingMs / 1000)),
       connectionSource: 'session',
       expiring,

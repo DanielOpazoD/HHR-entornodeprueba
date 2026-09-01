@@ -61,6 +61,8 @@ describe('Gestión de Camas session helpers', () => {
     expect(session.publicStatus(record, now)).toMatchObject({
       status: 'ready',
       remainingSeconds: 3600,
+      // «Verificada hace N min» del monitor de conexiones de HHR.
+      lastVerifiedAt: now,
       connectionSource: 'session',
     });
     expect(session.normalizeApiBase('https://evil.example/api')).toBe('');
@@ -99,6 +101,7 @@ describe('Gestión de Camas session helpers', () => {
     });
     expect(session.publicStatus(null, now)).toMatchObject({
       status: 'missing',
+      lastVerifiedAt: null,
       connectionSource: 'none',
     });
   });
