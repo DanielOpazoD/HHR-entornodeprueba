@@ -115,8 +115,18 @@ const buildPatientFieldPatches = ({
   }
 
   if (updatesUpcChecklist && isUciEligibleBedId(bedId)) {
-    patches[`bedTypeOverrides.${bedId}`] =
-      nextUpcClassification === 'UPC_UCI' ? BedType.UCI : undefined;
+    // Solo cuando la clasificación UPC realmente CAMBIA: los guardados que
+    // reenvían el paciente completo (p. ej. Datos Demográficos) incluyen un
+    // upcChecklist sin cambios, y colar bedTypeOverrides (autoridad clínica)
+    // en ese parche estructural hacía rechazar TODO el guardado por la
+    // separación de autoridades.
+    const currentUpcClassification = resolveUpcClassificationFromChecklist(
+      currentPatient.upcChecklist
+    );
+    if (nextUpcClassification !== currentUpcClassification) {
+      patches[`bedTypeOverrides.${bedId}`] =
+        nextUpcClassification === 'UPC_UCI' ? BedType.UCI : undefined;
+    }
   }
 
   return patches;

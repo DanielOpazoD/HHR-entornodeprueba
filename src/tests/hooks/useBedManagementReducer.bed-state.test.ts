@@ -97,6 +97,34 @@ describe('bedManagementReducer bed state controls', () => {
     });
   });
 
+  it('un upcChecklist sin cambios (reenvío de paciente completo) no inyecta bedTypeOverrides', () => {
+    // Regresión del guardado de Datos Demográficos: el parche estructural
+    // reenviaba el paciente completo (upcChecklist incluido, sin cambios) y la
+    // inyección de bedTypeOverrides (autoridad clínica) hacía rechazar TODO el
+    // guardado por la separación de autoridades.
+    const record = DataFactory.createMockDailyRecord('2026-04-12');
+    const checklist = {
+      uciCriteria: ['uci_vmi'],
+      utiCriteria: [],
+      classification: 'UPC_UCI' as const,
+      evaluatedAt: '2026-04-18T00:00:00Z',
+    };
+    record.beds.R1 = { ...record.beds.R1, isUPC: true, upcChecklist: checklist };
+
+    const patch = bedManagementReducer(record, {
+      type: 'UPDATE_PATIENT_MULTIPLE',
+      bedId: 'R1',
+      fields: {
+        firstName: 'Ana Patricia',
+        secondLastName: 'Arriagada Prueba',
+        upcChecklist: checklist,
+      },
+    });
+
+    expect(patch).toMatchObject({ 'beds.R1.firstName': 'Ana Patricia' });
+    expect(patch).not.toHaveProperty('bedTypeOverrides.R1');
+  });
+
   it('returns the bed type override to default UTI when UCI criteria are removed', () => {
     const record = DataFactory.createMockDailyRecord('2026-04-12');
     record.bedTypeOverrides = { R1: BedType.UCI };
