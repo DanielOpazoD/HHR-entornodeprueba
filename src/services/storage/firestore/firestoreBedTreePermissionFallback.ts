@@ -44,18 +44,29 @@ export const runPartialUpdatePersistWithPermissionFallbacks = async <TResult>({
       'Parche de camas rechazado por reglas en escritura directa: reintentando por el callable autoritativo.',
       { date, paths: Object.keys(bedTreePatch) }
     );
-    return withRetry(
-      () =>
-        patchDailyRecordWithClinicalAuthorityCallable({
-          date,
-          patch: bedTreePatch,
-          expectedLastUpdated,
-          mode: 'enforced',
-          origin: 'direct_write_permission_fallback',
-          syncContract: buildAuthorityPatchSyncContract(syncContract, bedTreePatch),
-        }) as Promise<TResult>,
-      { shouldRetry: shouldRetryDailyRecordAuthorityError }
-    );
+    try {
+      return await withRetry(
+        () =>
+          patchDailyRecordWithClinicalAuthorityCallable({
+            date,
+            patch: bedTreePatch,
+            expectedLastUpdated,
+            mode: 'enforced',
+            origin: 'direct_write_permission_fallback',
+            syncContract: buildAuthorityPatchSyncContract(syncContract, bedTreePatch),
+          }) as Promise<TResult>,
+        { shouldRetry: shouldRetryDailyRecordAuthorityError }
+      );
+    } catch (fallbackError) {
+      // El fallback es oportunista: si el callable tampoco puede (documento
+      // inexistente, infra no disponible), el error ORIGINAL de permisos es
+      // el diagnóstico veraz para el caller y sus recuperaciones.
+      firestoreWriteLogger.warn('El reintento por el callable autoritativo también falló.', {
+        date,
+        fallbackError,
+      });
+      return null;
+    }
   };
 
   try {

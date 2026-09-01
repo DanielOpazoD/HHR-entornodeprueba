@@ -74,6 +74,24 @@ describe('runPartialUpdatePersistWithPermissionFallbacks', () => {
     expect(mocks.callable).not.toHaveBeenCalled();
   });
 
+  it('si el callable del fallback también falla, se relanza el error ORIGINAL de permisos', async () => {
+    // El fallback es oportunista: ante documento inexistente o infra ausente,
+    // el diagnóstico veraz para el caller es el permission-denied original
+    // (los tests de reglas del emulador dependen de esa superficie).
+    const original = permissionDenied();
+    mocks.callable.mockRejectedValue(new Error('Daily record not found'));
+
+    await expect(
+      runPartialUpdatePersistWithPermissionFallbacks({
+        persist: vi.fn().mockRejectedValue(original),
+        date: '2026-08-31',
+        sanitizedPatch: BED_PATCH,
+        tryRefreshCurrentUserRoleClaim: vi.fn().mockResolvedValue(false),
+      })
+    ).rejects.toBe(original);
+    expect(mocks.callable).toHaveBeenCalledTimes(1);
+  });
+
   it('un error que no es de permisos, o un parche sin árbol de camas, se relanza intacto', async () => {
     const otherError = new Error('otra cosa');
     await expect(
