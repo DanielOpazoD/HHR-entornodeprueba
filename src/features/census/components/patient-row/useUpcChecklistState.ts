@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLatestRef } from '@/hooks/useLatestRef';
 import { resolveUpcClassification } from '@/domain/upc/upcClassification';
 import type { UpcClassification } from '@/domain/upc/upcClassification';
 import type { UpcChecklistRecord, UpcChecklistAuditActor } from '@/domain/upc/upcContracts';
@@ -102,8 +103,7 @@ export const useUpcChecklistState = ({
 
   const pendingSaveRef = useRef<UpcChecklistRecord | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onSaveRef = useRef(onSave);
-  onSaveRef.current = onSave;
+  const onSaveRef = useLatestRef(onSave);
 
   const flushPendingSave = useCallback(() => {
     if (saveTimerRef.current) {
