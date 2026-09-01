@@ -291,7 +291,7 @@ describe('RayenImportButton', () => {
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
   });
 
-  it('blocks census synchronization when Gestión de Camas is unavailable', async () => {
+  it('disables synchronization honestly when Gestión de Camas is unavailable', async () => {
     const blockedHealth = {
       connection: 'blocked',
       report: {
@@ -314,37 +314,31 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByText('Conectar Gestión de Camas')).toBeInTheDocument();
-    expect(screen.queryByText('Camas —')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('rayen-extension-health-message')).not.toBeInTheDocument();
-    const connectionStatus = screen
-      .getAllByRole('status')
-      .find(
-        element => element.textContent === `Eloísa requiere atención. ${blockedHealth.message}`
-      );
-    expect(connectionStatus).toBeDefined();
-    expect(connectionStatus).toHaveClass('sr-only');
-    expect(screen.getByTestId('rayen-extension-health-help')).toHaveAttribute(
+    // Botón honesto: infactible → deshabilitado con la razón en el title, sin
+    // disparar intentos condenados.
+    const syncButton = screen.getByTestId('rayen-import-button');
+    expect(syncButton).toBeDisabled();
+    expect(syncButton).toHaveAttribute(
       'title',
       expect.stringContaining('Se requieren Ficha Médico y Gestión de Camas')
     );
-    fireEvent.click(screen.getByTestId('rayen-extension-health-help'));
-    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('relative', 'z-[39]');
-    expect(
-      screen.getByText(
-        'Gestión de Camas no está abierta. Se requieren Ficha Médico y Gestión de Camas para sincronizar.'
-      )
-    ).toBeVisible();
+    fireEvent.click(syncButton);
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar conexión' }));
-    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
-    expect(mocks.triggerImport).toHaveBeenCalledWith(
-      expect.objectContaining({ canSync: false }),
-      expect.objectContaining({ counters: { requests: 1 } })
-    );
+    // El estado y las acciones viven en el monitor de conexiones.
+    expect(screen.getByText('Conectar Gestión de Camas')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('rayen-connection-monitor-trigger'));
+    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('relative', 'z-[39]');
+    expect(screen.getByTestId('rayen-connection-monitor')).toBeVisible();
+    expect(screen.getByText('Gestión de Camas no está abierta.')).toBeVisible();
+    expect(screen.getByTestId('rayen-monitor-connect-gc')).toBeVisible();
+
+    fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
+    await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 
-  it('records the deliberate attempt when Ficha Médico is unavailable', async () => {
+  it('keeps the button disabled when Ficha Médico is unavailable and offers only the check', async () => {
     const blockedHealth = {
       connection: 'blocked',
       report: {
@@ -365,13 +359,14 @@ describe('RayenImportButton', () => {
     mocks.refreshHealth.mockResolvedValue(blockedHealth);
 
     render(<RayenImportButton />);
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar conexión' }));
+    expect(screen.getByTestId('rayen-import-button')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('rayen-connection-monitor-trigger'));
+    // Con Ficha Médico caída, conectar GC no aplica; queda solo la comprobación.
+    expect(screen.queryByTestId('rayen-monitor-connect-gc')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
 
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
-    expect(mocks.triggerImport).toHaveBeenCalledWith(
-      blockedHealth,
-      expect.objectContaining({ counters: { requests: 1 } })
-    );
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 
   it('explains a partial result and retries through the existing reviewed flow', async () => {

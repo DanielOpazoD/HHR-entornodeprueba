@@ -1,5 +1,5 @@
 import React from 'react';
-import { CircleHelp, History, RefreshCw, UsersRound } from 'lucide-react';
+import { History, RefreshCw, UsersRound } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
 import { useRayenFillProgress } from '../hooks/useRayenFillStatus';
@@ -9,6 +9,7 @@ import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
 import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
+import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
@@ -51,7 +52,7 @@ interface RayenImportButtonProps {
 export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDate }) => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
-  const [connectionGuidanceOpen, setConnectionGuidanceOpen] = React.useState(false);
+  const [connectionMonitorOpen, setConnectionMonitorOpen] = React.useState(false);
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);
@@ -101,26 +102,6 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     [extension.connection, history, mainWorking]
   );
 
-  const sourceState =
-    extension.connection === 'checking'
-      ? 'Comprobando'
-      : extension.connection === 'ready'
-        ? 'Conectada'
-        : extension.connection === 'degraded'
-          ? 'Conexión parcial'
-          : extension.connection === 'incompatible'
-            ? 'Actualizar extensión'
-            : extension.connection === 'blocked'
-              ? extension.report?.fichaMedico.status === 'ready'
-                ? 'Conectar Gestión de Camas'
-                : 'Revisar Ficha Médico'
-              : 'Extensión sin respuesta';
-  const needsConnectionGuidance =
-    extension.connection !== 'ready' && extension.connection !== 'checking';
-  const connectionGuidance = needsConnectionGuidance
-    ? `Eloísa requiere atención. ${extension.message}`
-    : 'Eloísa está disponible para sincronizar.';
-
   const handleSync = async (): Promise<void> => {
     if (syncPreflightInFlightRef.current) return;
     syncPreflightInFlightRef.current = true;
@@ -168,7 +149,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     const fichaMedicoReady =
       health.connection === 'ready' || health.report?.fichaMedico.status === 'ready';
     if (!fichaMedicoReady) {
-      setConnectionGuidanceOpen(true);
+      setConnectionMonitorOpen(true);
       return;
     }
     const proposal = await refreshStaffingProposal();
@@ -199,79 +180,18 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   return (
     <div
       className={`w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
-        connectionGuidanceOpen ? 'relative z-[39]' : ''
+        connectionMonitorOpen ? 'relative z-[39]' : ''
       }`}
       data-testid="rayen-operations-bar"
     >
       <div className="grid min-h-[3.75rem] grid-cols-1 items-center gap-2 px-3 py-1.5 xl:grid-cols-[minmax(190px,0.78fr)_minmax(260px,1.4fr)_auto]">
-        <div className="relative flex min-w-[210px] items-center gap-2">
-          <span
-            className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border ${
-              working || extension.connection === 'checking'
-                ? 'border-teal-200 bg-teal-100 text-teal-700'
-                : extension.connection === 'ready'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : extension.connection === 'degraded'
-                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-amber-200 bg-amber-50 text-amber-700'
-            }`}
-          >
-            <img
-              src="/images/logos/rayen-mark.png"
-              alt=""
-              className="size-7 object-contain"
-              aria-hidden="true"
-            />
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="text-[13px] font-bold leading-tight text-slate-800">Eloísa</p>
-              <span
-                className={`size-1.5 rounded-full ${
-                  working || extension.connection === 'checking'
-                    ? 'animate-pulse bg-teal-500'
-                    : extension.connection === 'ready'
-                      ? 'bg-emerald-500'
-                      : extension.connection === 'degraded'
-                        ? 'bg-amber-500'
-                        : 'bg-amber-500'
-                }`}
-                aria-hidden="true"
-              />
-              <span className="truncate text-[11px] font-medium text-slate-500">{sourceState}</span>
-              {needsConnectionGuidance && (
-                <button
-                  type="button"
-                  onClick={() => setConnectionGuidanceOpen(open => !open)}
-                  aria-expanded={connectionGuidanceOpen}
-                  aria-controls="rayen-connection-guidance"
-                  className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-amber-700 transition-colors hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
-                  title={connectionGuidance}
-                  aria-label={connectionGuidance}
-                  data-testid="rayen-extension-health-help"
-                >
-                  <CircleHelp size={14} aria-hidden="true" />
-                </button>
-              )}
-            </div>
-            {needsConnectionGuidance && (
-              <span className="sr-only" role="status">
-                {connectionGuidance}
-              </span>
-            )}
-            <p className="mt-0.5 truncate text-[10px] font-medium tabular-nums text-slate-500">
-              {lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
-            </p>
-            {needsConnectionGuidance && connectionGuidanceOpen && (
-              <p
-                id="rayen-connection-guidance"
-                className="absolute left-0 top-[calc(100%+0.5rem)] z-50 w-72 rounded-lg border border-amber-200 bg-white px-3 py-2 text-[11px] leading-relaxed text-amber-900 shadow-lg"
-              >
-                {extension.message}
-              </p>
-            )}
-          </div>
-        </div>
+        <RayenConnectionMonitor
+          extension={extension}
+          working={working}
+          lastSyncLine={lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
+          open={connectionMonitorOpen}
+          onOpenChange={setConnectionMonitorOpen}
+        />
 
         <RayenImportFlowStatus
           diff={diff}
@@ -337,12 +257,16 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
           <button
             type="button"
             onClick={() => void handleSync()}
-            disabled={working || extension.connection === 'checking' || isPreviewOpen}
+            disabled={
+              working || extension.connection === 'checking' || isPreviewOpen || !extension.canSync
+            }
             aria-busy={mainWorking || extension.connection === 'checking'}
             title={
-              mode === 'auto'
-                ? 'Sincronizar el censo con Eloísa (modo automático experimental)'
-                : 'Sincronizar el censo con Eloísa (con revisión)'
+              !extension.canSync && extension.connection !== 'checking'
+                ? extension.message
+                : mode === 'auto'
+                  ? 'Sincronizar el censo con Eloísa (modo automático experimental)'
+                  : 'Sincronizar el censo con Eloísa (con revisión)'
             }
             data-module="rayen-import"
             data-testid="rayen-import-button"

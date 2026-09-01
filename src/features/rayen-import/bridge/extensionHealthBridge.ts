@@ -48,6 +48,10 @@ export interface RayenSourceHealth {
   remainingSeconds?: number | null;
   /** La extensión marca la sesión como próxima a vencer (ventana de 10 min). */
   expiring?: boolean;
+  /** Último probe autenticado exitoso (epoch ms; solo Gestión de Camas). */
+  lastVerifiedAt?: number | null;
+  /** Identidad de la sesión de la fuente, cuando la extensión la conoce. */
+  identity?: { fullName?: string; username?: string; role?: string };
 }
 
 export interface RayenExtensionHealthReport {
@@ -75,7 +79,12 @@ const isSourceHealth = (value: unknown): value is RayenSourceHealth => {
     (candidate.remainingSeconds === undefined ||
       candidate.remainingSeconds === null ||
       typeof candidate.remainingSeconds === 'number') &&
-    (candidate.expiring === undefined || typeof candidate.expiring === 'boolean')
+    (candidate.expiring === undefined || typeof candidate.expiring === 'boolean') &&
+    (candidate.lastVerifiedAt === undefined ||
+      candidate.lastVerifiedAt === null ||
+      typeof candidate.lastVerifiedAt === 'number') &&
+    (candidate.identity === undefined ||
+      (typeof candidate.identity === 'object' && candidate.identity !== null))
   );
 };
 

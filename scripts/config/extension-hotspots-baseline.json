@@ -135,9 +135,9 @@
       "hotspots": {}
     },
     "content-hhr.js": {
-      "maxLines": 293,
+      "maxLines": 314,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 16
+        "iife>callback:window.addEventListener:1": 17
       }
     },
     "content-prescription-print.js": {
@@ -269,9 +269,9 @@
       }
     },
     "gestion-camas-session.js": {
-      "maxLines": 162,
+      "maxLines": 167,
       "hotspots": {
-        "iife>variable:publicStatus": 17
+        "iife>variable:publicStatus": 20
       }
     },
     "gestion-camas-statistical-evidence-runtime.js": {

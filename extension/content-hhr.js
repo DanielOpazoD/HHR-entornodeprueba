@@ -28,6 +28,9 @@
  * Health heartbeat (background-initiated; same report, no request needed):
  *   bg → us   : { type: 'RAYEN_EXTENSION_HEALTH_PUSH', report, reason }
  *   us → page : { type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH', report, reason }
+ * Gestión de Camas connect (opens the official login window from HHR):
+ *   Page → us:  { type: 'HHR_RAYEN_GC_CONNECT_REQUEST', reqId, renew? }
+ *   us  → page: { type: 'HHR_RAYEN_GC_CONNECT_RESULT', reqId, ok, error? }
  */
 (() => {
   'use strict';
@@ -61,6 +64,24 @@
             reqId,
             error: String(error),
           });
+        });
+      return;
+    }
+    if (data.type === 'HHR_RAYEN_GC_CONNECT_REQUEST') {
+      const reqId = data.reqId;
+      chrome.runtime
+        .sendMessage({ type: runtimeMessages.GC_CONNECT_REQUEST, renew: data.renew === true })
+        .then(response => {
+          post({
+            type: 'HHR_RAYEN_GC_CONNECT_RESULT',
+            reqId,
+            ok: Boolean(response && response.ok),
+            error: response && response.error,
+          });
+        })
+        .catch(error => {
+          console.warn('[Rayen→HHR] GC connect error:', error);
+          post({ type: 'HHR_RAYEN_GC_CONNECT_RESULT', reqId, ok: false, error: String(error) });
         });
       return;
     }

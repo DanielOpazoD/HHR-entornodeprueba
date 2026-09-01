@@ -78,10 +78,12 @@ describe('rayen sync presentation', () => {
   it('names the action the current extension state can actually perform', () => {
     expect(rayenPrimaryActionLabel('checking', false)).toBe('Comprobando…');
     expect(rayenPrimaryActionLabel('ready', false)).toBe('Sincronizar');
-    expect(rayenPrimaryActionLabel('degraded', false)).toBe('Revisar conexión');
-    expect(rayenPrimaryActionLabel('blocked', false)).toBe('Revisar conexión');
-    expect(rayenPrimaryActionLabel('incompatible', false)).toBe('Actualizar extensión');
-    expect(rayenPrimaryActionLabel('offline', false)).toBe('Comprobar conexión');
+    // Botón honesto: infactible → deshabilitado con la razón en el title; la
+    // etiqueta ya no muta a llamados a la acción que el clic no cumple.
+    expect(rayenPrimaryActionLabel('degraded', false)).toBe('Sincronizar');
+    expect(rayenPrimaryActionLabel('blocked', false)).toBe('Sincronizar');
+    expect(rayenPrimaryActionLabel('incompatible', false)).toBe('Sincronizar');
+    expect(rayenPrimaryActionLabel('offline', false)).toBe('Sincronizar');
     expect(rayenPrimaryActionLabel('ready', true)).toBe('Sincronizando…');
   });
 
