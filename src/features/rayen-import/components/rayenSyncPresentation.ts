@@ -104,6 +104,8 @@ export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string
   if (reason === 'gestion_camas_unavailable') return 'Gestión de Camas no disponible';
   if (reason === 'snapshot_timeout') return 'Sin respuesta de la extensión';
   if (reason === 'snapshot_error') return 'No se pudo leer Eloísa';
+  if (reason === 'apply_unauthorized') return 'Sesión sin permisos para guardar';
+  if (reason === 'apply_conflict') return 'El censo cambió durante el guardado';
   if (reason === 'apply_failed') return 'No se pudo aplicar el censo';
   return 'Extensión no disponible';
 };
@@ -310,6 +312,20 @@ export const presentRayenSyncRecovery = (
       action: null,
       actionLabel: null,
       tone: 'info',
+    };
+  }
+
+  // Permisos antes que conexión: con Eloísa sana el banner ofrecía «Revisar
+  // censo», un reintento que vuelve a fallar porque el problema no está en la
+  // extensión ni en el servidor, sino en la sesión (visto en vivo el 01-09).
+  if (event.failureReason === 'apply_unauthorized') {
+    return {
+      title: 'Sesión sin permisos',
+      detail:
+        'El censo se capturó pero no se pudo guardar: tu sesión perdió permisos. Vuelve a iniciar sesión y sincroniza de nuevo.',
+      action: null,
+      actionLabel: null,
+      tone: 'warning',
     };
   }
   if (connection === 'ready') {

@@ -27,6 +27,7 @@ import { elapsedMilliseconds, mergeRayenSyncPerformance } from '../domain/rayenS
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import { createRayenSyncRunLifecycle } from '../domain/rayenSyncRunLifecycle';
 import {
+  classifyRayenApplyFailureReason,
   classifyRayenSyncError,
   reportRayenSyncTerminal,
   reportRayenSyncWarning,
@@ -287,7 +288,7 @@ export const useRayenSyncAudit = ({
             const event: RayenSyncEvent = {
               ...buildCompletedEvent(appliedEvent),
               status: 'failed',
-              failureReason: 'apply_failed',
+              failureReason: classifyRayenApplyFailureReason(error),
             };
             const patch: DailyRecordPatch = {
               rayenSyncHistory: upsertRayenSyncEvent(base.rayenSyncHistory, event),
@@ -303,7 +304,7 @@ export const useRayenSyncAudit = ({
             reportRayenSyncTerminal(
               claim?.run ?? { id: failedEvent.id, startedAt: failedEvent.startedAt },
               'failed',
-              { failureReason: 'apply_failed' },
+              { failureReason: classifyRayenApplyFailureReason(error) },
               failedEvent.completedAt
             );
           } else {

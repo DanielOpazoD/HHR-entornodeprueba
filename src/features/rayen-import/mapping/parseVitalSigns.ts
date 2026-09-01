@@ -6,7 +6,8 @@
  *   global_PASSent / global_PADSent · global_Pulso · exa_Fisic_G_SaturacionO2 · global_TempAxilar ·
  *   exa_Fisic_Frecuencia_Respiratoria · global_EscalaDolorEVA · global_Observaciones
  *
- * The day (`recordedDate`, Rapa Nui) and stamp come from `effectiveWhen` — shared with the scales
+ * The stamp comes from the measurement's own clinical instant and `recordedDate` is that same
+ * instant's Rapa Nui day; `effectiveWhen` (shared with the scales) is the fallback
  * parser so the timezone handling is identical (offset-aware, see parseEvaluationScales). Forms marked
  * archived (superseded) or with no readings at all are skipped. Confirmed against real records (encId
  * 141180): a "Examen Fisico SAPU" VITAL_SIGNS form with PA 130/82, FC 84, SatO₂ 98, T° 36, FR 18, EVA 3.
@@ -15,6 +16,7 @@
 import {
   effectiveWhen,
   rapaNuiClock,
+  rapaNuiDay,
   str,
   type RawForm,
   type RawCampo,
@@ -72,10 +74,10 @@ const INSULIN_QUADRANT_IDS = ['exam_Fis_Adm_InsulinaSentCUAD'];
 /** Clinical measurement time recorded inside the form (falls back to the form stamp for `recordedAt`). */
 const TIME_IDS = ['SIGNS_FechaHora', 'global_FechaHoraSapu'];
 
-/** Parse every `VITAL_SIGNS` form into a vitals record, sorted most-recent-first by event id. */
+/** Parse every `VITAL_SIGNS` form into a vitals record, sorted most-recent-first by instant. */
 export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
   const forms: RawForm[] = Array.isArray(raw) ? (raw as RawForm[]) : [];
-  const parsed: Array<{ key: number; record: PatientVitalSigns }> = [];
+  const parsed: Array<{ key: number; epoch: number | null; record: PatientVitalSigns }> = [];
 
   for (const form of forms) {
     if (!form) continue;
@@ -111,7 +113,12 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
       ...(form.encounterEventId != null && str(form.encounterEventId)
         ? { sourceEventId: str(form.encounterEventId) }
         : {}),
-      recordedDate: when.iso,
+      // La fecha DEBE salir del mismo instante que la hora. Cuando el sello
+      // clínico difiere del sello del formulario, tomar el día de `when` movía
+      // la toma de día: una medición de las 23:59 del 31-08 (isla) quedaba
+      // fechada el 01-09 y el censo del 01-09 la mostraba como su lectura más
+      // reciente (reportado en vivo el 01-09 en R1).
+      recordedDate: epoch != null ? rapaNuiDay(epoch) : when.iso,
       recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
       systolic: num(get(FIELD_IDS.systolic)),
       diastolic: num(get(FIELD_IDS.diastolic)),
@@ -144,10 +151,17 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
       !!record.insulinQuadrant;
     if (!hasReading) continue;
 
-    parsed.push({ key: Number(form.encounterEventId) || 0, record });
+    parsed.push({ key: Number(form.encounterEventId) || 0, epoch, record });
   }
 
-  return parsed.sort((a, b) => b.key - a.key).map(entry => entry.record);
+  // Orden por el INSTANTE de la medición, no por el id del evento: una toma
+  // cargada después en Rayen recibe un id mayor aunque sea clínicamente
+  // anterior, y así una medición de las 23:59 del día previo se presentaba
+  // como la lectura «más actual» del censo de hoy. El id queda de desempate
+  // (mismo instante) y para las tomas sin instante resoluble.
+  return parsed
+    .sort((a, b) => (b.epoch ?? 0) - (a.epoch ?? 0) || b.key - a.key)
+    .map(entry => entry.record);
 };
 
 /**

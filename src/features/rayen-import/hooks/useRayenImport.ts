@@ -5,8 +5,7 @@ import { useAuthState } from '@/hooks/useAuthState';
 import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
-import { useRayenImportMode } from './useRayenImportMode';
+import { resolveRayenPolicyBlockMessage, useRayenImportMode } from './useRayenImportMode';
 import { INITIAL_RAYEN_IMPORT_STATE, type RayenImportState } from './rayenImportState';
 import { useRayenSyncAudit } from './useRayenSyncAudit';
 import { useRayenClinicalFill } from './useRayenClinicalFill';
@@ -18,9 +17,7 @@ import { useRayenStaffingProposalActions } from './useRayenStaffingProposalActio
 import { useRayenSyncRequestController } from './useRayenSyncRequestController';
 import { hasPendingStaffingDecision } from '../domain/applyNursingShiftProposal';
 import { useRayenClinicalFillRetry } from './useRayenClinicalFillRetry';
-import { patchFreshClinicalRecord } from './patchFreshClinicalRecord';
-import type { ClinicalFillPatchTarget } from '../contracts/clinicalFillContracts';
-import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
+import { useRayenSyncRecordAccess } from './useRayenSyncRecordAccess';
 import { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
 import { shouldPreservePostImportFlow } from '../domain/rayenPreviewClosePolicy';
 import { useRayenImportCapture } from './useRayenImportCapture';
@@ -81,34 +78,12 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   const { mutateAsync: patchDailyRecord } = dailyRecordQuery.usePatchDailyRecordMutation(
     currentRecord?.date ?? ''
   );
-  const patchClinicalRecord = useCallback(
-    (
-      patch: DailyRecordPatch,
-      target: ClinicalFillPatchTarget,
-      writeGuard: RayenClinicalWriteGuard
-    ) => patchFreshClinicalRecord(dailyRecord, patch, target, writeGuard),
-    [dailyRecord]
-  );
-  const loadFreshClinicalRecord = useCallback(
-    async (date: string): Promise<DailyRecord> => {
-      const result = await dailyRecord.getForDateWithMeta(date, true);
-      if (!result.record) throw new Error('No se pudo obtener la versión vigente del censo.');
-      return result.record as DailyRecord;
-    },
-    [dailyRecord]
-  );
-  const loadAuthoritativeStructuralRecord = useCallback(
-    async (date: string): Promise<DailyRecord> => {
-      const record = await dailyRecord.getAuthoritativeForDate(date);
-      if (!record) throw new Error('No se pudo obtener la versión autoritativa del censo.');
-      return record as DailyRecord;
-    },
-    [dailyRecord]
-  );
-  const loadLocalStructuralRecord = useCallback(
-    (date: string) => dailyRecord.getLocalForDateWithMeta(date),
-    [dailyRecord]
-  );
+  const {
+    patchClinicalRecord,
+    loadFreshClinicalRecord,
+    loadAuthoritativeStructuralRecord,
+    loadLocalStructuralRecord,
+  } = useRayenSyncRecordAccess(dailyRecord);
   const syncActor = currentUser?.displayName || currentUser?.email || 'Usuario sin nombre';
   const saveRayenCensus = useCallback(
     (record: DailyRecord, expectedLastUpdated: string, writeLease: DailyRecordWriteLease) =>
@@ -361,6 +336,8 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   return useMemo(
     () => ({
       mode,
+      /** Razón por la que la política impide sincronizar, o null. */
+      policyBlockReason: resolveRayenPolicyBlockMessage(policyStatus),
       execution,
       diff: state.diff,
       isPreviewOpen: state.isPreviewOpen && keepsPreviewOpen,
@@ -380,6 +357,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     }),
     [
       mode,
+      policyStatus,
       execution,
       keepsPreviewOpen,
       state,

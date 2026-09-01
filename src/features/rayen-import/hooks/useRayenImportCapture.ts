@@ -18,7 +18,7 @@ import { getRayenImportErrorMessage, type RayenImportState } from './rayenImport
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
 import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
-import type { RayenImportPolicyStatus } from './useRayenImportMode';
+import { resolveRayenPolicyBlockMessage, type RayenImportPolicyStatus } from './useRayenImportMode';
 import {
   createRayenSyncExecutionContext,
   prepareRayenSyncTemporalContext,
@@ -189,12 +189,12 @@ export const useRayenImportCapture = ({
             isSyncing: false,
             result: null,
             hasSkippedItems: false,
+            // Solo 'loading' llega aquí sin razón de bloqueo ('ready' no entra
+            // en esta rama): el botón no se deshabilita mientras carga, así
+            // que el clic prematuro merece su propio mensaje, no un silencio.
             error:
-              policyStatus === 'unconfigured'
-                ? 'La política global de sincronización aún no está configurada. Solicita a un administrador que la inicialice.'
-                : policyStatus === 'migration-required'
-                  ? 'La política global de sincronización requiere migración a v2 antes de iniciar.'
-                  : 'No se pudo confirmar la política global de sincronización con el servidor. Reintenta cuando vuelva la conexión.',
+              resolveRayenPolicyBlockMessage(policyStatus) ??
+              'La política global de sincronización aún se está cargando. Reintenta en unos segundos.',
           }));
           return;
         }

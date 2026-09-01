@@ -60,6 +60,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   const syncPreflightInFlightRef = React.useRef(false);
   const {
     mode,
+    policyBlockReason,
     execution,
     diff,
     isPreviewOpen,
@@ -266,15 +267,23 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
             type="button"
             onClick={() => void handleSync()}
             disabled={
-              working || extension.connection === 'checking' || isPreviewOpen || !extension.canSync
+              working ||
+              extension.connection === 'checking' ||
+              isPreviewOpen ||
+              !extension.canSync ||
+              Boolean(policyBlockReason)
             }
             aria-busy={mainWorking || extension.connection === 'checking'}
             title={
-              !extension.canSync && extension.connection !== 'checking'
+              // La política se antepone a la extensión: sin política confirmada
+              // la corrida no puede aplicar aunque Eloísa esté perfecta, y ese
+              // es el caso que gastaba la captura completa antes de fallar.
+              policyBlockReason ??
+              (!extension.canSync && extension.connection !== 'checking'
                 ? extension.message
                 : mode === 'auto'
                   ? 'Sincronizar el censo con Eloísa (modo automático experimental)'
-                  : 'Sincronizar el censo con Eloísa (con revisión)'
+                  : 'Sincronizar el censo con Eloísa (con revisión)')
             }
             data-module="rayen-import"
             data-testid="rayen-import-button"

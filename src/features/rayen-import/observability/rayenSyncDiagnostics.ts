@@ -1,4 +1,5 @@
 import type {
+  RayenApplyFailureReason,
   RayenSyncFailureReason,
   RayenSyncIssueReason,
   RayenSyncIssueSource,
@@ -12,6 +13,7 @@ export type RayenSyncOperationalErrorKind =
   | 'concurrency'
   | 'timeout'
   | 'unavailable'
+  | 'permission_denied'
   | 'policy_unavailable'
   | 'unsupported'
   | 'invalid_response'
@@ -69,6 +71,14 @@ export const classifyRayenSyncError = (error: unknown): RayenSyncOperationalErro
   ) {
     return 'concurrency';
   }
+  // Antes de las reglas genéricas: un permission-denied caía en 'unexpected' y
+  // el historial lo mostraba como «No se pudo aplicar el censo», idéntico a un
+  // rechazo del servidor o a una caída de red. Diagnosticar la corrida fallida
+  // del 01-09 exigió leer los logs de Cloud Functions para descubrir que ni
+  // siquiera hubo llamada al servidor.
+  if (/permission-denied|insufficient permissions|unauthenticated|permisos/.test(detail)) {
+    return 'permission_denied';
+  }
   if (/timeout|timed out|deadline|abort/.test(detail)) return 'timeout';
   if (/not-found|unimplemented|unsupported|no admite/.test(detail)) return 'unsupported';
   if (/unavailable|network|fetch|offline|cors|\b(?:502|503|504)\b/.test(detail)) {
@@ -76,6 +86,18 @@ export const classifyRayenSyncError = (error: unknown): RayenSyncOperationalErro
   }
   if (/invalid|parity|confirmaci[oó]n/.test(detail)) return 'invalid_response';
   return 'unexpected';
+};
+
+/**
+ * Causa persistida de un guardado que no se pudo aplicar. Sin esto el historial
+ * archivaba siempre `apply_failed` («No se pudo aplicar el censo») y una sesión
+ * sin permisos, un conflicto de escritura y una caída de red se veían idénticos.
+ */
+export const classifyRayenApplyFailureReason = (error: unknown): RayenApplyFailureReason => {
+  const kind = classifyRayenSyncError(error);
+  if (kind === 'permission_denied') return 'apply_unauthorized';
+  if (kind === 'concurrency') return 'apply_conflict';
+  return 'apply_failed';
 };
 
 /** Maps one runtime classification to the bounded cause persisted for the affected stage. */

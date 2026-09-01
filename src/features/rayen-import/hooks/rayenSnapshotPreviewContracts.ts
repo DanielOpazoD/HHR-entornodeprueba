@@ -3,7 +3,7 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
-import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
+import type { RayenApplyFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
 import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clinicalStageResult';
 import type { RayenImportState } from './rayenImportState';
@@ -27,7 +27,8 @@ export interface UseRayenSnapshotPreviewInput {
     clinicalDay?: string
   ) => Promise<ConfirmedRayenCensusApplyResult>;
   runClinicalStage: (source: ClinicalFillRequest) => Promise<ClinicalStageResult>;
-  failRun: (reason: 'apply_failed', runId?: string) => Promise<void>;
+  /** La causa se clasifica desde el error real (permisos / conflicto / genérica). */
+  failRun: (reason: RayenApplyFailureReason, runId?: string) => Promise<void>;
   ensureRun: () => RayenSyncRun;
   getRun: (runId: string) => RayenSyncRun | undefined;
   recordRunPerformance: (delta: RayenSyncPerformanceDelta, runId?: string) => void;

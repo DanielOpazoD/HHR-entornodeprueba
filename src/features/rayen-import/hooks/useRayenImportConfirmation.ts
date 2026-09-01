@@ -18,6 +18,7 @@ import {
 } from './rayenStructuralConvergence';
 import type { useRayenCensusDiffApplication } from './useRayenCensusDiffApplication';
 import type { ClinicalFillRequest, ClinicalStageResult } from '../contracts/clinicalStageResult';
+import { classifyRayenApplyFailureReason } from '../observability/rayenSyncDiagnostics';
 import type { useRayenSyncAudit } from './useRayenSyncAudit';
 import type { useRayenSyncExecutionController } from './useRayenSyncExecutionController';
 import type {
@@ -194,7 +195,10 @@ export const useRayenImportConfirmation = ({
           return;
         }
         transitionExecution({ type: 'failed' }, run.id);
-        void failRun('apply_failed', run.id);
+        // El error real ya estaba aquí; solo se descartaba. Persistirlo
+        // clasificado es lo que separa «tu sesión perdió permisos» de «el
+        // servidor rechazó» en el historial.
+        void failRun(classifyRayenApplyFailureReason(error), run.id);
         const isExecutionDateVisible = selectedDateRef.current === executionIdentity.selectedDate;
         setState(previous => ({
           ...previous,

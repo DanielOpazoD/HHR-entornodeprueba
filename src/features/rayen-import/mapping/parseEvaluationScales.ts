@@ -117,7 +117,8 @@ const rapaNuiDayFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 });
 /** Calendar day (YYYY-MM-DD) of an absolute instant in Rapa Nui time. en-CA formats as ISO. */
-const rapaNuiDay = (epoch: number): string => rapaNuiDayFormatter.format(new Date(epoch));
+/** Día calendario (YYYY-MM-DD) de un instante en hora de la isla. */
+export const rapaNuiDay = (epoch: number): string => rapaNuiDayFormatter.format(new Date(epoch));
 
 const rapaNuiClockFormatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: RAPA_NUI_TZ,

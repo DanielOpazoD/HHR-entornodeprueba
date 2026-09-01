@@ -376,6 +376,26 @@ describe('RayenImportButton', () => {
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 
+  it('bloquea la sincronización cuando la política no está confirmada, aunque Eloísa esté sana', () => {
+    // Incidente 01-09: con la sesión sin permisos el botón se veía habilitado,
+    // dejaba arrancar la corrida y recién fallaba tras ~9 s de captura dual.
+    // La política se antepone a la extensión porque sin ella no se puede aplicar.
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    mocks.useRayenImport.mockReturnValue({
+      ...mocks.useRayenImport(),
+      policyBlockReason:
+        'Tu sesión perdió permisos para leer la política global. Vuelve a iniciar sesión para sincronizar.',
+    });
+
+    render(<RayenImportButton />);
+
+    const syncButton = screen.getByTestId('rayen-import-button');
+    expect(syncButton).toBeDisabled();
+    expect(syncButton).toHaveAttribute('title', expect.stringContaining('Vuelve a iniciar sesión'));
+    fireEvent.click(syncButton);
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+  });
+
   it('explains a partial result and retries through the existing reviewed flow', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {

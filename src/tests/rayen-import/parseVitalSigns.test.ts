@@ -134,6 +134,51 @@ describe('parseVitalSigns', () => {
     expect(latestVitalsAsOf(records, '2026-07-09')).toBeNull();
   });
 
+  it('fecha la toma por su propio instante, no por el sello del formulario', () => {
+    // Caso reportado en vivo (01-09, cama R1): el sello clínico naive-UTC
+    // 01-09 05:59 es 31-08 23:59 en la isla, pero el formulario se creó el
+    // 01-09. `recordedDate` seguía al formulario, así que la toma se agrupaba
+    // bajo 01-09 aunque su hora dijera 31-08 23:59.
+    const [v] = parseVitalSigns([
+      vitalsForm({
+        createDateTime: '01-09-2026 08:00:00 -06:00',
+        metaCampList: [
+          campo('SIGNS_FechaHora', '01-09-2026 05:59'),
+          campo('global_PASSent', '174'),
+          campo('global_PADSent', '74'),
+        ],
+      }),
+    ]);
+
+    expect(v.recordedAt).toBe('31-08-2026 23:59');
+    expect(v.recordedDate).toBe('2026-08-31');
+  });
+
+  it('ordena por el instante clínico aunque Rayen asigne un id de evento mayor', () => {
+    // La toma del día anterior se cargó después (id mayor) y encabezaba la
+    // lista como si fuera «la más actual» del censo de hoy.
+    const cargadaDespues = vitalsForm({
+      encounterEventId: 900,
+      createDateTime: '01-09-2026 09:00:00 -06:00',
+      metaCampList: [campo('SIGNS_FechaHora', '01-09-2026 05:59'), campo('global_Pulso', '49')],
+    });
+    const tomaDeHoy = vitalsForm({
+      encounterEventId: 100,
+      createDateTime: '01-09-2026 08:00:00 -06:00',
+      metaCampList: [campo('SIGNS_FechaHora', '01-09-2026 13:43'), campo('global_Pulso', '85')],
+    });
+
+    const records = parseVitalSigns([cargadaDespues, tomaDeHoy]);
+
+    expect(records.map(record => record.heartRate)).toEqual([85, 49]);
+    expect(records[0].recordedDate).toBe('2026-09-01');
+    expect(records[1].recordedDate).toBe('2026-08-31');
+    // La lectura vigente del censo de hoy es la de hoy, no la del día anterior.
+    expect(latestVitalsAsOf(records, '2026-09-01')?.heartRate).toBe(85);
+    // Y el censo del día anterior sigue viendo la suya.
+    expect(latestVitalsAsOf(records, '2026-08-31')?.heartRate).toBe(49);
+  });
+
   it('is defensive about malformed input', () => {
     expect(parseVitalSigns(null)).toEqual([]);
     expect(parseVitalSigns([null, undefined, {}])).toEqual([]);
