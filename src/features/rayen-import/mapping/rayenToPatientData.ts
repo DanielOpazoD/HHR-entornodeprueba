@@ -123,8 +123,36 @@ export const cleanDiagnosis = (diagnosis?: string): string =>
 export const toTitleCaseName = (value?: string): string =>
   (value ?? '')
     .trim()
+    // Colapsa espacios internos: los campos de nombre de Rayen llegan con
+    // relleno y, al unirlos, el censo mostraba «Jorge  Urgencias Aroca».
+    .replace(/\s+/g, ' ')
     .toLowerCase()
     .replace(/(^|[\s'’-])(\p{L})/gu, (_match, sep: string, ch: string) => sep + ch.toUpperCase());
+
+/**
+ * Marcadores administrativos que Rayen deja dentro de los NOMBRES cuando el
+ * paciente se registró en un punto de atención (típicamente un ingreso por
+ * urgencias que después se completa con la identidad real). No son identidad
+ * clínica y en el censo aparecían como un segundo nombre —«Jorge Urgencias
+ * Aroca Benavides» por «Jorge Aroca Benavides» (reportado el 01-09, H2C2).
+ *
+ * La lista es EXACTA y por palabra completa, igual que el criterio de
+ * `normalizeOptionalPersonName`: nunca se recorta una subcadena, para no
+ * mutilar un nombre real que contenga estas letras.
+ */
+const ADMINISTRATIVE_NAME_TOKENS = new Set(['urgencia', 'urgencias', 'sapu']);
+
+const stripAdministrativeNameTokens = (value: string): string =>
+  value
+    .split(' ')
+    .filter(word => word && !ADMINISTRATIVE_NAME_TOKENS.has(word.toLowerCase()))
+    .join(' ');
+
+/** Nombres de pila ya normalizados (title case, sin relleno ni marcadores). */
+export const composeRayenGivenNames = (firstGivenName?: string, nextGivenNames?: string): string =>
+  stripAdministrativeNameTokens(
+    toTitleCaseName([firstGivenName, nextGivenNames].filter(Boolean).join(' '))
+  );
 
 /**
  * Rayen sometimes serializes a missing optional surname as a display placeholder.
@@ -168,9 +196,10 @@ export const rayenToPatientData = (
         clinicalCribParentBedId: encounter.clinicalCribParentBedId,
       });
 
-  const givenNames = toTitleCaseName(
-    [encounter.firstGivenName, encounter.nextGivenNames].filter(Boolean).join(' ')
-  );
+  // Los marcadores administrativos se podan de los NOMBRES (donde Rayen
+  // concatena varios y donde apareció el caso real); los apellidos se
+  // conservan tal cual para no arriesgar la identidad por un heurístico.
+  const givenNames = composeRayenGivenNames(encounter.firstGivenName, encounter.nextGivenNames);
   const firstFamily = toTitleCaseName(encounter.firstFamilyName);
   const secondFamily = normalizeOptionalPersonName(encounter.secondFamilyName);
   const fullName = [givenNames, firstFamily, secondFamily].filter(Boolean).join(' ').trim();

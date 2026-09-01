@@ -1,13 +1,20 @@
 import { normalizeRut } from '@/utils/rutUtils';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
+import {
+  composeRayenGivenNames,
+  normalizeOptionalPersonName,
+  toTitleCaseName,
+} from '../mapping/rayenToPatientData';
 
+// Mismo criterio de nombre que el mapeo del censo: sin él, una entrada de
+// conflicto mostraba el relleno y los marcadores administrativos de Rayen
+// («Jorge  Urgencias Aroca») mientras el censo ya mostraba el nombre limpio.
 const encounterPatientName = (encounter: RayenEncounter): string =>
   [
-    encounter.firstGivenName,
-    encounter.nextGivenNames,
-    encounter.firstFamilyName,
-    encounter.secondFamilyName,
+    composeRayenGivenNames(encounter.firstGivenName, encounter.nextGivenNames),
+    toTitleCaseName(encounter.firstFamilyName),
+    normalizeOptionalPersonName(encounter.secondFamilyName),
   ]
     .filter(Boolean)
     .join(' ')

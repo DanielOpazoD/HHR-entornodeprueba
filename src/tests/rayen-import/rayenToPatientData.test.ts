@@ -84,6 +84,12 @@ describe('helpers', () => {
     expect(toTitleCaseName(undefined)).toBe('');
   });
 
+  it('toTitleCaseName colapsa los espacios internos del relleno de Rayen', () => {
+    // El doble espacio del caso real («Jorge  Urgencias Aroca») venía de unir
+    // dos campos donde uno traía relleno; trim() solo limpiaba los extremos.
+    expect(toTitleCaseName('  JORGE   AROCA  ')).toBe('Jorge Aroca');
+  });
+
   it('treats Rayen missing-name placeholders as an empty optional name', () => {
     expect(normalizeOptionalPersonName('Noinformado')).toBe('');
     expect(normalizeOptionalPersonName('NO INFORMADO')).toBe('');
@@ -112,6 +118,43 @@ describe('rayenToPatientData', () => {
     expect(patient.pathology).toBe('Problemas relacionados con otras circunstancias legales');
     expect(patient.isUPC).toBe(false);
     expect(patient.isIsolated).toBe(false);
+  });
+
+  it('no arrastra al censo el marcador de urgencias que Rayen deja entre los nombres', () => {
+    // Caso real (01-09, cama H2C2): Rayen entregaba «Jorge  Urgencias» como
+    // nombres del paciente y el censo mostraba «Jorge Urgencias Aroca
+    // Benavides» en vez de «Jorge Aroca Benavides».
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        firstGivenName: 'JORGE ',
+        nextGivenNames: 'URGENCIAS',
+        firstFamilyName: 'AROCA',
+        secondFamilyName: 'BENAVIDES',
+      }),
+      REFERENCE
+    );
+
+    expect(patient.patientName).toBe('Jorge Aroca Benavides');
+    expect(patient.firstName).toBe('Jorge');
+    expect(patient.lastName).toBe('Aroca');
+    expect(patient.secondLastName).toBe('Benavides');
+  });
+
+  it('solo poda la palabra completa: nunca mutila un nombre real que la contenga', () => {
+    // La poda es por token exacto (mismo criterio que los placeholders de
+    // Rayen). Un nombre legítimo debe sobrevivir intacto.
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        firstGivenName: 'Urgencio',
+        nextGivenNames: 'Sapunar',
+        firstFamilyName: 'Sapunar',
+        secondFamilyName: '',
+      }),
+      REFERENCE
+    );
+
+    expect(patient.firstName).toBe('Urgencio Sapunar');
+    expect(patient.lastName).toBe('Sapunar');
   });
 
   it('maps the principal Ficha Medico diagnosis and its CIE-10 code', () => {
