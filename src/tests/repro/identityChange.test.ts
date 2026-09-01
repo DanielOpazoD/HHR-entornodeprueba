@@ -110,30 +110,23 @@ describe('Identity-based Diagnosis Clearing', () => {
     );
   });
 
-  it('should ALSO clear diagnosis fields when patientName changes significantly', async () => {
+  it('cambiar solo el nombre con el MISMO RUT no limpia el diagnóstico (misma persona)', async () => {
+    // Contrato corregido (31-08): el heurístico anterior trataba cualquier
+    // cambio de nombre como paciente nuevo y borraba el diagnóstico al editar
+    // Datos Demográficos; con RUT presente en ambos lados, manda el RUT.
     const { result } = renderHook(() => useBedManagement(mockRecord, saveAndUpdate, patchRecord));
 
-    // Update Name to a different one
     await act(async () => {
       result.current.updatePatient('R1', 'patientName', 'Different Patient');
     });
 
-    // Igual que con el RUT: estructural/identidad primero, envelope clínico después.
     expect(patchRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        [`beds.R1.patientName`]: 'Different Patient',
-        [`beds.R1.clinicalEvents`]: [],
-        [`beds.R1.cudyr`]: undefined,
-        [`beds.R1.deviceDetails`]: {},
-        [`beds.R1.devices`]: [],
-      })
+      expect.objectContaining({ [`beds.R1.patientName`]: 'Different Patient' })
     );
-    expect(patchRecord).toHaveBeenCalledWith(
-      expect.objectContaining({
-        [`beds.R1.cie10Code`]: undefined,
-        [`beds.R1.cie10Description`]: undefined,
-        [`beds.R1.pathology`]: '',
-      })
-    );
+    for (const call of vi.mocked(patchRecord).mock.calls) {
+      expect(call[0]).not.toHaveProperty(`beds.R1.pathology`);
+      expect(call[0]).not.toHaveProperty(`beds.R1.clinicalEvents`);
+      expect(call[0]).not.toHaveProperty(`bedTypeOverrides.R1`);
+    }
   });
 });
