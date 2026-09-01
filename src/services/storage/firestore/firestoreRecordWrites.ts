@@ -57,6 +57,7 @@ import {
   extractGuardedRayenClinicalPatch,
 } from '@/services/storage/firestore/firestoreRayenGuardedPatch';
 import { createDirectFirestoreWriteReceipt } from './firestoreDirectWriteReceipt';
+import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import {
   buildAuthorityPatchSyncContract,
   prepareFirestorePartialData,
@@ -159,10 +160,7 @@ export const updateRecordPartial = async (
         'partial update',
         { toleranceMs: 0, failClosed: true }
       );
-    // Specialist patches arrive in correct dot-notation (e.g. "beds.R1.medicalHandoffAudit").
-    // flattenObject would recursively expand nested objects into sub-field paths
-    // (e.g. "beds.R1.medicalHandoffAudit.lastEditor"), which causes Firestore rules
-    // to reject the write because the diff shape changes at the bed level.
+    // Specialist dot-notation patches must not be re-flattened: Firestore rules reject shape changes.
     const specialistScopedPatch = isSpecialistScopedDailyRecordPatch(partialData);
     const intentionalBedClear = options.intentionalBedClear;
     const flatData = prepareFirestorePartialData({
@@ -171,7 +169,10 @@ export const updateRecordPartial = async (
       intentionalBedClear,
       clinicalCribCreate: Boolean(options.clinicalCribCreate),
     });
-    const sanitizedPatch = sanitizeForFirestore(flatData) as Record<string, unknown>;
+    const sanitizedPatch = stripInheritedAuthorityRepair(
+      sanitizeForFirestore(flatData) as Record<string, unknown>,
+      options.syncContract?.changedPaths
+    );
     const sanitizedData = sanitizeForFirestore({
       ...sanitizedPatch,
       lastUpdated: Timestamp.now(),
