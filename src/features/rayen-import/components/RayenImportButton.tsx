@@ -180,7 +180,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   return (
     <div
       className={`w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
-        connectionMonitorOpen ? 'relative z-[39]' : ''
+        connectionMonitorOpen ? 'relative z-[70]' : ''
       }`}
       data-testid="rayen-operations-bar"
     >

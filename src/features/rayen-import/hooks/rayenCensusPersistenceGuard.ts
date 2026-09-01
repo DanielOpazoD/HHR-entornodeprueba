@@ -98,10 +98,18 @@ export const assertRayenCensusPersistenceConfirmed = (
   }
 
   if (isDailyRecordWriteRejectedResult(result)) {
-    throw (
+    const rejection =
       result.blockingError ??
-      new Error(result.userSafeMessage || 'No fue posible guardar la estructura del censo.')
-    );
+      new Error(result.userSafeMessage || 'No fue posible guardar la estructura del censo.');
+    // Un rechazo por versión debe viajar con su nombre real: el lazo de
+    // replan de confirmRayenImport lo reconoce y reintenta sobre el registro
+    // fresco. Verificado en vivo (31-08): el CAS rechazado llegaba como Error
+    // genérico, la corrida moría con 0 reintentos y la escritura encolada del
+    // evento de fallo chocaba con la SIGUIENTE corrida — fallos en cascada.
+    if (result.conflictSummary?.kind === 'concurrency' && rejection.name === 'Error') {
+      rejection.name = 'ConcurrencyError';
+    }
+    throw rejection;
   }
 
   if (result.outcome !== 'clean') {

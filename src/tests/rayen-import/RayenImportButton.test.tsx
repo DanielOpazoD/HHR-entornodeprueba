@@ -328,7 +328,7 @@ describe('RayenImportButton', () => {
     // El estado y las acciones viven en el monitor de conexiones.
     expect(screen.getByText('Conectar Gestión de Camas')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('rayen-connection-monitor-trigger'));
-    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('relative', 'z-[39]');
+    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('relative', 'z-[70]');
     expect(screen.getByTestId('rayen-connection-monitor')).toBeVisible();
     expect(screen.getByText('Gestión de Camas no está abierta.')).toBeVisible();
     expect(screen.getByTestId('rayen-monitor-connect-gc')).toBeVisible();
