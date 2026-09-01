@@ -62,12 +62,31 @@ export const useDevicesCellController = ({
         dateProvider,
       });
 
+      // Un solo parche atómico por gesto: emitir devices y su historial como
+      // escrituras separadas hacía que la segunda naciera con versión vieja
+      // (CAS) — reintentos de segundos o cambios perdidos al agregar LA/SNG.
+      if (onDeviceBundleChange) {
+        onDeviceBundleChange({
+          devices: result.nextDevices ?? nextDevices,
+          ...(result.nextHistory ? { deviceInstanceHistory: result.nextHistory } : {}),
+        });
+        return;
+      }
       onDevicesChange(result.nextDevices ?? nextDevices);
       if (result.nextHistory) {
         onDeviceHistoryChange(result.nextHistory);
       }
     },
-    [dateProvider, deviceDetails, devices, history, onDeviceHistoryChange, onDevicesChange, owner]
+    [
+      dateProvider,
+      deviceDetails,
+      devices,
+      history,
+      onDeviceBundleChange,
+      onDeviceHistoryChange,
+      onDevicesChange,
+      owner,
+    ]
   );
 
   const handleDeviceDetailsChange = useCallback(
@@ -80,12 +99,27 @@ export const useDevicesCellController = ({
         dateProvider,
       });
 
+      if (onDeviceBundleChange) {
+        onDeviceBundleChange({
+          deviceDetails: result.nextDetails ?? nextDetails,
+          ...(result.nextHistory ? { deviceInstanceHistory: result.nextHistory } : {}),
+        });
+        return;
+      }
       onDeviceDetailsChange(result.nextDetails ?? nextDetails);
       if (result.nextHistory) {
         onDeviceHistoryChange(result.nextHistory);
       }
     },
-    [dateProvider, devices, history, onDeviceDetailsChange, onDeviceHistoryChange, owner]
+    [
+      dateProvider,
+      devices,
+      history,
+      onDeviceBundleChange,
+      onDeviceDetailsChange,
+      onDeviceHistoryChange,
+      owner,
+    ]
   );
 
   const handleDeviceRetireChange = useCallback(
@@ -169,10 +203,17 @@ export const useDevicesCellController = ({
   const handleHistoryModalSave = useCallback(
     (nextHistory: DeviceInstance[]) => {
       const result = buildModalSaveResult(nextHistory);
+      if (onDeviceBundleChange) {
+        onDeviceBundleChange({
+          devices: result.nextDevices,
+          deviceInstanceHistory: result.nextHistory,
+        });
+        return;
+      }
       onDeviceHistoryChange(result.nextHistory);
       onDevicesChange(result.nextDevices);
     },
-    [onDeviceHistoryChange, onDevicesChange]
+    [onDeviceBundleChange, onDeviceHistoryChange, onDevicesChange]
   );
 
   return {
