@@ -49,6 +49,62 @@ describe('firestoreRecordWritePatchPolicy', () => {
     ).toEqual([]);
   });
 
+  it('los objetos de autoridad clínica viajan atómicos, sin aplanarse en sub-rutas', () => {
+    // Verificado en vivo (31-08): aplanar upcChecklist en rutas de 4 segmentos
+    // hacía que dejaran de clasificar como clínicas y la separación de
+    // autoridades rechazaba la clasificación UPC completa.
+    const checklist = {
+      uciCriteria: ['uci_vmi'],
+      utiCriteria: [],
+      classification: 'UPC_UCI',
+      evaluatedAt: '2026-08-31T00:00:00Z',
+      evaluatedBy: { uid: 'u1', displayName: 'Dra. Prueba' },
+    };
+    const result = prepareFirestorePartialData({
+      partialData: {
+        'beds.R3.upcChecklist': checklist,
+        'beds.R3.isUPC': true,
+        'bedTypeOverrides.R3': 'UCI',
+        dateTimestamp: 123,
+      },
+      specialistScopedPatch: false,
+      intentionalBedClear: undefined,
+    });
+
+    expect(result['beds.R3.upcChecklist']).toEqual(checklist);
+    expect(result['beds.R3.isUPC']).toBe(true);
+    expect(result['bedTypeOverrides.R3']).toBe('UCI');
+    expect(Object.keys(result).filter(path => path.startsWith('beds.R3.upcChecklist.'))).toEqual(
+      []
+    );
+  });
+
+  it('la forma anidada del mismo parche clínico también conserva el objeto atómico', () => {
+    const result = prepareFirestorePartialData({
+      partialData: {
+        beds: { R3: { upcChecklist: { classification: 'UPC_UTI' }, isUPC: true } },
+      },
+      specialistScopedPatch: false,
+      intentionalBedClear: undefined,
+    });
+
+    expect(result['beds.R3.upcChecklist']).toEqual({ classification: 'UPC_UTI' });
+    expect(result['beds.R3.isUPC']).toBe(true);
+  });
+
+  it('los objetos NO clínicos (deviceDetails) se siguen aplanando como siempre', () => {
+    const result = prepareFirestorePartialData({
+      partialData: {
+        'beds.R3.deviceDetails': { LA: { installationDate: '2026-08-31' } },
+      },
+      specialistScopedPatch: false,
+      intentionalBedClear: undefined,
+    });
+
+    expect(result['beds.R3.deviceDetails.LA.installationDate']).toBe('2026-08-31');
+    expect(result).not.toHaveProperty(['beds.R3.deviceDetails']);
+  });
+
   it('does not strip Rayen fields from unrelated patches', () => {
     const result = prepareFirestorePartialData({
       partialData: { 'beds.R1.devices': ['VVP'] },
