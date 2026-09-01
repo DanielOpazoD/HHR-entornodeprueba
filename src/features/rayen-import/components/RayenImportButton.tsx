@@ -185,6 +185,11 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
         connectionMonitorOpen || queuePanelOpen ? 'relative z-[70]' : ''
       }`}
       data-testid="rayen-operations-bar"
+      // El header del censo (stacking context por animate-fade-in) se eleva vía
+      // has-[[data-overlay-open]] SOLO mientras un popover de la barra está
+      // abierto; un z estático en el header tapaba los menús de la primera fila
+      // y del toolbar (cazado por e2e-critical).
+      data-overlay-open={connectionMonitorOpen || queuePanelOpen ? 'true' : undefined}
     >
       <div className="grid min-h-[3.75rem] grid-cols-1 items-center gap-2 px-3 py-1.5 xl:grid-cols-[minmax(190px,0.78fr)_minmax(260px,1.4fr)_auto]">
         <RayenConnectionMonitor

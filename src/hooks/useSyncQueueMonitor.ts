@@ -39,6 +39,11 @@ export const useSyncQueueMonitor = (
   const refreshRequestIdRef = useRef(0);
 
   useEffect(() => {
+    // Re-armar en cada montaje: StrictMode monta→desmonta→remonta con los
+    // MISMOS refs, y sin esta línea el false del cleanup quedaba pegado y el
+    // monitor descartaba todos sus refresh para siempre (visto en vivo 01-09:
+    // el chip de pendientes nunca salía del estado vacío en dev).
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
     };

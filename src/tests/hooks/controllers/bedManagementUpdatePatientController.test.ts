@@ -24,7 +24,9 @@ describe('bedManagementUpdatePatientController', () => {
     });
   });
 
-  it('preserves cie10 fields when pathology value stays unchanged', () => {
+  it('emite un parche VACÍO cuando la patología no cambia (CIE-10 intacto, nada que escribir)', () => {
+    // Contrato de diff (Fase 2): un valor presente-pero-idéntico no se reemite,
+    // así que tampoco existe escritura que pudiera arrastrar side-effects.
     const record = DataFactory.createMockDailyRecord('2026-04-19');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
       pathology: 'Neumonia',
@@ -38,10 +40,6 @@ describe('bedManagementUpdatePatientController', () => {
       value: 'Neumonia',
     });
 
-    expect(patch).toMatchObject({
-      'beds.R1.pathology': 'Neumonia',
-    });
-    expect(patch).not.toHaveProperty('beds.R1.cie10Code');
-    expect(patch).not.toHaveProperty('beds.R1.cie10Description');
+    expect(patch).toEqual({});
   });
 });

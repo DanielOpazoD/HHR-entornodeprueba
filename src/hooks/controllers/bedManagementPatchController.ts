@@ -25,6 +25,57 @@ import {
   shouldResetClinicalEpisodeOwnership,
 } from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
 import { buildClinicalCribDraft } from '@/hooks/controllers/clinicalCribController';
+import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
+
+/**
+ * Un gesto = un parche MÍNIMO: los guardados del censo reenvían el paciente
+ * completo, y cada campo presente-pero-idéntico engordaba la escritura,
+ * disparaba side-effects «por presencia» y forzaba splits clínico/estructural
+ * innecesarios. Este filtro deja solo lo que realmente cambia respecto del
+ * registro vigente (campos de la cama y bedTypeOverrides; las demás rutas
+ * pasan intactas), preservando el contrato de acompañamiento del servidor: si
+ * `bedTypeOverrides.X` sobrevive, viaja con un parche UPC de la misma cama.
+ */
+export const filterUnchangedBedFieldPatches = (
+  state: DailyRecord,
+  bedId: string,
+  patches: Record<string, unknown>
+): Record<string, unknown> => {
+  const fieldPrefix = `beds.${bedId}.`;
+  const overridePath = `bedTypeOverrides.${bedId}`;
+  const currentPatient = state.beds[bedId] as unknown as Record<string, unknown> | undefined;
+  const filtered: Record<string, unknown> = {};
+
+  Object.entries(patches).forEach(([path, value]) => {
+    if (path === overridePath) {
+      if (!arePatchValuesDeepEqual(value, state.bedTypeOverrides?.[bedId])) {
+        filtered[path] = value;
+      }
+      return;
+    }
+    const field = path.startsWith(fieldPrefix) ? path.slice(fieldPrefix.length) : null;
+    if (!field || field.includes('.') || !currentPatient) {
+      filtered[path] = value;
+      return;
+    }
+    if (!arePatchValuesDeepEqual(value, currentPatient[field])) {
+      filtered[path] = value;
+    }
+  });
+
+  if (
+    overridePath in filtered &&
+    !(`${fieldPrefix}isUPC` in filtered) &&
+    !(`${fieldPrefix}upcChecklist` in filtered)
+  ) {
+    filtered[`${fieldPrefix}isUPC`] = resolveNormalizedUpcFlag(
+      bedId,
+      Boolean(currentPatient?.isUPC)
+    );
+  }
+
+  return filtered;
+};
 
 const buildPatientFieldPatches = ({
   bedId,
@@ -234,12 +285,16 @@ export const buildUpdatePatientPatches = (
   bedId: string,
   fields: Partial<PatientData>
 ): DailyRecordPatch =>
-  buildPatientFieldPatches({
+  filterUnchangedBedFieldPatches(
+    state,
     bedId,
-    currentPatient: state.beds[bedId],
-    updates: fields,
-    recordDate: state.date,
-  }) as DailyRecordPatch;
+    buildPatientFieldPatches({
+      bedId,
+      currentPatient: state.beds[bedId],
+      updates: fields,
+      recordDate: state.date,
+    })
+  ) as DailyRecordPatch;
 
 export const buildClearPatientPatches = (state: DailyRecord, bedId: string): DailyRecordPatch =>
   ({
