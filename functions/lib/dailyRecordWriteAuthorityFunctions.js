@@ -9,6 +9,7 @@ const {
 const { findPatientErasures } = require('./dailyRecordErasureGuard');
 const {
   RAYEN_CLINICAL_FIELDS,
+  RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
   isRayenClinicalWriteFenceActive,
   preserveRayenClinicalFields,
 } = require('./dailyRecordClinicalFieldPreservation');
@@ -770,14 +771,23 @@ const assertIntentionalBedClearRequest = ({
   return { [expectedPath]: canonicalBed };
 };
 
+// Solo los campos EXCLUSIVOS del lote (mediciones y checkpoint) quedan
+// vallados para parches directos: los dispositivos (devices/deviceDetails/
+// deviceInstanceHistory) son datos operacionales que enfermería gestiona a
+// mano entre corridas — vallarlos dejaba «agregar LA/SNG» guardando solo en
+// local y perdiéndose al recargar (verificado en vivo 31-08). El canal
+// guardado del lote (rayenClinicalWriteGuard) sigue escribiendo el conjunto
+// completo.
+const RAYEN_FENCED_PATCH_FIELDS = new Set(RAYEN_BATCH_ONLY_CLINICAL_FIELDS);
+
 const isRayenClinicalOwnedPatchPath = path => {
   const parts = String(path)
     .split('.')
     .map(part => part.trim())
     .filter(Boolean);
   if (parts[0] !== 'beds' || !parts[1]) return false;
-  if (RAYEN_CLINICAL_PATCH_FIELDS.has(parts[2])) return true;
-  return parts[2] === 'clinicalCrib' && RAYEN_CLINICAL_PATCH_FIELDS.has(parts[3]);
+  if (RAYEN_FENCED_PATCH_FIELDS.has(parts[2])) return true;
+  return parts[2] === 'clinicalCrib' && RAYEN_FENCED_PATCH_FIELDS.has(parts[3]);
 };
 
 const assertNoRayenClinicalOwnedPatch = patch => {
@@ -1612,6 +1622,9 @@ const createDailyRecordWriteAuthorityFunctions = ({
               ? preserveRayenClinicalFields({
                   remoteRecord: remoteData,
                   incomingRecord: patchedCandidate,
+                  // Los dispositivos editados a mano ya pasaron la valla: solo
+                  // se restauran las mediciones exclusivas del lote.
+                  fields: RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
                 })
               : patchedCandidate;
           assertNoPatientErasures({

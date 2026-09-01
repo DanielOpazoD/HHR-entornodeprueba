@@ -1,11 +1,25 @@
-const RAYEN_CLINICAL_FIELDS = Object.freeze([
+// Campos que el lote clínico Rayen escribe, separados por gobernanza:
+// - Los dispositivos son datos operacionales que enfermería TAMBIÉN gestiona a
+//   mano entre corridas (agregar/retirar VVP, LA, SNG…): un parche parcial de
+//   rol autorizado puede editarlos directamente.
+// - Las mediciones y el checkpoint son exclusivos del lote autoritativo: la
+//   valla los protege de cualquier escritura no guardada.
+const RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS = Object.freeze([
   'devices',
   'deviceDetails',
   'deviceInstanceHistory',
+]);
+
+const RAYEN_BATCH_ONLY_CLINICAL_FIELDS = Object.freeze([
   'evaluationScores',
   'vitalSigns',
   'vitalSignsHistory',
   'clinicalSyncCheckpoint',
+]);
+
+const RAYEN_CLINICAL_FIELDS = Object.freeze([
+  ...RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS,
+  ...RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
 ]);
 
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -40,13 +54,13 @@ const collectRemotePatients = record => {
   return patients;
 };
 
-const preservePatientClinicalFields = (incomingPatient, remotePatients, clinicalCrib) => {
+const preservePatientClinicalFields = (incomingPatient, remotePatients, clinicalCrib, fields) => {
   if (!isPlainObject(incomingPatient)) return incomingPatient;
   const nextPatient = clonePlainValue(incomingPatient);
   const key = episodeKey(incomingPatient, clinicalCrib);
   const remotePatient = key ? remotePatients.get(key) : null;
 
-  RAYEN_CLINICAL_FIELDS.forEach(field => {
+  fields.forEach(field => {
     if (remotePatient && Object.prototype.hasOwnProperty.call(remotePatient, field)) {
       nextPatient[field] = clonePlainValue(remotePatient[field]);
     } else {
@@ -61,16 +75,22 @@ const preservePatientClinicalFields = (incomingPatient, remotePatients, clinical
  * Full-record saves remain responsible for census structure, but never for fields owned by the
  * authoritative Rayen clinical batch. Matching by episode (not bed) preserves data across moves.
  */
-const preserveRayenClinicalFields = ({ remoteRecord, incomingRecord }) => {
+const preserveRayenClinicalFields = ({ remoteRecord, incomingRecord, fields }) => {
+  const preservedFields = Array.isArray(fields) && fields.length ? fields : RAYEN_CLINICAL_FIELDS;
   const nextRecord = clonePlainValue(incomingRecord);
   const remotePatients = collectRemotePatients(remoteRecord);
   const incomingBeds = isPlainObject(nextRecord?.beds) ? nextRecord.beds : {};
 
   Object.entries(incomingBeds).forEach(([bedId, bed]) => {
     if (!isPlainObject(bed)) return;
-    const nextBed = preservePatientClinicalFields(bed, remotePatients, false);
+    const nextBed = preservePatientClinicalFields(bed, remotePatients, false, preservedFields);
     if (isPlainObject(bed.clinicalCrib)) {
-      nextBed.clinicalCrib = preservePatientClinicalFields(bed.clinicalCrib, remotePatients, true);
+      nextBed.clinicalCrib = preservePatientClinicalFields(
+        bed.clinicalCrib,
+        remotePatients,
+        true,
+        preservedFields
+      );
     }
     incomingBeds[bedId] = nextBed;
   });
@@ -93,6 +113,8 @@ const isRayenClinicalWriteFenceActive = policySnapshot => {
 
 module.exports = {
   RAYEN_CLINICAL_FIELDS,
+  RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
+  RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS,
   isRayenClinicalBatchEnforced,
   isRayenClinicalWriteFenceActive,
   preserveRayenClinicalFields,
