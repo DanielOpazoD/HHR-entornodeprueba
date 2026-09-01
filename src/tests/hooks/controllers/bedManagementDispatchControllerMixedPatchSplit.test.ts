@@ -87,6 +87,53 @@ describe('bedManagementDispatchController · split de patches mezclados', () => 
     expect(Object.keys(clinicalPatch).sort()).toEqual(['beds.R1.pathology', 'beds.R1.status']);
   });
 
+  it('la clasificación UPC viaja en UN solo comando clínico con su bedTypeOverrides', async () => {
+    // Verificado en vivo (31-08): el split dejaba bedTypeOverrides huérfano en
+    // la mitad estructural y el servidor la rechazaba («bed type override must
+    // accompany a UPC patch») — la clasificación quedaba a medias.
+    const patchRecord = vi.fn<(patch: Record<string, unknown>) => Promise<void>>();
+    patchRecord.mockResolvedValue(undefined);
+    const action: BedAction = {
+      type: 'UPDATE_PATIENT_MULTIPLE',
+      bedId: 'R1',
+      fields: {
+        isUPC: true,
+        upcChecklist: {
+          uciCriteria: ['uci_vmi'],
+          utiCriteria: [],
+          classification: 'UPC_UCI',
+          evaluatedAt: '2026-03-06T00:00:00Z',
+        },
+      },
+    };
+    const validation: BedManagementValidationPort = {
+      processFieldValue: vi.fn((field, value) => ({ valid: true, value })),
+    };
+    const bedAudit: BedManagementAuditPort = {
+      auditPatientChange: vi.fn(),
+      auditCudyrChange: vi.fn(),
+      auditCribCudyrChange: vi.fn(),
+      auditPatientCleared: vi.fn(),
+      auditPatientModified: vi.fn(),
+      auditPatientMovement: vi.fn(),
+    };
+
+    const result = await executeBedManagementAction({
+      currentRecord: buildRecord(),
+      action,
+      validation,
+      bedAudit,
+      patchRecord,
+    });
+
+    expect(result).toBe(true);
+    expect(patchRecord).toHaveBeenCalledTimes(1);
+    const [patch] = patchRecord.mock.calls[0];
+    expect(Object.keys(patch)).toEqual(
+      expect.arrayContaining(['beds.R1.upcChecklist', 'beds.R1.isUPC', 'bedTypeOverrides.R1'])
+    );
+  });
+
   it('keeps a purely clinical multi-field update as a single command', async () => {
     const patchRecord = vi.fn<(patch: Record<string, unknown>) => Promise<void>>();
     patchRecord.mockResolvedValue(undefined);

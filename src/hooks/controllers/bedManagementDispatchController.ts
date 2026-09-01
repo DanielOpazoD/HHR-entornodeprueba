@@ -56,6 +56,14 @@ const MULTIPLE_PATIENT_AUDIT_FIELD_PRIORITY = ['rut', 'patientName'];
 
 const isClinicalEnvelopeBedFieldPath = (path: string): boolean => {
   const [root, bedId, field, ...rest] = path.split('.');
+  // bedTypeOverrides es autoridad clínica en el servidor y DEBE viajar en la
+  // misma escritura que upcChecklist/isUPC («bed type override must accompany
+  // a UPC patch»). El split lo dejaba huérfano en la mitad estructural junto a
+  // dateTimestamp, y esa mitad era rechazada — la clasificación UPC quedaba a
+  // medias (verificado en vivo 31-08 marcando criterios en R3).
+  if (root === 'bedTypeOverrides' && Boolean(bedId) && field === undefined) {
+    return true;
+  }
   return (
     root === 'beds' &&
     Boolean(bedId) &&
