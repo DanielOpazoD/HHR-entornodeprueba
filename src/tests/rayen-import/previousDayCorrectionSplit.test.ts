@@ -115,20 +115,11 @@ describe('fileCrossDayCorrections · escrituras puras por día', () => {
       false
     );
 
-    // La condición inaplicable se anticipa en la revisión (antes se descubría
-    // post-commit y dejaba «requiere nueva captura» permanente).
-    expect(plan.edits).toEqual([
-      expect.objectContaining({
-        day: '2026-07-25',
-        patientNames: [],
-        omittedAdmissions: [
-          expect.objectContaining({
-            patientName: 'RN de Maeva Tuki Garcia',
-            reason: expect.stringContaining('ya conserva otro recién nacido'),
-          }),
-        ],
-      }),
-    ]);
+    // La condición inaplicable se anticipa en la planificación (antes se
+    // descubría post-commit y dejaba «requiere nueva captura» permanente).
+    // Un día donde TODO quedó omitido no produce edición: confirmar no
+    // escribiría nada y la casilla de aceptación era ruido en cada corrida.
+    expect(plan.edits).toEqual([]);
 
     const result = await fileCrossDayCorrections(
       repository,
@@ -170,18 +161,10 @@ describe('fileCrossDayCorrections · escrituras puras por día', () => {
       false
     );
 
-    expect(plan.edits).toEqual([
-      expect.objectContaining({
-        day: '2026-07-25',
-        patientNames: [],
-        omittedAdmissions: expect.arrayContaining([
-          expect.objectContaining({
-            patientName: 'Maeva Elisabet Maria Tuki Garcia',
-            reason: expect.stringContaining('ocupada ese día por Ocupante Histórica Real'),
-          }),
-        ]),
-      }),
-    ]);
+    // Igual que arriba: la omisión total (cama ocupada por otra paciente) deja
+    // el día fuera del plan — sin bloque «Modificar días previos» repetido en
+    // cada sincronización para un cambio que jamás se aplicará.
+    expect(plan.edits).toEqual([]);
 
     const result = await fileCrossDayCorrections(
       repository,

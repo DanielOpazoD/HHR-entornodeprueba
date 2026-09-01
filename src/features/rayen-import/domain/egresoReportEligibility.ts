@@ -8,6 +8,7 @@ import {
   episodeLessReportConflict,
   findOccupiedBed,
   findOccupiedClinicalCrib,
+  hasRecordedMovement,
   occupiedBedsByRun,
   occupiedClinicalCribsByRun,
   reportPredatesActiveAdmission,
@@ -66,15 +67,6 @@ export const selectEligibleEgresoRows = (
 
     const current = findOccupiedBed(occupied, row.run, reportedEpisode);
     const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
-    if (row.exactEpisodeVerification === 'unverified') {
-      nextDiff = appendReportConflict(nextDiff, {
-        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
-        rut: row.run,
-        patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
-        reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,
-      });
-      continue;
-    }
     const activeCrib = diff.activeClinicalCribs?.find(
       crib =>
         (Boolean(reportedEpisode) && crib.source.encounterId === reportedEpisode) ||
@@ -85,6 +77,28 @@ export const selectEligibleEgresoRows = (
         (Boolean(reportedEpisode) && entry.source?.encounterId === reportedEpisode) ||
         (Boolean(run) && normalizeRut(entry.patient.rut) === run)
     );
+    // El informe de Gestión de Camas re-enumera las altas del día completo: un
+    // paciente ya egresado en HHR es historia aplicada, no un cambio nuevo.
+    // Antes, cuando la vinculación exacta degradaba (lookup ambiguo, PDF no
+    // disponible), estas filas reaparecían como «no pudo vincularse…» en cada
+    // re-sincronización. El descarte exige que el RUN no tenga presencia
+    // actual NI pendiente (cama, cuna, ingreso del diff): un reingreso en
+    // vuelo conserva la exigencia de revisión. Con episodio exacto solo cuenta
+    // un movimiento de ESE episodio (un movimiento legacy por RUN no debe
+    // suprimir el egreso de un reingreso posterior).
+    const alreadyRecorded = reportedEpisode
+      ? hasRecordedMovement(record, '', reportedEpisode)
+      : Boolean(run) && hasRecordedMovement(record, run);
+    if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
+    if (row.exactEpisodeVerification === 'unverified') {
+      nextDiff = appendReportConflict(nextDiff, {
+        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
+        rut: row.run,
+        patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
+        reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,
+      });
+      continue;
+    }
     const exactEvidence = reportedEpisode
       ? (diff.activeClinicalCribs?.find(crib => crib.source.encounterId === reportedEpisode)
           ?.patient ??

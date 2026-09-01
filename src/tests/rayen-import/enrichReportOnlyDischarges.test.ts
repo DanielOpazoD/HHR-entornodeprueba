@@ -48,6 +48,27 @@ describe('report-only short-stay enrichment', () => {
     });
   });
 
+  it('no paga lookup ni PDF por un alta ya aplicada en HHR', async () => {
+    const applied = { ...row, run: '11.111.111-1', patientName: 'Ya Egresado' };
+    const lookupEgresos = vi
+      .fn()
+      .mockResolvedValue([{ run: '82603646', encounterId: '143322', egreso: { id: 143322 } }]);
+    const result = await enrichReportOnlyDischarges([applied, row], '2026-08-13', {
+      lookupEgresos,
+      fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+      extractText: vi.fn().mockResolvedValue(statisticalText),
+      alreadyApplied: candidate => candidate.patientName === 'Ya Egresado',
+    });
+
+    // Solo la fila nueva llega al lookup; la aplicada queda 'unverified' y la
+    // elegibilidad la descarta como historia sin exigir revisión.
+    expect(lookupEgresos).toHaveBeenCalledWith([
+      { run: row.run, encounterId: '', dischargeDay: '2026-08-13' },
+    ]);
+    expect(result[0]).toMatchObject({ exactEpisodeVerification: 'unverified' });
+    expect(result[1]).toMatchObject({ exactEpisodeVerification: 'verified' });
+  });
+
   it('fails closed on an ambiguous lookup and preserves the original bulk evidence', async () => {
     const result = await enrichReportOnlyDischarges([row], '2026-08-13', {
       lookupEgresos: vi.fn().mockResolvedValue([]),

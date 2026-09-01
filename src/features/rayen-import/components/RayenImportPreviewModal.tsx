@@ -70,6 +70,16 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       (diff.bedOccupancyCollisions?.length ?? 0) > 0);
   const previousDayEdits = diff?.previousDayEdits ?? [];
   const needsPreviousDayAck = previousDayEdits.length > 0;
+  // La casilla de aceptación solo tiene sentido si confirmar escribirá algo en
+  // un día previo; las ediciones bloqueadas (sin registro, firmadas, fuera de
+  // ventana) se muestran como información, sin pedir un consentimiento vacío.
+  const hasActionablePreviousDayEdit = previousDayEdits.some(
+    edit =>
+      edit.patientNames.length > 0 &&
+      edit.recordExists &&
+      edit.withinEditingWindow &&
+      !edit.isSigned
+  );
   const previousDays = new Set(previousDayEdits.map(edit => edit.day));
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
   const [cmaAdmissionResolutions, setCmaAdmissionResolutions] = React.useState<
@@ -314,15 +324,17 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                         </li>
                       ))}
                     </ul>
-                    <label className="mt-2 flex items-center gap-2 text-sm font-medium text-amber-900">
-                      <input
-                        type="checkbox"
-                        checked={acceptedPreviousDays}
-                        onChange={event => setAcceptedPreviousDays(event.target.checked)}
-                        className="h-4 w-4"
-                      />
-                      Acepto modificar los días previos indicados
-                    </label>
+                    {hasActionablePreviousDayEdit && (
+                      <label className="mt-2 flex items-center gap-2 text-sm font-medium text-amber-900">
+                        <input
+                          type="checkbox"
+                          checked={acceptedPreviousDays}
+                          onChange={event => setAcceptedPreviousDays(event.target.checked)}
+                          className="h-4 w-4"
+                        />
+                        Acepto modificar los días previos indicados
+                      </label>
+                    )}
                   </div>
                 )}
               </div>
