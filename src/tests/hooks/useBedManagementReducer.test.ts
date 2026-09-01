@@ -127,7 +127,11 @@ describe('bedManagementReducer firstSeenDate anchoring', () => {
     });
   });
 
-  it('clears clinical handoff data when identity changes through a single-field update', () => {
+  it('corregir el nombre del MISMO paciente (mismo RUT) no limpia sus datos clínicos', () => {
+    // Regresión de Datos Demográficos: el heurístico anterior trataba
+    // cualquier cambio de nombre como «paciente nuevo» y borraba diagnóstico,
+    // entregas y dispositivos — además el bedTypeOverrides de esa limpieza
+    // volvía mixto el guardado y la separación de autoridades lo rechazaba.
     const record = DataFactory.createMockDailyRecord('2026-04-12');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
       patientName: 'Paciente Inicial',
@@ -144,8 +148,31 @@ describe('bedManagementReducer firstSeenDate anchoring', () => {
       value: 'Paciente Corregido',
     });
 
+    expect(patch).toMatchObject({ 'beds.R1.patientName': 'Paciente Corregido' });
+    expect(patch).not.toHaveProperty('beds.R1.pathology');
+    expect(patch).not.toHaveProperty('beds.R1.handoffNoteDayShift');
+    expect(patch).not.toHaveProperty('bedTypeOverrides.R1');
+  });
+
+  it('un RUT distinto sí es reemplazo de persona y limpia los datos clínicos de la cama', () => {
+    const record = DataFactory.createMockDailyRecord('2026-04-12');
+    record.beds.R1 = DataFactory.createMockPatient('R1', {
+      patientName: 'Paciente Inicial',
+      rut: '11.111.111-1',
+      pathology: 'Neumonia',
+      handoffNoteDayShift: 'Entregado',
+      medicalHandoffNote: 'Nota medica',
+    });
+
+    const patch = bedManagementReducer(record, {
+      type: 'UPDATE_PATIENT',
+      bedId: 'R1',
+      field: 'rut',
+      value: '22.222.222-2',
+    });
+
     expect(patch).toMatchObject({
-      'beds.R1.patientName': 'Paciente Corregido',
+      'beds.R1.rut': '22.222.222-2',
       'beds.R1.pathology': '',
       'beds.R1.handoffNoteDayShift': '',
       'beds.R1.medicalHandoffNote': '',

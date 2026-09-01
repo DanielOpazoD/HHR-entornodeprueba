@@ -20,6 +20,7 @@ import {
 } from '@/shared/census/upcBedPolicy';
 import {
   getClearClinicalDataPatches,
+  isDifferentPatientIdentity,
   shouldAnchorFirstSeenDate,
   shouldResetClinicalEpisodeOwnership,
 } from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
@@ -71,7 +72,18 @@ const buildPatientFieldPatches = ({
     nextRut,
   });
 
-  if (hasIdentityChange && hadPatientIdentity) {
+  // La limpieza clínica de la cama es para un REEMPLAZO de persona, no para
+  // corregir el nombre del mismo paciente (mismo RUT): el heurístico anterior
+  // borraba el diagnóstico y volvía mixto el guardado demográfico.
+  const identityReplaced =
+    hasIdentityChange &&
+    isDifferentPatientIdentity({
+      currentPatientName: currentPatient.patientName,
+      currentRut: currentPatient.rut,
+      nextPatientName,
+      nextRut,
+    });
+  if (identityReplaced && hadPatientIdentity) {
     Object.assign(patches, getClearClinicalDataPatches(bedId));
   }
 
