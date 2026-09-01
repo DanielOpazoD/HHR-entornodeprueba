@@ -12,12 +12,44 @@ import {
   saveRayenImportPolicy,
   subscribeToRayenImportPolicy,
 } from '../settings/rayenImportPolicyService';
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
+
+/**
+ * Mensaje único del caso «sesión sin permisos»: lo comparten el estado de la
+ * política y la compuerta previa a sincronizar, para que la barra y el intento
+ * digan exactamente lo mismo y nombren el remedio real (volver a entrar).
+ */
+export const POLICY_SESSION_EXPIRED_MESSAGE =
+  'Tu sesión perdió permisos para leer la política global. Vuelve a iniciar sesión para sincronizar.';
+
+/**
+ * Razón por la que la política impide sincronizar, o null si no impide nada.
+ * La comparten el botón (que se deshabilita mostrándola) y la compuerta previa
+ * al intento, para que no puedan divergir. `loading` no bloquea: la compuerta
+ * del clic sigue protegiendo y evita un parpadeo del botón en cada carga.
+ */
+export const resolveRayenPolicyBlockMessage = (status: RayenImportPolicyStatus): string | null => {
+  switch (status) {
+    case 'ready':
+    case 'loading':
+      return null;
+    case 'unconfigured':
+      return 'La política global de sincronización aún no está configurada. Solicita a un administrador que la inicialice.';
+    case 'migration-required':
+      return 'La política global de sincronización requiere migración a v2 antes de iniciar.';
+    case 'unauthorized':
+      return POLICY_SESSION_EXPIRED_MESSAGE;
+    default:
+      return 'No se pudo confirmar la política global de sincronización con el servidor. Reintenta cuando vuelva la conexión.';
+  }
+};
 
 export type RayenImportPolicyStatus =
   | 'loading'
   | 'ready'
   | 'unconfigured'
   | 'migration-required'
+  | 'unauthorized'
   | 'fallback';
 
 export interface UseRayenImportModeResult {
@@ -81,8 +113,17 @@ export const useRayenImportMode = (updatedByUid?: string | null): UseRayenImport
           setStatus('ready');
           setError(null);
         },
-        onError: () => {
+        onError: error => {
           setPolicy(safePolicy());
+          // Un permission-denied NO es un problema de conexión: mandar a
+          // «esperar a que vuelva la red» deja al usuario esperando algo que
+          // no va a pasar (verificado el 01-09: sesión sin permisos, servidor
+          // sano y sin un solo error en las functions).
+          if (classifySyncError(error).category === 'authorization') {
+            setStatus('unauthorized');
+            setError(POLICY_SESSION_EXPIRED_MESSAGE);
+            return;
+          }
           setStatus('fallback');
           setError('No se pudo leer la política global; se mantuvo la revisión manual.');
         },

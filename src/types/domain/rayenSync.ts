@@ -87,7 +87,14 @@ export type RayenSyncFailureReason =
   | 'gestion_camas_unavailable'
   | 'snapshot_timeout'
   | 'snapshot_error'
-  | 'apply_failed';
+  | 'apply_failed'
+  /** El guardado fue rechazado por permisos: la sesión perdió su rol, no es un fallo del servidor. */
+  | 'apply_unauthorized'
+  /** Otro escritor cambió el censo durante la aplicación. */
+  | 'apply_conflict';
+
+/** Causas que puede producir la etapa de aplicación (las demás son de captura). */
+export type RayenApplyFailureReason = Extract<RayenSyncFailureReason, `apply_${string}`>;
 
 export interface RayenSyncCoverage {
   /** Patients eligible for the clinical enrichment pass. */
