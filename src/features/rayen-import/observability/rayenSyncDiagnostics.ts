@@ -94,6 +94,9 @@ export const classifyRayenSyncError = (error: unknown): RayenSyncOperationalErro
  * sin permisos, un conflicto de escritura y una caída de red se veían idénticos.
  */
 export const classifyRayenApplyFailureReason = (error: unknown): RayenApplyFailureReason => {
+  // Otra corrida más reciente ya selló el censo: es un conflicto de escritura
+  // en el que la otra ganó (sin reintento; ver rayenCensusPersistenceGuard).
+  if (error instanceof Error && error.name === 'RayenRunSupersededError') return 'apply_conflict';
   const kind = classifyRayenSyncError(error);
   if (kind === 'permission_denied') return 'apply_unauthorized';
   if (kind === 'concurrency') return 'apply_conflict';
