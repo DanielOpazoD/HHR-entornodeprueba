@@ -30,11 +30,18 @@ const relativeAgo = (iso: string | number | undefined | null, now: number): stri
   return `hace ${Math.round(minutes / 60)} h`;
 };
 
-const remainingLabel = (source: RayenSourceHealth | undefined): string | null => {
-  const seconds = source?.remainingSeconds;
+const remainingLabel = (source: RayenSourceHealth | undefined, now: number): string | null => {
+  // Con vencimiento absoluto, la vigencia se recalcula con el tic local (el
+  // reporte empujado puede tener hasta 60 s); si no, vale lo que informó.
+  const seconds =
+    typeof source?.expiresAt === 'number' && Number.isFinite(source.expiresAt)
+      ? (source.expiresAt - now) / 1000
+      : source?.remainingSeconds;
   if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return null;
   const minutes = Math.max(0, Math.ceil(seconds / 60));
-  return minutes <= 0 ? 'vencida' : `vence en ~${minutes} min`;
+  if (minutes <= 0) return 'vencida';
+  // Sesiones largas (Ficha Médico dura 24 h) se leen mejor en horas.
+  return minutes >= 120 ? `vence en ~${Math.round(minutes / 60)} h` : `vence en ~${minutes} min`;
 };
 
 const sourceDotClass = (status: RayenSourceHealth['status'] | undefined): string =>
@@ -43,7 +50,8 @@ const sourceDotClass = (status: RayenSourceHealth['status'] | undefined): string
 export const rayenSourceStateLabel = (
   connection: RayenExtensionConnectionState,
   fichaMedicoReady: boolean,
-  working: boolean
+  working: boolean,
+  blockedBy?: RayenExtensionHealthState['blockedBy']
 ): string =>
   working || connection === 'checking'
     ? 'Comprobando'
@@ -54,7 +62,8 @@ export const rayenSourceStateLabel = (
         : connection === 'incompatible'
           ? 'Actualizar extensión'
           : connection === 'blocked'
-            ? fichaMedicoReady
+            ? // Quién bloquea manda (una Ficha Médico «lista» pero por vencer no es GC).
+              (blockedBy ?? (fichaMedicoReady ? 'gestionCamas' : 'fichaMedico')) === 'gestionCamas'
               ? 'Conectar Gestión de Camas'
               : 'Revisar Ficha Médico'
             : 'Extensión sin respuesta';
@@ -121,7 +130,12 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
   const gestionCamas = report?.gestionCamas;
   const canOfferGestionCamasConnect =
     fichaMedicoReady && gestionCamas !== undefined && gestionCamas.status !== 'ready';
-  const stateLabel = rayenSourceStateLabel(extension.connection, fichaMedicoReady, working);
+  const stateLabel = rayenSourceStateLabel(
+    extension.connection,
+    fichaMedicoReady,
+    working,
+    extension.blockedBy
+  );
   const attention = !working && extension.connection !== 'ready';
 
   const handleRefresh = async (): Promise<void> => {
@@ -148,11 +162,15 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
   };
 
   const fichaIdentity = report?.fichaMedico.identity;
-  const fichaDetail = fichaIdentity?.fullName
-    ? `${fichaIdentity.fullName}${fichaIdentity.role ? ` · ${fichaIdentity.role}` : ''}`
-    : null;
+  const fichaDetailParts = [
+    fichaIdentity?.fullName
+      ? `${fichaIdentity.fullName}${fichaIdentity.role ? ` · ${fichaIdentity.role}` : ''}`
+      : null,
+    remainingLabel(report?.fichaMedico, now),
+  ].filter((part): part is string => Boolean(part));
+  const fichaDetail = fichaDetailParts.length > 0 ? fichaDetailParts.join(' · ') : null;
   const gestionDetailParts = [
-    remainingLabel(gestionCamas),
+    remainingLabel(gestionCamas, now),
     gestionCamas?.lastVerifiedAt != null
       ? `verificada ${relativeAgo(gestionCamas.lastVerifiedAt, now) ?? ''}`.trim()
       : null,

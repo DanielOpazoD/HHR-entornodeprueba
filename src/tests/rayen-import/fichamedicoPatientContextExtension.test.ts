@@ -172,7 +172,9 @@ describe('Ficha Médico patient-context owner', () => {
     // 1460: +latido de salud y re-inyección de relés al instalar (instancias y
     // tres rutas GC envueltas con pushAfter); la lógica vive en
     // health-heartbeat-runtime.js y relay-reinjection-runtime.js.
-    expect(background.split('\n').length).toBeLessThanOrEqual(1_460);
+    // 1464: las dos rutas de lectura (snapshot y bundle) envueltas con pushAfter
+    // (extensión 0.48.4/0.48.5); la salud vive en health-heartbeat-runtime.js.
+    expect(background.split('\n').length).toBeLessThanOrEqual(1_464);
     expect(source.split('\n').length).toBeLessThanOrEqual(380);
     expect(() => factory.create({})).toThrow('Falta la dependencia resolveSession.');
   });
