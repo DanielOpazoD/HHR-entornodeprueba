@@ -14,6 +14,10 @@ const normalizationSource = readFileSync(
   path.resolve('extension/fichamedico-normalization.js'),
   'utf8'
 );
+const resilienceSource = readFileSync(
+  path.resolve('extension/fichamedico-read-resilience.js'),
+  'utf8'
+);
 const AUTH_HEADER_FIXTURE = ['HSP', 'fixture'].join(' ');
 
 type PostedMessage = {
@@ -148,6 +152,7 @@ const createHarness = async (
     filename: 'fichamedico-isolation-normalization.js',
   });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
+  vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
   for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
 

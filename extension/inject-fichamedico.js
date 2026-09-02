@@ -169,9 +169,17 @@
   };
 
   // --- Helpers ---
+  // Network-level failures (see fichamedico-read-resilience.js): keep the original message,
+  // name the endpoint, and let the census reader self-heal / block the health probe.
+  const resilience = globalThis.HhrFichaMedicoReadResilience;
   const apiGet = async (url, auth) => {
-    // Auth is 100% via the HSP header; credentials:'omit' avoids the CORS credential trap.
-    const res = await origFetch(url, { headers: { Authorization: auth }, credentials: 'omit' });
+    let res;
+    try {
+      // Auth is 100% via the HSP header; credentials:'omit' avoids the CORS credential trap.
+      res = await origFetch(url, { headers: { Authorization: auth }, credentials: 'omit' });
+    } catch (error) {
+      throw resilience.isNetworkFailure(error) ? resilience.describeNetworkFailure(error, url) : error;
+    }
     if (!res.ok) throw new Error(res.status + ' en ' + url.replace(/\?.*/, ''));
     return res.json();
   };
@@ -333,7 +341,21 @@
     `${base.origin}/api/encounter/entrySummary/diagnosisEntry/` +
     `${encId}/0/2/${base.searchParams.get('healthCarePractitionerId') || '7941'}`;
   const isolationUrl = (base, encId) => `${base.origin}/api/encounter/${encodeURIComponent(encId)}/isolationEncounter/0/getAll`;
-  const readCensus = async () => {
+  // One self-heal attempt on a network failure of the census list: the captured list URL /
+  // API origin may belong to a backend that no longer answers this tab, while the session
+  // endpoint (same-origin) still does. Rebinding to the default origin re-runs the verified
+  // context with a fresh token; if that also fails, the failure is remembered so the health
+  // probe stops reporting this tab as ready until a read succeeds again (02-09).
+  const censusReader = resilience.createSelfHealingReader({
+    readOnce: () => readCensusOnce(),
+    rebind: () => {
+      capturedListUrl = null;
+      capturedApiOrigin = DEFAULT_API_ORIGIN;
+    },
+  });
+  const readCensus = () => censusReader.read();
+
+  const readCensusOnce = async () => {
     const context = await getVerifiedClinicalContext();
     const base = context.base || new URL(context.apiOrigin);
     const physicianCatalogPromise = (globalThis.HhrFichaMedicoTreatingPhysicianNormalization?.captureFromDocument || (async () => ({ physicians: [], physicianById: {}, physicianByEncounterId: {} })))({ apiGet, apiOrigin: context.apiOrigin, facilityId: context.identity.facilityId, auth: capturedAuth, root: document }).catch(() => ({ physicians: [], physicianById: {}, physicianByEncounterId: {} }));
@@ -459,13 +481,18 @@
 
     if (data.type === 'RAYEN_FM_SESSION_STATUS_REQUEST') {
       const identity = await readSafeSessionIdentity();
-      const ready = Boolean(identity && capturedAuth && capturedApiOrigin);
+      // Honest health: a verified session whose reads fail at network level is NOT ready —
+      // reporting it as ready made HHR offer a sync that failed in 1 s (02-09).
+      const status = resilience.describeSessionStatus({
+        sessionReady: Boolean(identity && capturedAuth && capturedApiOrigin),
+        readBlocked: censusReader.isReadBlocked(),
+      });
       window.postMessage(
         {
           type: 'RAYEN_FM_SESSION_STATUS_RESULT',
           reqId: data.reqId,
-          ready,
-          identity: ready
+          ready: status.ready,
+          identity: status.ready
             ? {
                 fullName: identity.fullName,
                 role: identity.role,
@@ -473,9 +500,7 @@
                 practitionerRoleId: identity.practitionerRoleId,
               }
             : null,
-          message: ready
-            ? 'Ficha Médico disponible. Sesión clínica vigente.'
-            : 'La sesión clínica de Ficha Médico no está disponible.',
+          message: status.message,
         },
         window.location.origin
       );

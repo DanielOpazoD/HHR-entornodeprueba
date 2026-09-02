@@ -217,6 +217,10 @@
       "maxLines": 100,
       "hotspots": {}
     },
+    "fichamedico-read-resilience.js": {
+      "maxLines": 86,
+      "hotspots": {}
+    },
     "fichamedico-transport-runtime.js": {
       "maxLines": 204,
       "hotspots": {}
@@ -397,9 +401,9 @@
       "hotspots": {}
     },
     "inject-fichamedico.js": {
-      "maxLines": 526,
+      "maxLines": 551,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 29,
+        "iife>callback:window.addEventListener:1": 28,
         "iife>variable:getVerifiedClinicalContext": 21,
         "iife>variable:readSafeSessionIdentityUncached": 24,
         "iife>variable:resolveNursingContext": 16
