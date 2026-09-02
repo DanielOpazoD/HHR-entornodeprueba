@@ -452,6 +452,17 @@
       encounters, physicians,
     };
   };
+  // Vigencia real de la sesión (Eloísa: `expirationDate`, sesiones de 24 h): HHR la muestra en
+  // el monitor y bloquea el arranque si no alcanza a cubrir la corrida. Nunca se inventa.
+  const describeSessionExpiry = (identity, sessionReady, now = Date.now()) => {
+    const expiresAt =
+      sessionReady && identity && Number.isFinite(identity.expiresAt) ? identity.expiresAt : null;
+    return {
+      expiresAt,
+      remainingSeconds: expiresAt ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : null,
+    };
+  };
+
   // --- Bridge with the isolated content script ---
   window.addEventListener('message', async event => {
     if (event.source !== window) return;
@@ -513,6 +524,7 @@
           type: 'RAYEN_FM_SESSION_STATUS_RESULT',
           reqId: data.reqId,
           ready: status.ready,
+          ...describeSessionExpiry(identity, sessionReady),
           identity: sessionReady
             ? {
                 fullName: identity.fullName,

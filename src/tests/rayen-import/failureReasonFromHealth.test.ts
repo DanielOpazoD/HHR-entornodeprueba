@@ -56,6 +56,16 @@ describe('failureReasonFromHealth', () => {
     ).toBe('ficha_medico_unavailable');
   });
 
+  it('una Ficha Médico lista pero por vencer se archiva como Ficha Médico, no como Gestión de Camas', () => {
+    const health = {
+      ...blocked({ status: 'ready', message: 'Ficha Médico disponible. Sesión clínica vigente.' }),
+      blockedBy: 'fichaMedico' as const,
+      message:
+        'La sesión de Ficha Médico vence en ~3 min y no alcanzaría a cubrir la sincronización.',
+    };
+    expect(failureReasonFromHealth(health)).toBe('ficha_medico_unavailable');
+  });
+
   it('con Ficha Médico lista, el bloqueo es de Gestión de Camas', () => {
     expect(
       failureReasonFromHealth(

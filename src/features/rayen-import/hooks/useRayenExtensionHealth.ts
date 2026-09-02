@@ -19,6 +19,12 @@ export interface RayenExtensionHealthState {
   report: RayenExtensionHealthReport | null;
   message: string;
   canSync: boolean;
+  /**
+   * Quién bloquea cuando `connection === 'blocked'`. Sin esto, un bloqueo por
+   * vigencia de Ficha Médico (fuente `ready`) se etiquetaba y auditaba como
+   * Gestión de Camas (revisión de #306).
+   */
+  blockedBy?: 'fichaMedico' | 'gestionCamas';
 }
 
 export interface RayenExtensionHealthRefreshOptions {
@@ -33,6 +39,7 @@ export interface RayenExtensionHealthRefreshOptions {
  * renovación ANTES de partir.
  */
 export const GESTION_CAMAS_MIN_REMAINING_SECONDS = 240;
+export const FICHA_MEDICO_MIN_REMAINING_SECONDS = 240;
 
 const CHECKING_STATE: RayenExtensionHealthState = {
   connection: 'checking',
@@ -66,8 +73,31 @@ const deriveHealthState = (
   if (report.fichaMedico.status !== 'ready') {
     return {
       connection: 'blocked',
+      blockedBy: 'fichaMedico',
       report,
       message: report.fichaMedico.message,
+      canSync: false,
+    };
+  }
+
+  // Vigencia de Ficha Médico (extensión ≥ 0.48.5; sesiones de 24 h que vencen a hora
+  // fija, típicamente en plena mañana): mismo criterio que Gestión de Camas.
+  const fichaMedicoRemainingSeconds = report.fichaMedico.remainingSeconds;
+  if (
+    typeof fichaMedicoRemainingSeconds === 'number' &&
+    Number.isFinite(fichaMedicoRemainingSeconds) &&
+    fichaMedicoRemainingSeconds < FICHA_MEDICO_MIN_REMAINING_SECONDS
+  ) {
+    const minutes = Math.max(1, Math.ceil(fichaMedicoRemainingSeconds / 60));
+    return {
+      connection: 'blocked',
+      blockedBy: 'fichaMedico',
+      report,
+      message:
+        fichaMedicoRemainingSeconds <= 0
+          ? 'La sesión de Ficha Médico venció. Vuelve a iniciar sesión en Eloísa (Ficha Médico) y reintenta.'
+          : `La sesión de Ficha Médico vence en ~${minutes} min y no alcanzaría a cubrir la ` +
+            'sincronización. Vuelve a iniciar sesión en Eloísa (Ficha Médico) y reintenta.',
       canSync: false,
     };
   }
@@ -75,6 +105,7 @@ const deriveHealthState = (
   if (report.gestionCamas.status !== 'ready') {
     return {
       connection: 'blocked',
+      blockedBy: 'gestionCamas',
       report,
       message: `${report.gestionCamas.message} Se requieren Ficha Médico y Gestión de Camas para sincronizar.`,
       canSync: false,
@@ -90,10 +121,13 @@ const deriveHealthState = (
     const minutes = Math.max(1, Math.ceil(gestionCamasRemainingSeconds / 60));
     return {
       connection: 'blocked',
+      blockedBy: 'gestionCamas',
       report,
       message:
-        `La sesión de Gestión de Camas vence en ~${minutes} min y no alcanzaría a cubrir la ` +
-        'sincronización. Renuévala desde Conexiones en el Centro HHR de la pestaña de Eloísa y vuelve a intentar.',
+        gestionCamasRemainingSeconds <= 0
+          ? 'La sesión de Gestión de Camas venció. Renuévala desde Conexiones en el Centro HHR de la pestaña de Eloísa y vuelve a intentar.'
+          : `La sesión de Gestión de Camas vence en ~${minutes} min y no alcanzaría a cubrir la ` +
+            'sincronización. Renuévala desde Conexiones en el Centro HHR de la pestaña de Eloísa y vuelve a intentar.',
       canSync: false,
     };
   }
