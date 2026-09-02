@@ -3,16 +3,26 @@ import { describe, expect, it } from 'vitest';
 
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { BEDS } from '@/constants/beds';
+import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import { clinicalValuesEqual } from '@/features/rayen-import/domain/clinicalIncrementalSync';
 import {
   buildUpdatePatientPatches,
   filterUnchangedBedFieldPatches,
 } from '@/hooks/controllers/bedManagementPatchController';
-import { isUpcEligibleBedId, resolveNormalizedUpcFlag } from '@/shared/census/upcBedPolicy';
+import {
+  isUciEligibleBedId,
+  isUpcEligibleBedId,
+  resolveNormalizedUpcFlag,
+} from '@/shared/census/upcBedPolicy';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { patchValueArb } from '@/tests/properties/arbitraries';
-import type { PatientData } from '@/types/domain/patient';
-import { PatientStatus } from '@/types/domain/patientClassification';
+import type {
+  CesareanLabor,
+  DeliveryRoute,
+  GinecobstetriciaType,
+  PatientData,
+} from '@/types/domain/patient';
+import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
 
 /**
@@ -22,11 +32,20 @@ import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
  * acompañamiento UPC que exige el servidor, y —la garantía de fondo—
  * aplicar el parche filtrado deja el registro EXACTAMENTE igual que aplicar
  * el parche completo. Las sagas #282–#290 fueron casos particulares de
- * violar alguna de estas cinco frases.
+ * violar alguna de estas cinco frases: por eso el paciente generado incluye
+ * las claves que las originaron (especialidad y campos gineco, checklist UPC,
+ * identidad), en estados consistentes.
  */
 
 const RECORD_DATE = '2026-04-20';
 
+/**
+ * Campos sin acompañantes legítimos: un cambio en uno de ellos debe viajar
+ * SOLO. Quedan fuera a propósito `specialty`/`ginecobstetriciaType` (limpian
+ * campos gineco), `upcChecklist` (arrastra `bedTypeOverrides`) y `rut`
+ * (reemplazo de persona ⇒ limpieza clínica): esos acompañantes son contrato,
+ * no ruido.
+ */
 const PLAIN_KEYS = [
   'age',
   'pathology',
@@ -46,11 +65,6 @@ type PlainKey = (typeof PLAIN_KEYS)[number];
 
 const bedIdArb = fc.constantFrom(...BEDS.map(bed => bed.id));
 
-/**
- * Campos «planos» de un paciente CONSISTENTE: sin cambio de identidad ni de
- * especialidad (que disparan limpiezas legítimas) y con isUPC coherente con
- * la elegibilidad de la cama (el filtro re-ancla isUPC normalizado).
- */
 const plainFieldsArb = (bedId: string) =>
   fc.record({
     age: fc.integer({ min: 0, max: 99 }).map(String),
@@ -64,8 +78,100 @@ const plainFieldsArb = (bedId: string) =>
     admissionDate: fc.constantFrom('2026-04-18', '2026-04-19', RECORD_DATE),
     treatingPhysicianName: fc.option(fc.constantFrom('Dra. Araya', 'Dr. Tuki'), { nil: undefined }),
     insurance: fc.option(fc.constantFrom('Fonasa', 'Isapre', 'Particular'), { nil: undefined }),
+    // Coherente con la elegibilidad de la cama (el filtro re-ancla isUPC normalizado).
     isUPC: isUpcEligibleBedId(bedId) ? fc.boolean() : fc.constant(false),
   });
+
+interface SpecialtyFields {
+  specialty: Specialty;
+  ginecobstetriciaType?: GinecobstetriciaType;
+  deliveryRoute?: DeliveryRoute;
+  deliveryDate?: string;
+  deliveryCesareanLabor?: CesareanLabor;
+}
+
+interface UpcFields {
+  isUPC: boolean;
+  upcChecklist?: UpcChecklistRecord;
+}
+
+const noGinecoFields = {
+  ginecobstetriciaType: undefined,
+  deliveryRoute: undefined,
+  deliveryDate: undefined,
+  deliveryCesareanLabor: undefined,
+};
+
+/** Especialidad y campos gineco CONSISTENTES (solo hay parto si es obstétrica, etc.). */
+const specialtyFieldsArb: fc.Arbitrary<SpecialtyFields> = fc
+  .constantFrom(
+    Specialty.MEDICINA,
+    Specialty.CIRUGIA,
+    Specialty.PEDIATRIA,
+    Specialty.GINECOBSTETRICIA
+  )
+  .chain((specialty): fc.Arbitrary<SpecialtyFields> => {
+    if (specialty !== Specialty.GINECOBSTETRICIA) {
+      return fc.constant<SpecialtyFields>({ specialty, ...noGinecoFields });
+    }
+    return fc
+      .constantFrom<GinecobstetriciaType>('Obstétrica', 'Ginecológica')
+      .chain((ginecobstetriciaType): fc.Arbitrary<SpecialtyFields> => {
+        if (ginecobstetriciaType !== 'Obstétrica') {
+          return fc.constant<SpecialtyFields>({
+            specialty,
+            ...noGinecoFields,
+            ginecobstetriciaType,
+          });
+        }
+        return fc
+          .option(fc.constantFrom<DeliveryRoute>('Vaginal', 'Cesárea'), { nil: undefined })
+          .chain(
+            (deliveryRoute): fc.Arbitrary<SpecialtyFields> =>
+              fc.record({
+                specialty: fc.constant(specialty),
+                ginecobstetriciaType: fc.constant(ginecobstetriciaType),
+                deliveryRoute: fc.constant(deliveryRoute),
+                deliveryDate: fc.option(fc.constant('2026-04-19'), { nil: undefined }),
+                deliveryCesareanLabor:
+                  deliveryRoute === 'Cesárea'
+                    ? fc.option(fc.constantFrom<CesareanLabor>('Sin TdP', 'Con TdP'), {
+                        nil: undefined,
+                      })
+                    : fc.constant<CesareanLabor | undefined>(undefined),
+              })
+          );
+      });
+  });
+
+/** Clasificación UPC consistente con la cama: UCI solo en camas UCI, nada en camas no UPC. */
+const upcFieldsArb = (bedId: string): fc.Arbitrary<UpcFields> => {
+  if (!isUpcEligibleBedId(bedId)) {
+    return fc.constant<UpcFields>({ isUPC: false, upcChecklist: undefined });
+  }
+  const classificationArb = isUciEligibleBedId(bedId)
+    ? fc.constantFrom<'UPC_UCI' | 'UPC_UTI'>('UPC_UCI', 'UPC_UTI')
+    : fc.constant<'UPC_UTI'>('UPC_UTI');
+  return fc.option(classificationArb, { nil: undefined }).map(
+    (classification): UpcFields =>
+      classification
+        ? {
+            isUPC: true,
+            upcChecklist: {
+              uciCriteria: [],
+              utiCriteria: [],
+              classification,
+              evaluatedAt: '2026-04-19T12:00:00.000Z',
+            },
+          }
+        : { isUPC: false, upcChecklist: undefined }
+  );
+};
+
+const patientFieldsArb = (bedId: string): fc.Arbitrary<Partial<PatientData>> =>
+  fc
+    .tuple(plainFieldsArb(bedId), specialtyFieldsArb, upcFieldsArb(bedId))
+    .map(([plain, specialty, upc]) => ({ ...plain, ...specialty, ...upc }));
 
 interface CensusState {
   record: DailyRecord;
@@ -73,7 +179,7 @@ interface CensusState {
 }
 
 const stateArb: fc.Arbitrary<CensusState> = bedIdArb.chain(bedId =>
-  plainFieldsArb(bedId).map(fields => {
+  patientFieldsArb(bedId).map(fields => {
     const record = DataFactory.createMockDailyRecord(RECORD_DATE);
     record.beds[bedId] = DataFactory.createMockPatient(bedId, fields);
     return { record, bedId };
@@ -117,7 +223,9 @@ const flatPatchArb = (state: CensusState): fc.Arbitrary<Record<string, unknown>>
   const { record, bedId } = state;
   const otherBedId = BEDS.find(bed => bed.id !== bedId)?.id ?? bedId;
   const pathArb = fc.oneof(
-    fc.constantFrom<string>(...PLAIN_KEYS, 'upcChecklist').map(key => `beds.${bedId}.${key}`),
+    fc
+      .constantFrom<string>(...PLAIN_KEYS, 'upcChecklist', 'specialty', 'deliveryRoute')
+      .map(key => `beds.${bedId}.${key}`),
     fc.constant(`bedTypeOverrides.${bedId}`),
     fc.constantFrom(
       'nursesDayShift',
@@ -141,10 +249,14 @@ const flatPatchArb = (state: CensusState): fc.Arbitrary<Record<string, unknown>>
 };
 
 describe('buildUpdatePatientPatches · reenvío del paciente', () => {
-  it('reenviar cualquier subconjunto de campos sin cambios no escribe nada', () => {
+  it('reenviar cualquier subconjunto del paciente COMPLETO sin cambios no escribe nada', () => {
+    // Incluye identidad, especialidad/gineco y checklist UPC: las claves cuyo
+    // reenvío «por presencia» mezclaba autoridades en #282–#290.
     fc.assert(
       fc.property(
-        stateArb.chain(state => fc.tuple(fc.constant(state), fc.subarray([...PLAIN_KEYS]))),
+        stateArb.chain(state =>
+          fc.tuple(fc.constant(state), fc.subarray(Object.keys(currentPatientOf(state))))
+        ),
         ([state, keys]) => {
           const current = currentPatientOf(state);
           const resend = Object.fromEntries(
@@ -164,7 +276,7 @@ describe('buildUpdatePatientPatches · reenvío del paciente', () => {
           fc.constant(state),
           fc.constantFrom<PlainKey>(...PLAIN_KEYS),
           plainFieldsArb(state.bedId),
-          fc.subarray([...PLAIN_KEYS])
+          fc.subarray(Object.keys(currentPatientOf(state)))
         )
         .filter(
           ([{ record, bedId }, key, fresh]) =>

@@ -8,7 +8,17 @@ import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
  * `undefined` como «clave ausente», tomas de signos vitales de Eloísa), no
  * datos arbitrarios: la meta es cubrir la clase de entradas real, no todo
  * lo que TypeScript admite.
+ *
+ * Reproducibilidad: fast-check imprime la semilla en cada fallo. Para repetir
+ * exactamente esa corrida: `FC_SEED=<semilla> npx vitest run src/tests/properties`.
+ * `FC_NUM_RUNS=2000` sube el esfuerzo en local sin tocar el CI (100 corridas
+ * por propiedad, semilla aleatoria: fijarla en CI ocultaría bugs).
  */
+fc.configureGlobal({
+  numRuns: Number(process.env.FC_NUM_RUNS ?? 100),
+  ...(process.env.FC_SEED ? { seed: Number(process.env.FC_SEED) } : {}),
+  verbose: 1,
+});
 
 const keyArb = fc.stringMatching(/^[a-z]{1,4}$/);
 
@@ -23,6 +33,10 @@ const scalarArb = fc.oneof(
 /**
  * Valor de PARCHE del registro diario: primitivos, arreglos y objetos
  * simples; dentro de un objeto una clave puede valer `undefined` (borrado).
+ * Nunca hay `undefined` DENTRO de un arreglo: es el contrato «JSON plano»
+ * de Firestore (un arreglo no admite undefined), y ahí las dos igualdades de
+ * la app (`arePatchValuesDeepEqual` y la canonicalización clínica) divergen
+ * a propósito.
  */
 export const patchValueArb: fc.Arbitrary<unknown> = fc.letrec<{ value: unknown; member: unknown }>(
   tie => ({

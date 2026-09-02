@@ -119,8 +119,26 @@ const deviceHistoryArb = fc.array(
   { maxLength: 5 }
 );
 
+type DeviceDetails = Record<string, { removalDate: string } | undefined>;
+type DeviceHistory = Array<{ type: string; status: string; removalDate: string }>;
+
+/**
+ * Contrato documentado del retiro local («device_active_snapshot_preserve_local_retire»):
+ * un dispositivo está retirado si sus detalles traen fecha de retiro, o si su
+ * historial tiene un retiro fechado y ninguna instancia activa.
+ */
+const isRetiredLocally = (device: string, details: DeviceDetails, history: DeviceHistory) => {
+  if (String(details[device]?.removalDate ?? '').trim()) return true;
+  const own = history.filter(item => item.type === device);
+  const hasActive = own.some(item => item.status === 'Active');
+  const hasDatedRemoval = own.some(
+    item => item.status === 'Removed' && String(item.removalDate || '').trim()
+  );
+  return hasDatedRemoval && !hasActive;
+};
+
 describe('mergePatientDevices · propiedades', () => {
-  it('el resultado es un subconjunto sin duplicados de la unión, y un retiro local explícito nunca vuelve', () => {
+  it('conserva EXACTAMENTE los activos del lado preferido: ningún retiro local vuelve y ningún activo se pierde', () => {
     fc.assert(
       fc.property(
         deviceListArb,
@@ -131,12 +149,15 @@ describe('mergePatientDevices · propiedades', () => {
         (remote, local, details, history, preferLocal) => {
           const merged = mergePatientDevices(remote, local, details, history, preferLocal);
           const union = new Set<string>([...remote, ...local]);
-          const detailsByDevice: Record<string, { removalDate: string } | undefined> = details;
+          const preferred: string[] = preferLocal ? local : remote;
 
           expect(new Set(merged).size).toBe(merged.length);
           merged.forEach(device => {
             expect(union.has(device)).toBe(true);
-            expect(String(detailsByDevice[device]?.removalDate ?? '').trim()).toBe('');
+            expect(isRetiredLocally(device, details, history)).toBe(false);
+          });
+          preferred.forEach(device => {
+            expect(merged.includes(device)).toBe(!isRetiredLocally(device, details, history));
           });
         }
       )
@@ -185,6 +206,8 @@ describe('mergePatientDevices · propiedades', () => {
   });
 });
 
+// Nunca genera el comodín '*': es la excepción documentada (todo menos
+// «unknown») y se fija aparte, porque rompe la monotonía a propósito.
 const changedPathArb = fc.constantFrom(
   'beds.R1.pathology',
   'beds.R1.handoffNoteDayShift',
