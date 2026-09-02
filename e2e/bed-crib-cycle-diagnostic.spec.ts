@@ -229,6 +229,99 @@ const readLocalMirror = (page: Page) =>
     };
   }, E2E_DATE);
 
+const readDailyRecordQueueDiag = (page: Page) =>
+  page.evaluate(
+    date =>
+      new Promise<
+        Array<{
+          id?: number;
+          status?: string;
+          mutationId?: string;
+          changedPaths: string[];
+          hasLease: boolean;
+        }>
+      >(resolve => {
+        const request = indexedDB.open('HangaRoaDB');
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction(['syncQueue'], 'readonly');
+          const getAll = tx.objectStore('syncQueue').getAll();
+          getAll.onsuccess = () => {
+            db.close();
+            resolve(
+              (getAll.result || [])
+                .filter(
+                  (task: { type?: string; key?: string }) =>
+                    task.type === 'UPDATE_DAILY_RECORD' && task.key === `daily:${date}`
+                )
+                .map(
+                  (task: {
+                    id?: number;
+                    status?: string;
+                    leaseOwner?: string;
+                    syncContract?: { mutationId?: string; changedPaths?: string[] };
+                  }) => ({
+                    id: task.id,
+                    status: task.status,
+                    mutationId: task.syncContract?.mutationId,
+                    changedPaths: task.syncContract?.changedPaths || [],
+                    hasLease: Boolean(task.leaseOwner),
+                  })
+                )
+            );
+          };
+        };
+      }),
+    E2E_DATE
+  );
+
+const seedPendingClinicalCribEditTask = (page: Page) =>
+  page.evaluate(
+    date =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open('HangaRoaDB');
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction(['dailyRecords', 'syncQueue'], 'readwrite');
+          const records = tx.objectStore('dailyRecords');
+          const queue = tx.objectStore('syncQueue');
+          const getRecord = records.get(date);
+          getRecord.onerror = () => reject(getRecord.error);
+          getRecord.onsuccess = () => {
+            const record = getRecord.result;
+            if (!record) {
+              reject(new Error(`No local record available for ${date}`));
+              return;
+            }
+            queue.add({
+              opId: `diag-pending-crib-edit-${Date.now()}`,
+              type: 'UPDATE_DAILY_RECORD',
+              payload: record,
+              timestamp: Date.now(),
+              retryCount: 0,
+              status: 'PENDING',
+              key: `daily:${date}`,
+              // Prevent the worker from claiming the synthetic H4 precondition;
+              // only the confirmed CLEAR may supersede it atomically.
+              preOutboxHoldUntil: Date.now() + 60_000,
+              syncContract: {
+                mutationId: 'diag-pending-clinical-crib-edit',
+                changedPaths: ['beds.R1.clinicalCrib.patientName'],
+              },
+            });
+          };
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error);
+        };
+      }),
+    E2E_DATE
+  );
+
 const waitLocalMirror = async (
   page: Page,
   expected: { hasClinicalCrib: boolean; cribName?: string }
@@ -322,19 +415,40 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
     mark(scenario, 'create.projection_visible', { projectionMs: createProjectionMs });
 
     // ---- EDIT (cuna) ----
-    // La edición ordinaria ejecuta assertFirestoreConcurrency (lectura directa a
-    // Firestore) ANTES de escribir; en este entorno con el callable interceptado y
-    // sin emulador esa lectura falla como offline, así que la edición queda
-    // local-first con una tarea de outbox pendiente. Eso reproduce de forma natural
-    // el escenario H4 del dossier: el CLEAR siguiente debe adoptar el ACK remoto
-    // con un outbox pendiente del mismo árbol cama–cuna.
+    // La edición es local-first, pero la ruta actual alcanza el callable sin la
+    // antigua lectura remota redundante. Confirmarla explícitamente evita confundir
+    // su ACK con el comando de limpieza que viene después.
     const cribNameInput = getCribRow(page).locator('input[name="patientName"]');
     await cribNameInput.fill('RN Editado Diagnostico');
     mark(scenario, 'edit.action_committed');
     await waitLocalMirror(page, { hasClinicalCrib: true, cribName: 'RN Editado Diagnostico' });
     mark(scenario, 'edit.indexeddb_committed_local_first', {
-      note: 'remote write falla offline (lectura directa previa); outbox queda pendiente',
+      note: 'la proyección local precede al ACK remoto',
     });
+    const editCall = await authority.nextCall();
+    expect(editCall.payload.intentionalBedClear).toBeNull();
+    expect(Object.keys(editCall.payload.patch)).toContain('beds.R1.clinicalCrib.patientName');
+    mark(scenario, 'edit.callable_started', {
+      commandId: editCall.payload.syncContract?.mutationId,
+      paths: Object.keys(editCall.payload.patch),
+    });
+    await editCall.succeed();
+    mark(scenario, 'edit.server_commit_and_ack_released');
+    await expect.poll(() => readDailyRecordQueueDiag(page)).toEqual([]);
+
+    // Reproduce H4 deterministically: an older local edit owns the same crib
+    // subtree while the guarded CLEAR is confirmed. The hold keeps the worker
+    // out of the race, so only atomic authoritative adoption can remove it.
+    await seedPendingClinicalCribEditTask(page);
+    await expect.poll(() => readDailyRecordQueueDiag(page)).toMatchObject([
+      {
+        status: 'PENDING',
+        mutationId: 'diag-pending-clinical-crib-edit',
+        changedPaths: ['beds.R1.clinicalCrib.patientName'],
+        hasLease: false,
+      },
+    ]);
+    mark(scenario, 'edit.pending_outbox_precondition_established');
 
     // ---- CLEAR (cuna) ----
     await armCribRowWatcher(page);
@@ -348,13 +462,38 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
       projectionMs: clearDiag.tCribHidden - clearDiag.t0,
     });
     const clearCall = await authority.nextCall();
+    expect(clearCall.payload.intentionalBedClear).toMatchObject({
+      bedId: 'R1',
+      target: 'clinicalCrib',
+    });
+    const queueBeforeClearAck = await readDailyRecordQueueDiag(page);
+    expect(queueBeforeClearAck).toMatchObject([
+      {
+        status: 'PENDING',
+        mutationId: 'diag-pending-clinical-crib-edit',
+        changedPaths: ['beds.R1.clinicalCrib.patientName'],
+        hasLease: false,
+      },
+    ]);
     mark(scenario, 'clear.callable_started', {
       commandId: clearCall.payload.syncContract?.mutationId,
       intentionalBedClear: clearCall.payload.intentionalBedClear,
+      paths: Object.keys(clearCall.payload.patch),
+      queue: queueBeforeClearAck,
     });
     await clearCall.succeed();
-    await waitLocalMirror(page, { hasClinicalCrib: false });
+    try {
+      await waitLocalMirror(page, { hasClinicalCrib: false });
+    } catch (error) {
+      mark(scenario, 'clear.local_adoption_failed', {
+        queue: await readDailyRecordQueueDiag(page),
+        mirror: await readLocalMirror(page),
+      });
+      throw error;
+    }
     mark(scenario, 'clear.indexeddb_committed');
+    await expect.poll(() => readDailyRecordQueueDiag(page)).toEqual([]);
+    mark(scenario, 'clear.pending_outbox_superseded');
 
     // ---- RELOAD ----
     await page.reload();
