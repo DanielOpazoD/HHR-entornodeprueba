@@ -48,6 +48,14 @@ describe('firestoreRecordQueries → detector de tormenta de permisos', () => {
     expect(reportBasicReadPermissionDenied).toHaveBeenCalledWith('records:getRecord');
   });
 
+  it('un token inválido (unauthenticated) también cuenta como pérdida de autorización', async () => {
+    vi.mocked(getDoc).mockRejectedValueOnce({ code: 'unauthenticated', message: 'invalid token' });
+
+    await getRecordFromFirestoreDetailed('2026-09-01');
+
+    expect(reportBasicReadPermissionDenied).toHaveBeenCalledWith('records:getRecord');
+  });
+
   it('un error que no es de permisos no alimenta el detector', async () => {
     vi.mocked(getDoc).mockRejectedValueOnce({ code: 'unavailable', message: 'network down' });
 

@@ -1,5 +1,5 @@
 import { doc } from 'firebase/firestore';
-import { isPermissionDeniedError } from '@/services/storage/firestore/firestoreRecordWriteUtilities';
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
 import { reportBasicReadPermissionDenied } from '@/services/auth/sessionPermissionStormDetector';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { withRetry } from '@/utils/networkUtils';
@@ -83,7 +83,8 @@ const subscribeStringCatalog = (
     },
     onError: error => {
       firestoreCatalogLogger.error(`Error preparing ${errorLabel} subscription`, error);
-      if (isPermissionDeniedError(error)) reportBasicReadPermissionDenied(`catalog:${errorLabel}`);
+      if (classifySyncError(error).category === 'authorization')
+        reportBasicReadPermissionDenied(`catalog:${errorLabel}`);
       callback([]);
     },
   });
@@ -150,7 +151,8 @@ const subscribeToProfessionalsCatalogWithRuntime = (
     },
     onError: error => {
       firestoreCatalogLogger.error('Error preparing professionals catalog subscription', error);
-      if (isPermissionDeniedError(error)) reportBasicReadPermissionDenied('catalog:professionals');
+      if (classifySyncError(error).category === 'authorization')
+        reportBasicReadPermissionDenied('catalog:professionals');
       callback([]);
     },
   });

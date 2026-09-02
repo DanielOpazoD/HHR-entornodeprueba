@@ -149,11 +149,12 @@ export const useAuthState = (): UseAuthStateReturn => {
     []
   );
   useInactivityLogout(currentUser, handleLogout);
-  // Solo para sesiones plenamente autorizadas: la firma anónima (signature
-  // mode) no tiene rol efectivo en las reglas y cualquier lectura básica suya
-  // se deniega por diseño — no es una sesión perdida.
+  // Solo para sesiones plenamente autorizadas con Firebase Auth real: la firma
+  // anónima (signature mode) no tiene rol efectivo en las reglas y el usuario
+  // de bootstrap E2E no tiene sesión Firebase — en ambos casos las lecturas
+  // básicas se deniegan por diseño, no por una sesión perdida.
   useSessionPermissionGuard(
-    sessionState.status === 'authorized' ? currentUser : null,
+    sessionState.status === 'authorized' && !e2eBootstrapUser ? currentUser : null,
     handleLogout,
     setSessionState
   );

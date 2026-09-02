@@ -7,6 +7,7 @@ import {
   shouldIgnoreTransientUnauthenticatedBootstrapEvent,
   shouldResolveAuthBootstrapImmediatelyAsUnauthenticated,
   shouldLogSessionLogin,
+  SESSION_PERMISSION_STORM_CAUSE,
   shouldPreserveUnauthorizedSessionReason,
 } from '@/hooks/controllers/authBootstrapController';
 import type { AuthSessionState } from '@/types/authSessionTypes';
@@ -113,24 +114,25 @@ describe('authBootstrapController', () => {
     ).toBe(false);
   });
 
-  it('un evento unauthenticated no degrada un unauthorized que trae razón (sesión sin permisos)', () => {
-    const unauthorizedWithReason = {
+  it('un evento unauthenticated no degrada SOLO el unauthorized de la guarda de sesión (por su causa)', () => {
+    const guardState = {
       status: 'unauthorized',
       user: null,
       reason: 'Tu sesión perdió los permisos. Vuelve a iniciar sesión.',
+      technicalContext: { cause: SESSION_PERMISSION_STORM_CAUSE },
     } as AuthSessionState;
     const unauthenticated = { status: 'unauthenticated', user: null } as AuthSessionState;
-    const unauthorizedWithoutReason = { status: 'unauthorized', user: null } as AuthSessionState;
+    // Otros unauthorized llevan códigos crudos y deben poder ser reemplazados.
+    const roleNotResolved = {
+      status: 'unauthorized',
+      user: null,
+      reason: 'role_not_resolved',
+    } as AuthSessionState;
 
-    expect(shouldPreserveUnauthorizedSessionReason(unauthorizedWithReason, unauthenticated)).toBe(
-      true
-    );
-    // Sin razón no hay nada que preservar; y un estado autenticado entrante siempre gana.
+    expect(shouldPreserveUnauthorizedSessionReason(guardState, unauthenticated)).toBe(true);
+    expect(shouldPreserveUnauthorizedSessionReason(roleNotResolved, unauthenticated)).toBe(false);
     expect(
-      shouldPreserveUnauthorizedSessionReason(unauthorizedWithoutReason, unauthenticated)
-    ).toBe(false);
-    expect(
-      shouldPreserveUnauthorizedSessionReason(unauthorizedWithReason, {
+      shouldPreserveUnauthorizedSessionReason(guardState, {
         status: 'authorized',
         user: { uid: 'u1', email: 'u1@h.test', role: 'nurse' },
       } as unknown as AuthSessionState)

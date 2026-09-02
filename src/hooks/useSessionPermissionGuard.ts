@@ -1,13 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, type Dispatch, type SetStateAction } from 'react';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser } from '@/types/authRoleTypes';
 import { createUnauthorizedAuthSessionState } from '@/services/auth/authSessionState';
 import {
-  resetSessionPermissionStormDetector,
+  armSessionPermissionStormDetector,
   subscribeToSessionPermissionStorm,
+  type SessionPermissionStorm,
 } from '@/services/auth/sessionPermissionStormDetector';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 import { authStateLogger } from '@/hooks/hookLoggers';
+import { SESSION_PERMISSION_STORM_CAUSE } from '@/hooks/controllers/authBootstrapController';
 
 /**
  * Mensaje único del caso «sesión sin permisos». Lo muestra la pantalla de
@@ -17,6 +19,20 @@ import { authStateLogger } from '@/hooks/hookLoggers';
  */
 export const SESSION_PERMISSIONS_LOST_MESSAGE =
   'Tu sesión perdió los permisos para leer los datos del hospital (normalmente porque expiró). Vuelve a iniciar sesión.';
+
+export const createSessionPermissionsLostState = (): AuthSessionState =>
+  createUnauthorizedAuthSessionState(SESSION_PERMISSIONS_LOST_MESSAGE, {
+    cause: SESSION_PERMISSION_STORM_CAUSE,
+  });
+
+// Varias instancias de useAuthState se suscriben a la misma tormenta: el efecto
+// con consecuencias (logout, auditoría, aviso a otras pestañas) corre UNA vez.
+let lastHandledStormAt: number | null = null;
+
+/** Solo para tests. */
+export const resetSessionPermissionGuardForTests = (): void => {
+  lastHandledStormAt = null;
+};
 
 /**
  * Guarda global de sesión: cuando el detector anuncia una tormenta de permisos
@@ -29,34 +45,40 @@ export const SESSION_PERMISSIONS_LOST_MESSAGE =
 export const useSessionPermissionGuard = (
   user: AuthUser | null,
   handleLogout: (reason?: 'manual' | 'automatic') => Promise<void>,
-  setSessionState: (state: AuthSessionState) => void
+  setSessionState: Dispatch<SetStateAction<AuthSessionState>>
 ): void => {
-  // Se re-arma solo cuando cambia la PERSONA (uid), no la identidad del objeto
-  // de sesión: re-armar en cada transición de estado borraría la ventana de
-  // denegaciones justo mientras la tormenta ocurre.
   const uid = user?.uid ?? null;
   useEffect(() => {
     if (!uid) return undefined;
-    // Cada inicio de sesión empieza sin historial de denegaciones.
-    resetSessionPermissionStormDetector();
-    let handled = false;
-    const unsubscribe = subscribeToSessionPermissionStorm(storm => {
-      if (handled) return;
-      handled = true;
-      authStateLogger.warn('Logout due to a permission-denied storm on basic reads', storm);
-      recordOperationalTelemetry({
-        category: 'auth',
-        operation: 'session_permission_storm_logout',
-        status: 'degraded',
-        runtimeState: 'unauthorized',
-        issues: [SESSION_PERMISSIONS_LOST_MESSAGE],
-        context: { sources: storm.sources, detectedAt: storm.detectedAt },
-      });
-      void handleLogout('automatic').finally(() => {
-        // Después de la limpieza: reemplaza el «unauthenticated» genérico del
-        // logout por la razón concreta, que es lo que la pantalla de acceso muestra.
-        setSessionState(createUnauthorizedAuthSessionState(SESSION_PERMISSIONS_LOST_MESSAGE));
-      });
+    armSessionPermissionStormDetector(uid);
+    const unsubscribe = subscribeToSessionPermissionStorm((storm: SessionPermissionStorm) => {
+      const isFirstHandler = lastHandledStormAt !== storm.detectedAt;
+      lastHandledStormAt = storm.detectedAt;
+      if (isFirstHandler) {
+        authStateLogger.warn('Logout due to a permission-denied storm on basic reads', storm);
+        recordOperationalTelemetry({
+          category: 'auth',
+          operation: 'session_permission_storm_logout',
+          status: 'degraded',
+          runtimeState: 'unauthorized',
+          issues: [SESSION_PERMISSIONS_LOST_MESSAGE],
+          context: { sources: storm.sources, detectedAt: storm.detectedAt },
+        });
+        // handleLogout fija 'unauthenticated' de forma SÍNCRONA antes de su
+        // primer await; no se espera su promesa: la auditoría del logout puede
+        // quedar pendiente hasta un re-login y un setter tardío pisaría una
+        // sesión nueva (revisión adversarial 01-09).
+        void handleLogout('automatic');
+      }
+      // Cada instancia deja la razón en SU estado, solo sobre la sesión que se
+      // está cerrando (la autorizada o el 'unauthenticated' que acaba de dejar
+      // el logout). La política de preservación evita que el listener de
+      // Firebase la pise después.
+      setSessionState(current =>
+        current.status === 'unauthenticated' || current.status === 'authorized'
+          ? createSessionPermissionsLostState()
+          : current
+      );
     });
     return unsubscribe;
   }, [uid, handleLogout, setSessionState]);

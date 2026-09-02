@@ -26,15 +26,21 @@ export const shouldDeferUnauthenticatedSessionState = ({
 
 /**
  * Un evento «unauthenticated» del listener de Firebase (p. ej. el que sigue al
- * signOut) nunca degrada un «unauthorized» explícito: ese estado carga la
- * RAZÓN que la pantalla de acceso muestra (sesión sin permisos). Sin esta
- * política, el listener pisaba la razón según el orden en que llegara.
+ * signOut) no degrada el «unauthorized» que produce la guarda de sesión: ese
+ * estado carga la RAZÓN que la pantalla de acceso muestra (sesión sin
+ * permisos). Es específico a esa causa a propósito: otros «unauthorized»
+ * llevan códigos crudos (p. ej. role_not_resolved) que sí deben poder ser
+ * reemplazados por el logout que los sigue.
  */
+export const SESSION_PERMISSION_STORM_CAUSE = 'session_permission_storm';
+
 export const shouldPreserveUnauthorizedSessionReason = (
   current: AuthSessionState,
   next: AuthSessionState
 ): boolean =>
-  current.status === 'unauthorized' && Boolean(current.reason) && next.status === 'unauthenticated';
+  current.status === 'unauthorized' &&
+  current.technicalContext?.cause === SESSION_PERMISSION_STORM_CAUSE &&
+  next.status === 'unauthenticated';
 
 export const shouldAttemptAuthTimeoutRecovery = ({
   hasRecentManualLogout,

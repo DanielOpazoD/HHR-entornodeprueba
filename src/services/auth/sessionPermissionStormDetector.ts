@@ -10,6 +10,12 @@
  * una ventana corta. Una sola fuente denegada puede ser un permiso legítimo por
  * rol; dos fuentes básicas distintas en pocos segundos no lo son. Solo deben
  * reportar aquí lecturas que cualquier rol autorizado puede hacer.
+ *
+ * Estado de módulo a propósito: hay varias instancias de useAuthState y todas
+ * deben ver la MISMA ventana. Por eso el armado es por uid e idempotente:
+ * re-armar con el mismo uid no borra las denegaciones ya acumuladas (las
+ * suscripciones denegadas no vuelven a fallar: si se borrara la ráfaga inicial,
+ * la tormenta nunca se detectaría).
  */
 export const SESSION_PERMISSION_STORM_WINDOW_MS = 10_000;
 export const SESSION_PERMISSION_STORM_DISTINCT_SOURCES = 2;
@@ -24,6 +30,7 @@ type StormListener = (storm: SessionPermissionStorm) => void;
 const recentDenials = new Map<string, number>();
 const listeners = new Set<StormListener>();
 let stormAnnouncedAt: number | null = null;
+let armedUid: string | null = null;
 
 const pruneOutsideWindow = (now: number): void => {
   for (const [source, at] of recentDenials) {
@@ -58,8 +65,21 @@ export const subscribeToSessionPermissionStorm = (listener: StormListener): (() 
   };
 };
 
-/** Limpia el estado (nuevo inicio de sesión o tests). */
+/**
+ * Arma el detector para una sesión. Solo un uid NUEVO limpia el historial;
+ * volver a armar con el mismo uid (otra instancia del hook, otro estado de
+ * sesión de la misma persona) no borra nada.
+ */
+export const armSessionPermissionStormDetector = (uid: string): void => {
+  if (armedUid === uid) return;
+  armedUid = uid;
+  recentDenials.clear();
+  stormAnnouncedAt = null;
+};
+
+/** Limpia todo el estado (tests). */
 export const resetSessionPermissionStormDetector = (): void => {
   recentDenials.clear();
   stormAnnouncedAt = null;
+  armedUid = null;
 };
