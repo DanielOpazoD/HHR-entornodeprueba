@@ -267,4 +267,179 @@ describe('egreso report eligibility', () => {
     expect(result.rows).toEqual([reportRow]);
     expect(result.diff.conflicts).toHaveLength(0);
   });
+
+  it('madre y RN bajo el mismo RUN: el informe queda ambiguo, pero el alta ya planificada por Ficha Médico no es un conflicto', () => {
+    // Visto en vivo (02-09, H5C1): las dos filas del informe comparten RUN → la
+    // vinculación exacta es ambigua ('unverified') y se exigía revisión de un alta
+    // que sí se aplicaba (la madre por el censo; la cuna como alta asociada).
+    const record: DailyRecord = {
+      date: '2026-09-02',
+      beds: {
+        H5C1: {
+          ...EMPTY_PATIENT,
+          bedId: 'H5C1',
+          patientName: 'Tania Cristina Valencia Ladino',
+          rut: '28.106.852-0',
+          clinicalEpisodeId: 'EP-MADRE',
+          admissionDate: '2026-08-31',
+          clinicalCrib: {
+            ...EMPTY_PATIENT,
+            bedId: 'H5C1',
+            patientName: 'Rn De Tania Valencia Ladino',
+            rut: '28.106.852-0',
+            clinicalEpisodeId: 'EP-RN',
+          },
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const diff: CensusImportDiff = {
+      ...emptyDiff(),
+      discharges: [
+        {
+          bedId: 'H5C1',
+          rut: '28.106.852-0',
+          patientName: 'Tania Cristina Valencia Ladino',
+          kind: 'alta',
+          status: 'Vivo',
+          reason: 'administrative-discharge',
+          encounterId: 'EP-MADRE',
+        } as CensusImportDiff['discharges'][number],
+      ],
+    };
+    const baseRow = {
+      encounterId: '',
+      run: '28.106.852-0',
+      bedLabel: 'H5C1',
+      servicio: 'Ginecobstetricia',
+      edad: '18',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: '02-09-2026 10:00',
+      exactEpisodeVerification: 'unverified' as const,
+    };
+    const rows = [
+      { ...baseRow, patientName: 'Tania Cristina Valencia Ladino' },
+      { ...baseRow, patientName: 'Rn De Tania Valencia Ladino', edad: '0' },
+    ];
+
+    const result = selectEligibleEgresoRows(diff, rows, record);
+
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toEqual([]);
+  });
+
+  it('con una cuna ocupada y un egreso planificado que no es alta viva, la fila ambigua conserva la revisión', () => {
+    const record: DailyRecord = {
+      date: '2026-09-02',
+      beds: {
+        H5C1: {
+          ...EMPTY_PATIENT,
+          bedId: 'H5C1',
+          patientName: 'Madre Trasladada',
+          rut: '22.222.222-2',
+          clinicalEpisodeId: 'EP-MADRE',
+          clinicalCrib: {
+            ...EMPTY_PATIENT,
+            bedId: 'H5C1',
+            patientName: 'Rn De Madre Trasladada',
+            rut: '22.222.222-2',
+            clinicalEpisodeId: 'EP-RN',
+          },
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const diff: CensusImportDiff = {
+      ...emptyDiff(),
+      discharges: [
+        {
+          bedId: 'H5C1',
+          rut: '22.222.222-2',
+          patientName: 'Madre Trasladada',
+          kind: 'traslado',
+          status: 'Vivo',
+          reason: 'administrative-discharge',
+          encounterId: 'EP-MADRE',
+        } as CensusImportDiff['discharges'][number],
+      ],
+    };
+    const row = {
+      encounterId: '',
+      run: '22.222.222-2',
+      patientName: 'Rn De Madre Trasladada',
+      bedLabel: 'H5C1',
+      servicio: 'Ginecobstetricia',
+      edad: '0',
+      destino: 'Traslado',
+      motivo: 'Traslado',
+      fechaEgreso: '02-09-2026 10:00',
+      exactEpisodeVerification: 'unverified' as const,
+    };
+
+    const result = selectEligibleEgresoRows(diff, [row], record);
+
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toHaveLength(1);
+    expect(result.diff.conflicts[0]?.reason).toContain('no pudo vincularse');
+  });
+
+  it('sin cuna, una fila ambigua de un paciente cuyo egreso ya planifica el censo no exige revisión', () => {
+    const record: DailyRecord = {
+      date: '2026-09-02',
+      beds: {
+        R2: {
+          ...EMPTY_PATIENT,
+          bedId: 'R2',
+          patientName: 'Paciente Egresando',
+          rut: '33.333.333-3',
+          clinicalEpisodeId: 'EP-1',
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const diff: CensusImportDiff = {
+      ...emptyDiff(),
+      discharges: [
+        {
+          bedId: 'R2',
+          rut: '33.333.333-3',
+          patientName: 'Paciente Egresando',
+          kind: 'alta',
+          status: 'Vivo',
+          reason: 'administrative-discharge',
+          encounterId: 'EP-1',
+        } as CensusImportDiff['discharges'][number],
+      ],
+    };
+    const row = {
+      encounterId: '',
+      run: '33.333.333-3',
+      patientName: 'Paciente Egresando',
+      bedLabel: 'R2',
+      servicio: 'Medicina',
+      edad: '50',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: '02-09-2026 10:00',
+      exactEpisodeVerification: 'unverified' as const,
+    };
+
+    const result = selectEligibleEgresoRows(diff, [row], record);
+
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toEqual([]);
+  });
 });

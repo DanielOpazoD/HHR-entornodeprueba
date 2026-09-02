@@ -90,6 +90,29 @@ export const selectEligibleEgresoRows = (
       ? hasRecordedMovement(record, '', reportedEpisode)
       : Boolean(run) && hasRecordedMovement(record, run);
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
+    // El censo de Ficha Médico ya planifica el egreso de este RUN/episodio (su
+    // evidencia de Gestión de Camas se usó para confirmarlo): la fila del
+    // informe es redundante, no un cambio nuevo. Con un RN registrado bajo el
+    // RUN de la madre, el informe trae DOS filas con el mismo RUN, la
+    // vinculación exacta queda ambigua ('unverified') y se exigía revisión de
+    // un alta que sí se aplicaba (visto en vivo el 02-09: H5C1 madre + cuna,
+    // corrida «Parcial» con banner por un conflicto falso). La cuna sale como
+    // alta asociada con la madre (alta, vivo); si no, se conserva la revisión.
+    if (row.exactEpisodeVerification === 'unverified') {
+      const plannedDischarge = diff.discharges.find(
+        entry =>
+          (Boolean(reportedEpisode) &&
+            (entry.encounterId === reportedEpisode ||
+              entry.source?.encounterId === reportedEpisode)) ||
+          (Boolean(run) && normalizeRut(entry.rut) === run)
+      );
+      const cribRidesAlong =
+        !currentCrib ||
+        (plannedDischarge?.kind === 'alta' &&
+          plannedDischarge.status === 'Vivo' &&
+          Boolean(record.beds[plannedDischarge.bedId]?.clinicalCrib));
+      if (plannedDischarge && cribRidesAlong) continue;
+    }
     if (row.exactEpisodeVerification === 'unverified') {
       nextDiff = appendReportConflict(nextDiff, {
         bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
