@@ -13,7 +13,7 @@ import {
   RayenSyncEventSchema,
   RayenSyncMetaSchema,
 } from './zod/dailyRecord';
-import type { RayenSyncEvent, RayenSyncMeta } from '@/types/domain/rayenSync';
+import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import { buildFallbackPatientData } from './zodFallbackBuilders';
@@ -131,9 +131,7 @@ export const parseDailyRecordWithDefaultsReport = (
   // entero y la siguiente corrida lo reescribía con un solo evento.
   const salvagedRayenSyncHistory = salvageArrayItems<RayenSyncEvent>(
     raw.rayenSyncHistory,
-    RayenSyncEventSchema as unknown as {
-      safeParse: (value: unknown) => SafeParseReturnType<unknown, RayenSyncEvent>;
-    }
+    RayenSyncEventSchema
   );
   const salvagedRayenSyncMeta = RayenSyncMetaSchema.safeParse(raw.rayenSync);
 
@@ -179,9 +177,7 @@ export const parseDailyRecordWithDefaultsReport = (
       ...(Array.isArray(raw.rayenSyncHistory)
         ? { rayenSyncHistory: salvagedRayenSyncHistory.values }
         : {}),
-      ...(salvagedRayenSyncMeta.success
-        ? { rayenSync: salvagedRayenSyncMeta.data as RayenSyncMeta }
-        : {}),
+      ...(salvagedRayenSyncMeta.success ? { rayenSync: salvagedRayenSyncMeta.data } : {}),
     } as DailyRecord),
     report: {
       nullNormalization,

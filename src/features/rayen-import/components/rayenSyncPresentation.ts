@@ -331,8 +331,12 @@ export const presentRayenSyncRecovery = (
   }
   // La salud dice «lista» pero la pestaña no puede leer: reintentar sin
   // recargarla vuelve a fallar en 1 s (visto en vivo el 02-09). El remedio es
-  // la recarga; recién después tiene sentido «Revisar censo».
-  if (event.failureReason === 'ficha_medico_stale') {
+  // la recarga; recién después tiene sentido «Revisar censo». Con la
+  // extensión ausente o incompatible manda esa condición, no esta.
+  if (
+    event.failureReason === 'ficha_medico_stale' &&
+    (connection === 'ready' || connection === 'blocked')
+  ) {
     return {
       title: 'Ficha Médico quedó inactiva',
       detail:
