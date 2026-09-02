@@ -32,7 +32,7 @@
     const value = (
       safeSession.expiresAt ||
       safeSession.expires ||
-      safeSession.expirationDateTime ||
+      safeSession.expirationDate || safeSession.expirationDateTime || // expirationDate: campo real de Eloísa (02-09)
       safeSession.expiration ||
       safePayload.expiresAt ||
       safePayload.expires

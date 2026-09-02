@@ -31,14 +31,23 @@
   const SESSION_MISSING_MESSAGE = 'La sesión clínica de Ficha Médico no está disponible.';
 
   /**
+   * A remembered network failure blocks the health probe only for this long. Seen live on
+   * 02-09: the same tab failed at 08:51 and read 15 encounters at 08:54, so a failure can be a
+   * transient backend/network blip. Blocking until the next successful read would trap the
+   * operator (the honest button stays disabled, so no read ever runs to clear it).
+   */
+  const READ_BLOCK_TTL_MS = 2 * 60 * 1000;
+
+  /**
    * One self-heal attempt on a network failure: `rebind` drops the captured list URL / API
    * origin so the retry runs against the default backend with a freshly verified context. If
    * the retry also fails at network level the failure is remembered, and `isReadBlocked()` lets
-   * the health probe stop reporting the tab as ready until a read succeeds again. HTTP errors
-   * (4xx/5xx) never retry: they are answers, not a broken tab.
+   * the health probe stop reporting the tab as ready for READ_BLOCK_TTL_MS or until a read
+   * succeeds. HTTP errors (4xx/5xx) never retry: they are answers, not a broken tab.
    */
-  const createSelfHealingReader = ({ readOnce, rebind, now }) => {
+  const createSelfHealingReader = ({ readOnce, rebind, now, blockTtlMs }) => {
     const clock = typeof now === 'function' ? now : () => Date.now();
+    const ttl = Number.isFinite(blockTtlMs) && blockTtlMs > 0 ? blockTtlMs : READ_BLOCK_TTL_MS;
     let lastFailure = null;
 
     const read = async () => {
@@ -64,7 +73,7 @@
 
     return {
       read,
-      isReadBlocked: () => lastFailure !== null,
+      isReadBlocked: () => lastFailure !== null && clock() - lastFailure.at < ttl,
       getLastFailure: () => lastFailure,
     };
   };
@@ -77,6 +86,7 @@
   };
 
   root.HhrFichaMedicoReadResilience = {
+    READ_BLOCK_TTL_MS,
     isNetworkFailure,
     describeNetworkFailure,
     createSelfHealingReader,

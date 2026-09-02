@@ -218,7 +218,7 @@
       "hotspots": {}
     },
     "fichamedico-read-resilience.js": {
-      "maxLines": 86,
+      "maxLines": 96,
       "hotspots": {}
     },
     "fichamedico-transport-runtime.js": {

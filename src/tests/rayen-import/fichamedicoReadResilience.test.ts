@@ -10,12 +10,14 @@ type Reader = {
 };
 
 type Resilience = {
+  READ_BLOCK_TTL_MS: number;
   isNetworkFailure: (error: unknown) => boolean;
   describeNetworkFailure: (error: unknown, url: string) => Error;
   createSelfHealingReader: (input: {
     readOnce: () => Promise<unknown>;
     rebind: () => void;
     now?: () => number;
+    blockTtlMs?: number;
   }) => Reader;
   describeSessionStatus: (input: { sessionReady: boolean; readBlocked: boolean }) => {
     ready: boolean;
@@ -94,6 +96,26 @@ describe('HhrFichaMedicoReadResilience', () => {
       ready: true,
       message: 'Ficha Médico disponible. Sesión clínica vigente.',
     });
+  });
+
+  it('el bloqueo de salud caduca solo (2 min) para no atrapar al operador tras un fallo transitorio', async () => {
+    let clock = 1_000_000;
+    const reader = resilience.createSelfHealingReader({
+      readOnce: async () => {
+        throw new TypeError('Failed to fetch');
+      },
+      rebind: () => undefined,
+      now: () => clock,
+    });
+
+    await expect(reader.read()).rejects.toThrow('Failed to fetch');
+    expect(reader.isReadBlocked()).toBe(true);
+    clock += resilience.READ_BLOCK_TTL_MS - 1;
+    expect(reader.isReadBlocked()).toBe(true);
+    clock += 1;
+    expect(reader.isReadBlocked()).toBe(false);
+    // El fallo sigue registrado para diagnóstico aunque ya no bloquee.
+    expect(reader.getLastFailure()?.message).toBe('Failed to fetch');
   });
 
   it('un error HTTP no reintenta ni bloquea; una sesión ausente sigue siendo la causa principal', async () => {
