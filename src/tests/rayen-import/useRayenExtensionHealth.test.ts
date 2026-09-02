@@ -85,6 +85,37 @@ describe('deriveHealthState', () => {
     expect(expiring.message).toContain('Renuévala');
   });
 
+  it('bloquea el arranque cuando la sesión de Ficha Médico está por vencer (extensión ≥ 0.48.5)', () => {
+    // Eloísa da sesiones de 24 h que vencen a hora fija (medido: 08:28), en
+    // plena mañana de censo; antes la vigencia de Ficha Médico ni se publicaba.
+    const expiring = deriveHealthState(
+      makeReport({
+        fichaMedico: {
+          status: 'ready',
+          message: 'Ficha Médico disponible. Sesión clínica vigente.',
+          remainingSeconds: 150,
+        },
+      })
+    );
+    expectConnection(expiring, 'blocked', false);
+    expect(expiring.message).toContain('Ficha Médico vence en ~3 min');
+    expect(expiring.message).toContain('iniciar sesión en Eloísa');
+
+    expectConnection(
+      deriveHealthState(
+        makeReport({
+          fichaMedico: {
+            status: 'ready',
+            message: 'Ficha Médico disponible. Sesión clínica vigente.',
+            remainingSeconds: 23 * 3600,
+          },
+        })
+      ),
+      'ready',
+      true
+    );
+  });
+
   it('permite sincronizar con vigencia holgada o sin expiración informada', () => {
     expectConnection(
       deriveHealthState(

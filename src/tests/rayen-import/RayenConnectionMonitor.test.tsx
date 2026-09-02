@@ -31,6 +31,8 @@ const baseExtension = (
       status: 'ready',
       message: 'Ficha Médico disponible. Sesión clínica vigente.',
       identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+      // Sesión de 24 h de Eloísa (extensión ≥ 0.48.5 publica la vigencia).
+      remainingSeconds: 23 * 3600 + 5 * 60,
     },
     gestionCamas: {
       status: 'ready',
@@ -65,7 +67,8 @@ describe('RayenConnectionMonitor', () => {
     renderMonitor(baseExtension());
 
     expect(screen.getByText('Conectada')).toBeVisible();
-    expect(screen.getByText('Daniel Opazo · Médico')).toBeVisible();
+    // La vigencia larga se lee en horas; la identidad sigue primero.
+    expect(screen.getByText('Daniel Opazo · Médico · vence en ~23 h')).toBeVisible();
     expect(screen.getByText(/vence en ~30 min · verificada hace 3 min/)).toBeVisible();
     expect(screen.getByText(/v0\.48\.3 · estado hace 45 s/)).toBeVisible();
     // Con todo verde no corresponde ofrecer la conexión de Gestión de Camas.

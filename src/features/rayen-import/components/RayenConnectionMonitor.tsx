@@ -34,7 +34,9 @@ const remainingLabel = (source: RayenSourceHealth | undefined): string | null =>
   const seconds = source?.remainingSeconds;
   if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return null;
   const minutes = Math.max(0, Math.ceil(seconds / 60));
-  return minutes <= 0 ? 'vencida' : `vence en ~${minutes} min`;
+  if (minutes <= 0) return 'vencida';
+  // Sesiones largas (Ficha Médico dura 24 h) se leen mejor en horas.
+  return minutes >= 120 ? `vence en ~${Math.round(minutes / 60)} h` : `vence en ~${minutes} min`;
 };
 
 const sourceDotClass = (status: RayenSourceHealth['status'] | undefined): string =>
@@ -148,9 +150,13 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
   };
 
   const fichaIdentity = report?.fichaMedico.identity;
-  const fichaDetail = fichaIdentity?.fullName
-    ? `${fichaIdentity.fullName}${fichaIdentity.role ? ` · ${fichaIdentity.role}` : ''}`
-    : null;
+  const fichaDetailParts = [
+    fichaIdentity?.fullName
+      ? `${fichaIdentity.fullName}${fichaIdentity.role ? ` · ${fichaIdentity.role}` : ''}`
+      : null,
+    remainingLabel(report?.fichaMedico),
+  ].filter((part): part is string => Boolean(part));
+  const fichaDetail = fichaDetailParts.length > 0 ? fichaDetailParts.join(' · ') : null;
   const gestionDetailParts = [
     remainingLabel(gestionCamas),
     gestionCamas?.lastVerifiedAt != null

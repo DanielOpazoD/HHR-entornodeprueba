@@ -1200,8 +1200,13 @@ const runtimeMessageRoutes = Object.freeze({
     healthHeartbeat.pushAfter((_message, sender) => readAuthorizedSnapshot(sender), 'snapshot-read'),
     'No se pudo leer el censo de Ficha Médico.'
   ),
+  // La sincronización de HHR entra por aquí (no por SNAPSHOT_REQUEST): tras la captura,
+  // empujar la salud para que un fallo de lectura deshabilite el botón de inmediato.
   [RUNTIME_MESSAGES.SYNC_BUNDLE_REQUEST]: runtimeRoute(
-    (message, sender) => handleSyncBundleRequest(message, sender),
+    healthHeartbeat.pushAfter(
+      (message, sender) => handleSyncBundleRequest(message, sender),
+      'sync-bundle'
+    ),
     'No se pudo capturar Ficha Médico y Gestión de Camas en una misma sincronización.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
