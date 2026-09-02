@@ -92,3 +92,42 @@ describe('extension health helpers', () => {
     expect(sendMessage).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('extension health helpers · vigencia de la fuente', () => {
+  it('propaga la vigencia publicada por la pestaña lista (Ficha Médico ≥ 0.48.5) y omite valores no numéricos', async () => {
+    await expect(
+      health.probeTabs({
+        tabs: [{ id: 1, active: true }],
+        sendMessage: vi.fn().mockResolvedValue({
+          ready: true,
+          message: 'Ficha Médico disponible. Sesión clínica vigente.',
+          identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+          expiresAt: 1_788_445_690_306,
+          remainingSeconds: 82_800,
+        }),
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({
+      status: 'ready',
+      message: 'Ficha Médico disponible. Sesión clínica vigente.',
+      identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+      expiresAt: 1_788_445_690_306,
+      remainingSeconds: 82_800,
+    });
+
+    await expect(
+      health.probeTabs({
+        tabs: [{ id: 1, active: true }],
+        sendMessage: vi.fn().mockResolvedValue({
+          ready: true,
+          message: 'Ficha Médico disponible.',
+          expiresAt: null,
+          remainingSeconds: 'pronto',
+        }),
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'ready', message: 'Ficha Médico disponible.' });
+  });
+});

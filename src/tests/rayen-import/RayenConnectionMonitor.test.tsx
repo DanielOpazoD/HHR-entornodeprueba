@@ -31,6 +31,8 @@ const baseExtension = (
       status: 'ready',
       message: 'Ficha Médico disponible. Sesión clínica vigente.',
       identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+      // Sesión de 24 h de Eloísa (extensión ≥ 0.48.5 publica la vigencia).
+      remainingSeconds: 23 * 3600 + 5 * 60,
     },
     gestionCamas: {
       status: 'ready',
@@ -65,7 +67,8 @@ describe('RayenConnectionMonitor', () => {
     renderMonitor(baseExtension());
 
     expect(screen.getByText('Conectada')).toBeVisible();
-    expect(screen.getByText('Daniel Opazo · Médico')).toBeVisible();
+    // La vigencia larga se lee en horas; la identidad sigue primero.
+    expect(screen.getByText('Daniel Opazo · Médico · vence en ~23 h')).toBeVisible();
     expect(screen.getByText(/vence en ~30 min · verificada hace 3 min/)).toBeVisible();
     expect(screen.getByText(/v0\.48\.3 · estado hace 45 s/)).toBeVisible();
     // Con todo verde no corresponde ofrecer la conexión de Gestión de Camas.
@@ -105,6 +108,44 @@ describe('RayenConnectionMonitor', () => {
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent('No se pudo abrir Gestión de Camas.')
     );
+  });
+
+  it('con Ficha Médico lista pero por vencer, la barra dice «Revisar Ficha Médico» y no ofrece conectar GC', () => {
+    const extension = baseExtension({
+      connection: 'blocked',
+      blockedBy: 'fichaMedico',
+      canSync: false,
+      message:
+        'La sesión de Ficha Médico vence en ~3 min y no alcanzaría a cubrir la sincronización.',
+      report: {
+        ...baseExtension().report!,
+        fichaMedico: {
+          ...baseExtension().report!.fichaMedico,
+          remainingSeconds: 150,
+          expiresAt: Date.now() + 150_000,
+        },
+      },
+    });
+    renderMonitor(extension);
+
+    expect(screen.getByText('Revisar Ficha Médico')).toBeVisible();
+    expect(screen.queryByTestId('rayen-monitor-connect-gc')).not.toBeInTheDocument();
+    expect(screen.getByText(/Daniel Opazo · Médico · vence en ~3 min/)).toBeVisible();
+  });
+
+  it('con una extensión antigua (sin vigencia de Ficha Médico) muestra solo la identidad', () => {
+    const extension = baseExtension({
+      report: {
+        ...baseExtension().report!,
+        fichaMedico: {
+          status: 'ready',
+          message: 'Ficha Médico disponible. Sesión clínica vigente.',
+          identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+        },
+      },
+    });
+    renderMonitor(extension);
+    expect(screen.getByText('Daniel Opazo · Médico')).toBeVisible();
   });
 
   it('«Comprobar ahora» refresca el estado a demanda', async () => {

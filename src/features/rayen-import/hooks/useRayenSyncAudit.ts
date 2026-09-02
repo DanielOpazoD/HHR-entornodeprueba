@@ -94,6 +94,12 @@ export const failureReasonFromHealth = (
   if (health.connection === 'incompatible') return 'extension_incompatible';
   if (health.connection === 'blocked') {
     const fichaMedico = health.report?.fichaMedico;
+    // `blockedBy` distingue una Ficha Médico «lista» pero por vencer (#306) de
+    // un bloqueo de Gestión de Camas; sin él, el criterio heredado por estado.
+    if (health.blockedBy === 'gestionCamas') return 'gestion_camas_unavailable';
+    if (health.blockedBy === 'fichaMedico' && fichaMedico?.status === 'ready') {
+      return 'ficha_medico_unavailable';
+    }
     if (fichaMedico?.status === 'ready') return 'gestion_camas_unavailable';
     if (
       fichaMedico?.status === 'stale' &&

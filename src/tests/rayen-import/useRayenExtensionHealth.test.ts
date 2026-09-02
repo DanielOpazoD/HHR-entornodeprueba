@@ -81,8 +81,66 @@ describe('deriveHealthState', () => {
       })
     );
     expectConnection(expiring, 'blocked', false);
+    expect(expiring.blockedBy).toBe('gestionCamas');
     expect(expiring.message).toContain('vence en ~2 min');
     expect(expiring.message).toContain('Renuévala');
+    expect(
+      deriveHealthState(
+        makeReport({
+          gestionCamas: { status: 'missing', message: 'Gestión de Camas no está abierta.' },
+        })
+      ).blockedBy
+    ).toBe('gestionCamas');
+    expect(
+      deriveHealthState(
+        makeReport({ fichaMedico: { status: 'stale', message: 'Recarga Ficha Médico.' } })
+      ).blockedBy
+    ).toBe('fichaMedico');
+  });
+
+  it('bloquea el arranque cuando la sesión de Ficha Médico está por vencer (extensión ≥ 0.48.5)', () => {
+    // Eloísa da sesiones de 24 h que vencen a hora fija (medido: 08:28), en
+    // plena mañana de censo; antes la vigencia de Ficha Médico ni se publicaba.
+    const expiring = deriveHealthState(
+      makeReport({
+        fichaMedico: {
+          status: 'ready',
+          message: 'Ficha Médico disponible. Sesión clínica vigente.',
+          remainingSeconds: 150,
+        },
+      })
+    );
+    expectConnection(expiring, 'blocked', false);
+    expect(expiring.blockedBy).toBe('fichaMedico');
+    expect(expiring.message).toContain('Ficha Médico vence en ~3 min');
+    expect(expiring.message).toContain('iniciar sesión en Eloísa');
+
+    // Ya vencida: el mensaje no dice «vence en ~1 min».
+    const expired = deriveHealthState(
+      makeReport({
+        fichaMedico: {
+          status: 'ready',
+          message: 'Ficha Médico disponible. Sesión clínica vigente.',
+          remainingSeconds: 0,
+        },
+      })
+    );
+    expectConnection(expired, 'blocked', false);
+    expect(expired.message).toContain('La sesión de Ficha Médico venció');
+
+    expectConnection(
+      deriveHealthState(
+        makeReport({
+          fichaMedico: {
+            status: 'ready',
+            message: 'Ficha Médico disponible. Sesión clínica vigente.',
+            remainingSeconds: 23 * 3600,
+          },
+        })
+      ),
+      'ready',
+      true
+    );
   });
 
   it('permite sincronizar con vigencia holgada o sin expiración informada', () => {

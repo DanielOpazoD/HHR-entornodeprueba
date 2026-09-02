@@ -9,6 +9,14 @@
       return Number((b && b.lastAccessed) || 0) - Number((a && a.lastAccessed) || 0);
     });
 
+  // Vigencia de la sesión de la fuente (epoch ms y segundos restantes), solo si la publica.
+  const sessionExpiryOf = response => ({
+    ...(Number.isFinite(response.expiresAt) ? { expiresAt: response.expiresAt } : {}),
+    ...(Number.isFinite(response.remainingSeconds)
+      ? { remainingSeconds: response.remainingSeconds }
+      : {}),
+  });
+
   const probeTabs = async ({ tabs, sendMessage, missingMessage, staleMessage }) => {
     const ordered = orderTabs(tabs);
     if (ordered.length === 0) return { status: 'missing', message: missingMessage };
@@ -23,6 +31,7 @@
             status: 'ready',
             message: response.message || 'Pestaña disponible.',
             ...(response.identity ? { identity: response.identity } : {}),
+            ...sessionExpiryOf(response),
           };
         }
         if (!unavailableMessage && response && response.message) {

@@ -85,6 +85,9 @@
         sendResponse({
           ready: status && status.ready === true,
           identity: status && status.identity || null,
+          expiresAt: status && Number.isFinite(status.expiresAt) ? status.expiresAt : null,
+          remainingSeconds:
+            status && Number.isFinite(status.remainingSeconds) ? status.remainingSeconds : null,
           message:
             (status && status.message) ||
             'La sesión clínica de Ficha Médico no pudo verificarse.',
