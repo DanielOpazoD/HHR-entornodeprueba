@@ -170,8 +170,23 @@
 
   // --- Helpers ---
   // Network-level failures (see fichamedico-read-resilience.js): keep the original message,
-  // name the endpoint, and let the census reader self-heal / block the health probe.
-  const resilience = globalThis.HhrFichaMedicoReadResilience;
+  // name the endpoint, and let the census reader self-heal / block the health probe. The
+  // inert fallback keeps the bridge alive if the helper ever fails to load before this script.
+  const resilience = globalThis.HhrFichaMedicoReadResilience || {
+    isNetworkFailure: () => false,
+    describeNetworkFailure: error => error,
+    createSelfHealingReader: ({ readOnce }) => ({
+      read: readOnce,
+      isReadBlocked: () => false,
+      getLastFailure: () => null,
+    }),
+    describeSessionStatus: ({ sessionReady }) => ({
+      ready: sessionReady,
+      message: sessionReady
+        ? 'Ficha Médico disponible. Sesión clínica vigente.'
+        : 'La sesión clínica de Ficha Médico no está disponible.',
+    }),
+  };
   const apiGet = async (url, auth) => {
     let res;
     try {
@@ -348,9 +363,13 @@
   // probe stops reporting this tab as ready until a read succeeds again (02-09).
   const censusReader = resilience.createSelfHealingReader({
     readOnce: () => readCensusOnce(),
+    // Reports whether the binding actually changed: with the default origin and no captured
+    // list there is nothing to re-anchor, and the reader then skips the (useless) retry.
     rebind: () => {
+      const changed = capturedListUrl !== null || capturedApiOrigin !== DEFAULT_API_ORIGIN;
       capturedListUrl = null;
       capturedApiOrigin = DEFAULT_API_ORIGIN;
+      return changed;
     },
   });
   const readCensus = () => censusReader.read();
@@ -482,9 +501,11 @@
     if (data.type === 'RAYEN_FM_SESSION_STATUS_REQUEST') {
       const identity = await readSafeSessionIdentity();
       // Honest health: a verified session whose reads fail at network level is NOT ready —
-      // reporting it as ready made HHR offer a sync that failed in 1 s (02-09).
+      // reporting it as ready made HHR offer a sync that failed in 1 s (02-09). The verified
+      // identity still travels, so the monitor keeps the professional's name while blocked.
+      const sessionReady = Boolean(identity && capturedAuth && capturedApiOrigin);
       const status = resilience.describeSessionStatus({
-        sessionReady: Boolean(identity && capturedAuth && capturedApiOrigin),
+        sessionReady,
         readBlocked: censusReader.isReadBlocked(),
       });
       window.postMessage(
@@ -492,7 +513,7 @@
           type: 'RAYEN_FM_SESSION_STATUS_RESULT',
           reqId: data.reqId,
           ready: status.ready,
-          identity: status.ready
+          identity: sessionReady
             ? {
                 fullName: identity.fullName,
                 role: identity.role,

@@ -1194,8 +1194,10 @@ const runtimeMessageRoutes = Object.freeze({
     healthHeartbeat.pushAfter(() => handleDisconnectGestionCamas(), 'gc-disconnected'),
     'No se pudo olvidar la conexión de Gestión de Camas.'
   ),
+  // A failed read changes Ficha Médico health (read blocked, v0.48.4): push it right away
+  // instead of leaving HHR's button enabled until the next heartbeat.
   [RUNTIME_MESSAGES.SNAPSHOT_REQUEST]: runtimeRoute(
-    (_message, sender) => readAuthorizedSnapshot(sender),
+    healthHeartbeat.pushAfter((_message, sender) => readAuthorizedSnapshot(sender), 'snapshot-read'),
     'No se pudo leer el censo de Ficha Médico.'
   ),
   [RUNTIME_MESSAGES.SYNC_BUNDLE_REQUEST]: runtimeRoute(

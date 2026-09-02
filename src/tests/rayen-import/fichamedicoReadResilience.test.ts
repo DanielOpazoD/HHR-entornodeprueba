@@ -39,7 +39,7 @@ describe('HhrFichaMedicoReadResilience', () => {
     expect(resilience.isNetworkFailure('texto suelto')).toBe(false);
   });
 
-  it('describe el fallo conservando el mensaje original y el endpoint sin query', () => {
+  it('describe el fallo conservando el mensaje original y el endpoint sin query ni ids numéricos', () => {
     const described = resilience.describeNetworkFailure(
       new TypeError('Failed to fetch'),
       'https://fichamedicoback.rayensalud.cl/encounter/list/filter?facilityId=1342&filterType=3'
@@ -47,9 +47,18 @@ describe('HhrFichaMedicoReadResilience', () => {
     expect(described.message).toBe(
       'Failed to fetch al consultar https://fichamedicoback.rayensalud.cl/encounter/list/filter'
     );
+    // Un id de episodio nunca debe salir del MAIN world dentro de un texto de error.
+    expect(
+      resilience.describeNetworkFailure(
+        new TypeError('Failed to fetch'),
+        'https://fichamedicoback.rayensalud.cl/api/encounter/patientHeaderData/144403/false'
+      ).message
+    ).toBe(
+      'Failed to fetch al consultar https://fichamedicoback.rayensalud.cl/api/encounter/patientHeaderData/{id}/false'
+    );
   });
 
-  it('reintenta una sola vez tras re-anclar, y una lectura exitosa limpia el bloqueo', async () => {
+  it('reintenta una sola vez cuando re-anclar cambió algo, y una lectura exitosa limpia el bloqueo', async () => {
     const calls: string[] = [];
     let attempt = 0;
     const reader = resilience.createSelfHealingReader({
@@ -59,12 +68,30 @@ describe('HhrFichaMedicoReadResilience', () => {
         if (attempt === 1) throw new TypeError('Failed to fetch');
         return { ok: attempt };
       },
-      rebind: () => calls.push('rebind'),
+      rebind: () => {
+        calls.push('rebind');
+        return true;
+      },
     });
 
     await expect(reader.read()).resolves.toEqual({ ok: 2 });
     expect(calls).toEqual(['read-1', 'rebind', 'read-2']);
     expect(reader.isReadBlocked()).toBe(false);
+  });
+
+  it('no repite una petición idéntica: si re-anclar no cambia nada, recuerda el fallo sin reintentar', async () => {
+    let attempts = 0;
+    const reader = resilience.createSelfHealingReader({
+      readOnce: async () => {
+        attempts += 1;
+        throw new TypeError('Failed to fetch');
+      },
+      rebind: () => false,
+    });
+
+    await expect(reader.read()).rejects.toThrow('Failed to fetch');
+    expect(attempts).toBe(1);
+    expect(reader.isReadBlocked()).toBe(true);
   });
 
   it('si el reintento también falla en red, recuerda el fallo y bloquea la salud hasta la próxima lectura buena', async () => {
@@ -74,7 +101,7 @@ describe('HhrFichaMedicoReadResilience', () => {
         if (failing) throw new TypeError('Failed to fetch al consultar https://x/encounter');
         return { ok: true };
       },
-      rebind: () => undefined,
+      rebind: () => true,
       now: () => 1_700_000_000_000,
     });
 
@@ -104,7 +131,7 @@ describe('HhrFichaMedicoReadResilience', () => {
       readOnce: async () => {
         throw new TypeError('Failed to fetch');
       },
-      rebind: () => undefined,
+      rebind: () => true,
       now: () => clock,
     });
 

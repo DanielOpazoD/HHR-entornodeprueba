@@ -20,9 +20,19 @@
 
   const isNetworkFailure = error => NETWORK_FAILURE_RE.test(errorMessage(error));
 
-  /** Keeps the original message (HHR classifies on it) and names the endpoint without its query. */
+  /**
+   * Keeps the original message (HHR classifies on it) and names the endpoint without its query
+   * and with numeric path segments anonymised: an encounter id in `/encounter/<id>/...` must
+   * never cross out of the MAIN world inside an error string.
+   */
   const describeNetworkFailure = (error, url) =>
-    new Error(errorMessage(error) + ' al consultar ' + String(url).replace(/\?.*/, ''));
+    new Error(
+      errorMessage(error) +
+        ' al consultar ' +
+        String(url)
+          .replace(/\?.*/, '')
+          .replace(/\/\d+(?=\/|$)/g, '/{id}')
+    );
 
   const READ_BLOCKED_MESSAGE =
     'Ficha Médico no puede leer datos desde esta pestaña (fallo de red al consultar Eloísa). ' +
@@ -39,16 +49,23 @@
   const READ_BLOCK_TTL_MS = 2 * 60 * 1000;
 
   /**
-   * One self-heal attempt on a network failure: `rebind` drops the captured list URL / API
-   * origin so the retry runs against the default backend with a freshly verified context. If
-   * the retry also fails at network level the failure is remembered, and `isReadBlocked()` lets
-   * the health probe stop reporting the tab as ready for READ_BLOCK_TTL_MS or until a read
-   * succeeds. HTTP errors (4xx/5xx) never retry: they are answers, not a broken tab.
+   * One self-heal attempt on a network failure, and only when `rebind()` reports that it
+   * actually changed the binding (captured list URL / API origin dropped for the defaults):
+   * repeating an identical request against a backend that just failed doubles the load on
+   * Rayen for nothing. If the retry also fails at network level (or there was nothing to
+   * rebind) the failure is remembered, and `isReadBlocked()` lets the health probe stop
+   * reporting the tab as ready for READ_BLOCK_TTL_MS or until a read succeeds. HTTP errors
+   * (4xx/5xx) never retry: they are answers, not a broken tab.
    */
   const createSelfHealingReader = ({ readOnce, rebind, now, blockTtlMs }) => {
     const clock = typeof now === 'function' ? now : () => Date.now();
     const ttl = Number.isFinite(blockTtlMs) && blockTtlMs > 0 ? blockTtlMs : READ_BLOCK_TTL_MS;
     let lastFailure = null;
+
+    const rememberAndThrow = error => {
+      if (isNetworkFailure(error)) lastFailure = { at: clock(), message: errorMessage(error) };
+      throw error;
+    };
 
     const read = async () => {
       try {
@@ -57,16 +74,13 @@
         return snapshot;
       } catch (error) {
         if (!isNetworkFailure(error)) throw error;
-        rebind();
+        if (rebind() !== true) return rememberAndThrow(error);
         try {
           const snapshot = await readOnce();
           lastFailure = null;
           return snapshot;
         } catch (retryError) {
-          if (isNetworkFailure(retryError)) {
-            lastFailure = { at: clock(), message: errorMessage(retryError) };
-          }
-          throw retryError;
+          return rememberAndThrow(retryError);
         }
       }
     };

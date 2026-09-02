@@ -69,7 +69,12 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
           }),
         };
       }
-      const value = apiResolver(String(input));
+      const value = apiResolver(String(input)) as { __httpStatus?: number } | unknown;
+      // Respuesta HTTP no-ok (a diferencia de un fetch rechazado): el marcador la simula.
+      const httpStatus = (value as { __httpStatus?: number } | null)?.__httpStatus;
+      if (typeof httpStatus === 'number') {
+        return { ok: false, status: httpStatus, json: async () => ({}) };
+      }
       return { ok: true, status: 200, json: async () => value };
     },
     addEventListener: addListener,
@@ -213,12 +218,15 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
     const harness = await createHarness(
       clinicalResolver(url => {
         if (url.searchParams.get('filterType') === '3') activeListCalls += 1;
-        throw new Error('500 en /encounter/list/filter');
+        // Respuesta HTTP 500 real (ok:false), no un fetch rechazado.
+        return { __httpStatus: 500 };
       })
     );
 
     const failed = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'http' });
-    expect(failed?.error).toContain('500');
+    expect(failed?.error).toContain(
+      '500 en https://fichamedicoback.rayensalud.cl/encounter/list/filter'
+    );
     expect(activeListCalls).toBe(1);
 
     const health = await harness.send({ type: 'RAYEN_FM_SESSION_STATUS_REQUEST', reqId: 'h4' });
