@@ -7,6 +7,8 @@ import {
   shouldIgnoreTransientUnauthenticatedBootstrapEvent,
   shouldResolveAuthBootstrapImmediatelyAsUnauthenticated,
   shouldLogSessionLogin,
+  SESSION_PERMISSION_STORM_CAUSE,
+  shouldPreserveUnauthorizedSessionReason,
 } from '@/hooks/controllers/authBootstrapController';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 
@@ -110,6 +112,32 @@ describe('authBootstrapController', () => {
         hasLoggedThisSession: true,
       })
     ).toBe(false);
+  });
+
+  it('un evento unauthenticated no degrada SOLO el unauthorized de la guarda de sesión (por su causa)', () => {
+    const guardState = {
+      status: 'unauthorized',
+      user: null,
+      reason: 'Tu sesión perdió los permisos. Vuelve a iniciar sesión.',
+      technicalContext: { cause: SESSION_PERMISSION_STORM_CAUSE },
+    } as AuthSessionState;
+    const unauthenticated = { status: 'unauthenticated', user: null } as AuthSessionState;
+    // Otros unauthorized llevan códigos crudos y deben poder ser reemplazados.
+    const roleNotResolved = {
+      status: 'unauthorized',
+      user: null,
+      reason: 'role_not_resolved',
+    } as AuthSessionState;
+
+    expect(shouldPreserveUnauthorizedSessionReason(guardState, unauthenticated)).toBe(true);
+    expect(shouldPreserveUnauthorizedSessionReason(roleNotResolved, unauthenticated)).toBe(false);
+    expect(
+      shouldPreserveUnauthorizedSessionReason(guardState, {
+        status: 'authorized',
+        user: { uid: 'u1', email: 'u1@h.test', role: 'nurse' },
+      } as unknown as AuthSessionState)
+    ).toBe(false);
+    expect(shouldPreserveUnauthorizedSessionReason(unauthenticated, unauthenticated)).toBe(false);
   });
 
   it('keeps the timeout issue string centralized', () => {

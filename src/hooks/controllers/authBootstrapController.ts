@@ -24,6 +24,24 @@ export const shouldDeferUnauthenticatedSessionState = ({
   isAuthBootstrapPending: boolean;
 }): boolean => isAuthBootstrapPending && sessionState.status === 'unauthenticated';
 
+/**
+ * Un evento «unauthenticated» del listener de Firebase (p. ej. el que sigue al
+ * signOut) no degrada el «unauthorized» que produce la guarda de sesión: ese
+ * estado carga la RAZÓN que la pantalla de acceso muestra (sesión sin
+ * permisos). Es específico a esa causa a propósito: otros «unauthorized»
+ * llevan códigos crudos (p. ej. role_not_resolved) que sí deben poder ser
+ * reemplazados por el logout que los sigue.
+ */
+export const SESSION_PERMISSION_STORM_CAUSE = 'session_permission_storm';
+
+export const shouldPreserveUnauthorizedSessionReason = (
+  current: AuthSessionState,
+  next: AuthSessionState
+): boolean =>
+  current.status === 'unauthorized' &&
+  current.technicalContext?.cause === SESSION_PERMISSION_STORM_CAUSE &&
+  next.status === 'unauthenticated';
+
 export const shouldAttemptAuthTimeoutRecovery = ({
   hasRecentManualLogout,
   hasAuthRehydrationHint,

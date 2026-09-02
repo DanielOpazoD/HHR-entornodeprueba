@@ -270,11 +270,17 @@ export const buildCopyPatientPatches = (
   }) as DailyRecordPatch;
 
 export const buildClinicalCribMultipleFieldPatches = (
+  state: DailyRecord,
   bedId: string,
   fields: Partial<PatientData>
 ): DailyRecordPatch => {
+  // Mismo modal demográfico que la cama (reenvía el objeto completo): solo
+  // viaja lo que realmente cambia respecto de la cuna vigente. Sin cuna aún,
+  // todo es cambio.
+  const currentCrib = state.beds[bedId]?.clinicalCrib as Record<string, unknown> | undefined;
   const patches: Record<string, unknown> = {};
   Object.entries(fields).forEach(([key, value]) => {
+    if (currentCrib && arePatchValuesDeepEqual(value, currentCrib[key])) return;
     patches[`beds.${bedId}.clinicalCrib.${key}`] = value;
   });
   return patches as DailyRecordPatch;
