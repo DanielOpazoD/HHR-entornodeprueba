@@ -118,6 +118,41 @@ jobs:
             fi
           done
 
+      - name: Delete orphaned us-central1 copies of the authority callables
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json
+        run: |
+          set -euo pipefail
+          # Las callables de autoridad viven SOLO en southamerica-east1 (región del
+          # cliente). Las copias en us-central1 quedaron huérfanas y `deploy --only`
+          # no retira regiones que el código dejó de declarar, así que se borran
+          # aquí de forma explícita e idempotente (ausencia = éxito).
+          ORPHANED_US_CENTRAL1_FUNCTIONS=(
+            saveDailyRecordWithClinicalAuthority
+            patchDailyRecordWithClinicalAuthority
+          )
+
+          for function_name in "${ORPHANED_US_CENTRAL1_FUNCTIONS[@]}"; do
+            echo "Deleting orphaned us-central1 copy if present: ${function_name}"
+            set +e
+            output="$(npx --yes firebase-tools@latest functions:delete "${function_name}" \
+              --region us-central1 \
+              --project hhr-pruebas \
+              --non-interactive \
+              --force 2>&1)"
+            status=$?
+            set -e
+
+            if [ "$status" -ne 0 ]; then
+              if printf '%s\n' "$output" | node scripts/check-firebase-function-delete-result.mjs; then
+                echo "Orphaned us-central1 copy was already absent: ${function_name}"
+              else
+                echo "$output"
+                exit "$status"
+              fi
+            fi
+          done
+
       - name: Deploy functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase/service-account.json

@@ -1268,7 +1268,10 @@ const createDailyRecordWriteAuthorityFunctions = ({
     // región, así que se usa southamerica-east1): la transacción y el historial
     // mueven el registro completo y us-central1 costaba un cruce de continente.
     // Debe coincidir con DAILY_RECORD_AUTHORITY_FUNCTIONS_REGION del cliente.
-    .region('southamerica-east1', 'us-central1')
+    // Región ÚNICA: la copia en us-central1 quedó huérfana tras la migración
+    // (el cliente nunca la llamó), duplicaba costo y confundía el diagnóstico
+    // por logs; el workflow de deploy la retira explícitamente.
+    .region('southamerica-east1')
     .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
       const startedAt = Date.now();
@@ -1465,7 +1468,8 @@ const createDailyRecordWriteAuthorityFunctions = ({
     }),
 
   patchDailyRecordWithClinicalAuthority: functions
-    .region('southamerica-east1', 'us-central1')
+    // Misma región única que saveDailyRecordWithClinicalAuthority (ver arriba).
+    .region('southamerica-east1')
     .runWith({ memory: '1GB' })
     .https.onCall(async (data, context) => {
       const startedAt = Date.now();
