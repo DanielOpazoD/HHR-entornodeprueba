@@ -4,6 +4,8 @@ import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordP
 import type { ApplyResult } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { resolveConfirmedRayenCensusHandoff } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
+import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const record = (lastUpdated: string): DailyRecord =>
   ({
@@ -56,12 +58,52 @@ describe('applyConfirmedRayenImport · recuperación de conflictos envueltos', (
     const fresh = record('fresh');
     const initialDiff = {} as CensusImportDiff;
     const expected = { record: fresh, applied: {}, skipped: [] } as unknown as ApplyResult;
+    // El error sale del guard REAL: el servidor devolvió el censo sellado por una
+    // corrida más antigua (run-old, 09:00) tras aceptar el guardado de run-1 (10:00).
+    const staleStampedRecord = {
+      ...record('fresh'),
+      rayenSync: {
+        at: '2026-07-16T09:00:00.000Z',
+        by: 'Otra pestaña',
+        runId: 'run-old',
+        status: 'applied',
+      },
+      rayenSyncHistory: [
+        {
+          id: 'run-old',
+          sourceDate: '2026-07-16',
+          startedAt: '2026-07-16T09:00:00.000Z',
+          completedAt: '2026-07-16T09:00:05.000Z',
+          by: 'Otra pestaña',
+          status: 'applied',
+        },
+      ],
+    } as DailyRecord;
+    const cleanResult = {
+      date: '2026-07-16',
+      outcome: 'clean',
+      savedLocally: true,
+      savedRemotely: true,
+      queuedForRetry: false,
+      autoMerged: false,
+      consistencyState: 'persisted_and_synced',
+      sourceOfTruth: 'remote',
+      retryability: 'not_applicable',
+      recoveryAction: 'none',
+      conflictSummary: null,
+      observabilityTags: ['daily_record', 'write'],
+      repairApplied: false,
+    } as SaveDailyRecordResult;
     const overtaken = () => {
-      const error = new Error(
-        'Otra escritura cambió el censo mientras se confirmaba esta sincronización (el sello de la corrida no quedó en el servidor). HHR recarga el censo y reintenta.'
-      );
-      error.name = 'ConcurrencyError';
-      return error;
+      try {
+        resolveConfirmedRayenCensusHandoff(
+          { record: staleStampedRecord, result: cleanResult },
+          { date: '2026-07-16', runId: 'run-1', startedAt: '2026-07-16T10:00:00.000Z' }
+        );
+      } catch (error) {
+        return error as Error;
+      }
+      throw new Error('el guard debía rechazar el sello de otra corrida');
     };
     const base = {
       applyPreviousDays: false,
@@ -86,7 +128,10 @@ describe('applyConfirmedRayenImport · recuperación de conflictos envueltos', (
     });
     await expect(
       applyConfirmedRayenImport({ ...base, applyDiff: alwaysOvertaken })
-    ).rejects.toMatchObject({ name: 'ConcurrencyError' });
+    ).rejects.toMatchObject({
+      name: 'ConcurrencyError',
+      cause: { name: 'ConcurrencyError', message: expect.stringMatching(/otra escritura/i) },
+    });
     expect(alwaysOvertaken).toHaveBeenCalledTimes(3);
   });
 });

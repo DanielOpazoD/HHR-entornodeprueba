@@ -411,5 +411,10 @@ describe('rayen sync presentation', () => {
     });
     expect(recovery?.detail).toContain('otras pestañas de HHR');
     expect(recovery?.detail).not.toContain('Eloísa está operativa');
+
+    // Sin extensión operativa, «Revisar censo» rebotaría y pisaría el evento:
+    // manda la condición de conexión (comprobar de nuevo).
+    expect(presentRayenSyncRecovery(event, 'offline', false)).toMatchObject({ action: 'refresh' });
+    expect(presentRayenSyncRecovery(event, 'blocked', false)).toMatchObject({ action: 'refresh' });
   });
 });

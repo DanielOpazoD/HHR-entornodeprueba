@@ -135,6 +135,8 @@ export const resolveConfirmedRayenCensusHandoff = (
     date: string;
     clinicalDay?: string;
     runId: string;
+    /** Inicio de ESTA corrida: decide si otra corrida sellada es más reciente (gana) o más antigua. */
+    startedAt?: string;
     diff?: Pick<CensusImportDiff, 'conflicts' | 'deferredHistoricalAdmissionBedIds'>;
   }
 ): ConfirmedRayenCensusHandoff => {
@@ -156,11 +158,30 @@ export const resolveConfirmedRayenCensusHandoff = (
     // guardando el mismo día) se adelantó entre el commit y la relectura.
     // Visto en vivo (02-09): dos pestañas de HHR sobre el mismo censo; la
     // corrida moría como «No se pudo aplicar el censo» genérico y con 0
-    // reintentos. Con nombre ConcurrencyError, el lazo de replan recarga el
-    // censo y reintenta (acotado); si se agota, queda archivado como
-    // conflicto (`apply_conflict`), que es lo que fue.
+    // reintentos.
+    const winner = record.rayenSync?.runId
+      ? record.rayenSyncHistory?.find(event => event.id === record.rayenSync?.runId)
+      : undefined;
+    if (
+      winner &&
+      winner.id !== expected.runId &&
+      winner.status === 'applied' &&
+      (!expected.startedAt || winner.startedAt >= expected.startedAt)
+    ) {
+      // Otra corrida MÁS RECIENTE ya confirmó el censo: reintentar la pisaría
+      // (el puntero `rayenSync` volvería a ESTA corrida y su fase clínica
+      // quedaría superada). Esta corrida cede sin reintento.
+      const superseded = new Error(
+        'Otra sincronización más reciente ya confirmó este censo desde otra pestaña o usuario. Esta corrida no continúa: revisa el historial y, si hace falta, sincroniza de nuevo.'
+      );
+      superseded.name = 'RayenRunSupersededError';
+      throw superseded;
+    }
+    // Sello ausente (o de una corrida más antigua): con nombre ConcurrencyError
+    // el lazo de replan recarga el censo y reintenta (acotado); si se agota,
+    // queda archivado como conflicto (`apply_conflict`), que es lo que fue.
     const overtaken = new Error(
-      'Otra escritura cambió el censo mientras se confirmaba esta sincronización (el sello de la corrida no quedó en el servidor). HHR recarga el censo y reintenta.'
+      'Otra escritura cambió el censo mientras se confirmaba esta sincronización (el sello de la corrida no quedó en el servidor).'
     );
     overtaken.name = 'ConcurrencyError';
     throw overtaken;

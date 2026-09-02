@@ -332,7 +332,7 @@ export const presentRayenSyncRecovery = (
   // Otra pestaña o usuario guardó el mismo censo mientras se confirmaba (visto
   // en vivo el 02-09 con dos pestañas de HHR): reintentar suele bastar, y si
   // se repite, la causa está en la otra pestaña, no en Eloísa.
-  if (event.failureReason === 'apply_conflict' && connection !== 'incompatible') {
+  if (event.failureReason === 'apply_conflict' && connection === 'ready') {
     return {
       title: 'Otra escritura se adelantó',
       detail:

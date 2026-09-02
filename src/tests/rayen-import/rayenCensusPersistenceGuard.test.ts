@@ -10,6 +10,7 @@ import {
 import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
+import { classifyRayenApplyFailureReason } from '@/features/rayen-import/observability/rayenSyncDiagnostics';
 
 const buildResult = (overrides: Partial<SaveDailyRecordResult> = {}): SaveDailyRecordResult => ({
   date: '2026-07-28',
@@ -440,8 +441,42 @@ describe('rayenCensusPersistenceGuard', () => {
     );
   });
 
+  it('otra corrida MÁS RECIENTE ya selló el censo: esta cede sin reintento (no la pisa) y se archiva como conflicto', () => {
+    // Reintentar re-sellaría el puntero rayenSync con esta corrida y dejaría
+    // superada la fase clínica de la otra pestaña, que fue la que ganó.
+    const record = buildRecord('run-2'); // run-2 aplicada a las 09:59
+    let thrown: unknown;
+    try {
+      resolveConfirmedRayenCensusHandoff(
+        { record, result: buildResult() },
+        { date: '2026-07-28', runId: 'run-1', startedAt: '2026-07-28T09:50:00.000Z' }
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toMatchObject({ name: 'RayenRunSupersededError' });
+    expect(String((thrown as Error).message)).toMatch(/más reciente ya confirmó este censo/i);
+    expect(classifyRayenApplyFailureReason(thrown)).toBe('apply_conflict');
+
+    // Sin conocer el inicio de esta corrida, no se pisa a la otra: cede.
+    let unknownStart: unknown;
+    try {
+      resolveConfirmedRayenCensusHandoff(
+        { record, result: buildResult() },
+        { date: '2026-07-28', runId: 'run-1' }
+      );
+    } catch (error) {
+      unknownStart = error;
+    }
+    expect(unknownStart).toMatchObject({ name: 'RayenRunSupersededError' });
+  });
+
   it.each([
-    ['another run', buildRecord('run-2')],
+    [
+      'a stale stamp from an OLDER run',
+      buildRecord('run-2'),
+      '2026-07-28T10:30:00.000Z', // esta corrida es posterior a run-2 (09:59)
+    ],
     [
       'a run without an applied event',
       buildRecord('run-1', {
@@ -456,23 +491,25 @@ describe('rayenCensusPersistenceGuard', () => {
           },
         ],
       }),
+      '2026-07-28T09:59:00.000Z',
     ],
   ])(
     'un guardado aceptado cuyo sello no quedó en el servidor (%s) es un conflicto de concurrencia reintentable',
-    (_label, record) => {
+    (_label, record, startedAt) => {
       // Visto en vivo (02-09): dos pestañas de HHR sobre el mismo censo; otra
       // escritura pisó el sello y la corrida moría como apply_failed sin reintento.
       let thrown: unknown;
       try {
         resolveConfirmedRayenCensusHandoff(
           { record, result: buildResult() },
-          { date: '2026-07-28', runId: 'run-1' }
+          { date: '2026-07-28', runId: 'run-1', startedAt }
         );
       } catch (error) {
         thrown = error;
       }
       expect(thrown).toMatchObject({ name: 'ConcurrencyError' });
       expect(String((thrown as Error).message)).toMatch(/otra escritura cambió el censo/i);
+      expect(classifyRayenApplyFailureReason(thrown)).toBe('apply_conflict');
     }
   );
 
