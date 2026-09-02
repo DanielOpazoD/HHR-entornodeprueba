@@ -17,22 +17,37 @@
       : {}),
   });
 
+  const readyResult = response => {
+    const expiry = sessionExpiryOf(response);
+    return {
+      publishesExpiry: Object.keys(expiry).length > 0,
+      result: {
+        status: 'ready',
+        message: response.message || 'Pestaña disponible.',
+        ...(response.identity ? { identity: response.identity } : {}),
+        ...expiry,
+      },
+    };
+  };
+
   const probeTabs = async ({ tabs, sendMessage, missingMessage, staleMessage }) => {
     const ordered = orderTabs(tabs);
     if (ordered.length === 0) return { status: 'missing', message: missingMessage };
     let unavailableMessage = '';
+    let firstReady = null;
 
     for (const tab of ordered) {
       if (!tab || tab.id == null) continue;
       try {
         const response = await sendMessage(tab.id, { type: 'RAYEN_EXTENSION_HEALTH_PING' });
         if (response && response.ready === true) {
-          return {
-            status: 'ready',
-            message: response.message || 'Pestaña disponible.',
-            ...(response.identity ? { identity: response.identity } : {}),
-            ...sessionExpiryOf(response),
-          };
+          const ready = readyResult(response);
+          // Un inject antiguo sobrevive a la recarga de la extensión hasta recargar
+          // su página y responde «lista» sin vigencia; si otra pestaña la publica,
+          // esa es la respuesta honesta (visto en vivo el 02-09 con dos pestañas).
+          if (ready.publishesExpiry) return ready.result;
+          firstReady = firstReady || ready.result;
+          continue;
         }
         if (!unavailableMessage && response && response.message) {
           unavailableMessage = response.message;
@@ -42,6 +57,7 @@
       }
     }
 
+    if (firstReady) return firstReady;
     return { status: 'stale', message: unavailableMessage || staleMessage };
   };
 

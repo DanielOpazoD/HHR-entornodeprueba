@@ -299,7 +299,7 @@
       "hotspots": {}
     },
     "health-check.js": {
-      "maxLines": 50,
+      "maxLines": 66,
       "hotspots": {}
     },
     "health-heartbeat-runtime.js": {

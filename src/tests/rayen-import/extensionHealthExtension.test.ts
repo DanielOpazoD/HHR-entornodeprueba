@@ -130,4 +130,57 @@ describe('extension health helpers · vigencia de la fuente', () => {
       })
     ).resolves.toEqual({ status: 'ready', message: 'Ficha Médico disponible.' });
   });
+
+  it('prefiere la pestaña lista que publica vigencia sobre una activa con inject antiguo (0.48.6)', async () => {
+    // Tras recargar la extensión, el inject de mundo principal de una pestaña ya
+    // abierta sigue vivo y responde «lista» sin vigencia; la pestaña recargada sí la
+    // publica. La salud debe reflejar la vigencia real y no depender del orden.
+    const sendMessage = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ready: true,
+        message: 'Ficha Médico disponible.',
+        identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+      })
+      .mockResolvedValueOnce({
+        ready: true,
+        message: 'Ficha Médico disponible. Sesión clínica vigente.',
+        identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+        expiresAt: 1_788_445_690_306,
+        remainingSeconds: 67_718,
+      });
+    await expect(
+      health.probeTabs({
+        tabs: [
+          { id: 1, active: true },
+          { id: 2, active: false, lastAccessed: 10 },
+        ],
+        sendMessage,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({
+      status: 'ready',
+      message: 'Ficha Médico disponible. Sesión clínica vigente.',
+      identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+      expiresAt: 1_788_445_690_306,
+      remainingSeconds: 67_718,
+    });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+
+    // Si ninguna pestaña publica vigencia, gana la primera lista (comportamiento previo).
+    const legacyOnly = vi
+      .fn()
+      .mockResolvedValueOnce({ ready: true, message: 'Primera lista.' })
+      .mockResolvedValueOnce({ ready: true, message: 'Segunda lista.' })
+      .mockResolvedValueOnce({ ready: false, message: 'No lista.' });
+    await expect(
+      health.probeTabs({
+        tabs: [{ id: 1, active: true }, { id: 2 }, { id: 3 }],
+        sendMessage: legacyOnly,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'ready', message: 'Primera lista.' });
+  });
 });
