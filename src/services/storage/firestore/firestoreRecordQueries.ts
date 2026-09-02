@@ -22,6 +22,8 @@ import {
   toFirestoreRecordMap,
 } from '@/services/storage/firestore/firestoreQuerySupport';
 import { firestoreQueryLogger } from '@/services/storage/storageLoggers';
+import { classifySyncError } from '@/services/storage/syncErrorCatalog';
+import { reportBasicReadPermissionDenied } from '@/services/auth/sessionPermissionStormDetector';
 
 const logFirestoreQueryError = (
   operation: string,
@@ -32,6 +34,10 @@ const logFirestoreQueryError = (
     error,
     ...(context || {}),
   });
+  // Las lecturas del censo las permite TODO rol autorizado: una denegación aquí
+  // es señal de sesión sin permisos, no de un permiso faltante por rol.
+  if (classifySyncError(error).category === 'authorization')
+    reportBasicReadPermissionDenied(`records:${operation}`);
 };
 
 export interface FirestoreSingleRecordReadResult {

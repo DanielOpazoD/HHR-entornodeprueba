@@ -60,7 +60,7 @@ export const resolveBedManagementPatch = (
     case 'UPDATE_CLINICAL_CRIB':
       return buildUpdateClinicalCribPatches(action.bedId, action.field, action.value);
     case 'UPDATE_CLINICAL_CRIB_MULTIPLE':
-      return buildClinicalCribMultipleFieldPatches(action.bedId, action.fields);
+      return buildClinicalCribMultipleFieldPatches(state, action.bedId, action.fields);
     case 'UPDATE_CLINICAL_CRIB_CUDYR':
       return buildUpdateClinicalCribCudyrPatches(state, action.bedId, action.field, action.value);
     case 'UPDATE_CLINICAL_CRIB_CUDYR_MULTIPLE':
