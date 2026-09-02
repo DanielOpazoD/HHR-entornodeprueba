@@ -20,7 +20,8 @@ type DischargeEntry = CensusImportDiff['discharges'][number];
  * aproximación): si la cama tiene una cuna con ocupante, el egreso debe traer
  * `associatedClinicalCrib`; un traslado, un fallecimiento o una cuna que no
  * pudo adjuntarse (snapshot incompleto, episodio aún activo, movimiento previo)
- * conservan la revisión, porque el egreso del RN no quedaría registrado.
+ * conservan la revisión, porque el egreso del RN no quedaría registrado. La fila
+ * del RN con RUN propio casa por el RUN de la cuna adjunta a ese mismo egreso.
  */
 export const dropRedundantUnverifiedReportConflicts = (
   conflicts: ConflictEntry[],
@@ -32,7 +33,9 @@ export const dropRedundantUnverifiedReportConflicts = (
     const run = normalizeRut(conflict.rut);
     if (!run) return true;
     const discharge = discharges.find(
-      entry => entry.bedId === conflict.bedId && normalizeRut(entry.rut) === run
+      entry =>
+        entry.bedId === conflict.bedId &&
+        (normalizeRut(entry.rut) === run || normalizeRut(entry.associatedClinicalCrib?.rut) === run)
     );
     if (!discharge) return true;
     const cribOccupied = Boolean(record.beds[conflict.bedId]?.clinicalCrib?.patientName?.trim());

@@ -158,7 +158,6 @@ const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], str
     'un alta del informe de Gestión de Camas no se vinculó a un episodio exacto',
   unclassified: 'el cambio estructural no pudo aplicarse',
 };
-
 export const presentRayenStructuralIssue = (issue: RayenSyncStructuralIssue): string => {
   const scope = issue.bedId ? `Cama ${issue.bedId}` : 'Censo';
   return `${scope}: ${structuralIssueReasonLabel[issue.reason]}.`;

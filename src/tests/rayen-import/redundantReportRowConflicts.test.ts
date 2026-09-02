@@ -123,4 +123,27 @@ describe('dropRedundantUnverifiedReportConflicts', () => {
       )
     ).toEqual([untagged, bedless, otherRun, otherBed]);
   });
+
+  it('la fila del RN con RUN propio casa por el RUN de la cuna adjunta al egreso de la madre', () => {
+    const record = makeRecord(true);
+    record.beds.H5C1!.clinicalCrib!.rut = '27.999.999-9';
+    const newbornConflict = unverifiedConflict({
+      rut: '27.999.999-9',
+      patientName: 'Rn De Tania Valencia',
+    });
+    const motherDischarge = discharge({
+      associatedClinicalCrib: { ...attachedCrib, rut: '27.999.999-9' },
+    });
+    expect(
+      dropRedundantUnverifiedReportConflicts(
+        [unverifiedConflict(), newbornConflict],
+        [motherDischarge],
+        record
+      )
+    ).toEqual([]);
+    // Sin cuna adjunta, el conflicto del RN se conserva aunque la madre egrese.
+    expect(
+      dropRedundantUnverifiedReportConflicts([newbornConflict], [discharge()], record)
+    ).toEqual([newbornConflict]);
+  });
 });

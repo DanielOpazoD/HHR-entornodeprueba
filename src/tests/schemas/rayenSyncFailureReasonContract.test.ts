@@ -80,4 +80,28 @@ describe('causas de fallo de sincronización · contrato tipo ↔ esquema', () =
     expect(parsed.record.rayenSyncHistory?.map(event => event.id)).toEqual(['run-snapshot_error']);
     expect(parsed.record.rayenSync).toEqual({ at: '2026-09-01T10:00:00.000Z', by: 'Operador' });
   });
+
+  it('un motivo estructural desconocido no invalida el evento: se degrada a «unclassified» (#307)', () => {
+    // `unverified-report-row` se persiste cuando la fila ambigua del informe de GC
+    // conserva la revisión; un cliente rezagado durante el despliegue no debe
+    // perder el historial por un motivo que aún no conoce.
+    const event = {
+      ...failedEvent('apply_conflict'),
+      structuralReview: {
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 2,
+        issues: [
+          { bedId: 'H5C1', reason: 'unverified-report-row' },
+          { bedId: 'H5C2', reason: 'motivo_futuro' },
+        ],
+      },
+    };
+    const parsed = RayenSyncEventSchema.safeParse(event);
+
+    expect(parsed.success).toBe(true);
+    expect(
+      parsed.success ? parsed.data.structuralReview?.issues?.map(issue => issue.reason) : null
+    ).toEqual(['unverified-report-row', 'unclassified']);
+  });
 });

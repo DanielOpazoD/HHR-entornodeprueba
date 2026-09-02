@@ -152,16 +152,18 @@ const RayenSyncStructuralReviewSchema = z.object({
       .array(
         z.object({
           bedId: z.string().nullable(),
-          reason: z.enum([
-            'unconfirmed-principal-bed',
-            'principal-bed-collision',
-            'cma-physical-bed-collision',
-            'occupied-local-bed',
-            'historical-reconstruction',
-            'historical-admission-evidence',
-            'unverified-report-row',
-            'unclassified',
-          ]),
+          reason: z
+            .enum([
+              'unconfirmed-principal-bed',
+              'principal-bed-collision',
+              'cma-physical-bed-collision',
+              'occupied-local-bed',
+              'historical-reconstruction',
+              'historical-admission-evidence',
+              'unverified-report-row',
+              'unclassified',
+            ])
+            .catch('unclassified'),
         })
       )
       .max(MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES)
