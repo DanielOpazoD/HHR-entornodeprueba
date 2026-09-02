@@ -256,7 +256,8 @@ export const importRecordsFromBackup = async (
         parsed.report.salvagedBeds.length > 0 ||
         parsed.report.droppedDischargeItems > 0 ||
         parsed.report.droppedTransferItems > 0 ||
-        parsed.report.droppedCmaItems > 0;
+        parsed.report.droppedCmaItems > 0 ||
+        parsed.report.droppedRayenSyncEvents > 0;
 
       await saveDailyRecordDetailed(parsed.record);
       success++;

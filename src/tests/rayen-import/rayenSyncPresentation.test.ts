@@ -9,6 +9,7 @@ import {
   presentRayenCoverage,
   presentRayenSyncOutcome,
   presentRayenSyncRecovery,
+  rayenFailureReasonLabel,
   rayenPrimaryActionLabel,
   rayenSyncStatusLabel,
 } from '@/features/rayen-import/components/rayenSyncPresentation';
@@ -365,5 +366,30 @@ describe('rayen sync presentation', () => {
     expect(rayenSyncStatusLabel('partial')).toBe('Parcial');
     expect(rayenSyncStatusLabel('applied')).toBe('Censo aplicado');
     expect(rayenSyncStatusLabel(undefined)).toBeNull();
+  });
+
+  it('una pestaña de Ficha Médico inactiva pide recargarla antes de ofrecer «Revisar censo», aunque Eloísa esté sana', () => {
+    expect(rayenFailureReasonLabel('ficha_medico_stale')).toBe(
+      'Ficha Médico inactiva: recargar la pestaña'
+    );
+
+    const event: RayenSyncEvent = {
+      id: 'stale-tab',
+      startedAt: '2026-09-02T13:37:55.000Z',
+      completedAt: '2026-09-02T13:37:56.000Z',
+      by: 'Operador',
+      status: 'failed',
+      failureReason: 'ficha_medico_stale',
+    };
+    const recovery = presentRayenSyncRecovery(event, 'ready', false);
+
+    expect(recovery).toMatchObject({
+      title: 'Ficha Médico quedó inactiva',
+      action: 'retry_full',
+      actionLabel: 'Revisar censo',
+      tone: 'warning',
+    });
+    expect(recovery?.detail).toContain('Recárgala (Cmd+R)');
+    expect(recovery?.detail).not.toContain('Eloísa está operativa');
   });
 });

@@ -12,6 +12,8 @@ export interface DailyRecordParseReport {
   droppedDischargeItems: number;
   droppedTransferItems: number;
   droppedCmaItems: number;
+  /** Eventos del historial de sincronización que no pudieron salvarse en la ruta de reparación. */
+  droppedRayenSyncEvents: number;
 }
 
 export interface PatientDataParseReport {
@@ -35,6 +37,7 @@ export const hasStructuralRepairs = (
     report.salvagedBeds.length > 0 ||
     report.droppedDischargeItems > 0 ||
     report.droppedTransferItems > 0 ||
-    report.droppedCmaItems > 0
+    report.droppedCmaItems > 0 ||
+    report.droppedRayenSyncEvents > 0
   );
 };

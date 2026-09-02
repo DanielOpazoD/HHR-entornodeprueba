@@ -7,7 +7,13 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import type { SafeParseReturnType } from 'zod';
 
 import { normalizeLegacyNullsDeep } from './zod/legacyNormalization';
-import { DailyRecordSchema, RayenBedCollisionResolutionReceiptSchema } from './zod/dailyRecord';
+import {
+  DailyRecordSchema,
+  RayenBedCollisionResolutionReceiptSchema,
+  RayenSyncEventSchema,
+  RayenSyncMetaSchema,
+} from './zod/dailyRecord';
+import type { RayenSyncEvent, RayenSyncMeta } from '@/types/domain/rayenSync';
 import { PatientDataSchema } from './zod/patient';
 import { CMADataSchema, DischargeDataSchema, TransferDataSchema } from './zod/movements';
 import { buildFallbackPatientData } from './zodFallbackBuilders';
@@ -73,6 +79,7 @@ export const parseDailyRecordWithDefaultsReport = (
           droppedDischargeItems: 0,
           droppedTransferItems: 0,
           droppedCmaItems: 0,
+          droppedRayenSyncEvents: 0,
         },
       };
     }
@@ -119,6 +126,16 @@ export const parseDailyRecordWithDefaultsReport = (
   const salvagedDischarges = salvageArrayItems<DischargeData>(raw.discharges, DischargeDataSchema);
   const salvagedTransfers = salvageArrayItems<TransferData>(raw.transfers, TransferDataSchema);
   const salvagedCma = salvageArrayItems<CMAData>(raw.cma, CMADataSchema);
+  // El historial de sincronización se salvaba a cero: cualquier reparación
+  // estructural del registro (una cama rota, un enum desconocido) lo perdía
+  // entero y la siguiente corrida lo reescribía con un solo evento.
+  const salvagedRayenSyncHistory = salvageArrayItems<RayenSyncEvent>(
+    raw.rayenSyncHistory,
+    RayenSyncEventSchema as unknown as {
+      safeParse: (value: unknown) => SafeParseReturnType<unknown, RayenSyncEvent>;
+    }
+  );
+  const salvagedRayenSyncMeta = RayenSyncMetaSchema.safeParse(raw.rayenSync);
 
   return {
     record: applyDailyRecordStaffingCompatibility({
@@ -159,6 +176,12 @@ export const parseDailyRecordWithDefaultsReport = (
       handoffNightReceives: Array.isArray(raw.handoffNightReceives) ? raw.handoffNightReceives : [],
       bedTypeOverrides: (raw.bedTypeOverrides as Record<string, BedType>) || {},
       schemaVersion: typeof raw.schemaVersion === 'number' ? raw.schemaVersion : 1,
+      ...(Array.isArray(raw.rayenSyncHistory)
+        ? { rayenSyncHistory: salvagedRayenSyncHistory.values }
+        : {}),
+      ...(salvagedRayenSyncMeta.success
+        ? { rayenSync: salvagedRayenSyncMeta.data as RayenSyncMeta }
+        : {}),
     } as DailyRecord),
     report: {
       nullNormalization,
@@ -166,6 +189,7 @@ export const parseDailyRecordWithDefaultsReport = (
       droppedDischargeItems: salvagedDischarges.dropped,
       droppedTransferItems: salvagedTransfers.dropped,
       droppedCmaItems: salvagedCma.dropped,
+      droppedRayenSyncEvents: salvagedRayenSyncHistory.dropped,
     },
   };
 };
