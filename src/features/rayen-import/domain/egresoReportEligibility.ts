@@ -43,6 +43,17 @@ export const selectEligibleEgresoRows = (
   const occupiedCribs = occupiedClinicalCribsByRun(record);
   const rows: EgresoReportRow[] = [];
   let nextDiff = diff;
+  // Filas del RUN que este mismo bucle NO descarta (estampa válida y dentro del
+  // día): una fila D+1 real o inválida no debe retener la etiqueta de redundancia.
+  const stampedRowsByRun = new Map<string, number>();
+  for (const row of reportRows) {
+    const rowRun = normalizeRut(row.run);
+    const stamped = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
+    const withinDay =
+      Boolean(stamped.correctedDay && stamped.correctedTime) &&
+      Boolean(recordDay && stamped.correctedDay && stamped.correctedDay <= recordDay);
+    if (rowRun && withinDay) stampedRowsByRun.set(rowRun, (stampedRowsByRun.get(rowRun) ?? 0) + 1);
+  }
 
   for (const row of reportRows) {
     const run = normalizeRut(row.run);
@@ -91,8 +102,19 @@ export const selectEligibleEgresoRows = (
       : Boolean(run) && hasRecordedMovement(record, run);
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
     if (row.exactEpisodeVerification === 'unverified') {
+      // Etiqueta estable: applyEgresoReport descarta esta revisión si el pipeline
+      // termina construyendo el egreso de esa cama/RUN por el lookup exacto (visto
+      // en vivo el 02-09: RN bajo el RUN de la madre → dos filas, vinculación
+      // ambigua, alta aplicada y conflicto falso). Con más filas de las que la
+      // cama explica (gemelos) la revisión se conserva sin etiqueta.
+      const bedId = current?.bedId ?? currentCrib?.parentBedId ?? null;
+      const cribOccupied = Boolean(bedId && record.beds[bedId]?.clinicalCrib?.patientName?.trim());
+      const rowsSharingRun = run ? (stampedRowsByRun.get(run) ?? 1) : 1;
+      const explainedByBed = (current ? 1 : 0) + (cribOccupied ? 1 : 0);
+      const redundancyCandidate = Boolean(bedId) && rowsSharingRun <= explainedByBed;
       nextDiff = appendReportConflict(nextDiff, {
-        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
+        bedId,
+        ...(redundancyCandidate ? { code: 'unverified-report-row' as const } : {}),
         rut: row.run,
         patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
         reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,

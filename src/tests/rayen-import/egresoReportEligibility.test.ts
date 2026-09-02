@@ -267,4 +267,103 @@ describe('egreso report eligibility', () => {
     expect(result.rows).toEqual([reportRow]);
     expect(result.diff.conflicts).toHaveLength(0);
   });
+
+  it('una fila D+1 o inválida del mismo RUN no retiene la etiqueta de redundancia de la fila de hoy', () => {
+    // La etiqueta `unverified-report-row` permite que applyEgresoReport descarte la
+    // revisión si el lookup exacto construye el egreso; solo cuentan las filas que
+    // este mismo filtro deja pasar (estampa válida y dentro del día).
+    const record: DailyRecord = {
+      date: '2026-09-02',
+      beds: {
+        H5C1: {
+          ...EMPTY_PATIENT,
+          bedId: 'H5C1',
+          patientName: 'Tania Valencia',
+          rut: '28.106.852-0',
+          clinicalEpisodeId: '1001',
+          admissionDate: '2026-08-31',
+          admissionTime: '10:00',
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const base = {
+      encounterId: '',
+      run: '28.106.852-0',
+      patientName: 'Tania Valencia',
+      bedLabel: 'H5C1',
+      servicio: 'Ginecobstetricia',
+      edad: '18',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      exactEpisodeVerification: 'unverified' as const,
+    };
+    const today = { ...base, fechaEgreso: '02-09-2026 10:00' };
+    const nextDay = { ...base, fechaEgreso: '03-09-2026 15:00' };
+    const invalid = { ...base, fechaEgreso: 'sin fecha' };
+
+    const result = selectEligibleEgresoRows(emptyDiff(), [today, nextDay, invalid], record);
+
+    expect(result.rows).toEqual([]);
+    const unlinked = result.diff.conflicts.filter(c => c.reason.includes('no pudo vincularse'));
+    expect(unlinked).toHaveLength(1);
+    expect(unlinked[0]).toMatchObject({ bedId: 'H5C1', code: 'unverified-report-row' });
+  });
+
+  it('con más filas de hoy de las que la cama explica (gemelos), la revisión queda sin etiqueta', () => {
+    const record: DailyRecord = {
+      date: '2026-09-02',
+      beds: {
+        H5C1: {
+          ...EMPTY_PATIENT,
+          bedId: 'H5C1',
+          patientName: 'Tania Valencia',
+          rut: '28.106.852-0',
+          clinicalEpisodeId: '1001',
+          admissionDate: '2026-08-31',
+          admissionTime: '10:00',
+          clinicalCrib: {
+            ...EMPTY_PATIENT,
+            bedId: 'H5C1',
+            bedMode: 'Cuna',
+            patientName: 'Rn 1',
+            rut: '28.106.852-0',
+            clinicalEpisodeId: '1002',
+            admissionDate: '2026-08-31',
+          },
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const base = {
+      encounterId: '',
+      run: '28.106.852-0',
+      bedLabel: 'H5C1',
+      servicio: 'Ginecobstetricia',
+      edad: '0',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: '02-09-2026 10:00',
+      exactEpisodeVerification: 'unverified' as const,
+    };
+    const rows = [
+      { ...base, patientName: 'Tania Valencia', edad: '18' },
+      { ...base, patientName: 'Rn 1' },
+      { ...base, patientName: 'Rn 2' },
+    ];
+
+    const result = selectEligibleEgresoRows(emptyDiff(), rows, record);
+
+    const unlinked = result.diff.conflicts.filter(c => c.reason.includes('no pudo vincularse'));
+    expect(unlinked).toHaveLength(1);
+    expect(unlinked[0]?.code).toBeUndefined();
+  });
 });
