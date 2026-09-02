@@ -14,7 +14,7 @@
   },
   "main": "index.js",
   "dependencies": {
-    "@sparticuz/chromium": "^143.0.4",
+    "@sparticuz/chromium": "^149.0.0",
     "firebase-admin": "^14.0.0",
     "firebase-functions": "^7.3.0",
     "googleapis": "^171.4.0",
