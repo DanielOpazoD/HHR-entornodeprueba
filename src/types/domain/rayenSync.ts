@@ -65,6 +65,7 @@ export type RayenSyncStructuralIssueReason =
   | 'occupied-local-bed'
   | 'historical-reconstruction'
   | 'historical-admission-evidence'
+  | 'unverified-report-row'
   | 'unclassified';
 
 /** Privacy-safe structural diagnostic. It deliberately omits patient and episode identifiers. */

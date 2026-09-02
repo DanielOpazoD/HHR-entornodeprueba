@@ -25,6 +25,7 @@ import { resolveReleasedBedPlacements } from './resolveReleasedBedPlacements';
 import { markReportChecked } from './egresoReportConflicts';
 import { normalizeRut } from '@/utils/rutUtils';
 import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoReportEligibility';
+import { dropRedundantUnverifiedReportConflicts } from './redundantReportRowConflicts';
 import {
   attachAssociatedClinicalCribDischarges,
   buildClinicalCribPromotionCandidates,
@@ -352,7 +353,13 @@ export const applyEgresoReport = (
       reportEgresos.push(reportEgresoFromRow(row));
     }
   }
-  const releasedBeds = resolveReleasedBedPlacements(admissions, moves, discharges, conflicts);
+  const finalDischarges = attachAssociatedClinicalCribDischarges(checkedDiff, discharges, record);
+  const releasedBeds = resolveReleasedBedPlacements(
+    admissions,
+    moves,
+    discharges,
+    dropRedundantUnverifiedReportConflicts(conflicts, finalDischarges, record)
+  );
   const promotedMoveBySource = new Map(
     releasedBeds.promotedMoves.map(move => [move.fromBedId, move])
   );
@@ -365,17 +372,12 @@ export const applyEgresoReport = (
       : normalizeRut(move.rut) === normalizeRut(entry.rut);
     return samePatient ? { ...entry, bedId: move.toBedId } : entry;
   });
-  const dischargesWithAssociatedCribs = attachAssociatedClinicalCribDischarges(
-    checkedDiff,
-    discharges,
-    record
-  );
   return {
     ...checkedDiff,
     admissions: releasedBeds.admissions,
     updates,
     moves: releasedBeds.moves,
-    discharges: dischargesWithAssociatedCribs,
+    discharges: finalDischarges,
     pendingAdministrativeDischarges: relocatedPendingDischarges,
     conflicts: releasedBeds.conflicts,
     reportEgresos,
@@ -385,7 +387,7 @@ export const applyEgresoReport = (
       admissions: releasedBeds.admissions.length,
       updates: updates.length,
       moves: releasedBeds.moves.length,
-      discharges: dischargesWithAssociatedCribs.length,
+      discharges: finalDischarges.length,
       pendingAdministrativeDischarges: relocatedPendingDischarges.length,
       conflicts: releasedBeds.conflicts.length,
       unchanged: Math.max(0, checkedDiff.summary.unchanged - overriddenUnchanged),

@@ -90,32 +90,22 @@ export const selectEligibleEgresoRows = (
       ? hasRecordedMovement(record, '', reportedEpisode)
       : Boolean(run) && hasRecordedMovement(record, run);
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
-    // El censo de Ficha Médico ya planifica el egreso de este RUN/episodio (su
-    // evidencia de Gestión de Camas se usó para confirmarlo): la fila del
-    // informe es redundante, no un cambio nuevo. Con un RN registrado bajo el
-    // RUN de la madre, el informe trae DOS filas con el mismo RUN, la
-    // vinculación exacta queda ambigua ('unverified') y se exigía revisión de
-    // un alta que sí se aplicaba (visto en vivo el 02-09: H5C1 madre + cuna,
-    // corrida «Parcial» con banner por un conflicto falso). La cuna sale como
-    // alta asociada con la madre (alta, vivo); si no, se conserva la revisión.
     if (row.exactEpisodeVerification === 'unverified') {
-      const plannedDischarge = diff.discharges.find(
-        entry =>
-          (Boolean(reportedEpisode) &&
-            (entry.encounterId === reportedEpisode ||
-              entry.source?.encounterId === reportedEpisode)) ||
-          (Boolean(run) && normalizeRut(entry.rut) === run)
-      );
-      const cribRidesAlong =
-        !currentCrib ||
-        (plannedDischarge?.kind === 'alta' &&
-          plannedDischarge.status === 'Vivo' &&
-          Boolean(record.beds[plannedDischarge.bedId]?.clinicalCrib));
-      if (plannedDischarge && cribRidesAlong) continue;
-    }
-    if (row.exactEpisodeVerification === 'unverified') {
+      // Etiqueta estable: applyEgresoReport descarta esta revisión si el pipeline
+      // termina construyendo el egreso de esa cama/RUN por el lookup exacto (visto
+      // en vivo el 02-09: RN bajo el RUN de la madre → dos filas, vinculación
+      // ambigua, alta aplicada y conflicto falso). Con más filas de las que la
+      // cama explica (gemelos) la revisión se conserva sin etiqueta.
+      const bedId = current?.bedId ?? currentCrib?.parentBedId ?? null;
+      const cribOccupied = Boolean(bedId && record.beds[bedId]?.clinicalCrib?.patientName?.trim());
+      const rowsSharingRun = run
+        ? reportRows.filter(entry => normalizeRut(entry.run) === run).length
+        : 1;
+      const explainedByBed = (current ? 1 : 0) + (cribOccupied ? 1 : 0);
+      const redundancyCandidate = Boolean(bedId) && rowsSharingRun <= explainedByBed;
       nextDiff = appendReportConflict(nextDiff, {
-        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
+        bedId,
+        ...(redundancyCandidate ? { code: 'unverified-report-row' as const } : {}),
         rut: row.run,
         patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
         reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,

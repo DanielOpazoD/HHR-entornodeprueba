@@ -159,6 +159,7 @@ const RayenSyncStructuralReviewSchema = z.object({
             'occupied-local-bed',
             'historical-reconstruction',
             'historical-admission-evidence',
+            'unverified-report-row',
             'unclassified',
           ]),
         })
