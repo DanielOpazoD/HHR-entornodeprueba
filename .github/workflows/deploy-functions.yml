@@ -35,6 +35,7 @@ on:
       - 'functions/**'
       - '.github/workflows/deploy-functions.yml'
       - 'scripts/check-deployed-firebase-functions.mjs'
+      - 'scripts/check-firebase-function-regions.mjs'
       - 'scripts/check-firebase-function-delete-result.mjs'
       - 'scripts/list-firebase-function-targets.mjs'
   workflow_dispatch:
@@ -124,9 +125,13 @@ jobs:
         run: |
           set -euo pipefail
           # Las callables de autoridad viven SOLO en southamerica-east1 (región del
-          # cliente). Las copias en us-central1 quedaron huérfanas y `deploy --only`
-          # no retira regiones que el código dejó de declarar, así que se borran
-          # aquí de forma explícita e idempotente (ausencia = éxito).
+          # cliente). Las copias en us-central1 quedaron huérfanas. El planner de
+          # `deploy --only` también las retiraría (matchean el filtro por id y
+          # llevan la etiqueta deployment-tool), pero salta los borrados si algún
+          # upsert falla, y `functions:delete` puede salir con exit 0 aunque el
+          # borrado falle. Por eso se borran aquí de forma explícita e idempotente
+          # (ausencia = éxito) y el paso de verificación posterior PRUEBA que ya no
+          # están listadas.
           ORPHANED_US_CENTRAL1_FUNCTIONS=(
             saveDailyRecordWithClinicalAuthority
             patchDailyRecordWithClinicalAuthority
@@ -176,6 +181,14 @@ jobs:
             "$RUNNER_TEMP/firebase/functions-list.json" \
             applyRayenClinicalEnrichmentBatch \
             setAdminCudyrResult
+          # Las callables de autoridad deben vivir en la región del cliente y en
+          # ninguna otra: esta es la evidencia de que el borrado surtió efecto.
+          node scripts/check-firebase-function-regions.mjs \
+            "$RUNNER_TEMP/firebase/functions-list.json" \
+            saveDailyRecordWithClinicalAuthority@southamerica-east1 \
+            patchDailyRecordWithClinicalAuthority@southamerica-east1 \
+            '!saveDailyRecordWithClinicalAuthority@us-central1' \
+            '!patchDailyRecordWithClinicalAuthority@us-central1'
 
       - name: Cleanup credentials
         if: always()
