@@ -160,3 +160,29 @@ describe('extensionHealthBridge', () => {
     });
   });
 });
+
+describe('extension health report · vigencia absoluta', () => {
+  it('acepta expiresAt (epoch ms o null) en cada fuente y rechaza otros tipos', async () => {
+    const { isRayenExtensionHealthReport, RAYEN_EXTENSION_PROTOCOL_VERSION } =
+      await import('@/features/rayen-import/bridge/extensionHealthBridge');
+    const base = {
+      version: '0.48.5',
+      protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
+      checkedAt: '2026-09-02T13:41:09.361Z',
+      fichaMedico: {
+        status: 'ready',
+        message: 'ok',
+        expiresAt: 1_788_445_690_306,
+        remainingSeconds: 82_800,
+      },
+      gestionCamas: { status: 'ready', message: 'ok', expiresAt: null, remainingSeconds: null },
+    };
+    expect(isRayenExtensionHealthReport(base)).toBe(true);
+    expect(
+      isRayenExtensionHealthReport({
+        ...base,
+        fichaMedico: { ...base.fichaMedico, expiresAt: 'mañana' },
+      })
+    ).toBe(false);
+  });
+});

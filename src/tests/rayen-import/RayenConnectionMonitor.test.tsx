@@ -110,6 +110,44 @@ describe('RayenConnectionMonitor', () => {
     );
   });
 
+  it('con Ficha Médico lista pero por vencer, la barra dice «Revisar Ficha Médico» y no ofrece conectar GC', () => {
+    const extension = baseExtension({
+      connection: 'blocked',
+      blockedBy: 'fichaMedico',
+      canSync: false,
+      message:
+        'La sesión de Ficha Médico vence en ~3 min y no alcanzaría a cubrir la sincronización.',
+      report: {
+        ...baseExtension().report!,
+        fichaMedico: {
+          ...baseExtension().report!.fichaMedico,
+          remainingSeconds: 150,
+          expiresAt: Date.now() + 150_000,
+        },
+      },
+    });
+    renderMonitor(extension);
+
+    expect(screen.getByText('Revisar Ficha Médico')).toBeVisible();
+    expect(screen.queryByTestId('rayen-monitor-connect-gc')).not.toBeInTheDocument();
+    expect(screen.getByText(/Daniel Opazo · Médico · vence en ~3 min/)).toBeVisible();
+  });
+
+  it('con una extensión antigua (sin vigencia de Ficha Médico) muestra solo la identidad', () => {
+    const extension = baseExtension({
+      report: {
+        ...baseExtension().report!,
+        fichaMedico: {
+          status: 'ready',
+          message: 'Ficha Médico disponible. Sesión clínica vigente.',
+          identity: { fullName: 'Daniel Opazo', role: 'Médico' },
+        },
+      },
+    });
+    renderMonitor(extension);
+    expect(screen.getByText('Daniel Opazo · Médico')).toBeVisible();
+  });
+
   it('«Comprobar ahora» refresca el estado a demanda', async () => {
     const extension = baseExtension();
     renderMonitor(extension);

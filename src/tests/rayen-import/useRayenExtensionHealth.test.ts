@@ -81,8 +81,21 @@ describe('deriveHealthState', () => {
       })
     );
     expectConnection(expiring, 'blocked', false);
+    expect(expiring.blockedBy).toBe('gestionCamas');
     expect(expiring.message).toContain('vence en ~2 min');
     expect(expiring.message).toContain('Renuévala');
+    expect(
+      deriveHealthState(
+        makeReport({
+          gestionCamas: { status: 'missing', message: 'Gestión de Camas no está abierta.' },
+        })
+      ).blockedBy
+    ).toBe('gestionCamas');
+    expect(
+      deriveHealthState(
+        makeReport({ fichaMedico: { status: 'stale', message: 'Recarga Ficha Médico.' } })
+      ).blockedBy
+    ).toBe('fichaMedico');
   });
 
   it('bloquea el arranque cuando la sesión de Ficha Médico está por vencer (extensión ≥ 0.48.5)', () => {
@@ -98,8 +111,22 @@ describe('deriveHealthState', () => {
       })
     );
     expectConnection(expiring, 'blocked', false);
+    expect(expiring.blockedBy).toBe('fichaMedico');
     expect(expiring.message).toContain('Ficha Médico vence en ~3 min');
     expect(expiring.message).toContain('iniciar sesión en Eloísa');
+
+    // Ya vencida: el mensaje no dice «vence en ~1 min».
+    const expired = deriveHealthState(
+      makeReport({
+        fichaMedico: {
+          status: 'ready',
+          message: 'Ficha Médico disponible. Sesión clínica vigente.',
+          remainingSeconds: 0,
+        },
+      })
+    );
+    expectConnection(expired, 'blocked', false);
+    expect(expired.message).toContain('La sesión de Ficha Médico venció');
 
     expectConnection(
       deriveHealthState(
