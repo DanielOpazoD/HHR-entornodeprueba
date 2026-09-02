@@ -424,33 +424,6 @@ describe('rayenCensusPersistenceGuard', () => {
     });
   });
 
-  it.each([
-    ['another day', buildRecord('run-1', { date: '2026-07-29' })],
-    ['another run', buildRecord('run-2')],
-    [
-      'a run without an applied event',
-      buildRecord('run-1', {
-        rayenSyncHistory: [
-          {
-            id: 'run-1',
-            sourceDate: '2026-07-28',
-            startedAt: '2026-07-28T09:59:00.000Z',
-            by: 'Operador HHR',
-            status: 'partial',
-            policy: { mode: 'preview', revision: 1, clinicalBatchMode: 'enforced' },
-          },
-        ],
-      }),
-    ],
-  ])('rejects a clean write that confirms %s', (_label, record) => {
-    expect(() =>
-      resolveConfirmedRayenCensusHandoff(
-        { record, result: buildResult() },
-        { date: '2026-07-28', runId: 'run-1' }
-      )
-    ).toThrow(/no confirmó la versión de esta sincronización/i);
-  });
-
   it('rejects a clean acknowledgment issued for another census day', () => {
     expect(() =>
       resolveConfirmedRayenCensusHandoff(

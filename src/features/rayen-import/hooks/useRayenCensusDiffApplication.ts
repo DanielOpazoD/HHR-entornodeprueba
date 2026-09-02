@@ -146,11 +146,25 @@ export const useRayenCensusDiffApplication = ({
           }
         } else {
           persistence = await saveDailyRecord(stamped, record.lastUpdated, writeLease);
+          // Paridad con la ruta checkpoint (#267): un guardado completo aceptado
+          // cuya confirmación llega sin el sello puede venir de una lectura
+          // anterior al commit; una única relectura autoritativa evita convertir
+          // una corrida commiteada en una revisión espuria.
+          if (
+            persistence.result &&
+            !isDailyRecordWriteRejectedResult(persistence.result) &&
+            persistence.result.outcome === 'clean' &&
+            persistence.record.rayenSync?.runId !== run.id
+          ) {
+            const reread = await loadAuthoritativeRecord(persistenceBase.date);
+            if (reread) persistence = { ...persistence, record: reread };
+          }
         }
         const confirmedHandoff = resolveConfirmedRayenCensusHandoff(persistence, {
           date: stamped.date,
           clinicalDay,
           runId: run.id,
+          startedAt: run.startedAt,
           diff,
         });
         const structuralStage = resolveStructuralStageResult(confirmedHandoff);
