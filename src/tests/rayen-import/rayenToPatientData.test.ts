@@ -140,6 +140,26 @@ describe('rayenToPatientData', () => {
     expect(patient.secondLastName).toBe('Benavides');
   });
 
+  it('si TODOS los nombres de pila son marcadores, quedan vacíos y el paciente se identifica por apellidos', () => {
+    // Contrato declarado (seguimiento de #295): un ingreso registrado solo con el
+    // marcador del punto de atención no tiene nombre de pila real. Inventar uno
+    // sería peor; conservar «Urgencias» como nombre también. Queda vacío y visible
+    // por apellidos, igual que un nombre de pila no informado.
+    const { patient } = rayenToPatientData(
+      baseEncounter({
+        firstGivenName: 'URGENCIAS',
+        nextGivenNames: '',
+        firstFamilyName: 'AROCA',
+        secondFamilyName: 'BENAVIDES',
+      }),
+      REFERENCE
+    );
+
+    expect(patient.firstName).toBe('');
+    expect(patient.patientName).toBe('Aroca Benavides');
+    expect(patient.lastName).toBe('Aroca');
+  });
+
   it('solo poda la palabra completa: nunca mutila un nombre real que la contenga', () => {
     // La poda es por token exacto (mismo criterio que los placeholders de
     // Rayen). Un nombre legítimo debe sobrevivir intacto.

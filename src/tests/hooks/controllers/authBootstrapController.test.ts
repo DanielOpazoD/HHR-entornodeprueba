@@ -7,6 +7,7 @@ import {
   shouldIgnoreTransientUnauthenticatedBootstrapEvent,
   shouldResolveAuthBootstrapImmediatelyAsUnauthenticated,
   shouldLogSessionLogin,
+  shouldPreserveUnauthorizedSessionReason,
 } from '@/hooks/controllers/authBootstrapController';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 
@@ -110,6 +111,31 @@ describe('authBootstrapController', () => {
         hasLoggedThisSession: true,
       })
     ).toBe(false);
+  });
+
+  it('un evento unauthenticated no degrada un unauthorized que trae razón (sesión sin permisos)', () => {
+    const unauthorizedWithReason = {
+      status: 'unauthorized',
+      user: null,
+      reason: 'Tu sesión perdió los permisos. Vuelve a iniciar sesión.',
+    } as AuthSessionState;
+    const unauthenticated = { status: 'unauthenticated', user: null } as AuthSessionState;
+    const unauthorizedWithoutReason = { status: 'unauthorized', user: null } as AuthSessionState;
+
+    expect(shouldPreserveUnauthorizedSessionReason(unauthorizedWithReason, unauthenticated)).toBe(
+      true
+    );
+    // Sin razón no hay nada que preservar; y un estado autenticado entrante siempre gana.
+    expect(
+      shouldPreserveUnauthorizedSessionReason(unauthorizedWithoutReason, unauthenticated)
+    ).toBe(false);
+    expect(
+      shouldPreserveUnauthorizedSessionReason(unauthorizedWithReason, {
+        status: 'authorized',
+        user: { uid: 'u1', email: 'u1@h.test', role: 'nurse' },
+      } as unknown as AuthSessionState)
+    ).toBe(false);
+    expect(shouldPreserveUnauthorizedSessionReason(unauthenticated, unauthenticated)).toBe(false);
   });
 
   it('keeps the timeout issue string centralized', () => {

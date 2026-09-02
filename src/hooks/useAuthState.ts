@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { signOut, onAuthSessionStateChange } from '@/services/auth/authSession';
 import { hasActiveFirebaseSession } from '@/services/auth/authFallback';
 import {
@@ -18,6 +18,8 @@ import {
   useResolvedAuthBootstrap,
 } from '@/hooks/useAuthStateSupport';
 import { hasRecentManualLogout } from '@/services/auth/authLogoutState';
+import { useSessionPermissionGuard } from '@/hooks/useSessionPermissionGuard';
+import { shouldPreserveUnauthorizedSessionReason } from '@/hooks/controllers/authBootstrapController';
 import { isAuthBootstrapPending } from '@/services/auth/authBootstrapState';
 import {
   clearPersistedFirebaseAuthState,
@@ -135,13 +137,32 @@ export const useAuthState = (): UseAuthStateReturn => {
     hasActiveFirebaseSession
   );
 
+  // El listener de auth no conoce el estado vigente: la preservación de la razón
+  // de «unauthorized» se decide aquí, con el estado previo a mano. Memoizado:
+  // el bootstrap lo usa como dependencia y una identidad nueva por render lo
+  // re-suscribía en bucle (OOM en tests).
+  const setSessionStatePreservingUnauthorizedReason = useCallback(
+    (next: AuthSessionState) =>
+      setSessionState(current =>
+        shouldPreserveUnauthorizedSessionReason(current, next) ? current : next
+      ),
+    []
+  );
   useInactivityLogout(currentUser, handleLogout);
+  // Solo para sesiones plenamente autorizadas: la firma anónima (signature
+  // mode) no tiene rol efectivo en las reglas y cualquier lectura básica suya
+  // se deniega por diseño — no es una sesión perdida.
+  useSessionPermissionGuard(
+    sessionState.status === 'authorized' ? currentUser : null,
+    handleLogout,
+    setSessionState
+  );
   useResolvedAuthBootstrap({
     e2eBootstrapUser,
     resolveRedirectAuthSessionOutcome: executeRedirectAuthResolution,
     resolveCurrentAuthSessionOutcome: executeResolvedCurrentAuthSessionState,
     onAuthSessionStateChange,
-    setSessionState,
+    setSessionState: setSessionStatePreservingUnauthorizedReason,
     setAuthLoading,
   });
 

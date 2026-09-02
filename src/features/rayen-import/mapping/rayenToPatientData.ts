@@ -148,7 +148,12 @@ const stripAdministrativeNameTokens = (value: string): string =>
     .filter(word => word && !ADMINISTRATIVE_NAME_TOKENS.has(word.toLowerCase()))
     .join(' ');
 
-/** Nombres de pila ya normalizados (title case, sin relleno ni marcadores). */
+/**
+ * Nombres de pila ya normalizados (title case, sin relleno ni marcadores).
+ * Si TODOS eran marcadores, el resultado es vacío a propósito: el paciente
+ * queda identificado por apellidos (y RUT), igual que un nombre de pila no
+ * informado. No se inventa un nombre ni se conserva el marcador.
+ */
 export const composeRayenGivenNames = (firstGivenName?: string, nextGivenNames?: string): string =>
   stripAdministrativeNameTokens(
     toTitleCaseName([firstGivenName, nextGivenNames].filter(Boolean).join(' '))

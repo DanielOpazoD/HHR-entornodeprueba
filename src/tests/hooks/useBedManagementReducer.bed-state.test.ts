@@ -214,6 +214,33 @@ describe('bedManagementReducer bed state controls', () => {
     });
   });
 
+  it('en una cuna existente solo emite los campos que realmente cambian (diff, Fase 2)', () => {
+    const record = DataFactory.createMockDailyRecord('2026-04-12');
+    record.beds.R1.clinicalCrib = {
+      ...DataFactory.createMockPatient('R1', {
+        patientName: 'RN Temporal',
+        pathology: 'Observación',
+      }),
+      bedMode: 'Cuna',
+    } as typeof record.beds.R1.clinicalCrib;
+
+    // El modal demográfico reenvía el objeto completo: patientName idéntico se poda.
+    const patch = bedManagementReducer(record, {
+      type: 'UPDATE_CLINICAL_CRIB_MULTIPLE',
+      bedId: 'R1',
+      fields: { patientName: 'RN Temporal', pathology: 'Ictericia' },
+    });
+    expect(patch).toEqual({ 'beds.R1.clinicalCrib.pathology': 'Ictericia' });
+
+    // Todo idéntico → diff vacío (el dispatch lo corta sin escribir ni auditar).
+    const noop = bedManagementReducer(record, {
+      type: 'UPDATE_CLINICAL_CRIB_MULTIPLE',
+      bedId: 'R1',
+      fields: { patientName: 'RN Temporal', pathology: 'Observación' },
+    });
+    expect(noop).toEqual({});
+  });
+
   it('updates blocked reason and single clinical crib fields through dedicated patches', () => {
     const record = DataFactory.createMockDailyRecord('2026-04-12');
 

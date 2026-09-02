@@ -24,6 +24,18 @@ export const shouldDeferUnauthenticatedSessionState = ({
   isAuthBootstrapPending: boolean;
 }): boolean => isAuthBootstrapPending && sessionState.status === 'unauthenticated';
 
+/**
+ * Un evento «unauthenticated» del listener de Firebase (p. ej. el que sigue al
+ * signOut) nunca degrada un «unauthorized» explícito: ese estado carga la
+ * RAZÓN que la pantalla de acceso muestra (sesión sin permisos). Sin esta
+ * política, el listener pisaba la razón según el orden en que llegara.
+ */
+export const shouldPreserveUnauthorizedSessionReason = (
+  current: AuthSessionState,
+  next: AuthSessionState
+): boolean =>
+  current.status === 'unauthorized' && Boolean(current.reason) && next.status === 'unauthenticated';
+
 export const shouldAttemptAuthTimeoutRecovery = ({
   hasRecentManualLogout,
   hasAuthRehydrationHint,
