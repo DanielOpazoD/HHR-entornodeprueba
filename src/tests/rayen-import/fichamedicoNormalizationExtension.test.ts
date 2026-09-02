@@ -71,6 +71,8 @@ describe('Ficha Medico identity and session normalization', () => {
     [{ expiresAt: 1_800_000_000 }, undefined, 1_800_000_000_000],
     [{ expires: 1_800_000_000_123 }, undefined, 1_800_000_000_123],
     [{ expirationDateTime: '2027-01-15T12:30:00.000Z' }, undefined, 1_800_016_200_000],
+    // Campo real de Eloísa (sesión de 24 h con zona horaria de la isla).
+    [{ expirationDate: '2026-09-03T08:28:10.3065687-06:00' }, undefined, 1_788_445_690_306],
     [{}, { expires: 'not-a-date' }, null],
     [null, null, null],
   ])('normalizes expiration fixture %#', (session, payload, expected) => {

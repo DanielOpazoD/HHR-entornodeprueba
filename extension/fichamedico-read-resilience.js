@@ -1,0 +1,109 @@
+/**
+ * fichamedico-read-resilience.js (MAIN world helper, loaded before inject-fichamedico.js)
+ *
+ * Pure helpers for reading Ficha Médico when the tab's network layer misbehaves. Seen live on
+ * 02-09: a tab left open overnight still answered the health probe (same-origin session
+ * endpoint) while every cross-origin API read died with a bare `TypeError('Failed to fetch')`
+ * until the tab was reloaded. HHR kept offering a sync that failed in one second.
+ *
+ * No DOM, no fetch: the reader receives `readOnce` and `rebind` callbacks, so the policy is
+ * unit-testable outside the page.
+ */
+(function (root) {
+  'use strict';
+
+  // Chrome «Failed to fetch», Firefox «NetworkError when attempting to fetch resource.»,
+  // Safari «Load failed». Message-based on purpose: `instanceof TypeError` breaks across realms.
+  const NETWORK_FAILURE_RE = /failed to fetch|networkerror|load failed/i;
+
+  const errorMessage = error => String((error && error.message) || error);
+
+  const isNetworkFailure = error => NETWORK_FAILURE_RE.test(errorMessage(error));
+
+  /**
+   * Keeps the original message (HHR classifies on it) and names the endpoint without its query
+   * and with numeric path segments anonymised: an encounter id in `/encounter/<id>/...` must
+   * never cross out of the MAIN world inside an error string.
+   */
+  const describeNetworkFailure = (error, url) =>
+    new Error(
+      errorMessage(error) +
+        ' al consultar ' +
+        String(url)
+          .replace(/\?.*/, '')
+          .replace(/\/\d+(?=\/|$)/g, '/{id}')
+    );
+
+  const READ_BLOCKED_MESSAGE =
+    'Ficha Médico no puede leer datos desde esta pestaña (fallo de red al consultar Eloísa). ' +
+    'Recarga la pestaña (Cmd+R).';
+  const SESSION_READY_MESSAGE = 'Ficha Médico disponible. Sesión clínica vigente.';
+  const SESSION_MISSING_MESSAGE = 'La sesión clínica de Ficha Médico no está disponible.';
+
+  /**
+   * A remembered network failure blocks the health probe only for this long. Seen live on
+   * 02-09: the same tab failed at 08:51 and read 15 encounters at 08:54, so a failure can be a
+   * transient backend/network blip. Blocking until the next successful read would trap the
+   * operator (the honest button stays disabled, so no read ever runs to clear it).
+   */
+  const READ_BLOCK_TTL_MS = 2 * 60 * 1000;
+
+  /**
+   * One self-heal attempt on a network failure, and only when `rebind()` reports that it
+   * actually changed the binding (captured list URL / API origin dropped for the defaults):
+   * repeating an identical request against a backend that just failed doubles the load on
+   * Rayen for nothing. If the retry also fails at network level (or there was nothing to
+   * rebind) the failure is remembered, and `isReadBlocked()` lets the health probe stop
+   * reporting the tab as ready for READ_BLOCK_TTL_MS or until a read succeeds. HTTP errors
+   * (4xx/5xx) never retry: they are answers, not a broken tab.
+   */
+  const createSelfHealingReader = ({ readOnce, rebind, now, blockTtlMs }) => {
+    const clock = typeof now === 'function' ? now : () => Date.now();
+    const ttl = Number.isFinite(blockTtlMs) && blockTtlMs > 0 ? blockTtlMs : READ_BLOCK_TTL_MS;
+    let lastFailure = null;
+
+    const rememberAndThrow = error => {
+      if (isNetworkFailure(error)) lastFailure = { at: clock(), message: errorMessage(error) };
+      throw error;
+    };
+
+    const read = async () => {
+      try {
+        const snapshot = await readOnce();
+        lastFailure = null;
+        return snapshot;
+      } catch (error) {
+        if (!isNetworkFailure(error)) throw error;
+        if (rebind() !== true) return rememberAndThrow(error);
+        try {
+          const snapshot = await readOnce();
+          lastFailure = null;
+          return snapshot;
+        } catch (retryError) {
+          return rememberAndThrow(retryError);
+        }
+      }
+    };
+
+    return {
+      read,
+      isReadBlocked: () => lastFailure !== null && clock() - lastFailure.at < ttl,
+      getLastFailure: () => lastFailure,
+    };
+  };
+
+  /** Honest health: a verified session whose reads fail at network level is NOT ready. */
+  const describeSessionStatus = ({ sessionReady, readBlocked }) => {
+    if (sessionReady && readBlocked) return { ready: false, message: READ_BLOCKED_MESSAGE };
+    if (sessionReady) return { ready: true, message: SESSION_READY_MESSAGE };
+    return { ready: false, message: SESSION_MISSING_MESSAGE };
+  };
+
+  root.HhrFichaMedicoReadResilience = {
+    READ_BLOCK_TTL_MS,
+    isNetworkFailure,
+    describeNetworkFailure,
+    createSelfHealingReader,
+    describeSessionStatus,
+  };
+})(typeof self !== 'undefined' ? self : globalThis);
