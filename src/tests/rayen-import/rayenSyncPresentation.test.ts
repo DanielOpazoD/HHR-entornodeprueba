@@ -392,4 +392,24 @@ describe('rayen sync presentation', () => {
     expect(recovery?.detail).toContain('Recárgala (Cmd+R)');
     expect(recovery?.detail).not.toContain('Eloísa está operativa');
   });
+
+  it('un conflicto de escritura explica que otra pestaña se adelantó y sugiere cerrarla si se repite', () => {
+    const event: RayenSyncEvent = {
+      id: 'overtaken',
+      startedAt: '2026-09-02T15:34:30.000Z',
+      completedAt: '2026-09-02T15:34:46.000Z',
+      by: 'Operador',
+      status: 'failed',
+      failureReason: 'apply_conflict',
+    };
+    const recovery = presentRayenSyncRecovery(event, 'ready', false);
+
+    expect(recovery).toMatchObject({
+      title: 'Otra escritura se adelantó',
+      action: 'retry_full',
+      tone: 'warning',
+    });
+    expect(recovery?.detail).toContain('otras pestañas de HHR');
+    expect(recovery?.detail).not.toContain('Eloísa está operativa');
+  });
 });

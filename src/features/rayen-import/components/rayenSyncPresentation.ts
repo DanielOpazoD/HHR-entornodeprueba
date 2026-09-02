@@ -329,6 +329,19 @@ export const presentRayenSyncRecovery = (
       tone: 'warning',
     };
   }
+  // Otra pestaña o usuario guardó el mismo censo mientras se confirmaba (visto
+  // en vivo el 02-09 con dos pestañas de HHR): reintentar suele bastar, y si
+  // se repite, la causa está en la otra pestaña, no en Eloísa.
+  if (event.failureReason === 'apply_conflict' && connection !== 'incompatible') {
+    return {
+      title: 'Otra escritura se adelantó',
+      detail:
+        'Otra pestaña o usuario guardó este censo mientras se confirmaba la sincronización. Vuelve a sincronizar; si se repite, cierra las otras pestañas de HHR con este censo abierto.',
+      action: 'retry_full',
+      actionLabel: 'Revisar censo',
+      tone: 'warning',
+    };
+  }
   // La salud dice «lista» pero la pestaña no puede leer: reintentar sin
   // recargarla vuelve a fallar en 1 s (visto en vivo el 02-09). El remedio es
   // la recarga; recién después tiene sentido «Revisar censo». Con la

@@ -424,8 +424,23 @@ describe('rayenCensusPersistenceGuard', () => {
     });
   });
 
+  it('rejects a clean write that confirms another day as a programming-level error (no retry)', () => {
+    let thrown: unknown;
+    try {
+      resolveConfirmedRayenCensusHandoff(
+        { record: buildRecord('run-1', { date: '2026-07-29' }), result: buildResult() },
+        { date: '2026-07-28', runId: 'run-1' }
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toMatchObject({ name: 'Error' });
+    expect(String((thrown as Error).message)).toMatch(
+      /no confirmó la versión de esta sincronización/i
+    );
+  });
+
   it.each([
-    ['another day', buildRecord('run-1', { date: '2026-07-29' })],
     ['another run', buildRecord('run-2')],
     [
       'a run without an applied event',
@@ -442,14 +457,24 @@ describe('rayenCensusPersistenceGuard', () => {
         ],
       }),
     ],
-  ])('rejects a clean write that confirms %s', (_label, record) => {
-    expect(() =>
-      resolveConfirmedRayenCensusHandoff(
-        { record, result: buildResult() },
-        { date: '2026-07-28', runId: 'run-1' }
-      )
-    ).toThrow(/no confirmó la versión de esta sincronización/i);
-  });
+  ])(
+    'un guardado aceptado cuyo sello no quedó en el servidor (%s) es un conflicto de concurrencia reintentable',
+    (_label, record) => {
+      // Visto en vivo (02-09): dos pestañas de HHR sobre el mismo censo; otra
+      // escritura pisó el sello y la corrida moría como apply_failed sin reintento.
+      let thrown: unknown;
+      try {
+        resolveConfirmedRayenCensusHandoff(
+          { record, result: buildResult() },
+          { date: '2026-07-28', runId: 'run-1' }
+        );
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toMatchObject({ name: 'ConcurrencyError' });
+      expect(String((thrown as Error).message)).toMatch(/otra escritura cambió el censo/i);
+    }
+  );
 
   it('rejects a clean acknowledgment issued for another census day', () => {
     expect(() =>
