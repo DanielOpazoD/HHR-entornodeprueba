@@ -80,18 +80,34 @@ export interface RayenSyncCoverageIssue {
   reason: RayenSyncIssueReason;
 }
 
-export type RayenSyncFailureReason =
-  | 'extension_unavailable'
-  | 'extension_incompatible'
-  | 'ficha_medico_unavailable'
-  | 'gestion_camas_unavailable'
-  | 'snapshot_timeout'
-  | 'snapshot_error'
-  | 'apply_failed'
+/**
+ * Única fuente de las causas de fallo de una corrida: el esquema Zod del
+ * historial deriva su enum de ESTA tupla. Mantenerlas en dos listas hizo que
+ * las causas de #294 (`apply_unauthorized`, `apply_conflict`) existieran para
+ * TypeScript pero no para Zod, y un registro con una de ellas perdía todo su
+ * historial al releerse (visto el 02-09).
+ */
+export const RAYEN_SYNC_FAILURE_REASONS = [
+  'extension_unavailable',
+  'extension_incompatible',
+  'ficha_medico_unavailable',
+  /**
+   * La pestaña de Ficha Médico responde a la salud pero ya no puede leer
+   * datos (p. ej. «Failed to fetch» tras una noche abierta): hay que
+   * recargarla. Antes se archivaba como `snapshot_error` genérico.
+   */
+  'ficha_medico_stale',
+  'gestion_camas_unavailable',
+  'snapshot_timeout',
+  'snapshot_error',
+  'apply_failed',
   /** El guardado fue rechazado por permisos: la sesión perdió su rol, no es un fallo del servidor. */
-  | 'apply_unauthorized'
+  'apply_unauthorized',
   /** Otro escritor cambió el censo durante la aplicación. */
-  | 'apply_conflict';
+  'apply_conflict',
+] as const;
+
+export type RayenSyncFailureReason = (typeof RAYEN_SYNC_FAILURE_REASONS)[number];
 
 /** Causas que puede producir la etapa de aplicación (las demás son de captura). */
 export type RayenApplyFailureReason = Extract<RayenSyncFailureReason, `apply_${string}`>;

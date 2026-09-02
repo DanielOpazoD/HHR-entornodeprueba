@@ -9,6 +9,7 @@ import {
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
+import { classifyRayenSnapshotError } from '../domain/rayenSnapshotErrorClassification';
 import type { RayenCensusSnapshot, RayenSyncBundle } from '../contracts/rayenSnapshot';
 import * as rayenImportBridge from '../bridge/rayenImportBridge';
 import type { RayenExtensionHealthState } from './useRayenExtensionHealth';
@@ -103,7 +104,7 @@ export const useRayenImportCapture = ({
 
   useEffect(
     () =>
-      rayenImportBridge.subscribeToRayenImportErrors((_error, requestId) => {
+      rayenImportBridge.subscribeToRayenImportErrors((error, requestId) => {
         const runId = syncRequestController.getRunId(requestId);
         if (!runId) return;
         const selectedDate = preparedSyncContextRef.current?.selectedDate;
@@ -121,13 +122,17 @@ export const useRayenImportCapture = ({
           stage: { type: 'failed' },
         });
         preparedSyncContextRef.current = null;
-        void failRun('snapshot_error', runId);
+        // La extensión ya dice QUÉ falló (pestaña ausente, pestaña que no
+        // puede leer, Gestión de Camas, timeout); antes se descartaba y todo
+        // era un «snapshot_error» con un genérico. La causa persistida es una
+        // categoría; el texto crudo solo se muestra.
+        const classified = classifyRayenSnapshotError(error);
+        void failRun(classified.reason, runId);
         setState(previous => ({
           ...previous,
           isBusy: false,
           isSyncing: false,
-          error:
-            'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen e inténtalo nuevamente.',
+          error: classified.message,
         }));
       }),
     [

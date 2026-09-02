@@ -101,6 +101,7 @@ export const rayenPrimaryActionLabel = (
 export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string => {
   if (reason === 'extension_incompatible') return 'Extensión incompatible';
   if (reason === 'ficha_medico_unavailable') return 'Ficha Médico no disponible';
+  if (reason === 'ficha_medico_stale') return 'Ficha Médico inactiva: recargar la pestaña';
   if (reason === 'gestion_camas_unavailable') return 'Gestión de Camas no disponible';
   if (reason === 'snapshot_timeout') return 'Sin respuesta de la extensión';
   if (reason === 'snapshot_error') return 'No se pudo leer Eloísa';
@@ -325,6 +326,23 @@ export const presentRayenSyncRecovery = (
         'El censo se capturó pero no se pudo guardar: tu sesión perdió permisos. Vuelve a iniciar sesión y sincroniza de nuevo.',
       action: null,
       actionLabel: null,
+      tone: 'warning',
+    };
+  }
+  // La salud dice «lista» pero la pestaña no puede leer: reintentar sin
+  // recargarla vuelve a fallar en 1 s (visto en vivo el 02-09). El remedio es
+  // la recarga; recién después tiene sentido «Revisar censo». Con la
+  // extensión ausente o incompatible manda esa condición, no esta.
+  if (
+    event.failureReason === 'ficha_medico_stale' &&
+    (connection === 'ready' || connection === 'blocked')
+  ) {
+    return {
+      title: 'Ficha Médico quedó inactiva',
+      detail:
+        'Eloísa respondió, pero la pestaña de Ficha Médico ya no puede leer datos (sesión de red vencida o pestaña envejecida). Recárgala (Cmd+R), espera a que cargue y luego pulsa «Revisar censo».',
+      action: 'retry_full',
+      actionLabel: 'Revisar censo',
       tone: 'warning',
     };
   }

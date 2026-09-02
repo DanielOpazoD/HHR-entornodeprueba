@@ -8,6 +8,7 @@ import { applyDailyRecordStaffingCompatibility } from '@/services/staff/dailyRec
 import {
   MAX_RAYEN_STAFFING_BOUNDARY_EVIDENCE,
   MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,
+  RAYEN_SYNC_FAILURE_REASONS,
   RAYEN_SYNC_ISSUE_REASONS,
   RAYEN_SYNC_ISSUE_SOURCES,
 } from '@/types/domain/rayenSync';
@@ -166,7 +167,7 @@ const RayenSyncStructuralReviewSchema = z.object({
   ),
 });
 
-const RayenSyncEventSchema = z.object({
+export const RayenSyncEventSchema = z.object({
   id: z.string(),
   sourceDate: nullableOptional(z.string().regex(DATE_REGEX)),
   startedAt: z.string(),
@@ -186,20 +187,13 @@ const RayenSyncEventSchema = z.object({
   staffingObservation: nullableOptional(RayenSyncStaffingObservationSchema),
   structuralReview: nullableOptional(RayenSyncStructuralReviewSchema),
   performance: nullableOptional(RayenSyncPerformanceSchema),
-  failureReason: nullableOptional(
-    z.enum([
-      'extension_unavailable',
-      'extension_incompatible',
-      'ficha_medico_unavailable',
-      'gestion_camas_unavailable',
-      'snapshot_timeout',
-      'snapshot_error',
-      'apply_failed',
-    ])
-  ),
+  // Derivado de la tupla de dominio (una sola lista). `.catch`: una causa que
+  // este cliente aún no conoce (escrita por una versión más nueva) no puede
+  // invalidar el registro completo; el evento sobrevive sin causa.
+  failureReason: nullableOptional(z.enum(RAYEN_SYNC_FAILURE_REASONS).optional().catch(undefined)),
 });
 
-const RayenSyncMetaSchema = z.object({
+export const RayenSyncMetaSchema = z.object({
   at: z.string(),
   by: z.string(),
   runId: nullableOptional(z.string()),

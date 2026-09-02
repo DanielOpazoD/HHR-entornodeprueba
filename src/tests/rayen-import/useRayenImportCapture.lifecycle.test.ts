@@ -152,6 +152,49 @@ describe('useRayenImportCapture lifecycle guards', () => {
     );
   });
 
+  it('archiva la causa real del error de captura y muestra el remedio (pestaña de Ficha Médico inactiva)', () => {
+    const failRun = vi.fn().mockResolvedValue(undefined);
+    const setState = vi.fn();
+    renderHook(() =>
+      useRayenImportCapture({
+        currentRecord: record,
+        policy,
+        policyStatus: 'ready',
+        setState,
+        setStaffingProposal: vi.fn(),
+        setStaffingProposalError: vi.fn(),
+        clearSyncTimeout: vi.fn(),
+        syncRequestController: {
+          start: vi.fn(),
+          cancel: vi.fn(),
+          getRunId: vi.fn().mockReturnValue('run-1'),
+        },
+        preparedSyncContextRef: { current: null },
+        loadFreshRecord: vi.fn().mockResolvedValue(record),
+        startRun: vi.fn(),
+        failRun,
+        recordRunPerformance: vi.fn(),
+        previewSnapshot: vi.fn(),
+      })
+    );
+    const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
+      (error: string, requestId: string) => void,
+    ];
+    // Mensaje real de la extensión el 02-09: la salud decía «lista» y la
+    // lectura fallaba en 1 s; antes se archivaba como snapshot_error genérico.
+    act(() =>
+      onError(
+        'No se pudo leer Rayen. Recarga la pestaña de Ficha Médico (Cmd+R) para activar la extensión y reintenta. Detalle: Failed to fetch',
+        'request-1'
+      )
+    );
+    expect(failRun).toHaveBeenCalledWith('ficha_medico_stale', 'run-1');
+    const stateUpdater = setState.mock.calls[0]?.[0] as (
+      state: typeof INITIAL_RAYEN_IMPORT_STATE
+    ) => typeof INITIAL_RAYEN_IMPORT_STATE;
+    expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE).error).toContain('Recárgala (Cmd+R)');
+  });
+
   it('ignores a callback whose request no longer belongs to an active run', () => {
     const failRun = vi.fn().mockResolvedValue(undefined);
     const previewSnapshot = vi.fn();
