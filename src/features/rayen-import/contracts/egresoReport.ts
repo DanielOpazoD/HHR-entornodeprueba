@@ -66,4 +66,10 @@ export interface ReportEgreso {
   correctedTime?: string;
   admissionDay?: string;
   admissionTime?: string;
+  /**
+   * The row belongs to a newborn in a clinical crib of an occupied HHR bed. Its movement is
+   * recorded nested (like `DischargeEntry.associatedClinicalCrib`): the newborn never occupied
+   * an independent bed, so it never contributes to the statistical egreso count.
+   */
+  fromClinicalCrib?: boolean;
 }

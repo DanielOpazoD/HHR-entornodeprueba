@@ -6,7 +6,6 @@ import { eligibleExactEpisodes, findPlannedPatientByEpisode } from './egresoRepo
 import {
   correctedStamp,
   episodeLessReportConflict,
-  findOccupiedBed,
   findOccupiedClinicalCrib,
   hasRecordedMovement,
   occupiedBedsByRun,
@@ -16,6 +15,7 @@ import {
   toIsoDay,
 } from './egresoReportPolicy';
 import { appendReportConflict } from './egresoReportConflicts';
+import { resolveReportedOccupant } from './reportedOccupant';
 
 type EligibilityResult = {
   diff: CensusImportDiff;
@@ -76,7 +76,7 @@ export const selectEligibleEgresoRows = (
     // The D+1 query compensates Rayen's offset; genuine next-day discharges stay excluded.
     if (!recordDay || stamp.iso > recordDay) continue;
 
-    const current = findOccupiedBed(occupied, row.run, reportedEpisode);
+    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, reportedEpisode);
     const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
     const activeCrib = diff.activeClinicalCribs?.find(
       crib =>
@@ -110,6 +110,10 @@ export const selectEligibleEgresoRows = (
       const bedId = current?.bedId ?? currentCrib?.parentBedId ?? null;
       const cribOccupied = Boolean(bedId && record.beds[bedId]?.clinicalCrib?.patientName?.trim());
       const rowsSharingRun = run ? (stampedRowsByRun.get(run) ?? 1) : 1;
+      // Nota: una fila 'unverified' nunca trae episodio con el productor actual
+      // (enrichReportOnlyDischarges deja sin estado a las filas con episodio); si
+      // algún día lo trajera, la fila del RN resolvería solo la cuna (explained 1)
+      // y su conflicto quedaría sin etiqueta frente al de la madre (explained 2).
       const explainedByBed = (current ? 1 : 0) + (cribOccupied ? 1 : 0);
       const redundancyCandidate = Boolean(bedId) && rowsSharingRun <= explainedByBed;
       nextDiff = appendReportConflict(nextDiff, {

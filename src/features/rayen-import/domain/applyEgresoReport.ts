@@ -26,10 +26,9 @@ import { markReportChecked } from './egresoReportConflicts';
 import { normalizeRut } from '@/utils/rutUtils';
 import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoReportEligibility';
 import { dropRedundantUnverifiedReportConflicts } from './redundantReportRowConflicts';
-import {
-  attachAssociatedClinicalCribDischarges,
-  buildClinicalCribPromotionCandidates,
-} from './associatedClinicalCribDischarge';
+import { buildClinicalCribPromotionCandidates } from './associatedClinicalCribDischarge';
+import { finalizeDischargePlan } from './dischargePlanInvariants';
+import { resolveReportedOccupant } from './reportedOccupant';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 export { collectRecordedMovementRuns } from './egresoReportPolicy';
 export { markEgresoReportUnavailable } from './egresoReportConflicts';
@@ -213,7 +212,7 @@ export const applyEgresoReport = (
   }
   for (const [, row] of byRun) {
     const run = normalizeRut(row.run);
-    const current = findOccupiedBed(occupied, row.run, row.encounterId);
+    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, row.encounterId);
     const mapped = resolveReportDischarge(row, current);
     if (current) {
       const reportedEpisode = String(row.encounterId ?? '').trim();
@@ -301,7 +300,13 @@ export const applyEgresoReport = (
       }
       const parentRun = normalizeRut(currentCrib.parent.rut),
         parentEpisode = currentCrib.parent.clinicalEpisodeId?.trim() ?? '';
-      if (!reportConfirmsEpisode(parentRun, currentCrib.parent.clinicalEpisodeId)) {
+      // Sin update si la madre ya sale en este plan (por una llamada anterior): un
+      // update sobre una cama que la corrida desocupa se «salta» al aplicar y dejaba
+      // la corrida «Parcial» sin motivo real.
+      const parentLeaves =
+        reportConfirmsEpisode(parentRun, currentCrib.parent.clinicalEpisodeId) ||
+        discharges.some(entry => entry.bedId === currentCrib.parentBedId);
+      if (!parentLeaves) {
         const parentMove = checkedDiff.moves.find(
           entry =>
             entry.fromBedId === currentCrib.parentBedId ||
@@ -336,13 +341,10 @@ export const applyEgresoReport = (
       }
       const encounterId = row.encounterId ?? currentCrib.patient.clinicalEpisodeId;
       if (hasRecordedMovement(record, row.run, encounterId)) continue;
-      reportEgresos.push(
-        reportEgresoFromRow({
-          ...row,
-          run: currentCrib.patient.rut || row.run,
-          encounterId,
-        })
-      );
+      reportEgresos.push({
+        ...reportEgresoFromRow({ ...row, run: currentCrib.patient.rut || row.run, encounterId }),
+        fromClinicalCrib: true,
+      });
       continue;
     }
     if (hasRecordedMovement(record, row.run, row.encounterId)) continue;
@@ -353,12 +355,12 @@ export const applyEgresoReport = (
       reportEgresos.push(reportEgresoFromRow(row));
     }
   }
-  const finalDischarges = attachAssociatedClinicalCribDischarges(checkedDiff, discharges, record);
+  const finalDischarges = finalizeDischargePlan(checkedDiff, discharges, record);
   const releasedBeds = resolveReleasedBedPlacements(
     admissions,
     moves,
     discharges,
-    dropRedundantUnverifiedReportConflicts(conflicts, finalDischarges, record)
+    dropRedundantUnverifiedReportConflicts(conflicts, finalDischarges, record, reportEgresos)
   );
   const promotedMoveBySource = new Map(
     releasedBeds.promotedMoves.map(move => [move.fromBedId, move])
