@@ -110,6 +110,10 @@ export const selectEligibleEgresoRows = (
       const bedId = current?.bedId ?? currentCrib?.parentBedId ?? null;
       const cribOccupied = Boolean(bedId && record.beds[bedId]?.clinicalCrib?.patientName?.trim());
       const rowsSharingRun = run ? (stampedRowsByRun.get(run) ?? 1) : 1;
+      // Nota: una fila 'unverified' nunca trae episodio con el productor actual
+      // (enrichReportOnlyDischarges deja sin estado a las filas con episodio); si
+      // algún día lo trajera, la fila del RN resolvería solo la cuna (explained 1)
+      // y su conflicto quedaría sin etiqueta frente al de la madre (explained 2).
       const explainedByBed = (current ? 1 : 0) + (cribOccupied ? 1 : 0);
       const redundancyCandidate = Boolean(bedId) && rowsSharingRun <= explainedByBed;
       nextDiff = appendReportConflict(nextDiff, {

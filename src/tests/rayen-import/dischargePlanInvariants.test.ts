@@ -67,6 +67,32 @@ describe('resolveReportedOccupant', () => {
     expect(resolveReportedOccupant(occupied, occupiedCribs, RUN, '1002')).toBeUndefined();
   });
 
+  it('una cama principal con el episodio exacto gana sobre una cuna rancia con el mismo episodio', () => {
+    const promoted: DailyRecord = {
+      ...record,
+      beds: {
+        ...record.beds,
+        H5C2: {
+          ...EMPTY_PATIENT,
+          bedId: 'H5C2',
+          patientName: 'Rn De Tania Valencia',
+          rut: RUN,
+          clinicalEpisodeId: '1002',
+          admissionDate: '2026-08-31',
+          admissionTime: '13:00',
+        },
+      },
+    };
+    expect(
+      resolveReportedOccupant(
+        occupiedBedsByRun(promoted),
+        occupiedClinicalCribsByRun(promoted),
+        RUN,
+        '1002'
+      )?.bedId
+    ).toBe('H5C2');
+  });
+
   it('sin episodio o con un episodio desconocido, conserva la resolución por RUN', () => {
     expect(resolveReportedOccupant(occupied, occupiedCribs, RUN, '')?.bedId).toBe('H5C1');
     expect(resolveReportedOccupant(occupied, occupiedCribs, RUN, undefined)?.bedId).toBe('H5C1');
@@ -76,11 +102,19 @@ describe('resolveReportedOccupant', () => {
 });
 
 describe('dedupeDischargesByBed', () => {
-  it('conserva el primer egreso de cada cama y descarta un segundo para la misma cama', () => {
+  it('conserva un solo egreso por cama y prefiere el del episodio del ocupante actual', () => {
     const first = discharge({});
     const duplicate = discharge({ encounterId: '1002' });
     const other = discharge({ bedId: 'H5C2', rut: '11.111.111-1', encounterId: '2001' });
-    expect(dedupeDischargesByBed([first, duplicate, other])).toEqual([first, other]);
-    expect(dedupeDischargesByBed([])).toEqual([]);
+    expect(dedupeDischargesByBed([first, duplicate, other], record)).toEqual([first, other]);
+    // Si el primero no es el del ocupante y el segundo sí, gana el segundo.
+    expect(dedupeDischargesByBed([duplicate, first, other], record)).toEqual([first, other]);
+    // Sin episodio en la cama, gana el primero.
+    const noEpisode: DailyRecord = {
+      ...record,
+      beds: { H5C1: { ...record.beds.H5C1!, clinicalEpisodeId: '' } },
+    };
+    expect(dedupeDischargesByBed([duplicate, first], noEpisode)).toEqual([duplicate]);
+    expect(dedupeDischargesByBed([], record)).toEqual([]);
   });
 });

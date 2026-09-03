@@ -299,7 +299,13 @@ export const applyEgresoReport = (
       }
       const parentRun = normalizeRut(currentCrib.parent.rut),
         parentEpisode = currentCrib.parent.clinicalEpisodeId?.trim() ?? '';
-      if (!reportConfirmsEpisode(parentRun, currentCrib.parent.clinicalEpisodeId)) {
+      // Sin update si la madre ya sale en este plan (por una llamada anterior): un
+      // update sobre una cama que la corrida desocupa se «salta» al aplicar y dejaba
+      // la corrida «Parcial» sin motivo real.
+      const parentLeaves =
+        reportConfirmsEpisode(parentRun, currentCrib.parent.clinicalEpisodeId) ||
+        discharges.some(entry => entry.bedId === currentCrib.parentBedId);
+      if (!parentLeaves) {
         const parentMove = checkedDiff.moves.find(
           entry =>
             entry.fromBedId === currentCrib.parentBedId ||
@@ -334,13 +340,10 @@ export const applyEgresoReport = (
       }
       const encounterId = row.encounterId ?? currentCrib.patient.clinicalEpisodeId;
       if (hasRecordedMovement(record, row.run, encounterId)) continue;
-      reportEgresos.push(
-        reportEgresoFromRow({
-          ...row,
-          run: currentCrib.patient.rut || row.run,
-          encounterId,
-        })
-      );
+      reportEgresos.push({
+        ...reportEgresoFromRow({ ...row, run: currentCrib.patient.rut || row.run, encounterId }),
+        fromClinicalCrib: true,
+      });
       continue;
     }
     if (hasRecordedMovement(record, row.run, row.encounterId)) continue;

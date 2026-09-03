@@ -322,7 +322,8 @@ export const applyCensusImportDiff = (
     } else if (egreso.kind === 'cma') {
       cma.push({ ...buildCma(patient, entry, ctx), dischargeTime: time });
     } else {
-      discharges.push({ ...buildDischarge(patient, entry, current, ctx), time });
+      const nested = egreso.fromClinicalCrib === true;
+      discharges.push({ ...buildDischarge(patient, entry, current, ctx, nested), time });
     }
     applied.discharges += 1;
   }

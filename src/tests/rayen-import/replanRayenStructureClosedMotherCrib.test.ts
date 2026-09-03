@@ -184,7 +184,38 @@ describe('replanRayenStructure — madre y RN cerrados en Ficha, lookup confirma
       d => d.clinicalEpisodeId === '1001' && !d.isNested
     );
     expect(motherRecords).toHaveLength(1);
-    expect(applied.record.discharges.some(d => d.clinicalEpisodeId === '1002')).toBe(true);
+    // El RN nunca ocupó una cama independiente: su registro es anidado y no suma egreso
+    // estadístico (misma regla que la alta asociada).
+    const newbornRecords = applied.record.discharges.filter(d => d.clinicalEpisodeId === '1002');
+    expect(newbornRecords).toHaveLength(1);
+    expect(newbornRecords[0]?.isNested).toBe(true);
+    expect(applied.skipped).toEqual([]);
+  });
+
+  it('madre confirmada por fila verificada del informe y RN por el lookup: sin update huérfano sobre la cama desocupada', async () => {
+    const record = makeRecord({ H5C1: motherWithCrib() });
+    const snapshot = snapshotOf([closed(encounter({})), closed(cribEncounter())]);
+    const verifiedMotherRow: EgresoReportRow = {
+      ...motherRow,
+      encounterId: '1001',
+      exactEpisodeVerification: 'verified',
+    };
+
+    const diff = await runPipeline(record, snapshot, [verifiedMotherRow], ['1002']);
+
+    expect(diff.discharges.map(d => `${d.bedId}:${d.encounterId}`)).toEqual(['H5C1:1001']);
+    expect((diff.reportEgresos ?? []).some(e => e.encounterId === '1002')).toBe(true);
+    expect(diff.updates.filter(u => u.bedId === 'H5C1')).toEqual([]);
+    const applied = applyCensusImportDiff(record, diff, {
+      idFactory: (() => {
+        let n = 0;
+        return () => `id-${++n}`;
+      })(),
+      now: new Date('2026-09-02T15:00:00'),
+      syncRunId: 'test',
+    });
+    expect(applied.skipped).toEqual([]);
+    expect(applied.record.beds.H5C1).toBeUndefined();
   });
 
   it('si el lookup confirma solo a la madre, el RN cerrado conserva la revisión (no se pierde en silencio)', async () => {
