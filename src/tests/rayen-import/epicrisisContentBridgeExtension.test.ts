@@ -28,7 +28,12 @@ describe('HHR epicrisis content bridge', () => {
     expect(addEventListener).not.toHaveBeenCalled();
   });
 
-  it('forwards only the download contract and returns the operational result', async () => {
+  it.each([
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://testinghhr.netlify.app',
+    'https://hhr-entornodeprueba.vercel.app',
+  ])('forwards only the download contract from trusted HHR origin %s', async origin => {
     let onMessage:
       | ((event: { source: unknown; data: Record<string, unknown> }) => void)
       | undefined;
@@ -38,7 +43,7 @@ describe('HHR epicrisis content bridge', () => {
       episodes: [{ encId: '141336', startDate: '2026-07-18', endDate: '', active: true }],
     }));
     const windowObject = {
-      location: { origin: 'http://localhost:3000' },
+      location: { origin },
       addEventListener: vi.fn((type: string, listener: typeof onMessage) => {
         if (type === 'message') onMessage = listener;
       }),
@@ -88,9 +93,8 @@ describe('HHR epicrisis content bridge', () => {
           opened: false,
           error: undefined,
         },
-        'http://localhost:3000'
+        origin
       )
     );
-
   });
 });
