@@ -9,6 +9,7 @@ import {
   requestRayenExtensionHealth,
   resetRayenExtensionCapabilitiesForTests,
   subscribeToRayenExtensionHealthPush,
+  supportsPatientDocumentManager,
   supportsPatientFlowReport,
   type RayenExtensionHealthReport,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
@@ -37,6 +38,13 @@ describe('extensionHealthBridge', () => {
     expect(isRayenExtensionHealthReport({ ...report, capabilities: [false] })).toBe(false);
     expect(supportsPatientFlowReport(report)).toBe(true);
     expect(supportsPatientFlowReport({ ...report, capabilities: undefined })).toBe(false);
+    expect(
+      supportsPatientDocumentManager({
+        ...report,
+        capabilities: ['patient-document-manager'],
+      })
+    ).toBe(true);
+    expect(supportsPatientDocumentManager(report)).toBe(false);
   });
 
   it('correlates the health response and returns the extension report', async () => {

@@ -15,6 +15,7 @@ export const RAYEN_EXTENSION_PROTOCOL_VERSION = 5;
 export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';
 export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-discharge-evidence';
 export const RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY = 'patient-clinical-bundle';
+export const RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY = 'patient-document-manager';
 export const RAYEN_HEALTH_PUSH_CAPABILITY = 'health-push';
 
 /**
@@ -112,6 +113,11 @@ export const isRayenExtensionHealthReport = (
 
 export const supportsPatientFlowReport = (report: RayenExtensionHealthReport | null): boolean =>
   report?.capabilities?.includes(RAYEN_PATIENT_FLOW_CAPABILITY) === true;
+
+export const supportsPatientDocumentManager = (
+  report: RayenExtensionHealthReport | null
+): boolean =>
+  report?.capabilities?.includes(RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY) === true;
 
 export const supportsStatisticalDischargeEvidence = (
   report: RayenExtensionHealthReport | null

@@ -274,6 +274,7 @@ const handleExtensionHealth = async () => {
       'patient-flow-report',
       'statistical-discharge-evidence',
       'patient-clinical-bundle',
+      'patient-document-manager',
       'health-push',
     ],
     checkedAt: new Date().toISOString(),
