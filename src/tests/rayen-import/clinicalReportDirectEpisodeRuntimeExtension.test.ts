@@ -248,6 +248,47 @@ describe('clinical report runtime direct episodes and history', () => {
     expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
 
+  it('opens the active history directly even when the RUN report list omits the episode', async () => {
+    const createTab = vi.fn(async (_options: { url: string }) => ({ id: 82 }));
+    const fetchWithTimeout = vi.fn();
+    const runtime = loadFactory().create(
+      createDependencies({
+        fetchWithTimeout,
+        chrome: {
+          downloads: { download: vi.fn(async () => 72) },
+          storage: { session: { set: vi.fn(async () => undefined) } },
+          tabs: { create: createTab },
+          runtime: { getURL: (value: string) => `chrome-extension://hhr/${value}` },
+        },
+        getFichaFetchInfo: vi.fn(async () => ({
+          info: {
+            apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+            token: 'testing',
+            facId: '2',
+          },
+        })),
+      })
+    );
+
+    await expect(
+      runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '141815',
+        patientRun: '17.752.753-1',
+        admissionDate: '2026-07-21',
+        delivery: 'download',
+        operation: 'download',
+        documentType: 'history',
+      })
+    ).resolves.toMatchObject({ ok: true, opened: true, encId: '141815' });
+    const openedUrl = new URL(createTab.mock.calls[0][0].url);
+    expect(openedUrl.searchParams.get('report')).toBe('GetHospitalizedEncounterHistory');
+    expect(JSON.parse(openedUrl.searchParams.get('params') || '{}')).toMatchObject({
+      enc_id: '141815',
+      start_date: '2026-07-21',
+    });
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
+  });
+
   it('opens the official complete-history report for the selected episode', async () => {
     const createTab = vi.fn(async (_options: { url: string }) => ({ id: 81, windowId: 7 }));
     const focusWindow = vi.fn(async () => undefined);

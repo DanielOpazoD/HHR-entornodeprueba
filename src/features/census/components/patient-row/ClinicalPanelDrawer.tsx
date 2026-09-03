@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { type EvolutionProfession } from '@/features/rayen-import';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
+import { ClinicalPanelHistoryPrintButton } from './ClinicalPanelHistoryPrintButton';
 import { RayenEncounterButton } from './RayenEncounterButton';
 import { PatientDocumentManagerButton } from './PatientDocumentManagerButton';
 import { useClinicalPanelSnapshot } from './useClinicalPanelSnapshot';
@@ -38,7 +39,10 @@ const PatientDocumentManagerDialog = React.lazy(() =>
 interface ClinicalPanelDrawerProps {
   bedId: string;
   patientName: string;
+  patientRun?: string;
   clinicalEpisodeId: string;
+  admissionDate?: string;
+  censusDate?: string;
   encounterRouteHint?: 'medical' | 'nurse';
   canNavigatePrevious?: boolean;
   canNavigateNext?: boolean;
@@ -68,7 +72,10 @@ const PROFESSION_TABS: { key: EvolutionProfession; label: string; empty: string 
 export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   bedId,
   patientName,
+  patientRun = '',
   clinicalEpisodeId,
+  admissionDate,
+  censusDate,
   encounterRouteHint,
   canNavigatePrevious = false,
   canNavigateNext = false,
@@ -238,7 +245,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         </nav>
 
         {tab === 'evolutions' && state.phase === 'ready' && (
-          <div className="flex gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1">
+          <div className="flex items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1">
             {PROFESSION_TABS.map(p => (
               <button
                 key={p.key}
@@ -258,6 +265,13 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 </span>
               </button>
             ))}
+            <ClinicalPanelHistoryPrintButton
+              patientName={patientName}
+              patientRun={patientRun}
+              clinicalEpisodeId={clinicalEpisodeId}
+              admissionDate={admissionDate}
+              censusDate={censusDate}
+            />
           </div>
         )}
 

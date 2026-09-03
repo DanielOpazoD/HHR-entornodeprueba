@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
+  downloadHospitalizationDocument: vi.fn(),
   navigate: vi.fn(),
   openDocument: vi.fn(),
   success: vi.fn(),
@@ -14,6 +15,8 @@ vi.mock('@/features/rayen-import', async importOriginal => {
   return {
     ...actual,
     requestClinicalPanel: (...args: unknown[]) => mocks.request(...args),
+    requestRayenHospitalizationDocument: (...args: unknown[]) =>
+      mocks.downloadHospitalizationDocument(...args),
     requestRayenEncounterNavigation: (...args: unknown[]) => mocks.navigate(...args),
     requestPatientDocumentOpen: (...args: unknown[]) => mocks.openDocument(...args),
   };
@@ -128,6 +131,8 @@ describe('ClinicalPanelDrawer', () => {
   beforeEach(() => {
     mocks.request.mockReset();
     mocks.request.mockResolvedValue(panelResult);
+    mocks.downloadHospitalizationDocument.mockReset();
+    mocks.downloadHospitalizationDocument.mockResolvedValue({ ok: true, opened: true });
     mocks.navigate.mockReset();
     mocks.navigate.mockResolvedValue({ ok: true, reused: true });
     mocks.openDocument.mockReset();
@@ -237,6 +242,73 @@ describe('ClinicalPanelDrawer', () => {
     fireEvent.click(reportsButton);
 
     expect(onOpenHospitalizationReports).toHaveBeenCalledOnce();
+  });
+
+  it('opens the complete active hospitalization history from the profession row', async () => {
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        patientRun="17.752.753-1"
+        clinicalEpisodeId="141121"
+        admissionDate="2026-07-13"
+        censusDate="2026-07-18"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    await screen.findByText('Evolución médica estable.');
+    const printButton = screen.getByRole('button', {
+      name: 'Imprimir en PDF el historial completo de la hospitalización de Paciente de prueba',
+    });
+    expect(printButton).toHaveClass('ml-auto');
+    fireEvent.click(printButton);
+
+    await waitFor(() =>
+      expect(mocks.downloadHospitalizationDocument).toHaveBeenCalledWith({
+        patientRun: '17.752.753-1',
+        admissionDate: '2026-07-13',
+        censusDate: '2026-07-18',
+        clinicalEpisodeId: '141121',
+        documentType: 'history',
+      })
+    );
+    expect(mocks.success).toHaveBeenCalledWith(
+      'Historial completo abierto',
+      'Eloísa abrió el reporte oficial de Historial de Paciente de prueba para imprimirlo o guardarlo en PDF.'
+    );
+  });
+
+  it('does not report success when the history tab could not be opened', async () => {
+    mocks.downloadHospitalizationDocument.mockResolvedValue({ ok: true, opened: false });
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        patientRun="17.752.753-1"
+        clinicalEpisodeId="141121"
+        admissionDate="2026-07-13"
+        censusDate="2026-07-18"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    await screen.findByText('Evolución médica estable.');
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Imprimir en PDF el historial completo de la hospitalización de Paciente de prueba',
+      })
+    );
+
+    await waitFor(() =>
+      expect(mocks.error).toHaveBeenCalledWith(
+        'No se pudo abrir el historial',
+        'Eloísa respondió, pero el navegador no abrió el reporte de Historial.'
+      )
+    );
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 
   it('shows the active attachment count and opens the local patient document manager', async () => {
