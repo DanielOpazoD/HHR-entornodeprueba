@@ -67,6 +67,7 @@ describe('PatientIdentityCell', () => {
 
     expect(screen.getByText('12.345.678-5')).toBeInTheDocument();
     expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Abrir MMRAD de Juana Rapu' })).toBeVisible();
   });
 
   it('shows the specialty as a small chip next to the admission date', () => {
