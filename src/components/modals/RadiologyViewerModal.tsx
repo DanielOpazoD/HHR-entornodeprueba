@@ -35,6 +35,7 @@ interface RadiologyViewerModalProps {
   onClose: () => void;
   patients: RadiologyPatient[];
   initialPatientRut?: string;
+  autoSearchInitialPatient?: boolean;
 }
 
 interface RadiologyPatient {
@@ -50,6 +51,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
   onClose,
   patients,
   initialPatientRut,
+  autoSearchInitialPatient = false,
 }) => {
   const [selectedRut, setSelectedRut] = useState(initialPatientRut || patients[0]?.rut || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -65,6 +67,7 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
     html: string;
   } | null>(null);
   const copiedReportResetTimeoutRef = useRef<number | null>(null);
+  const autoSearchedRutRef = useRef<string | null>(null);
 
   const uniquePatients = useMemo(() => buildUniqueRadiologyPatients(patients), [patients]);
 
@@ -142,6 +145,25 @@ export const RadiologyViewerModal: React.FC<RadiologyViewerModalProps> = ({
       setIsLoading(false);
     }
   }, [selectedRut, dateFrom, dateTo]);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      autoSearchedRutRef.current = null;
+      return;
+    }
+
+    if (
+      !autoSearchInitialPatient ||
+      !initialPatientRut ||
+      selectedRut !== initialPatientRut ||
+      autoSearchedRutRef.current === initialPatientRut
+    ) {
+      return;
+    }
+
+    autoSearchedRutRef.current = initialPatientRut;
+    void handleSearch();
+  }, [autoSearchInitialPatient, handleSearch, initialPatientRut, isOpen, selectedRut]);
 
   const handleCopyReport = useCallback(async (exam: MMRADExam) => {
     const reportText = exam.report

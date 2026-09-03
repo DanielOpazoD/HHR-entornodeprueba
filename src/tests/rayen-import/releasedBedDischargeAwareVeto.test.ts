@@ -93,4 +93,30 @@ describe('resolveReleasedBedPlacements · conflicto de revisión sobre el RUN qu
     expect(result.admissions).toEqual([]);
     expect(result.conflicts).toEqual([occupiedConflict, review]);
   });
+
+  it('un ocupante manual sin episodio (ocupante esperado observado) libera la cama por RUN; sin ocupante esperado sigue siendo desconocido', () => {
+    const legacyDischarge: DischargeEntry = {
+      ...occupantDischarge,
+      encounterId: undefined,
+      expectedOccupant: { rut: OCCUPANT_RUN, admissionDate: '2026-08-30', admissionTime: '09:00' },
+    };
+    const released = resolveReleasedBedPlacements([], [], [legacyDischarge], [occupiedConflict]);
+    expect(released.admissions.map(entry => entry.patient.clinicalEpisodeId)).toEqual(['3001']);
+    expect(released.conflicts).toEqual([]);
+
+    const unknownProvenance: DischargeEntry = { ...occupantDischarge, encounterId: undefined };
+    const kept = resolveReleasedBedPlacements([], [], [unknownProvenance], [occupiedConflict]);
+    expect(kept.admissions).toEqual([]);
+    expect(kept.conflicts).toEqual([occupiedConflict]);
+
+    // Sin sello de ingreso el apply no podría verificar la identidad: la vista previa
+    // no promete la promoción (sigue «unknown»).
+    const unstamped: DischargeEntry = {
+      ...legacyDischarge,
+      expectedOccupant: { rut: OCCUPANT_RUN, admissionDate: '2026-08-30', admissionTime: '' },
+    };
+    const held = resolveReleasedBedPlacements([], [], [unstamped], [occupiedConflict]);
+    expect(held.admissions).toEqual([]);
+    expect(held.conflicts).toEqual([occupiedConflict]);
+  });
 });

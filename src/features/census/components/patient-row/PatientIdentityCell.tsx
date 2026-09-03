@@ -26,6 +26,7 @@ import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPh
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { PatientLaboratoryTrigger } from './PatientLaboratoryTrigger';
+import { PatientRadiologyTrigger } from './PatientRadiologyTrigger';
 import { SpecialtyChip } from './SpecialtyChip';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 
@@ -234,6 +235,10 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 patient={data}
                 triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
                 censusDate={currentDateString}
+              />
+              <PatientRadiologyTrigger
+                patient={data}
+                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
               />
             </span>
           )}
