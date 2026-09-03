@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import';
-import {
-  dedupeDischargesByBed,
-  resolveReportedOccupant,
-} from '@/features/rayen-import/domain/dischargePlanInvariants';
+import { dedupeDischargesByBed } from '@/features/rayen-import/domain/dischargePlanInvariants';
+import { resolveReportedOccupant } from '@/features/rayen-import/domain/reportedOccupant';
 import {
   occupiedBedsByRun,
   occupiedClinicalCribsByRun,

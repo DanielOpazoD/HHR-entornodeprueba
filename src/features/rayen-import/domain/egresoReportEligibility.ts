@@ -15,7 +15,7 @@ import {
   toIsoDay,
 } from './egresoReportPolicy';
 import { appendReportConflict } from './egresoReportConflicts';
-import { resolveReportedOccupant } from './dischargePlanInvariants';
+import { resolveReportedOccupant } from './reportedOccupant';
 
 type EligibilityResult = {
   diff: CensusImportDiff;
