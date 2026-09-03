@@ -23,6 +23,7 @@ interface ClinicalPanelTriggerProps {
   clinicalEpisodeId?: string;
   encounterRouteHint?: 'medical' | 'nurse';
   admissionDate?: string;
+  censusDate?: string;
 }
 
 export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
@@ -33,6 +34,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   clinicalEpisodeId,
   encounterRouteHint,
   admissionDate,
+  censusDate,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [areReportsOpen, setAreReportsOpen] = useState(false);
@@ -73,7 +75,10 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
           <ClinicalPanelDrawer
             bedId={bedId}
             patientName={patientName}
+            patientRun={patientRun}
             clinicalEpisodeId={episode}
+            admissionDate={admissionDate}
+            censusDate={censusDate}
             encounterRouteHint={encounterRouteHint}
             canNavigatePrevious={navigation.previous !== null}
             canNavigateNext={navigation.next !== null}

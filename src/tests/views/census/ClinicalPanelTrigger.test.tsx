@@ -11,17 +11,22 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
   ClinicalPanelDrawer: ({
     patientName,
     encounterRouteHint,
+    admissionDate,
+    censusDate,
     onNavigateNext,
     onOpenHospitalizationReports,
   }: {
     patientName: string;
     encounterRouteHint?: 'medical' | 'nurse';
+    admissionDate?: string;
+    censusDate?: string;
     onNavigateNext: () => void;
     onOpenHospitalizationReports: () => void;
   }) => (
     <div role="dialog">
       Panel de {patientName}
       <span data-testid="drawer-route">{encounterRouteHint || 'sin ruta'}</span>
+      <span data-testid="drawer-date-range">{`${admissionDate || ''}|${censusDate || ''}`}</span>
       <button type="button" onClick={onNavigateNext}>
         Siguiente paciente
       </button>
@@ -57,12 +62,17 @@ describe('ClinicalPanelTrigger', () => {
         patientName="Paciente de prueba"
         patientRun="17.752.753-1"
         clinicalEpisodeId="141336"
+        admissionDate="2026-07-13"
+        censusDate="2026-07-18"
       />
     );
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
     );
     expect(await screen.findByRole('dialog')).toHaveTextContent('Panel de Paciente de prueba');
+    expect(screen.getByTestId('drawer-date-range')).toHaveTextContent(
+      '2026-07-13|2026-07-18'
+    );
   });
 
   it('resolves the next patient again when the navigation arrow is pressed', async () => {

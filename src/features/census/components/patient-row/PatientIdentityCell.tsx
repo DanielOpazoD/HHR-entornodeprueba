@@ -43,6 +43,7 @@ const formatAdmissionShort = (raw?: string): string => {
 };
 
 interface PatientIdentityCellProps extends BaseCellProps {
+  currentDateString?: string;
   hasRutError: boolean;
   onNameChange: DebouncedTextHandler;
   onOpenDemographics: () => void;
@@ -53,6 +54,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   isSubRow = false,
   isEmpty = false,
   readOnly = false,
+  currentDateString,
   hasRutError,
   onNameChange,
   onOpenDemographics,
@@ -224,6 +226,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               clinicalEpisodeId={data.clinicalEpisodeId}
               encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
               admissionDate={data.admissionDate}
+              censusDate={currentDateString}
             />
           )}
         </div>

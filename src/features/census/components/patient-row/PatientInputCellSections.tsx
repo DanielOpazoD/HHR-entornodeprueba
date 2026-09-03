@@ -63,6 +63,7 @@ export const PatientInputIdentitySection: React.FC<PatientInputIdentitySectionBi
     isSubRow={shared.isSubRow}
     isEmpty={shared.isEmpty}
     readOnly={shared.isLocked}
+    currentDateString={shared.currentDateString}
     hasRutError={hasRutError}
     onNameChange={handleDebouncedText}
     onOpenDemographics={onDemo}

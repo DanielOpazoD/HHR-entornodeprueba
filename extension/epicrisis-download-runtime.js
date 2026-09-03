@@ -36,11 +36,8 @@
 
   const openDocument = (request, resolved) => {
     const documentType = request.documentType || 'epicrisis';
-    if (documentType === 'history') {
-      return reports.openHistoryReport({
-        chrome: request.chrome || root.chrome, now: request.now, resolved,
-      });
-    }
+    if (documentType === 'history')
+      return reports.openHistoryReport({ chrome: request.chrome || root.chrome, now: request.now, resolved });
     if (documentType !== 'epicrisis') return { error: 'El tipo de informe no es válido.' };
     return downloadEpicrisis(request, resolved);
   };
@@ -64,7 +61,10 @@
     if (request.delivery !== 'download') return request.printFallback(request);
     const patientRun = reports.normalizeRun(request.patientRun);
     const hasValidRun = reports.isValidRun(patientRun);
-    const directEpisode = hasValidRun ? null : resolveDirectEpisode(request);
+    const resolvedDirectEpisode = resolveDirectEpisode(request);
+    const hasDirectHistoryRange = request.documentType === 'history' && !resolvedDirectEpisode.error &&
+      Boolean(resolvedDirectEpisode.row.startPeriod);
+    const directEpisode = hasDirectHistoryRange || !hasValidRun ? resolvedDirectEpisode : null;
     if (directEpisode && directEpisode.error) return directEpisode;
     const infoResult = await request.getFichaFetchInfo(request.sender);
     if (infoResult.error) return infoResult;
