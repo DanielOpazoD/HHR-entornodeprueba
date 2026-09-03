@@ -230,8 +230,10 @@ export {
   RAYEN_EXTENSION_HEALTH_REQUEST_TYPE,
   RAYEN_EXTENSION_HEALTH_RESULT_TYPE,
   RAYEN_EXTENSION_PROTOCOL_VERSION,
+  RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY,
   isRayenExtensionHealthReport,
   requestRayenExtensionHealth,
+  supportsPatientDocumentManager,
 } from './bridge/extensionHealthBridge';
 
 // Clinical fill runner (devices + scales + CUDYR via granular patches)

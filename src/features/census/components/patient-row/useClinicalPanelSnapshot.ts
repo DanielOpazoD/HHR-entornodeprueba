@@ -20,7 +20,10 @@ export type DocumentState =
 const documentStateFrom = (result: RayenClinicalPanelResult): DocumentState => {
   if (result.documentError) return { phase: 'error', message: result.documentError };
   if (result.documents) return { phase: 'ready', documents: result.documents };
-  return { phase: 'error', message: 'La extensión instalada aún no entrega documentos.' };
+  return {
+    phase: 'error',
+    message: 'La extensión instalada es anterior al Gestor documental. Recárgala en Chrome.',
+  };
 };
 
 const panelStateFrom = (result: RayenClinicalPanelResult): PanelState =>

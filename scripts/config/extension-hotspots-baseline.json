@@ -10,7 +10,7 @@
   ],
   "files": {
     "background.js": {
-      "maxLines": 1483,
+      "maxLines": 1484,
       "hotspots": {
         "variable:handleEgresoLookup": 19,
         "variable:handleExamRequestCombinePrint": 25,
@@ -181,6 +181,10 @@
     },
     "exam-request-print.js": {
       "maxLines": 394,
+      "hotspots": {}
+    },
+    "extension-status.js": {
+      "maxLines": 17,
       "hotspots": {}
     },
     "fichamedico-clinical-client.js": {
