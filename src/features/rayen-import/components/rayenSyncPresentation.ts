@@ -154,15 +154,15 @@ const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], str
   'occupied-local-bed': 'la cama está ocupada por otro paciente en HHR',
   'historical-reconstruction': 'la reconstrucción histórica requiere revisión',
   'historical-admission-evidence': 'no se confirmó la cama de una corrección nocturna',
-  'unverified-report-row':
-    'un alta del informe de Gestión de Camas no se vinculó a un episodio exacto',
+  'unverified-report-row': 'un alta del informe de GC no se vinculó a un episodio exacto',
+  'episode-less-report-row': 'una fila del informe de GC no identifica el episodio activo',
+  'report-predates-admission': 'un egreso del informe de GC es anterior al ingreso activo',
   unclassified: 'el cambio estructural no pudo aplicarse',
 };
 export const presentRayenStructuralIssue = (issue: RayenSyncStructuralIssue): string => {
   const scope = issue.bedId ? `Cama ${issue.bedId}` : 'Censo';
   return `${scope}: ${structuralIssueReasonLabel[issue.reason]}.`;
 };
-
 export const presentRayenStructuralReviewDetails = (
   review?: RayenSyncStructuralReviewEvidence
 ): string[] => {

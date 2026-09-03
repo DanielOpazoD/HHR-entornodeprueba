@@ -28,6 +28,7 @@ import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoRepor
 import { dropRedundantUnverifiedReportConflicts } from './redundantReportRowConflicts';
 import { buildClinicalCribPromotionCandidates } from './associatedClinicalCribDischarge';
 import { finalizeDischargePlan } from './dischargePlanInvariants';
+import { cribConflictBlocksDischarge, hasDifferentIncomingPrincipal } from './cribPromotionGuards';
 import { resolveReportedOccupant } from './reportedOccupant';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 export { collectRecordedMovementRuns } from './egresoReportPolicy';
@@ -71,33 +72,13 @@ export const applyEgresoReport = (
     const parentBedId = exactPlannedBed ?? exactPrincipal?.bedId ?? principalBedByRun.get(run);
     if (!parentBedId) continue;
     const crib = activeCribsByParent.get(parentBedId);
-    const hasDifferentIncomingPrincipal =
-      checkedDiff.admissions.some(
-        entry =>
-          entry.bedId === parentBedId &&
-          entry.source?.encounterId !== reportedEpisode &&
-          normalizeRut(entry.patient.rut) !== run
-      ) ||
-      checkedDiff.moves.some(
-        entry =>
-          entry.toBedId === parentBedId &&
-          entry.source.encounterId !== reportedEpisode &&
-          normalizeRut(entry.rut) !== run
-      ) ||
-      checkedDiff.conflicts.some(
-        entry =>
-          entry.scope !== 'clinical-crib' &&
-          entry.bedId === parentBedId &&
-          entry.source?.encounterId !== reportedEpisode &&
-          Boolean(normalizeRut(entry.source?.run ?? entry.rut))
-      );
     if (
       crib &&
       (exactPrincipal?.clinicalEpisodeId === reportedEpisode ||
         exactPlannedBed === parentBedId ||
         (run ? normalizeRut(crib.principalRut) === run : exactPrincipal?.bedId === parentBedId)) &&
       !conflictedCribParents.has(parentBedId) &&
-      !hasDifferentIncomingPrincipal &&
+      !hasDifferentIncomingPrincipal(checkedDiff, parentBedId, reportedEpisode, run) &&
       reportConfirmsEpisode(
         run,
         resolveActiveEpisode(checkedDiff, run, exactPrincipal?.clinicalEpisodeId),
@@ -231,6 +212,11 @@ export const applyEgresoReport = (
             reason: `El egreso identifica un episodio (${reportedEpisode}), pero el episodio activo de HHR no se pudo confirmar.`,
           });
         }
+        continue;
+      }
+      const cribBlock = cribConflictBlocksDischarge(current, record, conflictedCribParents);
+      if (cribBlock) {
+        pushUniqueConflict(conflicts, cribBlock);
         continue;
       }
       const pending = checkedDiff.pendingAdministrativeDischarges.find(

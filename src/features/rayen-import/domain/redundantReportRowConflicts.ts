@@ -7,6 +7,18 @@ type ConflictEntry = CensusImportDiff['conflicts'][number];
 type DischargeEntry = CensusImportDiff['discharges'][number];
 
 /**
+ * Conflictos de FILA del informe (elegibilidad) que describen «esta fila no se
+ * aplicó»: son redundantes cuando el egreso final de esa cama y RUN ya existe
+ * por otra vía (lookup exacto). Los conflictos de cama/cuna (colisiones,
+ * ocupación) no entran: no hablan de una fila.
+ */
+const REDUNDANT_ROW_CODES: ReadonlySet<NonNullable<ConflictEntry['code']>> = new Set([
+  'unverified-report-row',
+  'episode-less-report-row',
+  'report-predates-admission',
+]);
+
+/**
  * Una fila del informe de Gestión de Camas que no pudo vincularse a un episodio
  * exacto (`code: 'unverified-report-row'`) deja de ser un conflicto cuando el
  * pipeline YA construyó el egreso de esa cama y ese RUN por otra vía (el lookup
@@ -33,7 +45,7 @@ export const dropRedundantUnverifiedReportConflicts = (
   reportEgresos: ReportEgreso[] = []
 ): ConflictEntry[] =>
   conflicts.filter(conflict => {
-    if (conflict.code !== 'unverified-report-row' || !conflict.bedId) return true;
+    if (!conflict.code || !REDUNDANT_ROW_CODES.has(conflict.code) || !conflict.bedId) return true;
     const run = normalizeRut(conflict.rut);
     if (!run) return true;
     const discharge = discharges.find(

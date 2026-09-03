@@ -150,6 +150,7 @@ export const selectEligibleEgresoRows = (
       if (!reportedEpisode && activeEpisode) continue;
       nextDiff = appendReportConflict(nextDiff, {
         bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
+        code: 'report-predates-admission',
         rut: row.run,
         patientName: current?.patientName ?? currentCrib?.patient.patientName,
         reason: `El egreso informado para ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} es anterior a su ingreso activo; no se desocupó la cama.`,
@@ -164,7 +165,10 @@ export const selectEligibleEgresoRows = (
       ? null
       : episodeLessReportConflict(diff, record, row, current, currentCrib);
     if (episodeConflict) {
-      nextDiff = appendReportConflict(nextDiff, episodeConflict);
+      nextDiff = appendReportConflict(nextDiff, {
+        ...episodeConflict,
+        code: 'episode-less-report-row',
+      });
       continue;
     }
     const verifiedRun =
