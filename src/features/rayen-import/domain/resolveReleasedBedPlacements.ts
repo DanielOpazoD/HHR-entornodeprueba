@@ -99,7 +99,18 @@ export const resolveReleasedBedPlacements = (
       canceledPlacements.add(conflict);
       continue;
     }
-    if (conflict.bedId) {
+    // Un conflicto de revisión (sin ingreso/traslado retenido) sobre el MISMO RUN que
+    // egresa de esa cama en este plan no veta la cama: el ocupante sale igual (p. ej. una
+    // fila válida y otra con fecha rota del mismo RUN). Sigue visible para el operador.
+    const reviewsDischargedOccupant =
+      !identity &&
+      Boolean(conflict.bedId) &&
+      (dischargesByBed.get(conflict.bedId ?? '') ?? []).some(
+        discharge =>
+          Boolean(normalizeRut(discharge.rut)) &&
+          normalizeRut(discharge.rut) === normalizeRut(conflict.rut)
+      );
+    if (conflict.bedId && !reviewsDischargedOccupant) {
       const bedConflicts = conflictsByBed.get(conflict.bedId) ?? [];
       bedConflicts.push(conflict);
       conflictsByBed.set(conflict.bedId, bedConflicts);

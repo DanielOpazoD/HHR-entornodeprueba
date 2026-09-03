@@ -60,14 +60,19 @@ export const selectEligibleEgresoRows = (
     const reportedEpisode = String(row.encounterId ?? '').trim();
     if (!run && !reportedEpisode) continue;
 
+    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, reportedEpisode);
+    const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
     const normalized = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
     const stamp =
       normalized.correctedDay && normalized.correctedTime
         ? { iso: normalized.correctedDay, hhmm: normalized.correctedTime }
         : null;
     if (!stamp) {
+      // Con cama conocida el conflicto se aísla a esa cama; sin cama ni episodio, la
+      // convergencia clínica bloquea todo el censo a propósito (no puede aislarse).
       nextDiff = appendReportConflict(nextDiff, {
-        bedId: null,
+        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
+        patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
         rut: row.run,
         reason: `El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN ${run}; no se aplicó.`,
       });
@@ -76,8 +81,6 @@ export const selectEligibleEgresoRows = (
     // The D+1 query compensates Rayen's offset; genuine next-day discharges stay excluded.
     if (!recordDay || stamp.iso > recordDay) continue;
 
-    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, reportedEpisode);
-    const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
     const activeCrib = diff.activeClinicalCribs?.find(
       crib =>
         (Boolean(reportedEpisode) && crib.source.encounterId === reportedEpisode) ||

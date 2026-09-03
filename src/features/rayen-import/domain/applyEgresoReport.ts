@@ -22,7 +22,7 @@ import {
 } from './egresoReportPolicy';
 import { mergeSyncablePatient } from './patientSyncPolicy';
 import { resolveReleasedBedPlacements } from './resolveReleasedBedPlacements';
-import { markReportChecked } from './egresoReportConflicts';
+import { markReportChecked, pushUniqueConflict } from './egresoReportConflicts';
 import { normalizeRut } from '@/utils/rutUtils';
 import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoReportEligibility';
 import { dropRedundantUnverifiedReportConflicts } from './redundantReportRowConflicts';
@@ -224,12 +224,11 @@ export const applyEgresoReport = (
         if (activeEpisode && !hasRecordedMovement(record, row.run, reportedEpisode)) {
           reportEgresos.push(reportEgresoFromRow(row));
         } else if (!activeEpisode) {
-          conflicts.push({
+          pushUniqueConflict(conflicts, {
             bedId: current.bedId,
             rut: row.run,
             patientName: current.patientName,
-            reason:
-              'El egreso identifica un episodio, pero el episodio activo de HHR no se pudo confirmar.',
+            reason: `El egreso identifica un episodio (${reportedEpisode}), pero el episodio activo de HHR no se pudo confirmar.`,
           });
         }
         continue;
@@ -286,12 +285,11 @@ export const applyEgresoReport = (
           .find(Boolean) ?? '';
       if (reportedEpisode && reportedEpisode !== activeEpisode) {
         if (!activeEpisode)
-          conflicts.push({
+          pushUniqueConflict(conflicts, {
             bedId: currentCrib.parentBedId,
             rut: currentCrib.patient.rut,
             patientName: currentCrib.patient.patientName,
-            reason:
-              'El egreso identifica un episodio, pero el episodio activo de la cuna no se pudo confirmar.',
+            reason: `El egreso identifica un episodio (${reportedEpisode}), pero el episodio activo de la cuna no se pudo confirmar.`,
           });
         else if (!hasRecordedMovement(record, row.run, reportedEpisode)) {
           reportEgresos.push(reportEgresoFromRow(row));

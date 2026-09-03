@@ -366,4 +366,98 @@ describe('egreso report eligibility', () => {
     expect(unlinked).toHaveLength(1);
     expect(unlinked[0]?.code).toBeUndefined();
   });
+
+  it('una fecha de egreso inválida para un ocupante conocido conserva su cama en el conflicto (no bloquea todo el censo)', () => {
+    const record: DailyRecord = {
+      date: '2026-09-02',
+      beds: {
+        H4C2: {
+          ...EMPTY_PATIENT,
+          bedId: 'H4C2',
+          patientName: 'Paciente Con Fecha Rota',
+          rut: '12.345.678-5',
+          clinicalEpisodeId: '4242',
+          admissionDate: '2026-08-30',
+          admissionTime: '09:00',
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const row = {
+      encounterId: '',
+      run: '12.345.678-5',
+      patientName: 'Paciente Con Fecha Rota',
+      bedLabel: 'H4C2',
+      servicio: 'Medicina',
+      edad: '50',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: 'sin fecha',
+    };
+
+    const result = selectEligibleEgresoRows(emptyDiff(), [row], record);
+
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toHaveLength(1);
+    expect(result.diff.conflicts[0]).toMatchObject({
+      bedId: 'H4C2',
+      patientName: 'Paciente Con Fecha Rota',
+    });
+    expect(result.diff.conflicts[0]?.reason).toContain('fecha/hora de egreso inválida');
+  });
+
+  it('una fecha inválida en la fila de un RN en cuna conserva la cama de la madre y el nombre del RN', () => {
+    const record: DailyRecord = {
+      date: '2026-09-02',
+      beds: {
+        H5C1: {
+          ...EMPTY_PATIENT,
+          bedId: 'H5C1',
+          patientName: 'Ana Perez',
+          rut: '20.000.000-1',
+          clinicalEpisodeId: '1001',
+          admissionDate: '2026-08-30',
+          admissionTime: '09:00',
+          clinicalCrib: {
+            ...EMPTY_PATIENT,
+            bedId: 'H5C1',
+            bedMode: 'Cuna',
+            patientName: 'Rn De Ana Perez',
+            rut: '27.999.999-9',
+            clinicalEpisodeId: '1002',
+            admissionDate: '2026-08-30',
+          },
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+      activeExtraBeds: [],
+    };
+    const row = {
+      encounterId: '1002',
+      run: '27.999.999-9',
+      patientName: 'Rn De Ana Perez',
+      bedLabel: 'H5C1',
+      servicio: 'Neonatología',
+      edad: '0',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: '',
+    };
+
+    const result = selectEligibleEgresoRows(emptyDiff(), [row], record);
+
+    expect(result.rows).toEqual([]);
+    expect(result.diff.conflicts).toHaveLength(1);
+    expect(result.diff.conflicts[0]).toMatchObject({
+      bedId: 'H5C1',
+      patientName: 'Rn De Ana Perez',
+    });
+  });
 });
