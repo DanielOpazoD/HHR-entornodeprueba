@@ -55,7 +55,16 @@ const hasDistinctDischargedOccupant = (
     // «unknown» y el ingreso seguía bloqueado con la cama ya vacía (auditoría 02-09).
     // Mismo RUN (readmisión a la cama que deja) sigue siendo 'same': el conflicto
     // queda visible y el ingreso entra en la siguiente corrida, como antes.
-    if ((episode || dischargeEpisode) && !isVerifiableLegacyOccupant(discharge)) return 'unknown';
+    if (episode || dischargeEpisode) {
+      if (!isVerifiableLegacyOccupant(discharge)) return 'unknown';
+      const expectedRun = normalizeRut(discharge.expectedOccupant?.rut);
+      const dischargeRun = normalizeRut(discharge.rut);
+      // El reporte y la huella del ocupante deben identificar al mismo paciente.
+      // Ante una divergencia no inferimos que la cama quedó libre: el operador debe revisarla.
+      if (!expectedRun || !dischargeRun || expectedRun !== dischargeRun) return 'unknown';
+      if (!run) return 'unknown';
+      return run === expectedRun ? 'same' : 'different';
+    }
     const dischargeRun = normalizeRut(discharge.rut);
     if (!run || !dischargeRun) return 'unknown';
     return run === dischargeRun ? 'same' : 'different';

@@ -119,4 +119,51 @@ describe('resolveReleasedBedPlacements · conflicto de revisión sobre el RUN qu
     expect(held.admissions).toEqual([]);
     expect(held.conflicts).toEqual([occupiedConflict]);
   });
+
+  it.each([
+    {
+      name: 'el ingreso coincide con la huella esperada',
+      incomingRun: OCCUPANT_RUN,
+      reportRun: '22.222.222-2',
+    },
+    {
+      name: 'el ingreso coincide con el RUN divergente del reporte',
+      incomingRun: '22.222.222-2',
+      reportRun: '22.222.222-2',
+    },
+  ])(
+    'mantiene la cama bloqueada si reporte y huella divergen: $name',
+    ({ incomingRun, reportRun }) => {
+      const divergentAdmission: AdmissionEntry = {
+        ...blockedAdmission,
+        patient: { ...blockedAdmission.patient, rut: incomingRun },
+        source: { ...incoming, run: incomingRun },
+      };
+      const divergentConflict: ConflictEntry = {
+        ...occupiedConflict,
+        rut: incomingRun,
+        blockedAdmission: divergentAdmission,
+      };
+      const divergentDischarge: DischargeEntry = {
+        ...occupantDischarge,
+        rut: reportRun,
+        encounterId: undefined,
+        expectedOccupant: {
+          rut: OCCUPANT_RUN,
+          admissionDate: '2026-08-30',
+          admissionTime: '09:00',
+        },
+      };
+
+      const result = resolveReleasedBedPlacements(
+        [],
+        [],
+        [divergentDischarge],
+        [divergentConflict]
+      );
+
+      expect(result.admissions).toEqual([]);
+      expect(result.conflicts).toEqual([divergentConflict]);
+    }
+  );
 });
