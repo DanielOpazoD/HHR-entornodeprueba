@@ -27,15 +27,18 @@ vi.mock('@/components/shared/BaseModal', () => ({
   BaseModal: ({
     isOpen,
     title,
+    headerActions,
     children,
   }: {
     isOpen: boolean;
     title: React.ReactNode;
+    headerActions?: React.ReactNode;
     children: React.ReactNode;
   }) =>
     isOpen ? (
       <div data-testid="base-modal">
         <div>{title}</div>
+        {headerActions}
         {children}
       </div>
     ) : null,
@@ -244,6 +247,22 @@ describe('LabResultsViewerModal', () => {
   it('renders title when open', () => {
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
     expect(screen.getByText('Laboratorio / Exámenes Syslab')).toBeInTheDocument();
+  });
+
+  it('offers the patient laboratory request when the caller provides that flow', async () => {
+    const onRequestExams = vi.fn();
+    render(
+      <LabResultsViewerModal
+        isOpen={true}
+        onClose={vi.fn()}
+        patients={PATIENTS}
+        onRequestExams={onRequestExams}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Solicitar exámenes' }));
+
+    expect(onRequestExams).toHaveBeenCalledTimes(1);
   });
 
   it('shows empty state by default', () => {
