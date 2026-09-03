@@ -146,4 +146,31 @@ describe('dropRedundantUnverifiedReportConflicts', () => {
       dropRedundantUnverifiedReportConflicts([newbornConflict], [discharge()], record)
     ).toEqual([newbornConflict]);
   });
+
+  it('los conflictos de fila «sin episodio» y «anterior al ingreso» también son redundantes ante el egreso final', () => {
+    const record = makeRecord(false);
+    const episodeLess = unverifiedConflict({
+      code: 'episode-less-report-row',
+      reason:
+        'El informe de Gestión de Camas no identifica el episodio activo de Tania Valencia; se requiere revisión antes de egresar.',
+    });
+    const predates = unverifiedConflict({
+      code: 'report-predates-admission',
+      reason:
+        'El egreso informado para Tania Valencia es anterior a su ingreso activo; no se desocupó la cama.',
+    });
+    const bedConflict = unverifiedConflict({ code: 'occupied-local-bed', reason: 'ocupada' });
+    expect(
+      dropRedundantUnverifiedReportConflicts(
+        [episodeLess, predates, bedConflict],
+        [discharge()],
+        record
+      )
+    ).toEqual([bedConflict]);
+    // Sin egreso final para esa cama, se conservan.
+    expect(dropRedundantUnverifiedReportConflicts([episodeLess, predates], [], record)).toEqual([
+      episodeLess,
+      predates,
+    ]);
+  });
 });

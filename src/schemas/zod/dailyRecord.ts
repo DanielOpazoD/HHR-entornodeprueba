@@ -161,6 +161,9 @@ const RayenSyncStructuralReviewSchema = z.object({
               'historical-reconstruction',
               'historical-admission-evidence',
               'unverified-report-row',
+              'episode-less-report-row',
+              'report-predates-admission',
+              'crib-conflict-blocks-discharge',
               'unclassified',
             ])
             .catch('unclassified'),

@@ -66,6 +66,9 @@ export type RayenSyncStructuralIssueReason =
   | 'historical-reconstruction'
   | 'historical-admission-evidence'
   | 'unverified-report-row'
+  | 'episode-less-report-row'
+  | 'report-predates-admission'
+  | 'crib-conflict-blocks-discharge'
   | 'unclassified';
 
 /** Privacy-safe structural diagnostic. It deliberately omits patient and episode identifiers. */
