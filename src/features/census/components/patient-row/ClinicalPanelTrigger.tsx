@@ -6,11 +6,14 @@
  */
 
 import React, { useState } from 'react';
-import { BookOpenText, FileDown } from 'lucide-react';
+import { BookOpenText } from 'lucide-react';
 
 import { resolveClinicalPanelNavigation } from '@/features/census/controllers/clinicalPanelNavigationController';
 import { PatientHospitalizationReportsDialog } from '@/features/census/components/PatientHospitalizationReportsDialog';
-import { ClinicalPanelDrawer } from './ClinicalPanelDrawer';
+
+const ClinicalPanelDrawer = React.lazy(() =>
+  import('./ClinicalPanelDrawer').then(module => ({ default: module.ClinicalPanelDrawer }))
+);
 
 interface ClinicalPanelTriggerProps {
   bedId: string;
@@ -34,7 +37,6 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [areReportsOpen, setAreReportsOpen] = useState(false);
   const episode = (clinicalEpisodeId || '').trim();
-  const canOpenReports = !!episode;
   if (!episode || !patientName.trim()) return null;
   const panelKey = `${bedId}:${episode}`;
   const navigation = isOpen
@@ -50,7 +52,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
 
   return (
     <>
-      <span className="inline-flex shrink-0 items-center gap-0.5">
+      <span className="inline-flex shrink-0 items-center">
         <button
           type="button"
           data-testid={`clinical-panel-trigger-${triggerKey}`}
@@ -65,34 +67,22 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
         >
           <BookOpenText size={14} />
         </button>
-        {canOpenReports && (
-          <button
-            type="button"
-            data-testid={`hospitalization-reports-trigger-${triggerKey}`}
-            onClick={event => {
-              event.stopPropagation();
-              setAreReportsOpen(true);
-            }}
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-sky-50 hover:text-sky-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-600 disabled:cursor-progress disabled:opacity-60"
-            title="Informes de hospitalización"
-            aria-label={`Abrir informes de hospitalización de ${patientName}`}
-          >
-            <FileDown size={14} aria-hidden="true" />
-          </button>
-        )}
       </span>
       {isOpen && (
-        <ClinicalPanelDrawer
-          bedId={bedId}
-          patientName={patientName}
-          clinicalEpisodeId={episode}
-          encounterRouteHint={encounterRouteHint}
-          canNavigatePrevious={navigation.previous !== null}
-          canNavigateNext={navigation.next !== null}
-          onNavigatePrevious={() => navigatePanel('previous')}
-          onNavigateNext={() => navigatePanel('next')}
-          onClose={() => setIsOpen(false)}
-        />
+        <React.Suspense fallback={null}>
+          <ClinicalPanelDrawer
+            bedId={bedId}
+            patientName={patientName}
+            clinicalEpisodeId={episode}
+            encounterRouteHint={encounterRouteHint}
+            canNavigatePrevious={navigation.previous !== null}
+            canNavigateNext={navigation.next !== null}
+            onNavigatePrevious={() => navigatePanel('previous')}
+            onNavigateNext={() => navigatePanel('next')}
+            onOpenHospitalizationReports={() => setAreReportsOpen(true)}
+            onClose={() => setIsOpen(false)}
+          />
+        </React.Suspense>
       )}
       <PatientHospitalizationReportsDialog
         isOpen={areReportsOpen}

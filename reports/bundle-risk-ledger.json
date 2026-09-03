@@ -86,6 +86,40 @@
       "precacheExcluded": null,
       "status": "ok",
       "issues": []
+    },
+    {
+      "id": "patient-document-manager",
+      "owner": "census/patient clinical drawer",
+      "workflow": "Read-only Eloisa patient document repository",
+      "thresholdLabel": "20,000 bytes online-only chunk budget",
+      "releasePosture": "Keep the dialog lazy, read-only, outside install-time precache, and below its dedicated ceiling.",
+      "guardrails": [
+        "check:bundle-budget",
+        "src/tests/build/chunkingPolicy.test.ts",
+        "src/tests/build/pwaPrecachePolicy.test.ts"
+      ],
+      "nextAction": "Revisit only if the local repository gains upload or editing capabilities.",
+      "budgetCovered": true,
+      "precacheExcluded": true,
+      "status": "ok",
+      "issues": []
+    },
+    {
+      "id": "eloisa-clinical-panel",
+      "owner": "census/patient clinical drawer",
+      "workflow": "On-demand Eloisa clinical panel",
+      "thresholdLabel": "50,000 bytes online-only chunk budget",
+      "releasePosture": "Keep the clinical drawer lazy and outside the offline install payload.",
+      "guardrails": [
+        "check:bundle-budget",
+        "src/tests/build/chunkingPolicy.test.ts",
+        "src/tests/build/pwaPrecachePolicy.test.ts"
+      ],
+      "nextAction": "Keep future live Eloisa actions behind this explicit lazy boundary.",
+      "budgetCovered": true,
+      "precacheExcluded": true,
+      "status": "ok",
+      "issues": []
     }
   ],
   "issues": []

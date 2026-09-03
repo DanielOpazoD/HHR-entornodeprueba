@@ -7,6 +7,20 @@
 
 export const RAYEN_CLINICAL_PANEL_REQUEST_TYPE = 'HHR_RAYEN_CLINICAL_PANEL_REQUEST';
 export const RAYEN_CLINICAL_PANEL_RESULT_TYPE = 'HHR_RAYEN_CLINICAL_PANEL_RESULT';
+export const RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE =
+  'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST';
+export const RAYEN_PATIENT_DOCUMENT_OPEN_RESULT_TYPE =
+  'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT';
+
+export interface RayenPatientDocument {
+  id: string;
+  classification: string;
+  fileName: string;
+  name: string;
+  attachedBy: string;
+  facility: string;
+  createdAt: string;
+}
 
 /**
  * One history event slimmed to the clinical-panel resumes. Items are raw Ficha Médico rows
@@ -34,6 +48,8 @@ export interface RayenClinicalPanelResult {
   events: RayenClinicalPanelEvent[];
   carePlan: RayenClinicalPanelCarePlan;
   error?: string;
+  documents?: RayenPatientDocument[];
+  documentError?: string;
 }
 
 const EMPTY_CARE_PLAN: RayenClinicalPanelCarePlan = {
@@ -86,6 +102,17 @@ export const requestClinicalPanel = (
               }
             : EMPTY_CARE_PLAN,
         error: typeof data.error === 'string' ? data.error : undefined,
+        documents: Array.isArray(data.documents)
+          ? data.documents.filter((item: unknown): item is RayenPatientDocument => {
+              if (!item || typeof item !== 'object') return false;
+              const row = item as Record<string, unknown>;
+              return ['id', 'classification', 'fileName', 'name', 'attachedBy', 'facility', 'createdAt']
+                .every(field => typeof row[field] === 'string');
+            })
+          : undefined,
+        documentError: typeof data.documentError === 'string'
+          ? data.documentError
+          : undefined,
       });
     };
 
@@ -100,6 +127,60 @@ export const requestClinicalPanel = (
         events: [],
         carePlan: EMPTY_CARE_PLAN,
         error: 'Tiempo de espera agotado bajando el panel clínico.',
+      });
+    }, timeoutMs);
+  });
+
+export interface RayenPatientDocumentOpenResult {
+  ok: boolean;
+  opened: boolean;
+  error?: string;
+}
+
+export const requestPatientDocumentOpen = (
+  encId: string,
+  documentId: string,
+  timeoutMs = 20000
+): Promise<RayenPatientDocumentOpenResult> =>
+  new Promise(resolve => {
+    if (typeof window === 'undefined' || !encId.trim() || !documentId.trim()) {
+      resolve({ ok: false, opened: false, error: 'El archivo seleccionado no es válido.' });
+      return;
+    }
+    const reqId = `patient-document-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+    let settled = false;
+    // eslint-disable-next-line prefer-const -- assigned after listener setup, read by cleanup()
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const cleanup = (): void => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      window.removeEventListener('message', onMessage);
+    };
+    const onMessage = (event: MessageEvent): void => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (!data || data.type !== RAYEN_PATIENT_DOCUMENT_OPEN_RESULT_TYPE || data.reqId !== reqId) {
+        return;
+      }
+      cleanup();
+      resolve({
+        ok: data.ok === true,
+        opened: data.opened === true,
+        error: typeof data.error === 'string' ? data.error : undefined,
+      });
+    };
+    window.addEventListener('message', onMessage);
+    window.postMessage(
+      { type: RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE, reqId, encId, documentId },
+      window.location.origin
+    );
+    timeoutId = setTimeout(() => {
+      cleanup();
+      resolve({
+        ok: false,
+        opened: false,
+        error: 'La extensión no respondió al abrir el archivo.',
       });
     }, timeoutMs);
   });

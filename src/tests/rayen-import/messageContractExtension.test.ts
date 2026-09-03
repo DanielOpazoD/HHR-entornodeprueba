@@ -40,7 +40,7 @@ describe('shared Rayen runtime-message contract', () => {
   it('registers every service-worker request type once', () => {
     const values = Object.values(contract.types);
 
-    expect(values).toHaveLength(54);
+    expect(values).toHaveLength(55);
     expect(new Set(values).size).toBe(values.length);
     expect(values.every(value => /^RAYEN_[A-Z0-9_]+$/.test(value))).toBe(true);
   });
@@ -54,6 +54,20 @@ describe('shared Rayen runtime-message contract', () => {
         dateEnd: '2026-07-25',
       })
     ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.PATIENT_DOCUMENT_MANAGER_REQUEST,
+        encId: '141121',
+        operation: 'list',
+      })
+    ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.PATIENT_DOCUMENT_MANAGER_REQUEST,
+        encId: '',
+        operation: 'open-document',
+      })
+    ).toMatchObject({ ok: false, known: true });
     expect(
       contract.validateRuntimeMessage({
         type: contract.types.SYNC_BUNDLE_REQUEST,
@@ -306,6 +320,7 @@ describe('shared Rayen runtime-message contract', () => {
       'content-hhr.js',
       'content-hhr-patient-flow.js',
       'content-hhr-epicrisis.js',
+      'content-hhr-patient-documents.js',
       'content-hhr-statistical-discharge.js',
       'content-hhr-statistical-evidence.js',
       'content-hhr-syslab.js',

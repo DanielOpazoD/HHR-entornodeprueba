@@ -70,8 +70,13 @@ export type {
   RayenClinicalPanelEvent,
   RayenClinicalPanelCarePlan,
   RayenClinicalPanelResult,
+  RayenPatientDocument,
+  RayenPatientDocumentOpenResult,
 } from './bridge/clinicalPanelBridge';
-export { requestClinicalPanel } from './bridge/clinicalPanelBridge';
+export {
+  requestClinicalPanel,
+  requestPatientDocumentOpen,
+} from './bridge/clinicalPanelBridge';
 export type {
   RayenHospitalizationDocumentType,
   RayenHospitalizationEpisode,

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   navigate: vi.fn(),
+  openDocument: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
 }));
@@ -14,6 +15,7 @@ vi.mock('@/features/rayen-import', async importOriginal => {
     ...actual,
     requestClinicalPanel: (...args: unknown[]) => mocks.request(...args),
     requestRayenEncounterNavigation: (...args: unknown[]) => mocks.navigate(...args),
+    requestPatientDocumentOpen: (...args: unknown[]) => mocks.openDocument(...args),
   };
 });
 
@@ -24,6 +26,35 @@ vi.mock('@/context/UIContext', () => ({
 import { ClinicalPanelDrawer } from '@/features/census/components/patient-row/ClinicalPanelDrawer';
 
 const panelResult = {
+  documents: [
+    {
+      id: 'id:doc-1',
+      classification: 'Clínico',
+      fileName: 'informe-prueba.pdf',
+      name: 'Evaluación de prueba',
+      attachedBy: 'Profesional de prueba',
+      facility: 'Hospital de prueba',
+      createdAt: '2026-07-16T10:00:00',
+    },
+    {
+      id: 'id:doc-2',
+      classification: 'Clínico',
+      fileName: 'resultado-prueba.pdf',
+      name: 'Resultado de prueba',
+      attachedBy: 'Profesional de prueba',
+      facility: 'Hospital de prueba',
+      createdAt: '2026-07-17T10:00:00',
+    },
+    {
+      id: 'id:doc-3',
+      classification: 'Administrativo',
+      fileName: 'formulario-prueba.pdf',
+      name: 'Formulario de prueba',
+      attachedBy: 'Profesional de prueba',
+      facility: 'Hospital de prueba',
+      createdAt: '2026-07-18T10:00:00',
+    },
+  ],
   events: [
     {
       publishDatetime: '2026-07-13T10:00:00',
@@ -99,6 +130,8 @@ describe('ClinicalPanelDrawer', () => {
     mocks.request.mockResolvedValue(panelResult);
     mocks.navigate.mockReset();
     mocks.navigate.mockResolvedValue({ ok: true, reused: true });
+    mocks.openDocument.mockReset();
+    mocks.openDocument.mockResolvedValue({ ok: true, opened: true });
     mocks.success.mockReset();
     mocks.error.mockReset();
   });
@@ -109,6 +142,7 @@ describe('ClinicalPanelDrawer', () => {
         bedId="H1C2"
         patientName="Paciente de prueba"
         clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
         onClose={vi.fn()}
       />
     );
@@ -146,6 +180,7 @@ describe('ClinicalPanelDrawer', () => {
         bedId="H1C2"
         patientName="Paciente de prueba"
         clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
         onClose={vi.fn()}
       />
     );
@@ -169,6 +204,7 @@ describe('ClinicalPanelDrawer', () => {
         canNavigateNext
         onNavigatePrevious={onPrevious}
         onNavigateNext={onNext}
+        onOpenHospitalizationReports={vi.fn()}
         onClose={vi.fn()}
       />
     );
@@ -181,6 +217,120 @@ describe('ClinicalPanelDrawer', () => {
     expect(onNext).toHaveBeenCalledOnce();
   });
 
+  it('opens hospitalization reports from the drawer header', async () => {
+    const onOpenHospitalizationReports = vi.fn();
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={onOpenHospitalizationReports}
+        onClose={vi.fn()}
+      />
+    );
+
+    await screen.findByText('Evolución médica estable.');
+    const reportsButton = screen.getByRole('button', {
+      name: 'Abrir informes de hospitalización de Paciente de prueba',
+    });
+    expect(reportsButton).toHaveTextContent('Informes');
+    fireEvent.click(reportsButton);
+
+    expect(onOpenHospitalizationReports).toHaveBeenCalledOnce();
+  });
+
+  it('shows the active attachment count and opens the local patient document manager', async () => {
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        encounterRouteHint="nurse"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    const documentsButton = await screen.findByRole('button', {
+      name: 'Abrir Gestor documental de Paciente de prueba; 3 archivos',
+    });
+    expect(documentsButton).toHaveTextContent('3');
+    fireEvent.click(documentsButton);
+    expect(await screen.findByRole('dialog', { name: 'Documentos de Paciente de prueba' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Clasificación' })).toBeInTheDocument();
+    const fileButton = screen.getByRole('button', { name: 'informe-prueba.pdf' });
+    fireEvent.click(fileButton);
+    await waitFor(() => expect(mocks.openDocument).toHaveBeenCalledWith('141121', 'id:doc-1'));
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it('keeps an empty document manager available but visually faded without a badge', async () => {
+    mocks.request.mockResolvedValue({ ...panelResult, documents: [] });
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    const documentsButton = await screen.findByRole('button', {
+      name: 'Abrir Gestor documental de Paciente de prueba; sin archivos',
+    });
+    expect(documentsButton).toHaveClass('opacity-30');
+    expect(documentsButton).not.toHaveTextContent(/\d/);
+    expect(documentsButton).toBeEnabled();
+    fireEvent.click(documentsButton);
+    expect(await screen.findByText('No hay documentos visibles para este paciente.')).toBeInTheDocument();
+  });
+
+  it('does not present an unavailable document query as an empty repository', async () => {
+    mocks.request.mockResolvedValue({
+      ...panelResult,
+      documents: undefined,
+      documentError: 'No se pudieron leer los documentos.',
+    });
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    const documentsButton = await screen.findByRole('button', {
+      name: 'Abrir Gestor documental de Paciente de prueba; cantidad no disponible',
+    });
+    expect(documentsButton).not.toHaveClass('opacity-30');
+    fireEvent.click(documentsButton);
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron leer los documentos.');
+  });
+
+  it('closes only the document dialog when Escape is pressed inside it', async () => {
+    const closeDrawer = vi.fn();
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={closeDrawer}
+      />
+    );
+    const documentsButton = await screen.findByRole('button', {
+      name: 'Abrir Gestor documental de Paciente de prueba; 3 archivos',
+    });
+    fireEvent.click(documentsButton);
+    const dialog = await screen.findByRole('dialog', { name: 'Documentos de Paciente de prueba' });
+    expect(dialog).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Documentos de Paciente de prueba' })).toBeNull();
+    expect(closeDrawer).not.toHaveBeenCalled();
+  });
+
   it('opens the exact episode from the Rayen mark beside the patient name', async () => {
     render(
       <ClinicalPanelDrawer
@@ -188,6 +338,7 @@ describe('ClinicalPanelDrawer', () => {
         patientName="Paciente de prueba"
         clinicalEpisodeId="141121"
         encounterRouteHint="nurse"
+        onOpenHospitalizationReports={vi.fn()}
         onClose={vi.fn()}
       />
     );

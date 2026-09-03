@@ -75,6 +75,38 @@
         "src/tests/build/chunkingPolicy.test.ts"
       ],
       "nextAction": "Move the next secondary authenticated concern behind a lazy boundary if this chunk exceeds the warning band again."
+    },
+    {
+      "id": "patient-document-manager",
+      "owner": "census/patient clinical drawer",
+      "workflow": "Read-only Eloisa patient document repository",
+      "loadReason": "The repository is opened explicitly and requires a live Eloisa extension session, so offline app installation does not need its dialog code.",
+      "thresholdLabel": "20,000 bytes online-only chunk budget",
+      "chunkBudgetPattern": "^PatientDocumentManagerDialog-.*\\.js$",
+      "precacheIgnoredPattern": "^assets/PatientDocumentManagerDialog-.*\\.js$",
+      "releasePosture": "Keep the dialog lazy, read-only, outside install-time precache, and below its dedicated ceiling.",
+      "guardrails": [
+        "check:bundle-budget",
+        "src/tests/build/chunkingPolicy.test.ts",
+        "src/tests/build/pwaPrecachePolicy.test.ts"
+      ],
+      "nextAction": "Revisit only if the local repository gains upload or editing capabilities."
+    },
+    {
+      "id": "eloisa-clinical-panel",
+      "owner": "census/patient clinical drawer",
+      "workflow": "On-demand Eloisa clinical panel",
+      "loadReason": "The drawer is opened explicitly for a synchronized patient and requires a live Eloisa extension session.",
+      "thresholdLabel": "50,000 bytes online-only chunk budget",
+      "chunkBudgetPattern": "^ClinicalPanelDrawer-.*\\.js$",
+      "precacheIgnoredPattern": "^assets/ClinicalPanelDrawer-.*\\.js$",
+      "releasePosture": "Keep the clinical drawer lazy and outside the offline install payload.",
+      "guardrails": [
+        "check:bundle-budget",
+        "src/tests/build/chunkingPolicy.test.ts",
+        "src/tests/build/pwaPrecachePolicy.test.ts"
+      ],
+      "nextAction": "Keep future live Eloisa actions behind this explicit lazy boundary."
     }
   ]
 }

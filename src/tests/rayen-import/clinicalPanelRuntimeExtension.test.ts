@@ -278,9 +278,10 @@ describe('clinical panel read runtime', () => {
       'No se pudo cargar el cliente clínico de lectura de Ficha Médico.'
     );
     expect(background).toContain('timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS');
-    expect(background).toContain(
-      'const handleClinicalPanelRequest = clinicalPanelRuntime.handleRequest'
-    );
+    expect(background).toContain('const handleClinicalPanelRequest = async ({ encId, sender }) =>');
+    expect(background).toContain('clinicalPanelRuntime.handleRequest({ encId })');
+    expect(background).toContain('patientDocumentManagerRuntime.list({ encId, sender })');
+    expect(background).toContain("'Tiempo de espera agotado consultando documentos.'");
     expect(background).not.toContain('FICHAMEDICO_MATCH');
     expect(background).not.toContain('const CLINICAL_PANEL_RESUMES');
     expect(background).not.toContain('/api/carePlanAssignedCare/');

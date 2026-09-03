@@ -13,6 +13,8 @@
 | pdfjs-worker | clinical-documents/PDF runtime | PDF.js worker runtime | 2,500,000 bytes async worker budget | ok | covered | excluded | Async worker remains acceptable while excluded from PWA install-time precache and under its dedicated ceiling. | check:runtime-asset-margin, src/tests/build/pwaPrecachePolicy.test.ts |
 | vendor-pdf-lib | clinical-documents/PDF generation | PDF generation and manipulation | 430,000 bytes async vendor budget | ok | covered | excluded | Async PDF generation remains acceptable while on-demand and under its dedicated ceiling. | check:bundle-budget, src/tests/build/bundleBudgetConfig.test.ts, src/tests/build/pwaPrecachePolicy.test.ts |
 | app-authenticated-shell | app-shell/census runtime | Authenticated census shell | 600,000 bytes startup chunk budget | ok | covered | n/a | Startup chunk remains below hard ceiling; secondary authenticated concerns should keep moving behind lazy boundaries. | check:bundle-budget, check:chunk-graph, src/tests/build/chunkingPolicy.test.ts |
+| patient-document-manager | census/patient clinical drawer | Read-only Eloisa patient document repository | 20,000 bytes online-only chunk budget | ok | covered | excluded | Keep the dialog lazy, read-only, outside install-time precache, and below its dedicated ceiling. | check:bundle-budget, src/tests/build/chunkingPolicy.test.ts, src/tests/build/pwaPrecachePolicy.test.ts |
+| eloisa-clinical-panel | census/patient clinical drawer | On-demand Eloisa clinical panel | 50,000 bytes online-only chunk budget | ok | covered | excluded | Keep the clinical drawer lazy and outside the offline install payload. | check:bundle-budget, src/tests/build/chunkingPolicy.test.ts, src/tests/build/pwaPrecachePolicy.test.ts |
 
 ## Next Actions
 
@@ -21,3 +23,5 @@
 - pdfjs-worker: Treat worker growth as PDF.js dependency drift; do not raise the budget without confirming extraction workflows still need the current worker.
 - vendor-pdf-lib: Separate generation/viewer imports only if the PDF family grows past the current dedicated ceiling.
 - app-authenticated-shell: Move the next secondary authenticated concern behind a lazy boundary if this chunk exceeds the warning band again.
+- patient-document-manager: Revisit only if the local repository gains upload or editing capabilities.
+- eloisa-clinical-panel: Keep future live Eloisa actions behind this explicit lazy boundary.
