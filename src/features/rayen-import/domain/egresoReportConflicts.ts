@@ -13,9 +13,10 @@ const sameConflict = (left: ConflictEntry, right: ConflictEntry): boolean =>
   left.source?.encounterId === right.source?.encounterId;
 
 /**
- * `applyEgresoReport` corre más de una vez sobre el mismo diff (informe y luego
- * lookup): un conflicto rederivado en cada pasada se contaba doble, bloqueaba la
- * etapa clínica de la cama y dejaba la corrida «Parcial» por un solo motivo.
+ * `applyEgresoReport` corre dos pasadas del informe sobre el mismo diff (antes y
+ * después de recuperar placements/trazabilidad): un conflicto rederivado en cada
+ * pasada se contaba doble, bloqueaba la etapa clínica de la cama y dejaba la
+ * corrida «Parcial» por un solo motivo.
  */
 export const pushUniqueConflict = (conflicts: ConflictEntry[], conflict: ConflictEntry): void => {
   if (conflicts.some(entry => sameConflict(entry, conflict))) return;
