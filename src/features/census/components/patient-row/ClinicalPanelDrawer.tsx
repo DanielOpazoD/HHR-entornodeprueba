@@ -15,7 +15,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, Loader2, RefreshCw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileDown, Loader2, RefreshCw, X } from 'lucide-react';
 import {
   parseClinicalPanel,
   requestClinicalPanel,
@@ -34,6 +34,7 @@ interface ClinicalPanelDrawerProps {
   canNavigateNext?: boolean;
   onNavigatePrevious?: () => void;
   onNavigateNext?: () => void;
+  onOpenHospitalizationReports: () => void;
   onClose: () => void;
 }
 
@@ -68,6 +69,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   canNavigateNext = false,
   onNavigatePrevious,
   onNavigateNext,
+  onOpenHospitalizationReports,
   onClose,
 }) => {
   const [state, setState] = useState<PanelState>({ phase: 'loading' });
@@ -202,6 +204,15 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
               <ChevronRight size={15} />
             </button>
           </div>
+          <button
+            type="button"
+            onClick={onOpenHospitalizationReports}
+            className="rounded p-1 text-slate-400 hover:bg-sky-50 hover:text-sky-700"
+            title="Informes de hospitalización"
+            aria-label={`Abrir informes de hospitalización de ${patientName}`}
+          >
+            <FileDown size={14} aria-hidden="true" />
+          </button>
           <button
             type="button"
             onClick={reload}

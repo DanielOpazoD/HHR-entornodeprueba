@@ -12,16 +12,21 @@ vi.mock('@/features/census/components/patient-row/ClinicalPanelDrawer', () => ({
     patientName,
     encounterRouteHint,
     onNavigateNext,
+    onOpenHospitalizationReports,
   }: {
     patientName: string;
     encounterRouteHint?: 'medical' | 'nurse';
     onNavigateNext: () => void;
+    onOpenHospitalizationReports: () => void;
   }) => (
     <div role="dialog">
       Panel de {patientName}
       <span data-testid="drawer-route">{encounterRouteHint || 'sin ruta'}</span>
       <button type="button" onClick={onNavigateNext}>
         Siguiente paciente
+      </button>
+      <button type="button" onClick={onOpenHospitalizationReports}>
+        Abrir informes de hospitalización de {patientName}
       </button>
     </div>
   ),
@@ -132,7 +137,7 @@ describe('ClinicalPanelTrigger', () => {
     expect(screen.getByTestId('drawer-route')).toHaveTextContent('medical');
   });
 
-  it('opens the episode-aware reports menu', () => {
+  it('moves the episode-aware reports action into the clinical panel', () => {
     render(
       <ClinicalPanelTrigger
         bedId="R2"
@@ -140,6 +145,10 @@ describe('ClinicalPanelTrigger', () => {
         patientRun="17.752.753-1"
         clinicalEpisodeId="141336"
       />
+    );
+    expect(screen.queryByRole('button', { name: /informes de hospitalización/i })).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
     );
     fireEvent.click(
       screen.getByRole('button', {
@@ -176,6 +185,8 @@ describe('ClinicalPanelTrigger', () => {
     expect(
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente sin RUN' })
     ).toBeVisible();
+    expect(screen.queryByRole('button', { name: /informes de hospitalización/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /abrir panel clínico/i }));
     expect(screen.getByRole('button', { name: /informes de hospitalización/i })).toBeVisible();
   });
 });

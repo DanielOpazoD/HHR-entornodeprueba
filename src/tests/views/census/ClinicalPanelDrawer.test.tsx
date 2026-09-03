@@ -109,6 +109,7 @@ describe('ClinicalPanelDrawer', () => {
         bedId="H1C2"
         patientName="Paciente de prueba"
         clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
         onClose={vi.fn()}
       />
     );
@@ -146,6 +147,7 @@ describe('ClinicalPanelDrawer', () => {
         bedId="H1C2"
         patientName="Paciente de prueba"
         clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
         onClose={vi.fn()}
       />
     );
@@ -169,6 +171,7 @@ describe('ClinicalPanelDrawer', () => {
         canNavigateNext
         onNavigatePrevious={onPrevious}
         onNavigateNext={onNext}
+        onOpenHospitalizationReports={vi.fn()}
         onClose={vi.fn()}
       />
     );
@@ -181,6 +184,28 @@ describe('ClinicalPanelDrawer', () => {
     expect(onNext).toHaveBeenCalledOnce();
   });
 
+  it('opens hospitalization reports from the drawer header', async () => {
+    const onOpenHospitalizationReports = vi.fn();
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={onOpenHospitalizationReports}
+        onClose={vi.fn()}
+      />
+    );
+
+    await screen.findByText('Evolución médica estable.');
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Abrir informes de hospitalización de Paciente de prueba',
+      })
+    );
+
+    expect(onOpenHospitalizationReports).toHaveBeenCalledOnce();
+  });
+
   it('opens the exact episode from the Rayen mark beside the patient name', async () => {
     render(
       <ClinicalPanelDrawer
@@ -188,6 +213,7 @@ describe('ClinicalPanelDrawer', () => {
         patientName="Paciente de prueba"
         clinicalEpisodeId="141121"
         encounterRouteHint="nurse"
+        onOpenHospitalizationReports={vi.fn()}
         onClose={vi.fn()}
       />
     );
