@@ -237,7 +237,7 @@ const {
   handleCensusListRequest,
   handleVitalsCensusRequest,
 } = fichaMedicoPatientContext;
-const patientDocumentManagerRuntime = self.HhrPatientDocumentManagerRuntime.create({ chrome, encounterNavigation: self.HhrEncounterNavigation, getClinicalReportContext, readJson: fichaMedicoClinicalClient.readJson, fetchClaims: info => fetchFichaClaims(info), hasClaim: (claims, name) => hasFichaClaim(claims, name) });
+const patientDocumentManagerRuntime = self.HhrPatientDocumentManagerRuntime.create({ chrome, getClinicalReportContext, readJson: fichaMedicoClinicalClient.readJson, fetchClaims: info => fetchFichaClaims(info), hasClaim: (claims, name) => hasFichaClaim(claims, name) });
 const handleManualPatientCodeRequest = self.HhrFichaMedicoManualPatientCodeRuntime.create({ resolveSession: resolveFichaClinicalSession, fetchActiveEncounterRows, fetchPatientHeader, fetchDeviceEvidence, normalizePatient: fichaMedicoPatientContext.normalizeHospitalizedEncounter, clinicalDayAt: self.HhrClinicalDayRuntime.clinicalDayAt, codeContract: self.HhrEloisaPatientCodeContract, cryptoApi: crypto, now: () => Date.now() });
 const gestionCamasRuntime = self.HhrGestionCamasRuntime.create({
   chrome,
@@ -568,7 +568,22 @@ const clinicalPanelRuntime = self.HhrClinicalPanelRuntime.create({
   fetchCurrentValidation: fetchTreatmentValidation,
   timeoutMs: CLINICAL_PANEL_REQUEST_TIMEOUT_MS,
 });
-const handleClinicalPanelRequest = clinicalPanelRuntime.handleRequest;
+const handleClinicalPanelRequest = async ({ encId, sender }) => {
+  const [panel, documents] = await Promise.all([
+    clinicalPanelRuntime.handleRequest({ encId }),
+    withTimeout(
+      patientDocumentManagerRuntime.list({ encId, sender }),
+      5000,
+      'Tiempo de espera agotado consultando documentos.'
+    ).catch(error => ({ ok: false, error: String(error && error.message || error) })),
+  ]);
+  return {
+    ...panel,
+    ...(documents.ok
+      ? { documents: documents.documents }
+      : { documentError: documents.error || 'No se pudieron leer los documentos.' }),
+  };
+};
 
 const handlePrescriptionOptionsRequest = async ({ encId }) => {
   const infoResult = await resolveFichaClinicalSession();
@@ -1217,7 +1232,6 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo abrir el episodio clínico.'
   ),
   [RUNTIME_MESSAGES.PATIENT_DOCUMENT_MANAGER_REQUEST]: runtimeRoute((message, sender) => patientDocumentManagerRuntime.handleRequest({ ...message, sender }), 'No se pudo consultar el Gestor documental.'),
-  [RUNTIME_MESSAGES.PATIENT_DOCUMENT_MANAGER_ACK]: runtimeRoute((message, sender) => patientDocumentManagerRuntime.acknowledge({ ...message, sender }), 'No se pudo confirmar la apertura del Gestor documental.'),
   [RUNTIME_MESSAGES.EGRESO_LOOKUP_REQUEST]: runtimeRoute(
     (message, sender) => handleEgresoLookup(message.runs, message.targets, sender),
     'No se pudo consultar el egreso.'
@@ -1291,7 +1305,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo leer el paquete clínico del paciente.'
   ),
   [RUNTIME_MESSAGES.CLINICAL_PANEL_REQUEST]: runtimeRoute(
-    message => handleClinicalPanelRequest({ encId: message.encId }),
+    (message, sender) => handleClinicalPanelRequest({ encId: message.encId, sender }),
     'No se pudo cargar el panel clínico.'
   ),
   [RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(

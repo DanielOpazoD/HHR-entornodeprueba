@@ -52,6 +52,12 @@ describe('bundle budget config', () => {
     expect(findBudget(config, '^vendor-heic2any-.*\\.js$')).toMatchObject({
       maxBytes: 1450000,
     });
+    expect(findBudget(config, '^PatientDocumentManagerDialog-.*\\.js$')).toMatchObject({
+      maxBytes: 20000,
+    });
+    expect(findBudget(config, '^ClinicalPanelDrawer-.*\\.js$')).toMatchObject({
+      maxBytes: 50000,
+    });
   });
 
   it('keeps authenticated shell budget above the measured critical-runtime baseline', () => {
@@ -95,6 +101,8 @@ describe('bundle budget config', () => {
         '^assets/clinicalFillRunner-.*\\.js$',
         '^assets/clinicalEnrichmentBatchPayload-.*\\.js$',
         '^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$',
+        '^assets/PatientDocumentManagerDialog-.*\\.js$',
+        '^assets/ClinicalPanelDrawer-.*\\.js$',
       ])
     );
   });

@@ -269,6 +269,8 @@
               carePlanHeaders: [],
               medicationStates: [],
             },
+            documents: response && Array.isArray(response.documents) ? response.documents : undefined,
+            documentError: response && response.documentError,
             error: response && response.error,
           });
         })

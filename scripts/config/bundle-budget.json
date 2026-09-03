@@ -25,7 +25,9 @@
     "^assets/clinicalFillRunner-.*\\.js$",
     "^assets/clinicalEnrichmentBatchPayload-.*\\.js$",
     "^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$",
-    "^assets/replanRayenStructure-.*\\.js$"
+    "^assets/replanRayenStructure-.*\\.js$",
+    "^assets/PatientDocumentManagerDialog-.*\\.js$",
+    "^assets/ClinicalPanelDrawer-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [
@@ -99,6 +101,16 @@
       "pattern": "^vendor-heic2any-.*\\.js$",
       "_comment": "HEIC/HEIF conversion is loaded only for high-efficiency mobile prescription photos and kept out of the PWA precache. A dedicated ceiling preserves release visibility without relaxing the global chunk budget.",
       "maxBytes": 1450000
+    },
+    {
+      "pattern": "^PatientDocumentManagerDialog-.*\\.js$",
+      "_comment": "Online-only, read-only Eloisa document repository opened explicitly from the clinical drawer.",
+      "maxBytes": 20000
+    },
+    {
+      "pattern": "^ClinicalPanelDrawer-.*\\.js$",
+      "_comment": "Online-only Eloisa clinical drawer loaded only after an explicit patient action.",
+      "maxBytes": 50000
     }
   ]
 }

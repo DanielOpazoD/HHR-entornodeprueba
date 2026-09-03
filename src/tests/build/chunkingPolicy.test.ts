@@ -174,6 +174,26 @@ describe('chunkingPolicy', () => {
     });
   });
 
+  it('loads the online-only patient document dialog through a dynamic boundary', () => {
+    const drawerSource = readSource(
+      'src/features/census/components/patient-row/ClinicalPanelDrawer.tsx'
+    );
+    expect(drawerSource).not.toMatch(
+      /import\s+\{\s*PatientDocumentManagerDialog\s*\}\s+from ['"]\.\/PatientDocumentManagerDialog['"]/
+    );
+    expect(drawerSource).toContain("import('./PatientDocumentManagerDialog')");
+  });
+
+  it('loads the online-only clinical panel through a dynamic boundary', () => {
+    const triggerSource = readSource(
+      'src/features/census/components/patient-row/ClinicalPanelTrigger.tsx'
+    );
+    expect(triggerSource).not.toMatch(
+      /import\s+\{\s*ClinicalPanelDrawer\s*\}\s+from ['"]\.\/ClinicalPanelDrawer['"]/
+    );
+    expect(triggerSource).toContain("import('./ClinicalPanelDrawer')");
+  });
+
   it.each([
     {
       label: 'user avatar remote profile service',

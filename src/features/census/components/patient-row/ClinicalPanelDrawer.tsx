@@ -13,7 +13,7 @@
  * the Eloísa sync); degrades to an error state with retry.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import {
   ChevronLeft,
@@ -23,15 +23,17 @@ import {
   RefreshCw,
   X,
 } from 'lucide-react';
-import {
-  parseClinicalPanel,
-  requestClinicalPanel,
-  type ClinicalPanel,
-  type EvolutionProfession,
-} from '@/features/rayen-import';
+import { type EvolutionProfession } from '@/features/rayen-import';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
 import { RayenEncounterButton } from './RayenEncounterButton';
 import { PatientDocumentManagerButton } from './PatientDocumentManagerButton';
+import { useClinicalPanelSnapshot } from './useClinicalPanelSnapshot';
+
+const PatientDocumentManagerDialog = React.lazy(() =>
+  import('./PatientDocumentManagerDialog').then(module => ({
+    default: module.PatientDocumentManagerDialog,
+  }))
+);
 
 interface ClinicalPanelDrawerProps {
   bedId: string;
@@ -45,11 +47,6 @@ interface ClinicalPanelDrawerProps {
   onOpenHospitalizationReports: () => void;
   onClose: () => void;
 }
-
-type PanelState =
-  | { phase: 'loading' }
-  | { phase: 'error'; message: string }
-  | { phase: 'ready'; panel: ClinicalPanel };
 
 type PanelTab = 'evolutions' | 'indications' | 'care';
 type EvolutionView = 'notes' | 'handoffs';
@@ -80,40 +77,12 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   onOpenHospitalizationReports,
   onClose,
 }) => {
-  const [state, setState] = useState<PanelState>({ phase: 'loading' });
+  const { state, documentState, reload } = useClinicalPanelSnapshot(clinicalEpisodeId);
   const [tab, setTab] = useState<PanelTab>('evolutions');
   const [profession, setProfession] = useState<EvolutionProfession>('medical');
   const [evolutionView, setEvolutionView] = useState<EvolutionView>('notes');
-  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+  const [isDocumentManagerOpen, setIsDocumentManagerOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
-
-  const reload = useCallback(() => {
-    setState({ phase: 'loading' });
-    void requestClinicalPanel(clinicalEpisodeId).then(result => {
-      setState(
-        result.error
-          ? { phase: 'error', message: result.error }
-          : { phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) }
-      );
-    });
-    setDocumentRefreshToken(token => token + 1);
-  }, [clinicalEpisodeId]);
-
-  useEffect(() => {
-    let active = true;
-    void requestClinicalPanel(clinicalEpisodeId).then(result => {
-      if (!active) return;
-      // Clinical sources form one required snapshot. Never present an old partial response as full.
-      setState(
-        result.error
-          ? { phase: 'error', message: result.error }
-          : { phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) }
-      );
-    });
-    return () => {
-      active = false;
-    };
-  }, [clinicalEpisodeId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -226,9 +195,8 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           </button>
           <PatientDocumentManagerButton
             patientName={patientName}
-            clinicalEpisodeId={clinicalEpisodeId}
-            routeHint={encounterRouteHint}
-            refreshToken={documentRefreshToken}
+            count={documentState.phase === 'ready' ? documentState.documents.length : null}
+            onOpen={() => setIsDocumentManagerOpen(true)}
           />
           <button
             type="button"
@@ -390,6 +358,17 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           )}
         </div>
       </aside>
+      {isDocumentManagerOpen && (
+        <React.Suspense fallback={null}>
+          <PatientDocumentManagerDialog
+            patientName={patientName}
+            clinicalEpisodeId={clinicalEpisodeId}
+            documents={documentState.phase === 'ready' ? documentState.documents : null}
+            error={documentState.phase === 'error' ? documentState.message : undefined}
+            onClose={() => setIsDocumentManagerOpen(false)}
+          />
+        </React.Suspense>
+      )}
     </>
   );
 };

@@ -235,6 +235,10 @@ export default defineConfig(({ mode }) => {
             '**/assets/clinicalEnrichmentBatchPayload-*.js',
             '**/assets/clinicalEnrichmentPersistenceStrategy-*.js',
             '**/assets/replanRayenStructure-*.js',
+            // The patient repository requires a live Eloisa/extension session and is opened
+            // explicitly from the clinical drawer, so it remains an online-only lazy surface.
+            '**/assets/PatientDocumentManagerDialog-*.js',
+            '**/assets/ClinicalPanelDrawer-*.js',
           ],
         },
         registerType: 'autoUpdate',

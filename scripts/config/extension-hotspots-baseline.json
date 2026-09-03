@@ -3,15 +3,19 @@
   "schemaVersion": 1,
   "extensionRoot": "extension",
   "complexityThreshold": 15,
-  "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
+  "vendorFiles": [
+    "jspdf.umd.min.js",
+    "pdf-lib.min.js",
+    "xlsx.full.min.js"
+  ],
   "files": {
     "background.js": {
-      "maxLines": 1469,
+      "maxLines": 1479,
       "hotspots": {
-        "variable:handleEgresoLookup": 20,
+        "variable:handleEgresoLookup": 19,
         "variable:handleExamRequestCombinePrint": 25,
         "variable:handleImagingFormPrintRequest": 18,
-        "variable:handlePrescriptionPrintRequest": 30,
+        "variable:handlePrescriptionPrintRequest": 29,
         "variable:parseClinicalTimestamp": 18
       }
     },
@@ -55,7 +59,7 @@
       }
     },
     "clinical-report-runtime.js": {
-      "maxLines": 486,
+      "maxLines": 485,
       "hotspots": {
         "iife>variable:create": 26,
         "iife>variable:create>variable:createCompletePrescriptionPdf": 16,
@@ -106,10 +110,6 @@
       "maxLines": 138,
       "hotspots": {}
     },
-    "content-fichamedico-document-manager.js": {
-      "maxLines": 40,
-      "hotspots": {}
-    },
     "content-gestioncamas.js": {
       "maxLines": 166,
       "hotspots": {}
@@ -119,7 +119,7 @@
       "hotspots": {}
     },
     "content-hhr-patient-documents.js": {
-      "maxLines": 44,
+      "maxLines": 43,
       "hotspots": {}
     },
     "content-hhr-patient-flow.js": {
@@ -166,7 +166,7 @@
       "hotspots": {}
     },
     "epicrisis-download-runtime.js": {
-      "maxLines": 112,
+      "maxLines": 80,
       "hotspots": {}
     },
     "epicrisis-pdf.js": {
@@ -194,7 +194,7 @@
       "hotspots": {}
     },
     "fichamedico-history-read-model.js": {
-      "maxLines": 88,
+      "maxLines": 82,
       "hotspots": {}
     },
     "fichamedico-isolation-normalization.js": {
@@ -222,7 +222,7 @@
       }
     },
     "fichamedico-patient-flow-runtime.js": {
-      "maxLines": 100,
+      "maxLines": 73,
       "hotspots": {}
     },
     "fichamedico-read-resilience.js": {
@@ -230,7 +230,7 @@
       "hotspots": {}
     },
     "fichamedico-transport-runtime.js": {
-      "maxLines": 204,
+      "maxLines": 202,
       "hotspots": {}
     },
     "fichamedico-treating-physician-dom.js": {
@@ -238,11 +238,11 @@
       "hotspots": {}
     },
     "fichamedico-treating-physician-normalization.js": {
-      "maxLines": 80,
+      "maxLines": 40,
       "hotspots": {}
     },
     "fichamedico-treating-physician-sources.js": {
-      "maxLines": 143,
+      "maxLines": 129,
       "hotspots": {}
     },
     "gestion-camas-active-beds.js": {
@@ -250,7 +250,7 @@
       "hotspots": {}
     },
     "gestion-camas-clinical-cribs.js": {
-      "maxLines": 102,
+      "maxLines": 95,
       "hotspots": {}
     },
     "gestion-camas-cudyr.js": {
@@ -258,7 +258,7 @@
       "hotspots": {}
     },
     "gestion-camas-discharge-report-runtime.js": {
-      "maxLines": 42,
+      "maxLines": 24,
       "hotspots": {}
     },
     "gestion-camas-egreso-lookup.js": {
@@ -266,22 +266,22 @@
       "hotspots": {}
     },
     "gestion-camas-egreso-report-runtime.js": {
-      "maxLines": 116,
+      "maxLines": 107,
       "hotspots": {}
     },
     "gestion-camas-health.js": {
-      "maxLines": 85,
+      "maxLines": 83,
       "hotspots": {}
     },
     "gestion-camas-runtime.js": {
-      "maxLines": 512,
+      "maxLines": 510,
       "hotspots": {
         "iife>variable:create>variable:persistGestionCamasSession>callback:mutateGestionCamasSession:0": 25,
         "iife>variable:create>variable:requestLiveGestionCamasSession": 23
       }
     },
     "gestion-camas-session.js": {
-      "maxLines": 167,
+      "maxLines": 166,
       "hotspots": {
         "iife>variable:publicStatus": 20
       }
@@ -299,7 +299,7 @@
       "hotspots": {}
     },
     "health-heartbeat-runtime.js": {
-      "maxLines": 97,
+      "maxLines": 95,
       "hotspots": {}
     },
     "hhr-center-shell-runtime.js": {
@@ -405,7 +405,7 @@
       }
     },
     "hospitalization-reports-runtime.js": {
-      "maxLines": 144,
+      "maxLines": 142,
       "hotspots": {}
     },
     "inject-fichamedico.js": {
@@ -418,7 +418,7 @@
       }
     },
     "inject-gestioncamas.js": {
-      "maxLines": 266,
+      "maxLines": 265,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 17
       }
@@ -431,21 +431,21 @@
       }
     },
     "lab-viewer.js": {
-      "maxLines": 247,
+      "maxLines": 245,
       "hotspots": {
         "callback:FunctionExpression:1>variable:validateDetailBatch": 17
       }
     },
     "message-contract.js": {
-      "maxLines": 281,
+      "maxLines": 280,
       "hotspots": {}
     },
     "patient-clinical-bundle-runtime.js": {
-      "maxLines": 45,
+      "maxLines": 38,
       "hotspots": {}
     },
     "patient-document-manager-runtime.js": {
-      "maxLines": 182,
+      "maxLines": 140,
       "hotspots": {}
     },
     "pdf-print.js": {
@@ -481,11 +481,11 @@
       "hotspots": {}
     },
     "rayen-sync-bundle-runtime.js": {
-      "maxLines": 182,
+      "maxLines": 173,
       "hotspots": {}
     },
     "relay-reinjection-runtime.js": {
-      "maxLines": 72,
+      "maxLines": 67,
       "hotspots": {}
     },
     "report-parser.js": {
@@ -525,10 +525,10 @@
       "hotspots": {}
     },
     "syslab-runtime.js": {
-      "maxLines": 437,
+      "maxLines": 425,
       "hotspots": {
         "iife>variable:create>variable:details": 18,
-        "iife>variable:create>variable:login": 20,
+        "iife>variable:create>variable:login": 19,
         "iife>variable:create>variable:openPdf": 19
       }
     },

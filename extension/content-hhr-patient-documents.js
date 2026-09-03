@@ -1,4 +1,4 @@
-/** HHR page bridge for the Eloisa patient document manager. */
+/** HHR page bridge for opening one authorized Eloisa patient document. */
 (() => {
   'use strict';
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
@@ -14,28 +14,27 @@
   window.addEventListener('message', event => {
     if (event.source !== window) return;
     const data = event.data;
-    if (!data || data.type !== 'HHR_RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST') return;
+    if (!data || data.type !== 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST') return;
     chrome.runtime.sendMessage({
       type: runtimeMessages.PATIENT_DOCUMENT_MANAGER_REQUEST,
       encId: data.encId,
-      operation: data.operation,
-      routeHint: data.routeHint,
+      operation: 'open-document',
+      documentId: data.documentId,
     }).then(response => {
       window.postMessage({
-        type: 'HHR_RAYEN_PATIENT_DOCUMENT_MANAGER_RESULT',
+        type: 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT',
         reqId: data.reqId,
         ok: response && response.ok === true,
-        count: response && Number.isInteger(response.count) ? response.count : undefined,
         opened: response && response.opened === true,
-        reused: response && response.reused === true,
         error: response && response.error,
       }, window.location.origin);
     }).catch(error => {
-      console.warn('[Rayen→HHR] Patient document manager error:', error);
+      console.warn('[Rayen→HHR] Patient document open error:', error);
       window.postMessage({
-        type: 'HHR_RAYEN_PATIENT_DOCUMENT_MANAGER_RESULT',
+        type: 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT',
         reqId: data.reqId,
         ok: false,
+        opened: false,
         error: String(error),
       }, window.location.origin);
     });

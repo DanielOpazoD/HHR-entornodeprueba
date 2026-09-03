@@ -10,7 +10,10 @@ import { BookOpenText } from 'lucide-react';
 
 import { resolveClinicalPanelNavigation } from '@/features/census/controllers/clinicalPanelNavigationController';
 import { PatientHospitalizationReportsDialog } from '@/features/census/components/PatientHospitalizationReportsDialog';
-import { ClinicalPanelDrawer } from './ClinicalPanelDrawer';
+
+const ClinicalPanelDrawer = React.lazy(() =>
+  import('./ClinicalPanelDrawer').then(module => ({ default: module.ClinicalPanelDrawer }))
+);
 
 interface ClinicalPanelTriggerProps {
   bedId: string;
@@ -66,18 +69,20 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
         </button>
       </span>
       {isOpen && (
-        <ClinicalPanelDrawer
-          bedId={bedId}
-          patientName={patientName}
-          clinicalEpisodeId={episode}
-          encounterRouteHint={encounterRouteHint}
-          canNavigatePrevious={navigation.previous !== null}
-          canNavigateNext={navigation.next !== null}
-          onNavigatePrevious={() => navigatePanel('previous')}
-          onNavigateNext={() => navigatePanel('next')}
-          onOpenHospitalizationReports={() => setAreReportsOpen(true)}
-          onClose={() => setIsOpen(false)}
-        />
+        <React.Suspense fallback={null}>
+          <ClinicalPanelDrawer
+            bedId={bedId}
+            patientName={patientName}
+            clinicalEpisodeId={episode}
+            encounterRouteHint={encounterRouteHint}
+            canNavigatePrevious={navigation.previous !== null}
+            canNavigateNext={navigation.next !== null}
+            onNavigatePrevious={() => navigatePanel('previous')}
+            onNavigateNext={() => navigatePanel('next')}
+            onOpenHospitalizationReports={() => setAreReportsOpen(true)}
+            onClose={() => setIsOpen(false)}
+          />
+        </React.Suspense>
       )}
       <PatientHospitalizationReportsDialog
         isOpen={areReportsOpen}

@@ -20,19 +20,17 @@ describe('HHR patient documents content bridge', () => {
       HhrRayenMessageContract: {
         types: { PATIENT_DOCUMENT_MANAGER_REQUEST: 'RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST' },
       },
+      Set,
     });
-
     vm.runInContext(source, context, { filename: 'content-hhr-patient-documents.js' });
     expect(addEventListener).not.toHaveBeenCalled();
   });
 
   it.each(['http://localhost:3000', 'http://localhost:3001'])(
-    'forwards the manager request from trusted origin %s',
+    'opens a selected document from trusted origin %s',
     async origin => {
-      let onMessage:
-        | ((event: { source: unknown; data: Record<string, unknown> }) => void)
-        | undefined;
-      const sendMessage = vi.fn(async () => ({ ok: true, count: 2 }));
+      let onMessage: ((event: { source: unknown; data: Record<string, unknown> }) => void) | undefined;
+      const sendMessage = vi.fn(async () => ({ ok: true, opened: true }));
       const postMessage = vi.fn();
       const windowObject = {
         location: { origin },
@@ -48,40 +46,31 @@ describe('HHR patient documents content bridge', () => {
         HhrRayenMessageContract: {
           types: { PATIENT_DOCUMENT_MANAGER_REQUEST: 'RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST' },
         },
+        Set,
       });
       vm.runInContext(source, context, { filename: 'content-hhr-patient-documents.js' });
-
       onMessage?.({
         source: windowObject,
         data: {
-          type: 'HHR_RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST',
+          type: 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST',
           reqId: 'docs-1',
           encId: '141121',
-          operation: 'count',
-          routeHint: 'nurse',
+          documentId: 'id:10',
         },
       });
-      await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
-      expect(sendMessage).toHaveBeenCalledWith({
+      await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith({
         type: 'RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST',
         encId: '141121',
-        operation: 'count',
-        routeHint: 'nurse',
-      });
-      await vi.waitFor(() =>
-        expect(postMessage).toHaveBeenCalledWith(
-          {
-            type: 'HHR_RAYEN_PATIENT_DOCUMENT_MANAGER_RESULT',
-            reqId: 'docs-1',
-            ok: true,
-            count: 2,
-            opened: false,
-            reused: false,
-            error: undefined,
-          },
-          origin
-        )
-      );
+        operation: 'open-document',
+        documentId: 'id:10',
+      }));
+      expect(postMessage).toHaveBeenCalledWith({
+        type: 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT',
+        reqId: 'docs-1',
+        ok: true,
+        opened: true,
+        error: undefined,
+      }, origin);
     }
   );
 });
