@@ -173,6 +173,40 @@ describe('replanRayenStructure — cierre seguro ante conflicto de cuna', () => 
     expect(applied.record.beds.H5C1?.patientName).toBe('Tania Cristina Valencia Ladino');
     expect(applied.record.beds.H5C1?.clinicalCrib?.clinicalEpisodeId).toBe('1002');
     expect(applied.record.discharges).toEqual([]);
+    expect(blocked[0]?.code).toBe('crib-conflict-blocks-discharge');
+  });
+
+  it('madre trasladada en Ficha (H5C1→H5C2) + gemelos en H5C1 + fila verificada: la cuna NO se promueve a la cama destino', async () => {
+    // Revisión adversarial de #316: la promoción usaba la cama planificada y el
+    // bloqueo la cama actual → RN duplicado (cuna anidada en H5C1 y principal en H5C2).
+    const record = makeRecord({ H5C1: motherWithCrib() });
+    const snapshot = snapshotOf([
+      encounter({ bed: 'C2' }),
+      cribEncounter('1002'),
+      cribEncounter('1003', 'Rn 2 De Tania'),
+    ]);
+    const verifiedMotherRow: EgresoReportRow = {
+      encounterId: '1001',
+      run: MOTHER_RUN,
+      patientName: 'Tania Cristina Valencia Ladino',
+      bedLabel: 'H5C2',
+      servicio: 'Ginecobstetricia',
+      edad: '18',
+      destino: 'Domicilio',
+      motivo: 'Alta hospitalaria',
+      fechaEgreso: '02-09-2026 10:00',
+      exactEpisodeVerification: 'verified',
+    };
+
+    const diff = await runPipeline(record, snapshot, [verifiedMotherRow], []);
+
+    expect(diff.discharges).toEqual([]);
+    expect(diff.admissions).toEqual([]);
+    expect(diff.conflicts.filter(c => c.code === 'crib-conflict-blocks-discharge')).toHaveLength(1);
+
+    const applied = applyCensusImportDiff(record, diff, applyCtx());
+    expect(applied.record.beds.H5C1?.clinicalCrib?.clinicalEpisodeId).toBe('1002');
+    expect(applied.record.beds.H5C2).toBeUndefined();
   });
 });
 
@@ -264,5 +298,14 @@ describe('replanRayenStructure — fila sin episodio con otro episodio del día 
     const gated = diff.conflicts.filter(c => c.reason.includes('no identifica el episodio activo'));
     expect(gated).toHaveLength(1);
     expect(gated[0]?.code).toBe('episode-less-report-row');
+
+    // Valla de gemelos: con más filas de hoy del mismo RUN de las que la cama
+    // explica, el conflicto se conserva sin etiqueta (no puede descartarse).
+    const tripled = await runPipeline(record, snapshotOf([]), [row, row, row], ['2002']);
+    const kept = tripled.conflicts.filter(c =>
+      c.reason.includes('no identifica el episodio activo')
+    );
+    expect(kept).toHaveLength(1);
+    expect(kept[0]?.code).toBeUndefined();
   });
 });

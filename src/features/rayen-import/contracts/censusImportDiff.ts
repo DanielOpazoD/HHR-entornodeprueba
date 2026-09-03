@@ -183,7 +183,8 @@ export interface ConflictEntry {
     | 'historical-admission-evidence'
     | 'unverified-report-row'
     | 'episode-less-report-row'
-    | 'report-predates-admission';
+    | 'report-predates-admission'
+    | 'crib-conflict-blocks-discharge';
   /** Admission held back only because its target bed was occupied when the snapshot was planned. */
   blockedAdmission?: AdmissionEntry;
   /** Move held back only because its target bed was occupied when the snapshot was planned. */

@@ -157,6 +157,7 @@ const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], str
   'unverified-report-row': 'un alta del informe de GC no se vinculó a un episodio exacto',
   'episode-less-report-row': 'una fila del informe de GC no identifica el episodio activo',
   'report-predates-admission': 'un egreso del informe de GC es anterior al ingreso activo',
+  'crib-conflict-blocks-discharge': 'el alta no se aplicó: la cuna de la cama tiene un conflicto',
   unclassified: 'el cambio estructural no pudo aplicarse',
 };
 export const presentRayenStructuralIssue = (issue: RayenSyncStructuralIssue): string => {
@@ -184,7 +185,6 @@ export const presentRayenStructuralReviewDetails = (
   }
   return details;
 };
-
 export const presentRayenDeferredHistoricalAdmissionNote = (
   review?: RayenSyncStructuralReviewEvidence
 ): string | null => {

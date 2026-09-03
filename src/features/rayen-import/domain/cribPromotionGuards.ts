@@ -52,6 +52,7 @@ export const cribConflictBlocksDischarge = (
   if (!crib?.patientName?.trim()) return null;
   return {
     bedId: current.bedId,
+    code: 'crib-conflict-blocks-discharge',
     rut: current.rut ?? '',
     patientName: current.patientName,
     reason: `El alta de ${current.patientName} no se aplicó: la cuna de ${current.bedId} (${crib.patientName}) tiene un conflicto pendiente; resuélvelo y vuelve a sincronizar.`,

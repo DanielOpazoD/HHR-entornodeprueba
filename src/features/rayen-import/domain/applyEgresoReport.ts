@@ -78,6 +78,9 @@ export const applyEgresoReport = (
         exactPlannedBed === parentBedId ||
         (run ? normalizeRut(crib.principalRut) === run : exactPrincipal?.bedId === parentBedId)) &&
       !conflictedCribParents.has(parentBedId) &&
+      !(
+        exactPrincipal && cribConflictBlocksDischarge(exactPrincipal, record, conflictedCribParents)
+      ) &&
       !hasDifferentIncomingPrincipal(checkedDiff, parentBedId, reportedEpisode, run) &&
       reportConfirmsEpisode(
         run,
