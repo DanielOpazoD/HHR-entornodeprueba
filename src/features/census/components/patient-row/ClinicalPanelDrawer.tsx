@@ -207,7 +207,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           <button
             type="button"
             onClick={onOpenHospitalizationReports}
-            className="inline-flex h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 text-xs font-semibold text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-600"
+            className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 text-[11px] font-semibold text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sky-600"
             title="Informes de hospitalización"
             aria-label={`Abrir informes de hospitalización de ${patientName}`}
           >
