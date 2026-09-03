@@ -104,21 +104,21 @@ export const selectEligibleEgresoRows = (
       ? hasRecordedMovement(record, '', reportedEpisode)
       : Boolean(run) && hasRecordedMovement(record, run);
     if (!current && !currentCrib && !activeCrib && !provisional && alreadyRecorded) continue;
+    // Etiqueta estable de los conflictos de FILA: applyEgresoReport descarta esa
+    // revisión si el pipeline termina construyendo el egreso de esa cama/RUN por
+    // el lookup exacto (visto en vivo el 02-09: RN bajo el RUN de la madre → dos
+    // filas, vinculación ambigua, alta aplicada y conflicto falso). Con más filas
+    // de las que la cama explica (gemelos) la revisión se conserva sin etiqueta.
+    // Nota: una fila 'unverified' nunca trae episodio con el productor actual
+    // (enrichReportOnlyDischarges deja sin estado a las filas con episodio); si
+    // algún día lo trajera, la fila del RN resolvería solo la cuna (explained 1)
+    // y su conflicto quedaría sin etiqueta frente al de la madre (explained 2).
+    const bedId = current?.bedId ?? currentCrib?.parentBedId ?? null;
+    const cribOccupied = Boolean(bedId && record.beds[bedId]?.clinicalCrib?.patientName?.trim());
+    const rowsSharingRun = run ? (stampedRowsByRun.get(run) ?? 1) : 1;
+    const explainedByBed = (current ? 1 : 0) + (cribOccupied ? 1 : 0);
+    const redundancyCandidate = Boolean(bedId) && rowsSharingRun <= explainedByBed;
     if (row.exactEpisodeVerification === 'unverified') {
-      // Etiqueta estable: applyEgresoReport descarta esta revisión si el pipeline
-      // termina construyendo el egreso de esa cama/RUN por el lookup exacto (visto
-      // en vivo el 02-09: RN bajo el RUN de la madre → dos filas, vinculación
-      // ambigua, alta aplicada y conflicto falso). Con más filas de las que la
-      // cama explica (gemelos) la revisión se conserva sin etiqueta.
-      const bedId = current?.bedId ?? currentCrib?.parentBedId ?? null;
-      const cribOccupied = Boolean(bedId && record.beds[bedId]?.clinicalCrib?.patientName?.trim());
-      const rowsSharingRun = run ? (stampedRowsByRun.get(run) ?? 1) : 1;
-      // Nota: una fila 'unverified' nunca trae episodio con el productor actual
-      // (enrichReportOnlyDischarges deja sin estado a las filas con episodio); si
-      // algún día lo trajera, la fila del RN resolvería solo la cuna (explained 1)
-      // y su conflicto quedaría sin etiqueta frente al de la madre (explained 2).
-      const explainedByBed = (current ? 1 : 0) + (cribOccupied ? 1 : 0);
-      const redundancyCandidate = Boolean(bedId) && rowsSharingRun <= explainedByBed;
       nextDiff = appendReportConflict(nextDiff, {
         bedId,
         ...(redundancyCandidate ? { code: 'unverified-report-row' as const } : {}),
@@ -149,7 +149,8 @@ export const selectEligibleEgresoRows = (
       // active hospitalization. Keep the active bed and ignore the historical evidence.
       if (!reportedEpisode && activeEpisode) continue;
       nextDiff = appendReportConflict(nextDiff, {
-        bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
+        bedId,
+        ...(redundancyCandidate ? { code: 'report-predates-admission' as const } : {}),
         rut: row.run,
         patientName: current?.patientName ?? currentCrib?.patient.patientName,
         reason: `El egreso informado para ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} es anterior a su ingreso activo; no se desocupó la cama.`,
@@ -164,7 +165,10 @@ export const selectEligibleEgresoRows = (
       ? null
       : episodeLessReportConflict(diff, record, row, current, currentCrib);
     if (episodeConflict) {
-      nextDiff = appendReportConflict(nextDiff, episodeConflict);
+      nextDiff = appendReportConflict(nextDiff, {
+        ...episodeConflict,
+        ...(redundancyCandidate ? { code: 'episode-less-report-row' as const } : {}),
+      });
       continue;
     }
     const verifiedRun =
