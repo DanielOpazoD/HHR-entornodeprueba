@@ -108,5 +108,15 @@ describe('resolveReleasedBedPlacements · conflicto de revisión sobre el RUN qu
     const kept = resolveReleasedBedPlacements([], [], [unknownProvenance], [occupiedConflict]);
     expect(kept.admissions).toEqual([]);
     expect(kept.conflicts).toEqual([occupiedConflict]);
+
+    // Sin sello de ingreso el apply no podría verificar la identidad: la vista previa
+    // no promete la promoción (sigue «unknown»).
+    const unstamped: DischargeEntry = {
+      ...legacyDischarge,
+      expectedOccupant: { rut: OCCUPANT_RUN, admissionDate: '2026-08-30', admissionTime: '' },
+    };
+    const held = resolveReleasedBedPlacements([], [], [unstamped], [occupiedConflict]);
+    expect(held.admissions).toEqual([]);
+    expect(held.conflicts).toEqual([occupiedConflict]);
   });
 });

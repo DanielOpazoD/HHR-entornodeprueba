@@ -5,6 +5,7 @@ import type {
   MoveEntry,
 } from '../contracts/censusImportDiff';
 import { normalizeRut } from '@/utils/rutUtils';
+import { isVerifiableLegacyOccupant } from './dischargeSubjectIdentity';
 
 interface ReleasedBedPlacementResult {
   admissions: AdmissionEntry[];
@@ -49,13 +50,12 @@ const hasDistinctDischargedOccupant = (
     if (episode && dischargeEpisode) return episode === dischargeEpisode ? 'same' : 'different';
     // Un ocupante manual sin episodio (ingreso a mano) que egresa por el informe:
     // el egreso no trae episodio y su ocupante esperado tampoco. Compararlo por
-    // RUN con el ingreso retenido (que sí trae episodio) es seguro; antes quedaba
+    // RUN con el ingreso retenido (que sí trae episodio) es seguro solo si el apply
+    // podrá verificar esa identidad (RUN + sello de ingreso); antes quedaba
     // «unknown» y el ingreso seguía bloqueado con la cama ya vacía (auditoría 02-09).
-    const legacyOccupantLeaves =
-      !dischargeEpisode &&
-      Boolean(discharge.expectedOccupant) &&
-      !String(discharge.expectedOccupant?.clinicalEpisodeId ?? '').trim();
-    if ((episode || dischargeEpisode) && !legacyOccupantLeaves) return 'unknown';
+    // Mismo RUN (readmisión a la cama que deja) sigue siendo 'same': el conflicto
+    // queda visible y el ingreso entra en la siguiente corrida, como antes.
+    if ((episode || dischargeEpisode) && !isVerifiableLegacyOccupant(discharge)) return 'unknown';
     const dischargeRun = normalizeRut(discharge.rut);
     if (!run || !dischargeRun) return 'unknown';
     return run === dischargeRun ? 'same' : 'different';

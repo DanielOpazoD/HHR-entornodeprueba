@@ -2,6 +2,24 @@ import type { DischargeEntry } from '../contracts/censusImportDiff';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import { normalizeRut } from '@/utils/rutUtils';
 
+/**
+ * Ocupante manual (sin episodio) cuya identidad SÍ podrá verificarse al aplicar:
+ * la misma regla que `matchesDischargeSubject` exige (RUN y sello de ingreso).
+ * La planificación no debe prometer sobre un egreso que el apply rechazará.
+ */
+export const isVerifiableLegacyOccupant = (entry: DischargeEntry): boolean => {
+  const expected = entry.expectedOccupant;
+  const entryEpisode = String(entry.encounterId ?? entry.source?.encounterId ?? '').trim();
+  return Boolean(
+    expected &&
+    !entryEpisode &&
+    !String(expected.clinicalEpisodeId ?? '').trim() &&
+    normalizeRut(expected.rut) &&
+    expected.admissionDate &&
+    expected.admissionTime
+  );
+};
+
 export const matchesDischargeSubject = (patient: PatientData, entry: DischargeEntry): boolean => {
   const expected = entry.expectedOccupant;
   if (expected) {
