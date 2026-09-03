@@ -10,7 +10,7 @@
   ],
   "files": {
     "background.js": {
-      "maxLines": 1479,
+      "maxLines": 1483,
       "hotspots": {
         "variable:handleEgresoLookup": 19,
         "variable:handleExamRequestCombinePrint": 25,

@@ -61,8 +61,8 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    // 99 desde v0.48.4: fichamedico-read-resilience.js (lectura ante fallo de red).
-    expect(metrics.authoredFiles).toHaveLength(99);
+    // 101: el gestor documental local agrega el runtime de lectura y el puente de apertura.
+    expect(metrics.authoredFiles).toHaveLength(101);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,

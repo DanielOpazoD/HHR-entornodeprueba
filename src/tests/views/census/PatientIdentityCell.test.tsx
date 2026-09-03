@@ -127,7 +127,7 @@ describe('PatientIdentityCell', () => {
     expect(screen.queryByTitle(/Médico tratante:/)).not.toBeInTheDocument();
   });
 
-  it('shows Pediatría and the clinical actions for an attached newborn without RUN', () => {
+  it('shows Pediatría and the clinical panel action for an attached newborn without RUN', () => {
     const data = DataFactory.createMockPatient('H5C1', {
       patientName: 'RN de Fernanda Valladares',
       rut: '',
@@ -150,10 +150,10 @@ describe('PatientIdentityCell', () => {
       screen.getByRole('button', { name: 'Abrir panel clínico de RN de Fernanda Valladares' })
     ).toBeVisible();
     expect(
-      screen.getByRole('button', {
+      screen.queryByRole('button', {
         name: 'Abrir informes de hospitalización de RN de Fernanda Valladares',
       })
-    ).toBeVisible();
+    ).not.toBeInTheDocument();
   });
 
   it('shows a "Pendiente asignar" chip when the patient has no specialty, and assigns on click', () => {
