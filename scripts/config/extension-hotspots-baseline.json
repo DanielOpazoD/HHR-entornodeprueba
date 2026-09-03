@@ -3,11 +3,7 @@
   "schemaVersion": 1,
   "extensionRoot": "extension",
   "complexityThreshold": 15,
-  "vendorFiles": [
-    "jspdf.umd.min.js",
-    "pdf-lib.min.js",
-    "xlsx.full.min.js"
-  ],
+  "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
       "maxLines": 1484,
@@ -107,7 +103,7 @@
       "hotspots": {}
     },
     "content-fichamedico.js": {
-      "maxLines": 138,
+      "maxLines": 160,
       "hotspots": {}
     },
     "content-gestioncamas.js": {
@@ -299,7 +295,7 @@
       "hotspots": {}
     },
     "health-check.js": {
-      "maxLines": 66,
+      "maxLines": 82,
       "hotspots": {}
     },
     "health-heartbeat-runtime.js": {
@@ -413,7 +409,7 @@
       "hotspots": {}
     },
     "inject-fichamedico.js": {
-      "maxLines": 584,
+      "maxLines": 598,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 28,
         "iife>variable:getVerifiedClinicalContext": 21,

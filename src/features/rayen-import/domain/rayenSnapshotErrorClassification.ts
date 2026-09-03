@@ -81,7 +81,7 @@ const RULES: readonly ClassificationRule[] = [
       'Gestión de Camas no está disponible para la lectura. Revisa su conexión en el monitor de Eloísa y vuelve a sincronizar.',
   },
   {
-    test: /failed to fetch|networkerror|load failed|fallo de red|no puede leer datos/,
+    test: /failed to fetch|networkerror|load failed|fallo de red|no puede leer datos|versi[oó]n anterior de la extensi[oó]n/,
     reason: 'ficha_medico_stale',
     remedy:
       'La pestaña de Ficha Médico ya no puede leer datos (sesión de red vencida o pestaña envejecida). Recárgala (Cmd+R), espera a que cargue y vuelve a sincronizar.',

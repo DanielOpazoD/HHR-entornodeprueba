@@ -20,6 +20,22 @@
 
   const READ_TIMEOUT_MS = 45000;
 
+  // El inject de mundo principal NO se reinyecta al recargar la extensión: una pestaña
+  // ya abierta conserva el lector anterior (respondía «lista» y leía con código viejo).
+  // Cada respuesta del inject trae su versión; si no coincide con la instalada, esta
+  // pestaña no está lista ni para salud ni para lectura hasta recargarla (02-09).
+  const extensionVersion = (() => {
+    try {
+      return String(chrome.runtime.getManifest().version || '');
+    } catch (_) {
+      return '';
+    }
+  })();
+  const STALE_READER_MESSAGE =
+    'Recarga la pestaña de Ficha Médico (Cmd+R): el lector cargado es de una versión anterior de la extensión.';
+  const staleReader = d =>
+    Boolean(d && d.type) && Boolean(extensionVersion) && d.injectVersion !== extensionVersion;
+
   const readViaMainWorld = () =>
     new Promise(resolve => {
       const reqId = 'r' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
@@ -30,6 +46,7 @@
         const d = event.data;
         if (!d || d.type !== 'RAYEN_EXT_READ_RESULT' || d.reqId !== reqId) return;
         cleanup();
+        if (staleReader(d)) return resolve({ error: STALE_READER_MESSAGE });
         resolve(d.error ? { error: d.error } : { snapshot: d.snapshot });
       };
 
@@ -83,14 +100,15 @@
         4000
       ).then(status =>
         sendResponse({
-          ready: status && status.ready === true,
+          ready: status && status.ready === true && !staleReader(status),
           identity: status && status.identity || null,
           expiresAt: status && Number.isFinite(status.expiresAt) ? status.expiresAt : null,
           remainingSeconds:
             status && Number.isFinite(status.remainingSeconds) ? status.remainingSeconds : null,
-          message:
-            (status && status.message) ||
-            'La sesión clínica de Ficha Médico no pudo verificarse.',
+          message: staleReader(status)
+            ? STALE_READER_MESSAGE
+            : (status && status.message) ||
+              'La sesión clínica de Ficha Médico no pudo verificarse.',
         })
       );
       return true;
@@ -101,7 +119,9 @@
     }
     if (msg && msg.type === 'RAYEN_FM_GET_FETCH_INFO') {
       askMainWorld('RAYEN_FM_FETCHINFO_REQUEST', 'RAYEN_FM_FETCHINFO_RESULT').then(d =>
-        sendResponse(d.error ? { error: d.error } : { info: d.info })
+        sendResponse(
+          staleReader(d) ? { error: STALE_READER_MESSAGE } : d.error ? { error: d.error } : { info: d.info }
+        )
       );
       return true;
     }

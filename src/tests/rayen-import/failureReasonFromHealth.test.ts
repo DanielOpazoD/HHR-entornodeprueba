@@ -76,4 +76,16 @@ describe('failureReasonFromHealth', () => {
       )
     ).toBe('gestion_camas_unavailable');
   });
+
+  it('un lector de otra versión (relay 0.48.8) se archiva como Ficha Médico «stale»', () => {
+    expect(
+      failureReasonFromHealth(
+        blocked({
+          status: 'stale',
+          message:
+            'Recarga la pestaña de Ficha Médico (Cmd+R): el lector cargado es de una versión anterior de la extensión.',
+        })
+      )
+    ).toBe('ficha_medico_stale');
+  });
 });

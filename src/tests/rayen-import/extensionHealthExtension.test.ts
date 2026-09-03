@@ -183,4 +183,51 @@ describe('extension health helpers · vigencia de la fuente', () => {
       })
     ).resolves.toEqual({ status: 'ready', message: 'Primera lista.' });
   });
+
+  it('una sesión vencida (remainingSeconds 0) cuenta como vigencia publicada y gana a una pestaña sin vigencia', async () => {
+    const sendMessage = vi
+      .fn()
+      .mockResolvedValueOnce({ ready: true, message: 'Sin vigencia.' })
+      .mockResolvedValueOnce({
+        ready: true,
+        message: 'Vencida.',
+        remainingSeconds: 0,
+        expiresAt: 1,
+      });
+    await expect(
+      health.probeTabs({
+        tabs: [{ id: 1, active: true }, { id: 2 }],
+        sendMessage,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'ready', message: 'Vencida.', remainingSeconds: 0, expiresAt: 1 });
+  });
+
+  it('las pestañas restantes se sondean en paralelo y gana la primera por preferencia, no la más rápida', async () => {
+    const sendMessage = vi.fn(async (tabId: number) => {
+      if (tabId === 1) return { ready: true, message: 'Activa sin vigencia.' };
+      if (tabId === 2) {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        return { ready: true, message: 'Segunda (lenta).', remainingSeconds: 600 };
+      }
+      return { ready: true, message: 'Tercera (rápida).', remainingSeconds: 300 };
+    });
+    const started = Date.now();
+    await expect(
+      health.probeTabs({
+        tabs: [
+          { id: 1, active: true },
+          { id: 2, lastAccessed: 20 },
+          { id: 3, lastAccessed: 10 },
+        ],
+        sendMessage,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'ready', message: 'Segunda (lenta).', remainingSeconds: 600 });
+    expect(sendMessage).toHaveBeenCalledTimes(3);
+    // Sondeo paralelo: la espera total es la de UNA pestaña lenta, no la suma.
+    expect(Date.now() - started).toBeLessThan(90);
+  });
 });

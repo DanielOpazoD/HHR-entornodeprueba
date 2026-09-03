@@ -30,24 +30,39 @@
     };
   };
 
+  // Sondea en paralelo las pestañas restantes y devuelve la primera (por preferencia)
+  // lista que publica vigencia, o null.
+  const pickExpiryPublisher = async (tabs, ping) => {
+    const settled = await Promise.allSettled(tabs.map(ping));
+    for (const outcome of settled) {
+      const other = outcome.status === 'fulfilled' ? outcome.value : null;
+      if (!other || other.ready !== true) continue;
+      const ready = readyResult(other);
+      if (ready.publishesExpiry) return ready.result;
+    }
+    return null;
+  };
+
   const probeTabs = async ({ tabs, sendMessage, missingMessage, staleMessage }) => {
     const ordered = orderTabs(tabs);
     if (ordered.length === 0) return { status: 'missing', message: missingMessage };
     let unavailableMessage = '';
-    let firstReady = null;
+    const ping = tab => sendMessage(tab.id, { type: 'RAYEN_EXTENSION_HEALTH_PING' });
 
-    for (const tab of ordered) {
+    for (let index = 0; index < ordered.length; index += 1) {
+      const tab = ordered[index];
       if (!tab || tab.id == null) continue;
       try {
-        const response = await sendMessage(tab.id, { type: 'RAYEN_EXTENSION_HEALTH_PING' });
+        const response = await ping(tab);
         if (response && response.ready === true) {
           const ready = readyResult(response);
-          // Un inject antiguo sobrevive a la recarga de la extensión hasta recargar
-          // su página y responde «lista» sin vigencia; si otra pestaña la publica,
-          // esa es la respuesta honesta (visto en vivo el 02-09 con dos pestañas).
           if (ready.publishesExpiry) return ready.result;
-          firstReady = firstReady || ready.result;
-          continue;
+          // Heurística de transición (inject < 0.48.5, que respondía «lista» sin vigencia;
+          // desde 0.48.8 el relay marca «no lista» un inject de otra versión): si otra
+          // pestaña publica vigencia, esa es la respuesta honesta. Se sondean en paralelo
+          // para acotar la espera a un solo tiempo de espera, no a uno por pestaña.
+          const rest = ordered.slice(index + 1).filter(other => other && other.id != null);
+          return (await pickExpiryPublisher(rest, ping)) || ready.result;
         }
         if (!unavailableMessage && response && response.message) {
           unavailableMessage = response.message;
@@ -57,7 +72,6 @@
       }
     }
 
-    if (firstReady) return firstReady;
     return { status: 'stale', message: unavailableMessage || staleMessage };
   };
 
