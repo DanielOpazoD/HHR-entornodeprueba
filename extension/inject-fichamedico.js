@@ -27,6 +27,9 @@
   });
 
   const BACKEND_HINT = 'rayensalud.cl';
+  // Publicada en cada respuesta al relay: un inject de mundo principal sobrevive a la
+  // recarga de la extensión hasta recargar la página; el relay compara con el manifest.
+  const INJECT_VERSION = '0.48.8';
   const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
   const NURSING_ROUTE_RE = /^\/dashboard\/encounter-list-nurse(?:\/|$)/;
@@ -499,10 +502,18 @@
       const reqId = data.reqId;
       try {
         const snapshot = await readCensus();
-        window.postMessage({ type: 'RAYEN_EXT_READ_RESULT', reqId, snapshot }, window.location.origin);
+        window.postMessage(
+          { type: 'RAYEN_EXT_READ_RESULT', reqId, injectVersion: INJECT_VERSION, snapshot },
+          window.location.origin
+        );
       } catch (error) {
         window.postMessage(
-          { type: 'RAYEN_EXT_READ_RESULT', reqId, error: String((error && error.message) || error) },
+          {
+            type: 'RAYEN_EXT_READ_RESULT',
+            reqId,
+            injectVersion: INJECT_VERSION,
+            error: String((error && error.message) || error),
+          },
           window.location.origin
         );
       }
@@ -523,6 +534,7 @@
         {
           type: 'RAYEN_FM_SESSION_STATUS_RESULT',
           reqId: data.reqId,
+          injectVersion: INJECT_VERSION,
           ready: status.ready,
           ...describeSessionExpiry(identity, sessionReady),
           identity: sessionReady
@@ -557,6 +569,7 @@
         {
           type: 'RAYEN_FM_FETCHINFO_RESULT',
           reqId: data.reqId,
+          injectVersion: INJECT_VERSION,
           info: context
             ? {
                 token: capturedAuth,

@@ -137,6 +137,7 @@
           sendMessage: sendHealthProbe,
           missingMessage: 'Abre Ficha Médico e inicia sesión para sincronizar.',
           staleMessage: 'Recarga la pestaña de Ficha Médico para activar la extensión.',
+          preferExpiryPublisher: true,
         })
       );
 
