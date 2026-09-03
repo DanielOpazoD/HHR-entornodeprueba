@@ -15,7 +15,14 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, FileDown, Loader2, RefreshCw, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileDown,
+  Loader2,
+  RefreshCw,
+  X,
+} from 'lucide-react';
 import {
   parseClinicalPanel,
   requestClinicalPanel,
@@ -24,6 +31,7 @@ import {
 } from '@/features/rayen-import';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
 import { RayenEncounterButton } from './RayenEncounterButton';
+import { PatientDocumentManagerButton } from './PatientDocumentManagerButton';
 
 interface ClinicalPanelDrawerProps {
   bedId: string;
@@ -76,6 +84,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
   const [tab, setTab] = useState<PanelTab>('evolutions');
   const [profession, setProfession] = useState<EvolutionProfession>('medical');
   const [evolutionView, setEvolutionView] = useState<EvolutionView>('notes');
+  const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   const reload = useCallback(() => {
@@ -87,6 +96,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           : { phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) }
       );
     });
+    setDocumentRefreshToken(token => token + 1);
   }, [clinicalEpisodeId]);
 
   useEffect(() => {
@@ -214,6 +224,12 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             <FileDown size={14} aria-hidden="true" />
             <span className="hidden sm:inline">Informes</span>
           </button>
+          <PatientDocumentManagerButton
+            patientName={patientName}
+            clinicalEpisodeId={clinicalEpisodeId}
+            routeHint={encounterRouteHint}
+            refreshToken={documentRefreshToken}
+          />
           <button
             type="button"
             onClick={reload}

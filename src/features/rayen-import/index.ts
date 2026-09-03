@@ -92,6 +92,12 @@ export {
   RAYEN_OPEN_ENCOUNTER_RESULT_TYPE,
   requestRayenEncounterNavigation,
 } from './bridge/encounterNavigationBridge';
+export type { RayenPatientDocumentManagerResult } from './bridge/patientDocumentManagerBridge';
+export {
+  RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST_TYPE,
+  RAYEN_PATIENT_DOCUMENT_MANAGER_RESULT_TYPE,
+  requestRayenPatientDocumentManager,
+} from './bridge/patientDocumentManagerBridge';
 export type {
   ClinicalPanel,
   ClinicalPanelEntry,

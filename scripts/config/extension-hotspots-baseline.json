@@ -6,7 +6,7 @@
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
-      "maxLines": 1464,
+      "maxLines": 1469,
       "hotspots": {
         "variable:handleEgresoLookup": 20,
         "variable:handleExamRequestCombinePrint": 25,
@@ -106,12 +106,20 @@
       "maxLines": 138,
       "hotspots": {}
     },
+    "content-fichamedico-document-manager.js": {
+      "maxLines": 40,
+      "hotspots": {}
+    },
     "content-gestioncamas.js": {
       "maxLines": 166,
       "hotspots": {}
     },
     "content-hhr-epicrisis.js": {
       "maxLines": 39,
+      "hotspots": {}
+    },
+    "content-hhr-patient-documents.js": {
+      "maxLines": 44,
       "hotspots": {}
     },
     "content-hhr-patient-flow.js": {
@@ -429,11 +437,15 @@
       }
     },
     "message-contract.js": {
-      "maxLines": 280,
+      "maxLines": 281,
       "hotspots": {}
     },
     "patient-clinical-bundle-runtime.js": {
       "maxLines": 45,
+      "hotspots": {}
+    },
+    "patient-document-manager-runtime.js": {
+      "maxLines": 182,
       "hotspots": {}
     },
     "pdf-print.js": {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
   navigate: vi.fn(),
+  documents: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
 }));
@@ -14,6 +15,7 @@ vi.mock('@/features/rayen-import', async importOriginal => {
     ...actual,
     requestClinicalPanel: (...args: unknown[]) => mocks.request(...args),
     requestRayenEncounterNavigation: (...args: unknown[]) => mocks.navigate(...args),
+    requestRayenPatientDocumentManager: (...args: unknown[]) => mocks.documents(...args),
   };
 });
 
@@ -99,6 +101,12 @@ describe('ClinicalPanelDrawer', () => {
     mocks.request.mockResolvedValue(panelResult);
     mocks.navigate.mockReset();
     mocks.navigate.mockResolvedValue({ ok: true, reused: true });
+    mocks.documents.mockReset();
+    mocks.documents.mockImplementation(async (_encId: string, operation: string) =>
+      operation === 'count'
+        ? { ok: true, count: 3 }
+        : { ok: true, opened: true, reused: true }
+    );
     mocks.success.mockReset();
     mocks.error.mockReset();
   });
@@ -204,6 +212,55 @@ describe('ClinicalPanelDrawer', () => {
     fireEvent.click(reportsButton);
 
     expect(onOpenHospitalizationReports).toHaveBeenCalledOnce();
+  });
+
+  it('shows the active attachment count and opens the patient document manager', async () => {
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        encounterRouteHint="nurse"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    const documentsButton = await screen.findByRole('button', {
+      name: 'Abrir Gestor documental de Paciente de prueba; 3 archivos',
+    });
+    expect(documentsButton).toHaveTextContent('3');
+    fireEvent.click(documentsButton);
+
+    await waitFor(() =>
+      expect(mocks.documents).toHaveBeenCalledWith('141121', 'open', 20000, 'nurse')
+    );
+    expect(mocks.success).toHaveBeenCalledWith(
+      'Gestor documental abierto',
+      'Se abrió Eloísa en los documentos del paciente.'
+    );
+  });
+
+  it('keeps an empty document manager available but visually faded without a badge', async () => {
+    mocks.documents.mockImplementation(async (_encId: string, operation: string) =>
+      operation === 'count' ? { ok: true, count: 0 } : { ok: true, opened: true }
+    );
+    render(
+      <ClinicalPanelDrawer
+        bedId="H1C2"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    const documentsButton = await screen.findByRole('button', {
+      name: 'Abrir Gestor documental de Paciente de prueba; sin archivos',
+    });
+    expect(documentsButton).toHaveClass('opacity-30');
+    expect(documentsButton).not.toHaveTextContent(/\d/);
+    expect(documentsButton).toBeEnabled();
   });
 
   it('opens the exact episode from the Rayen mark beside the patient name', async () => {

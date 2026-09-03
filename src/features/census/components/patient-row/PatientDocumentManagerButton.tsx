@@ -1,0 +1,112 @@
+import React, { useEffect, useState } from 'react';
+import clsx from 'clsx';
+import { FolderSearch, Loader2 } from 'lucide-react';
+import { useNotification } from '@/context/UIContext';
+import { requestRayenPatientDocumentManager } from '@/features/rayen-import';
+
+interface PatientDocumentManagerButtonProps {
+  patientName: string;
+  clinicalEpisodeId: string;
+  routeHint?: 'medical' | 'nurse';
+  refreshToken: number;
+}
+
+type PatientDocumentState =
+  | { phase: 'loading' }
+  | { phase: 'ready'; count: number }
+  | { phase: 'error' };
+
+export const PatientDocumentManagerButton: React.FC<PatientDocumentManagerButtonProps> = ({
+  patientName,
+  clinicalEpisodeId,
+  routeHint,
+  refreshToken,
+}) => {
+  const [state, setState] = useState<PatientDocumentState>({ phase: 'loading' });
+  const [isOpening, setIsOpening] = useState(false);
+  const { success, error: notifyError } = useNotification();
+
+  useEffect(() => {
+    let active = true;
+    setState({ phase: 'loading' });
+    void requestRayenPatientDocumentManager(clinicalEpisodeId, 'count').then(result => {
+      if (!active) return;
+      setState(
+        result.ok && typeof result.count === 'number'
+          ? { phase: 'ready', count: result.count }
+          : { phase: 'error' }
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [clinicalEpisodeId, refreshToken]);
+
+  const count = state.phase === 'ready' ? state.count : null;
+  const title = count === null
+    ? `Abrir Gestor documental de ${patientName}; cantidad no disponible`
+    : count === 0
+      ? `Abrir Gestor documental de ${patientName}; sin archivos`
+      : `Abrir Gestor documental de ${patientName}; ${count} ${count === 1 ? 'archivo' : 'archivos'}`;
+
+  const handleOpen = async (): Promise<void> => {
+    if (isOpening) return;
+    setIsOpening(true);
+    try {
+      const result = await requestRayenPatientDocumentManager(
+        clinicalEpisodeId,
+        'open',
+        20000,
+        routeHint
+      );
+      if (result.ok) {
+        success('Gestor documental abierto', 'Se abrió Eloísa en los documentos del paciente.');
+      } else {
+        notifyError(
+          'No se pudo abrir el Gestor documental',
+          result.error || 'Error de navegación desconocido.'
+        );
+      }
+    } catch (error) {
+      notifyError(
+        'No se pudo abrir el Gestor documental',
+        error instanceof Error ? error.message : String(error)
+      );
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleOpen()}
+      disabled={isOpening}
+      aria-busy={isOpening}
+      className={clsx(
+        'relative inline-flex size-7 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal-600 disabled:cursor-progress',
+        count !== null && count > 0
+          ? 'border-teal-200 bg-teal-50 text-teal-700 hover:border-teal-300 hover:bg-teal-100'
+          : count === 0
+            ? 'border-slate-200 bg-slate-50 text-slate-400 opacity-30 hover:opacity-60'
+            : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100'
+      )}
+      title={title}
+      aria-label={title}
+    >
+      {isOpening || state.phase === 'loading' ? (
+        <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+      ) : (
+        <FolderSearch size={15} aria-hidden="true" />
+      )}
+      {count !== null && count > 0 && (
+        <span
+          className="absolute -right-1.5 -top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-teal-700 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white"
+          aria-hidden="true"
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </button>
+  );
+};

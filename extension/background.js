@@ -23,6 +23,7 @@ importScripts(
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js',
   'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
+  'patient-document-manager-runtime.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',
   'gestion-camas-runtime.js',
   'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
@@ -81,6 +82,7 @@ if (!self.HhrClinicalHandoffRuntime || typeof self.HhrClinicalHandoffRuntime.cre
 if (!self.HhrClinicalPanelRuntime || typeof self.HhrClinicalPanelRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de lectura del panel clínico.');
 }
+if (!self.HhrPatientDocumentManagerRuntime || typeof self.HhrPatientDocumentManagerRuntime.create !== 'function') throw new Error('No se pudo cargar el runtime del Gestor documental.');
 if (!self.HhrClinicalReportRuntime || typeof self.HhrClinicalReportRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de informes clínicos.');
 }
@@ -235,6 +237,7 @@ const {
   handleCensusListRequest,
   handleVitalsCensusRequest,
 } = fichaMedicoPatientContext;
+const patientDocumentManagerRuntime = self.HhrPatientDocumentManagerRuntime.create({ chrome, encounterNavigation: self.HhrEncounterNavigation, getClinicalReportContext, readJson: fichaMedicoClinicalClient.readJson, fetchClaims: info => fetchFichaClaims(info), hasClaim: (claims, name) => hasFichaClaim(claims, name) });
 const handleManualPatientCodeRequest = self.HhrFichaMedicoManualPatientCodeRuntime.create({ resolveSession: resolveFichaClinicalSession, fetchActiveEncounterRows, fetchPatientHeader, fetchDeviceEvidence, normalizePatient: fichaMedicoPatientContext.normalizeHospitalizedEncounter, clinicalDayAt: self.HhrClinicalDayRuntime.clinicalDayAt, codeContract: self.HhrEloisaPatientCodeContract, cryptoApi: crypto, now: () => Date.now() });
 const gestionCamasRuntime = self.HhrGestionCamasRuntime.create({
   chrome,
@@ -1213,6 +1216,8 @@ const runtimeMessageRoutes = Object.freeze({
     message => handleOpenEncounter(message.encId, message.routeHint),
     'No se pudo abrir el episodio clínico.'
   ),
+  [RUNTIME_MESSAGES.PATIENT_DOCUMENT_MANAGER_REQUEST]: runtimeRoute((message, sender) => patientDocumentManagerRuntime.handleRequest({ ...message, sender }), 'No se pudo consultar el Gestor documental.'),
+  [RUNTIME_MESSAGES.PATIENT_DOCUMENT_MANAGER_ACK]: runtimeRoute((message, sender) => patientDocumentManagerRuntime.acknowledge({ ...message, sender }), 'No se pudo confirmar la apertura del Gestor documental.'),
   [RUNTIME_MESSAGES.EGRESO_LOOKUP_REQUEST]: runtimeRoute(
     (message, sender) => handleEgresoLookup(message.runs, message.targets, sender),
     'No se pudo consultar el egreso.'

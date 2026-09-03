@@ -102,6 +102,7 @@
         "lab-viewer.js",
         "exam-request-print.js",
         "content-fichamedico.js",
+        "content-fichamedico-document-manager.js",
         "fichamedico-manual-patient-copy.js",
         "content-exam-request-print.js",
         "content-prescription-print.js"
@@ -153,6 +154,7 @@
         "content-hhr.js",
         "content-hhr-patient-flow.js",
         "content-hhr-epicrisis.js",
+        "content-hhr-patient-documents.js",
         "content-hhr-statistical-discharge.js",
         "content-hhr-statistical-evidence.js",
         "content-hhr-syslab.js"
