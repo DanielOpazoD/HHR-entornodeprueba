@@ -25,6 +25,7 @@ import { useStaffContext } from '@/context/StaffContext';
 import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
+import { PatientLaboratoryTrigger } from './PatientLaboratoryTrigger';
 import { SpecialtyChip } from './SpecialtyChip';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 
@@ -218,16 +219,23 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             </div>
           )}
           {!isEmpty && (
-            <ClinicalPanelTrigger
-              bedId={data.bedId}
-              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-              patientName={fullName}
-              patientRun={data.rut}
-              clinicalEpisodeId={data.clinicalEpisodeId}
-              encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
-              admissionDate={data.admissionDate}
-              censusDate={currentDateString}
-            />
+            <span className="inline-flex shrink-0 items-center gap-0.5">
+              <ClinicalPanelTrigger
+                bedId={data.bedId}
+                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+                patientName={fullName}
+                patientRun={data.rut}
+                clinicalEpisodeId={data.clinicalEpisodeId}
+                encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
+                admissionDate={data.admissionDate}
+                censusDate={currentDateString}
+              />
+              <PatientLaboratoryTrigger
+                patient={data}
+                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+                censusDate={currentDateString}
+              />
+            </span>
           )}
         </div>
         {showIdentityDetails && (

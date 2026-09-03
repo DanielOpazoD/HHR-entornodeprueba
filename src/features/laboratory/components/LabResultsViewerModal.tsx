@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { FlaskConical } from 'lucide-react';
+import { ClipboardPlus, FlaskConical } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { useLabViewer } from '../hooks/useLabViewer';
 import type { LabPatient } from '@/types/domain/labExamTypes';
@@ -18,12 +18,15 @@ import { LabViewerAnalysis } from './LabViewerAnalysis';
 import { LabViewerEmptyState } from './LabViewerEmptyState';
 import { SyslabAccessPrompt } from './SyslabAccessPrompt';
 import { useSyslabAccess } from '../hooks/useSyslabAccess';
+import { useInitialLabViewerAutoSearch } from '../hooks/useInitialLabViewerAutoSearch';
 
 interface LabResultsViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   patients: LabPatient[];
   initialPatientRut?: string;
+  autoSearchInitialPatient?: boolean;
+  onRequestExams?: () => void;
 }
 
 export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
@@ -31,10 +34,12 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
   onClose,
   patients,
   initialPatientRut,
+  autoSearchInitialPatient = false,
+  onRequestExams,
 }) => {
   const lab = useLabViewer(patients, initialPatientRut);
   const syslabAccess = useSyslabAccess(isOpen);
-  const { reset } = lab;
+  const { reset, search } = lab;
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
@@ -43,6 +48,14 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
     }
     wasOpenRef.current = isOpen;
   }, [isOpen, reset]);
+
+  useInitialLabViewerAutoSearch({
+    isOpen,
+    enabled: autoSearchInitialPatient,
+    initialPatientRut,
+    accessState: syslabAccess.state,
+    search,
+  });
 
   if (!isOpen) return null;
 
@@ -74,6 +87,18 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
             Laboratorio / Exámenes Syslab
           </span>
         </span>
+      }
+      headerActions={
+        onRequestExams ? (
+          <button
+            type="button"
+            onClick={onRequestExams}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-500"
+          >
+            <ClipboardPlus size={14} aria-hidden="true" />
+            Solicitar exámenes
+          </button>
+        ) : undefined
       }
     >
       {shellModel.shouldShowControls && (
