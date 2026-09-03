@@ -111,4 +111,13 @@ describe('classifyRayenSnapshotError', () => {
     expect(classifyRayenSnapshotError('').message).toContain('Revisa las pestañas de Rayen');
     expect(classifyRayenSnapshotError(undefined).reason).toBe('snapshot_error');
   });
+
+  it('un lector de otra versión (inject que sobrevivió a la recarga de la extensión, 0.48.8) es pestaña inactiva', () => {
+    const classified = classifyRayenSnapshotError(
+      `${WRAP}Recarga la pestaña de Ficha Médico (Cmd+R): el lector cargado es de una versión anterior de la extensión.`
+    );
+
+    expect(classified.reason).toBe('ficha_medico_stale');
+    expect(classified.message).toContain('versión anterior de la extensión');
+  });
 });

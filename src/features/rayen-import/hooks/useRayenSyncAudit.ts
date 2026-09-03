@@ -86,7 +86,8 @@ const sourceFromHealth = (health?: RayenExtensionHealthState): RayenSyncSource |
  * en red se declara «stale» con este mensaje (extensión ≥ 0.48.4): es la
  * causa `ficha_medico_stale`, no una sesión ausente.
  */
-const FICHA_MEDICO_READ_BLOCKED_RE = /no puede leer datos|fallo de red/i;
+const FICHA_MEDICO_READ_BLOCKED_RE =
+  /no puede leer datos|fallo de red|versi[oó]n anterior de la extensi[oó]n/i;
 
 export const failureReasonFromHealth = (
   health: RayenExtensionHealthState
