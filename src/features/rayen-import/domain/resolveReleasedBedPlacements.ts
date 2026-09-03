@@ -47,7 +47,15 @@ const hasDistinctDischargedOccupant = (
       discharge.encounterId ?? discharge.source?.encounterId ?? ''
     ).trim();
     if (episode && dischargeEpisode) return episode === dischargeEpisode ? 'same' : 'different';
-    if (episode || dischargeEpisode) return 'unknown';
+    // Un ocupante manual sin episodio (ingreso a mano) que egresa por el informe:
+    // el egreso no trae episodio y su ocupante esperado tampoco. Compararlo por
+    // RUN con el ingreso retenido (que sí trae episodio) es seguro; antes quedaba
+    // «unknown» y el ingreso seguía bloqueado con la cama ya vacía (auditoría 02-09).
+    const legacyOccupantLeaves =
+      !dischargeEpisode &&
+      Boolean(discharge.expectedOccupant) &&
+      !String(discharge.expectedOccupant?.clinicalEpisodeId ?? '').trim();
+    if ((episode || dischargeEpisode) && !legacyOccupantLeaves) return 'unknown';
     const dischargeRun = normalizeRut(discharge.rut);
     if (!run || !dischargeRun) return 'unknown';
     return run === dischargeRun ? 'same' : 'different';
