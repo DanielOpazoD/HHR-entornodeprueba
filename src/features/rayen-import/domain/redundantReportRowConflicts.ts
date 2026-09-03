@@ -1,5 +1,6 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import type { ReportEgreso } from '../contracts/egresoReport';
 import { normalizeRut } from '@/utils/rutUtils';
 
 type ConflictEntry = CensusImportDiff['conflicts'][number];
@@ -22,11 +23,14 @@ type DischargeEntry = CensusImportDiff['discharges'][number];
  * pudo adjuntarse (snapshot incompleto, episodio aún activo, movimiento previo)
  * conservan la revisión, porque el egreso del RN no quedaría registrado. La fila
  * del RN con RUN propio casa por el RUN de la cuna adjunta a ese mismo egreso.
+ * Una cuna cerrada en Ficha (episodio aún listado) no se adjunta, pero sale por
+ * `reportEgresos` con su episodio exacto: también cuenta como explicada.
  */
 export const dropRedundantUnverifiedReportConflicts = (
   conflicts: ConflictEntry[],
   discharges: DischargeEntry[],
-  record: DailyRecord
+  record: DailyRecord,
+  reportEgresos: ReportEgreso[] = []
 ): ConflictEntry[] =>
   conflicts.filter(conflict => {
     if (conflict.code !== 'unverified-report-row' || !conflict.bedId) return true;
@@ -38,6 +42,12 @@ export const dropRedundantUnverifiedReportConflicts = (
         (normalizeRut(entry.rut) === run || normalizeRut(entry.associatedClinicalCrib?.rut) === run)
     );
     if (!discharge) return true;
-    const cribOccupied = Boolean(record.beds[conflict.bedId]?.clinicalCrib?.patientName?.trim());
-    return cribOccupied && !discharge.associatedClinicalCrib;
+    const crib = record.beds[conflict.bedId]?.clinicalCrib;
+    const cribOccupied = Boolean(crib?.patientName?.trim());
+    const cribEpisode = String(crib?.clinicalEpisodeId ?? '').trim();
+    const cribExplained =
+      Boolean(discharge.associatedClinicalCrib) ||
+      (Boolean(cribEpisode) &&
+        reportEgresos.some(egreso => String(egreso.encounterId ?? '').trim() === cribEpisode));
+    return cribOccupied && !cribExplained;
   });

@@ -6,7 +6,6 @@ import { eligibleExactEpisodes, findPlannedPatientByEpisode } from './egresoRepo
 import {
   correctedStamp,
   episodeLessReportConflict,
-  findOccupiedBed,
   findOccupiedClinicalCrib,
   hasRecordedMovement,
   occupiedBedsByRun,
@@ -16,6 +15,7 @@ import {
   toIsoDay,
 } from './egresoReportPolicy';
 import { appendReportConflict } from './egresoReportConflicts';
+import { resolveReportedOccupant } from './dischargePlanInvariants';
 
 type EligibilityResult = {
   diff: CensusImportDiff;
@@ -76,7 +76,7 @@ export const selectEligibleEgresoRows = (
     // The D+1 query compensates Rayen's offset; genuine next-day discharges stay excluded.
     if (!recordDay || stamp.iso > recordDay) continue;
 
-    const current = findOccupiedBed(occupied, row.run, reportedEpisode);
+    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, reportedEpisode);
     const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
     const activeCrib = diff.activeClinicalCribs?.find(
       crib =>

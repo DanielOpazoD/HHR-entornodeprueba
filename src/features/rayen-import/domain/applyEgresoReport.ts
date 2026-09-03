@@ -26,10 +26,8 @@ import { markReportChecked } from './egresoReportConflicts';
 import { normalizeRut } from '@/utils/rutUtils';
 import { selectEligibleEgresoRows, type PromotionCandidate } from './egresoReportEligibility';
 import { dropRedundantUnverifiedReportConflicts } from './redundantReportRowConflicts';
-import {
-  attachAssociatedClinicalCribDischarges,
-  buildClinicalCribPromotionCandidates,
-} from './associatedClinicalCribDischarge';
+import { buildClinicalCribPromotionCandidates } from './associatedClinicalCribDischarge';
+import { finalizeDischargePlan, resolveReportedOccupant } from './dischargePlanInvariants';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
 export { collectRecordedMovementRuns } from './egresoReportPolicy';
 export { markEgresoReportUnavailable } from './egresoReportConflicts';
@@ -213,7 +211,7 @@ export const applyEgresoReport = (
   }
   for (const [, row] of byRun) {
     const run = normalizeRut(row.run);
-    const current = findOccupiedBed(occupied, row.run, row.encounterId);
+    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, row.encounterId);
     const mapped = resolveReportDischarge(row, current);
     if (current) {
       const reportedEpisode = String(row.encounterId ?? '').trim();
@@ -353,12 +351,12 @@ export const applyEgresoReport = (
       reportEgresos.push(reportEgresoFromRow(row));
     }
   }
-  const finalDischarges = attachAssociatedClinicalCribDischarges(checkedDiff, discharges, record);
+  const finalDischarges = finalizeDischargePlan(checkedDiff, discharges, record);
   const releasedBeds = resolveReleasedBedPlacements(
     admissions,
     moves,
     discharges,
-    dropRedundantUnverifiedReportConflicts(conflicts, finalDischarges, record)
+    dropRedundantUnverifiedReportConflicts(conflicts, finalDischarges, record, reportEgresos)
   );
   const promotedMoveBySource = new Map(
     releasedBeds.promotedMoves.map(move => [move.fromBedId, move])
