@@ -33,8 +33,16 @@
   })();
   const STALE_READER_MESSAGE =
     'Recarga la pestaña de Ficha Médico (Cmd+R): el lector cargado es de una versión anterior de la extensión.';
-  const staleReader = d =>
-    Boolean(d && d.type) && Boolean(extensionVersion) && d.injectVersion !== extensionVersion;
+  // La obsolescencia dura toda la vida del relay (el inject solo cambia al recargar la
+  // página, que también recrea el relay): tras detectarla, las lecturas se cortan sin
+  // pedirle al inject viejo una lectura completa (hasta 45 s) para luego descartarla.
+  let knownStale = false;
+  const staleReader = d => {
+    const stale =
+      Boolean(d && d.type) && Boolean(extensionVersion) && d.injectVersion !== extensionVersion;
+    if (stale) knownStale = true;
+    return stale;
+  };
 
   const readViaMainWorld = () =>
     new Promise(resolve => {
@@ -114,10 +122,15 @@
       return true;
     }
     if (msg && msg.type === 'RAYEN_READ') {
-      readViaMainWorld().then(sendResponse);
+      if (knownStale) sendResponse({ error: STALE_READER_MESSAGE });
+      else readViaMainWorld().then(sendResponse);
       return true; // keep the message channel open for the async response
     }
     if (msg && msg.type === 'RAYEN_FM_GET_FETCH_INFO') {
+      if (knownStale) {
+        sendResponse({ error: STALE_READER_MESSAGE });
+        return true;
+      }
       askMainWorld('RAYEN_FM_FETCHINFO_REQUEST', 'RAYEN_FM_FETCHINFO_RESULT').then(d =>
         sendResponse(
           staleReader(d) ? { error: STALE_READER_MESSAGE } : d.error ? { error: d.error } : { info: d.info }

@@ -19,10 +19,11 @@ const errors = [];
 const fail = message => errors.push(message);
 const relative = file => path.relative(root, file);
 const isRegularFile = file => existsSync(file) && statSync(file).isFile();
-const listFiles = directory => readdirSync(directory).flatMap(name => {
-  const absolute = path.join(directory, name);
-  return statSync(absolute).isDirectory() ? listFiles(absolute) : [absolute];
-});
+const listFiles = directory =>
+  readdirSync(directory).flatMap(name => {
+    const absolute = path.join(directory, name);
+    return statSync(absolute).isDirectory() ? listFiles(absolute) : [absolute];
+  });
 
 const isSafePackagePath = file => {
   if (typeof file !== 'string' || file.length === 0) return false;
@@ -158,9 +159,21 @@ if (!existsSync(manifestPath)) {
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 if (manifest.manifest_version !== 3) fail('La extensión debe usar Manifest V3.');
-if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || ''))) fail('La versión debe usar formato semver X.Y.Z.');
+if (!/^\d+\.\d+\.\d+$/.test(String(manifest.version || '')))
+  fail('La versión debe usar formato semver X.Y.Z.');
 if (manifest.minimum_chrome_version !== '118') {
   fail('La extensión debe declarar minimum_chrome_version 118 para el contrato legacy de PDF.js.');
+}
+// El inject de mundo principal no puede leer el manifest: publica una constante que el relay
+// compara con la versión instalada. Si divergen, TODA pestaña fresca quedaría «versión anterior».
+const injectPath = path.join(extensionDir, 'inject-fichamedico.js');
+const injectVersion = existsSync(injectPath)
+  ? (readFileSync(injectPath, 'utf8').match(/const INJECT_VERSION = '([^']+)'/) || [])[1]
+  : undefined;
+if (injectVersion !== manifest.version) {
+  fail(
+    `inject-fichamedico.js declara INJECT_VERSION='${injectVersion ?? 'ausente'}' y el manifest ${manifest.version}; deben coincidir.`
+  );
 }
 
 const backgroundWorker = manifest.background?.service_worker;
@@ -180,11 +193,7 @@ for (const [index, resourceGroup] of (manifest.web_accessible_resources || []).e
 
 // These package entry points are not reachable from manifest, importScripts(), or another HTML.
 // All reachable children are validated from their actual edges instead of duplicated as file roots.
-const mandatoryPackageRoots = [
-  'vendor-lock.json',
-  'print-pdf.html',
-  'syslab-offscreen.html',
-];
+const mandatoryPackageRoots = ['vendor-lock.json', 'print-pdf.html', 'syslab-offscreen.html'];
 validateFileReferences('raíces obligatorias del paquete', mandatoryPackageRoots);
 
 // Preserve the pre-existing core-feature contract as required graph edges. File existence remains
@@ -199,9 +208,7 @@ const mandatoryStartupRuntimes = [
   'pdf-lib.min.js',
   'xlsx.full.min.js',
 ];
-const mandatoryHtmlScripts = new Map([
-  ['print-pdf.html', ['print-pdf.js']],
-]);
+const mandatoryHtmlScripts = new Map([['print-pdf.html', ['print-pdf.js']]]);
 
 const vendorLockPath = path.join(extensionDir, 'vendor-lock.json');
 if (existsSync(vendorLockPath)) {
@@ -216,7 +223,8 @@ if (existsSync(vendorLockPath)) {
         continue;
       }
       const actualHash = createHash('sha256').update(readFileSync(vendorPath)).digest('hex');
-      if (actualHash !== vendor.sha256) fail(`Integridad SHA-256 inválida: extension/${vendor.file}`);
+      if (actualHash !== vendor.sha256)
+        fail(`Integridad SHA-256 inválida: extension/${vendor.file}`);
       if (!vendor.package || !vendor.version || !vendor.license) {
         fail(`Trazabilidad incompleta para extension/${vendor.file}`);
       }
@@ -227,15 +235,22 @@ if (existsSync(vendorLockPath)) {
     ]);
     for (const [file, source] of expectedPdfJsSources) {
       const vendor = vendorLock.vendors.find(candidate => candidate.file === file);
-      if (!vendor || vendor.package !== 'pdfjs-dist' || vendor.version !== '5.5.207' ||
-          vendor.variant !== 'legacy' || vendor.source !== source) {
+      if (
+        !vendor ||
+        vendor.package !== 'pdfjs-dist' ||
+        vendor.version !== '5.5.207' ||
+        vendor.variant !== 'legacy' ||
+        vendor.source !== source
+      ) {
         fail(`extension/${file} debe provenir del build legacy de pdfjs-dist 5.5.207.`);
       }
       const vendorPath = path.join(extensionDir, file);
       if (isRegularFile(vendorPath)) {
         const sourceText = readFileSync(vendorPath, 'utf8');
-        if (!sourceText.includes('pdfjsVersion = 5.5.207') ||
-            !sourceText.includes('__core-js_shared__')) {
+        if (
+          !sourceText.includes('pdfjsVersion = 5.5.207') ||
+          !sourceText.includes('__core-js_shared__')
+        ) {
           fail(`extension/${file} no contiene el artefacto legacy trazable de PDF.js 5.5.207.`);
         }
       }
@@ -262,9 +277,8 @@ for (const host of manifest.host_permissions || []) {
 const backgroundPath = isSafePackagePath(backgroundWorker)
   ? path.join(extensionDir, backgroundWorker)
   : null;
-const backgroundSource = backgroundPath && isRegularFile(backgroundPath)
-  ? readFileSync(backgroundPath, 'utf8')
-  : '';
+const backgroundSource =
+  backgroundPath && isRegularFile(backgroundPath) ? readFileSync(backgroundPath, 'utf8') : '';
 const healthBridgeSource = existsSync(healthBridgePath)
   ? readFileSync(healthBridgePath, 'utf8')
   : '';
@@ -292,13 +306,21 @@ if (
 const executableBackgroundSource = backgroundSource
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/\/\/.*$/gm, '');
-const importScriptsCalls = [...executableBackgroundSource.matchAll(/\bimportScripts\s*\(([^)]*)\)\s*;/g)];
+const importScriptsCalls = [
+  ...executableBackgroundSource.matchAll(/\bimportScripts\s*\(([^)]*)\)\s*;/g),
+];
 if (importScriptsCalls.length !== 1) {
   fail('background.js debe registrar sus runtimes en una única llamada importScripts() inicial.');
 }
 const startupCall = importScriptsCalls[0];
-const firstDeclarationIndex = executableBackgroundSource.search(/\b(?:const|let|var|function|class)\b/);
-if (startupCall && firstDeclarationIndex >= 0 && Number(startupCall.index) > firstDeclarationIndex) {
+const firstDeclarationIndex = executableBackgroundSource.search(
+  /\b(?:const|let|var|function|class)\b/
+);
+if (
+  startupCall &&
+  firstDeclarationIndex >= 0 &&
+  Number(startupCall.index) > firstDeclarationIndex
+) {
   fail('importScripts() debe ejecutarse antes de las declaraciones del service worker MV3.');
 }
 const startupRuntimeList = parseLiteralImportScripts(String(startupCall?.[1] || ''));
@@ -323,7 +345,9 @@ const executableRuntimeLoaderSource = runtimeLoaderSource
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/\/\/.*$/gm, '');
 if (/\bimportScripts\s*\(/.test(executableRuntimeLoaderSource)) {
-  fail('runtime-loader.js no puede ejecutar importScripts() después de instalar el service worker MV3.');
+  fail(
+    'runtime-loader.js no puede ejecutar importScripts() después de instalar el service worker MV3.'
+  );
 }
 
 const extensionFiles = listFiles(extensionDir);
@@ -343,10 +367,7 @@ for (const htmlFile of extensionFiles.filter(candidate => /\.html?$/i.test(candi
   const resolvedScriptSources = localScriptSources.map(file =>
     path.posix.join(path.posix.dirname(htmlPath), file)
   );
-  validateFileReferences(
-    `${htmlPath} <script src>`,
-    resolvedScriptSources
-  );
+  validateFileReferences(`${htmlPath} <script src>`, resolvedScriptSources);
   for (const mandatoryScript of mandatoryHtmlScripts.get(htmlPath) || []) {
     if (!resolvedScriptSources.includes(mandatoryScript)) {
       fail(`${mandatoryScript} debe permanecer declarado en extension/${htmlPath}.`);
@@ -356,7 +377,9 @@ for (const htmlFile of extensionFiles.filter(candidate => /\.html?$/i.test(candi
 for (const file of extensionFiles.filter(candidate => candidate.endsWith('.map'))) {
   fail(`No se permiten source maps en el paquete clínico: ${relative(file)}`);
 }
-for (const file of extensionFiles.filter(candidate => candidate.endsWith('.js') && !candidate.endsWith('.min.js'))) {
+for (const file of extensionFiles.filter(
+  candidate => candidate.endsWith('.js') && !candidate.endsWith('.min.js')
+)) {
   const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
   if (check.status !== 0) fail(`Sintaxis inválida en ${relative(file)}: ${check.stderr.trim()}`);
 }
@@ -369,5 +392,5 @@ if (errors.length) {
 
 console.log(
   `Extensión Rayen v${manifest.version}: paquete válido ` +
-  `(${extensionFiles.length} archivos, ${dependencyFiles.size} dependencias verificadas).`
+    `(${extensionFiles.length} archivos, ${dependencyFiles.size} dependencias verificadas).`
 );

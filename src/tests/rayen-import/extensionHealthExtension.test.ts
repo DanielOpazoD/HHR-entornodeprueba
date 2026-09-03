@@ -11,6 +11,7 @@ const health = (
         sendMessage: (tabId: number, message: { type: string }) => Promise<unknown>;
         missingMessage: string;
         staleMessage: string;
+        preferExpiryPublisher?: boolean;
       }) => Promise<{ status: string; message: string }>;
     };
   }
@@ -158,6 +159,7 @@ describe('extension health helpers · vigencia de la fuente', () => {
         sendMessage,
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
+        preferExpiryPublisher: true,
       })
     ).resolves.toEqual({
       status: 'ready',
@@ -200,20 +202,42 @@ describe('extension health helpers · vigencia de la fuente', () => {
         sendMessage,
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
+        preferExpiryPublisher: true,
       })
     ).resolves.toEqual({ status: 'ready', message: 'Vencida.', remainingSeconds: 0, expiresAt: 1 });
+    // Sin la opción (Gestión de Camas), la primera lista gana sin sondear el resto.
+    const gcSend = vi
+      .fn()
+      .mockResolvedValueOnce({ ready: true, message: 'GC lista.' })
+      .mockResolvedValueOnce({ ready: true, message: 'Otra GC.', remainingSeconds: 5 });
+    await expect(
+      health.probeTabs({
+        tabs: [{ id: 1, active: true }, { id: 2 }],
+        sendMessage: gcSend,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({ status: 'ready', message: 'GC lista.' });
+    expect(gcSend).toHaveBeenCalledTimes(1);
   });
 
   it('las pestañas restantes se sondean en paralelo y gana la primera por preferencia, no la más rápida', async () => {
+    let releaseSecond!: () => void;
+    const secondAnswered = new Promise<void>(resolve => (releaseSecond = resolve));
+    const pinged: number[] = [];
     const sendMessage = vi.fn(async (tabId: number) => {
+      pinged.push(tabId);
       if (tabId === 1) return { ready: true, message: 'Activa sin vigencia.' };
       if (tabId === 2) {
-        await new Promise(resolve => setTimeout(resolve, 30));
+        await secondAnswered;
         return { ready: true, message: 'Segunda (lenta).', remainingSeconds: 600 };
       }
+      // La tercera responde antes que la segunda; con sondeo paralelo ya fue pingueada
+      // mientras la segunda sigue pendiente.
+      expect(pinged).toEqual([1, 2, 3]);
+      releaseSecond();
       return { ready: true, message: 'Tercera (rápida).', remainingSeconds: 300 };
     });
-    const started = Date.now();
     await expect(
       health.probeTabs({
         tabs: [
@@ -224,10 +248,9 @@ describe('extension health helpers · vigencia de la fuente', () => {
         sendMessage,
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
+        preferExpiryPublisher: true,
       })
     ).resolves.toEqual({ status: 'ready', message: 'Segunda (lenta).', remainingSeconds: 600 });
     expect(sendMessage).toHaveBeenCalledTimes(3);
-    // Sondeo paralelo: la espera total es la de UNA pestaña lenta, no la suma.
-    expect(Date.now() - started).toBeLessThan(90);
   });
 });

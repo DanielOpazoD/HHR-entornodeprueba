@@ -103,7 +103,7 @@
       "hotspots": {}
     },
     "content-fichamedico.js": {
-      "maxLines": 160,
+      "maxLines": 172,
       "hotspots": {}
     },
     "content-gestioncamas.js": {
@@ -230,7 +230,7 @@
       "hotspots": {}
     },
     "fichamedico-transport-runtime.js": {
-      "maxLines": 202,
+      "maxLines": 204,
       "hotspots": {}
     },
     "fichamedico-treating-physician-dom.js": {
@@ -295,7 +295,7 @@
       "hotspots": {}
     },
     "health-check.js": {
-      "maxLines": 82,
+      "maxLines": 92,
       "hotspots": {}
     },
     "health-heartbeat-runtime.js": {

@@ -128,7 +128,7 @@ describe('relay de Ficha Médico · versión del inject', () => {
     const health = await ping;
     expect(health.ready).toBe(false);
     expect(health.message).toContain('versión anterior de la extensión');
-    // La identidad verificada sigue viajando para el monitor.
+    // El relay conserva la identidad verificada (probeTabs solo la usa en respuestas listas).
     expect(health.identity).toEqual({ fullName: 'Daniel Opazo', role: 'Médico' });
 
     const read = relay.send({ type: 'RAYEN_READ' });
@@ -138,6 +138,19 @@ describe('relay de Ficha Médico · versión del inject', () => {
     expect(result.snapshot).toBeUndefined();
     expect(String(result.error)).toContain('versión anterior de la extensión');
 
+    // Obsolescencia memorizada: las siguientes lecturas se cortan sin preguntar al inject.
+    const requestsBefore = relay.requests.length;
+    await expect(relay.send({ type: 'RAYEN_FM_GET_FETCH_INFO' })).resolves.toEqual({
+      error: expect.stringContaining('versión anterior de la extensión'),
+    });
+    await expect(relay.send({ type: 'RAYEN_READ' })).resolves.toEqual({
+      error: expect.stringContaining('versión anterior de la extensión'),
+    });
+    expect(relay.requests).toHaveLength(requestsBefore);
+  });
+
+  it('un fetch-info de un inject de otra versión se rechaza (primera detección por esa vía)', async () => {
+    const relay = createRelay('0.48.8');
     const info = relay.send({ type: 'RAYEN_FM_GET_FETCH_INFO' });
     await flush();
     relay.answerFromInject({ injectVersion: '0.48.5', info: { apiOrigin: 'https://x' } });

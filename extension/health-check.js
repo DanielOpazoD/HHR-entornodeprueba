@@ -43,7 +43,23 @@
     return null;
   };
 
-  const probeTabs = async ({ tabs, sendMessage, missingMessage, staleMessage }) => {
+  // Solo Ficha Médico opta por `preferExpiryPublisher` (Gestión de Camas nunca publica
+  // vigencia): heurística de transición (un inject < 0.48.5 respondía «lista» sin vigencia;
+  // desde 0.48.8 el relay marca «no lista» un inject de otra versión). Si otra pestaña
+  // publica vigencia, esa es la respuesta honesta; se sondean en paralelo para acotar la
+  // espera a un solo tiempo de espera, no a uno por pestaña.
+  const resolveReady = async (ready, rest, ping, preferExpiryPublisher) => {
+    if (ready.publishesExpiry || !preferExpiryPublisher || rest.length === 0) return ready.result;
+    return (await pickExpiryPublisher(rest, ping)) || ready.result;
+  };
+
+  const probeTabs = async ({
+    tabs,
+    sendMessage,
+    missingMessage,
+    staleMessage,
+    preferExpiryPublisher = false,
+  }) => {
     const ordered = orderTabs(tabs);
     if (ordered.length === 0) return { status: 'missing', message: missingMessage };
     let unavailableMessage = '';
@@ -55,14 +71,8 @@
       try {
         const response = await ping(tab);
         if (response && response.ready === true) {
-          const ready = readyResult(response);
-          if (ready.publishesExpiry) return ready.result;
-          // Heurística de transición (inject < 0.48.5, que respondía «lista» sin vigencia;
-          // desde 0.48.8 el relay marca «no lista» un inject de otra versión): si otra
-          // pestaña publica vigencia, esa es la respuesta honesta. Se sondean en paralelo
-          // para acotar la espera a un solo tiempo de espera, no a uno por pestaña.
           const rest = ordered.slice(index + 1).filter(other => other && other.id != null);
-          return (await pickExpiryPublisher(rest, ping)) || ready.result;
+          return resolveReady(readyResult(response), rest, ping, preferExpiryPublisher);
         }
         if (!unavailableMessage && response && response.message) {
           unavailableMessage = response.message;
