@@ -197,11 +197,11 @@ describe('ClinicalPanelDrawer', () => {
     );
 
     await screen.findByText('Evolución médica estable.');
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Abrir informes de hospitalización de Paciente de prueba',
-      })
-    );
+    const reportsButton = screen.getByRole('button', {
+      name: 'Abrir informes de hospitalización de Paciente de prueba',
+    });
+    expect(reportsButton).toHaveTextContent('Informes');
+    fireEvent.click(reportsButton);
 
     expect(onOpenHospitalizationReports).toHaveBeenCalledOnce();
   });
