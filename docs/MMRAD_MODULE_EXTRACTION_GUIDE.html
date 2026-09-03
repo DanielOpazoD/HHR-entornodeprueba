@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guía de extracción del módulo MMRAD de HHR</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172033;
+        --muted: #64748b;
+        --line: #dbe3ef;
+        --soft: #f5f7fb;
+        --violet: #6d28d9;
+        --violet-soft: #f3e8ff;
+        --green: #047857;
+        --amber: #b45309;
+        --red: #b91c1c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #eef2f7;
+        color: var(--ink);
+        font:
+          15px/1.55 Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+      main {
+        width: min(1180px, calc(100% - 32px));
+        margin: 28px auto;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.09);
+        overflow: hidden;
+      }
+      header {
+        padding: 44px 48px 36px;
+        color: white;
+        background: linear-gradient(135deg, #111827 0%, #312e81 54%, #6d28d9 100%);
+      }
+      header p {
+        color: #ddd6fe;
+        max-width: 850px;
+        margin: 12px 0 0;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 46px);
+        line-height: 1.08;
+        letter-spacing: -0.035em;
+      }
+      h2 {
+        margin: 0 0 16px;
+        font-size: 25px;
+        letter-spacing: -0.02em;
+      }
+      h3 {
+        margin: 24px 0 8px;
+        font-size: 17px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      code,
+      pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      code {
+        color: #4c1d95;
+        background: #f5f3ff;
+        padding: 1px 5px;
+        border-radius: 5px;
+      }
+      pre {
+        overflow-x: auto;
+        margin: 12px 0;
+        padding: 16px;
+        border-radius: 12px;
+        background: #111827;
+        color: #e2e8f0;
+        font-size: 12px;
+      }
+      section {
+        padding: 34px 48px;
+        border-bottom: 1px solid var(--line);
+      }
+      section:last-child {
+        border-bottom: 0;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 22px;
+      }
+      nav a {
+        color: white;
+        text-decoration: none;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 999px;
+        padding: 6px 11px;
+        font-size: 12px;
+      }
+      .meta {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 11px;
+        font-weight: 800;
+        color: #c4b5fd;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 17px;
+        background: white;
+      }
+      .card h3 {
+        margin-top: 0;
+      }
+      .note {
+        border-left: 4px solid var(--violet);
+        background: var(--violet-soft);
+        padding: 14px 16px;
+        border-radius: 10px;
+      }
+      .warning {
+        border-left-color: var(--amber);
+        background: #fffbeb;
+      }
+      .danger {
+        border-left-color: var(--red);
+        background: #fef2f2;
+      }
+      .ok {
+        border-left-color: var(--green);
+        background: #ecfdf5;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(130px, 1fr));
+        gap: 10px;
+        align-items: stretch;
+      }
+      .flow > div {
+        position: relative;
+        padding: 14px;
+        border: 1px solid #c4b5fd;
+        background: #faf5ff;
+        border-radius: 12px;
+      }
+      .flow > div:not(:last-child)::after {
+        content: '→';
+        position: absolute;
+        right: -10px;
+        top: 40%;
+        z-index: 2;
+        color: var(--violet);
+        font-weight: 900;
+      }
+      .flow strong {
+        display: block;
+        color: #4c1d95;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 14px 0;
+        font-size: 13px;
+      }
+      th,
+      td {
+        padding: 10px 11px;
+        border: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--soft);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      ul,
+      ol {
+        padding-left: 21px;
+      }
+      li + li {
+        margin-top: 5px;
+      }
+      .tag {
+        display: inline-block;
+        margin: 2px 4px 2px 0;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #ede9fe;
+        color: #5b21b6;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .file {
+        overflow-wrap: anywhere;
+      }
+      .checklist {
+        list-style: none;
+        padding-left: 0;
+      }
+      .checklist li::before {
+        content: '□';
+        margin-right: 8px;
+        color: var(--violet);
+        font-weight: 800;
+      }
+      @media (max-width: 850px) {
+        main {
+          width: 100%;
+          margin: 0;
+          border-radius: 0;
+        }
+        header,
+        section {
+          padding: 28px 22px;
+        }
+        .grid,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        .flow > div:not(:last-child)::after {
+          content: '↓';
+          right: 50%;
+          top: auto;
+          bottom: -15px;
+        }
+      }
+      @media print {
+        body {
+          background: white;
+        }
+        main {
+          width: 100%;
+          margin: 0;
+          border: 0;
+          box-shadow: none;
+        }
+        header {
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
+        section {
+          break-inside: avoid;
+        }
+        nav {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="meta">HHR · Documento de handoff técnico · 03-09-2026</div>
+        <h1>Cómo extraer el módulo MMRAD</h1>
+        <p>
+          Mapa verificable para trasladar el acceso a radiología desde HHR a otra aplicación local,
+          manteniendo búsqueda por RUT, informes estructurados, PDF, comprobante y acceso DICOM sin
+          exponer credenciales en el navegador.
+        </p>
+        <nav>
+          <a href="#scope">Alcance</a><a href="#architecture">Arquitectura</a>
+          <a href="#files">Archivos</a><a href="#contracts">Contratos</a> <a href="#flows">Flujos</a
+          ><a href="#security">Seguridad</a> <a href="#plan">Plan de extracción</a
+          ><a href="#tests">Pruebas</a>
+        </nav>
+      </header>
+
+      <section id="scope">
+        <h2>1. Alcance mínimo que debe conservarse</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Incluido</h3>
+            <ul>
+              <li>Abrir el visualizador con un paciente ya seleccionado por RUT.</li>
+              <li>Buscar todos los estudios o filtrar por fechas.</li>
+              <li>Agrupar por modalidad y priorizar CT en la presentación.</li>
+              <li>Abrir PDF mediante un proxy autenticado.</li>
+              <li>Abrir el comprobante en una vista HTML saneada.</li>
+              <li>Abrir el visualizador DICOM ofrecido por MMRAD.</li>
+              <li>Extraer y copiar hallazgos e impresión de informes CT.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>No trasladar como acoplamiento</h3>
+            <ul>
+              <li>La tabla completa del censo ni sus contextos React.</li>
+              <li>Credenciales reales, cookies de sesión o RUT de pacientes de ejemplo.</li>
+              <li>Dependencias de Eloísa: MMRAD es una integración serverless independiente.</li>
+              <li>
+                La estética exacta de HHR si la aplicación destino tiene su propio sistema visual.
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p class="note danger">
+          <strong>Regla de seguridad:</strong> <code>MMRAD_USERNAME</code> y
+          <code>MMRAD_PASSWORD</code> existen sólo en el proceso servidor. Nunca usar prefijo
+          <code>VITE_</code>, nunca serializarlas y nunca enviarlas al cliente.
+        </p>
+      </section>
+
+      <section id="architecture">
+        <h2>2. Arquitectura y fronteras de confianza</h2>
+        <div class="flow" aria-label="Flujo de arquitectura MMRAD">
+          <div><strong>Aplicación local</strong>Selecciona paciente y obtiene token Firebase.</div>
+          <div><strong>Cliente MMRAD</strong>Construye URL y cabecera Bearer.</div>
+          <div><strong>Función serverless</strong>Autoriza rol, origen y límite de tasa.</div>
+          <div><strong>Portal RIS</strong>Login Liferay, cookies efímeras y búsqueda HTML.</div>
+          <div><strong>Respuesta segura</strong>JSON estructurado o contenido proxificado.</div>
+        </div>
+        <p class="note ok">
+          La unidad extraíble no es el modal por sí solo: es
+          <strong
+            >UI + cliente HTTP + función serverless + autenticación/autorización + parser +
+            pruebas</strong
+          >.
+        </p>
+      </section>
+
+      <section id="files">
+        <h2>3. Inventario de archivos y responsabilidad</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Capa</th>
+              <th>Archivo</th>
+              <th>Responsabilidad</th>
+              <th>Traslado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Entrada por paciente</td>
+              <td class="file">
+                <code>src/features/census/components/patient-row/PatientRadiologyTrigger.tsx</code>
+              </td>
+              <td>
+                Botón discreto, valida RUT, abre modal con un paciente y solicita búsqueda
+                automática.
+              </td>
+              <td>Adaptar al componente de fila ambulatoria.</td>
+            </tr>
+            <tr>
+              <td>Integración HHR</td>
+              <td class="file">
+                <code>src/features/census/components/patient-row/PatientIdentityCell.tsx</code>
+              </td>
+              <td>Ubica el botón junto a Ficha Médico y Laboratorio.</td>
+              <td>No copiar; replicar el punto de montaje.</td>
+            </tr>
+            <tr>
+              <td>Modal</td>
+              <td class="file"><code>src/components/modals/RadiologyViewerModal.tsx</code></td>
+              <td>Estado, búsqueda, filtros, progreso, pestañas, PDF, comprobante y copia.</td>
+              <td>Copiar o convertir en módulo compartido.</td>
+            </tr>
+            <tr>
+              <td>Presentación</td>
+              <td class="file">
+                <code>src/components/modals/RadiologyViewerModalContent.tsx</code>
+              </td>
+              <td>Controles, progreso, resultados, acciones y estado vacío.</td>
+              <td>Reutilizable con cambios de estilos.</td>
+            </tr>
+            <tr>
+              <td>Controladores puros</td>
+              <td class="file">
+                <code>src/components/modals/controllers/radiologyViewerModalController.ts</code
+                ><br /><code>radiologyViewerContentController.ts</code>
+              </td>
+              <td>Deduplicación, orden de camas, modalidades, fechas y capacidades por examen.</td>
+              <td>Copiar primero; no dependen del navegador salvo fecha actual.</td>
+            </tr>
+            <tr>
+              <td>Cliente HTTP</td>
+              <td class="file"><code>src/services/radiology/mmradService.ts</code></td>
+              <td>Bearer, búsqueda, descarga PDF y comprobante.</td>
+              <td>Extraer detrás de una interfaz.</td>
+            </tr>
+            <tr>
+              <td>Parser/formato</td>
+              <td class="file"><code>src/services/radiology/mmradReportSupport.ts</code></td>
+              <td>Limpia HTML, extrae secciones, compone texto y HTML imprimible.</td>
+              <td>Copiar con todas sus pruebas.</td>
+            </tr>
+            <tr>
+              <td>Backend</td>
+              <td class="file"><code>netlify/functions/mmrad-search.ts</code></td>
+              <td>Autorización, login Liferay, cookies, scraping, proxy y telemetría.</td>
+              <td>Núcleo obligatorio; desacoplar adaptadores HHR.</td>
+            </tr>
+            <tr>
+              <td>Seguridad backend</td>
+              <td class="file">
+                <code>netlify/functions/lib/firebase-auth.ts</code><br /><code
+                  >firebase-server.ts</code
+                ><br /><code>http.ts</code>
+              </td>
+              <td>Valida token/rol, Firebase Admin, CORS, respuestas y rate limit.</td>
+              <td>Sustituir sólo si la app destino tiene equivalentes reales.</td>
+            </tr>
+            <tr>
+              <td>Resiliencia</td>
+              <td class="file"><code>netlify/functions/lib/observability.ts</code></td>
+              <td>Timeout, reintentos y telemetría.</td>
+              <td>Conservar timeout/reintento; el sink puede adaptarse.</td>
+            </tr>
+            <tr>
+              <td>Entorno</td>
+              <td class="file">
+                <code>netlify/functions/lib/envValidator.ts</code><br /><code>netlify.toml</code>
+              </td>
+              <td>Nombres de secretos, runtime Node 22 y empaquetado.</td>
+              <td>Replicar contrato, no valores.</td>
+            </tr>
+            <tr>
+              <td>Navegador</td>
+              <td class="file">
+                <code>src/services/auth/authRequestHeaders.ts</code><br /><code
+                  >src/shared/runtime/browserWindowRuntimeCore.ts</code
+                ><br /><code>browserClipboardRuntime.ts</code>
+              </td>
+              <td>Token actual, popups/impresión y portapapeles.</td>
+              <td>Inyectar adaptadores equivalentes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="contracts">
+        <h2>4. Contrato HTTP que consume el frontend</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Operación</th>
+              <th>Solicitud</th>
+              <th>Respuesta</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Buscar</td>
+              <td>
+                <code
+                  >GET
+                  /.netlify/functions/mmrad-search?rut=...&amp;from=YYYY-MM-DD&amp;to=YYYY-MM-DD</code
+                >
+              </td>
+              <td><code>{ rut, examenes[] }</code></td>
+              <td>Fechas opcionales. El servidor convierte a DD/MM/YYYY.</td>
+            </tr>
+            <tr>
+              <td>PDF</td>
+              <td><code>?action=pdf&amp;link=...</code></td>
+              <td><code>application/pdf</code> base64 en Netlify</td>
+              <td>El enlace debe pasar por el servidor para reutilizar cookies.</td>
+            </tr>
+            <tr>
+              <td>Comprobante</td>
+              <td><code>?action=portalReceipt&amp;link=...</code></td>
+              <td><code>text/html; charset=utf-8</code></td>
+              <td>El frontend vuelve a sanear antes de mostrar/imprimir.</td>
+            </tr>
+          </tbody>
+        </table>
+        <pre>
+type MMRADExam = {
+  nombre_examen: string;
+  fecha_examen: string;
+  fecha_asignacion: string;
+  mod: string;
+  estado: string;
+  pdf_url: string | null;
+  dicom_url: string | null;
+  informe_html_url: string | null;
+  portal_web_receipt_url?: string | null;
+  report: {
+    title: string | null;
+    technique: string | null;
+    antecedentesClinicos: string | null;
+    findings: string | null;
+    impression: string | null;
+  } | null;
+};</pre
+        >
+        <p>
+          <span class="tag">Authorization: Bearer</span><span class="tag">GET/OPTIONS</span
+          ><span class="tag">10 solicitudes/min/IP</span><span class="tag">timeout 20 s</span
+          ><span class="tag">2 intentos</span>
+        </p>
+      </section>
+
+      <section id="flows">
+        <h2>5. Flujos e interacciones</h2>
+        <h3>A. Acceso directo desde una fila</h3>
+        <ol>
+          <li>La fila verifica nombre, documento RUT chileno y validez del RUT.</li>
+          <li>El clic detiene la propagación para no activar otros controles de la fila.</li>
+          <li>Se monta el modal de forma diferida con un único objeto paciente.</li>
+          <li>
+            <code>initialPatientRut</code> selecciona el paciente y
+            <code>autoSearchInitialPatient</code> inicia una sola consulta.
+          </li>
+          <li>
+            Si la identidad de la fila cambia, se cierra la superficie para impedir mostrar datos
+            del paciente anterior.
+          </li>
+        </ol>
+        <h3>B. Búsqueda en el RIS</h3>
+        <ol>
+          <li>El frontend obtiene el token Firebase actual.</li>
+          <li>La función valida origen, método, Bearer, rol y rate limit.</li>
+          <li>
+            El backend lee los secretos, abre la portada Liferay y conserva cookies sólo en memoria.
+          </li>
+          <li>Localiza dinámicamente las acciones de login y búsqueda.</li>
+          <li>Publica el RUT; interpreta filas HTML y normaliza enlaces.</li>
+          <li>
+            Para estudios CT con informe HTML, descarga y estructura título, técnica, antecedentes,
+            hallazgos e impresión.
+          </li>
+        </ol>
+        <h3>C. Acciones de un examen</h3>
+        <ul>
+          <li>
+            <strong>Ver PDF:</strong> abre primero una ventana vacía para respetar el gesto del
+            usuario; descarga por proxy; usa URL blob; intenta imprimir y revoca la URL.
+          </li>
+          <li>
+            <strong>Comprobante:</strong> descarga por proxy, elimina scripts/eventos/botones de
+            impresión y muestra una previsualización.
+          </li>
+          <li>
+            <strong>DICOM:</strong> abre el enlace HTML5 devuelto por el RIS; mantenerlo como
+            navegación explícita, no incrustarlo sin revisar CSP.
+          </li>
+          <li>
+            <strong>Copiar informe:</strong> sólo se habilita cuando existen secciones
+            estructuradas.
+          </li>
+        </ul>
+      </section>
+
+      <section id="security">
+        <h2>6. Dependencias y seguridad</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Dependencias de runtime</h3>
+            <ul>
+              <li>Node.js 22.</li>
+              <li>React, TypeScript y <code>lucide-react</code> para UI.</li>
+              <li>Firebase cliente para obtener ID token.</li>
+              <li>Firebase Admin en backend para autorizar roles.</li>
+              <li>Netlify Functions o servidor Node compatible con su handler.</li>
+              <li><code>fetch</code>, <code>TextDecoder('latin1')</code> y <code>Buffer</code>.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Controles obligatorios</h3>
+            <ul>
+              <li>Secretos sólo en servidor.</li>
+              <li>Lista explícita de roles autorizados.</li>
+              <li>CORS por origen permitido, no comodín.</li>
+              <li>Rate limit antes de contactar al RIS.</li>
+              <li>Timeout y reintento acotados.</li>
+              <li>Sin RUT, nombres, enlaces ni informes en logs/telemetría.</li>
+              <li>Sanitización antes de renderizar HTML remoto.</li>
+            </ul>
+          </div>
+        </div>
+        <p class="note warning">
+          <strong>Fragilidad conocida:</strong> MMRAD es un portal Liferay sin API formal en este
+          módulo. Cambios en formularios, columnas, etiquetas o codificación HTML pueden romper el
+          parser. Mantener fixtures anonimizados y pruebas del contrato.
+        </p>
+      </section>
+
+      <section id="plan">
+        <h2>7. Plan de extracción recomendado</h2>
+        <ol>
+          <li>
+            <strong>Copiar primero los tipos y controladores puros.</strong> Hacer pasar sus pruebas
+            sin React ni red.
+          </li>
+          <li>
+            <strong>Definir un puerto cliente.</strong> Por ejemplo
+            <code>RadiologyGateway.search/pdf/receipt</code>; la UI no debe conocer Netlify.
+          </li>
+          <li>
+            <strong>Portar el backend.</strong> Mantener login, cookies, latin1, normalización y
+            parser sin simplificaciones prematuras.
+          </li>
+          <li>
+            <strong>Adaptar autenticación.</strong> Si la app ambulatoria usa Firebase, reutilizar
+            Bearer y roles; si no, reemplazar ambos lados del contrato.
+          </li>
+          <li>
+            <strong>Portar el servicio frontend.</strong> Cambiar sólo la URL base o inyectar el
+            gateway.
+          </li>
+          <li>
+            <strong>Portar el modal.</strong> Sustituir <code>BaseModal</code>, estilos y runtimes
+            del navegador por equivalentes.
+          </li>
+          <li>
+            <strong>Agregar el disparador ambulatorio.</strong> Construir paciente desde el RUT del
+            episodio/atención, no desde texto visible.
+          </li>
+          <li>
+            <strong>Validar localmente con proxy serverless.</strong> Una SPA servida sólo por Vite
+            no ejecuta <code>mmrad-search</code>.
+          </li>
+          <li>
+            <strong>Probar una búsqueda, PDF, comprobante y DICOM</strong> con datos autorizados del
+            entorno de prueba.
+          </li>
+        </ol>
+        <p class="note">
+          <strong>Recomendación:</strong> extraer por contratos, no convertir de inmediato en
+          paquete npm. Primero demostrar el módulo dentro de la aplicación ambulatoria; empaquetarlo
+          sólo cuando haya dos consumidores estables.
+        </p>
+      </section>
+
+      <section id="local">
+        <h2>8. Ejecución local segura</h2>
+        <pre>
+# .env.local — valores omitidos intencionalmente
+MMRAD_USERNAME=&lt;secret-server-only&gt;
+MMRAD_PASSWORD=&lt;secret-server-only&gt;
+
+# La URL funcional es la del proxy serverless, no el puerto Vite interno.
+netlify dev --offline --functions netlify/functions --target-port 3000 --port 8888
+# abrir: http://localhost:8888/census</pre
+        >
+        <ul>
+          <li>El origen local debe estar permitido por <code>isOriginAllowed</code>.</li>
+          <li>
+            La cuenta Firebase debe existir en el entorno correspondiente y tener un rol autorizado.
+          </li>
+          <li>
+            Un <code>401</code> sin Bearer confirma que la función existe, no que las credenciales
+            RIS funcionen.
+          </li>
+          <li>
+            La prueba completa exige una solicitud autenticada que termine en HTTP 200 y resultados
+            visibles.
+          </li>
+        </ul>
+      </section>
+
+      <section id="tests">
+        <h2>9. Pruebas que deben acompañar el traslado</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Archivo de referencia</th>
+              <th>Qué protege</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>src/tests/netlify/mmradSearch.test.ts</code></td>
+              <td>Autorización, scraping, fechas, errores, PDF y forma del JSON.</td>
+            </tr>
+            <tr>
+              <td><code>src/tests/netlify/mmradPortalReceipt.test.ts</code></td>
+              <td>Proxy y codificación del comprobante.</td>
+            </tr>
+            <tr>
+              <td><code>src/tests/services/radiology/mmradService.test.ts</code></td>
+              <td>URLs, Bearer y mensajes de error del cliente.</td>
+            </tr>
+            <tr>
+              <td><code>src/tests/services/radiology/mmradReportSupport.test.ts</code></td>
+              <td>Parser, saneamiento, copia e impresión.</td>
+            </tr>
+            <tr>
+              <td><code>src/tests/components/radiologyViewerModalController.test.ts</code></td>
+              <td>Deduplicación, orden, modalidades y fechas.</td>
+            </tr>
+            <tr>
+              <td><code>src/tests/components/radiologyViewerContentController.test.ts</code></td>
+              <td>Acciones disponibles por examen.</td>
+            </tr>
+            <tr>
+              <td><code>src/tests/components/modals/RadiologyViewerModal*.test.tsx</code></td>
+              <td>Render, búsqueda automática y resultados.</td>
+            </tr>
+            <tr>
+              <td><code>src/tests/views/census/PatientRadiologyTrigger.test.tsx</code></td>
+              <td>
+                Selección por fila, cierre por cambio de identidad y rechazo de pasaporte/RUT
+                inválido.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>Criterios de aceptación refutables</h3>
+        <ul class="checklist">
+          <li>Un clic desde una atención abre el paciente correcto y busca una sola vez.</li>
+          <li>Cambiar de atención no conserva resultados del paciente anterior.</li>
+          <li>Una cuenta sin rol recibe 403; sin sesión recibe 401.</li>
+          <li>Los secretos no aparecen en bundle, red del navegador, logs ni repositorio.</li>
+          <li>Fechas ISO se convierten al formato esperado por el RIS.</li>
+          <li>El cambio de HTML del portal falla de forma visible y no inventa resultados.</li>
+          <li>PDF y comprobante se obtienen por proxy autenticado.</li>
+          <li>El HTML remoto se sanea antes de mostrarse.</li>
+          <li>Timeout, reintento y rate limit están cubiertos.</li>
+        </ul>
+      </section>
+
+      <section id="handoff">
+        <h2>10. Instrucción breve para la IA implementadora</h2>
+        <div class="note">
+          Migra el módulo MMRAD desde HHR hacia la aplicación local de atenciones ambulatorias.
+          Conserva el backend como frontera de secretos, la autorización por Bearer/rol, el login
+          Liferay con cookies efímeras, el parser y los proxies de PDF/comprobante. Adapta
+          únicamente el modelo de paciente y el sistema visual. Implementa acceso directo por RUT
+          con una sola búsqueda automática, cierre por cambio de identidad y pruebas equivalentes a
+          las listadas. No copies credenciales, datos clínicos reales, contextos del censo ni
+          dependencias de Eloísa.
+        </div>
+        <p class="small">
+          Documento generado desde la estructura del repositorio HHR en el commit base
+          <code>0aeaaa10</code>. Verificar nuevamente las rutas si el repositorio cambia.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

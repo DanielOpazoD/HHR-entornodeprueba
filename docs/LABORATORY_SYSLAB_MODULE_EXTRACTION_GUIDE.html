@@ -1,0 +1,1838 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guía técnica independiente — Laboratorio / Exámenes Syslab</title>
+    <style>
+      :root {
+        --ink: #162238;
+        --muted: #52637c;
+        --line: #dbe4ee;
+        --paper: #ffffff;
+        --soft: #f4f7fa;
+        --green: #008f68;
+        --green-2: #e8faf3;
+        --blue: #1666a8;
+        --blue-2: #eaf4fc;
+        --amber: #a86400;
+        --amber-2: #fff5dc;
+        --red: #ad2e24;
+        --red-2: #fff0ee;
+        --violet: #7444d8;
+        --violet-2: #f2edff;
+        --shadow: 0 18px 55px rgba(31, 48, 72, 0.11);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 8% 0%, rgba(0, 143, 104, 0.09), transparent 27rem),
+          linear-gradient(180deg, #f8fbfd 0, #eef3f7 100%);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        line-height: 1.58;
+      }
+
+      a {
+        color: var(--blue);
+      }
+
+      code,
+      pre {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+      }
+
+      code {
+        border: 1px solid #dce4ed;
+        border-radius: 0.35rem;
+        background: #f5f7fa;
+        padding: 0.08rem 0.3rem;
+        font-size: 0.9em;
+      }
+
+      pre {
+        overflow: auto;
+        margin: 0.8rem 0 0;
+        border: 1px solid #253653;
+        border-radius: 0.8rem;
+        background: #111b2e;
+        color: #e7effa;
+        padding: 1rem;
+        font-size: 0.79rem;
+        line-height: 1.55;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 18rem minmax(0, 1fr);
+        max-width: 104rem;
+        margin: 0 auto;
+      }
+
+      nav {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+        border-right: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(14px);
+        padding: 1.4rem 1.05rem;
+      }
+
+      nav .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+        padding: 0 0.45rem;
+      }
+
+      .mark {
+        display: grid;
+        width: 2.7rem;
+        height: 2.7rem;
+        place-items: center;
+        border-radius: 0.9rem;
+        background: linear-gradient(145deg, #04a979, #007e5e);
+        color: white;
+        font-weight: 900;
+        box-shadow: 0 8px 22px rgba(0, 143, 104, 0.25);
+      }
+
+      nav strong {
+        display: block;
+        font-size: 0.9rem;
+      }
+
+      nav small {
+        color: var(--muted);
+      }
+
+      nav ol {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      nav a {
+        display: block;
+        border-radius: 0.55rem;
+        color: #42536b;
+        padding: 0.43rem 0.55rem;
+        text-decoration: none;
+        font-size: 0.82rem;
+      }
+
+      nav a:hover {
+        background: var(--green-2);
+        color: #006c50;
+      }
+
+      main {
+        min-width: 0;
+        padding: 2.2rem clamp(1.2rem, 4vw, 4.5rem) 5rem;
+      }
+
+      .hero {
+        overflow: hidden;
+        position: relative;
+        border: 1px solid rgba(0, 143, 104, 0.25);
+        border-radius: 1.35rem;
+        background: linear-gradient(135deg, #ffffff 10%, #edfff8 100%);
+        box-shadow: var(--shadow);
+        padding: clamp(1.7rem, 4vw, 3.8rem);
+      }
+
+      .hero::after {
+        position: absolute;
+        right: -5rem;
+        bottom: -8rem;
+        width: 23rem;
+        height: 23rem;
+        border: 4rem solid rgba(0, 143, 104, 0.055);
+        border-radius: 50%;
+        content: '';
+      }
+
+      .eyebrow {
+        color: var(--green);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        position: relative;
+        z-index: 1;
+        max-width: 54rem;
+        margin: 0.55rem 0 0.8rem;
+        font-size: clamp(2rem, 4.5vw, 4.15rem);
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+      }
+
+      .lead {
+        position: relative;
+        z-index: 1;
+        max-width: 54rem;
+        color: #40536c;
+        font-size: 1.04rem;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 1.2rem;
+      }
+
+      .pill {
+        border: 1px solid #cde2da;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.85);
+        color: #365247;
+        padding: 0.3rem 0.65rem;
+        font-size: 0.76rem;
+        font-weight: 650;
+      }
+
+      section {
+        scroll-margin-top: 1.2rem;
+        margin-top: 2.8rem;
+      }
+
+      h2 {
+        margin: 0 0 0.65rem;
+        font-size: clamp(1.45rem, 2.2vw, 2rem);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        margin: 1.35rem 0 0.45rem;
+        font-size: 1.08rem;
+      }
+
+      p {
+        margin: 0.5rem 0;
+      }
+
+      ul,
+      ol {
+        padding-left: 1.25rem;
+      }
+
+      li + li {
+        margin-top: 0.28rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .card,
+      .callout {
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        background: var(--paper);
+        padding: 1.05rem 1.15rem;
+        box-shadow: 0 6px 22px rgba(31, 48, 72, 0.045);
+      }
+
+      .card h3 {
+        margin-top: 0;
+      }
+
+      .callout {
+        border-left: 0.3rem solid var(--blue);
+        background: var(--blue-2);
+      }
+
+      .callout.warn {
+        border-left-color: var(--amber);
+        background: var(--amber-2);
+      }
+
+      .callout.danger {
+        border-left-color: var(--red);
+        background: var(--red-2);
+      }
+
+      .callout.good {
+        border-left-color: var(--green);
+        background: var(--green-2);
+      }
+
+      .diagram {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 1rem;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(7rem, 1fr));
+        align-items: stretch;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+      }
+
+      .node {
+        position: relative;
+        display: grid;
+        min-height: 7.5rem;
+        align-content: center;
+        border: 1px solid #cad7e4;
+        border-radius: 0.8rem;
+        background: white;
+        padding: 0.75rem;
+        text-align: center;
+        font-size: 0.76rem;
+      }
+
+      .node:not(:last-child)::after {
+        position: absolute;
+        top: 50%;
+        right: -0.55rem;
+        color: var(--green);
+        content: '→';
+        font-size: 1rem;
+        font-weight: 900;
+        transform: translateY(-50%);
+      }
+
+      .node b {
+        color: #17263e;
+        font-size: 0.83rem;
+      }
+
+      .node.green {
+        border-color: #8cdbc1;
+        background: var(--green-2);
+      }
+
+      .node.violet {
+        border-color: #cfc1f4;
+        background: var(--violet-2);
+      }
+
+      .node.amber {
+        border-color: #edd08d;
+        background: var(--amber-2);
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        margin-top: 0.8rem;
+        border: 1px solid var(--line);
+        border-radius: 0.9rem;
+        background: white;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #e5ebf1;
+        padding: 0.65rem 0.75rem;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f2f6f9;
+        color: #2d405b;
+        font-size: 0.71rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .status {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.1rem 0.46rem;
+        font-size: 0.7rem;
+        font-weight: 750;
+        white-space: nowrap;
+      }
+
+      .status.copy {
+        background: var(--green-2);
+        color: #007255;
+      }
+
+      .status.adapt {
+        background: var(--amber-2);
+        color: #8a5100;
+      }
+
+      .status.avoid {
+        background: var(--red-2);
+        color: #92251d;
+      }
+
+      details {
+        margin-top: 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 0.8rem;
+        background: white;
+        padding: 0.75rem 0.9rem;
+      }
+
+      summary {
+        cursor: pointer;
+        color: #30435e;
+        font-weight: 750;
+      }
+
+      .checklist li::marker {
+        color: var(--green);
+      }
+
+      footer {
+        margin-top: 3.5rem;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        padding-top: 1.2rem;
+        font-size: 0.78rem;
+      }
+
+      @media (max-width: 980px) {
+        .layout {
+          display: block;
+        }
+
+        nav {
+          position: relative;
+          height: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        nav ol {
+          display: flex;
+          overflow-x: auto;
+          gap: 0.2rem;
+        }
+
+        nav a {
+          white-space: nowrap;
+        }
+
+        .grid,
+        .grid.three {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        body {
+          background: white;
+          font-size: 9.5pt;
+        }
+
+        .layout {
+          display: block;
+          max-width: none;
+        }
+
+        nav {
+          display: none;
+        }
+
+        main {
+          padding: 0;
+        }
+
+        .hero,
+        .card,
+        .callout,
+        details,
+        .table-wrap {
+          box-shadow: none;
+          break-inside: avoid;
+        }
+
+        section {
+          break-before: auto;
+        }
+
+        a {
+          color: inherit;
+          text-decoration: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <nav aria-label="Contenido">
+        <div class="brand">
+          <span class="mark" aria-hidden="true">L</span>
+          <span><strong>Laboratorio / Syslab</strong><small>Guía de extracción</small></span>
+        </div>
+        <ol>
+          <li><a href="#proposito">1. Propósito y alcance</a></li>
+          <li><a href="#verdades">2. Verdades del sistema</a></li>
+          <li><a href="#arquitectura">3. Arquitectura</a></li>
+          <li><a href="#modelos">4. Modelo de datos</a></li>
+          <li><a href="#protocolos">5. Protocolos y seguridad</a></li>
+          <li><a href="#consulta">6. Consulta y visualización</a></li>
+          <li><a href="#parser">7. Parser clínico</a></li>
+          <li><a href="#analisis">8. Análisis</a></li>
+          <li><a href="#solicitud">9. Solicitar exámenes</a></li>
+          <li><a href="#pdf">10. PDF y exportación</a></li>
+          <li><a href="#persistencia">11. Caché y persistencia</a></li>
+          <li><a href="#inventario">12. Inventario de archivos</a></li>
+          <li><a href="#extraccion">13. Plan de extracción</a></li>
+          <li><a href="#pruebas">14. Pruebas y aceptación</a></li>
+          <li><a href="#riesgos">15. Riesgos y decisiones</a></li>
+          <li><a href="#prompt">16. Prompt para otra IA</a></li>
+        </ol>
+      </nav>
+
+      <main>
+        <header class="hero">
+          <div class="eyebrow">Documento técnico autocontenido · 3 septiembre 2026</div>
+          <h1>Cómo extraer y replicar Laboratorio / Exámenes Syslab</h1>
+          <p class="lead">
+            Mapa exhaustivo del módulo actual de HHR: acceso a la red institucional, extensión
+            Chrome, listado de órdenes, PDF, parser, normalización clínica, tendencias, comparación,
+            microbiología, exportaciones, persistencia y formulario de solicitud. Está escrito para
+            que otra IA pueda portar el flujo a una aplicación local de atenciones ambulatorias sin
+            inventar contratos ni mezclar responsabilidades.
+          </p>
+          <div class="meta">
+            <span class="pill">Repositorio: HHR-entornodeprueba</span>
+            <span class="pill">Base auditada: 0aeaaa10</span>
+            <span class="pill">Rama: codex/laboratory-module-handoff</span>
+            <span class="pill">Ámbito: documentación; sin credenciales</span>
+          </div>
+        </header>
+
+        <section id="proposito">
+          <h2>1. Propósito, alcance y límites</h2>
+          <p>
+            Este documento describe el código que existe en la base indicada. Su objetivo es
+            permitir una reimplementación fiel, no copiar accidentalmente dependencias de HHR ni
+            prometer capacidades que el producto no tiene.
+          </p>
+          <div class="grid three">
+            <article class="card">
+              <h3>Incluido</h3>
+              <ul>
+                <li>Consulta por RUT y listado de órdenes Syslab.</li>
+                <li>Apertura y descarga de informes PDF.</li>
+                <li>Extracción y normalización de resultados.</li>
+                <li>Tendencias, comparación y microbiología.</li>
+                <li>Formulario imprimible para solicitar exámenes.</li>
+                <li>Extensión MV3, fallback HTTP, caché y Firestore.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>No incluido</h3>
+              <ul>
+                <li>Credenciales, cookies o datos reales de pacientes.</li>
+                <li>El backend externo de proxy Express, que no vive en este repositorio.</li>
+                <li>Una orden electrónica hacia Syslab: el botón actual sólo imprime.</li>
+                <li>
+                  Garantía de compatibilidad con un HIS distinto sin adaptar identidad y sesión.
+                </li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Principio rector</h3>
+              <p>
+                Portar primero contratos puros y pruebas; encapsular la red detrás de un adaptador;
+                mantener la validación del RUT en cada frontera; integrar la solicitud impresa como
+                módulo separado.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section id="verdades">
+          <h2>2. Verdades del sistema que no deben perderse</h2>
+          <div class="callout danger">
+            <strong>Distinción crítica:</strong> “Visualizar exámenes” y “Solicitar exámenes” son
+            dos mundos distintos. El primero lee Syslab y analiza informes. El segundo arma un
+            formulario local y llama a <code>window.print()</code>; no crea una orden remota, no
+            recibe folio y no confirma recepción por el laboratorio.
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Capacidad</th>
+                  <th>Estado real</th>
+                  <th>Fuente de verdad</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Acceso primario a Syslab</td>
+                  <td>Extensión Chrome MV3 sobre sesión institucional activa</td>
+                  <td><code>extension/syslab-*.js</code></td>
+                </tr>
+                <tr>
+                  <td>Acceso alternativo</td>
+                  <td>Función Netlify hacia proxy Express configurado; no autosuficiente</td>
+                  <td><code>netlify/functions/syslab-proxy.ts</code></td>
+                </tr>
+                <tr>
+                  <td>Autenticación primaria</td>
+                  <td>
+                    Popup propiedad de la extensión; credenciales transitorias, no guardadas en HHR
+                  </td>
+                  <td><code>syslab-login*.js</code></td>
+                </tr>
+                <tr>
+                  <td>Búsqueda desde censo</td>
+                  <td>RUT y episodio preseleccionados; auto-búsqueda tras confirmar conexión</td>
+                  <td>
+                    <code>PatientLaboratoryTrigger</code> +
+                    <code>useInitialLabViewerAutoSearch</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Análisis de seleccionados</td>
+                  <td>Batch íntegro, máximo 24 informes; no acepta respuesta parcial</td>
+                  <td><code>syslab-runtime.js</code> + hooks de análisis</td>
+                </tr>
+                <tr>
+                  <td>Persistencia</td>
+                  <td>Cache React Query y escritura Firestore no bloqueante</td>
+                  <td><code>useLabViewerQuery.ts</code> + <code>labFirestoreService.ts</code></td>
+                </tr>
+                <tr>
+                  <td>Solicitud HHR</td>
+                  <td>Formulario institucional local imprimible</td>
+                  <td><code>ExamRequestModal.tsx</code></td>
+                </tr>
+                <tr>
+                  <td>Solicitudes oficiales de Ficha Médico</td>
+                  <td>
+                    Flujo adyacente de extracción y unión PDF de 2–3 solicitudes ya existentes
+                  </td>
+                  <td><code>exam-request-print.js</code> + <code>exam-request-pdf.js</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="arquitectura">
+          <h2>3. Arquitectura y fronteras</h2>
+          <h3>Ruta primaria: extensión y red institucional</h3>
+          <div class="flow" role="img" aria-label="Flujo principal desde HHR hasta Syslab y vuelta">
+            <div class="node green"><b>HHR React</b><span>RUT + episodio + acciones UI</span></div>
+            <div class="node">
+              <b>Bridge de página</b><span><code>window.postMessage</code></span>
+            </div>
+            <div class="node violet">
+              <b>Content script</b><span>origen, tamaño y contrato</span>
+            </div>
+            <div class="node violet">
+              <b>Service worker</b><span>batch, TTL, sesión y validaciones</span>
+            </div>
+            <div class="node amber">
+              <b>Tab / offscreen</b><span>sesión local autenticada</span>
+            </div>
+            <div class="node amber">
+              <b>Syslab</b><span>SYSLAB_INTERNAL_ORIGIN · HTML/PDF</span>
+            </div>
+            <div class="node green">
+              <b>UI + análisis</b><span>resultados validados por RUT</span>
+            </div>
+          </div>
+          <p>
+            HHR nunca recibe las URL internas de los informes. La extensión entrega referencias
+            opacas del tipo <code>hhr-syslab-extension://batch/&lt;uuid&gt;/exam/&lt;id&gt;</code>.
+            El service worker conserva el vínculo real sólo en <code>chrome.storage.session</code>,
+            asociado al tab solicitante y con vigencia limitada.
+          </p>
+
+          <h3>Ruta alternativa: proxy HTTP</h3>
+          <div class="flow" role="img" aria-label="Flujo alternativo por Netlify y proxy Express">
+            <div class="node green">
+              <b>HHR React</b><span><code>syslabService.ts</code></span>
+            </div>
+            <div class="node">
+              <b>Netlify Function</b><span>origen + Firebase + rol + rate limit</span>
+            </div>
+            <div class="node amber">
+              <b>Proxy Express</b><span>URL configurada externamente</span>
+            </div>
+            <div class="node amber"><b>Syslab</b><span>consulta/red local</span></div>
+            <div class="node"><b>Respuesta</b><span>lista, detalle o PDF base64</span></div>
+            <div class="node green"><b>React Query</b><span>cache + errores</span></div>
+            <div class="node green"><b>UI</b><span>mismos controladores puros</span></div>
+          </div>
+          <div class="callout warn">
+            La ruta alternativa requiere <code>SYSLAB_PROXY_URL</code> o
+            <code>VITE_SYSLAB_API_URL</code> y un servicio Express ajeno a este repositorio. El
+            puerto Vite común <code>localhost:3000</code> no se considera proxy. En desarrollo, el
+            flujo Netlify integrado usa típicamente <code>localhost:8888</code>.
+          </div>
+
+          <h3>Capas que conviene conservar</h3>
+          <div class="grid">
+            <article class="card">
+              <h3>Dominio puro</h3>
+              <p>
+                Tipos, normalización, parser numérico, clasificación de muestra, tendencias,
+                comparación, microbiología y resumen. No deberían conocer React, Chrome ni Firebase.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Puertos de infraestructura</h3>
+              <p>
+                Un <code>LaboratoryGateway</code> para búsqueda/detalle/PDF; adaptadores
+                independientes para extensión y proxy; un puerto opcional para persistencia.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Aplicación</h3>
+              <p>
+                Hooks que coordinan consulta, selección, progreso, enriquecimientos PDF, análisis y
+                descarga.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Presentación</h3>
+              <p>
+                Modal, lista, tarjetas, filtros, tabs, gráficos, tabla, panel de microbiología,
+                estados vacíos y diálogo de exportación.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section id="modelos">
+          <h2>4. Modelo de datos mínimo</h2>
+          <p>
+            Estos contratos son el núcleo portátil. Los nombres pueden cambiar, pero no se debe
+            perder su semántica.
+          </p>
+          <pre><code>type LabPatient = {
+  bedId: string;
+  label: string;
+  patientName: string;
+  rut: string;
+  clinicalEpisodeId?: string;
+  birthDate?: string;
+  diagnosis?: string;
+};
+
+type SyslabExamItem = {
+  id: string;
+  link: string | null;       // opaco en la ruta de extensión
+  date: string;              // DD/MM/YYYY
+  time: string;
+  patientName: string;
+  origin: string;
+  exams: string[];
+};
+
+type LabResultRow = {
+  section: string;           // conserva procedencia clínica
+  analysis: string;
+  result: string;            // valor crudo, nunca descartarlo
+  unit: string;
+  refValue: string;
+  qualitative?: boolean;
+};
+
+type SyslabExamDetail = {
+  url: string;               // coincide con link del item
+  findings: LabResultRow[];
+  error?: string;
+};</code></pre>
+          <pre><code>type LabTrendPoint = {
+  date: string;
+  isoDate: string;
+  value: number;
+  unit: string;
+  rawValue: string;
+  sourceSection: string;
+  refMin?: number;
+  refMax?: number;
+};
+
+type LabMicrobiologyCategory =
+  | 'clostridium_difficile'
+  | 'coprocultivo'
+  | 'hemocultivo'
+  | 'urocultivo'
+  | 'otros_cultivos'
+  | 'pcr_8_virus'
+  | 'pcr_arbovirus';
+
+type LabAnalysisData = {
+  trendGroups: LabTrendGroup[];
+  examDates: string[];
+  comparison: Record&lt;string, Record&lt;string, LabResultRow&gt;&gt;;
+  microbiologyEntries: LabMicrobiologyEntry[];
+};</code></pre>
+          <h3>Identidades y claves</h3>
+          <ul>
+            <li>
+              <strong>Paciente de cama:</strong> identidad de UI <code>rut:clinicalEpisodeId</code>;
+              evita reciclar estado entre episodios.
+            </li>
+            <li>
+              <strong>Consulta Syslab:</strong> cuerpo numérico del RUT sin dígito verificador para
+              el formulario remoto, pero la respuesta se contrasta con el RUT esperado.
+            </li>
+            <li><strong>Orden:</strong> ID Syslab + referencia opaca o URL heredada.</li>
+            <li>
+              <strong>Columna analítica:</strong> fecha/hora de la orden para no colisionar exámenes
+              del mismo día.
+            </li>
+            <li><strong>Persistencia:</strong> documento por RUT normalizado, exámenes por ID.</li>
+          </ul>
+        </section>
+
+        <section id="protocolos">
+          <h2>5. Protocolos, sesión y seguridad</h2>
+          <h3>Contrato página ↔ extensión</h3>
+          <p>
+            <code>syslabExtensionBridge.ts</code> genera un <code>reqId</code>, publica mensajes en
+            la misma ventana y sólo acepta respuestas de la misma ventana y origen. Expone estado,
+            inicio de sesión, búsqueda, detalles, apertura de PDF y bundle PDF, con eventos de
+            progreso. Los timeouts son distintos por operación: estado corto; búsqueda decenas de
+            segundos; informes y lotes pueden durar minutos.
+          </p>
+          <h3>Propiedad y expiración del batch</h3>
+          <ul>
+            <li>Máximo 24 informes para detalles o descarga conjunta.</li>
+            <li>TTL actual: 15 minutos.</li>
+            <li>El batch queda ligado al tab HHR que lo creó y al RUT consultado.</li>
+            <li>Cada detalle solicitado debe pertenecer exactamente al batch.</li>
+            <li>Se rechazan UUID, IDs, duplicados, RUT o enlaces inconsistentes.</li>
+            <li>
+              La política es “todo o nada”: un detalle faltante o inválido invalida el análisis.
+            </li>
+          </ul>
+          <h3>Sesión de Syslab</h3>
+          <p>
+            <code>syslab-session-transport.js</code> prefiere un tab visible con sesión de primera
+            parte. Si no está disponible, usa un documento offscreen que aloja un iframe Syslab. El
+            relay sólo acepta el origen local exacto. La ventana de login pertenece a la extensión;
+            usuario y contraseña se usan para completar el formulario y el campo de contraseña se
+            limpia después. La aplicación no debe persistirlos ni registrarlos.
+          </p>
+          <h3>Fallback serverless</h3>
+          <p>
+            <code>syslab-proxy.ts</code> comprueba origen, token Firebase y rol autorizado; limita a
+            20 solicitudes por minuto/IP; aplica timeout aguas arriba; reintenta operaciones breves
+            y devuelve PDF con cache privada corta. La lista de roles debe sustituirse por la
+            política de la aplicación destino, no copiarse ciegamente.
+          </p>
+          <div class="callout danger">
+            No trasladar secretos a variables <code>VITE_*</code>: esas variables terminan en el
+            bundle del navegador. Credenciales, cookies y URL privada del proxy deben permanecer en
+            entorno de servidor o extensión. Nunca registrar HTML/PDF clínico completo.
+          </div>
+        </section>
+
+        <section id="consulta">
+          <h2>6. Consulta, selección y visualización</h2>
+          <h3>Entrada desde el censo</h3>
+          <ol>
+            <li>
+              <code>PatientLaboratoryTrigger</code> exige nombre, RUT chileno y episodio clínico; no
+              ofrece la acción para pasaporte o episodio ausente.
+            </li>
+            <li>
+              Construye un único <code>LabPatient</code> desde la fila y abre
+              <code>LabResultsViewerModal</code>.
+            </li>
+            <li>
+              <code>useSyslabAccess</code> determina <em>checking</em>, <em>connected</em>,
+              <em>login-required</em> o <em>unavailable</em>.
+            </li>
+            <li>
+              <code>useInitialLabViewerAutoSearch</code> espera modal abierto + RUT inicial +
+              conexión y dispara una sola búsqueda por apertura.
+            </li>
+            <li>
+              Al cambiar la identidad paciente/episodio se reinicia el estado para evitar fuga
+              visual de otro paciente.
+            </li>
+          </ol>
+          <h3>Entrada global</h3>
+          <p>
+            <code>LaboratoryQuickAction</code> abre el mismo visualizador con el conjunto de
+            pacientes y salud de conexión. En esa variante no se inyecta necesariamente la acción de
+            solicitud. La API pública del feature se importa desde
+            <code>@/features/laboratory/public</code> o <code>index.ts</code>.
+          </p>
+          <h3>Búsqueda y cache</h3>
+          <ul>
+            <li>React Query usa una clave por RUT.</li>
+            <li>
+              La consulta se habilita después de <code>search()</code>; la auto-búsqueda llama esa
+              misma acción.
+            </li>
+            <li><code>staleTime</code>: 10 minutos; <code>gcTime</code>: 30 minutos.</li>
+            <li>Como máximo hay un reintento, sólo para errores clasificados como recuperables.</li>
+            <li>
+              Para RUT externo puede enriquecer nombre/fecha de nacimiento desde maestro de
+              pacientes y PDF.
+            </li>
+          </ul>
+          <h3>Lista de órdenes</h3>
+          <ul>
+            <li>Tarjeta por fecha, hora, número de orden y etiquetas de exámenes.</li>
+            <li>Filtros rápidos: 7/14 días, 1/3/6/12 meses y rango de fechas.</li>
+            <li>Filtro por categoría clínica y selección individual o total.</li>
+            <li>Apertura de PDF, resumen compacto al portapapeles y descarga conjunta.</li>
+            <li>Barra fija de selección con limpiar y analizar.</li>
+          </ul>
+        </section>
+
+        <section id="parser">
+          <h2>7. Parser y normalización clínica</h2>
+          <h3>Pipeline primario</h3>
+          <div class="flow" role="img" aria-label="Pipeline del parser clínico">
+            <div class="node amber"><b>Informe</b><span>HTML o PDF Syslab</span></div>
+            <div class="node"><b>Extracción</b><span>DOM o pdf.js por coordenadas</span></div>
+            <div class="node"><b>Líneas</b><span>secciones y columnas</span></div>
+            <div class="node green"><b>LabResultRow</b><span>crudo + metadatos</span></div>
+            <div class="node green"><b>Normalización</b><span>alias y números locales</span></div>
+            <div class="node green"><b>Clasificación</b><span>muestra y elegibilidad</span></div>
+            <div class="node violet"><b>Agregación</b><span>análisis clínico</span></div>
+          </div>
+          <p>
+            <code>extension/lab-result-parser.js</code> es UMD puro para el runtime Chrome.
+            <code>labParserParity.test.ts</code> protege la equivalencia con la interpretación del
+            frontend. Al portar, conviene crear un único paquete puro compartido para evitar dos
+            parsers divergentes.
+          </p>
+
+          <h3>Reglas que son clínicamente significativas</h3>
+          <ul>
+            <li>
+              <strong>Número localizado:</strong> coma decimal; puntos se interpretan según
+              contexto. <code>1.071 U/L</code> es 1071, mientras <code>7,28 x10³/uL</code> conserva
+              7,28 y su escala/unidad.
+            </li>
+            <li>
+              <strong>Comparadores:</strong> valores <code>&lt;</code> o <code>&gt;</code> se
+              preservan; no se dibujan como igualdad en tendencias.
+            </li>
+            <li>
+              <strong>Fuente:</strong> se conserva <code>rawValue</code>,
+              <code>sourceSection</code>, unidad y referencia.
+            </li>
+            <li>
+              <strong>Muestra:</strong> sangre/suero/plasma, orina, otro líquido o desconocida; no
+              se mezclan automáticamente.
+            </li>
+            <li>
+              <strong>Orina:</strong> se excluyen analitos y metadatos urinarios de comparación
+              sistémica, excepto RPC/RAC.
+            </li>
+            <li>
+              <strong>Otros fluidos:</strong> se excluyen de comparación y tendencias sistémicas.
+            </li>
+            <li>
+              <strong>Alias:</strong> nombres equivalentes se canonizan (p. ej., creatinina, PCR,
+              hemoglobina, electrolitos, RPC/RAC y fracciones de bilirrubina).
+            </li>
+            <li>
+              <strong>Duplicados:</strong> se deduplican por análisis/fecha o firma clínica según la
+              fase.
+            </li>
+            <li>
+              <strong>Referencia:</strong> la banda gráfica sólo se usa cuando las series comparten
+              exactamente el rango.
+            </li>
+            <li>
+              <strong>Gráficos:</strong> líneas rectas, no suavizadas, para no sugerir valores
+              intermedios inexistentes.
+            </li>
+          </ul>
+
+          <h3>Enriquecimientos desde PDF</h3>
+          <p>
+            Si el detalle estructurado omite información conocida por el nombre de la orden, el
+            frontend vuelve al PDF original. <code>labMicrobiologyPdfService.ts</code> recupera
+            cultivos, antibiogramas y paneles PCR. <code>labUrinePdfService.ts</code> recupera RPC y
+            RAC. Ambos deduplican y, ante fallo, devuelven el detalle original sin bloquear todo el
+            flujo. <code>labPatientPdfMetadataService.ts</code> puede resolver fecha de nacimiento.
+          </p>
+        </section>
+
+        <section id="analisis">
+          <h2>8. Análisis: tendencias, comparación y microbiología</h2>
+          <h3>Orquestación</h3>
+          <ol>
+            <li>El usuario selecciona hasta 24 órdenes.</li>
+            <li>Se resuelven detalles como batch validado.</li>
+            <li>
+              Se enriquecen microbiología y relaciones urinarias desde PDF cuando falta información.
+            </li>
+            <li><code>processLabExamDetails</code> normaliza, clasifica y distribuye hallazgos.</li>
+            <li>Se fusionan bilirrubinas total/directa/indirecta por columna.</li>
+            <li>Se ordenan columnas cronológicamente y variables por prioridad clínica.</li>
+            <li>Se genera <code>LabAnalysisData</code> y se abre Tendencias por defecto.</li>
+            <li>La escritura Firestore ocurre en segundo plano y no impide mostrar resultados.</li>
+          </ol>
+
+          <div class="grid three">
+            <article class="card">
+              <h3>Tendencias</h3>
+              <ul>
+                <li>
+                  Grupos: electrolitos, renal, hepático, inflamación, hemograma, glicemia, gases,
+                  marcadores musculares, RPC/RAC y otros.
+                </li>
+                <li>Sólo variables numéricas elegibles, comparador “=” y al menos dos puntos.</li>
+                <li>Ventanas: 24 h, 3/7/30 días o todo.</li>
+                <li>Búsqueda de variable y filtro “sólo alterados”.</li>
+                <li>Exportación de gráficos a PNG con escala 2.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Comparación</h3>
+              <ul>
+                <li>Matriz variable × fecha/hora con agrupación clínica.</li>
+                <li>Valores cualitativos y alertas; pin de variables importantes.</li>
+                <li>Ocultar/restaurar columnas y alternar hora.</li>
+                <li>Buscador, colapso de grupos y orden clínico explícito.</li>
+                <li>Exportación Excel configurable por fechas y variables.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Microbiología</h3>
+              <ul>
+                <li>
+                  C. difficile, copro/hemocultivo, urocultivo, otros cultivos, PCR 8 virus y
+                  arbovirus.
+                </li>
+                <li>Reglas fuertes/débiles por nombre de orden y hallazgo.</li>
+                <li>
+                  Alerta por positivo, reactivo, detectado, aislado, desarrollo o
+                  sensibilidad/resistencia.
+                </li>
+                <li>Acceso al PDF fuente de cada entrada.</li>
+              </ul>
+            </article>
+          </div>
+          <div class="callout warn">
+            El frontend y <code>extension/lab-viewer.js</code> implementan modelos analíticos
+            relacionados, pero no idénticos. No deben combinarse por nombre. Para una extracción
+            nueva, elegir el pipeline TypeScript del feature como dominio principal y usar el
+            runtime de extensión sólo como transporte/parser en el contexto Syslab.
+          </div>
+        </section>
+
+        <section id="solicitud">
+          <h2>9. Mundo “Solicitar exámenes”</h2>
+          <h3>Flujo HHR local imprimible</h3>
+          <p>
+            El botón del visualizador recibe <code>onRequestExams</code>. En el disparador de la
+            fila, cerrar el visualizador abre <code>ExamRequestModal</code> con el paciente actual.
+            El formulario replica el papel institucional y contiene procedencia, previsión,
+            identificación, cama/diagnóstico, categorías, tubos, médico tratante y firma.
+          </p>
+          <ul>
+            <li>
+              Estado inicial: selección vacía, procedencia “Hospitalización” y previsión desde
+              paciente o “FONASA”.
+            </li>
+            <li>
+              Selección: <code>Set&lt;string&gt;</code> con clave <code>categoría|examen</code>.
+            </li>
+            <li>
+              Categorías: bioquímica, hematología, coagulación, hormonas, microbiología, orina,
+              parasitología, virología, inmunología y otros.
+            </li>
+            <li>
+              Presenta tubos amarillo/rojo, lila, celeste y sección de tubo verde para
+              electrolitos/lactato.
+            </li>
+            <li>
+              Impresión: oculta elementos de pantalla, limpia temporalmente títulos, llama
+              <code>window.print()</code> y restaura el DOM.
+            </li>
+          </ul>
+          <div class="callout danger">
+            La selección actual no se serializa ni se envía. No hay endpoint de creación de orden,
+            folio de confirmación ni reconciliación con Syslab. Si la aplicación ambulatoria
+            necesita solicitud electrónica, eso es un proyecto nuevo con autorización clínica,
+            auditoría, idempotencia, estado y confirmación de recepción.
+          </div>
+
+          <h3>Flujo adyacente de solicitudes oficiales</h3>
+          <p>
+            La extensión también contiene <code>content-exam-request-print.js</code>,
+            <code>exam-request-print.js</code> y <code>exam-request-pdf.js</code>. Ese flujo lee
+            solicitudes oficiales ya creadas en Ficha Médico, valida que 2–3 pertenezcan al mismo
+            paciente y establecimiento, conserva folios/códigos/diferencias y genera un PDF
+            integrado. No es el mismo flujo del formulario local y debe portarse por separado si
+            Rayen ambulatorio lo necesita.
+          </p>
+        </section>
+
+        <section id="pdf">
+          <h2>10. PDF, resumen y exportaciones</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Acción</th>
+                  <th>Implementación</th>
+                  <th>Restricción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Ver PDF</td>
+                  <td>
+                    La extensión valida RUT del informe antes de abrir una página de impresión; el
+                    fallback obtiene blob/array buffer.
+                  </td>
+                  <td>No abrir URL interna entregada por cliente sin revalidar batch.</td>
+                </tr>
+                <tr>
+                  <td>Descargar selección</td>
+                  <td>
+                    <code>useLabViewerPdfDownload</code> + <code>syslabPdfBundleService</code>;
+                    extensión o merge heredado con <code>pdf-lib</code>.
+                  </td>
+                  <td>Máximo 24; cancela estado si cambia la selección.</td>
+                </tr>
+                <tr>
+                  <td>Copiar resumen de orden</td>
+                  <td><code>labSummaryController</code> produce resumen clínico compacto.</td>
+                  <td>Debe conservar resultados cualitativos relevantes.</td>
+                </tr>
+                <tr>
+                  <td>Copiar resumen analítico</td>
+                  <td>Resumen del conjunto analizado al portapapeles.</td>
+                  <td>No registrar el contenido en telemetría.</td>
+                </tr>
+                <tr>
+                  <td>Descargar PNG</td>
+                  <td><code>labTrendChartExport.ts</code> renderiza SVG a canvas, escala 2.</td>
+                  <td>Verificar fuentes, etiquetas y fondo.</td>
+                </tr>
+                <tr>
+                  <td>Exportar Excel</td>
+                  <td>
+                    <code>labExcelService.ts</code>, selección configurable de fechas/variables y
+                    metadatos del paciente.
+                  </td>
+                  <td>Carga diferida; controlar PHI del archivo generado.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="persistencia">
+          <h2>11. Caché, persistencia y privacidad</h2>
+          <h3>Caché de consulta</h3>
+          <p>
+            React Query conserva listas por RUT 10 minutos como frescas y las recolecta después de
+            30 minutos. Una búsqueda explícita invalida la clave y refresca.
+          </p>
+          <h3>Firestore</h3>
+          <pre><code>hospitals/{hospitalId}/labResults/{rutSinPuntos}
+{
+  rut,
+  patientName,
+  lastUpdated,
+  exams: {
+    [examId]: { date, time, findings, parsedAt }
+  }
+}</code></pre>
+          <p>
+            <code>saveLabResults</code> usa <code>setDoc(..., { merge: true })</code>. Omite órdenes
+            sin hallazgos. Un rechazo de permisos o fallo de persistencia sólo genera log
+            controlado: la UI continúa con resultados en memoria. <code>getLabResults</code> valida
+            forma básica y devuelve <code>null</code> ante ausencia o error.
+          </p>
+          <div class="callout warn">
+            La aplicación destino debe decidir si necesita esta persistencia. Si sólo requiere
+            consulta, omitir Firestore reduce exposición y complejidad. Si la conserva, definir
+            retención, reglas por hospital, auditoría, borrado y cifrado; no usar el RUT como clave
+            pública ni en logs de terceros.
+          </div>
+        </section>
+
+        <section id="inventario">
+          <h2>12. Inventario de archivos y responsabilidades</h2>
+          <p>
+            Rutas relativas a la raíz del repositorio. La tabla cubre el núcleo ejecutable y sus
+            contratos; los componentes pequeños se agrupan por función.
+          </p>
+
+          <details open>
+            <summary>Entradas, API pública y tipos</summary>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Archivo</th>
+                    <th>Responsabilidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>src/features/laboratory/public.ts</code>, <code>index.ts</code></td>
+                    <td>Frontera pública estable del feature.</td>
+                  </tr>
+                  <tr>
+                    <td><code>src/features/laboratory/README.md</code></td>
+                    <td>Arquitectura resumida, requisitos y reglas clínicas.</td>
+                  </tr>
+                  <tr>
+                    <td><code>src/types/domain/labExamTypes.ts</code></td>
+                    <td>Paciente, orden, detalle, resultado y estados de PDF.</td>
+                  </tr>
+                  <tr>
+                    <td><code>src/types/domain/labAnalyticsTypes.ts</code></td>
+                    <td>Tendencias, comparación, microbiología y tabs.</td>
+                  </tr>
+                  <tr>
+                    <td><code>src/features/laboratory/types/labViewerTypes.ts</code></td>
+                    <td>Contratos de presentación del visualizador.</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code
+                        >src/features/census/components/patient-row/PatientLaboratoryTrigger.tsx</code
+                      >
+                    </td>
+                    <td>
+                      Acción del censo, identidad episodio/RUT, auto-búsqueda y transición a
+                      solicitud.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>src/features/laboratory/components/LaboratoryQuickAction.tsx</code>
+                    </td>
+                    <td>Entrada global para múltiples pacientes.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <details open>
+            <summary>Hooks y orquestación React</summary>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Archivo</th>
+                    <th>Responsabilidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>hooks/useLabViewer.ts</code></td>
+                    <td>Facade del estado y acciones del módulo.</td>
+                  </tr>
+                  <tr>
+                    <td><code>hooks/useLabViewerQuery.ts</code></td>
+                    <td>
+                      Paciente, búsqueda, cache, errores, PDF individual y enriquecimiento de RUT
+                      externo.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>hooks/useLabViewerSelection.ts</code></td>
+                    <td>Selección, filtros temporales/categoría y límites.</td>
+                  </tr>
+                  <tr>
+                    <td><code>hooks/useLabViewerAnalysis.ts</code></td>
+                    <td>Detalles, progreso, enriquecimientos, análisis, resumen y guardado.</td>
+                  </tr>
+                  <tr>
+                    <td><code>hooks/useLabViewerPdfDownload.ts</code></td>
+                    <td>Bundle PDF, progreso, cancelación y errores.</td>
+                  </tr>
+                  <tr>
+                    <td><code>hooks/useInitialLabViewerAutoSearch.ts</code></td>
+                    <td>Búsqueda automática una vez por apertura y paciente.</td>
+                  </tr>
+                  <tr>
+                    <td><code>hooks/useSyslabAccess.ts</code></td>
+                    <td>Estado de extensión/sesión, popup y polling de conexión.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <details open>
+            <summary>Componentes del visualizador</summary>
+            <p>
+              <code>LabResultsViewerModal</code> compone el flujo. <code>LabViewerControls</code>,
+              <code>SyslabAccessPrompt</code>, <code>LabViewerProgress</code>,
+              <code>LabViewerEmptyState</code>, <code>LabViewerExamList</code>,
+              <code>LabViewerExamCard</code>, <code>LabViewerExamFilters</code>,
+              <code>LabViewerAnalyzeBar</code>, <code>LabViewerPdf</code> y
+              <code>LabViewerPdfDownloadStatus</code> cubren consulta/lista/PDF. El análisis usa
+              <code>LabViewerAnalysis</code>, <code>LabViewerTrendCharts</code>,
+              <code>LabTrendGroupCard</code>, helpers/renderers/toolbar de gráficos,
+              <code>LabViewerComparisonTable*</code>, <code>LabViewerComparisonToolbar</code>,
+              <code>LabViewerMicrobiologyPanel</code>, <code>LabExportConfigDialog</code> y
+              <code>LabChartErrorBoundary</code>.
+            </p>
+          </details>
+
+          <details open>
+            <summary>Controladores puros</summary>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Archivo</th>
+                    <th>Responsabilidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <code>labViewerController.ts</code>, <code>labExamListController.ts</code>
+                    </td>
+                    <td>Pacientes únicos, estado shell, errores/retry, filtros y selección.</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>labFormattingController.ts</code>, <code>labNumericParser.ts</code>
+                    </td>
+                    <td>
+                      Fechas, números locales, referencias, unidades, normalización y fuera de
+                      rango.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>labSpecimenController.ts</code></td>
+                    <td>Clasificación de muestra y política de elegibilidad.</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>labAnalyticsController.ts</code>,
+                      <code>labDetailProcessingController.ts</code>,
+                      <code>labFindingCollectionController.ts</code>
+                    </td>
+                    <td>Pipeline y recolección de hallazgos.</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>labAnalyticsVariableController.ts</code>,
+                      <code>labAnalysisResultController.ts</code>
+                    </td>
+                    <td>Variables, columnas, tendencias, bilirrubinas y resultado final.</td>
+                  </tr>
+                  <tr>
+                    <td><code>labTrendFilterController.ts</code></td>
+                    <td>Ventanas temporales, búsqueda y alterados.</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>labComparisonController.ts</code>,
+                      <code>labComparisonTableController.ts</code>
+                    </td>
+                    <td>Matriz, grupos, pin, columnas, alertas y portapapeles.</td>
+                  </tr>
+                  <tr>
+                    <td><code>labMicrobiologyAnalyticsController.ts</code></td>
+                    <td>Categorización, hallazgos, alertas y entradas microbiológicas.</td>
+                  </tr>
+                  <tr>
+                    <td><code>labSummaryController.ts</code></td>
+                    <td>Resumen clínico compacto y abreviaturas.</td>
+                  </tr>
+                  <tr>
+                    <td><code>labDateDisplayController.ts</code></td>
+                    <td>Etiquetas y formato de fechas de UI.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <details open>
+            <summary>Catálogos y constantes</summary>
+            <p>
+              <code>labNormalizationConstants</code> contiene alias;
+              <code>labTrendConstants</code> grupos/variables;
+              <code>labChartConstants</code> colores, trazos y layouts;
+              <code>labComparisonCatalogConstants</code>, <code>labComparisonConstants</code>,
+              <code>labComparisonGroupingConstants</code> y
+              <code>labComparisonPreferenceConstants</code> gobiernan orden, exclusiones, grupos y
+              pines; <code>labMicrobiologyRuleConstants</code> define reglas por categoría;
+              <code>labExamConstants</code> filtros/patrones; <code>labProgressConstants</code> las
+              etapas visibles; <code>labConstants</code> límites generales.
+            </p>
+          </details>
+
+          <details open>
+            <summary>Servicios frontend</summary>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Archivo</th>
+                    <th>Responsabilidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>src/services/laboratory/syslabService.ts</code></td>
+                    <td>
+                      Gateway extensión-first y fallback HTTP: búsqueda, detalles, PDF y bundle.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>src/services/laboratory/syslabExtensionBridge.ts</code></td>
+                    <td>
+                      Protocolo <code>postMessage</code>, validación, timeouts, links opacos y
+                      progreso.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>services/labMicrobiologyPdfService.ts</code></td>
+                    <td>Fallback de cultivos/antibiograma/PCR desde texto PDF.</td>
+                  </tr>
+                  <tr>
+                    <td><code>services/labUrinePdfService.ts</code></td>
+                    <td>Fallback RPC/RAC.</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>services/labPatientPdfMetadataService.ts</code>,
+                      <code>labPdfTextSupport.ts</code>
+                    </td>
+                    <td>Metadatos de paciente y extracción común con pdf.js.</td>
+                  </tr>
+                  <tr>
+                    <td><code>services/labFirestoreService.ts</code></td>
+                    <td>Persistencia opcional no bloqueante.</td>
+                  </tr>
+                  <tr>
+                    <td><code>services/labExcelService.ts</code></td>
+                    <td>Exportación comparativa a Excel.</td>
+                  </tr>
+                  <tr>
+                    <td><code>src/services/laboratory/syslabPdfBundleService.ts</code></td>
+                    <td>Descarga/merge de informes seleccionados.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <details open>
+            <summary>Extensión Chrome MV3</summary>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Archivo</th>
+                    <th>Responsabilidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>extension/manifest.json</code></td>
+                    <td>
+                      Permisos, host permissions, content scripts y recursos; versión auditada
+                      0.48.8.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>extension/background.js</code></td>
+                    <td>Carga sincrónica de runtimes en el service worker MV3 y routing.</td>
+                  </tr>
+                  <tr>
+                    <td><code>content-hhr-syslab.js</code></td>
+                    <td>Relay HHR ↔ runtime, control de origen, enlaces y tamaño.</td>
+                  </tr>
+                  <tr>
+                    <td><code>syslab-runtime.js</code></td>
+                    <td>
+                      Orquestador de estado/login/search/details/PDF; batches, TTL, RUT, tab y
+                      límites.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>syslab-session-transport.js</code></td>
+                    <td>Elección tab visible/offscreen y transporte tolerante a navegación.</td>
+                  </tr>
+                  <tr>
+                    <td><code>syslab-bridge.js</code></td>
+                    <td>
+                      DOM real Syslab, login, búsqueda, fetch de informe, extracción PDF/HTML y
+                      verificación RUT.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>syslab-offscreen.html</code>, <code>syslab-offscreen.js</code></td>
+                    <td>Contexto persistente e iframe local con relay de origen exacto.</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>syslab-login-window.js</code>, <code>syslab-login.html</code>,
+                      <code>syslab-login.js</code>
+                    </td>
+                    <td>Popup seguro y credenciales transitorias.</td>
+                  </tr>
+                  <tr>
+                    <td><code>lab-result-parser.js</code>, <code>lab-viewer.js</code></td>
+                    <td>Parser y modelo analítico UMD dentro de la extensión.</td>
+                  </tr>
+                  <tr>
+                    <td><code>syslab-pdf-bundle.js</code>, <code>syslab-pdf-filename.js</code></td>
+                    <td>Validación, merge, progreso y nombres de PDF.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <details open>
+            <summary>Solicitud de exámenes</summary>
+            <p>
+              HHR imprimible: <code>src/components/modals/ExamRequestModal.tsx</code>,
+              <code>examRequestPrintStyles.ts</code>, componentes bajo
+              <code>src/components/exam-request/</code>, <code>src/hooks/useExamRequest.ts</code>,
+              controladores <code>examRequestController.ts</code> y
+              <code>examRequestPrintController.ts</code>, shell
+              <code>examRequestModalController.ts</code> y catálogo
+              <code>src/constants/examCategories.ts</code>. Consolidación oficial de Ficha Médico:
+              <code>extension/content-exam-request-print.js</code>,
+              <code>exam-request-print.js</code> y <code>exam-request-pdf.js</code>.
+            </p>
+          </details>
+
+          <details open>
+            <summary>Infraestructura, documentación y dependencias</summary>
+            <p>
+              <code>netlify/functions/syslab-proxy.ts</code> es el gateway serverless heredado;
+              <code>src/config/queryClient</code> define claves;
+              <code>firestorePaths.ts</code> define la colección. Documentación adicional:
+              <code>docs/LABORATORY_FORM_GUIDE.md</code> y
+              <code>docs/runbooks/laboratory-syslab-issues.md</code>. Dependencias principales:
+              React, TanStack Query, Recharts, ExcelJS, pdf-lib, pdfjs-dist y lucide-react.
+            </p>
+          </details>
+        </section>
+
+        <section id="extraccion">
+          <h2>13. Plan recomendado para extraerlo a Rayen ambulatorio</h2>
+          <ol>
+            <li>
+              <strong>Congelar contratos:</strong> copiar tipos y fixtures clínicos a un paquete
+              <code>laboratory-core</code>; ejecutar primero pruebas de números, muestras y parser.
+            </li>
+            <li>
+              <strong>Definir el puerto:</strong> <code>search(rut)</code>,
+              <code>details(refs)</code>, <code>openPdf(ref)</code>,
+              <code>downloadBundle(refs)</code> y <code>status()</code>.
+            </li>
+            <li>
+              <strong>Portar extensión:</strong> reutilizar el transporte de sesión y su modelo de
+              batch, cambiando sólo orígenes autorizados y el adaptador de identidad de la app.
+            </li>
+            <li>
+              <strong>No filtrar URL reales:</strong> conservar referencias opacas, TTL, propiedad
+              por tab, límite 24 y validación exacta de RUT.
+            </li>
+            <li>
+              <strong>Portar el dominio TypeScript:</strong> números, alias, muestra, comparación,
+              tendencias, microbiología, resumen y enriquecimientos.
+            </li>
+            <li>
+              <strong>Adaptar UI:</strong> envolver el modal con <code>patientName</code>, RUT y un
+              episodio ambulatorio; reiniciar al cambiar identidad.
+            </li>
+            <li>
+              <strong>Decidir persistencia:</strong> usar sólo caché en memoria al inicio. Agregar
+              repositorio persistente después de definir retención y acceso.
+            </li>
+            <li>
+              <strong>Portar solicitud aparte:</strong> si se necesita impresión, copiar
+              formulario/catálogo/estilos; si se necesita envío electrónico, diseñar un servicio
+              nuevo.
+            </li>
+            <li>
+              <strong>Agregar el flujo oficial sólo si aporta:</strong> la unión de solicitudes de
+              Ficha Médico exige ese contexto DOM; no pertenece al visualizador base.
+            </li>
+            <li>
+              <strong>Validar con fixtures y entorno real:</strong> después de tests, comprobar red
+              institucional, sesión vencida, paciente sin resultados, PDF y batch mixto rechazado.
+            </li>
+          </ol>
+
+          <h3>Qué copiar, qué adaptar y qué no copiar</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Elemento</th>
+                  <th>Decisión</th>
+                  <th>Motivo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Tipos, parser, normalización, muestra y controladores analíticos</td>
+                  <td><span class="status copy">Copiar/refactorizar</span></td>
+                  <td>Son el conocimiento clínico portátil.</td>
+                </tr>
+                <tr>
+                  <td>Fixtures dorados y pruebas de regresión/paridad</td>
+                  <td><span class="status copy">Copiar primero</span></td>
+                  <td>Evitan cambiar significado durante el port.</td>
+                </tr>
+                <tr>
+                  <td>Bridge y runtime de extensión</td>
+                  <td><span class="status adapt">Adaptar</span></td>
+                  <td>Cambiar orígenes/manifest y conservar seguridad de batch/sesión.</td>
+                </tr>
+                <tr>
+                  <td><code>PatientLaboratoryTrigger</code></td>
+                  <td><span class="status adapt">Adaptar</span></td>
+                  <td>Está acoplado a fila de censo y episodio HHR.</td>
+                </tr>
+                <tr>
+                  <td>React UI del modal</td>
+                  <td><span class="status adapt">Adaptar</span></td>
+                  <td>Reutilizable, pero depende de estilos/componentes HHR.</td>
+                </tr>
+                <tr>
+                  <td>Firestore</td>
+                  <td><span class="status adapt">Opcional</span></td>
+                  <td>No es necesario para consulta; requiere gobernanza propia.</td>
+                </tr>
+                <tr>
+                  <td>Netlify proxy</td>
+                  <td><span class="status adapt">Opcional</span></td>
+                  <td>Depende de backend externo y autenticación HHR.</td>
+                </tr>
+                <tr>
+                  <td>Roles Firebase HHR y rutas hospitalarias</td>
+                  <td><span class="status avoid">No copiar</span></td>
+                  <td>Deben reemplazarse por autorización de la app destino.</td>
+                </tr>
+                <tr>
+                  <td>Credenciales o valores de entorno</td>
+                  <td><span class="status avoid">Nunca copiar</span></td>
+                  <td>Secretos y topología no pertenecen al código/documento.</td>
+                </tr>
+                <tr>
+                  <td>Supuesto de orden electrónica</td>
+                  <td><span class="status avoid">No inventar</span></td>
+                  <td>El módulo actual sólo imprime la solicitud.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Interfaz propuesta</h3>
+          <pre><code>interface LaboratoryGateway {
+  getAccessState(): Promise&lt;'connected' | 'login-required' | 'unavailable'&gt;;
+  requestLogin(): Promise&lt;void&gt;;
+  search(patientRut: string): Promise&lt;SyslabExamItem[]&gt;;
+  fetchDetails(refs: string[], expectedRut: string): Promise&lt;SyslabExamDetail[]&gt;;
+  openPdf(ref: string, expectedRut: string): Promise&lt;void&gt;;
+  downloadBundle(refs: string[], expectedRut: string): Promise&lt;void&gt;;
+}
+
+interface LabResultsRepository {
+  save(patient: LabPatient, exams: StoredLabExam[]): Promise&lt;void&gt;;
+  load(patientRut: string): Promise&lt;LabResultsDocument | null&gt;;
+}</code></pre>
+        </section>
+
+        <section id="pruebas">
+          <h2>14. Pruebas, invariantes y aceptación</h2>
+          <h3>Matriz existente que se debe trasladar</h3>
+          <ul class="checklist">
+            <li>Componentes, hook principal, query, selección, auto-búsqueda y descarga PDF.</li>
+            <li>Formato, números localizados, referencias, muestra y regresiones clínicas.</li>
+            <li>
+              Clasificación, tendencias, comparación, microbiología, RPC/RAC y fixtures dorados.
+            </li>
+            <li>Paridad entre parser del frontend y parser UMD de la extensión.</li>
+            <li>Servicios de extensión, bundle, Firestore, Excel y enriquecimientos PDF.</li>
+            <li>Netlify proxy: origen, autenticación, roles, rate limit, errores y PDF.</li>
+            <li>Runtime/session/bridge/content wiring/login/PDF de la extensión.</li>
+            <li>Formulario de solicitud, catálogo, controladores e impresión.</li>
+            <li>Smoke E2E: <code>e2e/laboratory-flow-smoke.spec.ts</code>.</li>
+            <li>Gobernanza de imports públicos.</li>
+          </ul>
+          <h3>Criterios de aceptación para la nueva app</h3>
+          <ol>
+            <li>
+              Un clic desde un paciente válido abre y busca automáticamente sólo después de
+              conexión.
+            </li>
+            <li>La respuesta de búsqueda y cada PDF se rechazan si el RUT no coincide.</li>
+            <li>
+              Un batch expirado, ajeno a otro tab, mixto o mayor a 24 falla con mensaje recuperable.
+            </li>
+            <li>Los números con coma/punto y unidades escaladas reproducen fixtures dorados.</li>
+            <li>
+              Orina/otros fluidos no contaminan series sistémicas; RPC/RAC sí aparecen cuando
+              corresponden.
+            </li>
+            <li>Microbiología clasifica cultivos/PCR y abre su fuente.</li>
+            <li>
+              Comparación, tendencias, PNG, Excel, resumen y bundle PDF funcionan con selección
+              real.
+            </li>
+            <li>Sesión vencida ofrece login y se recupera sin recargar toda la app.</li>
+            <li>Fallo de cache/persistencia no oculta resultados ya obtenidos.</li>
+            <li>
+              La solicitud impresa conserva paciente, selección, tubos y estilos, sin afirmar envío
+              electrónico.
+            </li>
+            <li>No hay secretos, RUT ni contenido clínico en logs, analítica o errores remotos.</li>
+          </ol>
+          <h3>Comandos orientativos en este repositorio</h3>
+          <pre><code>npm run typecheck
+npm run check:quality
+npm run build
+npx vitest run src/tests/features/laboratory
+npx vitest run src/tests/services/laboratory
+npx vitest run src/tests/rayen-import/syslab*.test.ts
+npx vitest run src/tests/components/ExamRequestModal.integration.test.tsx
+npx playwright test e2e/laboratory-flow-smoke.spec.ts</code></pre>
+          <p>
+            Antes de usar estos comandos en otra base, revisar los scripts reales del
+            <code>package.json</code>; la lista expresa cobertura, no sustituye el pipeline CI.
+          </p>
+        </section>
+
+        <section id="riesgos">
+          <h2>15. Riesgos conocidos y decisiones pendientes</h2>
+          <div class="grid">
+            <article class="card">
+              <h3>Origen autorizado</h3>
+              <p>
+                El manifest contempla más hosts que <code>content-hhr-syslab.js</code>. Al portar,
+                mantener una única allowlist derivada y probar cada ambiente; no ampliar con
+                comodines.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Doble implementación analítica</h3>
+              <p>
+                TypeScript y UMD tienen solapamiento. La evolución ideal es un core puro compilable
+                para ambos contextos, con fixtures compartidos.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Backend incompleto en este repo</h3>
+              <p>
+                La función Netlify sólo reenvía al proxy Express. Una réplica basada exclusivamente
+                en HTTP necesita localizar/crear ese servicio y su gestión segura de sesión.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Persistencia clínica</h3>
+              <p>
+                Guardar resultados parseados aumenta utilidad y superficie de riesgo. Definir
+                autoridad, caducidad y reconciliación con el informe fuente.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Parser dependiente del proveedor</h3>
+              <p>
+                Cambios de HTML/PDF Syslab pueden quebrarlo. Mantener fixtures desidentificados,
+                telemetría sin PHI y fallos explícitos; nunca “adivinar” silenciosamente.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Solicitud electrónica futura</h3>
+              <p>
+                Requiere un contrato clínico nuevo: autor, timestamp, indicación, folio,
+                idempotencia, firma, estado, cancelación, auditoría y confirmación remota.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section id="prompt">
+          <h2>16. Prompt operativo para entregar a otra IA</h2>
+          <p>
+            Se puede copiar el bloque siguiente junto con acceso de lectura al repositorio destino y
+            a esta base:
+          </p>
+          <pre><code>Objetivo: portar el módulo Laboratorio/Syslab de HHR a la aplicación local de
+atenciones ambulatorias Rayen, preservando su semántica clínica y seguridad.
+
+1. Lee completa esta guía y luego abre cada archivo del inventario; no implementes
+   desde la guía sin verificar el código en el commit base 0aeaaa10.
+2. Empieza por los tipos, fixtures dorados y controladores puros. Ejecuta las pruebas
+   de números localizados, normalización, muestra, microbiología, orina y paridad.
+3. Define LaboratoryGateway y adapta la extensión como transporte primario. Conserva
+   RUT verificado, refs opacas, TTL 15 min, propiedad por tab, máximo 24 y batch íntegro.
+4. Adapta PatientLaboratoryTrigger a la identidad ambulatoria RUT + episodio/atención.
+   Resetea estado al cambiar identidad y auto-busca sólo tras conexión confirmada.
+5. Porta el visualizador con lista, filtros, PDF, selección, tendencias, comparación,
+   microbiología, resumen, PNG, Excel y bundle PDF. No mezcles muestras biológicas.
+6. Implementa persistencia detrás de un repositorio opcional; comienza sin Firestore
+   si no existe una política explícita de retención y acceso.
+7. Porta “Solicitar exámenes” como formulario imprimible independiente. No afirmes ni
+   simules envío electrónico: el código actual no lo realiza.
+8. Trata el PDF integrado de solicitudes oficiales como flujo adicional y optativo.
+9. No copies secretos, credenciales, cookies, datos de pacientes ni roles HHR. Cambia
+   allowlists y autorización por las del destino, con mínimo privilegio.
+10. Entrega: mapa de cambios, decisiones, pruebas unitarias/E2E, evidencia de entorno
+    institucional, riesgos pendientes y diferencia explícita entre implementado,
+    probado localmente y validado contra Syslab real.</code></pre>
+        </section>
+
+        <footer>
+          Documento generado desde inspección directa del código en
+          <code>origin/main@0aeaaa10</code>. No contiene secretos ni datos clínicos de las capturas.
+          Las capturas recibidas se usaron sólo como referencia visual del producto.
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
