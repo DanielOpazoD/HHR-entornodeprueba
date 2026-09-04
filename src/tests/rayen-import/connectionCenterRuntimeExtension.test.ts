@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-
 import '../../../extension/hhr-connection-repair-controls.js';
+import '../../../extension/hhr-connection-action-model.js';
 import '../../../extension/hhr-connection-center-runtime.js';
 
 type Message = { type?: string; renew?: boolean };
@@ -41,6 +41,7 @@ const deferred = <T>() => {
 const report = (fichaStatus = 'ready', camasStatus = 'ready', name = 'Ana Riroroko') => ({
   version: '0.48.10',
   runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+  capabilities: ['clean-connection-repair'],
   fichaMedico: {
     status: fichaStatus,
     reason: fichaStatus === 'ready' ? 'connected' : 'session_expired',
@@ -170,15 +171,15 @@ describe('Centro HHR connection runtime', () => {
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     second.resolve(report('ready', 'ready', 'Respuesta nueva'));
     await flush();
-    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
-      'Respuesta nueva'
-    );
+    expect(
+      root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue
+    ).toBe('Respuesta nueva');
 
     first.resolve(report('ready', 'missing', 'Respuesta vieja'));
     await flush();
-    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
-      'Respuesta nueva'
-    );
+    expect(
+      root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue
+    ).toBe('Respuesta nueva');
     expect(root.querySelector('.hhr-connection-status')?.textContent).toBe('Conectado');
   });
 
@@ -196,15 +197,15 @@ describe('Centro HHR connection runtime', () => {
     runtime.renderConnectionCenter(root, '2');
     oldLoad.resolve(report('ready', 'ready', 'Paciente anterior'));
     await flush();
-    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
-      'Sesión clínica'
-    );
+    expect(
+      root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue
+    ).toBe('Sesión clínica');
 
     newLoad.resolve(report('ready', 'ready', 'Paciente vigente'));
     await flush();
-    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
-      'Paciente vigente'
-    );
+    expect(
+      root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue
+    ).toBe('Paciente vigente');
   });
 
   it('cancels the 700 ms start and 1 s polling timers on module change', async () => {
@@ -428,9 +429,9 @@ describe('Centro HHR connection runtime', () => {
     runtime.dispose();
     load.resolve(report('ready', 'ready', 'No debe aparecer'));
     await flush();
-    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
-      'Sesión clínica'
-    );
+    expect(
+      root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue
+    ).toBe('Sesión clínica');
   });
 
   it('renders the four connection surfaces and copies a scrubbed diagnostic', async () => {
@@ -445,10 +446,15 @@ describe('Centro HHR connection runtime', () => {
     runtime.renderConnectionCenter(root, '141121');
     await flush();
     expect(root.querySelectorAll('.hhr-connection-card')).toHaveLength(4);
-    expect(root.querySelector('.hhr-connection-extension .hhr-connection-user')?.textContent)
-      .toContain('Versión 0.48.10');
-    expect(root.querySelector('.hhr-connection-hhr .hhr-connection-status')?.textContent)
-      .toBe('Conectado');
+    expect(
+      root.querySelector('.hhr-connection-extension .hhr-connection-user')?.textContent
+    ).toContain('Versión 0.48.10');
+    expect(root.querySelector('.hhr-connection-hhr .hhr-connection-status')?.textContent).toBe(
+      'Conectado'
+    );
+    expect(root.querySelector('.hhr-connection-refresh')?.textContent).toBe('Actualizar estado');
+    expect(root.querySelector<HTMLButtonElement>('.hhr-connection-connect')?.hidden).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('.hhr-connection-repair')?.hidden).toBe(true);
 
     root.querySelector<HTMLButtonElement>('.hhr-connection-copy')?.click();
     await flush();
@@ -463,16 +469,8 @@ describe('Centro HHR connection runtime', () => {
   it('offers clean repair and asks for manual login only when the runtime confirms expiry', async () => {
     const expired = {
       ...report('missing', 'missing'),
-      fichaMedico: {
-        status: 'stale',
-        reason: 'session_expired',
-        message: 'La sesión venció.',
-      },
-      gestionCamas: {
-        status: 'missing',
-        reason: 'session_expired',
-        message: 'La sesión venció.',
-      },
+      fichaMedico: { status: 'stale', reason: 'session_expired', message: 'La sesión venció.' },
+      gestionCamas: { status: 'missing', reason: 'session_expired', message: 'La sesión venció.' },
     };
     const sendMessage = vi.fn(async (message: Message) =>
       message.type === messages.CONNECTION_REPAIR_REQUEST
@@ -484,14 +482,18 @@ describe('Centro HHR connection runtime', () => {
     runtime.renderConnectionCenter(root, '141121');
     await flush();
 
+    expect(root.querySelector<HTMLButtonElement>('.hhr-connection-repair')?.hidden).toBe(false);
+    expect(root.querySelector('.hhr-connection-repair')?.textContent).toBe(
+      'Iniciar sesión en pestañas nuevas'
+    );
     root.querySelector<HTMLButtonElement>('.hhr-connection-repair')?.click();
     await flush();
     expect(sendMessage).toHaveBeenCalledWith({ type: messages.CONNECTION_REPAIR_REQUEST });
     expect(root.querySelector('.hhr-connection-feedback')?.textContent).toContain(
-      'Iniciar sesión nuevamente'
+      'Inicia sesión en las pestañas nuevas'
     );
-    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-status')?.textContent)
-      .toBe('Sesión vencida');
+    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-status')?.textContent).toBe(
+      'Sesión vencida'
+    );
   });
-
 });

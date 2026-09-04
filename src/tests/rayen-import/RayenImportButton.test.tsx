@@ -299,7 +299,11 @@ describe('RayenImportButton', () => {
         protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
         checkedAt: '2026-07-14T05:00:00.000Z',
         fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
-        gestionCamas: { status: 'missing', message: 'Gestión de Camas no está abierta.' },
+        gestionCamas: {
+          status: 'missing',
+          reason: 'tab_missing',
+          message: 'Gestión de Camas no está abierta.',
+        },
       },
       message:
         'Gestión de Camas no está abierta. Se requieren Ficha Médico y Gestión de Camas para sincronizar.',
@@ -339,8 +343,7 @@ describe('RayenImportButton', () => {
     expect(screen.getByTestId('rayen-connection-monitor')).toBeVisible();
     expect(screen.getByText('Gestión de Camas no está abierta.')).toBeVisible();
     expect(screen.getByTestId('rayen-monitor-connect-gc')).toBeVisible();
-
-    fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
+    expect(screen.queryByTestId('rayen-monitor-refresh')).not.toBeInTheDocument();
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
@@ -370,9 +373,13 @@ describe('RayenImportButton', () => {
     fireEvent.click(screen.getByTestId('rayen-connection-monitor-trigger'));
     // Con Ficha Médico caída, conectar GC no aplica; queda solo la comprobación.
     expect(screen.queryByTestId('rayen-monitor-connect-gc')).not.toBeInTheDocument();
+    // Al abrir, el monitor ejecuta primero su comprobación automática. Esperar
+    // a que termine evita intentar pulsar el fallback mientras está desactivado.
+    await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId('rayen-monitor-refresh')).toBeEnabled());
     fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
 
-    await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(2));
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 

@@ -1,6 +1,8 @@
 import React from 'react';
-import { ExternalLink, RefreshCw } from 'lucide-react';
+import { ExternalLink, RefreshCw, Wrench } from 'lucide-react';
+import { requestRayenConnectionRepair } from '../bridge/connectionRepairChannel';
 import { requestGestionCamasConnect } from '../bridge/gestionCamasConnectChannel';
+import { deriveRayenRecoveryAction } from '../bridge/rayenRecoveryAction';
 import type { RayenSourceHealth } from '../bridge/extensionHealthBridge';
 import type {
   RayenExtensionConnectionState,
@@ -11,8 +13,8 @@ import type {
  * Columna «Eloísa» de la barra del censo: semáforo de conexión + popover con
  * el detalle por fuente (identidad de Ficha Médico, vigencia y verificación de
  * Gestión de Camas, versión y frescura del reporte) y acciones directas —
- * «Comprobar ahora» y «Conectar Gestión de Camas» (abre la ventana oficial vía
- * la extensión; el resultado llega solo por el push de salud). El reporte se
+ * una única acción contextual (conexión dirigida, reparación limpia o reintento).
+ * El resultado llega por respuesta correlacionada y por el push de salud. El reporte se
  * mantiene fresco por el latido de la extensión (~1/min), así que los tiempos
  * relativos se recalculan con un tic local de 30 s.
  */
@@ -106,10 +108,12 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
   open,
   onOpenChange,
 }) => {
-  const [busy, setBusy] = React.useState<'refresh' | 'connect' | null>(null);
-  const [connectError, setConnectError] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState<'refresh' | 'connect' | 'repair' | null>(null);
+  const [actionError, setActionError] = React.useState<string | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const autoRefreshEpochRef = React.useRef(0);
+  const refreshExtension = extension.refresh;
 
   React.useEffect(() => {
     if (!open) return undefined;
@@ -125,11 +129,39 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
     };
   }, [open, onOpenChange]);
 
+  React.useEffect(() => {
+    if (!open) return;
+    const refreshEpoch = ++autoRefreshEpochRef.current;
+    // El detalle siempre se abre con evidencia fresca; el latido sigue siendo
+    // la vía normal y este chequeo no queda expuesto como paso obligatorio.
+    setBusy('refresh');
+    void refreshExtension()
+      .then(() => setNow(Date.now()))
+      .catch(() => undefined)
+      .finally(() => {
+        if (autoRefreshEpochRef.current === refreshEpoch) {
+          setBusy(current => (current === 'refresh' ? null : current));
+        }
+      });
+    return () => {
+      if (autoRefreshEpochRef.current === refreshEpoch) autoRefreshEpochRef.current += 1;
+    };
+  }, [refreshExtension, open]);
+
   const report = extension.report;
   const fichaMedicoReady = report?.fichaMedico.status === 'ready';
   const gestionCamas = report?.gestionCamas;
-  const canOfferGestionCamasConnect =
-    fichaMedicoReady && gestionCamas !== undefined && gestionCamas.status !== 'ready';
+  const recoveryAction = deriveRayenRecoveryAction({
+    connection: extension.connection,
+    report,
+    working,
+  });
+
+  React.useEffect(() => {
+    if (report?.fichaMedico.status === 'ready' && report.gestionCamas.status === 'ready') {
+      setActionError(null);
+    }
+  }, [report]);
   const stateLabel = rayenSourceStateLabel(
     extension.connection,
     fichaMedicoReady,
@@ -140,8 +172,9 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
 
   const handleRefresh = async (): Promise<void> => {
     setBusy('refresh');
+    setActionError(null);
     try {
-      await extension.refresh();
+      await refreshExtension();
       setNow(Date.now());
     } finally {
       setBusy(null);
@@ -150,12 +183,33 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
 
   const handleConnectGestionCamas = async (): Promise<void> => {
     setBusy('connect');
-    setConnectError(null);
+    setActionError(null);
     try {
-      const result = await requestGestionCamasConnect();
+      const result = await requestGestionCamasConnect({
+        renew: recoveryAction.renewGestionCamas === true,
+      });
       // El éxito real (sesión capturada y verificada) llega por el push
       // gc-captured del latido; aquí solo reportamos si la ventana no abrió.
-      if (!result.ok) setConnectError(result.error ?? 'No se pudo abrir Gestión de Camas.');
+      if (!result.ok) setActionError(result.error ?? 'No se pudo abrir Gestión de Camas.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleRepair = async (): Promise<void> => {
+    setBusy('repair');
+    setActionError(null);
+    try {
+      const result = await requestRayenConnectionRepair();
+      if (!result.ok) {
+        setActionError(
+          result.requiresLogin
+            ? 'Completa el inicio de sesión en las pestañas nuevas de Eloísa.'
+            : (result.error ?? result.message ?? 'La conexión todavía no pudo verificarse.')
+        );
+      }
+      await refreshExtension({ timeoutMs: 12_000 });
+      setNow(Date.now());
     } finally {
       setBusy(null);
     }
@@ -256,35 +310,51 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
                 detail={gestionDetailParts.length > 0 ? gestionDetailParts.join(' · ') : null}
               />
             </div>
-            {connectError && (
+            {actionError && (
               <p className="mt-2 text-[11px] leading-snug text-amber-700" role="alert">
-                {connectError}
+                {actionError}
               </p>
             )}
-            <div className="mt-3 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => void handleRefresh()}
-                disabled={busy !== null}
-                data-testid="rayen-monitor-refresh"
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-progress disabled:opacity-60"
-              >
-                <RefreshCw size={11} className={busy === 'refresh' ? 'animate-spin' : ''} />
-                Comprobar ahora
-              </button>
-              {canOfferGestionCamasConnect && (
-                <button
-                  type="button"
-                  onClick={() => void handleConnectGestionCamas()}
-                  disabled={busy !== null}
-                  data-testid="rayen-monitor-connect-gc"
-                  className="inline-flex items-center gap-1 rounded-lg bg-teal-700 px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
-                >
-                  <ExternalLink size={11} />
-                  Conectar Gestión de Camas
-                </button>
-              )}
-            </div>
+            {recoveryAction.kind !== 'none' && (
+              <div className="mt-3 flex items-center justify-end">
+                {recoveryAction.kind === 'refresh' && (
+                  <button
+                    type="button"
+                    onClick={() => void handleRefresh()}
+                    disabled={busy !== null}
+                    data-testid="rayen-monitor-refresh"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-progress disabled:opacity-60"
+                  >
+                    <RefreshCw size={11} className={busy === 'refresh' ? 'animate-spin' : ''} />
+                    {recoveryAction.label}
+                  </button>
+                )}
+                {recoveryAction.kind === 'connect-gc' && (
+                  <button
+                    type="button"
+                    onClick={() => void handleConnectGestionCamas()}
+                    disabled={busy !== null}
+                    data-testid="rayen-monitor-connect-gc"
+                    className="inline-flex items-center gap-1 rounded-lg bg-teal-700 px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
+                  >
+                    <ExternalLink size={11} />
+                    {recoveryAction.label}
+                  </button>
+                )}
+                {recoveryAction.kind === 'repair' && (
+                  <button
+                    type="button"
+                    onClick={() => void handleRepair()}
+                    disabled={busy !== null}
+                    data-testid="rayen-monitor-repair"
+                    className="inline-flex items-center gap-1 rounded-lg bg-teal-700 px-2 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
+                  >
+                    <Wrench size={11} />
+                    {recoveryAction.label}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

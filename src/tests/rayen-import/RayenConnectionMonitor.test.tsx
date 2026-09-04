@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RayenConnectionMonitor } from '@/features/rayen-import/components/RayenConnectionMonitor';
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { RAYEN_GC_CONNECT_RESULT_TYPE } from '@/features/rayen-import/bridge/gestionCamasConnectChannel';
+import { RAYEN_CONNECTION_REPAIR_RESULT_TYPE } from '@/features/rayen-import/bridge/connectionRepairChannel';
 import type { RayenExtensionHealthState } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
 
 const refreshMock = () =>
@@ -27,6 +28,7 @@ const baseExtension = (
     version: '0.48.3',
     protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
     checkedAt: new Date(Date.now() - 45_000).toISOString(),
+    capabilities: ['clean-connection-repair', 'hhr-connection-repair-bridge'],
     fichaMedico: {
       status: 'ready',
       message: 'Ficha Médico disponible. Sesión clínica vigente.',
@@ -48,9 +50,12 @@ const baseExtension = (
 const renderMonitor = (
   extension: ReturnType<typeof baseExtension>,
   open = true
-): { onOpenChange: ReturnType<typeof vi.fn> } => {
+): {
+  onOpenChange: ReturnType<typeof vi.fn>;
+  rerenderMonitor: (nextExtension: ReturnType<typeof baseExtension>) => void;
+} => {
   const onOpenChange = vi.fn();
-  render(
+  const view = render(
     <RayenConnectionMonitor
       extension={extension}
       working={false}
@@ -59,7 +64,19 @@ const renderMonitor = (
       onOpenChange={onOpenChange}
     />
   );
-  return { onOpenChange };
+  return {
+    onOpenChange,
+    rerenderMonitor: nextExtension =>
+      view.rerender(
+        <RayenConnectionMonitor
+          extension={nextExtension}
+          working={false}
+          lastSyncLine="Última 31-08-2026 · 17:37 h"
+          open={open}
+          onOpenChange={onOpenChange}
+        />
+      ),
+  };
 };
 
 describe('RayenConnectionMonitor', () => {
@@ -82,12 +99,17 @@ describe('RayenConnectionMonitor', () => {
       message: 'Gestión de Camas no está conectada.',
       report: {
         ...baseExtension().report!,
-        gestionCamas: { status: 'missing', message: 'Gestión de Camas no está conectada.' },
+        gestionCamas: {
+          status: 'missing',
+          reason: 'tab_missing',
+          message: 'Gestión de Camas no está conectada.',
+        },
       },
     });
     const postMessageSpy = vi.spyOn(window, 'postMessage');
     renderMonitor(extension);
 
+    await waitFor(() => expect(screen.getByTestId('rayen-monitor-connect-gc')).toBeEnabled());
     fireEvent.click(screen.getByTestId('rayen-monitor-connect-gc'));
     const payload = postMessageSpy.mock.calls
       .map(call => call[0] as { type?: string; reqId?: string })
@@ -148,10 +170,91 @@ describe('RayenConnectionMonitor', () => {
     expect(screen.getByText('Daniel Opazo · Médico')).toBeVisible();
   });
 
-  it('«Comprobar ahora» refresca el estado a demanda', async () => {
-    const extension = baseExtension();
+  it('reintenta la comprobación solo cuando no existe un diagnóstico accionable', async () => {
+    const extension = baseExtension({
+      connection: 'offline',
+      canSync: false,
+      report: null,
+      message: 'Extensión sin respuesta.',
+    });
     renderMonitor(extension);
-    fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
     await waitFor(() => expect(extension.refresh).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
+    await waitFor(() => expect(extension.refresh).toHaveBeenCalledTimes(2));
+  });
+
+  it('mantiene deshabilitada la acción anterior mientras comprueba al abrir', async () => {
+    let finishRefresh!: (value: RayenExtensionHealthState) => void;
+    const pendingRefresh = new Promise<RayenExtensionHealthState>(resolve => {
+      finishRefresh = resolve;
+    });
+    const extension = baseExtension({
+      connection: 'blocked',
+      canSync: false,
+      report: {
+        ...baseExtension().report!,
+        gestionCamas: {
+          status: 'missing',
+          reason: 'tab_missing',
+          message: 'No abierta.',
+        },
+      },
+    });
+    extension.refresh = vi.fn(() => pendingRefresh);
+    renderMonitor(extension);
+
+    expect(screen.getByTestId('rayen-monitor-connect-gc')).toBeDisabled();
+    finishRefresh({
+      connection: extension.connection,
+      message: extension.message,
+      canSync: extension.canSync,
+      report: extension.report,
+    });
+    await waitFor(() => expect(screen.getByTestId('rayen-monitor-connect-gc')).toBeEnabled());
+  });
+
+  it('expone la reparación limpia existente y guía el login solo si el runtime lo confirma', async () => {
+    const extension = baseExtension({
+      connection: 'blocked',
+      blockedBy: 'fichaMedico',
+      canSync: false,
+      report: {
+        ...baseExtension().report!,
+        fichaMedico: {
+          status: 'stale',
+          reason: 'outdated_tab',
+          message: 'Pestaña desactualizada.',
+        },
+      },
+    });
+    const postMessageSpy = vi.spyOn(window, 'postMessage');
+    const monitor = renderMonitor(extension);
+    await waitFor(() => expect(screen.getByTestId('rayen-monitor-repair')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('rayen-monitor-repair'));
+    const payload = postMessageSpy.mock.calls
+      .map(call => call[0] as { type?: string; reqId?: string })
+      .find(message => message?.type === 'HHR_RAYEN_CONNECTION_REPAIR_REQUEST');
+    expect(payload?.reqId).toBeTruthy();
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        data: {
+          type: RAYEN_CONNECTION_REPAIR_RESULT_TYPE,
+          reqId: payload?.reqId,
+          ok: false,
+          requiresLogin: true,
+        },
+      })
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Completa el inicio de sesión en las pestañas nuevas de Eloísa.'
+      )
+    );
+    expect(extension.refresh).toHaveBeenCalledWith({ timeoutMs: 12_000 });
+
+    monitor.rerenderMonitor(baseExtension());
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
   });
 });

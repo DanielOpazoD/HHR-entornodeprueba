@@ -20,7 +20,7 @@
   'use strict';
   if (window.__gcInjected) return;
   window.__gcInjected = true;
-  const INJECT_VERSION = '0.48.11';
+  const INJECT_VERSION = '0.48.12';
   const BACKEND_HINT = 'hospbackend.rayensalud.cl';
   const BRIDGE_REQUEST_TYPES = new Set(['RAYEN_GC_BRIDGE_STATUS_REQUEST', 'RAYEN_GC_CONNECTION_ATTEMPT', 'RAYEN_GC_LOOKUP_REQUEST', 'RAYEN_GC_FETCHINFO_REQUEST']);
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });

@@ -3,11 +3,7 @@
   "schemaVersion": 1,
   "extensionRoot": "extension",
   "complexityThreshold": 15,
-  "vendorFiles": [
-    "jspdf.umd.min.js",
-    "pdf-lib.min.js",
-    "xlsx.full.min.js"
-  ],
+  "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
       "maxLines": 1519,
@@ -124,6 +120,10 @@
     },
     "content-gestioncamas.js": {
       "maxLines": 221,
+      "hotspots": {}
+    },
+    "content-hhr-connection-repair.js": {
+      "maxLines": 57,
       "hotspots": {}
     },
     "content-hhr-epicrisis.js": {
@@ -273,6 +273,14 @@
       "maxLines": 95,
       "hotspots": {}
     },
+    "gestion-camas-connection-indicator-bootstrap.js": {
+      "maxLines": 17,
+      "hotspots": {}
+    },
+    "gestion-camas-connection-indicator.js": {
+      "maxLines": 276,
+      "hotspots": {}
+    },
     "gestion-camas-cudyr.js": {
       "maxLines": 158,
       "hotspots": {}
@@ -344,11 +352,14 @@
         "iife>variable:create": 16
       }
     },
+    "hhr-connection-action-model.js": {
+      "maxLines": 153,
+      "hotspots": {}
+    },
     "hhr-connection-center-runtime.js": {
-      "maxLines": 449,
+      "maxLines": 442,
       "hotspots": {
-        "iife>variable:create>variable:applyBadgeReport": 21,
-        "iife>variable:create>variable:renderConnectionCenter>variable:load": 16
+        "iife>variable:create>variable:applyBadgeReport": 21
       }
     },
     "hhr-connection-repair-controls.js": {
