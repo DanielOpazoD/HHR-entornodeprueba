@@ -38,7 +38,33 @@
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
   const post = message => window.postMessage(message, window.location.origin);
-  chrome.runtime.onMessage.addListener(message => {
+  const generationRelay = globalThis.HhrBridgeGeneration.createRelay({
+    chromeApi: chrome,
+    runtimeMessages,
+    extensionVersion: chrome.runtime.getManifest().version,
+  });
+  const runtimeContextPromise = generationRelay.context;
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message && message.type === 'RAYEN_EXTENSION_HHR_HEALTH_PING') {
+      runtimeContextPromise.then(runtimeContext => {
+        const version = chrome.runtime.getManifest().version;
+        const current = Boolean(
+          runtimeContext &&
+          runtimeContext.runtimeGeneration === message.runtimeGeneration &&
+          runtimeContext.version === version
+        );
+        sendResponse({
+          ready: current,
+          reason: current ? 'connected' : 'outdated_tab',
+          bridgeVersion: version,
+          bridgeGeneration: runtimeContext && runtimeContext.runtimeGeneration,
+          message: current
+            ? 'HHR está enlazado con la extensión vigente.'
+            : 'La pestaña HHR pertenece a una generación anterior de la extensión.',
+        });
+      });
+      return true;
+    }
     if (message && message.type === 'RAYEN_EXTENSION_HEALTH_PUSH' && message.report) {
       post({
         type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH',
@@ -46,6 +72,7 @@
         reason: message.reason,
       });
     }
+    return undefined;
   });
   window.addEventListener('message', event => {
     if (event.source !== window) return;

@@ -97,6 +97,7 @@
     if (!record) {
       return {
         status: 'missing',
+        reason: 'session_unverified',
         message: 'Gestión de Camas no está conectada.',
         identity: { fullName: '', username: '' },
         expiresAt: null,
@@ -109,6 +110,7 @@
     if (!isUsable(record, now)) {
       return {
         status: 'stale',
+        reason: 'session_expired',
         message: 'La sesión de Gestión de Camas venció. Vuelve a conectarla.',
         identity: record.identity || { fullName: '', username: '' },
         expiresAt,
@@ -120,6 +122,7 @@
     if (!isVerificationFresh(record, now)) {
       return {
         status: 'stale',
+        reason: 'session_unverified',
         message: record.lastVerifiedAt
           ? 'La sesión de Gestión de Camas requiere una nueva comprobación.'
           : 'La sesión fue capturada, pero todavía no ha sido verificada por Rayen.',
@@ -135,6 +138,7 @@
     const expiring = remainingMs !== null && remainingMs <= EXPIRING_WINDOW_MS;
     return {
       status: 'ready',
+      reason: 'connected',
       message: expiring
         ? 'Gestión de Camas conectada; la sesión vencerá pronto.'
         : expiresAt

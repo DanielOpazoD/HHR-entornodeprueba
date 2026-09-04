@@ -1,14 +1,17 @@
 /** Pure helpers for the extension capability handshake (also exercised from Vitest). */
 (function (root) {
   'use strict';
-
   const orderTabs = tabs =>
     (Array.isArray(tabs) ? tabs.slice() : []).sort((a, b) => {
       const activeDelta = Number(Boolean(b && b.active)) - Number(Boolean(a && a.active));
       if (activeDelta !== 0) return activeDelta;
       return Number((b && b.lastAccessed) || 0) - Number((a && a.lastAccessed) || 0);
     });
-
+  const resolveTabs = async (tabsApi, url, ids) => {
+    if (!Array.isArray(ids)) return tabsApi.query({ url });
+    const settled = await Promise.allSettled(ids.map(id => tabsApi.get(Number(id))));
+    return settled.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : []);
+  };
   // Vigencia de la sesión de la fuente (epoch ms y segundos restantes), solo si la publica.
   const sessionExpiryOf = response => ({
     ...(Number.isFinite(response.expiresAt) ? { expiresAt: response.expiresAt } : {}),
@@ -16,20 +19,21 @@
       ? { remainingSeconds: response.remainingSeconds }
       : {}),
   });
-
   const readyResult = response => {
     const expiry = sessionExpiryOf(response);
     return {
       publishesExpiry: Object.keys(expiry).length > 0,
       result: {
         status: 'ready',
+        reason: 'connected',
         message: response.message || 'Pestaña disponible.',
         ...(response.identity ? { identity: response.identity } : {}),
+        ...(response.bridgeVersion ? { bridgeVersion: response.bridgeVersion } : {}),
+        ...(response.bridgeGeneration ? { bridgeGeneration: response.bridgeGeneration } : {}),
         ...expiry,
       },
     };
   };
-
   // Sondea en paralelo las pestañas restantes y devuelve la primera (por preferencia)
   // lista que publica vigencia, o null.
   const pickExpiryPublisher = async (tabs, ping) => {
@@ -42,7 +46,6 @@
     }
     return null;
   };
-
   // Solo Ficha Médico opta por `preferExpiryPublisher` (Gestión de Camas nunca publica
   // vigencia): heurística de transición (un inject < 0.48.5 respondía «lista» sin vigencia;
   // desde 0.48.8 el relay marca «no lista» un inject de otra versión). Si otra pestaña
@@ -59,11 +62,15 @@
     missingMessage,
     staleMessage,
     preferExpiryPublisher = false,
+    healthMessage = { type: 'RAYEN_EXTENSION_HEALTH_PING' },
   }) => {
     const ordered = orderTabs(tabs);
-    if (ordered.length === 0) return { status: 'missing', message: missingMessage };
+    if (ordered.length === 0) {
+      return { status: 'missing', reason: 'tab_missing', message: missingMessage };
+    }
     let unavailableMessage = '';
-    const ping = tab => sendMessage(tab.id, { type: 'RAYEN_EXTENSION_HEALTH_PING' });
+    let unavailableReason = '';
+    const ping = tab => sendMessage(tab.id, healthMessage);
 
     for (let index = 0; index < ordered.length; index += 1) {
       const tab = ordered[index];
@@ -76,14 +83,35 @@
         }
         if (!unavailableMessage && response && response.message) {
           unavailableMessage = response.message;
+          unavailableReason = String(response.reason || 'session_unverified');
         }
       } catch (_error) {
         // Try the next matching tab: another open tab may have the current relay injected.
       }
     }
 
-    return { status: 'stale', message: unavailableMessage || staleMessage };
+    return {
+      status: 'stale',
+      reason: unavailableReason || 'relay_disconnected',
+      message: unavailableMessage || staleMessage,
+    };
   };
 
-  root.HhrExtensionHealth = { orderTabs, probeTabs };
+  const createHhrProbe = ({ chromeApi, withTimeout, timeoutMs, matches }) =>
+    runtimeContext => chromeApi.tabs.query({ url: matches }).then(tabs => probeTabs({
+      tabs,
+      sendMessage: (tabId, message) => withTimeout(
+        chromeApi.tabs.sendMessage(tabId, message),
+        timeoutMs,
+        'La pestaña HHR no respondió a la comprobación.'
+      ),
+      missingMessage: 'Abre HHR para completar el enlace con la extensión.',
+      staleMessage: 'La pestaña HHR no respondió al relé de la extensión.',
+      healthMessage: {
+        type: 'RAYEN_EXTENSION_HHR_HEALTH_PING',
+        runtimeGeneration: runtimeContext.runtimeGeneration,
+      },
+    }));
+
+  root.HhrExtensionHealth = { orderTabs, resolveTabs, probeTabs, createHhrProbe };
 })(typeof self !== 'undefined' ? self : globalThis);

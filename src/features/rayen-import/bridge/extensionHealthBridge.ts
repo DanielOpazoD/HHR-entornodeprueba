@@ -17,6 +17,7 @@ export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-disc
 export const RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY = 'patient-clinical-bundle';
 export const RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY = 'patient-document-manager';
 export const RAYEN_HEALTH_PUSH_CAPABILITY = 'health-push';
+export const RAYEN_CLEAN_CONNECTION_REPAIR_CAPABILITY = 'clean-connection-repair';
 
 /**
  * Última lista de capabilities reportada por la extensión en esta pestaña.
@@ -45,6 +46,15 @@ export type RayenSourceAvailability = 'ready' | 'missing' | 'stale';
 export interface RayenSourceHealth {
   status: RayenSourceAvailability;
   message: string;
+  reason?:
+    | 'connected'
+    | 'outdated_tab'
+    | 'relay_disconnected'
+    | 'session_expired'
+    | 'session_unverified'
+    | 'tab_missing';
+  bridgeVersion?: string;
+  bridgeGeneration?: string;
   /** Segundos de vigencia restantes de la sesión de la fuente, al momento del reporte. */
   remainingSeconds?: number | null;
   /** Vencimiento absoluto (epoch ms): permite recalcular la vigencia con el reloj local. */
@@ -59,11 +69,14 @@ export interface RayenSourceHealth {
 
 export interface RayenExtensionHealthReport {
   version: string;
+  runtimeGeneration?: string;
+  runtimeStartedAt?: number;
   protocolVersion: number;
   capabilities?: string[];
   checkedAt: string;
   fichaMedico: RayenSourceHealth;
   gestionCamas: RayenSourceHealth;
+  hhr?: RayenSourceHealth;
 }
 
 export interface RayenExtensionHealthCheck {
@@ -79,6 +92,16 @@ const isSourceHealth = (value: unknown): value is RayenSourceHealth => {
       candidate.status === 'missing' ||
       candidate.status === 'stale') &&
     typeof candidate.message === 'string' &&
+    (candidate.reason === undefined ||
+      candidate.reason === 'connected' ||
+      candidate.reason === 'outdated_tab' ||
+      candidate.reason === 'relay_disconnected' ||
+      candidate.reason === 'session_expired' ||
+      candidate.reason === 'session_unverified' ||
+      candidate.reason === 'tab_missing') &&
+    (candidate.bridgeVersion === undefined || typeof candidate.bridgeVersion === 'string') &&
+    (candidate.bridgeGeneration === undefined ||
+      typeof candidate.bridgeGeneration === 'string') &&
     (candidate.remainingSeconds === undefined ||
       candidate.remainingSeconds === null ||
       typeof candidate.remainingSeconds === 'number') &&
@@ -101,13 +124,17 @@ export const isRayenExtensionHealthReport = (
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.version === 'string' &&
+    (candidate.runtimeGeneration === undefined ||
+      typeof candidate.runtimeGeneration === 'string') &&
+    (candidate.runtimeStartedAt === undefined || typeof candidate.runtimeStartedAt === 'number') &&
     typeof candidate.protocolVersion === 'number' &&
     (candidate.capabilities === undefined ||
       (Array.isArray(candidate.capabilities) &&
         candidate.capabilities.every(capability => typeof capability === 'string'))) &&
     typeof candidate.checkedAt === 'string' &&
     isSourceHealth(candidate.fichaMedico) &&
-    isSourceHealth(candidate.gestionCamas)
+    isSourceHealth(candidate.gestionCamas) &&
+    (candidate.hhr === undefined || isSourceHealth(candidate.hhr))
   );
 };
 

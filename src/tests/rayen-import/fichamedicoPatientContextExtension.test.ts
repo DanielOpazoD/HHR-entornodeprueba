@@ -176,7 +176,9 @@ describe('Ficha Médico patient-context owner', () => {
     // (extensión 0.48.4/0.48.5); la salud vive en health-heartbeat-runtime.js.
     // 1483: cableado acotado del gestor documental (lista paralela con timeout y apertura).
     // 1484: publicación de la capability patient-document-manager en el diagnóstico de salud.
-    expect(background.split('\n').length).toBeLessThanOrEqual(1_484);
+    // 1519: identidad de generación, salud del enlace HHR y dos rutas de reparación;
+    // la lógica vive en runtime-generation.js, health-check.js y connection-repair-runtime.js.
+    expect(background.split('\n').length).toBeLessThanOrEqual(1_519);
     expect(source.split('\n').length).toBeLessThanOrEqual(380);
     expect(() => factory.create({})).toThrow('Falta la dependencia resolveSession.');
   });

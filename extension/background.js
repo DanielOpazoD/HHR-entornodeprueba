@@ -30,6 +30,7 @@ importScripts(
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
+  'runtime-generation.js', 'connection-repair-runtime.js',
   'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
   'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
@@ -130,6 +131,12 @@ if (
 if (!self.HhrRayenSyncBundleRuntime || typeof self.HhrRayenSyncBundleRuntime.capture !== 'function') {
   throw new Error('No se pudo cargar el coordinador de sincronización Rayen.');
 }
+if (!self.HhrRuntimeGeneration || typeof self.HhrRuntimeGeneration.create !== 'function') {
+  throw new Error('No se pudo cargar la generación de ejecución de la extensión.');
+}
+if (!self.HhrConnectionRepairRuntime || typeof self.HhrConnectionRepairRuntime.create !== 'function') {
+  throw new Error('No se pudo cargar la reparación limpia de conexiones.');
+}
 
 const messageContract = self.HhrRayenMessageContract;
 const RUNTIME_MESSAGES = messageContract.types;
@@ -140,6 +147,10 @@ const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const TAB_MESSAGE_TIMEOUT_MS = 50_000;
 const HEALTH_PROBE_TIMEOUT_MS = 5_000;
 const CLINICAL_PANEL_REQUEST_TIMEOUT_MS = 15_000;
+
+const runtimeGenerationRuntime = self.HhrRuntimeGeneration.create({ chromeApi: chrome, cryptoApi: crypto });
+runtimeGenerationRuntime.start();
+const getRuntimeContext = () => runtimeGenerationRuntime.getContext(chrome.runtime.getManifest().version);
 
 const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
   const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
@@ -261,14 +272,28 @@ const {
   disconnect: handleDisconnectGestionCamas,
 } = gestionCamasRuntime;
 
-const handleExtensionHealth = async () => {
-  const [fichaMedico, gestionCamas] = await Promise.all([
-    handleFichaMedicoHealth(),
-    handleGestionCamasHealth(),
+// Los hosts HHR viven solo en el manifest, sin duplicar la lista aquí.
+const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
+  .filter(entry => (entry.js || []).includes('content-hhr.js'))
+  .flatMap(entry => entry.matches || []);
+
+const handleHhrHealth = self.HhrExtensionHealth.createHhrProbe({
+  chromeApi: chrome,
+  withTimeout,
+  timeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+  matches: HHR_TAB_MATCH_PATTERNS,
+});
+
+const handleExtensionHealth = async (targets = {}) => {
+  const runtimeContext = await getRuntimeContext();
+  const [fichaMedico, gestionCamas, hhr] = await Promise.all([
+    handleFichaMedicoHealth(runtimeContext.runtimeGeneration, targets.fichaMedicoTabIds),
+    handleGestionCamasHealth(runtimeContext.runtimeGeneration, targets.gestionCamasTabIds),
+    handleHhrHealth(runtimeContext),
   ]);
 
   return {
-    version: chrome.runtime.getManifest().version,
+    ...runtimeContext,
     protocolVersion: EXTENSION_PROTOCOL_VERSION,
     capabilities: [
       'patient-flow-report',
@@ -276,17 +301,19 @@ const handleExtensionHealth = async () => {
       'patient-clinical-bundle',
       'patient-document-manager',
       'health-push',
+      'clean-connection-repair',
     ],
     checkedAt: new Date().toISOString(),
     fichaMedico,
     gestionCamas,
+    hhr,
   };
 };
 
-// Los hosts HHR viven solo en el manifest, sin duplicar la lista aquí.
-const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
-  .filter(entry => (entry.js || []).includes('content-hhr.js'))
-  .flatMap(entry => entry.matches || []);
+const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
+  chromeApi: chrome,
+  readHealth: handleExtensionHealth,
+});
 const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({
   chromeApi: chrome,
   readHealth: handleExtensionHealth,
@@ -1190,6 +1217,14 @@ const runtimeMessageRoutes = Object.freeze({
   [RUNTIME_MESSAGES.EXTENSION_HEALTH_REQUEST]: runtimeRoute(
     () => handleExtensionHealth(),
     'No se pudo verificar el estado de la extensión.'
+  ),
+  [RUNTIME_MESSAGES.EXTENSION_RUNTIME_CONTEXT_REQUEST]: runtimeRoute(
+    (_message, sender) => runtimeGenerationRuntime.getContextForSender(chrome.runtime.getManifest().version, sender),
+    'No se pudo identificar la generación vigente de la extensión.'
+  ),
+  [RUNTIME_MESSAGES.CONNECTION_REPAIR_REQUEST]: runtimeRoute(
+    healthHeartbeat.pushAfter(() => connectionRepairRuntime.repair(), 'connection-repair'),
+    'No se pudo preparar una conexión limpia con Eloísa.'
   ),
   [RUNTIME_MESSAGES.GC_SESSION_CAPTURED]: runtimeRoute(
     healthHeartbeat.pushAfter(

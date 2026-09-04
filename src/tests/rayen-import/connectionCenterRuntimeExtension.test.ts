@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import '../../../extension/hhr-connection-repair-controls.js';
 import '../../../extension/hhr-connection-center-runtime.js';
 
 type Message = { type?: string; renew?: boolean };
@@ -24,6 +25,7 @@ const owner = () =>
 
 const messages = {
   EXTENSION_HEALTH_REQUEST: 'EXTENSION_HEALTH_REQUEST',
+  CONNECTION_REPAIR_REQUEST: 'CONNECTION_REPAIR_REQUEST',
   GC_CONNECT_REQUEST: 'GC_CONNECT_REQUEST',
   GC_DISCONNECT_REQUEST: 'GC_DISCONNECT_REQUEST',
 };
@@ -37,16 +39,25 @@ const deferred = <T>() => {
 };
 
 const report = (fichaStatus = 'ready', camasStatus = 'ready', name = 'Ana Riroroko') => ({
+  version: '0.48.10',
+  runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
   fichaMedico: {
     status: fichaStatus,
+    reason: fichaStatus === 'ready' ? 'connected' : 'session_expired',
     identity: { fullName: name, role: 'Médico', practitionerRoleId: '10' },
   },
   gestionCamas: {
     status: camasStatus,
+    reason: camasStatus === 'ready' ? 'connected' : 'session_expired',
     identity: { username: 'ana.riroroko' },
     remainingSeconds: 3_600,
     connectionSource: 'session',
     message: camasStatus === 'ready' ? '' : 'Inicia sesión para continuar.',
+  },
+  hhr: {
+    status: 'ready',
+    reason: 'connected',
+    message: 'HHR enlazado.',
   },
 });
 
@@ -159,13 +170,13 @@ describe('Centro HHR connection runtime', () => {
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     second.resolve(report('ready', 'ready', 'Respuesta nueva'));
     await flush();
-    expect(root.querySelector('.hhr-connection-user')?.firstChild?.nodeValue).toBe(
+    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
       'Respuesta nueva'
     );
 
     first.resolve(report('ready', 'missing', 'Respuesta vieja'));
     await flush();
-    expect(root.querySelector('.hhr-connection-user')?.firstChild?.nodeValue).toBe(
+    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
       'Respuesta nueva'
     );
     expect(root.querySelector('.hhr-connection-status')?.textContent).toBe('Conectado');
@@ -185,13 +196,13 @@ describe('Centro HHR connection runtime', () => {
     runtime.renderConnectionCenter(root, '2');
     oldLoad.resolve(report('ready', 'ready', 'Paciente anterior'));
     await flush();
-    expect(root.querySelector('.hhr-connection-user')?.firstChild?.nodeValue).toBe(
+    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
       'Sesión clínica'
     );
 
     newLoad.resolve(report('ready', 'ready', 'Paciente vigente'));
     await flush();
-    expect(root.querySelector('.hhr-connection-user')?.firstChild?.nodeValue).toBe(
+    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
       'Paciente vigente'
     );
   });
@@ -287,7 +298,7 @@ describe('Centro HHR connection runtime', () => {
     disconnected = true;
     disconnect.resolve({ ok: true });
     await flush();
-    expect(root.querySelectorAll('.hhr-connection-card')[1]?.className).toContain('is-missing');
+    expect(root.querySelector('.hhr-connection-camas')?.className).toContain('is-missing');
     expect(root.querySelector('.hhr-connection-feedback')?.textContent).toBe(
       'La sesión temporal de Gestión de Camas fue eliminada de la extensión.'
     );
@@ -417,8 +428,70 @@ describe('Centro HHR connection runtime', () => {
     runtime.dispose();
     load.resolve(report('ready', 'ready', 'No debe aparecer'));
     await flush();
-    expect(root.querySelector('.hhr-connection-user')?.firstChild?.nodeValue).toBe(
+    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue).toBe(
       'Sesión clínica'
     );
   });
+
+  it('renders the four connection surfaces and copies a scrubbed diagnostic', async () => {
+    const writeText = vi.fn<(value: string) => Promise<void>>(async () => undefined);
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const runtime = makeRuntime(vi.fn(async () => report()));
+    const root = makeRoot();
+
+    runtime.renderConnectionCenter(root, '141121');
+    await flush();
+    expect(root.querySelectorAll('.hhr-connection-card')).toHaveLength(4);
+    expect(root.querySelector('.hhr-connection-extension .hhr-connection-user')?.textContent)
+      .toContain('Versión 0.48.10');
+    expect(root.querySelector('.hhr-connection-hhr .hhr-connection-status')?.textContent)
+      .toBe('Conectado');
+
+    root.querySelector<HTMLButtonElement>('.hhr-connection-copy')?.click();
+    await flush();
+    const copied = String(writeText.mock.calls[0]?.[0] || '');
+    expect(copied).toContain('Extensión: 0.48.10 · generación aaaaaaaa');
+    expect(copied).toContain('Ficha Médico: Conectado');
+    expect(copied).toContain('HHR: Conectado');
+    expect(copied).not.toContain('Ana Riroroko');
+    expect(copied).not.toMatch(/token|RUN|RUT/i);
+  });
+
+  it('offers clean repair and asks for manual login only when the runtime confirms expiry', async () => {
+    const expired = {
+      ...report('missing', 'missing'),
+      fichaMedico: {
+        status: 'stale',
+        reason: 'session_expired',
+        message: 'La sesión venció.',
+      },
+      gestionCamas: {
+        status: 'missing',
+        reason: 'session_expired',
+        message: 'La sesión venció.',
+      },
+    };
+    const sendMessage = vi.fn(async (message: Message) =>
+      message.type === messages.CONNECTION_REPAIR_REQUEST
+        ? { ok: false, requiresLogin: true, report: expired }
+        : expired
+    );
+    const runtime = makeRuntime(sendMessage);
+    const root = makeRoot();
+    runtime.renderConnectionCenter(root, '141121');
+    await flush();
+
+    root.querySelector<HTMLButtonElement>('.hhr-connection-repair')?.click();
+    await flush();
+    expect(sendMessage).toHaveBeenCalledWith({ type: messages.CONNECTION_REPAIR_REQUEST });
+    expect(root.querySelector('.hhr-connection-feedback')?.textContent).toContain(
+      'Iniciar sesión nuevamente'
+    );
+    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-status')?.textContent)
+      .toBe('Sesión vencida');
+  });
+
 });

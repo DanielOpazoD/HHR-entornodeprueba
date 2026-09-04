@@ -461,6 +461,7 @@
       #hhr-prescription-print-modal .hhr-connection-user { min-height: 40px; color: #34413f; font-size: 12.5px; font-weight: 650; }
       #hhr-prescription-print-modal .hhr-connection-detail { display: block; margin-top: 3px; color: #76817f; font-size: 11px; font-weight: 400; line-height: 1.4; }
       #hhr-prescription-print-modal .hhr-connection-actions { display: flex; align-items: center; gap: 7px; margin-top: 12px; }
+      #hhr-prescription-print-modal .hhr-connection-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
       #hhr-prescription-print-modal .hhr-connection-privacy {
         margin-top: 12px; padding: 10px 12px; border: 0; border-left: 3px solid var(--hhr-teal-600);
         border-radius: 6px; background: #f4faf8; color: #52605e; font-size: 11.5px; line-height: 1.5;

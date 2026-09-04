@@ -19,6 +19,11 @@ type Tab = {
 const globals = globalThis as typeof globalThis & {
   HhrExtensionHealth: {
     orderTabs: (tabs: Tab[]) => Tab[];
+    resolveTabs: (
+      tabsApi: { query: (query: unknown) => Promise<Tab[]>; get: (id: number) => Promise<Tab> },
+      url: string,
+      targetTabIds?: number[]
+    ) => Promise<Tab[]>;
     probeTabs: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
   };
   HhrEncounterNavigation: {
@@ -39,7 +44,7 @@ const globals = globalThis as typeof globalThis & {
         encId: unknown,
         routeHint?: 'medical' | 'nurse'
       ) => Promise<Record<string, unknown>>;
-      health: () => Promise<Record<string, unknown>>;
+      health: (runtimeGeneration?: string, targetTabIds?: number[]) => Promise<Record<string, unknown>>;
       getFetchInfo: (sender?: Record<string, unknown>) => Promise<Record<string, unknown>>;
     };
   };
@@ -52,6 +57,7 @@ const withTimeout = vi.fn(
 const makeChrome = () => ({
   tabs: {
     query: vi.fn<() => Promise<Tab[]>>().mockResolvedValue([]),
+    get: vi.fn<(tabId: number) => Promise<Tab>>(),
     sendMessage: vi.fn<(tabId: number, message: Record<string, unknown>) => Promise<unknown>>(),
     update: vi.fn<(tabId: number, update: Record<string, unknown>) => Promise<Tab>>(),
     create: vi.fn<(create: Record<string, unknown>) => Promise<Tab>>(),
@@ -208,6 +214,7 @@ describe('Ficha Médico transport runtime', () => {
 
     await expect(runtime.health()).resolves.toEqual({
       status: 'ready',
+      reason: 'connected',
       message: 'Ficha Médico disponible.',
       identity: { roleId: '2' },
     });
@@ -218,6 +225,22 @@ describe('Ficha Médico transport runtime', () => {
       5_000,
       'La pestaña no respondió a la verificación de conexión.',
     ]);
+  });
+
+  it('scopes clean-repair health to the exact new Ficha Médico tab', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([{ id: 5, active: true }, { id: 8 }]);
+    chrome.tabs.get.mockResolvedValue({ id: 8, url: 'https://login.rayensalud.cl/' });
+    chrome.tabs.sendMessage.mockResolvedValue({ ready: true, message: 'Ficha nueva disponible.' });
+    const { runtime } = createRuntime(chrome);
+
+    await expect(runtime.health('generation', [8])).resolves.toMatchObject({ status: 'ready' });
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledTimes(1);
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(8, {
+      type: 'RAYEN_EXTENSION_HEALTH_PING',
+      runtimeGeneration: 'generation',
+    });
+    expect(chrome.tabs.query).not.toHaveBeenCalled();
   });
 
   it('prefers the verified sender session and otherwise falls back to ordered Ficha tabs', async () => {

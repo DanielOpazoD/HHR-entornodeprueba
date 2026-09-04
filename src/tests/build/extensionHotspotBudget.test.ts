@@ -61,14 +61,14 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    // 103: el observador de pestañas agrega un runtime propio, pequeño y sin lógica clínica.
-    expect(metrics.authoredFiles).toHaveLength(103);
+    // 108: la reparación limpia separa generación, salud y controles en cinco módulos propios.
+    expect(metrics.authoredFiles).toHaveLength(108);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
         0
       )
-    ).toBe(89);
+    ).toBe(90);
     expect(evaluateExtensionHotspots({ baseline, metrics })).toEqual([]);
   });
 

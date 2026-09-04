@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 // compara con el manifest: un lector de otra versión no está listo ni lee.
 
 const contractSource = readFileSync(path.resolve('extension/message-contract.js'), 'utf8');
+const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
 const relaySource = readFileSync(path.resolve('extension/content-fichamedico.js'), 'utf8');
 const injectSource = readFileSync(path.resolve('extension/inject-fichamedico.js'), 'utf8');
 const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json'), 'utf8')) as {
@@ -49,7 +50,10 @@ const createRelay = (installedVersion: string) => {
             onRuntimeMessage = onRuntimeMessage || fn;
           },
         },
-        sendMessage: vi.fn(),
+        sendMessage: vi.fn((_message, callback) => callback({
+          version: installedVersion,
+          runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        })),
         lastError: undefined,
       },
     },
@@ -64,14 +68,26 @@ const createRelay = (installedVersion: string) => {
     Promise,
   });
   vm.runInContext('var globalThis = window; ' + contractSource, context);
+  vm.runInContext(bridgeGenerationSource, context);
   vm.runInContext(relaySource, context);
 
   /** Responde al ÚLTIMO request del relay como lo haría el inject. */
-  const answerFromInject = (payload: Record<string, unknown>) => {
+  const answerFromInject = (
+    payload: Record<string, unknown>,
+    bridgeGeneration = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+  ) => {
     const request = requests[requests.length - 1] as { reqId: string; type: string };
     const type = String(request.type).replace(/_REQUEST$/, '_RESULT');
     for (const listener of [...listeners]) {
-      listener({ source: windowStub, data: { type, reqId: request.reqId, ...payload } });
+      listener({
+        source: windowStub,
+        data: {
+          type,
+          reqId: request.reqId,
+          bridgeGeneration,
+          ...payload,
+        },
+      });
     }
   };
 
@@ -104,6 +120,9 @@ describe('relay de Ficha Médico · versión del inject', () => {
     });
     await expect(ping).resolves.toEqual({
       ready: true,
+      reason: 'connected',
+      bridgeVersion: '0.48.8',
+      bridgeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
       identity: { fullName: 'Daniel Opazo', role: 'Médico' },
       expiresAt: 1_788_445_690_306,
       remainingSeconds: 67_718,
@@ -114,6 +133,18 @@ describe('relay de Ficha Médico · versión del inject', () => {
     await flush();
     relay.answerFromInject({ injectVersion: '0.48.8', snapshot: { encounters: [] } });
     await expect(read).resolves.toEqual({ snapshot: { encounters: [] } });
+  });
+
+  it('rechaza una respuesta de la misma versión que conserva una generación anterior', async () => {
+    const oldGeneration = 'ffffffff-1111-4222-8333-444444444444';
+    const relay = createRelay(manifest.version);
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
+    await flush();
+    expect(relay.requests.at(-1)?.runtimeGeneration).toBe(
+      'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+    );
+    relay.answerFromInject({ injectVersion: manifest.version, ready: true }, oldGeneration);
+    await expect(ping).resolves.toMatchObject({ ready: false, reason: 'outdated_tab' });
   });
 
   it('un inject de otra versión (o sin versión) no está listo y no lee: pide recargar la pestaña', async () => {
@@ -127,7 +158,7 @@ describe('relay de Ficha Médico · versión del inject', () => {
     });
     const health = await ping;
     expect(health.ready).toBe(false);
-    expect(health.message).toContain('versión anterior de la extensión');
+    expect(health.message).toContain('versión o generación anterior de la extensión');
     // El relay conserva la identidad verificada (probeTabs solo la usa en respuestas listas).
     expect(health.identity).toEqual({ fullName: 'Daniel Opazo', role: 'Médico' });
 
@@ -136,17 +167,43 @@ describe('relay de Ficha Médico · versión del inject', () => {
     relay.answerFromInject({ injectVersion: '0.48.5', snapshot: { encounters: [] } });
     const result = await read;
     expect(result.snapshot).toBeUndefined();
-    expect(String(result.error)).toContain('versión anterior de la extensión');
+    expect(String(result.error)).toContain('versión o generación anterior de la extensión');
 
-    // Obsolescencia memorizada: las siguientes lecturas se cortan sin preguntar al inject.
+    // Una respuesta inválida se rechaza, pero no envenena permanentemente el relé.
     const requestsBefore = relay.requests.length;
-    await expect(relay.send({ type: 'RAYEN_FM_GET_FETCH_INFO' })).resolves.toEqual({
-      error: expect.stringContaining('versión anterior de la extensión'),
+    const nextInfo = relay.send({ type: 'RAYEN_FM_GET_FETCH_INFO' });
+    await flush();
+    relay.answerFromInject({ injectVersion: '0.48.5' });
+    await expect(nextInfo).resolves.toEqual({
+      error: expect.stringContaining('versión o generación anterior de la extensión'),
     });
-    await expect(relay.send({ type: 'RAYEN_READ' })).resolves.toEqual({
-      error: expect.stringContaining('versión anterior de la extensión'),
+    const nextRead = relay.send({ type: 'RAYEN_READ' });
+    await flush();
+    relay.answerFromInject({ injectVersion: '0.48.5' });
+    await expect(nextRead).resolves.toEqual({
+      error: expect.stringContaining('versión o generación anterior de la extensión'),
     });
-    expect(relay.requests).toHaveLength(requestsBefore);
+    expect(relay.requests).toHaveLength(requestsBefore + 2);
+  });
+
+  it('rechaza la misma versión cuando pertenece a una generación anterior de la extensión', async () => {
+    const relay = createRelay('0.48.10');
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
+    await flush();
+    relay.answerFromInject(
+      {
+        injectVersion: '0.48.10',
+        ready: true,
+        message: 'Pestaña antigua que todavía responde.',
+      },
+      'ffffffff-1111-4222-8333-444444444444'
+    );
+
+    await expect(ping).resolves.toMatchObject({
+      ready: false,
+      reason: 'outdated_tab',
+      bridgeVersion: '0.48.10',
+    });
   });
 
   it('un fetch-info de un inject de otra versión se rechaza (primera detección por esa vía)', async () => {
@@ -155,7 +212,7 @@ describe('relay de Ficha Médico · versión del inject', () => {
     await flush();
     relay.answerFromInject({ injectVersion: '0.48.5', info: { apiOrigin: 'https://x' } });
     await expect(info).resolves.toEqual({
-      error: expect.stringContaining('versión anterior de la extensión'),
+      error: expect.stringContaining('versión o generación anterior de la extensión'),
     });
   });
 

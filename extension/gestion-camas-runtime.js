@@ -2,6 +2,9 @@
 (function (root) {
   'use strict';
 
+  const reasonOf = value => value && value.reason || 'session_unverified';
+  const verificationFailure = (error, reason = 'session_unverified') => ({ error, reason });
+
   const MATCH_PATTERN = 'https://hospitalizado.rayensalud.cl/*';
   const LOGIN_URL = 'https://hospitalizado.rayensalud.cl/';
   const SESSION_PROBE_RUN = '000000000';
@@ -251,15 +254,16 @@
 
     const requestLiveGestionCamasSession = async ({
       verificationTimeoutMs = backendRequestTimeoutMs,
-      tabTimeoutMs = tabMessageTimeoutMs,
+      tabTimeoutMs = tabMessageTimeoutMs, targetTabIds,
     } = {}) => {
       const tabs = extensionHealth.orderTabs(
-        await chromeApi.tabs.query({ url: MATCH_PATTERN })
+        await extensionHealth.resolveTabs(chromeApi.tabs, MATCH_PATTERN, targetTabIds)
       );
       if (!tabs.length) return { error: 'Gestión de Camas no está abierta.' };
       const pending = await readPendingGestionCamasConnection();
       const current = await readGestionCamasSession();
       let lastError = 'Gestión de Camas está abierta, pero su sesión todavía no está disponible.';
+      let lastReason = 'session_unverified';
       for (const tab of tabs) {
         try {
           const connectionAttemptId =
@@ -288,6 +292,7 @@
             }
             await clearGestionCamasSession(candidate);
             lastError = verified.error || 'La credencial capturada no pudo verificarse.';
+            lastReason = reasonOf(verified);
             continue;
           }
           if (response && response.error) lastError = String(response.error);
@@ -295,7 +300,7 @@
           lastError = String((error && error.message) || error);
         }
       }
-      return { error: lastError };
+      return { error: lastError, reason: lastReason };
     };
 
     const resolveGestionCamasSession = async ({ allowLive = true } = {}) => {
@@ -345,13 +350,21 @@
         }
         const rejection = await classifyGestionCamasRejection(response, record);
         if (rejection === 'changed') return { changed: true };
-        if (rejection === 'expired') return { error: 'La sesión de Gestión de Camas venció.' };
-        if (rejection === 'forbidden') {
-          return { error: 'Rayen rechazó la comprobación por permisos; la sesión no se marcó como vigente.' };
+        if (rejection === 'expired') {
+          return verificationFailure('La sesión de Gestión de Camas venció.', 'session_expired');
         }
-        return { error: 'Rayen respondió HTTP ' + response.status + ' al comprobar la sesión.' };
+        if (rejection === 'forbidden') {
+          return verificationFailure(
+            'Rayen rechazó la comprobación por permisos; la sesión no se marcó como vigente.'
+          );
+        }
+        return verificationFailure(
+          'Rayen respondió HTTP ' + response.status + ' al comprobar la sesión.'
+        );
       } catch (error) {
-        return { error: 'No se pudo comprobar la sesión: ' + String((error && error.message) || error) };
+        return verificationFailure(
+          'No se pudo comprobar la sesión: ' + String((error && error.message) || error)
+        );
       }
     };
 

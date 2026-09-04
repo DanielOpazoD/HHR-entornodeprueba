@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
  */
 
 const injectSource = readFileSync(path.resolve('extension/inject-fichamedico.js'), 'utf8');
+const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
 const isolationNormalizationSource = readFileSync(
   path.resolve('extension/fichamedico-isolation-normalization.js'),
   'utf8'
@@ -30,10 +31,13 @@ const resilienceSource = readFileSync(
 );
 const AUTH_HEADER_FIXTURE = ['HSP', 'fixture'].join(' ');
 const LIST_PATH = '/encounter/list/filter';
+const RUNTIME_GENERATION_FIXTURE = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+const MAIN_WORLD_GENERATION_KEY = '__hhrExtensionRuntimeGenerationV1__';
 
 type PostedMessage = {
   type?: string;
   reqId?: string;
+  runtimeGeneration?: string;
   ready?: boolean;
   message?: string;
   error?: string | null;
@@ -84,6 +88,11 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
     },
     postMessage: (message: PostedMessage) => posted.push(message),
   };
+  Object.defineProperty(windowObject, MAIN_WORLD_GENERATION_KEY, {
+    value: RUNTIME_GENERATION_FIXTURE,
+    configurable: false,
+    writable: false,
+  });
   function XMLHttpRequestMock() {}
   XMLHttpRequestMock.prototype.open = () => undefined;
   XMLHttpRequestMock.prototype.setRequestHeader = () => undefined;
@@ -114,12 +123,14 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
   });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
+  vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation.js' });
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
   for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
 
   const send = async (data: PostedMessage) => {
+    const request = { runtimeGeneration: RUNTIME_GENERATION_FIXTURE, ...data };
     const callbacks = listeners.get('message') || [];
-    await Promise.all(callbacks.map(callback => callback({ source: windowObject, data })));
+    await Promise.all(callbacks.map(callback => callback({ source: windowObject, data: request })));
     return posted.findLast(message => message.reqId === data.reqId);
   };
   /**

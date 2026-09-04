@@ -20,8 +20,11 @@
   'use strict';
   if (window.__gcInjected) return;
   window.__gcInjected = true;
-
+  const INJECT_VERSION = '0.48.10';
   const BACKEND_HINT = 'hospbackend.rayensalud.cl';
+  const BRIDGE_REQUEST_TYPES = new Set(['RAYEN_GC_BRIDGE_STATUS_REQUEST', 'RAYEN_GC_CONNECTION_ATTEMPT', 'RAYEN_GC_LOOKUP_REQUEST', 'RAYEN_GC_FETCHINFO_REQUEST']);
+  const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
+  const bridgeContextFor = data => BRIDGE_REQUEST_TYPES.has(data && data.type) ? bridgeRuntime.contextFor(data) : null;
   let capturedAuth = null;
   let capturedAuthConnectionAttemptId = '';
   let activeConnectionAttemptId = '';
@@ -42,6 +45,7 @@
       window.postMessage(
         {
           type: 'RAYEN_GC_SESSION_CAPTURED',
+          ...bridgeRuntime.metadata(),
           info: { token: auth, apiBase: base, facId, connectionAttemptId },
         },
         window.location.origin
@@ -205,15 +209,29 @@
     return out;
   };
 
-  // --- Bridge with the isolated content script ---
   window.addEventListener('message', async event => {
     if (event.source !== window) return;
     const d = event.data;
-    if (!d) return;
+    const bridge = bridgeContextFor(d);
+    if (!bridge) return;
     const reply = (type, extra) =>
-      window.postMessage({ type, reqId: d.reqId, ...extra }, window.location.origin);
+      window.postMessage({
+        type,
+        reqId: d.reqId,
+        ...bridgeRuntime.metadata(bridge),
+        ...extra,
+      }, window.location.origin);
+
+    if (d.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST') {
+      reply('RAYEN_GC_BRIDGE_STATUS_RESULT', {
+        ready: bridge.current,
+        reason: bridge.current ? 'connected' : 'outdated_tab',
+      });
+      return;
+    }
 
     if (d.type === 'RAYEN_GC_CONNECTION_ATTEMPT') {
+      if (!bridge.current) return;
       activeConnectionAttemptId = String(d.connectionAttemptId || '');
       if (d.rehydrated === true && activeConnectionAttemptId && capturedAuth) {
         // A new document may issue its bootstrap request before the isolated bridge returns.
@@ -226,6 +244,12 @@
     }
 
     if (d.type === 'RAYEN_GC_LOOKUP_REQUEST') {
+      if (!bridge.current) {
+        reply('RAYEN_GC_LOOKUP_RESULT', {
+          error: 'Esta pestaña pertenece a una generación anterior de la extensión.',
+        });
+        return;
+      }
       try {
         reply('RAYEN_GC_LOOKUP_RESULT', { results: await lookupEgresos(d.runs) });
       } catch (error) {
@@ -238,6 +262,12 @@
     // the captured token + API base to the background service worker, which downloads it
     // (host_permissions bypass CORS) and returns the bytes to HHR. Token stays in-extension.
     if (d.type === 'RAYEN_GC_FETCHINFO_REQUEST') {
+      if (!bridge.current) {
+        reply('RAYEN_GC_FETCHINFO_RESULT', {
+          error: 'Esta pestaña pertenece a una generación anterior de la extensión.',
+        });
+        return;
+      }
       const requestedAttemptId = String(d.connectionAttemptId || '');
       // Rechaza solo cuando el solicitante fija OTRA generación que la activa
       // (carrera real de renovación). Exigir además que la credencial se haya

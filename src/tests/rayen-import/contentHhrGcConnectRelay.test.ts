@@ -6,11 +6,17 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 const contentBridgeSource = readFileSync(path.resolve('extension/content-hhr.js'), 'utf8');
+const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
 
 type PageMessage = { source: unknown; data: Record<string, unknown> };
 
-const createHarness = (sendMessage: ReturnType<typeof vi.fn>) => {
+const createHarness = (
+  sendMessage: (message: Record<string, unknown>) => Promise<unknown>
+) => {
   let onMessage: ((event: PageMessage) => void) | undefined;
+  let onRuntimeMessage:
+    | ((message: Record<string, unknown>, sender: unknown, respond: (value: unknown) => void) => unknown)
+    | undefined;
   const postMessage = vi.fn();
   const windowObject = {
     location: { origin: 'http://localhost:3001' },
@@ -21,14 +27,38 @@ const createHarness = (sendMessage: ReturnType<typeof vi.fn>) => {
   };
   const context = vm.createContext({
     window: windowObject,
-    chrome: { runtime: { sendMessage, onMessage: { addListener: vi.fn() } } },
+    chrome: {
+      runtime: {
+        sendMessage: (message: Record<string, unknown>, callback?: (value: unknown) => void) => {
+          if (message.type === 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST') {
+            callback?.({
+              version: '0.48.10',
+              runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+            });
+            return undefined;
+          }
+          return sendMessage(message);
+        },
+        getManifest: () => ({ version: '0.48.10' }),
+        lastError: undefined,
+        onMessage: {
+          addListener: vi.fn(listener => {
+            onRuntimeMessage = listener;
+          }),
+        },
+      },
+    },
     console,
     HhrRayenMessageContract: {
-      types: { GC_CONNECT_REQUEST: 'RAYEN_GC_CONNECT_REQUEST' },
+      types: {
+        EXTENSION_RUNTIME_CONTEXT_REQUEST: 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST',
+        GC_CONNECT_REQUEST: 'RAYEN_GC_CONNECT_REQUEST',
+      },
     },
   });
+  vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation.js' });
   vm.runInContext(contentBridgeSource, context, { filename: 'content-hhr.js' });
-  return { onMessage, postMessage, windowObject };
+  return { onMessage, onRuntimeMessage, postMessage, windowObject };
 };
 
 describe('content-hhr · relé de conexión de Gestión de Camas', () => {
@@ -70,5 +100,27 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
         'http://localhost:3001'
       )
     );
+  });
+
+  it('confirma que el relé HHR pertenece a la versión y generación vigentes', async () => {
+    const { onRuntimeMessage } = createHarness(vi.fn());
+    const response = new Promise<Record<string, unknown>>(resolve => {
+      const keepAlive = onRuntimeMessage?.(
+        {
+          type: 'RAYEN_EXTENSION_HHR_HEALTH_PING',
+          runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        },
+        {},
+        value => resolve(value as Record<string, unknown>)
+      );
+      expect(keepAlive).toBe(true);
+    });
+
+    await expect(response).resolves.toMatchObject({
+      ready: true,
+      reason: 'connected',
+      bridgeVersion: '0.48.10',
+      bridgeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+    });
   });
 });

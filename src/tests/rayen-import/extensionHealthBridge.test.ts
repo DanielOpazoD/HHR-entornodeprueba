@@ -16,11 +16,14 @@ import {
 
 const report: RayenExtensionHealthReport = {
   version: '0.5.0',
+  runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+  runtimeStartedAt: 1_788_445_690_306,
   protocolVersion: 1,
   capabilities: ['patient-flow-report'],
   checkedAt: '2026-07-14T05:00:00.000Z',
-  fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
-  gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
+  fichaMedico: { status: 'ready', reason: 'connected', message: 'Ficha Médico disponible.' },
+  gestionCamas: { status: 'ready', reason: 'connected', message: 'Gestión de Camas disponible.' },
+  hhr: { status: 'ready', reason: 'connected', message: 'HHR enlazado.' },
 };
 
 describe('extensionHealthBridge', () => {
@@ -35,6 +38,12 @@ describe('extensionHealthBridge', () => {
       false
     );
     expect(isRayenExtensionHealthReport({ ...report, protocolVersion: '1' })).toBe(false);
+    expect(
+      isRayenExtensionHealthReport({
+        ...report,
+        fichaMedico: { ...report.fichaMedico, reason: 'invented' },
+      })
+    ).toBe(false);
     expect(isRayenExtensionHealthReport({ ...report, capabilities: [false] })).toBe(false);
     expect(supportsPatientFlowReport(report)).toBe(true);
     expect(supportsPatientFlowReport({ ...report, capabilities: undefined })).toBe(false);

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.9",
+  "version": "0.48.10",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": [
     "tabs",
@@ -73,6 +73,7 @@
         "fichamedico-treating-physician-normalization.js",
         "fichamedico-normalization.js",
         "fichamedico-read-resilience.js",
+        "bridge-generation.js",
         "inject-fichamedico.js"
       ],
       "run_at": "document_start",
@@ -84,6 +85,7 @@
       ],
       "js": [
         "message-contract.js",
+        "bridge-generation.js",
         "hhr-ui.js",
         "hhr-center-styles.js",
         "hhr-center-shell-runtime.js",
@@ -100,6 +102,7 @@
         "hhr-imaging-center.js",
         "hhr-discharge-actions-runtime.js",
         "hhr-medication-actions-runtime.js",
+        "hhr-connection-repair-controls.js",
         "hhr-connection-center-runtime.js",
         "prescription-print.js",
         "lab-result-parser.js",
@@ -117,6 +120,7 @@
         "https://hospitalizado.rayensalud.cl/*"
       ],
       "js": [
+        "bridge-generation.js",
         "inject-gestioncamas.js"
       ],
       "run_at": "document_start",
@@ -128,6 +132,8 @@
       ],
       "js": [
         "message-contract.js",
+        "bridge-generation.js",
+        "gestion-camas-bridge-health.js",
         "content-gestioncamas.js"
       ],
       "run_at": "document_start"
@@ -153,6 +159,7 @@
       ],
       "js": [
         "message-contract.js",
+        "bridge-generation.js",
         "content-hhr-sync-bundle.js",
         "content-hhr.js",
         "content-hhr-patient-flow.js",
