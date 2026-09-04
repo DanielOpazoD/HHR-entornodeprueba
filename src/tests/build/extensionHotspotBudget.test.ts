@@ -61,8 +61,8 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    // 102: el popup de versión agrega un script propio, pequeño y sin lógica clínica.
-    expect(metrics.authoredFiles).toHaveLength(102);
+    // 103: el observador de pestañas agrega un runtime propio, pequeño y sin lógica clínica.
+    expect(metrics.authoredFiles).toHaveLength(103);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,

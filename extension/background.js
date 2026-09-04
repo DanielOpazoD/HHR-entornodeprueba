@@ -30,7 +30,7 @@ importScripts(
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
-  'health-heartbeat-runtime.js',
+  'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
   'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
@@ -283,8 +283,7 @@ const handleExtensionHealth = async () => {
   };
 };
 
-// Los hosts HHR viven SOLO en el manifest: el latido empuja a las pestañas
-// donde está inyectado content-hhr.js, sin duplicar la lista aquí.
+// Los hosts HHR viven solo en el manifest, sin duplicar la lista aquí.
 const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
   .filter(entry => (entry.js || []).includes('content-hhr.js'))
   .flatMap(entry => entry.matches || []);
@@ -294,6 +293,7 @@ const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({
   hhrMatchPatterns: HHR_TAB_MATCH_PATTERNS,
 });
 healthHeartbeat.start();
+self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();
 // Al instalar/actualizar la extensión, los relés de las pestañas abiertas
 // quedan huérfanos: re-inyectarlos y empujar el estado fresco de inmediato.
 self.HhrRelayReinjectionRuntime.create({
