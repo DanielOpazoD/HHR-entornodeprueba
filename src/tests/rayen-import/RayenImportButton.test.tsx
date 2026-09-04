@@ -373,6 +373,10 @@ describe('RayenImportButton', () => {
     fireEvent.click(screen.getByTestId('rayen-connection-monitor-trigger'));
     // Con Ficha Médico caída, conectar GC no aplica; queda solo la comprobación.
     expect(screen.queryByTestId('rayen-monitor-connect-gc')).not.toBeInTheDocument();
+    // Al abrir, el monitor ejecuta primero su comprobación automática. Esperar
+    // a que termine evita intentar pulsar el fallback mientras está desactivado.
+    await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId('rayen-monitor-refresh')).toBeEnabled());
     fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
 
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(2));
