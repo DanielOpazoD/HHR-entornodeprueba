@@ -1,4 +1,7 @@
-/** Version + lifecycle-generation handshake shared by MAIN and ISOLATED bridge worlds. */
+/**
+ * Version + lifecycle-generation handshake for ISOLATED relays and shared tests.
+ * Chrome MAIN entries load bridge-generation-main.js as a distinct resource.
+ */
 (function (root) {
   'use strict';
 

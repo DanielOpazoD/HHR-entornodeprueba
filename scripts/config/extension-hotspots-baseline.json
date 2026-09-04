@@ -23,6 +23,10 @@
       "maxLines": 74,
       "hotspots": {}
     },
+    "bridge-generation-main.js": {
+      "maxLines": 51,
+      "hotspots": {}
+    },
     "census-sync-horizon-runtime.js": {
       "maxLines": 43,
       "hotspots": {}

@@ -1,8 +1,10 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/runtime-generation.js';
-import '../../../extension/bridge-generation.js';
+import '../../../extension/bridge-generation-main.js';
 
 type Owner = {
   MAIN_WORLD_GENERATION_KEY: string;
@@ -42,6 +44,27 @@ const createFixture = () => {
 };
 
 describe('runtime generation (extension)', () => {
+  it('loads different bridge owners in MAIN and ISOLATED worlds', () => {
+    const manifest = JSON.parse(
+      readFileSync(path.resolve('extension/manifest.json'), 'utf8')
+    ) as { content_scripts: Array<{ js?: string[]; world?: string }> };
+    const mainFiles = new Set(
+      manifest.content_scripts
+        .filter(entry => entry.world === 'MAIN')
+        .flatMap(entry => entry.js || [])
+    );
+    const isolatedFiles = new Set(
+      manifest.content_scripts
+        .filter(entry => entry.world !== 'MAIN')
+        .flatMap(entry => entry.js || [])
+    );
+
+    expect(mainFiles).toContain('bridge-generation-main.js');
+    expect(isolatedFiles).toContain('bridge-generation.js');
+    expect(mainFiles).not.toContain('bridge-generation.js');
+    expect(isolatedFiles).not.toContain('bridge-generation-main.js');
+  });
+
   it('reuses one generation across service-worker runtimes in the same loaded lifecycle', async () => {
     const fixture = createFixture();
     const first = owner.create({ ...fixture, now: () => 100 });
@@ -93,7 +116,7 @@ describe('runtime generation (extension)', () => {
       HhrBridgeGeneration: { createMain: (input: Record<string, unknown>) => {
         contextFor: (request: Record<string, unknown>) => Record<string, unknown>;
       } };
-    }).HhrBridgeGeneration.createMain({ version: '0.48.10', windowRef: windowStub });
+    }).HhrBridgeGeneration.createMain({ version: '0.48.11', windowRef: windowStub });
 
     expect(bridge.contextFor({ runtimeGeneration: 'generation-forged' })).toEqual({
       bridgeGeneration: 'generation-original',
