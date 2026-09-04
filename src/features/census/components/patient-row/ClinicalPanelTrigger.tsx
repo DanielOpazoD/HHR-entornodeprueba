@@ -63,7 +63,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
             event.stopPropagation();
             setIsOpen(true);
           }}
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-500"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
           title="Panel clínico (evoluciones, indicaciones y cuidados de Eloísa)"
           aria-label={`Abrir panel clínico de ${patientName}`}
         >

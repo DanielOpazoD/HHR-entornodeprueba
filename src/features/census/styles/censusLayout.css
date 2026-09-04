@@ -1,0 +1,56 @@
+/* Keep clinical columns readable; only the table owns horizontal overflow. */
+.census-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: auto;
+  scroll-padding-inline-start: 72px;
+}
+
+.census-table-scroll:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 2px;
+}
+
+@media screen {
+  .census-table-scroll > table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  /* Every occupied, empty and crib row has actions first and bed second. */
+  .census-table-scroll > table > tbody > tr > td:nth-child(2),
+  .census-table-scroll > table > thead > tr > th:nth-child(2) {
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    background: #f8fafc;
+    box-shadow: 1px 0 0 #cbd5e1;
+  }
+
+  .census-table-scroll > table > thead > tr > th:nth-child(2) {
+    z-index: 31;
+  }
+}
+
+@media screen and (max-width: 1023px) {
+  .census-register {
+    padding-inline: 12px !important;
+  }
+}
+
+@media print {
+  .census-table-scroll {
+    overflow: visible;
+  }
+
+  .census-table-scroll > table {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Preserve column proportions, not screen pixels. Hidden columns stay hidden. */
+  .census-table-scroll > table > thead > tr > th {
+    width: calc(var(--census-column-width) / var(--census-table-width) * 100%) !important;
+    max-width: none !important;
+  }
+}

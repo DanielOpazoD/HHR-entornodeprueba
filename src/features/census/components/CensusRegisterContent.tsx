@@ -14,6 +14,7 @@ import { useDailyRecordStatus } from '@/context/DailyRecordContext';
 import { resolveCensusOperationalState } from '@/features/census/controllers/censusOperationalStateController';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import '../styles/censusLayout.css';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
 const LazyCensusRegisterSections = lazyWithRetry(() =>
@@ -63,7 +64,7 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
     <CensusActionsProvider>
       <CensusPrintHeader currentDateString={currentDateString} />
 
-      <div className="space-y-4" style={marginStyle}>
+      <div className="census-register space-y-4" style={marginStyle}>
         <CensusOperationalStateBanner state={operationalState} />
 
         <CensusStaffHeader

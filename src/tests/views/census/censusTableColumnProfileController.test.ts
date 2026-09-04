@@ -64,6 +64,17 @@ describe('censusTableColumnProfileController', () => {
       expect(projected.cqx).toBe(0);
       expect(projected.type).toBe(0); // type is hidden even in the specialist profile
     }
-    expect(resolveVisibleCensusColumns(columns, 'default').name).toBe(columns.name);
   });
+
+  it.each(['default', 'specialist'] as const)(
+    'keeps identity readable without mutating saved widths (%s)',
+    profile => {
+      const saved = { ...columns, actions: 22, bed: 28, name: 150, diagnosis: 123 };
+      const projected = resolveVisibleCensusColumns(saved, profile);
+      expect(projected).toMatchObject({ actions: 40, bed: 64, name: 380, diagnosis: 280 });
+      expect(saved).toMatchObject({ actions: 22, bed: 28, name: 150, diagnosis: 123 });
+      const wider = resolveVisibleCensusColumns({ ...saved, name: 400, diagnosis: 350 }, profile);
+      expect(wider).toMatchObject({ name: 400, diagnosis: 350 });
+    }
+  );
 });

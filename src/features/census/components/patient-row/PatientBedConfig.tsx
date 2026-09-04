@@ -26,6 +26,7 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
     isMenuOpen,
     menuRef,
     toggleMenu,
+    closeMenu,
     viewState,
     handleToggleCompanion,
     handleToggleClinicalCrib,
@@ -125,7 +126,9 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
           </button>
 
           {/* Dropdown content */}
-          {isMenuOpen && <PatientBedConfigMenuPanel {...sections.menu} />}
+          {isMenuOpen && (
+            <PatientBedConfigMenuPanel {...sections.menu} anchorRef={menuRef} onClose={closeMenu} />
+          )}
         </div>
       )}
 
