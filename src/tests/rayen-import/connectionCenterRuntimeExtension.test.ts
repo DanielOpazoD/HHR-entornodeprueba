@@ -2,7 +2,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-
 import '../../../extension/hhr-connection-repair-controls.js';
 import '../../../extension/hhr-connection-action-model.js';
 import '../../../extension/hhr-connection-center-runtime.js';
