@@ -7,7 +7,6 @@
  */
 (() => {
   'use strict';
-
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
@@ -19,13 +18,27 @@
 
   const LOOKUP_TIMEOUT_MS = 45000;
   let connectionAttemptRevision = 0;
+  const extensionVersion = chrome.runtime.getManifest().version;
+  const generationRelay = globalThis.HhrBridgeGeneration.createRelay({
+    chromeApi: chrome,
+    runtimeMessages,
+    extensionVersion,
+  });
+  const runtimeContextPromise = generationRelay.context;
+  const isCurrentBridgeMessage = generationRelay.isCurrent;
+  const bridgeHealth = globalThis.HhrGestionCamasBridgeHealth.create({
+    windowRef: window,
+    runtimeContextPromise,
+    isCurrentBridgeMessage,
+  });
 
-  const applyConnectionAttempt = (connectionAttemptId, rehydrated = false) => {
+  const applyConnectionAttempt = (connectionAttemptId, runtimeGeneration, rehydrated = false) => {
     connectionAttemptRevision += 1;
     window.postMessage(
       {
         type: 'RAYEN_GC_CONNECTION_ATTEMPT',
         connectionAttemptId: String(connectionAttemptId || ''),
+        runtimeGeneration,
         rehydrated: Boolean(rehydrated),
       },
       window.location.origin
@@ -34,17 +47,27 @@
 
   // Login redirects create a new MAIN-world document. Rehydrate the pending generation before
   // that document is asked for credentials, otherwise its captures would look stale.
-  try {
-    const requestedRevision = connectionAttemptRevision;
-    chrome.runtime.sendMessage({ type: runtimeMessages.GC_DOCUMENT_READY }, response => {
-      if (chrome.runtime.lastError) return;
-      if (connectionAttemptRevision !== requestedRevision) return;
-      applyConnectionAttempt(response && response.connectionAttemptId, true);
-    });
-  } catch (_error) {}
+  void runtimeContextPromise.then(runtimeContext => {
+    if (!runtimeContext) return;
+    try {
+      const requestedRevision = connectionAttemptRevision;
+      chrome.runtime.sendMessage({ type: runtimeMessages.GC_DOCUMENT_READY }, response => {
+        if (chrome.runtime.lastError) return;
+        if (connectionAttemptRevision !== requestedRevision) return;
+        applyConnectionAttempt(
+          response && response.connectionAttemptId,
+          runtimeContext.runtimeGeneration,
+          true
+        );
+      });
+    } catch (_error) {}
+  });
 
-  const lookupViaMainWorld = runs =>
-    new Promise(resolve => {
+  const lookupViaMainWorld = async runs => {
+    const runtimeContext = await runtimeContextPromise;
+    const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
+    if (!runtimeGeneration) return { error: 'El relé de Gestión de Camas perdió conexión con la extensión.' };
+    return new Promise(resolve => {
       const reqId = 'gc' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
 
@@ -53,6 +76,10 @@
         const d = event.data;
         if (!d || d.type !== 'RAYEN_GC_LOOKUP_RESULT' || d.reqId !== reqId) return;
         cleanup();
+        if (!isCurrentBridgeMessage(d, runtimeGeneration)) {
+          resolve({ error: 'Abre una pestaña nueva de Gestión de Camas: la pestaña actual está desactualizada.' });
+          return;
+        }
         resolve(d.error ? { error: d.error } : { results: d.results });
       };
 
@@ -63,7 +90,10 @@
       };
 
       window.addEventListener('message', onMessage);
-      window.postMessage({ type: 'RAYEN_GC_LOOKUP_REQUEST', reqId, runs }, window.location.origin);
+      window.postMessage(
+        { type: 'RAYEN_GC_LOOKUP_REQUEST', reqId, runs, runtimeGeneration },
+        window.location.origin
+      );
 
       setTimeout(() => {
         if (settled) return;
@@ -71,11 +101,15 @@
         resolve({ error: 'Tiempo de espera agotado consultando Gestión de Camas.' });
       }, LOOKUP_TIMEOUT_MS);
     });
+  };
 
   // Ask the MAIN world for the captured auth token + API base so the background can download
   // reports (see inject-gestioncamas.js). Generic request/response over window.postMessage.
-  const getFetchInfoViaMainWorld = connectionAttemptId =>
-    new Promise(resolve => {
+  const getFetchInfoViaMainWorld = async connectionAttemptId => {
+    const runtimeContext = await runtimeContextPromise;
+    const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
+    if (!runtimeGeneration) return { error: 'El relé de Gestión de Camas perdió conexión con la extensión.' };
+    return new Promise(resolve => {
       const reqId = 'gc' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
       const onMessage = event => {
@@ -83,6 +117,10 @@
         const d = event.data;
         if (!d || d.type !== 'RAYEN_GC_FETCHINFO_RESULT' || d.reqId !== reqId) return;
         cleanup();
+        if (!isCurrentBridgeMessage(d, runtimeGeneration)) {
+          resolve({ error: 'Abre una pestaña nueva de Gestión de Camas: la pestaña actual está desactualizada.' });
+          return;
+        }
         resolve(
           d.error
             ? { error: d.error }
@@ -96,7 +134,7 @@
       };
       window.addEventListener('message', onMessage);
       window.postMessage(
-        { type: 'RAYEN_GC_FETCHINFO_REQUEST', reqId, connectionAttemptId },
+        { type: 'RAYEN_GC_FETCHINFO_REQUEST', reqId, connectionAttemptId, runtimeGeneration },
         window.location.origin
       );
       setTimeout(() => {
@@ -105,13 +143,19 @@
         resolve({ error: 'Tiempo de espera agotado obteniendo el token de Gestión de Camas.' });
       }, LOOKUP_TIMEOUT_MS);
     });
+  };
 
   // Persist only the short-lived access token in chrome.storage.session through the worker.
   // The password remains exclusively in Rayen's official login page.
-  window.addEventListener('message', event => {
+  window.addEventListener('message', async event => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (!data || data.type !== runtimeMessages.GC_SESSION_CAPTURED || !data.info) return;
+    const runtimeContext = await runtimeContextPromise;
+    if (
+      !runtimeContext ||
+      !isCurrentBridgeMessage(data, runtimeContext.runtimeGeneration)
+    ) return;
     try {
       chrome.runtime.sendMessage({ type: runtimeMessages.GC_SESSION_CAPTURED, info: data.info }, () => {
         void chrome.runtime.lastError;
@@ -121,8 +165,8 @@
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
-      sendResponse({ ready: true, message: 'Gestión de Camas disponible.' });
-      return false;
+      bridgeHealth.read().then(sendResponse);
+      return true;
     }
     if (msg && msg.type === 'RAYEN_GC_LOOKUP') {
       lookupViaMainWorld(Array.isArray(msg.runs) ? msg.runs : []).then(sendResponse);
@@ -133,9 +177,19 @@
       return true;
     }
     if (msg && msg.type === 'RAYEN_GC_SET_CONNECTION_ATTEMPT') {
-      applyConnectionAttempt(msg.connectionAttemptId, msg.rehydrated === true);
-      sendResponse({ ok: true });
-      return false;
+      runtimeContextPromise.then(runtimeContext => {
+        if (!runtimeContext) {
+          sendResponse({ error: 'El relé perdió conexión con la extensión.' });
+          return;
+        }
+        applyConnectionAttempt(
+          msg.connectionAttemptId,
+          runtimeContext.runtimeGeneration,
+          msg.rehydrated === true
+        );
+        sendResponse({ ok: true });
+      });
+      return true;
     }
     return undefined;
   });

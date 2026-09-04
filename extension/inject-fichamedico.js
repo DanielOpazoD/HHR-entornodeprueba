@@ -29,7 +29,8 @@
   const BACKEND_HINT = 'rayensalud.cl';
   // Publicada en cada respuesta al relay: un inject de mundo principal sobrevive a la
   // recarga de la extensión hasta recargar la página; el relay compara con el manifest.
-  const INJECT_VERSION = '0.48.9';
+  const INJECT_VERSION = '0.48.10';
+  const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
   const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
   const NURSING_ROUTE_RE = /^\/dashboard\/encounter-list-nurse(?:\/|$)/;
@@ -40,6 +41,7 @@
   const normalization = globalThis.HhrFichaMedicoNormalization;
   let capturedApiOrigin = null;
   let sessionBindingRevision = 0;
+  let lastSessionFailureReason = 'session_expired';
   let epicrisisCapture = null;
   const epicrisisPdfCandidates = new Map();
 
@@ -215,6 +217,8 @@
       sessionStorage.removeItem(NURSING_CONTEXT_KEY);
     } catch (_) {}
   };
+  const sessionFailureReason = response =>
+    [401, 403].includes(response && response.status) ? 'session_expired' : 'session_unverified';
 
   const resolveNursingContext = ({ facilityId, practitionerId, practitionerRoleId, role }) => {
     const identityKey = [facilityId, practitionerId, practitionerRoleId].join(':');
@@ -263,6 +267,7 @@
       });
       if (revision !== sessionBindingRevision) return null;
       if (!response.ok) {
+        lastSessionFailureReason = sessionFailureReason(response);
         if (response.status === 401 || response.status === 403) clearClinicalBinding();
         return null;
       }
@@ -271,6 +276,7 @@
       const session = payload && payload.ok !== false ? payload.session : null;
       const sessionToken = String((session && session.token) || '');
       if (!session || !sessionToken) {
+        lastSessionFailureReason = 'session_expired';
         clearClinicalBinding();
         return null;
       }
@@ -278,6 +284,7 @@
       const practitionerId = String(session.healthCarePractitionerId || '');
       const practitionerRoleId = String(session.healthCarePractitionerRoleId || '');
       if (!/^\d+$/.test(facilityId) || !/^\d+$/.test(practitionerId) || !/^\d+$/.test(practitionerRoleId)) {
+        lastSessionFailureReason = 'session_unverified';
         return null;
       }
       const role = normalization.normalizeSessionRole(session);
@@ -286,6 +293,7 @@
       if (previousAuth && previousAuth !== sessionToken) capturedListUrl = null;
       capturedAuth = sessionToken;
       capturedApiOrigin = capturedApiOrigin || DEFAULT_API_ORIGIN;
+      lastSessionFailureReason = 'connected';
       return {
         facilityId,
         practitionerId,
@@ -297,6 +305,7 @@
         tokenMatchesCapturedAuth,
       };
     } catch (_) {
+      lastSessionFailureReason = 'session_unverified';
       return null;
     }
   };
@@ -500,10 +509,14 @@
 
     if (data.type === 'RAYEN_EXT_READ_REQUEST') {
       const reqId = data.reqId;
+      const bridge = bridgeRuntime.accept(data, 'RAYEN_EXT_READ_RESULT', {
+          error: 'Esta pestaña pertenece a una generación anterior de la extensión.',
+      });
+      if (!bridge) return;
       try {
         const snapshot = await readCensus();
         window.postMessage(
-          { type: 'RAYEN_EXT_READ_RESULT', reqId, injectVersion: INJECT_VERSION, snapshot },
+          { type: 'RAYEN_EXT_READ_RESULT', reqId, ...bridgeRuntime.metadata(bridge), snapshot },
           window.location.origin
         );
       } catch (error) {
@@ -511,7 +524,7 @@
           {
             type: 'RAYEN_EXT_READ_RESULT',
             reqId,
-            injectVersion: INJECT_VERSION,
+            ...bridgeRuntime.metadata(bridge),
             error: String((error && error.message) || error),
           },
           window.location.origin
@@ -521,6 +534,12 @@
     }
 
     if (data.type === 'RAYEN_FM_SESSION_STATUS_REQUEST') {
+      const bridge = bridgeRuntime.accept(data, 'RAYEN_FM_SESSION_STATUS_RESULT', {
+          ready: false,
+          reason: 'outdated_tab',
+          message: 'Esta pestaña pertenece a una generación anterior de la extensión.',
+      });
+      if (!bridge) return;
       const identity = await readSafeSessionIdentity();
       // Honest health: a verified session whose reads fail at network level is NOT ready —
       // reporting it as ready made HHR offer a sync that failed in 1 s (02-09). The verified
@@ -534,8 +553,9 @@
         {
           type: 'RAYEN_FM_SESSION_STATUS_RESULT',
           reqId: data.reqId,
-          injectVersion: INJECT_VERSION,
+          ...bridgeRuntime.metadata(bridge),
           ready: status.ready,
+          reason: status.ready ? 'connected' : lastSessionFailureReason,
           ...describeSessionExpiry(identity, sessionReady),
           identity: sessionReady
             ? {
@@ -556,6 +576,10 @@
     // the per-patient "Resumen diario paciente" PDF (which carries the invasive-devices table)
     // bypassing CORS. Token crosses into the extension's own context, never leaves the machine.
     if (data.type === 'RAYEN_FM_FETCHINFO_REQUEST') {
+      const bridge = bridgeRuntime.accept(data, 'RAYEN_FM_FETCHINFO_RESULT', {
+          error: 'Esta pestaña pertenece a una generación anterior de la extensión.',
+      });
+      if (!bridge) return;
       let context = null;
       let contextError = '';
       try {
@@ -565,7 +589,7 @@
       }
       const base = context && context.base;
       const safeIdentity = context && context.identity;
-      window.postMessage(
+      bridgeRuntime.post(
         {
           type: 'RAYEN_FM_FETCHINFO_RESULT',
           reqId: data.reqId,
@@ -588,7 +612,7 @@
             : null,
           error: context ? null : contextError || 'No se pudo verificar la sesión de Ficha Médico.',
         },
-        window.location.origin
+        bridge
       );
       return;
     }

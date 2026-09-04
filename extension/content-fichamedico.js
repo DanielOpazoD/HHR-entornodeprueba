@@ -7,7 +7,6 @@
  */
 (() => {
   'use strict';
-
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
@@ -31,21 +30,31 @@
       return '';
     }
   })();
+  const generationRelay = globalThis.HhrBridgeGeneration.createRelay({
+    chromeApi: chrome,
+    runtimeMessages,
+    extensionVersion,
+  });
+  const runtimeContextPromise = generationRelay.context;
   const STALE_READER_MESSAGE =
-    'Recarga la pestaña de Ficha Médico (Cmd+R): el lector cargado es de una versión anterior de la extensión.';
-  // La obsolescencia dura toda la vida del relay (el inject solo cambia al recargar la
-  // página, que también recrea el relay): tras detectarla, las lecturas se cortan sin
-  // pedirle al inject viejo una lectura completa (hasta 45 s) para luego descartarla.
-  let knownStale = false;
-  const staleReader = d => {
-    const stale =
-      Boolean(d && d.type) && Boolean(extensionVersion) && d.injectVersion !== extensionVersion;
-    if (stale) knownStale = true;
-    return stale;
+    'Abre una pestaña nueva de Ficha Médico: esta pestaña pertenece a una versión o generación anterior de la extensión.';
+  // Cada respuesta se valida sin convertir un mensaje aislado de la página en un estado
+  // permanente: sólo la configuración MAIN inyectada directamente por Chrome fija la generación.
+  const staleReader = (d, runtimeGeneration) => {
+    return (
+      Boolean(d && d.type) && (
+        (Boolean(extensionVersion) && d.injectVersion !== extensionVersion) ||
+        !runtimeGeneration ||
+        !generationRelay.isCurrent(d, runtimeGeneration)
+      )
+    );
   };
 
-  const readViaMainWorld = () =>
-    new Promise(resolve => {
+  const readViaMainWorld = async () => {
+    const runtimeContext = await runtimeContextPromise;
+    const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
+    if (!runtimeGeneration) return { error: 'El relé de Ficha Médico perdió conexión con la extensión.' };
+    return new Promise(resolve => {
       const reqId = 'r' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
 
@@ -54,7 +63,7 @@
         const d = event.data;
         if (!d || d.type !== 'RAYEN_EXT_READ_RESULT' || d.reqId !== reqId) return;
         cleanup();
-        if (staleReader(d)) return resolve({ error: STALE_READER_MESSAGE });
+        if (staleReader(d, runtimeGeneration)) return resolve({ error: STALE_READER_MESSAGE });
         resolve(d.error ? { error: d.error } : { snapshot: d.snapshot });
       };
 
@@ -65,7 +74,10 @@
       };
 
       window.addEventListener('message', onMessage);
-      window.postMessage({ type: 'RAYEN_EXT_READ_REQUEST', reqId }, window.location.origin);
+      window.postMessage(
+        { type: 'RAYEN_EXT_READ_REQUEST', reqId, runtimeGeneration },
+        window.location.origin
+      );
 
       setTimeout(() => {
         if (settled) return;
@@ -73,10 +85,16 @@
         resolve({ error: 'Tiempo de espera agotado leyendo Rayen.' });
       }, READ_TIMEOUT_MS);
     });
+  };
 
   // Generic request/response to the MAIN world over window.postMessage.
-  const askMainWorld = (requestType, resultType, timeoutMs = READ_TIMEOUT_MS) =>
-    new Promise(resolve => {
+  const askMainWorld = async (requestType, resultType, timeoutMs = READ_TIMEOUT_MS) => {
+    const runtimeContext = await runtimeContextPromise;
+    const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
+    if (!runtimeGeneration) {
+      return { error: 'El relé de Ficha Médico perdió conexión con la extensión.' };
+    }
+    return new Promise(resolve => {
       const reqId = 'r' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
       const onMessage = event => {
@@ -84,7 +102,7 @@
         const d = event.data;
         if (!d || d.type !== resultType || d.reqId !== reqId) return;
         cleanup();
-        resolve(d);
+        resolve({ ...d, requestedRuntimeGeneration: runtimeGeneration });
       };
       const cleanup = () => {
         if (settled) return;
@@ -92,13 +110,44 @@
         window.removeEventListener('message', onMessage);
       };
       window.addEventListener('message', onMessage);
-      window.postMessage({ type: requestType, reqId }, window.location.origin);
+      window.postMessage({ type: requestType, reqId, runtimeGeneration }, window.location.origin);
       setTimeout(() => {
         if (settled) return;
         cleanup();
         resolve({ error: 'Tiempo de espera agotado (Ficha Médico).' });
       }, timeoutMs);
     });
+  };
+
+  const healthResponse = status => {
+    const safeStatus = status || {};
+    const outdated = staleReader(safeStatus, safeStatus.requestedRuntimeGeneration);
+    const state = outdated ? 'outdated' : safeStatus.error ? 'unresponsive' :
+      safeStatus.ready === true ? 'connected' : 'unavailable';
+    const stateCopy = {
+      outdated: { reason: 'outdated_tab', message: STALE_READER_MESSAGE },
+      unresponsive: {
+        reason: 'outdated_tab',
+        message: 'Abre una pestaña nueva de Ficha Médico: el puente interno no respondió.',
+      },
+      connected: { reason: 'connected', message: safeStatus.message },
+      unavailable: {
+        reason: safeStatus.reason || 'session_expired',
+        message: safeStatus.message || 'La sesión clínica de Ficha Médico no pudo verificarse.',
+      },
+    }[state];
+    return {
+      ready: state === 'connected',
+      reason: stateCopy.reason,
+      bridgeVersion: safeStatus.injectVersion,
+      bridgeGeneration: safeStatus.bridgeGeneration,
+      identity: safeStatus.identity || null,
+      expiresAt: Number.isFinite(safeStatus.expiresAt) ? safeStatus.expiresAt : null,
+      remainingSeconds: Number.isFinite(safeStatus.remainingSeconds)
+        ? safeStatus.remainingSeconds : null,
+      message: stateCopy.message,
+    };
+  };
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
@@ -106,34 +155,19 @@
         'RAYEN_FM_SESSION_STATUS_REQUEST',
         'RAYEN_FM_SESSION_STATUS_RESULT',
         4000
-      ).then(status =>
-        sendResponse({
-          ready: status && status.ready === true && !staleReader(status),
-          identity: status && status.identity || null,
-          expiresAt: status && Number.isFinite(status.expiresAt) ? status.expiresAt : null,
-          remainingSeconds:
-            status && Number.isFinite(status.remainingSeconds) ? status.remainingSeconds : null,
-          message: staleReader(status)
-            ? STALE_READER_MESSAGE
-            : (status && status.message) ||
-              'La sesión clínica de Ficha Médico no pudo verificarse.',
-        })
-      );
+      ).then(status => sendResponse(healthResponse(status)));
       return true;
     }
     if (msg && msg.type === 'RAYEN_READ') {
-      if (knownStale) sendResponse({ error: STALE_READER_MESSAGE });
-      else readViaMainWorld().then(sendResponse);
+      readViaMainWorld().then(sendResponse);
       return true; // keep the message channel open for the async response
     }
     if (msg && msg.type === 'RAYEN_FM_GET_FETCH_INFO') {
-      if (knownStale) {
-        sendResponse({ error: STALE_READER_MESSAGE });
-        return true;
-      }
       askMainWorld('RAYEN_FM_FETCHINFO_REQUEST', 'RAYEN_FM_FETCHINFO_RESULT').then(d =>
         sendResponse(
-          staleReader(d) ? { error: STALE_READER_MESSAGE } : d.error ? { error: d.error } : { info: d.info }
+          staleReader(d, d && d.requestedRuntimeGeneration)
+            ? { error: STALE_READER_MESSAGE }
+            : d.error ? { error: d.error } : { info: d.info }
         )
       );
       return true;

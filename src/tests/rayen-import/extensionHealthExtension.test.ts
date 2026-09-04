@@ -6,6 +6,11 @@ const health = (
   globalThis as typeof globalThis & {
     HhrExtensionHealth: {
       orderTabs: <T extends { active?: boolean; lastAccessed?: number }>(tabs: T[]) => T[];
+      resolveTabs: <T extends { id?: number }>(
+        tabsApi: { query: (query: unknown) => Promise<T[]>; get: (id: number) => Promise<T> },
+        url: string,
+        targetTabIds?: number[]
+      ) => Promise<T[]>;
       probeTabs: (input: {
         tabs: Array<{ id?: number; active?: boolean; lastAccessed?: number }>;
         sendMessage: (tabId: number, message: { type: string }) => Promise<unknown>;
@@ -28,6 +33,19 @@ describe('extension health helpers', () => {
     expect(tabs.map(tab => tab.id)).toEqual([1, 2, 3]);
   });
 
+  it('resolves exact newly opened tab ids without depending on their redirect URL', async () => {
+    const tabs = [{ id: 7 }, { id: 8 }, { id: 9 }];
+    const tabsApi = {
+      query: vi.fn(async () => tabs),
+      get: vi.fn(async (id: number) => ({ id, url: 'https://login.rayensalud.cl/' })),
+    };
+    await expect(health.resolveTabs(tabsApi, 'https://fichamedico.rayensalud.cl/*', [8]))
+      .resolves.toEqual([{ id: 8, url: 'https://login.rayensalud.cl/' }]);
+    expect(tabsApi.query).not.toHaveBeenCalled();
+    expect(tabsApi.get).toHaveBeenCalledWith(8);
+    await expect(health.resolveTabs(tabsApi, 'match')).resolves.toEqual(tabs);
+  });
+
   it('reports missing, ready and stale relays without reading clinical data', async () => {
     const sendMessage = vi
       .fn()
@@ -41,7 +59,7 @@ describe('extension health helpers', () => {
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'missing', message: 'No abierta.' });
+    ).resolves.toEqual({ status: 'missing', reason: 'tab_missing', message: 'No abierta.' });
 
     await expect(
       health.probeTabs({
@@ -53,7 +71,7 @@ describe('extension health helpers', () => {
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'ready', message: 'Ficha Médico disponible.' });
+    ).resolves.toEqual({ status: 'ready', reason: 'connected', message: 'Ficha Médico disponible.' });
 
     await expect(
       health.probeTabs({
@@ -67,6 +85,7 @@ describe('extension health helpers', () => {
       })
     ).resolves.toEqual({
       status: 'stale',
+      reason: 'session_unverified',
       message: 'La sesión clínica de Ficha Médico no está disponible.',
     });
 
@@ -89,7 +108,11 @@ describe('extension health helpers', () => {
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'stale', message: 'La sesión activa venció.' });
+    ).resolves.toEqual({
+      status: 'stale',
+      reason: 'session_unverified',
+      message: 'La sesión activa venció.',
+    });
     expect(sendMessage).toHaveBeenCalledTimes(2);
   });
 });
@@ -111,6 +134,7 @@ describe('extension health helpers · vigencia de la fuente', () => {
       })
     ).resolves.toEqual({
       status: 'ready',
+      reason: 'connected',
       message: 'Ficha Médico disponible. Sesión clínica vigente.',
       identity: { fullName: 'Daniel Opazo', role: 'Médico' },
       expiresAt: 1_788_445_690_306,
@@ -129,7 +153,7 @@ describe('extension health helpers · vigencia de la fuente', () => {
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'ready', message: 'Ficha Médico disponible.' });
+    ).resolves.toEqual({ status: 'ready', reason: 'connected', message: 'Ficha Médico disponible.' });
   });
 
   it('prefiere la pestaña lista que publica vigencia sobre una activa con inject antiguo (0.48.6)', async () => {
@@ -163,6 +187,7 @@ describe('extension health helpers · vigencia de la fuente', () => {
       })
     ).resolves.toEqual({
       status: 'ready',
+      reason: 'connected',
       message: 'Ficha Médico disponible. Sesión clínica vigente.',
       identity: { fullName: 'Daniel Opazo', role: 'Médico' },
       expiresAt: 1_788_445_690_306,
@@ -183,7 +208,7 @@ describe('extension health helpers · vigencia de la fuente', () => {
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'ready', message: 'Primera lista.' });
+    ).resolves.toEqual({ status: 'ready', reason: 'connected', message: 'Primera lista.' });
   });
 
   it('una sesión vencida (remainingSeconds 0) cuenta como vigencia publicada y gana a una pestaña sin vigencia', async () => {
@@ -204,7 +229,13 @@ describe('extension health helpers · vigencia de la fuente', () => {
         staleMessage: 'Recarga.',
         preferExpiryPublisher: true,
       })
-    ).resolves.toEqual({ status: 'ready', message: 'Vencida.', remainingSeconds: 0, expiresAt: 1 });
+    ).resolves.toEqual({
+      status: 'ready',
+      reason: 'connected',
+      message: 'Vencida.',
+      remainingSeconds: 0,
+      expiresAt: 1,
+    });
     // Sin la opción (Gestión de Camas), la primera lista gana sin sondear el resto.
     const gcSend = vi
       .fn()
@@ -217,7 +248,7 @@ describe('extension health helpers · vigencia de la fuente', () => {
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'ready', message: 'GC lista.' });
+    ).resolves.toEqual({ status: 'ready', reason: 'connected', message: 'GC lista.' });
     expect(gcSend).toHaveBeenCalledTimes(1);
   });
 
@@ -250,7 +281,12 @@ describe('extension health helpers · vigencia de la fuente', () => {
         staleMessage: 'Recarga.',
         preferExpiryPublisher: true,
       })
-    ).resolves.toEqual({ status: 'ready', message: 'Segunda (lenta).', remainingSeconds: 600 });
+    ).resolves.toEqual({
+      status: 'ready',
+      reason: 'connected',
+      message: 'Segunda (lenta).',
+      remainingSeconds: 600,
+    });
     expect(sendMessage).toHaveBeenCalledTimes(3);
   });
 });

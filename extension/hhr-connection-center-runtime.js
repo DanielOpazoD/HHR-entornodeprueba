@@ -52,6 +52,26 @@
       return root ? root.querySelector(selector) : null;
     };
 
+    const sourceStatusLabel = source => ({
+      connected: 'Conectado',
+      outdated_tab: 'Pestaña desactualizada',
+      relay_disconnected: 'Relé desconectado',
+      session_expired: 'Sesión vencida',
+      tab_missing: 'Pestaña no abierta',
+      session_unverified: 'Requiere comprobación',
+    })[source && source.reason] || (
+      source && source.status === 'ready'
+        ? 'Conectado'
+        : source && source.status === 'missing' ? 'Pestaña no abierta' : 'Requiere comprobación'
+    );
+
+    const repairControls = globalThis.HhrConnectionRepairControls.create({
+      documentRef,
+      windowRef,
+      runtimeMessages,
+      sendMessage,
+    });
+
     const clearPanelTimers = controller => {
       controller.timers.forEach(timer => windowRef.clearTimeout(timer));
       controller.timers.clear();
@@ -209,6 +229,10 @@
         </div>
         <div class="hhr-center-content">
           <div class="hhr-connection-grid">
+            <section class="hhr-connection-card hhr-connection-extension">
+              <div class="hhr-connection-card-header"><span class="hhr-connection-icon">EXT</span><div><h3>Extensión</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
+              <div class="hhr-connection-user">Puente Eloísa → HHR<span class="hhr-connection-detail">Leyendo versión vigente…</span></div>
+            </section>
             <section class="hhr-connection-card hhr-connection-ficha">
               <div class="hhr-connection-card-header"><span class="hhr-connection-icon">FM</span><div><h3>Ficha Médico</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
               <div class="hhr-connection-user">Sesión clínica<span class="hhr-connection-detail">Leyendo identidad vigente…</span></div>
@@ -221,6 +245,14 @@
                 <button class="hhr-center-action hhr-connection-forget" type="button" hidden>Olvidar</button>
               </div>
             </section>
+            <section class="hhr-connection-card hhr-connection-hhr">
+              <div class="hhr-connection-card-header"><span class="hhr-connection-icon">HHR</span><div><h3>Aplicación HHR</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
+              <div class="hhr-connection-user">Enlace con el censo<span class="hhr-connection-detail">Comprobando el relé HHR…</span></div>
+            </section>
+          </div>
+          <div class="hhr-connection-tools">
+            <button class="hhr-center-action hhr-center-action-primary hhr-connection-repair" type="button">Reparar conexión</button>
+            <button class="hhr-center-action hhr-connection-copy" type="button">Copiar diagnóstico</button>
           </div>
           <div class="hhr-connection-privacy"><strong>Acceso protegido.</strong> La contraseña se ingresa únicamente en la página oficial de Rayen. La extensión conserva temporalmente el token de acceso durante esta sesión de Chrome y lo elimina al olvidar la conexión, recargar la extensión o cerrar el navegador.</div>
           <div class="hhr-connection-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -243,10 +275,15 @@
 
       const fichaCard = main.querySelector('.hhr-connection-ficha');
       const camasCard = main.querySelector('.hhr-connection-camas');
+      const extensionCard = main.querySelector('.hhr-connection-extension');
+      const hhrCard = main.querySelector('.hhr-connection-hhr');
       const connect = main.querySelector('.hhr-connection-connect');
       const forget = main.querySelector('.hhr-connection-forget');
       const refresh = main.querySelector('.hhr-connection-refresh');
+      const repair = main.querySelector('.hhr-connection-repair');
+      const copy = main.querySelector('.hhr-connection-copy');
       const feedback = main.querySelector('.hhr-connection-feedback');
+      let latestReport = null;
 
       const setFeedback = (message, error = false) => {
         feedback.className = 'hhr-connection-feedback' + (error ? ' is-error' : '');
@@ -258,13 +295,7 @@
         const stale = source && source.status === 'stale';
         card.className = card.className.replace(/\s+is-(?:ready|stale|missing)/g, '') +
           (ready ? ' is-ready' : stale ? ' is-stale' : ' is-missing');
-        card.querySelector('.hhr-connection-status').textContent = ready
-          ? 'Conectado'
-          : stale
-            ? source && source.remainingSeconds != null && Number(source.remainingSeconds) === 0
-              ? 'Sesión vencida'
-              : 'Requiere comprobación'
-            : 'No conectado';
+        card.querySelector('.hhr-connection-status').textContent = sourceStatusLabel(source);
         const identity = source && source.identity || {};
         const name = identity.fullName || identity.username || fallbackName;
         const user = card.querySelector('.hhr-connection-user');
@@ -290,9 +321,21 @@
         }
         const ficha = report.fichaMedico || {};
         const camas = report.gestionCamas || {};
+        const hhr = report.hhr || {};
+        latestReport = report;
+        renderSource(extensionCard, {
+          status: 'ready',
+          reason: 'connected',
+          message: 'Generación ' + repairControls.shortGeneration(report.runtimeGeneration),
+        }, 'Versión ' + String(report.version || 'desconocida'));
+        extensionCard.querySelector('.hhr-connection-detail').textContent =
+          'Generación ' + repairControls.shortGeneration(report.runtimeGeneration);
         const fichaName = ficha.identity && ficha.identity.fullName || 'Sesión de Ficha Médico';
         renderSource(fichaCard, ficha, fichaName);
         renderSource(camasCard, camas, 'Cuenta autenticada en Gestión de Camas');
+        renderSource(hhrCard, hhr, 'Enlace HHR');
+        hhrCard.querySelector('.hhr-connection-detail').textContent =
+          String(hhr.message || 'La pestaña HHR no está disponible.');
         controller.shouldRenewSession = camas.connectionSource === 'session';
         connect.textContent = camas.status === 'ready' ? 'Renovar' : 'Conectar';
         forget.hidden = camas.status !== 'ready' && camas.status !== 'stale';
@@ -324,6 +367,22 @@
       };
 
       refresh.addEventListener('click', () => { void load(); });
+      repairControls.attach({
+        repair,
+        copy,
+        beginAction: () => {
+          const epoch = resetPanelWork(controller);
+          const requestId = ++nextRequestId;
+          controller.actionRequestId = requestId;
+          return { epoch, requestId };
+        },
+        isActionCurrent: ({ epoch, requestId }) =>
+          isPanelRequestCurrent(controller, epoch, 'actionRequestId', requestId),
+        setFeedback,
+        load,
+        getReport: () => latestReport,
+        rememberReport: report => { latestReport = report; },
+      });
       connect.addEventListener('click', async () => {
         const epoch = resetPanelWork(controller);
         refresh.disabled = false;

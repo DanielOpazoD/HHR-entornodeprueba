@@ -130,14 +130,18 @@
       }
     };
 
-    const health = () =>
-      tabs.query({ url: FICHAMEDICO_MATCH }).then(matchingTabs =>
+    const health = (runtimeGeneration, targetTabIds) =>
+      extensionHealth.resolveTabs(tabs, FICHAMEDICO_MATCH, targetTabIds).then(matchingTabs =>
         extensionHealth.probeTabs({
           tabs: matchingTabs,
           sendMessage: sendHealthProbe,
           missingMessage: 'Abre Ficha Médico e inicia sesión para sincronizar.',
-          staleMessage: 'Recarga la pestaña de Ficha Médico para activar la extensión.',
+          staleMessage: 'Abre una pestaña nueva de Ficha Médico para activar la extensión vigente.',
           preferExpiryPublisher: true,
+          healthMessage: {
+            type: 'RAYEN_EXTENSION_HEALTH_PING',
+            ...(runtimeGeneration ? { runtimeGeneration } : {}),
+          },
         })
       );
 

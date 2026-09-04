@@ -101,6 +101,7 @@ describe('Gestión de Camas session helpers', () => {
     });
     expect(session.publicStatus(null, now)).toMatchObject({
       status: 'missing',
+      reason: 'session_unverified',
       lastVerifiedAt: null,
       connectionSource: 'none',
     });

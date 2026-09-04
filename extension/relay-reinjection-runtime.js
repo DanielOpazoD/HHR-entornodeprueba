@@ -9,9 +9,9 @@
  * instalarse la nueva versión.
  *
  * Los scripts de mundo MAIN (inject-*.js) NO se re-inyectan: no usan
- * chrome.runtime (sobreviven intactos al reload) y conservan estado vivo,
- * como la credencial observada de Gestión de Camas; duplicarlos envolvería
- * fetch/XHR dos veces.
+ * chrome.runtime y duplicarlos envolvería fetch/XHR dos veces. El handshake
+ * de versión + generación los marca como obsoletos; la reparación abre un
+ * documento nuevo sin recargar silenciosamente la pestaña anterior.
  */
 (function (root) {
   'use strict';

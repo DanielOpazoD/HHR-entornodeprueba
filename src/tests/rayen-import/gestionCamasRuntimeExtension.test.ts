@@ -56,6 +56,7 @@ const createFixture = (
     storage: { session: storage },
     tabs: {
       query: vi.fn(async () => options.tabs ?? [{ id: 7 }]),
+      get: vi.fn(async (id: number) => (options.tabs ?? [{ id: 7 }]).find(tab => tab.id === id)),
       sendMessage: vi.fn(async () => ({ ready: true, message: 'Pestaña disponible.' })),
       update: vi.fn(),
     },
@@ -74,7 +75,7 @@ const createFixture = (
             response: { status: number },
             record: Record<string, unknown>
           ) => Promise<string>;
-          health: () => Promise<Record<string, unknown>>;
+          health: (runtimeGeneration?: string, targetTabIds?: number[]) => Promise<Record<string, unknown>>;
           disconnect: () => Promise<Record<string, unknown>>;
         };
       };
@@ -82,15 +83,24 @@ const createFixture = (
   ).HhrGestionCamasRuntime;
 
   const fetchWithTimeout = vi.fn();
+  const probeTabs = vi.fn(async ({ tabs }: { tabs: unknown[] }) =>
+    tabs.length > 0
+      ? { status: 'ready', message: 'Pestaña disponible.' }
+      : { status: 'missing', message: 'Abre Gestión de Camas.' }
+  );
   const runtime = runtimeFactory.create({
     chrome: chromeApi,
     session,
     extensionHealth: {
       orderTabs: (tabs: unknown[]) => tabs,
-      probeTabs: async ({ tabs }: { tabs: unknown[] }) =>
-        tabs.length > 0
-          ? { status: 'ready', message: 'Pestaña disponible.' }
-          : { status: 'missing', message: 'Abre Gestión de Camas.' },
+      resolveTabs: async (
+        tabsApi: { query: (query: unknown) => Promise<unknown[]>; get: (id: number) => Promise<unknown> },
+        url: string,
+        targetTabIds?: number[]
+      ) => Array.isArray(targetTabIds)
+        ? (await Promise.all(targetTabIds.map(id => tabsApi.get(id)))).filter(Boolean)
+        : tabsApi.query({ url }),
+      probeTabs,
     },
     withTimeout: (promise: Promise<unknown>) => promise,
     fetchWithTimeout,
@@ -99,7 +109,7 @@ const createFixture = (
     healthProbeTimeoutMs: 5_000,
   });
 
-  return { runtime, values, storage, fetchWithTimeout, chromeApi };
+  return { runtime, values, storage, fetchWithTimeout, chromeApi, probeTabs };
 };
 
 describe('Gestión de Camas connection runtime', () => {
@@ -240,6 +250,24 @@ describe('Gestión de Camas connection runtime', () => {
     expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
 
+  it('scopes clean-repair health and the stored session to the exact new Gestión de Camas tab', async () => {
+    const record = {
+      accessValue: 'fixture',
+      apiBase: 'https://hospbackend.rayensalud.cl/api',
+      facId: '1342',
+      sourceTabId: 8,
+      connectionAttemptId: '',
+      lastVerifiedAt: FINITE_SESSION_TIMESTAMP,
+    };
+    const { runtime, probeTabs } = createFixture(
+      { 'gc-session': record },
+      { tabs: [{ id: 7 }, { id: 8 }] }
+    );
+
+    await expect(runtime.health('generation', [8])).resolves.toMatchObject({ status: 'ready' });
+    expect(probeTabs.mock.calls[0]?.[0]).toMatchObject({ tabs: [{ id: 8 }] });
+  });
+
   it('does not report a stored session as ready after its source tab was closed', async () => {
     const record = {
       accessValue: 'fixture',
@@ -291,6 +319,33 @@ describe('Gestión de Camas connection runtime', () => {
 
     await expect(fixture.runtime.health()).resolves.toMatchObject({ status: 'ready' });
     expect(fixture.values['gc-session']).toMatchObject({ accessValue: 'viva', sourceTabId: 8 });
+  });
+
+  it('does not call a missing capture an expired session without a Rayen rejection', async () => {
+    const { runtime } = createFixture({}, { tabs: [{ id: 8 }] });
+
+    await expect(runtime.health()).resolves.toMatchObject({
+      status: 'missing',
+      reason: 'session_unverified',
+    });
+  });
+
+  it('reports session_expired only after Rayen returns unauthorized', async () => {
+    const record = {
+      accessValue: 'fixture',
+      apiBase: 'https://hospbackend.rayensalud.cl/api',
+      facId: '1342',
+      sourceTabId: 7,
+      connectionAttemptId: 'current',
+      lastVerifiedAt: null,
+    };
+    const { runtime, fetchWithTimeout } = createFixture({ 'gc-session': record });
+    fetchWithTimeout.mockResolvedValue({ ok: false, status: 401 });
+
+    await expect(runtime.health()).resolves.toMatchObject({
+      status: 'stale',
+      reason: 'session_expired',
+    });
   });
 
   it('clears only the matching session when Rayen returns an unauthorized response', async () => {
