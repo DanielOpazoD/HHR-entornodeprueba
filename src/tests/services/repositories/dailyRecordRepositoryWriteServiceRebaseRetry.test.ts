@@ -60,7 +60,11 @@ vi.mock('@/services/repositories/helpers/validationHelper', () => ({
 }));
 
 vi.mock('@/services/utils/fhirMappers', () => ({
-  mapPatientToFhir: vi.fn(() => ({})),
+  mapPatientToFhir: vi.fn((patient: { patientName?: string; birthDate?: string }) => ({
+    resourceType: 'Patient',
+    name: patient.patientName,
+    birthDate: patient.birthDate,
+  })),
 }));
 
 vi.mock('@/services/repositories/PatientMasterRepository', () => ({
@@ -146,6 +150,153 @@ describe('dailyRecordRepositoryWriteService · retry re-basado por versión viej
 
     // Una sola escritura: el conflicto real sigue el camino de recuperación
     // existente (auto-merge), no un reintento ciego que pisaría al otro cliente.
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
+    expect(queueSyncTask).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ origin: 'conflict_auto_merge' })
+    );
+  });
+
+  it('rebasa una edición demográfica disjunta y recompone el nombre completo', async () => {
+    const current = buildRecord('2026-02-15');
+    current.beds = {
+      R1: {
+        ...buildPatient('R1', 'Paciente Prueba Segunda'),
+        clinicalEpisodeId: 'ep_same_patient',
+        firstName: 'Paciente',
+        lastName: 'Prueba',
+        secondLastName: 'Segunda',
+        admissionTime: '08:30',
+        birthDate: '1990-01-01',
+        fhir_resource: { resourceType: 'Patient', name: 'Paciente Prueba Segunda' },
+      },
+    };
+
+    const remote = buildRecord('2026-02-15');
+    remote.beds = {
+      R1: {
+        ...buildPatient('R1', 'Concurrente Prueba Segunda'),
+        clinicalEpisodeId: 'ep_same_patient',
+        firstName: 'Concurrente',
+        lastName: 'Prueba',
+        secondLastName: 'Segunda',
+        admissionTime: '08:30',
+        birthDate: '1990-01-01',
+        fhir_resource: { resourceType: 'Patient', name: 'Concurrente Prueba Segunda' },
+      },
+    };
+    remote.lastUpdated = '2026-02-15T12:34:56.000Z';
+
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
+    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(buildConcurrencyError());
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
+
+    await expect(
+      updatePartial('2026-02-15', {
+        'beds.R1.lastName': 'Paralelo',
+        'beds.R1.patientName': 'Paciente Paralelo Segunda',
+        'beds.R1.birthDate': '1991-02-02',
+      })
+    ).resolves.toBeUndefined();
+
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(2);
+    expect(updateRecordPartialToFirestore).toHaveBeenLastCalledWith(
+      '2026-02-15',
+      expect.objectContaining({
+        'beds.R1.lastName': 'Paralelo',
+        'beds.R1.patientName': 'Concurrente Paralelo Segunda',
+        'beds.R1.fhir_resource': {
+          resourceType: 'Patient',
+          name: 'Concurrente Paralelo Segunda',
+          birthDate: '1991-02-02',
+        },
+      }),
+      remote.lastUpdated,
+      expect.anything()
+    );
+    expect(queueSyncTask).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ origin: 'conflict_auto_merge' })
+    );
+  });
+
+  it('no rebasa nombres demográficos entre episodios distintos', async () => {
+    const current = buildRecord('2026-02-15');
+    current.beds = {
+      R1: {
+        ...buildPatient('R1', 'Paciente Prueba Segunda'),
+        clinicalEpisodeId: 'ep_original',
+        firstName: 'Paciente',
+        lastName: 'Prueba',
+        secondLastName: 'Segunda',
+      },
+    };
+
+    const remote = buildRecord('2026-02-15');
+    remote.beds = {
+      R1: {
+        ...buildPatient('R1', 'Otra Persona Remota'),
+        clinicalEpisodeId: 'ep_replacement',
+        firstName: 'Otra',
+        lastName: 'Persona',
+        secondLastName: 'Remota',
+      },
+    };
+    remote.lastUpdated = '2026-02-15T12:34:56.000Z';
+
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
+    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(buildConcurrencyError());
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
+
+    await expect(
+      updatePartial('2026-02-15', {
+        'beds.R1.lastName': 'Paralelo',
+        'beds.R1.patientName': 'Paciente Paralelo Segunda',
+      })
+    ).resolves.toBeUndefined();
+
+    expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
+    expect(queueSyncTask).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ origin: 'conflict_auto_merge' })
+    );
+  });
+
+  it('no rebasa un patientName remoto independiente de sus componentes', async () => {
+    const current = buildRecord('2026-02-15');
+    current.beds = {
+      R1: {
+        ...buildPatient('R1', 'Paciente Prueba Segunda'),
+        clinicalEpisodeId: 'ep_same_patient',
+        firstName: 'Paciente',
+        lastName: 'Prueba',
+        secondLastName: 'Segunda',
+      },
+    };
+
+    const remote = buildRecord('2026-02-15');
+    remote.beds = {
+      R1: {
+        ...buildPatient('R1', 'Alias remoto'),
+        clinicalEpisodeId: 'ep_same_patient',
+        firstName: 'Paciente',
+        lastName: 'Prueba',
+        secondLastName: 'Segunda',
+      },
+    };
+    remote.lastUpdated = '2026-02-15T12:34:56.000Z';
+
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValueOnce(current);
+    vi.mocked(updateRecordPartialToFirestore).mockRejectedValueOnce(buildConcurrencyError());
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
+
+    await expect(
+      updatePartial('2026-02-15', {
+        'beds.R1.lastName': 'Paralelo',
+        'beds.R1.patientName': 'Paciente Paralelo Segunda',
+      })
+    ).resolves.toBeUndefined();
+
     expect(updateRecordPartialToFirestore).toHaveBeenCalledTimes(1);
     expect(queueSyncTask).toHaveBeenCalledWith(
       expect.anything(),
