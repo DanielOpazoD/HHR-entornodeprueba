@@ -134,6 +134,60 @@ describe('daily record confirmed state handoff', () => {
     expect(saveToIndexedDBMock).toHaveBeenNthCalledWith(2, confirmedRecord);
   });
 
+  it('reconciles a normal confirmed write before acknowledging its pending outbox task', async () => {
+    const state = createRemoteWriteState();
+    const submittedRecord = buildRecord();
+    const remoteRecord = {
+      ...submittedRecord,
+      discharges: [{ id: 'egreso-obsoleto', patientName: 'Movimiento remoto obsoleto' }],
+      lastUpdated: '2026-08-07T10:50:00.000Z',
+    } as unknown as DailyRecord;
+    const localProjection = {
+      ...remoteRecord,
+      discharges: [
+        {
+          ...remoteRecord.discharges[0],
+          deletedAt: '2026-08-07T10:40:00.000Z',
+          deletedReason: 'manual_delete',
+        },
+      ],
+    } as DailyRecord;
+    const adoptRemoteAuthorityRecord = vi.fn().mockResolvedValue(localProjection);
+    const ackLocalAfterRemote = vi.fn().mockResolvedValue(true);
+
+    const result = await persistLocalAndAttemptRemoteSync({
+      date: submittedRecord.date,
+      record: submittedRecord,
+      changedPaths: ['beds.R1'],
+      remoteState: state,
+      remoteWrite: vi.fn().mockResolvedValue({
+        recordState: {
+          lastUpdated: remoteRecord.lastUpdated,
+          meta: { revision: 2 },
+          record: remoteRecord,
+        },
+      }),
+      queueLocalBeforeRemote: vi.fn().mockResolvedValue({
+        accepted: true,
+        mode: 'reused',
+        pendingTasks: 1,
+        maxPendingTasks: 192,
+      }),
+      adoptRemoteAuthorityRecord,
+      ackLocalAfterRemote,
+      onRemoteFailure: vi.fn(),
+    });
+
+    expect(result).toBe('continue');
+    expect(adoptRemoteAuthorityRecord).toHaveBeenCalledWith(remoteRecord);
+    expect(state.localProjectionRecord).toBe(localProjection);
+    expect(ackLocalAfterRemote).toHaveBeenCalledOnce();
+    expect(vi.mocked(adoptRemoteAuthorityRecord).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(ackLocalAfterRemote).mock.invocationCallOrder[0]
+    );
+    expect(saveToIndexedDBMock).not.toHaveBeenCalled();
+  });
+
   it('fails closed when neither the callable nor a readback confirms the server record', async () => {
     const state = createRemoteWriteState();
 

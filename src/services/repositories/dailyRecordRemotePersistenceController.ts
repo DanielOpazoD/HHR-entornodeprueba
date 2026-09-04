@@ -19,6 +19,7 @@ import {
   recoverAlreadyAppliedRemoteWrite,
 } from '@/services/repositories/dailyRecordRemotePersistenceState';
 import { attemptStaleVersionRebaseRetry } from '@/services/repositories/dailyRecordStaleVersionRebase';
+import { persistConfirmedRemoteRecordLocally } from '@/services/repositories/dailyRecordConfirmedLocalPersistence';
 
 export interface RemoteAuthorityWriteResult {
   recordState?: {
@@ -259,37 +260,14 @@ export const persistLocalAndAttemptRemoteSync = async ({
     }
     remoteState.confirmedRecord = authoritativeRecord;
 
-    if (adoptRemoteAuthorityRecord) {
-      try {
-        remoteState.localProjectionRecord = await adoptRemoteAuthorityRecord(authoritativeRecord);
-      } catch (error) {
-        applyLocalPersistenceFailure(
-          date,
-          changedPaths,
-          {
-            ok: false,
-            operation: 'save',
-            store: 'none',
-            dates: [date],
-            error,
-            userSafeMessage:
-              'El cambio quedó confirmado en el servidor, pero la cola local no pudo reconciliarse.',
-          },
-          remoteState,
-          { remoteCommitted: true }
-        );
-        return 'return';
-      }
-    } else {
-      const localResult = await saveToIndexedDB(authoritativeRecord);
-      if (!localResult.ok) {
-        applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState, {
-          remoteCommitted: true,
-        });
-        return 'return';
-      }
-    }
-    markLocalWriteSucceeded(remoteState);
+    const persistedLocally = await persistConfirmedRemoteRecordLocally({
+      date,
+      changedPaths,
+      authoritativeRecord,
+      remoteState,
+      adoptRemoteAuthorityRecord,
+    });
+    if (!persistedLocally) return 'return';
     return 'continue';
   }
 
@@ -360,15 +338,15 @@ export const persistLocalAndAttemptRemoteSync = async ({
         return 'return';
       }
       remoteState.confirmedRecord = authoritativeRecord;
-      const localResult = await saveToIndexedDB(authoritativeRecord);
-      if (!localResult.ok) {
-        await releaseLocalPreOutboxHold?.();
-        applyLocalPersistenceFailure(date, changedPaths, localResult, remoteState, {
-          remoteCommitted: true,
-        });
-        return 'return';
-      }
-      markLocalWriteSucceeded(remoteState);
+      const persistedLocally = await persistConfirmedRemoteRecordLocally({
+        date,
+        changedPaths,
+        authoritativeRecord,
+        remoteState,
+        adoptRemoteAuthorityRecord,
+        releaseLocalPreOutboxHold,
+      });
+      if (!persistedLocally) return 'return';
     }
     await ackLocalAfterRemote?.();
     return 'continue';
