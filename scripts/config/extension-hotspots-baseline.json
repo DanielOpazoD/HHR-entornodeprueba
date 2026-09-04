@@ -302,6 +302,10 @@
       "maxLines": 95,
       "hotspots": {}
     },
+    "health-tab-events-runtime.js": {
+      "maxLines": 102,
+      "hotspots": {}
+    },
     "hhr-center-shell-runtime.js": {
       "maxLines": 373,
       "hotspots": {

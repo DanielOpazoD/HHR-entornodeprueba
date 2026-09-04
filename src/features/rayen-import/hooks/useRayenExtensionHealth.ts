@@ -40,12 +40,38 @@ export interface RayenExtensionHealthRefreshOptions {
  */
 export const GESTION_CAMAS_MIN_REMAINING_SECONDS = 240;
 export const FICHA_MEDICO_MIN_REMAINING_SECONDS = 240;
+/** Dos latidos perdidos más un margen breve: el último verde deja de ser confiable. */
+export const RAYEN_EXTENSION_HEALTH_LEASE_MS = 150_000;
 
 const CHECKING_STATE: RayenExtensionHealthState = {
   connection: 'checking',
   report: null,
   message: 'Comprobando conexión…',
   canSync: false,
+};
+
+export const expireRayenExtensionHealthState = (
+  previous: RayenExtensionHealthState,
+  now = Date.now()
+): RayenExtensionHealthState => {
+  const report = previous.report;
+  if (!report) return previous;
+  const checkedAt = Date.parse(report.checkedAt);
+  if (Number.isFinite(checkedAt) && now - checkedAt < RAYEN_EXTENSION_HEALTH_LEASE_MS) {
+    return previous;
+  }
+  const staleMessage =
+    'La señal de la extensión Eloísa dejó de actualizarse. Comprueba la extensión y las pestañas abiertas.';
+  return {
+    connection: 'offline',
+    report: {
+      ...report,
+      fichaMedico: { ...report.fichaMedico, status: 'stale', message: staleMessage },
+      gestionCamas: { ...report.gestionCamas, status: 'stale', message: staleMessage },
+    },
+    message: staleMessage,
+    canSync: false,
+  };
 };
 
 const deriveHealthState = (
@@ -165,15 +191,31 @@ export const useRayenExtensionHealth = () => {
   useEffect(() => {
     const sequence = ++requestSequence.current;
     let active = true;
+    let refreshTimer: number | null = null;
     void requestRayenExtensionHealth().then(result => {
       if (active && sequence === requestSequence.current) {
         setHealth(deriveHealthState(result.report, result.error));
       }
     });
+    const scheduleRefresh = (): void => {
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        void refresh();
+      }, 100);
+    };
     const onFocus = (): void => {
-      void refresh();
+      scheduleRefresh();
+    };
+    const onVisibilityChange = (): void => {
+      if (!document.hidden) scheduleRefresh();
+    };
+    const onOnline = (): void => {
+      scheduleRefresh();
     };
     window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     // La extensión empuja el estado sola (latido + transiciones de sesión):
     // un push fresco manda sobre cualquier chequeo en vuelo más antiguo.
     const unsubscribePush = subscribeToRayenExtensionHealthPush(report => {
@@ -183,10 +225,30 @@ export const useRayenExtensionHealth = () => {
     return () => {
       active = false;
       requestSequence.current += 1;
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       unsubscribePush();
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const checkedAtText = health.report?.checkedAt;
+    if (!checkedAtText) return undefined;
+    const checkedAt = Date.parse(checkedAtText);
+    const delay = Number.isFinite(checkedAt)
+      ? Math.max(0, checkedAt + RAYEN_EXTENSION_HEALTH_LEASE_MS - Date.now())
+      : 0;
+    const timer = window.setTimeout(() => {
+      setHealth(previous =>
+        previous.report?.checkedAt === checkedAtText
+          ? expireRayenExtensionHealthState(previous)
+          : previous
+      );
+    }, delay + 10);
+    return () => window.clearTimeout(timer);
+  }, [health.report?.checkedAt]);
 
   return { ...health, refresh };
 };

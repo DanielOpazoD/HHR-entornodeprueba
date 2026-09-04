@@ -2,6 +2,8 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   deriveHealthState,
+  expireRayenExtensionHealthState,
+  RAYEN_EXTENSION_HEALTH_LEASE_MS,
   useRayenExtensionHealth,
   type RayenExtensionHealthState,
 } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
@@ -27,7 +29,7 @@ const makeReport = (
 ): RayenExtensionHealthReport => ({
   version: '0.6.0',
   protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
-  checkedAt: '2026-07-14T05:00:00.000Z',
+  checkedAt: new Date().toISOString(),
   fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
   gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
   ...overrides,
@@ -171,6 +173,25 @@ describe('deriveHealthState', () => {
       true
     );
   });
+
+  it('deja de confiar en un reporte que perdió más de dos latidos', () => {
+    const now = Date.parse('2026-09-03T12:00:00.000Z');
+    const fresh = deriveHealthState(
+      makeReport({ checkedAt: new Date(now - RAYEN_EXTENSION_HEALTH_LEASE_MS + 1).toISOString() })
+    );
+    expect(expireRayenExtensionHealthState(fresh, now)).toBe(fresh);
+
+    const expired = expireRayenExtensionHealthState(
+      deriveHealthState(
+        makeReport({ checkedAt: new Date(now - RAYEN_EXTENSION_HEALTH_LEASE_MS).toISOString() })
+      ),
+      now
+    );
+    expectConnection(expired, 'offline', false);
+    expect(expired.message).toContain('dejó de actualizarse');
+    expect(expired.report?.fichaMedico.status).toBe('stale');
+    expect(expired.report?.gestionCamas.status).toBe('stale');
+  });
 });
 
 describe('useRayenExtensionHealth', () => {
@@ -243,5 +264,32 @@ describe('useRayenExtensionHealth', () => {
       await Promise.resolve();
     });
     expect(result.current.connection).toBe('ready');
+  });
+
+  it('vence automáticamente la señal y consulta de nuevo al volver a primer plano o recuperar red', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-03T12:00:00.000Z'));
+    try {
+      mocks.requestHealth.mockResolvedValue({ report: makeReport() });
+      const { result } = renderHook(() => useRayenExtensionHealth());
+      await act(async () => Promise.resolve());
+      expect(result.current.connection).toBe('ready');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(RAYEN_EXTENSION_HEALTH_LEASE_MS + 20);
+      });
+      expectConnection(result.current, 'offline', false);
+
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        window.dispatchEvent(new Event('online'));
+        await vi.advanceTimersByTimeAsync(101);
+      });
+      expect(mocks.requestHealth).toHaveBeenCalledTimes(2);
+      expect(result.current.connection).toBe('ready');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
