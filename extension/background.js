@@ -301,7 +301,7 @@ const handleExtensionHealth = async (targets = {}) => {
       'patient-clinical-bundle',
       'patient-document-manager',
       'health-push',
-      'clean-connection-repair',
+      'clean-connection-repair', 'hhr-connection-repair-bridge',
     ],
     checkedAt: new Date().toISOString(),
     fichaMedico,

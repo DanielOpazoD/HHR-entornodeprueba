@@ -27,6 +27,7 @@
       !documentRef ||
       !windowRef ||
       !runtimeMessages ||
+      !globalThis.HhrConnectionActionModel ||
       typeof sendMessage !== 'function' ||
       typeof setLiveRegion !== 'function' ||
       typeof connectionInitials !== 'function' ||
@@ -36,6 +37,7 @@
     ) {
       throw new Error('No se pudo inicializar el runtime de conexiones HHR.');
     }
+    const actionModel = globalThis.HhrConnectionActionModel;
 
     const panelControllers = new Map();
     let runtimeDisposed = false;
@@ -51,19 +53,6 @@
       const root = bar && bar.__hhrRoot;
       return root ? root.querySelector(selector) : null;
     };
-
-    const sourceStatusLabel = source => ({
-      connected: 'Conectado',
-      outdated_tab: 'Pestaña desactualizada',
-      relay_disconnected: 'Relé desconectado',
-      session_expired: 'Sesión vencida',
-      tab_missing: 'Pestaña no abierta',
-      session_unverified: 'Requiere comprobación',
-    })[source && source.reason] || (
-      source && source.status === 'ready'
-        ? 'Conectado'
-        : source && source.status === 'missing' ? 'Pestaña no abierta' : 'Requiere comprobación'
-    );
 
     const repairControls = globalThis.HhrConnectionRepairControls.create({
       documentRef,
@@ -225,7 +214,7 @@
       main.innerHTML = `
         <div class="hhr-center-toolbar">
           <h2 class="hhr-center-heading">Conexiones</h2>
-          <button class="hhr-center-action hhr-connection-refresh" type="button">Comprobar</button>
+          <button class="hhr-center-action hhr-connection-refresh" type="button">Actualizar estado</button>
         </div>
         <div class="hhr-center-content">
           <div class="hhr-connection-grid">
@@ -241,7 +230,7 @@
               <div class="hhr-connection-card-header"><span class="hhr-connection-icon">GC</span><div><h3>Gestión de Camas</h3><span class="hhr-connection-status">Comprobando…</span></div></div>
               <div class="hhr-connection-user">Cuenta Rayen<span class="hhr-connection-detail">Necesaria para egresos, Alta Administrativa e historial CUDYR.</span></div>
               <div class="hhr-connection-actions">
-                <button class="hhr-center-action hhr-center-action-primary hhr-connection-connect" type="button">Conectar</button>
+                <button class="hhr-center-action hhr-center-action-primary hhr-connection-connect" type="button" hidden></button>
                 <button class="hhr-center-action hhr-connection-forget" type="button" hidden>Olvidar</button>
               </div>
             </section>
@@ -251,7 +240,7 @@
             </section>
           </div>
           <div class="hhr-connection-tools">
-            <button class="hhr-center-action hhr-center-action-primary hhr-connection-repair" type="button">Reparar conexión</button>
+            <button class="hhr-center-action hhr-center-action-primary hhr-connection-repair" type="button" hidden></button>
             <button class="hhr-center-action hhr-connection-copy" type="button">Copiar diagnóstico</button>
           </div>
           <div class="hhr-connection-privacy"><strong>Acceso protegido.</strong> La contraseña se ingresa únicamente en la página oficial de Rayen. La extensión conserva temporalmente el token de acceso durante esta sesión de Chrome y lo elimina al olvidar la conexión, recargar la extensión o cerrar el navegador.</div>
@@ -295,7 +284,7 @@
         const stale = source && source.status === 'stale';
         card.className = card.className.replace(/\s+is-(?:ready|stale|missing)/g, '') +
           (ready ? ' is-ready' : stale ? ' is-stale' : ' is-missing');
-        card.querySelector('.hhr-connection-status').textContent = sourceStatusLabel(source);
+        card.querySelector('.hhr-connection-status').textContent = actionModel.sourceLabel(source);
         const identity = source && source.identity || {};
         const name = identity.fullName || identity.username || fallbackName;
         const user = card.querySelector('.hhr-connection-user');
@@ -336,8 +325,12 @@
         renderSource(hhrCard, hhr, 'Enlace HHR');
         hhrCard.querySelector('.hhr-connection-detail').textContent =
           String(hhr.message || 'La pestaña HHR no está disponible.');
-        controller.shouldRenewSession = camas.connectionSource === 'session';
-        connect.textContent = camas.status === 'ready' ? 'Renovar' : 'Conectar';
+        const nextAction = actionModel.derive(report);
+        controller.shouldRenewSession = nextAction.renewGestionCamas === true;
+        connect.hidden = nextAction.action !== 'connect-gc';
+        connect.textContent = nextAction.actionLabel;
+        repair.hidden = nextAction.action !== 'repair';
+        repair.textContent = nextAction.actionLabel;
         forget.hidden = camas.status !== 'ready' && camas.status !== 'stale';
         const bar = documentRef.getElementById(operationsBarId);
         void refreshOperationsConnectionBadge(bar, true, report);

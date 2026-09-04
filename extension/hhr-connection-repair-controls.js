@@ -92,7 +92,7 @@
           if (response && response.ok) {
             setFeedback(response.message || 'La conexión limpia quedó verificada.');
           } else if (response && response.requiresLogin) {
-            setFeedback('Iniciar sesión nuevamente en las pestañas nuevas de Eloísa y luego pulsa Comprobar.', true);
+            setFeedback('Inicia sesión en las pestañas nuevas de Eloísa y luego pulsa Actualizar estado.', true);
           } else {
             setFeedback((response && response.message) || 'La conexión todavía no pudo verificarse.', true);
           }

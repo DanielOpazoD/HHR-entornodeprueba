@@ -60,9 +60,13 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 | `hhr-scores-presentation.js` | Modelo puro de presentación de Scores: normaliza historiales y deriva valores, etiquetas y estados de acción |
 | `hhr-lab-center.js` | Superficies de Laboratorio: consulta y análisis Syslab, solicitud imprimible y navegación entre ambos flujos |
 | `hhr-connection-center-runtime.js` | Ciclo de vida del panel de conexiones y su badge: solicitudes vigentes, sondeo cancelable e invalidación al cerrar o cambiar de módulo |
+| `hhr-connection-action-model.js` | Deriva una única acción contextual compartida por Ficha Médico y Gestión de Camas, sin duplicar el motor de reparación |
+| `gestion-camas-connection-indicator.js` | Barra compacta de estado HHR en Gestión de Camas; muestra las tres fuentes y ejecuta conexión dirigida o reparación limpia |
+| `gestion-camas-connection-indicator-bootstrap.js` | Monta la barra compacta sin acoplarla al relé clínico de Gestión de Camas |
 | `content-prescription-print.js` | Orquesta el shell, navegación, contexto de paciente y montaje de los owners del Centro HHR |
 | `background.js` | Coordina rutas, transforma respuestas para la UI y conecta los runtimes de Eloísa |
 | `content-hhr.js` | ISOLATED en el HHR: relé página (puente) ⇄ background |
+| `content-hhr-connection-repair.js` | Puente mínimo para invocar desde el censo el runtime seguro de reparación ya existente |
 | `encounter-navigation.js` | Valida el episodio y construye la ruta segura para abrirlo en Ficha Médico |
 | `health-check.js` | Comprueba relés activos en Ficha Médico/Gestión de Camas sin leer tokens ni datos clínicos |
 | `gestion-camas-session.js` | Valida y reduce la sesión temporal de Gestión de Camas, incluida su expiración |

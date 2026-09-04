@@ -18,6 +18,7 @@ export const RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY = 'patient-clinical-bundle
 export const RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY = 'patient-document-manager';
 export const RAYEN_HEALTH_PUSH_CAPABILITY = 'health-push';
 export const RAYEN_CLEAN_CONNECTION_REPAIR_CAPABILITY = 'clean-connection-repair';
+export const RAYEN_HHR_CONNECTION_REPAIR_BRIDGE_CAPABILITY = 'hhr-connection-repair-bridge';
 
 /**
  * Última lista de capabilities reportada por la extensión en esta pestaña.
@@ -63,6 +64,8 @@ export interface RayenSourceHealth {
   expiring?: boolean;
   /** Último probe autenticado exitoso (epoch ms; solo Gestión de Camas). */
   lastVerifiedAt?: number | null;
+  /** Origen de la conexión temporal de Gestión de Camas. */
+  connectionSource?: 'session' | 'tab' | 'none';
   /** Identidad de la sesión de la fuente, cuando la extensión la conoce. */
   identity?: { fullName?: string; username?: string; role?: string };
 }
@@ -100,8 +103,7 @@ const isSourceHealth = (value: unknown): value is RayenSourceHealth => {
       candidate.reason === 'session_unverified' ||
       candidate.reason === 'tab_missing') &&
     (candidate.bridgeVersion === undefined || typeof candidate.bridgeVersion === 'string') &&
-    (candidate.bridgeGeneration === undefined ||
-      typeof candidate.bridgeGeneration === 'string') &&
+    (candidate.bridgeGeneration === undefined || typeof candidate.bridgeGeneration === 'string') &&
     (candidate.remainingSeconds === undefined ||
       candidate.remainingSeconds === null ||
       typeof candidate.remainingSeconds === 'number') &&
@@ -143,8 +145,7 @@ export const supportsPatientFlowReport = (report: RayenExtensionHealthReport | n
 
 export const supportsPatientDocumentManager = (
   report: RayenExtensionHealthReport | null
-): boolean =>
-  report?.capabilities?.includes(RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY) === true;
+): boolean => report?.capabilities?.includes(RAYEN_PATIENT_DOCUMENT_MANAGER_CAPABILITY) === true;
 
 export const supportsStatisticalDischargeEvidence = (
   report: RayenExtensionHealthReport | null

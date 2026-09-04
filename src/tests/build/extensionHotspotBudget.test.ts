@@ -61,14 +61,14 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    // 109: el propietario MAIN del puente usa un recurso propio, separado del relay ISOLATED.
-    expect(metrics.authoredFiles).toHaveLength(109);
+    // 113: los puentes de reparación y la superficie compacta se mantienen en módulos propios.
+    expect(metrics.authoredFiles).toHaveLength(113);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
         0
       )
-    ).toBe(90);
+    ).toBe(89);
     expect(evaluateExtensionHotspots({ baseline, metrics })).toEqual([]);
   });
 
