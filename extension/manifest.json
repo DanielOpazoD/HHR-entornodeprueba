@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.10",
+  "version": "0.48.11",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": [
     "tabs",
@@ -73,7 +73,7 @@
         "fichamedico-treating-physician-normalization.js",
         "fichamedico-normalization.js",
         "fichamedico-read-resilience.js",
-        "bridge-generation.js",
+        "bridge-generation-main.js",
         "inject-fichamedico.js"
       ],
       "run_at": "document_start",
@@ -120,7 +120,7 @@
         "https://hospitalizado.rayensalud.cl/*"
       ],
       "js": [
-        "bridge-generation.js",
+        "bridge-generation-main.js",
         "inject-gestioncamas.js"
       ],
       "run_at": "document_start",
