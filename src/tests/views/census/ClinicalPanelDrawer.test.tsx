@@ -127,6 +127,17 @@ const panelResult = {
   },
 };
 
+const renderDrawer = (bedId: string) =>
+  render(
+    <ClinicalPanelDrawer
+      bedId={bedId}
+      patientName="Paciente de prueba"
+      clinicalEpisodeId="141121"
+      onOpenHospitalizationReports={vi.fn()}
+      onClose={vi.fn()}
+    />
+  );
+
 describe('ClinicalPanelDrawer', () => {
   beforeEach(() => {
     mocks.request.mockReset();
@@ -141,16 +152,68 @@ describe('ClinicalPanelDrawer', () => {
     mocks.error.mockReset();
   });
 
-  it('separates handoffs, labels inactive medications, and renders care execution', async () => {
-    render(
-      <ClinicalPanelDrawer
-        bedId="H1C2"
-        patientName="Paciente de prueba"
-        clinicalEpisodeId="141121"
-        onOpenHospitalizationReports={vi.fn()}
-        onClose={vi.fn()}
-      />
+  it('isolates reading from a draggable census row without cancelling native text selection', async () => {
+    const onDragStart = vi.fn();
+    const { container } = render(
+      <div draggable onDragStart={onDragStart}>
+        <ClinicalPanelDrawer
+          bedId="R1"
+          patientName="Paciente de prueba"
+          clinicalEpisodeId="141121"
+          onOpenHospitalizationReports={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </div>
     );
+    const text = await screen.findByText('Evolución médica estable.');
+    const drawer = screen.getByRole('dialog');
+    expect(container.contains(drawer)).toBe(false);
+    expect(drawer.closest('[draggable="true"]')).toBeNull();
+    expect(screen.getByTestId('clinical-panel-content')).toHaveClass('select-text', 'cursor-text');
+    expect(fireEvent.mouseDown(text, { button: 0 })).toBe(true);
+    fireEvent.dragStart(text);
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+
+  it('keeps refresh disabled while loading in the redesigned patient toolbar', async () => {
+    let complete!: (value: typeof panelResult) => void;
+    mocks.request.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          complete = resolve;
+        })
+    );
+    renderDrawer('R1');
+    const refresh = screen.getByRole('button', { name: 'Actualizar panel clínico' });
+    expect(refresh).toBeDisabled();
+    fireEvent.click(refresh);
+    expect(mocks.request).toHaveBeenCalledTimes(1);
+    complete(panelResult);
+    await waitFor(() => expect(refresh).toBeEnabled());
+    fireEvent.click(refresh);
+    expect(refresh).toBeDisabled();
+    fireEvent.click(refresh);
+    expect(mocks.request).toHaveBeenCalledTimes(2);
+    complete(panelResult);
+    await waitFor(() => expect(refresh).toBeEnabled());
+  });
+
+  it('widens reading without refetching or changing the selected clinical section', async () => {
+    renderDrawer('R1');
+    await screen.findByText('Evolución médica estable.');
+    const indications = screen.getByRole('button', { name: /Indicaciones/i });
+    fireEvent.click(indications);
+    expect(indications).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Ampliar panel de lectura' }));
+    expect(screen.getByRole('dialog')).toHaveClass('w-[680px]');
+    expect(indications).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Reducir panel de lectura' }));
+    expect(screen.getByRole('dialog')).toHaveClass('w-[460px]');
+    expect(mocks.request).toHaveBeenCalledTimes(1);
+  });
+
+  it('separates handoffs, labels inactive medications, and renders care execution', async () => {
+    renderDrawer('H1C2');
 
     await waitFor(() => expect(screen.getByText('Evolución médica estable.')).toBeInTheDocument());
     expect(mocks.request).toHaveBeenCalledWith('141121', undefined, expect.any(AbortSignal));
@@ -180,15 +243,7 @@ describe('ClinicalPanelDrawer', () => {
       error: 'No se pudieron obtener los medicamentos activos.',
     });
 
-    render(
-      <ClinicalPanelDrawer
-        bedId="H1C2"
-        patientName="Paciente de prueba"
-        clinicalEpisodeId="141121"
-        onOpenHospitalizationReports={vi.fn()}
-        onClose={vi.fn()}
-      />
-    );
+    renderDrawer('H1C2');
 
     expect(
       await screen.findByText('No se pudieron obtener los medicamentos activos.')
@@ -340,15 +395,7 @@ describe('ClinicalPanelDrawer', () => {
 
   it('keeps an empty document manager available but visually faded without a badge', async () => {
     mocks.request.mockResolvedValue({ ...panelResult, documents: [] });
-    render(
-      <ClinicalPanelDrawer
-        bedId="H1C2"
-        patientName="Paciente de prueba"
-        clinicalEpisodeId="141121"
-        onOpenHospitalizationReports={vi.fn()}
-        onClose={vi.fn()}
-      />
-    );
+    renderDrawer('H1C2');
 
     const documentsButton = await screen.findByRole('button', {
       name: 'Abrir Gestor documental de Paciente de prueba; sin archivos',
@@ -368,15 +415,7 @@ describe('ClinicalPanelDrawer', () => {
       documents: undefined,
       documentError: 'No se pudieron leer los documentos.',
     });
-    render(
-      <ClinicalPanelDrawer
-        bedId="H1C2"
-        patientName="Paciente de prueba"
-        clinicalEpisodeId="141121"
-        onOpenHospitalizationReports={vi.fn()}
-        onClose={vi.fn()}
-      />
-    );
+    renderDrawer('H1C2');
     const documentsButton = await screen.findByRole('button', {
       name: 'Abrir Gestor documental de Paciente de prueba; cantidad no disponible',
     });

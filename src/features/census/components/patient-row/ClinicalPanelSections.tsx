@@ -47,12 +47,13 @@ const INDICATION_KIND_LABEL: Partial<Record<ClinicalPanelEntry['kind'], string>>
 };
 
 export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }) => {
+  const [showAnnulledText, setShowAnnulledText] = useState(false);
   // Only an ANNULLED (crossed-out) note is dimmed. Archived notes keep normal styling — just the
   // "Archivada" tag — since being superseded doesn't make the text less readable.
   return (
     <article
       className={clsx(
-        'rounded-md border border-slate-200 bg-white p-2 shadow-sm',
+        'rounded-lg border border-slate-200/80 bg-white p-3',
         entry.crossedOut && 'opacity-60'
       )}
     >
@@ -80,18 +81,38 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }
             {entry.crossedOut ? 'Anulada' : 'Archivada'}
           </span>
         )}
-        <span className="ml-auto text-[10px] tabular-nums text-slate-400">
+        <span className="ml-auto text-[10px] tabular-nums text-slate-500">
           {formatWhen(entry.publishedAt)}
         </span>
-      </header>
-      <p
-        className={clsx(
-          'mt-1 whitespace-pre-wrap text-[12px] leading-snug text-slate-700',
-          entry.crossedOut && 'line-through decoration-slate-400'
+        {entry.crossedOut && (
+          <button
+            type="button"
+            onClick={() => setShowAnnulledText(show => !show)}
+            aria-expanded={showAnnulledText}
+            aria-label={
+              showAnnulledText ? 'Ocultar evolución anulada' : 'Mostrar evolución anulada'
+            }
+            className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+          >
+            <ChevronRight
+              size={12}
+              className={clsx(showAnnulledText && 'rotate-90')}
+              aria-hidden="true"
+            />
+            {showAnnulledText ? 'Ocultar' : 'Ver texto'}
+          </button>
         )}
-      >
-        {entry.text}
-      </p>
+      </header>
+      {(!entry.crossedOut || showAnnulledText) && (
+        <p
+          className={clsx(
+            'mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-slate-700',
+            entry.crossedOut && 'line-through decoration-slate-400'
+          )}
+        >
+          {entry.text}
+        </p>
+      )}
     </article>
   );
 };
