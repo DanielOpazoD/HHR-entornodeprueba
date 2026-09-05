@@ -66,18 +66,18 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      maxBytes: 600000,
+      maxBytes: 606000,
+      severity: 'error',
     });
   });
 
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // 4808000: +16 KB (01-09-2026) por el indicador de pendientes/cuarentena de
-    // la cola en la barra del censo (el chip trajo el lector de telemetría de la
-    // cola al shell). Antes: +12 KB (31-08-2026, #278/#279) por el guard de
-    // re-sincronización y el gating de días previos.
-    expect(config.precacheMaxBytes).toBe(4808000);
+    // PR #330: +24000 bytes for the measured +18.6 KiB UPC feature payload.
+    // Keep evaluation and partial local history available offline, not excluded.
+    expect(config.precacheMaxBytes).toBe(4832000);
+    expect(config.precacheIgnoredAssetPatterns.some(pattern => /upc/i.test(pattern))).toBe(false);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([
         '^docs/',

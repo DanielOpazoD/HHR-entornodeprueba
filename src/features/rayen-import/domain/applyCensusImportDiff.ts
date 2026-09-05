@@ -7,6 +7,7 @@
  */
 
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
+import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { CensusManager } from '@/domain/CensusManager';
 import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
@@ -339,7 +340,7 @@ export const applyCensusImportDiff = (
       nextBeds[move.fromBedId] = source; // restore, do not lose the patient
       continue;
     }
-    nextBeds[move.toBedId] = { ...source, bedId: move.toBedId };
+    nextBeds[move.toBedId] = normalizePatientUpcForBed(source, move.toBedId);
     applied.moves += 1;
   }
 

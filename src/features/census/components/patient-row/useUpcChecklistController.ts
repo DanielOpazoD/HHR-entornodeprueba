@@ -10,6 +10,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import { useUpcChecklistState } from './useUpcChecklistState';
+import type { UpcEvaluationContext } from './useUpcChecklistState';
 import { resolveUpcChecklistPopoverPosition } from '@/features/census/controllers/upcChecklistPopoverController';
 import type { UpcChecklistRecord, UpcChecklistAuditActor } from '@/domain/upc/upcContracts';
 
@@ -17,7 +18,8 @@ export type { UpcChecklistAuditActor } from '@/domain/upc/upcContracts';
 
 interface UseUpcChecklistControllerParams {
   checklist: UpcChecklistRecord | undefined;
-  onSave: (record: UpcChecklistRecord) => void;
+  onSave: (record: UpcChecklistRecord) => Promise<boolean>;
+  evaluationContext: UpcEvaluationContext;
   disabled: boolean;
   /** Whether UCI criteria are allowed for this bed (false for Neo1/Neo2). */
   uciAllowed: boolean;
@@ -31,12 +33,26 @@ export const useUpcChecklistController = ({
   disabled,
   uciAllowed,
   actor,
+  evaluationContext,
 }: UseUpcChecklistControllerParams) => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const state = useUpcChecklistState({ checklist, onSave, uciAllowed, actor });
+  const state = useUpcChecklistState({
+    checklist,
+    onSave: async record => {
+      const confirmed = await onSave(record);
+      if (confirmed) {
+        setIsOpen(false);
+        buttonRef.current?.focus();
+      }
+      return confirmed;
+    },
+    uciAllowed,
+    actor,
+    evaluationContext,
+  });
 
   const closePopover = useCallback(() => setIsOpen(false), []);
 
@@ -46,6 +62,14 @@ export const useUpcChecklistController = ({
       buttonRect: buttonRef.current.getBoundingClientRect(),
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
+      panelHeight: popoverRef.current?.getBoundingClientRect().height || undefined,
+      toolbarBottom: Math.max(
+        0,
+        ...Array.from(document.querySelectorAll('[data-app-top-bar]'), bar => {
+          const rect = bar.getBoundingClientRect();
+          return rect.height > 0 && rect.top < window.innerHeight ? rect.bottom : 0;
+        })
+      ),
     });
   }, []);
 
@@ -56,7 +80,7 @@ export const useUpcChecklistController = ({
     initialPosition: { top: 0, left: 0 },
     resolvePosition,
     onClose: closePopover,
-    closeOnScroll: true,
+    closeOnScroll: false,
     closeOnOutsideClick: true,
     closeOnEscape: true,
   });
@@ -76,6 +100,7 @@ export const useUpcChecklistController = ({
   );
 
   return {
+    ...state,
     isOpen,
     buttonRef,
     popoverRef,

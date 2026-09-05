@@ -58,6 +58,10 @@ describe('firestoreRecordWritePatchPolicy', () => {
       utiCriteria: [],
       classification: 'UPC_UCI',
       evaluatedAt: '2026-08-31T00:00:00Z',
+      evaluatedForDate: '2026-08-31',
+      evaluatedBedId: 'R3',
+      reviewRequired: false,
+      responsibleNurse: { name: 'Enfermera de prueba', shift: 'day', source: 'assigned' },
       evaluatedBy: { uid: 'u1', displayName: 'Dra. Prueba' },
     };
     const result = prepareFirestorePartialData({

@@ -12,6 +12,7 @@ export const EmailDropdown: React.FC<EmailDropdownProps> = ({
   onConfigureEmail,
   emailStatus = 'idle',
   emailErrorMessage,
+  emailBlockedReason,
 }) => {
   const { isOpen, menuRef, toggle, close } = useDropdownMenu();
 
@@ -49,6 +50,7 @@ export const EmailDropdown: React.FC<EmailDropdownProps> = ({
       {isOpen && (
         <DateStripDropdownPanel title="Opciones de Envío" widthClassName="w-56">
           <DateStripActionItem
+            disabled={Boolean(emailBlockedReason)}
             onClick={() => {
               close();
               onSendEmail?.();
@@ -60,6 +62,11 @@ export const EmailDropdown: React.FC<EmailDropdownProps> = ({
             iconHoverColorClassName="group-hover:bg-blue-100"
             className="px-3 py-2"
           />
+          {emailBlockedReason && (
+            <p role="status" className="mx-3 mb-2 rounded bg-amber-50 p-2 text-xs text-amber-900">
+              {emailBlockedReason}
+            </p>
+          )}
 
           {onConfigureEmail && (
             <DateStripActionItem

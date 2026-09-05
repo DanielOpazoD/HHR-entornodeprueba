@@ -1,47 +1,29 @@
-/**
- * useUpcChecklistState — Draft state management for the UPC checklist.
- *
- * Isolated from positioning and portal concerns. Pure state logic:
- * toggle criteria, compute classification, save, clear, reset.
- */
-
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLatestRef } from '@/hooks/useLatestRef';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { resolveUpcClassification } from '@/domain/upc/upcClassification';
-import type { UpcClassification } from '@/domain/upc/upcClassification';
 import type { UpcChecklistRecord, UpcChecklistAuditActor } from '@/domain/upc/upcContracts';
 import {
   sanitizeCriterionIds,
   isValidUciCriterionId,
   isValidUtiCriterionId,
+  normalizeUciCriterionId,
 } from '@/domain/upc/upcCriteria';
+import { assignedUpcNurses } from '@/shared/census/upcEvaluationPolicy';
+import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
+import { appendUpcEvaluation, upcCriterionLabels } from '@/domain/upc/upcEvaluationHistory';
 
-interface UseUpcChecklistStateParams {
-  checklist: UpcChecklistRecord | undefined;
-  onSave: (record: UpcChecklistRecord) => void;
-  uciAllowed: boolean;
-  actor: UpcChecklistAuditActor | null;
+export interface UpcEvaluationContext {
+  date: string;
+  bedId: string;
+  nursesDayShift: string[];
+  nursesNightShift: string[];
 }
 
-/**
- * «Se guarda al seleccionar» generaba UNA escritura por checkbox: marcar dos
- * criterios seguidos lanzaba dos escrituras al callable clínico (~1-2 s cada
- * una) que se pisaban por versión — la segunda se perdía y «había que
- * seleccionarlo dos veces». La ráfaga se coalesce: la UI sigue optimista al
- * instante y una única escritura viaja con el estado FINAL; al desmontar el
- * popover se descarga lo pendiente sin esperar el timer.
- */
-export const UPC_SAVE_COALESCE_MS = 400;
-
-export interface UpcChecklistDraftState {
-  persistedChecklist: UpcChecklistRecord | undefined;
-  draftUci: ReadonlySet<string>;
-  draftUti: ReadonlySet<string>;
-  draftClassification: UpcClassification;
-  hasDraftCriteria: boolean;
-  toggleUciCriterion: (id: string) => void;
-  toggleUtiCriterion: (id: string) => void;
-  resetFromPersisted: () => void;
+export interface UseUpcChecklistStateParams {
+  checklist: UpcChecklistRecord | undefined;
+  onSave: (record: UpcChecklistRecord) => Promise<boolean>;
+  uciAllowed: boolean;
+  actor: UpcChecklistAuditActor | null;
+  evaluationContext: UpcEvaluationContext;
 }
 
 const toggleInSet = (prev: Set<string>, id: string): Set<string> => {
@@ -51,122 +33,153 @@ const toggleInSet = (prev: Set<string>, id: string): Set<string> => {
   return next;
 };
 
+/** Drafts never write on toggle, close or unmount. One explicit, awaited evaluation. */
 export const useUpcChecklistState = ({
   checklist,
   onSave,
   uciAllowed,
   actor,
-}: UseUpcChecklistStateParams): UpcChecklistDraftState => {
-  const [draftUci, setDraftUci] = useState<Set<string>>(new Set());
-  const [draftUti, setDraftUti] = useState<Set<string>>(new Set());
-  const [persistedChecklist, setPersistedChecklist] = useState<UpcChecklistRecord | undefined>(
-    checklist
+  evaluationContext,
+}: UseUpcChecklistStateParams) => {
+  const [draftUci, setDraftUci] = useState(new Set<string>());
+  const [draftUti, setDraftUti] = useState(new Set<string>());
+  const [nurseName, setNurseName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const reviewedChecklist = useRef(checklist);
+  const retryRecord = useRef<UpcChecklistRecord | null>(null);
+  const nurses = assignedUpcNurses([
+    ...evaluationContext.nursesDayShift,
+    ...evaluationContext.nursesNightShift,
+  ]);
+  const validResponsible = Boolean(
+    nurseName.trim() && (!nurses.length || nurses.includes(nurseName.trim()))
   );
-
-  useEffect(() => {
-    setPersistedChecklist(checklist);
-  }, [checklist]);
 
   const resetFromPersisted = useCallback(() => {
-    const safeUci = uciAllowed
-      ? sanitizeCriterionIds(persistedChecklist?.uciCriteria, isValidUciCriterionId)
-      : [];
-    const safeUti = sanitizeCriterionIds(persistedChecklist?.utiCriteria, isValidUtiCriterionId);
-    setDraftUci(new Set(safeUci));
-    setDraftUti(new Set(safeUti));
-  }, [persistedChecklist, uciAllowed]);
+    if (savingRef.current) return;
+    reviewedChecklist.current = checklist;
+    retryRecord.current = null;
+    setDraftUci(
+      new Set(
+        uciAllowed
+          ? sanitizeCriterionIds(checklist?.uciCriteria, isValidUciCriterionId).map(
+              normalizeUciCriterionId
+            )
+          : []
+      )
+    );
+    setDraftUti(new Set(sanitizeCriterionIds(checklist?.utiCriteria, isValidUtiCriterionId)));
+    setNurseName('');
+    setSaveError('');
+    setSaved(false);
+  }, [checklist, uciAllowed]);
 
   const draftClassification = useMemo(
-    () => resolveUpcClassification({ uciCriteria: draftUci, utiCriteria: draftUti }),
+    () =>
+      resolveUpcClassification({
+        uciCriteria: draftUci,
+        utiCriteria: draftUti,
+      }),
     [draftUci, draftUti]
   );
 
-  const hasDraftCriteria = useMemo(
-    () => draftUci.size > 0 || draftUti.size > 0,
-    [draftUci, draftUti]
-  );
-
-  const buildRecord = useCallback(
-    (
-      uci: Set<string>,
-      uti: Set<string>,
-      classification: UpcClassification
-    ): UpcChecklistRecord => ({
-      uciCriteria: Array.from(uci),
-      utiCriteria: Array.from(uti),
-      classification,
-      evaluatedAt: new Date().toISOString(),
-      ...(actor ? { evaluatedBy: { uid: actor.uid, displayName: actor.displayName } } : {}),
-    }),
-    [actor]
-  );
-
-  const pendingSaveRef = useRef<UpcChecklistRecord | null>(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onSaveRef = useLatestRef(onSave);
-
-  const flushPendingSave = useCallback(() => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
+  const saveEvaluation = async (): Promise<void> => {
+    if (savingRef.current || !validResponsible || !actor?.uid) return;
+    if (!arePatchValuesDeepEqual(reviewedChecklist.current, checklist)) {
+      setSaveError(
+        'La evaluación cambió en otra sesión. Cierra y vuelve a abrir para revisar los datos vigentes.'
+      );
+      return;
     }
-    const pending = pendingSaveRef.current;
-    if (!pending) return;
-    pendingSaveRef.current = null;
-    onSaveRef.current(pending);
-  }, [onSaveRef]);
-
-  useEffect(() => flushPendingSave, [flushPendingSave]);
-
-  const persistDraft = useCallback(
-    (nextUci: Set<string>, nextUti: Set<string>) => {
-      const nextClassification = resolveUpcClassification({
-        uciCriteria: nextUci,
-        utiCriteria: nextUti,
-      });
-      const nextRecord = buildRecord(nextUci, nextUti, nextClassification);
-      setPersistedChecklist(nextRecord);
-      pendingSaveRef.current = nextRecord;
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(flushPendingSave, UPC_SAVE_COALESCE_MS);
-    },
-    [buildRecord, flushPendingSave]
-  );
-
-  const toggleUciCriterion = useCallback(
-    (id: string) =>
-      setDraftUci(prev => {
-        const nextUci = toggleInSet(prev, id);
-        setDraftUti(currentUti => {
-          persistDraft(nextUci, currentUti);
-          return currentUti;
-        });
-        return nextUci;
-      }),
-    [persistDraft]
-  );
-
-  const toggleUtiCriterion = useCallback(
-    (id: string) =>
-      setDraftUti(prev => {
-        const nextUti = toggleInSet(prev, id);
-        setDraftUci(currentUci => {
-          persistDraft(currentUci, nextUti);
-          return currentUci;
-        });
-        return nextUti;
-      }),
-    [persistDraft]
-  );
+    savingRef.current = true;
+    setIsSaving(true);
+    setSaveError('');
+    setSaved(false);
+    const evaluation: UpcChecklistRecord = {
+      evaluationId: crypto.randomUUID(),
+      uciCriteria: [...draftUci],
+      utiCriteria: [...draftUti],
+      classification: draftClassification,
+      evaluatedAt: new Date().toISOString(),
+      evaluatedBy: actor,
+      evaluatedForDate: evaluationContext.date,
+      evaluatedBedId: evaluationContext.bedId,
+      reviewRequired: false,
+      responsibleNurse: {
+        name: nurseName.trim(),
+        source: nurses.length ? 'assigned' : 'manual',
+      },
+    };
+    const newRecord = appendUpcEvaluation(checklist, {
+      ...evaluation,
+      criterionLabels: upcCriterionLabels(evaluation),
+    });
+    // Retrying an unchanged draft is the same signing, not another historical evaluation.
+    const retry = retryRecord.current;
+    const record =
+      retry?.evaluatedForDate === evaluationContext.date &&
+      retry.evaluatedBedId === evaluationContext.bedId &&
+      retry.evaluatedBy?.uid === actor.uid
+        ? retry
+        : newRecord;
+    retryRecord.current = record;
+    try {
+      if ((await onSave(record)) !== true) throw new Error('Unconfirmed evaluation');
+      reviewedChecklist.current = record;
+      retryRecord.current = null;
+      setSaved(true);
+    } catch {
+      setSaveError(
+        'No se pudo confirmar el guardado. Conservamos tu borrador; comprueba la conexión y vuelve a intentar.'
+      );
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
+  };
 
   return {
-    persistedChecklist,
+    persistedChecklist: checklist,
     draftUci,
     draftUti,
     draftClassification,
-    hasDraftCriteria,
-    toggleUciCriterion,
-    toggleUtiCriterion,
+    hasDraftCriteria: draftUci.size > 0 || draftUti.size > 0,
     resetFromPersisted,
+    toggleUciCriterion: (id: string) => {
+      if (!savingRef.current && uciAllowed && isValidUciCriterionId(id)) {
+        retryRecord.current = null;
+        setDraftUci(prev => toggleInSet(prev, normalizeUciCriterionId(id)));
+        setSaved(false);
+      }
+    },
+    toggleUtiCriterion: (id: string) => {
+      if (!savingRef.current && isValidUtiCriterionId(id)) {
+        retryRecord.current = null;
+        setDraftUti(prev => toggleInSet(prev, id));
+        setSaved(false);
+      }
+    },
+    selectedNurseName: nurseName,
+    assignedNurseOptions: nurses,
+    isSaving,
+    saveError,
+    saved,
+    canSave: validResponsible && Boolean(actor?.uid) && !isSaving && !saved,
+    saveDisabledReason: !actor?.uid
+      ? 'Inicia sesión para registrar la evaluación.'
+      : !validResponsible
+        ? nurses.length
+          ? 'Elige el responsable para habilitar Guardar.'
+          : 'Escribe tu nombre para habilitar Guardar.'
+        : null,
+    setNurseName: (value: string) => {
+      retryRecord.current = null;
+      setNurseName(value);
+      setSaved(false);
+    },
+    saveEvaluation,
   };
 };

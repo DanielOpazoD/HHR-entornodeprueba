@@ -202,6 +202,7 @@ export const buildDateStripProps = ({
     currentModule: ui.currentModule,
     emailStatus: runtime.censusEmail.status,
     emailErrorMessage: runtime.censusEmail.error,
+    emailBlockedReason: runtime.censusEmail.emailBlockedReason,
     syncStatus: runtime.syncStatus,
     lastSyncTime: runtime.lastSyncTime,
     onToggleBookmarks: resolveBookmarkToggleAction({

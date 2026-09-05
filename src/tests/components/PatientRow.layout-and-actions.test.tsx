@@ -161,7 +161,7 @@ describe('PatientRow layout and actions', () => {
       </table>
     );
 
-    fireEvent.click(screen.getByTitle(/Sin clasificación UPC/i));
+    fireEvent.click(screen.getByRole('button', { name: 'Evaluación UPC pendiente' }));
 
     expect(
       await screen.findByRole('dialog', { name: /checklist de clasificación upc/i })

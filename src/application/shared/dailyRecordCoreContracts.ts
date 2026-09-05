@@ -19,10 +19,12 @@ export type DailyRecordDateRef = RootDailyRecordDateRef;
 export type ApplyDailyRecordPatchOptions = {
   /**
    * Wait for the remote authority to return the exact committed record before
-   * exposing the mutation as successful. Reserved for destructive actions
-   * whose optimistic state must never be mistaken for durable persistence.
+   * exposing the mutation as successful. Used for destructive actions and
+   * signed evaluations whose optimistic state must not imply durable persistence.
    */
   consistency?: 'eventual' | 'remote_confirmed';
+  /** Reject concurrent journal writes instead of merging a stale signed evaluation. */
+  requireAtomicCas?: boolean;
   /**
    * Reflect a remote-confirmed mutation immediately in the census while retaining rollback on
    * rejection. Reserved for narrow, reversible UI transitions such as clinical-crib lifecycle.

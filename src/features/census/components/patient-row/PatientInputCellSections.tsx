@@ -18,15 +18,13 @@ import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusA
 import { isUpcEligibleBedId } from '@/shared/census/upcBedPolicy';
 import { useAuth } from '@/context/AuthContext';
 import type { UpcChecklistRecord } from '@/features/census/contracts/censusUpcContracts';
-import { logger } from '@/services/utils/loggerService';
+import { useDailyRecordBedActions, useDailyRecordStaff } from '@/context/DailyRecordContext';
 import {
   acknowledgeDailyRecordClinicalFieldPause,
   DAILY_RECORD_FIELD_PAUSE_MESSAGE,
   getDailyRecordClinicalFieldPause,
   type DailyRecordClinicalFieldGroup,
 } from '@/hooks/controllers/dailyRecordClinicalFieldAcknowledgementController';
-
-const patientInputFlagsLogger = logger.child('PatientInputFlagsSection');
 
 const isRemoteLocked = (locked?: boolean): boolean => Boolean(locked);
 
@@ -178,26 +176,38 @@ export const PatientInputFlowSection: React.FC<
 
 export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings> = ({
   shared,
-  onChange,
 }) => {
   const upcEligible = isUpcEligibleBedId(shared.data.bedId);
+  const { updatePatientMultiple, updateClinicalCribMultiple } = useDailyRecordBedActions();
+  const staff = useDailyRecordStaff();
   const { currentUser } = useAuth();
   const fieldLocks = shared.clinicalFieldLocks;
   const upcLocked = isRemoteLocked(fieldLocks?.upc);
+  // Legacy "lock" flags are freshness hints, not exclusive locks. Stale UPC drafts
+  // are rejected by useUpcChecklistState; do not turn these hints into hard locks.
   const baseClinicalReadOnly = shared.isLocked || shared.clinicalEditingDisabled;
   const upcActor = currentUser
     ? { uid: currentUser.uid, displayName: currentUser.displayName || currentUser.email || '' }
     : null;
 
-  const handleUpcSave = (record: UpcChecklistRecord) => {
-    try {
-      onChange.multiple?.({
-        upcChecklist: record,
-        isUPC: record.classification !== null,
-      });
-    } catch (err) {
-      patientInputFlagsLogger.error('Failed to save UPC checklist', err);
-    }
+  const handleUpcSave = async (record: UpcChecklistRecord): Promise<boolean> => {
+    if (
+      baseClinicalReadOnly ||
+      !upcEligible ||
+      !upcActor ||
+      record.evaluatedForDate !== shared.currentDateString ||
+      record.evaluatedBedId !== shared.data.bedId
+    )
+      return false;
+    return (
+      (await (shared.isSubRow ? updateClinicalCribMultiple : updatePatientMultiple)(
+        shared.data.bedId,
+        {
+          upcChecklist: record,
+          isUPC: record.classification !== null,
+        }
+      )) === true
+    );
   };
 
   return (
@@ -227,6 +237,7 @@ export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings
         censusTableHeaderController / HIDDEN_CENSUS_COLUMNS / tableConfigService).
       */}
       <UpcChecklistPopover
+        key={`${shared.currentDateString}:${shared.data.bedId}:${shared.data.clinicalEpisodeId || shared.data.rut}:${shared.data.admissionDate}`}
         data={shared.data}
         isSubRow={shared.isSubRow}
         isEmpty={shared.isEmpty}
@@ -241,6 +252,12 @@ export const PatientInputFlagsSection: React.FC<PatientInputFlagsSectionBindings
         onSave={handleUpcSave}
         eligible={upcEligible}
         actor={upcActor}
+        evaluationContext={{
+          date: shared.currentDateString,
+          bedId: shared.data.bedId,
+          nursesDayShift: staff?.nursesDayShift ?? [],
+          nursesNightShift: staff?.nursesNightShift ?? [],
+        }}
       />
     </>
   );

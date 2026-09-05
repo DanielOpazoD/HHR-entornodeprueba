@@ -12,6 +12,7 @@ vi.mock('firebase/firestore', async () => {
     getDoc: vi.fn(),
     getDocFromServer: vi.fn(),
     getDocs: vi.fn(),
+    getDocsFromServer: vi.fn(),
     onSnapshot: vi.fn(),
     orderBy: vi.fn((field: string, direction: string) => ({ field, direction })),
     query: vi.fn((...args: unknown[]) => ({ args })),
@@ -45,7 +46,13 @@ vi.mock('@/services/storage/storageLoggers', () => ({
   },
 }));
 
-import { getDoc, getDocFromServer, getDocs, onSnapshot } from 'firebase/firestore';
+import {
+  getDoc,
+  getDocFromServer,
+  getDocs,
+  getDocsFromServer,
+  onSnapshot,
+} from 'firebase/firestore';
 import {
   getAllRecordsFromFirestore,
   getAvailableDatesFromFirestore,
@@ -60,6 +67,18 @@ import {
 describe('firestoreRecordQueries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('distinguishes server history failures from genuinely empty ranges', async () => {
+    vi.mocked(getDocsFromServer).mockResolvedValueOnce({ docs: [] } as never);
+    await expect(
+      getRecordsRangeFromFirestore('2026-09-01', '2026-09-04', { requireServer: true })
+    ).resolves.toEqual([]);
+    vi.mocked(getDocsFromServer).mockRejectedValueOnce(new Error('offline'));
+    await expect(
+      getRecordsRangeFromFirestore('2026-09-01', '2026-09-04', { requireServer: true })
+    ).rejects.toThrow('offline');
+    expect(getDocs).not.toHaveBeenCalled();
   });
 
   it('reads available dates in descending order and handles failures', async () => {

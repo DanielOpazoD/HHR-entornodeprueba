@@ -1,6 +1,7 @@
 /**
  * UPC classification criteria as defined by the Hospital Hanga Roa protocol
- * "Criterios de Clasificación UPC" (April 2026).
+ * "Criterios de Clasificación UPC" (April 2026), with the requested
+ * September 2026 combined vasoactive criterion and FiO₂ ≥ 50% threshold.
  *
  * UCI = soporte vital avanzado (VMI, vasoactivos, inotrópicos).
  * UTI = monitorización estrecha o soporte no invasivo sin criterios UCI.
@@ -18,8 +19,7 @@ export interface UpcCriterion {
 
 export const UPC_UCI_CRITERIA: readonly UpcCriterion[] = [
   { id: 'uci_vmi', label: 'Ventilación mecánica invasiva (VMI)' },
-  { id: 'uci_vasoactivos', label: 'Drogas vasoactivas en infusión continua' },
-  { id: 'uci_inotropicos', label: 'Drogas inotrópicas en infusión continua' },
+  { id: 'uci_vasoactivos', label: 'Drogas vasopresoras o inotrópicas en infusión continua' },
 ] as const;
 
 // ── UTI criteria (at least 1, without UCI → UPC-UTI) ────────────
@@ -33,7 +33,7 @@ export const UPC_UTI_CRITERIA: readonly UpcCriterion[] = [
   {
     id: 'uti_mon_respiratoria',
     label:
-      'Monitorización respiratoria continua o soporte no invasivo hospitalario (VMNI, CNAF, FiO₂ >40%)',
+      'Monitorización respiratoria continua o soporte no invasivo hospitalario (VMNI, CNAF, FiO₂ ≥ 50%)',
   },
   {
     id: 'uti_mon_neurologica',
@@ -59,11 +59,15 @@ export const UPC_UTI_CRITERIA: readonly UpcCriterion[] = [
 
 // ── Derived helpers ──────────────────────────────────────────────
 
-const ALL_UCI_IDS = new Set(UPC_UCI_CRITERIA.map(c => c.id));
+// Keep historical inotrope records valid; normalize only when opening an editable draft.
+const ALL_UCI_IDS = new Set([...UPC_UCI_CRITERIA.map(c => c.id), 'uci_inotropicos']);
 const ALL_UTI_IDS = new Set(UPC_UTI_CRITERIA.map(c => c.id));
 
 export const isValidUciCriterionId = (id: string): boolean => ALL_UCI_IDS.has(id);
 export const isValidUtiCriterionId = (id: string): boolean => ALL_UTI_IDS.has(id);
+
+export const normalizeUciCriterionId = (id: string): string =>
+  id === 'uci_inotropicos' ? 'uci_vasoactivos' : id;
 
 /**
  * Strip criterion IDs that are no longer defined in the protocol.

@@ -20,10 +20,10 @@ describe('UpcChecklistPanel', () => {
     expect(screen.getByText(/UTI — Monitorización y soporte no invasivo/)).toBeTruthy();
   });
 
-  it('renders 3 UCI checkboxes and 6 UTI checkboxes', () => {
+  it('renders 2 UCI checkboxes and 6 UTI checkboxes', () => {
     render(<UpcChecklistPanel {...defaults} />);
     const checkboxes = screen.getAllByRole('checkbox');
-    expect(checkboxes).toHaveLength(9); // 3 + 6
+    expect(checkboxes).toHaveLength(8); // 2 + 6
   });
 
   it('shows "No UPC" badge when no criteria selected', () => {
@@ -63,14 +63,14 @@ describe('UpcChecklistPanel', () => {
         hasDraftCriteria={true}
       />
     );
-    expect(screen.getByText('2 criterios')).toBeTruthy();
+    expect(screen.getByText('Selección: 2 criterios')).toBeTruthy();
   });
 
   it('shows singular "criterio" for single selection', () => {
     render(
       <UpcChecklistPanel {...defaults} draftUci={new Set(['uci_vmi'])} hasDraftCriteria={true} />
     );
-    expect(screen.getByText('1 criterio')).toBeTruthy();
+    expect(screen.getByText('Selección: 1 criterio')).toBeTruthy();
   });
 
   it('disables UCI checkboxes when uciAllowed is false', () => {
@@ -78,12 +78,11 @@ describe('UpcChecklistPanel', () => {
     expect(screen.getByText('(no disponible en Neo)')).toBeTruthy();
 
     const checkboxes = screen.getAllByRole('checkbox');
-    // First 3 are UCI — should be disabled
+    // First 2 are UCI — should be disabled
     expect(checkboxes[0]).toHaveProperty('disabled', true);
     expect(checkboxes[1]).toHaveProperty('disabled', true);
-    expect(checkboxes[2]).toHaveProperty('disabled', true);
     // UTI checkboxes should be enabled
-    expect(checkboxes[3]).toHaveProperty('disabled', false);
+    expect(checkboxes[2]).toHaveProperty('disabled', false);
   });
 
   it('calls onToggleUci when UCI checkbox clicked', () => {
@@ -98,13 +97,16 @@ describe('UpcChecklistPanel', () => {
     const onToggleUti = vi.fn();
     render(<UpcChecklistPanel {...defaults} onToggleUti={onToggleUti} />);
     const checkboxes = screen.getAllByRole('checkbox');
-    fireEvent.click(checkboxes[3]); // first UTI checkbox
+    fireEvent.click(checkboxes[2]); // first UTI checkbox
     expect(onToggleUti).toHaveBeenCalledWith('uti_mon_cardiaca');
   });
 
-  it('shows that selections are saved immediately', () => {
-    render(<UpcChecklistPanel {...defaults} />);
-    expect(screen.getByText('Se guarda al seleccionar')).toBeTruthy();
+  it('renders explicit evaluation controls instead of advertising autosave', () => {
+    render(
+      <UpcChecklistPanel {...defaults} evaluationControls={<button>Guardar evaluación</button>} />
+    );
+    expect(screen.getByRole('button', { name: 'Guardar evaluación' })).toBeTruthy();
+    expect(screen.queryByText('Se guarda al seleccionar')).toBeNull();
   });
 
   it('does not render Guardar or Limpiar buttons', () => {

@@ -10,6 +10,7 @@ interface DateStripActionItemProps {
   iconHoverColorClassName: string;
   onClick: () => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export const DateStripActionItem: React.FC<DateStripActionItemProps> = ({
@@ -20,12 +21,15 @@ export const DateStripActionItem: React.FC<DateStripActionItemProps> = ({
   iconHoverColorClassName,
   onClick,
   className,
+  disabled = false,
 }) => (
   <button
     onClick={onClick}
+    disabled={disabled}
     className={clsx(
       'w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 group transition-colors',
-      className
+      className,
+      disabled && 'cursor-not-allowed opacity-60'
     )}
   >
     <div

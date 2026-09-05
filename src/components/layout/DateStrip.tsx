@@ -95,6 +95,7 @@ export interface EmailConfigProps {
   onCopyShareLink?: () => void;
   emailStatus?: 'idle' | 'loading' | 'success' | 'error';
   emailErrorMessage?: string | null;
+  emailBlockedReason?: string | null;
 }
 
 export interface SyncConfigProps {
@@ -148,6 +149,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
   onCopyShareLink,
   emailStatus = 'idle',
   emailErrorMessage,
+  emailBlockedReason,
   syncStatus: _syncStatus,
   lastSyncTime: _lastSyncTime,
   onToggleBookmarks,
@@ -194,6 +196,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
 
   return (
     <div
+      data-app-top-bar
       className="bg-white border-b border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] sticky top-[56px] z-40 print:hidden h-[40px] flex items-center"
       style={{ transform: 'translateZ(0)' }}
     >
@@ -242,6 +245,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
                   onConfigureEmail={onConfigureEmail}
                   emailStatus={emailStatus}
                   emailErrorMessage={emailErrorMessage}
+                  emailBlockedReason={emailBlockedReason}
                 />
               </React.Suspense>
             )}

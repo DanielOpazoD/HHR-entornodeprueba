@@ -83,7 +83,7 @@ type DailyRecordActions = ReturnType<typeof useDailyRecord>;
 interface CensusActionMatrixCase {
   name: string;
   failureClass: CensusActionFailureClass;
-  run: (actions: DailyRecordActions, record: DailyRecord) => void | Promise<void>;
+  run: (actions: DailyRecordActions, record: DailyRecord) => void | Promise<void | boolean>;
   expectWrite?: () => void;
   expectPatch?: (patch: DailyRecordPatch) => void;
 }

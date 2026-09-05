@@ -207,7 +207,6 @@ const buildTargetBedPatient = ({
   normalizePatientUpcForBed(
     {
       ...patient,
-      bedId: targetBedId,
       location: targetLocation,
     },
     targetBedId

@@ -100,6 +100,22 @@ describe('DateStrip', () => {
     );
   });
 
+  it('blocks Excel email with an explanation, leaves configuration open, and unlocks after review', async () => {
+    const reason = 'Envío bloqueado: completa la evaluación UPC del día en R1.';
+    const { rerender } = render(<DateStrip {...defaultProps} emailBlockedReason={reason} />);
+    fireEvent.click(await screen.findByTitle('Enviar censo'));
+    const send = screen.getByRole('button', { name: /Enviar Archivo Excel/ });
+    expect(send).toBeDisabled();
+    fireEvent.click(send);
+    expect(defaultProps.onSendEmail).not.toHaveBeenCalled();
+    expect(screen.getByText(reason)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Configuración/ })).toBeEnabled();
+    rerender(<DateStrip {...defaultProps} emailBlockedReason={null} />);
+    expect(screen.queryByText(reason)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Enviar Archivo Excel/ }));
+    expect(defaultProps.onSendEmail).toHaveBeenCalledTimes(1);
+  });
+
   it('shows sync status indicators in SaveDropdown', async () => {
     // Sync status is actually reflected in SaveDropdown 'isArchived' and 'isBackingUp' props
     const { rerender } = render(<DateStrip {...defaultProps} isBackingUp={true} />);

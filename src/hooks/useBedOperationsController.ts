@@ -45,7 +45,6 @@ export const buildMoveOrCopyPatch = (
   patch[`beds.${targetBedId}`] = normalizePatientUpcForBed(
     {
       ...deepClone(sourceData),
-      bedId: targetBedId,
       location: record.beds[targetBedId].location,
     },
     targetBedId
