@@ -15,14 +15,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
-import {
-  ChevronLeft,
-  ChevronRight,
-  FileDown,
-  Loader2,
-  RefreshCw,
-  X,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileDown, Loader2, RefreshCw, X } from 'lucide-react';
 import { type EvolutionProfession } from '@/features/rayen-import';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
 import { ClinicalPanelHistoryPrintButton } from './ClinicalPanelHistoryPrintButton';
@@ -208,11 +201,15 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           <button
             type="button"
             onClick={reload}
-            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            disabled={state.phase === 'loading'}
+            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:cursor-wait disabled:opacity-50"
             title="Actualizar desde Ficha Médico"
             aria-label="Actualizar panel clínico"
           >
-            <RefreshCw size={14} />
+            <RefreshCw
+              size={14}
+              className={state.phase === 'loading' ? 'animate-spin' : undefined}
+            />
           </button>
           <button
             type="button"

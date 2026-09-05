@@ -153,7 +153,7 @@ describe('ClinicalPanelDrawer', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Evolución médica estable.')).toBeInTheDocument());
-    expect(mocks.request).toHaveBeenCalledWith('141121');
+    expect(mocks.request).toHaveBeenCalledWith('141121', undefined, expect.any(AbortSignal));
     expect(screen.queryByText('Entrega médica: controlar laboratorio.')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Entrega de turno (1)' }));
@@ -328,7 +328,9 @@ describe('ClinicalPanelDrawer', () => {
     });
     expect(documentsButton).toHaveTextContent('3');
     fireEvent.click(documentsButton);
-    expect(await screen.findByRole('dialog', { name: 'Documentos de Paciente de prueba' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('dialog', { name: 'Documentos de Paciente de prueba' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Clasificación' })).toBeInTheDocument();
     const fileButton = screen.getByRole('button', { name: 'informe-prueba.pdf' });
     fireEvent.click(fileButton);
@@ -355,7 +357,9 @@ describe('ClinicalPanelDrawer', () => {
     expect(documentsButton).not.toHaveTextContent(/\d/);
     expect(documentsButton).toBeEnabled();
     fireEvent.click(documentsButton);
-    expect(await screen.findByText('No hay documentos visibles para este paciente.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('No hay documentos visibles para este paciente.')
+    ).toBeInTheDocument();
   });
 
   it('does not present an unavailable document query as an empty repository', async () => {
@@ -378,7 +382,9 @@ describe('ClinicalPanelDrawer', () => {
     });
     expect(documentsButton).not.toHaveClass('opacity-30');
     fireEvent.click(documentsButton);
-    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron leer los documentos.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudieron leer los documentos.'
+    );
   });
 
   it('closes only the document dialog when Escape is pressed inside it', async () => {
