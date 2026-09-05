@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-31T06:01:23.247Z",
+  "generatedAt": "stable:compatibility-governance",
   "policyVersion": "2026-04-v1",
   "expansionRule": "Ninguna feature nueva puede depender de compatibilidad legacy salvo excepcion documentada y gobernada.",
   "documentationRule": "Todo bridge debe tener owner, motivo, retirementCriteria y remainingConsumers.",

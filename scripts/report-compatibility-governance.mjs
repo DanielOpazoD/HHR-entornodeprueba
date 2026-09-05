@@ -8,7 +8,8 @@ const CONFIG_PATH = path.join(ROOT, 'scripts', 'config', 'compatibility-governan
 const REPORTS_DIR = path.join(ROOT, 'reports');
 
 const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-const generatedAt = new Date().toISOString();
+// This supporting snapshot is versioned; wall-clock provenance belongs to the release manifest.
+const generatedAt = 'stable:compatibility-governance';
 
 const KIND_RISK_DEFAULTS = {
   compatibility_facade: 'Aumenta el costo de cambio y puede perpetuar imports legacy.',
