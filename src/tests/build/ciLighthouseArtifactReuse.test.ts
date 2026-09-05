@@ -35,3 +35,25 @@ it('runs Lighthouse against the validated dist from the same workflow without re
     'npm run preview -- --port 4173 --host 127.0.0.1'
   );
 });
+
+it('recognizes Vite readiness with plain or ANSI-colored output, but not startup chatter', () => {
+  const config = JSON.parse(fs.readFileSync('lighthouserc.json', 'utf8'));
+  const readyPattern = new RegExp(config.ci.collect.startServerReadyPattern, 'i');
+
+  // Vite inserts an ANSI reset between "Local" and ":" in GitHub Actions.
+  for (const output of [
+    '  ➜  Local:   http://127.0.0.1:4173/',
+    '  \u001b[32m➜\u001b[39m  \u001b[1mLocal\u001b[22m:   \u001b[36mhttp://127.0.0.1:\u001b[1m4173\u001b[22m/',
+    '  Local\u001b[0m\u001b[39m:   http://127.0.0.1:4173/',
+  ]) {
+    expect(readyPattern.test(output)).toBe(true);
+  }
+
+  for (const output of [
+    '',
+    '> vite preview --port 4173 --host 127.0.0.1',
+    'Error: Local server failed to start',
+  ]) {
+    expect(readyPattern.test(output)).toBe(false);
+  }
+});
