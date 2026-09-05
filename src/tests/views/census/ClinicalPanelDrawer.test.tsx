@@ -141,6 +141,51 @@ describe('ClinicalPanelDrawer', () => {
     mocks.error.mockReset();
   });
 
+  it('isolates reading from a draggable census row without cancelling native text selection', async () => {
+    const onDragStart = vi.fn();
+    const { container } = render(
+      <div draggable onDragStart={onDragStart}>
+        <ClinicalPanelDrawer
+          bedId="R1"
+          patientName="Paciente de prueba"
+          clinicalEpisodeId="141121"
+          onOpenHospitalizationReports={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </div>
+    );
+    const text = await screen.findByText('Evolución médica estable.');
+    const drawer = screen.getByRole('dialog');
+    expect(container.contains(drawer)).toBe(false);
+    expect(drawer.closest('[draggable="true"]')).toBeNull();
+    expect(screen.getByTestId('clinical-panel-content')).toHaveClass('select-text', 'cursor-text');
+    expect(fireEvent.mouseDown(text, { button: 0 })).toBe(true);
+    fireEvent.dragStart(text);
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+
+  it('widens reading without refetching or changing the selected clinical section', async () => {
+    render(
+      <ClinicalPanelDrawer
+        bedId="R1"
+        patientName="Paciente de prueba"
+        clinicalEpisodeId="141121"
+        onOpenHospitalizationReports={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    await screen.findByText('Evolución médica estable.');
+    const indications = screen.getByRole('button', { name: /Indicaciones/i });
+    fireEvent.click(indications);
+    expect(indications).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Ampliar panel de lectura' }));
+    expect(screen.getByRole('dialog')).toHaveClass('w-[680px]');
+    expect(indications).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Reducir panel de lectura' }));
+    expect(screen.getByRole('dialog')).toHaveClass('w-[460px]');
+    expect(mocks.request).toHaveBeenCalledTimes(1);
+  });
+
   it('separates handoffs, labels inactive medications, and renders care execution', async () => {
     render(
       <ClinicalPanelDrawer
@@ -328,7 +373,9 @@ describe('ClinicalPanelDrawer', () => {
     });
     expect(documentsButton).toHaveTextContent('3');
     fireEvent.click(documentsButton);
-    expect(await screen.findByRole('dialog', { name: 'Documentos de Paciente de prueba' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('dialog', { name: 'Documentos de Paciente de prueba' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Clasificación' })).toBeInTheDocument();
     const fileButton = screen.getByRole('button', { name: 'informe-prueba.pdf' });
     fireEvent.click(fileButton);
@@ -355,7 +402,9 @@ describe('ClinicalPanelDrawer', () => {
     expect(documentsButton).not.toHaveTextContent(/\d/);
     expect(documentsButton).toBeEnabled();
     fireEvent.click(documentsButton);
-    expect(await screen.findByText('No hay documentos visibles para este paciente.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('No hay documentos visibles para este paciente.')
+    ).toBeInTheDocument();
   });
 
   it('does not present an unavailable document query as an empty repository', async () => {
@@ -378,7 +427,9 @@ describe('ClinicalPanelDrawer', () => {
     });
     expect(documentsButton).not.toHaveClass('opacity-30');
     fireEvent.click(documentsButton);
-    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron leer los documentos.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudieron leer los documentos.'
+    );
   });
 
   it('closes only the document dialog when Escape is pressed inside it', async () => {

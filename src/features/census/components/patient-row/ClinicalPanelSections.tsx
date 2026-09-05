@@ -52,7 +52,7 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }
   return (
     <article
       className={clsx(
-        'rounded-md border border-slate-200 bg-white p-2 shadow-sm',
+        'rounded-lg border border-slate-200/80 bg-white p-3',
         entry.crossedOut && 'opacity-60'
       )}
     >
@@ -80,13 +80,13 @@ export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }
             {entry.crossedOut ? 'Anulada' : 'Archivada'}
           </span>
         )}
-        <span className="ml-auto text-[10px] tabular-nums text-slate-400">
+        <span className="ml-auto text-[10px] tabular-nums text-slate-500">
           {formatWhen(entry.publishedAt)}
         </span>
       </header>
       <p
         className={clsx(
-          'mt-1 whitespace-pre-wrap text-[12px] leading-snug text-slate-700',
+          'mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-slate-700',
           entry.crossedOut && 'line-through decoration-slate-400'
         )}
       >
