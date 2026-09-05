@@ -2,6 +2,33 @@
 
 Antes de cerrar una modificación relevante en este repo:
 
+### Iterar sin repetir los gates completos
+
+Durante la edición, ejecutar las pruebas del módulo afectado (`npx vitest run <ruta>`)
+y el grupo pertinente de `npm run check:quality:group -- <grupo>`:
+`boundaries`, `governance`, `security`, `size`, `tests` o `reports`.
+Esto es feedback focalizado, **no reemplaza el gate previo al merge**.
+
+Para cambios en límites de imports:
+
+```sh
+npx vitest run src/tests/build/featureBoundaryRunner.test.ts src/tests/security/laboratoryImportGovernanceStatic.test.ts
+npm run check:quality:group -- boundaries
+```
+
+El runner compartido conserva la política de imports y excepciones. El control genérico
+reutiliza un snapshot en memoria durante una sola invocación; cada ejecución nueva
+lee de nuevo el código. No añadir otra política basada en grep en un test de módulo.
+
+Al cerrar, elegir un gate existente de la lista inferior. `ci:pre-merge` ya incluye
+typecheck, lint, calidad completa y unitarios: no ejecutar de nuevo sus componentes
+si ya pasaron sobre el mismo diff y entorno. `ci:merge-gate` amplía ese gate con build
+y validaciones de preview. Si el código cambia después, revalidar lo afectado y dejar
+que CI compruebe el head definitivo. Registrar comando, SHA/diff y resultado; nunca
+tratar un resultado anterior a una modificación como evidencia del nuevo código.
+
+### Checklist de cierre
+
 1. Clasificar la change según `scripts/config/sustainable-change-policy.json`.
 2. Actualizar tests unitarios e integración afectados por la change.
 3. Si la change es upgrade o excepción, documentar owner, riesgo, rollback y criterio de cierre.

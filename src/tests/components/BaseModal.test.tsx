@@ -26,7 +26,7 @@ describe('BaseModal z-index behavior', () => {
     cleanup();
   });
 
-  it('should have a z-index higher than Navbar (z-50)', () => {
+  it('covers the viewport above Navbar (z-50) with a blurred backdrop', () => {
     render(
       <BaseModal isOpen={true} onClose={() => {}} title="Test Modal">
         <div data-testid="modal-content">Content</div>
@@ -41,6 +41,9 @@ describe('BaseModal z-index behavior', () => {
     const backdrop = dialog!.closest('.fixed.inset-0');
     expect(backdrop).toBeTruthy();
     expect(backdrop!.className).toContain('z-[100]');
+    expect(backdrop!.className).toContain('fixed');
+    expect(backdrop!.className).toContain('inset-0');
+    expect(backdrop!.className).toContain('backdrop-blur');
   });
 
   it('keeps dialog semantics on the modal container instead of the backdrop', () => {
@@ -62,19 +65,6 @@ describe('BaseModal z-index behavior', () => {
     expect(backdrop).not.toHaveAttribute('role');
   });
 
-  it('should render with fixed positioning and cover the entire viewport', () => {
-    render(
-      <BaseModal isOpen={true} onClose={() => {}} title="Test Modal">
-        <div data-testid="modal-content">Content</div>
-      </BaseModal>
-    );
-
-    const backdrop = document.querySelector('.fixed.inset-0');
-    expect(backdrop).toBeTruthy();
-    expect(backdrop!.className).toContain('fixed');
-    expect(backdrop!.className).toContain('inset-0');
-  });
-
   it('should not render when isOpen is false', () => {
     render(
       <BaseModal isOpen={false} onClose={() => {}} title="Test Modal">
@@ -85,17 +75,6 @@ describe('BaseModal z-index behavior', () => {
     // No portal should be created
     const dialog = document.querySelector('[role="dialog"]');
     expect(dialog).toBeNull();
-  });
-
-  it('should have backdrop blur effect', () => {
-    render(
-      <BaseModal isOpen={true} onClose={() => {}} title="Test Modal">
-        <div data-testid="modal-content">Content</div>
-      </BaseModal>
-    );
-
-    const backdrop = document.querySelector('.fixed.inset-0');
-    expect(backdrop!.className).toContain('backdrop-blur');
   });
 
   it('uses an opaque light clinical surface by default', () => {

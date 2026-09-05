@@ -214,11 +214,15 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             <button
               type="button"
               onClick={reload}
-              className="ml-auto inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+              disabled={state.phase === 'loading'}
+              className="disabled:cursor-wait disabled:opacity-50 ml-auto inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
               title="Actualizar desde Ficha Médico"
               aria-label="Actualizar panel clínico"
             >
-              <RefreshCw size={14} />
+              <RefreshCw
+                size={14}
+                className={state.phase === 'loading' ? 'animate-spin' : undefined}
+              />
             </button>
           </div>
         </header>

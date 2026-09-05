@@ -322,7 +322,7 @@ describe('LabResultsViewerModal', () => {
   it('shows PDF viewer when pdfExam is set', async () => {
     mockUseLabViewer.mockReturnValue({ ...DEFAULT_HOOK_STATE, pdfExam: MOCK_EXAM });
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
-    const iframe = screen.getByTitle('PDF Examen 43091284');
+    const iframe = await screen.findByTitle('PDF Examen 43091284');
     expect(iframe).toBeInTheDocument();
     await waitFor(() => {
       expect(iframe).toHaveAttribute('src', 'blob:syslab-test#navpanes=0&scrollbar=1&zoom=110');
@@ -337,7 +337,7 @@ describe('LabResultsViewerModal', () => {
       analysisView: 'microbiology',
     });
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
-    const iframe = screen.getByTitle('PDF Examen 43091284');
+    const iframe = await screen.findByTitle('PDF Examen 43091284');
     expect(iframe).toBeInTheDocument();
     await waitFor(() => {
       expect(iframe).toHaveAttribute('src', 'blob:syslab-test#navpanes=0&scrollbar=1&zoom=110');
@@ -345,7 +345,7 @@ describe('LabResultsViewerModal', () => {
     expect(screen.queryByText('Resultados cualitativos relevantes')).not.toBeInTheDocument();
   });
 
-  it('shows analysis view with tabs', () => {
+  it('shows analysis view with tabs', async () => {
     mockUseLabViewer.mockReturnValue({
       ...DEFAULT_HOOK_STATE,
       analysisData: MOCK_ANALYSIS,
@@ -354,32 +354,32 @@ describe('LabResultsViewerModal', () => {
     // Controls hidden during analysis (no Buscar button) and empty state is gone
     expect(screen.queryByText('Buscar')).toBeNull();
     expect(screen.queryByText('Selecciona un paciente y busca')).toBeNull();
-    expect(screen.getByText('Microbiología')).toBeInTheDocument();
+    expect(await screen.findByText('Microbiología')).toBeInTheDocument();
   });
 
-  it('trends tab shows grouped charts', () => {
+  it('trends tab shows grouped charts', async () => {
     mockUseLabViewer.mockReturnValue({
       ...DEFAULT_HOOK_STATE,
       analysisData: MOCK_ANALYSIS,
       analysisView: 'trends',
     });
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
-    expect(screen.getByText('Hemograma')).toBeInTheDocument();
+    expect(await screen.findByText('Hemograma')).toBeInTheDocument();
   });
 
-  it('comparison tab shows pivot table', () => {
+  it('comparison tab shows pivot table', async () => {
     mockUseLabViewer.mockReturnValue({
       ...DEFAULT_HOOK_STATE,
       analysisData: MOCK_ANALYSIS,
       analysisView: 'comparison',
     });
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
-    expect(screen.getByText('01/03/2026')).toBeInTheDocument();
+    expect(await screen.findByText('01/03/2026')).toBeInTheDocument();
     expect(screen.getByText('06/04/2026')).toBeInTheDocument();
     expect(screen.getByText('13.2')).toBeInTheDocument();
   });
 
-  it('keeps comparison analysis header compact with patient and RUT in one place', () => {
+  it('keeps comparison analysis header compact with patient and RUT in one place', async () => {
     mockUseLabViewer.mockReturnValue({
       ...DEFAULT_HOOK_STATE,
       analysisData: MOCK_ANALYSIS,
@@ -387,7 +387,7 @@ describe('LabResultsViewerModal', () => {
     });
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
 
-    expect(screen.getByText('Juan')).toBeInTheDocument();
+    expect(await screen.findByText('Juan')).toBeInTheDocument();
     expect(screen.getByText('RUT 12345678-9')).toBeInTheDocument();
     expect(screen.queryByText('Análisis clínico')).not.toBeInTheDocument();
     expect(screen.queryByText('2 examenes analizados')).not.toBeInTheDocument();
@@ -396,7 +396,7 @@ describe('LabResultsViewerModal', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('keeps patient context and trend actions together in the sticky analysis header', () => {
+  it('keeps patient context and trend actions together in the sticky analysis header', async () => {
     mockUseLabViewer.mockReturnValue({
       ...DEFAULT_HOOK_STATE,
       analysisData: MOCK_ANALYSIS,
@@ -404,20 +404,20 @@ describe('LabResultsViewerModal', () => {
     });
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
 
-    expect(screen.getByTestId('lab-analysis-sticky-header')).toHaveClass('sticky');
+    expect(await screen.findByTestId('lab-analysis-sticky-header')).toHaveClass('sticky');
     const copy = screen.getByRole('button', { name: 'Copiar resumen' });
     const download = screen.getByRole('button', { name: 'Descargar PNG' });
     expect(copy.parentElement).toBe(download.parentElement);
   });
 
-  it('microbiology tab shows separated microbiology content', () => {
+  it('microbiology tab shows separated microbiology content', async () => {
     mockUseLabViewer.mockReturnValue({
       ...DEFAULT_HOOK_STATE,
       analysisData: MOCK_ANALYSIS,
       analysisView: 'microbiology',
     });
     render(<LabResultsViewerModal isOpen={true} onClose={vi.fn()} patients={PATIENTS} />);
-    expect(screen.getByText('Resultados cualitativos relevantes')).toBeInTheDocument();
+    expect(await screen.findByText('Resultados cualitativos relevantes')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /ver pdf original de urocultivo/i })
     ).toBeInTheDocument();

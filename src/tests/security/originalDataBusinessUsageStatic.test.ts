@@ -26,6 +26,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   'src/features/rayen-import/domain/censusDischargeHistory.ts',
   'src/domain/CensusManager.ts',
   'src/services/admin/admissionDateBackfillPlanner.ts',
+  // Read-only historical audit: recover signed UPC evaluations from the patient
+  // snapshot preserved in a completed movement, matched by patient and episode.
+  'src/services/patient/patientUpcHistoryService.ts',
   // Integrity scoring recognizes a newly persisted movement snapshot as evidence that a
   // vacated patient was preserved rather than erased during a multi-discharge sync.
   'src/utils/integrityGuard.ts',

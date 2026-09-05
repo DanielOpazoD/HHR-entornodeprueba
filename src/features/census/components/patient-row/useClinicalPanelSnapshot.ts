@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   parseClinicalPanel,
   requestClinicalPanel,
@@ -32,29 +32,69 @@ const panelStateFrom = (result: RayenClinicalPanelResult): PanelState =>
     : { phase: 'ready', panel: parseClinicalPanel(result.events, result.carePlan) };
 
 export const useClinicalPanelSnapshot = (clinicalEpisodeId: string) => {
-  const [state, setState] = useState<PanelState>({ phase: 'loading' });
-  const [documentState, setDocumentState] = useState<DocumentState>({ phase: 'loading' });
+  const [snapshot, setSnapshot] = useState<{
+    episode: string;
+    state: PanelState;
+    documentState: DocumentState;
+  }>({
+    episode: clinicalEpisodeId,
+    state: { phase: 'loading' },
+    documentState: { phase: 'loading' },
+  });
+  const pending = useRef<{ episode: string; controller: AbortController } | null>(null);
 
-  const applyResult = useCallback((result: RayenClinicalPanelResult) => {
-    setDocumentState(documentStateFrom(result));
-    setState(panelStateFrom(result));
-  }, []);
+  const load = useCallback(() => {
+    // Repeated clicks share the active read instead of launching overlapping snapshots.
+    if (pending.current?.episode === clinicalEpisodeId) return false;
+    pending.current?.controller.abort();
+    const request = { episode: clinicalEpisodeId, controller: new AbortController() };
+    pending.current = request;
+    void requestClinicalPanel(clinicalEpisodeId, undefined, request.controller.signal)
+      .then(result => {
+        if (pending.current !== request || request.controller.signal.aborted) return;
+        setSnapshot({
+          episode: clinicalEpisodeId,
+          state: panelStateFrom(result),
+          documentState: documentStateFrom(result),
+        });
+      })
+      .catch(() => {
+        if (pending.current !== request || request.controller.signal.aborted) return;
+        const error = {
+          phase: 'error' as const,
+          message: 'No se pudo cargar el panel clínico. Vuelve a intentar.',
+        };
+        setSnapshot({ episode: clinicalEpisodeId, state: error, documentState: error });
+      })
+      .finally(() => {
+        if (pending.current === request) pending.current = null;
+      });
+    return true;
+  }, [clinicalEpisodeId]);
 
   const reload = useCallback(() => {
-    setState({ phase: 'loading' });
-    setDocumentState({ phase: 'loading' });
-    void requestClinicalPanel(clinicalEpisodeId).then(applyResult);
-  }, [applyResult, clinicalEpisodeId]);
+    if (load()) {
+      setSnapshot({
+        episode: clinicalEpisodeId,
+        state: { phase: 'loading' },
+        documentState: { phase: 'loading' },
+      });
+    }
+  }, [clinicalEpisodeId, load]);
 
   useEffect(() => {
-    let active = true;
-    void requestClinicalPanel(clinicalEpisodeId).then(result => {
-      if (active) applyResult(result);
-    });
+    load();
     return () => {
-      active = false;
+      pending.current?.controller.abort();
+      pending.current = null;
     };
-  }, [applyResult, clinicalEpisodeId]);
+  }, [load]);
 
-  return { state, documentState, reload };
+  // Never expose the previous patient's text during the render before effect cleanup.
+  const sameEpisode = snapshot.episode === clinicalEpisodeId;
+  return {
+    state: sameEpisode ? snapshot.state : { phase: 'loading' as const },
+    documentState: sameEpisode ? snapshot.documentState : { phase: 'loading' as const },
+    reload,
+  };
 };

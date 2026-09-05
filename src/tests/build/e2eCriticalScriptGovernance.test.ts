@@ -59,8 +59,16 @@ describe('E2E critical script governance', () => {
     expect(workflowJob).toContain(
       'E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT: reports/e2e/flow-performance-playwright-report.json'
     );
-    expect(workflowJob).toContain(
-      'node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json'
+    const steps = workflowJob.split(/^ {6}- name:/m);
+    const metricsSteps = steps.filter(step => step.includes('report-e2e-operational-metrics.mjs'));
+    expect(metricsSteps).toHaveLength(1);
+    expect(metricsSteps[0]).toContain('if: always()');
+    expect(metricsSteps[0]).toContain(
+      'run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce'
+    );
+    expect(metricsSteps[0]).not.toContain('continue-on-error: true');
+    expect(steps.find(step => step.includes('name: e2e-critical-emulator-artifacts'))).toContain(
+      'if: always()'
     );
     expect(workflowJob).toContain('path: |\n            reports/e2e/**');
   });

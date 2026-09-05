@@ -13,12 +13,18 @@ import { LabViewerControls } from './LabViewerControls';
 import { LabViewerProgress } from './LabViewerProgress';
 import { LabViewerExamList } from './LabViewerExamList';
 import { LabViewerAnalyzeBar } from './LabViewerAnalyzeBar';
-import { LabViewerPdf } from './LabViewerPdf';
-import { LabViewerAnalysis } from './LabViewerAnalysis';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { LabViewerEmptyState } from './LabViewerEmptyState';
 import { SyslabAccessPrompt } from './SyslabAccessPrompt';
 import { useSyslabAccess } from '../hooks/useSyslabAccess';
 import { useInitialLabViewerAutoSearch } from '../hooks/useInitialLabViewerAutoSearch';
+
+const LabViewerPdf = lazyWithRetry(() =>
+  import('./LabViewerPdf').then(module => ({ default: module.LabViewerPdf }))
+);
+const LabViewerAnalysis = lazyWithRetry(() =>
+  import('./LabViewerAnalysis').then(module => ({ default: module.LabViewerAnalysis }))
+);
 
 interface LabResultsViewerModalProps {
   isOpen: boolean;
@@ -128,17 +134,23 @@ export const LabResultsViewerModal: React.FC<LabResultsViewerModalProps> = ({
         </div>
       )}
 
-      {shellModel.shouldShowPdf && <LabViewerPdf exam={lab.pdfExam!} onBack={lab.closePdf} />}
+      {shellModel.shouldShowPdf && (
+        <React.Suspense fallback={<p role="status">Cargando visor PDF…</p>}>
+          <LabViewerPdf exam={lab.pdfExam!} onBack={lab.closePdf} />
+        </React.Suspense>
+      )}
 
       {shellModel.shouldShowAnalysis && (
-        <LabViewerAnalysis
-          data={lab.analysisData!}
-          patient={lab.selectedPatient}
-          activeTab={lab.analysisView}
-          onTabChange={lab.setAnalysisView}
-          onBack={lab.closeAnalysis}
-          onOpenPdf={lab.openPdf}
-        />
+        <React.Suspense fallback={<p role="status">Cargando análisis…</p>}>
+          <LabViewerAnalysis
+            data={lab.analysisData!}
+            patient={lab.selectedPatient}
+            activeTab={lab.analysisView}
+            onTabChange={lab.setAnalysisView}
+            onBack={lab.closeAnalysis}
+            onOpenPdf={lab.openPdf}
+          />
+        </React.Suspense>
       )}
 
       {shellModel.shouldShowExamList && (

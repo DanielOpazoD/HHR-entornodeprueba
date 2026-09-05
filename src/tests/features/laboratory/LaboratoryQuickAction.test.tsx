@@ -10,9 +10,13 @@ vi.mock('@/services/laboratory/syslabService', () => ({
 }));
 
 vi.mock('@/features/laboratory/components/LabResultsViewerModal', () => ({
-  LabResultsViewerModal: ({ isOpen }: { isOpen: boolean }) =>
-    isOpen ? <div>Lab modal</div> : null,
+  LabResultsViewerModal: (props: { isOpen: boolean; onClose: () => void }) => {
+    modalRender(props);
+    return props.isOpen ? <button onClick={props.onClose}>Lab modal</button> : null;
+  },
 }));
+
+const modalRender = vi.hoisted(() => vi.fn());
 
 const patients: MedicalIndicationsPatientOption[] = [
   {
@@ -31,6 +35,18 @@ const patients: MedicalIndicationsPatientOption[] = [
 ];
 
 describe('LaboratoryQuickAction', () => {
+  it('does not mount the viewer until requested and unmounts it on close', async () => {
+    vi.mocked(checkSyslabConnection).mockReturnValue(new Promise(() => {}) as never);
+    modalRender.mockClear();
+    render(<LaboratoryQuickAction patients={patients} />);
+    expect(modalRender).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^lab$/i }));
+    fireEvent.click(await screen.findByText('Lab modal'));
+    expect(screen.queryByText('Lab modal')).not.toBeInTheDocument();
+    expect(modalRender.mock.calls.every(([props]) => props.isOpen)).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /^lab$/i }));
+    expect(await screen.findByText('Lab modal')).toBeInTheDocument();
+  });
   it('uses the stable DateStrip quick-action slot dimensions from the first render', () => {
     vi.mocked(checkSyslabConnection).mockReturnValue(new Promise(() => {}) as never);
 
@@ -61,7 +77,7 @@ describe('LaboratoryQuickAction', () => {
     });
 
     fireEvent.click(button);
-    expect(screen.getByText('Lab modal')).toBeInTheDocument();
+    expect(await screen.findByText('Lab modal')).toBeInTheDocument();
   });
 
   it('disables the action only when there are no patients with RUT', async () => {

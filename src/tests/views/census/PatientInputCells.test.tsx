@@ -10,6 +10,11 @@ import { clearDailyRecordClinicalFieldPausesForTests } from '@/hooks/controllers
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStability: vi.fn(),
+  useDailyRecordBedActions: () => ({
+    updatePatientMultiple: vi.fn(),
+    updateClinicalCribMultiple: vi.fn(),
+  }),
+  useDailyRecordStaff: () => ({ nursesDayShift: [], nursesNightShift: [] }),
 }));
 
 const renderWithUI = (ui: ReactElement) => render(<UIProvider>{ui}</UIProvider>);
@@ -56,7 +61,7 @@ describe('PatientInputCells', () => {
 
     // La columna C.QX está oculta (campo surgicalComplication conservado para el futuro).
     expect(screen.queryByTitle('Comp. Qx')).not.toBeInTheDocument();
-    expect(screen.getByTitle(/Sin clasificación UPC/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Evaluación UPC pendiente' })).toBeInTheDocument();
   });
 
   it('hides specialist-restricted cells in specialist census access', () => {

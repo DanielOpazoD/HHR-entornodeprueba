@@ -4,7 +4,7 @@
       "url": ["http://localhost:4173/"],
       "numberOfRuns": 3,
       "startServerCommand": "npm run preview -- --port 4173 --host 127.0.0.1",
-      "startServerReadyPattern": "Local:",
+      "startServerReadyPattern": "Local(?:\\u001b\\[[0-9;]*m)*:",
       "settings": {
         "preset": "desktop",
         "chromeFlags": "--no-sandbox --headless=new"

@@ -1,6 +1,8 @@
 import type { PatientData } from '@/types/domain/patient';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { CudyrScoreSchema } from '@/schemas/zod/patient';
+import { UpcChecklistSchema } from '@/schemas/zod/upc';
+import { resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 
 export const buildFallbackPatientData = (data: unknown, bedId: string): PatientData => {
   const fallback = createEmptyPatient(bedId);
@@ -15,6 +17,13 @@ export const buildFallbackPatientData = (data: unknown, bedId: string): PatientD
   if (raw.isBlocked === true) fallback.isBlocked = true;
   if (raw.bedMode === 'Cama' || raw.bedMode === 'Cuna') fallback.bedMode = raw.bedMode;
   if (raw.hasCompanionCrib === true) fallback.hasCompanionCrib = true;
+  const upc = UpcChecklistSchema.safeParse(raw.upcChecklist);
+  if (upc.success) fallback.upcChecklist = upc.data;
+  fallback.isUPC = resolveEffectiveUpcState({
+    bedId,
+    isUPC: raw.isUPC === true,
+    checklist: fallback.upcChecklist,
+  }).isUpc;
 
   const cudyr = CudyrScoreSchema.safeParse(raw.cudyr);
   if (cudyr.success) {

@@ -398,11 +398,7 @@ jobs:
           E2E_BUDGET_AUTH_FEEDBACK_MS: 3000
           E2E_BUDGET_CENSO_VISIBLE_MS: 8000
 
-      - name: Generate E2E operational metrics (flaky + duration)
-        if: always()
-        run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json
-
-      - name: Enforce E2E operational thresholds
+      - name: Generate and enforce E2E operational metrics
         if: always()
         run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce
 
@@ -512,10 +508,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build production bundle
-        run: npm run build
-        env:
-          CI: true
+      # Measure the exact bundle already validated by build-budget in this run.
+      - name: Download validated production build
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
@@ -542,11 +540,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
-
+      # These telemetry scripts use only Node.js built-ins and the GitHub API.
       - name: Collect GitHub Actions runtime data
         run: npm run collect:ci-runtime-observed-input
         env:

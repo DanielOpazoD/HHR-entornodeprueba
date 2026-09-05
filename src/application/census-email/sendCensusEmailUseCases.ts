@@ -23,6 +23,7 @@ import {
   type CensusEmailDeliveryPort,
 } from '@/application/ports/censusEmailPort';
 import type { CensusExportRecord } from '@/services/contracts/censusExportServiceContracts';
+import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';
 
 interface BaseCensusEmailInput {
   currentDateString: string;
@@ -85,6 +86,10 @@ export const executeSendCensusEmail = async (
       { kind: 'validation', message: 'No hay datos del censo para enviar.' },
     ]);
   }
+  const upcBlockReason = resolveUpcEmailBlockReason(input.record, input.currentDateString);
+  if (upcBlockReason) {
+    return createApplicationFailed(null, [{ kind: 'validation', message: upcBlockReason }]);
+  }
 
   const recipientsResult = resolveSendingRecipients({
     recipients: input.recipients,
@@ -141,6 +146,15 @@ export const executeSendCensusEmail = async (
       monthRecords: filteredRecords,
       currentDateString: input.currentDateString,
     });
+
+    // Validate the actual day selected for the attachment, which may differ from the UI snapshot.
+    const deliveryRecord = filteredRecords.find(record => record.date === input.currentDateString);
+    const deliveryBlockReason = deliveryRecord
+      ? resolveUpcEmailBlockReason(deliveryRecord, input.currentDateString)
+      : 'No hay datos del día seleccionado para enviar.';
+    if (deliveryBlockReason) {
+      return createApplicationFailed(null, [{ kind: 'validation', message: deliveryBlockReason }]);
+    }
 
     const sendResult = await censusEmailDeliveryPort.sendEmailWithResult({
       date: input.currentDateString,

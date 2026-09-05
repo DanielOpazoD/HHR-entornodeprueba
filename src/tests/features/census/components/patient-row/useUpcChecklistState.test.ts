@@ -1,230 +1,217 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
-  UPC_SAVE_COALESCE_MS,
   useUpcChecklistState,
+  type UseUpcChecklistStateParams,
 } from '@/features/census/components/patient-row/useUpcChecklistState';
-import type { UpcChecklistRecord, UpcChecklistAuditActor } from '@/domain/upc/upcContracts';
+import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 
-const ACTOR: UpcChecklistAuditActor = { uid: 'u1', displayName: 'Dr. Test' };
-
-const makeChecklist = (
-  uci: string[] = [],
-  uti: string[] = [],
-  classification: UpcChecklistRecord['classification'] = null
-): UpcChecklistRecord => ({
-  uciCriteria: uci,
-  utiCriteria: uti,
-  classification,
-  evaluatedAt: '2026-04-14T00:00:00Z',
-});
-
-describe('useUpcChecklistState', () => {
-  const createSaveMock = () =>
-    vi.fn() as unknown as ((record: UpcChecklistRecord) => void) & {
-      mock: { calls: [UpcChecklistRecord][] };
-    };
-  let onSave: ReturnType<typeof createSaveMock>;
-
-  beforeEach(() => {
-    onSave = createSaveMock();
-    vi.useFakeTimers();
+const previous: UpcChecklistRecord = {
+  uciCriteria: ['uci_vmi', 'obsolete'],
+  utiCriteria: ['uti_mon_cardiaca'],
+  classification: 'UPC_UCI',
+  evaluatedAt: '2026-09-03T12:00:00Z',
+};
+const setup = (overrides: Partial<UseUpcChecklistStateParams> = {}) => {
+  const onSave = vi.fn().mockResolvedValue(true);
+  const props: UseUpcChecklistStateParams = {
+    checklist: undefined,
+    onSave,
+    uciAllowed: true,
+    actor: { uid: 'test-account', displayName: 'Cuenta de prueba' },
+    evaluationContext: {
+      date: '2026-09-04',
+      bedId: 'R1',
+      nursesDayShift: ['Enfermera A', 'Enfermero B'],
+      nursesNightShift: [],
+    },
+    ...overrides,
+  };
+  const hook = renderHook((p: UseUpcChecklistStateParams) => useUpcChecklistState(p), {
+    initialProps: props,
   });
+  return { ...hook, onSave, props };
+};
+const responsible = (result: ReturnType<typeof setup>['result']) => {
+  act(() => result.current.setNurseName('Enfermera A'));
+};
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  const flushCoalescedSave = () => act(() => vi.advanceTimersByTime(UPC_SAVE_COALESCE_MS));
-
-  // ── Initial state ──────────────────────────────────────────────
-
-  it('starts with empty draft', () => {
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
-    );
-    expect(result.current.draftUci.size).toBe(0);
-    expect(result.current.draftUti.size).toBe(0);
-    expect(result.current.draftClassification).toBeNull();
-    expect(result.current.hasDraftCriteria).toBe(false);
-  });
-
-  // ── resetFromPersisted ─────────────────────────────────────────
-
-  it('hydrates draft from persisted checklist', () => {
-    const checklist = makeChecklist(['uci_vmi'], ['uti_mon_cardiaca'], 'UPC_UCI');
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
-    act(() => result.current.resetFromPersisted());
-
-    expect(result.current.draftUci.has('uci_vmi')).toBe(true);
-    expect(result.current.draftUti.has('uti_mon_cardiaca')).toBe(true);
-    expect(result.current.draftClassification).toBe('UPC_UCI');
-  });
-
-  it('strips invalid/stale criterion IDs on reset', () => {
-    const checklist = makeChecklist(['uci_vmi', 'stale_id'], ['bad_uti'], 'UPC_UCI');
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
-    act(() => result.current.resetFromPersisted());
-
-    expect(result.current.draftUci.size).toBe(1);
-    expect(result.current.draftUci.has('uci_vmi')).toBe(true);
-    expect(result.current.draftUti.size).toBe(0);
-  });
-
-  it('clears UCI criteria when uciAllowed is false (Neo beds)', () => {
-    const checklist = makeChecklist(['uci_vmi'], ['uti_mon_cardiaca'], 'UPC_UCI');
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist, onSave, uciAllowed: false, actor: ACTOR })
-    );
-
-    act(() => result.current.resetFromPersisted());
-
-    expect(result.current.draftUci.size).toBe(0);
-    expect(result.current.draftUti.has('uti_mon_cardiaca')).toBe(true);
-    expect(result.current.draftClassification).toBe('UPC_UTI');
-  });
-
-  // ── Toggle criteria ────────────────────────────────────────────
-
-  it('toggles UCI criterion on and off', () => {
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
-    act(() => result.current.toggleUciCriterion('uci_vmi'));
-    expect(result.current.draftUci.has('uci_vmi')).toBe(true);
-    expect(result.current.draftClassification).toBe('UPC_UCI');
-
-    act(() => result.current.toggleUciCriterion('uci_vmi'));
-    expect(result.current.draftUci.has('uci_vmi')).toBe(false);
-    expect(result.current.draftClassification).toBeNull();
-  });
-
-  it('toggles UTI criterion and computes UTI classification', () => {
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
+describe('UPC explicit evaluation', () => {
+  it.each([['uci_inotropicos'], ['uci_vasoactivos'], ['uci_inotropicos', 'uci_vasoactivos']])(
+    'hydrates legacy vasoactive/inotrope IDs %j as one selected criterion without auto-writing',
+    (...ids) => {
+      const { result, onSave } = setup({
+        checklist: { ...previous, uciCriteria: ids, utiCriteria: [] },
+      });
+      act(() => result.current.resetFromPersisted());
+      expect([...result.current.draftUci]).toEqual(['uci_vasoactivos']);
+      expect(result.current.draftClassification).toBe('UPC_UCI');
+      expect(onSave).not.toHaveBeenCalled();
+      act(() => result.current.toggleUciCriterion('uci_vasoactivos'));
+      expect(result.current.draftUci.size).toBe(0);
+      expect(result.current.draftClassification).toBeNull();
+    }
+  );
+  it('keeps selection as draft without timers or writes on unmount', () => {
+    const { result, onSave, unmount } = setup();
     act(() => result.current.toggleUtiCriterion('uti_mon_cardiaca'));
     expect(result.current.draftClassification).toBe('UPC_UTI');
-    expect(result.current.hasDraftCriteria).toBe(true);
+    expect(result.current.persistedChecklist).toBeUndefined();
+    unmount();
+    expect(onSave).not.toHaveBeenCalled();
   });
-
-  it('UCI takes precedence over UTI', () => {
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
-    act(() => {
-      result.current.toggleUtiCriterion('uti_mon_cardiaca');
-      result.current.toggleUciCriterion('uci_vasoactivos');
-    });
-
-    expect(result.current.draftClassification).toBe('UPC_UCI');
-  });
-
-  // ── Auto-save ───────────────────────────────────────────────────
-
-  it('saves current draft with classification and actor on selection', () => {
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
-    act(() => result.current.toggleUtiCriterion('uti_materno_fetal'));
-    flushCoalescedSave();
-
-    expect(onSave).toHaveBeenCalledTimes(1);
-    const saved = onSave.mock.calls[0][0] as UpcChecklistRecord;
-    expect(saved.utiCriteria).toEqual(['uti_materno_fetal']);
-    expect(saved.uciCriteria).toEqual([]);
-    expect(saved.classification).toBe('UPC_UTI');
-    expect(saved.evaluatedAt).toBeTruthy();
-    expect(saved.evaluatedBy).toEqual({ uid: 'u1', displayName: 'Dr. Test' });
-  });
-
-  it('reopens with the last saved draft even before the external checklist prop roundtrip completes', () => {
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
-    act(() => result.current.toggleUtiCriterion('uti_materno_fetal'));
-
+  it('hydrates valid criteria, with UCI forbidden on Neo', () => {
+    const { result } = setup({ checklist: previous, uciAllowed: false });
     act(() => result.current.resetFromPersisted());
-
-    expect(result.current.draftUti.has('uti_materno_fetal')).toBe(true);
+    expect([...result.current.draftUci]).toEqual([]);
+    expect([...result.current.draftUti]).toEqual(['uti_mon_cardiaca']);
+    act(() => result.current.toggleUciCriterion('uci_vmi'));
+    act(() => result.current.toggleUtiCriterion('invalid'));
     expect(result.current.draftClassification).toBe('UPC_UTI');
   });
-
-  it('saves without evaluatedBy when actor is null', () => {
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: null })
-    );
-
-    act(() => result.current.toggleUciCriterion('uci_vmi'));
-    flushCoalescedSave();
-
-    const saved = onSave.mock.calls[0][0] as UpcChecklistRecord;
-    expect(saved.evaluatedBy).toBeUndefined();
-  });
-
-  it('saves a No UPC state when the last selected criterion is removed', () => {
-    const checklist = makeChecklist([], ['uti_mon_cardiaca'], 'UPC_UTI');
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
+  it('sanitizes obsolete UCI IDs and supports deselection', () => {
+    const { result } = setup({ checklist: previous });
     act(() => result.current.resetFromPersisted());
-    (onSave as unknown as { mockClear: () => void }).mockClear();
-
+    expect([...result.current.draftUci]).toEqual(['uci_vmi']);
+    act(() => result.current.toggleUciCriterion('uci_vmi'));
     act(() => result.current.toggleUtiCriterion('uti_mon_cardiaca'));
-    flushCoalescedSave();
-
-    expect(result.current.draftUti.size).toBe(0);
-    const saved = onSave.mock.calls[0][0] as UpcChecklistRecord;
-    expect(saved.classification).toBeNull();
-    expect(saved.uciCriteria).toEqual([]);
-    expect(saved.utiCriteria).toEqual([]);
+    expect(result.current.draftClassification).toBeNull();
   });
-
-  it('coalesce la ráfaga de toggles en UNA escritura con el estado final', () => {
-    // Antes: una escritura por checkbox → dos writes al callable clínico se
-    // pisaban por versión y el segundo criterio se perdía («seleccionar dos
-    // veces»). La UI sigue optimista al instante; el write viaja coalescido.
-    const { result } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
-    );
-
+  it('requires a chosen responsible nurse and an authenticated audit account', async () => {
+    const { result, onSave } = setup();
+    await act(() => result.current.saveEvaluation());
+    expect(onSave).not.toHaveBeenCalled();
+    act(() => result.current.setNurseName('No asignada'));
+    expect(result.current.canSave).toBe(false);
+    responsible(result);
+    expect(result.current.canSave).toBe(true);
+    const unauthenticated = setup({ actor: null });
+    responsible(unauthenticated.result);
+    await act(() => unauthenticated.result.current.saveEvaluation());
+    expect(unauthenticated.onSave).not.toHaveBeenCalled();
+  });
+  it('sends every final criterion and the complete audit in ONE awaited record', async () => {
+    const { result, onSave } = setup();
+    responsible(result);
     act(() => {
       result.current.toggleUciCriterion('uci_vmi');
       result.current.toggleUtiCriterion('uti_mon_cardiaca');
-      result.current.toggleUciCriterion('uci_vmi'); // untoggle
     });
-    expect(onSave).toHaveBeenCalledTimes(0);
-    flushCoalescedSave();
-
+    await act(() => result.current.saveEvaluation());
     expect(onSave).toHaveBeenCalledTimes(1);
-    const saved = onSave.mock.calls[0][0] as UpcChecklistRecord;
-    expect(saved.uciCriteria).toEqual([]);
-    expect(saved.utiCriteria).toEqual(['uti_mon_cardiaca']);
-    expect(saved.classification).toBe('UPC_UTI');
-  });
-
-  it('al desmontar descarga la escritura pendiente sin esperar el timer', () => {
-    const { result, unmount } = renderHook(() =>
-      useUpcChecklistState({ checklist: undefined, onSave, uciAllowed: true, actor: ACTOR })
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uciCriteria: ['uci_vmi'],
+        utiCriteria: ['uti_mon_cardiaca'],
+        classification: 'UPC_UCI',
+        evaluatedForDate: '2026-09-04',
+        evaluatedBedId: 'R1',
+        reviewRequired: false,
+        evaluatedBy: { uid: 'test-account', displayName: 'Cuenta de prueba' },
+        responsibleNurse: { name: 'Enfermera A', source: 'assigned' },
+      })
     );
-
-    act(() => result.current.toggleUciCriterion('uci_vmi'));
-    expect(onSave).toHaveBeenCalledTimes(0);
-    unmount();
-
+    expect(Number.isFinite(Date.parse(onSave.mock.calls[0][0].evaluatedAt))).toBe(true);
+    expect(onSave.mock.calls[0][0].evaluationId).toBeTruthy();
+    expect(onSave.mock.calls[0][0].history).toHaveLength(1);
+    expect(onSave.mock.calls[0][0].criterionLabels).toContain(
+      'Ventilación mecánica invasiva (VMI)'
+    );
+    expect(result.current.saved).toBe(true);
+    // The row reads the authoritative prop, not an optimistic copy.
+    expect(result.current.persistedChecklist).toBeUndefined();
+  });
+  it('can explicitly confirm No UPC and use a typed nurse when no staff is assigned', async () => {
+    const { result, onSave } = setup({
+      evaluationContext: {
+        date: '2026-09-04',
+        bedId: 'R1',
+        nursesDayShift: [],
+        nursesNightShift: [],
+      },
+    });
+    act(() => result.current.setNurseName('  Enfermera nocturna  '));
+    await act(() => result.current.saveEvaluation());
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classification: null,
+        uciCriteria: [],
+        utiCriteria: [],
+        responsibleNurse: { name: 'Enfermera nocturna', source: 'manual' },
+      })
+    );
+  });
+  it('offers all assigned nurses once without requiring or storing a shift', async () => {
+    const { result, onSave } = setup({
+      evaluationContext: {
+        date: '2026-09-04',
+        bedId: 'R1',
+        nursesDayShift: ['Enfermera A'],
+        nursesNightShift: ['Enfermera A', 'Enfermera C'],
+      },
+    });
+    expect(result.current.assignedNurseOptions).toEqual(['Enfermera A', 'Enfermera C']);
+    act(() => result.current.setNurseName('Enfermera C'));
+    await act(() => result.current.saveEvaluation());
+    expect(onSave.mock.calls[0][0].responsibleNurse).toEqual({
+      name: 'Enfermera C',
+      source: 'assigned',
+    });
+  });
+  it.each(['reject', 'false', 'undefined'])(
+    'retains draft and supports retry after %s',
+    async failure => {
+      const { result, onSave } = setup();
+      responsible(result);
+      act(() => result.current.toggleUtiCriterion('uti_mon_cardiaca'));
+      if (failure === 'reject') onSave.mockRejectedValueOnce(new Error('offline'));
+      else onSave.mockResolvedValueOnce(failure === 'false' ? false : undefined);
+      await act(() => result.current.saveEvaluation());
+      expect(result.current.saved).toBe(false);
+      expect(result.current.saveError).toMatch(/No se pudo confirmar/);
+      expect(result.current.draftUti.has('uti_mon_cardiaca')).toBe(true);
+      await act(() => result.current.saveEvaluation());
+      expect(result.current.saved).toBe(true);
+      expect(onSave).toHaveBeenCalledTimes(2);
+      expect(onSave.mock.calls[1][0]).toEqual(onSave.mock.calls[0][0]);
+    }
+  );
+  it('prevents double submits and criteria changes while confirming', async () => {
+    let finish!: (value: boolean) => void;
+    const pending = new Promise<boolean>(resolve => {
+      finish = resolve;
+    });
+    const { result, onSave } = setup();
+    onSave.mockReturnValue(pending);
+    responsible(result);
+    let saving!: Promise<void>;
+    act(() => {
+      saving = result.current.saveEvaluation();
+    });
+    act(() => {
+      void result.current.saveEvaluation();
+      result.current.toggleUciCriterion('uci_vmi');
+    });
+    expect(result.current.isSaving).toBe(true);
+    expect(result.current.draftUci.size).toBe(0);
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect((onSave.mock.calls[0][0] as UpcChecklistRecord).uciCriteria).toEqual(['uci_vmi']);
+    await act(async () => {
+      finish(true);
+      await saving;
+    });
+    expect(result.current.isSaving).toBe(false);
+  });
+  it('rejects a draft after a remote review or a bed move invalidates it', async () => {
+    const { result, props, rerender, onSave } = setup({ checklist: previous });
+    act(() => result.current.resetFromPersisted());
+    responsible(result);
+    rerender({ ...props, checklist: { ...previous, reviewRequired: true } });
+    await act(() => result.current.saveEvaluation());
+    expect(onSave).not.toHaveBeenCalled();
+    expect(result.current.saveError).toMatch(/otra sesión/);
+    act(() => result.current.resetFromPersisted());
+    responsible(result);
+    await act(() => result.current.saveEvaluation());
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 });

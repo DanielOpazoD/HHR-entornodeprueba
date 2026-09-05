@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4808000,
-  "_precacheMaxBytesComment": "Raised 16 KB (01-09-2026) for the sync-queue pending/quarantine indicator in the census bar (chip + monitor wiring pulled the queue telemetry reader into the shell). Previous raise: 12 KB (31-08-2026, #278) for the resync eligibility guard. Rayen online-only chunks remain excluded and independently governed.",
+  "precacheMaxBytes": 4832000,
+  "_precacheMaxBytesComment": "PR #330: +24000 bytes (0.50%) for daily signed UPC evaluations, history and email eligibility. Comparable CI builds: main beb6ecb / run 33934591555 = 4684.9 KiB; PR df1c36a / run 33946171467 = 4703.5 KiB (+18.6 KiB). Preserve offline evaluation and partial local history in precache; online-only exclusions and all other asset ceilings are unchanged.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -54,8 +54,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "Measured at ~533 KB with ES2022 + two-pass production minification. The remaining shell graph is the authenticated census runtime; direct-import guardrails protect growth, while this ceiling keeps roughly 11% headroom without creating a permanent false near-limit warning.",
-      "maxBytes": 600000,
+      "_comment": "PR #330: +6000 bytes (1%) for the daily UPC policy, persistence schema and email gate in the authenticated runtime. Comparable CI builds: main beb6ecb = 583.6 KiB; PR df1c36a = 586.6 KiB. Small margin also covers local build configuration variation; severity remains error and near-limit warnings remain enabled.",
+      "maxBytes": 606000,
       "severity": "error"
     }
   ],

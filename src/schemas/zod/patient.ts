@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { UpcChecklistSchema } from './upc';
 import { BedType } from '@/types/domain/beds';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import {
@@ -224,6 +225,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       deviceDetails: nullableOptional(DeviceDetailsSchema),
       surgicalComplication: z.boolean().default(false),
       isUPC: z.boolean().default(false),
+      upcChecklist: nullableOptional(UpcChecklistSchema).catch(undefined),
       isIsolated: nullableOptional(z.boolean()),
       isolationType: nullableOptional(z.string()),
       isolationMicroorganism: nullableOptional(z.string()),

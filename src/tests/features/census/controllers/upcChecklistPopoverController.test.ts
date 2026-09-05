@@ -15,6 +15,32 @@ const makeRect = (top: number, left: number, width: number, height: number): DOM
   }) as DOMRect;
 
 describe('resolveUpcChecklistPopoverPosition', () => {
+  it.each([96, 128, 170])(
+    'never overlaps toolbar bottom %s when opening upwards',
+    toolbarBottom => {
+      const pos = resolveUpcChecklistPopoverPosition({
+        buttonRect: makeRect(600, 1100, 50, 20),
+        viewportWidth: 1366,
+        viewportHeight: 768,
+        panelHeight: 560,
+        toolbarBottom,
+      });
+      expect(pos.top).toBe(toolbarBottom + 8);
+      expect(pos.top + 560).toBeLessThanOrEqual(760);
+    }
+  );
+
+  it('reserves the toolbar space even when the panel must scroll in a short viewport', () => {
+    const pos = resolveUpcChecklistPopoverPosition({
+      buttonRect: makeRect(420, 1100, 50, 20),
+      viewportWidth: 1280,
+      viewportHeight: 600,
+      panelHeight: 560,
+      toolbarBottom: 128,
+    });
+    expect(pos.top).toBe(136);
+  });
+
   it('places popover below the button when there is enough space', () => {
     const pos = resolveUpcChecklistPopoverPosition({
       buttonRect: makeRect(100, 200, 50, 20),
@@ -31,7 +57,7 @@ describe('resolveUpcChecklistPopoverPosition', () => {
       viewportWidth: 1280,
       viewportHeight: 700,
     });
-    expect(pos.top).toBe(200); // top (600) - 400
+    expect(pos.top).toBe(36); // top (600) - estimated height (560) - gap (4)
   });
 
   it('clamps left to viewport edge when button is too far right', () => {
@@ -40,8 +66,8 @@ describe('resolveUpcChecklistPopoverPosition', () => {
       viewportWidth: 1280,
       viewportHeight: 800,
     });
-    // 1280 - 380 - 8 = 892
-    expect(pos.left).toBe(892);
+    // 1280 - 520 - 8 = 752
+    expect(pos.left).toBe(752);
   });
 
   it('clamps top to viewport padding when button is near top', () => {
@@ -60,5 +86,27 @@ describe('resolveUpcChecklistPopoverPosition', () => {
       viewportHeight: 800,
     });
     expect(pos.left).toBe(8); // VIEWPORT_PADDING
+  });
+  it.each([-500, 1500])(
+    'keeps the measured panel in view when the anchor is offscreen at %s',
+    top => {
+      const pos = resolveUpcChecklistPopoverPosition({
+        buttonRect: makeRect(top, 1100, 50, 20),
+        viewportWidth: 1366,
+        viewportHeight: 768,
+        panelHeight: 480,
+      });
+      expect(pos.top).toBeGreaterThanOrEqual(8);
+      expect(pos.top + 480).toBeLessThanOrEqual(760);
+    }
+  );
+  it('uses the measured height instead of reserving unnecessary space', () => {
+    const pos = resolveUpcChecklistPopoverPosition({
+      buttonRect: makeRect(220, 400, 50, 20),
+      viewportWidth: 1366,
+      viewportHeight: 768,
+      panelHeight: 480,
+    });
+    expect(pos.top).toBe(244);
   });
 });

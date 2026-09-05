@@ -12,7 +12,7 @@ import { markPerf } from '@/shared/runtime/perfAudit';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 
 const LaboratoryQuickAction = lazyWithRetry(() =>
-  import('@/features/laboratory').then(module => ({
+  import('@/features/laboratory/quick-action').then(module => ({
     default: module.LaboratoryQuickAction,
   }))
 );

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   withRetry,
   isRetryableError,
@@ -15,6 +15,14 @@ describe('errorService', () => {
   });
 
   describe('withRetry', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('returns immediately on success', async () => {
       const fn = vi.fn().mockResolvedValue('success');
       const result = await withRetry(fn);
@@ -28,7 +36,11 @@ describe('errorService', () => {
         .mockRejectedValueOnce({ code: 'unavailable' })
         .mockResolvedValue('success');
 
-      const result = await withRetry(fn);
+      const pendingResult = withRetry(fn);
+      await vi.advanceTimersByTimeAsync(499);
+      expect(fn).toHaveBeenCalledTimes(1);
+      await vi.runAllTimersAsync();
+      const result = await pendingResult;
       expect(result).toBe('success');
       expect(fn).toHaveBeenCalledTimes(2);
     });
@@ -46,8 +58,22 @@ describe('errorService', () => {
         .mockResolvedValue('success');
       const onRetry = vi.fn();
 
-      await withRetry(fn, { onRetry });
+      const pendingResult = withRetry(fn, { onRetry });
+      await vi.runAllTimersAsync();
+      await pendingResult;
       expect(onRetry).toHaveBeenCalledWith(1, expect.any(Object));
+    });
+
+    it('throws the final retryable error after exhausting the default retries', async () => {
+      const finalError = { code: 'unavailable', message: 'Still unavailable' };
+      const fn = vi.fn().mockRejectedValue(finalError);
+      const rejection = expect(withRetry(fn)).rejects.toBe(finalError);
+
+      await vi.runAllTimersAsync();
+      await rejection;
+
+      expect(fn).toHaveBeenCalledTimes(4);
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 

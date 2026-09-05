@@ -10,7 +10,11 @@ export interface UpcChecklistAuditActor {
   readonly displayName: string;
 }
 
-export interface UpcChecklistRecord {
+export interface UpcEvaluationSnapshot {
+  /** Stable across transport retries; absent on older evaluations. */
+  readonly evaluationId?: string;
+  /** Wording at the time of signing, so later catalogue edits do not rewrite history. */
+  readonly criterionLabels?: string[];
   /** UCI criterion IDs that were checked (e.g. ['uci_vmi']) */
   readonly uciCriteria: string[];
   /** UTI criterion IDs that were checked (e.g. ['uti_sepsis']) */
@@ -21,6 +25,22 @@ export interface UpcChecklistRecord {
   readonly evaluatedAt: string;
   /** User who performed the evaluation (audit trail). */
   readonly evaluatedBy?: UpcChecklistAuditActor;
+  /** Census day reviewed, distinct from the actual timestamp of entry. */
+  readonly evaluatedForDate?: string;
+  readonly evaluatedBedId?: string;
+  readonly responsibleNurse?: {
+    readonly name: string;
+    /** Legacy metadata; new daily evaluations do not require or record a shift. */
+    readonly shift?: 'day' | 'night';
+    readonly source: 'assigned' | 'manual';
+  };
+}
+
+export interface UpcChecklistRecord extends UpcEvaluationSnapshot {
+  /** A move invalidates the review, never the historical snapshot. */
+  readonly reviewRequired?: boolean;
+  /** Signed evaluations retained in this census day; previous days remain in their records. */
+  readonly history?: UpcEvaluationSnapshot[];
 }
 
 export const EMPTY_UPC_CHECKLIST: UpcChecklistRecord = {

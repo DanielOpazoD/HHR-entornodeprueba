@@ -11,6 +11,7 @@ import { useCensusEmailDeliveryActions } from '@/hooks/useCensusEmailDeliveryAct
 import { useCensusEmailRecipientLists } from '@/hooks/useCensusEmailRecipientLists';
 import { useCensusEmailMessageState } from '@/hooks/useCensusEmailMessageState';
 import { useCensusEmailSendState } from '@/hooks/useCensusEmailSendState';
+import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';
 
 interface UseCensusEmailParams {
   record: DailyRecord | null;
@@ -50,6 +51,7 @@ export interface UseCensusEmailReturn {
   // Send state
   status: 'idle' | 'loading' | 'success' | 'error';
   error: string | null;
+  emailBlockedReason?: string | null;
 
   // Actions
   resetStatus: () => void;
@@ -206,6 +208,7 @@ export const useCensusEmail = ({
     onResetMessage,
     status,
     error,
+    emailBlockedReason: resolveUpcEmailBlockReason(record, currentDateString),
     resetStatus,
     sendEmail,
     testModeEnabled,

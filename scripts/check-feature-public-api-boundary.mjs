@@ -20,7 +20,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { runFeatureBoundaryCheck } from './lib/featureBoundaryRunner.mjs';
+import {
+  collectFeatureBoundarySources,
+  runFeatureBoundaryCheck,
+} from './lib/featureBoundaryRunner.mjs';
 
 const ROOT = process.cwd();
 const FEATURES_ROOT = path.join(ROOT, 'src', 'features');
@@ -60,11 +63,13 @@ if (features.length === 0) {
 }
 
 let exitCode = 0;
+const sources = collectFeatureBoundarySources();
 for (const feature of features) {
   const exceptions = new Set(exceptionsByFeature[feature] || []);
   try {
     runFeatureBoundaryCheck({
       feature,
+      sources,
       label: `${featureLabel(feature)} (generic)`,
       allowException: ({ importerPath, importPath }) =>
         exceptions.has(`${importerPath} -> ${importPath}`),
