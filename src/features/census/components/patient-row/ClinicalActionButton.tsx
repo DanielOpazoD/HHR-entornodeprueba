@@ -3,10 +3,10 @@ import clsx from 'clsx';
 import { Loader2 } from 'lucide-react';
 
 const tones = {
-  clinical: 'hover:bg-medical-50 hover:text-medical-700',
-  laboratory: 'hover:bg-emerald-50 hover:text-emerald-700',
-  radiology: 'hover:bg-violet-50 hover:text-violet-700',
-  documents: 'hover:bg-teal-50 hover:text-teal-700',
+  clinical: 'text-medical-700 hover:bg-medical-50',
+  laboratory: 'text-emerald-700 hover:bg-emerald-50',
+  radiology: 'text-violet-700 hover:bg-violet-50',
+  documents: 'text-teal-700 hover:bg-teal-50',
 };
 
 interface ClinicalActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -44,7 +44,7 @@ export const ClinicalActionButton: React.FC<ClinicalActionButtonProps> = ({
       onClick?.(event);
     }}
     className={clsx(
-      'group relative inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-600 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400',
+      'group relative inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400',
       tones[tone],
       className
     )}

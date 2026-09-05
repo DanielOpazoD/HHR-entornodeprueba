@@ -23,6 +23,14 @@ describe('ClinicalActionButton', () => {
       );
       const button = screen.getByRole('button', { name: 'Abrir paciente' });
       expect(button).toHaveClass('size-8', 'focus-visible:outline-medical-700');
+      const color = {
+        clinical: 'medical',
+        laboratory: 'emerald',
+        radiology: 'violet',
+        documents: 'teal',
+      }[tone];
+      expect(button).toHaveClass('bg-transparent', `text-${color}-700`);
+      expect(button).not.toHaveClass('text-slate-600');
       expect(button).toHaveAttribute('title', 'Descripción');
       fireEvent.click(button);
       expect(action).toHaveBeenCalledOnce();
