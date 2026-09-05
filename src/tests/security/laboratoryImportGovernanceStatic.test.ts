@@ -6,7 +6,7 @@ const ROOT = path.resolve(__dirname, '../../../');
 
 describe('Laboratory import governance', () => {
   it('keeps external modules out of deep laboratory imports', () => {
-    // Use the same AST-based policy as CI, including its exact importer allowlist.
+    // Use the same boundary policy as CI, including its exact importer allowlist.
     // A second grep policy incorrectly rejects governed lightweight entry points.
     expect(() =>
       execFileSync(process.execPath, ['scripts/check-feature-public-api-boundary.mjs'], {
