@@ -400,7 +400,8 @@ describe('ClinicalPanelDrawer', () => {
     const documentsButton = await screen.findByRole('button', {
       name: 'Abrir Gestor documental de Paciente de prueba; sin archivos',
     });
-    expect(documentsButton).toHaveClass('opacity-30');
+    expect(documentsButton).not.toHaveClass('opacity-30');
+    expect(documentsButton.querySelector('[aria-hidden="true"]')).toHaveClass('opacity-40');
     expect(documentsButton).not.toHaveTextContent(/\d/);
     expect(documentsButton).toBeEnabled();
     fireEvent.click(documentsButton);
