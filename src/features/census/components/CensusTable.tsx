@@ -276,7 +276,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   return (
     <div
       ref={tableRootRef}
-      className="overflow-visible rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.025)] print:border-none print:shadow-none"
+      className="overflow-visible rounded-xl bg-white print:shadow-none"
     >
       <div className="relative overflow-visible">
         {freshnessUi.userMessage ? (
@@ -317,21 +317,40 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             ) : null}
           </div>
         ) : null}
-        <table
-          data-testid="census-table"
-          className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
-          style={tableStyle}
+        <div
+          className="census-table-scroll"
+          role="region"
+          aria-label="Censo de pacientes, tabla desplazable"
+          tabIndex={0}
+          onKeyDown={event => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.scrollBy({ left: event.key === 'ArrowRight' ? 240 : -240 });
+          }}
         >
-          <CensusTableHeader {...headerProps} />
-          <CensusTableBody
-            {...bodyProps}
-            recordLastUpdated={record?.lastUpdated}
-            unifiedRows={filteredUnifiedRows}
-            onActivateEmptyBed={openEmptyBedDemographics}
-            dragDrop={readOnly || clinicalEditingDisabled ? undefined : dragDrop}
-            clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
-          />
-        </table>
+          <table
+            data-testid="census-table"
+            className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
+            style={
+              {
+                ...tableStyle,
+                '--census-table-width': parseFloat(String(tableStyle.width)),
+              } as React.CSSProperties
+            }
+          >
+            <CensusTableHeader {...headerProps} />
+            <CensusTableBody
+              {...bodyProps}
+              recordLastUpdated={record?.lastUpdated}
+              unifiedRows={filteredUnifiedRows}
+              onActivateEmptyBed={openEmptyBedDemographics}
+              dragDrop={readOnly || clinicalEditingDisabled ? undefined : dragDrop}
+              clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
+            />
+          </table>
+        </div>
       </div>
 
       {dragDrop.state.pendingMove && (

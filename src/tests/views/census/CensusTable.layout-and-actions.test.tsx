@@ -325,6 +325,20 @@ describe('CensusTable layout and actions', () => {
     expect(localStorage.getItem('hhr_diagnosis_mode')).toBe('free');
   });
 
+  it('scrolls by keyboard only when the table region itself is focused', () => {
+    render(<CensusTable currentDateString="2025-01-08" />);
+    const region = screen.getByRole('region', { name: 'Censo de pacientes, tabla desplazable' });
+    const scrollBy = vi.fn();
+    region.scrollBy = scrollBy;
+    expect(region).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(region, { key: 'ArrowRight' });
+    fireEvent.keyDown(region, { key: 'ArrowLeft' });
+    expect(scrollBy.mock.calls).toEqual([[{ left: 240 }], [{ left: -240 }]]);
+    fireEvent.keyDown(screen.getByTestId('census-table'), { key: 'ArrowRight' });
+    fireEvent.keyDown(region, { key: 'Enter' });
+    expect(scrollBy).toHaveBeenCalledTimes(2);
+  });
+
   it('should render clinical crib as separate rows', () => {
     const mainPatient = DataFactory.createMockPatient('R1', {
       patientName: 'Mother',

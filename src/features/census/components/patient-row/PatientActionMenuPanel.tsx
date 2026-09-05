@@ -1,9 +1,8 @@
 import React from 'react';
-import clsx from 'clsx';
+import { PatientRowMenuPortal } from './PatientRowMenuPortal';
 
 import type { PatientActionMenuBinding } from '@/features/census/components/patient-row/patientRowActionContracts';
 import type { UtilityActionConfig } from '@/features/census/components/patient-row/patientActionMenuConfig';
-import { resolvePatientActionMenuPanelClassName } from '@/features/census/controllers/patientActionMenuViewController';
 import type { PatientRowAction } from '@/features/census/types/patientRowActionTypes';
 import { resolvePatientActionMenuPanelModel } from '@/features/census/controllers/patientActionMenuPanelController';
 import { PatientActionMenuUtilityGrid } from '@/features/census/components/patient-row/PatientActionMenuUtilityGrid';
@@ -11,6 +10,7 @@ import { PatientActionMenuHistoryAction } from '@/features/census/components/pat
 import { PatientActionMenuClinicalSection } from '@/features/census/components/patient-row/PatientActionMenuClinicalSection';
 
 interface PatientActionMenuPanelProps {
+  anchorRef: React.RefObject<HTMLDivElement | null>;
   isOpen: boolean;
   binding: PatientActionMenuBinding;
   utilityActions: UtilityActionConfig[];
@@ -21,6 +21,7 @@ interface PatientActionMenuPanelProps {
 }
 
 export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
+  anchorRef,
   isOpen,
   binding,
   utilityActions,
@@ -45,14 +46,8 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose}></div>
-      <div
-        className={clsx(
-          'absolute left-10 z-50 bg-white shadow-xl rounded-2xl border border-slate-200/90 w-60 text-left overflow-hidden animate-fade-in print:hidden',
-          resolvePatientActionMenuPanelClassName(binding.align)
-        )}
-      >
+    <PatientRowMenuPortal anchorRef={anchorRef} align={binding.align} onClose={onClose}>
+      <div className="bg-white shadow-xl rounded-2xl border border-slate-200/90 w-60 text-left overflow-hidden">
         {model.showHistoryAction && (
           <PatientActionMenuHistoryAction onViewHistory={onViewHistory} />
         )}
@@ -68,6 +63,6 @@ export const PatientActionMenuPanel: React.FC<PatientActionMenuPanelProps> = ({
           />
         )}
       </div>
-    </>
+    </PatientRowMenuPortal>
   );
 };

@@ -74,7 +74,7 @@ export const PatientLaboratoryTrigger: React.FC<PatientLaboratoryTriggerProps> =
             event.stopPropagation();
             setOpenSurface({ kind: 'viewer', patientIdentity });
           }}
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-500"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-700"
           title="Laboratorio / Exámenes Syslab"
           aria-label={`Abrir laboratorio de ${patientName}`}
         >

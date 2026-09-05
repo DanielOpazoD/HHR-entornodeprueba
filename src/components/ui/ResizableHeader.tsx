@@ -61,7 +61,7 @@ export const ResizableHeader: React.FC<ResizableHeaderProps> = ({
         <th
             ref={headerRef}
             className={clsx(className, 'relative')}
-            style={{ width: `${width}px`, maxWidth: `${width}px` }}
+            style={{ width: `${width}px`, maxWidth: `${width}px`, '--census-column-width': width } as React.CSSProperties}
             title={title}
         >
             {children}

@@ -169,6 +169,7 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
       {isOpen ? (
         <Suspense fallback={null}>
           <LazyPatientActionMenuPanel
+            anchorRef={menuRef}
             isOpen={isOpen}
             binding={binding}
             utilityActions={utilityActions}

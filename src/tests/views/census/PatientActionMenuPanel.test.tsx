@@ -9,6 +9,7 @@ describe('PatientActionMenuPanel', () => {
   it('does not render when closed', () => {
     const { container } = render(
       <PatientActionMenuPanel
+        anchorRef={{ current: null }}
         isOpen={false}
         binding={{
           align: 'top',
@@ -49,6 +50,7 @@ describe('PatientActionMenuPanel', () => {
 
     render(
       <PatientActionMenuPanel
+        anchorRef={{ current: null }}
         isOpen={true}
         binding={{
           align: 'bottom',
@@ -106,17 +108,15 @@ describe('PatientActionMenuPanel', () => {
     expect(screen.queryByText('Solicitud Exámenes')).not.toBeInTheDocument();
     expect(screen.queryByText('Solicitud de Imágenes')).not.toBeInTheDocument();
 
-    const overlay = document.querySelector('.fixed.inset-0.z-40');
-    if (!overlay) {
-      throw new Error('Overlay not found');
-    }
-    fireEvent.click(overlay);
+    expect(screen.getByTestId('patient-row-menu-portal').parentElement).toBe(document.body);
+    fireEvent.mouseDown(document.body);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('returns null when the classic panel has no remaining actions to show', () => {
     const { container } = render(
       <PatientActionMenuPanel
+        anchorRef={{ current: null }}
         isOpen={true}
         binding={{
           align: 'bottom',

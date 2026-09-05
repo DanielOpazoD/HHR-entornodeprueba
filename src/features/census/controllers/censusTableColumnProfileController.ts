@@ -66,7 +66,19 @@ export const resolveVisibleCensusColumns = (
   columns: TableColumnConfig,
   accessProfile: CensusAccessProfile = 'default'
 ): TableColumnConfig => {
-  const baseColumns = zeroHiddenCensusColumns(columns);
+  // Presentation minimums also protect older saved compact configurations.
+  // Do not persist these values: the user's column preferences remain intact.
+  const baseColumns = zeroHiddenCensusColumns({
+    ...columns,
+    actions: Math.max(columns.actions, 40),
+    bed: Math.max(columns.bed, 64),
+    name: Math.max(columns.name, 380),
+    diagnosis: Math.max(columns.diagnosis, 280),
+    status: Math.max(columns.status, 28),
+    admission: Math.max(columns.admission, 96),
+    scores: Math.max(columns.scores, 180),
+    upc: Math.max(columns.upc, 44),
+  });
 
   if (!isSpecialistCensusAccessProfile(accessProfile)) {
     return baseColumns;

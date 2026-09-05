@@ -75,8 +75,8 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     // solo con un popover abierto): un z estático aquí tapaba los menús del
     // toolbar y de la primera fila que solapan el header (cazado por e2e).
     <div className="flex w-full flex-col items-center gap-2 animate-fade-in has-[[data-overlay-open]]:relative has-[[data-overlay-open]]:z-40">
-      <div className="flex w-fit max-w-full flex-col items-stretch gap-2">
-        <div className="flex flex-wrap items-start justify-center gap-3">
+      <div className="flex w-full max-w-screen-xl flex-col items-stretch gap-2">
+        <div className="flex flex-wrap items-start justify-center gap-2">
           {/* Staff Selectors */}
           {!readModel.specialistAccess && (
             <NurseSelector
@@ -116,7 +116,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
 
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
           {!readOnly && !readModel.specialistAccess && (
-            <div className="min-w-0 flex-1 lg:min-w-[760px]">
+            <div className="min-w-0 basis-full xl:basis-auto xl:flex-1">
               <RayenImportButton selectedDate={selectedDate} />
             </div>
           )}

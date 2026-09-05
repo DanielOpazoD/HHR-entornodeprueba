@@ -32,7 +32,7 @@ export const usePatientBedConfigController = ({
   onToggleClinicalCrib,
   onUpdateClinicalCrib,
 }: UsePatientBedConfigControllerParams) => {
-  const { isOpen: isMenuOpen, menuRef, toggle } = useDropdownMenu();
+  const { isOpen: isMenuOpen, menuRef, toggle, close } = useDropdownMenu();
 
   const viewState = buildPatientBedConfigCardState({
     admissionDate,
@@ -70,6 +70,7 @@ export const usePatientBedConfigController = ({
     isMenuOpen,
     menuRef,
     toggleMenu: toggle,
+    closeMenu: close,
     viewState,
     handleToggleCompanion,
     handleToggleClinicalCrib,

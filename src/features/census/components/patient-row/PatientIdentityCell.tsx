@@ -147,7 +147,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   );
 
   return (
-    <td className="py-1 px-1 border-r border-slate-200 align-middle">
+    <td className="census-identity-cell py-1 px-1 border-r border-slate-200 align-middle">
       <div className="relative">
         {isSubRow && (
           <div className="absolute left-[-15px] top-2 text-slate-300">
