@@ -21,9 +21,7 @@ export const ClinicalPanelHeading: React.FC<ClinicalPanelHeadingProps> = ({
       <h2 className="break-words text-[14px] font-semibold leading-snug text-slate-800">
         {patientName}
       </h2>
-      <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
-        Cama {bedId} · Eloísa en vivo · no se guarda en HHR
-      </p>
+      <p className="mt-0.5 text-[10px] leading-snug text-slate-500">Cama {bedId}</p>
     </div>
     <button
       type="button"

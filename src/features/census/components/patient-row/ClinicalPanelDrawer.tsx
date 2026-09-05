@@ -123,7 +123,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
       aria-label={count === null ? label : `${label} (${count})`}
       aria-pressed={tab === key}
       className={clsx(
-        'min-w-0 flex-1 rounded-md px-2 py-1.5 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
+        'min-w-0 flex-1 rounded-md px-2 py-1 text-[12px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
         tab === key ? 'bg-white text-medical-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
       )}
     >
@@ -155,7 +155,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           isWide ? 'w-[680px]' : 'w-[460px]'
         )}
       >
-        <header className="shrink-0 border-b border-slate-200 bg-white px-3 py-3">
+        <header className="shrink-0 border-b border-slate-200 bg-white px-3 py-2">
           <ClinicalPanelHeading
             bedId={bedId}
             patientName={patientName}
@@ -164,7 +164,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             onClose={onClose}
           />
           <div
-            className="mt-2 flex flex-wrap items-center gap-2"
+            className="mt-1 flex flex-wrap items-center gap-2"
             role="group"
             aria-label="Accesos del paciente"
           >
@@ -225,7 +225,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
 
         <nav
           aria-label="Secciones clínicas"
-          className="flex shrink-0 gap-1 border-b border-slate-200 bg-slate-100 p-1"
+          className="flex shrink-0 gap-1 border-b border-slate-200 bg-slate-100 px-1 py-0.5"
         >
           {tabButton('evolutions', 'Evoluciones', panel ? panel.evolutions.length : null)}
           {tabButton(
@@ -246,7 +246,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         </nav>
 
         {tab === 'evolutions' && state.phase === 'ready' && (
-          <div className="flex shrink-0 items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
+          <div className="flex shrink-0 items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1">
             {PROFESSION_TABS.map(p => (
               <button
                 key={p.key}
@@ -255,7 +255,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 aria-label={`${p.label} (${professionCount(p.key)})`}
                 aria-pressed={profession === p.key}
                 className={clsx(
-                  'rounded-full px-2 py-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
+                  'rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
                   profession === p.key
                     ? 'bg-medical-100 text-medical-700 ring-1 ring-medical-200'
                     : 'text-slate-500 hover:bg-slate-100'
@@ -278,7 +278,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         )}
 
         {tab === 'evolutions' && state.phase === 'ready' && profession !== 'other' && (
-          <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-1">
+          <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-0.5">
             {(
               [
                 {
@@ -300,7 +300,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 aria-label={`${item.label} (${item.count})`}
                 aria-pressed={evolutionView === item.key}
                 className={clsx(
-                  'rounded px-2 py-1 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
+                  'rounded px-2 py-0.5 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
                   evolutionView === item.key
                     ? 'bg-slate-700 text-white'
                     : 'text-slate-500 hover:bg-slate-100'
