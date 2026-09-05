@@ -7,10 +7,8 @@
 
 export const RAYEN_CLINICAL_PANEL_REQUEST_TYPE = 'HHR_RAYEN_CLINICAL_PANEL_REQUEST';
 export const RAYEN_CLINICAL_PANEL_RESULT_TYPE = 'HHR_RAYEN_CLINICAL_PANEL_RESULT';
-export const RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE =
-  'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST';
-export const RAYEN_PATIENT_DOCUMENT_OPEN_RESULT_TYPE =
-  'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT';
+export const RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE = 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST';
+export const RAYEN_PATIENT_DOCUMENT_OPEN_RESULT_TYPE = 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT';
 
 export interface RayenPatientDocument {
   id: string;
@@ -64,11 +62,21 @@ const EMPTY_CARE_PLAN: RayenClinicalPanelCarePlan = {
  */
 export const requestClinicalPanel = (
   encId: string,
-  timeoutMs = 30000
+  timeoutMs = 30000,
+  signal?: AbortSignal
 ): Promise<RayenClinicalPanelResult> =>
   new Promise(resolve => {
-    if (typeof window === 'undefined' || !encId) {
-      resolve({ events: [], carePlan: EMPTY_CARE_PLAN });
+    const failure = (error: string): RayenClinicalPanelResult => ({
+      events: [],
+      carePlan: EMPTY_CARE_PLAN,
+      error,
+    });
+    if (signal?.aborted) {
+      resolve(failure('Consulta del panel clínico cancelada.'));
+      return;
+    }
+    if (typeof window === 'undefined' || !encId.trim()) {
+      resolve(failure('No hay un episodio válido para consultar el panel clínico.'));
       return;
     }
     const reqId = `clinical-panel-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
@@ -81,10 +89,17 @@ export const requestClinicalPanel = (
       settled = true;
       if (timeoutId !== undefined) clearTimeout(timeoutId);
       window.removeEventListener('message', onMessage);
+      signal?.removeEventListener('abort', onAbort);
+    };
+
+    // Cancels the HHR wait only; older extensions may finish their read in the background.
+    const onAbort = (): void => {
+      cleanup();
+      resolve(failure('Consulta del panel clínico cancelada.'));
     };
 
     const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
+      if (settled || event.source !== window || event.origin !== window.location.origin) return;
       const data = event.data;
       if (!data || data.type !== RAYEN_CLINICAL_PANEL_RESULT_TYPE || data.reqId !== reqId) return;
       cleanup();
@@ -106,29 +121,36 @@ export const requestClinicalPanel = (
           ? data.documents.filter((item: unknown): item is RayenPatientDocument => {
               if (!item || typeof item !== 'object') return false;
               const row = item as Record<string, unknown>;
-              return ['id', 'classification', 'fileName', 'name', 'attachedBy', 'facility', 'createdAt']
-                .every(field => typeof row[field] === 'string');
+              return [
+                'id',
+                'classification',
+                'fileName',
+                'name',
+                'attachedBy',
+                'facility',
+                'createdAt',
+              ].every(field => typeof row[field] === 'string');
             })
           : undefined,
-        documentError: typeof data.documentError === 'string'
-          ? data.documentError
-          : undefined,
+        documentError: typeof data.documentError === 'string' ? data.documentError : undefined,
       });
     };
 
     window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_CLINICAL_PANEL_REQUEST_TYPE, reqId, encId },
-      window.location.origin
-    );
+    signal?.addEventListener('abort', onAbort, { once: true });
     timeoutId = setTimeout(() => {
       cleanup();
-      resolve({
-        events: [],
-        carePlan: EMPTY_CARE_PLAN,
-        error: 'Tiempo de espera agotado bajando el panel clínico.',
-      });
+      resolve(failure('Tiempo de espera agotado bajando el panel clínico.'));
     }, timeoutMs);
+    try {
+      window.postMessage(
+        { type: RAYEN_CLINICAL_PANEL_REQUEST_TYPE, reqId, encId },
+        window.location.origin
+      );
+    } catch {
+      cleanup();
+      resolve(failure('No se pudo consultar el panel clínico mediante la extensión.'));
+    }
   });
 
 export interface RayenPatientDocumentOpenResult {
