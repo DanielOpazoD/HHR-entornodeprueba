@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ resolveNavigation: vi.fn() }));
+const mocks = vi.hoisted(() => ({ resolveNavigation: vi.fn(), reportMount: vi.fn() }));
 
 vi.mock('@/features/census/controllers/clinicalPanelNavigationController', () => ({
   resolveClinicalPanelNavigation: (...args: unknown[]) => mocks.resolveNavigation(...args),
@@ -44,7 +44,10 @@ vi.mock('@/features/census/components/PatientHospitalizationReportsDialog', () =
   }: {
     isOpen: boolean;
     patientName: string;
-  }) => (isOpen ? <div data-testid="reports-dialog">Informes de {patientName}</div> : null),
+  }) => {
+    mocks.reportMount();
+    return isOpen ? <div data-testid="reports-dialog">Informes de {patientName}</div> : null;
+  },
 }));
 
 import { ClinicalPanelTrigger } from '@/features/census/components/patient-row/ClinicalPanelTrigger';
@@ -52,6 +55,7 @@ import { ClinicalPanelTrigger } from '@/features/census/components/patient-row/C
 describe('ClinicalPanelTrigger', () => {
   beforeEach(() => {
     mocks.resolveNavigation.mockReset();
+    mocks.reportMount.mockClear();
     mocks.resolveNavigation.mockReturnValue({ previous: null, next: null });
   });
 
@@ -70,9 +74,7 @@ describe('ClinicalPanelTrigger', () => {
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
     );
     expect(await screen.findByRole('dialog')).toHaveTextContent('Panel de Paciente de prueba');
-    expect(screen.getByTestId('drawer-date-range')).toHaveTextContent(
-      '2026-07-13|2026-07-18'
-    );
+    expect(screen.getByTestId('drawer-date-range')).toHaveTextContent('2026-07-13|2026-07-18');
   });
 
   it('resolves the next patient again when the navigation arrow is pressed', async () => {
@@ -167,7 +169,7 @@ describe('ClinicalPanelTrigger', () => {
         name: 'Abrir informes de hospitalización de Paciente de prueba',
       })
     );
-    expect(screen.getByTestId('reports-dialog')).toHaveTextContent(
+    expect(await screen.findByTestId('reports-dialog')).toHaveTextContent(
       'Informes de Paciente de prueba'
     );
     expect(screen.queryByRole('button', { name: /abrir a .* en eloísa/i })).not.toBeInTheDocument();
@@ -185,6 +187,84 @@ describe('ClinicalPanelTrigger', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('keeps report controllers unmounted across a census of 23 occupied beds', async () => {
+    render(
+      <>
+        {Array.from({ length: 23 }, (_, index) => (
+          <ClinicalPanelTrigger
+            key={index}
+            bedId={`bed-${index}`}
+            patientName={`Synthetic ${index}`}
+            patientRun=""
+            clinicalEpisodeId={`episode-${index}`}
+          />
+        ))}
+      </>
+    );
+    expect(mocks.reportMount).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Synthetic 0' }));
+    await screen.findByRole('dialog');
+    expect(mocks.reportMount).not.toHaveBeenCalled();
+  });
+
+  it('keeps only one panel mounted and mounts reports only on demand', async () => {
+    render(
+      <>
+        <ClinicalPanelTrigger
+          bedId="R1"
+          patientName="Paciente A"
+          patientRun=""
+          clinicalEpisodeId="a"
+        />
+        <ClinicalPanelTrigger
+          bedId="R2"
+          patientName="Paciente B"
+          patientRun=""
+          clinicalEpisodeId="b"
+        />
+      </>
+    );
+    expect(mocks.reportMount).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente A' }));
+    await screen.findByRole('dialog');
+    expect(mocks.reportMount).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Abrir informes de hospitalización de Paciente A' })
+    );
+    await screen.findByTestId('reports-dialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente B' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByRole('dialog')).toHaveTextContent('Panel de Paciente B');
+    expect(screen.queryByTestId('reports-dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente A' }));
+    expect(screen.queryByTestId('reports-dialog')).toBeNull();
+  });
+
+  it.each(['episode', 'date', 'run'])(
+    'closes the panel when its %s identity changes',
+    async field => {
+      const props = {
+        bedId: 'R1',
+        patientName: 'Paciente A',
+        patientRun: 'ID-A',
+        clinicalEpisodeId: 'a',
+        censusDate: '2026-09-05',
+      };
+      const { rerender } = render(<ClinicalPanelTrigger {...props} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente A' }));
+      await screen.findByRole('dialog');
+      rerender(
+        <ClinicalPanelTrigger
+          {...props}
+          clinicalEpisodeId={field === 'episode' ? 'b' : props.clinicalEpisodeId}
+          censusDate={field === 'date' ? '2026-09-06' : props.censusDate}
+          patientRun={field === 'run' ? 'ID-B' : props.patientRun}
+        />
+      );
+      expect(screen.queryByRole('dialog')).toBeNull();
+    }
+  );
+
   it('keeps clinical panel and episode reports available for a newborn without RUN', async () => {
     render(
       <ClinicalPanelTrigger
@@ -199,6 +279,8 @@ describe('ClinicalPanelTrigger', () => {
     ).toBeVisible();
     expect(screen.queryByRole('button', { name: /informes de hospitalización/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /abrir panel clínico/i }));
-    expect(await screen.findByRole('button', { name: /informes de hospitalización/i })).toBeVisible();
+    expect(
+      await screen.findByRole('button', { name: /informes de hospitalización/i })
+    ).toBeVisible();
   });
 });

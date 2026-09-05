@@ -9,7 +9,13 @@ import React, { useState } from 'react';
 import { BookOpenText } from 'lucide-react';
 
 import { resolveClinicalPanelNavigation } from '@/features/census/controllers/clinicalPanelNavigationController';
-import { PatientHospitalizationReportsDialog } from '@/features/census/components/PatientHospitalizationReportsDialog';
+import { useActiveClinicalPanel } from './useActiveClinicalPanel';
+
+const PatientHospitalizationReportsDialog = React.lazy(() =>
+  import('@/features/census/components/PatientHospitalizationReportsDialog').then(module => ({
+    default: module.PatientHospitalizationReportsDialog,
+  }))
+);
 
 const ClinicalPanelDrawer = React.lazy(() =>
   import('./ClinicalPanelDrawer').then(module => ({ default: module.ClinicalPanelDrawer }))
@@ -36,9 +42,11 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   admissionDate,
   censusDate,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [areReportsOpen, setAreReportsOpen] = useState(false);
   const episode = (clinicalEpisodeId || '').trim();
+  const { isOpen, open, close } = useActiveClinicalPanel(
+    JSON.stringify([triggerKey, episode, patientRun, censusDate, patientName])
+  );
   if (!episode || !patientName.trim()) return null;
   const panelKey = `${bedId}:${episode}`;
   const navigation = isOpen
@@ -48,7 +56,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   const navigatePanel = (direction: 'previous' | 'next'): void => {
     const target = resolveClinicalPanelNavigation(document, panelKey)[direction];
     if (!target) return;
-    setIsOpen(false);
+    close();
     target.click();
   };
 
@@ -61,7 +69,8 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
           data-clinical-panel-key={panelKey}
           onClick={event => {
             event.stopPropagation();
-            setIsOpen(true);
+            setAreReportsOpen(false);
+            open();
           }}
           className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-medical-50 hover:text-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
           title="Panel clínico (evoluciones, indicaciones y cuidados de Eloísa)"
@@ -85,18 +94,23 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
             onNavigatePrevious={() => navigatePanel('previous')}
             onNavigateNext={() => navigatePanel('next')}
             onOpenHospitalizationReports={() => setAreReportsOpen(true)}
-            onClose={() => setIsOpen(false)}
+            onClose={close}
           />
         </React.Suspense>
       )}
-      <PatientHospitalizationReportsDialog
-        isOpen={areReportsOpen}
-        onClose={() => setAreReportsOpen(false)}
-        patientName={patientName}
-        patientRun={patientRun}
-        currentEpisodeId={episode}
-        admissionDate={admissionDate}
-      />
+      {isOpen && areReportsOpen && (
+        <React.Suspense fallback={null}>
+          <PatientHospitalizationReportsDialog
+            isOpen
+            onClose={() => setAreReportsOpen(false)}
+            patientName={patientName}
+            patientRun={patientRun}
+            currentEpisodeId={episode}
+            admissionDate={admissionDate}
+            censusDate={censusDate}
+          />
+        </React.Suspense>
+      )}
     </>
   );
 };
