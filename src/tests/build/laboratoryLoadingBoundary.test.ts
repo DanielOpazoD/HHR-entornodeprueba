@@ -19,7 +19,7 @@ describe('laboratory loading boundaries', () => {
     ['LabResultsViewerModal', 'LabViewerPdf'],
   ])('%s loads %s only through a dynamic boundary', (owner, component) => {
     const code = source(`src/features/laboratory/components/${owner}.tsx`);
-    expect(code).not.toMatch(new RegExp(`import\\s+[^;]+from ['\"]\\./${component}['\"]`));
+    expect(code).not.toMatch(new RegExp(`import\\s+[^;]+from ['"]\\./${component}['"]`));
     expect(code).toContain(`import('./${component}')`);
   });
 });
