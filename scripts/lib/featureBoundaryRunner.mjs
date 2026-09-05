@@ -67,6 +67,36 @@ const resolveImport = (importerFilePath, importPath) => {
   return null;
 };
 
+// One invocation-scoped snapshot, never a disk/global cache: the next command
+// always sees current files. Multiple feature policies share reads and parsing.
+export const collectFeatureBoundarySources = () =>
+  walkFiles(SRC_ROOT).map(absolutePath => {
+    const source = fs.readFileSync(absolutePath, 'utf8');
+    const imports = [];
+    IMPORT_EXPORT_REGEX.lastIndex = 0;
+    DYNAMIC_IMPORT_REGEX.lastIndex = 0;
+    let match;
+    while ((match = IMPORT_EXPORT_REGEX.exec(source)) !== null) {
+      imports.push(match[1] || match[2]);
+    }
+    while ((match = DYNAMIC_IMPORT_REGEX.exec(source)) !== null) {
+      imports.push(match[1]);
+    }
+    const resolvedImports = new Map();
+    return {
+      absolutePath,
+      importerPath: toPosix(path.relative(ROOT, absolutePath)),
+      source,
+      imports,
+      resolve: importPath => {
+        if (!resolvedImports.has(importPath)) {
+          resolvedImports.set(importPath, resolveImport(absolutePath, importPath));
+        }
+        return resolvedImports.get(importPath);
+      },
+    };
+  });
+
 /**
  * Run a feature-boundary check.
  *
@@ -88,6 +118,7 @@ export const runFeatureBoundaryCheck = ({
   label,
   extraPublicModules = [],
   allowException,
+  sources,
 }) => {
   if (!feature || !label) {
     throw new Error('runFeatureBoundaryCheck requires `feature` and `label`.');
@@ -103,30 +134,20 @@ export const runFeatureBoundaryCheck = ({
 
   const violations = [];
 
-  for (const absolutePath of walkFiles(SRC_ROOT)) {
+  for (const { absolutePath, importerPath, source, imports, resolve } of sources ??
+    collectFeatureBoundarySources()) {
     if (absolutePath.startsWith(featureRoot)) continue;
-
-    const importerPath = toPosix(path.relative(ROOT, absolutePath));
-    const source = fs.readFileSync(absolutePath, 'utf8');
-    IMPORT_EXPORT_REGEX.lastIndex = 0;
-    DYNAMIC_IMPORT_REGEX.lastIndex = 0;
 
     const checkMatch = importPath => {
       if (!importPath || publicModules.has(importPath)) return;
       if (allowException && allowException({ importerPath, importPath, source })) return;
-      const resolved = resolveImport(absolutePath, importPath);
+      const resolved = resolve(importPath);
       if (resolved && resolved.startsWith(featureRoot)) {
         violations.push(`${importerPath} -> ${importPath}`);
       }
     };
 
-    let match;
-    while ((match = IMPORT_EXPORT_REGEX.exec(source)) !== null) {
-      checkMatch(match[1] || match[2]);
-    }
-    while ((match = DYNAMIC_IMPORT_REGEX.exec(source)) !== null) {
-      checkMatch(match[1]);
-    }
+    imports.forEach(checkMatch);
   }
 
   if (violations.length > 0) {
