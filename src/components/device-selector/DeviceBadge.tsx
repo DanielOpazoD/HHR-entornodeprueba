@@ -32,7 +32,7 @@ export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(
       : null;
 
     return (
-      <span className="relative group/badge inline-flex">
+      <span className="inline-flex" title={tooltipText ?? undefined}>
         <MedicalBadge
           variant="blue"
           className="whitespace-nowrap flex items-center gap-0.5 px-0.5 bg-sky-100 border-sky-200 text-black print:bg-transparent print:text-black"
@@ -41,13 +41,6 @@ export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(
           {badgeText}
           {days !== null && <span className="text-[9px] opacity-70 ml-0.5">({days}d)</span>}
         </MedicalBadge>
-
-        {/* Tooltip */}
-        {tooltipText && (
-          <span className="invisible group-hover/badge:visible absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-slate-900 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">
-            {tooltipText}
-          </span>
-        )}
       </span>
     );
   }

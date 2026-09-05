@@ -40,6 +40,13 @@ describe('censusTableColumnProfileController', () => {
     expect(resolveVisibleCensusColumnCount(columns, 'specialist')).toBe(keys.length);
   });
 
+  it('fits the UPC control without overwriting saved widths or exposing it to specialists', () => {
+    const compact = { ...columns, upc: 22 };
+    expect(resolveVisibleCensusColumns(compact).upc).toBe(44);
+    expect(resolveVisibleCensusColumns(compact, 'specialist').upc).toBe(0);
+    expect(compact.upc).toBe(22);
+  });
+
   it('hides rut, age, cqx, type and specialty columns in every access profile', () => {
     expect(HIDDEN_CENSUS_COLUMNS).toEqual(['rut', 'age', 'cqx', 'type', 'specialty']);
 

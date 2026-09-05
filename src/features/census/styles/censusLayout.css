@@ -17,6 +17,34 @@
     border-spacing: 0;
   }
 
+  /* Quiet row guides replace the grid; never style nested clinical controls. */
+  .census-table-scroll > table > tbody > tr > td,
+  .census-table-scroll > table > thead > tr > th {
+    border-right: 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .census-table-scroll > table > tbody > tr > .census-identity-cell {
+    vertical-align: top;
+    padding-top: 4px;
+  }
+
+  .census-table-scroll > table > tbody > tr > .census-diagnosis-cell {
+    vertical-align: top;
+    padding-top: 6px;
+  }
+
+  /* Neutral field outlines recede at rest; errors, hover and focus stay explicit. */
+  .census-identity-cell .h-7.border-slate-200:not(.border-red-400):not(:hover):not(:focus-within),
+  .census-diagnosis-cell button.h-7.border-slate-200:not(:hover):not(:focus-visible) {
+    border-color: transparent;
+    background-color: transparent;
+  }
+
+  .census-identity-cell .text-slate-400 {
+    color: #64748b;
+  }
+
   /* Every occupied, empty and crib row has actions first and bed second. */
   .census-table-scroll > table > tbody > tr > td:nth-child(2),
   .census-table-scroll > table > thead > tr > th:nth-child(2) {
@@ -24,7 +52,7 @@
     left: 0;
     z-index: 20;
     background: #f8fafc;
-    box-shadow: 1px 0 0 #cbd5e1;
+    box-shadow: 1px 0 0 #f1f5f9;
   }
 
   .census-table-scroll > table > thead > tr > th:nth-child(2) {

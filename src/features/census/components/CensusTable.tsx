@@ -276,7 +276,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   return (
     <div
       ref={tableRootRef}
-      className="overflow-visible rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.025)] print:border-none print:shadow-none"
+      className="overflow-visible rounded-xl bg-white print:shadow-none"
     >
       <div className="relative overflow-visible">
         {freshnessUi.userMessage ? (

@@ -241,46 +241,48 @@ export const ClinicalInitialBlockCells: React.FC<ClinicalInitialBlockCellsProps>
   // ingreso (PatientIdentityCell) y se sigue editando desde este editor de Diagnóstico. Los controles
   // obstétricos (subtipo Gineco + vía del parto) se mudan aquí, a la celda de Diagnóstico.
   return (
-    <td className="py-0.5 px-1 border-r border-slate-200 min-w-[160px] relative">
-      <ClinicalInitialBlockCellButton
-        data={data}
-        label="diagnóstico"
-        value={data.pathology || ''}
-        placeholder="Diagnóstico"
-        contentClassName={clsx(
-          data.pathology ? 'text-slate-800' : 'text-slate-400 italic',
-          diagnosisRightPadding
-        )}
-        readOnly={readOnly}
-        onChange={onChange}
-        onMultipleUpdate={onMultipleUpdate}
-      />
-      <DiagnosisCodeBadge
-        code={data.cie10Code}
-        description={data.cie10Description || data.pathology}
-        className={clsx(
-          'absolute top-1/2 z-10 -translate-y-1/2',
-          canShowDeliveryRoute ? 'right-16' : isGinecobstetricia ? 'right-9' : 'right-1'
-        )}
-      />
-      {isGinecobstetricia && (
-        <GinecobstetriciaSubtypeControl
+    <td className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]">
+      <div className="relative">
+        <ClinicalInitialBlockCellButton
           data={data}
-          disabled={readOnly}
+          label="diagnóstico"
+          value={data.pathology || ''}
+          placeholder="Diagnóstico"
+          contentClassName={clsx(
+            data.pathology ? 'text-slate-800' : 'text-slate-400 italic',
+            diagnosisRightPadding
+          )}
+          readOnly={readOnly}
+          onChange={onChange}
           onMultipleUpdate={onMultipleUpdate}
         />
-      )}
-      {canShowDeliveryRoute && onDeliveryRouteChange && (
-        <div className="absolute right-9 top-1/2 z-10 -translate-y-1/2">
-          <DeliveryRoutePopover
-            deliveryRoute={data.deliveryRoute}
-            deliveryDate={data.deliveryDate}
-            deliveryCesareanLabor={data.deliveryCesareanLabor}
-            onSave={onDeliveryRouteChange}
+        <DiagnosisCodeBadge
+          code={data.cie10Code}
+          description={data.cie10Description || data.pathology}
+          className={clsx(
+            'absolute top-1/2 z-10 -translate-y-1/2',
+            canShowDeliveryRoute ? 'right-16' : isGinecobstetricia ? 'right-9' : 'right-1'
+          )}
+        />
+        {isGinecobstetricia && (
+          <GinecobstetriciaSubtypeControl
+            data={data}
             disabled={readOnly}
+            onMultipleUpdate={onMultipleUpdate}
           />
-        </div>
-      )}
+        )}
+        {canShowDeliveryRoute && onDeliveryRouteChange && (
+          <div className="absolute right-9 top-1/2 z-10 -translate-y-1/2">
+            <DeliveryRoutePopover
+              deliveryRoute={data.deliveryRoute}
+              deliveryDate={data.deliveryDate}
+              deliveryCesareanLabor={data.deliveryCesareanLabor}
+              onSave={onDeliveryRouteChange}
+              disabled={readOnly}
+            />
+          </div>
+        )}
+      </div>
     </td>
   );
 };

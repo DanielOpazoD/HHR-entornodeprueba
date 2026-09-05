@@ -74,7 +74,7 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
   if (diagnosisMode === 'cie10') {
     return (
       <td
-        className="py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
+        className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
         title={readOnlyReason}
         onMouseDownCapture={freshnessPause.acknowledge}
         onFocusCapture={freshnessPause.acknowledge}
@@ -166,7 +166,7 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
   // Free Text Mode
   return (
     <td
-      className="py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
+      className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
       title={readOnlyReason}
       onMouseDownCapture={freshnessPause.acknowledge}
       onFocusCapture={freshnessPause.acknowledge}
