@@ -109,5 +109,4 @@ export type IconComponent = LucideIcon;
 // New code should import from '@/utils'
 // ============================================================================
 
-export { randomItem } from '@/utils/arrayUtils';
 export { escapeCsvValue } from '@/utils/csvUtils';
