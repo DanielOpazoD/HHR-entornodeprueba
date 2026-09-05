@@ -3,6 +3,7 @@ import {
   getDoc,
   getDocFromServer,
   getDocs,
+  getDocsFromServer,
   onSnapshot,
   orderBy,
   query,
@@ -121,7 +122,8 @@ export const getAllRecordsFromFirestore = async (): Promise<Record<string, Daily
 
 export const getRecordsRangeFromFirestore = async (
   startDate: string,
-  endDate: string
+  endDate: string,
+  options: { requireServer?: boolean } = {}
 ): Promise<DailyRecord[]> => {
   try {
     const q = query(
@@ -131,10 +133,12 @@ export const getRecordsRangeFromFirestore = async (
       orderBy('date', 'asc')
     );
 
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await (options.requireServer ? getDocsFromServer(q) : getDocs(q));
     return mapFirestoreRecords(querySnapshot.docs, docToRecord);
   } catch (error) {
     logFirestoreQueryError('getRecordsRange', error, { startDate, endDate });
+    // A history reader must distinguish a real empty result from unavailable remote data.
+    if (options.requireServer) throw error;
     return [];
   }
 };

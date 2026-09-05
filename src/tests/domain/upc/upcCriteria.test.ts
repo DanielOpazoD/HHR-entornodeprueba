@@ -5,11 +5,25 @@ import {
   isValidUciCriterionId,
   isValidUtiCriterionId,
   sanitizeCriterionIds,
+  normalizeUciCriterionId,
 } from '@/domain/upc/upcCriteria';
 
 describe('UPC criteria constants', () => {
-  it('defines exactly 3 UCI criteria', () => {
-    expect(UPC_UCI_CRITERIA).toHaveLength(3);
+  it('defines 2 UCI choices with vasoactive and inotrope support combined', () => {
+    expect(UPC_UCI_CRITERIA).toHaveLength(2);
+    expect(UPC_UCI_CRITERIA[1]).toEqual({
+      id: 'uci_vasoactivos',
+      label: 'Drogas vasopresoras o inotrópicas en infusión continua',
+    });
+  });
+  it('uses the requested inclusive respiratory oxygen threshold', () => {
+    expect(UPC_UTI_CRITERIA.find(c => c.id === 'uti_mon_respiratoria')?.label).toContain(
+      'FiO₂ ≥ 50%'
+    );
+  });
+  it('normalizes the historical inotrope ID without losing its meaning', () => {
+    expect(normalizeUciCriterionId('uci_inotropicos')).toBe('uci_vasoactivos');
+    expect(normalizeUciCriterionId('uci_vmi')).toBe('uci_vmi');
   });
 
   it('defines exactly 6 UTI criteria', () => {

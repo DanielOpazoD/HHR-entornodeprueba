@@ -1,6 +1,7 @@
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { normalizeRut } from '@/utils/rutUtils';
+import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import type {
   BedOccupancyCollisionCandidate,
   CensusImportDiff,
@@ -292,17 +293,20 @@ export const applyBedOccupancyCollisionResolutions = ({
       ...mergeRayenPatient(otherCurrent?.patient, other.patient),
       clinicalEpisodeId: other.clinicalEpisodeId,
     };
-    nextBeds[collision.bedId] = { ...selectedPatient, bedId: collision.bedId };
+    nextBeds[collision.bedId] = normalizePatientUpcForBed(
+      { ...selectedPatient, bedId: selectedCurrent?.bedId ?? selectedPatient.bedId },
+      collision.bedId
+    );
     if (!selectedCurrent) applied.admissions += 1;
     else if (selectedCurrent.bedId !== collision.bedId) applied.moves += 1;
     else if (diffSyncablePatientFields(selectedCurrent.patient, selected.patient).length > 0)
       applied.updates += 1;
 
     if (resolution.otherDisposition.kind === 'move') {
-      nextBeds[resolution.otherDisposition.targetBedId] = {
-        ...otherPatient,
-        bedId: resolution.otherDisposition.targetBedId,
-      };
+      nextBeds[resolution.otherDisposition.targetBedId] = normalizePatientUpcForBed(
+        { ...otherPatient, bedId: otherCurrent?.bedId ?? otherPatient.bedId },
+        resolution.otherDisposition.targetBedId
+      );
       if (!otherCurrent) applied.admissions += 1;
       else if (otherCurrent.bedId !== resolution.otherDisposition.targetBedId) applied.moves += 1;
       else if (diffSyncablePatientFields(otherCurrent.patient, other.patient).length > 0)

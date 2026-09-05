@@ -137,6 +137,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav
+      data-app-top-bar
       className={clsx(
         getNavColor(),
         'text-white shadow-md shadow-black/10 sticky top-0 z-[60] print:hidden transition-colors duration-300 h-[56px] flex items-center border-b border-white/[0.08]'

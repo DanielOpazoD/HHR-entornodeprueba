@@ -96,7 +96,14 @@ export const resolveUpcExportLabel = ({
   return effectiveState.isUpc ? 'UPC' : 'No UPC';
 };
 
-export const normalizePatientUpcForBed = <T extends { bedId?: string; isUPC?: boolean }>(
+interface UpcBedPatient {
+  bedId?: string;
+  isUPC?: boolean;
+  upcChecklist?: UpcChecklistRecord;
+  clinicalCrib?: UpcBedPatient;
+}
+
+export const normalizePatientUpcForBed = <T extends UpcBedPatient>(
   patient: T,
   bedId: string
 ): T => {
@@ -109,5 +116,16 @@ export const normalizePatientUpcForBed = <T extends { bedId?: string; isUPC?: bo
     ...patient,
     bedId,
     isUPC: normalizedIsUpc,
+    ...(patient.bedId !== bedId && patient.upcChecklist
+      ? { upcChecklist: { ...patient.upcChecklist, reviewRequired: true } }
+      : {}),
+    ...(patient.bedId !== bedId && patient.clinicalCrib
+      ? {
+          clinicalCrib: normalizePatientUpcForBed(
+            { ...patient.clinicalCrib, bedId: patient.bedId },
+            bedId
+          ),
+        }
+      : {}),
   };
 };

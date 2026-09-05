@@ -1,8 +1,9 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { ConfirmOptions } from '@/context/uiContracts';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { canRunCensusEmailAction } from '@/hooks/controllers/censusEmailActionController';
 import { resolveCensusEmailSendOutcomePresentation } from '@/hooks/controllers/censusEmailOutcomeController';
+import { resolveUpcEmailBlockReason } from '@/shared/census/upcEvaluationPolicy';
 
 export type CensusEmailSendStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -55,8 +56,19 @@ export const useCensusEmailDeliveryActions = ({
   confirm,
   alert,
 }: UseCensusEmailDeliveryActionsParams) => {
+  const latestContext = useRef({ record, currentDateString });
+  useLayoutEffect(() => {
+    latestContext.current = { record, currentDateString };
+  }, [record, currentDateString]);
   const sendEmail = useCallback(async () => {
     if (!canRunCensusEmailAction(status)) return;
+    const blockReason = resolveUpcEmailBlockReason(record, currentDateString);
+    if (blockReason) {
+      setError(blockReason);
+      setStatus('error');
+      await alert(blockReason, 'Evaluación UPC pendiente');
+      return;
+    }
     let useCases: Awaited<ReturnType<typeof loadSendCensusEmailUseCases>>;
     try {
       useCases = await loadSendCensusEmailUseCases();
@@ -80,12 +92,23 @@ export const useCensusEmailDeliveryActions = ({
       variant: 'info',
     });
     if (!confirmed) return;
+    const latest = latestContext.current;
+    const finalBlockReason =
+      latest.currentDateString !== currentDateString
+        ? 'El censo cambió de fecha. Revisa el día antes de enviar.'
+        : resolveUpcEmailBlockReason(latest.record, currentDateString);
+    if (finalBlockReason) {
+      setError(finalBlockReason);
+      setStatus('error');
+      await alert(finalBlockReason, 'Envío bloqueado');
+      return;
+    }
 
     setError(null);
     setStatus('loading');
 
     const result = await executeSendCensusEmail({
-      record,
+      record: latest.record,
       currentDateString,
       nurseSignature,
       selectedYear,

@@ -88,7 +88,10 @@ export interface DailyRecordValidationActions {
 
 export interface DailyRecordBedActions {
   updatePatient: (bedId: string, field: keyof PatientData, value: PatientFieldValue) => void;
-  updatePatientMultiple: (bedId: string, fields: Partial<PatientData>) => void;
+  updatePatientMultiple: (
+    bedId: string,
+    fields: Partial<PatientData>
+  ) => void | Promise<boolean | void>;
   updateClinicalCrib: (
     bedId: string,
     field: keyof PatientData | 'create' | 'remove',
@@ -96,7 +99,10 @@ export interface DailyRecordBedActions {
     confirmedLastUpdated?: string,
     confirmedOccupant?: ConfirmedBedOccupantIdentity
   ) => void | Promise<boolean>;
-  updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => void;
+  updateClinicalCribMultiple: (
+    bedId: string,
+    fields: Partial<PatientData>
+  ) => void | Promise<boolean | void>;
   updateClinicalCribCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;
   updateClinicalCribCudyrMultiple?: (bedId: string, fields: CudyrScorePatch) => void;
   updateCudyr: (bedId: string, field: keyof CudyrScore, value: number) => void;

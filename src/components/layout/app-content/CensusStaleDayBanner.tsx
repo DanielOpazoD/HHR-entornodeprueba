@@ -39,6 +39,7 @@ export const CensusStaleDayBanner: React.FC<CensusStaleDayBannerProps> = ({
 
   return (
     <div
+      data-app-top-bar
       role="alert"
       className="sticky top-[96px] z-30 flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-1 text-slate-600 print:hidden"
     >

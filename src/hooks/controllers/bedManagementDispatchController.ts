@@ -264,6 +264,14 @@ export const executeBedManagementAction = async ({
   if (!currentRecord) {
     return false;
   }
+  if (
+    (action.type === 'UPDATE_PATIENT_MULTIPLE' ||
+      action.type === 'UPDATE_CLINICAL_CRIB_MULTIPLE') &&
+    action.fields.upcChecklist?.evaluatedForDate &&
+    (action.fields.upcChecklist.evaluatedForDate !== currentRecord.date ||
+      action.fields.upcChecklist.evaluatedBedId !== action.bedId)
+  )
+    return false;
 
   const validatedAction = validateAction(action, validation);
   if (!validatedAction) {
@@ -344,7 +352,17 @@ export const executeBedManagementAction = async ({
           await patchRecord(mixedSplit.structural);
           await patchRecord(mixedSplit.clinical);
         } else {
-          await patchRecord(patch);
+          const isUpcEvaluation =
+            (validatedAction.type === 'UPDATE_PATIENT_MULTIPLE' ||
+              validatedAction.type === 'UPDATE_CLINICAL_CRIB_MULTIPLE') &&
+            validatedAction.fields.upcChecklist?.evaluatedForDate;
+          if (isUpcEvaluation) {
+            // A completed daily review is never an optimistic/offline success.
+            // Do not auto-merge a stale journal over another signed evaluation.
+            await patchRecord(patch, { consistency: 'remote_confirmed', requireAtomicCas: true });
+          } else {
+            await patchRecord(patch);
+          }
         }
       }
       try {

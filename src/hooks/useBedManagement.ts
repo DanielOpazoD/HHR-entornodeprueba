@@ -28,7 +28,7 @@ export interface BedManagementActions {
   /**
    * Updates multiple patient fields atomically.
    */
-  updatePatientMultiple: (bedId: string, fields: Partial<PatientData>) => void;
+  updatePatientMultiple: (bedId: string, fields: Partial<PatientData>) => Promise<boolean>;
 
   /**
    * Updates a specific field in the CUDYR score for a patient.
@@ -51,7 +51,7 @@ export interface BedManagementActions {
   /**
    * Updates multiple clinical crib fields atomically.
    */
-  updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => void;
+  updateClinicalCribMultiple: (bedId: string, fields: Partial<PatientData>) => Promise<boolean>;
 
   /**
    * Updates a specific field in the CUDYR score for a clinical crib.

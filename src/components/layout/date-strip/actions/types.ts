@@ -36,4 +36,5 @@ export interface EmailDropdownProps {
   onConfigureEmail?: () => void;
   emailStatus?: EmailStatus;
   emailErrorMessage?: string | null;
+  emailBlockedReason?: string | null;
 }

@@ -21,9 +21,14 @@ export const useBedManagementActionCreators = (
 
   const updatePatientMultiple = useCallback(
     (bedId: string, fields: Partial<PatientData>) => {
+      if (dispatchAndWait)
+        return dispatchAndWait({ type: 'UPDATE_PATIENT_MULTIPLE', bedId, fields });
+      // A signed evaluation must not start if its confirmation cannot be awaited.
+      if (fields.upcChecklist?.evaluatedForDate) return Promise.resolve(false);
       dispatch({ type: 'UPDATE_PATIENT_MULTIPLE', bedId, fields });
+      return Promise.resolve(false);
     },
-    [dispatch]
+    [dispatch, dispatchAndWait]
   );
 
   const updateCudyr = useCallback(
@@ -87,9 +92,13 @@ export const useBedManagementActionCreators = (
 
   const updateClinicalCribMultiple = useCallback(
     (bedId: string, fields: Partial<PatientData>) => {
+      if (dispatchAndWait)
+        return dispatchAndWait({ type: 'UPDATE_CLINICAL_CRIB_MULTIPLE', bedId, fields });
+      if (fields.upcChecklist?.evaluatedForDate) return Promise.resolve(false);
       dispatch({ type: 'UPDATE_CLINICAL_CRIB_MULTIPLE', bedId, fields });
+      return Promise.resolve(false);
     },
-    [dispatch]
+    [dispatch, dispatchAndWait]
   );
 
   const updateClinicalCribCudyr = useCallback(
