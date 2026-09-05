@@ -544,11 +544,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
-
+      # These telemetry scripts use only Node.js built-ins and the GitHub API.
       - name: Collect GitHub Actions runtime data
         run: npm run collect:ci-runtime-observed-input
         env:
