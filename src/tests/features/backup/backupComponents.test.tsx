@@ -2,7 +2,7 @@
  * Backup Components Tests
  *
  * Tests for the backup feature UI components: BackupFilesToolbar,
- * BackupFileCard, BackupFilesContent, and the BackupDriveItems primitives.
+ * BackupFilesContent and the BackupDriveItems primitives.
  * Also tests the backupPresentation utility functions and the
  * formatFileSize utility from backupArtifacts.
  */
@@ -12,7 +12,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 import { BackupFilesToolbar } from '@/features/backup/components/internal/BackupFilesToolbar';
-import { BackupFileCard } from '@/features/backup/components/internal/BackupFileCard';
 import {
   FolderCard,
   FileCard,
@@ -308,82 +307,6 @@ describe('BackupFilesToolbar', () => {
   it('disables refresh button when isLoading is true', () => {
     render(<BackupFilesToolbar {...defaultToolbarProps} isLoading />);
     expect(screen.getByTitle('Refrescar')).toBeDisabled();
-  });
-});
-
-// ─── BackupFileCard ─────────────────────────────────────────────────
-
-describe('BackupFileCard', () => {
-  const mockFile = {
-    id: 'backup-1',
-    type: 'NURSING_HANDOFF' as const,
-    shiftType: 'day' as const,
-    date: '2026-03-15',
-    title: 'Entrega Enfermería - 15 Marzo',
-    createdAt: '2026-03-15T14:30:00.000Z',
-    createdBy: { uid: 'u1', email: 'nurse@test.com', name: 'Ana' },
-    metadata: {
-      deliveryStaff: 'Ana',
-      receivingStaff: 'Carlos',
-      patientCount: 12,
-      shiftType: 'day' as const,
-    },
-  };
-
-  const defaultCardProps = {
-    file: mockFile,
-    onView: vi.fn(),
-    onDownloadPdf: vi.fn(),
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders the file title', () => {
-    render(<BackupFileCard {...defaultCardProps} />);
-    expect(screen.getByText('Entrega Enfermería - 15 Marzo')).toBeInTheDocument();
-  });
-
-  it('renders staff delivery and receiving info', () => {
-    render(<BackupFileCard {...defaultCardProps} />);
-    // The text shows "Ana -> Carlos"
-    expect(screen.getByText(/Ana.*Carlos/)).toBeInTheDocument();
-  });
-
-  it('renders patient count', () => {
-    render(<BackupFileCard {...defaultCardProps} />);
-    expect(screen.getByText('12 pacientes')).toBeInTheDocument();
-  });
-
-  it('calls onDownloadPdf with file id when download is clicked', () => {
-    render(<BackupFileCard {...defaultCardProps} />);
-    fireEvent.click(screen.getByTitle('Descargar PDF'));
-    expect(defaultCardProps.onDownloadPdf).toHaveBeenCalledWith('backup-1');
-  });
-
-  it('calls onView with file id when view is clicked', () => {
-    render(<BackupFileCard {...defaultCardProps} />);
-    fireEvent.click(screen.getByTitle('Ver detalle'));
-    expect(defaultCardProps.onView).toHaveBeenCalledWith('backup-1');
-  });
-
-  it('renders delete button when canDelete is true and onDelete is provided', () => {
-    const onDelete = vi.fn();
-    render(<BackupFileCard {...defaultCardProps} canDelete onDelete={onDelete} />);
-    expect(screen.getByTitle('Eliminar')).toBeInTheDocument();
-  });
-
-  it('calls onDelete with file id when delete button is clicked', () => {
-    const onDelete = vi.fn();
-    render(<BackupFileCard {...defaultCardProps} canDelete onDelete={onDelete} />);
-    fireEvent.click(screen.getByTitle('Eliminar'));
-    expect(onDelete).toHaveBeenCalledWith('backup-1');
-  });
-
-  it('does not render delete button when canDelete is false', () => {
-    render(<BackupFileCard {...defaultCardProps} canDelete={false} />);
-    expect(screen.queryByTitle('Eliminar')).not.toBeInTheDocument();
   });
 });
 
