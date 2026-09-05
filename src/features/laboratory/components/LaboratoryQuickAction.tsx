@@ -1,9 +1,13 @@
 import React from 'react';
 import { FlaskConical } from 'lucide-react';
-import { LabResultsViewerModal } from './LabResultsViewerModal';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { checkSyslabConnection } from '@/services/laboratory/syslabService';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
+
+const LabResultsViewerModal = lazyWithRetry(() =>
+  import('./LabResultsViewerModal').then(module => ({ default: module.LabResultsViewerModal }))
+);
 
 interface LaboratoryQuickActionProps {
   patients: MedicalIndicationsPatientOption[];
@@ -83,12 +87,23 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
         <FlaskConical size={13} />
         <span className="hidden sm:inline">Lab</span>
       </button>
-      {labPatients.length > 0 && (
-        <LabResultsViewerModal
-          isOpen={isLabOpen}
-          onClose={() => setIsLabOpen(false)}
-          patients={labPatients}
-        />
+      {isLabOpen && labPatients.length > 0 && (
+        <React.Suspense
+          fallback={
+            <span role="status" className="text-xs text-slate-600">
+              Cargando laboratorio…{' '}
+              <button type="button" className="underline" onClick={() => setIsLabOpen(false)}>
+                Cancelar apertura
+              </button>
+            </span>
+          }
+        >
+          <LabResultsViewerModal
+            isOpen={isLabOpen}
+            onClose={() => setIsLabOpen(false)}
+            patients={labPatients}
+          />
+        </React.Suspense>
       )}
     </>
   );
