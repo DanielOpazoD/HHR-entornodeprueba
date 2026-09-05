@@ -7,6 +7,31 @@ import { ScaleChip } from '@/features/census/components/patient-row/ScaleChip';
 const note = { title: 'Escala', recordedDate: '2026-07-15' };
 
 describe('ScaleChip', () => {
+  it('shows a light provenance card with room for the scale title', () => {
+    render(
+      <ScaleChip
+        hue="indigo"
+        icon={Bandage}
+        label="Downton"
+        value="2"
+        note={{
+          ...note,
+          title: 'Downton',
+          detail: 'Riesgo medio',
+          author: 'Profesional de prueba',
+        }}
+      />
+    );
+    const chip = screen.getByText('Downton').closest('.grid') as HTMLElement;
+    fireEvent.mouseEnter(chip);
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toHaveStyle({ width: '280px' });
+    expect(tooltip.firstElementChild).toHaveClass('bg-white', 'rounded-lg');
+    expect(tooltip).toHaveTextContent('Riesgo medio');
+    expect(tooltip).toHaveTextContent('Profesional de prueba');
+    fireEvent.mouseLeave(chip);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
   it('distinguishes risk from reapplication without coloring the whole chip', () => {
     const { container } = render(
       <ScaleChip

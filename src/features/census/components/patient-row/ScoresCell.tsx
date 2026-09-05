@@ -114,7 +114,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                     !!model.downton.reapplication && model.downton.reapplication.urgency !== 'ok'
                   }
                   note={{
-                    title: model.downton.entry.name,
+                    title: 'Downton',
                     recordedDate: model.downton.entry.recordedDate,
                     recordedAt: model.downton.entry.recordedAt,
                     author: model.downton.entry.author,
