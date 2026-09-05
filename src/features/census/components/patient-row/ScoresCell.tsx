@@ -75,7 +75,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                 e.stopPropagation();
                 setIsDetailOpen(true);
               }}
-              className="flex w-full cursor-pointer flex-col items-stretch gap-0.5"
+              className="flex w-full cursor-pointer flex-col items-stretch gap-0.5 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
               aria-label="Ver detalle de escalas de enfermería"
             >
               {model.braden && (

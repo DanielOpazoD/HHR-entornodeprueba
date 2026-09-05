@@ -7,6 +7,24 @@ import { ScaleChip } from '@/features/census/components/patient-row/ScaleChip';
 const note = { title: 'Escala', recordedDate: '2026-07-15' };
 
 describe('ScaleChip', () => {
+  it('distinguishes risk from reapplication without coloring the whole chip', () => {
+    const { container } = render(
+      <ScaleChip
+        hue="violet"
+        icon={Bandage}
+        label="Braden"
+        value="12"
+        severity="alto"
+        countdown="hoy"
+        countdownUrgent
+        note={note}
+      />
+    );
+    expect(screen.getByText(/Riesgo alto/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Próxima aplicación: hoy')).toHaveClass('text-red-700');
+    expect(container.firstElementChild).not.toHaveClass('border-red-300');
+    expect(container.querySelector('.animate-pulse')).toBeNull();
+  });
   it('keeps identity, value and countdown on the same fixed axes for every score', () => {
     const { container, rerender } = render(
       <ScaleChip hue="violet" icon={Bandage} label="Braden" value="12" countdown="2d" note={note} />
@@ -17,7 +35,7 @@ describe('ScaleChip', () => {
 
     rerender(<ScaleChip hue="teal" icon={Bandage} label="CUDYR" value="C3" note={note} />);
     expect(container.firstElementChild).toHaveClass('grid-cols-[70px_minmax(0,1fr)_34px]');
-    expect(container.querySelector('[aria-hidden="true"].border-l')).toBeInTheDocument();
+    expect(container.querySelector('.border-l')).not.toBeInTheDocument();
   });
 
   it('renders a Rayen local stamp as day-month-year without ambiguous Date parsing', () => {

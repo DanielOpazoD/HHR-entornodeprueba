@@ -1,7 +1,7 @@
 /**
  * ScaleChip — the census "Scores" chip with a per-scale visual identity (rediseño censo 2026).
  *
- * Anatomy: ONE segmented bar, three zones separated by hairline dividers, so each piece of
+ * Anatomy: three aligned zones without inner dividers, so each piece of
  * information owns its own space instead of competing inside a single colored pill:
  *   [ identidad ]  — icon + scale name, tinted with the SCALE's own hue (Braden violet, Downton
  *                    indigo, CUDYR teal). The hue never changes with the result: it identifies.
@@ -210,8 +210,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       onFocus={show}
       onBlur={hide}
       className={clsx(
-        'grid w-full grid-cols-[70px_minmax(0,1fr)_34px] items-stretch overflow-hidden rounded-md border bg-white text-[10px] leading-tight',
-        countdownUrgent ? 'border-red-300 bg-red-50/40' : 'border-slate-200'
+        'grid w-full grid-cols-[70px_minmax(0,1fr)_34px] items-stretch overflow-hidden rounded bg-slate-50/60 text-[10px] leading-tight'
       )}
     >
       {/* identity zone — icon in the scale's hue, name neutral; no fill competes with the value */}
@@ -222,33 +221,28 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       {/* value zone — the only place the clinical (severity) color lives */}
       <span
         className={clsx(
-          'flex min-w-[18px] flex-1 items-center justify-center border-l border-slate-200 px-1 py-0.5 font-semibold tabular-nums',
+          'flex min-w-[18px] flex-1 items-center justify-center px-1 py-0.5 font-semibold tabular-nums',
           valueTone
         )}
       >
         {value}
+        {severity && <span className="sr-only"> · Riesgo {severity}</span>}
       </span>
       {/* reapplication zone — separated in its own space; neutral until it comes due */}
       {countdown != null && (
         <span
           className={clsx(
-            'flex shrink-0 items-center gap-0.5 border-l px-1 py-0.5 font-medium tabular-nums',
-            countdownUrgent
-              ? 'border-red-200 bg-red-50 text-red-600'
-              : 'border-slate-200 text-slate-400'
+            'flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 font-medium tabular-nums',
+            countdownUrgent ? 'bg-red-50 text-red-700' : 'text-slate-500'
           )}
           title="Próxima aplicación"
+          aria-label={`Próxima aplicación: ${countdown}`}
         >
-          <AlarmClock
-            size={9}
-            strokeWidth={2.5}
-            className={clsx(countdownUrgent && 'animate-pulse motion-reduce:animate-none')}
-            aria-hidden
-          />
+          <AlarmClock size={9} strokeWidth={2.5} aria-hidden />
           {countdown}
         </span>
       )}
-      {countdown == null && <span aria-hidden className="border-l border-slate-200" />}
+      {countdown == null && <span aria-hidden />}
       {anchor && <StickyNote note={note} anchor={anchor} />}
     </span>
   );

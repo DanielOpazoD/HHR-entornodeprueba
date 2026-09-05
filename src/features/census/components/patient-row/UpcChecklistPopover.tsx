@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { ShieldCheck, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
 import type { UpcEvaluationContext } from './useUpcChecklistState';
 import { UpcEvaluationForm } from './UpcEvaluationForm';
@@ -111,27 +111,32 @@ export const UpcChecklistPopover: React.FC<UpcChecklistPopoverProps> = ({
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className={clsx(
-          'inline-flex items-center justify-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-bold transition-all min-w-[36px] min-h-[20px]',
+          'inline-flex min-h-8 min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[10px] font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700',
           readOnly && 'cursor-default',
           freshnessPause.pauseClassName,
-          reviewReason && 'ring-1 ring-amber-500 bg-amber-50',
-          label
-            ? clsx('border', colors.text, colors.bg, colors.border, !readOnly && 'hover:opacity-80')
-            : clsx(
-                'text-slate-400 border border-dashed border-slate-200',
-                !readOnly && 'hover:border-slate-400 hover:text-slate-600'
-              )
+          reviewReason
+            ? 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+            : label
+              ? clsx(colors.text, colors.bg, !readOnly && 'hover:opacity-80')
+              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
         )}
         title={
           readOnlyReason ||
           reviewReason ||
           (label
             ? `UPC-${label} — Click para editar criterios`
-            : 'Sin clasificación UPC — Click para evaluar')
+            : 'Sin criterios UPC — Click para consultar evaluación')
         }
       >
-        {label ? label : <ShieldCheck size={11} className="text-slate-300" />}
-        {reviewReason && <AlertCircle size={13} className="text-amber-700" aria-hidden="true" />}
+        {label && <span>{label}</span>}
+        {reviewReason ? (
+          <span className="inline-flex items-center gap-0.5 text-[9px]">
+            <AlertCircle size={10} aria-hidden="true" />
+            {readOnly || !eligible ? 'Pendiente' : 'Evaluar'}
+          </span>
+        ) : !label ? (
+          <span>Sin criterios</span>
+        ) : null}
       </button>
       {freshnessPause.hint}
 
