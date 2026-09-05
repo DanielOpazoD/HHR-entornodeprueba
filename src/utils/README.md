@@ -8,7 +8,6 @@ Helpers puros reutilizables (sin estado global ni efectos de UI).
 
 | Archivo                | Propósito                                                   |
 | ---------------------- | ----------------------------------------------------------- |
-| `arrayUtils.ts`        | Helpers de arreglos                                         |
 | `bedTypeUtils.ts`      | Utilidades de tipo de cama                                  |
 | `csvUtils.ts`          | Parsing/serialización CSV                                   |
 | `chileanHolidays.ts`   | Catálogo de feriados chilenos consumido por reglas de turno |
