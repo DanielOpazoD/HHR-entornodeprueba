@@ -10,22 +10,16 @@ import { FolderOpen, Search, X } from 'lucide-react';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CLINICAL_LIBRARY_ENTRIES, LIBRARY_CATEGORIES } from '../domain/libraryCatalog';
 import type { LibraryDocumentEntry, LibraryToolId } from '../domain/libraryCatalogTypes';
-import {
-  countLibraryEntriesByCategory,
-  filterLibraryEntries,
-  type LibraryCategoryFilter,
-} from '../domain/librarySearch';
-import { openLibraryDocument, printLibraryDocument } from '../services/libraryDocumentActions';
+import { filterLibraryEntries, type LibraryCategoryFilter } from '../domain/librarySearch';
+import { printLibraryDocument } from '../services/libraryDocumentActions';
 import { LibraryEntryList } from './LibraryEntryList';
 import { TOOL_REGISTRY } from './toolRegistry';
 
 export interface LibraryDocumentActions {
-  open: (entry: LibraryDocumentEntry) => void;
   print: (entry: LibraryDocumentEntry) => void;
 }
 
 const DEFAULT_DOCUMENT_ACTIONS: LibraryDocumentActions = {
-  open: entry => openLibraryDocument(entry.url),
   print: entry => {
     printLibraryDocument(entry.url);
   },
@@ -52,7 +46,6 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   const drawerRef = useRef<HTMLElement>(null);
   const titleId = useId();
 
-  const counts = useMemo(() => countLibraryEntriesByCategory(CLINICAL_LIBRARY_ENTRIES), []);
   const filtered = useMemo(
     () => filterLibraryEntries(CLINICAL_LIBRARY_ENTRIES, { query, category }),
     [query, category]
@@ -94,9 +87,9 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   }, [activeToolId]);
 
   const activeTool = activeToolId ? TOOL_REGISTRY[activeToolId] : null;
-  const chips: ReadonlyArray<{ id: LibraryCategoryFilter; label: string; count: number }> = [
-    { id: 'all', label: 'Todo', count: CLINICAL_LIBRARY_ENTRIES.length },
-    ...LIBRARY_CATEGORIES.map(item => ({ id: item.id, label: item.label, count: counts[item.id] })),
+  const chips: ReadonlyArray<{ id: LibraryCategoryFilter; label: string }> = [
+    { id: 'all', label: 'Todo' },
+    ...LIBRARY_CATEGORIES.map(item => ({ id: item.id, label: item.label })),
   ];
 
   return createPortal(
@@ -156,7 +149,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 placeholder="Buscar"
                 aria-label="Buscar en documentos y herramientas"
                 autoComplete="off"
-                className="h-9 w-full appearance-none rounded-md border border-slate-300 bg-white pl-8 pr-8 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200 [&::-webkit-search-cancel-button]:hidden"
+                className="h-9 w-full appearance-none rounded-full border border-slate-200 bg-white pl-8 pr-8 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200 [&::-webkit-search-cancel-button]:hidden"
               />
               {query && (
                 <button
@@ -172,7 +165,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 </button>
               )}
             </div>
-            <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Categorías">
+            <div className="mt-2 flex flex-wrap gap-0.5" role="group" aria-label="Categorías">
               {chips.map(chip => (
                 <button
                   key={chip.id}
@@ -180,21 +173,13 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                   aria-pressed={category === chip.id}
                   onClick={() => setCategory(chip.id)}
                   className={clsx(
-                    'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600',
+                    'rounded-full px-3 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600',
                     category === chip.id
-                      ? 'border-medical-600 bg-medical-600 text-white'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-medical-300 hover:text-medical-700'
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-500 hover:text-slate-800'
                   )}
                 >
                   {chip.label}
-                  <span
-                    className={clsx(
-                      'tabular-nums',
-                      category === chip.id ? 'text-medical-100' : 'text-slate-400'
-                    )}
-                  >
-                    {chip.count}
-                  </span>
                 </button>
               ))}
             </div>
@@ -213,7 +198,6 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
               category={category}
               query={query}
               onOpenTool={setActiveToolId}
-              onOpenDocument={documentActions.open}
               onPrintDocument={documentActions.print}
             />
           )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, FolderOpen } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { findLibraryCategory } from '../domain/libraryCatalog';
 import {
   LIBRARY_CATEGORY_IDS,
@@ -12,7 +12,7 @@ import { groupLibraryEntriesByCategory, type LibraryCategoryFilter } from '../do
 import { LibraryDocumentCard } from './LibraryDocumentCard';
 import { TOOL_REGISTRY } from './toolRegistry';
 
-const LibraryToolCard: React.FC<{
+const LibraryToolRow: React.FC<{
   entry: LibraryToolEntry;
   onOpen: (id: LibraryToolId) => void;
 }> = ({ entry, onOpen }) => (
@@ -21,33 +21,21 @@ const LibraryToolCard: React.FC<{
       type="button"
       data-testid={`library-tool-${entry.id}`}
       onClick={() => onOpen(entry.id)}
-      className="group flex w-full items-start gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-medical-300 hover:bg-medical-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
+      className="group flex w-full items-center gap-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
     >
-      <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-medical-50 text-medical-700">
+      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-medical-700">
         {TOOL_REGISTRY[entry.id].icon}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-semibold leading-snug text-slate-800">
-          {entry.title}
-        </span>
-        <span className="mt-0.5 block text-[11px] leading-snug text-slate-500">
-          {entry.description}
-        </span>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-slate-800 group-hover:text-medical-800">
+        {entry.title}
       </span>
       <ChevronRight
         size={16}
-        className="mt-1 shrink-0 text-slate-300 transition-colors group-hover:text-medical-600"
+        className="shrink-0 text-slate-300 transition-colors group-hover:text-medical-600"
         aria-hidden="true"
       />
     </button>
   </li>
-);
-
-const EmptyState: React.FC<{ title: string }> = ({ title }) => (
-  <div className="rounded-lg border border-dashed border-slate-200 px-4 py-5 text-center">
-    <FolderOpen className="mx-auto text-slate-300" size={20} aria-hidden="true" />
-    <p className="mt-1.5 text-[12px] font-medium text-slate-500">{title}</p>
-  </div>
 );
 
 interface LibraryEntryListProps {
@@ -55,7 +43,6 @@ interface LibraryEntryListProps {
   category: LibraryCategoryFilter;
   query: string;
   onOpenTool: (id: LibraryToolId) => void;
-  onOpenDocument: (entry: LibraryDocumentEntry) => void;
   onPrintDocument: (entry: LibraryDocumentEntry) => void;
 }
 
@@ -64,7 +51,6 @@ export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
   category,
   query,
   onOpenTool,
-  onOpenDocument,
   onPrintDocument,
 }) => {
   const trimmedQuery = query.trim();
@@ -75,11 +61,15 @@ export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
   const visibleGroups = trimmedQuery ? groups.filter(group => group.entries.length > 0) : groups;
 
   if (visibleGroups.length === 0) {
-    return <EmptyState title={`Sin resultados para «${trimmedQuery}»`} />;
+    return (
+      <p className="py-8 text-center text-[12px] text-slate-500">
+        Sin resultados para «{trimmedQuery}»
+      </p>
+    );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {visibleGroups.map(group => {
         const meta = findLibraryCategory(group.category);
         const headingId = `library-group-${group.category}`;
@@ -87,24 +77,19 @@ export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
           <section key={group.category} aria-labelledby={headingId}>
             <h3
               id={headingId}
-              className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500"
+              className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400"
             >
               {meta.label}
             </h3>
             {group.entries.length === 0 ? (
-              <EmptyState title={meta.emptyTitle} />
+              <p className="py-3 text-[12px] text-slate-400">{meta.emptyTitle}</p>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="divide-y divide-slate-100">
                 {group.entries.map(entry =>
                   entry.kind === 'tool' ? (
-                    <LibraryToolCard key={entry.id} entry={entry} onOpen={onOpenTool} />
+                    <LibraryToolRow key={entry.id} entry={entry} onOpen={onOpenTool} />
                   ) : (
-                    <LibraryDocumentCard
-                      key={entry.id}
-                      entry={entry}
-                      onOpen={onOpenDocument}
-                      onPrint={onPrintDocument}
-                    />
+                    <LibraryDocumentCard key={entry.id} entry={entry} onPrint={onPrintDocument} />
                   )
                 )}
               </ul>

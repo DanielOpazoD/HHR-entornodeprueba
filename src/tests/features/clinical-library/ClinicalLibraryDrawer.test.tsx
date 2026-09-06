@@ -7,7 +7,7 @@ const renderDrawer = (
   overrides: Partial<React.ComponentProps<typeof ClinicalLibraryDrawer>> = {}
 ) => {
   const onClose = vi.fn();
-  const documentActions = { open: vi.fn(), print: vi.fn() };
+  const documentActions = { print: vi.fn() };
   render(
     <ClinicalLibraryDrawer onClose={onClose} documentActions={documentActions} {...overrides} />
   );
@@ -36,7 +36,6 @@ describe('ClinicalLibraryDrawer', () => {
     renderDrawer();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'imagenologia' } });
     expect(screen.getByTestId('library-document-solicitud-imagenologia')).toBeInTheDocument();
-    expect(screen.getByTestId('library-document-solicitud-imagenologia-docx')).toBeInTheDocument();
     expect(
       screen.queryByTestId('library-document-consentimiento-informado')
     ).not.toBeInTheDocument();
@@ -65,29 +64,15 @@ describe('ClinicalLibraryDrawer', () => {
     expect(screen.getByText('Aún no hay protocolos publicados')).toBeInTheDocument();
   });
 
-  it('routes document actions to the injected handlers and exposes downloads as links', () => {
+  it('prints a document through the injected handler', () => {
     const { documentActions } = renderDrawer();
     const cudyr = within(screen.getByTestId('library-document-instrumento-cudyr'));
-    fireEvent.click(cudyr.getByRole('button', { name: 'Abrir' }));
-    fireEvent.click(cudyr.getByRole('button', { name: 'Imprimir' }));
-    expect(documentActions.open).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'instrumento-cudyr' })
-    );
+    fireEvent.click(cudyr.getByRole('button', { name: /^Imprimir/ }));
     expect(documentActions.print).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'instrumento-cudyr' })
     );
-    expect(cudyr.getByRole('link', { name: 'Descargar' })).toHaveAttribute(
-      'download',
-      'instrumento-cudyr.pdf'
-    );
-
-    const editable = within(screen.getByTestId('library-document-encuesta-contraste-docx'));
-    expect(editable.queryByRole('button', { name: 'Abrir' })).not.toBeInTheDocument();
-    expect(editable.queryByRole('button', { name: 'Imprimir' })).not.toBeInTheDocument();
-    expect(editable.getByRole('link', { name: 'Descargar' })).toHaveAttribute(
-      'href',
-      '/templates/Encuesta%20contraste%20TAC.docx'
-    );
+    expect(cudyr.queryByRole('link')).not.toBeInTheDocument();
+    expect(cudyr.getAllByRole('button')).toHaveLength(1);
   });
 
   it('opens a tool in place, hides the search while inside and returns to the list', () => {

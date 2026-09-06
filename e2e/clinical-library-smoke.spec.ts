@@ -118,23 +118,15 @@ test.describe('Clinical library (preview build)', () => {
     await capture(page, '03-search-imagenologia');
     await page.getByRole('button', { name: 'Limpiar búsqueda' }).click();
 
-    // «Abrir» delega en window.open con la ruta pública; el preview debe servir el PDF real.
-    await page.evaluate(() => {
-      const runtimeWindow = window as Window & { __hhrOpenedUrl?: string };
-      runtimeWindow.open = ((url: string | URL) => {
-        runtimeWindow.__hhrOpenedUrl = String(url);
-        return null;
-      }) as typeof window.open;
-    });
-    await drawer
-      .getByTestId('library-document-indicaciones-medicas-plan-enfermeria')
-      .getByRole('button', { name: 'Abrir' })
-      .click();
-    const openedUrl = await page.evaluate(
-      () => (window as Window & { __hhrOpenedUrl?: string }).__hhrOpenedUrl
+    // El preview debe servir el PDF real que imprime la fila.
+    await expect(
+      drawer
+        .getByTestId('library-document-indicaciones-medicas-plan-enfermeria')
+        .getByRole('button', { name: /^Imprimir/ })
+    ).toBeVisible();
+    const pdfResponse = await page.request.get(
+      '/docs/biblioteca/indicaciones-medicas-plan-enfermeria.pdf'
     );
-    expect(openedUrl).toBe('/docs/biblioteca/indicaciones-medicas-plan-enfermeria.pdf');
-    const pdfResponse = await page.request.get(openedUrl!);
     expect(pdfResponse.status()).toBe(200);
     expect(pdfResponse.headers()['content-type']).toContain('pdf');
 
