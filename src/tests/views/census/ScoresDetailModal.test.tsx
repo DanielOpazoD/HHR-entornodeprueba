@@ -57,7 +57,8 @@ describe('ScoresDetailModal', () => {
       category: 'C2',
       source: 'Gestión de Camas',
       recordedDate: '2026-09-04',
-      recordedAt: '2026-09-04T12:00:00',
+      // Source instants include an offset: census ownership must not depend on the runner TZ.
+      recordedAt: '2026-09-04T12:00:00-06:00',
       author: 'Firma Cudyr',
       history: [
         {
