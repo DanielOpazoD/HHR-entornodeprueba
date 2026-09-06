@@ -8,10 +8,69 @@ const setShowNurseManager = vi.fn();
 vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => ({
     setShowNurseManager,
+    staffUsage: { nurse: { 'ana habitual': 3 }, tens: {} },
+    staffIdentities: [
+      {
+        key: 'nurse:id:a',
+        role: 'nurse',
+        name: 'Ana Maria Soto Rojas',
+        aliases: ['Ana Maria Soto Rojas', 'Ana Soto'],
+      },
+    ],
   }),
 }));
 
 describe('NurseSelector', () => {
+  it('reveals less-used nurses on demand without changing the selected assignment', () => {
+    const update = vi.fn();
+    render(
+      <NurseSelector
+        nursesDayShift={['Ana Habitual', '']}
+        nursesNightShift={['', '']}
+        nursesList={['Ana Habitual', 'Berta Poco', 'Carla Poco', 'Dora Poco']}
+        onUpdateNurse={update}
+      />
+    );
+    expect(screen.queryByRole('option', { name: 'Berta Poco' })).not.toBeInTheDocument();
+    const more = screen.getByRole('button', {
+      name: 'Mostrar nombres menos usados de Enfermería · turno largo · puesto 1',
+    });
+    expect(more).toHaveTextContent('');
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(more);
+    expect(screen.getAllByRole('option', { name: 'Berta Poco' })).toHaveLength(1);
+    expect(update).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Enfermería · turno largo · puesto 1'), {
+      target: { value: 'Berta Poco' },
+    });
+    expect(update).toHaveBeenCalledWith('day', 0, 'Berta Poco');
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Ocultar nombres menos usados de Enfermería · turno largo · puesto 1',
+      })
+    );
+    expect(screen.queryByRole('option', { name: 'Berta Poco' })).not.toBeInTheDocument();
+  });
+  it('shows a short label but saves the canonical nurse name', () => {
+    const update = vi.fn();
+    render(
+      <NurseSelector
+        nursesDayShift={['Ana Soto', '']}
+        nursesNightShift={['', '']}
+        nursesList={['Ana Maria Soto Rojas']}
+        onUpdateNurse={update}
+      />
+    );
+    expect(screen.getAllByRole('option', { name: 'Ana Soto' })).toHaveLength(4);
+    expect(screen.getByLabelText('Enfermería · turno largo · puesto 1')).toHaveValue(
+      'Ana Maria Soto Rojas'
+    );
+    expect(update).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Enfermería · turno largo · puesto 1'), {
+      target: { value: 'Ana Maria Soto Rojas' },
+    });
+    expect(update).toHaveBeenCalledWith('day', 0, 'Ana Maria Soto Rojas');
+  });
   it('keeps selected staff visible even when the catalog has not hydrated yet', () => {
     render(
       <NurseSelector

@@ -4,9 +4,12 @@ import { useStaffContext } from '@/context/StaffContext';
 import type { ShiftIndicatorState } from '@/features/census/controllers/censusStaffHeaderController';
 import {
   buildResolvedStaffSelectionOptions,
-  normalizeStaffSelectionValue,
+  resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
 import { buildStaffSelectionSelectClassName } from './staffSelectionSelectStyles';
+import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
+import { partitionStaffOptions } from '@/services/staff/staffUsage';
+import { StaffMoreOptionsButton } from './StaffMoreOptionsButton';
 import {
   reconcileNurseCatalogNames,
   reconcileSelectedNurseName,
@@ -31,7 +34,8 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
   onOpenDetailedStaffing,
   className,
 }) => {
-  const { setShowNurseManager } = useStaffContext();
+  const { setShowNurseManager, staffIdentities = [], staffUsage } = useStaffContext();
+  const [showAllNames, setShowAllNames] = React.useState<Record<string, boolean>>({});
   const selectClassName =
     'py-0 pl-1 pr-4 border border-slate-200 text-[10px] focus:ring-1 focus:outline-none text-slate-700 h-[20px] w-[75px] appearance-none transition-all';
   const reconciledCatalog = React.useMemo(
@@ -48,11 +52,20 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
   );
   const resolvedNurseOptions = React.useMemo(
     () =>
-      buildResolvedStaffSelectionOptions(reconciledCatalog, [
-        ...reconciledDayShift,
-        ...reconciledNightShift,
-      ]),
-    [reconciledCatalog, reconciledDayShift, reconciledNightShift]
+      buildResolvedStaffSelectionOptions(
+        reconciledCatalog,
+        [...reconciledDayShift, ...reconciledNightShift],
+        staffIdentities,
+        'nurse'
+      ),
+    [reconciledCatalog, reconciledDayShift, reconciledNightShift, staffIdentities]
+  );
+  const groups = partitionStaffOptions(
+    resolvedNurseOptions,
+    [...reconciledDayShift, ...reconciledNightShift].map(name =>
+      resolveStaffSelectionValue(name, staffIdentities, 'nurse')
+    ),
+    staffUsage?.nurse
   );
   const hasDayAdjustments = Boolean(
     shiftIndicators?.day?.hasSpecialSchedule || (shiftIndicators?.day?.extraCount ?? 0) > 0
@@ -104,19 +117,29 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
                 selectionValue: nursesDayShift[idx],
                 tone: 'day',
               })}
-              value={normalizeStaffSelectionValue(reconciledDayShift[idx])}
+              value={resolveStaffSelectionValue(reconciledDayShift[idx], staffIdentities, 'nurse')}
               onChange={e => onUpdateNurse('day', idx, e.target.value)}
               aria-label={`Enfermería · turno largo · puesto ${idx + 1}`}
             >
-              {resolvedNurseOptions.map(n => (
-                <option key={n} value={n}>
-                  {n}
+              {(showAllNames[`day-${idx}`] ? resolvedNurseOptions : groups.visible).map(n => (
+                <option key={n} value={n} title={n}>
+                  {formatStaffDisplayName(n, staffIdentities, 'nurse')}
                 </option>
               ))}
             </select>
-            <ChevronDown
-              size={10}
-              className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+            {groups.hidden.length === 0 && (
+              <ChevronDown
+                size={10}
+                className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+            )}
+            <StaffMoreOptionsButton
+              expanded={Boolean(showAllNames[`day-${idx}`])}
+              count={groups.hidden.length}
+              label={`Enfermería · turno largo · puesto ${idx + 1}`}
+              onClick={() =>
+                setShowAllNames(value => ({ ...value, [`day-${idx}`]: !value[`day-${idx}`] }))
+              }
             />
           </div>
         ))}
@@ -142,19 +165,33 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
                 selectionValue: nursesNightShift[idx],
                 tone: 'night',
               })}
-              value={normalizeStaffSelectionValue(reconciledNightShift[idx])}
+              value={resolveStaffSelectionValue(
+                reconciledNightShift[idx],
+                staffIdentities,
+                'nurse'
+              )}
               onChange={e => onUpdateNurse('night', idx, e.target.value)}
               aria-label={`Enfermería · turno noche · puesto ${idx + 1}`}
             >
-              {resolvedNurseOptions.map(n => (
-                <option key={n} value={n}>
-                  {n}
+              {(showAllNames[`night-${idx}`] ? resolvedNurseOptions : groups.visible).map(n => (
+                <option key={n} value={n} title={n}>
+                  {formatStaffDisplayName(n, staffIdentities, 'nurse')}
                 </option>
               ))}
             </select>
-            <ChevronDown
-              size={10}
-              className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+            {groups.hidden.length === 0 && (
+              <ChevronDown
+                size={10}
+                className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+            )}
+            <StaffMoreOptionsButton
+              expanded={Boolean(showAllNames[`night-${idx}`])}
+              count={groups.hidden.length}
+              label={`Enfermería · turno noche · puesto ${idx + 1}`}
+              onClick={() =>
+                setShowAllNames(value => ({ ...value, [`night-${idx}`]: !value[`night-${idx}`] }))
+              }
             />
           </div>
         ))}
