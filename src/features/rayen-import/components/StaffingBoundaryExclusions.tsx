@@ -46,7 +46,8 @@ export const StaffingBoundaryExclusions: React.FC<{
   evidence: BoundaryEvidence[];
   total: number;
   tone?: BoundaryEvidenceTone;
-}> = ({ evidence, total, tone = 'neutral' }) => {
+  embedded?: boolean;
+}> = ({ evidence, total, tone = 'neutral', embedded = false }) => {
   if (total === 0) return null;
   const uniqueEvidence = [...new Map(evidence.map(item => [evidenceKey(item), item])).values()];
   const palette =
@@ -65,11 +66,16 @@ export const StaffingBoundaryExclusions: React.FC<{
           item: 'border-slate-200',
           reason: 'text-slate-500',
         };
+  const Container = embedded ? 'div' : 'details';
   return (
-    <details className={`mt-2 rounded-lg border px-2.5 py-2 ${palette.container}`}>
-      <summary className={`cursor-pointer font-semibold ${palette.summary}`}>
-        Ver actividad cercana al relevo ({total})
-      </summary>
+    <Container
+      className={embedded ? 'mt-2' : `mt-2 rounded-lg border px-2.5 py-2 ${palette.container}`}
+    >
+      {!embedded && (
+        <summary className={`cursor-pointer font-semibold ${palette.summary}`}>
+          Ver actividad cercana al relevo ({total})
+        </summary>
+      )}
       {uniqueEvidence.length > 0 ? (
         <>
           {uniqueEvidence.length < total && (
@@ -104,6 +110,6 @@ export const StaffingBoundaryExclusions: React.FC<{
           Ejecuta una nueva sincronización para obtener nombres y horarios.
         </p>
       )}
-    </details>
+    </Container>
   );
 };

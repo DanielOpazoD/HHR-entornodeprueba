@@ -95,7 +95,7 @@ interface RayenConnectionMonitorProps {
     refresh: (options?: { timeoutMs?: number }) => Promise<RayenExtensionHealthState>;
   };
   working: boolean;
-  lastSyncLine: string;
+  lastSyncLine: React.ReactNode;
   /** Estado del popover, controlado por la barra (otros flujos pueden abrirlo). */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -249,7 +249,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           aria-hidden="true"
         />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <button
           type="button"
           onClick={() => onOpenChange(!open)}
@@ -257,7 +257,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           aria-controls="rayen-connection-monitor"
           title={extension.message}
           data-testid="rayen-connection-monitor-trigger"
-          className="flex items-center gap-1.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
+          className="flex w-full min-w-0 items-center gap-1.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
         >
           <p className="text-[13px] font-bold leading-tight text-slate-800">Eloísa</p>
           <span
@@ -283,9 +283,9 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
             {extension.message}
           </span>
         )}
-        <p className="mt-0.5 truncate text-[10px] font-medium tabular-nums text-slate-500">
+        <div className="mt-0.5 text-[10px] font-medium tabular-nums text-slate-500">
           {lastSyncLine}
-        </p>
+        </div>
         {open && (
           <div
             id="rayen-connection-monitor"

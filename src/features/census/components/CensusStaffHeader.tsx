@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import type { Statistics } from '@/types/domain/statistics';
 import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
@@ -16,6 +17,7 @@ import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaf
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
 import { RayenImportButton } from '@/features/rayen-import';
+import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusAttentionBar } from './CensusAttentionBar';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
@@ -48,6 +50,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   renderMedicalHandoffAction,
 }) => {
   const dailyRecordData = useDailyRecordData();
+  const handoffTarget = useCensusToolbarMenuTarget();
   const beds = useDailyRecordBeds();
   const staffData = useDailyRecordStaff();
   const movementsData = useDailyRecordMovements();
@@ -75,8 +78,11 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     // solo con un popover abierto): un z estático aquí tapaba los menús del
     // toolbar y de la primera fila que solapan el header (cazado por e2e).
     <div className="flex w-full flex-col items-center gap-2 animate-fade-in has-[[data-overlay-open]]:relative has-[[data-overlay-open]]:z-40">
-      <div className="flex w-full max-w-screen-xl flex-col items-stretch gap-2">
-        <div className="flex flex-wrap items-start justify-center gap-2">
+      <div className="flex w-full max-w-[1180px] flex-col items-stretch gap-2">
+        <div
+          className="flex flex-wrap items-start justify-center gap-2"
+          data-testid="census-staff-and-sync"
+        >
           {/* Staff Selectors */}
           {!readModel.specialistAccess && (
             <NurseSelector
@@ -102,6 +108,12 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
             />
           )}
 
+          {!readOnly && !readModel.specialistAccess && (
+            <div className="w-64 max-w-full shrink-0">
+              <RayenImportButton selectedDate={selectedDate} />
+            </div>
+          )}
+
           {/* Combined Stats Summary Card */}
           {readModel.showSummary && stats && (
             <CombinedSummaryCard
@@ -115,28 +127,25 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
         </div>
 
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          {!readOnly && !readModel.specialistAccess && (
-            <div className="min-w-0 basis-full xl:basis-auto xl:flex-1">
-              <RayenImportButton selectedDate={selectedDate} />
-            </div>
-          )}
-
           <CensusAttentionBar
             beds={beds ?? {}}
             censusIsoDay={dailyRecordData.record?.date ?? ''}
             activeFilter={attentionFilter}
             onFilterChange={onAttentionFilterChange}
           />
-
-          {renderMedicalHandoffAction && dailyRecordData.record
-            ? renderMedicalHandoffAction({
-                record: dailyRecordData.record,
-                visibleBeds,
-                professionalsCatalog,
-              })
-            : null}
         </div>
       </div>
+
+      {handoffTarget && renderMedicalHandoffAction && dailyRecordData.record
+        ? createPortal(
+            renderMedicalHandoffAction({
+              record: dailyRecordData.record,
+              visibleBeds,
+              professionalsCatalog,
+            }),
+            handoffTarget
+          )
+        : null}
 
       {activeDetailedRole && dailyRecordData.record?.date && readModel.staffDetailsState && (
         <StaffShiftDetailsModal

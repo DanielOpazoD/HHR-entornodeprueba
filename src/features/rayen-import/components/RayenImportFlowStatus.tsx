@@ -14,6 +14,7 @@ interface RayenImportFlowStatusProps {
   persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> | null;
   executionStage?: RayenSyncStage | null;
   targetDate?: string | null;
+  compactFallback?: string;
 }
 
 const toneClass: Record<RayenSyncBarTone, string> = {
@@ -40,15 +41,21 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
 
   return (
     <section
-      className="relative min-w-0 px-1 xl:border-l xl:border-slate-200 xl:pl-3"
+      className={
+        props.compactFallback !== undefined ? 'relative h-4 min-w-0' : 'relative min-w-0 px-0.5'
+      }
       aria-label="Estado de sincronización con Eloísa"
       aria-busy={viewModel.ariaBusy}
       data-phase={viewModel.phase}
       data-testid="rayen-sync-pulse"
+      title={props.compactFallback}
     >
+      {props.compactFallback !== undefined && (
+        <p className={viewModel.visuallyHidden ? 'truncate' : 'sr-only'}>{props.compactFallback}</p>
+      )}
       <div className={viewModel.visuallyHidden ? 'sr-only' : 'flex min-w-0 items-center gap-2'}>
         <StatusIcon
-          size={15}
+          size={props.compactFallback !== undefined ? 11 : 15}
           className={
             viewModel.tone === 'progress'
               ? 'shrink-0 animate-spin text-teal-600 motion-reduce:animate-none'
@@ -57,7 +64,8 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
           aria-hidden="true"
         />
         <p
-          className={`min-w-0 truncate text-xs font-semibold ${toneClass[viewModel.tone]}`}
+          className={`min-w-0 font-semibold leading-snug ${props.compactFallback !== undefined ? 'truncate text-[10px]' : 'text-xs'} ${toneClass[viewModel.tone]}`}
+          title={viewModel.label}
           role="status"
           aria-live="polite"
         >
@@ -68,7 +76,9 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
             className="group ml-auto shrink-0 text-[11px] text-amber-800"
             data-testid="rayen-import-error"
           >
-            <summary className="cursor-pointer rounded px-1.5 py-1 font-semibold hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600">
+            <summary
+              className={`cursor-pointer rounded px-1.5 ${props.compactFallback !== undefined ? 'py-0' : 'py-1'} font-semibold hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600`}
+            >
               Ver detalle
             </summary>
             <p className="absolute left-0 top-[calc(100%+0.45rem)] z-30 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-[11px] font-medium leading-relaxed text-amber-900 shadow-lg">
@@ -80,7 +90,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
 
       {viewModel.progress && (
         <div
-          className="relative mt-1.5 h-[3px] min-w-0 overflow-hidden rounded-full bg-slate-200"
+          className={`${props.compactFallback !== undefined ? 'absolute -bottom-0.5 left-0 right-0 h-0.5' : 'relative mt-1.5 h-[3px]'} min-w-0 overflow-hidden rounded-full bg-slate-200`}
           role="progressbar"
           aria-label="Progreso de sincronización con Eloísa"
           aria-valuemin={viewModel.progress.kind === 'determinate' ? 0 : undefined}

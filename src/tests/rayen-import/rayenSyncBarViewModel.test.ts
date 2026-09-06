@@ -49,6 +49,24 @@ const oneChangeDiff = {
 } satisfies CensusImportDiff;
 
 describe('buildRayenSyncBarViewModel', () => {
+  it.each([true, false])(
+    'does not equate finished readings with saved data (canonical: %s)',
+    canonical => {
+      const model = buildRayenSyncBarViewModel(
+        input({
+          executionStage: canonical ? { type: 'syncing_clinical' } : undefined,
+          fill: fill({ running: true, outcome: 'running', done: 19, total: 19 }),
+        })
+      );
+      expect(model).toMatchObject({
+        label: 'Lectura finalizada · confirmando datos clínicos',
+        progress: { kind: 'indeterminate' },
+        tone: 'progress',
+        ariaBusy: true,
+      });
+    }
+  );
+
   it.each([
     ['preparing_context', 'Preparando el contexto del censo · 07-08-2026', true],
     ['capturing', 'Leyendo información de Eloísa · 07-08-2026', true],

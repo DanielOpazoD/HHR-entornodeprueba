@@ -127,7 +127,7 @@ describe('HandoffView medical flows', () => {
 
     const specialtySelect = screen.getByRole('combobox');
     expect(within(specialtySelect).getByRole('option', { name: 'Cirugía' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /crear planilla/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /crear entrega de turno médica/i })).toBeInTheDocument();
   });
 
   it('keeps patient-level medical handoff creation enabled for doctor_specialist on the current day', () => {

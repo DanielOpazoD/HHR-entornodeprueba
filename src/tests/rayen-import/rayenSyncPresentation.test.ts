@@ -217,7 +217,7 @@ describe('rayen sync presentation', () => {
         reason: 'source_unavailable',
       })
     ).toBe(
-      'Cama H2C1 · Enfermería / TENS: Eloísa no devolvió esta información; comprueba la ficha y reintenta.'
+      'Cama H2C1 · Enfermería / TENS: no se pudo leer esta información; comprueba la ficha y reintenta.'
     );
   });
 

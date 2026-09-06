@@ -72,7 +72,7 @@ export const MedicalHandoffSpreadsheetAction: React.FC<MedicalHandoffSpreadsheet
           ? 'HHR recuperó la carpeta institucional y dejó disponible la entrega médica.'
           : pendingWindow
             ? 'La entrega médica quedó disponible en Google Sheets.'
-            : 'La planilla está lista. Pulsa “Abrir planilla” para verla.'
+            : 'La planilla está lista. Pulsa “Abrir entrega de turno médica” para verla.'
       );
     } catch (caughtError) {
       pendingWindow?.close();
@@ -86,13 +86,18 @@ export const MedicalHandoffSpreadsheetAction: React.FC<MedicalHandoffSpreadsheet
     }
   };
 
-  const label = isLoading ? 'Preparando...' : spreadsheetUrl ? 'Abrir planilla' : 'Crear planilla';
+  const label = isLoading
+    ? 'Preparando...'
+    : spreadsheetUrl
+      ? 'Abrir entrega de turno médica'
+      : 'Crear entrega de turno médica';
   const Icon = isLoading ? LoaderCircle : spreadsheetUrl ? ExternalLink : FileSpreadsheet;
 
   return (
     <button
       type="button"
       data-testid="medical-handoff-spreadsheet-button"
+      data-census-menu-action
       onClick={() => void handleOpen()}
       disabled={isLoading || rows.length === 0}
       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
