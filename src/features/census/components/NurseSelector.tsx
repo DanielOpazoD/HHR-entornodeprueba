@@ -86,9 +86,12 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
 
       {/* Day Shift Row */}
       <div className="flex items-center gap-1 mt-0.5">
-        <Sun size={10} className="text-amber-500" />
-        <span className="text-[9px] font-bold text-slate-500 uppercase w-[34px]">
-          Largo
+        <span
+          className="relative inline-flex w-4 shrink-0 justify-center"
+          title="Turno largo"
+          aria-label="Turno largo"
+        >
+          <Sun size={12} className="text-amber-600" aria-hidden="true" />
           {hasDayAdjustments && (
             <sup className="ml-0.5 text-[8px] font-semibold normal-case text-slate-400">*</sup>
           )}
@@ -103,6 +106,7 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
               })}
               value={normalizeStaffSelectionValue(reconciledDayShift[idx])}
               onChange={e => onUpdateNurse('day', idx, e.target.value)}
+              aria-label={`Enfermería · turno largo · puesto ${idx + 1}`}
             >
               {resolvedNurseOptions.map(n => (
                 <option key={n} value={n}>
@@ -120,9 +124,12 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
 
       {/* Night Shift Row */}
       <div className="flex items-center gap-1">
-        <Moon size={10} className="text-slate-500" />
-        <span className="text-[9px] font-bold text-slate-500 uppercase w-[34px]">
-          Noche
+        <span
+          className="relative inline-flex w-4 shrink-0 justify-center"
+          title="Turno noche"
+          aria-label="Turno noche"
+        >
+          <Moon size={12} className="text-slate-500" aria-hidden="true" />
           {hasNightAdjustments && (
             <sup className="ml-0.5 text-[8px] font-semibold normal-case text-slate-400">*</sup>
           )}
@@ -137,6 +144,7 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
               })}
               value={normalizeStaffSelectionValue(reconciledNightShift[idx])}
               onChange={e => onUpdateNurse('night', idx, e.target.value)}
+              aria-label={`Enfermería · turno noche · puesto ${idx + 1}`}
             >
               {resolvedNurseOptions.map(n => (
                 <option key={n} value={n}>

@@ -79,6 +79,42 @@ describe('RayenImportButton history and progress', () => {
     });
   });
 
+  it.each([
+    { running: false, done: 0, total: 0, outcome: 'idle' },
+    { running: true, done: 3, total: 19, outcome: 'idle' },
+    { running: true, done: 19, total: 19, outcome: 'idle' },
+    { running: false, done: 19, total: 19, outcome: 'complete' },
+    { running: false, done: 19, total: 19, outcome: 'partial' },
+  ])('keeps one fixed-height compact slot for progress: %j', progress => {
+    mocks.useDailyRecordData.mockReturnValue({ record: { date: '2026-09-05' } });
+    mocks.useRayenFillProgress.mockReturnValue({ ...mocks.useRayenFillProgress(), ...progress });
+    if (progress.running || progress.outcome !== 'idle') {
+      mocks.useRayenImport.mockReturnValue({
+        ...mocks.useRayenImport(),
+        execution: {
+          context: { runId: 'layout-run', requestId: 'layout-request', selectedDate: '2026-09-05' },
+          stage: { type: progress.running ? 'syncing_clinical' : progress.outcome },
+        },
+      });
+    }
+    render(<RayenImportButton selectedDate="2026-09-05" />);
+
+    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('h-[5.5rem]');
+    const pulse = screen.getByTestId('rayen-sync-pulse');
+    expect(pulse).toHaveClass('h-4');
+    expect(pulse).toHaveAttribute(
+      'data-phase',
+      progress.running ? 'clinical' : progress.outcome === 'partial' ? 'action' : progress.outcome
+    );
+    expect(screen.getByTestId('rayen-connection-monitor-trigger').parentElement).toContainElement(
+      pulse
+    );
+    if (progress.running) {
+      expect(screen.getByRole('progressbar')).toHaveClass('absolute');
+      expect(screen.getByRole('button', { name: 'Sincronizando…' })).toBeDisabled();
+    }
+  });
+
   it('keeps complete clinical coverage separate from a partial Camas source', () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
@@ -253,7 +289,7 @@ describe('RayenImportButton history and progress', () => {
       refresh: mocks.refreshHealth,
     });
     render(<RayenImportButton />);
-    expect(screen.getByRole('button', { name: 'Comprobando…' })).toHaveClass('w-40');
+    expect(screen.getByRole('button', { name: 'Comprobando…' })).toHaveClass('w-28');
     expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent('Sincronizado:');
   });
 

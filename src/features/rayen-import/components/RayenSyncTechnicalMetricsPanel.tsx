@@ -25,7 +25,8 @@ const countLabel = (value: number, singular: string, plural: string): string =>
 
 export const RayenSyncTechnicalMetricsPanel: React.FC<{
   performance?: RayenSyncPerformance;
-}> = ({ performance }) => {
+  embedded?: boolean;
+}> = ({ performance, embedded = false }) => {
   if (!performance) return null;
   const stages = STAGE_LABELS.flatMap(([key, label]) => {
     const value = performance.stagesMs[key];
@@ -37,13 +38,16 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
   const persistenceTrace = performance.persistenceTrace;
   const currentPersistence = persistenceTrace?.current;
   const historicalPersistence = persistenceTrace?.historical;
+  const Container = embedded ? 'div' : 'details';
 
   return (
-    <details
+    <Container
       data-testid="rayen-sync-technical-metrics"
       className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700"
     >
-      <summary className="cursor-pointer font-bold text-slate-700">Detalle técnico</summary>
+      {!embedded && (
+        <summary className="cursor-pointer font-bold text-slate-700">Detalle técnico</summary>
+      )}
       <div className="mt-2 space-y-2" role="group" aria-label="Telemetría técnica agregada">
         {stages.length > 0 && (
           <dl className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3">
@@ -127,6 +131,6 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
           valores clínicos.
         </p>
       </div>
-    </details>
+    </Container>
   );
 };

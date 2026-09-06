@@ -122,9 +122,13 @@ export interface DateStripProps
   medicalIndicationsPatients?: MedicalIndicationsPatientOption[];
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
   onOpenPatientSearch?: () => void;
+  hideQuickActions?: boolean;
+  trailingActions?: React.ReactNode;
 }
 
 export const DateStrip: React.FC<DateStripProps> = ({
+  hideQuickActions = false,
+  trailingActions,
   selectedYear,
   setSelectedYear,
   selectedMonth,
@@ -200,8 +204,8 @@ export const DateStrip: React.FC<DateStripProps> = ({
       className="bg-white border-b border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] sticky top-[56px] z-40 print:hidden h-[40px] flex items-center"
       style={{ transform: 'translateZ(0)' }}
     >
-      <div className="max-w-screen-2xl mx-auto px-2 py-0.5 w-full">
-        <div className="flex w-full items-center justify-center gap-2 max-md:justify-start max-md:overflow-x-auto">
+      <div className="max-w-screen-2xl mx-auto px-2 py-0.5 w-full flex items-center">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 max-md:justify-start max-md:overflow-x-auto">
           <div className="flex items-center gap-1 shrink-0 min-w-0">
             {!isGuest && onToggleBookmarks && (
               <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[30px]" />}>
@@ -308,39 +312,44 @@ export const DateStrip: React.FC<DateStripProps> = ({
             </button>
           )}
 
-          <div className="h-4 w-px bg-slate-200/70" />
+          {!hideQuickActions && <div className="h-4 w-px bg-slate-200/70" />}
 
-          <div className="flex min-w-0 shrink-0 items-center justify-end gap-1 overflow-x-auto">
-            {!isHandoffModule && onOpenPatientSearch && (
-              <button
-                onClick={onOpenPatientSearch}
-                className="flex h-[30px] items-center justify-center gap-1 px-3 py-0 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg border border-slate-200 transition-colors text-[10px] font-semibold min-w-[96px]"
-                title="Buscar paciente (Ctrl+K)"
-              >
-                <Search size={13} />
-                <span className="hidden sm:inline">Buscar</span>
-              </button>
-            )}
+          {!hideQuickActions && (
+            <div className="flex min-w-0 shrink-0 items-center justify-end gap-1 overflow-x-auto">
+              {!isHandoffModule && onOpenPatientSearch && (
+                <button
+                  onClick={onOpenPatientSearch}
+                  className="flex h-[30px] items-center justify-center gap-1 px-3 py-0 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-700 rounded-lg border border-slate-200 transition-colors text-[10px] font-semibold min-w-[96px]"
+                  title="Buscar paciente (Ctrl+K)"
+                >
+                  <Search size={13} />
+                  <span className="hidden sm:inline">Buscar</span>
+                </button>
+              )}
 
-            <React.Suspense
-              fallback={
-                <div
-                  className="h-[30px] w-[168px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70"
-                  aria-hidden="true"
-                />
-              }
-            >
-              <DateStripQuickActions
-                onOpenBedManager={specialistCensusAccess ? undefined : onOpenBedManager}
-                renderFeatureQuickActions={renderFeatureQuickActions}
-                hideClinicalQuickActions={isHandoffModule}
-                medicalIndicationsPatients={
-                  currentModule === 'CENSUS' ? medicalIndicationsPatients : []
+              <React.Suspense
+                fallback={
+                  <div
+                    className="h-[30px] w-[168px] shrink-0 rounded-lg border border-slate-100 bg-slate-50/70"
+                    aria-hidden="true"
+                  />
                 }
-              />
-            </React.Suspense>
-          </div>
+              >
+                <DateStripQuickActions
+                  onOpenBedManager={specialistCensusAccess ? undefined : onOpenBedManager}
+                  renderFeatureQuickActions={renderFeatureQuickActions}
+                  hideClinicalQuickActions={isHandoffModule}
+                  medicalIndicationsPatients={
+                    currentModule === 'CENSUS' ? medicalIndicationsPatients : []
+                  }
+                />
+              </React.Suspense>
+            </div>
+          )}
         </div>
+        {trailingActions && (
+          <div className="ml-auto flex shrink-0 items-center gap-2 pl-2">{trailingActions}</div>
+        )}
       </div>
     </div>
   );

@@ -17,8 +17,9 @@ export const CensusConflictQuickAction: React.FC = () => {
       currentRecord={record}
       buttonTestId="conflict-versions-button"
       buttonLabel="Conflictos HHR"
+      hideButtonLabel
       buttonVariant="quick-action"
-      className="shrink-0"
+      className="shrink-0 self-center"
     />
   );
 };

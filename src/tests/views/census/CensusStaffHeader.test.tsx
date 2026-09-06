@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
+import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusStaffHeader } from '@/features/census/components/CensusStaffHeader';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
@@ -136,6 +137,11 @@ describe('CensusStaffHeader', () => {
     expect(screen.getByTestId('summary-transfers').textContent).toBe('1');
     expect(screen.getByTestId('summary-cma').textContent).toBe('2');
     expect(screen.getByTestId('summary-admissions').textContent).toBe('2');
+    const staffAndSync = screen.getByTestId('census-staff-and-sync');
+    expect(staffAndSync).toContainElement(screen.getByTestId('nurse-selector'));
+    expect(staffAndSync).toContainElement(screen.getByTestId('tens-selector'));
+    expect(staffAndSync).toContainElement(screen.getByTestId('rayen-operations-bar'));
+    expect(screen.getAllByTestId('rayen-operations-bar')).toHaveLength(1);
   });
 
   it('passes readOnly class to selectors and hides summary when stats are null', () => {
@@ -159,7 +165,7 @@ describe('CensusStaffHeader', () => {
     expect(screen.queryByTestId('summary-card')).not.toBeInTheDocument();
   });
 
-  it('keeps the scale filter adjacent to but outside the Eloísa synchronization card', () => {
+  it('keeps the scale filter outside the staff and synchronization row', () => {
     mockedUseDailyRecordBeds.mockReturnValue({
       R1: DataFactory.createMockPatient('R1', {
         patientName: 'Paciente con escala pendiente',
@@ -182,7 +188,7 @@ describe('CensusStaffHeader', () => {
     const rayen = screen.getByTestId('rayen-operations-bar');
     const scales = screen.getByTestId('census-attention-bar');
     expect(rayen).not.toContainElement(scales);
-    expect(rayen.parentElement?.parentElement).toBe(scales.parentElement);
+    expect(screen.getByTestId('census-staff-and-sync')).not.toContainElement(scales);
   });
 
   it('keeps scale surveillance available in read-only mode without showing synchronization', () => {
@@ -232,12 +238,16 @@ describe('CensusStaffHeader', () => {
       </button>
     ));
 
+    const menuTarget = document.createElement('div');
+    document.body.append(menuTarget);
     render(
-      <CensusStaffHeader
-        stats={DataFactory.createMockStatistics()}
-        visibleBeds={[{ id: 'R1', name: 'R1' } as BedDefinition]}
-        renderMedicalHandoffAction={renderMedicalHandoffAction}
-      />
+      <CensusToolbarMenuTargetContext.Provider value={menuTarget}>
+        <CensusStaffHeader
+          stats={DataFactory.createMockStatistics()}
+          visibleBeds={[{ id: 'R1', name: 'R1' } as BedDefinition]}
+          renderMedicalHandoffAction={renderMedicalHandoffAction}
+        />
+      </CensusToolbarMenuTargetContext.Provider>
     );
 
     expect(screen.getByTestId('medical-handoff-spreadsheet-button')).toHaveAttribute(
@@ -254,5 +264,7 @@ describe('CensusStaffHeader', () => {
         visibleBeds: [expect.objectContaining({ id: 'R1' })],
       })
     );
+    expect(menuTarget).toContainElement(screen.getByTestId('medical-handoff-spreadsheet-button'));
+    menuTarget.remove();
   });
 });

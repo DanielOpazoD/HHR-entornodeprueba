@@ -99,6 +99,28 @@ const withTargetDate = (label: string, targetDate?: string | null): string => {
   return formatted ? `${label} · ${formatted}` : label;
 };
 
+const clinicalProgress = (
+  fill: RayenFillProgress,
+  targetDate?: string | null
+): RayenSyncBarViewModel => {
+  const hasTotal = fill.total > 0;
+  const done = hasTotal ? Math.min(Math.max(fill.done, 0), fill.total) : 0;
+  // The reader counter finishes before the authoritative batch is confirmed.
+  const readingsFinished = hasTotal && done === fill.total;
+  const label = readingsFinished
+    ? 'Lectura finalizada · confirmando datos clínicos'
+    : hasTotal
+      ? `Datos clínicos · ${done} de ${fill.total} pacientes`
+      : 'Revisando datos clínicos';
+  return active(
+    'clinical',
+    withTargetDate(label, targetDate),
+    hasTotal && !readingsFinished
+      ? { kind: 'determinate', done, total: fill.total }
+      : { kind: 'indeterminate' }
+  );
+};
+
 const structuralReviewLabel = (diff: CensusImportDiff | null): string => {
   const conflicts = Math.max(diff?.conflicts.length ?? 0, diff?.summary.conflicts ?? 0);
   if (conflicts === 0) return 'Revisar cambios del censo';
@@ -147,22 +169,8 @@ const canonicalExecutionViewModel = (
       return active('apply', withTargetDate('Confirmando el censo guardado', targetDate), {
         kind: 'indeterminate',
       });
-    case 'syncing_clinical': {
-      const hasRealTotal = input.fill.total > 0;
-      const done = hasRealTotal ? Math.min(Math.max(input.fill.done, 0), input.fill.total) : 0;
-      return active(
-        'clinical',
-        withTargetDate(
-          hasRealTotal
-            ? `Datos clínicos · ${done} de ${input.fill.total} pacientes`
-            : 'Revisando datos clínicos',
-          targetDate
-        ),
-        hasRealTotal
-          ? { kind: 'determinate', done, total: input.fill.total }
-          : { kind: 'indeterminate' }
-      );
-    }
+    case 'syncing_clinical':
+      return clinicalProgress(input.fill, targetDate);
     case 'complete':
       return settled('complete', 'success', withTargetDate('Todo al día', targetDate));
     case 'partial':
@@ -197,17 +205,7 @@ export const buildRayenSyncBarViewModel = (
   // A shared clinical fill can outlive the component that started it. Keep it visible and
   // actionable after remounting, while the contextual execution remains the primary source.
   if (input.fill.running) {
-    const hasRealTotal = input.fill.total > 0;
-    const done = hasRealTotal ? Math.min(Math.max(input.fill.done, 0), input.fill.total) : 0;
-    return active(
-      'clinical',
-      hasRealTotal
-        ? `Datos clínicos · ${done} de ${input.fill.total} pacientes`
-        : 'Revisando datos clínicos',
-      hasRealTotal
-        ? { kind: 'determinate', done, total: input.fill.total }
-        : { kind: 'indeterminate' }
-    );
+    return clinicalProgress(input.fill);
   }
 
   // Validation can reject a recovery action before a contextual execution is created. Surface

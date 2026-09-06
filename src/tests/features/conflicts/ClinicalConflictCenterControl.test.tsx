@@ -251,7 +251,8 @@ describe('ClinicalConflictCenterControl', () => {
       'Centro de conflictos clínicos de Censo diario · revisión requerida'
     );
     expect(button).not.toHaveTextContent('Conflictos');
-    expect(button).toHaveTextContent('2');
+    expect(button).not.toHaveTextContent('2');
+    expect(button.querySelector('[aria-hidden="true"].bg-amber-500')).toBeInTheDocument();
   });
 
   it('supports the compact HHR quick-action presentation used beside Lab', () => {

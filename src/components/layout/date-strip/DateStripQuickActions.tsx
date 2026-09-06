@@ -16,6 +16,7 @@ interface DateStripQuickActionsProps {
   medicalIndicationsPatients?: MedicalIndicationsPatientOption[];
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
   hideClinicalQuickActions?: boolean;
+  menuLayout?: boolean;
 }
 
 export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
@@ -23,6 +24,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
   medicalIndicationsPatients = [],
   renderFeatureQuickActions,
   hideClinicalQuickActions = false,
+  menuLayout = false,
 }) => {
   const [isRadiologyOpen, setIsRadiologyOpen] = React.useState(false);
   const [canRenderFeatureQuickActions, setCanRenderFeatureQuickActions] = React.useState(false);
@@ -62,6 +64,7 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
   const renderPlaceholderAction = (label: string, Icon: React.ComponentType<{ size?: number }>) => (
     <button
       type="button"
+      data-census-menu-action
       disabled
       aria-disabled="true"
       tabIndex={-1}
@@ -74,9 +77,16 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
   );
 
   return (
-    <div className="flex min-h-[30px] min-w-0 items-center justify-end gap-1 overflow-x-auto">
+    <div
+      className={
+        menuLayout
+          ? 'flex flex-col gap-0.5'
+          : 'flex min-h-[30px] min-w-0 items-center justify-end gap-1 overflow-x-auto'
+      }
+    >
       {onOpenBedManager && (
         <button
+          data-census-menu-action
           onClick={onOpenBedManager}
           className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100`}
           title="Bloqueo de camas"
@@ -86,11 +96,16 @@ export const DateStripQuickActions: React.FC<DateStripQuickActionsProps> = ({
         </button>
       )}
 
-      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+      <div
+        className={
+          menuLayout ? 'flex flex-col gap-0.5' : 'flex min-w-0 items-center gap-1 overflow-x-auto'
+        }
+      >
         {!hideClinicalQuickActions &&
           (radiologyPatients.length > 0 ? (
             <>
               <button
+                data-census-menu-action
                 onClick={() => setIsRadiologyOpen(true)}
                 className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-700`}
                 title="Radiología / Imagenología"
