@@ -21,6 +21,18 @@ const getDefaultDocument = (): Document | null => {
   return null;
 };
 
+const sequentialControls = (modal: HTMLElement): HTMLElement[] =>
+  Array.from(
+    modal.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]')
+  ).filter(
+    element =>
+      element.tabIndex >= 0 &&
+      !element.matches(':disabled') &&
+      !element.closest('[hidden], [inert], [aria-hidden="true"]') &&
+      getComputedStyle(element).display !== 'none' &&
+      getComputedStyle(element).visibility !== 'hidden'
+  );
+
 export const resolveBaseModalLifecycleDependencies = (
   dependencies?: BaseModalLifecycleDependencies
 ): BaseModalLifecycleDependencies => ({
@@ -42,18 +54,15 @@ const focusFirstModalElement = (
     return;
   }
 
-  const bodyFocusable = modalRef.current.querySelector(
-    'input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
-  ) as HTMLElement | null;
+  const controls = sequentialControls(modalRef.current);
+  const bodyFocusable = controls.find(element => element.matches('input, select, textarea'));
 
   if (bodyFocusable) {
     bodyFocusable.focus();
     return;
   }
 
-  const firstFocusable = modalRef.current.querySelector(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  ) as HTMLElement | null;
+  const firstFocusable = controls[0];
 
   (firstFocusable ?? modalRef.current).focus();
 };
@@ -67,13 +76,13 @@ const trapModalTabNavigation = (
     return;
   }
 
-  const focusableElements = modalRef.current.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  );
+  const focusableElements = sequentialControls(modalRef.current);
   const firstElement = focusableElements[0] as HTMLElement | undefined;
   const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement | undefined;
 
   if (!firstElement || !lastElement) {
+    event.preventDefault();
+    modalRef.current.focus();
     return;
   }
 
@@ -129,19 +138,35 @@ export const useBaseModalLifecycle = ({
 
   useScrollLock(isOpen);
 
-  React.useEffect(() => {
+  const [opening, setOpening] = React.useState(() => ({
+    isOpen,
+    opener: dependencies.getDocument?.()?.activeElement as HTMLElement | null,
+  }));
+  // Capture before descendants mount: autoFocus runs before layout effects.
+  if (opening.isOpen !== isOpen) {
+    setOpening({
+      isOpen,
+      opener: dependencies.getDocument?.()?.activeElement as HTMLElement | null,
+    });
+  }
+
+  React.useLayoutEffect(() => {
     if (!isOpen) {
       return () => undefined;
     }
 
-    const runtimeWindow = dependencies.getWindow?.() ?? null;
     const runtimeDocument = dependencies.getDocument?.() ?? null;
 
     if (!runtimeDocument) {
       return () => undefined;
     }
 
+    const opener = opening.opener;
+    const openedModal = modalRef.current;
+
     const handleKeyDown = (event: KeyboardEvent) => {
+      const focusedDialog = runtimeDocument.activeElement?.closest('[role="dialog"]');
+      if (focusedDialog && focusedDialog !== modalRef.current) return;
       if (event.key === 'Escape') {
         onCloseRef.current();
       }
@@ -159,18 +184,23 @@ export const useBaseModalLifecycle = ({
       trapModalTabNavigation(event, modalRef, runtimeDocument);
     };
 
+    // Establish ownership before keyboard input, preserving explicit child autoFocus.
+    if (!openedModal?.contains(runtimeDocument.activeElement)) {
+      focusFirstModalElement(modalRef, initialFocusRef, runtimeDocument);
+    }
     runtimeDocument.addEventListener('keydown', handleKeyDown);
-    const focusTimeout = (runtimeWindow?.setTimeout ?? setTimeout)(
-      () => focusFirstModalElement(modalRef, initialFocusRef, runtimeDocument),
-      100
-    );
 
     return () => {
-      (runtimeWindow?.clearTimeout ?? clearTimeout)(focusTimeout);
-
       runtimeDocument.removeEventListener('keydown', handleKeyDown);
+      const active = runtimeDocument.activeElement;
+      if (
+        opener?.isConnected &&
+        (active === runtimeDocument.body || openedModal?.contains(active))
+      ) {
+        opener.focus();
+      }
     };
-  }, [dependencies, initialFocusRef, isOpen]);
+  }, [dependencies, initialFocusRef, isOpen, opening.opener]);
 
   return { modalRef };
 };
