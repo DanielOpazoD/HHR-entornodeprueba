@@ -11,7 +11,7 @@ type PreviewRuntimeFailure = {
 };
 
 const isFatalPreviewConsoleError = (message: string): boolean =>
-  /(uncaught|referenceerror|typeerror|syntaxerror|chunkloaderror|failed to fetch dynamically imported module|cannot access '.+' before initialization|createcontext)/i.test(
+  /(uncaught|referenceerror|typeerror|syntaxerror|chunkloaderror|failed to fetch dynamically imported module|cannot access '.+' before initialization|createcontext|internal assertion failed|internal unhandled error)/i.test(
     message
   );
 
@@ -230,6 +230,22 @@ test.describe('Production Preview Bootstrap', () => {
 
     await expectSeededPatientVisible(page);
     await assertPreviewBootCompleted(page, runtimeCollector.failures);
+    runtimeCollector.detach();
+  });
+
+  test('keeps Firestore listeners healthy through repeated persisted reloads', async ({ page }) => {
+    const runtimeCollector = createPreviewRuntimeFailureCollector(page);
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+
+    // Same browser context and IndexedDB across reloads: exercise target teardown/recreation
+    // without clearing persistence or suppressing the SDK errors (firebase-js-sdk#9842).
+    for (let visit = 0; visit < 4; visit += 1) {
+      await expectSeededPatientVisible(page);
+      await assertPreviewBootCompleted(page, runtimeCollector.failures);
+      await expect(page.getByTestId('empty-day-prompt')).toHaveCount(0);
+      if (visit < 3) await page.reload();
+    }
     runtimeCollector.detach();
   });
 });
