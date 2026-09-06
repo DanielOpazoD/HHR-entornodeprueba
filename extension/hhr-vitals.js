@@ -74,8 +74,8 @@
       : { iso: '', raw: str(form.startDateTime), epoch: null };
   };
 
-  // The clinical-time field is a NAIVE stamp stored in UTC; honor an explicit offset when present.
-  const measurementEpoch = raw => {
+  // Naive clinical stamps are UTC. Reject instants after their offset-aware record metadata.
+  const measurementEpoch = (raw, recordedEpoch) => {
     const m = String(raw || '')
       .trim()
       .match(/^(\d{1,2})-(\d{1,2})-(\d{4})[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(Z|[+-]\d{2}:?\d{2})?/);
@@ -83,7 +83,7 @@
     const [, dd, mm, yyyy, hh, mi, ss, off] = m;
     const offset = !off || off === 'Z' ? '+00:00' : off.includes(':') ? off : `${off.slice(0, 3)}:${off.slice(3)}`;
     const epoch = Date.parse(`${yyyy}-${pad2(mm)}-${pad2(dd)}T${pad2(hh)}:${mi}:${ss || '00'}${offset}`);
-    return Number.isNaN(epoch) ? null : epoch;
+    return Number.isNaN(epoch) || (recordedEpoch != null && epoch > recordedEpoch) ? null : epoch;
   };
 
   const FIELD_IDS = {
@@ -125,11 +125,7 @@
       const when = effectiveWhen(form, campos);
       if (!when.iso) continue;
       const clinicalStamp = get(TIME_IDS);
-      const clinicalEpoch = measurementEpoch(clinicalStamp);
-      // Match HHR: a measurement cannot postdate its own resolved record timestamp.
-      // Keep legitimate retrospective entries; never apply a fixed timezone correction.
-      const epoch = clinicalEpoch != null && (when.epoch == null || clinicalEpoch <= when.epoch)
-        ? clinicalEpoch : when.epoch;
+      const epoch = measurementEpoch(clinicalStamp, when.epoch) ?? when.epoch;
       const record = {
         recordedDate: epoch != null ? rapaNuiDay(epoch) : when.iso,
         recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
