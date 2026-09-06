@@ -41,16 +41,30 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 - `clinicalPatientReaders.ts` normaliza las secciones y permite un único reintento
   individual por fuente, incluso si llegó el PDF pero falló su interpretación. No vuelve
   a consultar las otras fuentes que ya respondieron correctamente.
+- El contador de pacientes mide lecturas terminadas, no persistencias confirmadas.
+  Después de la última lectura HHR muestra «confirmando datos clínicos» hasta el resultado
+  autoritativo. Una respuesta idempotente sin escrituras es válida; una fuente que sigue
+  fallando conserva la cobertura parcial y el reintento clínico, sin rehacer el censo.
 
 Pruebas focalizadas: `deviceEvidenceNegotiation.test.ts`,
 `patientClinicalBundleRuntime.test.ts`, `fichamedicoDeviceEvidenceRuntime.test.ts`,
-`clinicalFillRunner.bundle.test.ts`, bajo
+`clinicalFillRunner.bundle.test.ts` y `rayenSyncBarViewModel.test.ts`, bajo
 `src/tests/rayen-import/`. Usan datos sintéticos, no HAR ni credenciales.
 
 La negociación añade un campo opcional al contrato y al relé. El baseline de tamaño
 de esos dos archivos aumenta exactamente una línea por campo; no se amplían los límites
 de funciones ni se introduce una excepción general. La compatibilidad queda cubierta por
 las pruebas de opt-in explícito y cliente anterior.
+
+En HHR, el historial separa resumen de ejecución, datos clínicos (incidencias por cama
+y reporte técnico desplegable) y dotación Enfermería/TENS. `RayenSyncHistorySections.tsx`
+es dueño de esos detalles; el modal conserva la lista y agrupación histórica. Las métricas
+no modifican el resultado ni reemplazan la cobertura autoritativa.
+La dotación muestra un estado breve y un único detalle cerrado por defecto; conserva
+turnos afectados y firmas, sin párrafos repetidos ni desplegables anidados. En el censo,
+la tarjeta Eloísa comparte la fila de dotación y se redistribuye cuando falta ancho.
+Su altura permanece fija: el progreso usa el renglón de la última sincronización,
+sin desplazar las acciones ni la tabla al iniciar una lectura.
 
 ## Archivos
 

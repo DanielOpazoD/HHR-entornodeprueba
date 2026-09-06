@@ -3,10 +3,7 @@ import { AlertTriangle, CheckCircle2, CircleX, Clock3, History } from 'lucide-re
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { RayenSyncEvent } from '@/types/domain/rayenSync';
 import {
-  presentRayenCoverage,
-  presentRayenLegacyCoverageGap,
   presentRayenSyncOutcome,
-  presentRayenCoverageIssue,
   formatRayenSyncDuration,
   formatRayenSyncIslandTime,
   formatRayenSyncTargetDate,
@@ -14,9 +11,7 @@ import {
   type RayenSyncRecoveryPresentation,
 } from './rayenSyncPresentation';
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
-import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
-import { RayenSyncTechnicalMetricsPanel } from './RayenSyncTechnicalMetricsPanel';
-import { RayenSyncStructuralReviewDetail } from './RayenSyncStructuralReviewDetail';
+import { RayenSyncClinicalSection, RayenSyncStaffingSection } from './RayenSyncHistorySections';
 
 interface RayenSyncHistoryModalProps {
   isOpen: boolean;
@@ -60,16 +55,11 @@ const statusPresentation = (event: RayenSyncEvent) => {
 
 const changesLabel = (event: RayenSyncEvent): string => {
   if (!event.changes) return 'Sin resumen de cambios';
+  const { admissions, updates, moves, discharges } = event.changes;
+  if (admissions + updates + moves + discharges === 0) {
+    return 'Sin cambios de camas, ingresos ni egresos.';
+  }
   return `Sincronizado: ${event.changes.admissions} ingresos, ${event.changes.updates} act., ${event.changes.moves} mov., ${event.changes.discharges} egresos`;
-};
-
-const sourceLabel = (event: RayenSyncEvent): string | null => {
-  const source = event.source;
-  if (!source) return null;
-  const version = source.extensionVersion ? `Ext. v${source.extensionVersion}` : 'Extensión';
-  const ficha = source.fichaMedico === 'ready' ? 'Ficha ✓' : 'Ficha —';
-  const camas = source.gestionCamas === 'ready' ? 'Camas ✓' : 'Camas —';
-  return `${version} · ${ficha} · ${camas}`;
 };
 
 const isQuietSuccessfulRun = (event: RayenSyncEvent): boolean => {
@@ -91,13 +81,6 @@ const isQuietSuccessfulRun = (event: RayenSyncEvent): boolean => {
     !event.staffingObservation
   );
 };
-
-const STAFFING_SECTION_LABELS = {
-  nurse_day: 'Enfermería · turno día',
-  nurse_night: 'Enfermería · turno noche',
-  tens_day: 'TENS · turno largo',
-  tens_night: 'TENS · turno noche',
-} as const;
 
 const quietRunSignature = (event: RayenSyncEvent): string =>
   [
@@ -135,70 +118,6 @@ const groupHistory = (history: RayenSyncEvent[]): HistoryListItem[] => {
   return items;
 };
 
-const HistoryMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
-  const coverage = presentRayenCoverage(
-    event.coverage,
-    event.status !== 'failed',
-    event.status === 'applied'
-  );
-  const source = sourceLabel(event);
-  const duration = formatRayenSyncDuration(event.startedAt, event.completedAt);
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px]">
-      {event.status !== 'failed' && (
-        <span
-          title="Cobertura técnica del enriquecimiento clínico; no incluye la disponibilidad de Gestión de Camas"
-          className={
-            coverage.tone === 'success'
-              ? 'font-semibold text-emerald-700'
-              : coverage.tone === 'warning'
-                ? 'font-semibold text-amber-700'
-                : 'font-medium text-slate-500'
-          }
-        >
-          Cobertura clínica: {coverage.label}
-        </span>
-      )}
-      {source && <span className="font-medium text-slate-400">{source}</span>}
-      {event.policy && (
-        <span className="font-medium text-slate-400">
-          Política {event.policy.mode === 'auto' ? 'automática' : 'con revisión'} · rev.{' '}
-          {event.policy.revision} · lote {event.policy.clinicalBatchMode ?? 'legacy'}
-        </span>
-      )}
-      {duration && (
-        <span className="font-medium tabular-nums text-slate-500">Duración {duration}</span>
-      )}
-      {event.coverage?.incremental && (
-        <span
-          className="font-medium tabular-nums text-slate-500"
-          title="Resumen agregado; no contiene nombres, RUT ni valores clínicos"
-        >
-          Incremental: {event.coverage.incremental.newFacts} nuevos ·{' '}
-          {event.coverage.incremental.duplicates} ya conocidos ·{' '}
-          {event.coverage.incremental.corrections} corregidos ·{' '}
-          {event.coverage.incremental.patientWrites} escrituras
-        </span>
-      )}
-      {event.coverage?.incremental?.batch && (
-        <span
-          className="font-medium tabular-nums text-slate-500"
-          title="Comparación agregada del lote transaccional; no contiene datos clínicos"
-        >
-          Lote {event.coverage.incremental.batch.mode}:{' '}
-          {event.coverage.incremental.batch.parity === 'matched'
-            ? 'paridad confirmada'
-            : event.coverage.incremental.batch.parity === 'mismatch'
-              ? 'paridad no coincide'
-              : 'sin evidencia'}{' '}
-          · {event.coverage.incremental.batch.clinicalTargets} clínicos ·{' '}
-          {event.coverage.incremental.batch.checkpointOnlyTargets} sólo checkpoint
-        </span>
-      )}
-    </div>
-  );
-};
-
 const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) => {
   const newest = events[0];
   const oldest = events.at(-1) ?? newest;
@@ -225,18 +144,22 @@ const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) =
       <p className="mt-1 text-xs font-semibold text-slate-600">
         {events.length} {events.length === 1 ? 'comprobación' : 'comprobaciones'} sin cambios
       </p>
-      <HistoryMetadata event={newest} />
-      <RayenSyncTechnicalMetricsPanel performance={newest.performance} />
+      <RayenSyncClinicalSection event={newest} />
     </li>
   );
 };
 
-const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
+const HistoryEvent: React.FC<{ event: RayenSyncEvent; latest: boolean }> = ({ event, latest }) => {
   const status = statusPresentation(event);
   const outcome = presentRayenSyncOutcome(event);
-  const staffingNeedsReview = Boolean(event.staffingObservation?.ambiguousSections.length);
+  const duration = formatRayenSyncDuration(event.startedAt, event.completedAt);
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      {latest && (
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-teal-700">
+          Última sincronización
+        </p>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-xs font-bold tabular-nums text-slate-800">
@@ -270,71 +193,11 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
         </span>
       </div>
 
-      <HistoryMetadata event={event} />
-      <RayenSyncStructuralReviewDetail review={event.structuralReview} />
-      <RayenSyncTechnicalMetricsPanel performance={event.performance} />
-      {event.staffingObservation && (
-        <div
-          data-testid="rayen-staffing-observation"
-          className={`mt-2 rounded-lg border px-2.5 py-2 text-[11px] ${
-            staffingNeedsReview
-              ? 'border-amber-200 bg-amber-50 text-amber-900'
-              : 'border-slate-200 bg-slate-50 text-slate-700'
-          }`}
-        >
-          <p className="font-bold">
-            {staffingNeedsReview
-              ? 'Enfermería / TENS · requiere revisión'
-              : 'Enfermería / TENS · relevo gestionado'}
-          </p>
-          {staffingNeedsReview && (
-            <p className="mt-1">
-              HHR no modificó la dotación porque la evidencia fue insuficiente, empatada o presentó
-              identidades incompatibles en:{' '}
-              {event.staffingObservation.ambiguousSections
-                .map(section => STAFFING_SECTION_LABELS[section])
-                .join(', ')}
-              .
-            </p>
-          )}
-          {event.staffingObservation.ignoredBoundaryRecords > 0 && (
-            <>
-              <p className="mt-1">
-                HHR detectó {event.staffingObservation.ignoredBoundaryRecords}{' '}
-                {event.staffingObservation.ignoredBoundaryRecords === 1 ? 'firma' : 'firmas'} cerca
-                del cambio de turno y las conservó como trazabilidad sin usarlas para reemplazar la
-                dotación.{' '}
-                {!staffingNeedsReview &&
-                  'Es un comportamiento esperado y la sincronización sigue completa.'}
-              </p>
-              <StaffingBoundaryExclusions
-                total={event.staffingObservation.ignoredBoundaryRecords}
-                evidence={event.staffingObservation.ignoredBoundaryEvidence ?? []}
-                tone={staffingNeedsReview ? 'warning' : 'neutral'}
-              />
-            </>
-          )}
-        </div>
+      {duration && (
+        <p className="mt-1 text-[11px] tabular-nums text-slate-500">Duración {duration}</p>
       )}
-      {event.coverage &&
-        (event.coverage.errors > 0 ||
-          event.coverage.sourceErrors > 0 ||
-          Boolean(event.coverage.issues?.length)) && (
-          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
-            <p className="font-bold">Qué quedó pendiente en la información clínica</p>
-            {event.coverage.issues?.length ? (
-              <ul className="mt-1 space-y-1">
-                {event.coverage.issues.map(issue => (
-                  <li key={`${issue.bedId}-${issue.source}-${issue.reason}`}>
-                    {presentRayenCoverageIssue(issue)}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-1">{presentRayenLegacyCoverageGap(event.coverage)}</p>
-            )}
-          </div>
-        )}
+      <RayenSyncClinicalSection event={event} />
+      <RayenSyncStaffingSection event={event} />
     </li>
   );
 };
@@ -356,7 +219,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
       onClose={onClose}
       title={`Historial de sincronización · ${formattedTargetDate}`}
       icon={<History size={19} />}
-      size="lg"
+      size="xl"
       variant="white"
       headerIconColor="text-teal-700"
       dataModule="rayen-import"
@@ -382,11 +245,11 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
           className="max-h-[58vh] space-y-2 overflow-y-auto pr-1"
           aria-label={`Sincronizaciones del censo ${formattedTargetDate}`}
         >
-          {items.map(item =>
+          {items.map((item, index) =>
             item.kind === 'quiet' ? (
               <QuietHistoryGroup key={`quiet-${item.events[0].id}`} events={item.events} />
             ) : (
-              <HistoryEvent key={item.event.id} event={item.event} />
+              <HistoryEvent key={item.event.id} event={item.event} latest={index === 0} />
             )
           )}
         </ol>

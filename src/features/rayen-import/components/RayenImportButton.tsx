@@ -182,7 +182,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
 
   return (
     <div
-      className={`w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+      className={`h-[5.5rem] w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
         connectionMonitorOpen || queuePanelOpen ? 'relative z-[70]' : ''
       }`}
       data-testid="rayen-operations-bar"
@@ -192,26 +192,27 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
       // y del toolbar (cazado por e2e-critical).
       data-overlay-open={connectionMonitorOpen || queuePanelOpen ? 'true' : undefined}
     >
-      <div className="grid min-h-[3.75rem] grid-cols-1 items-center gap-2 px-3 py-1.5 xl:grid-cols-[minmax(190px,0.78fr)_minmax(260px,1.4fr)_auto]">
+      <div className="flex h-full min-w-0 flex-col justify-between gap-1 px-2 py-1.5">
         <RayenConnectionMonitor
           extension={extension}
           working={working}
-          lastSyncLine={lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
+          lastSyncLine={
+            <RayenImportFlowStatus
+              diff={diff}
+              fill={fill}
+              error={error}
+              hasPersistedSync={Boolean(lastSync)}
+              persistedSync={recordForSelectedDate?.rayenSync}
+              executionStage={execution?.stage}
+              targetDate={targetDate}
+              compactFallback={lastSync ? `Última ${lastSync}` : 'Aún sin sincronizar hoy'}
+            />
+          }
           open={connectionMonitorOpen}
           onOpenChange={setConnectionMonitorOpen}
         />
 
-        <RayenImportFlowStatus
-          diff={diff}
-          fill={fill}
-          error={error}
-          hasPersistedSync={Boolean(lastSync)}
-          persistedSync={recordForSelectedDate?.rayenSync}
-          executionStage={execution?.stage}
-          targetDate={targetDate}
-        />
-
-        <div className="flex shrink-0 items-center justify-end gap-1.5 border-slate-200 xl:border-l xl:pl-2.5">
+        <div className="flex min-w-0 items-center justify-end gap-1">
           <SyncQueueStatusChip open={queuePanelOpen} onOpenChange={setQueuePanelOpen} />
           <button
             ref={historyTriggerRef}
@@ -244,7 +245,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
               'Leer y revisar Enfermería y TENS sin modificar camas ni datos clínicos'
             }
             data-testid="rayen-staffing-review-button"
-            className={`relative inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border bg-white px-2.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`relative inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md border bg-white px-1.5 py-0 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-50 ${
               staffingProposalError
                 ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
                 : 'border-slate-200 text-slate-600 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700'
@@ -287,7 +288,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
             }
             data-module="rayen-import"
             data-testid="rayen-import-button"
-            className="inline-flex min-h-8 w-40 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-teal-700 px-2.5 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(15,23,42,0.1)] transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
+            className="inline-flex h-7 w-28 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md bg-teal-700 px-1.5 py-0 text-[10px] font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
           >
             <RefreshCw size={13} strokeWidth={2.5} className={mainWorking ? 'animate-spin' : ''} />
             {primaryActionLabel}

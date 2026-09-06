@@ -55,11 +55,11 @@ describe('MedicalHandoffSpreadsheetAction', () => {
         openSpreadsheet={openSpreadsheet}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /crear planilla/i }));
+    fireEvent.click(screen.getByRole('button', { name: /crear entrega de turno médica/i }));
 
     await waitFor(() => expect(openSpreadsheet).toHaveBeenCalledWith({ date: '2026-08-07', rows }));
     expect(replace).toHaveBeenCalledWith('https://docs.google.com/spreadsheets/d/sheet-id/edit');
-    fireEvent.click(screen.getByRole('button', { name: /abrir planilla/i }));
+    fireEvent.click(screen.getByRole('button', { name: /abrir entrega de turno médica/i }));
     expect(openWindow).toHaveBeenLastCalledWith(
       'https://docs.google.com/spreadsheets/d/sheet-id/edit',
       '_blank',
@@ -73,7 +73,7 @@ describe('MedicalHandoffSpreadsheetAction', () => {
         openSpreadsheet={openSpreadsheet}
       />
     );
-    expect(screen.getByRole('button', { name: /crear planilla/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /crear entrega de turno médica/i })).toBeInTheDocument();
     openWindow.mockRestore();
   });
 
@@ -100,7 +100,7 @@ describe('MedicalHandoffSpreadsheetAction', () => {
         })}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /crear planilla/i }));
+    fireEvent.click(screen.getByRole('button', { name: /crear entrega de turno médica/i }));
 
     await waitFor(() =>
       expect(success).toHaveBeenCalledWith(
@@ -117,7 +117,7 @@ describe('MedicalHandoffSpreadsheetAction', () => {
       <MedicalHandoffSpreadsheetAction date="2026-08-07" rows={[]} openSpreadsheet={vi.fn()} />
     );
 
-    expect(screen.getByRole('button', { name: /crear planilla/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /crear entrega de turno médica/i })).toBeDisabled();
   });
 
   it('does not call the backend when occupied beds and cribs exceed the row limit', () => {
@@ -134,7 +134,7 @@ describe('MedicalHandoffSpreadsheetAction', () => {
         openSpreadsheet={openSpreadsheet}
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /crear planilla/i }));
+    fireEvent.click(screen.getByRole('button', { name: /crear entrega de turno médica/i }));
 
     expect(openSpreadsheet).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(

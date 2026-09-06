@@ -40,11 +40,11 @@ describe('LaboratoryQuickAction', () => {
     modalRender.mockClear();
     render(<LaboratoryQuickAction patients={patients} />);
     expect(modalRender).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: /^lab$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^laboratorio$/i }));
     fireEvent.click(await screen.findByText('Lab modal'));
     expect(screen.queryByText('Lab modal')).not.toBeInTheDocument();
     expect(modalRender.mock.calls.every(([props]) => props.isOpen)).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: /^lab$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^laboratorio$/i }));
     expect(await screen.findByText('Lab modal')).toBeInTheDocument();
   });
   it('uses the stable DateStrip quick-action slot dimensions from the first render', () => {

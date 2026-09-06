@@ -49,6 +49,23 @@ describe('DateStrip', () => {
     expect(screen.getByText('9')).toBeInTheDocument(); // 9 is the compact desktop visible end day
   });
 
+  it('places census options after the dates without duplicate quick actions', async () => {
+    render(
+      <DateStrip
+        {...defaultProps}
+        hideQuickActions
+        trailingActions={<button>Más opciones</button>}
+      />
+    );
+    await screen.findByText('Febrero');
+    const options = screen.getByRole('button', { name: 'Más opciones' });
+    expect(options.closest('[data-app-top-bar]')).not.toBeNull();
+    expect(
+      screen.getByText('9').compareDocumentPosition(options) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(screen.queryByTitle('Bloqueo de camas')).not.toBeInTheDocument();
+  });
+
   it('renders clinical action buttons for admin in CENSUS module', async () => {
     render(<DateStrip {...defaultProps} />);
 

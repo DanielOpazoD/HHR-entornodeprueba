@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RayenSyncHistoryModal } from '@/features/rayen-import/components/RayenSyncHistoryModal';
 
 describe('RayenSyncHistoryModal staffing observations', () => {
-  it('explains why Enfermería/TENS was not modified', () => {
+  it('keeps staffing details collapsed without explanatory paragraphs or nested disclosures', () => {
     render(
       <RayenSyncHistoryModal
         isOpen
@@ -53,14 +53,21 @@ describe('RayenSyncHistoryModal staffing observations', () => {
       />
     );
 
-    expect(screen.getByText('Enfermería / TENS · requiere revisión')).toBeVisible();
+    const detail = screen.getByTestId('rayen-staffing-observation');
+    expect(screen.getByText('Requiere revisión')).toBeVisible();
+    expect(detail).not.toHaveAttribute('open');
+    expect(screen.getByText(/Enfermería · turno noche/)).not.toBeVisible();
+    expect(screen.queryByText(/HHR detectó|HHR no modificó la dotación/)).not.toBeInTheDocument();
+    expect(detail.querySelector('details')).toBeNull();
+    fireEvent.click(screen.getByText(/Ver detalle · 2 registros/));
+    expect(detail).toHaveAttribute('open');
     expect(screen.getByText(/Enfermería · turno noche/)).toBeVisible();
-    expect(screen.getByText(/HHR detectó 2 firmas cerca del cambio de turno/)).toBeVisible();
-    expect(screen.getByText(/HHR no modificó la dotación/)).toBeVisible();
-    expect(screen.getByText('Ver actividad cercana al relevo (2)')).toBeVisible();
-    expect(screen.getByText(/Jimena Yáñez · 26-07 20:35/)).toBeInTheDocument();
-    expect(screen.getByText(/TENS · noche · Paramédico · Medicamento/)).toBeInTheDocument();
+    expect(screen.getByText(/Jimena Yáñez · 26-07 20:35/)).toBeVisible();
+    expect(screen.getByText(/TENS · noche · Paramédico · Medicamento/)).toBeVisible();
     expect(screen.getByText('Duración 2 min')).toBeVisible();
+    expect(screen.getByText(/Cobertura clínica: 12\/12 completa/)).toBeVisible();
+    fireEvent.click(screen.getByText('Requiere revisión'));
+    expect(detail).not.toHaveAttribute('open');
   });
 
   it('shows repeated or capped evidence as unique rows without misclassifying the hidden detail', () => {
@@ -96,14 +103,11 @@ describe('RayenSyncHistoryModal staffing observations', () => {
       />
     );
 
-    expect(screen.getByText('Enfermería / TENS · relevo gestionado')).toBeVisible();
-    expect(
-      screen.getByText(/comportamiento esperado.*sincronización sigue completa/)
-    ).toBeVisible();
-    expect(screen.getByTestId('rayen-staffing-observation')).toHaveClass('border-slate-200');
+    expect(screen.getByText('Actividad de relevo')).toBeVisible();
+    expect(screen.getByTestId('rayen-staffing-observation')).not.toHaveAttribute('open');
     expect(screen.getByTestId('rayen-staffing-observation')).not.toHaveClass('border-amber-200');
 
-    fireEvent.click(screen.getByText('Ver actividad cercana al relevo (3)'));
+    fireEvent.click(screen.getByText(/Ver detalle · 3 registros/));
     expect(screen.getAllByText(/Camila Soto · 26-07 20:48/)).toHaveLength(1);
     expect(
       screen.getByText(

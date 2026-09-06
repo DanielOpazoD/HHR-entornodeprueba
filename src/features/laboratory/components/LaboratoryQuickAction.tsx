@@ -79,13 +79,14 @@ export const LaboratoryQuickAction: React.FC<LaboratoryQuickActionProps> = ({ pa
           if (!isDisabled) setIsLabOpen(true);
         }}
         data-testid="lab-quick-action"
+        data-census-menu-action
         disabled={isDisabled}
         className={`${DATE_STRIP_QUICK_ACTION_BASE_CLASS} ${buttonTone} transition-colors disabled:cursor-default disabled:opacity-60`}
         title={connectionMessage}
         aria-disabled={isDisabled}
       >
         <FlaskConical size={13} />
-        <span className="hidden sm:inline">Lab</span>
+        <span className="hidden sm:inline">Laboratorio</span>
       </button>
       {isLabOpen && labPatients.length > 0 && (
         <React.Suspense
