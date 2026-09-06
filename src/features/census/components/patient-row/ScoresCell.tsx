@@ -180,6 +180,8 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
       {isDetailOpen && (
         <ScoresDetailModal
           patientName={data.patientName}
+          admissionDate={data.admissionDate}
+          importedCudyr={data.evaluationScores?.cudyr}
           model={model}
           onClose={() => setIsDetailOpen(false)}
         />

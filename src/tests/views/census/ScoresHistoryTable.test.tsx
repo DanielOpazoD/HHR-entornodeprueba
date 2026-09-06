@@ -24,7 +24,8 @@ describe('ScoresHistoryTable', () => {
     expect(screen.getByText('Aplicaciones durante la hospitalización')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Fecha' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Profesional' })).toBeInTheDocument();
-    expect(screen.getAllByRole('columnheader')).toHaveLength(3);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(4);
+    expect(screen.getByText('Firma sincronizada')).toBeInTheDocument();
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(2);
     expect(within(rows[1]).getByText('26-07-2026 · 13:01:19')).toBeInTheDocument();
