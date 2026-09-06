@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ScoresDetailModal } from '@/features/census/components/patient-row/ScoresDetailModal';
@@ -31,12 +31,99 @@ const model = () =>
   );
 
 describe('ScoresDetailModal', () => {
+  it('keeps stored CUDYR history consultable without claiming it is current', async () => {
+    const user = userEvent.setup();
+    const past = {
+      category: 'C2',
+      source: 'Gestión de Camas',
+      recordedDate: '2026-09-01',
+      author: 'Firma anterior',
+    };
+    render(
+      <ScoresDetailModal
+        patientName="Paciente de prueba"
+        model={{ ...model(), cudyr: null }}
+        importedCudyr={past}
+        onClose={vi.fn()}
+      />
+    );
+    await user.click(screen.getByRole('tab', { name: 'CUDYR' }));
+    expect(screen.getByText('Firma anterior')).toBeInTheDocument();
+    expect(screen.getByText('Sin resultado vigente de CUDYR para este día.')).toBeInTheDocument();
+  });
+  it('shows admission and a separate attributable CUDYR table with keyboard navigation', async () => {
+    const user = userEvent.setup();
+    const imported = {
+      category: 'C2',
+      source: 'Gestión de Camas',
+      recordedDate: '2026-09-04',
+      recordedAt: '2026-09-04T12:00:00',
+      author: 'Firma Cudyr',
+      history: [
+        {
+          category: 'C2',
+          recordedDate: '2026-09-04',
+          recordedAt: '2026-09-04T12:00:00',
+          author: 'Firma Cudyr',
+        },
+      ],
+    };
+    const scoreModel = buildScoresCellModel(
+      DataFactory.createMockPatient('R1', { evaluationScores: { cudyr: imported } }),
+      '2026-09-04'
+    );
+    const original = structuredClone(scoreModel);
+    render(
+      <ScoresDetailModal
+        patientName="Paciente de prueba"
+        admissionDate="2026-09-01"
+        model={scoreModel}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText('01-09-2026')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cerrar modal' })).toHaveFocus());
+    await user.click(screen.getByRole('tab', { name: 'CUDYR' }));
+    const table = within(screen.getByRole('table'));
+    expect(table.getByText('Firma Cudyr')).toBeInTheDocument();
+    expect(table.getByText('Firma sincronizada')).toBeInTheDocument();
+    expect(table.getByText('04-09-2026 · 12:00')).toBeInTheDocument();
+    expect(table.getAllByRole('columnheader')).toHaveLength(4);
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getByRole('tab', { name: 'Downton' })).toHaveFocus();
+    await user.keyboard('{Home}');
+    expect(screen.getByRole('tab', { name: 'CUDYR' })).toHaveFocus();
+    expect(scoreModel).toEqual(original);
+  });
+
+  it.each(['Ficha Médico', 'Respaldo externo'])(
+    'preserves fallback %s without inventing signer or complete history',
+    async source => {
+      const user = userEvent.setup();
+      const scoreModel = buildScoresCellModel(
+        DataFactory.createMockPatient('R1', {
+          evaluationScores: {
+            cudyr: { category: 'D3', source, recordedDate: '2026-09-04' },
+          },
+        }),
+        '2026-09-04'
+      );
+      render(
+        <ScoresDetailModal patientName="Paciente de prueba" model={scoreModel} onClose={vi.fn()} />
+      );
+      await user.click(screen.getByRole('tab', { name: 'CUDYR' }));
+      expect(screen.getByText(/no historial completo/)).toBeInTheDocument();
+      expect(screen.getByText(source)).toBeInTheDocument();
+      expect(screen.getByText('Sin firma informada')).toBeInTheDocument();
+      expect(screen.queryByText('Firma sincronizada')).not.toBeInTheDocument();
+    }
+  );
   it('separates results and history while preserving application dates without planned care', async () => {
     const user = userEvent.setup();
     render(
       <ScoresDetailModal patientName="Paciente de prueba" model={model()} onClose={vi.fn()} />
     );
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
     expect(screen.getByRole('tab', { name: 'Braden' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText(/Cada 7 días/)).toBeInTheDocument();
     expect(screen.getByText(/Próxima aplicación: 11-09-2026/)).toBeInTheDocument();
