@@ -1,7 +1,7 @@
 /**
  * ScaleChip — the census "Scores" chip with a per-scale visual identity (rediseño censo 2026).
  *
- * Anatomy: ONE segmented bar, three zones separated by hairline dividers, so each piece of
+ * Anatomy: three aligned zones without inner dividers, so each piece of
  * information owns its own space instead of competing inside a single colored pill:
  *   [ identidad ]  — icon + scale name, tinted with the SCALE's own hue (Braden violet, Downton
  *                    indigo, CUDYR teal). The hue never changes with the result: it identifies.
@@ -137,42 +137,49 @@ const formatRecordedMoment = (recordedDate: string, recordedAt?: string): string
 };
 
 /**
- * The hover "sticky note": amber paper, slight tilt, portal-fixed near the chip. Clamped to the
+ * Score provenance card, portal-fixed near the chip. Clamped to the
  * viewport — horizontally so it never spills past the table edges, and it flips BELOW the chip when
  * there isn't room above (top census rows), so it can't get clipped by the header.
  */
-const HALF_WIDTH = 110; // max-width 220 / 2, for the horizontal clamp
 const StickyNote: React.FC<{ note: StickyNoteData; anchor: DOMRect }> = ({ note, anchor }) => {
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const width = Math.min(280, viewportWidth - 16);
   const left = Math.min(
-    Math.max(anchor.left + anchor.width / 2, HALF_WIDTH + 8),
-    viewportWidth - HALF_WIDTH - 8
+    Math.max(anchor.left + anchor.width / 2, width / 2 + 8),
+    viewportWidth - width / 2 - 8
   );
-  // Not enough room above → flip below the chip (the note then hangs down, tape still on top).
+  // Keep top-row notes below the chip, clear of the page header.
   const flipBelow = anchor.top < 150;
   const top = flipBelow ? anchor.bottom + 6 : anchor.top - 6;
   return createPortal(
     <div
       role="tooltip"
       className="pointer-events-none fixed z-[9999]"
-      style={{ left, top, transform: `translateX(-50%)${flipBelow ? '' : ' translateY(-100%)'}` }}
+      style={{
+        width,
+        left,
+        top,
+        transform: `translateX(-50%)${flipBelow ? '' : ' translateY(-100%)'}`,
+      }}
     >
-      <div className="relative w-max max-w-[220px] -rotate-1 rounded-sm bg-amber-100 px-3 pb-2 pt-3 text-left shadow-lg ring-1 ring-amber-200/80">
-        {/* the "tape" holding the note */}
-        <span className="absolute -top-1.5 left-1/2 h-2.5 w-8 -translate-x-1/2 rotate-1 rounded-[1px] bg-amber-200/70 shadow-sm" />
-        <p className="text-[10px] font-bold leading-snug text-amber-900">{note.title}</p>
-        <p className="mt-0.5 text-[10px] tabular-nums text-amber-800">
+      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left shadow-lg">
+        <p className="break-words text-[11px] font-semibold leading-snug text-slate-800">
+          {note.title}
+        </p>
+        <p className="mt-1 text-[10px] tabular-nums text-slate-500">
           Registrado: {formatRecordedMoment(note.recordedDate, note.recordedAt)}
         </p>
-        {note.detail && <p className="text-[10px] italic text-amber-800/90">{note.detail}</p>}
-        <p className="mt-1 border-t border-amber-200/80 pt-1 text-[10px] leading-snug text-amber-900">
+        {note.detail && (
+          <p className="mt-0.5 text-[10px] font-medium text-slate-700">{note.detail}</p>
+        )}
+        <p className="mt-2 border-t border-slate-100 pt-1.5 text-[10px] leading-snug text-slate-700">
           {note.author ? (
             <>
               <span className="font-semibold">{note.author}</span>
-              {note.authorRole && <span className="text-amber-800/80"> · {note.authorRole}</span>}
+              {note.authorRole && <span className="text-slate-500"> · {note.authorRole}</span>}
             </>
           ) : (
-            <span className="italic text-amber-800/70">Profesional no registrado</span>
+            <span className="text-slate-500">Profesional no registrado</span>
           )}
         </p>
       </div>
@@ -210,8 +217,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       onFocus={show}
       onBlur={hide}
       className={clsx(
-        'grid w-full grid-cols-[70px_minmax(0,1fr)_34px] items-stretch overflow-hidden rounded-md border bg-white text-[10px] leading-tight',
-        countdownUrgent ? 'border-red-300 bg-red-50/40' : 'border-slate-200'
+        'grid w-full grid-cols-[70px_minmax(0,1fr)_34px] items-stretch overflow-hidden rounded bg-slate-50/60 text-[10px] leading-tight'
       )}
     >
       {/* identity zone — icon in the scale's hue, name neutral; no fill competes with the value */}
@@ -222,33 +228,28 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       {/* value zone — the only place the clinical (severity) color lives */}
       <span
         className={clsx(
-          'flex min-w-[18px] flex-1 items-center justify-center border-l border-slate-200 px-1 py-0.5 font-semibold tabular-nums',
+          'flex min-w-[18px] flex-1 items-center justify-center px-1 py-0.5 font-semibold tabular-nums',
           valueTone
         )}
       >
         {value}
+        {severity && <span className="sr-only"> · Riesgo {severity}</span>}
       </span>
       {/* reapplication zone — separated in its own space; neutral until it comes due */}
       {countdown != null && (
         <span
           className={clsx(
-            'flex shrink-0 items-center gap-0.5 border-l px-1 py-0.5 font-medium tabular-nums',
-            countdownUrgent
-              ? 'border-red-200 bg-red-50 text-red-600'
-              : 'border-slate-200 text-slate-400'
+            'flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 font-medium tabular-nums',
+            countdownUrgent ? 'bg-red-50 text-red-700' : 'text-slate-500'
           )}
           title="Próxima aplicación"
+          aria-label={`Próxima aplicación: ${countdown}`}
         >
-          <AlarmClock
-            size={9}
-            strokeWidth={2.5}
-            className={clsx(countdownUrgent && 'animate-pulse motion-reduce:animate-none')}
-            aria-hidden
-          />
+          <AlarmClock size={9} strokeWidth={2.5} aria-hidden />
           {countdown}
         </span>
       )}
-      {countdown == null && <span aria-hidden className="border-l border-slate-200" />}
+      {countdown == null && <span aria-hidden />}
       {anchor && <StickyNote note={note} anchor={anchor} />}
     </span>
   );

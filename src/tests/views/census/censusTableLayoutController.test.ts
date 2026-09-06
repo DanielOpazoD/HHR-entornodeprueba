@@ -55,8 +55,10 @@ describe('censusTableLayoutController', () => {
     expect(bindings.bodyProps.currentDateString).toBe('2026-02-15');
     expect(bindings.bodyProps.onAction).toBe(onAction);
     expect(bindings.bodyProps.onActivateEmptyBed).toBe(onActivateEmptyBed);
-    // Visible columns include the readable identity and diagnosis minimums.
-    expect(bindings.tableStyle).toEqual({ width: '1290px', minWidth: '100%' });
+    // Visible columns include identity, diagnosis and the 64px UPC minimum (+4px).
+    expect(bindings.headerProps.columns.upc).toBe(64);
+    expect(bindings.bodyProps.columns.upc).toBe(64);
+    expect(bindings.tableStyle).toEqual({ width: '1294px', minWidth: '100%' });
   });
 
   it('keeps rows and bed data references untouched', () => {

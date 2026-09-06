@@ -3,6 +3,7 @@ import { Radio } from 'lucide-react';
 
 import { isValidRut } from '@/utils/rutUtils';
 import type { PatientData } from './patientRowContracts';
+import { ClinicalActionButton } from './ClinicalActionButton';
 
 const RadiologyViewerModal = React.lazy(() =>
   import('@/components/modals/RadiologyViewerModal').then(module => ({
@@ -50,19 +51,17 @@ export const PatientRadiologyTrigger: React.FC<PatientRadiologyTriggerProps> = (
   return (
     <>
       <span className="inline-flex shrink-0 items-center">
-        <button
-          type="button"
+        <ClinicalActionButton
+          tone="radiology"
           data-testid={`patient-radiology-trigger-${triggerKey}`}
-          onClick={event => {
-            event.stopPropagation();
+          onClick={() => {
             setOpenPatientIdentity(patientIdentity);
           }}
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-violet-50 hover:text-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-violet-700"
           title="Radiología / Imagenología MMRAD"
-          aria-label={`Abrir MMRAD de ${patientName}`}
+          label={`Abrir MMRAD de ${patientName}`}
         >
           <Radio size={14} />
-        </button>
+        </ClinicalActionButton>
       </span>
 
       {isOpen && (

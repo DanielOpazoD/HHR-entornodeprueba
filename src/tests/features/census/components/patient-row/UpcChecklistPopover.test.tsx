@@ -187,6 +187,9 @@ describe('UpcChecklistPopover', () => {
   it('keeps legacy UTI visible while requiring an attributable daily evaluation', () => {
     renderPopover(undefined, true);
     expect(screen.getByRole('button', { name: 'Evaluación UPC pendiente' })).toHaveTextContent(
+      'Evaluar'
+    );
+    expect(screen.getByRole('button', { name: 'Evaluación UPC pendiente' })).toHaveTextContent(
       'UTI'
     );
   });
@@ -208,6 +211,9 @@ describe('UpcChecklistPopover', () => {
       responsibleNurse: { source: 'manual' },
     });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Editar evaluación UPC' })).toHaveTextContent(
+      'Sin criterios'
+    );
   });
   it('keeps the form open until persistence is confirmed, then restores trigger focus', async () => {
     let finish!: (confirmed: boolean) => void;

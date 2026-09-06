@@ -42,7 +42,7 @@ describe('censusTableColumnProfileController', () => {
 
   it('fits the UPC control without overwriting saved widths or exposing it to specialists', () => {
     const compact = { ...columns, upc: 22 };
-    expect(resolveVisibleCensusColumns(compact).upc).toBe(44);
+    expect(resolveVisibleCensusColumns(compact).upc).toBe(64);
     expect(resolveVisibleCensusColumns(compact, 'specialist').upc).toBe(0);
     expect(compact.upc).toBe(22);
   });

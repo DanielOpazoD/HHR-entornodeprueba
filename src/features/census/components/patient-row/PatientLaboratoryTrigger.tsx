@@ -2,6 +2,7 @@ import React from 'react';
 import { FlaskConical } from 'lucide-react';
 
 import type { PatientData } from './patientRowContracts';
+import { ClinicalActionButton } from './ClinicalActionButton';
 
 const LabResultsViewerModal = React.lazy(() =>
   import('@/features/laboratory').then(module => ({
@@ -67,19 +68,17 @@ export const PatientLaboratoryTrigger: React.FC<PatientLaboratoryTriggerProps> =
   return (
     <>
       <span className="inline-flex shrink-0 items-center">
-        <button
-          type="button"
+        <ClinicalActionButton
+          tone="laboratory"
           data-testid={`patient-laboratory-trigger-${triggerKey}`}
-          onClick={event => {
-            event.stopPropagation();
+          onClick={() => {
             setOpenSurface({ kind: 'viewer', patientIdentity });
           }}
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-700"
           title="Laboratorio / Exámenes Syslab"
-          aria-label={`Abrir laboratorio de ${patientName}`}
+          label={`Abrir laboratorio de ${patientName}`}
         >
           <FlaskConical size={14} />
-        </button>
+        </ClinicalActionButton>
       </span>
 
       {activeSurface === 'viewer' && (

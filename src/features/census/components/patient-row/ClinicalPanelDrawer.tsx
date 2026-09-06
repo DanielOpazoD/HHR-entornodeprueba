@@ -1,12 +1,8 @@
 /**
  * ClinicalPanelDrawer — "Panel clínico" del paciente (vista Eloísa en vivo).
  *
- * Right-side drawer with three tabs, fetched ON DEMAND from Ficha Médico via the extension:
- *   - Evoluciones: split by profession (Médico / Enfermería / Otros), with an internal handoff
- *     view for the medical and nursing worlds.
- *   - Indicaciones: the classic daily indication sheet — one box per calendar day (régimen →
- *     reposo → fármacos → libres), suspended/archived behind a discreet per-day toggle.
- *   - Cuidados: compact nursing actions grouped by day, with their execution state visible.
+ * Fetched on demand from Ficha Médico: evolutions/handoffs by profession,
+ * daily indications (inactive entries collapsed), and care execution grouped by day.
  *
  * Nothing is persisted in HHR/Firestore: it is a live read-only view, so the clinical text never
  * widens the app's data footprint. Requires the Ficha Médico tab (same requirement as the rest of
@@ -208,6 +204,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             </button>
             <PatientDocumentManagerButton
               patientName={patientName}
+              loading={documentState.phase === 'loading'}
               count={documentState.phase === 'ready' ? documentState.documents.length : null}
               onOpen={() => setIsDocumentManagerOpen(true)}
             />

@@ -35,13 +35,6 @@ const STATUS_TEXT: Record<VitalStatus, string> = {
   alert: 'text-red-600',
 };
 
-const WORST_ACCENT: Record<VitalStatus, string> = {
-  neutral: 'border-l-slate-200',
-  normal: 'border-l-transparent',
-  warn: 'border-l-amber-400',
-  alert: 'border-l-red-500',
-};
-
 export const VitalsCell: React.FC<BaseCellProps> = ({
   data,
   isSubRow = false,
@@ -74,20 +67,34 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
             e.stopPropagation();
             setIsDetailOpen(true);
           }}
-          className={clsx(
-            'flex w-full cursor-pointer items-center gap-1 rounded border-l-2 bg-white/40 pl-1',
-            WORST_ACCENT[vitals.worst]
-          )}
+          className="flex w-full cursor-pointer items-center gap-1 rounded-md px-1 py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
           title={`Signos vitales (${vitals.recordedAt}) — ver detalle`}
           aria-label="Ver signos vitales"
         >
-          <Activity size={10} strokeWidth={2.5} className="shrink-0 text-slate-400" />
-          <span className="grid flex-1 grid-cols-2 gap-x-1.5 text-left leading-tight">
+          <Activity
+            size={10}
+            strokeWidth={2.5}
+            className={clsx('shrink-0', STATUS_TEXT[vitals.worst])}
+            aria-label={
+              vitals.worst === 'warn' || vitals.worst === 'alert'
+                ? 'Hay valores fuera de rango; ver detalle'
+                : undefined
+            }
+          />
+          <span className="grid flex-1 grid-cols-[max-content_max-content] justify-between gap-x-1.5 gap-y-0.5 text-left leading-tight">
             {CELL_READINGS.map(({ key, label }) => {
               const reading = readingByKey(key);
               return (
-                <span key={key} className="flex items-baseline gap-0.5 truncate text-[10px]">
-                  <span className="font-medium text-slate-400">{label}</span>
+                <span
+                  key={key}
+                  className="flex items-baseline gap-0.5 whitespace-nowrap text-[10px]"
+                  title={
+                    reading
+                      ? `${label}: ${reading.value} ${reading.unit}${reading.status === 'warn' || reading.status === 'alert' ? ' · Fuera de rango' : ''}`
+                      : `${label}: sin dato`
+                  }
+                >
+                  <span className="font-medium text-slate-500">{label}</span>
                   <span
                     className={clsx(
                       'font-semibold tabular-nums',

@@ -77,7 +77,7 @@ export const resolveVisibleCensusColumns = (
     status: Math.max(columns.status, 28),
     admission: Math.max(columns.admission, 96),
     scores: Math.max(columns.scores, 180),
-    upc: Math.max(columns.upc, 44),
+    upc: Math.max(columns.upc, 64),
   });
 
   if (!isSpecialistCensusAccessProfile(accessProfile)) {
