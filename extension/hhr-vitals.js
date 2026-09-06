@@ -74,8 +74,8 @@
       : { iso: '', raw: str(form.startDateTime), epoch: null };
   };
 
-  // The clinical-time field is a NAIVE stamp stored in UTC; honor an explicit offset when present.
-  const measurementEpoch = raw => {
+  // Naive clinical stamps are UTC. Reject instants after their offset-aware record metadata.
+  const measurementEpoch = (raw, recordedEpoch) => {
     const m = String(raw || '')
       .trim()
       .match(/^(\d{1,2})-(\d{1,2})-(\d{4})[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(Z|[+-]\d{2}:?\d{2})?/);
@@ -83,7 +83,7 @@
     const [, dd, mm, yyyy, hh, mi, ss, off] = m;
     const offset = !off || off === 'Z' ? '+00:00' : off.includes(':') ? off : `${off.slice(0, 3)}:${off.slice(3)}`;
     const epoch = Date.parse(`${yyyy}-${pad2(mm)}-${pad2(dd)}T${pad2(hh)}:${mi}:${ss || '00'}${offset}`);
-    return Number.isNaN(epoch) ? null : epoch;
+    return Number.isNaN(epoch) || (recordedEpoch != null && epoch > recordedEpoch) ? null : epoch;
   };
 
   const FIELD_IDS = {
@@ -125,7 +125,7 @@
       const when = effectiveWhen(form, campos);
       if (!when.iso) continue;
       const clinicalStamp = get(TIME_IDS);
-      const epoch = measurementEpoch(clinicalStamp) ?? when.epoch;
+      const epoch = measurementEpoch(clinicalStamp, when.epoch) ?? when.epoch;
       const record = {
         recordedDate: epoch != null ? rapaNuiDay(epoch) : when.iso,
         recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
@@ -149,9 +149,9 @@
         record.painEva != null || record.hgt != null || record.insulinUnits != null ||
         !!record.insulinQuadrant;
       if (!hasReading) continue;
-      parsed.push({ key: Number(form.encounterEventId) || 0, record });
+      parsed.push({ key: Number(form.encounterEventId) || 0, epoch, record });
     }
-    return parsed.sort((a, b) => b.key - a.key).map(entry => entry.record);
+    return parsed.sort((a, b) => (b.epoch ?? 0) - (a.epoch ?? 0) || b.key - a.key).map(entry => entry.record);
   };
 
   // --- Screening thresholds (adult), identical to HHR's vitalSignsView.ts ---
