@@ -26,7 +26,7 @@ describe('extension version popup', () => {
       { filename: 'extension-status.js' }
     );
 
-    expect(manifest.version).toBe('0.48.12');
+    expect(manifest.version).toBe('0.48.13');
     expect(manifest.action).toEqual({
       default_title: 'Ver versión del puente Eloísa → HHR',
       default_popup: 'extension-status.html',
@@ -34,7 +34,7 @@ describe('extension version popup', () => {
     expect(html).toContain('Versión que Chrome está usando');
     expect(html).toContain('Gestor documental incluido');
     expect(background).toContain("'patient-document-manager'");
-    expect(versionElement.textContent).toBe('v0.48.12');
-    expect(documentObject.title).toBe('Puente Eloísa → HHR · v0.48.12');
+    expect(versionElement.textContent).toBe('v0.48.13');
+    expect(documentObject.title).toBe('Puente Eloísa → HHR · v0.48.13');
   });
 });
