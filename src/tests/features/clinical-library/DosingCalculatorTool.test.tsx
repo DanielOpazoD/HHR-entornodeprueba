@@ -19,7 +19,8 @@ describe('DosingCalculatorTool', () => {
     expect(screen.getByTestId('dosing-bmi')).toHaveTextContent('24,2');
     expect(screen.getByTestId('dosing-bmi')).toHaveTextContent('Normal');
     expect(screen.getByTestId('dosing-ideal')).toHaveTextContent('65,9');
-    expect(screen.getByTestId('dosing-adjusted')).toHaveTextContent('67,6');
+    // 70 kg no supera al ideal en 20 %: el peso ajustado no aplica en normopeso.
+    expect(screen.getByTestId('dosing-adjusted')).toHaveTextContent('—');
     expect(screen.getByTestId('dosing-bsa')).toHaveTextContent('1,82');
     expect(screen.getByTestId('dosing-clearance')).toHaveTextContent('78');
 
@@ -39,15 +40,36 @@ describe('DosingCalculatorTool', () => {
     expect(screen.getByTestId('dosing-clearance')).toHaveTextContent('66');
   });
 
-  it('disables weight bases that cannot be computed yet', () => {
+  it('offers the adjusted weight only in obesity and falls back to real weight when a basis vanishes', () => {
     render(<DosingCalculatorTool onBack={vi.fn()} />);
     expect(screen.getByRole('button', { name: /^Ideal/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Ajustado/ })).toBeDisabled();
     typeInto('Talla', '170');
     expect(screen.getByRole('button', { name: /^Ideal/ })).toBeEnabled();
-    typeInto('Peso real', '60');
+    typeInto('Peso real', '75');
     expect(screen.getByRole('button', { name: /^Ajustado/ })).toBeDisabled();
     typeInto('Peso real', '90');
     expect(screen.getByRole('button', { name: /^Ajustado/ })).toBeEnabled();
+    expect(screen.getByTestId('dosing-adjusted')).toHaveTextContent('75,6');
+
+    typeInto('Dosis por kilo', '1');
+    fireEvent.click(screen.getByRole('button', { name: /^Ajustado/ }));
+    expect(screen.getByTestId('dosing-total')).toHaveTextContent('75,6');
+    typeInto('Talla', '');
+    expect(screen.getByRole('button', { name: /^Real/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('dosing-total')).toHaveTextContent('90');
+    expect(screen.getByTestId('dosing-total')).toHaveTextContent('real');
+  });
+
+  it('flags implausible inputs instead of computing with them', () => {
+    render(<DosingCalculatorTool onBack={vi.fn()} />);
+    typeInto('Peso real', '70');
+    typeInto('Talla', '1,70');
+    expect(screen.getByLabelText('Talla')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText(/Fuera del rango plausible \(30–250 cm\)/)).toBeInTheDocument();
+    expect(screen.getByTestId('dosing-bmi')).toHaveTextContent('—');
+    typeInto('Talla', '170');
+    expect(screen.getByLabelText('Talla')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByTestId('dosing-bmi')).toHaveTextContent('24,2');
   });
 });

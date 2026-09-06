@@ -28,8 +28,10 @@ describe('dose calculator', () => {
     expect(idealBodyWeightDevine(-1, 'male')).toBeNull();
   });
 
-  it('computes adjusted body weight only above ideal weight', () => {
+  it('computes adjusted body weight only from 20 % above ideal weight', () => {
     expect(adjustedBodyWeight(100, 65.94)).toBeCloseTo(79.56, 2);
+    expect(adjustedBodyWeight(65.94 * 1.2, 65.94)).toBeCloseTo(71.215, 2);
+    expect(adjustedBodyWeight(75, 65.94)).toBeNull();
     expect(adjustedBodyWeight(60, 65.94)).toBeNull();
     expect(adjustedBodyWeight(65.94, 65.94)).toBeNull();
   });
@@ -48,6 +50,9 @@ describe('dose calculator', () => {
     ).toBeCloseTo(66.11, 2);
     expect(
       cockcroftGaultClearance({ ageYears: 140, weightKg: 70, creatinineMgDl: 1, sex: 'male' })
+    ).toBeNull();
+    expect(
+      cockcroftGaultClearance({ ageYears: 5, weightKg: 20, creatinineMgDl: 0.5, sex: 'male' })
     ).toBeNull();
     expect(
       cockcroftGaultClearance({ ageYears: 60, weightKg: 70, creatinineMgDl: 0, sex: 'male' })

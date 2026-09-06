@@ -187,7 +187,7 @@ export const INFUSION_PRESETS: ReadonlyArray<InfusionPreset> = [
     },
     notes: [
       'Diluir en suero glucosado al 5 %.',
-      'Preferir vía central para infusiones de más de una hora.',
+      'Concentraciones sobre 2 mg/mL (600 mg en 250 mL) sólo por vía venosa central.',
     ],
   },
   {
@@ -213,7 +213,12 @@ export const INFUSION_PRESETS: ReadonlyArray<InfusionPreset> = [
     ],
     defaultUnit: 'mcg/kg/h',
     allowedUnits: ['mcg/kg/h', 'mcg/h'],
-    usualRange: { min: 0.5, max: 3, unit: 'mcg/kg/h' },
+    usualRange: {
+      min: 0.5,
+      max: 5,
+      unit: 'mcg/kg/h',
+      note: 'En ventilación mecánica se usan dosis mayores según analgesia objetivo (guía PADIS 2018).',
+    },
     notes: ['Vigilar depresión respiratoria y rigidez torácica con bolos rápidos.'],
   },
   {
@@ -276,9 +281,11 @@ export const INFUSION_PRESETS: ReadonlyArray<InfusionPreset> = [
       min: 12,
       max: 18,
       unit: 'UI/kg/h',
-      note: 'Tras bolo de 80 UI/kg; ajustar según TTPK o anti-Xa del protocolo local.',
+      note: 'TEV: bolo 80 UI/kg + 18 UI/kg/h. Síndrome coronario agudo: bolo 60 UI/kg (máx. 4.000) + 12 UI/kg/h (máx. 1.000 UI/h).',
     },
-    notes: ['Control de TTPK a las 6 h de cada cambio de dosis.'],
+    notes: [
+      'Ajustar según TTPK o anti-Xa del protocolo local, con control a las 6 h de cada cambio de dosis.',
+    ],
   },
 ];
 

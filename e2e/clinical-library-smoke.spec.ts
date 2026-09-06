@@ -166,6 +166,10 @@ test.describe('Clinical library (preview build)', () => {
     await expect(drawer.getByTestId('score-result')).toHaveAttribute('data-band', 'Leve');
     await capture(page, '06-scores-glasgow');
 
+    // Dentro de una herramienta, Escape vuelve a la lista; en la lista, cierra el panel.
+    await page.keyboard.press('Escape');
+    await expect(drawer.getByRole('searchbox')).toBeVisible();
+    await expect(drawer.getByTestId('library-tool-scores')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(drawer).toHaveCount(0);
     await expect(trigger).toBeFocused();

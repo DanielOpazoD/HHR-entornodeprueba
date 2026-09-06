@@ -55,9 +55,19 @@ describe('InfusionCalculatorTool', () => {
     expect(screen.getByLabelText('Unidad de dosis')).toHaveValue('UI/h');
 
     typeInto('Dosis indicada', '5');
-    expect(screen.getByTestId('infusion-result')).toHaveTextContent('5');
+    expect(screen.getByTestId('infusion-primary-value')).toHaveTextContent(/^5\s*mL\/h$/);
     expect(screen.getByTestId('infusion-result')).toHaveTextContent('1 UI/mL · 100 UI en 100 mL');
     expect(screen.queryByTestId('infusion-range')).not.toBeInTheDocument();
+  });
+
+  it('rejects an implausible weight instead of computing a negative dose', () => {
+    render(<InfusionCalculatorTool onBack={vi.fn()} />);
+    typeInto('Dosis indicada', '0,1');
+    typeInto('Peso', '-70');
+    expect(screen.getByLabelText('Peso')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText(/Fuera del rango plausible \(0,5–400 kg\)/)).toBeInTheDocument();
+    expect(screen.getByTestId('infusion-result')).toHaveTextContent(/peso/);
+    expect(screen.queryByTestId('infusion-primary-value')).not.toBeInTheDocument();
   });
 
   it('returns to the library through the back button', () => {

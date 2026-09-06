@@ -7,7 +7,7 @@
  * devuelve el foco al botón que lo abrió (lo gestiona el quick action).
  */
 
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { FolderOpen, Search, X } from 'lucide-react';
@@ -68,16 +68,38 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
     [query, category]
   );
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  // Escape y clic fuera retroceden un paso: dentro de una herramienta vuelven a la lista
+  // (sin perder lo escrito por accidente); en la lista cierran el panel.
+  const dismiss = useCallback(() => {
+    if (activeToolId) {
+      setActiveToolId(null);
+      return;
+    }
+    onClose();
+  }, [activeToolId, onClose]);
+
+  const onDrawerKeyDown = (event: React.KeyboardEvent<HTMLElement>): void => {
+    if (event.defaultPrevented) return;
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      dismiss();
+      return;
+    }
+    if (event.key !== 'Tab' || !drawerRef.current) return;
+    const focusable = drawerRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   // Al abrir, el foco cae en la búsqueda; al entrar a una herramienta, en el panel.
   useEffect(() => {
@@ -98,7 +120,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
         tabIndex={-1}
         data-testid="clinical-library-overlay"
         className="fixed inset-0 z-[1100] cursor-default bg-slate-900/30"
-        onClick={onClose}
+        onClick={dismiss}
       />
       <aside
         ref={drawerRef}
@@ -108,6 +130,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
         tabIndex={-1}
         data-testid="clinical-library-drawer"
         data-module="clinical-library"
+        onKeyDown={onDrawerKeyDown}
         className="fixed right-0 top-0 z-[1101] flex h-full w-[500px] max-w-full flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none"
       >
         <header className="shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3">

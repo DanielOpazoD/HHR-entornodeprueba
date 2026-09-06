@@ -99,8 +99,9 @@ describe('score definitions', () => {
     expect(evaluateScore(definition('padua'), { cancer: true }).band?.label).toBe('Bajo riesgo');
   });
 
-  it('scores CHA2DS2-VASc with the age choice and the female modifier note', () => {
+  it('scores CHA2DS2-VASc with the age choice and applies the female modifier to the band', () => {
     const cha = definition('cha2ds2vasc');
+    expect(cha.bandModifierItemId).toBe('female');
     const everything = evaluateScore(cha, {
       chf: true,
       htn: true,
@@ -111,14 +112,82 @@ describe('score definitions', () => {
       female: true,
     });
     expect(everything.total).toBe(9);
+    expect(everything.bandTotal).toBe(8);
     expect(everything.band?.label).toBe('Riesgo alto');
-    expect(evaluateScore(cha, { age: 'under65', female: true }).band?.label).toBe(
-      'Riesgo intermedio'
+
+    // Mujer sin otros factores: total 1 pero riesgo bajo.
+    const womanOnly = evaluateScore(cha, { age: 'under65', female: true });
+    expect(womanOnly).toMatchObject({ total: 1, bandTotal: 0 });
+    expect(womanOnly.band?.label).toBe('Riesgo bajo');
+    // Mujer con un factor: total 2 → considerar (no «alto» como en un hombre con 2).
+    const womanOneFactor = evaluateScore(cha, { age: 'under65', female: true, htn: true });
+    expect(womanOneFactor).toMatchObject({ total: 2, bandTotal: 1 });
+    expect(womanOneFactor.band?.label).toBe('Riesgo intermedio');
+    expect(
+      evaluateScore(cha, { age: 'under65', female: true, htn: true, diabetes: true }).band?.label
+    ).toBe('Riesgo alto');
+    expect(evaluateScore(cha, { age: 'under65', htn: true }).band?.label).toBe('Riesgo intermedio');
+    expect(evaluateScore(cha, { age: 'under65', htn: true, diabetes: true }).band?.label).toBe(
+      'Riesgo alto'
     );
     expect(evaluateScore(cha, { age: 'under65' }).band?.label).toBe('Riesgo bajo');
     expect(evaluateScore(cha, {}).complete).toBe(false);
     expect(cha.notes?.[0]).toMatch(/sexo femenino/i);
     expect(findScoreBand(cha.bands, 4)?.tone).toBe('danger');
     expect(findScoreBand(cha.bands, -1)).toBeNull();
+  });
+
+  it('keeps the published points of every item', () => {
+    const pointsTable = (score: ScoreDefinition) =>
+      Object.fromEntries(
+        score.items.map(item => [
+          item.id,
+          item.kind === 'boolean' ? item.points : item.options.map(option => option.points),
+        ])
+      );
+    expect(pointsTable(definition('qsofa'))).toEqual({ rr: 1, mental: 1, sbp: 1 });
+    expect(pointsTable(definition('glasgow'))).toEqual({
+      eye: [4, 3, 2, 1],
+      verbal: [5, 4, 3, 2, 1],
+      motor: [6, 5, 4, 3, 2, 1],
+    });
+    expect(pointsTable(definition('curb65'))).toEqual({
+      confusion: 1,
+      urea: 1,
+      rr: 1,
+      bp: 1,
+      age: 1,
+    });
+    expect(pointsTable(definition('wells-pe'))).toEqual({
+      dvt: 3,
+      alternative: 3,
+      hr: 1.5,
+      immobilization: 1.5,
+      previous: 1.5,
+      hemoptysis: 1,
+      cancer: 1,
+    });
+    expect(pointsTable(definition('padua'))).toEqual({
+      cancer: 3,
+      vte: 3,
+      mobility: 3,
+      thrombophilia: 3,
+      trauma: 2,
+      age: 1,
+      failure: 1,
+      'ami-stroke': 1,
+      infection: 1,
+      obesity: 1,
+      hormonal: 1,
+    });
+    expect(pointsTable(definition('cha2ds2vasc'))).toEqual({
+      chf: 1,
+      htn: 1,
+      age: [0, 1, 2],
+      diabetes: 1,
+      stroke: 2,
+      vascular: 1,
+      female: 1,
+    });
   });
 });

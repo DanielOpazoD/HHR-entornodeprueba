@@ -109,9 +109,40 @@ describe('ClinicalLibraryDrawer', () => {
 
   it('closes with Escape, the overlay and the close button', () => {
     const { onClose } = renderDrawer();
-    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Escape' });
     fireEvent.click(screen.getByTestId('clinical-library-overlay'));
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar documentos' }));
     expect(onClose).toHaveBeenCalledTimes(3);
+  });
+
+  it('steps back to the list instead of closing while a tool is open', () => {
+    const { onClose } = renderDrawer({ initialToolId: 'infusion' });
+    fireEvent.change(screen.getByLabelText('Dosis indicada'), { target: { value: '0,1' } });
+    fireEvent.keyDown(screen.getByLabelText('Dosis indicada'), { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('library-tool-scores'));
+    fireEvent.click(screen.getByTestId('clinical-library-overlay'));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar documentos' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Tab navigation inside the dialog', () => {
+    renderDrawer();
+    const dialog = screen.getByRole('dialog');
+    const focusable = dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    last.focus();
+    fireEvent.keyDown(last, { key: 'Tab' });
+    expect(first).toHaveFocus();
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(last).toHaveFocus();
   });
 });

@@ -37,7 +37,10 @@ export const InfusionResultPanel: React.FC<InfusionResultPanelProps> = ({
         <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-700">
           {presentation.primaryUnit === 'mL/h' ? 'Velocidad de la bomba' : 'Dosis equivalente'}
         </p>
-        <p className="mt-0.5 text-3xl font-bold tabular-nums leading-none text-teal-900">
+        <p
+          data-testid="infusion-primary-value"
+          className="mt-0.5 text-3xl font-bold tabular-nums leading-none text-teal-900"
+        >
           {presentation.primaryValue}
           <span className="ml-1.5 text-sm font-semibold text-teal-700">
             {presentation.primaryUnit}

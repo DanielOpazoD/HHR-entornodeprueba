@@ -16,6 +16,7 @@ import {
   type InfusionPresetGroup,
 } from '../../domain/infusionPresets';
 import { parseLocalizedDecimal } from '../../domain/numberInput';
+import { PLAUSIBLE_RANGES, plausibleValue, rangeHint } from './plausibleRanges';
 import { InfusionResultPanel } from './InfusionResultPanel';
 import { presentInfusion, type InfusionMode } from './infusionPresentation';
 import { NumberField, SegmentedControl, SelectField, ToolSection } from './ToolField';
@@ -77,7 +78,8 @@ export const InfusionCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBac
           : null;
       })();
 
-  const weightKg = parseLocalizedDecimal(weight);
+  const weightInput = plausibleValue(weight, PLAUSIBLE_RANGES.weightKg);
+  const weightKg = weightInput.value;
   const presentation = presentInfusion({
     mode,
     unit,
@@ -169,7 +171,11 @@ export const InfusionCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBac
             value={weight}
             onChange={setWeight}
             placeholder="70"
-            hint={unitNeedsWeight ? 'Necesario para dosis por kilo.' : undefined}
+            invalid={weightInput.invalid}
+            hint={
+              rangeHint(weightInput, PLAUSIBLE_RANGES.weightKg) ??
+              (unitNeedsWeight ? 'Necesario para dosis por kilo.' : undefined)
+            }
           />
           <SegmentedControl
             label="Modo de cálculo"

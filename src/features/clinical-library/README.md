@@ -55,9 +55,22 @@ Los scores son datos, no componentes: agregar una `ScoreDefinition` en `domain/s
 con ítems booleanos o de elección, bandas contiguas de interpretación y referencia con DOI. El test
 `scoreDefinitions.test.ts` comprueba que las bandas cubran todos los totales alcanzables.
 
+## Verificación visual
+
+`npm run test:e2e:preview:clinical-library:built` recorre, sobre el build de preview (`npm run build`
+previo), el botón, la búsqueda, un PDF servido y las tres herramientas; con
+`CLINICAL_LIBRARY_SHOTS_DIR=<carpeta>` guarda capturas. No corre en CI para no aumentar su costo.
+
 ## Reglas
 
 - Las herramientas muestran siempre el aviso de apoyo a la decisión clínica y la referencia.
+- Las entradas numéricas aceptan coma o punto y se validan contra rangos plausibles
+  (`components/tools/plausibleRanges.ts`); un valor fuera de rango se marca y no se usa para calcular.
+- Dentro de una herramienta, Escape y el clic fuera del panel vuelven a la lista sin perder lo
+  escrito; en la lista, cierran el panel.
+- Los valores clínicos del catálogo están anclados por tests: tabla dorada de diluciones y rangos
+  (`infusionCalculator.test.ts`) y tabla de puntajes por score (`scoreDefinitions.test.ts`). Cambiar un
+  número exige cambiar el test a propósito.
 - Las diluciones de referencia son orientativas: la interfaz pide confirmar con el protocolo local y
   farmacia, y avisa cuando una dosis queda fuera del rango habitual del fármaco.
 - Consumo externo sólo por `@/features/clinical-library` (o `quick-action` desde el shell

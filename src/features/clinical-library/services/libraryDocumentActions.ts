@@ -10,7 +10,18 @@ import {
 
 const PRINT_FRAME_CLEANUP_MS = 60_000;
 
-export const toLibraryDocumentHref = (url: string): string => encodeURI(url);
+/** `encodeURI` deja pasar `#`, `?` y `+`, que cambiarían la ruta de un archivo que los contenga. */
+export const toLibraryDocumentHref = (url: string): string =>
+  encodeURI(url).replace(/[#?+]/g, character => encodeURIComponent(character));
+
+/** WebKit imprime en blanco el PDF de un iframe oculto: ahí conviene el visor de la pestaña nueva. */
+export const canPrintInline = (runtimeNavigator: Navigator | undefined): boolean => {
+  if (!runtimeNavigator) return true;
+  const viewer = (runtimeNavigator as Navigator & { pdfViewerEnabled?: boolean }).pdfViewerEnabled;
+  if (viewer === false) return false;
+  const agent = runtimeNavigator.userAgent ?? '';
+  return !/AppleWebKit/i.test(agent) || /Chrom(e|ium)/i.test(agent);
+};
 
 export const openLibraryDocument = (
   url: string,
@@ -23,6 +34,7 @@ export interface PrintLibraryDocumentDependencies {
   host?: Document | null;
   runtime?: BrowserWindowRuntime;
   cleanupDelayMs?: number;
+  navigator?: Navigator;
 }
 
 /**
@@ -39,6 +51,14 @@ export const printLibraryDocument = (
   if (!host) return null;
   const runtime = deps.runtime ?? defaultBrowserWindowRuntime;
   const href = toLibraryDocumentHref(url);
+  const runtimeNavigator =
+    deps.navigator ?? (typeof navigator !== 'undefined' ? navigator : undefined);
+  if (!canPrintInline(runtimeNavigator)) {
+    runtime.open(href, '_blank', 'noopener,noreferrer');
+    return null;
+  }
+  // Un solo marco de impresión a la vez: un doble clic no debe abrir dos diálogos.
+  host.querySelector('iframe[data-library-print-frame]')?.remove();
   const frame = host.createElement('iframe');
   frame.setAttribute('aria-hidden', 'true');
   frame.setAttribute('data-library-print-frame', '');

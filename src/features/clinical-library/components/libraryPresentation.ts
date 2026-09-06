@@ -34,7 +34,7 @@ export const TONE_BADGE_CLASSES: Readonly<Record<ScoreTone, string>> = {
 };
 
 export const formatDocumentSize = (sizeKb: number): string =>
-  sizeKb >= 1000
+  sizeKb >= 1024
     ? `${(sizeKb / 1024).toLocaleString('es-CL', { maximumFractionDigits: 1 })} MB`
     : `${Math.round(sizeKb)} KB`;
 
@@ -47,6 +47,12 @@ export const documentFileName = (url: string): string =>
 /** Decimales proporcionales a la magnitud: 0,012 · 1,75 · 26,3 · 105. */
 export const formatClinicalNumber = (value: number, maxDecimals?: number): string => {
   const magnitude = Math.abs(value);
+  // Una dosis real nunca debe leerse como cero: bajo el último decimal se muestra el umbral.
+  const decimalsCap = maxDecimals ?? 3;
+  const floor = 10 ** -decimalsCap / 2;
+  if (magnitude > 0 && magnitude < floor) {
+    return `< ${floor.toLocaleString('es-CL', { maximumFractionDigits: decimalsCap + 1 })}`;
+  }
   const decimals =
     maxDecimals ?? (magnitude >= 100 ? 0 : magnitude >= 10 ? 1 : magnitude >= 1 ? 2 : 3);
   return value.toLocaleString('es-CL', { maximumFractionDigits: decimals });

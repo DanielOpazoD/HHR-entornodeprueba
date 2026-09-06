@@ -111,14 +111,9 @@ export const computeRateFromDose = (
   if (unit.perKg && !isPositiveFinite(input.weightKg)) return fail('weight_required');
   const weight = unit.perKg && input.weightKg ? input.weightKg : 1;
   const amountPerHour = input.dose * weight * (unit.perMinute ? 60 : 1);
-  return {
-    ok: true,
-    value: {
-      rateMlPerHour: (amountPerHour * factor) / concentration.valuePerMl,
-      concentration,
-      amountPerHour,
-    },
-  };
+  const rateMlPerHour = (amountPerHour * factor) / concentration.valuePerMl;
+  if (!Number.isFinite(rateMlPerHour)) return fail('invalid_dose');
+  return { ok: true, value: { rateMlPerHour, concentration, amountPerHour } };
 };
 
 export interface DoseFromRateInput {
@@ -146,14 +141,9 @@ export const computeDoseFromRate = (
   if (unit.perKg && !isPositiveFinite(input.weightKg)) return fail('weight_required');
   const weight = unit.perKg && input.weightKg ? input.weightKg : 1;
   const amountPerHour = input.rateMlPerHour * concentration.valuePerMl * factor;
-  return {
-    ok: true,
-    value: {
-      dose: amountPerHour / weight / (unit.perMinute ? 60 : 1),
-      concentration,
-      amountPerHour,
-    },
-  };
+  const dose = amountPerHour / weight / (unit.perMinute ? 60 : 1);
+  if (!Number.isFinite(dose) || !Number.isFinite(amountPerHour)) return fail('invalid_rate');
+  return { ok: true, value: { dose, concentration, amountPerHour } };
 };
 
 /** Reexpresa una dosis en otra unidad (p. ej. mcg/kg/min → mcg/min). */

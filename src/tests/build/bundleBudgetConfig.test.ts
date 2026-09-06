@@ -78,9 +78,9 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // The clinical library adds the documented 62720 bytes over the staff-discovery ceiling so
+    // The clinical library adds the documented 67840 bytes over the staff-discovery ceiling so
     // calculators and scores stay available offline instead of being excluded from the precache.
-    expect(config.precacheMaxBytes).toBe(4902912);
+    expect(config.precacheMaxBytes).toBe(4908032);
     expect(config.precacheIgnoredAssetPatterns.some(pattern => /upc/i.test(pattern))).toBe(false);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([

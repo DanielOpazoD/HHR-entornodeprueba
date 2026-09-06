@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4902912,
-  "_precacheMaxBytesComment": "Clinical library (Documentos, 2026-09-06): +62720 bytes (1.30%) over the 4840192-byte staff-discovery ceiling for the lazy ClinicalLibraryDrawer chunk (55.2 KB: static catalog, infusion and dosing calculators, six score definitions) plus its quick-action barrel. Kept inside the precache on purpose so calculators and scores keep working offline. Local feature build measured 4783.3 KiB versus the previous 4726.8 KiB ceiling. Documents stay outside the precache under docs/ and templates/; no new exclusions, dependencies or relaxed warning bands.",
+  "precacheMaxBytes": 4908032,
+  "_precacheMaxBytesComment": "Clinical library (Documentos, 2026-09-06): +67840 bytes (1.40%) over the 4840192-byte staff-discovery ceiling for the lazy ClinicalLibraryDrawer chunk (55.2 KB: static catalog, infusion and dosing calculators, six score definitions) plus its quick-action barrel. Kept inside the precache on purpose so calculators and scores keep working offline. Local feature build measured 4785.6 KiB (input validation and step-back navigation added about 2 KB to the drawer) versus the previous 4726.8 KiB ceiling. Documents stay outside the precache under docs/ and templates/; no new exclusions, dependencies or relaxed warning bands.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",

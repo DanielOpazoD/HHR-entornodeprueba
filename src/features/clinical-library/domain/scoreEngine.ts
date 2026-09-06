@@ -52,6 +52,11 @@ export interface ScoreDefinition {
   items: ReadonlyArray<ScoreItem>;
   bands: ReadonlyArray<ScoreBand>;
   notes?: ReadonlyArray<string>;
+  /**
+   * Ítem cuyo puntaje cuenta en el total pero no en la banda (p. ej. sexo femenino en
+   * CHA₂DS₂-VASc: modifica el riesgo, no indica anticoagulación por sí solo).
+   */
+  bandModifierItemId?: string;
   reference: ScoreReference;
 }
 
@@ -59,6 +64,8 @@ export type ScoreAnswers = Readonly<Record<string, boolean | string | undefined>
 
 export interface ScoreEvaluation {
   total: number;
+  /** Total usado para elegir la banda; difiere de `total` sólo con `bandModifierItemId`. */
+  bandTotal: number;
   maxTotal: number;
   complete: boolean;
   missingItemIds: string[];
@@ -79,11 +86,15 @@ export const evaluateScore = (
   answers: ScoreAnswers
 ): ScoreEvaluation => {
   let total = 0;
+  let modifierPoints = 0;
   const missingItemIds: string[] = [];
   for (const item of definition.items) {
     const answer = answers[item.id];
     if (item.kind === 'boolean') {
-      if (answer === true) total += item.points;
+      if (answer === true) {
+        total += item.points;
+        if (item.id === definition.bandModifierItemId) modifierPoints += item.points;
+      }
       continue;
     }
     const option = item.options.find(candidate => candidate.value === answer);
@@ -94,12 +105,14 @@ export const evaluateScore = (
     total += option.points;
   }
   const complete = missingItemIds.length === 0;
+  const bandTotal = total - modifierPoints;
   return {
     total,
+    bandTotal,
     maxTotal: scoreMaxTotal(definition),
     complete,
     missingItemIds,
-    band: complete ? findScoreBand(definition.bands, total) : null,
+    band: complete ? findScoreBand(definition.bands, bandTotal) : null,
   };
 };
 

@@ -39,6 +39,9 @@ const QSOFA: ScoreDefinition = {
         'qSOFA ≥ 2 se asocia a mayor mortalidad y estadía prolongada en UCI: evaluar disfunción de órganos (SOFA) e iniciar manejo de sepsis.',
     },
   ],
+  notes: [
+    'La Surviving Sepsis Campaign 2021 desaconseja usar qSOFA como único tamizaje de sepsis frente a NEWS o SIRS.',
+  ],
   reference: {
     citation:
       'Singer M, et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA. 2016;315(8):801-810.',
@@ -336,13 +339,15 @@ const CHA2DS2VASC: ScoreDefinition = {
     },
     { id: 'female', kind: 'boolean', label: 'Sexo femenino', points: 1 },
   ],
+  bandModifierItemId: 'female',
   bands: [
     {
       min: 0,
       max: 0,
       label: 'Riesgo bajo',
       tone: 'success',
-      detail: 'Sin factores de riesgo: anticoagulación no recomendada.',
+      detail:
+        'Sin factores de riesgo además del sexo (0 en hombres, 1 en mujeres): anticoagulación no recomendada.',
     },
     {
       min: 1,
@@ -350,7 +355,7 @@ const CHA2DS2VASC: ScoreDefinition = {
       label: 'Riesgo intermedio',
       tone: 'warning',
       detail:
-        'Considerar anticoagulación oral en hombres con 1 punto; en mujeres, 1 punto sólo por sexo equivale a riesgo bajo.',
+        'Un factor de riesgo además del sexo (1 en hombres, 2 en mujeres): considerar anticoagulación oral según preferencias y riesgo de sangrado.',
     },
     {
       min: 2,
@@ -358,11 +363,11 @@ const CHA2DS2VASC: ScoreDefinition = {
       label: 'Riesgo alto',
       tone: 'danger',
       detail:
-        'Anticoagulación oral recomendada salvo contraindicación (≥ 2 en hombres, ≥ 3 en mujeres).',
+        'Dos o más factores además del sexo (≥ 2 en hombres, ≥ 3 en mujeres): anticoagulación oral recomendada salvo contraindicación.',
     },
   ],
   notes: [
-    'El sexo femenino actúa como modificador de riesgo: no indica anticoagulación por sí solo.',
+    'El sexo femenino suma al total pero no define la banda: modifica el riesgo y no indica anticoagulación por sí solo.',
   ],
   reference: {
     citation:

@@ -2,7 +2,7 @@
  * Fórmulas antropométricas y de dosis por peso usadas en UPC.
  *
  * - Peso ideal: Devine (1974): 50 kg (hombre) / 45,5 kg (mujer) + 2,3 kg por pulgada sobre 5 pies.
- * - Peso ajustado: ideal + 0,4 × (real − ideal), útil sobre un 20 % del peso ideal.
+ * - Peso ajustado: ideal + 0,4 × (real − ideal); sólo aplica cuando el real supera en ≥ 20 % al ideal.
  * - Superficie corporal: Mosteller (1987): √(talla_cm × peso_kg / 3600).
  * - Clearance de creatinina: Cockcroft-Gault (1976): (140 − edad) × peso / (72 × creatinina), × 0,85 en mujeres.
  */
@@ -47,9 +47,13 @@ export const idealBodyWeightDevine = (
   return kg > 0 ? { kg, extrapolated: heightCm < DEVINE_BASE_HEIGHT_CM } : null;
 };
 
-/** Sólo tiene sentido cuando el peso real supera al ideal; en caso contrario devuelve null. */
+export const ADJUSTED_WEIGHT_MIN_RATIO = 1.2;
+
+/** Sólo aplica cuando el peso real supera al ideal en al menos un 20 %; si no, devuelve null. */
 export const adjustedBodyWeight = (actualKg: number, idealKg: number): number | null =>
-  isPositiveFinite(actualKg) && isPositiveFinite(idealKg) && actualKg > idealKg
+  isPositiveFinite(actualKg) &&
+  isPositiveFinite(idealKg) &&
+  actualKg >= idealKg * ADJUSTED_WEIGHT_MIN_RATIO
     ? idealKg + 0.4 * (actualKg - idealKg)
     : null;
 
@@ -70,6 +74,7 @@ export const cockcroftGaultClearance = (input: CockcroftGaultInput): number | nu
     !isPositiveFinite(input.ageYears) ||
     !isPositiveFinite(input.weightKg) ||
     !isPositiveFinite(input.creatinineMgDl) ||
+    input.ageYears < 18 ||
     input.ageYears >= 140
   ) {
     return null;

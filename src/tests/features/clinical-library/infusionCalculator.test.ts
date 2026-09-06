@@ -196,3 +196,174 @@ describe('infusion presets', () => {
     expect(assessDoseAgainstRange(7, 'mcg/min', range, null)).toBe('unknown');
   });
 });
+
+/**
+ * Tabla dorada escrita a mano: concentración de cada dilución (en mcg/mL para fármacos en mg/mcg,
+ * en UI/mL para los biológicos), unidad por defecto y rango habitual. Un error de tipeo en una
+ * dilución es el defecto más peligroso del catálogo y debe romper CI.
+ */
+const GOLDEN_PRESETS: Record<
+  string,
+  { perMl: number[]; unit: string; defaultUnit: string; range: [number, number]; rangeUnit: string }
+> = {
+  noradrenalina: {
+    perMl: [16, 32, 64],
+    unit: 'mcg',
+    defaultUnit: 'mcg/kg/min',
+    range: [0.01, 0.5],
+    rangeUnit: 'mcg/kg/min',
+  },
+  adrenalina: {
+    perMl: [16, 32],
+    unit: 'mcg',
+    defaultUnit: 'mcg/kg/min',
+    range: [0.01, 0.5],
+    rangeUnit: 'mcg/kg/min',
+  },
+  dopamina: {
+    perMl: [1600, 800],
+    unit: 'mcg',
+    defaultUnit: 'mcg/kg/min',
+    range: [2, 20],
+    rangeUnit: 'mcg/kg/min',
+  },
+  dobutamina: {
+    perMl: [1000, 2000],
+    unit: 'mcg',
+    defaultUnit: 'mcg/kg/min',
+    range: [2, 20],
+    rangeUnit: 'mcg/kg/min',
+  },
+  milrinona: {
+    perMl: [200],
+    unit: 'mcg',
+    defaultUnit: 'mcg/kg/min',
+    range: [0.375, 0.75],
+    rangeUnit: 'mcg/kg/min',
+  },
+  vasopresina: {
+    perMl: [0.2, 0.4],
+    unit: 'UI',
+    defaultUnit: 'UI/min',
+    range: [0.01, 0.04],
+    rangeUnit: 'UI/min',
+  },
+  nitroglicerina: {
+    perMl: [200, 100],
+    unit: 'mcg',
+    defaultUnit: 'mcg/min',
+    range: [5, 200],
+    rangeUnit: 'mcg/min',
+  },
+  nitroprusiato: {
+    perMl: [200],
+    unit: 'mcg',
+    defaultUnit: 'mcg/kg/min',
+    range: [0.3, 3],
+    rangeUnit: 'mcg/kg/min',
+  },
+  labetalol: {
+    perMl: [1000],
+    unit: 'mcg',
+    defaultUnit: 'mg/min',
+    range: [0.5, 2],
+    rangeUnit: 'mg/min',
+  },
+  amiodarona: {
+    perMl: [1800, 2400],
+    unit: 'mcg',
+    defaultUnit: 'mg/min',
+    range: [0.5, 1],
+    rangeUnit: 'mg/min',
+  },
+  midazolam: {
+    perMl: [1000, 1000],
+    unit: 'mcg',
+    defaultUnit: 'mg/kg/h',
+    range: [0.02, 0.2],
+    rangeUnit: 'mg/kg/h',
+  },
+  fentanilo: {
+    perMl: [10, 50],
+    unit: 'mcg',
+    defaultUnit: 'mcg/kg/h',
+    range: [0.5, 5],
+    rangeUnit: 'mcg/kg/h',
+  },
+  propofol: {
+    perMl: [10000, 10000],
+    unit: 'mcg',
+    defaultUnit: 'mg/kg/h',
+    range: [0.3, 3],
+    rangeUnit: 'mg/kg/h',
+  },
+  dexmedetomidina: {
+    perMl: [4, 4],
+    unit: 'mcg',
+    defaultUnit: 'mcg/kg/h',
+    range: [0.2, 1.4],
+    rangeUnit: 'mcg/kg/h',
+  },
+  insulina: { perMl: [1, 1], unit: 'UI', defaultUnit: 'UI/h', range: [1, 10], rangeUnit: 'UI/h' },
+  heparina: {
+    perMl: [100, 50],
+    unit: 'UI',
+    defaultUnit: 'UI/kg/h',
+    range: [12, 18],
+    rangeUnit: 'UI/kg/h',
+  },
+};
+
+describe('infusion preset golden table', () => {
+  it('matches every dilution, default unit and usual range written by hand', () => {
+    expect(INFUSION_PRESETS.map(preset => preset.id).sort()).toEqual(
+      Object.keys(GOLDEN_PRESETS).sort()
+    );
+    for (const preset of INFUSION_PRESETS) {
+      const golden = GOLDEN_PRESETS[preset.id];
+      const concentrations = preset.dilutions.map(dilution => {
+        const concentration = concentrationOf(dilution)!;
+        const factor = concentration.unit === 'mg' ? 1000 : 1;
+        return Number((concentration.valuePerMl * factor).toPrecision(12));
+      });
+      expect(concentrations, preset.id).toEqual(golden.perMl);
+      for (const dilution of preset.dilutions) {
+        expect(dilution.amountUnit === 'UI' ? 'UI' : 'mcg', preset.id).toBe(golden.unit);
+      }
+      expect(preset.defaultUnit, preset.id).toBe(golden.defaultUnit);
+      expect([preset.usualRange.min, preset.usualRange.max], preset.id).toEqual(golden.range);
+      expect(preset.usualRange.unit, preset.id).toBe(golden.rangeUnit);
+    }
+  });
+
+  it('produces the hand-calculated pump rates at 70 kg for the usual range bounds', () => {
+    const at70 = (id: string, dose: number) => {
+      const preset = findInfusionPreset(id)!;
+      return rateOf({
+        dose,
+        unit: preset.usualRange.unit,
+        weightKg: 70,
+        dilution: preset.dilutions[0],
+      });
+    };
+    expect(at70('noradrenalina', 0.01)).toBeCloseTo(2.625, 6);
+    expect(at70('noradrenalina', 0.5)).toBeCloseTo(131.25, 6);
+    expect(at70('heparina', 12)).toBeCloseTo(8.4, 6);
+    expect(at70('heparina', 18)).toBeCloseTo(12.6, 6);
+    expect(at70('propofol', 3)).toBeCloseTo(21, 6);
+    expect(at70('dexmedetomidina', 1.4)).toBeCloseTo(24.5, 6);
+    expect(at70('vasopresina', 0.03)).toBeCloseTo(9, 6);
+  });
+
+  it('rejects results that overflow to infinity', () => {
+    expect(
+      computeRateFromDose({ dose: 1e307, unit: 'mg/h', dilution: NORADRENALINE_4_250 })
+    ).toEqual({
+      ok: false,
+      reason: 'invalid_dose',
+    });
+    expect(
+      computeDoseFromRate({ rateMlPerHour: 1e308, unit: 'mcg/h', dilution: NORADRENALINE_4_250 })
+    ).toEqual({ ok: false, reason: 'invalid_rate' });
+  });
+});

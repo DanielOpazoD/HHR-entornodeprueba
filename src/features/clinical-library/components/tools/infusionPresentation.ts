@@ -17,7 +17,7 @@ import {
   type DoseRangeAssessment,
   type InfusionPreset,
 } from '../../domain/infusionPresets';
-import { parseLocalizedDecimal } from '../../domain/numberInput';
+import { isPositiveFinite, parseLocalizedDecimal } from '../../domain/numberInput';
 import { formatClinicalNumber } from '../libraryPresentation';
 
 export type InfusionMode = 'dose' | 'rate';
@@ -94,7 +94,7 @@ const buildEquivalents = (
       `${formatClinicalNumber(amountPerHour / 60)} ${definition.amount}/min en total`
     );
   }
-  if (!definition.perKg && weightKg) {
+  if (!definition.perKg && isPositiveFinite(weightKg)) {
     const perKg = dose / weightKg;
     const suffix = definition.perMinute ? 'min' : 'h';
     equivalents.push(`${formatClinicalNumber(perKg)} ${definition.amount}/kg/${suffix}`);
