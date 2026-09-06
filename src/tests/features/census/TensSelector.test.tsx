@@ -8,10 +8,58 @@ const setShowTensManager = vi.fn();
 vi.mock('@/context/StaffContext', () => ({
   useStaffContext: () => ({
     setShowTensManager,
+    staffUsage: { nurse: {}, tens: { 'ana habitual': 3 } },
+    staffIdentities: [
+      {
+        key: 'tens:id:a',
+        role: 'tens',
+        name: 'Ana Maria Soto Rojas',
+        aliases: ['Ana Maria Soto Rojas', 'Ana Soto'],
+      },
+    ],
   }),
 }));
 
 describe('TensSelector', () => {
+  it('reveals less-used TENS without saving a shift merely by expanding the list', () => {
+    const update = vi.fn();
+    render(
+      <TensSelector
+        tensDayShift={['Ana Habitual', '', '']}
+        tensNightShift={['', '', '']}
+        tensList={['Ana Habitual', 'Berta Poco', 'Carla Poco', 'Dora Poco']}
+        onUpdateTens={update}
+      />
+    );
+    expect(screen.queryByRole('option', { name: 'Berta Poco' })).not.toBeInTheDocument();
+    const more = screen.getByRole('button', {
+      name: 'Mostrar nombres menos usados de TENS · turno largo · puesto 1',
+    });
+    expect(more).toHaveTextContent('');
+    fireEvent.click(more);
+    expect(screen.getAllByRole('option', { name: 'Berta Poco' })).toHaveLength(1);
+    expect(update).not.toHaveBeenCalled();
+  });
+  it('shows a short label but saves the canonical TENS name', () => {
+    const update = vi.fn();
+    render(
+      <TensSelector
+        tensDayShift={['Ana Soto', '', '']}
+        tensNightShift={['', '', '']}
+        tensList={['Ana Maria Soto Rojas']}
+        onUpdateTens={update}
+      />
+    );
+    expect(screen.getAllByRole('option', { name: 'Ana Soto' })).toHaveLength(6);
+    expect(screen.getByLabelText('TENS · turno largo · puesto 1')).toHaveValue(
+      'Ana Maria Soto Rojas'
+    );
+    expect(update).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('TENS · turno largo · puesto 1'), {
+      target: { value: 'Ana Maria Soto Rojas' },
+    });
+    expect(update).toHaveBeenCalledWith('day', 0, 'Ana Maria Soto Rojas');
+  });
   it('keeps selected staff visible even when the catalog has not hydrated yet', () => {
     render(
       <TensSelector

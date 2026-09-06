@@ -15,17 +15,33 @@ export const shouldOmitExtraStaffSelection = (value?: string | null): boolean =>
 
 export const buildResolvedStaffSelectionOptions = (
   catalog: string[],
-  selectedValues: string[]
+  selectedValues: string[],
+  identities: EloisaStaffIdentity[] = [],
+  role?: NursingRole
 ): string[] => {
   const uniqueOptions = new Set<string>([VACANCY_LABEL]);
 
   catalog.filter(Boolean).forEach(value => {
-    uniqueOptions.add(normalizeStaffSelectionValue(value));
+    uniqueOptions.add(resolveStaffSelectionValue(value, identities, role));
   });
 
   selectedValues.forEach(value => {
-    uniqueOptions.add(normalizeStaffSelectionValue(value));
+    uniqueOptions.add(resolveStaffSelectionValue(value, identities, role));
   });
 
   return Array.from(uniqueOptions);
 };
+
+export const resolveStaffSelectionValue = (
+  value: string | undefined,
+  identities: EloisaStaffIdentity[],
+  role?: NursingRole
+): string =>
+  normalizeStaffSelectionValue(
+    resolveEloisaStaffName(normalizeStaffSelectionValue(value), identities, role)
+  );
+import {
+  resolveEloisaStaffName,
+  type EloisaStaffIdentity,
+  type NursingRole,
+} from './eloisaStaffIdentity';
