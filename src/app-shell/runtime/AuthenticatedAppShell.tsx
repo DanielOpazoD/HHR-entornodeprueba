@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlaskConical } from 'lucide-react';
+import { FlaskConical, FolderOpen } from 'lucide-react';
 import { AppContent } from '@/components/layout/AppContent';
 import { CensusProvider } from '@/context/CensusContext';
 import type { AuthContextType } from '@/context/AuthContext';
@@ -17,6 +17,12 @@ const LaboratoryQuickAction = lazyWithRetry(() =>
   }))
 );
 
+const ClinicalLibraryQuickAction = lazyWithRetry(() =>
+  import('@/features/clinical-library/quick-action').then(module => ({
+    default: module.ClinicalLibraryQuickAction,
+  }))
+);
+
 const LaboratoryQuickActionFallback = () => (
   <button
     type="button"
@@ -28,6 +34,21 @@ const LaboratoryQuickActionFallback = () => (
   >
     <FlaskConical size={13} />
     <span className="hidden sm:inline">Lab</span>
+  </button>
+);
+
+// Misma geometría que el botón real para que la barra de fechas no salte al cargar el chunk.
+const ClinicalLibraryToolbarFallback = () => (
+  <button
+    type="button"
+    disabled
+    aria-disabled="true"
+    tabIndex={-1}
+    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-400"
+    title="Documentos y herramientas clínicas (cargando...)"
+  >
+    <FolderOpen size={15} />
+    <span className="hidden md:inline">Documentos</span>
   </button>
 );
 
@@ -53,10 +74,23 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
     []
   );
 
+  const renderCensusTrailingActions = React.useCallback(
+    () => (
+      <React.Suspense fallback={<ClinicalLibraryToolbarFallback />}>
+        <ClinicalLibraryQuickAction variant="toolbar" />
+      </React.Suspense>
+    ),
+    []
+  );
+
   return (
     <CensusProvider value={censusContextValue}>
       <DeferredSystemHealthReporter />
-      <AppContent ui={ui} renderFeatureQuickActions={renderFeatureQuickActions} />
+      <AppContent
+        ui={ui}
+        renderFeatureQuickActions={renderFeatureQuickActions}
+        renderCensusTrailingActions={renderCensusTrailingActions}
+      />
     </CensusProvider>
   );
 };

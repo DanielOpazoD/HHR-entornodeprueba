@@ -12,6 +12,7 @@
       "wound-care"
     ],
     "clinical-documents": ["laboratory"],
+    "clinical-library": [],
     "cudyr": [],
     "document-scanner": [],
     "handoff": ["cudyr", "wound-care"],

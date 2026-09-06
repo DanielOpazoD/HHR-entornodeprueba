@@ -42,6 +42,7 @@ export interface AppContentChromeProps {
   runtime: AppContentRuntime;
   onOpenCensusDate?: (date: string) => void;
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  renderCensusTrailingActions?: () => React.ReactNode;
 }
 
 export const AppContentChrome: React.FC<AppContentChromeProps> = ({
@@ -49,6 +50,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
   runtime,
   onOpenCensusDate,
   renderFeatureQuickActions,
+  renderCensusTrailingActions,
 }) => {
   const { auth, dateNav } = runtime;
   const { isSignatureMode } = dateNav;
@@ -83,6 +85,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
           trailingActions={
             ui.currentModule === 'CENSUS' ? (
               <>
+                {renderCensusTrailingActions?.()}
                 <CensusOptionsMenu>
                   {dateStripProps.onOpenPatientSearch && (
                     <button

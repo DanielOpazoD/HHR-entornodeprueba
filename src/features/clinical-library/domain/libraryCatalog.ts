@@ -1,0 +1,250 @@
+import type {
+  LibraryCategory,
+  LibraryCategoryId,
+  LibraryDocumentEntry,
+  LibraryEntry,
+  LibraryToolEntry,
+} from './libraryCatalogTypes';
+
+export const LIBRARY_CATEGORIES: ReadonlyArray<LibraryCategory> = [
+  {
+    id: 'forms',
+    label: 'Formularios',
+    description: 'Documentos locales listos para imprimir o completar.',
+    emptyTitle: 'Sin formularios para esta búsqueda',
+    emptyDetail: 'Prueba con otra palabra: nombre del formulario, examen o servicio.',
+  },
+  {
+    id: 'protocols',
+    label: 'Protocolos',
+    description: 'Protocolos y guías del Servicio de Hospitalizados.',
+    emptyTitle: 'Aún no hay protocolos publicados',
+    emptyDetail:
+      'Cuando el servicio publique sus protocolos aparecerán aquí, listos para consultar e imprimir.',
+  },
+  {
+    id: 'infographics',
+    label: 'Infografías',
+    description: 'Material visual para el equipo y para pacientes.',
+    emptyTitle: 'Aún no hay infografías publicadas',
+    emptyDetail: 'Las infografías del servicio se mostrarán en esta sección cuando se publiquen.',
+  },
+  {
+    id: 'tools',
+    label: 'Herramientas',
+    description: 'Calculadoras y scores clínicos, disponibles sin conexión.',
+    emptyTitle: 'Sin herramientas para esta búsqueda',
+    emptyDetail: 'Busca por nombre de la herramienta, fármaco o score.',
+  },
+];
+
+export const findLibraryCategory = (id: LibraryCategoryId): LibraryCategory =>
+  LIBRARY_CATEGORIES.find(category => category.id === id) ?? LIBRARY_CATEGORIES[0];
+
+const HHR_SOURCE = 'Hospital Hanga Roa · Hospitalizados';
+
+const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
+  {
+    kind: 'document',
+    id: 'indicaciones-medicas-plan-enfermeria',
+    category: 'forms',
+    title: 'Indicaciones médicas y plan de enfermería',
+    description:
+      'Hoja diaria con indicaciones médicas, horario y responsable, control clínico por turno y valoración de piel.',
+    format: 'pdf',
+    url: '/docs/biblioteca/indicaciones-medicas-plan-enfermeria.pdf',
+    pages: 2,
+    sizeKb: 423,
+    keywords: [
+      'indicaciones',
+      'plan de enfermería',
+      'hoja diaria',
+      'control clínico',
+      'signos vitales',
+    ],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
+    id: 'solicitud-laboratorio-policlinico',
+    category: 'forms',
+    title: 'Solicitud de exámenes de laboratorio',
+    description:
+      'Formulario de policlínico con el listado de exámenes por área: bioquímica, hematología, coagulación, microbiología, orina y hormonas.',
+    format: 'pdf',
+    url: '/docs/biblioteca/solicitud-laboratorio-policlinico.pdf',
+    pages: 1,
+    sizeKb: 143,
+    keywords: ['laboratorio', 'exámenes', 'solicitud', 'policlínico', 'hemograma', 'orina'],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
+    id: 'solicitud-imagenologia',
+    category: 'forms',
+    title: 'Solicitud de examen de imagenología',
+    description: 'Orden de radiología, ecografía o tomografía para completar a mano e imprimir.',
+    format: 'pdf',
+    url: '/docs/solicitud-imagen.pdf',
+    pages: 1,
+    sizeKb: 192,
+    keywords: [
+      'imagenología',
+      'radiología',
+      'ecografía',
+      'tomografía',
+      'TAC',
+      'solicitud',
+      'MMRAD',
+    ],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
+    id: 'solicitud-imagenologia-docx',
+    category: 'forms',
+    title: 'Solicitud de examen de imagenología (editable)',
+    description: 'Versión Word de la solicitud de imagenología para completar en el computador.',
+    format: 'docx',
+    url: '/templates/Solicitud examen imagenología .docx',
+    sizeKb: 106,
+    keywords: ['imagenología', 'solicitud', 'word', 'editable'],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
+    id: 'encuesta-contraste',
+    category: 'forms',
+    title: 'Encuesta de seguridad para medio de contraste',
+    description:
+      'Cuestionario previo a tomografía con contraste: alergias, función renal, metformina y embarazo.',
+    format: 'pdf',
+    url: '/docs/encuesta-contraste.pdf',
+    pages: 1,
+    sizeKb: 219,
+    keywords: ['contraste', 'TAC', 'tomografía', 'encuesta', 'alergia', 'yodo'],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
+    id: 'encuesta-contraste-docx',
+    category: 'forms',
+    title: 'Encuesta de seguridad para medio de contraste (editable)',
+    description: 'Versión Word de la encuesta de contraste para completar en el computador.',
+    format: 'docx',
+    url: '/templates/Encuesta contraste TAC.docx',
+    sizeKb: 205,
+    keywords: ['contraste', 'TAC', 'encuesta', 'word', 'editable'],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
+    id: 'consentimiento-informado',
+    category: 'forms',
+    title: 'Consentimiento informado general',
+    description:
+      'Formato institucional para procedimientos: identificación, procedimiento, declaración y firmas.',
+    format: 'pdf',
+    url: '/docs/consentimiento.pdf',
+    pages: 1,
+    sizeKb: 97,
+    keywords: ['consentimiento', 'procedimiento', 'firma', 'apoderado'],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
+    id: 'instrumento-cudyr',
+    category: 'forms',
+    title: 'Instrumento de categorización CUDYR',
+    description:
+      'Pauta de cuidados de enfermería que identifican dependencia y riesgo, con la escala de dependencia.',
+    format: 'pdf',
+    url: '/docs/instrumento-cudyr.pdf',
+    pages: 2,
+    sizeKb: 467,
+    keywords: ['CUDYR', 'dependencia', 'riesgo', 'categorización', 'enfermería'],
+    source: HHR_SOURCE,
+  },
+  {
+    kind: 'document',
+    id: 'informe-estadistico-egreso',
+    category: 'forms',
+    title: 'Informe estadístico de egreso hospitalario (IEEH)',
+    description:
+      'Formulario MINSAL/DEIS de egreso: identificación, admisión, diagnósticos, intervenciones y profesional tratante.',
+    format: 'pdf',
+    url: '/docs/estadistico-egreso.pdf',
+    pages: 2,
+    sizeKb: 7110,
+    keywords: ['IEEH', 'egreso', 'estadístico', 'MINSAL', 'DEIS', 'alta'],
+    source: 'Ministerio de Salud · DEIS',
+  },
+];
+
+const TOOLS: ReadonlyArray<LibraryToolEntry> = [
+  {
+    kind: 'tool',
+    id: 'infusion',
+    category: 'tools',
+    title: 'Dilución y velocidad de infusión',
+    description:
+      'Convierte una dosis (mcg/kg/min, mg/h, UI/h…) en mL/h y viceversa, con diluciones de referencia de vasoactivos, sedantes y otras infusiones.',
+    keywords: [
+      'dilución',
+      'infusión',
+      'bomba',
+      'mL/h',
+      'noradrenalina',
+      'adrenalina',
+      'dopamina',
+      'dobutamina',
+      'vasoactivos',
+      'sedación',
+      'UCI',
+    ],
+  },
+  {
+    kind: 'tool',
+    id: 'dosing',
+    category: 'tools',
+    title: 'Cálculo de dosis y antropometría',
+    description:
+      'Dosis por kilo (peso real, ideal o ajustado), IMC, superficie corporal y clearance de creatinina (Cockcroft-Gault).',
+    keywords: [
+      'dosis',
+      'peso ideal',
+      'peso ajustado',
+      'IMC',
+      'superficie corporal',
+      'clearance',
+      'creatinina',
+      'UCI',
+    ],
+  },
+  {
+    kind: 'tool',
+    id: 'scores',
+    category: 'tools',
+    title: 'Scores clínicos',
+    description:
+      'qSOFA, Glasgow, CURB-65, Wells (TEP), Padua y CHA₂DS₂-VASc con interpretación y referencia bibliográfica.',
+    keywords: [
+      'score',
+      'escala',
+      'qSOFA',
+      'Glasgow',
+      'CURB-65',
+      'Wells',
+      'Padua',
+      'CHA2DS2-VASc',
+      'sepsis',
+      'neumonía',
+      'TEP',
+    ],
+  },
+];
+
+export const CLINICAL_LIBRARY_ENTRIES: ReadonlyArray<LibraryEntry> = [...DOCUMENTS, ...TOOLS];
+
+export const findLibraryEntry = (id: string): LibraryEntry | undefined =>
+  CLINICAL_LIBRARY_ENTRIES.find(entry => entry.id === id);
