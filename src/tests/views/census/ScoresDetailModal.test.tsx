@@ -131,6 +131,8 @@ describe('ScoresDetailModal', () => {
     expect(screen.queryByText(/Cuidados planeados|Cuidados básicos/)).not.toBeInTheDocument();
     expect(within(screen.getByRole('table')).getByText('Profesional Braden')).toBeInTheDocument();
     expect(screen.queryByText('Profesional Downton')).not.toBeInTheDocument();
+    // Finish the modal's initial focus before testing user-driven keyboard navigation.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cerrar modal' })).toHaveFocus());
     await user.click(screen.getByRole('tab', { name: 'Downton' }));
     expect(screen.getByText(/Próxima aplicación: 07-09-2026/)).toBeInTheDocument();
     expect(within(screen.getByRole('table')).getByText('Profesional Downton')).toBeInTheDocument();
