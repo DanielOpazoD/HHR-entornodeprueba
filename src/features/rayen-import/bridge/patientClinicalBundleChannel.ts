@@ -83,6 +83,7 @@ export const requestPatientClinicalBundle = (
     payload: {
       encId,
       fecha,
+      acceptEntries: true,
       censusDate: options.censusDate,
       lookbackDays: options.lookbackDays,
     },

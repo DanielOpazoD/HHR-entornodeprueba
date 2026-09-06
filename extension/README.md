@@ -30,6 +30,28 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
   plan de cuidados. Así distingue suspendidos, muestra acciones de enfermería ejecutadas y separa
   entregas de turno médicas y de enfermería sin persistir ese contenido en HHR.
 
+## Lecturas clínicas y recuperación
+
+- `patient-clinical-bundle-runtime.js` coordina dispositivos, historial de escalas y
+  formularios; cada sección falla de forma independiente. No decide qué persistir en HHR.
+- El canal HHR negocia `acceptEntries: true` también en el paquete clínico. Para el día
+  clínico actual se permite el lector JSON de dispositivos; fechas históricas, clientes
+  sin opt-in y datos no soportados conservan el respaldo PDF. No confundir una respuesta
+  vacía válida con una fuente no disponible.
+- `clinicalPatientReaders.ts` normaliza las secciones y permite un único reintento
+  individual por fuente, incluso si llegó el PDF pero falló su interpretación. No vuelve
+  a consultar las otras fuentes que ya respondieron correctamente.
+
+Pruebas focalizadas: `deviceEvidenceNegotiation.test.ts`,
+`patientClinicalBundleRuntime.test.ts`, `fichamedicoDeviceEvidenceRuntime.test.ts`,
+`clinicalFillRunner.bundle.test.ts`, bajo
+`src/tests/rayen-import/`. Usan datos sintéticos, no HAR ni credenciales.
+
+La negociación añade un campo opcional al contrato y al relé. El baseline de tamaño
+de esos dos archivos aumenta exactamente una línea por campo; no se amplían los límites
+de funciones ni se introduce una excepción general. La compatibilidad queda cubierta por
+las pruebas de opt-in explícito y cliente anterior.
+
 ## Archivos
 
 | Archivo | Rol |
