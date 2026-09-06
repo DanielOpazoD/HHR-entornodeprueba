@@ -4,9 +4,12 @@ import { useStaffContext } from '@/context/StaffContext';
 import type { ShiftIndicatorState } from '@/features/census/controllers/censusStaffHeaderController';
 import {
   buildResolvedStaffSelectionOptions,
-  normalizeStaffSelectionValue,
+  resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
 import { buildStaffSelectionSelectClassName } from './staffSelectionSelectStyles';
+import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
+import { partitionStaffOptions } from '@/services/staff/staffUsage';
+import { StaffMoreOptionsButton } from './StaffMoreOptionsButton';
 
 interface TensSelectorProps {
   tensDayShift: string[];
@@ -27,12 +30,26 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
   onOpenDetailedStaffing,
   className,
 }) => {
-  const { setShowTensManager } = useStaffContext();
+  const { setShowTensManager, staffIdentities = [], staffUsage } = useStaffContext();
+  const [showAllNames, setShowAllNames] = React.useState<Record<string, boolean>>({});
   const selectClassName =
     'py-0 pl-1 pr-4 border border-slate-200 text-[10px] focus:ring-1 focus:outline-none text-slate-700 h-[20px] w-[60px] appearance-none transition-all';
   const resolvedTensOptions = React.useMemo(
-    () => buildResolvedStaffSelectionOptions(tensList, [...tensDayShift, ...tensNightShift]),
-    [tensList, tensDayShift, tensNightShift]
+    () =>
+      buildResolvedStaffSelectionOptions(
+        tensList,
+        [...tensDayShift, ...tensNightShift],
+        staffIdentities,
+        'tens'
+      ),
+    [tensList, tensDayShift, tensNightShift, staffIdentities]
+  );
+  const groups = partitionStaffOptions(
+    resolvedTensOptions,
+    [...tensDayShift, ...tensNightShift].map(name =>
+      resolveStaffSelectionValue(name, staffIdentities, 'tens')
+    ),
+    staffUsage?.tens
   );
   const hasDayAdjustments = Boolean(
     shiftIndicators?.day?.hasSpecialSchedule || (shiftIndicators?.day?.extraCount ?? 0) > 0
@@ -84,19 +101,29 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 selectionValue: tensDayShift[idx],
                 tone: 'day',
               })}
-              value={normalizeStaffSelectionValue(tensDayShift[idx])}
+              value={resolveStaffSelectionValue(tensDayShift[idx], staffIdentities, 'tens')}
               onChange={e => onUpdateTens('day', idx, e.target.value)}
               aria-label={`TENS · turno largo · puesto ${idx + 1}`}
             >
-              {resolvedTensOptions.map(n => (
-                <option key={n} value={n}>
-                  {n}
+              {(showAllNames[`day-${idx}`] ? resolvedTensOptions : groups.visible).map(n => (
+                <option key={n} value={n} title={n}>
+                  {formatStaffDisplayName(n, staffIdentities, 'tens')}
                 </option>
               ))}
             </select>
-            <ChevronDown
-              size={10}
-              className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+            {groups.hidden.length === 0 && (
+              <ChevronDown
+                size={10}
+                className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+            )}
+            <StaffMoreOptionsButton
+              expanded={Boolean(showAllNames[`day-${idx}`])}
+              count={groups.hidden.length}
+              label={`TENS · turno largo · puesto ${idx + 1}`}
+              onClick={() =>
+                setShowAllNames(value => ({ ...value, [`day-${idx}`]: !value[`day-${idx}`] }))
+              }
             />
           </div>
         ))}
@@ -122,19 +149,29 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 selectionValue: tensNightShift[idx],
                 tone: 'night',
               })}
-              value={normalizeStaffSelectionValue(tensNightShift[idx])}
+              value={resolveStaffSelectionValue(tensNightShift[idx], staffIdentities, 'tens')}
               onChange={e => onUpdateTens('night', idx, e.target.value)}
               aria-label={`TENS · turno noche · puesto ${idx + 1}`}
             >
-              {resolvedTensOptions.map(n => (
-                <option key={n} value={n}>
-                  {n}
+              {(showAllNames[`night-${idx}`] ? resolvedTensOptions : groups.visible).map(n => (
+                <option key={n} value={n} title={n}>
+                  {formatStaffDisplayName(n, staffIdentities, 'tens')}
                 </option>
               ))}
             </select>
-            <ChevronDown
-              size={10}
-              className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+            {groups.hidden.length === 0 && (
+              <ChevronDown
+                size={10}
+                className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+            )}
+            <StaffMoreOptionsButton
+              expanded={Boolean(showAllNames[`night-${idx}`])}
+              count={groups.hidden.length}
+              label={`TENS · turno noche · puesto ${idx + 1}`}
+              onClick={() =>
+                setShowAllNames(value => ({ ...value, [`night-${idx}`]: !value[`night-${idx}`] }))
+              }
             />
           </div>
         ))}

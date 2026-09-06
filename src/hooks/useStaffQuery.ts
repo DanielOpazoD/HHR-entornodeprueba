@@ -60,6 +60,7 @@ export const useNursesQuery = () => {
   return {
     ...query,
     manualData: query.data,
+    identities: discovered,
     data,
   };
 };

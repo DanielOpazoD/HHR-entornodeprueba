@@ -15,12 +15,19 @@ import {
 } from '@/hooks/useStaffQuery';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
 import { reconcileNurseCatalogNames } from '@/services/staff/nurseIdentity';
+import type { EloisaStaffIdentity } from '@/services/staff/eloisaStaffIdentity';
+import { useStaffUsage } from '@/hooks/useStaffUsage';
+import type { StaffUsage } from '@/services/staff/staffUsage';
+
+const NO_STAFF_IDENTITIES: EloisaStaffIdentity[] = [];
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export interface StaffContextType {
+  staffIdentities?: EloisaStaffIdentity[];
+  staffUsage?: StaffUsage;
   // Nurse catalog (available names)
   nursesList: string[];
   setNursesList: (nurses: string[]) => void;
@@ -55,7 +62,12 @@ interface StaffProviderProps {
 
 export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   // 1. Data Fetching via TanStack Query
-  const { data: nurses = [], isLoading: nursesLoading } = useNursesQuery();
+  const {
+    data: nurses = [],
+    isLoading: nursesLoading,
+    identities: staffIdentities = NO_STAFF_IDENTITIES,
+  } = useNursesQuery();
+  const staffUsage = useStaffUsage(staffIdentities);
   const { data: tens = [], isLoading: tensLoading } = useTensQuery();
   const { data: professionals = [], isLoading: professionalsLoading } = useProfessionalsQuery();
   const reconciledNurses = useMemo(() => reconcileNurseCatalogNames(nurses), [nurses]);
@@ -83,6 +95,8 @@ export const StaffProvider: React.FC<StaffProviderProps> = ({ children }) => {
   };
 
   const value: StaffContextType = {
+    staffIdentities,
+    staffUsage,
     nursesList: reconciledNurses,
     setNursesList,
     nursesLoading,

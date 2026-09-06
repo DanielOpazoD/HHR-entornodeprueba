@@ -2,7 +2,8 @@ import React from 'react';
 import type { EvaluationScoreEntry } from '@/types/domain/evaluationScores';
 import { formatIsoDay } from './scoresDetailTokens';
 import { useEloisaStaff } from '@/hooks/useEloisaStaff';
-import { nursingRole, resolveEloisaStaffName } from '@/services/staff/eloisaStaffIdentity';
+import { nursingRole } from '@/services/staff/eloisaStaffIdentity';
+import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
 
 interface ScoresHistoryTableProps {
   history: EvaluationScoreEntry[];
@@ -59,13 +60,15 @@ export const ScoresHistoryTable: React.FC<ScoresHistoryTableProps> = ({ history 
                     : undefined
                 }
               >
-                {entry.author
-                  ? resolveEloisaStaffName(
-                      entry.author,
-                      professionals,
-                      nursingRole(entry.authorRole ?? '')
-                    )
-                  : 'No informado'}
+                <span title={entry.author || undefined}>
+                  {entry.author
+                    ? formatStaffDisplayName(
+                        entry.author,
+                        professionals,
+                        nursingRole(entry.authorRole ?? '')
+                      )
+                    : 'No informado'}
+                </span>
               </td>
             </tr>
           ))}
