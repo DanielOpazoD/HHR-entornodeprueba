@@ -4,8 +4,8 @@
  * en el campo, en vez de producir un IMC de 242 o una dosis negativa.
  */
 
-import { parseLocalizedDecimal } from '../../domain/numberInput';
-import { formatClinicalNumber } from '../libraryPresentation';
+import { parseLocalizedDecimal } from '../domain/numberInput';
+import { formatClinicalNumber } from './libraryPresentation';
 
 export interface PlausibleRange {
   min: number;

@@ -14,10 +14,10 @@ import {
 } from '../../domain/doseCalculator';
 import { MASS_UNITS, type MassUnit } from '../../domain/infusionCalculator';
 import { parseLocalizedDecimal } from '../../domain/numberInput';
-import { PLAUSIBLE_RANGES, plausibleValue, rangeHint } from './plausibleRanges';
-import { formatClinicalNumber } from '../libraryPresentation';
+import { formatClinicalNumber } from '../../controllers/libraryPresentation';
+import { PLAUSIBLE_RANGES, plausibleValue, rangeHint } from '../../controllers/plausibleRanges';
 import { NumberField, ResultTile, SegmentedControl, SelectField, ToolSection } from './ToolField';
-import { ToolFrame } from './ToolFrame';
+import { ToolFrame, type ToolComponentProps } from './ToolFrame';
 
 const BMI_LABELS: Readonly<Record<BmiCategory, string>> = {
   underweight: 'Bajo peso',
@@ -26,10 +26,16 @@ const BMI_LABELS: Readonly<Record<BmiCategory, string>> = {
   obesity: 'Obesidad',
 };
 
-const kgLabel = (value: number | null): string =>
-  value === null ? 'no disponible' : `${formatClinicalNumber(value, 1)} kg`;
+const BASIS_LABELS: Readonly<Record<WeightBasis, string>> = {
+  actual: 'Real',
+  ideal: 'Ideal',
+  adjusted: 'Ajustado',
+};
 
-export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+const kgLabel = (value: number | null): string =>
+  value === null ? '—' : `${formatClinicalNumber(value, 1)} kg`;
+
+export const DosingCalculatorTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) => {
   const [sex, setSex] = useState<BiologicalSex>('male');
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
@@ -47,8 +53,6 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
   const creatinineInput = plausibleValue(creatinine, PLAUSIBLE_RANGES.creatinineMgDl);
   const weightKg = weightInput.value;
   const heightCm = heightInput.value;
-  const ageYears = ageInput.value;
-  const creatinineMgDl = creatinineInput.value;
 
   const bmi = weightKg !== null && heightCm !== null ? computeBmi(weightKg, heightCm) : null;
   const ideal = heightCm !== null ? idealBodyWeightDevine(heightCm, sex) : null;
@@ -56,8 +60,13 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
   const bsa =
     weightKg !== null && heightCm !== null ? bodySurfaceAreaMosteller(weightKg, heightCm) : null;
   const clearance =
-    ageYears !== null && weightKg !== null && creatinineMgDl !== null
-      ? cockcroftGaultClearance({ ageYears, weightKg, creatinineMgDl, sex })
+    ageInput.value !== null && weightKg !== null && creatinineInput.value !== null
+      ? cockcroftGaultClearance({
+          ageYears: ageInput.value,
+          weightKg,
+          creatinineMgDl: creatinineInput.value,
+          sex,
+        })
       : null;
 
   const basisWeights: Readonly<Record<WeightBasis, number | null>> = {
@@ -83,10 +92,10 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
 
   return (
     <ToolFrame
-      title="Cálculo de dosis y antropometría"
-      description="Peso ideal y ajustado, IMC, superficie corporal, clearance de creatinina y dosis por kilo."
+      title="Dosis y antropometría"
       icon={<Calculator size={16} aria-hidden="true" />}
       onBack={onBack}
+      onClose={onClose}
       testId="library-tool-dosing"
     >
       <ToolSection title="Paciente">
@@ -102,43 +111,43 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
           />
           <NumberField
             id="dosing-age"
-            invalid={ageInput.invalid}
-            hint={rangeHint(ageInput, PLAUSIBLE_RANGES.ageYears)}
             label="Edad"
             unit="años"
             value={age}
             onChange={setAge}
             placeholder="65"
+            invalid={ageInput.invalid}
+            hint={rangeHint(ageInput, PLAUSIBLE_RANGES.ageYears)}
           />
           <NumberField
             id="dosing-weight"
-            invalid={weightInput.invalid}
-            hint={rangeHint(weightInput, PLAUSIBLE_RANGES.weightKg)}
             label="Peso real"
             unit="kg"
             value={weight}
             onChange={setWeight}
             placeholder="70"
+            invalid={weightInput.invalid}
+            hint={rangeHint(weightInput, PLAUSIBLE_RANGES.weightKg)}
           />
           <NumberField
             id="dosing-height"
-            invalid={heightInput.invalid}
-            hint={rangeHint(heightInput, PLAUSIBLE_RANGES.heightCm)}
             label="Talla"
             unit="cm"
             value={height}
             onChange={setHeight}
             placeholder="170"
+            invalid={heightInput.invalid}
+            hint={rangeHint(heightInput, PLAUSIBLE_RANGES.heightCm)}
           />
           <NumberField
             id="dosing-creatinine"
-            invalid={creatinineInput.invalid}
-            hint={rangeHint(creatinineInput, PLAUSIBLE_RANGES.creatinineMgDl)}
             label="Creatinina"
             unit="mg/dL"
             value={creatinine}
             onChange={setCreatinine}
             placeholder="1,0"
+            invalid={creatinineInput.invalid}
+            hint={rangeHint(creatinineInput, PLAUSIBLE_RANGES.creatinineMgDl)}
           />
         </div>
       </ToolSection>
@@ -150,25 +159,21 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
             label="IMC"
             value={bmi !== null ? formatClinicalNumber(bmi, 1) : null}
             unit="kg/m²"
-            hint={bmi !== null ? BMI_LABELS[classifyBmi(bmi)] : 'Peso y talla'}
+            hint={bmi !== null ? BMI_LABELS[classifyBmi(bmi)] : undefined}
           />
           <ResultTile
             testId="dosing-ideal"
             label="Peso ideal"
             value={ideal ? formatClinicalNumber(ideal.kg, 1) : null}
             unit="kg"
-            hint={ideal?.extrapolated ? 'Devine; extrapolado bajo 152 cm' : 'Devine'}
+            hint={ideal?.extrapolated ? 'Devine, extrapolado bajo 152 cm' : 'Devine'}
           />
           <ResultTile
             testId="dosing-adjusted"
             label="Peso ajustado"
             value={adjusted !== null ? formatClinicalNumber(adjusted, 1) : null}
             unit="kg"
-            hint={
-              adjusted !== null
-                ? 'Ideal + 40 % del exceso'
-                : 'Sólo si el peso real supera al ideal en 20 % o más'
-            }
+            hint={adjusted !== null ? 'Ideal + 40 % del exceso' : 'Desde +20 % del peso ideal'}
           />
           <ResultTile
             testId="dosing-bsa"
@@ -182,7 +187,7 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
             label="Clearance de creatinina"
             value={clearance !== null ? formatClinicalNumber(clearance, 0) : null}
             unit="mL/min"
-            hint="Cockcroft-Gault con el peso real ingresado; sólo adultos"
+            hint="Cockcroft-Gault con peso real; sólo adultos"
           />
         </div>
       </ToolSection>
@@ -209,24 +214,11 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
             label="Peso para el cálculo"
             value={effectiveBasis}
             onChange={setWeightBasis}
-            options={[
-              {
-                value: 'actual',
-                label: `Real · ${kgLabel(basisWeights.actual)}`,
-                disabled: basisWeights.actual === null,
-              },
-              {
-                value: 'ideal',
-                label: `Ideal · ${kgLabel(basisWeights.ideal)}`,
-                disabled: basisWeights.ideal === null,
-              },
-              {
-                value: 'adjusted',
-                label: `Ajustado · ${kgLabel(basisWeights.adjusted)}`,
-                disabled: basisWeights.adjusted === null,
-                title: 'Disponible cuando el peso real supera al ideal en 20 % o más',
-              },
-            ]}
+            options={(['actual', 'ideal', 'adjusted'] as const).map(basis => ({
+              value: basis,
+              label: `${BASIS_LABELS[basis]} · ${kgLabel(basisWeights[basis])}`,
+              disabled: basisWeights[basis] === null,
+            }))}
           />
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -255,8 +247,8 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
             unit={doseUnit}
             hint={
               doseResult
-                ? `Con peso ${effectiveBasis === 'actual' ? 'real' : effectiveBasis === 'ideal' ? 'ideal' : 'ajustado'} de ${kgLabel(doseWeight)}`
-                : 'Dosis por kilo y peso'
+                ? `Peso ${BASIS_LABELS[effectiveBasis].toLowerCase()} ${kgLabel(doseWeight)}`
+                : undefined
             }
             emphasis
           />
@@ -265,7 +257,6 @@ export const DosingCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack 
             label="Volumen a administrar"
             value={doseResult?.volumeMl != null ? formatClinicalNumber(doseResult.volumeMl) : null}
             unit="mL"
-            hint="Según la presentación ingresada"
           />
         </div>
       </ToolSection>

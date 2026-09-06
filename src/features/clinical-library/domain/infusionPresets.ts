@@ -7,7 +7,7 @@
  * farmacia: la interfaz lo dice de forma explícita.
  */
 
-import { DOSE_UNITS, convertDose, type DoseUnitId, type MassUnit } from './infusionCalculator';
+import { convertDose, type DoseUnitId, type MassUnit } from './infusionCalculator';
 
 export type InfusionPresetGroup = 'vasoactivo' | 'sedoanalgesia' | 'cardiovascular' | 'metabolico';
 
@@ -19,10 +19,11 @@ export const INFUSION_PRESET_GROUP_LABELS: Readonly<Record<InfusionPresetGroup, 
 };
 
 export interface InfusionPresetDilution {
-  label: string;
   amount: number;
   amountUnit: MassUnit;
   volumeMl: number;
+  /** Aclaración breve de la presentación, p. ej. «1 mg/mL» o «sin diluir». */
+  hint?: string;
 }
 
 export interface InfusionDoseRange {
@@ -47,13 +48,8 @@ const dilution = (
   amount: number,
   amountUnit: MassUnit,
   volumeMl: number,
-  extra?: string
-): InfusionPresetDilution => ({
-  label: `${amount.toLocaleString('es-CL')} ${amountUnit} en ${volumeMl} mL${extra ? ` · ${extra}` : ''}`,
-  amount,
-  amountUnit,
-  volumeMl,
-});
+  hint?: string
+): InfusionPresetDilution => ({ amount, amountUnit, volumeMl, ...(hint ? { hint } : {}) });
 
 export const INFUSION_PRESETS: ReadonlyArray<InfusionPreset> = [
   {
@@ -307,5 +303,3 @@ export const assessDoseAgainstRange = (
   if (inRangeUnit > range.max) return 'above';
   return 'within';
 };
-
-export const doseUnitLabel = (unit: DoseUnitId): string => DOSE_UNITS[unit].id;

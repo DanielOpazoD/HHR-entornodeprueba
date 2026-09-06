@@ -16,26 +16,26 @@ import {
   type InfusionPresetGroup,
 } from '../../domain/infusionPresets';
 import { parseLocalizedDecimal } from '../../domain/numberInput';
-import { PLAUSIBLE_RANGES, plausibleValue, rangeHint } from './plausibleRanges';
+import {
+  formatDilutionLabel,
+  presentInfusion,
+  type InfusionMode,
+} from '../../controllers/infusionPresentation';
+import { PLAUSIBLE_RANGES, plausibleValue, rangeHint } from '../../controllers/plausibleRanges';
 import { InfusionResultPanel } from './InfusionResultPanel';
-import { presentInfusion, type InfusionMode } from './infusionPresentation';
 import { NumberField, SegmentedControl, SelectField, ToolSection } from './ToolField';
-import { ToolFrame } from './ToolFrame';
+import { ToolFrame, type ToolComponentProps } from './ToolFrame';
 
 export const CUSTOM_PRESET_ID = 'custom';
 
-const PRESET_GROUPS = (Object.keys(INFUSION_PRESET_GROUP_LABELS) as InfusionPresetGroup[]).map(
-  group => ({
+const PRESET_SELECT_GROUPS = [
+  ...(Object.keys(INFUSION_PRESET_GROUP_LABELS) as InfusionPresetGroup[]).map(group => ({
     label: INFUSION_PRESET_GROUP_LABELS[group],
     options: INFUSION_PRESETS.filter(preset => preset.group === group).map(preset => ({
       value: preset.id,
       label: preset.name,
     })),
-  })
-);
-
-const PRESET_SELECT_GROUPS = [
-  ...PRESET_GROUPS,
+  })),
   { label: 'Otra', options: [{ value: CUSTOM_PRESET_ID, label: 'Dilución personalizada' }] },
 ];
 
@@ -45,7 +45,17 @@ const firstCompatibleUnit = (mass: MassUnit): DoseUnitId =>
 const resolvePreset = (presetId: string): InfusionPreset | null =>
   presetId === CUSTOM_PRESET_ID ? null : (findInfusionPreset(presetId) ?? null);
 
-export const InfusionCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+const customDilution = (
+  amountText: string,
+  amountUnit: MassUnit,
+  volumeText: string
+): InfusionDilution | null => {
+  const amount = parseLocalizedDecimal(amountText);
+  const volumeMl = parseLocalizedDecimal(volumeText);
+  return amount !== null && volumeMl !== null ? { amount, amountUnit, volumeMl } : null;
+};
+
+export const InfusionCalculatorTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) => {
   const [presetId, setPresetId] = useState<string>(INFUSION_PRESETS[0].id);
   const [dilutionIndex, setDilutionIndex] = useState(0);
   const [customAmount, setCustomAmount] = useState('');
@@ -63,27 +73,15 @@ export const InfusionCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBac
   const allowedUnits: ReadonlyArray<DoseUnitId> = preset
     ? preset.allowedUnits
     : DOSE_UNIT_IDS.filter(candidate => isUnitCompatibleWithMass(candidate, massUnit));
-
   const dilution: InfusionDilution | null = presetDilution
-    ? {
-        amount: presetDilution.amount,
-        amountUnit: presetDilution.amountUnit,
-        volumeMl: presetDilution.volumeMl,
-      }
-    : (() => {
-        const amount = parseLocalizedDecimal(customAmount);
-        const volume = parseLocalizedDecimal(customVolume);
-        return amount !== null && volume !== null
-          ? { amount, amountUnit: customMassUnit, volumeMl: volume }
-          : null;
-      })();
+    ? presetDilution
+    : customDilution(customAmount, customMassUnit, customVolume);
 
   const weightInput = plausibleValue(weight, PLAUSIBLE_RANGES.weightKg);
-  const weightKg = weightInput.value;
   const presentation = presentInfusion({
     mode,
     unit,
-    weightKg,
+    weightKg: weightInput.value,
     dilution,
     doseText,
     rateText,
@@ -102,14 +100,12 @@ export const InfusionCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBac
     if (!isUnitCompatibleWithMass(unit, nextMass)) setUnit(firstCompatibleUnit(nextMass));
   };
 
-  const unitNeedsWeight = unit.includes('/kg/');
-
   return (
     <ToolFrame
       title="Dilución y velocidad de infusión"
-      description="Convierte la dosis indicada en mL/h de la bomba, o al revés, con la dilución elegida."
       icon={<Syringe size={16} aria-hidden="true" />}
       onBack={onBack}
+      onClose={onClose}
       testId="library-tool-infusion"
     >
       <ToolSection title="Fármaco y dilución">
@@ -124,14 +120,13 @@ export const InfusionCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBac
           {preset ? (
             <SelectField
               id="infusion-dilution"
-              label="Dilución de referencia"
+              label="Dilución"
               value={String(dilutionIndex)}
               onChange={value => setDilutionIndex(Number(value))}
               options={preset.dilutions.map((item, index) => ({
                 value: String(index),
-                label: item.label,
+                label: formatDilutionLabel(item),
               }))}
-              hint="Confirmar con el protocolo local y farmacia."
             />
           ) : (
             <div className="grid grid-cols-3 gap-2">
@@ -172,10 +167,7 @@ export const InfusionCalculatorTool: React.FC<{ onBack: () => void }> = ({ onBac
             onChange={setWeight}
             placeholder="70"
             invalid={weightInput.invalid}
-            hint={
-              rangeHint(weightInput, PLAUSIBLE_RANGES.weightKg) ??
-              (unitNeedsWeight ? 'Necesario para dosis por kilo.' : undefined)
-            }
+            hint={rangeHint(weightInput, PLAUSIBLE_RANGES.weightKg)}
           />
           <SegmentedControl
             label="Modo de cálculo"

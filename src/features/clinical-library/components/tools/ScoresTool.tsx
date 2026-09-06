@@ -3,8 +3,8 @@ import clsx from 'clsx';
 import { ListChecks, RotateCcw } from 'lucide-react';
 import { SCORE_DEFINITIONS, findScoreDefinition } from '../../domain/scoreDefinitions';
 import { evaluateScore, type ScoreAnswers, type ScoreItem } from '../../domain/scoreEngine';
-import { TONE_BADGE_CLASSES, formatClinicalNumber } from '../libraryPresentation';
-import { ToolFrame } from './ToolFrame';
+import { TONE_BADGE_CLASSES, formatClinicalNumber } from '../../controllers/libraryPresentation';
+import { ToolFrame, type ToolComponentProps } from './ToolFrame';
 
 const ScoreItemRow: React.FC<{
   scoreId: string;
@@ -19,7 +19,7 @@ const ScoreItemRow: React.FC<{
           type="checkbox"
           checked={answer === true}
           onChange={event => onAnswer(item.id, event.target.checked)}
-          className="mt-0.5 size-4 shrink-0 accent-teal-600"
+          className="mt-0.5 size-4 shrink-0 accent-medical-600"
         />
         <span className="flex-1 text-[12px] leading-snug text-slate-700">
           {item.label}
@@ -50,7 +50,7 @@ const ScoreItemRow: React.FC<{
               value={option.value}
               checked={answer === option.value}
               onChange={() => onAnswer(item.id, option.value)}
-              className="size-3.5 accent-teal-600"
+              className="size-3.5 accent-medical-600"
             />
             <span className="flex-1">{option.label}</span>
             <span className="text-[11px] font-bold tabular-nums text-slate-500">
@@ -63,7 +63,7 @@ const ScoreItemRow: React.FC<{
   );
 };
 
-export const ScoresTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+export const ScoresTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) => {
   const [activeId, setActiveId] = useState(SCORE_DEFINITIONS[0].id);
   const [answersById, setAnswersById] = useState<Record<string, ScoreAnswers>>({});
   const definition = findScoreDefinition(activeId) ?? SCORE_DEFINITIONS[0];
@@ -84,9 +84,9 @@ export const ScoresTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   return (
     <ToolFrame
       title="Scores clínicos"
-      description="Selecciona un score, marca los criterios presentes y revisa la interpretación."
       icon={<ListChecks size={16} aria-hidden="true" />}
       onBack={onBack}
+      onClose={onClose}
       reference={definition.reference}
       testId="library-tool-scores"
     >
@@ -98,10 +98,10 @@ export const ScoresTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             aria-pressed={item.id === definition.id}
             onClick={() => setActiveId(item.id)}
             className={clsx(
-              'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600',
+              'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600',
               item.id === definition.id
-                ? 'border-teal-600 bg-teal-600 text-white'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:text-teal-700'
+                ? 'border-medical-600 bg-medical-600 text-white'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-medical-300 hover:text-medical-700'
             )}
           >
             {item.shortName}
@@ -117,14 +117,14 @@ export const ScoresTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <button
           type="button"
           onClick={reset}
-          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
+          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
         >
           <RotateCcw size={12} aria-hidden="true" />
           Limpiar
         </button>
       </div>
 
-      <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white">
         {definition.items.map(item => (
           <ScoreItemRow
             key={item.id}
@@ -142,7 +142,7 @@ export const ScoresTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         data-testid="score-result"
         data-band={band?.label ?? ''}
         className={clsx(
-          'mt-3 rounded-xl border p-3',
+          'mt-3 rounded-lg border p-3',
           band ? TONE_BADGE_CLASSES[band.tone] : 'border-slate-200 bg-white text-slate-700'
         )}
       >
@@ -165,8 +165,8 @@ export const ScoresTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           </>
         ) : (
           <p className="text-[11px]">
-            Completa todos los ítems para ver la interpretación ({evaluation.missingItemIds.length}{' '}
-            {evaluation.missingItemIds.length === 1 ? 'pendiente' : 'pendientes'}).
+            {evaluation.missingItemIds.length}{' '}
+            {evaluation.missingItemIds.length === 1 ? 'ítem pendiente' : 'ítems pendientes'}
           </p>
         )}
       </div>
@@ -174,7 +174,7 @@ export const ScoresTool: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       {definition.notes && definition.notes.length > 0 && (
         <ul className="mt-2 space-y-1 text-[11px] text-slate-500">
           {definition.notes.map(note => (
-            <li key={note}>· {note}</li>
+            <li key={note}>{note}</li>
           ))}
         </ul>
       )}

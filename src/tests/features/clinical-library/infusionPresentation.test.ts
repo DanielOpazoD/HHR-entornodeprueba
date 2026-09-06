@@ -4,7 +4,7 @@ import { findInfusionPreset } from '@/features/clinical-library/domain/infusionP
 import {
   presentInfusion,
   type InfusionPresentationInput,
-} from '@/features/clinical-library/components/tools/infusionPresentation';
+} from '@/features/clinical-library/controllers/infusionPresentation';
 
 const noradrenaline = findInfusionPreset('noradrenalina')!;
 

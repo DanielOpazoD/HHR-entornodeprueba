@@ -5,7 +5,7 @@ import { ScoresTool } from '@/features/clinical-library/components/tools/ScoresT
 
 describe('ScoresTool', () => {
   it('scores qSOFA, keeps answers per score and evaluates Glasgow once complete', () => {
-    render(<ScoresTool onBack={vi.fn()} />);
+    render(<ScoresTool onBack={vi.fn()} onClose={vi.fn()} />);
     const result = screen.getByTestId('score-result');
     expect(screen.getByRole('button', { name: 'qSOFA' })).toHaveAttribute('aria-pressed', 'true');
     expect(result).toHaveTextContent('0 / 3');
@@ -18,11 +18,11 @@ describe('ScoresTool', () => {
     expect(result).toHaveTextContent(/SOFA/);
 
     fireEvent.click(screen.getByRole('button', { name: 'Glasgow' }));
-    expect(result).toHaveTextContent('3 pendientes');
+    expect(result).toHaveTextContent('3 ítems pendientes');
     expect(result).toHaveAttribute('data-band', '');
     fireEvent.click(screen.getByLabelText(/^Espontánea/));
     fireEvent.click(screen.getByLabelText(/^Orientado/));
-    expect(result).toHaveTextContent('1 pendiente');
+    expect(result).toHaveTextContent('1 ítem pendiente');
     fireEvent.click(screen.getByLabelText(/^Obedece órdenes/));
     expect(result).toHaveTextContent('15 / 15');
     expect(result).toHaveAttribute('data-band', 'Leve');
@@ -38,7 +38,7 @@ describe('ScoresTool', () => {
   });
 
   it('shows half-point totals for Wells', () => {
-    render(<ScoresTool onBack={vi.fn()} />);
+    render(<ScoresTool onBack={vi.fn()} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Wells TEP' }));
     fireEvent.click(screen.getByLabelText(/Frecuencia cardíaca > 100/));
     expect(screen.getByTestId('score-result')).toHaveTextContent('1,5 / 12,5');

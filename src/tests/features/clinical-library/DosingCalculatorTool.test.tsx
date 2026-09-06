@@ -8,7 +8,7 @@ const typeInto = (label: string, value: string) =>
 
 describe('DosingCalculatorTool', () => {
   it('derives anthropometry, renal function and weight-based doses from one patient form', () => {
-    render(<DosingCalculatorTool onBack={vi.fn()} />);
+    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByTestId('dosing-bmi')).toHaveTextContent('—');
 
     typeInto('Edad', '60');
@@ -41,7 +41,7 @@ describe('DosingCalculatorTool', () => {
   });
 
   it('offers the adjusted weight only in obesity and falls back to real weight when a basis vanishes', () => {
-    render(<DosingCalculatorTool onBack={vi.fn()} />);
+    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByRole('button', { name: /^Ideal/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Ajustado/ })).toBeDisabled();
     typeInto('Talla', '170');
@@ -62,7 +62,7 @@ describe('DosingCalculatorTool', () => {
   });
 
   it('flags implausible inputs instead of computing with them', () => {
-    render(<DosingCalculatorTool onBack={vi.fn()} />);
+    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} />);
     typeInto('Peso real', '70');
     typeInto('Talla', '1,70');
     expect(screen.getByLabelText('Talla')).toHaveAttribute('aria-invalid', 'true');

@@ -114,7 +114,7 @@
     },
     {
       "pattern": "^ClinicalLibraryDrawer-.*\\.js$",
-      "_comment": "Offline-capable census library drawer (catalog, calculators, scores) loaded only after pressing Documentos. Measured 55156 bytes on 2026-09-06; the ceiling leaves room for more documents and score definitions while keeping drift visible.",
+      "_comment": "Offline-capable census library drawer (catalog, calculators, scores) loaded only after pressing Documentos. Measured 57411 bytes on 2026-09-06; the ceiling leaves room for more documents and score definitions while keeping drift visible.",
       "maxBytes": 90000
     }
   ]

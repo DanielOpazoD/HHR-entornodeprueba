@@ -2,15 +2,10 @@ import React from 'react';
 import clsx from 'clsx';
 import { Info } from 'lucide-react';
 import type { InfusionPreset } from '../../domain/infusionPresets';
-import { TONE_BADGE_CLASSES } from '../libraryPresentation';
-import type { InfusionPresentation } from './infusionPresentation';
+import { TONE_BADGE_CLASSES } from '../../controllers/libraryPresentation';
+import type { InfusionPresentation } from '../../controllers/infusionPresentation';
 
-const RANGE_TONE = {
-  within: 'success',
-  below: 'info',
-  above: 'warning',
-  unknown: 'info',
-} as const;
+const RANGE_TONE = { within: 'success', below: 'info', above: 'warning', unknown: 'info' } as const;
 
 interface InfusionResultPanelProps {
   presentation: InfusionPresentation;
@@ -23,7 +18,7 @@ export const InfusionResultPanel: React.FC<InfusionResultPanelProps> = ({
 }) => (
   <div className="mt-3" role="status" aria-live="polite" data-testid="infusion-result">
     {presentation.kind === 'idle' && (
-      <p className="rounded-lg border border-dashed border-slate-200 bg-white/60 px-3 py-3 text-center text-[11px] text-slate-500">
+      <p className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-center text-[11px] text-slate-500">
         {presentation.message}
       </p>
     )}
@@ -33,23 +28,23 @@ export const InfusionResultPanel: React.FC<InfusionResultPanelProps> = ({
       </p>
     )}
     {presentation.kind === 'result' && (
-      <div className="rounded-xl border border-teal-200 bg-teal-50 p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-teal-700">
+      <div className="rounded-lg border border-medical-200 bg-medical-50 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-medical-700">
           {presentation.primaryUnit === 'mL/h' ? 'Velocidad de la bomba' : 'Dosis equivalente'}
         </p>
         <p
           data-testid="infusion-primary-value"
-          className="mt-0.5 text-3xl font-bold tabular-nums leading-none text-teal-900"
+          className="mt-0.5 text-3xl font-bold tabular-nums leading-none text-medical-900"
         >
           {presentation.primaryValue}
-          <span className="ml-1.5 text-sm font-semibold text-teal-700">
+          <span className="ml-1.5 text-sm font-semibold text-medical-700">
             {presentation.primaryUnit}
           </span>
         </p>
-        <p className="mt-2 text-[11px] tabular-nums text-teal-900/80">
-          Concentración {presentation.concentrationLabel}
+        <p className="mt-2 text-[11px] tabular-nums text-medical-900/80">
+          {presentation.concentrationLabel}
         </p>
-        <ul className="mt-1 space-y-0.5 text-[11px] tabular-nums text-teal-900/70">
+        <ul className="mt-1 space-y-0.5 text-[11px] tabular-nums text-medical-900/70">
           {presentation.equivalents.map(item => (
             <li key={item}>≈ {item}</li>
           ))}

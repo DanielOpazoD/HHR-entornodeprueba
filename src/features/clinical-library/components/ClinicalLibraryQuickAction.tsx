@@ -1,8 +1,7 @@
 import React, { Suspense, useCallback, useRef, useState } from 'react';
-import clsx from 'clsx';
 import { FolderOpen } from 'lucide-react';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
-import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
+import { DATE_STRIP_TRAILING_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
 
 const ClinicalLibraryDrawer = lazyWithRetry(() =>
   import('./ClinicalLibraryDrawer').then(module => ({ default: module.ClinicalLibraryDrawer }))
@@ -10,23 +9,8 @@ const ClinicalLibraryDrawer = lazyWithRetry(() =>
 
 export const CLINICAL_LIBRARY_QUICK_ACTION_TITLE = 'Documentos y herramientas clínicas';
 
-/**
- * `toolbar`: botón visible al extremo derecho de la barra de fechas del censo.
- * `quick-action`: misma geometría que Camas / MMRAD / Laboratorio (menú «⋯» o barra inline).
- */
-export type ClinicalLibraryQuickActionVariant = 'toolbar' | 'quick-action';
-
-export const CLINICAL_LIBRARY_TOOLBAR_BUTTON_CLASS =
-  'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600';
-
-interface ClinicalLibraryQuickActionProps {
-  variant?: ClinicalLibraryQuickActionVariant;
-}
-
-/** Botón «Documentos»: abre el panel lateral de la biblioteca clínica y devuelve el foco al cerrar. */
-export const ClinicalLibraryQuickAction: React.FC<ClinicalLibraryQuickActionProps> = ({
-  variant = 'quick-action',
-}) => {
+/** Botón «Documentos» de la barra de fechas del censo; abre el panel y recupera el foco al cerrar. */
+export const ClinicalLibraryQuickAction: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -35,39 +19,24 @@ export const ClinicalLibraryQuickAction: React.FC<ClinicalLibraryQuickActionProp
     buttonRef.current?.focus();
   }, []);
 
-  const isToolbar = variant === 'toolbar';
-
   return (
     <>
       <button
         ref={buttonRef}
         type="button"
         data-testid="clinical-library-quick-action"
-        data-census-menu-action={isToolbar ? undefined : true}
+        aria-label="Documentos"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => setIsOpen(true)}
-        className={
-          isToolbar
-            ? CLINICAL_LIBRARY_TOOLBAR_BUTTON_CLASS
-            : clsx(
-                DATE_STRIP_QUICK_ACTION_BASE_CLASS,
-                'border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-700'
-              )
-        }
+        className={`${DATE_STRIP_TRAILING_ACTION_BASE_CLASS} text-slate-600 transition-colors hover:border-medical-300 hover:bg-medical-50 hover:text-medical-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600`}
         title={CLINICAL_LIBRARY_QUICK_ACTION_TITLE}
       >
-        <FolderOpen size={isToolbar ? 15 : 13} aria-hidden="true" />
-        <span className={isToolbar ? 'hidden md:inline' : 'hidden sm:inline'}>Documentos</span>
+        <FolderOpen size={15} aria-hidden="true" />
+        <span className="hidden md:inline">Documentos</span>
       </button>
       {isOpen && (
-        <Suspense
-          fallback={
-            <span role="status" className="text-xs text-slate-600">
-              Abriendo documentos…
-            </span>
-          }
-        >
+        <Suspense fallback={null}>
           <ClinicalLibraryDrawer onClose={close} />
         </Suspense>
       )}

@@ -2,7 +2,7 @@ import React from 'react';
 import clsx from 'clsx';
 
 export const TOOL_INPUT_CLASS =
-  'h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-200 disabled:bg-slate-50 disabled:text-slate-400';
+  'h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200 disabled:bg-slate-50 disabled:text-slate-400';
 
 const LABEL_CLASS = 'mb-1 block text-[11px] font-semibold text-slate-600';
 
@@ -15,7 +15,6 @@ interface NumberFieldProps {
   placeholder?: string;
   hint?: string;
   invalid?: boolean;
-  disabled?: boolean;
 }
 
 export const NumberField: React.FC<NumberFieldProps> = ({
@@ -27,7 +26,6 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   placeholder,
   hint,
   invalid = false,
-  disabled = false,
 }) => (
   <div>
     <label htmlFor={id} className={LABEL_CLASS}>
@@ -42,7 +40,6 @@ export const NumberField: React.FC<NumberFieldProps> = ({
         value={value}
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
-        disabled={disabled}
         aria-invalid={invalid || undefined}
         aria-describedby={hint ? `${id}-hint` : undefined}
         className={clsx(
@@ -69,7 +66,6 @@ export const NumberField: React.FC<NumberFieldProps> = ({
 export interface SelectOption<T extends string> {
   value: T;
   label: string;
-  disabled?: boolean;
 }
 
 export interface SelectGroup<T extends string> {
@@ -84,11 +80,10 @@ interface SelectFieldProps<T extends string> {
   onChange: (value: T) => void;
   options?: ReadonlyArray<SelectOption<T>>;
   groups?: ReadonlyArray<SelectGroup<T>>;
-  hint?: string;
 }
 
 const renderOption = <T extends string>(option: SelectOption<T>): React.ReactElement => (
-  <option key={option.value} value={option.value} disabled={option.disabled}>
+  <option key={option.value} value={option.value}>
     {option.label}
   </option>
 );
@@ -100,7 +95,6 @@ export function SelectField<T extends string>({
   onChange,
   options,
   groups,
-  hint,
 }: SelectFieldProps<T>): React.ReactElement {
   return (
     <div>
@@ -111,7 +105,6 @@ export function SelectField<T extends string>({
         id={id}
         value={value}
         onChange={event => onChange(event.target.value as T)}
-        aria-describedby={hint ? `${id}-hint` : undefined}
         className={clsx(TOOL_INPUT_CLASS, 'pr-8')}
       >
         {options?.map(renderOption)}
@@ -121,11 +114,6 @@ export function SelectField<T extends string>({
           </optgroup>
         ))}
       </select>
-      {hint && (
-        <p id={`${id}-hint`} className="mt-1 text-[10px] text-slate-500">
-          {hint}
-        </p>
-      )}
     </div>
   );
 }
@@ -135,7 +123,6 @@ interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   options: ReadonlyArray<{ value: T; label: string; disabled?: boolean; title?: string }>;
-  showLabel?: boolean;
 }
 
 export function SegmentedControl<T extends string>({
@@ -143,11 +130,10 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   options,
-  showLabel = true,
 }: SegmentedControlProps<T>): React.ReactElement {
   return (
     <div>
-      {showLabel && <span className={LABEL_CLASS}>{label}</span>}
+      <span className={LABEL_CLASS}>{label}</span>
       <div
         role="group"
         aria-label={label}
@@ -162,9 +148,9 @@ export function SegmentedControl<T extends string>({
             title={option.title}
             onClick={() => onChange(option.value)}
             className={clsx(
-              'min-w-0 flex-1 truncate rounded px-2 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-40',
+              'min-w-0 flex-1 truncate rounded px-2 text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600 disabled:cursor-not-allowed disabled:opacity-40',
               value === option.value
-                ? 'bg-white text-teal-700 shadow-sm'
+                ? 'bg-white text-medical-700 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
             )}
           >
@@ -197,14 +183,14 @@ export const ResultTile: React.FC<ResultTileProps> = ({
     data-testid={testId}
     className={clsx(
       'rounded-lg border px-3 py-2',
-      emphasis ? 'border-teal-200 bg-teal-50' : 'border-slate-200 bg-white'
+      emphasis ? 'border-medical-200 bg-medical-50' : 'border-slate-200 bg-white'
     )}
   >
     <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
     <p
       className={clsx(
         'mt-0.5 tabular-nums',
-        emphasis ? 'text-2xl font-bold text-teal-800' : 'text-base font-semibold text-slate-800'
+        emphasis ? 'text-2xl font-bold text-medical-800' : 'text-base font-semibold text-slate-800'
       )}
     >
       {value ?? <span className="text-slate-300">—</span>}

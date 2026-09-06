@@ -22,7 +22,6 @@ describe('ClinicalLibraryQuickAction', () => {
     const trigger = screen.getByRole('button', { name: /documentos/i });
     expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    expect(trigger).toHaveAttribute('data-census-menu-action');
     expect(drawerRender).not.toHaveBeenCalled();
 
     fireEvent.click(trigger);
@@ -32,18 +31,12 @@ describe('ClinicalLibraryQuickAction', () => {
     expect(trigger).toHaveFocus();
   });
 
-  it('renders the toolbar variant without the census-menu marker', () => {
-    render(<ClinicalLibraryQuickAction variant="toolbar" />);
-    const trigger = screen.getByTestId('clinical-library-quick-action');
-    expect(trigger).not.toHaveAttribute('data-census-menu-action');
-    expect(trigger).toHaveClass('h-8', 'rounded-lg');
-    expect(trigger).toHaveTextContent('Documentos');
-  });
-
-  it('keeps the shared DateStrip quick-action dimensions', () => {
+  it('matches the trailing-action geometry and stays named when only the icon is visible', () => {
     render(<ClinicalLibraryQuickAction />);
     const trigger = screen.getByTestId('clinical-library-quick-action');
-    expect(trigger).toHaveClass('h-[30px]', 'min-w-[76px]', 'py-0', 'text-[10px]');
+    expect(trigger).toHaveClass('h-8', 'rounded-lg', 'border-slate-200');
+    expect(trigger).toHaveAttribute('aria-label', 'Documentos');
+    expect(trigger).not.toHaveAttribute('data-census-menu-action');
     expect(trigger).toHaveAttribute('title', 'Documentos y herramientas clínicas');
   });
 });

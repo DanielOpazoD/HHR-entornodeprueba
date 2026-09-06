@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   formatClinicalNumber,
   formatDocumentSize,
-} from '@/features/clinical-library/components/libraryPresentation';
+} from '@/features/clinical-library/controllers/libraryPresentation';
 import {
   PLAUSIBLE_RANGES,
   plausibleValue,
   rangeHint,
-} from '@/features/clinical-library/components/tools/plausibleRanges';
-import { formatConcentration } from '@/features/clinical-library/components/tools/infusionPresentation';
+} from '@/features/clinical-library/controllers/plausibleRanges';
+import { formatConcentration } from '@/features/clinical-library/controllers/infusionPresentation';
 
 describe('library presentation helpers', () => {
   it('formats sizes with a binary megabyte threshold', () => {

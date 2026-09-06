@@ -11,6 +11,7 @@ import {
   massConversionFactor,
   type InfusionDilution,
 } from '@/features/clinical-library/domain/infusionCalculator';
+import { formatDilutionLabel } from '@/features/clinical-library/controllers/infusionPresentation';
 import {
   INFUSION_PRESETS,
   INFUSION_PRESET_GROUP_LABELS,
@@ -181,9 +182,16 @@ describe('infusion presets', () => {
     }
   });
 
-  it('labels dilutions with the concentration hint when provided', () => {
-    expect(findInfusionPreset('noradrenalina')?.dilutions[0].label).toBe('4 mg en 250 mL');
-    expect(findInfusionPreset('midazolam')?.dilutions[0].label).toBe('100 mg en 100 mL · 1 mg/mL');
+  it('labels dilutions with the derived concentration or the preset hint', () => {
+    expect(formatDilutionLabel(findInfusionPreset('noradrenalina')!.dilutions[0])).toBe(
+      '4 mg en 250 mL · 16 mcg/mL'
+    );
+    expect(formatDilutionLabel(findInfusionPreset('midazolam')!.dilutions[0])).toBe(
+      '100 mg en 100 mL · 1 mg/mL'
+    );
+    expect(formatDilutionLabel(findInfusionPreset('heparina')!.dilutions[0])).toBe(
+      '25.000 UI en 250 mL · 100 UI/mL'
+    );
     expect(findInfusionPreset('unknown')).toBeUndefined();
   });
 

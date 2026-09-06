@@ -7,18 +7,20 @@ import {
   DOSE_UNITS,
   computeDoseFromRate,
   computeRateFromDose,
+  concentrationOf,
   type DoseUnitId,
   type InfusionConcentration,
   type InfusionDilution,
   type InfusionFailure,
-} from '../../domain/infusionCalculator';
+} from '../domain/infusionCalculator';
 import {
   assessDoseAgainstRange,
   type DoseRangeAssessment,
   type InfusionPreset,
-} from '../../domain/infusionPresets';
-import { isPositiveFinite, parseLocalizedDecimal } from '../../domain/numberInput';
-import { formatClinicalNumber } from '../libraryPresentation';
+  type InfusionPresetDilution,
+} from '../domain/infusionPresets';
+import { isPositiveFinite, parseLocalizedDecimal } from '../domain/numberInput';
+import { formatClinicalNumber } from './libraryPresentation';
 
 export type InfusionMode = 'dose' | 'rate';
 
@@ -57,6 +59,14 @@ const FAILURE_MESSAGES: Readonly<Record<InfusionFailure, string>> = {
   weight_required: 'Ingresa el peso del paciente: la unidad elegida es por kilo.',
   incompatible_units:
     'La unidad de dosis no es compatible con la dilución (unidades internacionales frente a mg o mcg).',
+};
+
+/** «4 mg en 250 mL · 16 mcg/mL»: la concentración se deriva, la aclaración viene del preset. */
+export const formatDilutionLabel = (dilution: InfusionPresetDilution): string => {
+  const concentration = concentrationOf(dilution);
+  const base = `${formatClinicalNumber(dilution.amount)} ${dilution.amountUnit} en ${formatClinicalNumber(dilution.volumeMl)} mL`;
+  const detail = dilution.hint ?? (concentration ? formatConcentration(concentration) : null);
+  return detail ? `${base} · ${detail}` : base;
 };
 
 const formatRate = (rate: number): string =>

@@ -173,6 +173,21 @@ test.describe('Clinical library (preview build)', () => {
     await page.keyboard.press('Escape');
     await expect(drawer).toHaveCount(0);
     await expect(trigger).toBeFocused();
+
+    // Pantalla angosta: el botón queda sólo con icono pero conserva su nombre, y el panel ocupa todo el ancho.
+    // A 375 px la barra superior de la app cubre parte de la barra de fechas (comportamiento
+    // preexistente del censo): se activa por teclado para verificar el panel a ancho completo.
+    await page.setViewportSize({ width: 375, height: 812 });
+    const mobileTrigger = page.getByRole('button', { name: 'Documentos' });
+    await expect(mobileTrigger).toBeVisible();
+    await mobileTrigger.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('clinical-library-drawer')).toBeVisible();
+    const box = await page.getByTestId('clinical-library-drawer').boundingBox();
+    expect(box?.width).toBe(375);
+    await capture(page, '07-mobile-panel');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('clinical-library-drawer')).toHaveCount(0);
     expect(pageErrors).toEqual([]);
   });
 });

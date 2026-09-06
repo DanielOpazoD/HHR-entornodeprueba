@@ -9,7 +9,10 @@ import { useAuthenticatedAppRuntime } from '@/app-shell/runtime/useAuthenticated
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { markPerf } from '@/shared/runtime/perfAudit';
-import { DATE_STRIP_QUICK_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
+import {
+  DATE_STRIP_QUICK_ACTION_BASE_CLASS,
+  DATE_STRIP_TRAILING_ACTION_BASE_CLASS,
+} from '@/shared/ui/dateStripQuickActionStyles';
 
 const LaboratoryQuickAction = lazyWithRetry(() =>
   import('@/features/laboratory/quick-action').then(module => ({
@@ -44,7 +47,8 @@ const ClinicalLibraryToolbarFallback = () => (
     disabled
     aria-disabled="true"
     tabIndex={-1}
-    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-400"
+    className={`${DATE_STRIP_TRAILING_ACTION_BASE_CLASS} text-slate-400`}
+    aria-label="Documentos"
     title="Documentos y herramientas clínicas (cargando...)"
   >
     <FolderOpen size={15} />
@@ -77,7 +81,7 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
   const renderCensusTrailingActions = React.useCallback(
     () => (
       <React.Suspense fallback={<ClinicalLibraryToolbarFallback />}>
-        <ClinicalLibraryQuickAction variant="toolbar" />
+        <ClinicalLibraryQuickAction />
       </React.Suspense>
     ),
     []

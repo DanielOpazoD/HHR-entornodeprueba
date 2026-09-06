@@ -7,35 +7,10 @@ import type {
 } from './libraryCatalogTypes';
 
 export const LIBRARY_CATEGORIES: ReadonlyArray<LibraryCategory> = [
-  {
-    id: 'forms',
-    label: 'Formularios',
-    description: 'Documentos locales listos para imprimir o completar.',
-    emptyTitle: 'Sin formularios para esta búsqueda',
-    emptyDetail: 'Prueba con otra palabra: nombre del formulario, examen o servicio.',
-  },
-  {
-    id: 'protocols',
-    label: 'Protocolos',
-    description: 'Protocolos y guías del Servicio de Hospitalizados.',
-    emptyTitle: 'Aún no hay protocolos publicados',
-    emptyDetail:
-      'Cuando el servicio publique sus protocolos aparecerán aquí, listos para consultar e imprimir.',
-  },
-  {
-    id: 'infographics',
-    label: 'Infografías',
-    description: 'Material visual para el equipo y para pacientes.',
-    emptyTitle: 'Aún no hay infografías publicadas',
-    emptyDetail: 'Las infografías del servicio se mostrarán en esta sección cuando se publiquen.',
-  },
-  {
-    id: 'tools',
-    label: 'Herramientas',
-    description: 'Calculadoras y scores clínicos, disponibles sin conexión.',
-    emptyTitle: 'Sin herramientas para esta búsqueda',
-    emptyDetail: 'Busca por nombre de la herramienta, fármaco o score.',
-  },
+  { id: 'forms', label: 'Formularios', emptyTitle: 'Sin formularios para esta búsqueda' },
+  { id: 'protocols', label: 'Protocolos', emptyTitle: 'Aún no hay protocolos publicados' },
+  { id: 'infographics', label: 'Infografías', emptyTitle: 'Aún no hay infografías publicadas' },
+  { id: 'tools', label: 'Herramientas', emptyTitle: 'Sin herramientas para esta búsqueda' },
 ];
 
 export const findLibraryCategory = (id: LibraryCategoryId): LibraryCategory =>

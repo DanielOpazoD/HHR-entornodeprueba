@@ -14,9 +14,7 @@ export type LibraryDocumentCategoryId = Exclude<LibraryCategoryId, 'tools'>;
 export interface LibraryCategory {
   id: LibraryCategoryId;
   label: string;
-  description: string;
   emptyTitle: string;
-  emptyDetail: string;
 }
 
 export const LIBRARY_DOCUMENT_FORMATS = ['pdf', 'docx', 'image'] as const;

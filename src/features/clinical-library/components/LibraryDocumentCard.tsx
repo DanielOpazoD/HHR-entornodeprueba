@@ -8,10 +8,10 @@ import {
   documentFileName,
   documentPagesLabel,
   formatDocumentSize,
-} from './libraryPresentation';
+} from '../controllers/libraryPresentation';
 
 const ACTION_CLASS =
-  'inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-semibold text-slate-600 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600';
+  'inline-flex size-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:border-medical-300 hover:bg-medical-50 hover:text-medical-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600';
 
 interface LibraryDocumentCardProps {
   entry: LibraryDocumentEntry;
@@ -19,6 +19,7 @@ interface LibraryDocumentCardProps {
   onPrint: (entry: LibraryDocumentEntry) => void;
 }
 
+/** Una fila por documento: formato, título y tamaño a la izquierda; acciones a la derecha. */
 export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({
   entry,
   onOpen,
@@ -26,57 +27,62 @@ export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({
 }) => {
   const badge = DOCUMENT_FORMAT_BADGES[entry.format];
   const printable = entry.format !== 'docx';
-  const meta = [documentPagesLabel(entry.pages), formatDocumentSize(entry.sizeKb), entry.source]
+  const meta = [documentPagesLabel(entry.pages), formatDocumentSize(entry.sizeKb)]
     .filter(Boolean)
     .join(' · ');
 
   return (
     <li
       data-testid={`library-document-${entry.id}`}
-      className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+      className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2"
     >
-      <div className="flex items-start gap-2.5">
-        <span
-          className={clsx(
-            'mt-0.5 inline-flex h-6 shrink-0 items-center rounded-md border px-1.5 text-[10px] font-bold tracking-wide',
-            badge.className
-          )}
-          title={badge.hint}
-        >
-          {badge.label}
-        </span>
-        <div className="min-w-0 flex-1">
-          <h4 className="text-[13px] font-semibold leading-snug text-slate-800">{entry.title}</h4>
-          <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{entry.description}</p>
-          <p className="mt-1 text-[10px] tabular-nums text-slate-400">{meta}</p>
-        </div>
-      </div>
-      <div
-        className="mt-2 flex flex-wrap items-center gap-1.5"
-        role="group"
-        aria-label={`Acciones de ${entry.title}`}
+      <span
+        className={clsx(
+          'inline-flex h-6 w-12 shrink-0 items-center justify-center rounded-md border text-[10px] font-bold tracking-wide',
+          badge.className
+        )}
+        title={badge.hint}
       >
+        {badge.label}
+      </span>
+      <div className="min-w-0 flex-1">
+        <h4 className="line-clamp-2 text-[13px] font-semibold leading-snug text-slate-800">
+          {entry.title}
+        </h4>
+        <p className="text-[10px] tabular-nums text-slate-400">{meta}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1" role="group" aria-label={entry.title}>
         {printable && (
-          <button type="button" onClick={() => onOpen(entry)} className={ACTION_CLASS}>
-            <ExternalLink size={12} aria-hidden="true" />
-            Abrir
+          <button
+            type="button"
+            onClick={() => onOpen(entry)}
+            className={ACTION_CLASS}
+            aria-label="Abrir"
+            title="Abrir"
+          >
+            <ExternalLink size={14} aria-hidden="true" />
           </button>
         )}
         {printable && (
-          <button type="button" onClick={() => onPrint(entry)} className={ACTION_CLASS}>
-            <Printer size={12} aria-hidden="true" />
-            Imprimir
+          <button
+            type="button"
+            onClick={() => onPrint(entry)}
+            className={ACTION_CLASS}
+            aria-label="Imprimir"
+            title="Imprimir"
+          >
+            <Printer size={14} aria-hidden="true" />
           </button>
         )}
         <a
           href={toLibraryDocumentHref(entry.url)}
           download={documentFileName(entry.url)}
           className={ACTION_CLASS}
+          aria-label="Descargar"
+          title="Descargar"
         >
-          <Download size={12} aria-hidden="true" />
-          Descargar
+          <Download size={14} aria-hidden="true" />
         </a>
-        {!printable && <span className="text-[10px] text-slate-400">{badge.hint}</span>}
       </div>
     </li>
   );
