@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { defaultAuditPort } from '@/application/ports/auditPort';
-import { ACTIVITY_EVENTS, SESSION_TIMEOUT_MS } from '@/constants/security';
+import { startSessionActivityMonitor } from '@/services/auth/sessionActivityMonitor';
 import { hasRecentManualLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
 import {
   clearPersistedFirebaseAuthState,
@@ -150,31 +150,18 @@ export const useInactivityLogout = (
   user: AuthUser | null,
   handleLogout: (reason?: 'manual' | 'automatic') => Promise<void>
 ): void => {
+  const userId = user?.uid;
+  const logoutRef = useRef(handleLogout);
   useEffect(() => {
-    if (!user) return;
-
-    let timeoutId: NodeJS.Timeout;
-
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        authStateLogger.warn('Logout due to inactivity');
-        void handleLogout('automatic');
-      }, SESSION_TIMEOUT_MS);
-    };
-
-    ACTIVITY_EVENTS.forEach(event => {
-      window.addEventListener(event, resetTimer);
+    logoutRef.current = handleLogout;
+  }, [handleLogout]);
+  useEffect(() => {
+    if (!userId) return;
+    return startSessionActivityMonitor(userId, () => {
+      authStateLogger.warn('Logout due to inactivity');
+      void logoutRef.current('automatic');
     });
-    resetTimer();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      ACTIVITY_EVENTS.forEach(event => {
-        window.removeEventListener(event, resetTimer);
-      });
-    };
-  }, [user, handleLogout]);
+  }, [userId]);
 };
 
 export const getAuthBootstrapTimeoutMs = (): number =>

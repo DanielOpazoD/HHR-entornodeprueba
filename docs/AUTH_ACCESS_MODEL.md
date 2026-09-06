@@ -66,6 +66,23 @@ un cierre explícito, incluyendo sus efectos de cierre por falta de rol.
 La instrumentación existente conserva el primer tiempo y cuenta las repeticiones;
 esos contadores no representan necesariamente nuevas consultas de red.
 
+### Inactividad compartida
+
+Las 8 horas de inactividad se coordinan por usuario y origen entre pestañas. Cada
+pestaña conserva un temporizador, pero antes de cerrar relee la última actividad
+compartida; al volver a primer plano comprueba el plazo sin convertir la visibilidad
+en actividad. Ratón, teclado, toque y scroll actualizan la marca local, con publicación
+limitada a intervalos de 15 segundos mientras la pestaña puede ejecutar temporizadores;
+al ocultarse o salir publica la última marca pendiente, sin añadir actividad. Usa
+almacenamiento local y el canal de auth existente. No se comparten datos clínicos.
+
+Entrar en una pestaña autenticada conserva el plazo inicial previo. Re-renderizar
+el mismo usuario no reinicia ese plazo. El cierre manual sigue propagándose a todas
+las pestañas. Antes de confirmar un vencimiento automático hay una única espera de
+un segundo para recibir mensajes pendientes y volver a comprobar la actividad. Esa
+espera no garantiza entrega si el navegador sigue suspendiendo mensajes. Si ambos mecanismos no
+están disponibles, queda el temporizador local, sin prometer coordinación entre pestañas.
+
 ## 3.1 Convergencia obligatoria con Netlify Functions
 
 `LAB` y `MMRAD` no pueden usar una semántica distinta de rol respecto del shell.
