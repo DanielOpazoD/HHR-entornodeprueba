@@ -46,7 +46,7 @@ describe('clinical library catalog', () => {
       expect(entry.description.trim()).not.toBe('');
       expect(entry.keywords.length).toBeGreaterThan(0);
     }
-    expect(findLibraryEntry('instrumento-cudyr')?.kind).toBe('document');
+    expect(findLibraryEntry('consentimiento-informado')?.kind).toBe('document');
     expect(findLibraryEntry('missing')).toBeUndefined();
   });
 

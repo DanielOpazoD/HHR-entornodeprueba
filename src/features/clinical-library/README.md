@@ -5,8 +5,8 @@
 Biblioteca de documentos y herramientas del censo diario. El botón «Documentos» de la barra de
 fechas abre un panel lateral con:
 
-- **Formularios**: una versión imprimible (PDF) por formulario de `Formularios/`, servida con sus
-  bytes originales. Cada fila tiene un solo botón: imprimir.
+- **Formularios**: una versión por formulario, servida con sus bytes originales. Cada fila tiene un
+  solo botón: imprimir (PDF) o descargar (Word).
 - **Protocolos** e **infografías**: categorías preparadas; se publican agregando archivos y entradas
   al catálogo.
 - **Herramientas** sin conexión: dilución y velocidad de infusión, dosis y antropometría, y scores

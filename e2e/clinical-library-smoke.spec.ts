@@ -108,24 +108,24 @@ test.describe('Clinical library (preview build)', () => {
     await expect(drawer).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('dialog', { name: 'Documentos y herramientas' })).toBeVisible();
     await expect(page.getByRole('searchbox')).toBeFocused();
-    await expect(drawer.getByTestId('library-document-instrumento-cudyr')).toBeVisible();
+    await expect(drawer.getByTestId('library-document-consentimiento-informado')).toBeVisible();
     await expect(drawer.getByText('Aún no hay protocolos publicados')).toBeVisible();
     await capture(page, '02-documents-panel');
 
     await page.getByRole('searchbox').fill('imagenologia');
     await expect(drawer.getByTestId('library-document-solicitud-imagenologia')).toBeVisible();
-    await expect(drawer.getByTestId('library-document-instrumento-cudyr')).toHaveCount(0);
+    await expect(drawer.getByTestId('library-document-consentimiento-informado')).toHaveCount(0);
     await capture(page, '03-search-imagenologia');
     await page.getByRole('button', { name: 'Limpiar búsqueda' }).click();
 
     // El preview debe servir el PDF real que imprime la fila.
     await expect(
       drawer
-        .getByTestId('library-document-indicaciones-medicas-plan-enfermeria')
+        .getByTestId('library-document-solicitud-tuberculosis')
         .getByRole('button', { name: /^Imprimir/ })
     ).toBeVisible();
     const pdfResponse = await page.request.get(
-      '/docs/biblioteca/indicaciones-medicas-plan-enfermeria.pdf'
+      '/docs/biblioteca/solicitud-tuberculosis-minsal.pdf'
     );
     expect(pdfResponse.status()).toBe(200);
     expect(pdfResponse.headers()['content-type']).toContain('pdf');

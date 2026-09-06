@@ -29,7 +29,7 @@ describe('ClinicalLibraryDrawer', () => {
     expect(screen.getByText('Aún no hay protocolos publicados')).toBeInTheDocument();
     expect(screen.getByText('Aún no hay infografías publicadas')).toBeInTheDocument();
     expect(screen.getByTestId('library-tool-infusion')).toBeInTheDocument();
-    expect(screen.getByTestId('library-document-instrumento-cudyr')).toBeInTheDocument();
+    expect(screen.getByTestId('library-document-consentimiento-informado')).toBeInTheDocument();
   });
 
   it('filters accent-insensitively and hides empty groups while searching', () => {
@@ -57,22 +57,31 @@ describe('ClinicalLibraryDrawer', () => {
       'true'
     );
     expect(screen.getByTestId('library-tool-scores')).toBeInTheDocument();
-    expect(screen.queryByTestId('library-document-instrumento-cudyr')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('library-document-consentimiento-informado')
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Formularios' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^Protocolos/ }));
     expect(screen.getByText('Aún no hay protocolos publicados')).toBeInTheDocument();
   });
 
-  it('prints a document through the injected handler', () => {
+  it('prints PDFs through the injected handler and downloads Word templates', () => {
     const { documentActions } = renderDrawer();
-    const cudyr = within(screen.getByTestId('library-document-instrumento-cudyr'));
-    fireEvent.click(cudyr.getByRole('button', { name: /^Imprimir/ }));
+    const consent = within(screen.getByTestId('library-document-consentimiento-informado'));
+    fireEvent.click(consent.getByRole('button', { name: /^Imprimir/ }));
     expect(documentActions.print).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'instrumento-cudyr' })
+      expect.objectContaining({ id: 'consentimiento-informado' })
     );
-    expect(cudyr.queryByRole('link')).not.toBeInTheDocument();
-    expect(cudyr.getAllByRole('button')).toHaveLength(1);
+    expect(consent.queryByRole('link')).not.toBeInTheDocument();
+    expect(consent.getAllByRole('button')).toHaveLength(1);
+
+    const vmi = within(screen.getByTestId('library-document-planilla-monitorizacion-ventilatoria'));
+    expect(vmi.queryByRole('button')).not.toBeInTheDocument();
+    expect(vmi.getByRole('link', { name: /^Descargar/ })).toHaveAttribute(
+      'href',
+      '/docs/biblioteca/planilla-monitorizacion-ventilatoria-vmi.docx'
+    );
   });
 
   it('opens a tool in place, hides the search while inside and returns to the list', () => {
@@ -84,7 +93,7 @@ describe('ClinicalLibraryDrawer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Volver a la biblioteca' }));
     expect(screen.getByRole('searchbox')).toBeInTheDocument();
-    expect(screen.getByTestId('library-document-instrumento-cudyr')).toBeInTheDocument();
+    expect(screen.getByTestId('library-document-consentimiento-informado')).toBeInTheDocument();
   });
 
   it('can start directly inside a tool', () => {
