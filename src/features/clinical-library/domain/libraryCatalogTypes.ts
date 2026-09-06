@@ -29,7 +29,7 @@ export interface LibraryDocumentEntry {
   title: string;
   description: string;
   format: LibraryDocumentFormat;
-  /** Ruta pública (sin hash) servida como asset estático; se codifica al construir el enlace. */
+  /** Ruta pública bajo docs/, templates/ o images/forms/ (fuera del precache); se codifica al construir el enlace. */
   url: string;
   pages?: number;
   /** Tamaño aproximado en KB; el test de integridad lo contrasta con el archivo real. */

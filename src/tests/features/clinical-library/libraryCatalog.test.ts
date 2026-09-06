@@ -53,7 +53,7 @@ describe('clinical library catalog', () => {
   it('points every document to a real public asset outside the PWA precache', () => {
     expect(documents.length).toBeGreaterThan(0);
     for (const document of documents) {
-      expect(document.url, document.id).toMatch(/^\/(docs|templates)\//);
+      expect(document.url, document.id).toMatch(/^\/(docs|templates|images\/forms)\//);
       const file = path.join(process.cwd(), 'public', decodeURI(document.url));
       expect(fs.existsSync(file), `${document.id} → ${document.url}`).toBe(true);
       const sizeKb = fs.statSync(file).size / 1024;

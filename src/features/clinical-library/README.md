@@ -5,7 +5,8 @@
 Biblioteca de documentos y herramientas clínicas del censo diario. Un botón «Documentos» en la
 barra de fechas abre un panel lateral con:
 
-- **Formularios** locales listos para imprimir o completar (PDF, DOCX).
+- **Formularios** locales listos para imprimir o completar (PDF, DOCX e imágenes): todos los
+  documentos de la carpeta `Formularios/` del repositorio, servidos con sus bytes originales.
 - **Protocolos** e **infografías** del Servicio de Hospitalizados (categorías preparadas; se
   publican agregando archivos y entradas al catálogo).
 - **Herramientas** que funcionan sin conexión: dilución y velocidad de infusión, cálculo de dosis y
