@@ -345,7 +345,7 @@ export const processSyncQueue = async (): Promise<void> => {
   }
 };
 
-export const clearSyncQueueForOwner = async (ownerKey: string | null): Promise<void> => {
+export const clearSyncQueueForOwner = async (ownerKey: string | null, strict = false) => {
   try {
     await ensureDbReady();
     await syncQueueStore.deleteByOwner(ownerKey);
@@ -363,6 +363,7 @@ export const clearSyncQueueForOwner = async (ownerKey: string | null): Promise<v
         ownerKey,
       },
     });
+    if (strict) throw error;
   }
 };
 

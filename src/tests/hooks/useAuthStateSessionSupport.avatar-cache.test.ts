@@ -20,7 +20,9 @@ vi.mock('@/services/auth/authBroadcastChannel', () => ({
 }));
 
 vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  clearSessionScopedClientState: vi.fn().mockResolvedValue(undefined),
+  clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
+    await close?.();
+  }),
   resolveSessionOwnerKey: (uid: string | null | undefined) => (uid ? `user:${uid}` : null),
 }));
 
