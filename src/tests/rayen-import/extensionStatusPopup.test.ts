@@ -26,7 +26,7 @@ describe('extension version popup', () => {
       { filename: 'extension-status.js' }
     );
 
-    expect(manifest.version).toBe('0.48.14');
+    expect(manifest.version).toBe('0.48.15');
     expect(manifest.action).toEqual({
       default_title: 'Ver versión del puente Eloísa → HHR',
       default_popup: 'extension-status.html',
