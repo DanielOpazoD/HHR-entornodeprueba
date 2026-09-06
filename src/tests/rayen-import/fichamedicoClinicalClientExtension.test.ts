@@ -327,6 +327,7 @@ describe('Ficha Médico read-only clinical client', () => {
                 HCP_FFN: 'PEREZ',
                 HCP_SFN: 'SOTO',
                 HCP_LEGAL: '11.111.111-1',
+                HCP_ID: 17,
               },
             ],
             shiftChangeResume: [],
@@ -357,6 +358,7 @@ describe('Ficha Médico read-only clinical client', () => {
     expect(result.nursingActivity).toEqual([
       {
         author: 'ANA MARIA PEREZ SOTO',
+        practitionerId: '17',
         authorIdentity: { firstGivenName: 'ANA', firstSurname: 'PEREZ' },
         role: 'Enfermera(o)',
         recordedAt: '2026-07-20T10:15:00',

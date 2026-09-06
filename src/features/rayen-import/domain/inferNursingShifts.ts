@@ -16,6 +16,13 @@ import {
 
 export interface NursingActivityObservation extends RayenNursingActivity {
   encounterId: string;
+  /** Local registry resolution, not part of the extension contract. */
+  resolvedStaffIdentity?: {
+    key: string;
+    name: string;
+    aliases: string[];
+    catalogMatched?: boolean;
+  };
 }
 
 const NURSE_ROLE = /enfermer/i;
@@ -132,18 +139,27 @@ const buildSuggestion = (
       continue;
     }
 
-    const key = identity.key;
+    const key =
+      observation.resolvedStaffIdentity?.key ??
+      (observation.practitionerId ? `id:${observation.practitionerId}` : identity.key);
     const accumulator = candidates.get(key) ?? {
-      name: identity.displayName,
+      name:
+        observation.resolvedStaffIdentity?.name ??
+        (observation.practitionerId ? observation.author : identity.displayName),
       observedNames: new Set<string>(),
       structuredAliases: new Set<string>(),
       records: new Set<string>(),
       patients: new Set<string>(),
       hours: new Set<string>(),
       hasShiftChange: false,
-      catalogMatched: identity.catalogMatched,
+      catalogMatched: observation.resolvedStaffIdentity
+        ? observation.resolvedStaffIdentity.catalogMatched === true
+        : identity.catalogMatched,
     };
     accumulator.observedNames.add(observation.author);
+    observation.resolvedStaffIdentity?.aliases.forEach(alias =>
+      accumulator.structuredAliases.add(alias)
+    );
     if (observation.authorIdentity) {
       accumulator.structuredAliases.add(
         `${observation.authorIdentity.firstGivenName} ${observation.authorIdentity.firstSurname}`
@@ -155,13 +171,19 @@ const buildSuggestion = (
     accumulator.patients.add(observation.encounterId);
     accumulator.hours.add(`${stamp.day}|${stamp.hour}`);
     accumulator.hasShiftChange ||= observation.source === 'shift-change';
-    accumulator.catalogMatched ||= identity.catalogMatched;
+    accumulator.catalogMatched ||= observation.resolvedStaffIdentity
+      ? observation.resolvedStaffIdentity.catalogMatched === true
+      : identity.catalogMatched;
     candidates.set(key, accumulator);
   }
 
   const identityCollision = [...candidates].some(([key, candidate]) =>
-    [...candidate.structuredAliases].some(
-      alias => nurseIdentityKey(alias) !== key && candidates.has(nurseIdentityKey(alias))
+    [...candidates].some(
+      ([otherKey, other]) =>
+        otherKey !== key &&
+        [candidate.name, ...candidate.structuredAliases].some(
+          alias => nurseIdentityKey(alias) === nurseIdentityKey(other.name)
+        )
     )
   );
 

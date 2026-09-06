@@ -370,8 +370,24 @@ export const runClinicalFill = async (
     summary.incremental.checkpointOnlyTargets = batchPersistence.batch.checkpointOnlyTargets;
   }
 
+  let staffingObservations = nursingObservations;
+  if (deps.registerStaff) {
+    try {
+      staffingObservations = await deps.registerStaff(nursingObservations);
+    } catch {
+      staffingObservations = [];
+      summary.errors.push(
+        buildClinicalFillError({
+          bedId: '*',
+          source: 'staffing',
+          error:
+            'No se pudo confirmar el catálogo compartido de Enfermería/TENS. Los nombres locales se conservan; reintenta la sincronización.',
+        })
+      );
+    }
+  }
   summary.staffingProposal = inferNursingShifts(
-    nursingObservations,
+    staffingObservations,
     fecha,
     deps.nurseCatalog ?? [],
     deps.tensCatalog ?? []

@@ -32,6 +32,27 @@ type DailyRecordExportPresentationShape = Partial<
 
 const STANDARD_NURSE_SLOT_COUNT = 2;
 
+/** Historical discovery reads all recorded spellings, without choosing an active shift. */
+export const collectRecordedStaffNames = (record: Partial<DailyRecordStaffingState>) => {
+  const names = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((name): name is string => typeof name === 'string') : [];
+  const nurseNames = [
+    ...names(record.nurses),
+    ...(typeof record.nurseName === 'string' ? [record.nurseName] : []),
+    ...names(record.nursesDayShift),
+    ...names(record.nursesNightShift),
+    ...names(record.handoffNightReceives),
+  ];
+  const tensNames = [...names(record.tensDayShift), ...names(record.tensNightShift)];
+  for (const shift of ['day', 'night'] as const) {
+    const detail = record.staffingDetailsV1?.[shift];
+    if (Array.isArray(detail?.nurses))
+      nurseNames.push(...detail.nurses.map(person => person?.name));
+    if (Array.isArray(detail?.tens)) tensNames.push(...detail.tens.map(person => person?.name));
+  }
+  return { nurseNames, tensNames };
+};
+
 const normalizeStaffList = (staff?: string[] | null): string[] =>
   Array.isArray(staff) ? staff.map(value => value?.trim() || '').filter(Boolean) : [];
 

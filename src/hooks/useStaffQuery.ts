@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { queryKeys } from '../config/queryClient';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
 import { useAuth } from '@/context/AuthContext';
 import type { ProfessionalCatalogItem } from '@/types/domain/professionals';
+import { useEloisaStaff } from './useEloisaStaff';
+import { mergeStaffCatalog } from '@/services/staff/eloisaStaffIdentity';
 
 const useCatalogRealtimeReady = (): boolean => {
   const { remoteSyncStatus } = useAuth();
@@ -19,6 +21,7 @@ const STAFF_CATALOG_STALE_TIME_MS = 30_000;
 export const useNursesQuery = () => {
   const queryClient = useQueryClient();
   const isCatalogRealtimeReady = useCatalogRealtimeReady();
+  const discovered = useEloisaStaff(isCatalogRealtimeReady);
   const previousRealtimeReadyRef = useRef(isCatalogRealtimeReady);
 
   const query = useQuery({
@@ -50,7 +53,15 @@ export const useNursesQuery = () => {
     return () => unsubscribe();
   }, [isCatalogRealtimeReady, queryClient]);
 
-  return query;
+  const data = useMemo(
+    () => mergeStaffCatalog(query.data ?? [], discovered, 'nurse'),
+    [query.data, discovered]
+  );
+  return {
+    ...query,
+    manualData: query.data,
+    data,
+  };
 };
 
 /**
@@ -60,6 +71,7 @@ export const useNursesQuery = () => {
 export const useTensQuery = () => {
   const queryClient = useQueryClient();
   const isCatalogRealtimeReady = useCatalogRealtimeReady();
+  const discovered = useEloisaStaff(isCatalogRealtimeReady);
   const previousRealtimeReadyRef = useRef(isCatalogRealtimeReady);
 
   const query = useQuery({
@@ -91,7 +103,15 @@ export const useTensQuery = () => {
     return () => unsubscribe();
   }, [isCatalogRealtimeReady, queryClient]);
 
-  return query;
+  const data = useMemo(
+    () => mergeStaffCatalog(query.data ?? [], discovered, 'tens'),
+    [query.data, discovered]
+  );
+  return {
+    ...query,
+    manualData: query.data,
+    data,
+  };
 };
 
 /**

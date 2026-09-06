@@ -24,12 +24,12 @@ describe('ScoresHistoryTable', () => {
     expect(screen.getByText('Aplicaciones durante la hospitalización')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Fecha' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Profesional' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Estado' })).toBeInTheDocument();
+    expect(screen.getAllByRole('columnheader')).toHaveLength(3);
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(2);
     expect(within(rows[1]).getByText('26-07-2026 · 13:01:19')).toBeInTheDocument();
     expect(within(rows[1]).getByText('Nicole Palma')).toBeInTheDocument();
-    expect(within(rows[1]).getByText('Visible')).toBeInTheDocument();
+    expect(screen.queryByText('Visible')).not.toBeInTheDocument();
   });
 
   it('explains archived applications without treating them as invalid', () => {

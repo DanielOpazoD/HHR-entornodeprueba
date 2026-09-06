@@ -23,8 +23,10 @@
     const timestamp = text(recordedAt);
     if (!author || !role || !timestamp) return null;
     const authorIdentity = authorIdentityFromParts(item);
+    const practitionerId = text(item.authorHealthCarePractitionerId || item.healthCarePractitionerId || item.HCP_ID);
     return {
       author,
+      ...(practitionerId && practitionerId !== '0' ? { practitionerId } : {}),
       ...(authorIdentity ? { authorIdentity } : {}),
       role,
       recordedAt: timestamp,
@@ -33,10 +35,8 @@
       crossedOut: flag(item.IS_CROSSED_OUT),
     };
   };
-  const collectActivity = (rows, source, recordedAt) =>
-    list(rows)
-      .map(item => activityFrom(item, source, recordedAt(item)))
-      .filter(Boolean);
+  const collectActivity = (rows, source, recordedAt) => list(rows)
+    .map(item => activityFrom(item, source, recordedAt(item))).filter(Boolean);
   const projectScaleEvent = event => {
     const resume = list(event && event.evaluationInstrumentsResume).filter(
       item => item && SCALE_FORM_RE.test(text(item.FORM_NAME))

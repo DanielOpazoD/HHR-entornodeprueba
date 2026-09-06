@@ -26,6 +26,7 @@ export interface ClinicalFillDeps {
   /** Limits enrichment to structurally confirmed episodes from the accepted census revision. */
   allowedClinicalEpisodeIds?: readonly string[];
   nurseCatalog?: string[];
+  registerStaff?: <T extends RayenNursingActivity>(observations: T[]) => Promise<T[]>;
   tensCatalog?: string[];
   fetchDeviceReport: (
     encId: string,

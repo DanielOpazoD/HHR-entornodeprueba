@@ -16,6 +16,7 @@ interface NursingHistoryResult {
 export interface CollectNursingStaffingProposalDeps {
   fetchHistory: (encounterId: string, censusDate: string) => Promise<NursingHistoryResult>;
   nurseCatalog?: string[];
+  registerStaff?: <T extends RayenNursingActivity>(observations: T[]) => Promise<T[]>;
   tensCatalog?: string[];
   concurrency?: number;
 }
@@ -73,7 +74,7 @@ export const collectNursingStaffingProposal = async (
   }
 
   return inferNursingShifts(
-    observations,
+    deps.registerStaff ? await deps.registerStaff(observations) : observations,
     record.date,
     deps.nurseCatalog ?? [],
     deps.tensCatalog ?? []

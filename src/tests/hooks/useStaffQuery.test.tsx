@@ -9,6 +9,8 @@ import {
   useSaveProfessionalsMutation,
 } from '@/hooks/useStaffQuery';
 import { CatalogRepository } from '@/services/repositories/CatalogRepository';
+import { useEloisaStaff } from '@/hooks/useEloisaStaff';
+vi.mock('@/hooks/useEloisaStaff', () => ({ useEloisaStaff: vi.fn() }));
 import { useAuth } from '@/context/AuthContext';
 import { setFirestoreSyncState } from '@/services/repositories/repositoryConfig';
 import {
@@ -38,6 +40,7 @@ describe('useStaffQuery Hooks', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useEloisaStaff).mockReturnValue([]);
     setFirestoreSyncState({
       mode: 'enabled',
       reason: 'ready',
@@ -48,6 +51,41 @@ describe('useStaffQuery Hooks', () => {
   });
 
   describe('Queries', () => {
+    it('keeps discovered names available while manual catalog reads are pending', () => {
+      vi.mocked(useEloisaStaff).mockReturnValue([
+        { key: 'nurse:1', role: 'nurse', name: 'Ana Soto', aliases: [] },
+        { key: 'tens:2', role: 'tens', name: 'Berta Perez', aliases: [] },
+      ]);
+      vi.mocked(CatalogRepository.getNurses).mockImplementation(() => new Promise(() => {}));
+      vi.mocked(CatalogRepository.getTens).mockImplementation(() => new Promise(() => {}));
+      vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(() => () => {});
+      vi.mocked(CatalogRepository.subscribeTens).mockImplementation(() => () => {});
+      const { result } = renderHook(() => ({ nurses: useNursesQuery(), tens: useTensQuery() }), {
+        wrapper: createWrapper(),
+      });
+      expect(result.current.nurses.data).toEqual(['Ana Soto']);
+      expect(result.current.tens.data).toEqual(['Berta Perez']);
+      expect(result.current.nurses.manualData).toBeUndefined();
+    });
+    it('offers discovered staff without treating them as manually curated or mixing roles', async () => {
+      vi.mocked(useEloisaStaff).mockReturnValue([
+        { key: 'nurse:1', role: 'nurse', name: 'Ana Soto Rojas', aliases: ['Ana Soto'] },
+        { key: 'tens:2', role: 'tens', name: 'Berta Perez', aliases: [] },
+      ]);
+      vi.mocked(CatalogRepository.getNurses).mockResolvedValue(['Manual Persona']);
+      vi.mocked(CatalogRepository.getTens).mockResolvedValue([]);
+      vi.mocked(CatalogRepository.subscribeNurses).mockImplementation(() => () => {});
+      vi.mocked(CatalogRepository.subscribeTens).mockImplementation(() => () => {});
+      const { result } = renderHook(() => ({ nurses: useNursesQuery(), tens: useTensQuery() }), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.tens.isSuccess).toBe(true));
+      expect(result.current.nurses.data).toEqual(['Manual Persona', 'Ana Soto Rojas']);
+      expect(result.current.nurses.manualData).toEqual(['Manual Persona']);
+      expect(result.current.tens.data).toEqual(['Berta Perez']);
+      expect(result.current.tens.manualData).toEqual([]);
+    });
+
     it('useNursesQuery should fetch nurses and subscribe', async () => {
       const mockNurses = ['Nurse 1', 'Nurse 2'];
       const subscribeMock = vi.fn(() => vi.fn());

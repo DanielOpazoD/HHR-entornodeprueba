@@ -41,8 +41,9 @@ import { isConfirmedRayenCensusHandoff } from './rayenCensusPersistenceGuard';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
 export const useRayenImport = (selectedCensusDate?: string) => {
   const queryClient = useQueryClient();
-  const { data: nursesList = [] } = useNursesQuery();
-  const { data: tensList = [] } = useTensQuery();
+  // Automatic discovery does not confer the evidence bonus of a manually curated roster.
+  const { manualData: nursesList = [] } = useNursesQuery();
+  const { manualData: tensList = [] } = useTensQuery();
   const { policy, mode, status: policyStatus } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
   const { currentUser, role } = useAuthState();
