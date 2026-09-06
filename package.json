@@ -50,6 +50,7 @@
     "test:e2e:flow-performance:built": "unset NO_COLOR; PLAYWRIGHT_USE_PREVIEW=1 PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.emulator-critical.config.ts e2e/startup-performance-budget.spec.ts",
     "test:e2e:critical:ci": "bash scripts/run-e2e-critical-emulator-ci.sh",
     "test:e2e:preview:census-bootstrap": "playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts --project=chromium",
+    "test:e2e:preview:clinical-library:built": "PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/clinical-library-smoke.spec.ts --project=chromium",
     "test:e2e:preview:census-bootstrap:built": "PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts --project=chromium",
     "write:preview-bootstrap-provenance": "node scripts/write-preview-bootstrap-provenance.mjs",
     "check:preview-bootstrap-evidence": "node scripts/check-preview-bootstrap-evidence.mjs",

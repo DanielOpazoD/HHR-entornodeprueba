@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4840192,
-  "_precacheMaxBytesComment": "Shared Eloisa staff discovery and historical recovery: +8192 bytes (0.17%) over the 4832000-byte PR #330 ceiling. Local feature build on main 856dc590 measured 4723.1 KiB versus the previous 4718.8 KiB ceiling. Preserve cached identities and offline catalog availability; no new exclusions, dependencies or relaxed warning bands.",
+  "precacheMaxBytes": 4908032,
+  "_precacheMaxBytesComment": "Clinical library (Documentos, 2026-09-06): +67840 bytes (1.40%) over the 4840192-byte staff-discovery ceiling for the lazy ClinicalLibraryDrawer chunk (55.2 KB: static catalog, infusion and dosing calculators, six score definitions) plus its quick-action barrel. Kept inside the precache on purpose so calculators and scores keep working offline. Local feature build measured 4785.6 KiB (input validation and step-back navigation added about 2 KB to the drawer) versus the previous 4726.8 KiB ceiling. Documents stay outside the precache under docs/ and templates/; no new exclusions, dependencies or relaxed warning bands.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -54,8 +54,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "Automatic shared Eloisa staff discovery: +4608 bytes (0.76%) over the existing 606000-byte ceiling for the identity registry, provenance and live catalog subscription. Local feature build on main 856dc590 measured 595.6 KiB. Shared writes and historical scanning remain dynamically imported; keep error enforcement and all unrelated ceilings unchanged.",
-      "maxBytes": 610608,
+      "_comment": "Documentos toolbar action (2026-09-06): +2000 bytes (0.33%) over the 610608-byte staff-discovery ceiling for the lazy import wrapper, the toolbar fallback button and the renderCensusTrailingActions plumbing in the authenticated shell. Local feature build measured 597.5 KiB (611811 bytes). The panel, catalog and tools stay behind the lazy ClinicalLibraryDrawer boundary; keep error enforcement and all unrelated ceilings unchanged.",
+      "maxBytes": 612608,
       "severity": "error"
     }
   ],
@@ -111,6 +111,11 @@
       "pattern": "^ClinicalPanelDrawer-.*\\.js$",
       "_comment": "Online-only Eloisa clinical drawer loaded only after an explicit patient action.",
       "maxBytes": 50000
+    },
+    {
+      "pattern": "^ClinicalLibraryDrawer-.*\\.js$",
+      "_comment": "Offline-capable census library drawer (catalog, calculators, scores) loaded only after pressing Documentos. Measured 57411 bytes on 2026-09-06; the ceiling leaves room for more documents and score definitions while keeping drift visible.",
+      "maxBytes": 90000
     }
   ]
 }

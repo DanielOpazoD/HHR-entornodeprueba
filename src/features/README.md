@@ -6,18 +6,19 @@ Organización principal por módulo funcional (feature-first). Cada feature agru
 
 ## Mapa de features
 
-| Feature      | Contenido típico                                                      | Estado                       |
-| ------------ | --------------------------------------------------------------------- | ---------------------------- |
-| `census/`    | `components`, `hooks`, `controllers`, `domain`, `types`, `validation` | Núcleo principal del sistema |
-| `handoff/`   | Entrega de turno (enfermería/médica), controllers y servicios         | Activo                       |
-| `transfers/` | Flujo de gestión de traslados y documentos                            | Activo                       |
-| `admin/`     | Paneles de administración, roles, auditoría                           | Activo                       |
-| `analytics/` | KPIs MINSAL/DEIS, visualización y ruta propia `/statistics`           | Activo                       |
-| `backup/`    | Gestión de respaldos y archivos                                       | Activo                       |
-| `cudyr/`     | Módulo clínico CUDYR                                                  | Activo                       |
-| `whatsapp/`  | Integración y configuración WhatsApp                                  | Activo                       |
-| `auth/`      | UI/flows específicos de autenticación                                 | Acotado                      |
-| `reports/`   | Espacio para reportes adicionales                                     | Reservado/ligero             |
+| Feature             | Contenido típico                                                                                        | Estado                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `census/`           | `components`, `hooks`, `controllers`, `domain`, `types`, `validation`                                   | Núcleo principal del sistema |
+| `handoff/`          | Entrega de turno (enfermería/médica), controllers y servicios                                           | Activo                       |
+| `transfers/`        | Flujo de gestión de traslados y documentos                                                              | Activo                       |
+| `admin/`            | Paneles de administración, roles, auditoría                                                             | Activo                       |
+| `analytics/`        | KPIs MINSAL/DEIS, visualización y ruta propia `/statistics`                                             | Activo                       |
+| `backup/`           | Gestión de respaldos y archivos                                                                         | Activo                       |
+| `cudyr/`            | Módulo clínico CUDYR                                                                                    | Activo                       |
+| `clinical-library/` | Biblioteca del censo: formularios, protocolos, infografías y herramientas clínicas (botón «Documentos») | Activo                       |
+| `whatsapp/`         | Integración y configuración WhatsApp                                                                    | Activo                       |
+| `auth/`             | UI/flows específicos de autenticación                                                                   | Acotado                      |
+| `reports/`          | Espacio para reportes adicionales                                                                       | Reservado/ligero             |
 
 ## Subestructura esperada por feature
 
@@ -104,6 +105,7 @@ components/Modal
 - `backup/index.ts`: explorador de respaldos.
 - `census/index.ts`: vistas y modales públicos del módulo.
 - `cudyr/index.ts` y `cudyr/public.ts`: vistas y utilidades permitidas.
+- `clinical-library/index.ts`, `clinical-library/public.ts` y `clinical-library/quick-action.ts`: botón «Documentos» y panel lateral de la biblioteca clínica.
 - `handoff/index.ts` y `handoff/public.ts`: shell público de entrega de turno y helpers permitidos.
 - `transfers/index.ts` y `transfers/public.ts`: vista pública de gestión de traslados.
 - `whatsapp/index.ts`: integración principal de WhatsApp.

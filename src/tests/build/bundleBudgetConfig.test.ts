@@ -58,6 +58,9 @@ describe('bundle budget config', () => {
     expect(findBudget(config, '^ClinicalPanelDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 50000,
     });
+    expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
+      maxBytes: 90000,
+    });
   });
 
   it('keeps authenticated shell budget above the measured critical-runtime baseline', () => {
@@ -66,8 +69,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Shared staff identity subscription: the documented +4608-byte allowance.
-      maxBytes: 610608,
+      // Documentos toolbar action: the documented +2000-byte allowance over staff discovery.
+      maxBytes: 612608,
       severity: 'error',
     });
   });
@@ -75,9 +78,9 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // Shared staff discovery adds the documented 8192 bytes over PR #330's ceiling.
-    // Keep evaluations and cached staff identities available offline, not excluded.
-    expect(config.precacheMaxBytes).toBe(4840192);
+    // The clinical library adds the documented 67840 bytes over the staff-discovery ceiling so
+    // calculators and scores stay available offline instead of being excluded from the precache.
+    expect(config.precacheMaxBytes).toBe(4908032);
     expect(config.precacheIgnoredAssetPatterns.some(pattern => /upc/i.test(pattern))).toBe(false);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([
