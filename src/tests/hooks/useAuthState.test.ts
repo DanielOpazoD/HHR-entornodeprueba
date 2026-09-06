@@ -4,6 +4,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 vi.unmock('@/hooks/useAuthState');
 
 import { useAuthState } from '@/hooks/useAuthState';
+import { SESSION_TIMEOUT_MS } from '@/constants/security';
 import * as authSession from '@/services/auth/authSession';
 import * as authFallback from '@/services/auth/authFallback';
 import * as authUseCases from '@/application/auth/authSessionUseCases';
@@ -248,8 +249,11 @@ describe('useAuthState baseline', () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(61 * 60 * 1000);
-      await vi.runOnlyPendingTimersAsync();
+      await vi.advanceTimersByTimeAsync(SESSION_TIMEOUT_MS);
+    });
+    expect(result.current.user?.uid).toBe('u1');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
     });
 
     expect(result.current.user).toBe(null);

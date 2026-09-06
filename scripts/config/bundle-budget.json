@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4840192,
-  "_precacheMaxBytesComment": "Shared Eloisa staff discovery and historical recovery: +8192 bytes (0.17%) over the 4832000-byte PR #330 ceiling. Local feature build on main 856dc590 measured 4723.1 KiB versus the previous 4718.8 KiB ceiling. Preserve cached identities and offline catalog availability; no new exclusions, dependencies or relaxed warning bands.",
+  "precacheMaxBytes": 4842240,
+  "_precacheMaxBytesComment": "Shared inactivity, PR #356: +2048 bytes (0.043%) over 4840192. Local feature precache measured 4727.5 KiB; preserve the critical auth monitor offline. No new exclusions, dependencies or relaxed warning bands. Evidence/rollback: docs/AUTH_ACCESS_MODEL.md.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -54,8 +54,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "Automatic shared Eloisa staff discovery: +4608 bytes (0.76%) over the existing 606000-byte ceiling for the identity registry, provenance and live catalog subscription. Local feature build on main 856dc590 measured 595.6 KiB. Shared writes and historical scanning remain dynamically imported; keep error enforcement and all unrelated ceilings unchanged.",
-      "maxBytes": 610608,
+      "_comment": "Shared inactivity, PR #356: local same-environment baseline main 261747b9 measured 611706 bytes; feature 991419ba measured 612889 (+1183 bytes). Ceiling 614400 (+3792 over 610608) accounts for baseline drift and this bounded critical runtime, without async initialization races. Error enforcement and unrelated budgets unchanged. Evidence/rollback: docs/AUTH_ACCESS_MODEL.md.",
+      "maxBytes": 614400,
       "severity": "error"
     }
   ],

@@ -66,8 +66,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Shared staff identity subscription: the documented +4608-byte allowance.
-      maxBytes: 610608,
+      // Shared inactivity: documented baseline drift + 1183-byte runtime delta.
+      maxBytes: 614400,
       severity: 'error',
     });
   });
@@ -75,9 +75,11 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // Shared staff discovery adds the documented 8192 bytes over PR #330's ceiling.
-    // Keep evaluations and cached staff identities available offline, not excluded.
-    expect(config.precacheMaxBytes).toBe(4840192);
+    // The critical session monitor remains cached; PR #356 adds a bounded 2048 bytes.
+    expect(config.precacheMaxBytes).toBe(4842240);
+    expect(
+      config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))
+    ).toBe(false);
     expect(config.precacheIgnoredAssetPatterns.some(pattern => /upc/i.test(pattern))).toBe(false);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([

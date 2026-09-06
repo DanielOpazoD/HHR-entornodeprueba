@@ -12,6 +12,7 @@
 const CHANNEL_NAME = 'hhr_auth_channel';
 
 export type AuthChannelMessage =
+  | { type: 'ACTIVITY'; userId: string; at: number; tabId: string }
   | { type: 'LOGOUT'; reason: 'manual' | 'automatic'; tabId: string }
   | { type: 'SYNC_COMPLETED'; taskTypes: string[]; tabId: string };
 
@@ -19,6 +20,19 @@ const TAB_ID: string =
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
     : `tab_${Math.random().toString(36).slice(2)}`;
+
+export function broadcastSessionActivity(userId: string, at: number): void {
+  try {
+    getChannel()?.postMessage({
+      type: 'ACTIVITY',
+      userId,
+      at,
+      tabId: TAB_ID,
+    } satisfies AuthChannelMessage);
+  } catch {
+    // Shared storage still coordinates activity if the channel is unavailable.
+  }
+}
 
 let channel: BroadcastChannel | null = null;
 

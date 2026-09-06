@@ -66,6 +66,47 @@ un cierre explícito, incluyendo sus efectos de cierre por falta de rol.
 La instrumentación existente conserva el primer tiempo y cuenta las repeticiones;
 esos contadores no representan necesariamente nuevas consultas de red.
 
+### Inactividad compartida
+
+Las 8 horas de inactividad se coordinan por usuario y origen entre pestañas. Cada
+pestaña conserva un temporizador, pero antes de cerrar relee la última actividad
+compartida; al volver a primer plano comprueba el plazo sin convertir la visibilidad
+en actividad. Ratón, teclado, toque y scroll actualizan la marca local, con publicación
+limitada a intervalos de 15 segundos mientras la pestaña puede ejecutar temporizadores;
+al ocultarse o salir publica la última marca pendiente, sin añadir actividad. Usa
+almacenamiento local y el canal de auth existente. No se comparten datos clínicos.
+
+Entrar en una pestaña autenticada conserva el plazo inicial previo. Re-renderizar
+el mismo usuario no reinicia ese plazo. El cierre manual sigue propagándose a todas
+las pestañas. Antes de confirmar un vencimiento automático hay una única espera de
+un segundo para recibir mensajes pendientes y volver a comprobar la actividad. Esa
+espera no garantiza entrega si el navegador sigue suspendiendo mensajes. Si ambos mecanismos no
+están disponibles, queda el temporizador local, sin prometer coordinación entre pestañas.
+
+#### Coste y verificación de PR #356 (6 septiembre 2026)
+
+Owner: runtime de autenticación. Dos builds con el mismo entorno local y lockfile:
+`main` 261747b9 produjo un shell de 611706 bytes; 991419ba produjo 612889 bytes
+(+1183 bytes). El límite anterior, 610608, ya quedaba por debajo del baseline local.
+El nuevo límite es 614400 bytes: ajuste total +3792, con enforcement `error` intacto.
+La precarga medida del cambio fue 4727,5 KiB; su techo pasa de 4840192 a 4842240 bytes
+(+2048). No se excluye el monitor del modo offline ni se añaden dependencias.
+
+Se conserva el arranque síncrono del monitor: diferirlo sólo para mover bytes entre
+chunks añadiría un intervalo sin observación y otro ciclo asíncrono que limpiar.
+Este ajuste reconoce un coste de fiabilidad, no afirma una mejora de velocidad.
+Riesgo: aumento acotado del payload inicial. Rollback: revertir el monitor, restaurar
+la precarga a 4840192 y reducir el shell a 612352 bytes, que cubre el baseline medido.
+Actualizar las expectativas del test de configuración y verificar ambos presupuestos;
+no restaurar 610608 sin resolver primero el exceso preexistente de `main`.
+No ampliar nuevamente sin una nueva medición y justificación.
+Cierre: budgets, preview y pruebas de sesión verdes en el head final.
+
+Chrome confirmó dos pestañas autenticadas, una marca de actividad compartida que
+avanza tras teclado y recuperación de sesión al recargar y al cerrar/abrir una pestaña.
+Las 8 horas y sus carreras se prueban con reloj controlado, sin adelantar el reloj ni
+forzar logout de una sesión clínica real.
+
 ## 3.1 Convergencia obligatoria con Netlify Functions
 
 `LAB` y `MMRAD` no pueden usar una semántica distinta de rol respecto del shell.
