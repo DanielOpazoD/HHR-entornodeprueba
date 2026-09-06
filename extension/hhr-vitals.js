@@ -125,7 +125,11 @@
       const when = effectiveWhen(form, campos);
       if (!when.iso) continue;
       const clinicalStamp = get(TIME_IDS);
-      const epoch = measurementEpoch(clinicalStamp) ?? when.epoch;
+      const clinicalEpoch = measurementEpoch(clinicalStamp);
+      // Match HHR: a measurement cannot postdate its own resolved record timestamp.
+      // Keep legitimate retrospective entries; never apply a fixed timezone correction.
+      const epoch = clinicalEpoch != null && (when.epoch == null || clinicalEpoch <= when.epoch)
+        ? clinicalEpoch : when.epoch;
       const record = {
         recordedDate: epoch != null ? rapaNuiDay(epoch) : when.iso,
         recordedAt: epoch != null ? rapaNuiClock(epoch) : clinicalStamp || when.raw,
@@ -149,9 +153,9 @@
         record.painEva != null || record.hgt != null || record.insulinUnits != null ||
         !!record.insulinQuadrant;
       if (!hasReading) continue;
-      parsed.push({ key: Number(form.encounterEventId) || 0, record });
+      parsed.push({ key: Number(form.encounterEventId) || 0, epoch, record });
     }
-    return parsed.sort((a, b) => b.key - a.key).map(entry => entry.record);
+    return parsed.sort((a, b) => (b.epoch ?? 0) - (a.epoch ?? 0) || b.key - a.key).map(entry => entry.record);
   };
 
   // --- Screening thresholds (adult), identical to HHR's vitalSignsView.ts ---

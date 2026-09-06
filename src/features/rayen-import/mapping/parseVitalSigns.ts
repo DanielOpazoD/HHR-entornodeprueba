@@ -107,7 +107,14 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
     // local time so the census shows island time, not UTC (+6h). Fall back to the form's own instant,
     // then to the raw stamp.
     const clinicalStamp = get(TIME_IDS);
-    const epoch = measurementEpoch(clinicalStamp) ?? when.epoch;
+    const clinicalEpoch = measurementEpoch(clinicalStamp);
+    // Eloísa can publish a clinical field later than the record that contains it.
+    // Use the offset-aware record timestamp in that contradictory case, not a fixed
+    // timezone correction or today's clock. Retrospectively entered measurements stay intact.
+    const epoch =
+      clinicalEpoch != null && (when.epoch == null || clinicalEpoch <= when.epoch)
+        ? clinicalEpoch
+        : when.epoch;
 
     const record: PatientVitalSigns = {
       ...(form.encounterEventId != null && str(form.encounterEventId)

@@ -26,6 +26,23 @@ TENS. No introduce _event sourcing_, infraestructura nueva ni escrituras paralel
 
 ## Escrituras y consistencia
 
+### Fecha y hora de signos vitales
+
+HHR y la extensión resuelven el campo clínico de la toma en UTC cuando no declara offset,
+y muestran fecha y hora del mismo instante en `Pacific/Easter`. Una toma retrospectiva
+conserva su hora clínica, aunque se haya registrado después.
+
+Si ese campo apunta a un instante posterior al sello resoluble del propio registro
+(`effectiveWhen`, incluyendo revisiones de campos), es contradictorio: se usa el sello
+del registro con offset, que en el incidente observado coincide con el historial original.
+Esto no demuestra la hora real de una toma en todos los casos; es una recuperación del
+registro fuente, no una corrección de Eloísa. Sin un sello con offset no se inventa una
+corrección. No se usa el reloj del equipo ni una resta horaria fija.
+
+Ambos lectores ordenan por el instante resuelto y sólo desempatan por identificador de
+evento. Al reimportar, HHR reemplaza la hora anterior del mismo `sourceEventId` sin crear
+otra toma. La recuperación requiere releer la fuente; no modifica datos en Eloísa.
+
 - Las lecturas remotas mantienen concurrencia acotada e independiente por fuente.
 - Las escrituras del censo se serializan para evitar conflictos de versión entre pacientes de una
   misma ejecución.
