@@ -50,9 +50,16 @@ const runBootstrapManualLogout = async (): Promise<void> => {
   try {
     // Match the normal logout contract: close Firebase and remove sensitive
     // owner-scoped clinical state before another person uses this browser.
-    await Promise.allSettled([firebaseSessionSignOut(), clearSessionScopedClientState('manual')]);
+    await Promise.allSettled([
+      clearSessionScopedClientState('manual', async () => {
+        try {
+          await firebaseSessionSignOut();
+        } finally {
+          clearPersistedFirebaseAuthState();
+        }
+      }),
+    ]);
   } finally {
-    clearPersistedFirebaseAuthState();
     window.location.replace('/');
     bootstrapLogoutInFlight = false;
   }

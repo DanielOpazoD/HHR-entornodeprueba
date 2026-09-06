@@ -34,7 +34,9 @@ vi.mock('@/services/admin/auditService', () => ({
 }));
 
 vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  clearSessionScopedClientState: vi.fn().mockResolvedValue(undefined),
+  clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
+    await close?.();
+  }),
   reconcileAuthorizedSessionOwner: vi.fn().mockResolvedValue(undefined),
   resolveSessionOwnerKey: (uid: string | null | undefined) => (uid ? `user:${uid}` : null),
 }));
@@ -54,6 +56,11 @@ describe('useAuthState baseline', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(sessionScopedStorageService.clearSessionScopedClientState).mockImplementation(
+      async (_reason, close) => {
+        await close?.();
+      }
+    );
     authSessionStateCallback = null;
     window.sessionStorage.clear();
     window.localStorage.clear();
@@ -167,7 +174,8 @@ describe('useAuthState baseline', () => {
     expect(sessionStorage.getItem(RECENT_MANUAL_LOGOUT_KEY)).toBeTruthy();
     await waitFor(() =>
       expect(sessionScopedStorageService.clearSessionScopedClientState).toHaveBeenCalledWith(
-        'manual'
+        'manual',
+        expect.any(Function)
       )
     );
   });

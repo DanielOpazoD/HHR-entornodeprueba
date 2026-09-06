@@ -1,5 +1,44 @@
 # Auth Access Model
 
+## Aislamiento de limpieza y nuevo ingreso
+
+La admisión de un usuario espera la transición de almacenamiento antes de publicar
+un estado autorizado al censo. La limpieza y la admisión usan el mismo Web Lock
+del origen, además de una cola por documento. Firebase y su copia persistida se
+cierran dentro de esa transición, tanto en el cierre normal como en el recibido
+por canal y el botón del shell de arranque.
+
+Cada admisión inicial obtiene una generación aleatoria compartida, reutilizada
+por las demás pestañas del mismo propietario. Tras cerrar, el siguiente ingreso
+obtiene otra generación, incluso para el mismo usuario. Un mensaje de cierre de
+una generación anterior no debe borrar el estado de la nueva. Los mensajes
+antiguos sin generación conservan compatibilidad: para la protección completa
+entre documentos es necesario que todas las pestañas ejecuten la versión nueva.
+
+Se intentan independientemente registros, cola y Web Storage. Un error se propaga
+y conserva la marca de limpieza pendiente; la admisión debe reintentarla antes de
+habilitar datos. No se cambia el conjunto de datos que debe eliminarse ni los roles.
+Los adaptadores de registros y cola mantienen su comportamiento anterior salvo
+cuando la limpieza de sesión solicita explícitamente propagar errores.
+
+Si falla el cierre local de Firebase, se conserva su operación para reintentarla
+antes de admitir otro estado autorizado. Incluso si ese reintento resulta exitoso,
+el evento autorizado previo al cierre se descarta: se requiere un ingreso posterior.
+Los mensajes del canal se evalúan dentro de la transición, no antes de esperarla.
+
+Excepción de seguridad: si no se puede leer la generación compartida, no existe
+evidencia para autorizar un borrado global. En ese caso se intenta cerrar Firebase
+y limpiar sessionStorage, se informa `session_cleanup_failed` y se conserva la
+necesidad de reintentar en el documento. No se promete recuperación persistida si
+el propio navegador impide escribir los metadatos de recuperación. Un fallo al
+escribir la marca, con generación ya verificada, no impide intentar las demás
+limpiezas.
+
+Chrome con Web Locks coordina las pestañas del mismo origen. Sin esa API existe
+serialización local, pero no se garantiza exclusión entre documentos. No se usan
+timeouts para declarar una limpieza completada. Esta protección no cancela por sí
+sola escrituras clínicas ya iniciadas fuera del flujo de autenticación.
+
 ## Objetivo
 
 Definir la fuente de verdad y el flujo real del acceso al sistema para que auth no dependa de leer código disperso.

@@ -10,10 +10,11 @@
  */
 
 const CHANNEL_NAME = 'hhr_auth_channel';
+import { getLogoutGeneration } from '@/services/storage/sessionStorageTransition';
 
 export type AuthChannelMessage =
   | { type: 'ACTIVITY'; userId: string; at: number; tabId: string }
-  | { type: 'LOGOUT'; reason: 'manual' | 'automatic'; tabId: string }
+  | { type: 'LOGOUT'; reason: 'manual' | 'automatic'; tabId: string; generation?: string | null }
   | { type: 'SYNC_COMPLETED'; taskTypes: string[]; tabId: string };
 
 const TAB_ID: string =
@@ -53,6 +54,7 @@ export function broadcastLogout(reason: 'manual' | 'automatic'): void {
   getChannel()?.postMessage({
     type: 'LOGOUT',
     reason,
+    generation: getLogoutGeneration(),
     tabId: TAB_ID,
   } satisfies AuthChannelMessage);
 }
