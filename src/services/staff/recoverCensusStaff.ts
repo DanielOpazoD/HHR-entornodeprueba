@@ -12,7 +12,7 @@ import { COLLECTIONS, HOSPITAL_COLLECTIONS, getActiveHospitalId } from '@/consta
 import { defaultFirestoreServiceRuntime as runtime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import { collectCensusStaff } from './censusStaffDiscovery';
 import { mergeEloisaStaff } from './eloisaStaffDiscovery';
 import { saveDiscoveredStaff } from './eloisaStaffRegistry';

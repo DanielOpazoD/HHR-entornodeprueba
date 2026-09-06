@@ -1,4 +1,4 @@
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import type { PatientData } from '@/types/domain/patient';
 import type { StaffObservation } from './eloisaStaffIdentity';
 import { collectRecordedStaffNames } from './dailyRecordStaffing';

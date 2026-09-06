@@ -130,8 +130,12 @@ const openCensus = async (page: Page, record: Record<string, unknown>) => {
 };
 
 const confirmClear = async (page: Page, row: ReturnType<typeof getParentRow>) => {
-  await row.getByTitle('Acciones').click({ force: true });
-  await page.getByTitle('Borrar datos').click({ force: true });
+  await row.getByTitle('Acciones').click();
+  // The lazy portal repositions after measuring its height. Let Playwright wait for
+  // a stable, hit-testable button instead of forcing a click at stale coordinates.
+  const menu = page.getByTestId('patient-row-menu-portal');
+  await expect(menu).toBeVisible();
+  await menu.getByTitle('Borrar datos').click();
   await expect(page.getByText(/Limpiar (cama|cuna)/i).last()).toBeVisible();
   await page.getByRole('button', { name: 'Sí, limpiar' }).click();
 };
