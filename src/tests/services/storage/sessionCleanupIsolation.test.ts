@@ -176,9 +176,16 @@ describe('session cleanup isolation', () => {
     vi.mocked(clearAllRecords).mockRejectedValueOnce(new Error('store unavailable'));
     await expect(clearSessionScopedClientState('manual')).rejects.toThrow();
     expect(getStoredSessionOwnerKey()).toBe('user:old');
+    // A replacement login persists Firebase before storage admission. Retrying
+    // HHR cleanup must leave that new credential entry intact.
+    const firebaseEntry = JSON.stringify({ uid: 'new' });
+    sessionStorage.setItem('firebase:authUser:synthetic', firebaseEntry);
+    sessionStorage.setItem('hhr_previous_session_data', 'remove');
     await reconcileAuthorizedSessionOwner('user:new');
     expect(clearAllRecords).toHaveBeenCalledTimes(2);
     expect(getStoredSessionOwnerKey()).toBe('user:new');
+    expect(sessionStorage.getItem('firebase:authUser:synthetic')).toBe(firebaseEntry);
+    expect(sessionStorage.getItem('hhr_previous_session_data')).toBeNull();
   });
 
   it('clears shared records once for two queued closures of the same generation', async () => {
