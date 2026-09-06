@@ -155,7 +155,7 @@
       "hotspots": {}
     },
     "content-hhr.js": {
-      "maxLines": 341,
+      "maxLines": 342,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 17
       }
@@ -478,7 +478,7 @@
       }
     },
     "message-contract.js": {
-      "maxLines": 282,
+      "maxLines": 283,
       "hotspots": {}
     },
     "patient-clinical-bundle-runtime.js": {

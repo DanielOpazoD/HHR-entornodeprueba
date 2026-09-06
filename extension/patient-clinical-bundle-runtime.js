@@ -23,9 +23,9 @@
         return { error: String((error && error.message) || error) };
       }
     };
-    return async ({ encId, fecha, censusDate, lookbackDays, sender }) => {
+    return async ({ encId, fecha, censusDate, lookbackDays, acceptEntries, sender }) => {
       const [devices, history, forms] = await Promise.all([
-        section(() => readDevices({ encId, fecha })),
+        section(() => readDevices({ encId, fecha, acceptEntries: acceptEntries === true })),
         section(() => readHistory({ encId, censusDate, lookbackDays })),
         section(() => readForms({ encId, sender })),
       ]);

@@ -100,9 +100,11 @@ export const readClinicalPatientSources = async ({
     ]);
   }
 
-  const devicesResult = ((): Promise<PromiseSettledResult<DeviceRead>> => {
-    if (!bundle.devices.error) return settleOnce(() => toDeviceRead(bundle.devices));
-    performance.recordTimeout(bundle.devices.error);
+  const devicesResult = (async (): Promise<PromiseSettledResult<DeviceRead>> => {
+    // Transport success is not usable evidence until PDF/JSON normalization succeeds.
+    // A failed parser gets the same single, isolated retry as a failed section.
+    const first = await settleOnce(() => toDeviceRead(bundle.devices));
+    if (first.status === 'fulfilled') return first;
     countRetry();
     return settleOnce(readDevices);
   })();

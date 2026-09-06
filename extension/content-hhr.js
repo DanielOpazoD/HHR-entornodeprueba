@@ -263,6 +263,7 @@
           type: runtimeMessages.PATIENT_CLINICAL_BUNDLE_REQUEST,
           encId: data.encId,
           fecha: data.fecha,
+          acceptEntries: data.acceptEntries === true,
           censusDate: data.censusDate,
           lookbackDays: data.lookbackDays,
         })

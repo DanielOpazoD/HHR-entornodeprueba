@@ -89,6 +89,7 @@
       fecha: 'string',
       censusDate: 'string?',
       lookbackDays: 'number?',
+      acceptEntries: 'boolean?',
     },
     [types.CLINICAL_PANEL_REQUEST]: { encId: 'id' },
     [types.LAB_SEARCH_REQUEST]: { rutBody: 'rut-body', rutDisplay: 'string?' },

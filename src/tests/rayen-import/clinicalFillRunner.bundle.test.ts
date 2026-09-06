@@ -98,4 +98,27 @@ describe('runClinicalFill · paquete clínico por paciente', () => {
     expect(dependencies.fetchHistoryScales).toHaveBeenCalledTimes(1);
     expect(dependencies.fetchScalesForms).toHaveBeenCalledTimes(1);
   });
+
+  it.each([true, false])(
+    'reintenta una vez si falla el parser PDF; recuperación=%s',
+    async recovered => {
+      const dependencies = deps({
+        fetchPatientClinicalBundle: vi
+          .fn()
+          .mockResolvedValue(bundle({ devices: { base64: 'invalid-pdf', source: 'pdf' } })),
+        extractDeviceItems: vi.fn().mockRejectedValue(new Error('Invalid PDF structure')),
+        fetchDeviceReport: recovered
+          ? vi.fn().mockResolvedValue({ base64: '', source: 'json', entries: [] })
+          : vi.fn().mockRejectedValue(new Error('Device source unavailable')),
+      });
+      const summary = await runClinicalFill(record(), '2026-07-10', dependencies);
+      expect(dependencies.fetchDeviceReport).toHaveBeenCalledTimes(1);
+      expect(dependencies.fetchHistoryScales).not.toHaveBeenCalled();
+      expect(dependencies.fetchScalesForms).not.toHaveBeenCalled();
+      expect(summary.performance?.counters.retries).toBe(1);
+      expect(summary.errors.filter(error => error.source === 'devices')).toHaveLength(
+        recovered ? 0 : 1
+      );
+    }
+  );
 });
