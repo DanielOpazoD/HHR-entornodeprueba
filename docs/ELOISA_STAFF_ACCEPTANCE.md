@@ -29,29 +29,47 @@ Los cinco casos del archivo pasan (incluidos los dos existentes). La suite vigen
 `test:emulator:sync:ci` los incluye; no se agrega otro job ni se duplican ejecuciones en CI.
 Además pasaron 60 pruebas focalizadas de servicios de funcionarios y cliente de Ficha Médico.
 
-## Aceptación parcial en Chrome real
+## Comprobaciones en Chrome real
 
 El censo informó 0.48.13 al comenzar. Después de que el usuario recargó la extensión,
 HHR confirmó 0.48.14 y disponibilidad de Ficha Médico y Gestión de Camas. La lectura
 de Dotación abrió la propuesta, cerrada con **Mantener actual** sin aplicar turnos.
 
-Readback local mediante `readEloisaStaff`: 49 identidades, 20 de Enfermería y 29 de
-TENS, cero claves duplicadas y **cero entradas con ID de origen**. Esto no demuestra
-que el servidor omita los IDs: queda pendiente contrastar la respuesta original
-con la proyección del lector. No se deben inventar IDs para completar la prueba.
+Readback mediante `readEloisaStaff` y `subscribeSharedStaffCatalog`: 49 identidades,
+20 de Enfermería y 29 de TENS, cero claves duplicadas y cero entradas con ID de origen.
+El catálogo local coincide campo por campo con el compartido. Comparar JSON sin
+normalizar produjo inicialmente una diferencia de orden, no una diferencia de datos.
 
-La inspección de Chrome fue interrumpida por cambios de ventana. Las pruebas emuladas
-**no acreditan** disponibilidad de IDs en las respuestas reales de Eloísa ni
-convergencia visual entre pestañas reales. No se acredita tampoco alta real de un
-profesional nuevo: el total observado puede corresponder al catálogo ya existente.
+Se repitió la lectura de Dotación y se cerró nuevamente con **Mantener actual**:
+los diez selectores de asignaciones permanecieron iguales. Después se recargó la
+pestaña HHR de prueba y se abrió otra pestaña normal de Chrome, con la misma sesión.
+Ambas conservaron las 49 identidades y mostraron las mismas opciones en los diez
+selectores de Enfermería/TENS. Los catálogos local y compartido, antes y después de
+la recarga y desde la segunda pestaña, coincidieron al normalizar claves y listas.
 
-1. Mantener versión cargada y lectores vigentes, sin recargar fichas con cambios sin guardar.
-2. Leer Dotación y comprobar que el ID viene del autor de cada actividad, no de la sesión.
-   Si la fuente no entrega ID, registrar esa limitación: no inventarlo ni inferirlo del nombre.
-3. Contrastar catálogo capturado, persistido y mostrado; repetir lectura y recargar HHR.
-4. Abrir una segunda pestaña HHR y comparar ambos catálogos y roles.
-5. Comprobar que no se aplicaron turnos ni se alteraron evaluaciones históricas.
+### Límite confirmado de la muestra de origen
 
-No marcar el cierre extremo a extremo como aprobado hasta completar estos pasos.
-Registrar sólo versiones y resultados agregados; no adjuntar HAR, tokens, nombres reales
-ni contenido clínico al PR.
+Se abrió una pestaña limpia de Ficha Médico y su historial, sin editar la ficha.
+La respuesta HTTP 200 de `getPatientEncounterHistoryReportServer` contenía 228
+eventos; al recorrer las cinco colecciones de actividad utilizadas por el lector,
+505 registros tenían rol de Enfermería/TENS. **Ninguno informó**
+`authorHealthCarePractitionerId`, `healthCarePractitionerId` o `HCP_ID`.
+Esto acredita su ausencia en esa respuesta, no en todo Eloísa ni en otros endpoints.
+
+Por tanto, esta ejecución real verifica el camino sin ID, la repetición, la
+persistencia compartida y la concordancia visual entre pestañas. El camino con ID,
+el alta de profesionales nuevos y los homónimos se acreditan con datos sintéticos
+en las pruebas de integración, no con una incorporación nueva observada en Chrome.
+No se inventaron identificadores ni se sustituyó el autor por el usuario de sesión.
+
+### Alcance del cierre
+
+El PR añade regresiones y evidencia, sin modificar código productivo. No se
+aplicaron propuestas de turno ni se ejecutaron ediciones de evaluaciones históricas.
+No se presenta como verificación real universal de identificadores: para acreditarla
+será necesario disponer de una respuesta de origen que efectivamente los incluya.
+Si aparece esa muestra, repetir el readback y contrastar el ID del autor con el
+catálogo; no introducir una inferencia de identidad para satisfacer la prueba.
+
+Sólo se registran versiones y resultados agregados: no se adjuntan HAR, tokens,
+nombres reales ni contenido clínico al PR.
