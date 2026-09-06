@@ -56,6 +56,16 @@ Puntos clave:
 - si aparece un alias legacy de rol en `config/roles`, backend y Gestión de Roles lo recanonizan a `viewer`
 - Gestión de Roles además intenta resincronizar el custom claim del usuario afectado cuando detecta esa recanonización
 
+### Un solo ciclo de sesión por pestaña
+
+El ciclo de sesión de React pertenece únicamente a `AuthProvider`. Los módulos,
+incluidos los consumidores de Eloísa, leen `useAuth()` y no montan otro `useAuthState()`.
+El bootstrap descarta resultados después de desmontar y limpia cualquier suscripción
+que llegue tarde. El observador descarta resoluciones anteriores a otro evento o a
+un cierre explícito, incluyendo sus efectos de cierre por falta de rol.
+La instrumentación existente conserva el primer tiempo y cuenta las repeticiones;
+esos contadores no representan necesariamente nuevas consultas de red.
+
 ## 3.1 Convergencia obligatoria con Netlify Functions
 
 `LAB` y `MMRAD` no pueden usar una semántica distinta de rol respecto del shell.

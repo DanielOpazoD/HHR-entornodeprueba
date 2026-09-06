@@ -68,6 +68,10 @@ export const useResolvedAuthBootstrap = ({
     }
 
     let unsubscribe: (() => void) | undefined;
+    let active = true;
+    const applySessionState = (next: AuthSessionState) => {
+      if (active) setSessionState(next);
+    };
     const hasPendingRedirect = isAuthBootstrapPending();
     const hasAuthRehydrationHint =
       hasPersistedFirebaseAuthHint() || hasRecentAuthenticatedSessionHint();
@@ -136,7 +140,7 @@ export const useResolvedAuthBootstrap = ({
             if (timeoutRecoveryOutcome.status === 'success' && timeoutRecoveryOutcome.data) {
               applyResolvedBootstrapSessionState({
                 sessionState: timeoutRecoveryOutcome.data,
-                setSessionState,
+                setSessionState: applySessionState,
                 setAuthLoading: setResolvedAuthLoading,
               });
               return;
@@ -173,6 +177,7 @@ export const useResolvedAuthBootstrap = ({
       clearTimeout(safetyTimeout);
     };
     const setResolvedAuthLoading = (value: boolean) => {
+      if (!active) return;
       if (!value) {
         markPerf('auth-bootstrap:loading-false');
         markBootstrapResolved();
@@ -187,13 +192,16 @@ export const useResolvedAuthBootstrap = ({
       resolveImmediatelyAsUnauthenticatedWhenDirectChecksAreEmpty:
         canResolveImmediatelyAsUnauthenticatedAfterDirectChecks,
       hasAuthRehydrationHint,
-      setSessionState,
+      setSessionState: applySessionState,
       setAuthLoading: setResolvedAuthLoading,
+      isActive: () => active,
     }).then(unsub => {
-      if (unsub) unsubscribe = unsub;
+      if (active) unsubscribe = unsub;
+      else unsub();
     });
 
     return () => {
+      active = false;
       markBootstrapResolved();
       if (unsubscribe) unsubscribe();
     };

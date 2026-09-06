@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
-import { useAuthState } from '@/hooks/useAuthState';
+import { useAuth } from '@/context/AuthContext';
 import * as dailyRecordQuery from '@/hooks/useDailyRecordQuery';
 import { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
@@ -46,7 +46,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   const { manualData: tensList = [] } = useTensQuery();
   const { policy, mode, status: policyStatus } = useRayenImportMode();
   const dailyRecordData = useDailyRecordData();
-  const { currentUser, role } = useAuthState();
+  const { currentUser, role } = useAuth();
   const { mutateAsync: saveDailyRecordMutation } = dailyRecordQuery.useSaveDailyRecordMutation();
   const { dailyRecord } = useRepositories();
   const isAdmin = role === 'admin';

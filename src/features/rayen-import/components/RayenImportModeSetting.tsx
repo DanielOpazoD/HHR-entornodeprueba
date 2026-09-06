@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRayenImportMode } from '../hooks/useRayenImportMode';
 import type { ClinicalEnrichmentBatchMode } from '../settings/rayenImportSettings';
-import { useAuthState } from '@/hooks/useAuthState';
+import { useAuth } from '@/context/AuthContext';
 
 interface OptionProps<T extends string> {
   name: string;
@@ -56,7 +56,7 @@ const Option = <T extends string>({
  * automatic mode is experimental. Gate rendering behind an admin check at the call site.
  */
 export const RayenImportModeSetting: React.FC = () => {
-  const { currentUser } = useAuthState();
+  const { currentUser } = useAuth();
   const {
     mode,
     clinicalBatchMode,
