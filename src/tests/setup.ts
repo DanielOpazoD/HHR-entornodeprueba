@@ -480,6 +480,8 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
 
 // Mock AuthContext and useAuth
 const mockAuthContextValue = {
+  currentUser: mockUser,
+  authorizedUser: mockUser,
   user: mockUser,
   role: 'admin' as const,
   isLoading: false,

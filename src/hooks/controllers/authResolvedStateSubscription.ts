@@ -45,6 +45,7 @@ import {
 import { applyResolvedBootstrapSessionState } from '@/hooks/controllers/authResolvedBootstrapSessionController';
 
 export interface SubscribeToResolvedAuthStateInput {
+  isActive?: () => boolean;
   resolveRedirectAuthSessionOutcome: () => Promise<ApplicationOutcome<AuthSessionState | null>>;
   resolveCurrentAuthSessionOutcome: () => Promise<ApplicationOutcome<AuthSessionState | null>>;
   onAuthSessionStateChange: (
@@ -63,6 +64,7 @@ const resolveBootstrapDirectChecks = async ({
   hasAuthRehydrationHint,
   setSessionState,
   setAuthLoading,
+  isActive,
 }: Pick<
   SubscribeToResolvedAuthStateInput,
   | 'resolveRedirectAuthSessionOutcome'
@@ -71,10 +73,12 @@ const resolveBootstrapDirectChecks = async ({
   | 'hasAuthRehydrationHint'
   | 'setSessionState'
   | 'setAuthLoading'
+  | 'isActive'
 >): Promise<{ resolved: boolean }> => {
   try {
     markPerf('auth-bootstrap:redirect-start');
     const redirectOutcome = await resolveRedirectAuthSessionOutcome();
+    if (isActive?.() === false) return { resolved: false };
     markPerf('auth-bootstrap:redirect-done', redirectOutcome.status);
     recordOperationalOutcome('auth', 'redirect_resolution', redirectOutcome, {
       allowSuccess: true,
@@ -91,6 +95,7 @@ const resolveBootstrapDirectChecks = async ({
 
     markPerf('auth-bootstrap:current-session-start');
     const currentSessionOutcome = await resolveCurrentAuthSessionOutcome();
+    if (isActive?.() === false) return { resolved: false };
     markPerf('auth-bootstrap:current-session-done', currentSessionOutcome.status);
     recordOperationalOutcome('auth', 'current_session_resolution', currentSessionOutcome, {
       allowSuccess: true,
@@ -208,12 +213,14 @@ export const subscribeToResolvedAuthState = async (
   let isBootstrapLoading = true;
 
   const directChecks = await resolveBootstrapDirectChecks(input);
+  if (input.isActive?.() === false) return () => {};
   if (directChecks.resolved) {
     isBootstrapLoading = false;
   }
 
   markPerf('auth-bootstrap:observer-subscribe');
   return input.onAuthSessionStateChange(async sessionState => {
+    if (input.isActive?.() === false) return;
     markPerf('auth-bootstrap:observer-event', sessionState.status);
     recordOperationalTelemetry(
       {
