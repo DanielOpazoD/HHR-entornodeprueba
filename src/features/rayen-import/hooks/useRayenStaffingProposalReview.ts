@@ -6,9 +6,9 @@ import {
   hasPendingStaffingDecision,
   reconcileNursingShiftProposal,
 } from '../domain/applyNursingShiftProposal';
-import { collectNursingStaffingProposal } from '../domain/collectNursingStaffingProposal';
 import { isNursingStaffingCollectionContextCurrent } from '../domain/nursingStaffingCollectionContext';
 import { canWritePreviousDay } from '../domain/previousDayCorrections';
+import { collectNursingStaffingProposal } from '../domain/collectNursingStaffingProposal';
 import { requestHistoryScales } from '../bridge/rayenImportBridge';
 import { getRayenImportErrorMessage } from './rayenImportState';
 import { reportRayenStaffingOutcome } from './useRayenFillStatus';
@@ -54,6 +54,8 @@ export const useRayenStaffingProposalReview = ({
           requestHistoryScales(encounterId, censusDate, { lookbackDays: 2 }),
         nurseCatalog,
         tensCatalog,
+        registerStaff: async observations =>
+          (await import('@/services/staff/eloisaStaffRegistry')).registerEloisaStaff(observations),
       });
       const latestRecord = await loadFreshClinicalRecord(freshRecord.date);
       if (

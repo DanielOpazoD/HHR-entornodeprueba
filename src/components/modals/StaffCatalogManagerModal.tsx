@@ -3,6 +3,7 @@ import { Users, Plus, Trash2, Cloud, AlertCircle, Pencil, Check, X } from 'lucid
 import { BaseModal } from '@/components/shared/BaseModal';
 import { StaffNameSchema } from '@/schemas/inputSchemas';
 import clsx from 'clsx';
+import { RecoverCensusStaffButton } from './RecoverCensusStaffButton';
 
 type StaffCatalogVariant = 'nurse' | 'tens';
 
@@ -128,6 +129,7 @@ export const StaffCatalogManagerModal: React.FC<StaffCatalogManagerModalProps> =
       headerIconColor={config.headerIconColor}
     >
       <div className="space-y-6">
+        <RecoverCensusStaffButton />
         <div>
           <div className="mb-3 flex items-center justify-between">
             <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">

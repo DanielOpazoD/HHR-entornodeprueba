@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4832000,
-  "_precacheMaxBytesComment": "PR #330: +24000 bytes (0.50%) for daily signed UPC evaluations, history and email eligibility. Comparable CI builds: main beb6ecb / run 33934591555 = 4684.9 KiB; PR df1c36a / run 33946171467 = 4703.5 KiB (+18.6 KiB). Preserve offline evaluation and partial local history in precache; online-only exclusions and all other asset ceilings are unchanged.",
+  "precacheMaxBytes": 4840192,
+  "_precacheMaxBytesComment": "Shared Eloisa staff discovery and historical recovery: +8192 bytes (0.17%) over the 4832000-byte PR #330 ceiling. Local feature build on main 856dc590 measured 4723.1 KiB versus the previous 4718.8 KiB ceiling. Preserve cached identities and offline catalog availability; no new exclusions, dependencies or relaxed warning bands.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -54,8 +54,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "PR #330: +6000 bytes (1%) for the daily UPC policy, persistence schema and email gate in the authenticated runtime. Comparable CI builds: main beb6ecb = 583.6 KiB; PR df1c36a = 586.6 KiB. Small margin also covers local build configuration variation; severity remains error and near-limit warnings remain enabled.",
-      "maxBytes": 606000,
+      "_comment": "Automatic shared Eloisa staff discovery: +4608 bytes (0.76%) over the existing 606000-byte ceiling for the identity registry, provenance and live catalog subscription. Local feature build on main 856dc590 measured 595.6 KiB. Shared writes and historical scanning remain dynamically imported; keep error enforcement and all unrelated ceilings unchanged.",
+      "maxBytes": 610608,
       "severity": "error"
     }
   ],

@@ -68,11 +68,11 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
 }) => (
   <div
     className={clsx(
-      'flex min-w-[150px] flex-1 flex-col gap-1.5 rounded-lg border border-slate-200 border-l-4 bg-white p-3',
+      'grid min-w-[150px] flex-1 grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border border-slate-200 border-l-4 bg-white p-2.5',
       accentClass
     )}
   >
-    <div className="flex items-start justify-between gap-2">
+    <div className="col-start-2 row-start-1 flex items-start justify-between gap-2">
       <div className="flex items-center gap-1.5 text-slate-600">
         {icon}
         <div className="leading-tight">
@@ -82,11 +82,11 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
       </div>
       {badge}
     </div>
-    <div className="flex items-baseline gap-1.5">
+    <div className="col-start-1 row-span-2 row-start-1 flex items-center gap-1.5">
       <span className={clsx('text-3xl font-bold tabular-nums', valueClass)}>{value}</span>
     </div>
     {applicationDate && (applicationDate !== recordedDate || applicationArchived) ? (
-      <div className="space-y-0.5 text-[10px] text-slate-400">
+      <div className="col-start-2 space-y-0.5 text-[10px] text-slate-500">
         <div>Resultado vigente del {formatIsoDay(recordedDate)}</div>
         <div>
           Última aplicación {formatIsoDay(applicationDate)}
@@ -94,9 +94,11 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
         </div>
       </div>
     ) : (
-      <div className="text-[10px] text-slate-400">Realizada el {formatIsoDay(recordedDate)}</div>
+      <div className="col-start-2 text-[10px] text-slate-500">
+        Realizada el {formatIsoDay(recordedDate)}
+      </div>
     )}
-    {footer}
+    {footer && <div className="col-span-2">{footer}</div>}
   </div>
 );
 

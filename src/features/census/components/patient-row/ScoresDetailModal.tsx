@@ -1,26 +1,19 @@
 /**
- * Detail modal for the census "Scores" column — a clean, at-a-glance report of the nursing risk
- * scales synced from Ficha Médico:
- *   1. an alert strip when any scale is due/overdue for reapplication,
- *   2. a grid of summary cards (Braden UPP · Downton falls · CUDYR) — see `ScoresDetailCards`,
- *   3. the Braden "conducta" (planned care by risk level),
- *   4. the CUDYR imported-from-Eloísa note, and
- *   5. a per-scale history timeline (colored dots over the hospitalization) with a legend.
- * Informational only: the scales are recorded in Ficha Médico and synced here.
+ * Read-only Braden/Downton report with per-scale history and existing reapplication rules.
+ * CUDYR provenance remains available separately; planned care is not shown in this report.
  */
 
-import React from 'react';
+import React, { useId, useState } from 'react';
 import clsx from 'clsx';
-import { Activity, AlarmClock, ClipboardList, History, Info } from 'lucide-react';
+import { Activity, History, Info } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type {
-  BradenCellModel,
   CudyrCellModel,
   ScoresCellModel,
 } from '@/features/census/controllers/evaluationScoresCellController';
 import { BradenCard, CudyrCard, DowntonCard } from './ScoresDetailCards';
 import { ScoresHistoryTable } from './ScoresHistoryTable';
-import { formatIsoDay, tokensFor } from './scoresDetailTokens';
+import { formatIsoDay } from './scoresDetailTokens';
 
 interface ScoresDetailModalProps {
   patientName: string;
@@ -40,58 +33,6 @@ const formatCudyrDateTime = (value: string, day: string): string => {
     minute: '2-digit',
     hour12: false,
   }).format(new Date(epoch));
-};
-
-/** Prominent strip when any scale needs reapplication, so it's the first thing the nurse sees. */
-const ReapplyAlert: React.FC<{ model: ScoresCellModel }> = ({ model }) => {
-  const items: string[] = [];
-  if (model.braden?.assessment.reapplication.urgency !== 'ok' && model.braden?.countdownLabel) {
-    items.push(`Braden: ${model.braden.countdownLabel.toLowerCase()}`);
-  }
-  if (
-    model.downton?.reapplication &&
-    model.downton.reapplication.urgency !== 'ok' &&
-    model.downton.countdownLabel
-  ) {
-    items.push(`Downton: ${model.downton.countdownLabel.toLowerCase()}`);
-  }
-  if (items.length === 0) return null;
-  return (
-    <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200">
-      <AlarmClock size={16} className="shrink-0 animate-pulse" />
-      <span>{items.join(' · ')}</span>
-    </div>
-  );
-};
-
-const BradenConducta: React.FC<{ braden: BradenCellModel }> = ({ braden }) => {
-  const { conducta, reapplication } = braden.assessment;
-  return (
-    <section className="rounded-lg border border-slate-200 p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h4 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          <ClipboardList size={13} /> Cuidados planeados según riesgo de LPP
-        </h4>
-        <span className="text-[11px] text-slate-400">
-          {conducta.aplicacion} · próxima {formatIsoDay(reapplication.dueDate)}
-        </span>
-      </div>
-      <ul className="space-y-1 text-xs text-slate-600">
-        {conducta.cuidados.map(cuidado => (
-          <li key={cuidado} className="flex items-start gap-1.5">
-            <span
-              className={clsx(
-                'mt-1 h-1.5 w-1.5 shrink-0 rounded-full',
-                tokensFor(braden.assessment.riskLevel).dot
-              )}
-            />
-            {cuidado}
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2 text-[10px] text-slate-400">Cada intervención debe tener su registro.</p>
-    </section>
-  );
 };
 
 const CudyrNote: React.FC<{ cudyr: CudyrCellModel }> = ({ cudyr }) => (
@@ -148,35 +89,116 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
   patientName,
   model,
   onClose,
-}) => (
-  <BaseModal
-    isOpen
-    onClose={onClose}
-    title={`Escalas de enfermería — ${patientName}`}
-    icon={<Activity size={18} />}
-    size="lg"
-    dataModule="census-scores"
-  >
-    <div className="space-y-3">
-      <ReapplyAlert model={model} />
-
-      {(model.braden || model.downton || model.cudyr) && (
-        <div className="flex flex-wrap gap-2">
-          {model.braden && <BradenCard braden={model.braden} />}
-          {model.downton && <DowntonCard downton={model.downton} />}
-          {model.cudyr && <CudyrCard cudyr={model.cudyr} />}
+}) => {
+  const [active, setActive] = useState<'BRADEN' | 'DOWNTON'>(model.braden ? 'BRADEN' : 'DOWNTON');
+  const id = useId();
+  const selected = active === 'BRADEN' ? model.braden : model.downton;
+  const reapplication =
+    active === 'BRADEN' ? model.braden?.assessment.reapplication : model.downton?.reapplication;
+  const history = model.history.filter(entry => entry.code === active);
+  return (
+    <BaseModal
+      isOpen
+      onClose={onClose}
+      title={`Escalas de enfermería — ${patientName}`}
+      icon={<Activity size={18} />}
+      size="3xl"
+      bodyClassName="!px-4 !py-3"
+      dataModule="census-scores"
+    >
+      <div className="space-y-2">
+        <div
+          role="tablist"
+          aria-label="Escala de enfermería"
+          className="flex gap-1 border-b border-slate-200"
+        >
+          {(['BRADEN', 'DOWNTON'] as const).map(code => {
+            const score = code === 'BRADEN' ? model.braden : model.downton;
+            const urgency =
+              code === 'BRADEN'
+                ? model.braden?.assessment.reapplication.urgency
+                : model.downton?.reapplication?.urgency;
+            return (
+              <button
+                key={code}
+                type="button"
+                role="tab"
+                id={`${id}-${code}`}
+                aria-controls={`${id}-panel`}
+                aria-selected={active === code}
+                tabIndex={active === code ? 0 : -1}
+                onClick={() => setActive(code)}
+                onKeyDown={event => {
+                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                  event.preventDefault();
+                  const next =
+                    event.key === 'Home'
+                      ? 'BRADEN'
+                      : event.key === 'End'
+                        ? 'DOWNTON'
+                        : code === 'BRADEN'
+                          ? 'DOWNTON'
+                          : 'BRADEN';
+                  setActive(next);
+                  document.getElementById(`${id}-${next}`)?.focus();
+                }}
+                className={clsx(
+                  'flex items-center gap-2 border-b-2 px-4 py-1.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600',
+                  active === code
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                )}
+              >
+                {code === 'BRADEN' ? 'Braden' : 'Downton'}
+                {score && urgency && urgency !== 'ok' && (
+                  <span className="text-xs text-red-700">Pendiente</span>
+                )}
+              </button>
+            );
+          })}
         </div>
-      )}
-
-      {model.braden && <BradenConducta braden={model.braden} />}
-      {model.cudyr && <CudyrNote cudyr={model.cudyr} />}
-      {model.cudyr && <CudyrHistory cudyr={model.cudyr} />}
-
-      {!model.braden && !model.downton && !model.cudyr && (
-        <p className="text-sm text-slate-500">Sin escalas de enfermería para este día.</p>
-      )}
-
-      <ScoresHistoryTable history={model.history} />
-    </div>
-  </BaseModal>
-);
+        <section
+          role="tabpanel"
+          id={`${id}-panel`}
+          aria-labelledby={`${id}-${active}`}
+          tabIndex={0}
+          className="space-y-3 focus-visible:outline-teal-600"
+        >
+          {active === 'BRADEN' && model.braden && <BradenCard braden={model.braden} />}
+          {active === 'DOWNTON' && model.downton && <DowntonCard downton={model.downton} />}
+          {reapplication && (
+            <p className="text-xs text-slate-600">
+              {active === 'BRADEN' && model.braden
+                ? `${model.braden.assessment.conducta.aplicacion} · `
+                : ''}
+              Próxima aplicación: {formatIsoDay(reapplication.dueDate)}
+            </p>
+          )}
+          {!selected && (
+            <p className="py-4 text-sm text-slate-500">
+              Sin resultado vigente de {active === 'BRADEN' ? 'Braden' : 'Downton'} para este día.
+            </p>
+          )}
+          <ScoresHistoryTable history={history} />
+          {history.length === 0 && (
+            <p className="text-xs text-slate-500">
+              Sin aplicaciones registradas durante la hospitalización.
+            </p>
+          )}
+        </section>
+        {model.cudyr && (
+          <details className="border-t border-slate-200 pt-3">
+            <summary className="cursor-pointer text-xs font-medium text-slate-600">
+              CUDYR · {model.cudyr.category}
+            </summary>
+            <div className="mt-3 space-y-3">
+              <CudyrCard cudyr={model.cudyr} />
+              <CudyrNote cudyr={model.cudyr} />
+              <CudyrHistory cudyr={model.cudyr} />
+            </div>
+          </details>
+        )}
+      </div>
+    </BaseModal>
+  );
+};

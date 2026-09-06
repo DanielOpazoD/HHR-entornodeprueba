@@ -29,6 +29,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Read-only historical audit: recover signed UPC evaluations from the patient
   // snapshot preserved in a completed movement, matched by patient and episode.
   'src/services/patient/patientUpcHistoryService.ts',
+  // Read-only historical maintenance: discover attributed staff in completed
+  // movement snapshots, without changing clinical records or mining free text.
+  'src/services/staff/censusStaffDiscovery.ts',
   // Integrity scoring recognizes a newly persisted movement snapshot as evidence that a
   // vacated patient was preserved rather than erased during a multi-discharge sync.
   'src/utils/integrityGuard.ts',

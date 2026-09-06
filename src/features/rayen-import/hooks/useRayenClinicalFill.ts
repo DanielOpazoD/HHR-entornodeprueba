@@ -148,9 +148,7 @@ export const useRayenClinicalFill = ({
             record,
             allowedClinicalEpisodeIds
           );
-          // The immediate path consumes the exact structural record just accepted by persistence.
-          // A task that actually waited must revalidate once at dequeue time because a newer census
-          // could have overtaken it while another clinical fill owned the queue.
+          // Immediate fills use the accepted record; queued fills revalidate at dequeue time.
           let freshRecord = record;
           let runPolicy = resolveClinicalEnrichmentBatchPolicyForRun(freshRecord, requestedRunId);
           const hasConfirmedImmediateHandoff =
@@ -275,6 +273,7 @@ export const useRayenClinicalFill = ({
           try {
             const { createClinicalEnrichmentPersistenceStrategy } =
               await import('./clinicalEnrichmentPersistenceStrategy');
+            const { registerEloisaStaff } = await import('@/services/staff/eloisaStaffRegistry');
             const persistenceStrategy = createClinicalEnrichmentPersistenceStrategy({
               mode: batchMode,
               record: freshRecord,
@@ -306,6 +305,7 @@ export const useRayenClinicalFill = ({
                 createId,
                 nurseCatalog,
                 tensCatalog,
+                registerStaff: registerEloisaStaff,
               },
               ({ done, total }) => reportRayenFillProgress(done, total)
             );

@@ -34,6 +34,28 @@ const deps = (over: Partial<ClinicalFillDeps> = {}): ClinicalFillDeps => ({
 });
 
 describe('runClinicalFill staffing inference', () => {
+  it('registers discovered staff even when no shift can be inferred and reports a storage failure', async () => {
+    const activity = {
+      author: 'Ana Soto Rojas',
+      role: 'Enfermera(o)',
+      recordedAt: '2026-07-10T10:15:00',
+      source: 'evolution',
+    };
+    const registerStaff = vi.fn().mockRejectedValue(new Error('storage unavailable'));
+    const summary = await runClinicalFill(
+      record({ H1C2: { encId: 'E1' } }),
+      '2026-07-10',
+      deps({
+        registerStaff,
+        fetchHistoryScales: vi.fn().mockResolvedValue({ events: [], nursingActivity: [activity] }),
+      })
+    );
+    expect(registerStaff).toHaveBeenCalledWith([{ ...activity, encounterId: 'E1' }]);
+    expect(summary.errors).toEqual(
+      expect.arrayContaining([expect.objectContaining({ source: 'staffing', bedId: '*' })])
+    );
+  });
+
   it('aggregates text-free nursing activity across patients into a reviewable proposal', async () => {
     const fetchHistoryScales = vi.fn().mockImplementation(async (encId: string) => ({
       events: [],

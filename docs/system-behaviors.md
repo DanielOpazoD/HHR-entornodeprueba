@@ -2,6 +2,43 @@
 
 Documentación de comportamientos automáticos y esperados del sistema HHR.
 
+## Profesionales descubiertos desde Eloísa
+
+La sincronización clínica y la revisión de Dotación registran automáticamente los autores
+de actividad firmada de Enfermería/TENS, sin exigir un alta manual previa. El registro
+aditivo se conserva en IndexedDB, con clave `eloisa-staff-identities-v1:<hospital>`,
+y se publica en el catálogo compartido de Firestore. Una transacción lee y actualiza
+conjuntamente `settings/eloisa_staff_catalog`, `settings/nurses` y `settings/tens` del
+hospital: conserva profesionales existentes, incorpora descubrimientos y unifica sólo
+aliases verificables. Los suscriptores autenticados reciben los cambios en otros equipos.
+
+- Se conserva el ID de profesional cuando Eloísa lo expone. Los aliases sólo se vinculan
+  por ese ID o por campos estructurados de nombre/apellido de la fuente, con un único destino.
+- Homónimos y aliases ambiguos permanecen separados; Enfermería y TENS nunca se fusionan.
+- El historial de escalas resuelve el nombre para presentación sin reescribir el autor
+  original ni eliminar aplicaciones con puntajes distintos.
+- El alta automática no concede el peso de evidencia de un catálogo manual para asignar
+  turnos, ni siquiera después de publicarse: la procedencia se conserva en
+  `manuallyCatalogued`. Se mantienen la revisión de dotación y las exclusiones de relevo.
+- Un fallo al persistir se informa como error de dotación; puede reintentarse sin duplicar
+  personas. El registro local se conserva tras recargar y no depende de la red interna
+  para consultar identidades ya descubiertas. Si falla la confirmación compartida, no se
+  genera una propuesta de turnos con esas observaciones; los datos clínicos no se descartan.
+
+En los catálogos de Enfermería y TENS, **Buscar profesionales en censos** revisa registros
+locales y todos los censos del hospital disponibles en el servidor, en páginas de 50.
+Lee exclusivamente autores y roles estructurados de escalas, signos vitales, responsables
+UPC y asignaciones, incluyendo cunas clínicas y datos conservados de egresos. No extrae
+nombres del texto clínico, no cambia pacientes ni asignaciones y no borra funcionarios.
+La fecha del censo sólo contextualiza las asignaciones históricas; no se crea evidencia
+horaria para inferir turnos. La publicación ocurre después de completar todas las lecturas;
+un fallo o cancelación previo al guardado no publica una recuperación parcial. El resumen
+cuenta nombres encontrados, no necesariamente personas nuevas ni identidades ya verificadas.
+
+Implementación: `eloisaStaffIdentity.ts`, `eloisaStaffDiscovery.ts`, `eloisaStaffRegistry.ts`,
+`sharedEloisaStaffCatalog.ts`, `censusStaffDiscovery.ts`, `recoverCensusStaff.ts`, `useEloisaStaff.ts` y
+los callbacks de registro de `clinicalFillRunner` / `collectNursingStaffingProposal`.
+
 ---
 
 ## 1. Auto-Detección de Versión

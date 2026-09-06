@@ -66,7 +66,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      maxBytes: 606000,
+      // Shared staff identity subscription: the documented +4608-byte allowance.
+      maxBytes: 610608,
       severity: 'error',
     });
   });
@@ -74,9 +75,9 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // PR #330: +24000 bytes for the measured +18.6 KiB UPC feature payload.
-    // Keep evaluation and partial local history available offline, not excluded.
-    expect(config.precacheMaxBytes).toBe(4832000);
+    // Shared staff discovery adds the documented 8192 bytes over PR #330's ceiling.
+    // Keep evaluations and cached staff identities available offline, not excluded.
+    expect(config.precacheMaxBytes).toBe(4840192);
     expect(config.precacheIgnoredAssetPatterns.some(pattern => /upc/i.test(pattern))).toBe(false);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([

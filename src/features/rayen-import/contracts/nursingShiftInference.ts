@@ -13,6 +13,8 @@ export interface RayenNurseAuthorIdentity {
 /** Minimal, text-free evidence returned by the extension for shift attribution. */
 export interface RayenNursingActivity {
   author: string;
+  /** Stable source identifier when exposed by Eloísa; never inferred from the name. */
+  practitionerId?: string;
   /** Structured identity supplied only when Eloisa exposes authoritative name fields. */
   authorIdentity?: RayenNurseAuthorIdentity;
   role: string;
