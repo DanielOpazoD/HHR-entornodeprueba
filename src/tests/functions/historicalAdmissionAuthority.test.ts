@@ -85,79 +85,88 @@ it('accepts a historical admission into an empty bed through the actual server a
   expect(incoming.beds.R1.pathology).toBe('Current-day diagnosis');
 });
 
-it('confirms the first historical import and proposes nothing on repeat through persistence and server authority', async () => {
-  let remote = normalizeDailyRecordInvariants({
-    ...historicalRecord,
-    lastUpdated: '2026-07-25T12:00:00.000Z',
-  }).record;
-  const originalBeds = structuredClone(remote.beds);
-  const diff = structuredClone(motherAndNewbornDiff);
-  diff.admissions[0].patient.clinicalCrib = undefined;
-  const updatePartialDetailed: DailyRecordRepositoryPort['updatePartialDetailed'] = vi.fn(
-    async (date, patch, options) => {
-      expect(options?.baseRecord).toBe(remote);
-      const prepared = preparePatchedRecordPersistence(remote, date, patch);
-      const wirePatch = flattenObject(prepared.mergedPatches);
-      expect(Object.keys(wirePatch).filter(path => path.startsWith('beds.'))).toEqual(
-        expect.arrayContaining(['beds.H4C1.clinicalEpisodeId'])
-      );
-      expect(
-        Object.keys(wirePatch)
-          .filter(path => path.startsWith('beds.'))
-          .every(path => path.startsWith('beds.H4C1.'))
-      ).toBe(true);
-      const { admin } = createAdminMock({
-        remoteData: { ...remote },
-        policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
-      });
-      const api = createDailyRecordWriteAuthorityFunctions({
-        firestore: admin.firestore(),
-        Timestamp: admin.firestore.Timestamp,
-        resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
-      });
-      const result = await api.patchDailyRecordWithClinicalAuthority.run(
-        {
+it.each([false, true])(
+  'confirms historical diagnosis through server authority (crib: %s)',
+  async withCrib => {
+    let remote = normalizeDailyRecordInvariants({
+      ...historicalRecord,
+      lastUpdated: '2026-07-25T12:00:00.000Z',
+    }).record;
+    const originalBeds = structuredClone(remote.beds);
+    const diff = structuredClone(motherAndNewbornDiff);
+    if (withCrib) diff.admissions[0].patient.clinicalCrib!.pathology = 'Diagnóstico RN';
+    else diff.admissions[0].patient.clinicalCrib = undefined;
+    diff.admissions[0].patient.pathology = 'Diagnóstico de ingreso';
+    const updatePartialDetailed: DailyRecordRepositoryPort['updatePartialDetailed'] = vi.fn(
+      async (date, patch, options) => {
+        expect(options?.baseRecord).toBe(remote);
+        const prepared = preparePatchedRecordPersistence(remote, date, patch);
+        const wirePatch = flattenObject(prepared.mergedPatches);
+        if (!Object.keys(patch).some(path => path.endsWith('.pathology')))
+          expect(Object.keys(wirePatch).filter(path => path.startsWith('beds.'))).toEqual(
+            expect.arrayContaining(['beds.H4C1.clinicalEpisodeId'])
+          );
+        expect(
+          Object.keys(wirePatch)
+            .filter(path => path.startsWith('beds.'))
+            .every(path => path.startsWith('beds.H4C1.'))
+        ).toBe(true);
+        const { admin } = createAdminMock({
+          remoteData: { ...remote },
+          policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
+        });
+        const api = createDailyRecordWriteAuthorityFunctions({
+          firestore: admin.firestore(),
+          Timestamp: admin.firestore.Timestamp,
+          resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+        });
+        const result = await api.patchDailyRecordWithClinicalAuthority.run(
+          {
+            date,
+            mode: 'enforced',
+            expectedLastUpdated: remote.lastUpdated,
+            patch:
+              'beds.H4C1.pathology' in patch ? patch : extractDailyRecordBedTreePatch(wirePatch),
+          },
+          makeContext()
+        );
+        remote = result.recordState.record;
+        return createUpdatePartialDailyRecordResult({
           date,
-          mode: 'enforced',
-          expectedLastUpdated: remote.lastUpdated,
-          patch: extractDailyRecordBedTreePatch(wirePatch),
-        },
-        makeContext()
-      );
-      remote = result.recordState.record;
-      return createUpdatePartialDailyRecordResult({
-        date,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        patchedFields: Object.keys(wirePatch).length,
-      });
+          outcome: 'clean',
+          savedLocally: true,
+          updatedRemotely: true,
+          queuedForRetry: false,
+          autoMerged: false,
+          patchedFields: Object.keys(wirePatch).length,
+        });
+      }
+    );
+    const port = {
+      ...repository,
+      getAuthoritativeForDate: vi.fn(async () => remote),
+      updatePartialDetailed,
+    };
+    const plan = await computePreviousDayEdits(port, diff, '2026-07-26', true);
+    expect(plan.edits).toHaveLength(1);
+    await expect(
+      fileCrossDayCorrections(
+        port,
+        remote,
+        { ...diff, previousDayEdits: plan.edits },
+        '2026-07-26',
+        true,
+        () => 'historical-import',
+        { syncRunId: 'first-import' }
+      )
+    ).resolves.toEqual({ confirmed: 1, durablyQueued: 0, omitted: [] });
+    expect(remote.beds.H4C1.clinicalEpisodeId).toBe(diff.admissions[0].patient.clinicalEpisodeId);
+    for (const bedId of Object.keys(originalBeds).filter(id => id !== 'H4C1')) {
+      expect(remote.beds[bedId]).toEqual(originalBeds[bedId]);
     }
-  );
-  const port = {
-    ...repository,
-    getAuthoritativeForDate: vi.fn(async () => remote),
-    updatePartialDetailed,
-  };
-  const plan = await computePreviousDayEdits(port, diff, '2026-07-26', true);
-  expect(plan.edits).toHaveLength(1);
-  await expect(
-    fileCrossDayCorrections(
-      port,
-      remote,
-      { ...diff, previousDayEdits: plan.edits },
-      '2026-07-26',
-      true,
-      () => 'historical-import',
-      { syncRunId: 'first-import' }
-    )
-  ).resolves.toEqual({ confirmed: 1, durablyQueued: 0, omitted: [] });
-  expect(remote.beds.H4C1.clinicalEpisodeId).toBe(diff.admissions[0].patient.clinicalEpisodeId);
-  for (const bedId of Object.keys(originalBeds).filter(id => id !== 'H4C1')) {
-    expect(remote.beds[bedId]).toEqual(originalBeds[bedId]);
+    expect((await computePreviousDayEdits(port, diff, '2026-07-26', true)).edits).toEqual([]);
+    expect(remote.beds.H4C1.pathology).toBe('Diagnóstico de ingreso');
+    if (withCrib) expect(remote.beds.H4C1.clinicalCrib?.pathology).toBe('Diagnóstico RN');
+    expect(updatePartialDetailed).toHaveBeenCalledTimes(withCrib ? 3 : 2);
   }
-  expect((await computePreviousDayEdits(port, diff, '2026-07-26', true)).edits).toEqual([]);
-  expect(updatePartialDetailed).toHaveBeenCalledTimes(1);
-});
+);

@@ -9,6 +9,7 @@ import { clinicalAdmissionDay } from './censusDayPolicy';
 import { mapRayenBed } from '../mapping/bedMapping';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
+import { missingHistoricalDiagnosis } from './historicalAdmissionPatch';
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 export type HistoricalAdmissionSubject = {
   day: string;
@@ -113,6 +114,16 @@ const recordHasSubject = (
   );
 };
 
+const subjectNeedsDiagnosis = (
+  record: DailyRecord | null | undefined,
+  subject: HistoricalAdmissionSubject
+): boolean => {
+  const patient = Object.values(record?.beds ?? {})
+    .map(bed => (subject.kind === 'principal' ? bed : bed.clinicalCrib))
+    .find(candidate => samePatient(candidate, subject.patient));
+  return !!patient && Object.keys(missingHistoricalDiagnosis(patient, subject.patient)).length > 0;
+};
+
 const subjectKey = (
   subject: Pick<HistoricalAdmissionSubject, 'kind' | 'bedId' | 'patient'>
 ): string =>
@@ -173,7 +184,8 @@ export const planPreviousDayAdmissionEdits = (
       if (
         !subject.day ||
         subject.day >= censusDay ||
-        recordHasSubject(records.get(subject.day), subject)
+        (recordHasSubject(records.get(subject.day), subject) &&
+          !subjectNeedsDiagnosis(records.get(subject.day), subject))
       ) {
         continue;
       }
@@ -244,7 +256,28 @@ export const applyHistoricalAdmissions = (
   );
   for (const subject of ordered) {
     const current = { ...record, beds };
-    if (recordHasSubject(current, subject)) continue;
+    if (recordHasSubject(current, subject)) {
+      if (subjectNeedsDiagnosis(current, subject)) {
+        const entry = Object.entries(beds).find(([, bed]) =>
+          samePatient(subject.kind === 'principal' ? bed : bed.clinicalCrib, subject.patient)
+        );
+        if (entry) {
+          const [id, bed] = entry;
+          beds[id] =
+            subject.kind === 'principal'
+              ? { ...bed, ...missingHistoricalDiagnosis(bed, subject.patient) }
+              : {
+                  ...bed,
+                  clinicalCrib: {
+                    ...bed.clinicalCrib!,
+                    ...missingHistoricalDiagnosis(bed.clinicalCrib, subject.patient),
+                  },
+                };
+          applied += 1;
+        }
+      }
+      continue;
+    }
     const block = resolveHistoricalAdmissionBlock(current, subject);
     if (block) {
       omitted.push({ patientName: subject.patient.patientName, reason: block });

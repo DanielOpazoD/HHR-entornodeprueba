@@ -21,6 +21,93 @@ vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
 beforeEach(resetPreviousDayAdmissionFixtures);
 afterEach(() => vi.useRealTimers());
 
+it('reoffers diagnosis after a queued admission reaches the server, without overwriting existing values', async () => {
+  const diff = structuredClone(motherAndNewbornDiff);
+  diff.admissions[0].patient.pathology = 'Diagnosis from source';
+  diff.admissions[0].patient.clinicalCrib!.pathology = 'Newborn diagnosis';
+  let remote = structuredClone(historicalRecord);
+  const port = { ...repository, getAuthoritativeForDate: vi.fn(async () => remote) };
+  vi.mocked(patchDailyRecordWithCompatibility).mockImplementation(async (_port, date, patch) => {
+    remote = applyPatches(remote, patch);
+    return createUpdatePartialDailyRecordResult({
+      date,
+      outcome: 'clean',
+      savedLocally: true,
+      updatedRemotely: true,
+      queuedForRetry: false,
+      autoMerged: false,
+      patchedFields: 1,
+    });
+  });
+  // The durable structural task has completed, but its diagnosis was never written.
+  remote.beds.H4C1 = structuredClone(diff.admissions[0].patient);
+  remote.beds.H4C1.pathology = '';
+  remote.beds.H4C1.clinicalCrib!.pathology = '';
+  const plan = await computePreviousDayEdits(port, diff, '2026-07-26', false);
+  expect(plan.edits).toHaveLength(1);
+  // Another writer adds the mother's diagnosis before the confirmed correction.
+  remote.beds.H4C1.pathology = 'Existing historical diagnosis';
+  await fileCrossDayCorrections(
+    port,
+    historicalRecord,
+    { ...diff, previousDayEdits: plan.edits },
+    '2026-07-26',
+    false,
+    () => 'id',
+    { syncRunId: 'retry-diagnosis' }
+  );
+  expect(remote.beds.H4C1.pathology).toBe('Existing historical diagnosis');
+  expect(remote.beds.H4C1.clinicalCrib!.pathology).toBe('Newborn diagnosis');
+  expect((await computePreviousDayEdits(port, diff, '2026-07-26', false)).edits).toEqual([]);
+});
+
+it('copies diagnosis through a separate clinical patch after confirming the historical episode', async () => {
+  const diff = structuredClone(motherAndNewbornDiff);
+  Object.assign(diff.admissions[0].patient, {
+    pathology: 'Diagnóstico de ingreso',
+    cie10Code: 'R10',
+  });
+  let remote = structuredClone(historicalRecord);
+  const port = { ...repository, getAuthoritativeForDate: vi.fn(async () => remote) };
+  const patches: Record<string, unknown>[] = [];
+  vi.mocked(patchDailyRecordWithCompatibility).mockImplementation(
+    async (_port, date, patch, options) => {
+      expect(options?.baseRecord).toBe(remote);
+      patches.push(patch);
+      remote = applyPatches(remote, patch);
+      return createUpdatePartialDailyRecordResult({
+        date,
+        outcome: 'clean',
+        savedLocally: true,
+        updatedRemotely: true,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: Object.keys(patch).length,
+      });
+    }
+  );
+  const plan = await computePreviousDayEdits(port, diff, '2026-07-26', false);
+  await expect(
+    fileCrossDayCorrections(
+      port,
+      historicalRecord,
+      { ...diff, previousDayEdits: plan.edits },
+      '2026-07-26',
+      false,
+      () => 'id',
+      { syncRunId: 'diagnosis' }
+    )
+  ).resolves.toMatchObject({ confirmed: 1, durablyQueued: 0 });
+  expect(patches).toHaveLength(2);
+  expect(patches[0]).not.toHaveProperty('beds.H4C1.pathology');
+  expect(patches[1]).toEqual({
+    'beds.H4C1.pathology': 'Diagnóstico de ingreso',
+    'beds.H4C1.cie10Code': 'R10',
+  });
+  expect(remote.beds.H4C1.pathology).toBe('Diagnóstico de ingreso');
+  expect((await computePreviousDayEdits(port, diff, '2026-07-26', false)).edits).toEqual([]);
+});
+
 it('persists a server-missing admission even when the local merged read already contains it', async () => {
   let remote = structuredClone(historicalRecord);
   const local = {
