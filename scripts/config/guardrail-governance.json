@@ -41,9 +41,9 @@
         "check:bundle-budget",
         "check:chunk-graph",
         "check:runtime-asset-margin",
-        "test:e2e:preview:census-bootstrap:built"
+        "ci:preview-smoke:built"
       ],
-      "purpose": "Valida budgets, chunk graph aciclico y que el bundle productivo monte correctamente en preview local."
+      "purpose": "Valida budgets, chunk graph aciclico, bootstrap del censo y biblioteca clinica sobre el bundle productivo en preview local."
     },
     {
       "id": "release_gate",

@@ -73,5 +73,11 @@ clinical-library/
 ## Verificación visual
 
 `npm run test:e2e:preview:clinical-library:built` (con `npm run build` previo) recorre el botón, la
-búsqueda, un PDF servido, las tres herramientas y el caso a 375 px; con
-`CLINICAL_LIBRARY_SHOTS_DIR=<carpeta>` guarda capturas. No corre en CI.
+búsqueda, un PDF servido, las herramientas y el caso a 375 px; con
+`CLINICAL_LIBRARY_SHOTS_DIR=<carpeta>` guarda capturas.
+
+En CI, `ci:preview-smoke:built` ejecuta esta prueba junto al bootstrap del censo en una sola
+invocación de Playwright, reutilizando el bundle ya compilado. `ci:preview-gate` usa ese mismo
+comando; ambos conservan los informes y capturas en `reports/e2e/preview-bootstrap`.
+Esta comprobación protege la navegación e interacción; no sustituye la validación clínica de
+las fórmulas ni comprueba una impresión física.
