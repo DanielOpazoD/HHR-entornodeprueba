@@ -188,6 +188,50 @@ const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRu
 test.describe('Production Preview Bootstrap', () => {
   test.describe.configure({ timeout: 60_000 });
 
+  for (const width of [375, 768, 1440]) {
+    test(`keeps navigation above usable census actions at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const runtimeCollector = createPreviewRuntimeFailureCollector(page);
+      await seedPersistedSessionAndRecord(page);
+      await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+      await expectSeededPatientVisible(page);
+
+      const topBar = page.getByRole('navigation');
+      await expect(topBar).toBeVisible();
+      const geometry = await topBar.evaluate(element => ({
+        height: element.getBoundingClientRect().height,
+        bottom: element.getBoundingClientRect().bottom,
+        scrollHeight: element.scrollHeight,
+      }));
+      expect(geometry.height).toBe(56);
+      expect(geometry.scrollHeight).toBeLessThanOrEqual(56);
+      for (const name of ['Censo Diario', 'Entrega Turno Enfermería']) {
+        const tab = topBar.getByRole('button', { name, exact: true });
+        // Tablet keeps full labels and the existing horizontal tab scroller.
+        // Phone icons and desktop labels must fit without scrolling.
+        if (width === 768) await tab.scrollIntoViewIfNeeded();
+        await expect(tab).toBeInViewport({ ratio: 1 });
+        const bounds = await tab.boundingBox();
+        expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(geometry.bottom);
+      }
+
+      const options = page.getByRole('button', { name: 'Más opciones del censo' });
+      const bounds = await options.boundingBox();
+      expect(bounds!.y).toBeGreaterThanOrEqual(geometry.bottom);
+      await options.click();
+      await expect(page.getByRole('group', { name: 'Opciones del censo' })).toBeVisible();
+      await options.click();
+      await test.info().attach(`navigation-${width}px`, {
+        body: await page.screenshot(),
+        contentType: 'image/png',
+      });
+      await page.getByTestId('clinical-library-quick-action').click();
+      await expect(page.getByTestId('clinical-library-drawer')).toBeVisible();
+      await assertPreviewBootCompleted(page, runtimeCollector.failures);
+      runtimeCollector.detach();
+    });
+  }
+
   test('loads persisted census state without falling into empty state after initial bootstrap', async ({
     page,
   }) => {

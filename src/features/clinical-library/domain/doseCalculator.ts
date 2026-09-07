@@ -5,6 +5,7 @@
  * - Peso ajustado: ideal + 0,4 × (real − ideal); sólo aplica cuando el real supera en ≥ 20 % al ideal.
  * - Superficie corporal: Mosteller (1987): √(talla_cm × peso_kg / 3600).
  * - Clearance de creatinina: Cockcroft-Gault (1976): (140 − edad) × peso / (72 × creatinina), × 0,85 en mujeres.
+ * - VFG estimada: CKD-EPI 2021 sin variable racial (Inker et al., NEJM 2021).
  */
 
 import { isPositiveFinite } from './numberInput';
@@ -110,4 +111,28 @@ export const computeWeightBasedDose = (
       ? (totalDose * presentation.volumeMl) / presentation.amount
       : null;
   return { totalDose, doseUnit: input.doseUnit, volumeMl };
+};
+
+export interface CkdEpiInput {
+  ageYears: number;
+  creatinineMgDl: number;
+  sex: BiologicalSex;
+}
+
+/** CKD-EPI 2021 (creatinina, sin raza): VFG en mL/min/1,73 m²; sólo adultos. */
+export const ckdEpi2021 = (input: CkdEpiInput): number | null => {
+  if (
+    !isPositiveFinite(input.ageYears) ||
+    !isPositiveFinite(input.creatinineMgDl) ||
+    input.ageYears < 18 ||
+    input.ageYears >= 140
+  ) {
+    return null;
+  }
+  const kappa = input.sex === 'female' ? 0.7 : 0.9;
+  const alpha = input.sex === 'female' ? -0.241 : -0.302;
+  const ratio = input.creatinineMgDl / kappa;
+  const base =
+    142 * Math.min(ratio, 1) ** alpha * Math.max(ratio, 1) ** -1.2 * 0.9938 ** input.ageYears;
+  return input.sex === 'female' ? base * 1.012 : base;
 };

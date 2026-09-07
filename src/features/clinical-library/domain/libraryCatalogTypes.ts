@@ -36,7 +36,13 @@ export interface LibraryDocumentEntry {
   source?: string;
 }
 
-export const LIBRARY_TOOL_IDS = ['infusion', 'dosing', 'scores'] as const;
+export const LIBRARY_TOOL_IDS = [
+  'transfer-cover',
+  'critical-medications',
+  'infusion',
+  'dosing',
+  'scores',
+] as const;
 export type LibraryToolId = (typeof LIBRARY_TOOL_IDS)[number];
 
 export interface LibraryToolEntry {
@@ -49,3 +55,12 @@ export interface LibraryToolEntry {
 }
 
 export type LibraryEntry = LibraryDocumentEntry | LibraryToolEntry;
+
+/** Paciente del censo disponible para prellenar documentos; sólo lo que la carátula necesita. */
+export interface LibraryPatientOption {
+  bedId: string;
+  label: string;
+  patientName: string;
+  rut: string;
+  age: string;
+}

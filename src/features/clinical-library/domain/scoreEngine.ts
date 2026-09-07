@@ -57,6 +57,15 @@ export interface ScoreDefinition {
    * CHA₂DS₂-VASc: modifica el riesgo, no indica anticoagulación por sí solo).
    */
   bandModifierItemId?: string;
+  /**
+   * Alerta cuando un solo ítem alcanza `minPoints` aunque el total quede bajo `belowTotal`
+   * (NEWS2: un parámetro en 3 obliga a revisión urgente con total 1 a 4).
+   */
+  singleItemAlert?: { minPoints: number; belowTotal: number; band: ScoreBand };
+  /** Scores no aditivos (CAM-ICU): la interpretación se resuelve desde las respuestas. */
+  resolveBand?: (answers: ScoreAnswers) => ScoreBand | null;
+  /** Oculta el total cuando no tiene sentido clínico (p. ej. CAM-ICU). */
+  hideTotal?: boolean;
   reference: ScoreReference;
 }
 
@@ -87,12 +96,14 @@ export const evaluateScore = (
 ): ScoreEvaluation => {
   let total = 0;
   let modifierPoints = 0;
+  let maxItemPoints = 0;
   const missingItemIds: string[] = [];
   for (const item of definition.items) {
     const answer = answers[item.id];
     if (item.kind === 'boolean') {
       if (answer === true) {
         total += item.points;
+        maxItemPoints = Math.max(maxItemPoints, item.points);
         if (item.id === definition.bandModifierItemId) modifierPoints += item.points;
       }
       continue;
@@ -103,16 +114,26 @@ export const evaluateScore = (
       continue;
     }
     total += option.points;
+    maxItemPoints = Math.max(maxItemPoints, option.points);
   }
   const complete = missingItemIds.length === 0;
   const bandTotal = total - modifierPoints;
+  const resolveBand = (): ScoreBand | null => {
+    if (!complete) return null;
+    if (definition.resolveBand) return definition.resolveBand(answers);
+    const alert = definition.singleItemAlert;
+    if (alert && bandTotal < alert.belowTotal && maxItemPoints >= alert.minPoints) {
+      return alert.band;
+    }
+    return findScoreBand(definition.bands, bandTotal);
+  };
   return {
     total,
     bandTotal,
     maxTotal: scoreMaxTotal(definition),
     complete,
     missingItemIds,
-    band: complete ? findScoreBand(definition.bands, bandTotal) : null,
+    band: resolveBand(),
   };
 };
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { Download, FileText, Image, Printer } from 'lucide-react';
 import type { LibraryDocumentEntry, LibraryDocumentFormat } from '../domain/libraryCatalogTypes';
 import { toLibraryDocumentHref } from '../services/libraryDocumentActions';
-import { formatDocumentSize } from '../controllers/libraryPresentation';
+import { documentPagesLabel } from '../controllers/libraryPresentation';
 
 const FORMAT_ICONS: Readonly<Record<LibraryDocumentFormat, React.ReactNode>> = {
   pdf: <FileText size={16} aria-hidden="true" />,
@@ -27,8 +27,8 @@ export const LibraryDocumentCard: React.FC<LibraryDocumentCardProps> = ({ entry,
     <p className="min-w-0 flex-1 truncate text-[13px] text-slate-800" title={entry.title}>
       {entry.title}
     </p>
-    <span className="w-16 shrink-0 text-right text-[11px] tabular-nums text-slate-400">
-      {formatDocumentSize(entry.sizeKb)}
+    <span className="w-14 shrink-0 text-right text-[11px] tabular-nums text-slate-400">
+      {documentPagesLabel(entry.pages)}
     </span>
     {entry.format === 'docx' ? (
       <a

@@ -175,6 +175,32 @@ const DOCUMENTS: ReadonlyArray<LibraryDocumentEntry> = [
 const TOOLS: ReadonlyArray<LibraryToolEntry> = [
   {
     kind: 'tool',
+    id: 'transfer-cover',
+    category: 'tools',
+    title: 'Carátula de sobre de traslado',
+    description:
+      'Portada horizontal con logo, nombre y RUT del paciente para el sobre de documentación.',
+    keywords: ['traslado', 'sobre', 'carátula', 'portada', 'derivación', 'imprimir'],
+  },
+  {
+    kind: 'tool',
+    id: 'critical-medications',
+    category: 'tools',
+    title: 'Hoja rápida de medicamentos críticos',
+    description:
+      'Preparación, vía, bolo y dosis habitual de vasoactivos, sedantes, electrolitos y otros; imprimible.',
+    keywords: [
+      'diluciones',
+      'medicamentos críticos',
+      'vasoactivos',
+      'preparación',
+      'hoja rápida',
+      'UCI',
+      'bomba',
+    ],
+  },
+  {
+    kind: 'tool',
     id: 'infusion',
     category: 'tools',
     title: 'Dilución y velocidad de infusión',

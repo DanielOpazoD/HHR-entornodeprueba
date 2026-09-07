@@ -79,9 +79,9 @@ export const AuthenticatedAppShell = ({ auth, dateNav }: AuthenticatedAppShellPr
   );
 
   const renderCensusTrailingActions = React.useCallback(
-    () => (
+    (patients: MedicalIndicationsPatientOption[]) => (
       <React.Suspense fallback={<ClinicalLibraryToolbarFallback />}>
-        <ClinicalLibraryQuickAction />
+        <ClinicalLibraryQuickAction patients={patients} />
       </React.Suspense>
     ),
     []

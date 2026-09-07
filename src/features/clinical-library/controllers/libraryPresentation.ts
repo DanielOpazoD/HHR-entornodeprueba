@@ -7,6 +7,9 @@ export const TONE_BADGE_CLASSES: Readonly<Record<ScoreTone, string>> = {
   danger: 'border-red-200 bg-red-50 text-red-800',
 };
 
+/** «3 pág.» dice más que el tamaño a quien va a imprimir; Word no declara páginas. */
+export const documentPagesLabel = (pages?: number): string => (pages ? `${pages} pág.` : 'Word');
+
 export const formatDocumentSize = (sizeKb: number): string =>
   sizeKb >= 1024
     ? `${(sizeKb / 1024).toLocaleString('es-CL', { maximumFractionDigits: 1 })} MB`

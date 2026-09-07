@@ -34,7 +34,7 @@ describe('library search', () => {
   it('filters by category and query together', () => {
     const tools = filterLibraryEntries(CLINICAL_LIBRARY_ENTRIES, { query: '', category: 'tools' });
     expect(tools.every(entry => entry.kind === 'tool')).toBe(true);
-    expect(tools).toHaveLength(3);
+    expect(tools).toHaveLength(5);
 
     const noradrenaline = filterLibraryEntries(CLINICAL_LIBRARY_ENTRIES, {
       query: 'noradrenalina',
@@ -49,7 +49,7 @@ describe('library search', () => {
 
   it('counts and groups entries in canonical category order, keeping empty groups', () => {
     const counts = countLibraryEntriesByCategory(CLINICAL_LIBRARY_ENTRIES);
-    expect(counts.tools).toBe(3);
+    expect(counts.tools).toBe(5);
     expect(counts.forms).toBeGreaterThan(0);
     expect(counts.protocols).toBe(0);
     expect(counts.infographics).toBe(0);

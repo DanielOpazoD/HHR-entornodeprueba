@@ -122,7 +122,8 @@ describe('dailyRecordRepositoryReadService', () => {
           R1: expect.objectContaining({ pathology: 'LOCAL DX' }),
           R2: expect.objectContaining({ patientName: 'REMOTE NEW PATIENT' }),
         }),
-      })
+      }),
+      { preserveUnresolvedWrites: true }
     );
   });
 
@@ -278,7 +279,8 @@ describe('dailyRecordRepositoryReadService', () => {
             specialty: Specialty.MEDICINA,
           }),
         }),
-      })
+      }),
+      { preserveUnresolvedWrites: true }
     );
   });
 
@@ -338,7 +340,8 @@ describe('dailyRecordRepositoryReadService', () => {
             status: PatientStatus.DE_CUIDADO,
           }),
         }),
-      })
+      }),
+      { preserveUnresolvedWrites: true }
     );
   });
 
@@ -365,7 +368,8 @@ describe('dailyRecordRepositoryReadService', () => {
       expect.objectContaining({
         date: remote.date,
         lastUpdated: remote.lastUpdated,
-      })
+      }),
+      { preserveUnresolvedWrites: true }
     );
   });
 
