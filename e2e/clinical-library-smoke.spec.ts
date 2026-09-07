@@ -209,9 +209,11 @@ test.describe('Clinical library (preview build)', () => {
     await mobileTrigger.click();
     await expect(page.getByTestId('clinical-library-drawer')).toBeVisible();
     const box = await page.getByTestId('clinical-library-drawer').boundingBox();
-    // Linux reserva el gutter de 8 px; macOS suele superponer la barra de scroll.
-    const availableWidth = await page.evaluate(() => document.documentElement.clientWidth);
-    expect(box?.width).toBe(availableWidth);
+    // El overlay inset-0 mide el área de posicionamiento fijo, descontando el gutter.
+    // clientWidth puede incluirlo cuando el scroll está bloqueado al abrir el modal.
+    const overlayBox = await page.getByTestId('clinical-library-overlay').boundingBox();
+    expect(overlayBox).not.toBeNull();
+    expect(box?.width).toBe(overlayBox!.width);
     expect(box?.x).toBe(0);
     await capture(page, '07-mobile-panel');
     await page.keyboard.press('Escape');
