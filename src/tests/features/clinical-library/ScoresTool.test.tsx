@@ -5,8 +5,9 @@ import { ScoresTool } from '@/features/clinical-library/components/tools/ScoresT
 
 describe('ScoresTool', () => {
   it('scores qSOFA, keeps answers per score and evaluates Glasgow once complete', () => {
-    render(<ScoresTool onBack={vi.fn()} onClose={vi.fn()} />);
+    render(<ScoresTool onBack={vi.fn()} onClose={vi.fn()} patients={[]} />);
     const result = screen.getByTestId('score-result');
+    fireEvent.click(screen.getByRole('button', { name: 'qSOFA' }));
     expect(screen.getByRole('button', { name: 'qSOFA' })).toHaveAttribute('aria-pressed', 'true');
     expect(result).toHaveTextContent('0 / 3');
     expect(result).toHaveAttribute('data-band', 'Bajo riesgo');
@@ -37,8 +38,20 @@ describe('ScoresTool', () => {
     expect(result).toHaveTextContent('0 / 3');
   });
 
+  it('hides the total for CAM-ICU and shows the algorithmic result', () => {
+    render(<ScoresTool onBack={vi.fn()} onClose={vi.fn()} patients={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'CAM-ICU' }));
+    const result = screen.getByTestId('score-result');
+    expect(result).not.toHaveTextContent('/');
+    expect(result).toHaveAttribute('data-band', 'CAM-ICU negativo');
+    fireEvent.click(screen.getByLabelText(/Criterio 1/));
+    fireEvent.click(screen.getByLabelText(/Criterio 2/));
+    fireEvent.click(screen.getByLabelText(/Criterio 4/));
+    expect(result).toHaveAttribute('data-band', 'CAM-ICU positivo');
+  });
+
   it('shows half-point totals for Wells', () => {
-    render(<ScoresTool onBack={vi.fn()} onClose={vi.fn()} />);
+    render(<ScoresTool onBack={vi.fn()} onClose={vi.fn()} patients={[]} />);
     fireEvent.click(screen.getByRole('button', { name: 'Wells TEP' }));
     fireEvent.click(screen.getByLabelText(/Frecuencia cardíaca > 100/));
     expect(screen.getByTestId('score-result')).toHaveTextContent('1,5 / 12,5');

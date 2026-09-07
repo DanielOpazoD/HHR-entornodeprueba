@@ -149,6 +149,42 @@ test.describe('Clinical library (preview build)', () => {
     await expect(drawer.getByTestId('dosing-total')).toContainText('105');
     await capture(page, '05-dosing');
 
+    // Carátula de traslado prellenada con el paciente del censo; la impresión se captura sin abrir pestañas.
+    await drawer.getByRole('button', { name: 'Volver a la biblioteca' }).click();
+    await drawer.getByTestId('library-tool-transfer-cover').click();
+    await page.evaluate(() => {
+      const runtimeWindow = window as Window & { __hhrPrintedHtml?: string };
+      runtimeWindow.open = (() => ({
+        document: {
+          open: () => undefined,
+          write: (html: string) => {
+            runtimeWindow.__hhrPrintedHtml = html;
+          },
+          close: () => undefined,
+          readyState: 'complete',
+        },
+        focus: () => undefined,
+        print: () => undefined,
+        setTimeout: (callback: () => void) => callback(),
+        addEventListener: () => undefined,
+      })) as unknown as typeof window.open;
+    });
+    await drawer.getByLabel('Desde el censo').selectOption('R1');
+    await expect(drawer.getByLabel('Nombre y apellidos')).toHaveValue(SEEDED_PATIENT_NAME);
+    await capture(page, '08-transfer-cover');
+    await drawer.getByTestId('transfer-cover-print').click();
+    const printedHtml = await page.evaluate(
+      () => (window as Window & { __hhrPrintedHtml?: string }).__hhrPrintedHtml ?? ''
+    );
+    expect(printedHtml).toContain('legal landscape');
+    expect(printedHtml).toContain(SEEDED_PATIENT_NAME);
+    expect(printedHtml).toContain('12345678-5');
+
+    await drawer.getByRole('button', { name: 'Volver a la biblioteca' }).click();
+    await drawer.getByTestId('library-tool-critical-medications').click();
+    await expect(drawer.getByTestId('critical-medication-dopamina')).toContainText('250 mg/5 mL');
+    await capture(page, '09-critical-medications');
+
     await drawer.getByRole('button', { name: 'Volver a la biblioteca' }).click();
     await drawer.getByTestId('library-tool-scores').click();
     await drawer.getByRole('button', { name: 'Glasgow' }).click();

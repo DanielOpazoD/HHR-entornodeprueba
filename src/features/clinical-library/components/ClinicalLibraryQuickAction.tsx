@@ -2,6 +2,7 @@ import React, { Suspense, useCallback, useRef, useState } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { DATE_STRIP_TRAILING_ACTION_BASE_CLASS } from '@/shared/ui/dateStripQuickActionStyles';
+import type { LibraryPatientOption } from '../domain/libraryCatalogTypes';
 
 const ClinicalLibraryDrawer = lazyWithRetry(() =>
   import('./ClinicalLibraryDrawer').then(module => ({ default: module.ClinicalLibraryDrawer }))
@@ -9,8 +10,14 @@ const ClinicalLibraryDrawer = lazyWithRetry(() =>
 
 export const CLINICAL_LIBRARY_QUICK_ACTION_TITLE = 'Documentos y herramientas clínicas';
 
+interface ClinicalLibraryQuickActionProps {
+  patients?: ReadonlyArray<LibraryPatientOption>;
+}
+
 /** Botón «Documentos» de la barra de fechas del censo; abre el panel y recupera el foco al cerrar. */
-export const ClinicalLibraryQuickAction: React.FC = () => {
+export const ClinicalLibraryQuickAction: React.FC<ClinicalLibraryQuickActionProps> = ({
+  patients,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -37,7 +44,7 @@ export const ClinicalLibraryQuickAction: React.FC = () => {
       </button>
       {isOpen && (
         <Suspense fallback={null}>
-          <ClinicalLibraryDrawer onClose={close} />
+          <ClinicalLibraryDrawer onClose={close} patients={patients} />
         </Suspense>
       )}
     </>

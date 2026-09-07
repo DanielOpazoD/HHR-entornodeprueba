@@ -23,6 +23,9 @@ describe('score definitions', () => {
     for (const score of SCORE_DEFINITIONS) {
       const itemIds = score.items.map(item => item.id);
       expect(new Set(itemIds).size, score.id).toBe(itemIds.length);
+      expect(score.reference.citation, score.id).toMatch(/\d{4}/);
+      expect(score.reference.url, score.id).toMatch(/^https:\/\//);
+      if (score.resolveBand) continue;
       for (const total of reachableScoreTotals(score)) {
         const matching = score.bands.filter(band => total >= band.min && total <= band.max);
         expect(matching, `${score.id} total ${total}`).toHaveLength(1);
@@ -30,8 +33,6 @@ describe('score definitions', () => {
       expect(Math.max(...score.bands.map(band => band.max)), score.id).toBeGreaterThanOrEqual(
         scoreMaxTotal(score)
       );
-      expect(score.reference.citation, score.id).toMatch(/\d{4}/);
-      expect(score.reference.url, score.id).toMatch(/^https:\/\/doi\.org\//);
     }
   });
 
@@ -42,6 +43,8 @@ describe('score definitions', () => {
     expect(scoreMaxTotal(definition('wells-pe'))).toBe(12.5);
     expect(scoreMaxTotal(definition('padua'))).toBe(20);
     expect(scoreMaxTotal(definition('cha2ds2vasc'))).toBe(9);
+    expect(scoreMaxTotal(definition('news2'))).toBe(20);
+    expect(scoreMaxTotal(definition('sas'))).toBe(7);
     expect(reachableScoreTotals(definition('wells-pe'))).toEqual(
       expect.arrayContaining([0, 1.5, 2, 6, 6.5, 12.5])
     );
@@ -189,5 +192,66 @@ describe('score definitions', () => {
       vascular: 1,
       female: 1,
     });
+  });
+
+  it('scores NEWS2 with the single-parameter escalation rule', () => {
+    const news2 = definition('news2');
+    const normal = {
+      rr: '12to20',
+      spo2: 'ge96',
+      oxygen: 'air',
+      sbp: '111to219',
+      hr: '51to90',
+      consciousness: 'alert',
+      temperature: '36.1to38',
+    };
+    expect(evaluateScore(news2, normal)).toMatchObject({ total: 0, complete: true });
+    expect(evaluateScore(news2, normal).band?.label).toBe('Riesgo bajo');
+    // 1 a 4 puntos sin ningún parámetro en 3: riesgo bajo.
+    expect(
+      evaluateScore(news2, { ...normal, hr: '91to110', oxygen: 'supplemental' }).band?.label
+    ).toBe('Riesgo bajo');
+    // Un parámetro en 3 con total 3: riesgo bajo-medio.
+    expect(evaluateScore(news2, { ...normal, sbp: 'le90' }).band?.label).toBe('Riesgo bajo-medio');
+    // Total 5 a 6: riesgo medio aunque haya un 3.
+    expect(
+      evaluateScore(news2, { ...normal, sbp: 'le90', oxygen: 'supplemental' }).band?.label
+    ).toBe('Riesgo medio');
+    const critical = evaluateScore(news2, {
+      rr: 'ge25',
+      spo2: 'le91',
+      oxygen: 'supplemental',
+      sbp: 'le90',
+      hr: 'ge131',
+      consciousness: 'cvpu',
+      temperature: 'le35',
+    });
+    expect(critical.total).toBe(20);
+    expect(critical.band?.label).toBe('Riesgo alto');
+    expect(evaluateScore(news2, { rr: '12to20' }).complete).toBe(false);
+  });
+
+  it('interprets SAS levels and resolves CAM-ICU as an algorithm', () => {
+    const sas = definition('sas');
+    expect(evaluateScore(sas, { level: '4' }).band?.label).toBe('Tranquilo y cooperador');
+    expect(evaluateScore(sas, { level: '1' }).band?.label).toBe('Sedación profunda');
+    expect(evaluateScore(sas, { level: '7' }).band?.label).toBe('Agitación');
+    expect(evaluateScore(sas, {}).band).toBeNull();
+
+    const cam = definition('cam-icu');
+    expect(cam.hideTotal).toBe(true);
+    expect(evaluateScore(cam, {}).band?.label).toBe('CAM-ICU negativo');
+    expect(evaluateScore(cam, { acute: true, inattention: true }).band?.label).toBe(
+      'CAM-ICU negativo'
+    );
+    expect(evaluateScore(cam, { acute: true, inattention: true, thinking: true }).band?.label).toBe(
+      'CAM-ICU positivo'
+    );
+    expect(
+      evaluateScore(cam, { acute: true, inattention: true, consciousness: true }).band?.label
+    ).toBe('CAM-ICU positivo');
+    expect(
+      evaluateScore(cam, { inattention: true, consciousness: true, thinking: true }).band?.label
+    ).toBe('CAM-ICU negativo');
   });
 });

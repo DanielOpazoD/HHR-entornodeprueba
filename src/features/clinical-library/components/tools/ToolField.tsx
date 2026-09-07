@@ -63,6 +63,42 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   </div>
 );
 
+interface TextFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: 'text' | 'date';
+  placeholder?: string;
+  autoCapitalize?: 'words' | 'characters' | 'off';
+}
+
+export const TextField: React.FC<TextFieldProps> = ({
+  id,
+  label,
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+  autoCapitalize,
+}) => (
+  <div>
+    <label htmlFor={id} className={LABEL_CLASS}>
+      {label}
+    </label>
+    <input
+      id={id}
+      type={type}
+      autoComplete="off"
+      autoCapitalize={autoCapitalize}
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      placeholder={placeholder}
+      className={TOOL_INPUT_CLASS}
+    />
+  </div>
+);
+
 export interface SelectOption<T extends string> {
   value: T;
   label: string;

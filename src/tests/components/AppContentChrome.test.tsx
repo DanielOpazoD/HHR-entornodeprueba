@@ -217,6 +217,7 @@ describe('AppContentChrome', () => {
       />
     );
     expect(renderCensusTrailingActions).toHaveBeenCalledTimes(1);
+    expect(renderCensusTrailingActions).toHaveBeenCalledWith(expect.any(Array));
     expect(readTrailing()).toBeTruthy();
 
     rerender(

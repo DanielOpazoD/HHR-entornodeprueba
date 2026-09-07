@@ -23,7 +23,7 @@ interface AppContentProps {
   ui: UseUIStateReturn;
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
   /** Acciones visibles al extremo derecho de la barra de fechas del censo (p. ej. «Documentos»). */
-  renderCensusTrailingActions?: () => React.ReactNode;
+  renderCensusTrailingActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
 }
 
 const DeferredReminderCenterProvider: ReminderCenterProviderComponent = ({ children }) => {
