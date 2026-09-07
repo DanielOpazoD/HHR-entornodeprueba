@@ -80,25 +80,28 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
   };
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative shrink-0" ref={menuRef}>
       <button
         onClick={toggle}
         className={clsx(
-          'flex items-center gap-3 py-2 px-3 rounded-xl transition-all duration-200',
+          'flex items-center gap-2 sm:gap-3 py-2 px-2 sm:px-3 rounded-xl transition-all duration-200',
           'hover:bg-white/[0.07]'
         )}
       >
         <div className="bg-white/[0.1] p-1.5 rounded-xl backdrop-blur-sm ring-1 ring-white/[0.08]">
           <img src="/images/logos/logo_HHR.svg" alt="HHR" className="w-7 h-7 object-contain" />
         </div>
-        <div className="text-left">
+        <div className="hidden text-left sm:block">
           <h1 className="text-[15px] font-display font-bold leading-tight tracking-tight text-white/95">
             Hospital Hanga Roa
           </h1>
         </div>
         <ChevronDown
           size={16}
-          className={clsx('text-white/30 transition-transform ml-1', isOpen && 'rotate-180')}
+          className={clsx(
+            'hidden sm:block text-white/30 transition-transform ml-1',
+            isOpen && 'rotate-180'
+          )}
         />
       </button>
 

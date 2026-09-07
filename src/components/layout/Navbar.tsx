@@ -88,8 +88,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="h-8 w-[58px] rounded-full" />
     </div>
   ) : (
-    <div className="flex items-center gap-3">
-      <SyncStatusIndicator />
+    <div className="flex items-center gap-2 sm:gap-3">
+      {/* En teléfono el estado de sincronización sigue visible en la barra de fechas. */}
+      <div className="hidden sm:block">
+        <SyncStatusIndicator />
+      </div>
       <React.Suspense fallback={<ReminderBadgeFallback />}>
         <ReminderBadge />
       </React.Suspense>
@@ -144,7 +147,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       )}
       style={{ transform: 'translateZ(0)' }}
     >
-      <div className="w-full max-w-screen-2xl mx-auto px-4 flex flex-wrap gap-4 justify-between items-center">
+      <div className="w-full max-w-screen-2xl mx-auto px-3 sm:px-4 flex flex-nowrap min-w-0 gap-2 sm:gap-4 justify-between items-center">
         {/* Brand with Dropdown Menu */}
         <NavbarMenu
           currentModule={currentModule}
@@ -170,7 +173,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         />
 
         {/* Status Indicators & User Menu */}
-        <div className="flex items-center gap-4 py-2 ml-auto">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4 py-2 ml-auto">
           {runtimeIndicatorSlot}
 
           {userEmail && onLogout && (
