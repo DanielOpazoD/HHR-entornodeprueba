@@ -81,3 +81,9 @@ invocación de Playwright, reutilizando el bundle ya compilado. `ci:preview-gate
 comando; ambos conservan los informes y capturas en `reports/e2e/preview-bootstrap`.
 Esta comprobación protege la navegación e interacción; no sustituye la validación clínica de
 las fórmulas ni comprueba una impresión física.
+
+El resumen de GitHub separa navegación adaptable, arranque/recargas y biblioteca, con duración
+y ubicación de las pruebas no aprobadas. Se genera desde el mismo JSON incluso si el smoke falla.
+Se conservan las tres anchuras, segunda visita y recargas repetidas: cubren escenarios distintos.
+La detección de errores de arranque queda en la prueba de carga persistida, sin repetir ese mismo
+recorrido en otro test.

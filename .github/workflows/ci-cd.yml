@@ -454,12 +454,16 @@ jobs:
       - name: Install Playwright browsers for preview bootstrap smoke
         run: npx playwright install --with-deps chromium
 
-      - name: Validate production preview bootstrap
+      - name: Validate census and clinical library preview
         run: npm run ci:preview-smoke:built
         env:
           CI: true
           PLAYWRIGHT_SKIP_PREVIEW_BUILD: '1'
           PLAYWRIGHT_PREVIEW_ARTIFACTS_DIR: reports/e2e/preview-bootstrap
+
+      - name: Summarize census and library results
+        if: always()
+        run: node scripts/report-preview-summary.mjs
 
       - name: Enforce preview bootstrap report artifact
         run: test -f reports/e2e/preview-bootstrap/report.json
