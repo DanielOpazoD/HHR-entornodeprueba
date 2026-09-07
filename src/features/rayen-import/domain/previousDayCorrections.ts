@@ -10,6 +10,7 @@
  */
 
 import { planPreviousDayEdits } from './planPreviousDayEdits';
+import { buildHistoricalAdmissionBedsPatch } from './historicalAdmissionPatch';
 import { applyCrossDayDiff, type CrossDayEntry } from './applyCrossDayDiff';
 import { isOccupied, reportEgresoEntry, reportEgresoPatient } from './applyCensusImportDiff';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
@@ -271,7 +272,9 @@ export const fileCrossDayCorrections = async (
       });
     }
     if (admissionResult.applied > 0) {
-      patches.push({ beds: admissionResult.record.beds });
+      patches.push({
+        beds: buildHistoricalAdmissionBedsPatch(movementResult.record, admissionResult.record),
+      });
     }
     preparedCorrections.push({ day, record, patches });
   }
