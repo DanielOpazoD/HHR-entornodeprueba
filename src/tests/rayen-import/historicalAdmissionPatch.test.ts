@@ -20,6 +20,90 @@ vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
 beforeEach(resetPreviousDayAdmissionFixtures);
 afterEach(() => vi.useRealTimers());
 
+it('persists a server-missing admission even when the local merged read already contains it', async () => {
+  let remote = structuredClone(historicalRecord);
+  const local = {
+    ...remote,
+    beds: { ...remote.beds, H4C1: motherAndNewbornDiff.admissions[0].patient },
+  };
+  const port = {
+    ...repository,
+    getAuthoritativeForDate: vi.fn(async () => remote),
+    getForDate: vi.fn(async () => local),
+    getForDateWithMeta: vi.fn(),
+  };
+  port.getForDateWithMeta.mockResolvedValue({ record: local });
+  vi.mocked(patchDailyRecordWithCompatibility).mockImplementation(
+    async (_port, date, patch, options) => {
+      expect(options?.baseRecord).toBe(remote);
+      remote = { ...remote, beds: { ...remote.beds, ...patch.beds } };
+      return createUpdatePartialDailyRecordResult({
+        date,
+        outcome: 'clean',
+        savedLocally: true,
+        updatedRemotely: true,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: 1,
+      });
+    }
+  );
+  const plan = await computePreviousDayEdits(port, motherAndNewbornDiff, '2026-07-26', false);
+  expect(plan.edits).toHaveLength(1);
+  await expect(
+    fileCrossDayCorrections(
+      port,
+      historicalRecord,
+      { ...motherAndNewbornDiff, previousDayEdits: plan.edits },
+      '2026-07-26',
+      false,
+      () => 'id',
+      { syncRunId: 'divergent-local' }
+    )
+  ).resolves.toEqual({ confirmed: 1, durablyQueued: 0, omitted: [] });
+  expect(patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(1);
+  expect(port.getForDateWithMeta).not.toHaveBeenCalled();
+  expect(
+    (await computePreviousDayEdits(port, motherAndNewbornDiff, '2026-07-26', false)).edits
+  ).toEqual([]);
+});
+
+it('does not propose an admission already on the server even with an empty local copy', async () => {
+  const port = {
+    ...repository,
+    getAuthoritativeForDate: vi.fn(async () => ({
+      ...historicalRecord,
+      beds: { H4C1: motherAndNewbornDiff.admissions[0].patient },
+    })),
+    getForDate: vi.fn(async () => historicalRecord),
+  };
+  expect(
+    (await computePreviousDayEdits(port, motherAndNewbornDiff, '2026-07-26', false)).edits
+  ).toEqual([]);
+});
+
+it('does not fall back to local state when the authoritative confirmation read fails', async () => {
+  const plan = await computePreviousDayEdits(repository, motherAndNewbornDiff, '2026-07-26', false);
+  const port = {
+    ...repository,
+    getAuthoritativeForDate: vi.fn().mockRejectedValue(new Error('server unavailable')),
+    getForDate: vi.fn(async () => historicalRecord),
+  };
+  await expect(
+    fileCrossDayCorrections(
+      port,
+      historicalRecord,
+      { ...motherAndNewbornDiff, previousDayEdits: plan.edits },
+      '2026-07-26',
+      false,
+      () => 'id',
+      { syncRunId: 'unavailable' }
+    )
+  ).rejects.toThrow('server unavailable');
+  expect(port.getForDate).not.toHaveBeenCalled();
+  expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
+});
+
 it.each([false, true])(
   'confirms a night admission once without clinical writes (existing mother: %s)',
   async existingMother => {

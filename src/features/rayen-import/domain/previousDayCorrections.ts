@@ -222,10 +222,9 @@ export const fileCrossDayCorrections = async (
   const records = new Map<string, DailyRecord>();
   await Promise.all(
     [...affectedDays].map(async day => {
-      const record =
-        typeof port.getForDateWithMeta === 'function'
-          ? (await port.getForDateWithMeta(day, true)).record
-          : await port.getForDate(day);
+      // Use the same authority as planning. A merged local read can already contain
+      // an unconfirmed admission and incorrectly turn the remote correction into a no-op.
+      const record = await port.getAuthoritativeForDate(day);
       if (record) records.set(day, record);
     })
   );
