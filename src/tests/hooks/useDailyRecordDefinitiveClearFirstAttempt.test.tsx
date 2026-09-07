@@ -376,19 +376,6 @@ describe('definitive clear first-attempt reconciliation', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.adoptAuthoritativeRecord).mockResolvedValueOnce(
       localProjection
     );
-    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockResolvedValue(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        patchedFields: 1,
-        confirmedRecord: authoritativeRecord,
-        observabilityTags: ['daily_record', 'write', 'persisted_and_synced', 'already_applied'],
-      })
-    );
 
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
