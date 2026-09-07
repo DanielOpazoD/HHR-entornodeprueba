@@ -1,4 +1,5 @@
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import { RAYEN_OWNED_CLINICAL_FIELDS } from '@/types/domain/rayenClinicalFields';
 import {
   CLINICAL_AUTHORITY_BED_FIELDS,
@@ -11,22 +12,22 @@ const clinicalFields = new Set<string>([
   ...SERVER_ONLY_CLINICAL_PATCH_FIELDS,
 ]);
 
-const structuralPatient = (patient: PatientData): PatientData => {
-  const result = Object.fromEntries(
-    Object.entries(patient).filter(([field]) => !clinicalFields.has(field))
-  ) as PatientData;
-  // An admission establishes identity/placement, not measurements from another day.
-  // Omitted fields remain owned by the authoritative clinical batch on the target date.
-  if (result.clinicalCrib) result.clinicalCrib = structuralPatient(result.clinicalCrib);
-  return result;
-};
+const structuralPatientEntries = (patient: PatientData, prefix: string): [string, unknown][] =>
+  Object.entries(patient).flatMap(([field, value]): [string, unknown][] => {
+    if (clinicalFields.has(field)) return [];
+    const path = `${prefix}.${field}`;
+    return field === 'clinicalCrib' && patient.clinicalCrib
+      ? structuralPatientEntries(patient.clinicalCrib, path)
+      : [[path, value]];
+  });
 
-export const buildHistoricalAdmissionBedsPatch = (
+/** Leaf paths preserve unrelated beds and historical clinical fields through applyPatches. */
+export const buildHistoricalAdmissionPatch = (
   before: DailyRecord,
   after: DailyRecord
-): DailyRecord['beds'] =>
+): DailyRecordPatch =>
   Object.fromEntries(
     Object.entries(after.beds)
       .filter(([bedId, patient]) => patient !== before.beds[bedId])
-      .map(([bedId, patient]) => [bedId, structuralPatient(patient)])
-  );
+      .flatMap(([bedId, patient]) => structuralPatientEntries(patient, `beds.${bedId}`))
+  ) as DailyRecordPatch;

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
+import { applyPatches } from '@/utils/patchUtils';
 import {
   computePreviousDayEdits,
   fileCrossDayCorrections,
@@ -36,7 +37,7 @@ it('persists a server-missing admission even when the local merged read already 
   vi.mocked(patchDailyRecordWithCompatibility).mockImplementation(
     async (_port, date, patch, options) => {
       expect(options?.baseRecord).toBe(remote);
-      remote = { ...remote, beds: { ...remote.beds, ...patch.beds } };
+      remote = applyPatches(remote, patch);
       return createUpdatePartialDailyRecordResult({
         date,
         outcome: 'clean',
@@ -151,14 +152,8 @@ it.each([false, true])(
       for (const field of RAYEN_OWNED_CLINICAL_FIELDS) {
         expect(json).not.toContain(`"${field}"`);
       }
-      expect(Object.keys(patch.beds!)).toEqual(['H4C1']);
-      persisted = {
-        ...persisted,
-        beds: {
-          ...persisted.beds,
-          H4C1: { ...persisted.beds.H4C1, ...patch.beds!.H4C1 },
-        },
-      };
+      expect(Object.keys(patch).every(path => path.startsWith('beds.H4C1.'))).toBe(true);
+      persisted = applyPatches(persisted, patch);
       return createUpdatePartialDailyRecordResult({
         date: _day,
         outcome: 'clean',
