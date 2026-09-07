@@ -1,5 +1,5 @@
 import React from 'react';
-import { Moon, Sun, UserRoundCheck, UsersRound } from 'lucide-react';
+import { Moon, Sun, UserRoundCheck } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type {
   NursingStaffingProposal,
@@ -43,7 +43,7 @@ const ShiftSuggestion: React.FC<{
   )
     return null;
   return (
-    <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+    <section className="min-w-0 rounded-lg border border-slate-200 p-3">
       <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-700">
         {icon}
         {roleLabel} · {label}
@@ -58,38 +58,37 @@ const ShiftSuggestion: React.FC<{
           Se reemplazará la asignación actual: {(suggestion.currentNames ?? []).join(', ')}.
         </p>
       )}
-      <ul className="mt-2 space-y-2">
+      <ul className="mt-2 divide-y divide-slate-100">
         {suggestion.names.map(name => {
           const evidence = evidenceFor(suggestion, name);
           return (
-            <li
-              key={name}
-              className="rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-slate-100"
-            >
-              <p className="font-semibold text-slate-800">{name}</p>
-              {evidence && (
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {evidence.records} registros · {evidence.patients} pacientes ·{' '}
-                  {evidence.activeHours} bloques horarios
-                  {evidence.catalogMatched ? ' · coincide con nómina HHR' : ''}
-                </p>
+            <li key={name} className="py-1.5 text-sm">
+              {evidence ? (
+                <details>
+                  <summary className="cursor-pointer rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600">
+                    <span className="font-semibold text-slate-800">{name}</span>
+                  </summary>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {evidence.records} registros · {evidence.patients} pacientes ·{' '}
+                    {evidence.activeHours} bloques horarios
+                    {evidence.catalogMatched ? ' · coincide con nómina HHR' : ''}
+                  </p>
+                </details>
+              ) : (
+                <p className="font-semibold text-slate-800">{name}</p>
               )}
             </li>
           );
         })}
       </ul>
       {suggestion.ignoredBoundaryRecords > 0 && (
-        <>
-          <p className="mt-2 text-xs text-slate-500">
-            HHR conservó {suggestion.ignoredBoundaryRecords}{' '}
-            {suggestion.ignoredBoundaryRecords === 1 ? 'firma' : 'firmas'} cercanas al relevo como
-            trazabilidad, sin usarlas para cambiar la dotación.
-          </p>
+        <div className="text-xs">
+          <p className="sr-only">Firmas del relevo excluidas de la propuesta.</p>
           <StaffingBoundaryExclusions
             total={suggestion.ignoredBoundaryRecords}
             evidence={suggestion.ignoredBoundaryEvidence ?? []}
           />
-        </>
+        </div>
       )}
       {hasUnresolvedAmbiguity && (
         <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -146,10 +145,13 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
   return (
     <BaseModal
       isOpen
-      onClose={onCancel}
+      onClose={() => {
+        if (!isBusy) onCancel();
+      }}
       title="Dotación clínica identificada"
       icon={<UserRoundCheck size={20} />}
-      size="md"
+      size="3xl"
+      bodyClassName="!max-h-[calc(100dvh-6rem)] !overflow-hidden flex min-h-0 flex-col"
       variant="white"
       headerIconColor="text-teal-600"
       dataModule="rayen-import"
@@ -158,52 +160,53 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
       showCloseButton={!isBusy}
     >
       <section
-        className="space-y-3"
+        className="min-h-0 overflow-y-auto px-4 py-3"
         data-module="rayen-import"
         aria-labelledby="rayen-nursing-shift-title"
       >
         <h3 id="rayen-nursing-shift-title" className="sr-only">
           Propuesta de dotación clínica
         </h3>
-        <p className="text-sm leading-relaxed text-slate-600">
-          La sugerencia usa acciones firmadas por Enfermería y Paramédicos/TENS fuera de las
-          ventanas ambiguas del cambio de turno.
+        <p className="mb-3 text-xs text-slate-600">
+          Propuesta según firmas de Eloísa.{' '}
           {replacesExisting
-            ? ' Al confirmar se reemplazarán únicamente los cupos estándar indicados; los cupos adicionales no cambiarán.'
-            : ' Al confirmar se completarán únicamente los cupos que continúen vacantes.'}
+            ? 'Se reemplazarán los cupos indicados; los cupos adicionales no cambiarán.'
+            : 'Solo se completarán los cupos vacantes.'}
         </p>
-        <ShiftSuggestion
-          label="Turno largo"
-          roleLabel="Enfermería"
-          suggestion={proposal.day}
-          standardSlots={NURSING_STAFFING_STANDARD_SLOTS.day}
-          icon={<Sun size={16} className="text-amber-500" aria-hidden="true" />}
-        />
-        <ShiftSuggestion
-          label="Turno noche"
-          roleLabel="Enfermería"
-          suggestion={proposal.night}
-          standardSlots={NURSING_STAFFING_STANDARD_SLOTS.night}
-          icon={<Moon size={16} className="text-slate-500" aria-hidden="true" />}
-        />
-        {proposal.tensDay && (
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
           <ShiftSuggestion
             label="Turno largo"
-            roleLabel="TENS"
-            suggestion={proposal.tensDay}
-            standardSlots={NURSING_STAFFING_STANDARD_SLOTS.tensDay}
-            icon={<UsersRound size={16} className="text-amber-600" aria-hidden="true" />}
+            roleLabel="Enfermería"
+            suggestion={proposal.day}
+            standardSlots={NURSING_STAFFING_STANDARD_SLOTS.day}
+            icon={<Sun size={16} className="text-amber-500" aria-hidden="true" />}
           />
-        )}
-        {proposal.tensNight && (
           <ShiftSuggestion
             label="Turno noche"
-            roleLabel="TENS"
-            suggestion={proposal.tensNight}
-            standardSlots={NURSING_STAFFING_STANDARD_SLOTS.tensNight}
-            icon={<UsersRound size={16} className="text-slate-600" aria-hidden="true" />}
+            roleLabel="Enfermería"
+            suggestion={proposal.night}
+            standardSlots={NURSING_STAFFING_STANDARD_SLOTS.night}
+            icon={<Moon size={16} className="text-slate-500" aria-hidden="true" />}
           />
-        )}
+          {proposal.tensDay && (
+            <ShiftSuggestion
+              label="Turno largo"
+              roleLabel="TENS"
+              suggestion={proposal.tensDay}
+              standardSlots={NURSING_STAFFING_STANDARD_SLOTS.tensDay}
+              icon={<Sun size={16} className="text-amber-500" aria-hidden="true" />}
+            />
+          )}
+          {proposal.tensNight && (
+            <ShiftSuggestion
+              label="Turno noche"
+              roleLabel="TENS"
+              suggestion={proposal.tensNight}
+              standardSlots={NURSING_STAFFING_STANDARD_SLOTS.tensNight}
+              icon={<Moon size={16} className="text-slate-500" aria-hidden="true" />}
+            />
+          )}
+        </div>
         {error && (
           <p
             className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
@@ -212,12 +215,17 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
             {error}
           </p>
         )}
-        <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+      </section>
+      <footer className="shrink-0 border-t border-slate-100 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="mr-auto text-xs text-slate-500">
+            La decisión quedará en el historial.
+          </span>
           <button
             type="button"
             onClick={onCancel}
             disabled={isBusy}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600 disabled:opacity-60"
           >
             {hasVacanciesToComplete ? 'Mantener actual' : 'Entendido'}
           </button>
@@ -226,16 +234,13 @@ export const RayenNursingShiftProposalModal: React.FC<RayenNursingShiftProposalM
               type="button"
               onClick={onConfirm}
               disabled={isBusy}
-              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-progress disabled:opacity-60"
+              className="rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-60"
             >
               {isBusy ? 'Aplicando…' : 'Aplicar propuesta'}
             </button>
           )}
         </div>
-        <p className="border-t border-slate-100 pt-3 text-[11px] text-slate-500">
-          La decisión quedará registrada en el historial de sincronización.
-        </p>
-      </section>
+      </footer>
     </BaseModal>
   );
 };
