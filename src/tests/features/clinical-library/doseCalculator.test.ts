@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   adjustedBodyWeight,
   bodySurfaceAreaMosteller,
+  ckdEpi2021,
   classifyBmi,
   cockcroftGaultClearance,
   computeBmi,
@@ -82,5 +83,13 @@ describe('dose calculator', () => {
         presentation: { amount: 0, volumeMl: 2 },
       })?.volumeMl
     ).toBeNull();
+  });
+
+  it('estimates GFR with CKD-EPI 2021 without a race coefficient', () => {
+    expect(ckdEpi2021({ ageYears: 60, creatinineMgDl: 1, sex: 'male' })).toBeCloseTo(86.2, 0);
+    expect(ckdEpi2021({ ageYears: 60, creatinineMgDl: 1, sex: 'female' })).toBeCloseTo(64.5, 0);
+    expect(ckdEpi2021({ ageYears: 40, creatinineMgDl: 0.6, sex: 'female' })).toBeCloseTo(116.4, 0);
+    expect(ckdEpi2021({ ageYears: 12, creatinineMgDl: 1, sex: 'male' })).toBeNull();
+    expect(ckdEpi2021({ ageYears: 60, creatinineMgDl: 0, sex: 'male' })).toBeNull();
   });
 });

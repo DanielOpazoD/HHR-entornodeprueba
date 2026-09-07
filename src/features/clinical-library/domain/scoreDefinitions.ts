@@ -4,16 +4,22 @@
  */
 
 import type { ScoreDefinition } from './scoreEngine';
+import { CAM_ICU } from './scores/camIcu';
 import { CHA2DS2VASC } from './scores/cha2ds2vasc';
 import { CURB65 } from './scores/curb65';
 import { GLASGOW } from './scores/glasgow';
+import { NEWS2 } from './scores/news2';
 import { PADUA } from './scores/padua';
 import { QSOFA } from './scores/qsofa';
+import { SAS } from './scores/sas';
 import { WELLS_PE } from './scores/wellsPe';
 
 export const SCORE_DEFINITIONS: ReadonlyArray<ScoreDefinition> = [
+  NEWS2,
   QSOFA,
   GLASGOW,
+  SAS,
+  CAM_ICU,
   CURB65,
   WELLS_PE,
   PADUA,

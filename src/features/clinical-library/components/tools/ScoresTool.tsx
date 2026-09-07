@@ -150,13 +150,15 @@ export const ScoresTool: React.FC<ToolComponentProps> = ({ onBack, onClose }) =>
           <p className="text-[11px] font-semibold uppercase tracking-wide opacity-70">
             {definition.shortName}
           </p>
-          <p className="text-2xl font-bold tabular-nums">
-            {formatClinicalNumber(evaluation.total)}
-            <span className="text-xs font-semibold opacity-60">
-              {' '}
-              / {formatClinicalNumber(evaluation.maxTotal)}
-            </span>
-          </p>
+          {!definition.hideTotal && (
+            <p className="text-2xl font-bold tabular-nums">
+              {formatClinicalNumber(evaluation.total)}
+              <span className="text-xs font-semibold opacity-60">
+                {' '}
+                / {formatClinicalNumber(evaluation.maxTotal)}
+              </span>
+            </p>
+          )}
         </div>
         {band ? (
           <>

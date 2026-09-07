@@ -8,7 +8,7 @@ const typeInto = (label: string, value: string) =>
 
 describe('DosingCalculatorTool', () => {
   it('derives anthropometry, renal function and weight-based doses from one patient form', () => {
-    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} />);
+    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} patients={[]} />);
     expect(screen.getByTestId('dosing-bmi')).toHaveTextContent('—');
 
     typeInto('Edad', '60');
@@ -23,6 +23,7 @@ describe('DosingCalculatorTool', () => {
     expect(screen.getByTestId('dosing-adjusted')).toHaveTextContent('—');
     expect(screen.getByTestId('dosing-bsa')).toHaveTextContent('1,82');
     expect(screen.getByTestId('dosing-clearance')).toHaveTextContent('78');
+    expect(screen.getByTestId('dosing-egfr')).toHaveTextContent('86');
 
     typeInto('Dosis por kilo', '1,5');
     expect(screen.getByTestId('dosing-total')).toHaveTextContent('105');
@@ -41,7 +42,7 @@ describe('DosingCalculatorTool', () => {
   });
 
   it('offers the adjusted weight only in obesity and falls back to real weight when a basis vanishes', () => {
-    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} />);
+    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} patients={[]} />);
     expect(screen.getByRole('button', { name: /^Ideal/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /^Ajustado/ })).toBeDisabled();
     typeInto('Talla', '170');
@@ -62,7 +63,7 @@ describe('DosingCalculatorTool', () => {
   });
 
   it('flags implausible inputs instead of computing with them', () => {
-    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} />);
+    render(<DosingCalculatorTool onBack={vi.fn()} onClose={vi.fn()} patients={[]} />);
     typeInto('Peso real', '70');
     typeInto('Talla', '1,70');
     expect(screen.getByLabelText('Talla')).toHaveAttribute('aria-invalid', 'true');

@@ -3,6 +3,7 @@ import { Calculator } from 'lucide-react';
 import {
   adjustedBodyWeight,
   bodySurfaceAreaMosteller,
+  ckdEpi2021,
   classifyBmi,
   cockcroftGaultClearance,
   computeBmi,
@@ -67,6 +68,11 @@ export const DosingCalculatorTool: React.FC<ToolComponentProps> = ({ onBack, onC
           creatinineMgDl: creatinineInput.value,
           sex,
         })
+      : null;
+
+  const egfr =
+    ageInput.value !== null && creatinineInput.value !== null
+      ? ckdEpi2021({ ageYears: ageInput.value, creatinineMgDl: creatinineInput.value, sex })
       : null;
 
   const basisWeights: Readonly<Record<WeightBasis, number | null>> = {
@@ -188,6 +194,13 @@ export const DosingCalculatorTool: React.FC<ToolComponentProps> = ({ onBack, onC
             value={clearance !== null ? formatClinicalNumber(clearance, 0) : null}
             unit="mL/min"
             hint="Cockcroft-Gault con peso real; sólo adultos"
+          />
+          <ResultTile
+            testId="dosing-egfr"
+            label="VFG estimada"
+            value={egfr !== null ? formatClinicalNumber(egfr, 0) : null}
+            unit="mL/min/1,73 m²"
+            hint="CKD-EPI 2021; sólo adultos"
           />
         </div>
       </ToolSection>
