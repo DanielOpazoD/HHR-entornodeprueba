@@ -14,6 +14,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight, FileDown, Loader2, RefreshCw } from 'lucide-react';
 import { type EvolutionProfession } from '@/features/rayen-import';
+import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
 import { ClinicalPanelHistoryPrintButton } from './ClinicalPanelHistoryPrintButton';
 import { ClinicalPanelHeading } from './ClinicalPanelHeading';
@@ -135,7 +136,8 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         type="button"
         aria-hidden
         tabIndex={-1}
-        className="fixed inset-0 z-[1100] cursor-default bg-slate-900/30"
+        style={{ zIndex: LAYER_Z_INDEX.drawerBackdrop }}
+        className="fixed inset-0 cursor-default bg-slate-900/30"
         onClick={onClose}
       />
       <aside
@@ -146,8 +148,9 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         tabIndex={-1}
         data-testid={`clinical-panel-drawer-${bedId}`}
         onDragStart={event => event.stopPropagation()}
+        style={{ zIndex: LAYER_Z_INDEX.drawer }}
         className={clsx(
-          'clinical-panel-drawer fixed right-0 top-0 z-[1101] flex h-full max-w-full cursor-auto select-text flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none',
+          'clinical-panel-drawer fixed right-0 top-0 flex h-full max-w-full cursor-auto select-text flex-col border-l border-slate-200 bg-slate-50 shadow-xl focus:outline-none',
           isWide ? 'w-[680px]' : 'w-[460px]'
         )}
       >

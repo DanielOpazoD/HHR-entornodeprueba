@@ -202,4 +202,32 @@ describe('AppContentChrome', () => {
       })
     );
   });
+
+  it('mounts the census trailing actions only in the daily census module', () => {
+    const renderCensusTrailingActions = vi.fn(() => <span>Documentos</span>);
+    const readTrailing = () =>
+      (mockDateStrip.mock.lastCall?.[0] as { trailingActions?: React.ReactNode }).trailingActions;
+
+    const { rerender } = render(
+      <AppContentChrome
+        ui={ui as never}
+        runtime={runtime as never}
+        onOpenCensusDate={vi.fn()}
+        renderCensusTrailingActions={renderCensusTrailingActions}
+      />
+    );
+    expect(renderCensusTrailingActions).toHaveBeenCalledTimes(1);
+    expect(readTrailing()).toBeTruthy();
+
+    rerender(
+      <AppContentChrome
+        ui={{ ...ui, currentModule: 'NURSING_HANDOFF' } as never}
+        runtime={runtime as never}
+        onOpenCensusDate={vi.fn()}
+        renderCensusTrailingActions={renderCensusTrailingActions}
+      />
+    );
+    expect(renderCensusTrailingActions).toHaveBeenCalledTimes(1);
+    expect(readTrailing()).toBeUndefined();
+  });
 });

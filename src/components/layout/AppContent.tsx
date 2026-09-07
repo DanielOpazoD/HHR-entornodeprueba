@@ -22,6 +22,8 @@ const AppContentOverlays = lazyWithRetry(() =>
 interface AppContentProps {
   ui: UseUIStateReturn;
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
+  /** Acciones visibles al extremo derecho de la barra de fechas del censo (p. ej. «Documentos»). */
+  renderCensusTrailingActions?: () => React.ReactNode;
 }
 
 const DeferredReminderCenterProvider: ReminderCenterProviderComponent = ({ children }) => {
@@ -46,7 +48,11 @@ const DeferredReminderCenterProvider: ReminderCenterProviderComponent = ({ child
   return <Provider>{children}</Provider>;
 };
 
-export const AppContent: React.FC<AppContentProps> = ({ ui, renderFeatureQuickActions }) => {
+export const AppContent: React.FC<AppContentProps> = ({
+  ui,
+  renderFeatureQuickActions,
+  renderCensusTrailingActions,
+}) => {
   const runtime = useAppContentRuntime({ ui });
   const { auth, dailyRecordHook, dateNav } = runtime;
 
@@ -88,6 +94,7 @@ export const AppContent: React.FC<AppContentProps> = ({ ui, renderFeatureQuickAc
             runtime={runtime}
             onOpenCensusDate={openCensusDate}
             renderFeatureQuickActions={renderFeatureQuickActions}
+            renderCensusTrailingActions={renderCensusTrailingActions}
           />
           <React.Suspense fallback={null}>
             <AppContentOverlays ui={ui} runtime={runtime} onOpenCensusDate={openCensusDate} />

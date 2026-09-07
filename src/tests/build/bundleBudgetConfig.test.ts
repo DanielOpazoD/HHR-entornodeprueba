@@ -58,6 +58,9 @@ describe('bundle budget config', () => {
     expect(findBudget(config, '^ClinicalPanelDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 50000,
     });
+    expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
+      maxBytes: 90000,
+    });
   });
 
   it('keeps authenticated shell budget above the measured critical-runtime baseline', () => {
@@ -66,8 +69,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Shared inactivity: documented baseline drift + 1183-byte runtime delta.
-      maxBytes: 614400,
+      // Preserve current auth ceiling plus the original Documentos toolbar allowance.
+      maxBytes: 614400 + 2000,
       severity: 'error',
     });
   });
@@ -75,8 +78,8 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // The critical session monitor remains cached; PR #356 adds a bounded 2048 bytes.
-    expect(config.precacheMaxBytes).toBe(4842240);
+    // Keep both bounded allowances: shared session monitor and offline clinical library.
+    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840);
     expect(
       config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))
     ).toBe(false);

@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4842240,
-  "_precacheMaxBytesComment": "Shared inactivity, PR #356: +2048 bytes (0.043%) over 4840192. Local feature precache measured 4727.5 KiB; preserve the critical auth monitor offline. No new exclusions, dependencies or relaxed warning bands. Evidence/rollback: docs/AUTH_ACCESS_MODEL.md.",
+  "precacheMaxBytes": 4910080,
+  "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -54,8 +54,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "Shared inactivity, PR #356: local same-environment baseline main 261747b9 measured 611706 bytes; feature 991419ba measured 612889 (+1183 bytes). Ceiling 614400 (+3792 over 610608) accounts for baseline drift and this bounded critical runtime, without async initialization races. Error enforcement and unrelated budgets unchanged. Evidence/rollback: docs/AUTH_ACCESS_MODEL.md.",
-      "maxBytes": 614400,
+      "_comment": "PR #353 integrated with #356-358: preserve the current 614400-byte auth ceiling (PR #356: measured +1183 bytes plus baseline drift), then the original +2000-byte Documentos toolbar allowance. Total 616400, without extra merge headroom. Panel/catalog/tools remain lazy; session observers, inactivity and cleanup remain intact. Error enforcement and unrelated budgets unchanged.",
+      "maxBytes": 616400,
       "severity": "error"
     }
   ],
@@ -111,6 +111,11 @@
       "pattern": "^ClinicalPanelDrawer-.*\\.js$",
       "_comment": "Online-only Eloisa clinical drawer loaded only after an explicit patient action.",
       "maxBytes": 50000
+    },
+    {
+      "pattern": "^ClinicalLibraryDrawer-.*\\.js$",
+      "_comment": "Offline-capable census library drawer (catalog, calculators, scores) loaded only after pressing Documentos. Measured 57411 bytes on 2026-09-06; the ceiling leaves room for more documents and score definitions while keeping drift visible.",
+      "maxBytes": 90000
     }
   ]
 }
