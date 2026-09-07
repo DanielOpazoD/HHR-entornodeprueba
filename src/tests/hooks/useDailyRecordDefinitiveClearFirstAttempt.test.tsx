@@ -96,6 +96,41 @@ const createWrapper = () =>
     .wrapper;
 
 describe('definitive clear first-attempt reconciliation', () => {
+  it('shows the authoritative occupant after rejecting a stale clear without writing', async () => {
+    const local = DataFactory.createMockDailyRecord(mockDate, {
+      beds: { R1: DataFactory.createMockPatient('R1', { clinicalEpisodeId: 'local-episode' }) },
+    });
+    const remote = {
+      ...local,
+      beds: { R1: { ...local.beds.R1, clinicalEpisodeId: 'remote-episode' } },
+    };
+    mockDailyRecordRepositoryPort.getForDateWithMeta.mockResolvedValue(buildReadResult(local));
+    mockDailyRecordRepositoryPort.getAuthoritativeForDate.mockResolvedValue(remote);
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() =>
+      expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('local-episode')
+    );
+    await act(async () => {
+      await expect(
+        result.current.patchRecord(
+          { 'beds.R1.patientName': '' },
+          {
+            intentionalBedClear: {
+              bedId: 'R1',
+              confirmedLastUpdated: local.lastUpdated,
+              confirmedOccupant: { clinicalEpisodeId: 'local-episode' },
+            },
+          }
+        )
+      ).rejects.toBeInstanceOf(ConcurrencyError);
+    });
+    await waitFor(() =>
+      expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('remote-episode')
+    );
+    expect(mockDailyRecordRepositoryPort.updatePartialDetailed).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mockDailyRecordRepositoryPort.getForDateWithMeta.mockReset();

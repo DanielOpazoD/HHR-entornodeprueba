@@ -178,6 +178,12 @@ export const usePatchDailyRecordMutation = (date: string) => {
           };
         }
         if (!canRebaseIntentionalBedClear(options.intentionalBedClear, authoritativeRecord)) {
+          if (authoritativeRecord) {
+            throw new AuthoritativeDailyRecordConflictError(
+              'La cama cambió desde que se confirmó la limpieza. Se cargó la versión del servidor; revísela antes de confirmar otra limpieza.',
+              authoritativeRecord
+            );
+          }
           throw new ConcurrencyError(
             'La cama cambió desde que se confirmó la limpieza. Recargue antes de intentarlo nuevamente.'
           );
