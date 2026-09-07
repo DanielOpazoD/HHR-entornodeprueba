@@ -1,7 +1,12 @@
-import { QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { queryClient as appQueryClient } from '@/config/queryClient';
+import {
+  markDailyRecordTabHidden,
+  resetDailyRecordFreshnessGateForTests,
+} from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { useDailyRecordQuery } from '@/hooks/useDailyRecordQuery';
 import { RepositoryProvider, createRepositoryContainer } from '@/services/RepositoryContext';
@@ -35,8 +40,10 @@ const buildMockDailyRecordRepository = (): DailyRecordRepositoryPort => ({
   copyPatientToDateDetailed: vi.fn(),
 });
 
-const createWrapper = (dailyRecord: DailyRecordRepositoryPort) => {
-  const queryClient = createTestQueryClient();
+const createWrapper = (
+  dailyRecord: DailyRecordRepositoryPort,
+  queryClient = createTestQueryClient()
+) => {
   const repositories = createRepositoryContainer({ dailyRecord });
 
   const wrapper = ({ children }: { children: ReactNode }) => (
@@ -62,7 +69,73 @@ describe('useDailyRecordQuery', () => {
 
   beforeEach(() => {
     setFirestoreEnabled(true);
+    resetDailyRecordFreshnessGateForTests();
+    focusManager.setFocused(true);
+    onlineManager.setOnline(true);
   });
+
+  afterEach(() => {
+    cleanup();
+    focusManager.setFocused(undefined);
+    onlineManager.setOnline(true);
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    { scenario: 'brief tab return', elapsed: 1000, reconnect: false, reads: 1 },
+    { scenario: 'stale tab return', elapsed: 360000, reconnect: false, reads: 2 },
+    {
+      scenario: 'expired query after brief absence',
+      elapsed: 360000,
+      hiddenFor: 1000,
+      reconnect: false,
+      reads: 2,
+    },
+    { scenario: 'brief connection loss', elapsed: 1000, reconnect: true, reads: 2 },
+    { scenario: 'stale connection loss', elapsed: 360000, reconnect: true, reads: 2 },
+  ])(
+    'counts repository reads on $scenario with the real query client',
+    async ({ elapsed, hiddenFor, reconnect, reads }) => {
+      const dailyRecord = buildMockDailyRecordRepository();
+      const queryClient = createTestQueryClient({
+        defaultOptions: appQueryClient.getDefaultOptions(),
+      });
+      vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(
+        createDailyRecordReadResult(date, mockRecord, 'firestore')
+      );
+      const { result, unmount } = renderHook(() => useDailyRecordQuery(date, false, 'ready'), {
+        wrapper: createWrapper(dailyRecord, queryClient),
+      });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledTimes(1);
+      const startedAt = Date.now();
+      act(() => {
+        if (reconnect) onlineManager.setOnline(false);
+        else {
+          focusManager.setFocused(false);
+          markDailyRecordTabHidden(startedAt + elapsed - (hiddenFor ?? elapsed));
+        }
+      });
+      vi.spyOn(Date, 'now').mockReturnValue(startedAt + elapsed);
+      await act(async () => {
+        if (reconnect) {
+          onlineManager.setOnline(true);
+          window.dispatchEvent(new Event('online'));
+        } else {
+          focusManager.setFocused(true);
+          window.dispatchEvent(new Event('focus'));
+        }
+        // Drain QueryClient's async manager callbacks and React notifications.
+        await new Promise(resolve => setTimeout(resolve, 20));
+      });
+      expect(result.current.isFetching).toBe(false);
+      expect(result.current.data).toEqual(mockRecord);
+      expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledTimes(reads);
+      expect(dailyRecord.subscribeDetailed).toHaveBeenCalledTimes(1);
+      unmount();
+      queryClient.clear();
+    }
+  );
 
   it('reads the daily record locally when remote sync is not ready', async () => {
     const dailyRecord = buildMockDailyRecordRepository();
