@@ -40,7 +40,12 @@ describe('dailyRecordSyncNotificationController', () => {
     });
   });
 
-  it('returns null for unknown errors', () => {
-    expect(resolveSaveErrorFeedback(new Error('unknown'))).toBeNull();
+  it('maps unknown errors to a non-committal complete-failure message', () => {
+    expect(resolveSaveErrorFeedback(new Error('unknown'))).toMatchObject({
+      title: 'Guardado no confirmado',
+      message:
+        'No fue posible completar el guardado. La operación no quedó confirmada; revisa el censo antes de reintentar.',
+      shouldLog: true,
+    });
   });
 });

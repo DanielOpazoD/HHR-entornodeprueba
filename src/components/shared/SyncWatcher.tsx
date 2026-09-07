@@ -1,48 +1,8 @@
 /**
  * Sync Watcher
- * Observes sync status changes and shows notifications accordingly.
- * This component must be placed inside UIProvider.
+ * Reserved for global synchronization events without an operation owner.
  */
 
-import React, { useEffect, useRef } from 'react';
-import { useNotification } from '@/context/UIContext';
-import { useDailyRecordStatus } from '@/context/DailyRecordContext';
-import { useAuth } from '@/context/AuthContext';
-
-export const SyncWatcher: React.FC = () => {
-  const { syncStatus } = useDailyRecordStatus();
-  const { error, success, warning } = useNotification();
-  const { isFirebaseConnected } = useAuth();
-
-  // Track previous status to detect changes
-  const prevStatusRef = useRef(syncStatus);
-
-  useEffect(() => {
-    const prevStatus = prevStatusRef.current;
-    prevStatusRef.current = syncStatus;
-
-    // Only show notification when status changes
-    if (prevStatus === syncStatus) return;
-
-    if (syncStatus === 'error' && prevStatus !== 'error') {
-      error(
-        'Error de sincronización',
-        'Los cambios se guardaron localmente pero no se pudieron sincronizar con el servidor.'
-      );
-    }
-
-    // Warn if saved but offline
-    if (syncStatus === 'saved' && prevStatus !== 'saved') {
-      if (!isFirebaseConnected) {
-        warning('Sin conexión', 'Guardado localmente. Se sincronizará al recuperar conexión.');
-      }
-    }
-
-    // Optionally show success after saving (uncomment if desired)
-    // if (syncStatus === 'saved' && prevStatus === 'saving') {
-    //     success('Guardado', 'Cambios sincronizados correctamente');
-    // }
-  }, [syncStatus, error, success, warning, isFirebaseConnected]);
-
-  return null; // This component doesn't render anything
-};
+// Connectivity changes may belong to an in-flight write. Without an operation id,
+// notifying here could duplicate or contradict the result emitted by that write.
+export const SyncWatcher = () => null;
