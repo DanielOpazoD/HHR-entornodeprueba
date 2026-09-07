@@ -40,6 +40,7 @@ import {
   rebaseClinicalCribCreatePatch,
 } from '@/hooks/controllers/clinicalCribController';
 import {
+  buildAppliedBedClearPatch,
   canRebaseIntentionalBedClear,
   isIntentionalBedClearAlreadyApplied,
   rebaseIntentionalBedClear,
@@ -142,7 +143,9 @@ export const usePatchDailyRecordMutation = (date: string) => {
           record || options ? buildOptions(record) : undefined
         );
       const adoptAlreadyAppliedClear = async (record: DailyRecord) => {
-        const adoptedRecord = await dailyRecord.adoptAuthoritativeRecord(record, partial);
+        const intent = options?.intentionalBedClear;
+        const appliedPatch = buildAppliedBedClearPatch(intent, record, partial);
+        const adoptedRecord = await dailyRecord.adoptAuthoritativeRecord(record, appliedPatch);
         return createUpdatePartialDailyRecordResult({
           date,
           outcome: 'clean',

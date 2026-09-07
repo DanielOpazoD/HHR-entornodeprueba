@@ -154,14 +154,18 @@ export const isIntentionalBedClearAlreadyApplied = (
   const candidateBed = candidate.beds[intent.bedId];
   if (intent.target === 'clinicalCrib') return !candidateBed?.clinicalCrib;
   if (!candidateBed || candidateBed.clinicalCrib) return false;
-  // Legacy/server records can omit empty defaults. Compare their meaning, not
-  // whether an empty array/string was serialized; retain every non-empty field.
+  // Clearing removes the occupant, not the server-owned slot location. Adopt the
+  // server's location even if the local copy is stale; keep all clinical checks.
+  // Legacy/server records can also omit empty defaults.
   const bedPath = `beds.${intent.bedId}`;
   const expectedBed = expectedPatch[bedPath as keyof DailyRecordPatch] as PatientData | undefined;
   if (!expectedBed || typeof expectedBed !== 'object') return false;
   return hasSameValuesAtPaths(
     { ...candidate, beds: { ...candidate.beds, [intent.bedId]: withEmptyDefaults(candidateBed) } },
-    { ...expectedPatch, [bedPath]: withEmptyDefaults(expectedBed) }
+    {
+      ...expectedPatch,
+      [bedPath]: withEmptyDefaults({ ...expectedBed, location: candidateBed.location }),
+    }
   );
 };
 
@@ -172,3 +176,13 @@ export const rebaseIntentionalBedClear = (
   ...intent,
   confirmedLastUpdated: candidate.lastUpdated,
 });
+
+/** Only use after the server proves the clear; never reapply stale local slot metadata. */
+export const buildAppliedBedClearPatch = (
+  intent: IntentionalBedClearRequest | undefined,
+  record: DailyRecord,
+  partial: DailyRecordPatch
+): DailyRecordPatch =>
+  intent && intent.target !== 'clinicalCrib'
+    ? ({ ...partial, [`beds.${intent.bedId}`]: record.beds[intent.bedId] } as DailyRecordPatch)
+    : partial;

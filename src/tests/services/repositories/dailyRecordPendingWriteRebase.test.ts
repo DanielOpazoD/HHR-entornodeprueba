@@ -160,6 +160,20 @@ describe('rebasePendingDailyRecordWrite', () => {
 
     expect(result.record.beds.R1.patientName).toBe('');
     expect(result.record.beds.R1.clinicalEpisodeId).toBeUndefined();
+    // A one-bed clear cannot acknowledge a legacy replacement of all beds.
+    // Keep that task for explicit resolution, never silently discard or replay it.
+    expect(() =>
+      rebasePendingDailyRecordWrite({
+        authoritativeRecord,
+        pendingTask: {
+          taskId: 1,
+          record: pendingRecord,
+          recordRevision: pendingRecord.lastUpdated,
+          changedPaths: ['beds'],
+        },
+        alreadyAppliedPatch: { 'beds.R1': clearedBed },
+      })
+    ).toThrow(ConcurrencyError);
   });
 
   it('keeps structural blocked-bed metadata pending on the same empty slot', () => {
