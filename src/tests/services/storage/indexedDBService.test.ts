@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as idbService from '@/services/storage/indexedDBService';
+import * as indexedDbCore from '@/services/storage/indexeddb/indexedDbCore';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { AuditLogEntry } from '@/types/auditLogTypes';
 import { ErrorLog } from '@/services/utils/errorService';
@@ -22,6 +23,7 @@ describe('indexedDBService', () => {
   beforeEach(async () => {
     // Clear all stores before each test
     await idbService.clearAllRecords();
+    await idbService.hospitalDB.syncQueue.clear();
     await idbService.clearErrorLogs();
     await idbService.clearAuditLogs();
     localStorage.clear();
@@ -35,6 +37,43 @@ describe('indexedDBService', () => {
   });
 
   describe('Daily Records', () => {
+    it.each(['PENDING', 'PROCESSING', 'FAILED', 'CONFLICT'] as const)(
+      'preserves the local projection and %s task during hydration',
+      async status => {
+        await idbService.saveRecordStrict(mockRecord);
+        await idbService.hospitalDB.syncQueue.add({
+          opId: 'hydration-test',
+          type: 'UPDATE_DAILY_RECORD',
+          key: `daily:${mockRecord.date}`,
+          payload: mockRecord,
+          status,
+          timestamp: 1767225600000,
+          retryCount: 0,
+        });
+        const remote = { ...mockRecord, lastUpdated: '2026-01-15T10:31:00.000Z' };
+        expect(
+          await idbService.saveRecordStrict(remote, { preserveUnresolvedWrites: true })
+        ).toMatchObject({ ok: true, retainedRecord: mockRecord });
+        expect(await idbService.hospitalDB.dailyRecords.get(mockRecord.date)).toEqual(mockRecord);
+        expect((await idbService.hospitalDB.syncQueue.toArray())[0].status).toBe(status);
+      }
+    );
+
+    it('hydrates the fallback cache without querying unavailable IndexedDB', async () => {
+      vi.spyOn(indexedDbCore, 'isDatabaseInFallbackMode').mockReturnValue(true);
+      const queueRead = vi
+        .spyOn(idbService.hospitalDB.syncQueue, 'where')
+        .mockImplementation(() => {
+          throw new Error('IndexedDB unavailable');
+        });
+      const result = await idbService.saveRecordStrict(mockRecord, {
+        preserveUnresolvedWrites: true,
+      });
+      expect(result).toMatchObject({ ok: true, store: 'fallback' });
+      expect(queueRead).not.toHaveBeenCalled();
+      expect(await idbService.getRecordForDate(mockRecord.date)).toMatchObject(mockRecord);
+    });
+
     it('should report the backing store used by strict record saves', async () => {
       const result = await idbService.saveRecordStrict(mockRecord);
 

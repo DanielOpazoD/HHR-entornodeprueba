@@ -122,6 +122,27 @@ describe('dailyRecordSyncNotificationController', () => {
     });
   });
 
+  it('does not describe a confirmed server write as unsynchronized', () => {
+    expect(
+      resolvePatchOutcomeFeedback(
+        createUpdatePartialDailyRecordResult({
+          date: '2026-03-03',
+          outcome: 'clean',
+          savedLocally: false,
+          updatedRemotely: true,
+          queuedForRetry: false,
+          autoMerged: false,
+          patchedFields: 1,
+          consistencyState: 'unrecoverable',
+          userSafeMessage: 'El servidor guardó el cambio; la copia local necesita revisión.',
+        })
+      )
+    ).toMatchObject({
+      title: 'Cambio guardado; copia local pendiente',
+      message: 'El servidor guardó el cambio; la copia local necesita revisión.',
+    });
+  });
+
   it('keeps default census sync feedback free of technical remote wording', () => {
     const defaultFeedback = [
       resolveSaveOutcomeFeedback(
