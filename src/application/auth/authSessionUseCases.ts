@@ -186,7 +186,7 @@ export const executeResolvedCurrentAuthSessionState = async (): Promise<
   ApplicationOutcome<AuthSessionState | null>
 > => {
   const sessionState = await resolveCurrentAuthSessionState();
-  if (sessionState.status === 'unauthenticated') {
+  if (!sessionState || sessionState.status === 'unauthenticated') {
     return createApplicationSuccess(null);
   }
 

@@ -34,6 +34,7 @@ export const ScoresHistoryTable: React.FC<ScoresHistoryTableProps> = ({ history 
             <th className="px-3 py-2 font-semibold">Escala y resultado</th>
             <th className="px-3 py-2 font-semibold">Fecha</th>
             <th className="px-3 py-2 font-semibold">Profesional</th>
+            <th className="px-3 py-2 font-semibold">Evidencia</th>
           </tr>
         </thead>
         <tbody>
@@ -69,6 +70,9 @@ export const ScoresHistoryTable: React.FC<ScoresHistoryTableProps> = ({ history 
                       )
                     : 'No informado'}
                 </span>
+              </td>
+              <td className="px-3 py-1.5 align-top text-[11px] text-slate-500">
+                {entry.author ? 'Firma sincronizada' : 'Sin firma informada'}
               </td>
             </tr>
           ))}

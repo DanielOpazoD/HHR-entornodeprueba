@@ -4,6 +4,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 vi.unmock('@/hooks/useAuthState');
 
 import { useAuthState } from '@/hooks/useAuthState';
+import { SESSION_TIMEOUT_MS } from '@/constants/security';
 import * as authSession from '@/services/auth/authSession';
 import * as authFallback from '@/services/auth/authFallback';
 import * as authUseCases from '@/application/auth/authSessionUseCases';
@@ -33,7 +34,9 @@ vi.mock('@/services/admin/auditService', () => ({
 }));
 
 vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  clearSessionScopedClientState: vi.fn().mockResolvedValue(undefined),
+  clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
+    await close?.();
+  }),
   reconcileAuthorizedSessionOwner: vi.fn().mockResolvedValue(undefined),
   resolveSessionOwnerKey: (uid: string | null | undefined) => (uid ? `user:${uid}` : null),
 }));
@@ -53,6 +56,11 @@ describe('useAuthState baseline', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(sessionScopedStorageService.clearSessionScopedClientState).mockImplementation(
+      async (_reason, close) => {
+        await close?.();
+      }
+    );
     authSessionStateCallback = null;
     window.sessionStorage.clear();
     window.localStorage.clear();
@@ -166,7 +174,8 @@ describe('useAuthState baseline', () => {
     expect(sessionStorage.getItem(RECENT_MANUAL_LOGOUT_KEY)).toBeTruthy();
     await waitFor(() =>
       expect(sessionScopedStorageService.clearSessionScopedClientState).toHaveBeenCalledWith(
-        'manual'
+        'manual',
+        expect.any(Function)
       )
     );
   });
@@ -248,8 +257,11 @@ describe('useAuthState baseline', () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(61 * 60 * 1000);
-      await vi.runOnlyPendingTimersAsync();
+      await vi.advanceTimersByTimeAsync(SESSION_TIMEOUT_MS);
+    });
+    expect(result.current.user?.uid).toBe('u1');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
     });
 
     expect(result.current.user).toBe(null);

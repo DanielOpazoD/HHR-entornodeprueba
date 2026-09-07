@@ -69,8 +69,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Documentos toolbar action: the documented +2000-byte allowance over staff discovery.
-      maxBytes: 612608,
+      // Preserve current auth ceiling plus the original Documentos toolbar allowance.
+      maxBytes: 614400 + 2000,
       severity: 'error',
     });
   });
@@ -78,9 +78,11 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // The clinical library adds the documented 67840 bytes over the staff-discovery ceiling so
-    // calculators and scores stay available offline instead of being excluded from the precache.
-    expect(config.precacheMaxBytes).toBe(4908032);
+    // Keep both bounded allowances: shared session monitor and offline clinical library.
+    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840);
+    expect(
+      config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))
+    ).toBe(false);
     expect(config.precacheIgnoredAssetPatterns.some(pattern => /upc/i.test(pattern))).toBe(false);
     expect(config.precacheIgnoredAssetPatterns).toEqual(
       expect.arrayContaining([

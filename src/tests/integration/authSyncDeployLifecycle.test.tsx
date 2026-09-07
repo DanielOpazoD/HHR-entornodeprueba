@@ -30,7 +30,9 @@ vi.mock('@/application/auth/authSessionUseCases', () => ({
 }));
 
 vi.mock('@/services/storage/sessionScopedStorageService', () => ({
-  clearSessionScopedClientState: vi.fn().mockResolvedValue(undefined),
+  clearSessionScopedClientState: vi.fn(async (_reason: string, close?: () => Promise<void>) => {
+    await close?.();
+  }),
   reconcileAuthorizedSessionOwner: vi.fn().mockResolvedValue(undefined),
   resolveSessionOwnerKey: (uid: string | null | undefined) => (uid ? `user:${uid}` : null),
 }));
@@ -164,7 +166,8 @@ describe('auth/sync/deploy lifecycle integration', () => {
     });
 
     expect(sessionScopedStorageService.clearSessionScopedClientState).toHaveBeenCalledWith(
-      'manual'
+      'manual',
+      expect.any(Function)
     );
     expect(secondRender.result.current.auth.user).toBe(null);
 

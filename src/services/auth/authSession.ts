@@ -25,10 +25,14 @@ interface AuthRuntimeOptions {
   authRuntime?: AuthRuntime;
 }
 
+// Explicit logout invalidates pending resolutions before Firebase emits null.
+let logoutGeneration = 0;
+
 const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRuntime =>
   authRuntime ?? defaultAuthRuntime;
 
 export const signOut = async (options?: AuthRuntimeOptions): Promise<void> => {
+  logoutGeneration += 1;
   const authRuntime = resolveAuthRuntime(options);
   await authRuntime.ready;
   const userEmail = authRuntime.getCurrentUser()?.email;
@@ -59,6 +63,7 @@ export const onAuthSessionStateChange = (
 ): (() => void) => {
   const authRuntime = resolveAuthRuntime(options);
   let active = true;
+  let revision = 0;
   let unsubscribeAuth = () => {};
 
   markPerf('auth-session:runtime-ready-wait-start');
@@ -69,7 +74,12 @@ export const onAuthSessionStateChange = (
         return;
       }
 
-      unsubscribeAuth = onAuthStateChanged(authRuntime.auth, async (firebaseUser: User | null) => {
+      const detach = onAuthStateChanged(authRuntime.auth, async (firebaseUser: User | null) => {
+        const eventRevision = ++revision;
+        const generation = logoutGeneration;
+        const isCurrent = () =>
+          active && revision === eventRevision && generation === logoutGeneration;
+        if (!isCurrent()) return;
         markPerf('auth-session:firebase-event', firebaseUser ? 'user' : 'null');
         if (firebaseUser) {
           markPerf('auth-session:user-event');
@@ -97,21 +107,25 @@ export const onAuthSessionStateChange = (
         try {
           markPerf('auth-session:role-resolution-start');
           const sessionState = await resolveAuthSessionState(firebaseUser, {
-            signOutUnauthorizedUser: () => firebaseSignOut(authRuntime.auth),
+            signOutUnauthorizedUser: async () => {
+              if (isCurrent()) await firebaseSignOut(authRuntime.auth);
+            },
             // The observer is the authoritative reconciliation point. It must
             // not accept the bootstrap cache because role revocations need to
             // take effect during an ordinary restored session too.
             resolveFirebaseUserRole,
           });
+          if (!isCurrent()) return;
           markPerf('auth-session:role-resolution-done', sessionState.status);
           if (sessionState.status !== 'authorized') {
             resetAuthClaimSyncSnapshot();
           }
           await callback(sessionState);
-          if (sessionState.status === 'authorized' && sessionState.user.role) {
+          if (isCurrent() && sessionState.status === 'authorized' && sessionState.user.role) {
             void ensureUserRoleClaim(firebaseUser, sessionState.user.role);
           }
         } catch (error) {
+          if (!isCurrent()) return;
           resetAuthClaimSyncSnapshot();
           const operationalError = recordAuthOperationalError(
             'on_auth_session_state_change',
@@ -135,8 +149,14 @@ export const onAuthSessionStateChange = (
           );
         }
       });
+      markPerf('auth-session:observer-attached');
+      unsubscribeAuth = () => {
+        detach();
+        markPerf('auth-session:observer-detached');
+      };
     })
     .catch(async error => {
+      if (!active) return;
       resetAuthClaimSyncSnapshot();
       const operationalError = recordAuthOperationalError('on_auth_session_state_change', error, {
         code: 'auth_session_state_resolution_failed',
@@ -159,6 +179,7 @@ export const onAuthSessionStateChange = (
     });
 
   return () => {
+    if (!active) return;
     active = false;
     unsubscribeAuth();
   };
@@ -166,12 +187,16 @@ export const onAuthSessionStateChange = (
 
 export const resolveCurrentAuthSessionState = async (
   options?: AuthRuntimeOptions
-): Promise<AuthSessionState> => {
+): Promise<AuthSessionState | null> => {
   const authRuntime = resolveAuthRuntime(options);
+  const generation = logoutGeneration;
   markPerf('auth-current:runtime-ready-wait-start');
   await authRuntime.ready;
   markPerf('auth-current:runtime-ready-done');
   const firebaseUser = authRuntime.getCurrentUser();
+  if (generation !== logoutGeneration) return null;
+  const isCurrent = () =>
+    generation === logoutGeneration && authRuntime.getCurrentUser() === firebaseUser;
   markPerf('auth-current:user-state', firebaseUser ? 'user' : 'null');
 
   if (!firebaseUser) {
@@ -192,9 +217,12 @@ export const resolveCurrentAuthSessionState = async (
   try {
     markPerf('auth-current:role-resolution-start');
     const sessionState = await resolveAuthSessionState(firebaseUser, {
-      signOutUnauthorizedUser: () => firebaseSignOut(authRuntime.auth),
+      signOutUnauthorizedUser: async () => {
+        if (isCurrent()) await firebaseSignOut(authRuntime.auth);
+      },
       resolveFirebaseUserRole: resolveFirebaseUserRoleForBootstrap,
     });
+    if (!isCurrent()) return null;
     markPerf('auth-current:role-resolution-done', sessionState.status);
     if (sessionState.status !== 'authorized') {
       resetAuthClaimSyncSnapshot();
@@ -204,6 +232,7 @@ export const resolveCurrentAuthSessionState = async (
     }
     return sessionState;
   } catch (error) {
+    if (!isCurrent()) return null;
     resetAuthClaimSyncSnapshot();
     const operationalError = recordAuthOperationalError(
       'resolve_current_auth_session_state',

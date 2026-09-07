@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4908032,
-  "_precacheMaxBytesComment": "Clinical library (Documentos, 2026-09-06): +67840 bytes (1.40%) over the 4840192-byte staff-discovery ceiling for the lazy ClinicalLibraryDrawer chunk (55.2 KB: static catalog, infusion and dosing calculators, six score definitions) plus its quick-action barrel. Kept inside the precache on purpose so calculators and scores keep working offline. Local feature build measured 4785.6 KiB (input validation and step-back navigation added about 2 KB to the drawer) versus the previous 4726.8 KiB ceiling. Documents stay outside the precache under docs/ and templates/; no new exclusions, dependencies or relaxed warning bands.",
+  "precacheMaxBytes": 4910080,
+  "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -54,8 +54,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "Documentos toolbar action (2026-09-06): +2000 bytes (0.33%) over the 610608-byte staff-discovery ceiling for the lazy import wrapper, the toolbar fallback button and the renderCensusTrailingActions plumbing in the authenticated shell. Local feature build measured 597.5 KiB (611811 bytes). The panel, catalog and tools stay behind the lazy ClinicalLibraryDrawer boundary; keep error enforcement and all unrelated ceilings unchanged.",
-      "maxBytes": 612608,
+      "_comment": "PR #353 integrated with #356-358: preserve the current 614400-byte auth ceiling (PR #356: measured +1183 bytes plus baseline drift), then the original +2000-byte Documentos toolbar allowance. Total 616400, without extra merge headroom. Panel/catalog/tools remain lazy; session observers, inactivity and cleanup remain intact. Error enforcement and unrelated budgets unchanged.",
+      "maxBytes": 616400,
       "severity": "error"
     }
   ],

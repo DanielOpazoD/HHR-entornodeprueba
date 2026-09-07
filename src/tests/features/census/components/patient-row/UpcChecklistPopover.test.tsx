@@ -109,20 +109,20 @@ describe('UpcChecklistPopover', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
     expect(await screen.findByText('1 evaluaciones · 1/1')).toBeInTheDocument();
   });
-  it('allows consultation outside UPC beds or in read-only mode without offering evaluation controls', async () => {
+  it('allows consultation in read-only mode on UPC beds without offering evaluation controls', async () => {
     render(
       <table>
         <tbody>
           <tr>
             <UpcChecklistPopover
-              data={DataFactory.createMockPatient('H1C1')}
+              data={DataFactory.createMockPatient('R1')}
               checklist={{
                 uciCriteria: [],
                 utiCriteria: [],
                 classification: null,
                 evaluatedAt: '2026-09-04T12:00:00Z',
               }}
-              eligible={false}
+              eligible
               readOnly
               actor={actor}
               evaluationContext={evaluationContext}
@@ -139,6 +139,36 @@ describe('UpcChecklistPopover', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Evaluar' })).not.toBeInTheDocument();
   });
+  it.each([null, 'UPC_UCI', 'UPC_UTI'] as const)(
+    'hides UPC controls on medium beds even with a previous %s evaluation',
+    classification => {
+      render(
+        <table>
+          <tbody>
+            <tr>
+              <UpcChecklistPopover
+                data={DataFactory.createMockPatient('H6C2', { isUPC: true })}
+                checklist={{
+                  uciCriteria: [],
+                  utiCriteria: [],
+                  classification,
+                  evaluatedAt: '2026-09-04T12:00:00Z',
+                }}
+                eligible={false}
+                actor={actor}
+                evaluationContext={{ ...evaluationContext, bedId: 'H6C2' }}
+                onSave={vi.fn()}
+              />
+            </tr>
+          </tbody>
+        </table>
+      );
+      expect(screen.getByRole('cell')).toHaveTextContent('—');
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(screen.queryByText('Sin criterios')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    }
+  );
   it('formats the census date and keeps the draft open while scrolling', () => {
     renderPopover();
     fireEvent.click(screen.getByRole('button', { name: 'Evaluación UPC pendiente' }));

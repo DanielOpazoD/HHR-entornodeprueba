@@ -2,6 +2,7 @@ type PerfMarkEntry = {
   name: string;
   t: number;
   detail?: string;
+  count: number;
 };
 
 const PERF_AUDIT_TAG = '[HHR-PERF]';
@@ -59,12 +60,15 @@ export const markPerf = (name: string, detail?: string): void => {
     return;
   }
 
-  if (state.marks.some(mark => mark.name === name)) {
+  const existing = state.marks.find(mark => mark.name === name);
+  if (existing) {
+    existing.count += 1;
+    state.reportedMarkCount = -1;
     return;
   }
 
   const t = performance.now();
-  state.marks.push({ name, t, detail });
+  state.marks.push({ name, t, detail, count: 1 });
 
   try {
     performance.mark(name);
@@ -113,7 +117,7 @@ export const flushPerfReport = (trigger: string): void => {
     lines.push(
       `${PERF_AUDIT_TAG} ${mark.name.padEnd(40)} ${(mark.t - startAt)
         .toFixed(1)
-        .padStart(8)} ms${detail}`
+        .padStart(8)} ms${detail} · ejecuciones=${mark.count}`
     );
   }
 

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { defaultAuditPort } from '@/application/ports/auditPort';
-import { ACTIVITY_EVENTS, SESSION_TIMEOUT_MS } from '@/constants/security';
+import { startSessionActivityMonitor } from '@/services/auth/sessionActivityMonitor';
 import { hasRecentManualLogout, markRecentManualLogout } from '@/services/auth/authLogoutState';
 import {
   clearPersistedFirebaseAuthState,
@@ -13,10 +13,7 @@ import type { AuthSessionState } from '@/types/authSessionTypes';
 import type { AuthUser } from '@/types/authRoleTypes';
 import { safeJsonParse } from '@/utils/jsonUtils';
 import { authStateLogger } from '@/hooks/hookLoggers';
-import {
-  clearSessionScopedClientState,
-  resolveSessionOwnerKey,
-} from '@/services/storage/sessionScopedStorageService';
+import { clearSessionScopedClientState } from '@/services/storage/sessionScopedStorageService';
 import { clearQueryCache } from '@/config/queryClient';
 import { broadcastLogout } from '@/services/auth/authBroadcastChannel';
 import { clearCachedUserAvatarProfiles } from '@/services/user-profile/userAvatarProfileCache';
@@ -96,8 +93,6 @@ export const createHandleLogout =
     setSessionState: (sessionState: AuthSessionState) => void
   ): ((reason?: 'manual' | 'automatic') => Promise<void>) =>
   async (reason: 'manual' | 'automatic' = 'manual') => {
-    const ownerKey = resolveSessionOwnerKey(user?.uid);
-
     // 1. Synchronous operations first — cannot be interrupted by navigation or tab close
     setSessionState(createUnauthenticatedAuthSessionState());
     resetLocationToLoginRoute();
@@ -122,21 +117,13 @@ export const createHandleLogout =
     // 2. Async operations in parallel — best-effort, one failure does not block others
     const results = await Promise.allSettled([
       user?.email ? defaultAuditPort.logUserLogout(user.email, reason) : Promise.resolve(),
-      Promise.resolve(signOut())
-        .catch((e: unknown) =>
-          authStateLogger.warn('Firebase signOut failed (probably offline)', e)
-        )
-        .finally(() => {
-          // The user chose to leave: drop any persisted auth copy so the next
-          // load can never flash the authenticated chrome or restore a ghost
-          // session, even when the Firebase signOut itself failed.
+      clearSessionScopedClientState(reason, async () => {
+        try {
+          await signOut();
+        } finally {
           clearPersistedFirebaseAuthState();
-        }),
-      ownerKey
-        ? Promise.resolve(clearSessionScopedClientState(reason)).catch((e: unknown) =>
-            authStateLogger.warn('Local session cleanup failed during logout', e)
-          )
-        : Promise.resolve(),
+        }
+      }),
     ]);
 
     for (const result of results) {
@@ -150,31 +137,18 @@ export const useInactivityLogout = (
   user: AuthUser | null,
   handleLogout: (reason?: 'manual' | 'automatic') => Promise<void>
 ): void => {
+  const userId = user?.uid;
+  const logoutRef = useRef(handleLogout);
   useEffect(() => {
-    if (!user) return;
-
-    let timeoutId: NodeJS.Timeout;
-
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        authStateLogger.warn('Logout due to inactivity');
-        void handleLogout('automatic');
-      }, SESSION_TIMEOUT_MS);
-    };
-
-    ACTIVITY_EVENTS.forEach(event => {
-      window.addEventListener(event, resetTimer);
+    logoutRef.current = handleLogout;
+  }, [handleLogout]);
+  useEffect(() => {
+    if (!userId) return;
+    return startSessionActivityMonitor(userId, () => {
+      authStateLogger.warn('Logout due to inactivity');
+      void logoutRef.current('automatic');
     });
-    resetTimer();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      ACTIVITY_EVENTS.forEach(event => {
-        window.removeEventListener(event, resetTimer);
-      });
-    };
-  }, [user, handleLogout]);
+  }, [userId]);
 };
 
 export const getAuthBootstrapTimeoutMs = (): number =>

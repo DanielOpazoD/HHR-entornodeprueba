@@ -50,6 +50,9 @@ export const useDailyRecordQuery = (
     queryKey,
     queryFn: createDailyRecordQueryFn(dailyRecord, date, shouldSyncFromRemote),
     enabled: !!date,
+    // Brief tab returns can reuse fresh data. Stale resumes still pass through
+    // the freshness gate; reconnect keeps the global forced remote check.
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {

@@ -2,6 +2,16 @@
 
 ## Objetivo
 
+### Limpieza de sesión pendiente
+
+`session_cleanup_failed` indica que no se confirmó la limpieza completa. Comprobar
+si el navegador permite Web Storage/IndexedDB y si hay otra pestaña completando
+el cierre. No borrar manualmente todos los almacenes para resolver una espera:
+podrían pertenecer a una sesión posterior. Restaurar el acceso al almacenamiento
+y reintentar el ingreso; la admisión vuelve a comprobar la limpieza pendiente.
+`auth/session-storage-cleanup-failed` mantiene el censo sin usuario autorizado
+hasta que esa preparación se complete. No es una revocación de permisos.
+
 Resolver rápido incidentes donde un usuario:
 
 - debería poder entrar y no puede;

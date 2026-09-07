@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import { signOut, onAuthSessionStateChange } from '@/services/auth/authSession';
 import { hasActiveFirebaseSession } from '@/services/auth/authFallback';
 import {
@@ -29,9 +29,9 @@ import {
 } from '@/services/auth/authStorageHints';
 import {
   createAuthenticatingAuthSessionState,
+  createAuthErrorSessionState,
   createUnauthenticatedAuthSessionState,
   getAuthSessionStateUser,
-  toResolvedAuthSessionState,
 } from '@/services/auth/authSessionState';
 import {
   type FirestoreSyncState,
@@ -115,21 +115,53 @@ export const useAuthState = (): UseAuthStateReturn => {
   const [initializesUnauthenticated] = useState(
     () => !e2eBootstrapUser && shouldInitializeAsUnauthenticated()
   );
-  const [sessionState, setSessionState] = useState<AuthSessionState>(() => {
+  const [sessionState, setRawSessionState] = useState<AuthSessionState>(() => {
     if (e2eBootstrapUser) {
-      return toResolvedAuthSessionState(e2eBootstrapUser);
+      return createAuthenticatingAuthSessionState();
     }
 
     return initializesUnauthenticated
       ? createUnauthenticatedAuthSessionState()
       : createAuthenticatingAuthSessionState();
   });
+  const admissionRevision = useRef(0);
+  const sessionStateRef = useRef(sessionState);
+  sessionStateRef.current = sessionState;
+  const setSessionState = useCallback((update: SetStateAction<AuthSessionState>) => {
+    const next = typeof update === 'function' ? update(sessionStateRef.current) : update;
+    const revision = ++admissionRevision.current;
+    if (next.status !== 'authorized') {
+      setRawSessionState(next);
+      return;
+    }
+    setRawSessionState(createAuthenticatingAuthSessionState());
+    void Promise.resolve(reconcileAuthorizedSessionOwner(resolveSessionOwnerKey(next.user.uid)!))
+      .then(() => {
+        if (revision === admissionRevision.current) setRawSessionState(next);
+      })
+      .catch(() => {
+        if (revision === admissionRevision.current)
+          setRawSessionState(
+            createAuthErrorSessionState({
+              code: 'auth/session-storage-cleanup-failed',
+              message: 'No se pudo preparar el almacenamiento de la sesión. Reintenta el ingreso.',
+              retryable: true,
+            })
+          );
+      });
+  }, []);
+  useEffect(
+    () => () => {
+      admissionRevision.current += 1;
+    },
+    []
+  );
   const currentUser = getAuthSessionStateUser(sessionState);
-  const [authLoading, setAuthLoading] = useState(!e2eBootstrapUser && !initializesUnauthenticated);
+  const [authLoading, setAuthLoading] = useState(!initializesUnauthenticated);
   const isOnline = useOnlineStatus();
   const handleLogout = useMemo(
     () => createHandleLogout(currentUser, signOut, setSessionState),
-    [currentUser]
+    [currentUser, setSessionState]
   );
   const isFirebaseConnected = useFirebaseConnectionStatus(
     currentUser,
@@ -143,10 +175,12 @@ export const useAuthState = (): UseAuthStateReturn => {
   // re-suscribía en bucle (OOM en tests).
   const setSessionStatePreservingUnauthorizedReason = useCallback(
     (next: AuthSessionState) =>
-      setSessionState(current =>
-        shouldPreserveUnauthorizedSessionReason(current, next) ? current : next
+      setSessionState(
+        shouldPreserveUnauthorizedSessionReason(sessionStateRef.current, next)
+          ? sessionStateRef.current
+          : next
       ),
-    []
+    [setSessionState]
   );
   useInactivityLogout(currentUser, handleLogout);
   // Solo para sesiones plenamente autorizadas con Firebase Auth real: la firma
@@ -173,7 +207,7 @@ export const useAuthState = (): UseAuthStateReturn => {
     () =>
       resolveNormalizedAuthOperationalState({
         sessionState,
-        authLoading,
+        authLoading: authLoading || sessionState.status === 'authenticating',
         isFirebaseConnected,
         isOnline,
         handleLogout,
@@ -181,39 +215,35 @@ export const useAuthState = (): UseAuthStateReturn => {
     [sessionState, authLoading, isFirebaseConnected, isOnline, handleLogout]
   );
 
-  useEffect(() => {
-    if (operationalState.authLoading || !operationalState.authorizedUser) {
-      return;
-    }
-
-    const ownerKey = resolveSessionOwnerKey(operationalState.authorizedUser.uid);
-    if (!ownerKey) {
-      return;
-    }
-
-    void reconcileAuthorizedSessionOwner(ownerKey);
-  }, [operationalState.authLoading, operationalState.authorizedUser]);
-
   // Cross-tab: react to logout/session events from other tabs
   useEffect(() => {
     const cleanup = onAuthChannelMessage(message => {
       if (message.type === 'LOGOUT') {
-        clearQueryCache();
-        setSessionState(createUnauthenticatedAuthSessionState());
-        resetLocationToLoginRoute();
         // Session-scoped Firebase persistence is local to this tab. Clearing
         // browser keys is not enough because Firebase can retain currentUser
         // in memory and emit it again; sign out locally without rebroadcasting.
-        void Promise.allSettled([signOut(), clearSessionScopedClientState(message.reason)]);
+        void clearSessionScopedClientState(
+          message.reason,
+          async () => {
+            clearQueryCache();
+            setSessionState(createUnauthenticatedAuthSessionState());
+            resetLocationToLoginRoute();
+            clearRecentAuthenticatedSessionHint();
+            try {
+              await signOut();
+            } finally {
+              clearPersistedFirebaseAuthState();
+            }
+          },
+          message.generation
+        ).catch(() => undefined);
         // Drop this tab's own persisted auth copy too: with session-scoped
         // Firebase persistence the initiating tab's signOut cannot reach it,
         // so a refresh here would otherwise restore the closed session.
-        clearPersistedFirebaseAuthState();
-        clearRecentAuthenticatedSessionHint();
       }
     });
     return cleanup;
-  }, []);
+  }, [setSessionState]);
 
   return {
     sessionState: operationalState.sessionState,

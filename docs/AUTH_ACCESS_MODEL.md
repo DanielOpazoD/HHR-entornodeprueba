@@ -1,5 +1,44 @@
 # Auth Access Model
 
+## Aislamiento de limpieza y nuevo ingreso
+
+La admisión de un usuario espera la transición de almacenamiento antes de publicar
+un estado autorizado al censo. La limpieza y la admisión usan el mismo Web Lock
+del origen, además de una cola por documento. Firebase y su copia persistida se
+cierran dentro de esa transición, tanto en el cierre normal como en el recibido
+por canal y el botón del shell de arranque.
+
+Cada admisión inicial obtiene una generación aleatoria compartida, reutilizada
+por las demás pestañas del mismo propietario. Tras cerrar, el siguiente ingreso
+obtiene otra generación, incluso para el mismo usuario. Un mensaje de cierre de
+una generación anterior no debe borrar el estado de la nueva. Los mensajes
+antiguos sin generación conservan compatibilidad: para la protección completa
+entre documentos es necesario que todas las pestañas ejecuten la versión nueva.
+
+Se intentan independientemente registros, cola y Web Storage. Un error se propaga
+y conserva la marca de limpieza pendiente; la admisión debe reintentarla antes de
+habilitar datos. No se cambia el conjunto de datos que debe eliminarse ni los roles.
+Los adaptadores de registros y cola mantienen su comportamiento anterior salvo
+cuando la limpieza de sesión solicita explícitamente propagar errores.
+
+Si falla el cierre local de Firebase, se conserva su operación para reintentarla
+antes de admitir otro estado autorizado. Incluso si ese reintento resulta exitoso,
+el evento autorizado previo al cierre se descarta: se requiere un ingreso posterior.
+Los mensajes del canal se evalúan dentro de la transición, no antes de esperarla.
+
+Excepción de seguridad: si no se puede leer la generación compartida, no existe
+evidencia para autorizar un borrado global. En ese caso se intenta cerrar Firebase
+y limpiar sessionStorage, se informa `session_cleanup_failed` y se conserva la
+necesidad de reintentar en el documento. No se promete recuperación persistida si
+el propio navegador impide escribir los metadatos de recuperación. Un fallo al
+escribir la marca, con generación ya verificada, no impide intentar las demás
+limpiezas.
+
+Chrome con Web Locks coordina las pestañas del mismo origen. Sin esa API existe
+serialización local, pero no se garantiza exclusión entre documentos. No se usan
+timeouts para declarar una limpieza completada. Esta protección no cancela por sí
+sola escrituras clínicas ya iniciadas fuera del flujo de autenticación.
+
 ## Objetivo
 
 Definir la fuente de verdad y el flujo real del acceso al sistema para que auth no dependa de leer código disperso.
@@ -55,6 +94,57 @@ Puntos clave:
 - claims viejos no deben volver a autorizar por sí solos un acceso ya revocado
 - si aparece un alias legacy de rol en `config/roles`, backend y Gestión de Roles lo recanonizan a `viewer`
 - Gestión de Roles además intenta resincronizar el custom claim del usuario afectado cuando detecta esa recanonización
+
+### Un solo ciclo de sesión por pestaña
+
+El ciclo de sesión de React pertenece únicamente a `AuthProvider`. Los módulos,
+incluidos los consumidores de Eloísa, leen `useAuth()` y no montan otro `useAuthState()`.
+El bootstrap descarta resultados después de desmontar y limpia cualquier suscripción
+que llegue tarde. El observador descarta resoluciones anteriores a otro evento o a
+un cierre explícito, incluyendo sus efectos de cierre por falta de rol.
+La instrumentación existente conserva el primer tiempo y cuenta las repeticiones;
+esos contadores no representan necesariamente nuevas consultas de red.
+
+### Inactividad compartida
+
+Las 8 horas de inactividad se coordinan por usuario y origen entre pestañas. Cada
+pestaña conserva un temporizador, pero antes de cerrar relee la última actividad
+compartida; al volver a primer plano comprueba el plazo sin convertir la visibilidad
+en actividad. Ratón, teclado, toque y scroll actualizan la marca local, con publicación
+limitada a intervalos de 15 segundos mientras la pestaña puede ejecutar temporizadores;
+al ocultarse o salir publica la última marca pendiente, sin añadir actividad. Usa
+almacenamiento local y el canal de auth existente. No se comparten datos clínicos.
+
+Entrar en una pestaña autenticada conserva el plazo inicial previo. Re-renderizar
+el mismo usuario no reinicia ese plazo. El cierre manual sigue propagándose a todas
+las pestañas. Antes de confirmar un vencimiento automático hay una única espera de
+un segundo para recibir mensajes pendientes y volver a comprobar la actividad. Esa
+espera no garantiza entrega si el navegador sigue suspendiendo mensajes. Si ambos mecanismos no
+están disponibles, queda el temporizador local, sin prometer coordinación entre pestañas.
+
+#### Coste y verificación de PR #356 (6 septiembre 2026)
+
+Owner: runtime de autenticación. Dos builds con el mismo entorno local y lockfile:
+`main` 261747b9 produjo un shell de 611706 bytes; 991419ba produjo 612889 bytes
+(+1183 bytes). El límite anterior, 610608, ya quedaba por debajo del baseline local.
+El nuevo límite es 614400 bytes: ajuste total +3792, con enforcement `error` intacto.
+La precarga medida del cambio fue 4727,5 KiB; su techo pasa de 4840192 a 4842240 bytes
+(+2048). No se excluye el monitor del modo offline ni se añaden dependencias.
+
+Se conserva el arranque síncrono del monitor: diferirlo sólo para mover bytes entre
+chunks añadiría un intervalo sin observación y otro ciclo asíncrono que limpiar.
+Este ajuste reconoce un coste de fiabilidad, no afirma una mejora de velocidad.
+Riesgo: aumento acotado del payload inicial. Rollback: revertir el monitor, restaurar
+la precarga a 4840192 y reducir el shell a 612352 bytes, que cubre el baseline medido.
+Actualizar las expectativas del test de configuración y verificar ambos presupuestos;
+no restaurar 610608 sin resolver primero el exceso preexistente de `main`.
+No ampliar nuevamente sin una nueva medición y justificación.
+Cierre: budgets, preview y pruebas de sesión verdes en el head final.
+
+Chrome confirmó dos pestañas autenticadas, una marca de actividad compartida que
+avanza tras teclado y recuperación de sesión al recargar y al cerrar/abrir una pestaña.
+Las 8 horas y sus carreras se prueban con reloj controlado, sin adelantar el reloj ni
+forzar logout de una sesión clínica real.
 
 ## 3.1 Convergencia obligatoria con Netlify Functions
 

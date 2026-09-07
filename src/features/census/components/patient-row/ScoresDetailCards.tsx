@@ -180,11 +180,7 @@ export const CudyrCard: React.FC<{ cudyr: CudyrCellModel }> = ({ cudyr }) => {
       value={cudyr.category}
       valueClass={t.number}
       accentClass={t.accent}
-      badge={
-        <Badge className={t.chip}>
-          {cudyr.entry.source.includes('Gestión de Camas') ? 'Gestión de Camas' : 'Ficha Médico'}
-        </Badge>
-      }
+      badge={<Badge className={t.chip}>{cudyr.entry.source || 'Fuente no informada'}</Badge>}
       recordedDate={cudyr.entry.recordedDate}
       footer={
         cudyr.entry.author || cudyr.entry.authorRole || cudyr.entry.recordedAt ? (

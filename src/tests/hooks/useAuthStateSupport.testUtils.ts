@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { useState } from 'react';
+import type { ComponentType, PropsWithChildren } from 'react';
 import type { AuthSessionState } from '@/types/authSessionTypes';
 import { useResolvedAuthBootstrap } from '@/hooks/useAuthStateSupport';
 
@@ -67,6 +68,7 @@ type RenderResolvedAuthBootstrapOptions = Omit<
   e2eBootstrapUser?: ResolvedAuthBootstrapOptions['e2eBootstrapUser'];
   initialSessionState?: AuthSessionState;
   initialAuthLoading?: boolean;
+  wrapper?: ComponentType<PropsWithChildren>;
 };
 
 export const authBootstrapTestMocks = {
@@ -124,19 +126,23 @@ export const renderResolvedAuthBootstrap = ({
     user: null,
   },
   initialAuthLoading = true,
+  wrapper,
 }: RenderResolvedAuthBootstrapOptions) =>
-  renderHook(() => {
-    const [sessionState, setSessionState] = useState<AuthSessionState>(initialSessionState);
-    const [authLoading, setAuthLoading] = useState(initialAuthLoading);
+  renderHook(
+    () => {
+      const [sessionState, setSessionState] = useState<AuthSessionState>(initialSessionState);
+      const [authLoading, setAuthLoading] = useState(initialAuthLoading);
 
-    useResolvedAuthBootstrap({
-      e2eBootstrapUser,
-      resolveRedirectAuthSessionOutcome,
-      resolveCurrentAuthSessionOutcome,
-      onAuthSessionStateChange,
-      setSessionState,
-      setAuthLoading,
-    });
+      useResolvedAuthBootstrap({
+        e2eBootstrapUser,
+        resolveRedirectAuthSessionOutcome,
+        resolveCurrentAuthSessionOutcome,
+        onAuthSessionStateChange,
+        setSessionState,
+        setAuthLoading,
+      });
 
-    return { sessionState, authLoading };
-  });
+      return { sessionState, authLoading };
+    },
+    { wrapper }
+  );

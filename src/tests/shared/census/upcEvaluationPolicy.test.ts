@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { resolveUpcReviewReason, assignedUpcNurses } from '@/shared/census/upcEvaluationPolicy';
-import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
+import {
+  resolveUpcReviewReason,
+  assignedUpcNurses,
+  resolveUpcEmailBlockReason,
+} from '@/shared/census/upcEvaluationPolicy';
+import { normalizePatientUpcForBed, resolveEffectiveUpcState } from '@/shared/census/upcBedPolicy';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import { preparePatientForCarryover } from '@/services/repositories/dailyRecordClinicalDomainService';
 import { parsePatientDataWithDefaults } from '@/schemas/zodSchemas';
@@ -21,6 +25,40 @@ const checklist: UpcChecklistRecord = {
 };
 
 describe('UPC daily and movement review policy', () => {
+  it.each(['R1', 'R2', 'R3', 'R4', 'NEO1', 'NEO2'])(
+    'deactivates UPC from %s in medium beds without losing audit or blocking email',
+    bedId => {
+      const original = {
+        ...checklist,
+        evaluatedBedId: bedId,
+        classification: 'UPC_UTI' as const,
+        utiCriteria: ['uti_mon_cardiaca' as const],
+      };
+      const patient = {
+        bedId,
+        patientName: 'Paciente de prueba',
+        isUPC: true,
+        upcChecklist: original,
+      };
+      const moved = normalizePatientUpcForBed(patient, 'H6C2');
+      expect(moved.isUPC).toBe(false);
+      expect(resolveEffectiveUpcState({ ...moved, checklist: moved.upcChecklist })).toEqual({
+        classification: null,
+        isUpc: false,
+      });
+      expect(moved.upcChecklist).toEqual({ ...original, reviewRequired: true });
+      expect(resolveUpcReviewReason(moved.upcChecklist, 'H6C2', '2026-09-04')).toBeNull();
+      expect(
+        resolveUpcEmailBlockReason({ date: '2026-09-04', beds: { H6C2: moved } }, '2026-09-04')
+      ).toBeNull();
+      const returned = normalizePatientUpcForBed(moved, bedId);
+      expect(resolveUpcReviewReason(returned.upcChecklist, bedId, '2026-09-04')).toMatch(
+        /cambio de cama/
+      );
+      expect(patient.upcChecklist).toBe(original);
+      expect(original.reviewRequired).toBeUndefined();
+    }
+  );
   it.each(['R1', 'R2', 'R3', 'R4', 'NEO1', 'NEO2'])('requires a review in %s', bed => {
     expect(resolveUpcReviewReason(undefined, bed, '2026-09-04')).toMatch(/pendiente/);
   });

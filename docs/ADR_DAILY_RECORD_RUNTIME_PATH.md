@@ -42,6 +42,13 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 - Recovery policy belongs in repository/query contracts, not duplicated across hooks and views.
 - The “today empty state” is a last visible fallback, not the first interpretation of a transient remote miss.
 
+## Returning to the census
+
+- The daily-record query refetches on focus only when stale, using the existing five-minute cache policy; brief tab returns do not force another read.
+- Reconnect retains the global forced check, including short network interruptions while the page remains visible.
+- The inactivity freshness gate, its in-flight deduplication, realtime subscription and remote confirmation before clinical mutations remain unchanged. Do not replace them with another cache or coordinator.
+- `useDailyRecordQuery.test.tsx` exercises the real QueryClient defaults and counts repository calls on entry, brief/stale tab returns and reconnect. These counts are not Firestore billing metrics.
+
 ## How To Change Safely
 
 1. If the change affects read/sync semantics, update `dailyRecordQueries.ts` before changing UI consumers.

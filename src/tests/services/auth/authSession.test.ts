@@ -82,6 +82,58 @@ describe('authSession', () => {
     });
   });
 
+  it.each(['unmount', 'new-user', 'logout', 'denied-old-user'])(
+    'ignores a delayed old role after %s',
+    async mode => {
+      let finish!: (role: string | null) => void;
+      mockResolveFirebaseUserRole.mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            finish = resolve;
+          })
+      );
+      const callback = vi.fn();
+      const unsubscribe = onAuthSessionStateChange(callback);
+      await flushObserverRegistration();
+      const old = authStateCallback?.(createFirebaseUserMock({ uid: 'old' }));
+      if (mode === 'unmount') unsubscribe();
+      else if (mode === 'logout') await signOut();
+      else await authStateCallback?.(createFirebaseUserMock({ uid: 'new' }));
+      callback.mockClear();
+      vi.mocked(ensureUserRoleClaim).mockClear();
+      mockFirebaseSignOut.mockClear();
+      finish(mode === 'denied-old-user' ? null : 'admin');
+      await old;
+      expect(callback).not.toHaveBeenCalled();
+      expect(ensureUserRoleClaim).not.toHaveBeenCalled();
+      expect(mockFirebaseSignOut).not.toHaveBeenCalled();
+      unsubscribe();
+    }
+  );
+
+  it('discards an old bootstrap result when the current user changes', async () => {
+    let finish!: (role: string) => void;
+    mockResolveFirebaseUserRoleForBootstrap.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    let current = createFirebaseUserMock({ uid: 'old' });
+    const pending = resolveCurrentAuthSessionState({
+      authRuntime: {
+        ready: Promise.resolve(),
+        auth: mockAuth as never,
+        getCurrentUser: () => current as never,
+      },
+    });
+    await Promise.resolve();
+    current = createFirebaseUserMock({ uid: 'new' });
+    finish('admin');
+    expect(await pending).toBeNull();
+    expect(ensureUserRoleClaim).not.toHaveBeenCalled();
+  });
+
   it('emits the authorized session state for general-login roles during auth state rehydration', async () => {
     const callback = vi.fn();
     onAuthSessionStateChange(callback);
@@ -246,17 +298,17 @@ describe('authSession', () => {
 
   it('resolves the current firebase session without waiting for the auth observer', async () => {
     mockResolveFirebaseUserRoleForBootstrap.mockResolvedValueOnce('admin');
+    const currentUser = createFirebaseUserMock({
+      uid: 'current-1',
+      email: 'current@hospital.cl',
+      displayName: 'Current User',
+    });
 
     const sessionState = await resolveCurrentAuthSessionState({
       authRuntime: {
         ready: Promise.resolve(),
         auth: mockAuth as never,
-        getCurrentUser: () =>
-          createFirebaseUserMock({
-            uid: 'current-1',
-            email: 'current@hospital.cl',
-            displayName: 'Current User',
-          }) as never,
+        getCurrentUser: () => currentUser as never,
       },
     });
 

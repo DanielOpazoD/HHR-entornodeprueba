@@ -322,7 +322,7 @@ export const getPreviousDayRecord = async (currentDate: string): Promise<DailyRe
   }
 };
 
-export const clearAllRecords = async (): Promise<void> => {
+export const clearAllRecords = async (options?: { throwOnError?: boolean }): Promise<void> => {
   try {
     await ensureDbReady();
     if (isDatabaseInFallbackMode()) {
@@ -339,5 +339,6 @@ export const clearAllRecords = async (): Promise<void> => {
       severity: 'warning',
       userSafeMessage: 'No fue posible limpiar los registros locales.',
     });
+    if (options?.throwOnError) throw error;
   }
 };

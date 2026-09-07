@@ -40,7 +40,7 @@ const pad2 = (value: string): string => value.padStart(2, '0');
  * time — the caller then falls back to the form's own resolved instant. Rendering the raw stamp would
  * show the census +6h off (UTC instead of Rapa Nui −06/−05); see the timezone note in the scales parser.
  */
-const measurementEpoch = (raw: string): number | null => {
+const measurementEpoch = (raw: string, recordedEpoch: number | null): number | null => {
   const m = raw
     .trim()
     .match(
@@ -53,7 +53,9 @@ const measurementEpoch = (raw: string): number | null => {
   const epoch = Date.parse(
     `${yyyy}-${pad2(mm)}-${pad2(dd)}T${pad2(hh)}:${mi}:${ss ?? '00'}${offset}`
   );
-  return Number.isNaN(epoch) ? null : epoch;
+  // Eloísa can publish a clinical field later than the record that contains it.
+  // Reject that contradiction without changing valid retrospectively entered measurements.
+  return Number.isNaN(epoch) || (recordedEpoch != null && epoch > recordedEpoch) ? null : epoch;
 };
 
 /** Rayen field ids per reading, most-preferred first (matched case-insensitively). */
@@ -107,7 +109,7 @@ export const parseVitalSigns = (raw: unknown): PatientVitalSigns[] => {
     // local time so the census shows island time, not UTC (+6h). Fall back to the form's own instant,
     // then to the raw stamp.
     const clinicalStamp = get(TIME_IDS);
-    const epoch = measurementEpoch(clinicalStamp) ?? when.epoch;
+    const epoch = measurementEpoch(clinicalStamp, when.epoch) ?? when.epoch;
 
     const record: PatientVitalSigns = {
       ...(form.encounterEventId != null && str(form.encounterEventId)

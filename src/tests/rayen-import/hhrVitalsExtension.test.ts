@@ -110,10 +110,13 @@ describe('extension vital signs parser', () => {
 
   it('renders the clinical stamp in Rapa Nui local time (UTC naive stamp)', () => {
     const [record] = vitals.parseVitalSigns([
-      buildForm([
-        { id: 'global_PASSent', value: '120' },
-        { id: 'SIGNS_FechaHora', value: '16-07-2026 13:00' },
-      ]),
+      buildForm(
+        [
+          { id: 'global_PASSent', value: '120' },
+          { id: 'SIGNS_FechaHora', value: '16-07-2026 13:00' },
+        ],
+        { startDateTime: '16-07-2026 07:01:00 -06:00' }
+      ),
     ]);
     // 13:00 UTC → 07:00 Rapa Nui (−06:00 in July).
     expect(record.recordedAt).toBe('16-07-2026 07:00');
