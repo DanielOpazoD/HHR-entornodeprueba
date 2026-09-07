@@ -15,14 +15,18 @@ import { isCurrentUserAuthorizedForGeneralLogin } from '@/services/auth/authPoli
 
 vi.mock('firebase/auth', () => ({
   signInWithPopup: vi.fn(),
+  signInWithCredential: vi.fn(),
   signInWithEmailAndPassword: vi.fn(),
   createUserWithEmailAndPassword: vi.fn(),
   signOut: vi.fn(),
   signInWithRedirect: vi.fn(),
   getRedirectResult: vi.fn(),
-  GoogleAuthProvider: vi.fn(function GoogleAuthProvider() {
-    return { setCustomParameters: vi.fn() };
-  }),
+  GoogleAuthProvider: Object.assign(
+    vi.fn(function GoogleAuthProvider() {
+      return { setCustomParameters: vi.fn() };
+    }),
+    { credential: vi.fn((idToken: string) => ({ idToken })) }
+  ),
 }));
 
 vi.mock('@/services/auth/authAccessResolution', () => ({
@@ -88,6 +92,42 @@ describe('auth runtime injection', () => {
     await signInWithGoogle({ authRuntime });
 
     expect(firebaseAuth.signInWithPopup).toHaveBeenCalledWith(authRuntime.auth, expect.anything());
+  });
+
+  it('exchanges a current GIS credential in the same Firebase runtime without popup', async () => {
+    const authRuntime = createAuthRuntime();
+    const firebaseUser = { uid: 'fedcm-1', email: 'admin@hospital.cl' } as firebaseAuth.User;
+    vi.mocked(firebaseAuth.signInWithCredential).mockImplementation(async () => {
+      Object.assign(authRuntime.auth, { currentUser: firebaseUser });
+      return { user: firebaseUser } as firebaseAuth.UserCredential;
+    });
+    const user = await signInWithGoogle({
+      authRuntime,
+      googleCredential: {
+        idToken: 'test-auth-token',
+        isCurrent: () => true,
+      },
+    });
+    expect(user).toMatchObject({ uid: 'fedcm-1', role: 'admin' });
+    expect(firebaseAuth.signInWithCredential).toHaveBeenCalledWith(authRuntime.auth, {
+      idToken: 'test-auth-token',
+    });
+    expect(firebaseAuth.signInWithPopup).not.toHaveBeenCalled();
+  });
+
+  it('does not exchange an obsolete GIS credential or navigate as fallback', async () => {
+    await expect(
+      signInWithGoogle({
+        authRuntime: createAuthRuntime(),
+        googleCredential: {
+          idToken: 'dummy',
+          isCurrent: () => false,
+        },
+      })
+    ).rejects.toMatchObject({ code: 'auth/cancelled-popup-request' });
+    expect(firebaseAuth.signInWithCredential).not.toHaveBeenCalled();
+    expect(firebaseAuth.signInWithPopup).not.toHaveBeenCalled();
+    expect(firebaseAuth.signInWithRedirect).not.toHaveBeenCalled();
   });
 
   it('falls back to redirect auth when popup flow hits a recoverable COOP error', async () => {

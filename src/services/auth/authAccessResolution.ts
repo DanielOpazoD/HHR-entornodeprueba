@@ -13,6 +13,7 @@ const ROLE_VALIDATION_UNAVAILABLE_MESSAGE =
 
 interface AuthRuntimeOptions {
   authRuntime?: AuthRuntime;
+  isCurrent?: () => boolean;
 }
 
 const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRuntime =>
@@ -20,9 +21,13 @@ const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRunti
 
 const rejectUnauthorizedUser = async (
   message: string,
-  authRuntime: AuthRuntime
+  authRuntime: AuthRuntime,
+  isCurrent?: () => boolean
 ): Promise<never> => {
   await authRuntime.ready;
+  if (isCurrent && !isCurrent()) {
+    throw createAuthError('auth/cancelled-popup-request', 'Inicio cancelado.');
+  }
   await firebaseSignOut(authRuntime.auth);
   throw new Error(message);
 };
@@ -33,12 +38,18 @@ export const authorizeFirebaseUser = async (
 ): Promise<AuthUser> => {
   const authRuntime = resolveAuthRuntime(options);
   const { allowed, role, resolution } = await resolveGeneralLoginAccessForEmail(user.email || '');
+  if (options?.isCurrent && !options.isCurrent()) {
+    throw createAuthError('auth/cancelled-popup-request', 'Inicio cancelado.');
+  }
   if (allowed && role) {
     return toAuthUser(user, role);
   }
 
   if (resolution === 'unavailable') {
     const tokenRole = await resolveUserRoleClaim(user);
+    if (options?.isCurrent && !options.isCurrent()) {
+      throw createAuthError('auth/cancelled-popup-request', 'Inicio cancelado.');
+    }
     if (tokenRole) {
       return toAuthUser(user, tokenRole);
     }
@@ -47,7 +58,7 @@ export const authorizeFirebaseUser = async (
   }
 
   if (!allowed) {
-    return rejectUnauthorizedUser(STANDARD_UNAUTHORIZED_MESSAGE, authRuntime);
+    return rejectUnauthorizedUser(STANDARD_UNAUTHORIZED_MESSAGE, authRuntime, options?.isCurrent);
   }
   throw createAuthError('auth/role-validation-unavailable', ROLE_VALIDATION_UNAVAILABLE_MESSAGE);
 };

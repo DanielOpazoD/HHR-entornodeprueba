@@ -41,6 +41,28 @@ sola escrituras clínicas ya iniciadas fuera del flujo de autenticación.
 
 ## Objetivo
 
+### Acceso principal con selector Google (FedCM)
+
+`VITE_GOOGLE_SIGN_IN_CLIENT_ID` muestra el único botón oficial GIS con
+`use_fedcm_for_button`, sin One Tap automático ni selección automática. No se activa
+automáticamente al montar la pantalla. El cliente OAuth debe pertenecer al proveedor Google de
+Firebase y autorizar el origen JavaScript exacto, incluido el puerto local.
+
+El ID token se entrega directamente a Firebase, sin guardarlo ni registrarlo.
+Se reutilizan el bloqueo de ingreso, la transición de almacenamiento y la resolución
+de roles. No se crean observadores adicionales ni se solicitan permisos de Drive.
+Si falta configuración o falla la carga de GIS, se muestra en su lugar un único
+botón de respaldo con el popup y recuperación existentes. Nunca se inicia ese popup
+sin pulsar el botón. Al desmontar el selector se descartan callbacks antiguos. FedCM depende del
+navegador y de Google; no garantiza evitar una ventana externa en todos los casos.
+
+El cliente público está configurado en `netlify.toml`; cada dominio estable debe
+estar autorizado en Google OAuth y Firebase. Los previews con hostname variable
+requieren su propio origen autorizado para probar GIS; no se amplían permisos OAuth.
+Rollback: quitar la variable del build y reconstruir para volver al único botón
+de respaldo. La prueba en Chrome no demuestra compatibilidad con todos los navegadores
+ni una mejora de velocidad.
+
 Definir la fuente de verdad y el flujo real del acceso al sistema para que auth no dependa de leer código disperso.
 
 Estado documental:

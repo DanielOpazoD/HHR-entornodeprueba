@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
+import { GoogleIdentitySignIn } from './GoogleIdentitySignIn';
 import { AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 
 import { useConfirmDialog } from '@/context/UIContext';
@@ -13,6 +14,7 @@ interface LoginPageCardProps {
   errorCode: string | null;
   canRetryGoogleSignIn?: boolean;
   onGoogleSignIn: () => void | Promise<void>;
+  onGoogleCredential?: (idToken: string, isCurrent: () => boolean) => Promise<void>;
   onLocalResetStart?: () => void;
 }
 
@@ -45,9 +47,14 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
   errorCode,
   canRetryGoogleSignIn = false,
   onGoogleSignIn,
+  onGoogleCredential,
   onLocalResetStart,
 }) => {
   const { confirm } = useConfirmDialog();
+  const [showIdentity, setShowIdentity] = useState(
+    Boolean(onGoogleCredential && import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID)
+  );
+  const useFallback = useCallback(() => setShowIdentity(false), []);
   const accentBarClass = isDayGradient
     ? 'bg-gradient-to-r from-sky-300 via-medical-500 to-cyan-600'
     : 'bg-gradient-to-r from-slate-500 via-sky-700 to-slate-900';
@@ -94,25 +101,35 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
         <div className="mb-8" />
 
         <div className="space-y-3">
-          <button
-            type="button"
-            onClick={onGoogleSignIn}
-            disabled={isAnyLoading}
-            data-testid="login-google-button"
-            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/60 bg-white/95 px-4 py-4 font-bold text-slate-700 shadow-lg shadow-slate-950/20 transition-all duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white hover:shadow-xl active:scale-[0.99] disabled:bg-white/70"
-          >
-            {isGoogleLoading ? (
-              <>
-                <Loader2 className="h-6 w-6 animate-spin text-medical-600" />
-                Conectando con Google...
-              </>
-            ) : (
-              <>
-                <GoogleIcon className="h-6 w-6" />
-                Ingresar con Google
-              </>
-            )}
-          </button>
+          {showIdentity && onGoogleCredential ? (
+            <GoogleIdentitySignIn
+              disabled={isAnyLoading}
+              onCredential={onGoogleCredential}
+              onUnavailable={useFallback}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                void onGoogleSignIn();
+              }}
+              disabled={isAnyLoading}
+              data-testid="login-google-button"
+              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/60 bg-white/95 px-4 py-4 font-bold text-slate-700 shadow-lg shadow-slate-950/20 transition-all duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white hover:shadow-xl active:scale-[0.99] disabled:bg-white/70"
+            >
+              {isGoogleLoading ? (
+                <>
+                  <Loader2 className="h-6 w-6 animate-spin text-medical-600" />
+                  Conectando con Google...
+                </>
+              ) : (
+                <>
+                  <GoogleIcon className="h-6 w-6" />
+                  Ingresar con Google
+                </>
+              )}
+            </button>
+          )}
 
           <div className="flex justify-center">
             <button
@@ -135,9 +152,13 @@ export const LoginPageCard: React.FC<LoginPageCardProps> = ({
             aria-live="polite"
             className="mt-5 rounded-2xl border border-white/25 bg-white/10 px-4 py-3 text-center backdrop-blur-md"
           >
-            <p className="text-sm font-semibold text-white">{AUTH_UI_COPY.popupPendingTitle}</p>
+            <p className="text-sm font-semibold text-white">
+              {showIdentity ? 'Validando tu acceso…' : AUTH_UI_COPY.popupPendingTitle}
+            </p>
             <p className="mt-1 text-xs text-white/80 text-balance">
-              {AUTH_UI_COPY.popupPendingHint}
+              {showIdentity
+                ? 'Comprobando sesión y permisos de HHR.'
+                : AUTH_UI_COPY.popupPendingHint}
             </p>
           </div>
         )}
