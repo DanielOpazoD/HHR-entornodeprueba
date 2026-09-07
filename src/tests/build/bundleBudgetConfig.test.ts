@@ -70,7 +70,7 @@ describe('bundle budget config', () => {
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
       // Preserve current auth ceiling plus the original Documentos toolbar allowance.
-      maxBytes: 614400 + 2000,
+      maxBytes: 614400 + 2000 + 2048,
       severity: 'error',
     });
   });

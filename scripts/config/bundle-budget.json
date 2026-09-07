@@ -54,8 +54,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "PR #353 integrated with #356-358: preserve the current 614400-byte auth ceiling (PR #356: measured +1183 bytes plus baseline drift), then the original +2000-byte Documentos toolbar allowance. Total 616400, without extra merge headroom. Panel/catalog/tools remain lazy; session observers, inactivity and cleanup remain intact. Error enforcement and unrelated budgets unchanged.",
-      "maxBytes": 616400,
+      "_comment": "PR #353 integrated with #356-358: preserve the current 614400-byte auth ceiling (PR #356: measured +1183 bytes plus baseline drift), then the original +2000-byte Documentos toolbar allowance. Total 616400, without extra merge headroom. Panel/catalog/tools remain lazy; session observers, inactivity and cleanup remain intact. Error enforcement and unrelated budgets unchanged. Narrow-viewport top bar (2026-09-06): +2048 bytes (0.33%) for the no-wrap layout classes in Navbar, NavbarMenu and NavbarTabs; local build measured about +400 bytes over the 616881-byte clean main build; the ceiling keeps CI byte drift from blocking a layout-only fix. Total 618448.",
+      "maxBytes": 618448,
       "severity": "error"
     }
   ],

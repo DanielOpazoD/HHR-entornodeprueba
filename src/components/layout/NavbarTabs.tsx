@@ -23,14 +23,17 @@ const NavTab: React.FC<NavTabProps> = ({ label, icon: Icon, isActive, onClick, t
   <button
     onClick={onClick}
     data-testid={testId}
+    aria-label={label}
+    title={label}
     className={clsx(
-      'flex items-center gap-2 px-4 py-1.5 transition-all duration-200 text-[13px] tracking-tight rounded-full ring-1 ring-transparent',
+      'flex shrink-0 items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-1.5 transition-all duration-200 text-[13px] tracking-tight rounded-full ring-1 ring-transparent',
       isActive
         ? 'text-white font-semibold bg-white/[0.16] ring-white/18 shadow-sm shadow-black/10'
         : 'text-white/65 hover:text-white hover:bg-white/[0.08] hover:ring-white/12 font-medium'
     )}
   >
-    <Icon size={15} /> {label}
+    <Icon size={15} />
+    <span className="hidden sm:inline">{label}</span>
   </button>
 );
 
@@ -102,7 +105,7 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
   };
 
   return (
-    <div className="flex max-w-full items-center gap-1">
+    <div className="flex min-w-0 flex-1 items-center gap-1">
       {/* Clinical Modules - Prominent tabs */}
       <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
         {clinicalTabs.map(item => (
