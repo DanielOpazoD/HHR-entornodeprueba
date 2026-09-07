@@ -186,7 +186,9 @@ export const resolvePatchOutcomeFeedback = (
 
   if (result.consistencyState === 'unrecoverable') {
     return createSyncDegraded(
-      'Cambio local sin sincronización',
+      result.updatedRemotely
+        ? 'Cambio guardado; copia local pendiente'
+        : 'Cambio local sin sincronización',
       resolveSyncConsistencyMessage(
         result,
         'El cambio quedó guardado localmente, pero requiere revisión antes de quedar confirmado.'
