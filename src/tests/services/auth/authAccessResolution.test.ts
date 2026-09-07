@@ -102,6 +102,23 @@ describe('authAccessResolution', () => {
     expect(mockFirebaseSignOut).toHaveBeenCalledTimes(1);
   });
 
+  it('does not sign out a replacement session after a discarded pilot lookup', async () => {
+    let finish!: (value: unknown) => void;
+    let current = true;
+    mockResolveGeneralLoginAccessForEmail.mockReturnValue(
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    const pending = authorizeFirebaseUser({ uid: 'old', email: 'old@hospital.cl' } as never, {
+      isCurrent: () => current,
+    });
+    current = false;
+    finish({ allowed: false, resolution: 'unauthorized' });
+    await expect(pending).rejects.toMatchObject({ code: 'auth/cancelled-popup-request' });
+    expect(mockFirebaseSignOut).not.toHaveBeenCalled();
+  });
+
   it('signs out users with null email in the standard login flow', async () => {
     mockResolveGeneralLoginAccessForEmail.mockResolvedValue({
       allowed: false,

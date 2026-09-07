@@ -74,7 +74,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, initialAut
             error={error}
             errorCode={errorCode}
             canRetryGoogleSignIn={canRetryGoogleSignIn}
-            onGoogleSignIn={handleGoogleSignIn}
+            onGoogleSignIn={() => handleGoogleSignIn()}
+            onGoogleCredential={(idToken, isCurrent) => handleGoogleSignIn({ idToken, isCurrent })}
             onLocalResetStart={handleLocalResetStart}
           />
           <LoginPageFooter isDayGradient={isDayGradient} />

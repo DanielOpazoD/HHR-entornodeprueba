@@ -83,7 +83,7 @@ export interface LoginPageControllerState {
   isDayGradient: boolean;
   backgroundMode: LoginBackgroundMode;
   canRetryGoogleSignIn: boolean;
-  handleGoogleSignIn: () => Promise<void>;
+  handleGoogleSignIn: (credential?: { idToken: string; isCurrent: () => boolean }) => Promise<void>;
   handleLocalResetStart: () => void;
   toggleBackgroundMode: () => void;
 }
@@ -152,7 +152,7 @@ export const useLoginPageController = (
     setErrorCode(null);
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (credential?: { idToken: string; isCurrent: () => boolean }) => {
     setError(null);
     setErrorCode(null);
     const lockStatus = getGoogleLoginLockStatus();
@@ -170,7 +170,7 @@ export const useLoginPageController = (
     markPerf('auth-login:click');
 
     try {
-      const outcome = await executeGoogleSignIn();
+      const outcome = await (credential ? executeGoogleSignIn(credential) : executeGoogleSignIn());
       if (outcome.status === 'success') {
         clearGoogleLoginAttemptHint();
         warmDefaultPostLoginRoute();

@@ -6,6 +6,11 @@
 [build.environment]
   NODE_VERSION = "22"
 
+[context.production.environment]
+  # Public Google OAuth client identifier (not a client secret).
+  # Its JavaScript origins must include the deployed HHR hostname.
+  VITE_GOOGLE_SIGN_IN_CLIENT_ID = "339724354374-cjq5ptt7r5p98vo8e1o8714m95h49ava.apps.googleusercontent.com"
+
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["xlsx-populate", "exceljs", "sharp"]

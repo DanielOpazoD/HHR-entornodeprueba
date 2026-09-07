@@ -1,4 +1,5 @@
-import { signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, signInWithPopup } from 'firebase/auth';
+import { runSessionStorageTransition } from '@/services/storage/sessionStorageTransition';
 
 import type { AuthUser } from '@/types/authRoleTypes';
 import {
@@ -33,6 +34,7 @@ const GOOGLE_POPUP_AUTH_TIMEOUT_MS = 120_000;
 
 interface AuthRuntimeOptions {
   authRuntime?: AuthRuntime;
+  googleCredential?: { idToken: string; isCurrent: () => boolean };
 }
 
 const resolveAuthRuntime = ({ authRuntime }: AuthRuntimeOptions = {}): AuthRuntime =>
@@ -127,11 +129,27 @@ export const signInWithGoogle = async (options?: AuthRuntimeOptions): Promise<Au
         return e2ePopupUser;
       }
 
-      markPerf('auth-login:popup-start');
-      const result = await signInWithPopupTimeout(authRuntime);
-      markPerf('auth-login:popup-done');
+      const credential = options?.googleCredential;
+      markPerf(credential ? 'auth-login:fedcm-exchange-start' : 'auth-login:popup-start');
+      const result = credential
+        ? await runSessionStorageTransition(async () => {
+            if (!credential.isCurrent()) {
+              throw createAuthError('auth/cancelled-popup-request', 'Inicio cancelado.');
+            }
+            return signInWithCredential(
+              authRuntime.auth,
+              GoogleAuthProvider.credential(credential.idToken)
+            );
+          })
+        : await signInWithPopupTimeout(authRuntime);
+      markPerf(credential ? 'auth-login:fedcm-exchange-done' : 'auth-login:popup-done');
       markPerf('auth-login:role-resolution-start');
-      const authorizedUser = await authorizeFirebaseUser(result.user, { authRuntime });
+      const authorizedUser = await authorizeFirebaseUser(result.user, {
+        authRuntime,
+        // Once Firebase accepts the credential, the auth observer owns the
+        // session. Login unmounting can mean successful admission, not cancel.
+        ...(credential ? { isCurrent: () => authRuntime.getCurrentUser() === result.user } : {}),
+      });
       markPerf('auth-login:role-resolution-done');
       return authorizedUser;
     } catch (error: unknown) {
@@ -152,7 +170,7 @@ export const signInWithGoogle = async (options?: AuthRuntimeOptions): Promise<Au
       // Only fall back to the redirect flow when the popup could not open (or
       // close) at all. On auth/popup-timeout the window is still open and the
       // user may be mid-login: navigating away would destroy their progress.
-      if (isPopupOpenFailureAuthError(error)) {
+      if (!options?.googleCredential && isPopupOpenFailureAuthError(error)) {
         emitAuthOperationalEvent('sign_in_google_popup_recovery', 'recoverable', {
           code: 'auth_google_popup_recovery_suggested',
           message: 'Trying alternate Google sign-in flow after browser popup issue.',
