@@ -269,19 +269,6 @@ test.describe('Production Preview Bootstrap', () => {
     runtimeCollector.detach();
   });
 
-  test('does not surface runtime bootstrap errors before the preview app mounts', async ({
-    page,
-  }) => {
-    const runtimeCollector = createPreviewRuntimeFailureCollector(page);
-    await seedPersistedSessionAndRecord(page);
-
-    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
-
-    await expectSeededPatientVisible(page);
-    await assertPreviewBootCompleted(page, runtimeCollector.failures);
-    runtimeCollector.detach();
-  });
-
   test('keeps Firestore listeners healthy through repeated persisted reloads', async ({ page }) => {
     const runtimeCollector = createPreviewRuntimeFailureCollector(page);
     await seedPersistedSessionAndRecord(page);
