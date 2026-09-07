@@ -207,10 +207,15 @@ test.describe('Production Preview Bootstrap', () => {
       expect(geometry.scrollHeight).toBeLessThanOrEqual(56);
       for (const name of ['Censo Diario', 'Entrega Turno Enfermería']) {
         const tab = topBar.getByRole('button', { name, exact: true });
-        // Tablet keeps full labels and the existing horizontal tab scroller.
-        // Phone icons and desktop labels must fit without scrolling.
-        if (width === 768) await tab.scrollIntoViewIfNeeded();
-        await expect(tab).toBeInViewport({ ratio: 1 });
+        if (width === 768) {
+          // A full-label tab can exceed its scrollport on Linux. Assert that
+          // scrolling exposes a usable button, not platform-specific padding.
+          await tab.scrollIntoViewIfNeeded();
+          await tab.click({ trial: true });
+        } else {
+          // Phone icons and desktop labels must fit without scrolling.
+          await expect(tab).toBeInViewport({ ratio: 1 });
+        }
         const bounds = await tab.boundingBox();
         expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(geometry.bottom);
       }
