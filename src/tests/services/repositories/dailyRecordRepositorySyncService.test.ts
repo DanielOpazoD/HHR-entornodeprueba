@@ -128,7 +128,8 @@ describe('dailyRecordRepositorySyncService', () => {
       expect.objectContaining({
         date: '2026-03-03',
         lastUpdated: '2026-03-03T12:00:00.000Z',
-      })
+      }),
+      { preserveUnresolvedWrites: true }
     );
   });
 
@@ -186,7 +187,8 @@ describe('dailyRecordRepositorySyncService', () => {
             pathology: 'Puérpera',
           }),
         }),
-      })
+      }),
+      { preserveUnresolvedWrites: true }
     );
   });
 

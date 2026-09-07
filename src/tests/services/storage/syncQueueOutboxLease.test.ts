@@ -41,6 +41,7 @@ import {
 } from '@/services/storage/sync';
 import { createDexieSyncQueueStore } from '@/services/storage/sync/dexieSyncQueueStore';
 import { adoptAuthoritativeRecord } from '@/services/repositories/dailyRecordRepositorySyncService';
+import { persistHydratedRecordToLocalCache } from '@/services/repositories/dailyRecordLocalCachePersistence';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { getDailyRecordWriteStateForVersion } from '@/services/storage/sync/dailyRecordSyncQueueReadService';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
@@ -73,6 +74,30 @@ describe('sync queue transactional outbox and leases', () => {
     } as Awaited<ReturnType<typeof getDoc>>);
     vi.mocked(setDoc).mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+  });
+
+  it('keeps the outbox projection intact when a server snapshot arrives before write acknowledgement', async () => {
+    const date = '2025-01-29';
+    const local = DataFactory.createMockDailyRecord(date, {
+      lastUpdated: '2025-01-29T10:00:00.000Z',
+    });
+    const remote = { ...local, lastUpdated: '2025-01-29T10:00:01.000Z' };
+    await queueDailyRecordSyncTaskWithLocalRecord(local, {
+      syncContract: {
+        changedPaths: ['nursesDayShift'],
+        expectedVersion: '2025-01-29T09:00:00.000Z',
+      },
+    });
+    await persistHydratedRecordToLocalCache(remote, date, local);
+    expect((await hospitalDB.dailyRecords.get(date))?.lastUpdated).toBe(local.lastUpdated);
+    await expect(
+      adoptAuthoritativeRecord(remote, { nursesDayShift: remote.nursesDayShift })
+    ).resolves.toMatchObject({ lastUpdated: remote.lastUpdated });
+    expect(await hospitalDB.syncQueue.toArray()).toHaveLength(0);
+    expect((await hospitalDB.dailyRecords.get(date))?.lastUpdated).toBe(remote.lastUpdated);
+    const nextSnapshot = { ...remote, lastUpdated: '2025-01-29T10:00:02.000Z' };
+    await persistHydratedRecordToLocalCache(nextSnapshot, date, remote);
+    expect((await hospitalDB.dailyRecords.get(date))?.lastUpdated).toBe(nextSnapshot.lastUpdated);
   });
 
   it('persists a local daily record and its outbox task in one operation', async () => {

@@ -21,9 +21,9 @@ export const persistHydratedRecordToLocalCache = async (
   previousRecord?: DailyRecord | null
 ): Promise<DailyRecord> => {
   const validatedRecord = prepareDailyRecordForPersistence(record, date, previousRecord);
-  const result = await saveToIndexedDB(validatedRecord);
+  const result = await saveToIndexedDB(validatedRecord, { preserveUnresolvedWrites: true });
   if (!result.ok) {
     throw toLocalPersistenceError(result);
   }
-  return validatedRecord;
+  return result.retainedRecord ?? validatedRecord;
 };

@@ -40,6 +40,7 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 - UI must not decide by itself whether a day is really missing.
 - Realtime `null` must not evict a valid local record unless repository reconciliation confirms absence.
 - Recovery policy belongs in repository/query contracts, not duplicated across hooks and views.
+- Remote cache hydration checks the outbox and writes IndexedDB in one transaction. It preserves the local projection while any unresolved daily write exists; only command acknowledgement/reconciliation may replace that projection. This prevents a realtime echo arriving before the command response from invalidating its own acknowledgement.
 - The “today empty state” is a last visible fallback, not the first interpretation of a transient remote miss.
 
 ## Returning to the census

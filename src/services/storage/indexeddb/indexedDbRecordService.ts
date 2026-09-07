@@ -16,6 +16,7 @@ export interface LocalRecordWriteResult {
   dates: string[];
   error?: unknown;
   userSafeMessage?: string;
+  retainedRecord?: DailyRecord;
 }
 
 const toRecordMap = (records: DailyRecord[]): Record<string, DailyRecord> => {
@@ -145,17 +146,48 @@ export const getRecordForDate = async (date: string): Promise<DailyRecord | null
   }
 };
 
-export const saveRecordStrict = async (record: DailyRecord): Promise<LocalRecordWriteResult> => {
+export const saveRecordStrict = async (
+  record: DailyRecord,
+  options: { preserveUnresolvedWrites?: boolean } = {}
+): Promise<LocalRecordWriteResult> => {
   try {
     await ensureDbReady();
     const store = resolveActiveWriteStore();
+    const retainPendingProjection = async (): Promise<DailyRecord | undefined> => {
+      const tasks = await db.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray();
+      if (
+        !tasks.some(
+          task =>
+            task.key === `daily:${record.date}` &&
+            ['PENDING', 'PROCESSING', 'FAILED', 'CONFLICT'].includes(task.status)
+        )
+      )
+        return;
+      const local = await db.dailyRecords.get(record.date);
+      if (!local) throw new Error('No existe la copia local de una escritura pendiente.');
+      return local;
+    };
     if (isDatabaseInFallbackMode()) {
+      // Keep the fallback independent of the unavailable IndexedDB/outbox.
+      // Transactional outbox writes cannot be admitted in this mode.
       localPersistence.records.save(record);
       syncE2ERuntimeRecordMirror(record);
       dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
       return { ok: true, operation: 'save', store, dates: [record.date] };
     }
-    await db.dailyRecords.put(record);
+    if (options.preserveUnresolvedWrites) {
+      // The snapshot check and cache write share the outbox transaction scope.
+      // A realtime echo must not replace the revision still awaiting its command ACK.
+      const retainedRecord = await db.transaction('rw', db.dailyRecords, db.syncQueue, async () => {
+        const pending = await retainPendingProjection();
+        if (!pending) await db.dailyRecords.put(record);
+        return pending;
+      });
+      if (retainedRecord)
+        return { ok: true, operation: 'save', store, dates: [record.date], retainedRecord };
+    } else {
+      await db.dailyRecords.put(record);
+    }
     syncE2ERuntimeRecordMirror(record);
     dispatchDailyRecordStoreChanged({ operation: 'save', dates: [record.date] });
     return { ok: true, operation: 'save', store, dates: [record.date] };
