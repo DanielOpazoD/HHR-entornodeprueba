@@ -96,6 +96,41 @@ const createWrapper = () =>
     .wrapper;
 
 describe('definitive clear first-attempt reconciliation', () => {
+  it('shows the authoritative occupant after rejecting a stale clear without writing', async () => {
+    const local = DataFactory.createMockDailyRecord(mockDate, {
+      beds: { R1: DataFactory.createMockPatient('R1', { clinicalEpisodeId: 'local-episode' }) },
+    });
+    const remote = {
+      ...local,
+      beds: { R1: { ...local.beds.R1, clinicalEpisodeId: 'remote-episode' } },
+    };
+    mockDailyRecordRepositoryPort.getForDateWithMeta.mockResolvedValue(buildReadResult(local));
+    mockDailyRecordRepositoryPort.getAuthoritativeForDate.mockResolvedValue(remote);
+    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() =>
+      expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('local-episode')
+    );
+    await act(async () => {
+      await expect(
+        result.current.patchRecord(
+          { 'beds.R1.patientName': '' },
+          {
+            intentionalBedClear: {
+              bedId: 'R1',
+              confirmedLastUpdated: local.lastUpdated,
+              confirmedOccupant: { clinicalEpisodeId: 'local-episode' },
+            },
+          }
+        )
+      ).rejects.toBeInstanceOf(ConcurrencyError);
+    });
+    await waitFor(() =>
+      expect(result.current.record?.beds.R1.clinicalEpisodeId).toBe('remote-episode')
+    );
+    expect(mockDailyRecordRepositoryPort.updatePartialDetailed).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mockDailyRecordRepositoryPort.getForDateWithMeta.mockReset();
@@ -341,19 +376,6 @@ describe('definitive clear first-attempt reconciliation', () => {
     vi.mocked(defaultDailyRecordRepositoryPort.adoptAuthoritativeRecord).mockResolvedValueOnce(
       localProjection
     );
-    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockResolvedValue(
-      createUpdatePartialDailyRecordResult({
-        date: mockDate,
-        outcome: 'clean',
-        savedLocally: true,
-        updatedRemotely: true,
-        queuedForRetry: false,
-        autoMerged: false,
-        patchedFields: 1,
-        confirmedRecord: authoritativeRecord,
-        observabilityTags: ['daily_record', 'write', 'persisted_and_synced', 'already_applied'],
-      })
-    );
 
     const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
       wrapper: createWrapper(),
@@ -390,69 +412,83 @@ describe('definitive clear first-attempt reconciliation', () => {
     );
   });
 
-  it('adopts an already-applied clear after the first remote response reports a conflict', async () => {
-    const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
-      ...mockRecord,
-      beds: {
-        R1: DataFactory.createMockPatient('R1', {
-          patientName: 'Paciente vigente',
-          rut: '11.111.111-1',
-          clinicalEpisodeId: 'ep-confirmed',
-        }),
-      },
-    });
-    const clearedRecord = DataFactory.createMockDailyRecord(mockDate, {
-      ...occupiedRecord,
-      lastUpdated: '2026-01-01T00:00:02.000Z',
-      beds: {
-        R1: DataFactory.createMockPatient('R1', {
-          patientName: '',
-          rut: '',
-          pathology: '',
-          admissionDate: '',
-        }),
-      },
-    });
-    vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
-      buildReadResult(occupiedRecord)
-    );
-    vi.mocked(defaultDailyRecordRepositoryPort.getAuthoritativeForDate)
-      .mockResolvedValueOnce(occupiedRecord)
-      .mockResolvedValueOnce(clearedRecord);
-    vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockRejectedValueOnce(
-      new ConcurrencyError('response lost after remote commit')
-    );
-
-    const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
-      wrapper: createWrapper(),
-    });
-    await waitFor(() =>
-      expect(result.current.record?.beds.R1.patientName).toBe('Paciente vigente')
-    );
-
-    await act(async () => {
-      await result.current.patchRecord(
-        { 'beds.R1': clearedRecord.beds.R1 },
-        {
-          intentionalBedClear: {
-            bedId: 'R1',
-            confirmedLastUpdated: occupiedRecord.lastUpdated,
-            confirmedOccupant: {
-              clinicalEpisodeId: 'ep-confirmed',
-              patientName: 'Paciente vigente',
-              rut: '11.111.111-1',
-            },
-          },
-        }
+  it.each(['before-write', 'after-conflict'])(
+    'adopts an already-applied clear with different slot metadata (%s)',
+    async phase => {
+      const occupiedRecord = DataFactory.createMockDailyRecord(mockDate, {
+        ...mockRecord,
+        beds: {
+          R1: DataFactory.createMockPatient('R1', {
+            patientName: 'Paciente vigente',
+            rut: '11.111.111-1',
+            clinicalEpisodeId: 'ep-confirmed',
+          }),
+        },
+      });
+      const clearedRecord = DataFactory.createMockDailyRecord(mockDate, {
+        ...occupiedRecord,
+        lastUpdated: '2026-01-01T00:00:02.000Z',
+        beds: {
+          R1: DataFactory.createMockPatient('R1', {
+            patientName: '',
+            rut: '',
+            pathology: '',
+            admissionDate: '',
+          }),
+        },
+      });
+      vi.mocked(defaultDailyRecordRepositoryPort.getForDateWithMeta).mockResolvedValue(
+        buildReadResult(occupiedRecord)
       );
-    });
+      if (phase === 'after-conflict') {
+        vi.mocked(defaultDailyRecordRepositoryPort.getAuthoritativeForDate)
+          .mockResolvedValueOnce(occupiedRecord)
+          .mockResolvedValueOnce(clearedRecord);
+      } else {
+        vi.mocked(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).mockResolvedValue(
+          clearedRecord
+        );
+      }
+      vi.mocked(defaultDailyRecordRepositoryPort.updatePartialDetailed).mockRejectedValueOnce(
+        new ConcurrencyError('response lost after remote commit')
+      );
 
-    expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledOnce();
-    expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledTimes(2);
-    expect(defaultDailyRecordRepositoryPort.adoptAuthoritativeRecord).toHaveBeenCalledWith(
-      clearedRecord,
-      { 'beds.R1': clearedRecord.beds.R1 }
-    );
-    await waitFor(() => expect(result.current.record?.beds.R1.patientName).toBe(''));
-  });
+      const { result } = renderHook(() => useDailyRecordSyncQuery(mockDate, false, 'ready'), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() =>
+        expect(result.current.record?.beds.R1.patientName).toBe('Paciente vigente')
+      );
+
+      await act(async () => {
+        await result.current.patchRecord(
+          { 'beds.R1': { ...clearedRecord.beds.R1, location: 'Ubicación local antigua' } },
+          {
+            intentionalBedClear: {
+              bedId: 'R1',
+              confirmedLastUpdated: occupiedRecord.lastUpdated,
+              confirmedOccupant: {
+                clinicalEpisodeId: 'ep-confirmed',
+                patientName: 'Paciente vigente',
+                rut: '11.111.111-1',
+              },
+            },
+          }
+        );
+      });
+
+      expect(defaultDailyRecordRepositoryPort.updatePartialDetailed).toHaveBeenCalledTimes(
+        phase === 'after-conflict' ? 1 : 0
+      );
+      expect(defaultDailyRecordRepositoryPort.getAuthoritativeForDate).toHaveBeenCalledTimes(
+        phase === 'after-conflict' ? 2 : 1
+      );
+      expect(defaultDailyRecordRepositoryPort.adoptAuthoritativeRecord).toHaveBeenCalledWith(
+        clearedRecord,
+        { 'beds.R1': clearedRecord.beds.R1 }
+      );
+      await waitFor(() => expect(result.current.record?.beds.R1.patientName).toBe(''));
+      expect(result.current.record?.beds.R1.location).toBe(clearedRecord.beds.R1.location);
+    }
+  );
 });

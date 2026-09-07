@@ -165,12 +165,8 @@ describe('previous clinical-day admission corrections', () => {
       repository,
       '2026-07-25',
       expect.objectContaining({
-        beds: {
-          H4C1: expect.objectContaining({
-            clinicalEpisodeId: '143100',
-            clinicalCrib: expect.objectContaining({ clinicalEpisodeId: '143101' }),
-          }),
-        },
+        'beds.H4C1.clinicalEpisodeId': '143100',
+        'beds.H4C1.clinicalCrib.clinicalEpisodeId': '143101',
       }),
       { baseRecord: historicalRecord }
     );
@@ -214,12 +210,8 @@ describe('previous clinical-day admission corrections', () => {
       repository,
       '2026-07-25',
       expect.objectContaining({
-        beds: {
-          H4C1: expect.objectContaining({
-            clinicalEpisodeId: '143100',
-            clinicalCrib: undefined,
-          }),
-        },
+        'beds.H4C1.clinicalEpisodeId': '143100',
+        'beds.H4C1.clinicalCrib': undefined,
       }),
       { baseRecord: historicalRecord }
     );
@@ -267,12 +259,8 @@ describe('previous clinical-day admission corrections', () => {
       repository,
       '2026-07-25',
       expect.objectContaining({
-        beds: {
-          H4C1: expect.objectContaining({
-            clinicalEpisodeId: '143100',
-            clinicalCrib: expect.objectContaining({ clinicalEpisodeId: '143101' }),
-          }),
-        },
+        'beds.H4C1.clinicalEpisodeId': '143100',
+        'beds.H4C1.clinicalCrib.clinicalEpisodeId': '143101',
       }),
       { baseRecord: recordWithMother }
     );
@@ -439,14 +427,8 @@ describe('previous clinical-day admission corrections', () => {
       repository,
       '2026-07-25',
       expect.objectContaining({
-        beds: {
-          H4C2: expect.objectContaining({
-            clinicalCrib: expect.objectContaining({
-              clinicalEpisodeId: '143101',
-              bedId: 'H4C2',
-            }),
-          }),
-        },
+        'beds.H4C2.clinicalCrib.clinicalEpisodeId': '143101',
+        'beds.H4C2.clinicalCrib.bedId': 'H4C2',
       }),
       { baseRecord: historicalMotherInAnotherBed }
     );

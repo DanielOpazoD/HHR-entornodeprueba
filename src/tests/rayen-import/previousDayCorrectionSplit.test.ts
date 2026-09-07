@@ -76,8 +76,8 @@ describe('fileCrossDayCorrections · escrituras puras por día', () => {
     for (const [, day, patch] of calls) {
       expect(day).toBe('2026-07-25');
       const keys = Object.keys(patch as Record<string, unknown>).sort();
-      const touchesBeds = keys.includes('beds');
-      const touchesOtherFields = keys.some(key => key !== 'beds');
+      const touchesBeds = keys.some(key => key.startsWith('beds.'));
+      const touchesOtherFields = keys.some(key => !key.startsWith('beds.'));
       expect(touchesBeds && touchesOtherFields).toBe(false);
       expect(keys).not.toContain('lastUpdated');
     }
