@@ -9,8 +9,11 @@ fechas abre un panel lateral con:
   solo botón: imprimir (PDF) o descargar (Word).
 - **Protocolos** e **infografías**: categorías preparadas; se publican agregando archivos y entradas
   al catálogo.
-- **Herramientas** sin conexión: dilución y velocidad de infusión, dosis y antropometría, y scores
-  clínicos (qSOFA, Glasgow, CURB-65, Wells TEP, Padua, CHA₂DS₂-VASc).
+- **Herramientas** sin conexión: carátula de sobre de traslado (horizontal, oficio o carta, con
+  logo, nombre y RUT prellenados desde el censo), hoja rápida de medicamentos críticos (digital e
+  imprimible en A4 horizontal, con presentación de dopamina y dobutamina en ampolla de 5 o 10 mL),
+  dilución y velocidad de infusión, dosis y antropometría (incluye CKD-EPI 2021) y scores clínicos
+  (NEWS2, qSOFA, Glasgow, SAS, CAM-ICU, CURB-65, Wells TEP, Padua, CHA₂DS₂-VASc).
 
 El módulo no persiste nada ni contiene datos de pacientes: el catálogo es estático y las
 calculadoras operan sólo con lo escrito en el formulario. Sólo existe en el censo diario.
@@ -24,17 +27,19 @@ clinical-library/
 │   ├── ClinicalLibraryDrawer.tsx        # panel: búsqueda, categorías, lista o herramienta activa
 │   ├── LibraryEntryList.tsx · LibraryDocumentCard.tsx
 │   ├── toolRegistry.tsx                 # id de herramienta → icono + componente
-│   └── tools/                           # InfusionCalculatorTool, DosingCalculatorTool, ScoresTool
+│   └── tools/                           # TransferCover, CriticalMedications, Infusion, Dosing, Scores
 ├── controllers/                         # lógica pura de presentación y validación
 │   ├── libraryPresentation.ts           # badges, tamaños, números es-CL
 │   ├── infusionPresentation.ts          # estado del formulario → resultado presentable
+│   ├── transferCoverPrint.ts · criticalMedicationsPrint.ts   # HTML imprimible
 │   └── plausibleRanges.ts               # rangos plausibles de peso, talla, edad y creatinina
 ├── domain/
 │   ├── libraryCatalog.ts · librarySearch.ts
 │   ├── infusionCalculator.ts · infusionPresets.ts
-│   ├── doseCalculator.ts
+│   ├── doseCalculator.ts · transferCover.ts · criticalMedications.ts
 │   ├── scoreEngine.ts · scoreDefinitions.ts · scores/<score>.ts
-├── services/libraryDocumentActions.ts   # abrir, imprimir (iframe con fallback) y codificar rutas
+├── services/libraryDocumentActions.ts   # imprimir PDF (iframe con fallback) y codificar rutas
+├── services/printHtmlDocument.ts        # imprimir HTML generado en una pestaña nueva
 ├── public.ts · index.ts · quick-action.ts
 ```
 
@@ -47,7 +52,10 @@ clinical-library/
 - **Preset de infusión**: una entrada en `domain/infusionPresets.ts` y su fila en la tabla dorada de
   `infusionCalculator.test.ts`.
 - **Score**: un archivo en `domain/scores/`, su registro en `scoreDefinitions.ts` y su fila de
-  puntajes en `scoreDefinitions.test.ts`. Las bandas deben cubrir todos los totales alcanzables.
+  puntajes en `scoreDefinitions.test.ts`. Las bandas deben cubrir todos los totales alcanzables;
+  `singleItemAlert` (NEWS2) y `resolveBand` (CAM-ICU) cubren reglas no aditivas.
+- **Medicamento crítico**: una entrada en `domain/criticalMedications.ts`; el test ancla las
+  concentraciones y la variante de ampolla.
 - **Herramienta**: id en `libraryCatalogTypes.ts`, entrada en el catálogo y registro en
   `components/toolRegistry.tsx`.
 

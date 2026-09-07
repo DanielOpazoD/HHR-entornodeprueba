@@ -59,7 +59,7 @@ describe('bundle budget config', () => {
       maxBytes: 50000,
     });
     expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
-      maxBytes: 90000,
+      maxBytes: 120000,
     });
   });
 
@@ -79,7 +79,7 @@ describe('bundle budget config', () => {
     const config = readBundleBudgetConfig();
 
     // Keep both bounded allowances: shared session monitor and offline clinical library.
-    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840);
+    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840 + 31744);
     expect(
       config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))
     ).toBe(false);

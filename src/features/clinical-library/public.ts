@@ -13,6 +13,7 @@ export type {
   LibraryCategoryId,
   LibraryDocumentEntry,
   LibraryEntry,
+  LibraryPatientOption,
   LibraryToolEntry,
   LibraryToolId,
 } from './domain/libraryCatalogTypes';

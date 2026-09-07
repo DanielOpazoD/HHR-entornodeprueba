@@ -9,7 +9,11 @@ import clsx from 'clsx';
 import { FolderOpen, Search, X } from 'lucide-react';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CLINICAL_LIBRARY_ENTRIES, LIBRARY_CATEGORIES } from '../domain/libraryCatalog';
-import type { LibraryDocumentEntry, LibraryToolId } from '../domain/libraryCatalogTypes';
+import type {
+  LibraryDocumentEntry,
+  LibraryPatientOption,
+  LibraryToolId,
+} from '../domain/libraryCatalogTypes';
 import { filterLibraryEntries, type LibraryCategoryFilter } from '../domain/librarySearch';
 import { printLibraryDocument } from '../services/libraryDocumentActions';
 import { LibraryEntryList } from './LibraryEntryList';
@@ -30,12 +34,16 @@ const FOCUSABLE_SELECTOR =
 
 interface ClinicalLibraryDrawerProps {
   onClose: () => void;
+  patients?: ReadonlyArray<LibraryPatientOption>;
   initialToolId?: LibraryToolId | null;
   documentActions?: LibraryDocumentActions;
 }
 
+const NO_PATIENTS: ReadonlyArray<LibraryPatientOption> = [];
+
 export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
   onClose,
+  patients = NO_PATIENTS,
   initialToolId = null,
   documentActions = DEFAULT_DOCUMENT_ACTIONS,
 }) => {
@@ -191,7 +199,11 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
         >
           {activeTool ? (
-            <activeTool.Component onBack={() => setActiveToolId(null)} onClose={onClose} />
+            <activeTool.Component
+              onBack={() => setActiveToolId(null)}
+              onClose={onClose}
+              patients={patients}
+            />
           ) : (
             <LibraryEntryList
               entries={filtered}

@@ -1,11 +1,14 @@
 import React, { useId } from 'react';
 import { ChevronLeft, X } from 'lucide-react';
+import type { LibraryPatientOption } from '../../domain/libraryCatalogTypes';
 import type { ScoreReference } from '../../domain/scoreEngine';
 
 /** Props que recibe cada herramienta desde el panel: volver a la lista y cerrar el panel. */
 export interface ToolComponentProps {
   onBack: () => void;
   onClose: () => void;
+  /** Pacientes del censo del día, para prellenar documentos. */
+  patients: ReadonlyArray<LibraryPatientOption>;
 }
 
 interface ToolFrameProps {
@@ -14,6 +17,8 @@ interface ToolFrameProps {
   onBack: () => void;
   onClose: () => void;
   reference?: ScoreReference | null;
+  /** Acción principal de la herramienta (p. ej. imprimir), a la izquierda del botón cerrar. */
+  action?: React.ReactNode;
   testId?: string;
   children: React.ReactNode;
 }
@@ -28,6 +33,7 @@ export const ToolFrame: React.FC<ToolFrameProps> = ({
   onBack,
   onClose,
   reference,
+  action,
   testId,
   children,
 }) => {
@@ -48,6 +54,7 @@ export const ToolFrame: React.FC<ToolFrameProps> = ({
         <h3 id={headingId} className="min-w-0 flex-1 truncate text-[14px] font-bold text-slate-800">
           {title}
         </h3>
+        {action}
         <button
           type="button"
           onClick={onClose}

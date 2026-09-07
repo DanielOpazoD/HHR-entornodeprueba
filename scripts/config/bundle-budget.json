@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4910080,
-  "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md.",
+  "precacheMaxBytes": 4941824,
+  "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md. Clinical library v2 (2026-09-06): +31744 bytes (0.65%) more for the transfer cover, the critical medications sheet and three additional scores inside the lazy ClinicalLibraryDrawer chunk (84.8 KB), kept in the precache so they work offline. Local feature build measured 4817.3 KiB versus the previous 4795.0 KiB ceiling. Total 4941824.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -114,8 +114,8 @@
     },
     {
       "pattern": "^ClinicalLibraryDrawer-.*\\.js$",
-      "_comment": "Offline-capable census library drawer (catalog, calculators, scores) loaded only after pressing Documentos. Measured 57411 bytes on 2026-09-06; the ceiling leaves room for more documents and score definitions while keeping drift visible.",
-      "maxBytes": 90000
+      "_comment": "Offline-capable census library drawer (catalog, transfer cover, critical medications sheet, calculators, nine scores) loaded only after pressing Documentos. Measured 84831 bytes on 2026-09-06; the ceiling leaves room for more documents and scores while keeping drift visible.",
+      "maxBytes": 120000
     }
   ]
 }
