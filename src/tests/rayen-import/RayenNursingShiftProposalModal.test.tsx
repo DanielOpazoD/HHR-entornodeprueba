@@ -65,6 +65,18 @@ const renderProposal = (props: ComponentProps<typeof RayenNursingShiftProposalMo
   );
 
 describe('RayenNursingShiftProposalModal', () => {
+  it('keeps confirmation explicit and blocks dismissal while applying', () => {
+    const onCancel = vi.fn();
+    const onConfirm = vi.fn();
+    renderProposal({ proposal, isBusy: true, error: null, onConfirm, onCancel });
+    expect(screen.getByRole('button', { name: 'Aplicando…' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Mantener actual' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Cerrar modal' })).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it('shows evidence and requires explicit confirmation before filling vacancies', () => {
     const onConfirm = vi.fn();
     const onCancel = vi.fn();
@@ -80,7 +92,9 @@ describe('RayenNursingShiftProposalModal', () => {
     expect(screen.getByText('Berta Soto')).toBeInTheDocument();
     expect(screen.getByText(/4 registros · 3 pacientes/)).toBeInTheDocument();
     expect(screen.getByText(/coincide con nómina HHR/)).toBeInTheDocument();
-    expect(screen.getByText(/HHR conservó 2 firmas cercanas al relevo/)).toBeInTheDocument();
+    expect(
+      screen.getByText('Ver actividad cercana al relevo (2)').closest('details')
+    ).not.toHaveAttribute('open');
     fireEvent.click(screen.getByText('Ver actividad cercana al relevo (2)'));
     expect(screen.getByText(/Claudia Saliente · 20-07 08:35/)).toBeVisible();
     expect(screen.getAllByText(/Ventana de relevo: primeros 60 min del turno día/)).toHaveLength(2);
@@ -236,7 +250,7 @@ describe('RayenNursingShiftProposalModal', () => {
     });
 
     expect(screen.getByTestId('rayen-nursing-shift-proposal')).toBeVisible();
-    expect(screen.getByText(/HHR conservó 2 firmas cercanas al relevo/)).toBeVisible();
+    expect(screen.getByText('Ver actividad cercana al relevo (2)')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Aplicar propuesta' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entendido' })).toBeVisible();
   });
