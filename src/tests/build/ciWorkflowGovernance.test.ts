@@ -313,16 +313,16 @@ describe('CI workflow governance', () => {
   it('rejects a missing preview bootstrap download or incorrect producer contract', () => {
     const workflow = readText('.github/workflows/ci-cd.yml');
     const withoutDownload = workflow.replace(
-      /\n {6}- name: Download preview bootstrap artifacts[\s\S]*?\n {6}- name: Validate downloaded preview bootstrap evidence/,
-      '\n      - name: Validate downloaded preview bootstrap evidence'
+      /(postmerge-evidence:[\s\S]*?)\n {6}- name: Download preview bootstrap artifacts[\s\S]*?\n {6}- name: Validate downloaded preview bootstrap evidence/,
+      '$1\n      - name: Validate downloaded preview bootstrap evidence'
     );
     const wrongProducer = workflow.replace(
-      '--artifact preview-bootstrap-artifacts --producer build',
-      '--artifact preview-bootstrap-artifacts --producer other-job'
+      /(postmerge-evidence:[\s\S]*?)--artifact preview-bootstrap-artifacts --producer build/,
+      '$1--artifact preview-bootstrap-artifacts --producer other-job'
     );
     const wrongDownloadPath = workflow.replace(
-      'Download preview bootstrap artifacts\n        uses: actions/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path: reports/e2e/preview-bootstrap',
-      'Download preview bootstrap artifacts\n        uses: actions/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path: .'
+      /(postmerge-evidence:[\s\S]*?Download preview bootstrap artifacts\n {8}uses: actions\/download-artifact@v7\n {8}with:\n {10}name: preview-bootstrap-artifacts\n {10}path:) reports\/e2e\/preview-bootstrap/,
+      '$1 .'
     );
 
     expect(collectCiArtifactContractIssues(withoutDownload)).toContain(

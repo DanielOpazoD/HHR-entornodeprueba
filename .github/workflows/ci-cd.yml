@@ -135,19 +135,6 @@ jobs:
           path: reports/runtime-contracts.*
           retention-days: 30
 
-      - name: Upload system confidence + release readiness artifacts
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: confidence-and-readiness
-          path: |
-            reports/system-confidence.*
-            reports/clinical-release-signoff.*
-            reports/release-readiness-scorecard.*
-            reports/release-confidence-matrix.*
-            reports/maintenance-debt-scorecard.*
-          retention-days: 30
-
       - name: Upload governance snapshot runtime profile
         if: always()
         uses: actions/upload-artifact@v7
@@ -489,6 +476,68 @@ jobs:
           path: dist/
           retention-days: 7
 
+  final-confidence-and-readiness:
+    name: final-confidence-and-readiness
+    runs-on: ubuntu-latest
+    needs: [quality-static-governance-snapshots, build]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download governance snapshots
+        uses: actions/download-artifact@v7
+        with:
+          name: quality-static-governance-snapshots
+          path: reports
+
+      - name: Download preview bootstrap artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-bootstrap-artifacts
+          path: reports/e2e/preview-bootstrap
+
+      - name: Download production build
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist
+
+      - name: Validate downloaded preview bootstrap evidence
+        run: npm run check:preview-bootstrap-evidence
+
+      - name: Regenerate confidence from final runtime evidence
+        run: |
+          npm run report:operational-health
+          npm run report:system-confidence
+          npm run report:release-readiness-scorecard:from-current-inputs
+
+      - name: Enforce final confidence evidence freshness
+        run: npm run check:report-freshness:strict -- --only operational-health,system-confidence,release-readiness-scorecard
+
+      - name: Upload final system confidence + release readiness artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: confidence-and-readiness
+          path: |
+            reports/system-confidence.*
+            reports/clinical-release-signoff.*
+            reports/release-readiness-scorecard.*
+            reports/release-confidence-matrix.*
+            reports/maintenance-debt-scorecard.*
+            reports/operational-health.*
+            reports/e2e/preview-bootstrap/ci-provenance.json
+          retention-days: 30
+
   lighthouse-ci:
     # Performance instrumentation. Warn-only — assertions in lighthouserc.json
     # use "warn" severity so this job surfaces trends in the PR/run summary
@@ -579,6 +628,7 @@ jobs:
         rules-emulator,
         e2e-critical-emulator,
         build,
+        final-confidence-and-readiness,
         ci-runtime-telemetry,
       ]
     env:
@@ -588,6 +638,7 @@ jobs:
       RULES_EMULATOR_RESULT: ${{ needs['rules-emulator'].result }}
       E2E_CRITICAL_RESULT: ${{ needs['e2e-critical-emulator'].result }}
       BUILD_RESULT: ${{ needs.build.result }}
+      FINAL_CONFIDENCE_RESULT: ${{ needs['final-confidence-and-readiness'].result }}
       CI_RUNTIME_TELEMETRY_RESULT: ${{ needs['ci-runtime-telemetry'].result }}
     steps:
       - name: Enforce strict gate outcomes
@@ -602,6 +653,7 @@ jobs:
             "rules-emulator:$RULES_EMULATOR_RESULT" \
             "e2e-critical-emulator:$E2E_CRITICAL_RESULT" \
             "build:$BUILD_RESULT" \
+            "final-confidence-and-readiness:$FINAL_CONFIDENCE_RESULT" \
             "ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT"
           do
             name="${gate%%:*}"
