@@ -321,7 +321,7 @@ describe('CI workflow governance', () => {
       '$1--artifact preview-bootstrap-artifacts --producer other-job'
     );
     const wrongDownloadPath = workflow.replace(
-      /(postmerge-evidence:[\s\S]*?Download preview bootstrap artifacts\n        uses: actions\/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path:) reports\/e2e\/preview-bootstrap/,
+      /(postmerge-evidence:[\s\S]*?Download preview bootstrap artifacts\n {8}uses: actions\/download-artifact@v7\n {8}with:\n {10}name: preview-bootstrap-artifacts\n {10}path:) reports\/e2e\/preview-bootstrap/,
       '$1 .'
     );
 
