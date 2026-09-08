@@ -82,6 +82,16 @@ export const CensusMovementActionsMenu: React.FC<CensusMovementActionsMenuProps>
     );
   }, []);
 
+  const setMenuNode = useCallback(
+    (node: HTMLDivElement | null) => {
+      menuRef.current = node;
+      if (node) {
+        updateMenuPosition();
+      }
+    },
+    [updateMenuPosition]
+  );
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -127,7 +137,7 @@ export const CensusMovementActionsMenu: React.FC<CensusMovementActionsMenuProps>
         menuPosition &&
         createPortal(
           <div
-            ref={menuRef}
+            ref={setMenuNode}
             role="menu"
             style={menuPosition}
             className="z-[70] min-w-44 max-h-[calc(100vh-16px)] overflow-y-auto overflow-x-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg print:hidden"
