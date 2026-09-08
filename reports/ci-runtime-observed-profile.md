@@ -47,4 +47,3 @@ Observed CI unit shard spread is within observed tolerance; keep monitoring tren
 - Observed shard 2 runtime is 300.4% of the estimated duration.
 - Observed shard 3 runtime is 318.4% of the estimated duration.
 - Observed shard 4 runtime is 303.4% of the estimated duration.
-

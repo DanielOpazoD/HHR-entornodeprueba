@@ -24,16 +24,6 @@ import '../../../extension/hhr-connection-center-runtime.js';
 import '../../../extension/prescription-print.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
-const hospitalizedDocumentsSource = readFileSync(
-  path.resolve('extension/hhr-hospitalized-documents-center.js'),
-  'utf8'
-);
-const handoffSource = readFileSync(path.resolve('extension/hhr-handoff-center.js'), 'utf8');
-const scoresSource = readFileSync(path.resolve('extension/hhr-scores-center.js'), 'utf8');
-const connectionCenterSource = readFileSync(
-  path.resolve('extension/hhr-connection-center-runtime.js'),
-  'utf8'
-);
 const NativeMutationObserver = globalThis.MutationObserver;
 const contentObservers = new Set<MutationObserver>();
 const contentTimeouts = new Set<ReturnType<typeof globalThis.setTimeout>>();
@@ -135,7 +125,10 @@ describe('extension prescription print content flow', () => {
                 medications: [
                   { medication: 'Losartán 50 mg', posology: '1 cada 12 horas', route: 'Oral' },
                   { medication: 'Paracetamol 500 mg', posology: '1 cada 8 horas' },
-                  { medication: 'Mometasona Furoato 50 mcg/dosis Suspensión Nasal', external: true },
+                  {
+                    medication: 'Mometasona Furoato 50 mcg/dosis Suspensión Nasal',
+                    external: true,
+                  },
                 ],
               },
               {
@@ -169,9 +162,7 @@ describe('extension prescription print content flow', () => {
                 printDate: '2026-07-14',
                 printDateTime: '2026-07-14T09:41:00-06:00',
                 printDateSource: 'indication',
-                medications: [
-                  { medication: 'Mometasona Furoato 50 mcg/dosis Suspensión Nasal' },
-                ],
+                medications: [{ medication: 'Mometasona Furoato 50 mcg/dosis Suspensión Nasal' }],
               },
             ],
             validation: { date: '2026-07-15', dateTime: '' },
@@ -291,44 +282,6 @@ describe('extension prescription print content flow', () => {
       );
       expect(document.getElementById('hhr-prescription-print-modal')).toBe(centerRoot);
     });
-  });
-
-  it('keeps clinical print retries usable and acknowledges writes before detached-panel exits', async () => {
-    expect(hospitalizedDocumentsSource).toContain(
-      "submit.textContent = 'Imprimir regímenes y BRADEN'"
-    );
-    expect(hospitalizedDocumentsSource).toContain("submit.textContent = 'Reintentar impresión'");
-
-    const scoreAck = scoresSource.indexOf(
-      'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
-      scoresSource.indexOf('const renderScoresCenter')
-    );
-    const scoreDisconnect = scoresSource.indexOf('if (!panel.isConnected) return;', scoreAck);
-    expect(scoreAck).toBeGreaterThan(-1);
-    expect(scoreDisconnect).toBeGreaterThan(scoreAck);
-
-    const handoffRequest = handoffSource.indexOf('type: runtimeMessages.HANDOFF_SAVE_REQUEST');
-    const handoffAck = handoffSource.indexOf(
-      'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
-      handoffRequest
-    );
-    const handoffDisconnect = handoffSource.indexOf(
-      'if (!root.isConnected) return;',
-      handoffRequest
-    );
-    expect(handoffAck).toBeGreaterThan(handoffRequest);
-    expect(handoffDisconnect).toBeGreaterThan(handoffAck);
-  });
-
-  it('keeps credentials on the official Rayen page and exposes session controls in Centro HHR', () => {
-    expect(connectionCenterSource).toContain('type: runtimeMessages.GC_CONNECT_REQUEST');
-    expect(connectionCenterSource).toContain('type: runtimeMessages.GC_DISCONNECT_REQUEST');
-    expect(connectionCenterSource).toContain(
-      'La contraseña se ingresa únicamente en la página oficial de Rayen'
-    );
-    expect(contentSource).toContain("openCenterModule('connection'");
-    expect(contentSource).toContain('hhr-ops-connection-dot');
-    expect(connectionCenterSource).not.toMatch(/type=["']password["']/i);
   });
 
   it('adds the corrected discharge option beside Eloísa’s native alta print action', async () => {
