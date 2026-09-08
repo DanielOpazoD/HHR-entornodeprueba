@@ -1,5 +1,6 @@
 import { hospitalDB } from '@/services/storage/indexeddb/indexedDbCore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import { clearSyncTaskRuntimeState } from '@/services/storage/sync/syncQueueTaskFactory';
 
 /**
  * Estados de cuarentena de la cola y sus operaciones de recuperación.
@@ -45,19 +46,8 @@ export const requeueQuarantinedTask = (
       return false;
     }
     await hospitalDB.syncQueue.update(taskId, {
-      status: 'PENDING',
       retryCount: 0,
-      nextAttemptAt: 0,
-      error: undefined,
-      lastErrorCode: undefined,
-      lastErrorCategory: undefined,
-      lastErrorSeverity: undefined,
-      lastErrorAction: undefined,
-      lastErrorAt: undefined,
-      leaseOwner: undefined,
-      leaseUntil: undefined,
-      attemptId: undefined,
-      processingStartedAt: undefined,
+      ...clearSyncTaskRuntimeState(),
     });
     return true;
   });

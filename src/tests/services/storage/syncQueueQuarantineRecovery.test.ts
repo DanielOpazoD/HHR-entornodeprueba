@@ -135,6 +135,13 @@ describe('storage/sync cuarentena y recuperación', () => {
       message: 'Missing or insufficient permissions',
     });
     const [failedTask] = await hospitalDB.syncQueue.toArray();
+    await hospitalDB.syncQueue.update(failedTask.id!, {
+      preOutboxHoldState: 'AWAITING_REMOTE_ACK',
+      preOutboxHoldOwner: 'stale-writer',
+      preOutboxHoldUntil: Date.now() + 60_000,
+      preOutboxHoldReason: 'awaiting_remote_ack',
+      preOutboxHoldHeartbeatAt: Date.now(),
+    });
 
     await expect(retryQuarantinedSyncTask(failedTask.id!)).resolves.toBe(true);
 
@@ -143,6 +150,9 @@ describe('storage/sync cuarentena y recuperación', () => {
     expect(revived.retryCount).toBe(0);
     expect(revived.error).toBeUndefined();
     expect(revived.lastErrorCategory).toBeUndefined();
+    expect(revived.preOutboxHoldState).toBeUndefined();
+    expect(revived.preOutboxHoldUntil).toBeUndefined();
+    expect(revived.preOutboxHoldHeartbeatAt).toBeUndefined();
 
     await expect(retryQuarantinedSyncTask(failedTask.id!)).resolves.toBe(false);
     expect((await hospitalDB.syncQueue.toArray())[0].status).toBe('PENDING');
