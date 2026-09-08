@@ -7,7 +7,6 @@
  */
 (() => {
   'use strict';
-
   const create = dependencies => {
     const {
       helper,
@@ -21,7 +20,6 @@
       attachPatientListFilter,
       openHospitalizedDocuments,
     } = dependencies || {};
-
     if (
       !helper ||
       !runtimeMessages ||
@@ -36,7 +34,6 @@
     ) {
       throw new Error('No se pudo inicializar el Centro de Recetas HHR.');
     }
-
     const open = (encId, initialTab = '', existingRoot = null) => {
       const requestedEncId = /^\d+$/.test(String(encId || '')) ? String(encId) : '';
       // Module changes inside Centro HHR must keep the patient selected there, even when the
@@ -106,7 +103,6 @@
       let hospitalizedResponse = null;
       let hospitalizedRequest = null;
       cancel.addEventListener('click', root.__hhrDismiss);
-
       const renderError = message => {
         body.innerHTML = '';
         const error = document.createElement('div');
@@ -115,7 +111,6 @@
         body.appendChild(error);
         submit.disabled = true;
       };
-
       const renderFormats = (name, checkedFormat = 'standard') => {
         const formatTitle = document.createElement('div');
         formatTitle.className = 'hhr-rx-format-title';
@@ -154,7 +149,6 @@
         body.append(formatTitle, formats);
         return formats;
       };
-
       const showSuccess = (message, restoreSubmitState) => {
         let status = body.querySelector('.hhr-rx-print-feedback');
         if (!status) {
@@ -169,7 +163,6 @@
         if (typeof restoreSubmitState === 'function') restoreSubmitState();
         else submit.textContent = 'Imprimir nuevamente';
       };
-
       const renderCurrentPatient = async generation => {
         body.innerHTML = '<div class="hhr-rx-status">Buscando recetas disponibles…</div>';
         submit.disabled = true;
@@ -228,31 +221,36 @@
         list.className = 'hhr-rx-list';
         const selectableGroups = [...externalGroups, ...groups];
         const totalCount = groups.reduce((sum, group) => sum + (Number(group.count) || 0), 0);
-        const currentValidation =
-          response.validation && (response.validation.dateTime || response.validation.date)
-            ? ' · validación ' +
-              helper.formatDateTimeLabel(response.validation.dateTime || response.validation.date)
-            : '';
-        const addOption = ({ key, title, meta, checked = false, disabled = false }) => {
-          const label = document.createElement('label');
-          label.className = 'hhr-rx-option';
-          if (disabled) label.classList.add('is-disabled');
+        const currentValidationValue = response.validation && (response.validation.dateTime || response.validation.date); const currentValidation = currentValidationValue
+          ? ' · validación ' + helper.formatDateTimeLabel(currentValidationValue) + (response.validation.dateTime ? ' (hora Rapa Nui)' : '')
+          : '';
+        const buildMedicationPreview = medications => {
+          const preview = document.createElement('details'); preview.className = 'hhr-rx-medication-preview';
+          const summary = document.createElement('summary');
+          summary.textContent = 'Ver ' + medications.length + (medications.length === 1 ? ' fármaco indicado' : ' fármacos indicados');
+          const medicationList = document.createElement('ul');
+          medications.forEach(item => {
+            const medication = document.createElement('li');
+            const instructions = [item && item.posology, item && item.route].filter(Boolean).join(' · ');
+            medication.textContent = String(item && (item.medication || item.name) || '').trim() + (instructions ? ' — ' + instructions : '');
+            medicationList.appendChild(medication);
+          });
+          preview.append(summary, medicationList); return preview;
+        };
+        const addOption = ({ key, title, meta, medications = [], checked = false, disabled = false }) => {
+          const card = document.createElement('div'); card.className = 'hhr-rx-option-card';
+          const label = document.createElement('label'); label.className = 'hhr-rx-option';
+          if (disabled) card.classList.add('is-disabled');
           const input = document.createElement('input');
-          input.type = 'radio';
-          input.name = 'hhr-prescription-selection';
-          input.value = key;
-          input.checked = checked;
-          input.disabled = disabled;
+          input.type = 'radio'; input.name = 'hhr-prescription-selection'; input.value = key;
+          input.checked = checked; input.disabled = disabled;
           const details = document.createElement('span');
-          const optionTitle = document.createElement('span');
-          optionTitle.className = 'hhr-rx-date';
-          optionTitle.textContent = title;
-          const optionMeta = document.createElement('span');
-          optionMeta.className = 'hhr-rx-meta';
-          optionMeta.textContent = meta;
+          const optionTitle = document.createElement('span'); optionTitle.className = 'hhr-rx-date'; optionTitle.textContent = title;
+          const optionMeta = document.createElement('span'); optionMeta.className = 'hhr-rx-meta'; optionMeta.textContent = meta;
           details.append(optionTitle, optionMeta);
+          if (medications.length) card.appendChild(buildMedicationPreview(medications));
           label.append(input, details);
-          list.appendChild(label);
+          card.prepend(label); list.appendChild(card);
         };
         addOption({
           key: 'complete',
@@ -267,6 +265,7 @@
                 (externalGroups.length === 1 ? ' receta externa' : ' recetas externas')
               : '') +
             currentValidation,
+          medications: groups.flatMap(group => Array.isArray(group.medications) ? group.medications : []), // externalGroups only projects a printable subset of these rows.
           checked: true,
         });
         if (externalGroups.length) {
@@ -291,12 +290,13 @@
               meta:
                 (group.professional || 'Profesional no informado') +
                 (group.professionalRun ? ' · RUN ' + group.professionalRun : '') +
-                (printDateTime ? ' · ' + printDateLabel + printDateTime : '') +
+                (printDateTime ? ' · ' + printDateLabel + printDateTime + ' (hora Rapa Nui)' : '') +
                 (!identityReady
                   ? ' · identidad no verificable; usa receta completa'
                   : !dateReady
                     ? ' · sin fecha atribuible; usa receta completa'
                     : ''),
+              medications: group.medications,
               disabled: !identityReady || !dateReady,
             });
           });
@@ -326,19 +326,19 @@
                   group.externalCount +
                   (Number(group.externalCount) === 1 ? ' externo' : ' externos')
                 : '') +
-              (printDateTime ? ' · ' + printDateLabel + printDateTime : '') +
+              (printDateTime ? ' · ' + printDateLabel + printDateTime + ' (hora Rapa Nui)' : '') +
               (!identityReady
                 ? ' · identidad no verificable; usa receta completa'
                 : !dateReady
                   ? ' · sin fecha atribuible; usa receta completa'
                   : ''),
+            medications: group.medications,
             disabled: !identityReady || !dateReady,
           });
         });
         body.appendChild(list);
         const formats = renderFormats('hhr-prescription-format');
         submit.disabled = false;
-
         const updateSubmitText = () => {
           const selected = list.querySelector('input:checked');
           const selectedFormat = formats.querySelector('input:checked');

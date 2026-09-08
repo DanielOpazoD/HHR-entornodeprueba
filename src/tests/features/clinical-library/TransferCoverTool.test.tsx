@@ -20,6 +20,7 @@ const patients = [
     patientName: 'Ana Pakarati',
     rut: '12.345.678-9',
     age: '71',
+    admissionDate: '31-08-2026',
   },
 ];
 
@@ -32,7 +33,13 @@ describe('TransferCoverTool', () => {
     fireEvent.change(screen.getByLabelText('Desde el censo'), { target: { value: 'R1' } });
     expect(screen.getByLabelText('Nombre y apellidos')).toHaveValue('Ana Pakarati');
     expect(screen.getByLabelText('RUT')).toHaveValue('12.345.678-9');
+    expect(screen.getByLabelText('Fecha de ingreso a Hospital Hanga Roa')).toHaveValue(
+      '2026-08-31'
+    );
     expect(screen.getByTestId('transfer-cover-preview')).toHaveTextContent('Ana Pakarati');
+    expect(screen.getByTestId('transfer-cover-preview')).toHaveTextContent(
+      'Ingreso a Hospital Hanga Roa: 31-08-2026'
+    );
     expect(printButton).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Carta' }));
@@ -42,10 +49,13 @@ describe('TransferCoverTool', () => {
     expect(document.styles).toContain('letter landscape');
     expect(document.body).toContain('Ana Pakarati');
     expect(document.body).toContain('Cama R1');
+    expect(document.body).toContain('Fecha de ingreso a Hospital Hanga Roa');
+    expect(document.body).toContain('31-08-2026');
   });
 
   it('accepts manual entry when the patient is not in the census', () => {
     render(<TransferCoverTool onBack={vi.fn()} onClose={vi.fn()} patients={[]} />);
+    expect(screen.getByLabelText('Fecha de ingreso a Hospital Hanga Roa')).toHaveValue('');
     fireEvent.change(screen.getByLabelText('Nombre y apellidos'), {
       target: { value: 'Juan Tuki' },
     });

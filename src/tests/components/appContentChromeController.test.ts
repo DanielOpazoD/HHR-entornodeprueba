@@ -37,6 +37,7 @@ describe('appContentChromeController', () => {
       bedId: 'R1',
       patientName: 'Ana Test',
       diagnosis: 'Diagnostico A',
+      admissionDate: '20-04-2026',
       daysOfStay: '3',
     });
   });
