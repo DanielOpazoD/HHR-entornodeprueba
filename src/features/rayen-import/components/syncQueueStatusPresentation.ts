@@ -20,6 +20,7 @@ export interface SyncQueueChipModel {
  * se anuncia lo pendiente cuando envejece o ya está reintentando.
  */
 export const SYNC_QUEUE_CHIP_PENDING_VISIBILITY_MS = 10_000;
+export const SYNC_QUEUE_STUCK_PENDING_MS = 300_000;
 
 export const buildSyncQueueChipModel = (stats: SyncQueueStats): SyncQueueChipModel => {
   const stuck = stats.failed + stats.conflict;
@@ -27,8 +28,14 @@ export const buildSyncQueueChipModel = (stats: SyncQueueStats): SyncQueueChipMod
     return {
       tone: 'attention',
       label: `${stuck} sin sincronizar`,
-      title:
-        'Hay cambios guardados en este equipo que no lograron sincronizarse. Abre el detalle para reintentar o descartar.',
+      title: 'Hay cambios detenidos. Abre el detalle para reintentar o descartar.',
+    };
+  }
+  if (stats.pending > 0 && stats.oldestPendingAgeMs >= SYNC_QUEUE_STUCK_PENDING_MS) {
+    return {
+      tone: 'attention',
+      label: `${stats.pending} por revisar`,
+      title: 'Pendiente por más de 5 min. Revisa el detalle.',
     };
   }
   if (
@@ -38,7 +45,7 @@ export const buildSyncQueueChipModel = (stats: SyncQueueStats): SyncQueueChipMod
     return {
       tone: 'syncing',
       label: `${stats.pending} por sincronizar`,
-      title: 'Cambios guardados en este equipo, en camino al servidor.',
+      title: 'Cambios locales en espera de sincronización.',
     };
   }
   return { tone: 'hidden', label: '', title: '' };
