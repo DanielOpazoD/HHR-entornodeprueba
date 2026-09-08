@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CensusMovementActionsCell } from '@/features/census/components/CensusMovementActionsCell';
+import { resolveMenuPosition } from '@/features/census/components/CensusMovementActionsMenu';
 
 describe('CensusMovementActionsCell', () => {
   it('renders movement actions and calls handlers by title', () => {
@@ -74,5 +75,31 @@ describe('CensusMovementActionsCell', () => {
 
     fireEvent.click(menuItem);
     expect(onConvert).toHaveBeenCalledTimes(1);
+  });
+
+  it('calculates menu position above the trigger when there is no room below', () => {
+    const anchorRect = new DOMRect(620, 700, 40, 32);
+    const menuRect = new DOMRect(0, 0, 160, 180);
+
+    const position = resolveMenuPosition(anchorRect, menuRect, {
+      width: 1280,
+      height: 768,
+    });
+
+    expect(position.top).toBe('516px');
+    expect(position.right).toBe('616px');
+  });
+
+  it('keeps menu anchored to the right when there is room in viewport', () => {
+    const anchorRect = new DOMRect(0, 120, 40, 32);
+    const menuRect = new DOMRect(0, 0, 160, 180);
+
+    const position = resolveMenuPosition(anchorRect, menuRect, {
+      width: 1280,
+      height: 768,
+    });
+
+    expect(position.top).toBe('156px');
+    expect(position.right).toBe('1236px');
   });
 });
