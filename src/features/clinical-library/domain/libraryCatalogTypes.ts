@@ -63,4 +63,5 @@ export interface LibraryPatientOption {
   patientName: string;
   rut: string;
   age: string;
+  admissionDate: string;
 }

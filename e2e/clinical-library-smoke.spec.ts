@@ -35,6 +35,7 @@ const seedPersistedSession = async (page: Page) => {
         rut: '12345678-5',
         pathology: 'DIAGNOSTICO PREVIEW',
         age: '44',
+        admissionDate: '2026-03-29',
         status: 'ESTABLE',
       },
     },
@@ -171,6 +172,9 @@ test.describe('Clinical library (preview build)', () => {
     });
     await drawer.getByLabel('Desde el censo').selectOption('R1');
     await expect(drawer.getByLabel('Nombre y apellidos')).toHaveValue(SEEDED_PATIENT_NAME);
+    await expect(drawer.getByLabel('Fecha de ingreso a Hospital Hanga Roa')).toHaveValue(
+      '2026-03-29'
+    );
     await capture(page, '08-transfer-cover');
     await drawer.getByTestId('transfer-cover-print').click();
     const printedHtml = await page.evaluate(
@@ -179,6 +183,8 @@ test.describe('Clinical library (preview build)', () => {
     expect(printedHtml).toContain('legal landscape');
     expect(printedHtml).toContain(SEEDED_PATIENT_NAME);
     expect(printedHtml).toContain('12345678-5');
+    expect(printedHtml).toContain('Fecha de ingreso a Hospital Hanga Roa');
+    expect(printedHtml).toContain('29-03-2026');
 
     await drawer.getByRole('button', { name: 'Volver a la biblioteca' }).click();
     await drawer.getByTestId('library-tool-critical-medications').click();

@@ -68,7 +68,7 @@ export const buildTransferCoverDocument = (cover: TransferCoverData): PrintableH
   </div>
   <div class="grid">
     ${field('Destino', cover.destination)}
-    ${field('Fecha', formatCoverDate(cover.date))}
+    ${field('Fecha de ingreso a Hospital Hanga Roa', formatCoverDate(cover.admissionDate))}
     ${field('Responsable del envío', '')}
     <div class="contents">${contents}</div>
   </div>
