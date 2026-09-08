@@ -374,6 +374,9 @@ jobs:
       - name: Install Playwright browser for critical E2E gate
         run: npx playwright install --with-deps chromium
 
+      - name: Validate the packaged Rayen extension in Chromium
+        run: npm run test:e2e:rayen-extension-runtime
+
       - name: Run critical E2E suite with Firestore emulator
         run: npm run test:e2e:critical:ci
         env:
