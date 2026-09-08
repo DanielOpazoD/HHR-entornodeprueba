@@ -128,10 +128,15 @@ describe('extension prescription print content flow', () => {
                 professional: 'Elena Díaz',
                 professionalRun: '17.752.753-K',
                 prescriberVerified: true,
-                count: 2,
+                count: 3,
                 externalCount: 1,
                 validationDate: '15-07-2026',
                 validationDateTime: '15-07-2026 08:10',
+                medications: [
+                  { medication: 'Losartán 50 mg', posology: '1 cada 12 horas', route: 'Oral' },
+                  { medication: 'Paracetamol 500 mg', posology: '1 cada 8 horas' },
+                  { medication: 'Mometasona Furoato 50 mcg/dosis Suspensión Nasal', external: true },
+                ],
               },
               {
                 key: 'professional-run:189809670-emission-2026-07-14t09-40-00-06-00',
@@ -145,6 +150,9 @@ describe('extension prescription print content flow', () => {
                 printDate: '2026-07-14',
                 printDateTime: '2026-07-14T09:40:00-06:00',
                 printDateSource: 'indication',
+                medications: [
+                  { medication: 'Ceftriaxona 1 g', posology: '1 cada 24 horas', route: 'EV' },
+                ],
               },
             ],
             externalGroups: [
@@ -161,9 +169,12 @@ describe('extension prescription print content flow', () => {
                 printDate: '2026-07-14',
                 printDateTime: '2026-07-14T09:41:00-06:00',
                 printDateSource: 'indication',
+                medications: [
+                  { medication: 'Mometasona Furoato 50 mcg/dosis Suspensión Nasal' },
+                ],
               },
             ],
-            validation: { date: '15-07-2026', dateTime: '15-07-2026 08:10' },
+            validation: { date: '2026-07-15', dateTime: '' },
           });
           return;
         }
@@ -215,6 +226,10 @@ describe('extension prescription print content flow', () => {
     expect(document.querySelector('.hhr-rx-patient-context')?.textContent).toContain(
       'RUN 8.932.066-6'
     );
+    expect(document.querySelector('.hhr-rx-list')?.textContent).toContain('validación 15-07-2026');
+    expect(document.querySelector('.hhr-rx-list')?.textContent).not.toContain(
+      'validación 15-07-2026 (hora Rapa Nui)'
+    );
     expect(
       messages.filter(message => message.type === 'RAYEN_PRESCRIPTION_OPTIONS_REQUEST')
     ).toHaveLength(2);
@@ -228,9 +243,19 @@ describe('extension prescription print content flow', () => {
     );
     expect(antonioOption?.disabled).toBe(false);
     expect(antonioOption?.closest('label')?.textContent).toContain('Antonio Hernández');
-    expect(antonioOption?.closest('label')?.textContent).toContain('emisión 14-07-2026 09:40');
+    expect(antonioOption?.closest('label')?.textContent).toContain(
+      'emisión 14-07-2026 09:40 (hora Rapa Nui)'
+    );
+    const antonioPreview = antonioOption
+      ?.closest('.hhr-rx-option-card')
+      ?.querySelector<HTMLDetailsElement>('.hhr-rx-medication-preview');
+    expect(antonioPreview?.textContent).toContain('Ver 1 fármaco indicado');
+    expect(antonioPreview?.textContent).toContain('Ceftriaxona 1 g — 1 cada 24 horas · EV');
+    expect(antonioPreview?.open).toBe(false);
     const completeOption = document.querySelector<HTMLInputElement>('input[value="complete"]');
     expect(completeOption?.closest('label')?.textContent).toContain('incluye 1 receta externa');
+    const completePreview = completeOption?.closest('.hhr-rx-option-card')?.textContent || '';
+    expect(completePreview.match(/Mometasona Furoato/g)).toHaveLength(1);
     firstPrint.click();
 
     await vi.waitFor(() => {
