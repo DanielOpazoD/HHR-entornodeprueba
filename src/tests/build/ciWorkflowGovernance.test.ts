@@ -66,6 +66,49 @@ describe('CI workflow governance', () => {
     expect(freshnessStep).toBeGreaterThan(snapshotStep);
   });
 
+  it('publishes canonical confidence only after same-run preview and build evidence exist', () => {
+    const workflow = readText('.github/workflows/ci-cd.yml');
+    const governanceJob = workflow.slice(
+      workflow.indexOf('quality-static-governance-snapshots:'),
+      workflow.indexOf('quality-static-groups:')
+    );
+    const finalJob = workflow.slice(
+      workflow.indexOf('final-confidence-and-readiness:'),
+      workflow.indexOf('lighthouse-ci:')
+    );
+    const summaryJob = workflow.slice(
+      workflow.indexOf('ci-strict-summary:'),
+      workflow.indexOf('postmerge-evidence:')
+    );
+    const previewDownload = finalJob.indexOf('name: preview-bootstrap-artifacts');
+    const distDownload = finalJob.indexOf('name: dist');
+    const previewValidation = finalJob.indexOf('npm run check:preview-bootstrap-evidence');
+    const operationalHealth = finalJob.indexOf('npm run report:operational-health');
+    const systemConfidence = finalJob.indexOf('npm run report:system-confidence');
+    const releaseReadiness = finalJob.indexOf(
+      'npm run report:release-readiness-scorecard:from-current-inputs'
+    );
+    const freshness = finalJob.indexOf(
+      'npm run check:report-freshness:strict -- --only operational-health,system-confidence,release-readiness-scorecard'
+    );
+    const canonicalUpload = finalJob.indexOf('name: confidence-and-readiness');
+
+    expect(governanceJob).not.toContain('name: confidence-and-readiness');
+    expect(finalJob).toContain('needs: [quality-static-governance-snapshots, build]');
+    expect(previewDownload).toBeGreaterThanOrEqual(0);
+    expect(distDownload).toBeGreaterThanOrEqual(0);
+    expect(previewValidation).toBeGreaterThan(previewDownload);
+    expect(operationalHealth).toBeGreaterThan(previewValidation);
+    expect(operationalHealth).toBeGreaterThan(distDownload);
+    expect(systemConfidence).toBeGreaterThan(operationalHealth);
+    expect(releaseReadiness).toBeGreaterThan(systemConfidence);
+    expect(freshness).toBeGreaterThan(releaseReadiness);
+    expect(canonicalUpload).toBeGreaterThan(freshness);
+    expect(finalJob).toContain('reports/e2e/preview-bootstrap/ci-provenance.json');
+    expect(summaryJob).toContain('final-confidence-and-readiness');
+    expect(summaryJob).toContain('final-confidence-and-readiness:$FINAL_CONFIDENCE_RESULT');
+  });
+
   it('carries the verified release evidence manifest into the production build and post-merge audit', () => {
     const workflow = readText('.github/workflows/ci-cd.yml');
     const governanceStart = workflow.indexOf('quality-static-governance-snapshots:');
@@ -312,18 +355,27 @@ describe('CI workflow governance', () => {
 
   it('rejects a missing preview bootstrap download or incorrect producer contract', () => {
     const workflow = readText('.github/workflows/ci-cd.yml');
-    const withoutDownload = workflow.replace(
-      /\n {6}- name: Download preview bootstrap artifacts[\s\S]*?\n {6}- name: Validate downloaded preview bootstrap evidence/,
-      '\n      - name: Validate downloaded preview bootstrap evidence'
-    );
-    const wrongProducer = workflow.replace(
-      '--artifact preview-bootstrap-artifacts --producer build',
-      '--artifact preview-bootstrap-artifacts --producer other-job'
-    );
-    const wrongDownloadPath = workflow.replace(
-      'Download preview bootstrap artifacts\n        uses: actions/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path: reports/e2e/preview-bootstrap',
-      'Download preview bootstrap artifacts\n        uses: actions/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path: .'
-    );
+    const postmergeStart = workflow.indexOf('postmerge-evidence:');
+    const beforePostmerge = workflow.slice(0, postmergeStart);
+    const postmergeJob = workflow.slice(postmergeStart);
+    const withoutDownload =
+      beforePostmerge +
+      postmergeJob.replace(
+        /\n {6}- name: Download preview bootstrap artifacts[\s\S]*?\n {6}- name: Validate downloaded preview bootstrap evidence/,
+        '\n      - name: Validate downloaded preview bootstrap evidence'
+      );
+    const wrongProducer =
+      beforePostmerge +
+      postmergeJob.replace(
+        '--artifact preview-bootstrap-artifacts --producer build',
+        '--artifact preview-bootstrap-artifacts --producer other-job'
+      );
+    const wrongDownloadPath =
+      beforePostmerge +
+      postmergeJob.replace(
+        'Download preview bootstrap artifacts\n        uses: actions/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path: reports/e2e/preview-bootstrap',
+        'Download preview bootstrap artifacts\n        uses: actions/download-artifact@v7\n        with:\n          name: preview-bootstrap-artifacts\n          path: .'
+      );
 
     expect(collectCiArtifactContractIssues(withoutDownload)).toContain(
       'postmerge-evidence: must download artifact "preview-bootstrap-artifacts".'
