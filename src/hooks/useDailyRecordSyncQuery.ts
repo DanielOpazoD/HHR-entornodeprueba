@@ -24,11 +24,16 @@ import { useRepositories } from '@/services/RepositoryContext';
 import { useNotification } from '@/context/UIContext';
 import { useVersion } from '@/context/VersionContext';
 import {
+  presentSyncOutcomeFeedback,
   resolvePatchOutcomeFeedback,
+  resolvePatchErrorFeedback,
   resolveSaveErrorFeedback,
   resolveSaveOutcomeFeedback,
 } from '@/hooks/controllers/dailyRecordSyncNotificationController';
-import { assertDailyRecordWriteAccepted } from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
+import {
+  assertDailyRecordWriteAccepted,
+  DailyRecordWriteBlockedOutcomeError,
+} from '@/hooks/controllers/dailyRecordWriteOutcomeGuard';
 import {
   buildCreateDaySuccessMessage,
   resolveCreateDaySourceDate,
@@ -51,12 +56,6 @@ import {
   useTodayEmptyDailyRecordRecovery,
 } from '@/hooks/useDailyRecordSyncQuerySupport';
 import { flushPerfReport, markPerf } from '@/shared/runtime/perfAudit';
-
-type ChannelNotice = {
-  channel: 'warning' | 'error' | null;
-  title?: string;
-  message?: string;
-};
 
 export const useDailyRecordSyncQuery = (
   currentDateString: string,
@@ -202,28 +201,16 @@ export const useDailyRecordSyncQuery = (
 
   const { error: notifyError, success, warning } = useNotification();
 
-  const presentChannelNotice = useCallback(
-    (notice: ChannelNotice | null | undefined, fallbackTitle: string) => {
-      if (!notice || !notice.channel || !notice.message) {
-        return;
-      }
-
-      if (notice.channel === 'error') {
-        notifyError(notice.title || fallbackTitle, notice.message);
-        return;
-      }
-
-      warning(notice.title || fallbackTitle, notice.message);
-    },
-    [notifyError, warning]
-  );
-
   // 4. Compatibility handlers
   const saveAndUpdate = useCallback(
     async (updatedRecord: DailyRecord) => {
       try {
         const payload = await saveMutation.mutateAsync({ record: updatedRecord });
-        presentChannelNotice(resolveSaveOutcomeFeedback(payload.result), 'Guardado');
+        presentSyncOutcomeFeedback(resolveSaveOutcomeFeedback(payload.result), 'Guardado', {
+          error: notifyError,
+          success,
+          warning,
+        });
         assertDailyRecordWriteAccepted(payload.result);
       } catch (err) {
         if (err instanceof DailyRecordFreshnessGateError) {
@@ -233,26 +220,28 @@ export const useDailyRecordSyncQuery = (
           throw err;
         }
 
+        if (err instanceof DailyRecordWriteBlockedOutcomeError) {
+          throw err;
+        }
+
         const feedback = resolveSaveErrorFeedback(err);
-        if (feedback) {
-          notifyError(feedback.title, feedback.message);
+        notifyError(feedback.title, feedback.message);
 
-          if (feedback.shouldLog) {
-            dailyRecordSyncLogger.error(feedback.logLabel || 'Save blocked', err);
-          }
+        if (feedback.shouldLog) {
+          dailyRecordSyncLogger.error(feedback.logLabel || 'Save blocked', err);
+        }
 
-          if (feedback.refetchDelayMs) {
-            clearPendingRefetchTimeout();
-            pendingRefetchTimeoutRef.current = setTimeout(() => {
-              refetch();
-              pendingRefetchTimeoutRef.current = null;
-            }, feedback.refetchDelayMs);
-          }
+        if (feedback.refetchDelayMs) {
+          clearPendingRefetchTimeout();
+          pendingRefetchTimeoutRef.current = setTimeout(() => {
+            refetch();
+            pendingRefetchTimeoutRef.current = null;
+          }, feedback.refetchDelayMs);
         }
         throw err;
       }
     },
-    [saveMutation, notifyError, refetch, clearPendingRefetchTimeout, presentChannelNotice, warning]
+    [saveMutation, notifyError, success, refetch, clearPendingRefetchTimeout, warning]
   );
 
   const patchRecord = useCallback(
@@ -280,18 +269,33 @@ export const useDailyRecordSyncQuery = (
               }
             : partial
         );
-        presentChannelNotice(resolvePatchOutcomeFeedback(payload.result), 'Actualización');
+        presentSyncOutcomeFeedback(resolvePatchOutcomeFeedback(payload.result), 'Actualización', {
+          error: notifyError,
+          success,
+          warning,
+        });
         assertDailyRecordWriteAccepted(payload.result);
       } catch (err) {
         if (err instanceof DailyRecordFreshnessGateError) {
           if (err.presentation !== 'silent') {
             warning('Censo en actualización', err.message);
           }
+          throw err;
+        }
+
+        if (err instanceof DailyRecordWriteBlockedOutcomeError) {
+          throw err;
+        }
+
+        const feedback = resolvePatchErrorFeedback(err);
+        notifyError(feedback.title, feedback.message);
+        if (feedback.shouldLog) {
+          dailyRecordSyncLogger.error(feedback.logLabel || 'Patch failed', err);
         }
         throw err;
       }
     },
-    [patchMutation, presentChannelNotice, warning]
+    [patchMutation, notifyError, success, warning]
   );
 
   const setRecord = useCallback(
@@ -320,7 +324,11 @@ export const useDailyRecordSyncQuery = (
         dailyRecordObservability.recordOutcome('refresh_daily_record', outcome, {
           date: currentDateString,
         });
-        presentChannelNotice(presentDailyRecordRefreshOutcome(outcome), 'Sincronización');
+        presentSyncOutcomeFeedback(presentDailyRecordRefreshOutcome(outcome), 'Sincronización', {
+          error: notifyError,
+          success,
+          warning,
+        });
         void refetch();
       })
       .catch(error => {
@@ -347,7 +355,7 @@ export const useDailyRecordSyncQuery = (
           'No fue posible completar la sincronización remota. Se mantuvo la copia local actual.'
         );
       });
-  }, [currentDateString, refetch, runRemoteSync, warning, presentChannelNotice]);
+  }, [currentDateString, notifyError, refetch, runRemoteSync, success, warning]);
 
   const createDay = useCallback(
     async (copyFromPrevious: boolean, specificDate?: string) => {
