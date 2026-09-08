@@ -22,6 +22,8 @@ describe('transfer cover', () => {
     expect(formatCoverDate('2026-09-06')).toBe('06-09-2026');
     expect(formatCoverDate('06-09-2026')).toBe('06-09-2026');
     expect(normalizeCoverDateInput('06-09-2026')).toBe('2026-09-06');
+    expect(normalizeCoverDateInput(undefined)).toBe('');
+    expect(normalizeCoverDateInput(null)).toBe('');
   });
 
   it('renders a landscape legal page by default and letter on demand, escaping the data', () => {

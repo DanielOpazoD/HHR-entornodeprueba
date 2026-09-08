@@ -41,8 +41,8 @@ export const isTransferCoverPrintable = (cover: TransferCoverData): boolean =>
   cover.patientName.trim().length > 0 && cover.rut.trim().length > 0;
 
 /** Normaliza fechas ISO o clínicas al formato que acepta un input date. */
-export const normalizeCoverDateInput = (rawDate: string): string => {
-  const trimmed = rawDate.trim();
+export const normalizeCoverDateInput = (rawDate?: string | null): string => {
+  const trimmed = rawDate?.trim() ?? '';
   const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
   const clinicalMatch = trimmed.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
