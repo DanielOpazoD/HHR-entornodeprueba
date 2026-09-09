@@ -32,6 +32,8 @@ interface CensusStaffHeaderProps {
   onAttentionFilterChange?: (filter: CensusAttentionFilter) => void;
   visibleBeds?: readonly BedDefinition[];
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
+  rayenBootstrapRequestId?: number;
+  onRayenBootstrapHandled?: () => void;
 }
 
 /**
@@ -48,6 +50,8 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   onAttentionFilterChange,
   visibleBeds = [],
   renderMedicalHandoffAction,
+  rayenBootstrapRequestId,
+  onRayenBootstrapHandled,
 }) => {
   const dailyRecordData = useDailyRecordData();
   const handoffTarget = useCensusToolbarMenuTarget();
@@ -110,7 +114,11 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
 
           {!readOnly && !readModel.specialistAccess && (
             <div className="w-64 max-w-full shrink-0">
-              <RayenImportButton selectedDate={selectedDate} />
+              <RayenImportButton
+                selectedDate={selectedDate}
+                autoStartRequestId={rayenBootstrapRequestId}
+                onAutoStartHandled={onRayenBootstrapHandled}
+              />
             </div>
           )}
 

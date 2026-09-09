@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EmptyDayPrompt } from '@/features/census/components/EmptyDayPrompt';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
@@ -8,6 +8,25 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
   dailyRecordObservability: {
     recordEvent: vi.fn(),
   },
+}));
+
+vi.mock('@/features/rayen-import/public', () => ({
+  RayenDayBootstrapButton: ({
+    onCreateBlank,
+    onReady,
+  }: {
+    onCreateBlank: () => Promise<void>;
+    onReady: () => void;
+  }) => (
+    <button
+      type="button"
+      onClick={() => {
+        void onCreateBlank().then(onReady);
+      }}
+    >
+      Crear desde Eloísa
+    </button>
+  ),
 }));
 
 describe('EmptyDayPrompt', () => {
@@ -35,6 +54,32 @@ describe('EmptyDayPrompt', () => {
     expect(screen.getByTestId('copy-previous-btn')).toBeDisabled();
     expect(screen.getByText('Disponible hoy desde las 8:00 hrs.')).toBeInTheDocument();
     expect(screen.getByText('Se habilita en 00:30:00')).toBeInTheDocument();
+  });
+
+  it('offers today as a reviewed Eloisa bootstrap without copying the previous census', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 2, 3, 9, 0, 0));
+    const onCreateDay = vi.fn().mockResolvedValue(undefined);
+    const onRayenBootstrapReady = vi.fn();
+
+    render(
+      <EmptyDayPrompt
+        selectedDay={3}
+        selectedMonth={2}
+        currentDateString="2026-03-03"
+        previousRecordAvailable={true}
+        previousRecordDate="2026-03-02"
+        onCreateDay={onCreateDay}
+        onRayenBootstrapReady={onRayenBootstrapReady}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Crear desde Eloísa' }));
+      await Promise.resolve();
+    });
+    expect(onRayenBootstrapReady).toHaveBeenCalledTimes(1);
+    expect(onCreateDay).toHaveBeenCalledWith(false);
   });
 
   it('shows an admin override button while the visual countdown remains locked', () => {
@@ -76,6 +121,7 @@ describe('EmptyDayPrompt', () => {
     );
 
     expect(screen.getByTestId('copy-previous-btn')).not.toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Crear desde Eloísa' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Se habilita en/)).not.toBeInTheDocument();
   });
 

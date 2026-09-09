@@ -48,9 +48,15 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
 
 interface RayenImportButtonProps {
   selectedDate?: string;
+  autoStartRequestId?: number;
+  onAutoStartHandled?: () => void;
 }
 
-export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDate }) => {
+export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
+  selectedDate,
+  autoStartRequestId,
+  onAutoStartHandled,
+}) => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionMonitorOpen, setConnectionMonitorOpen] = React.useState(false);
@@ -58,6 +64,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);
+  const autoStartHandledRef = React.useRef<number | null>(null);
   const {
     mode,
     policyBlockReason,
@@ -81,6 +88,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
+  const refreshExtension = extension.refresh;
   const mainWorking =
     isRayenSyncExecutionActive(execution?.stage ?? null) || fill.running || recoveryBusy;
   const working = mainWorking || isStaffingProposalBusy;
@@ -105,12 +113,12 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     [extension.connection, history, mainWorking]
   );
 
-  const handleSync = async (): Promise<void> => {
+  const handleSync = React.useCallback(async (): Promise<void> => {
     if (syncPreflightInFlightRef.current) return;
     syncPreflightInFlightRef.current = true;
     try {
       const startedAt = Date.now();
-      const health = await extension.refresh({
+      const health = await refreshExtension({
         timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
         showChecking: true,
       });
@@ -121,7 +129,16 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     } finally {
       syncPreflightInFlightRef.current = false;
     }
-  };
+  }, [refreshExtension, triggerImport]);
+
+  React.useEffect(() => {
+    if (autoStartRequestId === undefined || autoStartHandledRef.current === autoStartRequestId) {
+      return;
+    }
+    autoStartHandledRef.current = autoStartRequestId;
+    onAutoStartHandled?.();
+    void handleSync();
+  }, [autoStartRequestId, handleSync, onAutoStartHandled]);
   const pendingChangeCount = diff
     ? diff.summary.admissions +
       diff.summary.updates +
