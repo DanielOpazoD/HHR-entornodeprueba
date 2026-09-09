@@ -8,7 +8,7 @@
   const CLOSING_WINDOW_STORAGE_KEY = 'hhrGestionCamasClosingWindowV1';
   const EXPIRING_WINDOW_MS = 10 * 60 * 1000;
   const CLOCK_SKEW_MS = 15 * 1000;
-  const VERIFICATION_FRESHNESS_MS = 2 * 60 * 1000;
+  const VERIFICATION_FRESHNESS_MS = 15 * 60 * 1000;
   const ALLOWED_API_HOST = 'hospbackend.rayensalud.cl';
 
   const cleanText = value => String(value || '').replace(/\s+/g, ' ').trim();

@@ -19,7 +19,11 @@ const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json')
 const generation = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
-type Listener = (event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void;
+type Listener = (event: {
+  source: unknown;
+  origin?: string;
+  data: Record<string, unknown>;
+}) => void;
 
 const createRelay = (documentGeneration = '') => {
   const pageListeners: Listener[] = [];
@@ -28,7 +32,11 @@ const createRelay = (documentGeneration = '') => {
   const attributes = new Map<string, string>();
   if (documentGeneration) attributes.set('data-hhr-extension-generation', documentGeneration);
   let runtimeListener:
-    | ((message: Record<string, unknown>, sender: unknown, respond: (value: unknown) => void) => unknown)
+    | ((
+        message: Record<string, unknown>,
+        sender: unknown,
+        respond: (value: unknown) => void
+      ) => unknown)
     | null = null;
   const windowStub: Record<string, unknown> = {
     location: { origin: 'https://hospitalizado.rayensalud.cl' },
@@ -84,26 +92,35 @@ const createRelay = (documentGeneration = '') => {
   vm.runInContext(bridgeHealthSource, context);
   vm.runInContext(relaySource, context);
 
-  const answerBridge = (bridgeGeneration: string, injectVersion = manifest.version) => {
-    const request = [...pageRequests].reverse().find(item =>
-      item.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST'
-    ) as { reqId: string };
-    pageListeners.forEach(listener => listener({
-      source: windowStub,
-      data: {
-        type: 'RAYEN_GC_BRIDGE_STATUS_RESULT',
-        reqId: request.reqId,
-        ready: true,
-        injectVersion,
-        bridgeGeneration,
-      },
-    }));
+  const answerBridge = (
+    bridgeGeneration: string,
+    injectVersion = manifest.version,
+    pageState = 'authenticated'
+  ) => {
+    const request = [...pageRequests]
+      .reverse()
+      .find(item => item.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST') as { reqId: string };
+    pageListeners.forEach(listener =>
+      listener({
+        source: windowStub,
+        data: {
+          type: 'RAYEN_GC_BRIDGE_STATUS_RESULT',
+          reqId: request.reqId,
+          ready: true,
+          injectVersion,
+          bridgeGeneration,
+          pageState,
+          pageRoute: pageState === 'login' ? '#/authenticate/login' : '#/bed',
+        },
+      })
+    );
   };
-  const ping = () => new Promise<Record<string, unknown>>(resolve => {
-    runtimeListener?.({ type: 'RAYEN_EXTENSION_HEALTH_PING' }, {}, value => {
-      resolve(value as Record<string, unknown>);
+  const ping = () =>
+    new Promise<Record<string, unknown>>(resolve => {
+      runtimeListener?.({ type: 'RAYEN_EXTENSION_HEALTH_PING' }, {}, value => {
+        resolve(value as Record<string, unknown>);
+      });
     });
-  });
   const requestRuntime = (message: Record<string, unknown>) =>
     new Promise<Record<string, unknown>>(resolve => {
       runtimeListener?.(message, {}, value => resolve(value as Record<string, unknown>));
@@ -112,28 +129,32 @@ const createRelay = (documentGeneration = '') => {
     const request = [...pageRequests].reverse().find(item => item.type === requestType) as {
       reqId: string;
     };
-    pageListeners.forEach(listener => listener({
-      source: windowStub,
-      data: {
-        type: resultType,
-        reqId: request.reqId,
-        injectVersion: manifest.version,
-        bridgeGeneration,
-        results: [],
-      },
-    }));
+    pageListeners.forEach(listener =>
+      listener({
+        source: windowStub,
+        data: {
+          type: resultType,
+          reqId: request.reqId,
+          injectVersion: manifest.version,
+          bridgeGeneration,
+          results: [],
+        },
+      })
+    );
   };
   const announceSession = (bridgeGeneration: string) => {
-    pageListeners.forEach(listener => listener({
-      source: windowStub,
-      origin: 'https://hospitalizado.rayensalud.cl',
-      data: {
-        type: 'RAYEN_GC_SESSION_CAPTURED',
-        injectVersion: manifest.version,
-        bridgeGeneration,
-        info: { ['to' + 'ken']: 'not-forwarded-in-test' },
-      },
-    }));
+    pageListeners.forEach(listener =>
+      listener({
+        source: windowStub,
+        origin: 'https://hospitalizado.rayensalud.cl',
+        data: {
+          type: 'RAYEN_GC_SESSION_CAPTURED',
+          injectVersion: manifest.version,
+          bridgeGeneration,
+          info: { ['to' + 'ken']: 'not-forwarded-in-test' },
+        },
+      })
+    );
   };
   return { ping, answerBridge, announceSession, requestRuntime, answerLatest, runtimeMessages };
 };
@@ -141,7 +162,7 @@ const createRelay = (documentGeneration = '') => {
 describe('Gestión de Camas bridge generation', () => {
   it('declares the manifest version and requires a generation on every privileged request', () => {
     expect(injectSource).toContain(`const INJECT_VERSION = '${manifest.version}';`);
-    expect(injectSource).toContain("if (!bridge.current) return;");
+    expect(injectSource).toContain('if (!bridge.current) return;');
     expect(injectSource).toContain("d.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST'");
     expect(injectSource.indexOf('BRIDGE_REQUEST_TYPES.has(data && data.type)')).toBeLessThan(
       injectSource.indexOf('bridgeRuntime.contextFor(data)')
@@ -153,13 +174,31 @@ describe('Gestión de Camas bridge generation', () => {
     const currentPing = current.ping();
     await flush();
     current.answerBridge(generation);
-    await expect(currentPing).resolves.toMatchObject({ ready: true, reason: 'connected' });
+    await expect(currentPing).resolves.toMatchObject({
+      ready: true,
+      reason: 'connected',
+      pageState: 'authenticated',
+      pageRoute: '#/bed',
+    });
 
     const stale = createRelay();
     const stalePing = stale.ping();
     await flush();
     stale.answerBridge('ffffffff-1111-4222-8333-444444444444');
     await expect(stalePing).resolves.toMatchObject({ ready: false, reason: 'outdated_tab' });
+  });
+
+  it('reports the visible login page independently from bridge readiness', async () => {
+    const relay = createRelay();
+    const result = relay.ping();
+    await flush();
+    relay.answerBridge(generation, manifest.version, 'login');
+    await expect(result).resolves.toMatchObject({
+      ready: true,
+      reason: 'connected',
+      pageState: 'login',
+      pageRoute: '#/authenticate/login',
+    });
   });
 
   it('keeps the original document generation across a same-version extension reload', async () => {

@@ -19,11 +19,22 @@
   const create = ({
     chromeApi,
     readHealth,
-    hhrMatchPatterns,
+    targetMatchPatterns,
     alarmName = 'hhr-health-heartbeat',
     periodMinutes = 1,
     log = (...args) => console.warn(...args),
   }) => {
+    const resolvedTargetMatchPatterns = targetMatchPatterns || Array.from(
+      new Set(
+        (chromeApi.runtime.getManifest().content_scripts || [])
+          .filter(entry =>
+            (entry.js || []).some(file =>
+              ['content-hhr.js', 'content-fichamedico.js', 'content-gestioncamas.js'].includes(file)
+            )
+          )
+          .flatMap(entry => entry.matches || [])
+      )
+    );
     const pushNow = async reason => {
       let report;
       try {
@@ -34,9 +45,18 @@
       }
       let tabs = [];
       try {
-        tabs = await chromeApi.tabs.query({ url: hhrMatchPatterns });
+        tabs = await chromeApi.tabs.query({
+          url: Array.from(
+            new Set(
+              (Array.isArray(resolvedTargetMatchPatterns)
+                ? resolvedTargetMatchPatterns
+                : [resolvedTargetMatchPatterns]
+              ).filter(Boolean)
+            )
+          ),
+        });
       } catch (error) {
-        log('[HHR] El latido no pudo enumerar pestañas HHR:', error);
+        log('[HHR] El latido no pudo enumerar pestañas HHR/Rayen:', error);
         return { pushed: 0 };
       }
       let pushed = 0;

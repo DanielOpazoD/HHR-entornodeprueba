@@ -15,10 +15,15 @@
   });
   const ready = source => Boolean(source && source.status === 'ready');
   const reasonIs = (source, values) => Boolean(source && values.includes(source.reason));
-  const sourceLabel = source => STATUS_LABELS[source && source.reason] || (
-    ready(source) ? 'Conectado' : source && source.status === 'missing'
-      ? 'Pestaña no abierta' : 'Requiere comprobación'
-  );
+  const sourceLabel = source => {
+    if (ready(source) && source.pageState === 'login') {
+      return 'API conectada · web sin sesión';
+    }
+    return STATUS_LABELS[source && source.reason] || (
+      ready(source) ? 'Conectado' : source && source.status === 'missing'
+        ? 'Pestaña no abierta' : 'Requiere comprobación'
+    );
+  };
 
   const isExpiring = source => {
     const remaining = source && source.remainingSeconds;
@@ -44,6 +49,14 @@
         action: 'connect-gc',
         actionLabel: 'Renovar Gestión de Camas',
         renewGestionCamas: true,
+      };
+    }
+    if (camas.pageState === 'login') {
+      return {
+        tone: 'degraded',
+        summary: 'Conectado en segundo plano',
+        action: 'none',
+        actionLabel: '',
       };
     }
     return {

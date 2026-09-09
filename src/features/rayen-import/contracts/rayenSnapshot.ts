@@ -99,6 +99,16 @@ export interface RayenActiveBedAssignment {
   bedId: string;
 }
 
+/** Aggregate evidence that every per-patient clinical read finished successfully. */
+export interface RayenClinicalCoverage {
+  total: number;
+  completed: number;
+  errors: number;
+  headerErrors: number;
+  diagnosisErrors: number;
+  isolationErrors: number;
+}
+
 /** A census snapshot captured from Rayen at a point in time. */
 export interface RayenCensusSnapshot {
   /** ISO timestamp when the snapshot was captured by the extension. */
@@ -111,8 +121,11 @@ export interface RayenCensusSnapshot {
   physicians?: RayenTreatingPhysician[];
   /** Episode-first fallback when Ficha Médico omits an active episode after a service/bed change. */
   activeBedAssignments?: RayenActiveBedAssignment[];
+  /** Per-patient read coverage. Omitted only by legacy extension versions. */
+  clinicalCoverage?: RayenClinicalCoverage;
   /**
-   * True ONLY when this snapshot is the FULL active census (every service/ward).
+   * True ONLY when this snapshot is the FULL active census (every service/ward) and every
+   * required per-patient clinical read succeeded.
    * A patient present in the HHR census but absent here can be inferred as discharged
    * only when this is `true`. Omitted / `false` is treated conservatively (partial):
    * absent patients are left untouched, never auto-discharged. The extension MUST set

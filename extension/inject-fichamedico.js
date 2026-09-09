@@ -29,7 +29,7 @@
   const BACKEND_HINT = 'rayensalud.cl';
   // Publicada en cada respuesta al relay: un inject de mundo principal sobrevive a la
   // recarga de la extensión hasta recargar la página; el relay compara con el manifest.
-  const INJECT_VERSION = '0.48.15';
+  const INJECT_VERSION = '0.48.19';
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
   const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
@@ -44,6 +44,28 @@
   let lastSessionFailureReason = 'session_expired';
   let epicrisisCapture = null;
   const epicrisisPdfCandidates = new Map();
+  const CLINICAL_READ_CACHE_TTL_MS = 30 * 1000;
+  const CLINICAL_READ_CACHE_MAX_ENTRIES = 300;
+  const clinicalReadCache = new Map();
+  const clearClinicalReadCache = () => clinicalReadCache.clear();
+  const readClinicalCached = (key, reader, now = Date.now()) => {
+    const cached = clinicalReadCache.get(key);
+    if (cached && cached.expiresAt > now) return cached.promise;
+    if (cached) clinicalReadCache.delete(key);
+    for (const [cachedKey, entry] of clinicalReadCache) {
+      if (entry.expiresAt <= now) clinicalReadCache.delete(cachedKey);
+    }
+    while (clinicalReadCache.size >= CLINICAL_READ_CACHE_MAX_ENTRIES) {
+      clinicalReadCache.delete(clinicalReadCache.keys().next().value);
+    }
+    const promise = Promise.resolve().then(reader);
+    const entry = { expiresAt: now + CLINICAL_READ_CACHE_TTL_MS, promise };
+    clinicalReadCache.set(key, entry);
+    promise.catch(() => {
+      if (clinicalReadCache.get(key) === entry) clinicalReadCache.delete(key);
+    });
+    return promise;
+  };
 
   const originalCreateObjectURL = typeof URL.createObjectURL === 'function'
     ? URL.createObjectURL.bind(URL)
@@ -136,6 +158,7 @@
         if (capturedAuth && capturedAuth !== nextAuth) {
           sessionBindingRevision += 1;
           capturedListUrl = null;
+          clearClinicalReadCache();
         }
         capturedAuth = nextAuth;
         const parsed = new URL(String(url), window.location.origin);
@@ -213,6 +236,7 @@
     capturedAuth = null;
     capturedListUrl = null;
     capturedApiOrigin = null;
+    clearClinicalReadCache();
     try {
       sessionStorage.removeItem(NURSING_CONTEXT_KEY);
     } catch (_) {}
@@ -244,10 +268,8 @@
     }
   };
 
-  // Concurrent callers share ONE in-flight verification. Without this, parallel module
-  // requests (vitales + identificación + franja de paciente) bump `sessionBindingRevision`
-  // against each other, the older call aborts with null and the user sees a spurious
-  // "la sesión clínica cambió o venció" even though the session is healthy.
+  // Share session verification so concurrent readers cannot invalidate one another.
+  const sessionUnavailable = (session, token, expiry) => !session || !token || (Number.isFinite(expiry) && expiry <= Date.now());
   let sessionIdentityInflight = null;
   const readSafeSessionIdentity = () => {
     if (sessionIdentityInflight) return sessionIdentityInflight;
@@ -275,7 +297,8 @@
       if (revision !== sessionBindingRevision) return null;
       const session = payload && payload.ok !== false ? payload.session : null;
       const sessionToken = String((session && session.token) || '');
-      if (!session || !sessionToken) {
+      const expiresAt = normalization.normalizeSessionExpiry(session, payload);
+      if (sessionUnavailable(session, sessionToken, expiresAt)) {
         lastSessionFailureReason = 'session_expired';
         clearClinicalBinding();
         return null;
@@ -290,7 +313,10 @@
       const role = normalization.normalizeSessionRole(session);
       const previousAuth = capturedAuth;
       const tokenMatchesCapturedAuth = !previousAuth || previousAuth === sessionToken;
-      if (previousAuth && previousAuth !== sessionToken) capturedListUrl = null;
+      if (previousAuth && previousAuth !== sessionToken) {
+        capturedListUrl = null;
+        clearClinicalReadCache();
+      }
       capturedAuth = sessionToken;
       capturedApiOrigin = capturedApiOrigin || DEFAULT_API_ORIGIN;
       lastSessionFailureReason = 'connected';
@@ -301,7 +327,7 @@
         role,
         isNursing: resolveNursingContext({ facilityId, practitionerId, practitionerRoleId, role }),
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
-        expiresAt: normalization.normalizeSessionExpiry(session, payload),
+        expiresAt,
         tokenMatchesCapturedAuth,
       };
     } catch (_) {
@@ -427,16 +453,46 @@
     // Keep a small concurrency ceiling: headers and diagnoses are independent, but the bridge
     // should not burst dozens of requests against Ficha Medico at once.
     const encounters = new Array(rows.length);
+    const clinicalCoverage = {
+      total: rows.length,
+      completed: 0,
+      errors: 0,
+      headerErrors: 0,
+      diagnosisErrors: 0,
+      isolationErrors: 0,
+    };
     let cursor = 0;
     const worker = async () => {
       while (cursor < rows.length) {
         const index = cursor++;
         const { item, discharged: isDischarged } = rows[index];
+        const cachePrefix = [
+          context.identity.facilityId,
+          context.identity.practitionerId,
+          context.identity.practitionerRoleId,
+          item.id,
+        ].join(':');
         const [headerResult, diagnosisResult, isolationResult] = await Promise.allSettled([
-          apiGet(headerUrl(base, item.id), capturedAuth),
-          apiGet(diagnosisUrl(base, item.id), capturedAuth),
-          normalization.requiresIsolationDetails(item) ? apiGet(isolationUrl(base, item.id), capturedAuth) : Promise.resolve([]),
+          readClinicalCached(`${cachePrefix}:header`, () =>
+            apiGet(headerUrl(base, item.id), capturedAuth)
+          ),
+          readClinicalCached(`${cachePrefix}:diagnosis`, () =>
+            apiGet(diagnosisUrl(base, item.id), capturedAuth)
+          ),
+          normalization.requiresIsolationDetails(item)
+            ? readClinicalCached(`${cachePrefix}:isolation`, () =>
+                apiGet(isolationUrl(base, item.id), capturedAuth)
+              )
+            : Promise.resolve([]),
         ]);
+        const headerFailed = headerResult.status === 'rejected';
+        const diagnosisFailed = diagnosisResult.status === 'rejected';
+        const isolationFailed = isolationResult.status === 'rejected';
+        if (headerFailed) clinicalCoverage.headerErrors += 1;
+        if (diagnosisFailed) clinicalCoverage.diagnosisErrors += 1;
+        if (isolationFailed) clinicalCoverage.isolationErrors += 1;
+        if (headerFailed || diagnosisFailed || isolationFailed) clinicalCoverage.errors += 1;
+        else clinicalCoverage.completed += 1;
         const header = headerResult.status === 'fulfilled' ? headerResult.value : null;
         const diagnosisRows = diagnosisResult.status === 'fulfilled' ? diagnosisResult.value : [];
         const isolationEntries = isolationResult.status === 'fulfilled' && Array.isArray(isolationResult.value)
@@ -460,7 +516,10 @@
     return {
       capturedAt: new Date().toISOString(),
       facilityId: Number(context.identity.facilityId),
-      isComplete: true, // filterType=3 + Servicio Todos covers the whole active census
+      // A complete list with incomplete patient reads is still unsafe: blank fallback fields could
+      // otherwise erase valid clinical data or make a present patient look absent downstream.
+      isComplete: clinicalCoverage.errors === 0,
+      clinicalCoverage,
       encounters, physicians,
     };
   };
@@ -548,6 +607,7 @@
       const status = resilience.describeSessionStatus({
         sessionReady,
         readBlocked: censusReader.isReadBlocked(),
+        failureReason: lastSessionFailureReason,
       });
       window.postMessage(
         {

@@ -131,6 +131,10 @@ describe('Gestión de Camas session helpers', () => {
       remainingSeconds: null,
     });
     expect(session.publicStatus(record, now + 3 * 60_000)).toMatchObject({
+      status: 'ready',
+      verification: 'fresh',
+    });
+    expect(session.publicStatus(record, now + 16 * 60_000)).toMatchObject({
       status: 'stale',
       verification: 'pending',
     });

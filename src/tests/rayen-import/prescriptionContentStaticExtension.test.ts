@@ -49,6 +49,8 @@ describe('extension clinical content static safeguards', () => {
     );
     expect(contentSource).toContain("openCenterModule('connection'");
     expect(contentSource).toContain('hhr-ops-connection-dot');
+    expect(contentSource).toContain("message.type !== 'RAYEN_EXTENSION_HEALTH_PUSH'");
+    expect(contentSource).toContain('refreshOperationsConnectionBadge(bar, true, message.report)');
     expect(connectionCenterSource).not.toMatch(/type=["']password["']/i);
   });
 });

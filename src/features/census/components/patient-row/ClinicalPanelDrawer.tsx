@@ -21,6 +21,10 @@ import { ClinicalPanelHeading } from './ClinicalPanelHeading';
 import { RayenEncounterButton } from './RayenEncounterButton';
 import { PatientDocumentManagerButton } from './PatientDocumentManagerButton';
 import { useClinicalPanelSnapshot } from './useClinicalPanelSnapshot';
+import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
+import { ClinicalPanelAntecedents } from './ClinicalPanelAntecedents';
+import { ClinicalPanelPrescriptionButton } from './ClinicalPanelPrescriptionButton';
+import { ClinicalPanelProfessionTabs } from './ClinicalPanelProfessionTabs';
 
 const PatientDocumentManagerDialog = React.lazy(() =>
   import('./PatientDocumentManagerDialog').then(module => ({
@@ -78,7 +82,8 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
 }) => {
   const { state, documentState, reload } = useClinicalPanelSnapshot(clinicalEpisodeId);
   const [tab, setTab] = useState<PanelTab>('evolutions');
-  const [profession, setProfession] = useState<EvolutionProfession>('medical');
+  const [profession, setProfession] = useState<EvolutionProfession | 'antecedents'>('medical');
+  const [antecedentsEpisode, setAntecedentsEpisode] = useState<string | null>(null);
   const [evolutionView, setEvolutionView] = useState<EvolutionView>('notes');
   const [isDocumentManagerOpen, setIsDocumentManagerOpen] = useState(false);
   const [isWide, setIsWide] = useState(false);
@@ -249,28 +254,15 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           )}
         </nav>
 
-        {tab === 'evolutions' && state.phase === 'ready' && (
-          <div className="flex shrink-0 items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1">
-            {PROFESSION_TABS.map(p => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setProfession(p.key)}
-                aria-label={`${p.label} (${professionCount(p.key)})`}
-                aria-pressed={profession === p.key}
-                className={clsx(
-                  'rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
-                  profession === p.key
-                    ? 'bg-medical-100 text-medical-700 ring-1 ring-medical-200'
-                    : 'text-slate-500 hover:bg-slate-100'
-                )}
-              >
-                {p.label}
-                <span className="ml-1 text-[9px] font-bold opacity-60">
-                  {professionCount(p.key)}
-                </span>
-              </button>
-            ))}
+        {tab === 'evolutions' && (
+          <ClinicalPanelProfessionTabs
+            selected={profession}
+            onSelect={value => {
+              setProfession(value);
+              if (value === 'antecedents') setAntecedentsEpisode(clinicalEpisodeId);
+            }}
+            count={professionCount}
+          >
             <ClinicalPanelHistoryPrintButton
               patientName={patientName}
               patientRun={patientRun}
@@ -278,69 +270,71 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
               admissionDate={admissionDate}
               censusDate={censusDate}
             />
-          </div>
+          </ClinicalPanelProfessionTabs>
         )}
 
-        {tab === 'evolutions' && state.phase === 'ready' && profession !== 'other' && (
-          <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-0.5">
-            {(
-              [
-                {
-                  key: 'notes' as const,
-                  label: 'Evoluciones',
-                  count: professionEntries.filter(entry => entry.kind !== 'shift-change').length,
-                },
-                {
-                  key: 'handoffs' as const,
-                  label: 'Entrega de turno',
-                  count: professionEntries.filter(entry => entry.kind === 'shift-change').length,
-                },
-              ] satisfies Array<{ key: EvolutionView; label: string; count: number }>
-            ).map(item => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setEvolutionView(item.key)}
-                aria-label={`${item.label} (${item.count})`}
-                aria-pressed={evolutionView === item.key}
-                className={clsx(
-                  'rounded px-2 py-0.5 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
-                  evolutionView === item.key
-                    ? 'bg-slate-700 text-white'
-                    : 'text-slate-500 hover:bg-slate-100'
-                )}
-              >
-                {item.label}
-                <span className="ml-1 opacity-70">{item.count}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {tab === 'evolutions' &&
+          state.phase === 'ready' &&
+          profession !== 'other' &&
+          profession !== 'antecedents' && (
+            <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-0.5">
+              {(
+                [
+                  {
+                    key: 'notes' as const,
+                    label: 'Evoluciones',
+                    count: professionEntries.filter(entry => entry.kind !== 'shift-change').length,
+                  },
+                  {
+                    key: 'handoffs' as const,
+                    label: 'Entrega de turno',
+                    count: professionEntries.filter(entry => entry.kind === 'shift-change').length,
+                  },
+                ] satisfies Array<{ key: EvolutionView; label: string; count: number }>
+              ).map(item => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setEvolutionView(item.key)}
+                  aria-label={`${item.label} (${item.count})`}
+                  aria-pressed={evolutionView === item.key}
+                  className={clsx(
+                    'rounded px-2 py-0.5 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
+                    evolutionView === item.key
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-500 hover:bg-slate-100'
+                  )}
+                >
+                  {item.label}
+                  <span className="ml-1 opacity-70">{item.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
         <div
           data-testid="clinical-panel-content"
           className="min-h-0 flex-1 cursor-text select-text space-y-2 overflow-y-auto overscroll-contain break-words p-3"
         >
-          {state.phase === 'loading' && (
+          {state.phase === 'loading' && !(tab === 'evolutions' && profession === 'antecedents') && (
             <div className="flex flex-col items-center gap-2 py-10 text-slate-400">
               <Loader2 size={20} className="animate-spin" />
               <p className="text-[12px]">Consultando Ficha Médico…</p>
             </div>
           )}
-          {state.phase === 'error' && (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <p className="px-4 text-[12px] text-red-600">{state.message}</p>
-              <button
-                type="button"
-                onClick={reload}
-                className="rounded-md border border-slate-300 bg-white px-3 py-1 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                Reintentar
-              </button>
-            </div>
+          {state.phase === 'error' && !(tab === 'evolutions' && profession === 'antecedents') && (
+            <ClinicalPanelUnavailable message={state.message} onRetry={reload} />
           )}
 
-          {state.phase === 'ready' && tab === 'evolutions' && (
+          {(profession === 'antecedents' || antecedentsEpisode === clinicalEpisodeId) && (
+            <div className={tab === 'evolutions' && profession === 'antecedents' ? '' : 'hidden'}>
+              <ClinicalPanelAntecedents
+                key={clinicalEpisodeId}
+                clinicalEpisodeId={clinicalEpisodeId}
+              />
+            </div>
+          )}
+          {state.phase === 'ready' && tab === 'evolutions' && profession !== 'antecedents' && (
             <>
               {visibleEvolutions.length === 0 && (
                 <p className="py-10 text-center text-[12px] italic text-slate-400">
@@ -357,6 +351,10 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
 
           {state.phase === 'ready' && tab === 'indications' && (
             <>
+              <ClinicalPanelPrescriptionButton
+                key={clinicalEpisodeId}
+                clinicalEpisodeId={clinicalEpisodeId}
+              />
               {panel && panel.indicationDays.length === 0 && (
                 <p className="py-10 text-center text-[12px] italic text-slate-400">
                   Sin indicaciones en los últimos 14 días.

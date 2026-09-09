@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { normalizeHealthExpiry } from '../bridge/sourceHealthExpiry';
 import {
   RAYEN_EXTENSION_PROTOCOL_VERSION,
   requestRayenExtensionHealth,
@@ -96,6 +97,8 @@ const deriveHealthState = (
     };
   }
 
+  report = normalizeHealthExpiry(report);
+
   if (report.fichaMedico.status !== 'ready') {
     return {
       connection: 'blocked',
@@ -158,10 +161,13 @@ const deriveHealthState = (
     };
   }
 
+  const camasInBackground = report.gestionCamas.pageState === 'login';
   return {
     connection: 'ready',
     report,
-    message: `Extensión Eloísa v${report.version} operativa.`,
+    message: camasInBackground
+      ? `Extensión Eloísa v${report.version} operativa; Gestión de Camas disponible en segundo plano.`
+      : `Extensión Eloísa v${report.version} operativa.`,
     canSync: true,
   };
 };
@@ -249,6 +255,23 @@ export const useRayenExtensionHealth = () => {
     }, delay + 10);
     return () => window.clearTimeout(timer);
   }, [health.report?.checkedAt]);
+
+  useEffect(() => {
+    const report = health.report;
+    if (!report) return undefined;
+    const nextExpiry = [report.fichaMedico, report.gestionCamas]
+      .filter(source => source.status === 'ready')
+      .map(source => source.expiresAt)
+      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+    if (!nextExpiry.length) return undefined;
+    const timer = window.setTimeout(
+      () => {
+        setHealth(previous => (previous.report === report ? deriveHealthState(report) : previous));
+      },
+      Math.min(2_147_483_647, Math.max(0, Math.min(...nextExpiry) - Date.now()) + 10)
+    );
+    return () => window.clearTimeout(timer);
+  }, [health.report]);
 
   return { ...health, refresh };
 };

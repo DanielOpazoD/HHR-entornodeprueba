@@ -29,7 +29,9 @@ describe('HHR patient documents content bridge', () => {
   it.each(['http://localhost:3000', 'http://localhost:3001'])(
     'opens a selected document from trusted origin %s',
     async origin => {
-      let onMessage: ((event: { source: unknown; data: Record<string, unknown> }) => void) | undefined;
+      let onMessage:
+        | ((event: { source: unknown; origin: string; data: Record<string, unknown> }) => void)
+        | undefined;
       const sendMessage = vi.fn(async () => ({ ok: true, opened: true }));
       const postMessage = vi.fn();
       const windowObject = {
@@ -51,6 +53,7 @@ describe('HHR patient documents content bridge', () => {
       vm.runInContext(source, context, { filename: 'content-hhr-patient-documents.js' });
       onMessage?.({
         source: windowObject,
+        origin,
         data: {
           type: 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST',
           reqId: 'docs-1',
@@ -58,19 +61,24 @@ describe('HHR patient documents content bridge', () => {
           documentId: 'id:10',
         },
       });
-      await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith({
-        type: 'RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST',
-        encId: '141121',
-        operation: 'open-document',
-        documentId: 'id:10',
-      }));
-      expect(postMessage).toHaveBeenCalledWith({
-        type: 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT',
-        reqId: 'docs-1',
-        ok: true,
-        opened: true,
-        error: undefined,
-      }, origin);
+      await vi.waitFor(() =>
+        expect(sendMessage).toHaveBeenCalledWith({
+          type: 'RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST',
+          encId: '141121',
+          operation: 'open-document',
+          documentId: 'id:10',
+        })
+      );
+      expect(postMessage).toHaveBeenCalledWith(
+        {
+          type: 'HHR_RAYEN_PATIENT_DOCUMENT_OPEN_RESULT',
+          reqId: 'docs-1',
+          ok: true,
+          opened: true,
+          error: undefined,
+        },
+        origin
+      );
     }
   );
 });

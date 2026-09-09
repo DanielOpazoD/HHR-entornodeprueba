@@ -37,6 +37,10 @@
             reason: current ? 'connected' : 'outdated_tab',
             bridgeVersion: data.injectVersion,
             bridgeGeneration: data.bridgeGeneration,
+            pageState: ['authenticated', 'login', 'unknown'].includes(data.pageState)
+              ? data.pageState
+              : 'unknown',
+            pageRoute: String(data.pageRoute || '').slice(0, 160),
             message: current
               ? 'Gestión de Camas disponible.'
               : 'Abre una pestaña nueva de Gestión de Camas: la pestaña actual está desactualizada.',
