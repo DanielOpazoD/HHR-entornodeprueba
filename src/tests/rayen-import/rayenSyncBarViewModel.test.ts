@@ -150,6 +150,22 @@ describe('buildRayenSyncBarViewModel', () => {
     expect(model).toMatchObject({ phase: 'complete', tone: 'success', label: 'Todo al día' });
   });
 
+  it('shows an indeterminate start instead of presenting zero patients as stalled progress', () => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        executionStage: { type: 'syncing_clinical' },
+        fill: fill({ running: true, outcome: 'running', done: 0, total: 16 }),
+      })
+    );
+
+    expect(model).toMatchObject({
+      phase: 'clinical',
+      label: 'Iniciando lectura clínica · 16 pacientes',
+      progress: { kind: 'indeterminate' },
+      ariaBusy: true,
+    });
+  });
+
   it('uses the real clinical patient counter instead of an inferred percentage', () => {
     const model = buildRayenSyncBarViewModel(
       input({

@@ -112,6 +112,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
       const startedAt = Date.now();
       const health = await extension.refresh({
         timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+        showChecking: true,
       });
       await triggerImport(health, {
         stagesMs: { preflight: elapsedMilliseconds(startedAt) },

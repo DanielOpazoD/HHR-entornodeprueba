@@ -257,6 +257,7 @@ describe('RayenImportButton', () => {
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
     expect(mocks.refreshHealth).toHaveBeenCalledWith({
       timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+      showChecking: true,
     });
     expect(mocks.triggerImport).toHaveBeenCalledWith(
       expect.objectContaining({ connection: 'ready', canSync: true }),

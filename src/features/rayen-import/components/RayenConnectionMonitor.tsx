@@ -93,7 +93,10 @@ const SourceRow: React.FC<SourceRowProps> = ({ label, source, detail }) => (
 
 interface RayenConnectionMonitorProps {
   extension: RayenExtensionHealthState & {
-    refresh: (options?: { timeoutMs?: number }) => Promise<RayenExtensionHealthState>;
+    refresh: (options?: {
+      timeoutMs?: number;
+      showChecking?: boolean;
+    }) => Promise<RayenExtensionHealthState>;
   };
   working: boolean;
   lastSyncLine: React.ReactNode;
