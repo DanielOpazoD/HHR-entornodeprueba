@@ -5,20 +5,12 @@ import vm from 'node:vm';
 
 import { describe, expect, it } from 'vitest';
 
-const injectSource = readFileSync(path.resolve('extension/inject-fichamedico.js'), 'utf8');
-const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
-const isolationNormalizationSource = readFileSync(
-  path.resolve('extension/fichamedico-isolation-normalization.js'),
-  'utf8'
-);
-const normalizationSource = readFileSync(
-  path.resolve('extension/fichamedico-normalization.js'),
-  'utf8'
-);
-const resilienceSource = readFileSync(
-  path.resolve('extension/fichamedico-read-resilience.js'),
-  'utf8'
-);
+const extensionSource = (file: string) => readFileSync(path.resolve('extension', file), 'utf8');
+const injectSource = extensionSource('inject-fichamedico.js');
+const bridgeGenerationSource = extensionSource('bridge-generation.js');
+const isolationNormalizationSource = extensionSource('fichamedico-isolation-normalization.js');
+const normalizationSource = extensionSource('fichamedico-normalization.js');
+const resilienceSource = extensionSource('fichamedico-read-resilience.js');
 const AUTH_HEADER_FIXTURE = ['HSP', 'fixture'].join(' ');
 const RUNTIME_GENERATION_FIXTURE = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const MAIN_WORLD_GENERATION_KEY = '__hhrExtensionRuntimeGenerationV1__';
@@ -30,22 +22,8 @@ type PostedMessage = {
   ready?: boolean;
   message?: string;
   error?: string | null;
-  identity?: {
-    fullName?: string;
-    role?: string;
-    practitionerId?: string;
-    practitionerRoleId?: string;
-  } | null;
-  info?: {
-    apiOrigin?: string;
-    listUrl?: string;
-    listSource?: string;
-    facId?: string;
-    practitionerId?: string;
-    practitionerRoleId?: string;
-    isNursing?: boolean;
-    identityVerified?: boolean;
-  } | null;
+  identity?: Record<string, unknown> | null;
+  info?: Record<string, unknown> | null;
   snapshot?: {
     encounters?: Array<Record<string, unknown>>;
   };
