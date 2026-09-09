@@ -92,8 +92,8 @@
     };
   };
 
-  /** Honest health: a verified session whose reads fail at network level is NOT ready. */
-  const describeSessionStatus = ({ sessionReady, readBlocked }) => {
+  const describeSessionStatus = ({ sessionReady, readBlocked, failureReason }) => {
+    if (failureReason === 'session_expired') return { ready: false, message: 'La sesión de Ficha Médico venció. Vuelve a iniciar sesión en Eloísa.' };
     if (sessionReady && readBlocked) return { ready: false, message: READ_BLOCKED_MESSAGE };
     if (sessionReady) return { ready: true, message: SESSION_READY_MESSAGE };
     return { ready: false, message: SESSION_MISSING_MESSAGE };

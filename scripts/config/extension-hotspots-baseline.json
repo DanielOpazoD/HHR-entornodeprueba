@@ -52,6 +52,18 @@
       "maxLines": 37,
       "hotspots": {}
     },
+    "clinical-antecedents-runtime.js": {
+      "maxLines": 223,
+      "hotspots": {}
+    },
+    "clinical-antecedents-attachment.js": {
+      "maxLines": 48,
+      "hotspots": {}
+    },
+    "clinical-antecedents-detail.js": {
+      "maxLines": 111,
+      "hotspots": {}
+    },
     "clinical-panel-fetch.js": {
       "maxLines": 65,
       "hotspots": {}

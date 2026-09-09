@@ -1,16 +1,4 @@
-/**
- * background.js  (MV3 service worker)
- *
- * Routes messages from an HHR tab to the right Rayen tab and returns the result. The tabs
- * cannot message each other directly.
- *   - RAYEN_SNAPSHOT_REQUEST      → Ficha Médico tab (reads the census snapshot)
- *   - RAYEN_EGRESO_LOOKUP_REQUEST → Gestión de Camas tab (looks up egresos by RUN)
- *   - RAYEN_EGRESO_REPORT_REQUEST → downloads the bulk "Alta Administrativa" report .xls here
- *     in the background (host_permissions bypass CORS, which a page/content fetch cannot), using
- *     the token the Gestión de Camas tab hands over, PARSES it (vendored SheetJS) and returns
- *     clean egreso rows as JSON for HHR to enumerate.
- *   - RAYEN_EGRESO_REPORT_SAVE    → same fetch, but saves the .xls to disk (diagnostic).
- */
+/** MV3 composition root: authorized clinical reads, reports and HHR/Rayen message routing. */
 'use strict';
 
 // Manifest V3 classic service workers may call importScripts only during their initial
@@ -35,6 +23,8 @@ importScripts(
   'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
+  'clinical-antecedents-attachment.js', 'clinical-antecedents-detail.js',
+  'clinical-antecedents-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
   'clinical-handoff-runtime.js',
   'clinical-score-runtime.js',
@@ -1204,7 +1194,13 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
 };
 
 const syslabRuntime = self.HhrSyslabPdfBundle.createRuntime({ chrome, downloadPdfBuffer, withTimeout });
-
+const clinicalAntecedentsRuntime = self.HhrClinicalAntecedents.create({
+  getContext: getClinicalReportContext,
+  readJson: options => fichaMedicoClinicalClient.readJson(options),
+  fetchImpl: fetch,
+  openTab: options => chrome.tabs.create(options),
+  getAuthorizationKey: async sender => { const session = await resolveFichaClinicalSession({ sender }); if (session.error) throw new Error(session.error); return fichaSessionCacheKey(session.info, sender); },
+});
 const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });
 
 const handlePatientClinicalBundleRequest = self.HhrPatientClinicalBundleRuntime.create({
@@ -1343,6 +1339,10 @@ const runtimeMessageRoutes = Object.freeze({
   [RUNTIME_MESSAGES.CLINICAL_PANEL_REQUEST]: runtimeRoute(
     (message, sender) => handleClinicalPanelRequest({ encId: message.encId, sender }),
     'No se pudo cargar el panel clínico.'
+  ),
+  [RUNTIME_MESSAGES.CLINICAL_ANTECEDENTS_REQUEST]: runtimeRoute(
+    (message, sender) => clinicalAntecedentsRuntime.handleRequest({ ...message, sender }),
+    'No se pudieron consultar los antecedentes.'
   ),
   [RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(
     (message, sender) => syslabRuntime.search({ ...message, sender }),

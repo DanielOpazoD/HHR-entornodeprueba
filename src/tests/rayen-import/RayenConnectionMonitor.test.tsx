@@ -80,6 +80,16 @@ const renderMonitor = (
 };
 
 describe('RayenConnectionMonitor', () => {
+  it('no muestra verde ni sesión vigente si el reporte listo ya venció', () => {
+    const extension = baseExtension();
+    extension.report!.fichaMedico.expiresAt = Date.now() - 1;
+    renderMonitor(extension);
+    expect(screen.queryByText('Conectada')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Sesión clínica vigente/)).not.toBeInTheDocument();
+    const message = screen.getByText(/La sesión de Ficha Médico venció/);
+    expect(message.parentElement?.parentElement?.querySelector('.bg-emerald-500')).toBeNull();
+    expect(screen.getByText('Revisar Ficha Médico')).toBeVisible();
+  });
   it('muestra identidad, vigencia y frescura de cada fuente', () => {
     renderMonitor(baseExtension());
 

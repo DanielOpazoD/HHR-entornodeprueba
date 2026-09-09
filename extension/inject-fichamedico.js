@@ -29,7 +29,7 @@
   const BACKEND_HINT = 'rayensalud.cl';
   // Publicada en cada respuesta al relay: un inject de mundo principal sobrevive a la
   // recarga de la extensión hasta recargar la página; el relay compara con el manifest.
-  const INJECT_VERSION = '0.48.15';
+  const INJECT_VERSION = '0.48.19';
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
   const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
@@ -244,10 +244,8 @@
     }
   };
 
-  // Concurrent callers share ONE in-flight verification. Without this, parallel module
-  // requests (vitales + identificación + franja de paciente) bump `sessionBindingRevision`
-  // against each other, the older call aborts with null and the user sees a spurious
-  // "la sesión clínica cambió o venció" even though the session is healthy.
+  // Share session verification so concurrent readers cannot invalidate one another.
+  const sessionUnavailable = (session, token, expiry) => !session || !token || (Number.isFinite(expiry) && expiry <= Date.now());
   let sessionIdentityInflight = null;
   const readSafeSessionIdentity = () => {
     if (sessionIdentityInflight) return sessionIdentityInflight;
@@ -275,7 +273,8 @@
       if (revision !== sessionBindingRevision) return null;
       const session = payload && payload.ok !== false ? payload.session : null;
       const sessionToken = String((session && session.token) || '');
-      if (!session || !sessionToken) {
+      const expiresAt = normalization.normalizeSessionExpiry(session, payload);
+      if (sessionUnavailable(session, sessionToken, expiresAt)) {
         lastSessionFailureReason = 'session_expired';
         clearClinicalBinding();
         return null;
@@ -301,7 +300,7 @@
         role,
         isNursing: resolveNursingContext({ facilityId, practitionerId, practitionerRoleId, role }),
         fullName: String(session.fullName || '').replace(/\s+/g, ' ').trim(),
-        expiresAt: normalization.normalizeSessionExpiry(session, payload),
+        expiresAt,
         tokenMatchesCapturedAuth,
       };
     } catch (_) {
@@ -548,6 +547,7 @@
       const status = resilience.describeSessionStatus({
         sessionReady,
         readBlocked: censusReader.isReadBlocked(),
+        failureReason: lastSessionFailureReason,
       });
       window.postMessage(
         {

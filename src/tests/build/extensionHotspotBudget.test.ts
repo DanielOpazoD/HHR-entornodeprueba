@@ -61,8 +61,8 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    // 113: los puentes de reparación y la superficie compacta se mantienen en módulos propios.
-    expect(metrics.authoredFiles).toHaveLength(113);
+    // 116: los puentes de reparación y la superficie compacta se mantienen en módulos propios.
+    expect(metrics.authoredFiles).toHaveLength(116);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
