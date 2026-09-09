@@ -301,6 +301,61 @@ describe('buildRayenSyncBarViewModel', () => {
     expect(model.label).not.toContain('Enfermería/TENS');
   });
 
+  it('warns when today’s last successful synchronization is older than 15 minutes', () => {
+    const now = new Date(2026, 8, 9, 12, 30).getTime();
+    const model = buildRayenSyncBarViewModel(
+      input({
+        now,
+        targetDate: '2026-09-09',
+        hasPersistedSync: true,
+        persistedSync: {
+          at: new Date(2026, 8, 9, 12, 0).toISOString(),
+          status: 'complete',
+          coverage: {
+            total: 16,
+            completed: 16,
+            errors: 0,
+            sourceErrors: 0,
+            completedAt: new Date(2026, 8, 9, 12, 0).toISOString(),
+          },
+          staffingObservation: { ambiguousSections: [], ignoredBoundaryRecords: 0 },
+        },
+      })
+    );
+
+    expect(model).toMatchObject({
+      phase: 'action',
+      tone: 'warning',
+      label: 'Datos sin actualizar · hace 30 min',
+      visuallyHidden: false,
+    });
+    expect(model.detail).toContain('Última sincronización exitosa');
+  });
+
+  it('does not mark a selected historical census as stale', () => {
+    const model = buildRayenSyncBarViewModel(
+      input({
+        now: new Date(2026, 8, 9, 12, 30).getTime(),
+        targetDate: '2026-09-08',
+        hasPersistedSync: true,
+        persistedSync: {
+          at: new Date(2026, 8, 8, 22, 0).toISOString(),
+          status: 'complete',
+          coverage: {
+            total: 16,
+            completed: 16,
+            errors: 0,
+            sourceErrors: 0,
+            completedAt: new Date(2026, 8, 8, 22, 0).toISOString(),
+          },
+          staffingObservation: { ambiguousSections: [], ignoredBoundaryRecords: 0 },
+        },
+      })
+    );
+
+    expect(model).toMatchObject({ phase: 'complete', tone: 'success', label: 'Todo al día' });
+  });
+
   it('treats handoff-boundary traceability alone as a successful synchronization', () => {
     const model = buildRayenSyncBarViewModel(
       input({
