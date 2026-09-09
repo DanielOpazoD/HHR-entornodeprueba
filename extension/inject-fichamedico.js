@@ -426,6 +426,14 @@
     // Keep a small concurrency ceiling: headers and diagnoses are independent, but the bridge
     // should not burst dozens of requests against Ficha Medico at once.
     const encounters = new Array(rows.length);
+    const clinicalCoverage = {
+      total: rows.length,
+      completed: 0,
+      errors: 0,
+      headerErrors: 0,
+      diagnosisErrors: 0,
+      isolationErrors: 0,
+    };
     let cursor = 0;
     const worker = async () => {
       while (cursor < rows.length) {
@@ -436,6 +444,14 @@
           apiGet(diagnosisUrl(base, item.id), capturedAuth),
           normalization.requiresIsolationDetails(item) ? apiGet(isolationUrl(base, item.id), capturedAuth) : Promise.resolve([]),
         ]);
+        const headerFailed = headerResult.status === 'rejected';
+        const diagnosisFailed = diagnosisResult.status === 'rejected';
+        const isolationFailed = isolationResult.status === 'rejected';
+        if (headerFailed) clinicalCoverage.headerErrors += 1;
+        if (diagnosisFailed) clinicalCoverage.diagnosisErrors += 1;
+        if (isolationFailed) clinicalCoverage.isolationErrors += 1;
+        if (headerFailed || diagnosisFailed || isolationFailed) clinicalCoverage.errors += 1;
+        else clinicalCoverage.completed += 1;
         const header = headerResult.status === 'fulfilled' ? headerResult.value : null;
         const diagnosisRows = diagnosisResult.status === 'fulfilled' ? diagnosisResult.value : [];
         const isolationEntries = isolationResult.status === 'fulfilled' && Array.isArray(isolationResult.value)
@@ -459,7 +475,10 @@
     return {
       capturedAt: new Date().toISOString(),
       facilityId: Number(context.identity.facilityId),
-      isComplete: true, // filterType=3 + Servicio Todos covers the whole active census
+      // A complete list with incomplete patient reads is still unsafe: blank fallback fields could
+      // otherwise erase valid clinical data or make a present patient look absent downstream.
+      isComplete: clinicalCoverage.errors === 0,
+      clinicalCoverage,
       encounters, physicians,
     };
   };

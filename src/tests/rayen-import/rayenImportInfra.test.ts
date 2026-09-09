@@ -37,6 +37,14 @@ describe('isRayenCensusSnapshot', () => {
       isRayenCensusSnapshot({
         ...validSnapshot,
         physicians: [{ practitionerId: '7947', displayName: 'Angelica Vargas' }],
+        clinicalCoverage: {
+          total: 1,
+          completed: 1,
+          errors: 0,
+          headerErrors: 0,
+          diagnosisErrors: 0,
+          isolationErrors: 0,
+        },
       })
     ).toBe(true);
   });
@@ -45,6 +53,19 @@ describe('isRayenCensusSnapshot', () => {
     expect(isRayenCensusSnapshot(null)).toBe(false);
     expect(isRayenCensusSnapshot({ facilityId: 1342 })).toBe(false);
     expect(isRayenCensusSnapshot({ ...validSnapshot, encounters: [{ run: '1' }] })).toBe(false);
+    expect(
+      isRayenCensusSnapshot({
+        ...validSnapshot,
+        clinicalCoverage: {
+          total: 2,
+          completed: 1,
+          errors: 0,
+          headerErrors: 0,
+          diagnosisErrors: 0,
+          isolationErrors: 0,
+        },
+      })
+    ).toBe(false);
     expect(
       isRayenCensusSnapshot({
         ...validSnapshot,

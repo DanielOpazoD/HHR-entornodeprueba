@@ -60,6 +60,28 @@ const isActiveBedAssignment = (value: unknown): boolean => {
   );
 };
 
+const isClinicalCoverage = (value: unknown): boolean => {
+  if (typeof value !== 'object' || value === null) return false;
+  const coverage = value as Record<string, unknown>;
+  const fields = [
+    'total',
+    'completed',
+    'errors',
+    'headerErrors',
+    'diagnosisErrors',
+    'isolationErrors',
+  ];
+  if (!fields.every(field => Number.isInteger(coverage[field]) && Number(coverage[field]) >= 0)) {
+    return false;
+  }
+  return (
+    Number(coverage.completed) + Number(coverage.errors) === Number(coverage.total) &&
+    Number(coverage.headerErrors) <= Number(coverage.errors) &&
+    Number(coverage.diagnosisErrors) <= Number(coverage.errors) &&
+    Number(coverage.isolationErrors) <= Number(coverage.errors)
+  );
+};
+
 export const isRayenCensusSnapshot = (value: unknown): value is RayenCensusSnapshot => {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Record<string, unknown>;
@@ -75,7 +97,8 @@ export const isRayenCensusSnapshot = (value: unknown): value is RayenCensusSnaps
     (candidate.activeBedAssignments === undefined ||
       (Array.isArray(candidate.activeBedAssignments) &&
         candidate.activeBedAssignments.length <= 30 &&
-        candidate.activeBedAssignments.every(isActiveBedAssignment)))
+        candidate.activeBedAssignments.every(isActiveBedAssignment))) &&
+    (candidate.clinicalCoverage === undefined || isClinicalCoverage(candidate.clinicalCoverage))
   );
 };
 

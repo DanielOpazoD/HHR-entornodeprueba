@@ -41,7 +41,11 @@ type PostedMessage = {
   ready?: boolean;
   message?: string;
   error?: string | null;
-  snapshot?: { encounters?: Array<Record<string, unknown>> };
+  snapshot?: {
+    encounters?: Array<Record<string, unknown>>;
+    isComplete?: boolean;
+    clinicalCoverage?: Record<string, number>;
+  };
 };
 
 const createHarness = async (apiResolver: (url: string) => unknown) => {
@@ -187,6 +191,10 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
 
     expect(response?.error).toBeUndefined();
     expect(response?.snapshot?.encounters?.[0]).toMatchObject({ encounterId: '142070' });
+    expect(response?.snapshot).toMatchObject({
+      isComplete: true,
+      clinicalCoverage: { total: 1, completed: 1, errors: 0 },
+    });
     expect(requested.some(url => url.includes('stale=1'))).toBe(true);
     expect(requested.some(url => !url.includes('stale=1') && url.includes('filterType=3'))).toBe(
       true
@@ -194,6 +202,38 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
 
     const health = await harness.send({ type: 'RAYEN_FM_SESSION_STATUS_REQUEST', reqId: 'h1' });
     expect(health?.ready).toBe(true);
+  });
+
+  it('declara cobertura parcial cuando falla una lectura clínica por paciente', async () => {
+    const harness = await createHarness((rawUrl: string) => {
+      const url = new URL(rawUrl);
+      if (url.pathname === LIST_PATH) {
+        return url.searchParams.get('filterType') === '3'
+          ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+          : [];
+      }
+      if (url.pathname.includes('/patientHeaderData/')) {
+        return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+      }
+      if (url.pathname.includes('/diagnosisEntry/')) throw new Error('diagnosis unavailable');
+      return [];
+    });
+
+    const response = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'partial' });
+
+    expect(response?.error).toBeUndefined();
+    expect(response?.snapshot).toMatchObject({
+      isComplete: false,
+      clinicalCoverage: {
+        total: 1,
+        completed: 0,
+        errors: 1,
+        headerErrors: 0,
+        diagnosisErrors: 1,
+        isolationErrors: 0,
+      },
+    });
+    expect(response?.snapshot?.encounters).toHaveLength(1);
   });
 
   it('si el reintento también falla, nombra el endpoint y deja de declararse listo hasta que una lectura funcione', async () => {
