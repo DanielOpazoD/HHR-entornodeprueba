@@ -5,20 +5,12 @@ import vm from 'node:vm';
 
 import { describe, expect, it } from 'vitest';
 
-const injectSource = readFileSync(path.resolve('extension/inject-fichamedico.js'), 'utf8');
-const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
-const isolationNormalizationSource = readFileSync(
-  path.resolve('extension/fichamedico-isolation-normalization.js'),
-  'utf8'
-);
-const normalizationSource = readFileSync(
-  path.resolve('extension/fichamedico-normalization.js'),
-  'utf8'
-);
-const resilienceSource = readFileSync(
-  path.resolve('extension/fichamedico-read-resilience.js'),
-  'utf8'
-);
+const readExtensionSource = (file: string) => readFileSync(path.resolve('extension', file), 'utf8');
+const injectSource = readExtensionSource('inject-fichamedico.js');
+const bridgeGenerationSource = readExtensionSource('bridge-generation.js');
+const isolationSource = readExtensionSource('fichamedico-isolation-normalization.js');
+const normalizationSource = readExtensionSource('fichamedico-normalization.js');
+const resilienceSource = readExtensionSource('fichamedico-read-resilience.js');
 const AUTH_HEADER_FIXTURE = ['HSP', 'fixture'].join(' ');
 const RUNTIME_GENERATION_FIXTURE = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const MAIN_WORLD_GENERATION_KEY = '__hhrExtensionRuntimeGenerationV1__';
@@ -157,7 +149,7 @@ const createHarness = async (
     },
   });
 
-  vm.runInContext(isolationNormalizationSource, context, {
+  vm.runInContext(isolationSource, context, {
     filename: 'fichamedico-isolation-normalization.js',
   });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
@@ -466,46 +458,35 @@ describe('Ficha Medico session continuity', () => {
 });
 
 describe('Ficha Medico session expiry', () => {
-  it('rechaza una sesión con token ya vencida', async () => {
+  it.each([
+    ['rechaza una sesión con token ya vencida', '2000-01-01T08:00:00-06:00', false],
+    ['publica la vigencia real en el estado de salud', '2099-01-01T08:28:10.3065687-06:00', true],
+    ['sin expiración informada, la vigencia viaja como null', undefined, true],
+  ])('%s', async (_caseName, expirationDate, ready) => {
     const harness = await createHarness(
       'https://fichamedico.rayensalud.cl/dashboard/encounter-list',
       'Médico',
       new Map(),
-      { expirationDate: '2000-01-01T08:00:00-06:00' }
-    );
-    const response = await harness.send({
-      type: 'RAYEN_FM_SESSION_STATUS_REQUEST',
-      reqId: 'expired-token',
-    });
-    expect(response).toMatchObject({ ready: false, reason: 'session_expired' });
-    const info = await harness.send({ type: 'RAYEN_FM_FETCHINFO_REQUEST', reqId: 'expired-read' });
-    expect(info).not.toHaveProperty('token');
-  });
-  it('publica la vigencia real en el estado de salud', async () => {
-    const harness = await createHarness(
-      'https://fichamedico.rayensalud.cl/dashboard/encounter-list',
-      'Médico',
-      new Map(),
-      { expirationDate: '2099-01-01T08:28:10.3065687-06:00' }
+      expirationDate ? { expirationDate } : {}
     );
     const response = (await harness.send({
       type: 'RAYEN_FM_SESSION_STATUS_REQUEST',
-      reqId: 'health-expiry',
+      reqId: `health-${expirationDate ?? 'no-expiry'}`,
     })) as PostedMessage & { expiresAt?: number | null; remainingSeconds?: number | null };
-    expect(response?.ready).toBe(true);
-    expect(response?.expiresAt).toBe(Date.parse('2099-01-01T08:28:10.3065687-06:00'));
-    expect(response?.remainingSeconds).toBeGreaterThan(24 * 3600);
-  });
-  it('sin expiración informada, la vigencia viaja como null', async () => {
-    const harness = await createHarness(
-      'https://fichamedico.rayensalud.cl/dashboard/encounter-list'
-    );
-    const response = (await harness.send({
-      type: 'RAYEN_FM_SESSION_STATUS_REQUEST',
-      reqId: 'health-no-expiry',
-    })) as PostedMessage & { expiresAt?: number | null; remainingSeconds?: number | null };
-    expect(response?.ready).toBe(true);
-    expect(response?.expiresAt).toBeNull();
-    expect(response?.remainingSeconds).toBeNull();
+    expect(response?.ready).toBe(ready);
+    if (!ready) {
+      expect(response).toMatchObject({ reason: 'session_expired' });
+      const info = await harness.send({
+        type: 'RAYEN_FM_FETCHINFO_REQUEST',
+        reqId: 'expired-read',
+      });
+      expect(info).not.toHaveProperty('token');
+    } else if (expirationDate) {
+      expect(response?.expiresAt).toBe(Date.parse(expirationDate));
+      expect(response?.remainingSeconds).toBeGreaterThan(24 * 3600);
+    } else {
+      expect(response?.expiresAt).toBeNull();
+      expect(response?.remainingSeconds).toBeNull();
+    }
   });
 });
