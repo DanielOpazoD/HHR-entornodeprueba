@@ -19,7 +19,7 @@ importScripts(
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
   'runtime-generation.js', 'connection-repair-runtime.js',
-  'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
+  'health-report-cache-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
   'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
@@ -286,7 +286,7 @@ const handleHhrHealth = self.HhrExtensionHealth.createHhrProbe({
   matches: HHR_TAB_MATCH_PATTERNS,
 });
 
-const handleExtensionHealth = async (targets = {}) => {
+const readExtensionHealthUncached = async (targets = {}) => {
   const runtimeContext = await getRuntimeContext();
   const [fichaMedico, gestionCamas, hhr] = await Promise.all([
     handleFichaMedicoHealth(runtimeContext.runtimeGeneration, targets.fichaMedicoTabIds),
@@ -312,13 +312,18 @@ const handleExtensionHealth = async (targets = {}) => {
   };
 };
 
+const healthReportCache = self.HhrHealthReportCacheRuntime.create({
+  readHealth: readExtensionHealthUncached,
+  ttlMs: 3000,
+});
+const handleExtensionHealth = () => healthReportCache.read();
 const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
   chromeApi: chrome,
   readHealth: handleExtensionHealth,
 });
 const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({
   chromeApi: chrome,
-  readHealth: handleExtensionHealth,
+  readHealth: () => healthReportCache.read({ force: true }),
   targetMatchPatterns: HEALTH_PUSH_MATCH_PATTERNS,
 });
 healthHeartbeat.start();
