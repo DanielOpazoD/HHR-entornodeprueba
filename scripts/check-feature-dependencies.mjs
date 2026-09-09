@@ -89,7 +89,8 @@ const publicImportPatterns =
 const isPublicImportPath = (importPath, importedFeature) =>
   publicImportPatterns
     .map(pattern => pattern.replace('{feature}', importedFeature))
-    .includes(importPath);
+    .includes(importPath) ||
+  (matrix.publicImportModulesByFeature?.[importedFeature] || []).includes(importPath);
 
 const files = walkFiles(SRC_FEATURES_ROOT);
 const currentViolationIds = [];

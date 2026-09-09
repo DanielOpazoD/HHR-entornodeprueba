@@ -28,5 +28,8 @@
     "@/features/{feature}",
     "@/features/{feature}/index",
     "@/features/{feature}/public"
-  ]
+  ],
+  "publicImportModulesByFeature": {
+    "rayen-import": ["@/features/rayen-import/bridge/clinicalActionsBridge"]
+  }
 }
