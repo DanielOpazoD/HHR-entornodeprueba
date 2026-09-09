@@ -69,8 +69,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Preserve the sync-notification bootstrap growth with a small CI-safe headroom.
-      maxBytes: 621000,
+      // Preserve explicit Eloisa state presentation with bounded CI-safe headroom.
+      maxBytes: 623000,
       severity: 'error',
     });
   });
@@ -78,8 +78,8 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // Keep both bounded allowances: shared session monitor and offline clinical library.
-    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840 + 31744 + 2048);
+    // Keep bounded allowances, including Eloisa state and clinical-coverage validation.
+    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840 + 31744 + 2048 + 8192);
     expect(
       config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))
     ).toBe(false);

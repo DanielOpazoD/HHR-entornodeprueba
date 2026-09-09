@@ -61,8 +61,8 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    // 116: los puentes de reparación y la superficie compacta se mantienen en módulos propios.
-    expect(metrics.authoredFiles).toHaveLength(116);
+    // 117: la caché breve de salud queda aislada en un runtime propio y gobernado.
+    expect(metrics.authoredFiles).toHaveLength(117);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
