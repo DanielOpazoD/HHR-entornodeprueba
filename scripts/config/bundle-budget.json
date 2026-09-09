@@ -1,8 +1,8 @@
 {
   "entryMaxBytes": 700000,
   "chunkMaxBytes": 1250000,
-  "precacheMaxBytes": 4943872,
-  "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. PR #374 adds an explicit 2 KB safety allowance for sync-notification orchestration changes and transient TSX diffing in the authenticated bootstrap path. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md. Clinical library v2 (2026-09-06): +31744 bytes (0.65%) more for the transfer cover, the critical medications sheet and three additional scores inside the lazy ClinicalLibraryDrawer chunk (84.8 KB), kept in the precache so they work offline. Local feature build measured 4817.3 KiB versus the previous 4795.0 KiB ceiling. Total 4943872.",
+  "precacheMaxBytes": 4952064,
+  "_precacheMaxBytesComment": "PR #353 integrated with #356-358 (2026-09-06): preserve both bounded allowances over the 4840192-byte baseline: +2048 bytes for shared inactivity and +67840 bytes for the offline clinical library. Total 4910080; no additional merge allowance. PR #374 adds an explicit 2 KB safety allowance for sync-notification orchestration changes and transient TSX diffing in the authenticated bootstrap path. Auth monitoring and calculators stay cached; documents remain outside precache under docs/ and templates/. No new exclusions or relaxed warning bands. Auth evidence/rollback: docs/AUTH_ACCESS_MODEL.md; library evidence: src/features/clinical-library/README.md. Clinical library v2 (2026-09-06): +31744 bytes (0.65%) more for the transfer cover, the critical medications sheet and three additional scores inside the lazy ClinicalLibraryDrawer chunk (84.8 KB), kept in the precache so they work offline. PR #384 adds a bounded 8192-byte allowance for explicit Eloisa page-state/freshness messaging and clinical-coverage validation; it adds no ignored asset pattern. Total 4952064.",
   "precacheIgnoredAssetPatterns": [
     "^docs/",
     "^templates/",
@@ -54,8 +54,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "PR #374 moved startup behavior in sync notifications; keep PR-safe headroom of 621000 bytes (~606.4 KB) for this surface until the next budget review.",
-      "maxBytes": 621000,
+      "_comment": "PR #374 moved startup behavior in sync notifications. PR #384 adds typed Eloisa page-state and freshness presentation; the reviewed ceiling rises by 2000 bytes without moving clinical readers into startup.",
+      "maxBytes": 623000,
       "severity": "error"
     }
   ],
