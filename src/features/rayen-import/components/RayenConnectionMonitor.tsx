@@ -156,10 +156,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
       : report?.gestionCamas.reason === 'session_expired'
         ? 'gestionCamas'
         : undefined;
-  const connection =
-    expiredSource && ['ready', 'degraded', 'blocked'].includes(extension.connection)
-      ? 'blocked'
-      : extension.connection;
+  const connection = expiredSource ? 'blocked' : extension.connection;
   const fichaMedicoReady = report?.fichaMedico.status === 'ready';
   const gestionCamas = report?.gestionCamas;
   const recoveryAction = deriveRayenRecoveryAction({

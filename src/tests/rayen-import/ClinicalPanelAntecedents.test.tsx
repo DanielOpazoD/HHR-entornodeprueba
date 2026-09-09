@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { requestClinicalAction } = vi.hoisted(() => ({ requestClinicalAction: vi.fn() }));
-vi.mock('@/features/rayen-import', () => ({ requestClinicalAction }));
+vi.mock('@/features/rayen-import/bridge/clinicalActionsBridge', () => ({ requestClinicalAction }));
 
 import { ClinicalPanelAntecedents } from '@/features/census/components/patient-row/ClinicalPanelAntecedents';
 

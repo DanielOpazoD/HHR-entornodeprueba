@@ -4,7 +4,7 @@ import {
   requestClinicalAction,
   type ClinicalActionResult,
   type ClinicalAntecedentEntry,
-} from '@/features/rayen-import';
+} from '@/features/rayen-import/bridge/clinicalActionsBridge';
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
 const sameResult = (left: ClinicalActionResult | null, right: ClinicalActionResult): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
