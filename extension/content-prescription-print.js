@@ -509,7 +509,7 @@
     refreshOperationsConnectionBadge,
     invalidateConnectionState,
   } = connectionCenterRuntime;
-  chrome.runtime.onMessage.addListener(message => {
+  chrome.runtime.onMessage?.addListener(message => {
     if (!message || message.type !== 'RAYEN_EXTENSION_HEALTH_PUSH' || !message.report) return;
     latestHealthPushReport = message.report;
     const bar = document.getElementById(OPERATIONS_BAR_ID);

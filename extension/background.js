@@ -263,21 +263,9 @@ const {
 } = gestionCamasRuntime;
 
 // Los hosts HHR viven solo en el manifest, sin duplicar la lista aquí.
-const CONTENT_SCRIPT_ENTRIES = chrome.runtime.getManifest().content_scripts || [];
-const HHR_TAB_MATCH_PATTERNS = CONTENT_SCRIPT_ENTRIES
+const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
   .filter(entry => (entry.js || []).includes('content-hhr.js'))
   .flatMap(entry => entry.matches || []);
-const HEALTH_PUSH_MATCH_PATTERNS = Array.from(
-  new Set(
-    CONTENT_SCRIPT_ENTRIES
-      .filter(entry =>
-        (entry.js || []).some(file =>
-          ['content-hhr.js', 'content-fichamedico.js', 'content-gestioncamas.js'].includes(file)
-        )
-      )
-      .flatMap(entry => entry.matches || [])
-  )
-);
 
 const handleHhrHealth = self.HhrExtensionHealth.createHhrProbe({
   chromeApi: chrome,
@@ -312,20 +300,13 @@ const readExtensionHealthUncached = async (targets = {}) => {
   };
 };
 
-const healthReportCache = self.HhrHealthReportCacheRuntime.create({
-  readHealth: readExtensionHealthUncached,
-  ttlMs: 3000,
-});
+const healthReportCache = self.HhrHealthReportCacheRuntime.create({ readHealth: readExtensionHealthUncached, ttlMs: 3000 });
 const handleExtensionHealth = () => healthReportCache.read();
 const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
   chromeApi: chrome,
   readHealth: handleExtensionHealth,
 });
-const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({
-  chromeApi: chrome,
-  readHealth: () => healthReportCache.read({ force: true }),
-  targetMatchPatterns: HEALTH_PUSH_MATCH_PATTERNS,
-});
+const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }) });
 healthHeartbeat.start();
 self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();
 // Al instalar/actualizar la extensión, los relés de las pestañas abiertas

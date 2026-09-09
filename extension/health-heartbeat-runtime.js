@@ -24,6 +24,17 @@
     periodMinutes = 1,
     log = (...args) => console.warn(...args),
   }) => {
+    const resolvedTargetMatchPatterns = targetMatchPatterns || Array.from(
+      new Set(
+        (chromeApi.runtime.getManifest().content_scripts || [])
+          .filter(entry =>
+            (entry.js || []).some(file =>
+              ['content-hhr.js', 'content-fichamedico.js', 'content-gestioncamas.js'].includes(file)
+            )
+          )
+          .flatMap(entry => entry.matches || [])
+      )
+    );
     const pushNow = async reason => {
       let report;
       try {
@@ -37,8 +48,10 @@
         tabs = await chromeApi.tabs.query({
           url: Array.from(
             new Set(
-              (Array.isArray(targetMatchPatterns) ? targetMatchPatterns : [targetMatchPatterns])
-                .filter(Boolean)
+              (Array.isArray(resolvedTargetMatchPatterns)
+                ? resolvedTargetMatchPatterns
+                : [resolvedTargetMatchPatterns]
+              ).filter(Boolean)
             )
           ),
         });
