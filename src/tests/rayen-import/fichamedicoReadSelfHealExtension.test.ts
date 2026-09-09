@@ -204,6 +204,63 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
     expect(health?.ready).toBe(true);
   });
 
+  it('reutiliza por episodio las lecturas clínicas exitosas de una repetición inmediata', async () => {
+    let headerCalls = 0;
+    let diagnosisCalls = 0;
+    const harness = await createHarness((rawUrl: string) => {
+      const url = new URL(rawUrl);
+      if (url.pathname === LIST_PATH) {
+        return url.searchParams.get('filterType') === '3'
+          ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+          : [];
+      }
+      if (url.pathname.includes('/patientHeaderData/')) {
+        headerCalls += 1;
+        return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+      }
+      if (url.pathname.includes('/diagnosisEntry/')) {
+        diagnosisCalls += 1;
+        return [];
+      }
+      return [];
+    });
+
+    const first = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'cache-1' });
+    const second = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'cache-2' });
+
+    expect(first?.snapshot?.isComplete).toBe(true);
+    expect(second?.snapshot?.isComplete).toBe(true);
+    expect({ headerCalls, diagnosisCalls }).toEqual({ headerCalls: 1, diagnosisCalls: 1 });
+  });
+
+  it('no guarda fallos clínicos en caché y permite recuperarlos en la siguiente captura', async () => {
+    let diagnosisCalls = 0;
+    const harness = await createHarness((rawUrl: string) => {
+      const url = new URL(rawUrl);
+      if (url.pathname === LIST_PATH) {
+        return url.searchParams.get('filterType') === '3'
+          ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+          : [];
+      }
+      if (url.pathname.includes('/patientHeaderData/')) {
+        return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+      }
+      if (url.pathname.includes('/diagnosisEntry/')) {
+        diagnosisCalls += 1;
+        if (diagnosisCalls === 1) throw new Error('diagnosis unavailable');
+        return [];
+      }
+      return [];
+    });
+
+    const partial = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'retry-1' });
+    const recovered = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'retry-2' });
+
+    expect(partial?.snapshot?.isComplete).toBe(false);
+    expect(recovered?.snapshot?.isComplete).toBe(true);
+    expect(diagnosisCalls).toBe(2);
+  });
+
   it('declara cobertura parcial cuando falla una lectura clínica por paciente', async () => {
     const harness = await createHarness((rawUrl: string) => {
       const url = new URL(rawUrl);

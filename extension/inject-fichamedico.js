@@ -44,6 +44,28 @@
   let lastSessionFailureReason = 'session_expired';
   let epicrisisCapture = null;
   const epicrisisPdfCandidates = new Map();
+  const CLINICAL_READ_CACHE_TTL_MS = 30 * 1000;
+  const CLINICAL_READ_CACHE_MAX_ENTRIES = 300;
+  const clinicalReadCache = new Map();
+  const clearClinicalReadCache = () => clinicalReadCache.clear();
+  const readClinicalCached = (key, reader, now = Date.now()) => {
+    const cached = clinicalReadCache.get(key);
+    if (cached && cached.expiresAt > now) return cached.promise;
+    if (cached) clinicalReadCache.delete(key);
+    for (const [cachedKey, entry] of clinicalReadCache) {
+      if (entry.expiresAt <= now) clinicalReadCache.delete(cachedKey);
+    }
+    while (clinicalReadCache.size >= CLINICAL_READ_CACHE_MAX_ENTRIES) {
+      clinicalReadCache.delete(clinicalReadCache.keys().next().value);
+    }
+    const promise = Promise.resolve().then(reader);
+    const entry = { expiresAt: now + CLINICAL_READ_CACHE_TTL_MS, promise };
+    clinicalReadCache.set(key, entry);
+    promise.catch(() => {
+      if (clinicalReadCache.get(key) === entry) clinicalReadCache.delete(key);
+    });
+    return promise;
+  };
 
   const originalCreateObjectURL = typeof URL.createObjectURL === 'function'
     ? URL.createObjectURL.bind(URL)
@@ -136,6 +158,7 @@
         if (capturedAuth && capturedAuth !== nextAuth) {
           sessionBindingRevision += 1;
           capturedListUrl = null;
+          clearClinicalReadCache();
         }
         capturedAuth = nextAuth;
         const parsed = new URL(String(url), window.location.origin);
@@ -213,6 +236,7 @@
     capturedAuth = null;
     capturedListUrl = null;
     capturedApiOrigin = null;
+    clearClinicalReadCache();
     try {
       sessionStorage.removeItem(NURSING_CONTEXT_KEY);
     } catch (_) {}
@@ -289,7 +313,10 @@
       const role = normalization.normalizeSessionRole(session);
       const previousAuth = capturedAuth;
       const tokenMatchesCapturedAuth = !previousAuth || previousAuth === sessionToken;
-      if (previousAuth && previousAuth !== sessionToken) capturedListUrl = null;
+      if (previousAuth && previousAuth !== sessionToken) {
+        capturedListUrl = null;
+        clearClinicalReadCache();
+      }
       capturedAuth = sessionToken;
       capturedApiOrigin = capturedApiOrigin || DEFAULT_API_ORIGIN;
       lastSessionFailureReason = 'connected';
@@ -439,10 +466,24 @@
       while (cursor < rows.length) {
         const index = cursor++;
         const { item, discharged: isDischarged } = rows[index];
+        const cachePrefix = [
+          context.identity.facilityId,
+          context.identity.practitionerId,
+          context.identity.practitionerRoleId,
+          item.id,
+        ].join(':');
         const [headerResult, diagnosisResult, isolationResult] = await Promise.allSettled([
-          apiGet(headerUrl(base, item.id), capturedAuth),
-          apiGet(diagnosisUrl(base, item.id), capturedAuth),
-          normalization.requiresIsolationDetails(item) ? apiGet(isolationUrl(base, item.id), capturedAuth) : Promise.resolve([]),
+          readClinicalCached(`${cachePrefix}:header`, () =>
+            apiGet(headerUrl(base, item.id), capturedAuth)
+          ),
+          readClinicalCached(`${cachePrefix}:diagnosis`, () =>
+            apiGet(diagnosisUrl(base, item.id), capturedAuth)
+          ),
+          normalization.requiresIsolationDetails(item)
+            ? readClinicalCached(`${cachePrefix}:isolation`, () =>
+                apiGet(isolationUrl(base, item.id), capturedAuth)
+              )
+            : Promise.resolve([]),
         ]);
         const headerFailed = headerResult.status === 'rejected';
         const diagnosisFailed = diagnosisResult.status === 'rejected';
