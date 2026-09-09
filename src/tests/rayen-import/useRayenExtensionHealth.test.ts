@@ -71,6 +71,20 @@ describe('deriveHealthState', () => {
     expectConnection(deriveHealthState(null, 'Sin extensión.'), 'offline', false);
   });
 
+  it('explica cuando Gestión de Camas funciona solo en segundo plano', () => {
+    const state = deriveHealthState(
+      makeReport({
+        gestionCamas: {
+          status: 'ready',
+          message: 'API disponible.',
+          pageState: 'login',
+        },
+      })
+    );
+    expectConnection(state, 'ready', true);
+    expect(state.message).toContain('disponible en segundo plano');
+  });
+
   it('bloquea el arranque cuando la sesión de Gestión de Camas está por vencer', () => {
     const expiring = deriveHealthState(
       makeReport({

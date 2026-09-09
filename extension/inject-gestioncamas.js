@@ -146,6 +146,12 @@
     }
   };
   const normalizeRun = run => String(run || '').replace(/[^0-9kK]/g, '');
+  const currentPageState = () => {
+    const route = String(window.location.hash || window.location.pathname || '');
+    if (/authenticate\/login/i.test(route)) return { pageState: 'login', pageRoute: route };
+    if (capturedAuth) return { pageState: 'authenticated', pageRoute: route };
+    return { pageState: 'unknown', pageRoute: route };
+  };
 
   // Forward every SCALAR field except patient identifiers — that covers all the discharge
   // metadata (id, periods, status, destination/type ids, flags) without dumping PHI or the
@@ -226,6 +232,7 @@
       reply('RAYEN_GC_BRIDGE_STATUS_RESULT', {
         ready: bridge.current,
         reason: bridge.current ? 'connected' : 'outdated_tab',
+        ...currentPageState(),
       });
       return;
     }

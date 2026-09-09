@@ -43,6 +43,8 @@
         reason: reasonOf(status),
         bridgeVersion: tabHealth.bridgeVersion,
         bridgeGeneration: tabHealth.bridgeGeneration,
+        pageState: tabHealth.pageState || 'unknown',
+        pageRoute: tabHealth.pageRoute || '',
       });
 
       let record = await readSession();

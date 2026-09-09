@@ -14,6 +14,7 @@ type SourceFixture = {
   message: string;
   remainingSeconds?: number | null;
   connectionSource?: string;
+  pageState?: string;
 };
 
 const model = () =>
@@ -92,6 +93,16 @@ describe('HhrConnectionActionModel', () => {
     expect(model().sourceLabel({ status: 'stale', reason: 'relay_disconnected' })).toBe(
       'Relé desconectado'
     );
+  });
+
+  it('distingue una API vigente de una página web de Camas sin sesión', () => {
+    const backgroundCamas = { ...ready, pageState: 'login' };
+    expect(model().sourceLabel(backgroundCamas)).toBe('API conectada · web sin sesión');
+    expect(model().derive(report(ready, backgroundCamas))).toMatchObject({
+      tone: 'degraded',
+      summary: 'Conectado en segundo plano',
+      action: 'none',
+    });
   });
 
   it('no interpreta una vigencia desconocida como una sesión vencida', () => {

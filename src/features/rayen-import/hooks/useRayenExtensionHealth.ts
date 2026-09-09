@@ -161,10 +161,13 @@ const deriveHealthState = (
     };
   }
 
+  const camasInBackground = report.gestionCamas.pageState === 'login';
   return {
     connection: 'ready',
     report,
-    message: `Extensión Eloísa v${report.version} operativa.`,
+    message: camasInBackground
+      ? `Extensión Eloísa v${report.version} operativa; Gestión de Camas disponible en segundo plano.`
+      : `Extensión Eloísa v${report.version} operativa.`,
     canSync: true,
   };
 };
