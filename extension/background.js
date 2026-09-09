@@ -263,9 +263,21 @@ const {
 } = gestionCamasRuntime;
 
 // Los hosts HHR viven solo en el manifest, sin duplicar la lista aquí.
-const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
+const CONTENT_SCRIPT_ENTRIES = chrome.runtime.getManifest().content_scripts || [];
+const HHR_TAB_MATCH_PATTERNS = CONTENT_SCRIPT_ENTRIES
   .filter(entry => (entry.js || []).includes('content-hhr.js'))
   .flatMap(entry => entry.matches || []);
+const HEALTH_PUSH_MATCH_PATTERNS = Array.from(
+  new Set(
+    CONTENT_SCRIPT_ENTRIES
+      .filter(entry =>
+        (entry.js || []).some(file =>
+          ['content-hhr.js', 'content-fichamedico.js', 'content-gestioncamas.js'].includes(file)
+        )
+      )
+      .flatMap(entry => entry.matches || [])
+  )
+);
 
 const handleHhrHealth = self.HhrExtensionHealth.createHhrProbe({
   chromeApi: chrome,
@@ -307,7 +319,7 @@ const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
 const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({
   chromeApi: chrome,
   readHealth: handleExtensionHealth,
-  hhrMatchPatterns: HHR_TAB_MATCH_PATTERNS,
+  targetMatchPatterns: HEALTH_PUSH_MATCH_PATTERNS,
 });
 healthHeartbeat.start();
 self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();

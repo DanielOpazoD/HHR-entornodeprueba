@@ -491,6 +491,7 @@
     return 'Vence en ' + hours + ' h' + (rest ? ' ' + rest + ' min' : '');
   };
 
+  let latestHealthPushReport = null;
   const connectionCenterRuntime = connectionCenterOwner.create({
     documentRef: document,
     windowRef: window,
@@ -508,6 +509,12 @@
     refreshOperationsConnectionBadge,
     invalidateConnectionState,
   } = connectionCenterRuntime;
+  chrome.runtime.onMessage.addListener(message => {
+    if (!message || message.type !== 'RAYEN_EXTENSION_HEALTH_PUSH' || !message.report) return;
+    latestHealthPushReport = message.report;
+    const bar = document.getElementById(OPERATIONS_BAR_ID);
+    if (bar) void refreshOperationsConnectionBadge(bar, true, message.report);
+  });
 
   const fetchPatientHeaderView = async encId => {
     const response = await sendMessage({ type: runtimeMessages.PATIENT_HEADER_REQUEST, encId });
@@ -816,7 +823,11 @@
         ? 'Recarga la extensión para activar laboratorio' : 'Resultados y solicitudes Syslab';
     }
     updateOperationsBarPosition(bar);
-    void refreshOperationsConnectionBadge(bar).finally(() => {
+    void refreshOperationsConnectionBadge(
+      bar,
+      Boolean(latestHealthPushReport),
+      latestHealthPushReport
+    ).finally(() => {
       bar.dataset.connectionState = ['ready', 'degraded', 'offline'].find(state => barPart(bar, '.hhr-ops-session')?.classList.contains('is-' + state)) || 'degraded';
       bar.__hhrUi?.scheduleIdle();
     });
