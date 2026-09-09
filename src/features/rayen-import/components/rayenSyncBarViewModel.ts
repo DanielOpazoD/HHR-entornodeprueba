@@ -114,7 +114,8 @@ const localDateKey = (timestamp: number): string => {
 const staleSyncPresentation = (input: RayenSyncBarViewModelInput): RayenSyncBarViewModel | null => {
   const now = input.now ?? Date.now();
   const synchronizedAt = Date.parse(input.persistedSync?.at ?? '');
-  const isCurrentDay = !input.targetDate || input.targetDate === localDateKey(now);
+  // Without an explicit selected day, age alone cannot prove that the visible census is stale.
+  const isCurrentDay = Boolean(input.targetDate) && input.targetDate === localDateKey(now);
   if (!isCurrentDay || !Number.isFinite(synchronizedAt)) return null;
   const ageMinutes = Math.floor(Math.max(0, now - synchronizedAt) / 60_000);
   if (ageMinutes <= 15) return null;
