@@ -30,6 +30,8 @@ export interface RayenExtensionHealthState {
 
 export interface RayenExtensionHealthRefreshOptions {
   timeoutMs?: number;
+  /** Reserva el estado `checking` para preflights que realmente bloquean una acción. */
+  showChecking?: boolean;
 }
 
 /**
@@ -181,11 +183,15 @@ export const useRayenExtensionHealth = () => {
       options: RayenExtensionHealthRefreshOptions = {}
     ): Promise<RayenExtensionHealthState> => {
       const sequence = ++requestSequence.current;
-      setHealth(previous => ({
-        ...previous,
-        connection: 'checking',
-        message: 'Comprobando conexión…',
-      }));
+      setHealth(previous =>
+        !options.showChecking && previous.connection === 'ready' && previous.report
+          ? previous
+          : {
+              ...previous,
+              connection: 'checking',
+              message: 'Comprobando conexión…',
+            }
+      );
       const result = await requestRayenExtensionHealth(options.timeoutMs);
       const next = deriveHealthState(result.report, result.error);
       if (sequence === requestSequence.current) setHealth(next);

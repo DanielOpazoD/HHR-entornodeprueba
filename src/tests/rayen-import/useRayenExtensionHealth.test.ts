@@ -280,6 +280,44 @@ describe('useRayenExtensionHealth', () => {
     expect(result.current.connection).toBe('ready');
   });
 
+  it('mantiene visible una conexión sana durante refrescos pasivos y reserva checking al preflight', async () => {
+    let resolvePassive!: (value: RayenExtensionHealthCheck) => void;
+    let resolvePreflight!: (value: RayenExtensionHealthCheck) => void;
+    mocks.requestHealth
+      .mockResolvedValueOnce({ report: makeReport() })
+      .mockImplementationOnce(
+        () => new Promise<RayenExtensionHealthCheck>(resolve => (resolvePassive = resolve))
+      )
+      .mockImplementationOnce(
+        () => new Promise<RayenExtensionHealthCheck>(resolve => (resolvePreflight = resolve))
+      );
+
+    const { result } = renderHook(() => useRayenExtensionHealth());
+    await act(async () => Promise.resolve());
+    expectConnection(result.current, 'ready', true);
+
+    let passiveRefresh!: Promise<RayenExtensionHealthState>;
+    act(() => {
+      passiveRefresh = result.current.refresh();
+    });
+    expectConnection(result.current, 'ready', true);
+    await act(async () => {
+      resolvePassive({ report: makeReport() });
+      await passiveRefresh;
+    });
+
+    let preflightRefresh!: Promise<RayenExtensionHealthState>;
+    act(() => {
+      preflightRefresh = result.current.refresh({ showChecking: true });
+    });
+    expectConnection(result.current, 'checking', true);
+    await act(async () => {
+      resolvePreflight({ report: makeReport() });
+      await preflightRefresh;
+    });
+    expectConnection(result.current, 'ready', true);
+  });
+
   it('vence automáticamente la señal y consulta de nuevo al volver a primer plano o recuperar red', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-03T12:00:00.000Z'));

@@ -136,16 +136,19 @@ const clinicalProgress = (
   const hasTotal = fill.total > 0;
   const done = hasTotal ? Math.min(Math.max(fill.done, 0), fill.total) : 0;
   // The reader counter finishes before the authoritative batch is confirmed.
-  const readingsFinished = hasTotal && done === fill.total;
+  const readingsStarted = hasTotal && done > 0;
+  const readingsFinished = readingsStarted && done === fill.total;
   const label = readingsFinished
     ? 'Lectura finalizada · confirmando datos clínicos'
-    : hasTotal
+    : readingsStarted
       ? `Datos clínicos · ${done} de ${fill.total} pacientes`
-      : 'Revisando datos clínicos';
+      : hasTotal
+        ? `Iniciando lectura clínica · ${fill.total} pacientes`
+        : 'Revisando datos clínicos';
   return active(
     'clinical',
     withTargetDate(label, targetDate),
-    hasTotal && !readingsFinished
+    readingsStarted && !readingsFinished
       ? { kind: 'determinate', done, total: fill.total }
       : { kind: 'indeterminate' }
   );
