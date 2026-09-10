@@ -8,6 +8,7 @@ import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 import { importedCudyrBelongsToCensus } from '@/domain/evaluationScales/importedCudyr';
 import type { CudyrResultOption } from '@/domain/cudyr/adminCudyrResult';
 import { AdminCudyrResultEditor } from './AdminCudyrResultEditor';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 interface CudyrRowProps {
   bed: BedDefinition;
@@ -154,7 +155,7 @@ export const CudyrRow: React.FC<CudyrRowProps> = ({
           ? `Profesional: ${importedCudyr.author}${importedCudyr.authorRole ? ` (${importedCudyr.authorRole})` : ''}.`
           : 'Profesional no informado por la fuente.',
         importedCudyr.recordedAt
-          ? `Registrado: ${formatDateTimeCL(importedCudyr.recordedAt, 'Pacific/Easter')}.`
+          ? `Registrado: ${formatDateTimeCL(importedCudyr.recordedAt, CLINICAL_TIME_ZONE)}.`
           : 'Hora de registro no informada por la fuente.',
         importedCudyr.items?.length
           ? `${importedCudyr.items.length} variables oficiales disponibles.`

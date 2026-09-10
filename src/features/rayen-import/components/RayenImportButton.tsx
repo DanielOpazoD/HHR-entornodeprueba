@@ -19,6 +19,7 @@ import {
   isRayenSyncExecutionActive,
   rayenSyncExecutionDate,
 } from '../hooks/rayenSyncExecutionState';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
@@ -35,7 +36,7 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
   const when = new Date(meta.at);
   if (Number.isNaN(when.getTime())) return null;
   const parts = new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'Pacific/Easter',
+    timeZone: CLINICAL_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

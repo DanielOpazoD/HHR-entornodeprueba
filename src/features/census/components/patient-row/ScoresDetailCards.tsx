@@ -13,12 +13,13 @@ import type {
   DowntonCellModel,
 } from '@/features/census/controllers/evaluationScoresCellController';
 import { CUDYR_BAND, NEUTRAL_TOKENS, formatIsoDay, tokensFor } from './scoresDetailTokens';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const formatCudyrTime = (value?: string): string => {
   const epoch = Date.parse(value ?? '');
   if (Number.isNaN(epoch)) return '';
   return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'Pacific/Easter',
+    timeZone: CLINICAL_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,

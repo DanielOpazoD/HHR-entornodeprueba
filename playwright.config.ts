@@ -1,5 +1,9 @@
 import { defineConfig, devices, type PlaywrightTestConfig } from '@playwright/test';
 
+import { TEST_DEVICE_TIME_ZONE, pinTestTimeZone } from './scripts/config/testTimeZone';
+
+pinTestTimeZone();
+
 const SUPPORTED_E2E_BROWSERS = ['chromium', 'firefox', 'webkit'] as const;
 
 type SupportedE2eBrowser = (typeof SUPPORTED_E2E_BROWSERS)[number];
@@ -65,6 +69,7 @@ export default defineConfig({
   reporter: 'html',
 
   use: {
+    timezoneId: TEST_DEVICE_TIME_ZONE,
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

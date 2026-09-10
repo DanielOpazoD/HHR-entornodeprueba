@@ -7,6 +7,7 @@
  */
 
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export interface StatisticalEgresoStamp {
   /** HHR clinical census day (YYYY-MM-DD), after the 08:00/09:00 handoff rule. */
@@ -22,7 +23,6 @@ export interface StatisticalEgresoStamp {
 const pad2 = (value: number): string => String(value).padStart(2, '0');
 
 const SOURCE_TIME_ZONE = 'America/Santiago';
-const CENSUS_TIME_ZONE = 'Pacific/Easter';
 
 interface DateTimeParts {
   year: number;
@@ -73,7 +73,7 @@ const mainlandWallClockInstant = (parts: DateTimeParts): Date => {
 
 const stampFromInstant = (date: Date): StatisticalEgresoStamp | null => {
   if (Number.isNaN(date.getTime())) return null;
-  const parts = partsInZone(date, CENSUS_TIME_ZONE);
+  const parts = partsInZone(date, CLINICAL_TIME_ZONE);
   const calendarIso = `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`;
   const hhmm = `${pad2(parts.hour)}:${pad2(parts.minute)}`;
   const iso = resolveClinicalDayForDateTime(calendarIso, hhmm) ?? calendarIso;

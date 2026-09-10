@@ -1,8 +1,7 @@
 import type { ClinicalAuditPatientPackage } from '@/services/admin/clinicalAuditPatientPackages';
 import { AUDIT_ACTION_LABELS } from '@/services/admin/auditConstants';
 import { parseAuditTimestamp } from '@/services/admin/utils/auditUtils';
-
-const CLINICAL_AUDIT_EXPORT_TIME_ZONE = 'Pacific/Easter';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export const PATIENT_PACKAGE_EXPORT_HEADERS = [
   'FECHA CENSO',
@@ -49,7 +48,7 @@ const formatTimePart = (timestamp: string): string => {
   if (date.getTime() === 0) return '';
 
   return new Intl.DateTimeFormat('es-CL', {
-    timeZone: CLINICAL_AUDIT_EXPORT_TIME_ZONE,
+    timeZone: CLINICAL_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',

@@ -18,6 +18,7 @@ import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { AlarmClock, type LucideIcon } from 'lucide-react';
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 /**
  * Scale identity hue — fixed per scale, independent of the clinical result. It ONLY tints the small
@@ -104,7 +105,7 @@ const absoluteMomentFromRecordedAt = (recordedAt?: string): string => {
     const instant = new Date(raw);
     if (!Number.isNaN(instant.getTime())) {
       const parts = new Intl.DateTimeFormat('es-CL', {
-        timeZone: 'Pacific/Easter',
+        timeZone: CLINICAL_TIME_ZONE,
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
