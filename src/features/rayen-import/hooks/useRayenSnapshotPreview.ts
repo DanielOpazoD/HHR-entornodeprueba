@@ -148,7 +148,11 @@ export const useRayenSnapshotPreview = ({
       );
       const previousDayEdits = diff.previousDayEdits ?? [];
       const needsReview = requiresReview(diff) || previousDayEdits.length > 0;
-      const canAutoApply = run.policy?.mode === 'auto' && !needsReview;
+      // A brand-new day created from Eloísa decides the entire occupancy in one write, and its
+      // diff is clean by construction (every patient is an admission), so `needsReview` alone
+      // would let the global `auto` policy apply it unattended. An attempt-scoped requirement
+      // tightens the policy without falsifying the policy actually recorded in history.
+      const canAutoApply = run.policy?.mode === 'auto' && !needsReview && !run.reviewRequirement;
       const structuralConflictCount = Math.max(diff.conflicts.length, diff.summary.conflicts);
       execution.recordOutcome({ structuralConflicts: structuralConflictCount });
       const persistConvergedStructure = () =>

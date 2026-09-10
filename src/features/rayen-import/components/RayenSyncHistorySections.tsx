@@ -36,6 +36,9 @@ const TechnicalMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
           {event.policy.revision} · lote {event.policy.clinicalBatchMode ?? 'legacy'}
         </span>
       )}
+      {event.reviewRequirement === 'day_bootstrap' && (
+        <span className="font-medium text-slate-500">Revisión exigida por inicio del día</span>
+      )}
       {event.coverage?.incremental && (
         <span
           className="font-medium tabular-nums text-slate-500"

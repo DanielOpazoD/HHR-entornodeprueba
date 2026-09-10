@@ -6,6 +6,7 @@ import type {
   RayenSyncFailureReason,
   RayenSyncPerformanceDelta,
   RayenSyncPolicy,
+  RayenSyncReviewRequirement,
   RayenSyncSource,
   RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
@@ -169,7 +170,8 @@ export const useRayenSyncAudit = ({
     (
       health?: RayenExtensionHealthState,
       performance?: RayenSyncPerformanceDelta,
-      policy?: RayenSyncPolicy
+      policy?: RayenSyncPolicy,
+      reviewRequirement?: RayenSyncReviewRequirement
     ): RayenSyncRun => {
       const run: RayenSyncRun = {
         id: createId(),
@@ -178,6 +180,7 @@ export const useRayenSyncAudit = ({
         by: actor,
         source: sourceFromHealth(health),
         policy,
+        reviewRequirement,
         performance: mergeRayenSyncPerformance(undefined, performance),
       };
       const { superseded } = lifecycle.start(run);

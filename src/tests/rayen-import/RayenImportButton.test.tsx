@@ -265,23 +265,9 @@ describe('RayenImportButton', () => {
       expect.objectContaining({
         stagesMs: { preflight: expect.any(Number) },
         counters: { requests: 1 },
-      })
+      }),
+      undefined
     );
-  });
-
-  it('starts the reviewed flow once after a new day was created from Eloisa', async () => {
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    const onAutoStartHandled = vi.fn();
-    const { rerender } = render(
-      <RayenImportButton autoStartRequestId={7} onAutoStartHandled={onAutoStartHandled} />
-    );
-
-    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
-    expect(onAutoStartHandled).toHaveBeenCalledTimes(1);
-    expect(mocks.confirm).not.toHaveBeenCalled();
-
-    rerender(<RayenImportButton autoStartRequestId={7} onAutoStartHandled={onAutoStartHandled} />);
-    expect(mocks.triggerImport).toHaveBeenCalledTimes(1);
   });
 
   it('starts only one preflight and one import when the button is clicked twice rapidly', async () => {

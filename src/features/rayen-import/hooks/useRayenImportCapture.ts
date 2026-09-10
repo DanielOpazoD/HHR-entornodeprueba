@@ -17,7 +17,11 @@ import { failureReasonFromHealth } from './useRayenSyncAudit';
 import { resetRayenFillProgress } from './useRayenFillStatus';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
-import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
+import type {
+  RayenSyncFailureReason,
+  RayenSyncPerformanceDelta,
+  RayenSyncReviewRequirement,
+} from '@/types/domain/rayenSync';
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
 import { resolveRayenPolicyBlockMessage, type RayenImportPolicyStatus } from './useRayenImportMode';
 import {
@@ -52,7 +56,8 @@ interface UseRayenImportCaptureInput {
   startRun: (
     health?: RayenExtensionHealthState,
     performance?: RayenSyncPerformanceDelta,
-    policy?: RayenImportPolicy
+    policy?: RayenImportPolicy,
+    reviewRequirement?: RayenSyncReviewRequirement
   ) => RayenSyncRun;
   failRun: (reason: RayenSyncFailureReason, runId?: string) => Promise<void>;
   cancelRun?: () => void;
@@ -68,6 +73,14 @@ interface UseRayenImportCaptureInput {
 interface CapturePreparationLock {
   lockId: symbol;
   selectedDate: string;
+}
+
+export interface RayenImportCaptureOptions {
+  /**
+   * Marks this attempt as one that must be reviewed by a human before anything is written,
+   * even when the global policy is `auto`. It only ever tightens the policy.
+   */
+  reviewRequirement?: RayenSyncReviewRequirement;
 }
 
 /** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
@@ -147,7 +160,11 @@ export const useRayenImportCapture = ({
   );
 
   return useCallback(
-    async (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
+    async (
+      health: RayenExtensionHealthState,
+      performance?: RayenSyncPerformanceDelta,
+      options?: RayenImportCaptureOptions
+    ) => {
       const requestedSelectedDate =
         routeSelectedDate ?? (currentRecord ? toIsoReportDate(currentRecord) : 'no-record');
       const activeExecution = executionRef?.current;
@@ -229,7 +246,7 @@ export const useRayenImportCapture = ({
           }));
           return;
         }
-        const run = startRun(health, performance, policy);
+        const run = startRun(health, performance, policy, options?.reviewRequirement);
         if (!health.canSync) {
           preparedSyncContextRef.current = null;
           void failRun(failureReasonFromHealth(health), run.id);

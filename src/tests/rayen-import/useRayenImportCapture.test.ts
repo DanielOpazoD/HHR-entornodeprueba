@@ -100,10 +100,12 @@ describe('useRayenImportCapture', () => {
     });
 
     expect(bridge.subscribeSnapshots).toHaveBeenCalledWith(expect.any(Function));
+    // Sin exigencia propia del intento, la política global gobierna sola.
     expect(startRun).toHaveBeenCalledWith(
       { connection: 'ready', report: null, message: 'ok', canSync: true },
       undefined,
-      policy
+      policy,
+      undefined
     );
     expect(startRequest).toHaveBeenCalledWith(
       '2026-08-02',
@@ -460,5 +462,4 @@ describe('useRayenImportCapture', () => {
       expect.objectContaining({ isSyncing: false, error: expect.any(String) })
     );
   });
-
 });

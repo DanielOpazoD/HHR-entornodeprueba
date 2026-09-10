@@ -13,6 +13,7 @@ import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { SyncQueueStatusChip } from './SyncQueueStatusChip';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import type { RayenImportCaptureOptions } from '../hooks/useRayenImportCapture';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import {
   isRayenSyncExecutionActive,
@@ -113,23 +114,30 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     [extension.connection, history, mainWorking]
   );
 
-  const handleSync = React.useCallback(async (): Promise<void> => {
-    if (syncPreflightInFlightRef.current) return;
-    syncPreflightInFlightRef.current = true;
-    try {
-      const startedAt = Date.now();
-      const health = await refreshExtension({
-        timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
-        showChecking: true,
-      });
-      await triggerImport(health, {
-        stagesMs: { preflight: elapsedMilliseconds(startedAt) },
-        counters: { requests: 1 },
-      });
-    } finally {
-      syncPreflightInFlightRef.current = false;
-    }
-  }, [refreshExtension, triggerImport]);
+  const handleSync = React.useCallback(
+    async (options?: RayenImportCaptureOptions): Promise<void> => {
+      if (syncPreflightInFlightRef.current) return;
+      syncPreflightInFlightRef.current = true;
+      try {
+        const startedAt = Date.now();
+        const health = await refreshExtension({
+          timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+          showChecking: true,
+        });
+        await triggerImport(
+          health,
+          {
+            stagesMs: { preflight: elapsedMilliseconds(startedAt) },
+            counters: { requests: 1 },
+          },
+          options
+        );
+      } finally {
+        syncPreflightInFlightRef.current = false;
+      }
+    },
+    [refreshExtension, triggerImport]
+  );
 
   React.useEffect(() => {
     if (autoStartRequestId === undefined || autoStartHandledRef.current === autoStartRequestId) {
@@ -137,7 +145,9 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     }
     autoStartHandledRef.current = autoStartRequestId;
     onAutoStartHandled?.();
-    void handleSync();
+    // The census did not exist a moment ago; this first import defines the whole day, so it is
+    // reviewed by a human even when the global policy would otherwise apply it unattended.
+    void handleSync({ reviewRequirement: 'day_bootstrap' });
   }, [autoStartRequestId, handleSync, onAutoStartHandled]);
   const pendingChangeCount = diff
     ? diff.summary.admissions +
