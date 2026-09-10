@@ -68,6 +68,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const autoStartHandledRef = React.useRef<number | null>(null);
   const {
     mode,
+    policyStatus,
     policyBlockReason,
     execution,
     diff,
@@ -85,6 +86,13 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     confirmStaffingProposal,
     dismissStaffingProposal,
   } = useRayenImport(selectedDate);
+
+  // La política global llega por suscripción y parte en `loading`. Ningún intento puede
+  // consumirse antes de que esté confirmada: la compuerta de captura lo rechaza de inmediato,
+  // así que arrancar aquí sólo gasta la solicitud (el día recién creado quedaba con historial 0).
+  const policyReady = policyStatus === 'ready';
+  const policyNotice =
+    policyBlockReason ?? (policyStatus === 'loading' ? 'La política aún se está cargando.' : null);
 
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
@@ -116,7 +124,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
 
   const handleSync = React.useCallback(
     async (options?: RayenImportCaptureOptions): Promise<void> => {
-      if (syncPreflightInFlightRef.current) return;
+      if (!policyReady || syncPreflightInFlightRef.current) return;
       syncPreflightInFlightRef.current = true;
       try {
         const startedAt = Date.now();
@@ -136,19 +144,23 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
         syncPreflightInFlightRef.current = false;
       }
     },
-    [refreshExtension, triggerImport]
+    [policyReady, refreshExtension, triggerImport]
   );
 
   React.useEffect(() => {
     if (autoStartRequestId === undefined || autoStartHandledRef.current === autoStartRequestId) {
       return;
     }
+    // La solicitud sobrevive a la espera: mientras la política no esté confirmada no se marca
+    // como atendida, de modo que el arranque ocurre en cuanto llega `ready` en vez de morir
+    // con «la política aún se está cargando» y dejar el día sin una sola sincronización.
+    if (!policyReady) return;
     autoStartHandledRef.current = autoStartRequestId;
     onAutoStartHandled?.();
     // The census did not exist a moment ago; this first import defines the whole day, so it is
     // reviewed by a human even when the global policy would otherwise apply it unattended.
     void handleSync({ reviewRequirement: 'day_bootstrap' });
-  }, [autoStartRequestId, handleSync, onAutoStartHandled]);
+  }, [autoStartRequestId, handleSync, onAutoStartHandled, policyReady]);
   const pendingChangeCount = diff
     ? diff.summary.admissions +
       diff.summary.updates +
@@ -300,19 +312,19 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
               extension.connection === 'checking' ||
               isPreviewOpen ||
               !extension.canSync ||
-              Boolean(policyBlockReason)
+              Boolean(policyNotice)
             }
             aria-busy={mainWorking || extension.connection === 'checking'}
             title={
               // La política se antepone a la extensión: sin política confirmada
               // la corrida no puede aplicar aunque Eloísa esté perfecta, y ese
               // es el caso que gastaba la captura completa antes de fallar.
-              policyBlockReason ??
+              // `loading` también deshabilita, con su propio motivo: el clic
+              // prematuro sólo producía un error inmediato.
+              policyNotice ??
               (!extension.canSync && extension.connection !== 'checking'
                 ? extension.message
-                : mode === 'auto'
-                  ? 'Sincronizar el censo con Eloísa (modo automático experimental)'
-                  : 'Sincronizar el censo con Eloísa (con revisión)')
+                : 'Sincronizar con Eloísa')
             }
             data-module="rayen-import"
             data-testid="rayen-import-button"
