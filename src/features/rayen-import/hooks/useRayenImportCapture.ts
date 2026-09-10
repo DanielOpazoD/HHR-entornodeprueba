@@ -10,6 +10,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type {
   CapturePreparationLock,
   RayenImportCaptureOptions,
+  RayenImportTriggerOutcome,
 } from './rayenImportCaptureContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
@@ -151,7 +152,7 @@ export const useRayenImportCapture = ({
       health: RayenExtensionHealthState,
       performance?: RayenSyncPerformanceDelta,
       options?: RayenImportCaptureOptions
-    ) => {
+    ): Promise<RayenImportTriggerOutcome> => {
       const requestedSelectedDate =
         routeSelectedDate ?? (currentRecord ? toIsoReportDate(currentRecord) : 'no-record');
       const activeExecution = executionRef?.current;
@@ -165,7 +166,7 @@ export const useRayenImportCapture = ({
           activeSelectedDate === requestedSelectedDate ||
           !isRayenSyncExecutionCancellableBeforeCommit(activeExecution.stage)
         ) {
-          return;
+          return 'already_running';
         }
         const activeRunId = activeExecution.context?.runId ?? activeExecution.pending?.runId;
         clearSyncTimeout();
@@ -178,7 +179,7 @@ export const useRayenImportCapture = ({
         activeLock?.selectedDate === requestedSelectedDate &&
         executionRef?.current.stage?.type !== 'cancelled'
       ) {
-        return;
+        return 'already_running';
       }
       const preparationLock: CapturePreparationLock = {
         lockId: Symbol('rayen-capture-preparation'),
@@ -198,14 +199,13 @@ export const useRayenImportCapture = ({
             isSyncing: false,
             result: null,
             hasSkippedItems: false,
-            // Solo 'loading' llega aquí sin razón de bloqueo ('ready' no entra
-            // en esta rama): el botón no se deshabilita mientras carga, así
-            // que el clic prematuro merece su propio mensaje, no un silencio.
+            // Solo 'loading' llega aquí sin razón de bloqueo: el botón no se deshabilita
+            // mientras carga, así que el clic prematuro merece su propio mensaje, no un silencio.
             error:
               resolveRayenPolicyBlockMessage(policyStatus) ??
               'La política global de sincronización aún se está cargando. Reintenta en unos segundos.',
           }));
-          return;
+          return 'blocked';
         }
         if (!resetRayenFillProgress()) {
           setState(previous => ({
@@ -216,7 +216,7 @@ export const useRayenImportCapture = ({
             error:
               'La revisión clínica anterior todavía está terminando. Espera un momento antes de sincronizar nuevamente.',
           }));
-          return;
+          return 'blocked';
         }
         setStaffingProposal(null);
         setStaffingProposalError(null);
@@ -231,7 +231,7 @@ export const useRayenImportCapture = ({
               ? 'El censo seleccionado todavía está cargando. Espera un momento antes de sincronizar.'
               : 'No hay un censo cargado para sincronizar.',
           }));
-          return;
+          return 'blocked';
         }
         const run = startRun(health, performance, policy, options?.reviewRequirement);
         if (!health.canSync) {
@@ -244,7 +244,7 @@ export const useRayenImportCapture = ({
             hasSkippedItems: false,
             error: null,
           }));
-          return;
+          return 'started';
         }
         const selectedDate = toIsoReportDate(currentRecord);
         dispatchExecution({ type: 'prepare', runId: run.id, selectedDate });
@@ -285,7 +285,7 @@ export const useRayenImportCapture = ({
               selectedDate,
             })
           ) {
-            return;
+            return 'started';
           }
           dispatchExecution({
             type: 'transition',
@@ -302,7 +302,7 @@ export const useRayenImportCapture = ({
             hasSkippedItems: false,
             error: getRayenImportErrorMessage(error),
           }));
-          return;
+          return 'started';
         }
 
         // The selected date or active execution may have changed while the authoritative census
@@ -313,7 +313,7 @@ export const useRayenImportCapture = ({
             selectedDate,
           })
         ) {
-          return;
+          return 'started';
         }
 
         preparedSyncContextRef.current = preparedContext;
@@ -366,6 +366,7 @@ export const useRayenImportCapture = ({
           context: createRayenSyncExecutionContext(preparedContext, requestId, policy),
         });
         recordRunPerformance({ counters: { requests: 1 } }, run.id);
+        return 'started';
       } finally {
         // An obsolete preparation can finish after a newer selected date has acquired the lock.
         // Never release the newer execution's lock from the older callback.

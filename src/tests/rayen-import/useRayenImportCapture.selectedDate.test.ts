@@ -104,7 +104,7 @@ describe('useRayenImportCapture selected-date supersession', () => {
       { initialProps: { currentRecord: oldRecord } }
     );
 
-    let oldStart!: Promise<void>;
+    let oldStart!: Promise<unknown>;
     await act(async () => {
       oldStart = result.current({
         connection: 'ready',
