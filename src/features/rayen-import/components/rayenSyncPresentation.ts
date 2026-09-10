@@ -24,12 +24,8 @@ export const formatRayenSyncTargetDate = (value?: string | null): string => {
 export const formatRayenSyncIslandTime = (iso: string): string => {
   const value = new Date(iso);
   if (Number.isNaN(value.getTime())) return 'Hora no disponible';
-  return new Intl.DateTimeFormat('es-CL', {
-    timeZone: CLINICAL_TIME_ZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(value);
+  const options = { timeZone: CLINICAL_TIME_ZONE, hour: '2-digit', minute: '2-digit' } as const;
+  return new Intl.DateTimeFormat('es-CL', { ...options, hourCycle: 'h23' }).format(value);
 };
 
 export const formatRayenSyncDuration = (startedAt: string, completedAt?: string): string | null => {
