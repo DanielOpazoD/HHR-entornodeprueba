@@ -259,7 +259,9 @@ export const importRecordsFromBackup = async (
         parsed.report.droppedCmaItems > 0 ||
         parsed.report.droppedRayenSyncEvents > 0;
 
-      await saveDailyRecordDetailed(parsed.record);
+      // Declared intent: the clinical authority keeps Rayen vitals/devices/scales when an
+      // administrator recreates a day that no longer exists remotely (see functions fence).
+      await saveDailyRecordDetailed(parsed.record, undefined, { writeOrigin: 'backup_restore' });
       success++;
       if (hadRepairs) {
         repaired++;
