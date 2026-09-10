@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { resolveCurrentClinicalDay } from '../src/utils/clinicalDayAdmissionUtils';
+import { getPreviousDay } from '../src/utils/clinicalDayScheduleUtils';
 import { setupE2EContext } from './fixtures/auth';
 
 /**
@@ -6,8 +8,9 @@ import { setupE2EContext } from './fixtures/auth';
  *
  * El botón sólo existe para el día clínico vigente, y el día clínico se resuelve en hora de
  * Rapa Nui aunque el dispositivo esté en hora continental (los runners fijan
- * `America/Santiago`). El reloj del navegador se congela un sábado a las 10:00 de la isla
- * (después del cambio de turno de las 09:00) sobre una fecha sin registro.
+ * `America/Santiago`). El spec usa el día clínico REAL calculado con la misma función que la
+ * app (congelar `Date.now` deja a Firestore sin terminar la hidratación remota), sobre una fecha
+ * que ningún otro spec siembra.
  *
  * Lo que este spec garantiza:
  *  1. El día vigente sin registro ofrece el arranque desde Eloísa.
@@ -18,10 +21,8 @@ import { setupE2EContext } from './fixtures/auth';
  *     global gobierna el arranque.
  */
 
-const PREVIOUS_DAY = '2026-03-06';
-const BOOTSTRAP_DAY = '2026-03-07';
-// Saturday 10:00 in Rapa Nui (UTC-6 in March), 13:00 in Santiago.
-const FROZEN_CLOCK = new Date('2026-03-07T16:00:00.000Z');
+const BOOTSTRAP_DAY = resolveCurrentClinicalDay();
+const PREVIOUS_DAY = getPreviousDay(BOOTSTRAP_DAY);
 
 const installFakeExtensionHealth = async (page: Page) => {
   await page.addInitScript(() => {
@@ -51,9 +52,7 @@ const installFakeExtensionHealth = async (page: Page) => {
 };
 
 const openBootstrapDay = async (page: Page) => {
-  await page.clock.setFixedTime(FROZEN_CLOCK);
   await setupE2EContext(page, 'admin', true, PREVIOUS_DAY);
-  await page.clock.setFixedTime(FROZEN_CLOCK);
   await page.goto(`/censo?date=${BOOTSTRAP_DAY}`);
   await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 });
   const bootstrapButton = page.getByTestId('create-from-rayen-btn');
@@ -69,7 +68,7 @@ test.describe('Crear desde Eloísa (día clínico vigente, navegador real)', () 
     const bootstrapButton = await openBootstrapDay(page);
 
     await expect(bootstrapButton).toContainText('Crear desde Eloísa');
-    await expect(page.getByText(/No existe registro para esta fecha/i)).toBeVisible();
+    await expect(page.getByTestId('empty-day-diagnostic-message')).toBeVisible();
 
     // The previous day has a record, so it is never offered a bootstrap from Eloísa.
     await page.goto(`/censo?date=${PREVIOUS_DAY}`);
