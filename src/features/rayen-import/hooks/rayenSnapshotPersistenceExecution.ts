@@ -22,7 +22,31 @@ interface RunRayenStructuralPersistenceLifecycleInput {
   persistenceOptions?: Parameters<typeof executeRayenStructuralPersistence>[1];
   continueAfterCommit: (outcome: CommittedRayenStructuralPersistenceOutcome) => Promise<void>;
   finishFailedPersistence: (error: unknown) => void;
+  /** Wall-clock ceiling for the structural write; the stage had none and could spin forever. */
+  persistTimeoutMs?: number;
 }
+
+export const RAYEN_STRUCTURAL_PERSIST_TIMEOUT_MS = 90_000;
+
+/** Message says "timeout" on purpose: the diagnostics classifier maps it to `source_timeout`. */
+export const STRUCTURAL_PERSIST_TIMEOUT_MESSAGE =
+  'Structural persist timeout: el guardado del censo superó los 90 s. Revisa la conexión y reintenta; si el censo ya se guardó, la siguiente sincronización lo confirmará sin cambios.';
+
+const withPersistTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          Object.assign(new Error(STRUCTURAL_PERSIST_TIMEOUT_MESSAGE), { name: 'TimeoutError' })
+        ),
+      timeoutMs
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+};
 
 /** Owns the shared automatic, no-change, and confirmed structural persistence lifecycle. */
 export const runRayenStructuralPersistenceLifecycle = async ({
@@ -34,12 +58,22 @@ export const runRayenStructuralPersistenceLifecycle = async ({
   persistenceOptions,
   continueAfterCommit,
   finishFailedPersistence,
+  persistTimeoutMs = RAYEN_STRUCTURAL_PERSIST_TIMEOUT_MS,
 }: RunRayenStructuralPersistenceLifecycleInput): Promise<RayenStructuralPersistenceExecutionResult> => {
   if (!isCurrent() || activeExecutionKeys.has(executionKey)) return { kind: 'not_started' };
   activeExecutionKeys.add(executionKey);
   try {
     if (startPersistence() === false) return { kind: 'not_started' };
-    const outcome = await executeRayenStructuralPersistence(persist, persistenceOptions);
+    let outcome: Awaited<ReturnType<typeof executeRayenStructuralPersistence>>;
+    try {
+      outcome = await withPersistTimeout(
+        executeRayenStructuralPersistence(persist, persistenceOptions),
+        persistTimeoutMs
+      );
+    } catch (error) {
+      finishFailedPersistence(error);
+      return { kind: 'failed' };
+    }
     if (!outcome) return { kind: 'not_started' };
     if (outcome.kind === 'failed') {
       finishFailedPersistence(outcome.error);

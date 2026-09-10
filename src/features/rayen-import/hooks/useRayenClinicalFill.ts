@@ -17,8 +17,11 @@ import {
   beginRayenFill,
   endRayenFill,
   getRayenFillAttemptId,
+  registerRayenFillAbort,
   reportRayenFillProgress,
 } from './useRayenFillStatus';
+import { createClinicalFillWatchdog } from '../domain/clinicalFillWatchdog';
+import { selectHistoricalCudyrPersistence } from './historicalCudyrPersistenceSelection';
 import { toIsoReportDate } from './reportDateHelpers';
 import {
   requestCudyrCategories,
@@ -212,31 +215,12 @@ export const useRayenClinicalFill = ({
           const historicalWriteGuard: RayenClinicalWriteGuard | undefined = legacyWriterEnabled
             ? { ...runPolicy, recordScope: 'historical' }
             : undefined;
-          const historicalCudyrPersistence = historicalWriteGuard
-            ? {
-                applyHistoricalCudyr: (encId: string, censusDay: string, cudyr: ImportedCudyr) =>
-                  applyHistoricalCudyr(encId, censusDay, cudyr, historicalWriteGuard),
-                applyHistoricalCudyrBatch: applyHistoricalCudyrBatch
-                  ? (censusDay: string, items: HistoricalCudyrBatchItem[]) =>
-                      applyHistoricalCudyrBatch(censusDay, items, historicalWriteGuard)
-                  : undefined,
-              }
-            : {
-                applyHistoricalCudyrBatch: (
-                  censusDay: string,
-                  items: HistoricalCudyrBatchItem[]
-                ) => {
-                  if (!applyHistoricalCudyrEnforcedBatch) {
-                    throw new Error('El lote histórico autoritativo no está disponible.');
-                  }
-                  return applyHistoricalCudyrEnforcedBatch(
-                    freshRecord,
-                    censusDay,
-                    items,
-                    runPolicy.runId
-                  );
-                },
-              };
+          const historicalCudyrPersistence = selectHistoricalCudyrPersistence(
+            { applyHistoricalCudyr, applyHistoricalCudyrBatch, applyHistoricalCudyrEnforcedBatch },
+            historicalWriteGuard,
+            freshRecord,
+            runPolicy.runId
+          );
           const auditRunId = requestedRunId ?? freshRecord.rayenSync?.runId;
           const eligibleCount = countClinicalFillEligiblePatients(
             freshRecord,
@@ -270,6 +254,11 @@ export const useRayenClinicalFill = ({
           );
 
           let summary: ClinicalFillSummary;
+          const watchdog = createClinicalFillWatchdog({
+            onTimeout: () =>
+              reportRayenSyncWarning('clinical_fill_stage_timeout', { runId: auditRunId }),
+          });
+          registerRayenFillAbort(watchdog.abort);
           try {
             const { createClinicalEnrichmentPersistenceStrategy } =
               await import('./clinicalEnrichmentPersistenceStrategy');
@@ -289,6 +278,7 @@ export const useRayenClinicalFill = ({
               resolveClinicalFillDay(source, freshRecord),
               {
                 diagnosticRunId: auditRunId,
+                signal: watchdog.signal,
                 allowedClinicalEpisodeIds,
                 fetchDeviceReport: requestDeviceReport,
                 extractDeviceItems: extractDeviceTextItems,
@@ -320,6 +310,9 @@ export const useRayenClinicalFill = ({
               patched: 0,
               errors: [buildGlobalClinicalFillError('unexpected_fill_failure')],
             };
+          } finally {
+            watchdog.settle();
+            registerRayenFillAbort(null);
           }
 
           summary = mergeClinicalRetrySummary(

@@ -51,6 +51,12 @@ export const RAYEN_FILL_STALE_AFTER_MS = 8 * 60 * 1000;
 let progress: RayenFillProgress = IDLE;
 let activeAttemptId: number | null = null;
 let runningSinceMs: number | null = null;
+let activeAbort: (() => void) | null = null;
+
+/** Lets the stale-lock watchdog stop the worker instead of only freeing the button. */
+export const registerRayenFillAbort = (abort: (() => void) | null): void => {
+  activeAbort = abort;
+};
 const listeners = new Set<() => void>();
 
 const releaseStaleFill = (nowMs: number): boolean => {
@@ -68,6 +74,13 @@ const releaseStaleFill = (nowMs: number): boolean => {
   );
   activeAttemptId = null;
   runningSinceMs = null;
+  const abort = activeAbort;
+  activeAbort = null;
+  try {
+    abort?.();
+  } catch {
+    // Aborting is best effort; the lock is released regardless.
+  }
   emit({
     ...progress,
     running: false,
@@ -159,6 +172,7 @@ export const endRayenFill = (errors: number, hasAnyError: boolean = errors > 0):
   const completedLatestAttempt = activeAttemptId === progress.attemptId;
   activeAttemptId = null;
   runningSinceMs = null;
+  activeAbort = null;
   emit({
     running: false,
     outcome: completedLatestAttempt ? (hasAnyError ? 'partial' : 'complete') : progress.outcome,

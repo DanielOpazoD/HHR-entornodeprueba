@@ -23,6 +23,8 @@ export interface ClinicalPersistenceEvidence {
 export interface ClinicalFillDeps {
   /** Correlates aggregate diagnostics with the user-initiated synchronization run. */
   diagnosticRunId?: string;
+  /** Stage watchdog: once aborted, queued reads are skipped and no further patient writes start. */
+  signal?: AbortSignal;
   /** Limits enrichment to structurally confirmed episodes from the accepted census revision. */
   allowedClinicalEpisodeIds?: readonly string[];
   nurseCatalog?: string[];
