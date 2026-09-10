@@ -70,7 +70,7 @@ describe('canEditCudyrRecord', () => {
 
   it('uses the clinical day during the overnight window for X and X - 1 access', () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 3, 22, 6, 59, 0));
+    vi.setSystemTime(new Date('2026-04-22T12:59:00.000Z')); // 06:59 in Rapa Nui
 
     expect(
       canEditCudyrRecord({
@@ -85,7 +85,7 @@ describe('canEditCudyrRecord', () => {
 
   it('closes X - 1 access once the new clinical day starts', () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 3, 22, 9, 1, 0));
+    vi.setSystemTime(new Date('2026-04-22T15:01:00.000Z')); // 09:01 in Rapa Nui
 
     expect(
       canEditCudyrRecord({
