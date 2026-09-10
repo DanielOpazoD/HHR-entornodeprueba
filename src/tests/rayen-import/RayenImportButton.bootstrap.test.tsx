@@ -181,6 +181,60 @@ describe('RayenImportButton · inicio del día desde Eloísa', () => {
     expect(onAutoStartHandled).not.toHaveBeenCalled();
   });
 
+  it('conserva la solicitud cuando la captura la bloquea sin dejar evidencia y la reintenta', async () => {
+    const onAutoStartHandled = vi.fn();
+    const blockedTrigger = vi.fn().mockResolvedValue('blocked');
+    mocks.useRayenImport.mockReturnValue(importState({ triggerImport: blockedTrigger }));
+
+    const { rerender } = render(
+      <RayenImportButton autoStartRequestId={17} onAutoStartHandled={onAutoStartHandled} />
+    );
+
+    await waitFor(() => expect(blockedTrigger).toHaveBeenCalledTimes(1));
+    // Sin run no hay historial: la solicitud no se da por atendida.
+    await waitFor(() => expect(onAutoStartHandled).not.toHaveBeenCalled());
+
+    // Cuando la compuerta cambia (por ejemplo, el censo terminó de cargar), el mismo id arranca.
+    const startedTrigger = vi.fn().mockResolvedValue('started');
+    mocks.useRayenImport.mockReturnValue(importState({ triggerImport: startedTrigger }));
+    rerender(<RayenImportButton autoStartRequestId={17} onAutoStartHandled={onAutoStartHandled} />);
+
+    await waitFor(() => expect(startedTrigger).toHaveBeenCalledTimes(1));
+    expect(startedTrigger).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
+    await waitFor(() => expect(onAutoStartHandled).toHaveBeenCalledTimes(1));
+  });
+
+  it('espera al censo del día antes de arrancar y no repite cuando llega', async () => {
+    const onAutoStartHandled = vi.fn();
+    mocks.useDailyRecordData.mockReturnValue({ record: null });
+
+    const { rerender } = render(
+      <RayenImportButton
+        selectedDate="2026-09-10"
+        autoStartRequestId={19}
+        onAutoStartHandled={onAutoStartHandled}
+      />
+    );
+
+    await waitFor(() => expect(mocks.refreshHealth).not.toHaveBeenCalled());
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+    expect(onAutoStartHandled).not.toHaveBeenCalled();
+
+    mocks.useDailyRecordData.mockReturnValue({ record: { date: '2026-09-10' } });
+    rerender(
+      <RayenImportButton
+        selectedDate="2026-09-10"
+        autoStartRequestId={19}
+        onAutoStartHandled={onAutoStartHandled}
+      />
+    );
+
+    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onAutoStartHandled).toHaveBeenCalledTimes(1));
+  });
+
   it('no exige revisión adicional cuando la sincronización la inicia una persona', async () => {
     render(<RayenImportButton />);
 

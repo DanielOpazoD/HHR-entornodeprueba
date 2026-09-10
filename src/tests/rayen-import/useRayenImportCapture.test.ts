@@ -171,7 +171,7 @@ describe('useRayenImportCapture', () => {
       })
     );
 
-    let firstStart!: Promise<void>;
+    let firstStart!: Promise<unknown>;
     await act(async () => {
       firstStart = result.current({
         connection: 'ready',
@@ -295,7 +295,7 @@ describe('useRayenImportCapture', () => {
       })
     );
 
-    let pendingStart!: Promise<void>;
+    let pendingStart!: Promise<unknown>;
     await act(async () => {
       pendingStart = result.current({
         connection: 'ready',

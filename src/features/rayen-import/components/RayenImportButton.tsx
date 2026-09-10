@@ -13,7 +13,10 @@ import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { SyncQueueStatusChip } from './SyncQueueStatusChip';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
-import type { RayenImportCaptureOptions } from '../hooks/rayenImportCaptureContracts';
+import type {
+  RayenImportCaptureOptions,
+  RayenImportTriggerOutcome,
+} from '../hooks/rayenImportCaptureContracts';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import {
   isRayenSyncExecutionActive,
@@ -67,6 +70,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);
   const autoStartHandledRef = React.useRef<number | null>(null);
+  const autoStartInFlightRef = React.useRef<number | null>(null);
   const {
     mode,
     policyStatus,
@@ -124,8 +128,8 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
   );
 
   const handleSync = React.useCallback(
-    async (options?: RayenImportCaptureOptions): Promise<void> => {
-      if (!policyReady || syncPreflightInFlightRef.current) return;
+    async (options?: RayenImportCaptureOptions): Promise<RayenImportTriggerOutcome> => {
+      if (!policyReady || syncPreflightInFlightRef.current) return 'blocked';
       syncPreflightInFlightRef.current = true;
       try {
         const startedAt = Date.now();
@@ -133,7 +137,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
           timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
           showChecking: true,
         });
-        await triggerImport(
+        return await triggerImport(
           health,
           {
             stagesMs: { preflight: elapsedMilliseconds(startedAt) },
@@ -148,20 +152,30 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
     [policyReady, refreshExtension, triggerImport]
   );
 
+  const bootstrapRecordReady = Boolean(recordForSelectedDate);
   React.useEffect(() => {
-    if (autoStartRequestId === undefined || autoStartHandledRef.current === autoStartRequestId) {
+    if (
+      autoStartRequestId === undefined ||
+      autoStartHandledRef.current === autoStartRequestId ||
+      autoStartInFlightRef.current === autoStartRequestId
+    ) {
       return;
     }
-    // La solicitud sobrevive a la espera: mientras la política no esté confirmada no se marca
-    // como atendida, de modo que el arranque ocurre en cuanto llega `ready` en vez de morir
-    // con «la política aún se está cargando» y dejar el día sin una sola sincronización.
-    if (!policyReady) return;
-    autoStartHandledRef.current = autoStartRequestId;
-    onAutoStartHandled?.();
+    // La solicitud sobrevive a la espera: sólo se marca como atendida cuando la captura dejó
+    // evidencia (un run, aunque falle). Si la compuerta la bloqueó sin registrar nada (política
+    // cargando, censo aún sin cargar, revisión previa terminando), el token se conserva y el
+    // arranque se reintenta en cuanto cambie alguna de esas condiciones.
+    if (!policyReady || !bootstrapRecordReady) return;
+    autoStartInFlightRef.current = autoStartRequestId;
     // The census did not exist a moment ago; this first import defines the whole day, so it is
     // reviewed by a human even when the global policy would otherwise apply it unattended.
-    void handleSync({ reviewRequirement: 'day_bootstrap' });
-  }, [autoStartRequestId, handleSync, onAutoStartHandled, policyReady]);
+    void handleSync({ reviewRequirement: 'day_bootstrap' }).then(outcome => {
+      autoStartInFlightRef.current = null;
+      if (outcome === 'blocked') return;
+      autoStartHandledRef.current = autoStartRequestId;
+      onAutoStartHandled?.();
+    });
+  }, [autoStartRequestId, bootstrapRecordReady, handleSync, onAutoStartHandled, policyReady]);
   const pendingChangeCount = diff
     ? diff.summary.admissions +
       diff.summary.updates +
