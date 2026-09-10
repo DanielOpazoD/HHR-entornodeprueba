@@ -58,7 +58,7 @@ describe('EmptyDayPrompt', () => {
 
   it('offers today as a reviewed Eloisa bootstrap without copying the previous census', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 2, 3, 9, 0, 0));
+    vi.setSystemTime(new Date('2026-03-03T14:00:00.000Z')); // 09:00 in Rapa Nui
     const onCreateDay = vi.fn().mockResolvedValue(undefined);
     const onRayenBootstrapReady = vi.fn();
 
@@ -207,18 +207,18 @@ describe('EmptyDayPrompt', () => {
         />
       );
 
-    it('offers the active clinical day (Sept 9) at 00:30 on Sept 10', () => {
+    it('offers Sept 9 during the reported Santiago/Rapa Nui pre-handoff gap', () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date(2026, 8, 10, 0, 30, 0));
+      vi.setSystemTime(new Date('2026-09-10T12:33:35.000Z')); // 09:33 Santiago, 07:33 Rapa Nui
 
       renderPrompt('2026-09-09', 9);
 
       expect(screen.getByRole('button', { name: ELOISA_BUTTON })).toBeInTheDocument();
     });
 
-    it('hides the bootstrap for the raw calendar date (Sept 10) before the 08:00 rollover', () => {
+    it('hides Sept 10 during the reported Santiago/Rapa Nui pre-handoff gap', () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date(2026, 8, 10, 0, 30, 0));
+      vi.setSystemTime(new Date('2026-09-10T12:33:35.000Z')); // 09:33 Santiago, 07:33 Rapa Nui
 
       renderPrompt('2026-09-10', 10);
 
@@ -227,7 +227,7 @@ describe('EmptyDayPrompt', () => {
 
     it('switches to the next clinical day when a weekday crosses 08:00', async () => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date(2026, 8, 10, 7, 59, 0));
+      vi.setSystemTime(new Date('2026-09-10T12:59:00.000Z')); // 07:59 in Rapa Nui
 
       const sept9 = renderPrompt('2026-09-09', 9);
       const sept10 = renderPrompt('2026-09-10', 10);
