@@ -127,7 +127,9 @@ describe('HandoffView medical flows', () => {
 
     const specialtySelect = screen.getByRole('combobox');
     expect(within(specialtySelect).getByRole('option', { name: 'Cirugía' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /crear entrega de turno médica/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /crear entrega de turno médica/i })
+    ).toBeInTheDocument();
   });
 
   it('keeps patient-level medical handoff creation enabled for doctor_specialist on the current day', () => {
@@ -184,7 +186,7 @@ describe('HandoffView medical flows', () => {
 
   it('blocks specialist editing outside the overnight clinical day window', () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 3, 22, 9, 1, 0));
+    vi.setSystemTime(new Date('2026-04-22T15:01:00.000Z')); // 09:01 in Rapa Nui
     setAuthorizedSpecialistAuth();
 
     const record = createMockRecord('2026-04-21');

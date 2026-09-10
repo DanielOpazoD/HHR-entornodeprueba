@@ -7,6 +7,10 @@ import {
   type SetStateAction,
 } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type {
+  CapturePreparationLock,
+  RayenImportCaptureOptions,
+} from './rayenImportCaptureContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import { classifyRayenSnapshotError } from '../domain/rayenSnapshotErrorClassification';
@@ -52,7 +56,8 @@ interface UseRayenImportCaptureInput {
   startRun: (
     health?: RayenExtensionHealthState,
     performance?: RayenSyncPerformanceDelta,
-    policy?: RayenImportPolicy
+    policy?: RayenImportPolicy,
+    reviewRequirement?: RayenImportCaptureOptions['reviewRequirement']
   ) => RayenSyncRun;
   failRun: (reason: RayenSyncFailureReason, runId?: string) => Promise<void>;
   cancelRun?: () => void;
@@ -63,11 +68,6 @@ interface UseRayenImportCaptureInput {
     runId: string,
     requestId: string
   ) => void;
-}
-
-interface CapturePreparationLock {
-  lockId: symbol;
-  selectedDate: string;
 }
 
 /** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
@@ -147,7 +147,11 @@ export const useRayenImportCapture = ({
   );
 
   return useCallback(
-    async (health: RayenExtensionHealthState, performance?: RayenSyncPerformanceDelta) => {
+    async (
+      health: RayenExtensionHealthState,
+      performance?: RayenSyncPerformanceDelta,
+      options?: RayenImportCaptureOptions
+    ) => {
       const requestedSelectedDate =
         routeSelectedDate ?? (currentRecord ? toIsoReportDate(currentRecord) : 'no-record');
       const activeExecution = executionRef?.current;
@@ -229,7 +233,7 @@ export const useRayenImportCapture = ({
           }));
           return;
         }
-        const run = startRun(health, performance, policy);
+        const run = startRun(health, performance, policy, options?.reviewRequirement);
         if (!health.canSync) {
           preparedSyncContextRef.current = null;
           void failRun(failureReasonFromHealth(health), run.id);

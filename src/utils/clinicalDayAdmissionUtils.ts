@@ -5,15 +5,29 @@ import {
   resolveClinicalDayBounds,
 } from './clinicalDayScheduleUtils';
 
-export const resolveCurrentClinicalDay = (now: Date = new Date()): string => {
-  const currentCalendarDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate()
-  ).padStart(2, '0')}`;
-  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(
-    now.getMinutes()
-  ).padStart(2, '0')}`;
+const CLINICAL_TIME_ZONE = 'Pacific/Easter';
 
-  return resolveClinicalDayForDateTime(currentCalendarDate, currentTime) ?? currentCalendarDate;
+export const calendarStampInRapaNui = (now: Date): { iso: string; hhmm: string } => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: CLINICAL_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find(part => part.type === type)?.value ?? '';
+  return {
+    iso: `${value('year')}-${value('month')}-${value('day')}`,
+    hhmm: `${value('hour')}:${value('minute')}`,
+  };
+};
+
+export const resolveCurrentClinicalDay = (now: Date = new Date()): string => {
+  const { iso, hhmm } = calendarStampInRapaNui(now);
+  return resolveClinicalDayForDateTime(iso, hhmm) ?? iso;
 };
 
 export const resolveClinicalDayForDateTime = (

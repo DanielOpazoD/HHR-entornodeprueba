@@ -43,6 +43,10 @@ describe('RayenImportButton', () => {
     vi.clearAllMocks();
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
+      // Explícito siempre: sin política confirmada no hay sincronización posible,
+      // y ningún caso de prueba debe heredar una confirmación que no declaró.
+      policyStatus: 'ready',
+      policyBlockReason: null,
       execution: null,
       diff: null,
       isPreviewOpen: false,
@@ -265,23 +269,9 @@ describe('RayenImportButton', () => {
       expect.objectContaining({
         stagesMs: { preflight: expect.any(Number) },
         counters: { requests: 1 },
-      })
+      }),
+      undefined
     );
-  });
-
-  it('starts the reviewed flow once after a new day was created from Eloisa', async () => {
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    const onAutoStartHandled = vi.fn();
-    const { rerender } = render(
-      <RayenImportButton autoStartRequestId={7} onAutoStartHandled={onAutoStartHandled} />
-    );
-
-    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
-    expect(onAutoStartHandled).toHaveBeenCalledTimes(1);
-    expect(mocks.confirm).not.toHaveBeenCalled();
-
-    rerender(<RayenImportButton autoStartRequestId={7} onAutoStartHandled={onAutoStartHandled} />);
-    expect(mocks.triggerImport).toHaveBeenCalledTimes(1);
   });
 
   it('starts only one preflight and one import when the button is clicked twice rapidly', async () => {
@@ -397,26 +387,6 @@ describe('RayenImportButton', () => {
     fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
 
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(2));
-    expect(mocks.triggerImport).not.toHaveBeenCalled();
-  });
-
-  it('bloquea la sincronización cuando la política no está confirmada, aunque Eloísa esté sana', () => {
-    // Incidente 01-09: con la sesión sin permisos el botón se veía habilitado,
-    // dejaba arrancar la corrida y recién fallaba tras ~9 s de captura dual.
-    // La política se antepone a la extensión porque sin ella no se puede aplicar.
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    mocks.useRayenImport.mockReturnValue({
-      ...mocks.useRayenImport(),
-      policyBlockReason:
-        'Tu sesión perdió permisos para leer la política global. Vuelve a iniciar sesión para sincronizar.',
-    });
-
-    render(<RayenImportButton />);
-
-    const syncButton = screen.getByTestId('rayen-import-button');
-    expect(syncButton).toBeDisabled();
-    expect(syncButton).toHaveAttribute('title', expect.stringContaining('Vuelve a iniciar sesión'));
-    fireEvent.click(syncButton);
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 

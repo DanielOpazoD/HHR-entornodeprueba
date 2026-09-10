@@ -1,8 +1,10 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
+import {
+  calendarStampInRapaNui,
+  resolveCurrentClinicalDay,
+} from '@/utils/clinicalDayAdmissionUtils';
 
-const RAPA_NUI_TIME_ZONE = 'Pacific/Easter';
 const MILLISECONDS_PER_DAY = 86_400_000;
 
 /**
@@ -14,31 +16,11 @@ const MILLISECONDS_PER_DAY = 86_400_000;
  */
 export const MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS = 7;
 
-const calendarStampInRapaNui = (date: Date): { iso: string; hhmm: string } => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: RAPA_NUI_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
-  const value = (type: Intl.DateTimeFormatPartTypes): string =>
-    parts.find(part => part.type === type)?.value ?? '';
-  return {
-    iso: `${value('year')}-${value('month')}-${value('day')}`,
-    hhmm: `${value('hour')}:${value('minute')}`,
-  };
-};
-
 const isoDayInRapaNui = (date: Date): string => calendarStampInRapaNui(date).iso;
 
 /** Census day currently under the responsibility of the active nursing shift in Rapa Nui. */
-export const clinicalCensusDayInRapaNui = (now: Date = new Date()): string => {
-  const { iso, hhmm } = calendarStampInRapaNui(now);
-  return resolveClinicalDayForDateTime(iso, hhmm) ?? iso;
-};
+export const clinicalCensusDayInRapaNui = (now: Date = new Date()): string =>
+  resolveCurrentClinicalDay(now);
 
 export type CensusSyncTargetKind = 'current' | 'historical' | 'unsupported';
 
