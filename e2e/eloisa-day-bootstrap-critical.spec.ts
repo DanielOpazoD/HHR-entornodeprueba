@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { resolveCurrentClinicalDay } from '../src/utils/clinicalDayAdmissionUtils';
 import { getPreviousDay } from '../src/utils/clinicalDayScheduleUtils';
-import { setupE2EContext } from './fixtures/auth';
+import {
+  bootstrapSeededRecord,
+  buildCanonicalE2ERecord,
+  ensureAuthenticated,
+} from './fixtures/auth';
 
 /**
  * «Crear desde Eloísa» en un navegador real.
@@ -9,8 +13,9 @@ import { setupE2EContext } from './fixtures/auth';
  * El botón sólo existe para el día clínico vigente, y el día clínico se resuelve en hora de
  * Rapa Nui aunque el dispositivo esté en hora continental (los runners fijan
  * `America/Santiago`). El spec usa el día clínico REAL calculado con la misma función que la
- * app (congelar `Date.now` deja a Firestore sin terminar la hidratación remota), sobre una fecha
- * que ningún otro spec siembra.
+ * app (congelar `Date.now` deja a Firestore sin terminar la hidratación remota), con la
+ * sincronización en modo local (como el resto de los smoke que crean o editan días), sobre una
+ * fecha que ningún otro spec persiste.
  *
  * Lo que este spec garantiza:
  *  1. El día vigente sin registro ofrece el arranque desde Eloísa.
@@ -52,8 +57,16 @@ const installFakeExtensionHealth = async (page: Page) => {
 };
 
 const openBootstrapDay = async (page: Page) => {
-  await setupE2EContext(page, 'admin', true, PREVIOUS_DAY);
+  await bootstrapSeededRecord(page, {
+    role: 'admin',
+    date: PREVIOUS_DAY,
+    record: buildCanonicalE2ERecord(PREVIOUS_DAY),
+    useRuntimeOverride: true,
+    forceEditableRecord: true,
+    forceLocalOnlySync: true,
+  });
   await page.goto(`/censo?date=${BOOTSTRAP_DAY}`);
+  await ensureAuthenticated(page);
   await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 });
   const bootstrapButton = page.getByTestId('create-from-rayen-btn');
   await expect(bootstrapButton).toBeVisible({ timeout: 30_000 });
