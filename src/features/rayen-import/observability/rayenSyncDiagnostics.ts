@@ -20,6 +20,8 @@ export type RayenSyncOperationalErrorKind =
   | 'unexpected';
 
 export type RayenSyncDiagnosticCode =
+  | 'clinical_batch_base_rebased'
+  | 'clinical_batch_base_refresh_failed'
   | 'clinical_batch_local_refresh_deferred'
   | 'clinical_batch_shadow_observation_failed'
   | 'clinical_batch_shadow_refresh_failed'
