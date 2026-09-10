@@ -12,6 +12,7 @@ const {
   RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
   isRayenClinicalWriteFenceActive,
   preserveRayenClinicalFields,
+  shouldPreserveRayenClinicalFields,
 } = require('./dailyRecordClinicalFieldPreservation');
 const {
   assertGuardedClinicalPatch,
@@ -1355,7 +1356,12 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
           const policySnapshot = await transaction.get(policyRef);
           const remoteData = snapshot.exists ? snapshot.data() || {} : {};
-          const recordForPersistence = isRayenClinicalWriteFenceActive(policySnapshot)
+          const recordForPersistence = shouldPreserveRayenClinicalFields({
+            policySnapshot,
+            snapshot,
+            origin,
+            role,
+          })
             ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
             : record;
           responseAuthority = assertClinicalAuthority(recordForPersistence);

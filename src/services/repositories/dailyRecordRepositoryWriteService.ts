@@ -178,6 +178,7 @@ const saveDetailedWithinLock = async (
       saveRecordToFirestore(validatedRecord, command.expectedLastUpdated, {
         syncContract,
         returnCommittedRecord: options.requireConfirmedRecord,
+        origin: options.writeOrigin,
         assertSafeOverwrite: remoteData =>
           assertNoPatientErasures(docToRecord(remoteData, command.date), validatedRecord),
       }),

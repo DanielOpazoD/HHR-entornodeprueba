@@ -85,7 +85,7 @@ export const saveRecordToFirestore = async (
             record,
             expectedLastUpdated,
             mode: callableAuthorityMode || 'shadow',
-            origin: 'direct_save',
+            origin: options.origin ?? 'direct_save',
             syncContract: options.syncContract,
           }),
         {

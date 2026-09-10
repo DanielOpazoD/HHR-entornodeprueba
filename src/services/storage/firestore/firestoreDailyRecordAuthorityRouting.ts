@@ -56,6 +56,8 @@ export interface DailyRecordSaveWriteOptions {
    * It may throw (e.g. DataRegressionError) to abort the commit atomically.
    */
   assertSafeOverwrite?: (remoteData: Record<string, unknown>) => void;
+  /** Intent reported to the clinical authority; `backup_restore` recreates a day with its clinical fields. */
+  origin?: 'direct_save' | 'backup_restore';
 }
 
 interface SpecialistMedicalHandoffCallablePayload {

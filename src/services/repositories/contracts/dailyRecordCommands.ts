@@ -34,7 +34,14 @@ export interface SaveDailyRecordOptions {
   rayenStructuralWriteGuard?: boolean;
   /** Internal lease for the structural read-plan-write critical section. */
   dailyRecordWriteLease?: DailyRecordWriteLease;
+  /**
+   * Declares the intent behind a full-record save to the clinical authority. `backup_restore`
+   * lets an administrator recreate a deleted day with its Rayen clinical fields intact.
+   */
+  writeOrigin?: DailyRecordSaveWriteOrigin;
 }
+
+export type DailyRecordSaveWriteOrigin = 'direct_save' | 'backup_restore';
 
 export interface PartialUpdateDailyRecordCommand {
   date: string;
