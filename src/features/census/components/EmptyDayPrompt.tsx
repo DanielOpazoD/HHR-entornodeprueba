@@ -11,6 +11,8 @@ import {
   type CensusEmptyStateDiagnostic,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
+import { getTodayISO } from '@/utils/dateCoreUtils';
+import { RayenDayBootstrapButton } from '@/features/rayen-import/public';
 
 interface EmptyDayPromptProps {
   selectedDay: number;
@@ -23,7 +25,8 @@ interface EmptyDayPromptProps {
     copyFromPrevious: boolean,
     specificDate?: string,
     options?: { forceCopyScheduleOverride?: boolean }
-  ) => void;
+  ) => void | Promise<void>;
+  onRayenBootstrapReady?: () => void;
   readOnly?: boolean;
   allowAdminCopyOverride?: boolean;
   emptyStateDiagnostic?: CensusEmptyStateDiagnostic;
@@ -37,6 +40,7 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   previousRecordDate,
   availableDates = [],
   onCreateDay,
+  onRayenBootstrapReady,
   readOnly = false,
   allowAdminCopyOverride = false,
   emptyStateDiagnostic,
@@ -91,6 +95,7 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   const isDatePickerVisible = showDatePicker && !copyAvailability.isCopyLocked;
   const canForceCopyPrevious =
     allowAdminCopyOverride && previousRecordAvailable && !!previousRecordDate;
+  const canCreateFromRayen = currentDateString === getTodayISO() && Boolean(onRayenBootstrapReady);
   const diagnosticLabelBySource: Record<CensusEmptyStateDiagnostic['source'], string> = {
     remote_missing: 'Firebase/local confirmado',
     local_cache_empty: 'Solo copia local',
@@ -143,6 +148,13 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
 
       {!readOnly ? (
         <div className="flex flex-col sm:flex-row gap-4 flex-wrap justify-center items-start">
+          {canCreateFromRayen && (
+            <RayenDayBootstrapButton
+              onCreateBlank={() => Promise.resolve(onCreateDay(false))}
+              onReady={() => onRayenBootstrapReady?.()}
+            />
+          )}
+
           {/* Copy from Previous Day Button with subtle date picker */}
           {previousRecordAvailable && previousRecordDate && (
             <div className="flex flex-col gap-2">
@@ -252,14 +264,16 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
           {/* Blank Record Button */}
           <button
             onClick={() => setIsConfirmingBlank(true)}
-            className="btn btn-primary group !p-6 !h-auto shadow-lg shadow-medical-500/30 flex-col w-64"
+            className="btn group !p-6 !h-auto border-2 border-slate-300 bg-white text-medical-700 shadow-sm flex-col w-64 hover:bg-medical-50"
             data-testid="blank-record-btn"
           >
             <div className="flex items-center gap-2 text-lg font-bold">
               <Plus size={20} />
               <span>Registro en Blanco</span>
             </div>
-            <span className="text-xs font-normal text-medical-100">Iniciar turno desde cero</span>
+            <span className="text-xs font-normal text-medical-600/80">
+              Iniciar turno desde cero
+            </span>
           </button>
         </div>
       ) : (

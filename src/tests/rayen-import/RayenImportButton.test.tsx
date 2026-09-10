@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   useRayenFillProgress: vi.fn(),
   useRayenExtensionHealth: vi.fn(),
   refreshHealth: vi.fn(),
+  confirm: vi.fn(),
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -52,7 +53,7 @@ describe('RayenImportButton', () => {
       staffingProposalError: null,
       triggerImport: mocks.triggerImport,
       retryClinicalFill: mocks.retryClinicalFill,
-      confirm: vi.fn(),
+      confirm: mocks.confirm,
       cancel: vi.fn(),
       confirmStaffingProposal: vi.fn(),
       dismissStaffingProposal: vi.fn(),
@@ -266,6 +267,21 @@ describe('RayenImportButton', () => {
         counters: { requests: 1 },
       })
     );
+  });
+
+  it('starts the reviewed flow once after a new day was created from Eloisa', async () => {
+    mocks.useDailyRecordData.mockReturnValue({ record: {} });
+    const onAutoStartHandled = vi.fn();
+    const { rerender } = render(
+      <RayenImportButton autoStartRequestId={7} onAutoStartHandled={onAutoStartHandled} />
+    );
+
+    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
+    expect(onAutoStartHandled).toHaveBeenCalledTimes(1);
+    expect(mocks.confirm).not.toHaveBeenCalled();
+
+    rerender(<RayenImportButton autoStartRequestId={7} onAutoStartHandled={onAutoStartHandled} />);
+    expect(mocks.triggerImport).toHaveBeenCalledTimes(1);
   });
 
   it('starts only one preflight and one import when the button is clicked twice rapidly', async () => {
