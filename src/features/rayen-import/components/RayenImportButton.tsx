@@ -13,7 +13,7 @@ import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { SyncQueueStatusChip } from './SyncQueueStatusChip';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
-import type { RayenImportCaptureOptions } from '../hooks/useRayenImportCapture';
+import type { RayenImportCaptureOptions } from '../hooks/rayenImportCaptureContracts';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import {
   isRayenSyncExecutionActive,

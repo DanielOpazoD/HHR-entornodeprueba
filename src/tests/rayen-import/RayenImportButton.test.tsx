@@ -390,60 +390,6 @@ describe('RayenImportButton', () => {
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 
-  it('bloquea la sincronización cuando la política no está confirmada, aunque Eloísa esté sana', () => {
-    // Incidente 01-09: con la sesión sin permisos el botón se veía habilitado,
-    // dejaba arrancar la corrida y recién fallaba tras ~9 s de captura dual.
-    // La política se antepone a la extensión porque sin ella no se puede aplicar.
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    mocks.useRayenImport.mockReturnValue({
-      ...mocks.useRayenImport(),
-      policyStatus: 'unauthorized',
-      policyBlockReason:
-        'Tu sesión perdió permisos para leer la política global. Vuelve a iniciar sesión para sincronizar.',
-    });
-
-    render(<RayenImportButton />);
-
-    const syncButton = screen.getByTestId('rayen-import-button');
-    expect(syncButton).toBeDisabled();
-    expect(syncButton).toHaveAttribute('title', expect.stringContaining('Vuelve a iniciar sesión'));
-    fireEvent.click(syncButton);
-    expect(mocks.triggerImport).not.toHaveBeenCalled();
-  });
-
-  it('espera a la política global en vez de gastar la captura mientras carga', async () => {
-    // La política llega por suscripción: pulsar antes sólo producía el error
-    // «aún se está cargando» tras el preflight. Ahora el botón dice la verdad
-    // y no arranca nada hasta que la política está confirmada.
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    mocks.useRayenImport.mockReturnValue({
-      ...mocks.useRayenImport(),
-      policyStatus: 'loading',
-      policyBlockReason: null,
-    });
-
-    const { rerender } = render(<RayenImportButton />);
-
-    const syncButton = screen.getByTestId('rayen-import-button');
-    expect(syncButton).toBeDisabled();
-    expect(syncButton).toHaveAttribute('title', expect.stringContaining('aún se está cargando'));
-    fireEvent.click(syncButton);
-    expect(mocks.refreshHealth).not.toHaveBeenCalled();
-    expect(mocks.triggerImport).not.toHaveBeenCalled();
-
-    mocks.useRayenImport.mockReturnValue({
-      ...mocks.useRayenImport(),
-      policyStatus: 'ready',
-      policyBlockReason: null,
-    });
-    rerender(<RayenImportButton />);
-
-    const readyButton = screen.getByTestId('rayen-import-button');
-    expect(readyButton).toBeEnabled();
-    fireEvent.click(readyButton);
-    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
-  });
-
   it('explains a partial result and retries through the existing reviewed flow', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {

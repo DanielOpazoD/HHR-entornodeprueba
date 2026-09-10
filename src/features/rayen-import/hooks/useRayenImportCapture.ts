@@ -7,6 +7,10 @@ import {
   type SetStateAction,
 } from 'react';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type {
+  CapturePreparationLock,
+  RayenImportCaptureOptions,
+} from './rayenImportCaptureContracts';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import { classifyRayenSnapshotError } from '../domain/rayenSnapshotErrorClassification';
@@ -17,11 +21,7 @@ import { failureReasonFromHealth } from './useRayenSyncAudit';
 import { resetRayenFillProgress } from './useRayenFillStatus';
 import { getRayenImportErrorMessage, type RayenImportState } from './rayenImportState';
 import type { RayenSyncRequestController } from './rayenSyncRequestLifecycle';
-import type {
-  RayenSyncFailureReason,
-  RayenSyncPerformanceDelta,
-  RayenSyncReviewRequirement,
-} from '@/types/domain/rayenSync';
+import type { RayenSyncFailureReason, RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
 import { resolveRayenPolicyBlockMessage, type RayenImportPolicyStatus } from './useRayenImportMode';
 import {
@@ -57,7 +57,7 @@ interface UseRayenImportCaptureInput {
     health?: RayenExtensionHealthState,
     performance?: RayenSyncPerformanceDelta,
     policy?: RayenImportPolicy,
-    reviewRequirement?: RayenSyncReviewRequirement
+    reviewRequirement?: RayenImportCaptureOptions['reviewRequirement']
   ) => RayenSyncRun;
   failRun: (reason: RayenSyncFailureReason, runId?: string) => Promise<void>;
   cancelRun?: () => void;
@@ -68,19 +68,6 @@ interface UseRayenImportCaptureInput {
     runId: string,
     requestId: string
   ) => void;
-}
-
-interface CapturePreparationLock {
-  lockId: symbol;
-  selectedDate: string;
-}
-
-export interface RayenImportCaptureOptions {
-  /**
-   * Marks this attempt as one that must be reviewed by a human before anything is written,
-   * even when the global policy is `auto`. It only ever tightens the policy.
-   */
-  reviewRequirement?: RayenSyncReviewRequirement;
 }
 
 /** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
