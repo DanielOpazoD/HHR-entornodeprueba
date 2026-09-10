@@ -1,9 +1,7 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
-import {
-  calendarStampInRapaNui,
-  resolveCurrentClinicalDay,
-} from '@/utils/clinicalDayAdmissionUtils';
+import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 const MILLISECONDS_PER_DAY = 86_400_000;
 
@@ -16,7 +14,7 @@ const MILLISECONDS_PER_DAY = 86_400_000;
  */
 export const MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS = 7;
 
-const isoDayInRapaNui = (date: Date): string => calendarStampInRapaNui(date).iso;
+const isoDayInRapaNui = (date: Date): string => calendarStampInClinicalTimeZone(date).iso;
 
 /** Census day currently under the responsibility of the active nursing shift in Rapa Nui. */
 export const clinicalCensusDayInRapaNui = (now: Date = new Date()): string =>

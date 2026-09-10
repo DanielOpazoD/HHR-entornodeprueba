@@ -9,16 +9,16 @@
  */
 
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
-const RAPA_NUI_TZ = 'Pacific/Easter';
 const rapaNuiDayFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: RAPA_NUI_TZ,
+  timeZone: CLINICAL_TIME_ZONE,
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
 });
 const rapaNuiDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: RAPA_NUI_TZ,
+  timeZone: CLINICAL_TIME_ZONE,
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',

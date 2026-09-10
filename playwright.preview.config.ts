@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { TEST_DEVICE_TIME_ZONE, pinTestTimeZone } from './scripts/config/testTimeZone';
+
+pinTestTimeZone();
+
 const previewCommand =
   process.env.PLAYWRIGHT_SKIP_PREVIEW_BUILD === '1'
     ? 'npm run preview -- --host 127.0.0.1 --port 4173'
@@ -26,6 +30,7 @@ export default defineConfig({
   workers: 1,
   reporter: reporters,
   use: {
+    timezoneId: TEST_DEVICE_TIME_ZONE,
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

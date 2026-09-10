@@ -5,28 +5,11 @@ import {
   resolveClinicalDayBounds,
 } from './clinicalDayScheduleUtils';
 
-const CLINICAL_TIME_ZONE = 'Pacific/Easter';
+import { calendarStampInClinicalTimeZone } from './clinicalTimeZone';
 
-export const calendarStampInRapaNui = (now: Date): { iso: string; hhmm: string } => {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: CLINICAL_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(now);
-  const value = (type: Intl.DateTimeFormatPartTypes): string =>
-    parts.find(part => part.type === type)?.value ?? '';
-  return {
-    iso: `${value('year')}-${value('month')}-${value('day')}`,
-    hhmm: `${value('hour')}:${value('minute')}`,
-  };
-};
-
+/** Clinical day (08:00 weekday / 09:00 weekend rollover) resolved on the hospital wall clock. */
 export const resolveCurrentClinicalDay = (now: Date = new Date()): string => {
-  const { iso, hhmm } = calendarStampInRapaNui(now);
+  const { iso, hhmm } = calendarStampInClinicalTimeZone(now);
   return resolveClinicalDayForDateTime(iso, hhmm) ?? iso;
 };
 

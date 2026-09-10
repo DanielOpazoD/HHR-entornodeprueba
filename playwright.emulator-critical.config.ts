@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { TEST_DEVICE_TIME_ZONE, pinTestTimeZone } from './scripts/config/testTimeZone';
+
+pinTestTimeZone();
+
 process.env.E2E_FIXED_DATE ||= '2026-02-20';
 
 // Default: vite dev. For release-accurate measurements (flow-performance
@@ -70,6 +74,7 @@ export default defineConfig({
   timeout: 45_000,
 
   use: {
+    timezoneId: TEST_DEVICE_TIME_ZONE,
     baseURL: webServerOrigin,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

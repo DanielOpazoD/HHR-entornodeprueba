@@ -1,4 +1,5 @@
 import { getNextDay } from '@/utils/clinicalDayUtils';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export type CudyrPendingPhase = 'scheduled' | 'application_window' | 'overdue';
 
@@ -13,7 +14,7 @@ const CUDYR_WAITING_LABEL = 'Programado · turno noche';
 const rapaNuiClock = (now: Date): { day: string; minutes: number } => {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Pacific/Easter',
+      timeZone: CLINICAL_TIME_ZONE,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

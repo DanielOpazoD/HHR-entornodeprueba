@@ -38,9 +38,16 @@ describe('dateUtils', () => {
   describe('getTodayISO', () => {
     it('should return today date in YYYY-MM-DD format', () => {
       vi.useFakeTimers();
-      const date = new Date(2024, 11, 26); // Dec 26, 2024
-      vi.setSystemTime(date);
+      vi.setSystemTime(new Date('2024-12-26T15:00:00.000Z')); // Dec 26, 10:00 in Rapa Nui
       expect(getTodayISO()).toBe('2024-12-26');
+      vi.useRealTimers();
+    });
+
+    it('follows the hospital calendar, not the mainland device clock', () => {
+      vi.useFakeTimers();
+      // Santiago midnight of Dec 26 is still Dec 25 22:00 in Rapa Nui.
+      vi.setSystemTime(new Date('2024-12-26T03:00:00.000Z'));
+      expect(getTodayISO()).toBe('2024-12-25');
       vi.useRealTimers();
     });
   });
@@ -91,7 +98,7 @@ describe('dateUtils', () => {
   describe('isFutureDate', () => {
     beforeEach(() => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date(2024, 11, 25)); // Dec 25, 2024
+      vi.setSystemTime(new Date('2024-12-25T15:00:00.000Z')); // Dec 25, 10:00 in Rapa Nui
     });
     afterEach(() => {
       vi.useRealTimers();

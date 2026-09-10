@@ -8,6 +8,7 @@ import type {
   RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
 import type { RayenExtensionConnectionState } from '../hooks/useRayenExtensionHealth';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export interface CoveragePresentation {
   label: string;
@@ -24,7 +25,7 @@ export const formatRayenSyncIslandTime = (iso: string): string => {
   const value = new Date(iso);
   if (Number.isNaN(value.getTime())) return 'Hora no disponible';
   return new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'Pacific/Easter',
+    timeZone: CLINICAL_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',

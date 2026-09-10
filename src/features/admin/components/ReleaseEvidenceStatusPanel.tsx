@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Clock3, FileWarning, GitCommitHorizontal } from 'lucide-react';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 type ReleaseEvidenceStatus = 'current' | 'stale' | 'unavailable';
 
@@ -84,7 +85,7 @@ const formatGeneratedAt = (generatedAt: string | null) => {
   return new Intl.DateTimeFormat('es-CL', {
     dateStyle: 'medium',
     timeStyle: 'short',
-    timeZone: 'Pacific/Easter',
+    timeZone: CLINICAL_TIME_ZONE,
   }).format(date);
 };
 

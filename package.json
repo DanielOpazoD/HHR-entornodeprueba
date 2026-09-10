@@ -117,6 +117,7 @@
     "check:census-runtime-boundary": "node scripts/check-census-runtime-boundary.mjs",
     "check:runtime-adapter-boundary": "node scripts/check-runtime-adapter-boundary.mjs",
     "check:native-dialogs": "node scripts/check-native-dialogs.mjs",
+    "check:clinical-clock": "node scripts/check-clinical-clock.mjs",
     "check:firestore-runtime-boundary": "node scripts/check-firestore-runtime-boundary.mjs",
     "check:firestore-emulator-governance": "node scripts/check-firestore-emulator-governance.mjs",
     "check:domain-hotspot-boundary": "node scripts/check-domain-hotspot-boundary.mjs",
