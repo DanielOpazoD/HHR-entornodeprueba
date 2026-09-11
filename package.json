@@ -266,7 +266,7 @@
     "@chromatic-com/storybook": "^4.1.3",
     "@eslint/js": "^9.39.2",
     "@firebase/rules-unit-testing": "^5.0.0",
-    "@netlify/config": "^24.4.2",
+    "@netlify/config": "^25.2.3",
     "@playwright/test": "^1.57.0",
     "@storybook/addon-a11y": "^10.2.9",
     "@storybook/addon-docs": "^10.2.9",
