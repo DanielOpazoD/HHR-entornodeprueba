@@ -37,4 +37,19 @@ describe('Netlify sensitive function auth governance', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('keeps the beacon telemetry receiver unauthenticated only with its compensating controls', () => {
+    // `navigator.sendBeacon` cannot send Authorization, so this endpoint accepts anonymous POSTs.
+    // It must therefore keep origin allowlisting, per-IP rate limiting, a body size cap and the
+    // sanitizing parser; and it must never gain Firestore or clinical reads.
+    const contents = readFileSync(
+      path.join(ROOT, 'netlify/functions/operational-telemetry.ts'),
+      'utf8'
+    );
+    expect(contents).toContain('isOriginAllowed');
+    expect(contents).toContain('isRateLimited');
+    expect(contents).toContain('parseOperationalTelemetryBody');
+    expect(contents).not.toContain('getFirebaseServer');
+    expect(contents).not.toContain('firebase/firestore');
+  });
 });
