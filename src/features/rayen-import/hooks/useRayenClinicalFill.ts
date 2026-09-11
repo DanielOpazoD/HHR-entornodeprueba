@@ -20,7 +20,6 @@ import {
   registerRayenFillAbort,
   reportRayenFillProgress,
 } from './useRayenFillStatus';
-import { createClinicalFillWatchdog } from '../domain/clinicalFillWatchdog';
 import { selectHistoricalCudyrPersistence } from './historicalCudyrPersistenceSelection';
 import { toIsoReportDate } from './reportDateHelpers';
 import {
@@ -145,7 +144,9 @@ export const useRayenClinicalFill = ({
         record.date,
         queueKey,
         async ({ startedAfterQueue }) => {
-          const { countClinicalFillEligiblePatients, runClinicalFill } =
+          // The watchdog only exists while a fill runs, so it ships with the on-demand runner
+          // chunk (outside the PWA precache) instead of the authenticated shell.
+          const { countClinicalFillEligiblePatients, createClinicalFillWatchdog, runClinicalFill } =
             await import('../clinicalFillRunner');
           const requestedEligibleCount = countClinicalFillEligiblePatients(
             record,

@@ -1,3 +1,4 @@
+import { raceWithTimeout } from '../domain/raceWithTimeout';
 import {
   executeRayenStructuralPersistence,
   type RayenStructuralPersistenceOutcome,
@@ -30,23 +31,7 @@ export const RAYEN_STRUCTURAL_PERSIST_TIMEOUT_MS = 90_000;
 
 /** Message says "timeout" on purpose: the diagnostics classifier maps it to `source_timeout`. */
 export const STRUCTURAL_PERSIST_TIMEOUT_MESSAGE =
-  'Structural persist timeout: el guardado del censo superó los 90 s. Revisa la conexión y reintenta; si el censo ya se guardó, la siguiente sincronización lo confirmará sin cambios.';
-
-const withPersistTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () =>
-        reject(
-          Object.assign(new Error(STRUCTURAL_PERSIST_TIMEOUT_MESSAGE), { name: 'TimeoutError' })
-        ),
-      timeoutMs
-    );
-  });
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer) clearTimeout(timer);
-  });
-};
+  'Structural persist timeout: el guardado del censo superó los 90 s. Reintenta; si ya se guardó, la próxima sincronización lo confirmará.';
 
 /** Owns the shared automatic, no-change, and confirmed structural persistence lifecycle. */
 export const runRayenStructuralPersistenceLifecycle = async ({
@@ -66,9 +51,10 @@ export const runRayenStructuralPersistenceLifecycle = async ({
     if (startPersistence() === false) return { kind: 'not_started' };
     let outcome: Awaited<ReturnType<typeof executeRayenStructuralPersistence>>;
     try {
-      outcome = await withPersistTimeout(
+      outcome = await raceWithTimeout(
         executeRayenStructuralPersistence(persist, persistenceOptions),
-        persistTimeoutMs
+        persistTimeoutMs,
+        () => Object.assign(new Error(STRUCTURAL_PERSIST_TIMEOUT_MESSAGE), { name: 'TimeoutError' })
       );
     } catch (error) {
       finishFailedPersistence(error);

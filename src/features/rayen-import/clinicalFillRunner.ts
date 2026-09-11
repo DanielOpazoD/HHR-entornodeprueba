@@ -53,6 +53,7 @@ const message = (error: unknown): string =>
 const READ_CONCURRENCY = 4;
 
 export { countClinicalFillEligiblePatients } from './domain/clinicalFillCandidates';
+export { createClinicalFillWatchdog } from './domain/clinicalFillWatchdog';
 
 export const runClinicalFill = async (
   record: DailyRecord,
