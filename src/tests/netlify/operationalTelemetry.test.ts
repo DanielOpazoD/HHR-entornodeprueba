@@ -150,4 +150,24 @@ describe('operational-telemetry netlify function', () => {
     expect(JSON.parse(failed.body).alert).toBe('send_failed');
     expect(log.mock.calls.some(call => JSON.parse(call[0]).kind === 'alert_error')).toBe(true);
   });
+
+  it('uses the dedicated sender mailbox only when both its address and token are configured', async () => {
+    env.OPERATIONAL_TELEMETRY_ALERT_SENDER = 'daniel.opazo@hospitalhangaroa.cl';
+    await handler(request(envelope(failedRun({ operation: 'sender_check_a' }))));
+    expect(sendEmail.mock.calls.at(-1)?.[0].sender.email).toBe(
+      'hospitalizados@hospitalhangaroa.cl'
+    );
+    expect(sendEmail.mock.calls.at(-1)?.[0].refreshToken).toBeUndefined();
+
+    env.OPERATIONAL_TELEMETRY_GMAIL_REFRESH_TOKEN = 'token-of-daniel';
+    env.OPERATIONAL_TELEMETRY_ALERT_SENDER_NAME = 'Daniel Opazo · HHR';
+    await handler(request(envelope(failedRun({ operation: 'sender_check_b' }))));
+    const mail = sendEmail.mock.calls.at(-1)?.[0];
+    expect(mail.sender).toEqual({
+      name: 'Daniel Opazo · HHR',
+      email: 'daniel.opazo@hospitalhangaroa.cl',
+    });
+    expect(mail.refreshToken).toBe('token-of-daniel');
+    expect(mail.body).not.toContain('token-of-daniel');
+  });
 });
