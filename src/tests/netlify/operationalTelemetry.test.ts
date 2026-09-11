@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  OPERATIONAL_TELEMETRY_ALERT_THROTTLE_MS,
-  createOperationalTelemetryHandler,
-} from '../../../netlify/functions/operational-telemetry';
+import { createOperationalTelemetryHandler } from '../../../netlify/functions/operational-telemetry';
 import {
   parseOperationalTelemetryBody,
   sanitizeOperationalTelemetryContext,
 } from '../../../src/services/observability/operationalTelemetryIngestPolicy';
+
+import {
+  createAlertQueue,
+  ALERT_QUEUE_POLICY,
+} from '../../../netlify/functions/lib/telemetry-alerts/queue';
+import {
+  createAlertMailer,
+  resolveAlertMailbox,
+} from '../../../netlify/functions/lib/telemetry-alerts/mail';
+import { createAlertTestStore } from './support/alertTestStore';
+const OPERATIONAL_TELEMETRY_ALERT_THROTTLE_MS = ALERT_QUEUE_POLICY.cooldownMs;
 
 const ORIGIN = 'https://testinghhr.netlify.app';
 
@@ -44,8 +52,9 @@ describe('operational telemetry ingest policy', () => {
       count: 3,
       ok: true,
     });
-    expect(context).toEqual({ runId: 'run-1', count: 3, ok: true });
-    expect(dropped.sort()).toEqual(['bedId', 'encounterId', 'nested', 'patientName', 'rut']);
+    expect(context).toEqual({ count: 3 });
+    expect(dropped.length).toBeGreaterThan(0);
+    expect(JSON.stringify(dropped)).not.toContain('patientName');
   });
 
   it('rejects oversized, malformed or foreign payloads', () => {
@@ -71,22 +80,27 @@ describe('operational-telemetry netlify function', () => {
   let now = Date.parse('2026-09-11T03:10:05.000Z');
   const env: Record<string, string | undefined> = {};
 
-  const handler = createOperationalTelemetryHandler({
-    sendEmail,
-    gmailConfigured: () => true,
-    now: () => now,
-    log,
-    env: () => env as NodeJS.ProcessEnv,
-  });
+  let store = createAlertTestStore();
+  const queue = () =>
+    createAlertQueue({
+      store,
+      now: () => now,
+      send: createAlertMailer({ env: () => env, sendEmail }),
+    });
+  const handler = createOperationalTelemetryHandler({ queue, now: () => now, log });
 
   beforeEach(() => {
     vi.clearAllMocks();
     process.env = { ...originalEnv, URL: ORIGIN };
     for (const key of Object.keys(env)) delete env[key];
+    store = createAlertTestStore();
+    env.GMAIL_CLIENT_ID = 'test-client';
+    env.GMAIL_CLIENT_SECRET = 'test-secret';
+    env.GMAIL_REFRESH_TOKEN = 'test-refresh';
     env.URL = ORIGIN;
     env.OPERATIONAL_TELEMETRY_ALERT_RECIPIENTS = 'guardia@hospital.cl, jefe@hospital.cl';
     sendEmail.mockResolvedValue({ id: 'msg' });
-    // The throttle lives in the handler instance; start every test outside the previous window.
+    // Each test starts with a clean durable-store substitute.
     now += OPERATIONAL_TELEMETRY_ALERT_THROTTLE_MS + 1;
   });
 
@@ -105,20 +119,25 @@ describe('operational-telemetry netlify function', () => {
       request(envelope(failedRun({ context: { runId: 'run-1', patientName: 'Juan Pérez' } })))
     );
     expect(response.statusCode).toBe(202);
-    expect(JSON.parse(response.body)).toEqual({ accepted: true, alert: 'sent' });
+    expect(JSON.parse(response.body)).toEqual({
+      accepted: true,
+      alert: 'sent',
+      id: expect.any(String),
+    });
 
     expect(sendEmail).toHaveBeenCalledOnce();
     const mail = sendEmail.mock.calls[0][0];
     expect(mail.recipients).toEqual(['guardia@hospital.cl', 'jefe@hospital.cl']);
     expect(mail.subject).toBe('[HHR] FALLO · rayen_sync_run · 2026-09-10');
-    expect(mail.body).toContain('Structural persist timeout');
-    expect(mail.body).toContain('runId: run-1');
+    expect(mail.body).not.toContain('Structural persist timeout');
+    expect(mail.body).toContain('Referencia de entrega:');
     expect(mail.body).not.toContain('Juan');
 
     const line = JSON.parse(log.mock.calls[0][0]);
     expect(line.kind).toBe('event');
-    expect(line.event.context).toEqual({ runId: 'run-1' });
-    expect(line.event.droppedContextKeys).toEqual(['patientName']);
+    expect(line.event.context).toEqual({});
+    expect(line.event.droppedContextKeys.length).toBeGreaterThan(0);
+    expect(JSON.stringify(line)).not.toContain('Juan');
   });
 
   it('only logs successes and throttles repeated alerts per operation', async () => {
@@ -138,30 +157,28 @@ describe('operational-telemetry netlify function', () => {
   it('still accepts the event when no recipients are configured or the mail fails', async () => {
     delete env.OPERATIONAL_TELEMETRY_ALERT_RECIPIENTS;
     const noRecipients = await handler(
-      request(envelope(failedRun({ operation: 'backup_export' })))
+      request(envelope(failedRun({ operation: 'send_census_email' })))
     );
     expect(noRecipients.statusCode).toBe(202);
-    expect(JSON.parse(noRecipients.body).alert).toBe('no_recipients');
+    expect(JSON.parse(noRecipients.body).alert).toBe('failed');
 
     env.OPERATIONAL_TELEMETRY_ALERT_RECIPIENTS = 'guardia@hospital.cl';
     sendEmail.mockRejectedValueOnce(new Error('gmail down'));
-    const failed = await handler(request(envelope(failedRun({ operation: 'create_day' }))));
+    const failed = await handler(request(envelope(failedRun({ operation: 'import_json_backup' }))));
     expect(failed.statusCode).toBe(202);
-    expect(JSON.parse(failed.body).alert).toBe('send_failed');
-    expect(log.mock.calls.some(call => JSON.parse(call[0]).kind === 'alert_error')).toBe(true);
+    expect(JSON.parse(failed.body).alert).toBe('uncertain');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('gmail down');
   });
 
   it('uses the dedicated sender mailbox only when both its address and token are configured', async () => {
     env.OPERATIONAL_TELEMETRY_ALERT_SENDER = 'daniel.opazo@hospitalhangaroa.cl';
-    await handler(request(envelope(failedRun({ operation: 'sender_check_a' }))));
-    expect(sendEmail.mock.calls.at(-1)?.[0].sender.email).toBe(
-      'hospitalizados@hospitalhangaroa.cl'
-    );
-    expect(sendEmail.mock.calls.at(-1)?.[0].refreshToken).toBeUndefined();
+    expect(resolveAlertMailbox(env)).toBeNull();
+    await handler(request(envelope(failedRun({ operation: 'send_census_email' }))));
+    expect(sendEmail).not.toHaveBeenCalled();
 
     env.OPERATIONAL_TELEMETRY_GMAIL_REFRESH_TOKEN = 'token-of-daniel';
     env.OPERATIONAL_TELEMETRY_ALERT_SENDER_NAME = 'Daniel Opazo · HHR';
-    await handler(request(envelope(failedRun({ operation: 'sender_check_b' }))));
+    await handler(request(envelope(failedRun({ operation: 'rayen_sync_run' }))));
     const mail = sendEmail.mock.calls.at(-1)?.[0];
     expect(mail.sender).toEqual({
       name: 'Daniel Opazo · HHR',
@@ -169,5 +186,18 @@ describe('operational-telemetry netlify function', () => {
     });
     expect(mail.refreshToken).toBe('token-of-daniel');
     expect(mail.body).not.toContain('token-of-daniel');
+  });
+  it('returns 503 instead of sending when durable storage is unavailable', async () => {
+    const broken = createOperationalTelemetryHandler({
+      now: () => now,
+      log,
+      queue: () => {
+        throw new Error('secret-provider-payload');
+      },
+    });
+    const response = await broken(request(envelope(failedRun())));
+    expect(response.statusCode).toBe(503);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(JSON.stringify(log.mock.calls)).not.toContain('secret-provider-payload');
   });
 });

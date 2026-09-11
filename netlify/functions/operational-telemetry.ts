@@ -1,19 +1,8 @@
-/**
- * Receiver for browser operational telemetry (`VITE_OPERATIONAL_TELEMETRY_ENDPOINT`).
- *
- * Same-origin by design so `navigator.sendBeacon` works without CSP changes. Every accepted
- * event is written as one structured log line (Netlify function logs) and, when it describes a
- * failure that needs a human, mailed to `OPERATIONAL_TELEMETRY_ALERT_RECIPIENTS` through the
- * Gmail sender the census already uses. Alerts are throttled per operation to avoid storms.
- */
-import { DEFAULT_GMAIL_SENDER, sendCensusEmail } from '../../src/services/email/gmailClient';
+/** Same-origin beacon receiver. No clinical reads or anonymous datastore access. */
 import {
-  buildOperationalTelemetryAlert,
   parseOperationalTelemetryBody,
   shouldAlertOperationalTelemetry,
-  type SanitizedOperationalTelemetryEvent,
 } from '../../src/services/observability/operationalTelemetryIngestPolicy';
-import { validateGmailEnv } from './lib/envValidator';
 import {
   buildCorsHeaders,
   buildJsonResponse,
@@ -24,125 +13,102 @@ import {
   isRateLimited,
   type NetlifyEventLike,
 } from './lib/http';
+import type { AlertQueue } from './lib/telemetry-alerts/queueTypes';
+import { createRuntimeAlertQueue, logAlertDelivery } from './lib/telemetry-alerts/runtime';
+import type { TelemetryRuntimeContext } from './lib/telemetry-alerts/store';
 
-export const OPERATIONAL_TELEMETRY_ALERT_THROTTLE_MS = 10 * 60 * 1000;
 const RATE_LIMIT = { maxPerWindow: 60, windowMs: 60_000 };
-
 export interface OperationalTelemetryHandlerDeps {
-  sendEmail: (params: {
-    date: string;
-    recipients: string[];
-    subject: string;
-    body: string;
-    sender?: { name: string; email: string };
-    refreshToken?: string;
-  }) => Promise<unknown>;
-  gmailConfigured: () => boolean;
+  queue: () => AlertQueue;
   now: () => number;
   log: (line: string) => void;
-  env: () => NodeJS.ProcessEnv;
 }
-
-const parseRecipients = (raw: string | undefined): string[] =>
-  (raw ?? '')
-    .split(/[,;\s]+/)
-    .map(value => value.trim())
-    .filter(value => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value));
-
-export const createOperationalTelemetryHandler = (deps: OperationalTelemetryHandlerDeps) => {
-  const lastAlertByOperation = new Map<string, number>();
-
-  const maybeAlert = async (event: SanitizedOperationalTelemetryEvent): Promise<string> => {
-    if (!shouldAlertOperationalTelemetry(event)) return 'not_alertable';
-    const recipients = parseRecipients(deps.env().OPERATIONAL_TELEMETRY_ALERT_RECIPIENTS);
-    if (recipients.length === 0) return 'no_recipients';
-    if (!deps.gmailConfigured()) return 'gmail_not_configured';
-    const last = lastAlertByOperation.get(event.operation) ?? 0;
-    const now = deps.now();
-    if (now - last < OPERATIONAL_TELEMETRY_ALERT_THROTTLE_MS) return 'throttled';
-    lastAlertByOperation.set(event.operation, now);
-    const siteLabel = deps.env().URL || deps.env().SITE_URL || 'HHR';
-    const { subject, body } = buildOperationalTelemetryAlert(event, siteLabel);
-    // Alerts may leave from a personal institutional mailbox instead of the shared one; that
-    // mailbox must have authorized `gmail.send` with its own refresh token.
-    const senderEmail = deps.env().OPERATIONAL_TELEMETRY_ALERT_SENDER?.trim();
-    const senderToken = deps.env().OPERATIONAL_TELEMETRY_GMAIL_REFRESH_TOKEN?.trim();
-    const sender =
-      senderEmail && senderToken
-        ? {
-            name: deps.env().OPERATIONAL_TELEMETRY_ALERT_SENDER_NAME?.trim() || 'HHR Alertas',
-            email: senderEmail,
-          }
-        : DEFAULT_GMAIL_SENDER;
-    try {
-      await deps.sendEmail({
-        date: event.date ?? event.timestamp.slice(0, 10),
-        recipients,
-        subject,
-        body,
-        sender,
-        refreshToken: senderEmail && senderToken ? senderToken : undefined,
+export const createOperationalTelemetryHandler =
+  (deps: OperationalTelemetryHandlerDeps) => async (event: NetlifyEventLike) => {
+    const requestOrigin = getRequestOrigin(event);
+    const response = (status: number, payload: unknown) =>
+      buildJsonResponse(status, payload, {
+        requestOrigin,
+        headers: { 'Cache-Control': 'no-store' },
       });
-      return 'sent';
-    } catch (error) {
+    if (!isOriginAllowed(requestOrigin)) return response(403, { error: 'Origin not allowed' });
+    if (event.httpMethod === 'OPTIONS')
+      return {
+        statusCode: 200,
+        headers: buildCorsHeaders(requestOrigin, {
+          allowedHeaders: 'Content-Type',
+          allowedMethods: 'POST,OPTIONS',
+        }),
+        body: '',
+      };
+    if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
+    if (isRateLimited(getClientIp(event), RATE_LIMIT))
+      return buildTooManyRequestsResponse(requestOrigin);
+    const parsed = parseOperationalTelemetryBody(event.body);
+    if (!parsed.ok)
+      return response(parsed.reason === 'too_large' ? 413 : 400, { error: parsed.reason });
+    let delivery: { alert: string; id?: string } = { alert: 'not_alertable' };
+    try {
+      if (shouldAlertOperationalTelemetry(parsed.event)) {
+        const queue = deps.queue();
+        delivery = await queue.enqueue(parsed.event);
+        if (delivery.alert === 'queue_full')
+          return response(503, { accepted: false, error: 'alert_queue_full' });
+        if (delivery.alert === 'queued' && delivery.id) delivery = await queue.deliver(delivery.id);
+      }
+    } catch {
+      // A missing receipt is not success. Never fall back to an uncoordinated Gmail send.
       deps.log(
         JSON.stringify({
           source: 'operational-telemetry',
-          kind: 'alert_error',
-          operation: event.operation,
-          message: error instanceof Error ? error.message : String(error),
+          kind: 'delivery_unavailable',
+          code: 'alert_store_unavailable',
         })
       );
-      return 'send_failed';
+      return response(503, { accepted: false, error: 'alert_store_unavailable' });
     }
-  };
-
-  return async (event: NetlifyEventLike) => {
-    const requestOrigin = getRequestOrigin(event);
-    const corsHeaders = buildCorsHeaders(requestOrigin, {
-      allowedHeaders: 'Content-Type',
-      allowedMethods: 'POST,OPTIONS',
-    });
-    if (!isOriginAllowed(requestOrigin)) {
-      return buildJsonResponse(403, { error: 'Origin not allowed' }, { requestOrigin });
-    }
-    if (event.httpMethod === 'OPTIONS') {
-      return { statusCode: 200, headers: corsHeaders, body: '' };
-    }
-    if (event.httpMethod !== 'POST') {
-      return buildJsonResponse(405, { error: 'Method not allowed' }, { requestOrigin });
-    }
-    if (isRateLimited(getClientIp(event), RATE_LIMIT)) {
-      return buildTooManyRequestsResponse(requestOrigin);
-    }
-
-    const parsed = parseOperationalTelemetryBody(event.body);
-    if (!parsed.ok) {
-      const status = parsed.reason === 'too_large' ? 413 : 400;
-      return buildJsonResponse(status, { error: parsed.reason }, { requestOrigin });
-    }
-
-    const alert = await maybeAlert(parsed.event);
     deps.log(
       JSON.stringify({
         source: 'operational-telemetry',
         kind: 'event',
         receivedAt: new Date(deps.now()).toISOString(),
-        origin: requestOrigin ?? null,
-        alert,
+        ...delivery,
         event: parsed.event,
       })
     );
-    return buildJsonResponse(202, { accepted: true, alert }, { requestOrigin });
+    return response(202, { accepted: true, ...delivery });
   };
-};
 
-export const handler = createOperationalTelemetryHandler({
-  sendEmail: params => sendCensusEmail(params),
-  gmailConfigured: () => validateGmailEnv().valid,
-  now: () => Date.now(),
-  // Structured JSON lines are the durable record in Netlify function logs; info level on purpose.
-  // eslint-disable-next-line no-console
-  log: line => console.info(line),
-  env: () => process.env,
-});
+/** Modern runtime supplies private Blobs credentials and trustworthy deploy metadata. */
+export default async (request: Request, context: TelemetryRuntimeContext): Promise<Response> => {
+  // Cap the streamed body before parsing; never read an arbitrarily large beacon into memory.
+  const reader = request.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > 8 * 1024) {
+        await reader.cancel();
+        return Response.json(
+          { error: 'too_large' },
+          { status: 413, headers: { 'Cache-Control': 'no-store' } }
+        );
+      }
+      chunks.push(value);
+    }
+  }
+  const handler = createOperationalTelemetryHandler({
+    queue: () => createRuntimeAlertQueue(context),
+    now: Date.now,
+    log: logAlertDelivery,
+  });
+  const result = await handler({
+    httpMethod: request.method,
+    headers: { ...Object.fromEntries(request.headers), 'x-nf-client-connection-ip': context.ip },
+    body: Buffer.concat(chunks).toString('utf8'),
+  });
+  return new Response(result.body, { status: result.statusCode, headers: result.headers });
+};
