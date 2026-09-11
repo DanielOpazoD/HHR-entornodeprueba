@@ -215,8 +215,9 @@
     return out;
   };
 
+  const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
   window.addEventListener('message', async event => {
-    if (event.source !== window) return;
+    if (!isOwnMessage(event)) return;
     const d = event.data;
     const bridge = bridgeContextFor(d);
     if (!bridge) return;

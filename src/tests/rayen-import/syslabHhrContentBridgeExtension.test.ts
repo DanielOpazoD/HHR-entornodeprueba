@@ -18,7 +18,9 @@ const runtimeTypes = {
 };
 
 const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
-  let onMessage: ((event: { source: unknown; data: Record<string, unknown> }) => void) | undefined;
+  let onMessage:
+    | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)
+    | undefined;
   let onRuntimeMessage: ((message: Record<string, unknown>) => void) | undefined;
   const postMessage = vi.fn();
   const windowObject = {
@@ -82,6 +84,7 @@ describe('HHR Syslab content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: {
         type: 'HHR_RAYEN_SYSLAB_SEARCH_REQUEST',
         reqId: 'syslab-search-1',
@@ -111,6 +114,7 @@ describe('HHR Syslab content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_SYSLAB_LOGIN_OPEN_REQUEST', reqId: 'login-open-1' },
     });
 
@@ -137,6 +141,7 @@ describe('HHR Syslab content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_SYSLAB_DETAILS_REQUEST', reqId: 'details-1', links },
     });
 
@@ -154,6 +159,7 @@ describe('HHR Syslab content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: {
         type: 'HHR_RAYEN_SYSLAB_PDF_REQUEST',
         reqId: 'pdf-1',
@@ -176,6 +182,7 @@ describe('HHR Syslab content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: {
         type: 'HHR_RAYEN_SYSLAB_PDF_BUNDLE_REQUEST',
         reqId: 'pdf-bundle-1',
@@ -222,6 +229,7 @@ describe('HHR Syslab content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_SYSLAB_STATUS_REQUEST', reqId: 'status-1' },
     });
 

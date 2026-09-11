@@ -18,7 +18,11 @@ const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json')
   version: string;
 };
 
-type Listener = (event: { source: unknown; data: Record<string, unknown> }) => void;
+type Listener = (event: {
+  source: unknown;
+  origin?: string;
+  data: Record<string, unknown>;
+}) => void;
 
 const createRelay = (installedVersion: string) => {
   const listeners: Listener[] = [];
@@ -50,10 +54,12 @@ const createRelay = (installedVersion: string) => {
             onRuntimeMessage = onRuntimeMessage || fn;
           },
         },
-        sendMessage: vi.fn((_message, callback) => callback({
-          version: installedVersion,
-          runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
-        })),
+        sendMessage: vi.fn((_message, callback) =>
+          callback({
+            version: installedVersion,
+            runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+          })
+        ),
         lastError: undefined,
       },
     },
@@ -81,6 +87,7 @@ const createRelay = (installedVersion: string) => {
     for (const listener of [...listeners]) {
       listener({
         source: windowStub,
+        origin: 'https://fichamedico.rayensalud.cl',
         data: {
           type,
           reqId: request.reqId,
@@ -140,9 +147,7 @@ describe('relay de Ficha Médico · versión del inject', () => {
     const relay = createRelay(manifest.version);
     const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
     await flush();
-    expect(relay.requests.at(-1)?.runtimeGeneration).toBe(
-      'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
-    );
+    expect(relay.requests.at(-1)?.runtimeGeneration).toBe('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee');
     relay.answerFromInject({ injectVersion: manifest.version, ready: true }, oldGeneration);
     await expect(ping).resolves.toMatchObject({ ready: false, reason: 'outdated_tab' });
   });

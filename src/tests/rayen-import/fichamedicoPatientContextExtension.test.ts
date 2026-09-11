@@ -178,7 +178,11 @@ describe('Ficha Médico patient-context owner', () => {
     // 1484: publicación de la capability patient-document-manager en el diagnóstico de salud.
     // 1519: identidad de generación, salud del enlace HHR y dos rutas de reparación;
     // la lógica vive en runtime-generation.js, health-check.js y connection-repair-runtime.js.
-    expect(background.split('\n').length).toBeLessThanOrEqual(1_519);
+    // 1524: cancelación de la captura sincronizada (ruta + envoltorio del handler); la lógica
+    // vive en sync-bundle-cancellation-runtime.js.
+    // 1525: la reparación de conexión sondea sin caché las pestañas recién abiertas (una línea
+    // de cableado y su comentario); la lógica sigue en connection-repair-runtime.js.
+    expect(background.split('\n').length).toBeLessThanOrEqual(1_525);
     expect(source.split('\n').length).toBeLessThanOrEqual(380);
     expect(() => factory.create({})).toThrow('Falta la dependencia resolveSession.');
   });

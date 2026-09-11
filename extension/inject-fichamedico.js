@@ -390,9 +390,15 @@
   refreshSessionBinding();
   const headerUrl = (base, encId) =>
     `${base.origin}/api/encounter/patientHeaderData/${encId}/false`;
-  const diagnosisUrl = (base, encId) =>
-    `${base.origin}/api/encounter/entrySummary/diagnosisEntry/` +
-    `${encId}/0/2/${base.searchParams.get('healthCarePractitionerId') || '7941'}`;
+  // Fail closed: without the practitioner id of the signed-in user the diagnosis catalogue of
+  // another professional would be read. Never substitute a hardcoded id.
+  const diagnosisUrl = (base, encId) => {
+    const practitionerId = base.searchParams.get('healthCarePractitionerId');
+    if (!practitionerId) {
+      throw new Error('La sesión de Ficha Médico no expone el identificador del profesional; recarga la pestaña.');
+    }
+    return `${base.origin}/api/encounter/entrySummary/diagnosisEntry/${encId}/0/2/${practitionerId}`;
+  };
   const isolationUrl = (base, encId) => `${base.origin}/api/encounter/${encodeURIComponent(encId)}/isolationEncounter/0/getAll`;
   // One self-heal attempt on a network failure of the census list: the captured list URL /
   // API origin may belong to a backend that no longer answers this tab, while the session
@@ -535,8 +541,9 @@
   };
 
   // --- Bridge with the isolated content script ---
+  const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
   window.addEventListener('message', async event => {
-    if (event.source !== window) return;
+    if (!isOwnMessage(event)) return;
     const data = event.data;
     if (!data) return;
 

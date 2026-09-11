@@ -25,7 +25,7 @@ describe('HHR statistical-discharge content bridge', () => {
 
   it('forwards the exact episode and returns the operational result', async () => {
     let onMessage:
-      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)
       | undefined;
     const postMessage = vi.fn();
     const sendMessage = vi.fn(async () => ({ ok: true }));
@@ -50,6 +50,7 @@ describe('HHR statistical-discharge content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: {
         type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_REQUEST',
         reqId: 'egreso-1',
@@ -76,7 +77,7 @@ describe('HHR statistical-discharge content bridge', () => {
 
   it('returns private PDF evidence to the requesting localhost tab without triggering a download', async () => {
     let onMessage:
-      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)
       | undefined;
     const postMessage = vi.fn();
     const sendMessage = vi.fn(async () => ({ ok: true, base64: 'JVBERg==' }));
@@ -100,6 +101,7 @@ describe('HHR statistical-discharge content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: {
         type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
         reqId: 'evidence-1',
@@ -123,7 +125,7 @@ describe('HHR statistical-discharge content bridge', () => {
 
   it('preserves a controlled evidence error from the extension runtime', async () => {
     let onMessage:
-      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)
       | undefined;
     const postMessage = vi.fn();
     const sendMessage = vi.fn(async () => ({ error: 'La sesión cambió.' }));
@@ -147,6 +149,7 @@ describe('HHR statistical-discharge content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: {
         type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
         reqId: 'evidence-error',
@@ -170,7 +173,7 @@ describe('HHR statistical-discharge content bridge', () => {
 
   it('turns an invalidated extension context into an actionable reload message', async () => {
     let onMessage:
-      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)
       | undefined;
     const postMessage = vi.fn();
     const sendMessage = vi.fn(() => {
@@ -197,6 +200,7 @@ describe('HHR statistical-discharge content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: {
         type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_REQUEST',
         reqId: 'egreso-invalidated',

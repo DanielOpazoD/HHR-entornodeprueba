@@ -91,7 +91,7 @@ describe('RayenImportButton', () => {
     });
   });
 
-  it('keeps provenance in history while the operational source stays compact', () => {
+  it('keeps provenance in history while the operational source stays compact', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSync: {
@@ -149,13 +149,14 @@ describe('RayenImportButton', () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(screen.getByText('Daniel Opazo')).toBeInTheDocument();
     expect(screen.getByText('Cobertura clínica: 10/10 completa')).toBeInTheDocument();
     expect(screen.getByText('Ext. v0.6.0 · Ficha ✓ · Camas ✓')).toBeInTheDocument();
   });
 
-  it('separates extension connectivity from the first successful synchronization', () => {
+  it('separates extension connectivity from the first successful synchronization', async () => {
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
 
     render(<RayenImportButton />);
@@ -164,10 +165,11 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('Listo para sincronizar')).toBeInTheDocument();
     expect(screen.queryByText('Responsable')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByText('Sin sincronizaciones registradas')).toBeInTheDocument();
   });
 
-  it('projects the route-selected date while its replacement record is still loading', () => {
+  it('projects the route-selected date while its replacement record is still loading', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         date: '2026-08-07',
@@ -198,6 +200,7 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton selectedDate="2026-08-08" />);
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
 
     expect(
       screen.getByRole('dialog', { name: 'Historial de sincronización · 08-08-2026' })
@@ -227,7 +230,7 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('Todo al día · 07-08-2026')).toBeInTheDocument();
   });
 
-  it('does not recreate legacy provenance outside the versioned history', () => {
+  it('does not recreate legacy provenance outside the versioned history', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSync: {
@@ -249,6 +252,7 @@ describe('RayenImportButton', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Daniel Opazo')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByText('Sin sincronizaciones registradas')).toBeInTheDocument();
   });
 
