@@ -1,10 +1,8 @@
 /**
  * Direct, session-bound bridge for the internal Syslab portal.
  *
- * Runs only on http://10.4.69.90/syslab/*. The user authenticates in the official
- * portal inside the extension's hidden document; this isolated-world script receives credentials
- * only for the duration of the login message and never persists them. It then automates the RUT
- * search and fetches reports with the browser session already established.
+ * Runs only on http://10.4.69.90/syslab/* with the official iframe/tab session.
+ * Login credentials are transient; searches and reports use that session, never persisted secrets.
  */
 (function () {
   'use strict';
@@ -355,6 +353,8 @@
   };
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    // Do not claim the private shared-document protocol or another extension channel.
+    if (!message || !/^RAYEN_SYSLAB_(STATUS|LOGIN|PREPARE_SEARCH|SUBMIT_SEARCH|READ_RESULTS|READ_DETAILS|VALIDATE_REPORT)$/.test(message.type)) return undefined;
     Promise.resolve(handleMessage(message)).then(sendResponse, error => {
       sendResponse({ error: String((error && error.message) || error) });
     });

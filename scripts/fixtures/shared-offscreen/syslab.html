@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Syslab synthetic smoke</title></head>
+<body><main>Sesión sintética, sin pacientes ni búsquedas.</main>
+<script>
+// This is not a replacement for syslab-bridge.js. The manifest injects that real
+// isolated-world bridge. This separate responder only inspects synthetic state.
+// The harness seeds the existing first-party cookie before this iframe is created.
+if (!sessionStorage.getItem('hhr-smoke-session')) {
+  sessionStorage.setItem('hhr-smoke-session', 'synthetic-' + Math.random().toString(36).slice(2));
+}
+addEventListener('message', event => {
+  if (event.source !== parent || !event.origin.startsWith('chrome-extension://')) return;
+  if (event.data?.type !== 'SMOKE_SESSION') return;
+  parent.postMessage({ type: 'SMOKE_SESSION_RESULT', id: event.data.id, state: {
+    cookiePresent: document.cookie.includes('hhr_smoke_session=synthetic-only'),
+    sessionId: sessionStorage.getItem('hhr-smoke-session'),
+  } }, event.origin);
+});
+</script></body></html>

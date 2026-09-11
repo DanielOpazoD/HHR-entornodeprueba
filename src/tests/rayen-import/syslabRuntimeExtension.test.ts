@@ -10,7 +10,10 @@ import '../../../extension/syslab-runtime.js';
 type StoredValues = Record<string, unknown>;
 
 const createHarness = (
-  sendMessage: ReturnType<typeof vi.fn> = vi.fn(async () => ({
+  sendMessage: (message: {
+    request: { type: string };
+    timeoutMs?: number;
+  }) => Promise<unknown> = vi.fn(async () => ({
     bridgeId: 'bridge-1',
     loginRequired: false,
   }))
@@ -57,6 +60,12 @@ const createHarness = (
   });
   const dependencies = {
     chrome: chromeApi,
+    offscreenCoordinator: {
+      request: vi.fn(
+        (_channel: string, request: { type: string }, options: { timeoutMs: number }) =>
+          sendMessage({ request, timeoutMs: options.timeoutMs })
+      ),
+    },
     syslabSessionTransport: globalThis.HhrSyslabSessionTransport,
     labViewer: {
       normalizeRutBody: (value: unknown) =>
@@ -79,7 +88,7 @@ const createHarness = (
 describe('Syslab background runtime', () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it('reports an existing connected offscreen session without opening a visible tab', async () => {
+  it('reports the shared offscreen session without opening or managing another document', async () => {
     const { chromeApi, createDocument, runtime } = createHarness();
 
     await expect(runtime.currentSession()).resolves.toMatchObject({
@@ -89,6 +98,7 @@ describe('Syslab background runtime', () => {
       pdfBundleSupported: true,
     });
     expect(createDocument).not.toHaveBeenCalled();
+    expect(chromeApi.runtime.getContexts).not.toHaveBeenCalled();
     expect(chromeApi.tabs.create).not.toHaveBeenCalled();
   });
 

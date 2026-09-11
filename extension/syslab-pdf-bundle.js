@@ -173,9 +173,9 @@
 
     return Object.freeze({ buildFilename: pdfFilename.build, createHandler, download });
   };
-  const createRuntime = ({ chrome, downloadPdfBuffer, withTimeout }) =>
+  const createRuntime = ({ chrome, downloadPdfBuffer, withTimeout, offscreenCoordinator }) =>
     root.HhrSyslabRuntime.create({
-      chrome,
+      chrome, offscreenCoordinator,
       labViewer: root.HhrLabViewer,
       syslabSessionTransport: root.HhrSyslabSessionTransport,
       syslabPdfBundle: create({

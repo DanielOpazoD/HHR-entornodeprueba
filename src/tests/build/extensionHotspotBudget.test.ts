@@ -63,7 +63,8 @@ describe('extension hotspot budget', () => {
 
     // 117: la caché breve de salud queda aislada en un runtime propio y gobernado.
     // 118: la cancelación de la captura sincronizada vive en su propio runtime.
-    expect(metrics.authoredFiles).toHaveLength(118);
+    // 122: contrato, coordinador, router y relay cancelable del único documento compartido.
+    expect(metrics.authoredFiles).toHaveLength(122);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
@@ -247,7 +248,7 @@ describe('extension hotspot CI wiring', () => {
     });
   });
 
-  it('lints exactly the 95 authored JavaScript files with the real config', async () => {
+  it('lints exactly the governed authored JavaScript inventory with the real config', async () => {
     const baseline = JSON.parse(
       fs.readFileSync(
         path.join(process.cwd(), 'scripts/config/extension-hotspots-baseline.json'),

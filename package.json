@@ -226,7 +226,8 @@
     "report:unit-shard-runtime-profile": "node scripts/report-unit-shard-runtime-profile.mjs",
     "collect:ci-runtime-observed-input": "node scripts/collect-github-actions-runtime.mjs",
     "check:ci-runtime-telemetry": "node scripts/check-ci-runtime-telemetry.mjs",
-    "report:ci-runtime-observed-profile": "node scripts/report-ci-runtime-observed-profile.mjs"
+    "report:ci-runtime-observed-profile": "node scripts/report-ci-runtime-observed-profile.mjs",
+    "test:e2e:shared-offscreen": "node scripts/smoke-shared-offscreen-runtime.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
