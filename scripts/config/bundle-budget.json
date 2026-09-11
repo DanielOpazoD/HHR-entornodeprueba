@@ -27,7 +27,8 @@
     "^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$",
     "^assets/replanRayenStructure-.*\\.js$",
     "^assets/PatientDocumentManagerDialog-.*\\.js$",
-    "^assets/ClinicalPanelDrawer-.*\\.js$"
+    "^assets/ClinicalPanelDrawer-.*\\.js$",
+    "^assets/RayenSyncHistoryModal-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [
@@ -111,6 +112,11 @@
       "pattern": "^ClinicalPanelDrawer-.*\\.js$",
       "_comment": "Online-only Eloisa clinical drawer loaded only after an explicit patient action.",
       "maxBytes": 50000
+    },
+    {
+      "pattern": "^RayenSyncHistoryModal-.*\\.js$",
+      "_comment": "Online-only Eloisa sync history panel, loaded when the operator opens it.",
+      "maxBytes": 30000
     },
     {
       "pattern": "^ClinicalLibraryDrawer-.*\\.js$",
