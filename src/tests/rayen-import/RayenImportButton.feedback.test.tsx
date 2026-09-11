@@ -187,7 +187,7 @@ describe('RayenImportButton feedback', () => {
     expect(screen.queryByText('Aplicar enfermería')).not.toBeInTheDocument();
   });
 
-  it('groups adjacent successful checks without changes in the daily history', () => {
+  it('groups adjacent successful checks without changes in the daily history', async () => {
     const quietEvent = (id: string, startedAt: string) => ({
       id,
       startedAt,
@@ -214,13 +214,14 @@ describe('RayenImportButton feedback', () => {
 
     render(<RayenImportButton />);
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
 
     expect(screen.getByText('3 comprobaciones sin cambios')).toBeInTheDocument();
     expect(screen.getAllByText('Ext. v0.6.0 · Ficha ✓ · Camas ✓')).toHaveLength(1);
     expect(screen.queryByText('Sincronizado: 0 ingresos, 0 act., 0 mov., 0 egresos')).toBeNull();
   });
 
-  it('keeps an applied event visible until clinical enrichment is complete', () => {
+  it('keeps an applied event visible until clinical enrichment is complete', async () => {
     const appliedEvent = (id: string, startedAt: string) => ({
       id,
       startedAt,
@@ -247,6 +248,7 @@ describe('RayenImportButton feedback', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Sincronización pendiente de completar');
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getAllByText('Censo aplicado')).toHaveLength(2);
     expect(screen.queryByText('2 comprobaciones sin cambios')).not.toBeInTheDocument();
   });

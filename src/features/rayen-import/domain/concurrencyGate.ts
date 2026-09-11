@@ -5,7 +5,7 @@
  * prevents a slow patient write from delaying unrelated Eloisa reads while preserving explicit
  * backpressure on PDF parsing and extension traffic.
  */
-export const createConcurrencyGate = (limit: number) => {
+export const createConcurrencyGate = (limit: number, signal?: AbortSignal) => {
   if (!Number.isInteger(limit) || limit < 1) {
     throw new Error('Concurrency limit must be a positive integer.');
   }
@@ -33,6 +33,8 @@ export const createConcurrencyGate = (limit: number) => {
   return async <T>(operation: () => Promise<T>): Promise<T> => {
     await acquire();
     try {
+      // Work queued behind the gate must not start once the stage was called off.
+      if (signal?.aborted) throw signal.reason ?? new Error('Concurrency gate closed by timeout');
       return await operation();
     } finally {
       release();
