@@ -85,7 +85,11 @@ export const buildServiceSummaries = (
   for (const [service, bucket] of groups.entries()) {
     const total = bucket.length;
     const successes = bucket.filter(e => e.status === 'success').length;
-    const failures = bucket.filter(e => e.status === 'failure').length;
+    const isBlocked = (e: FunctionsTelemetryEntry) =>
+      e.status === 'failure' &&
+      (e.context?.authorityStatus === 'blocked' || e.errorCode === 'failed-precondition');
+    const blocked = bucket.filter(isBlocked).length;
+    const failures = bucket.filter(e => e.status === 'failure' && !isBlocked(e)).length;
     const timeouts = bucket.filter(e => e.status === 'timeout').length;
     const errorRate = total > 0 ? (failures + timeouts) / total : 0;
     const avgDurationMs =
@@ -101,6 +105,7 @@ export const buildServiceSummaries = (
       successes,
       failures,
       timeouts,
+      blocked,
       errorRate,
       avgDurationMs,
       lastEntryAt,

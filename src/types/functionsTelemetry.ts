@@ -28,6 +28,9 @@ export interface FunctionsTelemetryServiceSummary {
   successes: number;
   failures: number;
   timeouts: number;
+  /** Version-guard rejections (`authorityStatus: blocked` / failed-precondition): the client
+   *  retries them by design, so they are reported apart and excluded from `errorRate`. */
+  blocked: number;
   errorRate: number; // 0..1
   avgDurationMs: number;
   lastEntryAt?: string;
