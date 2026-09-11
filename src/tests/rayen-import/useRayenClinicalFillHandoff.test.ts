@@ -26,6 +26,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenFillStatus', () => ({
   endRayenFill: mocks.endRayenFill,
   getRayenFillAttemptId: mocks.getRayenFillAttemptId,
   reportRayenFillProgress: mocks.reportRayenFillProgress,
+  registerRayenFillAbort: vi.fn(),
 }));
 
 const legacyRunEvidence = (runId = 'legacy-run') => ({

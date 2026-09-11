@@ -86,6 +86,14 @@ export const FunctionsTelemetrySummaryCards: React.FC<Props> = ({ summaries }) =
               {summary.timeouts > 0 && (
                 <span className="text-orange-700">⏱ {summary.timeouts}</span>
               )}
+              {summary.blocked > 0 && (
+                <span
+                  className="text-slate-600"
+                  title="Rechazos por guardia de versión; el cliente los reintenta y no cuentan como error"
+                >
+                  ⛔ {summary.blocked} bloq.
+                </span>
+              )}
             </div>
           </div>
         </div>

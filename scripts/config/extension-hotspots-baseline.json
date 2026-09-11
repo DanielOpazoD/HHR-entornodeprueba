@@ -6,7 +6,7 @@
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
-      "maxLines": 1519,
+      "maxLines": 1525,
       "hotspots": {
         "variable:handleEgresoLookup": 19,
         "variable:handleExamRequestCombinePrint": 25,
@@ -16,7 +16,7 @@
       }
     },
     "bridge-generation.js": {
-      "maxLines": 74,
+      "maxLines": 87,
       "hotspots": {}
     },
     "bridge-generation-main.js": {
@@ -159,7 +159,7 @@
       "hotspots": {}
     },
     "content-hhr-sync-bundle.js": {
-      "maxLines": 42,
+      "maxLines": 53,
       "hotspots": {}
     },
     "content-hhr-syslab.js": {
@@ -494,7 +494,7 @@
       }
     },
     "message-contract.js": {
-      "maxLines": 283,
+      "maxLines": 285,
       "hotspots": {}
     },
     "patient-clinical-bundle-runtime.js": {
@@ -539,6 +539,10 @@
     },
     "rayen-sync-bundle-runtime.js": {
       "maxLines": 179,
+      "hotspots": {}
+    },
+    "sync-bundle-cancellation-runtime.js": {
+      "maxLines": 45,
       "hotspots": {}
     },
     "relay-reinjection-runtime.js": {

@@ -115,7 +115,7 @@ describe('RayenImportButton history and progress', () => {
     }
   });
 
-  it('keeps complete clinical coverage separate from a partial Camas source', () => {
+  it('keeps complete clinical coverage separate from a partial Camas source', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSyncHistory: [
@@ -139,11 +139,12 @@ describe('RayenImportButton history and progress', () => {
     });
     render(<RayenImportButton />);
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByText('Gestión de Camas no disponible')).toBeInTheDocument();
     expect(screen.getByText('Cobertura clínica: 11/11 completa')).toHaveClass('text-emerald-700');
   });
 
-  it('shows what was structurally omitted instead of a generic partial message', () => {
+  it('shows what was structurally omitted instead of a generic partial message', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSyncHistory: [
@@ -176,6 +177,7 @@ describe('RayenImportButton history and progress', () => {
 
     render(<RayenImportButton />);
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
 
     expect(screen.getByText('Cobertura clínica: 10/10 completa')).toHaveClass('text-emerald-700');
     expect(screen.getByTestId('rayen-structural-review-detail')).toHaveTextContent(
@@ -184,7 +186,7 @@ describe('RayenImportButton history and progress', () => {
     expect(screen.queryByText('Enriquecimiento clínico parcial')).not.toBeInTheDocument();
   });
 
-  it('keeps an unverified prior-shift backfill out of the current-day warning state', () => {
+  it('keeps an unverified prior-shift backfill out of the current-day warning state', async () => {
     const coverage = {
       total: 10,
       completed: 10,
@@ -229,6 +231,7 @@ describe('RayenImportButton history and progress', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Todo al día');
     expect(screen.queryByTestId('rayen-sync-history-indicator')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByText('Completa')).toBeInTheDocument();
     expect(screen.getByTestId('rayen-historical-admission-note')).toHaveTextContent(
       'El ingreso del día actual quedó sincronizado'
@@ -259,6 +262,7 @@ describe('RayenImportButton history and progress', () => {
     mocks.retryClinicalFill.mockResolvedValue(undefined);
     render(<RayenImportButton />);
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar información clínica' }));
     await waitFor(() => expect(mocks.retryClinicalFill).toHaveBeenCalledOnce());
     expect(mocks.refreshHealth).not.toHaveBeenCalled();
