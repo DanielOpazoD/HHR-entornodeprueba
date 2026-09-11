@@ -1,3 +1,4 @@
+import { recordCensusAvailability } from '@/shared/runtime/censusStartupPerf';
 /**
  * useDailyRecordSyncQuery Hook
  * Replaces useDailyRecordSync logic with TanStack Query.
@@ -74,6 +75,14 @@ export const useDailyRecordSyncQuery = (
     dataUpdatedAt,
     refetch,
   } = useDailyRecordQuery(currentDateString, _isOfflineMode, effectiveRemoteSyncStatus);
+
+  useEffect(() => {
+    recordCensusAvailability(
+      currentDateString,
+      Boolean(record && record.date === currentDateString),
+      recordRuntime?.sourceOfTruth === 'local'
+    );
+  }, [currentDateString, record, recordRuntime?.sourceOfTruth]);
 
   // Monitor version in incoming records
   useEffect(() => {

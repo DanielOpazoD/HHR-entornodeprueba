@@ -69,6 +69,48 @@ describe('authSessionUseCases', () => {
     );
   });
 
+  it.each([false, true])(
+    'forwards perfAttemptId independently of Google credential (credential: %s)',
+    async hasCredential => {
+      mockSignInWithGoogle.mockResolvedValue({
+        uid: 'google-1',
+        email: 'spec@hospital.cl',
+        displayName: 'Spec',
+        role: 'admin',
+      });
+      const credential = { idToken: 'synthetic-token', isCurrent: () => true };
+      const outcome = await executeGoogleSignIn(
+        hasCredential ? credential : undefined,
+        'attempt-1'
+      );
+      expect(outcome.status).toBe('success');
+      expect(mockSignInWithGoogle.mock.calls).toEqual([
+        [
+          hasCredential
+            ? { googleCredential: credential, perfAttemptId: 'attempt-1' }
+            : { perfAttemptId: 'attempt-1' },
+        ],
+      ]);
+    }
+  );
+
+  it.each([false, true])(
+    'preserves exact legacy service call without a perf ID (credential: %s)',
+    async hasCredential => {
+      mockSignInWithGoogle.mockResolvedValue({
+        uid: 'google-1',
+        email: 'spec@hospital.cl',
+        displayName: 'Spec',
+        role: 'admin',
+      });
+      const credential = { idToken: 'synthetic-token', isCurrent: () => true };
+      await executeGoogleSignIn(hasCredential ? credential : undefined);
+      expect(mockSignInWithGoogle.mock.calls).toEqual(
+        hasCredential ? [[{ googleCredential: credential }]] : [[]]
+      );
+    }
+  );
+
   it('returns failed outcome with retryable metadata for recoverable google errors', async () => {
     mockSignInWithGoogle.mockRejectedValue(new Error('popup blocked'));
     mockResolveAuthErrorCode.mockReturnValue('auth/popup-blocked');

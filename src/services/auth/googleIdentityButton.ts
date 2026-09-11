@@ -1,3 +1,5 @@
+import { beginAuthPerfAttempt, recordAuthPerfEvent } from '@/shared/runtime/censusStartupPerf';
+
 export interface GoogleIdentityApi {
   initialize(options: {
     client_id: string;
@@ -14,6 +16,7 @@ export interface GoogleIdentityApi {
       size: 'large';
       text: 'continue_with';
       width: number;
+      click_listener?: () => void;
     }
   ): void;
   cancel(): void;
@@ -71,6 +74,19 @@ export const mountGoogleIdentityButton = (
 ): (() => void) => {
   let active = true;
   let pending = false;
+  let handedOff = false;
+  let authPerfAttemptId: string | undefined;
+  const cancelAuthPerfAttempt = () => {
+    const id = authPerfAttemptId;
+    authPerfAttemptId = undefined;
+    if (id === undefined) return;
+    try {
+      // The model preserves an already-finalized authorized/failed outcome.
+      recordAuthPerfEvent(id, 'cancelled');
+    } catch {
+      // Optional measurement must not interfere with GIS or disposal.
+    }
+  };
   api.initialize({
     client_id: clientId,
     use_fedcm_for_button: true,
@@ -82,10 +98,14 @@ export const mountGoogleIdentityButton = (
       pending = true;
       void Promise.resolve()
         .then(() => {
-          if (active) return onCredential(response.credential, () => active);
+          if (active) {
+            handedOff = true;
+            return onCredential(response.credential, () => active);
+          }
         })
         .finally(() => {
           pending = false;
+          handedOff = false;
         });
     },
   });
@@ -95,9 +115,22 @@ export const mountGoogleIdentityButton = (
     size: 'large',
     text: 'continue_with',
     width: Math.min(element.clientWidth || 280, 280),
+    // GIS owns the real button click (including its iframe), not our container.
+    click_listener: () => {
+      if (!active || pending) return;
+      cancelAuthPerfAttempt();
+      try {
+        authPerfAttemptId = beginAuthPerfAttempt('google_button');
+      } catch {
+        // Optional measurement must never interfere with Google's activation.
+      }
+    },
   });
   return () => {
     active = false;
+    // Once handed to the controller, its real outcome owns this attempt. Login
+    // unmount may mean the auth observer already admitted the validated user.
+    if (!handedOff) cancelAuthPerfAttempt();
     api.cancel();
     element.replaceChildren();
   };

@@ -30,6 +30,11 @@ import {
 } from '@/shared/ui/loginBackgroundModeController';
 import { clearRecentAuthRoleLookups } from '@/services/auth/authRoleLookup';
 import { markPerf } from '@/shared/runtime/perfAudit';
+import {
+  beginAuthPerfAttempt,
+  receiveAuthPerfCredential,
+  recordAuthPerfEvent,
+} from '@/shared/runtime/censusStartupPerf';
 
 const POPUP_RECOVERY_GRACE_MS = 1800;
 const POPUP_RECOVERY_POLL_MS = 100;
@@ -164,14 +169,41 @@ export const useLoginPageController = (
       );
       return;
     }
+    // Measure accepted handler entry after the cross-tab lock check. GIS may
+    // deliver a credential without an observed click; the runtime labels that
+    // boundary credential_received rather than inventing a button-click time.
+    let authPerfAttemptId: string | undefined;
+    try {
+      authPerfAttemptId = credential
+        ? receiveAuthPerfCredential()
+        : beginAuthPerfAttempt('app_button');
+    } catch {
+      // Optional instrumentation must not block authentication.
+    }
+    let authPerfFinished = false;
+    const finishAuthPerfAttempt = (event: 'authorized' | 'failed' | 'cancelled') => {
+      if (authPerfFinished) return;
+      authPerfFinished = true;
+      try {
+        recordAuthPerfEvent(authPerfAttemptId, event);
+      } catch {
+        // Do not route audit failures into the authentication error flow.
+      }
+    };
+
     setIsGoogleLoading(true);
     clearRecentAuthRoleLookups();
     markGoogleLoginAttemptHint();
     markPerf('auth-login:click');
 
     try {
-      const outcome = await (credential ? executeGoogleSignIn(credential) : executeGoogleSignIn());
+      const outcome = await (authPerfAttemptId !== undefined
+        ? executeGoogleSignIn(credential, authPerfAttemptId)
+        : credential
+          ? executeGoogleSignIn(credential)
+          : executeGoogleSignIn());
       if (outcome.status === 'success') {
+        finishAuthPerfAttempt(outcome.data.status === 'authorized' ? 'authorized' : 'failed');
         clearGoogleLoginAttemptHint();
         warmDefaultPostLoginRoute();
         onLoginSuccess();
@@ -190,6 +222,7 @@ export const useLoginPageController = (
       const isPopupIssue = isPopupRecoverableAuthError(errorLike);
       const isPopupCancellation = isPopupCancellationAuthError(errorLike);
       const resolvedErrorCode = resolveAuthErrorCode(errorLike);
+      finishAuthPerfAttempt(isPopupCancellation ? 'cancelled' : 'failed');
 
       if (isPopupCancellation) {
         clearGoogleLoginAttemptHint();
@@ -215,6 +248,7 @@ export const useLoginPageController = (
       const isPopupIssue = isPopupRecoverableAuthError(err);
       const isPopupCancellation = isPopupCancellationAuthError(err);
       const resolvedErrorCode = resolveAuthErrorCode(err);
+      finishAuthPerfAttempt(isPopupCancellation ? 'cancelled' : 'failed');
 
       if (isPopupCancellation) {
         clearGoogleLoginAttemptHint();

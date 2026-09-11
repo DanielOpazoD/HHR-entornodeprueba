@@ -1,3 +1,4 @@
+import { recordCensusServerSnapshot } from '@/shared/runtime/censusStartupPerf';
 import {
   doc,
   getDoc,
@@ -174,6 +175,12 @@ export const subscribeToRecord = (
         hasPendingWrites: docSnap.metadata.hasPendingWrites,
         fromCache: docSnap.metadata.fromCache,
       };
+      recordCensusServerSnapshot(
+        date,
+        metadata.fromCache,
+        metadata.hasPendingWrites,
+        docSnap.exists()
+      );
       if (docSnap.exists()) {
         callback(docToRecord(docSnap.data(), date), metadata.hasPendingWrites, metadata);
       } else {

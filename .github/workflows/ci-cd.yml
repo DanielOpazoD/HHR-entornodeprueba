@@ -544,6 +544,43 @@ jobs:
             reports/e2e/preview-bootstrap/ci-provenance.json
           retention-days: 30
 
+  census-startup-performance:
+    name: census-startup-performance (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [development, production]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Validate measurement report contracts
+        run: npm run test:census-performance-report
+      - name: Measure 30 populated census navigations per scenario
+        run: npm run test:e2e:census-performance
+        env:
+          CENSUS_PERF_ENV: ${{ matrix.environment }}
+          CENSUS_PERF_SAMPLES: '30'
+          CENSUS_PERF_RUNNER: github-ubuntu-latest
+      - name: Upload privacy-safe timing evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: census-startup-performance-${{ matrix.environment }}
+          path: reports/e2e/census-performance-*.json
+          retention-days: 30
+          if-no-files-found: warn
+
   lighthouse-ci:
     # Performance instrumentation. Warn-only — assertions in lighthouserc.json
     # use "warn" severity so this job surfaces trends in the PR/run summary
@@ -636,6 +673,7 @@ jobs:
         build,
         final-confidence-and-readiness,
         ci-runtime-telemetry,
+        census-startup-performance,
       ]
     env:
       QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
@@ -646,6 +684,7 @@ jobs:
       BUILD_RESULT: ${{ needs.build.result }}
       FINAL_CONFIDENCE_RESULT: ${{ needs['final-confidence-and-readiness'].result }}
       CI_RUNTIME_TELEMETRY_RESULT: ${{ needs['ci-runtime-telemetry'].result }}
+      CENSUS_PERFORMANCE_RESULT: ${{ needs['census-startup-performance'].result }}
     steps:
       - name: Enforce strict gate outcomes
         shell: bash
@@ -660,7 +699,8 @@ jobs:
             "e2e-critical-emulator:$E2E_CRITICAL_RESULT" \
             "build:$BUILD_RESULT" \
             "final-confidence-and-readiness:$FINAL_CONFIDENCE_RESULT" \
-            "ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT"
+            "ci-runtime-telemetry:$CI_RUNTIME_TELEMETRY_RESULT" \
+            "census-startup-performance:$CENSUS_PERFORMANCE_RESULT"
           do
             name="${gate%%:*}"
             result="${gate#*:}"

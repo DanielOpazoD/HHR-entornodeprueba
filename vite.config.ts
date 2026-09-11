@@ -241,6 +241,8 @@ export default defineConfig(({ mode }) => {
             '**/assets/ClinicalPanelDrawer-*.js',
             // Sync history panel: reviewed on demand while Eloísa is connected.
             '**/assets/RayenSyncHistoryModal-*.js',
+            // Optional console-only formatter. Core timing capture remains offline-capable.
+            '**/assets/perfAuditReport-*.js',
           ],
         },
         registerType: 'autoUpdate',

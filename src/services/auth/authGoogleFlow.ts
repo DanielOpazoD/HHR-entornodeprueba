@@ -26,6 +26,7 @@ import { signInWithGoogleRedirect } from '@/services/auth/authFallback';
 import { type AuthRuntime, defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { markPerf } from '@/shared/runtime/perfAudit';
+import { recordAuthPerfEvent } from '@/shared/runtime/censusStartupPerf';
 
 // Budget for the user to finish the whole Google flow inside the popup
 // (account picker + password + 2FA can easily exceed 30s on shared hospital
@@ -34,6 +35,7 @@ const GOOGLE_POPUP_AUTH_TIMEOUT_MS = 120_000;
 
 interface AuthRuntimeOptions {
   authRuntime?: AuthRuntime;
+  perfAttemptId?: string;
   googleCredential?: { idToken: string; isCurrent: () => boolean };
 }
 
@@ -142,6 +144,17 @@ export const signInWithGoogle = async (options?: AuthRuntimeOptions): Promise<Au
             );
           })
         : await signInWithPopupTimeout(authRuntime);
+      // Firebase authentication is proven here, before role authorization. No
+      // OAuth milestone is inferred from existing sessions or E2E fixtures.
+      if (options?.perfAttemptId !== undefined) {
+        for (const event of ['credential_received', 'authenticated'] as const) {
+          try {
+            recordAuthPerfEvent(options.perfAttemptId, event);
+          } catch {
+            // Optional diagnostics must never turn a valid login into a failure.
+          }
+        }
+      }
       markPerf(credential ? 'auth-login:fedcm-exchange-done' : 'auth-login:popup-done');
       markPerf('auth-login:role-resolution-start');
       const authorizedUser = await authorizeFirebaseUser(result.user, {
