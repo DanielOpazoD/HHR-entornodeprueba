@@ -180,7 +180,9 @@ describe('Ficha Médico patient-context owner', () => {
     // la lógica vive en runtime-generation.js, health-check.js y connection-repair-runtime.js.
     // 1524: cancelación de la captura sincronizada (ruta + envoltorio del handler); la lógica
     // vive en sync-bundle-cancellation-runtime.js.
-    expect(background.split('\n').length).toBeLessThanOrEqual(1_524);
+    // 1525: la reparación de conexión sondea sin caché las pestañas recién abiertas (una línea
+    // de cableado y su comentario); la lógica sigue en connection-repair-runtime.js.
+    expect(background.split('\n').length).toBeLessThanOrEqual(1_525);
     expect(source.split('\n').length).toBeLessThanOrEqual(380);
     expect(() => factory.create({})).toThrow('Falta la dependencia resolveSession.');
   });
