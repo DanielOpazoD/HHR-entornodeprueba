@@ -4,7 +4,7 @@
 <script>
 // This is not a replacement for syslab-bridge.js. The manifest injects that real
 // isolated-world bridge. This separate responder only inspects synthetic state.
-document.cookie = 'hhr_smoke_session=synthetic-only; Path=/syslab/; SameSite=Lax';
+// The harness seeds the existing first-party cookie before this iframe is created.
 if (!sessionStorage.getItem('hhr-smoke-session')) {
   sessionStorage.setItem('hhr-smoke-session', 'synthetic-' + Math.random().toString(36).slice(2));
 }

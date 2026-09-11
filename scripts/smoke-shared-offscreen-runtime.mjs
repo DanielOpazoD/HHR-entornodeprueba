@@ -49,6 +49,10 @@ try {
       '--disable-background-networking',
     ],
   });
+  // Model a session already established in a first-party Syslab tab. A cross-site
+  // HTTP iframe cannot reliably establish a new SameSite=Lax cookie itself.
+  await context.addCookies([{ name: 'hhr_smoke_session', value: 'synthetic-only',
+    url: 'http://10.4.69.90/syslab/', sameSite: 'Lax' }]);
   const worker = context.serviceWorkers()[0] ||
     await context.waitForEvent('serviceworker', { timeout: 15_000 });
   assert.equal(new URL(worker.url()).pathname, `/${manifest.background.service_worker}`);
@@ -103,11 +107,11 @@ try {
     catch { return false; }
     return status?.ok && typeof status.bridgeId === 'string';
   }, 'Real Syslab content bridge did not become ready');
-  assert.equal(status.loginRequired, false);
-  assert.equal(status.url, 'http://10.4.69.90/syslab/');
+  assert.equal(status.loginRequired, false, 'Synthetic status unexpectedly requires login');
+  assert.equal(status.url, 'http://10.4.69.90/syslab/', 'Real content bridge reported another location');
   assert.ok(network.fixtureDocuments > 0, 'Syslab HTTP was not intercepted');
   const sessionBefore = await request('fixture', { op: 'session' });
-  assert.equal(sessionBefore.cookiePresent, true);
+  assert.equal(sessionBefore.cookiePresent, true, 'Seeded synthetic cookie is not visible in the iframe');
   assert.match(sessionBefore.sessionId, /^synthetic-/);
   checks.push('syslab-status-real-manifest-content-bridge');
 
@@ -216,6 +220,10 @@ try {
   )?.[0] : undefined;
   result = { status: launchBlocked ? 'blocked' : 'failed', phase,
     code: error.code || error.name, message: String(error.message).split('\n')[0],
+    ...(error.code === 'ERR_ASSERTION' ? {
+      actual: typeof error.actual === 'boolean' ? error.actual : typeof error.actual,
+      expected: typeof error.expected === 'boolean' ? error.expected : typeof error.expected,
+    } : {}),
     ...(launchReason ? { launchReason } : {}), checks, network };
   process.exitCode = 1;
 } finally {
