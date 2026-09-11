@@ -239,6 +239,8 @@ export default defineConfig(({ mode }) => {
             // explicitly from the clinical drawer, so it remains an online-only lazy surface.
             '**/assets/PatientDocumentManagerDialog-*.js',
             '**/assets/ClinicalPanelDrawer-*.js',
+            // Sync history panel: reviewed on demand while Eloísa is connected.
+            '**/assets/RayenSyncHistoryModal-*.js',
           ],
         },
         registerType: 'autoUpdate',
