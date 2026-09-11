@@ -5,7 +5,7 @@
   if (!runtimeMessages || !trustedOrigins.has(window.location.origin)) return;
   const post = message => window.postMessage(message, window.location.origin);
   window.addEventListener('message', event => {
-    if (event.source !== window) return;
+    if (event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (!data || data.type !== 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST') return;
     chrome.runtime.sendMessage({

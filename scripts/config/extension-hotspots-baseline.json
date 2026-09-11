@@ -159,7 +159,7 @@
       "hotspots": {}
     },
     "content-hhr-sync-bundle.js": {
-      "maxLines": 42,
+      "maxLines": 43,
       "hotspots": {}
     },
     "content-hhr-syslab.js": {
@@ -167,7 +167,7 @@
       "hotspots": {}
     },
     "content-hhr.js": {
-      "maxLines": 342,
+      "maxLines": 343,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 17
       }
@@ -466,7 +466,7 @@
       "hotspots": {}
     },
     "inject-fichamedico.js": {
-      "maxLines": 681,
+      "maxLines": 690,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 32,
         "iife>variable:getVerifiedClinicalContext": 21,
@@ -475,7 +475,7 @@
       }
     },
     "inject-gestioncamas.js": {
-      "maxLines": 302,
+      "maxLines": 304,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 22
       }

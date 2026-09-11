@@ -59,7 +59,7 @@
       let settled = false;
 
       const onMessage = event => {
-        if (event.source !== window) return;
+        if (event.source !== window || event.origin !== window.location.origin) return;
         const d = event.data;
         if (!d || d.type !== 'RAYEN_EXT_READ_RESULT' || d.reqId !== reqId) return;
         cleanup();
@@ -98,7 +98,7 @@
       const reqId = 'r' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
       const onMessage = event => {
-        if (event.source !== window) return;
+        if (event.source !== window || event.origin !== window.location.origin) return;
         const d = event.data;
         if (!d || d.type !== resultType || d.reqId !== reqId) return;
         cleanup();
@@ -178,7 +178,7 @@
   // Diagnostic: let the page trigger a background device-report download/save end-to-end, so the
   // PDF fetch + parse can be verified from the Ficha Médico tab without an HHR tab open.
   window.addEventListener('message', event => {
-    if (event.source !== window) return;
+    if (event.source !== window || event.origin !== window.location.origin) return;
     const d = event.data;
     if (!d || (d.type !== 'RAYEN_FM_TEST_DEVICE_SAVE' && d.type !== 'RAYEN_FM_TEST_DEVICE')) return;
     const isSave = d.type === 'RAYEN_FM_TEST_DEVICE_SAVE';

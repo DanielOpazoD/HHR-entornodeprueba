@@ -74,8 +74,9 @@
     }
     return undefined;
   });
+  const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
   window.addEventListener('message', event => {
-    if (event.source !== window) return;
+    if (!isOwnMessage(event)) return;
     const data = event.data;
     if (!data) return;
     if (data.type === 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST') {

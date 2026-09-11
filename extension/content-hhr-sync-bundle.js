@@ -7,7 +7,8 @@
   const post = message => window.postMessage(message, window.location.origin);
 
   window.addEventListener('message', event => {
-    if (event.source !== window || event.data?.type !== 'HHR_RAYEN_REQUEST_SYNC_BUNDLE') return;
+    if (event.source !== window || event.origin !== window.location.origin) return;
+    if (event.data?.type !== 'HHR_RAYEN_REQUEST_SYNC_BUNDLE') return;
     const data = event.data;
     chrome.runtime
       .sendMessage({

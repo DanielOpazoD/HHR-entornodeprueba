@@ -47,7 +47,7 @@ describe('CUDYR evidence contract', () => {
 
   it('forwards authority metadata from the extension worker into HHR', async () => {
     let onMessage:
-      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)
       | undefined;
     const postMessage = vi.fn();
     const workerResponse = {
@@ -97,6 +97,7 @@ describe('CUDYR evidence contract', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST', reqId: 'cudyr-contract-1' },
     });
 

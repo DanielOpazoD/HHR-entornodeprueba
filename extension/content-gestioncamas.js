@@ -72,7 +72,7 @@
       let settled = false;
 
       const onMessage = event => {
-        if (event.source !== window) return;
+        if (event.source !== window || event.origin !== window.location.origin) return;
         const d = event.data;
         if (!d || d.type !== 'RAYEN_GC_LOOKUP_RESULT' || d.reqId !== reqId) return;
         cleanup();
@@ -113,7 +113,7 @@
       const reqId = 'gc' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
       const onMessage = event => {
-        if (event.source !== window) return;
+        if (event.source !== window || event.origin !== window.location.origin) return;
         const d = event.data;
         if (!d || d.type !== 'RAYEN_GC_FETCHINFO_RESULT' || d.reqId !== reqId) return;
         cleanup();
@@ -197,7 +197,7 @@
   // Diagnostic: let the page (MAIN world) trigger a background report download/save end-to-end,
   // so the flow can be verified from the Gestión de Camas tab without needing an HHR tab open.
   window.addEventListener('message', event => {
-    if (event.source !== window) return;
+    if (event.source !== window || event.origin !== window.location.origin) return;
     const d = event.data;
     if (!d || (d.type !== 'RAYEN_GC_TEST_REPORT' && d.type !== 'RAYEN_GC_TEST_SAVE')) return;
     const isSave = d.type === 'RAYEN_GC_TEST_SAVE';
