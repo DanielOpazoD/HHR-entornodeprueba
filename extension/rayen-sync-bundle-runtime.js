@@ -107,43 +107,16 @@
     };
   };
 
-  /**
-   * HHR cancels a capture when the operator changes the date or leaves mid-run. The tab-side
-   * census read cannot be interrupted cheaply, but the worker must not finish the job for a
-   * client that already moved on: it drops the result, skips the health push and answers with
-   * an explicit `cancelled` flag that the relay silences.
-   */
-  const CANCELLED_MESSAGE = 'Sincronización cancelada desde HHR.';
-  const MAX_TRACKED_CANCELLATIONS = 32;
-  const createCancellationRegistry = () => {
-    const cancelled = new Set();
-    return Object.freeze({
-      cancel: requestId => {
-        if (typeof requestId !== 'string' || !requestId) return false;
-        cancelled.add(requestId);
-        while (cancelled.size > MAX_TRACKED_CANCELLATIONS) {
-          cancelled.delete(cancelled.values().next().value);
-        }
-        return true;
-      },
-      isCancelled: requestId => cancelled.has(requestId),
-      release: requestId => cancelled.delete(requestId),
-    });
-  };
-  const cancelledResult = () => ({ error: CANCELLED_MESSAGE, cancelled: true });
-
   const capture = async ({
     dateStart,
     dateEnd,
     readHealth,
     readSnapshot,
     readReport,
-    isCancelled = () => false,
     now = () => new Date(),
     idFactory = () => crypto.randomUUID(),
   }) => {
     const started = now(), startedAt = started.toISOString();
-    if (isCancelled()) return cancelledResult();
     if (!isValidRange(dateStart, dateEnd, started)) {
       return { error: 'El intervalo solicitado para sincronizar no es válido.' };
     }
@@ -164,7 +137,6 @@
         readSnapshot(),
         readReport({ dateStart, dateEnd }),
       ]);
-      if (isCancelled()) return cancelledResult();
       const readResult = validateReadResults(snapshotResult, reportResult);
       if (readResult.error) return readResult;
 
@@ -200,9 +172,7 @@
   root.HhrRayenSyncBundleRuntime = Object.freeze({
     MAX_SOURCE_SKEW_MS,
     MAX_HISTORICAL_LOOKBACK_DAYS,
-    CANCELLED_MESSAGE,
     bothSourcesReady,
     capture,
-    createCancellationRegistry,
   });
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -9,13 +9,7 @@ import '../../../extension/rayen-sync-bundle-runtime.js';
 interface SyncBundleRuntime {
   MAX_SOURCE_SKEW_MS: number;
   MAX_HISTORICAL_LOOKBACK_DAYS: number;
-  CANCELLED_MESSAGE: string;
   capture: (input: Record<string, unknown>) => Promise<Record<string, any>>;
-  createCancellationRegistry: () => {
-    cancel: (requestId: string) => boolean;
-    isCancelled: (requestId: string) => boolean;
-    release: (requestId: string) => boolean;
-  };
 }
 
 const runtime = (globalThis as typeof globalThis & { HhrRayenSyncBundleRuntime: SyncBundleRuntime })
@@ -249,41 +243,5 @@ describe('Rayen synchronized source bundle', () => {
       error:
         'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.',
     });
-  });
-});
-
-describe('Rayen synchronized source bundle · cancellation', () => {
-  it('drops a capture that HHR cancelled before the reads started', async () => {
-    const readSnapshot = vi.fn().mockResolvedValue({ snapshot });
-    await expect(capture({ isCancelled: () => true, readSnapshot })).resolves.toEqual({
-      error: runtime.CANCELLED_MESSAGE,
-      cancelled: true,
-    });
-    expect(readSnapshot).not.toHaveBeenCalled();
-  });
-
-  it('drops the result when the cancellation arrived while both sources were being read', async () => {
-    let cancelled = false;
-    const readSnapshot = vi.fn(async () => {
-      cancelled = true;
-      return { snapshot };
-    });
-    await expect(capture({ isCancelled: () => cancelled, readSnapshot })).resolves.toMatchObject({
-      cancelled: true,
-    });
-  });
-
-  it('tracks cancellations per request id with a bounded memory', () => {
-    const registry = runtime.createCancellationRegistry();
-    expect(registry.cancel('')).toBe(false);
-    expect(registry.cancel('sync-1')).toBe(true);
-    expect(registry.isCancelled('sync-1')).toBe(true);
-    expect(registry.isCancelled('sync-2')).toBe(false);
-    for (let index = 0; index < 40; index += 1) registry.cancel(`sync-bulk-${index}`);
-    // The oldest ids are evicted so a forgotten cancel never grows the worker's memory.
-    expect(registry.isCancelled('sync-1')).toBe(false);
-    expect(registry.isCancelled('sync-bulk-39')).toBe(true);
-    registry.release('sync-bulk-39');
-    expect(registry.isCancelled('sync-bulk-39')).toBe(false);
   });
 });

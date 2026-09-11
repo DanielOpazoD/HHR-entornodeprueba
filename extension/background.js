@@ -8,7 +8,7 @@ importScripts(
   'message-contract.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
-  'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js',
+  'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
   'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'patient-document-manager-runtime.js',
@@ -419,12 +419,10 @@ const egresoReportRuntime = self.HhrGestionCamasEgresoReportRuntime.create({
 });
 const { request: handleReportRequest, save: handleReportSave } = egresoReportRuntime;
 
-const syncBundleCancellations = self.HhrRayenSyncBundleRuntime.createCancellationRegistry();
-
-const handleSyncBundleRequest = async (message, sender) => {
-  const requestId = message.requestId;
-  try {
-    return await patientFlowRuntime.authorizeBundleResponse(
+const syncBundleCancellation = self.HhrSyncBundleCancellationRuntime.create();
+const handleSyncBundleRequest = (message, sender) =>
+  syncBundleCancellation.run(message.requestId, () =>
+    patientFlowRuntime.authorizeBundleResponse(
       sender,
       self.HhrRayenSyncBundleRuntime.capture({
         dateStart: message.dateStart,
@@ -433,17 +431,9 @@ const handleSyncBundleRequest = async (message, sender) => {
         // The bundle wrapper authorizes the union of live and report-backed episodes atomically.
         readSnapshot: readSnapshotWithClinicalCribs,
         readReport: handleReportRequest,
-        isCancelled: () => syncBundleCancellations.isCancelled(requestId),
       })
-    );
-  } finally {
-    syncBundleCancellations.release(requestId);
-  }
-};
-
-const handleSyncBundleCancel = message => ({
-  ok: syncBundleCancellations.cancel(message.requestId),
-});
+    )
+  );
 
 const handleDeviceReportRequest = async args => {
   const result = await fetchDeviceEvidence(args);
@@ -1271,7 +1261,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo capturar Ficha Médico y Gestión de Camas en una misma sincronización.'
   ),
   [RUNTIME_MESSAGES.SYNC_BUNDLE_CANCEL]: runtimeRoute(
-    message => handleSyncBundleCancel(message),
+    message => syncBundleCancellation.cancel(message.requestId),
     'No se pudo cancelar la captura sincronizada.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
