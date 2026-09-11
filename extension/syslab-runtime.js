@@ -1,8 +1,6 @@
 (function (root) {
   'use strict';
 
-  const SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html';
-  const SYSLAB_OFFSCREEN_TARGET = 'hhr-syslab-offscreen';
   const LAB_BATCH_PREFIX = 'hhr-lab-batch-';
   const LAB_BATCH_TTL_MS = 15 * 60 * 1000;
   const LAB_MAX_SELECTED_EXAMS = 24;
@@ -13,6 +11,7 @@
   const create = dependencies => {
     const {
       chrome: chromeApi,
+      offscreenCoordinator,
       labViewer,
       syslabSessionTransport,
       syslabPdfBundle,
@@ -20,7 +19,8 @@
     } = dependencies || {};
 
     if (
-      !chromeApi || !labViewer || !syslabSessionTransport ||
+      !chromeApi || !offscreenCoordinator || typeof offscreenCoordinator.request !== 'function' ||
+      !labViewer || !syslabSessionTransport ||
       typeof syslabSessionTransport.create !== 'function' ||
       !syslabPdfBundle || typeof syslabPdfBundle.download !== 'function' ||
       typeof syslabPdfBundle.buildFilename !== 'function' ||
@@ -31,51 +31,8 @@
     }
 
     const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-    let syslabOffscreenCreation = null;
-
-    const readOffscreenContexts = async () => {
-      if (typeof chromeApi.runtime.getContexts !== 'function') return [];
-      const contexts = await chromeApi.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
-      return Array.isArray(contexts) ? contexts : [];
-    };
-
-    const ensureSyslabOffscreen = async () => {
-      const offscreenUrl = chromeApi.runtime.getURL(SYSLAB_OFFSCREEN_PATH);
-      const contexts = await readOffscreenContexts();
-      if (contexts.some(context => context.documentUrl === offscreenUrl)) return;
-      if (contexts.length) {
-        throw new Error('Otra función de la extensión está usando el documento interno. Recarga la extensión para conectar Syslab.');
-      }
-      if (!syslabOffscreenCreation) {
-        syslabOffscreenCreation = chromeApi.offscreen.createDocument({
-          url: SYSLAB_OFFSCREEN_PATH,
-          reasons: ['IFRAME_SCRIPTING'],
-          justification: 'Mantener la sesión local de Syslab sin abrir una pestaña visible.',
-        }).catch(async error => {
-          if (/single offscreen|already exists/i.test(String((error && error.message) || error))) {
-            const current = await readOffscreenContexts();
-            if (current.some(context => context.documentUrl === offscreenUrl)) return;
-          }
-          throw error;
-        }).finally(() => {
-          syslabOffscreenCreation = null;
-        });
-      }
-      await syslabOffscreenCreation;
-    };
-
-    const sendToSyslabOffscreen = async (message, timeoutMs = LAB_BRIDGE_TIMEOUT_MS) => {
-      await ensureSyslabOffscreen();
-      return withTimeout(
-        chromeApi.runtime.sendMessage({
-          target: SYSLAB_OFFSCREEN_TARGET,
-          request: message,
-          timeoutMs,
-        }),
-        timeoutMs + 1_000,
-        'Syslab demoró demasiado en responder.'
-      );
-    };
+    const sendToSyslabOffscreen = (message, timeoutMs = LAB_BRIDGE_TIMEOUT_MS) =>
+      offscreenCoordinator.request('syslab', message, { timeoutMs });
 
     const sessionTransport = syslabSessionTransport.create({
       chrome: chromeApi,

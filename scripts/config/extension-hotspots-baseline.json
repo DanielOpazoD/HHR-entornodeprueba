@@ -576,7 +576,7 @@
       "hotspots": {}
     },
     "syslab-offscreen.js": {
-      "maxLines": 68,
+      "maxLines": 18,
       "hotspots": {}
     },
     "syslab-pdf-bundle.js": {
@@ -590,7 +590,7 @@
       "hotspots": {}
     },
     "syslab-runtime.js": {
-      "maxLines": 425,
+      "maxLines": 382,
       "hotspots": {
         "iife>variable:create>variable:details": 18,
         "iife>variable:create>variable:login": 19,
@@ -603,6 +603,22 @@
     },
     "tab-encounter-authorization.js": {
       "maxLines": 60,
+      "hotspots": {}
+    },
+    "offscreen-contract.js": {
+      "maxLines": 15,
+      "hotspots": {}
+    },
+    "offscreen-coordinator.js": {
+      "maxLines": 220,
+      "hotspots": {}
+    },
+    "offscreen-router.js": {
+      "maxLines": 194,
+      "hotspots": {}
+    },
+    "syslab-offscreen-transport.js": {
+      "maxLines": 86,
       "hotspots": {}
     }
   }

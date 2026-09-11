@@ -1,9 +1,7 @@
 /** MV3 composition root: authorized clinical reads, reports and HHR/Rayen message routing. */
 'use strict';
 
-// Manifest V3 classic service workers may call importScripts only during their initial
-// evaluation. Register every PDF/XLS dependency here; runtime-loader.js then acts as a readiness
-// guard for the workflows that use them instead of attempting a forbidden late import.
+// MV3 requires initial imports. Excel/PDF stay here until their separate offscreen migrations.
 importScripts(
   'message-contract.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
   'encounter-navigation.js',
@@ -36,6 +34,7 @@ importScripts(
   'clinical-batch-print-runtime.js',
   'prescription-print.js',
   'lab-result-parser.js', 'lab-viewer.js',
+  'offscreen-contract.js', 'offscreen-coordinator.js',
   'syslab-login-window.js', 'syslab-session-transport.js', 'syslab-pdf-filename.js', 'syslab-pdf-bundle.js', 'syslab-runtime.js',
   'exam-request-print.js',
   'xlsx.full.min.js',
@@ -1195,7 +1194,8 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
   return downloadPdfBuffer({ buffer: result.buffer, filename: `Indicaciones_${encId}.pdf` });
 };
 
-const syslabRuntime = self.HhrSyslabPdfBundle.createRuntime({ chrome, downloadPdfBuffer, withTimeout });
+const offscreenCoordinator = self.HhrOffscreenCoordinator.create({ chrome });
+const syslabRuntime = self.HhrSyslabPdfBundle.createRuntime({ chrome, downloadPdfBuffer, withTimeout, offscreenCoordinator });
 const clinicalAntecedentsRuntime = self.HhrClinicalAntecedents.create({
   getContext: getClinicalReportContext,
   readJson: options => fichaMedicoClinicalClient.readJson(options),

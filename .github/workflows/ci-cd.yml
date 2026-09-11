@@ -377,6 +377,9 @@ jobs:
       - name: Validate the packaged Rayen extension in Chromium
         run: npm run test:e2e:rayen-extension-runtime
 
+      - name: Validate shared offscreen lifecycle in Chromium
+        run: npm run test:e2e:shared-offscreen
+
       - name: Run critical E2E suite with Firestore emulator
         run: npm run test:e2e:critical:ci
         env:

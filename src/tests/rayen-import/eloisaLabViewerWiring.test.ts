@@ -19,6 +19,9 @@ describe('native Eloisa laboratory viewer wiring', () => {
     const bridge = extensionFile('syslab-bridge.js');
     const offscreen = extensionFile('syslab-offscreen.js');
     const offscreenHtml = extensionFile('syslab-offscreen.html');
+    const coordinator = extensionFile('offscreen-coordinator.js');
+    const contract = extensionFile('offscreen-contract.js');
+    const frameTransport = extensionFile('syslab-offscreen-transport.js');
     const login = extensionFile('syslab-login.js');
     const loginHtml = extensionFile('syslab-login.html');
     const loginWindow = extensionFile('syslab-login-window.js');
@@ -41,11 +44,14 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(loginWindow).toContain('messageContract.types.SYSLAB_LOGIN_OPEN_REQUEST');
     expect(loginWindow).toContain('messageContract.createRuntimeRouter');
     expect(background).toContain('[RUNTIME_MESSAGES.SYSLAB_LOGIN_REQUEST]: runtimeRoute(');
-    expect(runtime).toContain("SYSLAB_OFFSCREEN_PATH = 'syslab-offscreen.html'");
-    expect(runtime).toContain('chromeApi.offscreen.createDocument');
-    expect(runtime).toContain("reasons: ['IFRAME_SCRIPTING']");
-    expect(runtime).toContain('context.documentUrl === offscreenUrl');
-    expect(runtime).toContain('const current = await readOffscreenContexts()');
+    expect(contract).toContain("documentPath: 'syslab-offscreen.html'");
+    expect(coordinator).toContain('createDocument');
+    expect(coordinator).toContain('IFRAME_SCRIPTING');
+    expect(runtime).not.toContain('chromeApi.offscreen.createDocument');
+    expect(runtime).toContain("offscreenCoordinator.request('syslab'");
+    expect(background).toContain(
+      'const offscreenCoordinator = self.HhrOffscreenCoordinator.create({ chrome });'
+    );
     expect(runtime).toContain('sendToSyslabOffscreen');
     expect(runtime).not.toContain('SYSLAB_TAB_STORAGE_KEY');
     expect(runtime).not.toContain('focusSyslabTab');
@@ -90,9 +96,11 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(offscreenHtml).toContain('sandbox="allow-forms allow-same-origin allow-scripts"');
     expect(offscreenHtml).not.toContain('allow-modals');
     expect(offscreenHtml).toContain('syslab-offscreen.js');
-    expect(offscreen).toContain("REQUEST_TARGET = 'hhr-syslab-offscreen'");
-    expect(offscreen).toContain('event.origin !== FRAME_ORIGIN');
-    expect(offscreen).not.toContain('Math.min(1_500');
+    expect(offscreen).toContain('HhrOffscreenRouter.create');
+    expect(offscreenHtml).toContain('offscreen-router.js');
+    expect(offscreenHtml).toContain('offscreen-contract.js');
+    expect(frameTransport).toContain('event.origin !== FRAME_ORIGIN');
+    expect(frameTransport).not.toContain('Math.min(1_500');
     expect(content).toContain("key: 'exams'");
     expect(content).toContain('hhr-exams-lab');
     expect(content).not.toContain('class="module hhr-ops-lab"');
@@ -136,7 +144,7 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(manifest).toContain('"clipboardWrite"');
     expect(manifest).toContain('"all_frames": true');
     expect(manifest).toContain('"syslab-login.html"');
-    expect(manifest).toContain('"version": "0.48.19"');
+    expect(manifest).toContain('"version": "0.48.20"');
     expect(manifest).toContain('"default_popup": "extension-status.html"');
   });
 });
