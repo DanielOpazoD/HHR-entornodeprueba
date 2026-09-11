@@ -246,6 +246,14 @@ export const requestRayenSyncBundle = (dateStart: string, dateEnd: string): stri
   return requestId;
 };
 
+export const RAYEN_SYNC_BUNDLE_CANCEL_MESSAGE_TYPE = 'HHR_RAYEN_CANCEL_SYNC_BUNDLE';
+
+/** Drops the local correlation and tells the extension to discard the capture in flight. */
 export const cancelRayenSyncBundleRequest = (requestId: string): void => {
   if (activeSyncRequestId === requestId) activeSyncRequestId = null;
+  if (typeof window === 'undefined') return;
+  window.postMessage(
+    { type: RAYEN_SYNC_BUNDLE_CANCEL_MESSAGE_TYPE, requestId },
+    window.location.origin
+  );
 };

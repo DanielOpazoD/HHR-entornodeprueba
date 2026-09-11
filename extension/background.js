@@ -419,18 +419,31 @@ const egresoReportRuntime = self.HhrGestionCamasEgresoReportRuntime.create({
 });
 const { request: handleReportRequest, save: handleReportSave } = egresoReportRuntime;
 
-const handleSyncBundleRequest = (message, sender) =>
-  patientFlowRuntime.authorizeBundleResponse(
-    sender,
-    self.HhrRayenSyncBundleRuntime.capture({
-      dateStart: message.dateStart,
-      dateEnd: message.dateEnd,
-      readHealth: handleExtensionHealth,
-      // The bundle wrapper authorizes the union of live and report-backed episodes atomically.
-      readSnapshot: readSnapshotWithClinicalCribs,
-      readReport: handleReportRequest,
-    })
-  );
+const syncBundleCancellations = self.HhrRayenSyncBundleRuntime.createCancellationRegistry();
+
+const handleSyncBundleRequest = async (message, sender) => {
+  const requestId = message.requestId;
+  try {
+    return await patientFlowRuntime.authorizeBundleResponse(
+      sender,
+      self.HhrRayenSyncBundleRuntime.capture({
+        dateStart: message.dateStart,
+        dateEnd: message.dateEnd,
+        readHealth: handleExtensionHealth,
+        // The bundle wrapper authorizes the union of live and report-backed episodes atomically.
+        readSnapshot: readSnapshotWithClinicalCribs,
+        readReport: handleReportRequest,
+        isCancelled: () => syncBundleCancellations.isCancelled(requestId),
+      })
+    );
+  } finally {
+    syncBundleCancellations.release(requestId);
+  }
+};
+
+const handleSyncBundleCancel = message => ({
+  ok: syncBundleCancellations.cancel(message.requestId),
+});
 
 const handleDeviceReportRequest = async args => {
   const result = await fetchDeviceEvidence(args);
@@ -1256,6 +1269,10 @@ const runtimeMessageRoutes = Object.freeze({
       'sync-bundle'
     ),
     'No se pudo capturar Ficha Médico y Gestión de Camas en una misma sincronización.'
+  ),
+  [RUNTIME_MESSAGES.SYNC_BUNDLE_CANCEL]: runtimeRoute(
+    message => handleSyncBundleCancel(message),
+    'No se pudo cancelar la captura sincronizada.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
     message => handleOpenEncounter(message.encId, message.routeHint),
