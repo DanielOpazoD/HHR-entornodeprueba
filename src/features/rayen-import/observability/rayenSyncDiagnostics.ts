@@ -7,6 +7,8 @@ import type {
 import type { ClinicalFillError } from '../contracts/clinicalFillContracts';
 import { logger } from '@/services/utils/loggerService';
 
+import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
+
 const rayenSyncLogger = logger.child('RayenSync');
 
 export type RayenSyncOperationalErrorKind =
@@ -163,6 +165,28 @@ export const reportRayenSyncTerminal = (
     outcome,
     ...(Number.isFinite(durationMs) ? { durationMs } : {}),
   };
+  // Production strips console output (`drop_console`), so a failed or partial run must also
+  // leave a durable, privacy-safe trace that the health dashboard and the external telemetry
+  // endpoint can see. Successes stay in the per-day history only.
+  if (outcome === 'failed' || outcome === 'partial') {
+    recordOperationalTelemetry({
+      category: 'integration',
+      status: outcome,
+      operation: 'rayen_sync_run',
+      ...(data.date ? { date: data.date } : {}),
+      issues: [data.failureReason ?? data.issueReason ?? outcome],
+      context: {
+        runId: run.id,
+        outcome,
+        ...(Number.isFinite(durationMs) ? { durationMs } : {}),
+        ...(data.failureReason ? { failureReason: data.failureReason } : {}),
+        ...(data.issueReason ? { issueReason: data.issueReason } : {}),
+        ...(data.errorKind ? { errorKind: data.errorKind } : {}),
+        ...(typeof data.issueCount === 'number' ? { issueCount: data.issueCount } : {}),
+        ...(typeof data.patientCount === 'number' ? { patientCount: data.patientCount } : {}),
+      },
+    });
+  }
   if (outcome === 'failed') {
     rayenSyncLogger.warn('run_terminal', payload);
     return;
