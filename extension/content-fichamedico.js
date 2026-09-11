@@ -59,7 +59,7 @@
       let settled = false;
 
       const onMessage = event => {
-        if (event.source !== window) return;
+        if (event.source !== window || event.origin !== window.location.origin) return;
         const d = event.data;
         if (!d || d.type !== 'RAYEN_EXT_READ_RESULT' || d.reqId !== reqId) return;
         cleanup();
@@ -98,7 +98,7 @@
       const reqId = 'r' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
       let settled = false;
       const onMessage = event => {
-        if (event.source !== window) return;
+        if (event.source !== window || event.origin !== window.location.origin) return;
         const d = event.data;
         if (!d || d.type !== resultType || d.reqId !== reqId) return;
         cleanup();

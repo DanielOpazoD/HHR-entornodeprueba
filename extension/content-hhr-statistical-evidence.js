@@ -8,7 +8,7 @@
   const resultType = 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT';
   const post = message => window.postMessage(message, window.location.origin);
   window.addEventListener('message', event => {
-    if (event.source !== window ||
+    if (event.source !== window || event.origin !== window.location.origin ||
         event.data?.type !== 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST') return;
     Promise.resolve().then(() => chrome.runtime.sendMessage({ type: requestType, encId: event.data.encId }))
       .then(response => post({

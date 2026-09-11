@@ -103,6 +103,7 @@ const createRelay = (documentGeneration = '') => {
     pageListeners.forEach(listener =>
       listener({
         source: windowStub,
+        origin: 'https://hospitalizado.rayensalud.cl',
         data: {
           type: 'RAYEN_GC_BRIDGE_STATUS_RESULT',
           reqId: request.reqId,
@@ -132,6 +133,7 @@ const createRelay = (documentGeneration = '') => {
     pageListeners.forEach(listener =>
       listener({
         source: windowStub,
+        origin: 'https://hospitalizado.rayensalud.cl',
         data: {
           type: resultType,
           reqId: request.reqId,

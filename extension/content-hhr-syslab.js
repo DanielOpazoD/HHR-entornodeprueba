@@ -79,7 +79,7 @@
   });
 
   window.addEventListener('message', event => {
-    if (event.source !== window) return;
+    if (event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     const route = data && routes[data.type];
     if (!route) return;
