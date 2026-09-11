@@ -93,6 +93,9 @@ node scripts/census-startup-performance-report.mjs \
 `CENSUS_PERF_SAMPLES` default 30; menos exige `CENSUS_PERF_SMOKE=1`. Todo smoke tiene
 `baselineValid:false`, `gate:not-baseline-smoke`; su éxito no reemplaza CI de medición.
 Dependencias de build y binarios Playwright deben estar instalados.
+`CENSUS_PERF_EXECUTABLE_PATH` permite seleccionar un Chromium local ya verificado;
+si no se define, CI conserva el ejecutable predeterminado de Playwright. No añade
+argumentos que debiliten aislamiento, cookies ni controles del navegador.
 
 ## Gates y comparación honesta
 

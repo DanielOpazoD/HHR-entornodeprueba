@@ -17,6 +17,9 @@ export default defineConfig({
   outputDir: 'test-results/census-performance',
   use: {
     ...devices['Desktop Chrome'],
+    launchOptions: process.env.CENSUS_PERF_EXECUTABLE_PATH
+      ? { executablePath: process.env.CENSUS_PERF_EXECUTABLE_PATH }
+      : undefined,
     baseURL: 'http://127.0.0.1:4318',
     timezoneId: 'Pacific/Easter',
     locale: 'es-CL',
