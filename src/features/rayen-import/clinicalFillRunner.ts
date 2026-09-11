@@ -51,7 +51,6 @@ const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 const READ_CONCURRENCY = 4;
-
 export { countClinicalFillEligiblePatients } from './domain/clinicalFillCandidates';
 export { createClinicalFillWatchdog } from './domain/clinicalFillWatchdog';
 
