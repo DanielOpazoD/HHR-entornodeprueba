@@ -49,7 +49,26 @@ describe('Netlify sensitive function auth governance', () => {
     expect(contents).toContain('isOriginAllowed');
     expect(contents).toContain('isRateLimited');
     expect(contents).toContain('parseOperationalTelemetryBody');
+    expect(contents).toContain('queue.enqueue');
+    expect(contents).toContain('queue.deliver');
+    expect(contents).not.toContain('sendCensusEmail');
     expect(contents).not.toContain('getFirebaseServer');
     expect(contents).not.toContain('firebase/firestore');
+  });
+  it('keeps the retry worker private and the store strongly consistent and conditional', () => {
+    const worker = readFileSync(
+      path.join(ROOT, 'netlify/functions/operational-telemetry-retry.ts'),
+      'utf8'
+    );
+    const store = readFileSync(
+      path.join(ROOT, 'netlify/functions/lib/telemetry-alerts/store.ts'),
+      'utf8'
+    );
+    expect(worker).toContain("schedule: '*/5 * * * *'");
+    expect(worker).not.toContain('path:');
+    expect(store).toContain("consistency: 'strong'");
+    expect(store).toContain('onlyIfNew: true');
+    expect(store).toContain('onlyIfMatch: etag');
+    expect(store).toContain('context.deploy.published');
   });
 });

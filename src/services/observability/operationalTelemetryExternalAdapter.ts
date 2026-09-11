@@ -34,11 +34,18 @@ const shouldSampleStatus = (status: OperationalTelemetryStatus, sampleRate: numb
   return Math.random() <= sampleRate;
 };
 
-const buildPayload = (event: OperationalTelemetryEvent): string =>
-  JSON.stringify({
+/**
+ * The recorded event still holds raw `Error.message` text and arbitrary context for the local
+ * Observability panel. Nothing of that may reach the network, so the shared sanitizer runs here,
+ * before the beacon is built, and the server runs it again on whatever arrives.
+ */
+const buildPayload = async (event: OperationalTelemetryEvent): Promise<string> => {
+  const { sanitizeOperationalTelemetryEvent } = await import('./operationalTelemetryPrivacy');
+  return JSON.stringify({
     source: 'hhr_operational_telemetry',
-    event,
+    event: sanitizeOperationalTelemetryEvent(event),
   });
+};
 
 const sendWithBeacon = (endpoint: string, payload: string): boolean => {
   if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') {
@@ -53,16 +60,15 @@ const sendWithBeacon = (endpoint: string, payload: string): boolean => {
 };
 
 const sendWithFetch = async (endpoint: string, payload: string): Promise<void> => {
-  if (typeof fetch !== 'function') {
-    return;
-  }
+  if (typeof fetch !== 'function') throw new Error('telemetry_transport_unavailable');
 
-  await fetch(endpoint, {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: payload,
     keepalive: true,
   });
+  if (!response.ok) throw new Error('telemetry_not_accepted');
 };
 
 export const dispatchOperationalTelemetryExternally = async (
@@ -76,15 +82,31 @@ export const dispatchOperationalTelemetryExternally = async (
     return false;
   }
 
-  const payload = buildPayload(event);
-  if (sendWithBeacon(config.endpoint, payload)) {
-    return true;
-  }
-
   try {
+    const payload = await buildPayload(event);
+    if (sendWithBeacon(config.endpoint, payload)) return true;
     await sendWithFetch(config.endpoint, payload);
     return true;
   } catch {
     return false;
   }
 };
+
+/**
+ * Controlled end-to-end check of the alert channel. It carries no incident and no context, and the
+ * alert mail announces itself as a PRUEBA CONTROLADA so nobody mistakes it for a real failure.
+ */
+export const dispatchOperationalTelemetryDeliveryProbe = (
+  config: OperationalTelemetryExternalConfig = resolveOperationalTelemetryExternalConfig()
+): Promise<boolean> =>
+  import('./operationalTelemetryPrivacy').then(({ OPERATIONAL_TELEMETRY_PROBE_OPERATION }) =>
+    dispatchOperationalTelemetryExternally(
+      {
+        category: 'integration',
+        status: 'failed',
+        operation: OPERATIONAL_TELEMETRY_PROBE_OPERATION,
+        timestamp: new Date().toISOString(),
+      },
+      config
+    )
+  );

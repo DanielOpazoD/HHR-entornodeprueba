@@ -20,6 +20,8 @@ interface SendCensusEmailParams {
   sender?: { name: string; email: string };
   /** Refresh token of the mailbox that owns `sender`; defaults to the institutional mailbox. */
   refreshToken?: string;
+  /** Operational delivery uses bounded requests and a stable diagnostic Message-ID. */
+  deliveryOptions?: { timeoutMs: number; messageId: string };
 }
 
 export const DEFAULT_GMAIL_SENDER = Object.freeze({
@@ -62,6 +64,18 @@ const buildMimeMessage = (params: SendCensusEmailParams) => {
     sender = DEFAULT_GMAIL_SENDER,
   } = params;
 
+  if (
+    /[\r\n]/.test(sender.name) ||
+    !/^[^\s<>@,;\r\n]+@[^\s<>@,;\r\n]+\.[^\s<>@,;\r\n]+$/.test(sender.email)
+  ) {
+    throw new Error('Remitente de correo inválido.');
+  }
+  if (
+    params.deliveryOptions &&
+    !/^<hhr-alert-[a-zA-Z0-9-]+@hospitalhangaroa\.cl>$/.test(params.deliveryOptions.messageId)
+  ) {
+    throw new Error('Referencia de correo inválida.');
+  }
   const boundary = '----=_Part_0_123456789.123456789';
   const mailSubject = subject || buildCensusEmailSubject(date);
   const baseBody = body || buildCensusEmailBody(date, nursesSignature, encryptionPin);
@@ -71,9 +85,10 @@ const buildMimeMessage = (params: SendCensusEmailParams) => {
     'Content-Type: multipart/mixed; boundary="' + boundary + '"',
     'MIME-Version: 1.0',
     'Content-Language: es-CL',
-    `From: "${sender.name.replace(/"/g, '')}" <${sender.email}>`,
+    `From: ${encodeHeaderUtf8(sender.name)} <${sender.email}>`,
     'To: ' + recipients.join(', '),
     'Subject: ' + encodeHeaderUtf8(mailSubject),
+    ...(params.deliveryOptions ? ['Message-ID: ' + params.deliveryOptions.messageId] : []),
     '',
     '--' + boundary,
     'Content-Type: text/plain; charset=UTF-8',
@@ -115,10 +130,13 @@ export const sendCensusEmail = async (params: SendCensusEmailParams) => {
   const mimeMessage = buildMimeMessage(params);
   const raw = base64UrlEncode(Buffer.from(mimeMessage));
 
-  const response = await gmail.users.messages.send({
-    userId: 'me',
-    requestBody: { raw },
-  });
+  const response = await gmail.users.messages.send(
+    {
+      userId: 'me',
+      requestBody: { raw },
+    },
+    params.deliveryOptions ? { timeout: params.deliveryOptions.timeoutMs, retry: false } : undefined
+  );
 
   return response.data;
 };
