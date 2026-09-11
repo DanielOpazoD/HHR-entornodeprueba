@@ -37,22 +37,40 @@
     return Object.freeze({ accept, contextFor, metadata, post: (payload, context) => windowRef.postMessage({ ...payload, ...metadata(context) }, windowRef.location.origin) });
   };
 
-  const createRelay = ({ chromeApi, runtimeMessages, extensionVersion }) => {
-    const context = new Promise(resolve => {
-      try {
-        chromeApi.runtime.sendMessage(
-          { type: runtimeMessages.EXTENSION_RUNTIME_CONTEXT_REQUEST },
-          response => {
-            const error = chromeApi.runtime.lastError;
-            resolve(!error && response && typeof response.runtimeGeneration === 'string'
-              ? response
-              : null);
-          }
-        );
-      } catch (_error) {
-        resolve(null);
+  const requestContext = ({ chromeApi, runtimeMessages }) => new Promise(resolve => {
+    try {
+      chromeApi.runtime.sendMessage(
+        { type: runtimeMessages.EXTENSION_RUNTIME_CONTEXT_REQUEST },
+        response => {
+          const error = chromeApi.runtime.lastError;
+          resolve(!error && response && typeof response.runtimeGeneration === 'string'
+            ? response
+            : null);
+        }
+      );
+    } catch (_error) {
+      resolve(null);
+    }
+  });
+
+  // A relay starts at document_start; if the service worker is asleep at that instant the first
+  // request fails and, without a retry, the tab stayed "desconectada" until a reload.
+  const createRelay = ({
+    chromeApi,
+    runtimeMessages,
+    extensionVersion,
+    maxAttempts = 3,
+    retryDelayMs = 250,
+    delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
+  }) => {
+    const context = (async () => {
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        const response = await requestContext({ chromeApi, runtimeMessages });
+        if (response) return response;
+        if (attempt < maxAttempts) await delay(retryDelayMs * attempt);
       }
-    });
+      return null;
+    })();
     const isCurrent = (data, runtimeGeneration) => Boolean(
       data &&
       data.injectVersion === extensionVersion &&

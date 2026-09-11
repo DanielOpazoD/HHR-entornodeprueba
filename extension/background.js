@@ -304,7 +304,8 @@ const healthReportCache = self.HhrHealthReportCacheRuntime.create({ readHealth: 
 const handleExtensionHealth = () => healthReportCache.read();
 const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
   chromeApi: chrome,
-  readHealth: handleExtensionHealth,
+  // Repair must probe the tabs it just opened; the 3 s cache would keep answering for the old ones.
+  readHealth: targets => readExtensionHealthUncached(targets),
 });
 const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }) });
 healthHeartbeat.start();

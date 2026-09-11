@@ -16,7 +16,7 @@
       }
     },
     "bridge-generation.js": {
-      "maxLines": 74,
+      "maxLines": 87,
       "hotspots": {}
     },
     "bridge-generation-main.js": {
