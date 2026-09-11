@@ -75,7 +75,8 @@ describe('extension heavy runtime loading', () => {
       'fichamedico-manual-patient-copy.js',
     ]);
     expect(uiEntry?.run_at).toBe('document_idle');
-    expect(uiEntry?.js?.[0]).toBe('hhr-ui.js');
+    // The deferred entry stays self-contained: the contract is loaded again before its callers.
+    expect(uiEntry?.js?.slice(0, 2)).toEqual(['message-contract.js', 'hhr-ui.js']);
     expect(scripts.indexOf('fichamedico-treating-physician-dom.js')).toBeLessThan(
       scripts.indexOf('fichamedico-treating-physician-sources.js')
     );

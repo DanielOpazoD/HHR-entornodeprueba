@@ -98,6 +98,7 @@
         "https://fichamedico.rayensalud.cl/*"
       ],
       "js": [
+        "message-contract.js",
         "hhr-ui.js",
         "hhr-center-styles.js",
         "hhr-center-shell-runtime.js",
