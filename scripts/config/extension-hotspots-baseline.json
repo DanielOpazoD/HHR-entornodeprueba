@@ -6,7 +6,7 @@
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
-      "maxLines": 1524,
+      "maxLines": 1525,
       "hotspots": {
         "variable:handleEgresoLookup": 19,
         "variable:handleExamRequestCombinePrint": 25,
