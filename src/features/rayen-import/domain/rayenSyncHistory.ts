@@ -10,6 +10,7 @@ import type {
   RayenStaffingSection,
   RayenSyncPerformance,
   RayenSyncPolicy,
+  RayenSyncReviewRequirement,
   RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
 import type { ClinicalFillError } from '../contracts/clinicalFillContracts';
@@ -32,6 +33,8 @@ export interface RayenSyncRun {
   by: string;
   source?: RayenSyncSource;
   policy?: RayenSyncPolicy;
+  /** Tightens `policy` for this attempt only; it can never authorize an unattended apply. */
+  reviewRequirement?: RayenSyncReviewRequirement;
   performance?: RayenSyncPerformance;
 }
 
@@ -68,6 +71,7 @@ export const buildAppliedRayenSyncEvent = (
   changes: buildRayenSyncChanges(diff),
   source: run.source,
   policy: run.policy,
+  reviewRequirement: run.reviewRequirement,
   performance: run.performance,
 });
 

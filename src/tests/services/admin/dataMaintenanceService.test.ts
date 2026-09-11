@@ -247,7 +247,9 @@ describe('dataMaintenanceService', () => {
         beds: expect.objectContaining({
           R1: expect.objectContaining({ patientName: 'Paciente Legacy' }),
         }),
-      })
+      }),
+      undefined,
+      { writeOrigin: 'backup_restore' }
     );
     expect(mockLogAuditEvent).toHaveBeenCalledWith(
       'admin@hanga.roa',

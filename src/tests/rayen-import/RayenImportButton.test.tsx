@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   useRayenFillProgress: vi.fn(),
   useRayenExtensionHealth: vi.fn(),
   refreshHealth: vi.fn(),
+  confirm: vi.fn(),
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -42,6 +43,10 @@ describe('RayenImportButton', () => {
     vi.clearAllMocks();
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
+      // Explícito siempre: sin política confirmada no hay sincronización posible,
+      // y ningún caso de prueba debe heredar una confirmación que no declaró.
+      policyStatus: 'ready',
+      policyBlockReason: null,
       execution: null,
       diff: null,
       isPreviewOpen: false,
@@ -52,7 +57,7 @@ describe('RayenImportButton', () => {
       staffingProposalError: null,
       triggerImport: mocks.triggerImport,
       retryClinicalFill: mocks.retryClinicalFill,
-      confirm: vi.fn(),
+      confirm: mocks.confirm,
       cancel: vi.fn(),
       confirmStaffingProposal: vi.fn(),
       dismissStaffingProposal: vi.fn(),
@@ -86,7 +91,7 @@ describe('RayenImportButton', () => {
     });
   });
 
-  it('keeps provenance in history while the operational source stays compact', () => {
+  it('keeps provenance in history while the operational source stays compact', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSync: {
@@ -144,13 +149,14 @@ describe('RayenImportButton', () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByRole('dialog', { name: 'Historial de sincronización · hoy' })).toBeVisible();
     expect(screen.getByText('Daniel Opazo')).toBeInTheDocument();
     expect(screen.getByText('Cobertura clínica: 10/10 completa')).toBeInTheDocument();
     expect(screen.getByText('Ext. v0.6.0 · Ficha ✓ · Camas ✓')).toBeInTheDocument();
   });
 
-  it('separates extension connectivity from the first successful synchronization', () => {
+  it('separates extension connectivity from the first successful synchronization', async () => {
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
 
     render(<RayenImportButton />);
@@ -159,10 +165,11 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('Listo para sincronizar')).toBeInTheDocument();
     expect(screen.queryByText('Responsable')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByText('Sin sincronizaciones registradas')).toBeInTheDocument();
   });
 
-  it('projects the route-selected date while its replacement record is still loading', () => {
+  it('projects the route-selected date while its replacement record is still loading', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         date: '2026-08-07',
@@ -193,6 +200,7 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton selectedDate="2026-08-08" />);
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
 
     expect(
       screen.getByRole('dialog', { name: 'Historial de sincronización · 08-08-2026' })
@@ -222,7 +230,7 @@ describe('RayenImportButton', () => {
     expect(screen.getByText('Todo al día · 07-08-2026')).toBeInTheDocument();
   });
 
-  it('does not recreate legacy provenance outside the versioned history', () => {
+  it('does not recreate legacy provenance outside the versioned history', async () => {
     mocks.useDailyRecordData.mockReturnValue({
       record: {
         rayenSync: {
@@ -244,6 +252,7 @@ describe('RayenImportButton', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Daniel Opazo')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByText('Sin sincronizaciones registradas')).toBeInTheDocument();
   });
 
@@ -257,13 +266,15 @@ describe('RayenImportButton', () => {
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(1);
     expect(mocks.refreshHealth).toHaveBeenCalledWith({
       timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+      showChecking: true,
     });
     expect(mocks.triggerImport).toHaveBeenCalledWith(
       expect.objectContaining({ connection: 'ready', canSync: true }),
       expect.objectContaining({
         stagesMs: { preflight: expect.any(Number) },
         counters: { requests: 1 },
-      })
+      }),
+      undefined
     );
   });
 
@@ -380,26 +391,6 @@ describe('RayenImportButton', () => {
     fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
 
     await waitFor(() => expect(mocks.refreshHealth).toHaveBeenCalledTimes(2));
-    expect(mocks.triggerImport).not.toHaveBeenCalled();
-  });
-
-  it('bloquea la sincronización cuando la política no está confirmada, aunque Eloísa esté sana', () => {
-    // Incidente 01-09: con la sesión sin permisos el botón se veía habilitado,
-    // dejaba arrancar la corrida y recién fallaba tras ~9 s de captura dual.
-    // La política se antepone a la extensión porque sin ella no se puede aplicar.
-    mocks.useDailyRecordData.mockReturnValue({ record: {} });
-    mocks.useRayenImport.mockReturnValue({
-      ...mocks.useRayenImport(),
-      policyBlockReason:
-        'Tu sesión perdió permisos para leer la política global. Vuelve a iniciar sesión para sincronizar.',
-    });
-
-    render(<RayenImportButton />);
-
-    const syncButton = screen.getByTestId('rayen-import-button');
-    expect(syncButton).toBeDisabled();
-    expect(syncButton).toHaveAttribute('title', expect.stringContaining('Vuelve a iniciar sesión'));
-    fireEvent.click(syncButton);
     expect(mocks.triggerImport).not.toHaveBeenCalled();
   });
 

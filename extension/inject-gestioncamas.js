@@ -20,7 +20,7 @@
   'use strict';
   if (window.__gcInjected) return;
   window.__gcInjected = true;
-  const INJECT_VERSION = '0.48.15';
+  const INJECT_VERSION = '0.48.19';
   const BACKEND_HINT = 'hospbackend.rayensalud.cl';
   const BRIDGE_REQUEST_TYPES = new Set(['RAYEN_GC_BRIDGE_STATUS_REQUEST', 'RAYEN_GC_CONNECTION_ATTEMPT', 'RAYEN_GC_LOOKUP_REQUEST', 'RAYEN_GC_FETCHINFO_REQUEST']);
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
@@ -146,6 +146,12 @@
     }
   };
   const normalizeRun = run => String(run || '').replace(/[^0-9kK]/g, '');
+  const currentPageState = () => {
+    const route = String(window.location.hash || window.location.pathname || '');
+    if (/authenticate\/login/i.test(route)) return { pageState: 'login', pageRoute: route };
+    if (capturedAuth) return { pageState: 'authenticated', pageRoute: route };
+    return { pageState: 'unknown', pageRoute: route };
+  };
 
   // Forward every SCALAR field except patient identifiers — that covers all the discharge
   // metadata (id, periods, status, destination/type ids, flags) without dumping PHI or the
@@ -209,8 +215,9 @@
     return out;
   };
 
+  const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
   window.addEventListener('message', async event => {
-    if (event.source !== window) return;
+    if (!isOwnMessage(event)) return;
     const d = event.data;
     const bridge = bridgeContextFor(d);
     if (!bridge) return;
@@ -226,6 +233,7 @@
       reply('RAYEN_GC_BRIDGE_STATUS_RESULT', {
         ready: bridge.current,
         reason: bridge.current ? 'connected' : 'outdated_tab',
+        ...currentPageState(),
       });
       return;
     }

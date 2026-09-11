@@ -1,4 +1,5 @@
 import React from 'react';
+import { normalizeHealthExpiry } from '../bridge/sourceHealthExpiry';
 import { ExternalLink, RefreshCw, Wrench } from 'lucide-react';
 import { requestRayenConnectionRepair } from '../bridge/connectionRepairChannel';
 import { requestGestionCamasConnect } from '../bridge/gestionCamasConnectChannel';
@@ -92,7 +93,10 @@ const SourceRow: React.FC<SourceRowProps> = ({ label, source, detail }) => (
 
 interface RayenConnectionMonitorProps {
   extension: RayenExtensionHealthState & {
-    refresh: (options?: { timeoutMs?: number }) => Promise<RayenExtensionHealthState>;
+    refresh: (options?: {
+      timeoutMs?: number;
+      showChecking?: boolean;
+    }) => Promise<RayenExtensionHealthState>;
   };
   working: boolean;
   lastSyncLine: React.ReactNode;
@@ -148,11 +152,21 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
     };
   }, [refreshExtension, open]);
 
-  const report = extension.report;
+  const report = extension.report ? normalizeHealthExpiry(extension.report, now) : null;
+  const expiredSource =
+    report?.fichaMedico.reason === 'session_expired'
+      ? 'fichaMedico'
+      : report?.gestionCamas.reason === 'session_expired'
+        ? 'gestionCamas'
+        : undefined;
+  const connection =
+    expiredSource && ['ready', 'degraded', 'blocked'].includes(extension.connection)
+      ? 'blocked'
+      : extension.connection;
   const fichaMedicoReady = report?.fichaMedico.status === 'ready';
   const gestionCamas = report?.gestionCamas;
   const recoveryAction = deriveRayenRecoveryAction({
-    connection: extension.connection,
+    connection,
     report,
     working,
   });
@@ -163,12 +177,12 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
     }
   }, [report]);
   const stateLabel = rayenSourceStateLabel(
-    extension.connection,
+    connection,
     fichaMedicoReady,
     working,
-    extension.blockedBy
+    expiredSource ?? extension.blockedBy
   );
-  const attention = !working && extension.connection !== 'ready';
+  const attention = !working && connection !== 'ready';
 
   const handleRefresh = async (): Promise<void> => {
     setBusy('refresh');
@@ -235,9 +249,9 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
     <div ref={containerRef} className="relative flex min-w-[210px] items-center gap-2">
       <span
         className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg border ${
-          working || extension.connection === 'checking'
+          working || connection === 'checking'
             ? 'border-teal-200 bg-teal-100 text-teal-700'
-            : extension.connection === 'ready'
+            : connection === 'ready'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
               : 'border-amber-200 bg-amber-50 text-amber-700'
         }`}
@@ -262,9 +276,9 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           <p className="text-[13px] font-bold leading-tight text-slate-800">Eloísa</p>
           <span
             className={`size-1.5 rounded-full ${
-              working || extension.connection === 'checking'
+              working || connection === 'checking'
                 ? 'animate-pulse bg-teal-500'
-                : extension.connection === 'ready'
+                : connection === 'ready'
                   ? 'bg-emerald-500'
                   : 'bg-amber-500'
             }`}

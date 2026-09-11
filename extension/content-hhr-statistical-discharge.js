@@ -5,7 +5,7 @@
   if (!runtimeMessages || !trustedOrigins.has(window.location.origin)) return;
   const post = message => window.postMessage(message, window.location.origin);
   window.addEventListener('message', event => {
-    if (event.source !== window) return;
+    if (event.source !== window || event.origin !== window.location.origin) return;
     if (event.data?.type !== 'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_REQUEST') return;
     Promise.resolve().then(() => chrome.runtime.sendMessage({
       type: runtimeMessages.STATISTICAL_DISCHARGE_REPORT_REQUEST,

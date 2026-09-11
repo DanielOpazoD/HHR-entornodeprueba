@@ -554,7 +554,6 @@
       refresh.addEventListener('click', load);
       load();
     };
-
     const renderLabRequestView = (root, encId) => {
       const main = root.querySelector('.hhr-center-main');
       if (!requestForms) return;
@@ -570,6 +569,7 @@
           <button class="hhr-center-action hhr-center-action-primary hhr-labreq-print" type="button" disabled>Imprimir solicitud</button>
         </div>
         <div class="hhr-center-content hhr-labreq-content">
+          <section class="hhr-labreq-patient" aria-labelledby="hhr-labreq-patient-title"><div class="hhr-labreq-patient-source"><strong id="hhr-labreq-patient-title">Datos del paciente</strong><label class="hhr-labreq-chip"><input type="radio" name="hhr-labreq-patient-source" value="current" ${/^\d+$/.test(String(encId || '')) ? 'checked' : 'disabled'}>Paciente de Eloísa</label><label class="hhr-labreq-chip"><input type="radio" name="hhr-labreq-patient-source" value="manual" ${/^\d+$/.test(String(encId || '')) ? '' : 'checked'}>Paciente nuevo</label></div><div class="hhr-labreq-patient-summary">${/^\d+$/.test(String(encId || '')) ? 'Cargando datos desde el episodio…' : 'Ingresa los datos del paciente nuevo.'}</div><div class="hhr-labreq-manual-fields" ${/^\d+$/.test(String(encId || '')) ? 'hidden' : ''}><label class="is-wide">Nombre y apellidos *<input data-manual="name" type="text" maxlength="160" autocomplete="off"></label><label>RUT<input data-manual="run" type="text" maxlength="16" autocomplete="off"></label><label>Fecha de nacimiento<input data-manual="birthDate" type="date"></label><label>Ficha<input data-manual="ficha" type="text" maxlength="40" autocomplete="off"></label><label class="is-wide">Diagnóstico<input data-manual="diagnosis" type="text" maxlength="180" autocomplete="off"></label></div></section>
           <div class="hhr-labreq-meta">
             <div class="hhr-labreq-meta-group" role="radiogroup" aria-label="Procedencia">
               <span class="hhr-labreq-meta-label">Procedencia</span>
@@ -612,36 +612,39 @@
       const printButton = main.querySelector('.hhr-labreq-print');
       const feedback = main.querySelector('.hhr-labreq-feedback');
       const othersInput = main.querySelector('.hhr-labreq-otros');
-      let patientData = null;
-      let patientViewData = null;
-
+      const patientSummary = main.querySelector('.hhr-labreq-patient-summary'), manualFields = main.querySelector('.hhr-labreq-manual-fields'); let patientData = null, patientViewData = null;
       main.querySelector('.hhr-flow-tabs [data-flow="results"]').addEventListener('click', () => {
         runClinicalTransition(root, () => renderLabCenter(root, encId));
       });
       const selectedKeys = () => Array.from(main.querySelectorAll('.hhr-labreq-exam input:checked'))
         .map(input => input.dataset.key);
+      const manualValue = key => main.querySelector(`[data-manual="${key}"]`).value.trim();
+      const usesManualPatient = () => main.querySelector('input[name="hhr-labreq-patient-source"]:checked')?.value === 'manual';
+      const printablePatient = () => usesManualPatient() ? manualValue('name') ? { name: manualValue('name'), run: manualValue('run'), birthDate: manualValue('birthDate'), diagnosis: manualValue('diagnosis'), ficha: manualValue('ficha') } : null : patientData && { name: patientData.name || '', run: patientData.formattedRun || patientData.run || '', birthDate: patientViewData ? patientViewData.nacimiento : '', diagnosis: patientData.diagnosis || '', ficha: '' };
       const updateCount = () => {
         const count = selectedKeys().length + (othersInput.value.trim() ? 1 : 0);
         counter.textContent = count === 1 ? '1 examen seleccionado' : count + ' exámenes seleccionados';
-        printButton.disabled = !patientData || count === 0;
+        printButton.disabled = !printablePatient();
       };
       main.querySelector('.hhr-center-content').addEventListener('change', updateCount);
       main.querySelector('.hhr-center-content').addEventListener('input', updateCount);
-
+      main.querySelectorAll('input[name="hhr-labreq-patient-source"]').forEach(input => {
+        input.addEventListener('change', () => {
+          manualFields.hidden = !usesManualPatient();
+          patientSummary.textContent = usesManualPatient() ? 'Ingresa al menos el nombre. Puedes imprimir la orden sin marcar exámenes.' : patientData ? `${patientData.name || 'Paciente'} · ${patientData.formattedRun || patientData.run || 'RUT no informado'}` : 'Cargando datos desde el episodio…'; updateCount();
+        });
+      });
       printButton.addEventListener('click', () => {
-        if (!patientData) return;
+        const patient = printablePatient();
+        if (!patient) return;
         const fonasa = main.querySelector('input[name="hhr-labreq-fonasa"]:checked');
         const procedencia = main.querySelector('input[name="hhr-labreq-procedencia"]:checked');
         let logoUrl = '';
         try { logoUrl = chrome.runtime.getURL('hhr-logo.svg'); } catch (_error) {}
         const html = requestForms.buildLabRequestPrintHtml({
-          patient: {
-            name: patientData.name || '',
-            run: patientData.formattedRun || patientData.run || '',
-            birthDate: patientViewData ? patientViewData.nacimiento : '',
-          },
-          diagnosis: patientData.diagnosis || '',
-          ficha: '',
+          patient: { name: patient.name, run: patient.run, birthDate: patient.birthDate && requestForms.formatDateCL ? requestForms.formatDateCL(patient.birthDate) : patient.birthDate },
+          diagnosis: patient.diagnosis,
+          ficha: patient.ficha,
           procedencia: procedencia ? procedencia.value : 'Hospitalización',
           fonasaLevel: fonasa ? fonasa.value : '',
           prais: main.querySelector('.hhr-labreq-prais').checked,
@@ -671,10 +674,8 @@
         window.setTimeout(openPrintDialog, 300);
         setLiveRegion(feedback, 'Se abrió la solicitud con el diálogo de impresión.');
       });
-
       if (!/^\d+$/.test(String(encId || ''))) {
-        setLiveRegion(feedback,
-          'Selecciona un paciente con «Cambiar paciente» en la franja superior para autocompletar la solicitud.');
+        setLiveRegion(feedback, 'Paciente nuevo: completa el nombre y registra sólo los datos disponibles.');
         return;
       }
       fetchPatientHeaderView(encId).then(result => {
@@ -685,13 +686,12 @@
         }
         patientData = result.patient;
         patientViewData = result.view;
+        if (!usesManualPatient()) patientSummary.textContent = `${patientData.name || 'Paciente'} · ${patientData.formattedRun || patientData.run || 'RUT no informado'}`;
         updateCount();
       });
       updateCount();
     };
-
     return Object.freeze({ renderLabCenter, renderLabRequestView });
   };
-
   globalThis.HhrLabCenterRuntime = Object.freeze({ create });
 })();

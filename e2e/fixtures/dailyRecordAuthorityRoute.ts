@@ -32,6 +32,7 @@ export interface PendingAuthorityCall {
 
 export interface DailyRecordAuthorityRouteController {
   nextCall: () => Promise<PendingAuthorityCall>;
+  queuedCallCount: () => number;
 }
 
 const clone = <T>(value: T): T => structuredClone(value);
@@ -211,6 +212,7 @@ export const installDailyRecordAuthorityRoute = async (
   });
 
   return {
+    queuedCallCount: () => queuedCalls.length,
     nextCall: () => {
       const queued = queuedCalls.shift();
       if (queued) return Promise.resolve(queued);

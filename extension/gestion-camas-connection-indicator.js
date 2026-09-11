@@ -67,7 +67,7 @@
       const model = actionModel.derive(report);
       host.dataset.tone = model.tone;
       part('.summary').textContent = model.summary;
-      part('.trigger').setAttribute('aria-label', 'Extensión HHR: ' + model.summary);
+      part('.trigger').setAttribute('aria-label', 'Extensión Eloísa: ' + model.summary);
       part('.version').textContent = report && report.version ? 'v' + report.version : 'sin reporte';
       renderSource('ficha', report && report.fichaMedico);
       renderSource('camas', report && report.gestionCamas);
@@ -83,7 +83,7 @@
       part('.summary').textContent = 'Pestaña desactualizada';
       part('.trigger').setAttribute(
         'aria-label',
-        'Extensión HHR: pestaña desactualizada; abre una pestaña nueva'
+        'Extensión Eloísa: pestaña desactualizada; abre una pestaña nueva'
       );
       part('.version').textContent = 'sin enlace';
       part('.primary').hidden = true;
@@ -212,13 +212,13 @@
       host = documentRef.createElement('aside');
       host.id = HOST_ID;
       host.dataset.tone = 'checking';
-      host.setAttribute('aria-label', 'Estado de conexión de la extensión HHR');
+      host.setAttribute('aria-label', 'Estado de conexión de la extensión Eloísa');
       shadow = host.attachShadow({ mode: 'open' });
       shadow.innerHTML = `
         <style>${css}</style>
         <button class="trigger" type="button" aria-expanded="false" aria-controls="hhr-gc-connection-panel">
           <span class="brand" aria-hidden="true"><img alt=""><span class="dot"></span></span>
-          <span class="copy"><strong>HHR</strong><span class="summary">Comprobando…</span></span>
+          <span class="copy"><strong>Eloísa</strong><span class="summary">Comprobando…</span></span>
         </button>
         <section class="panel" id="hhr-gc-connection-panel" aria-label="Conexiones Eloísa" hidden>
           <div class="head"><strong>Conexiones Eloísa</strong><span class="version">sin reporte</span></div>

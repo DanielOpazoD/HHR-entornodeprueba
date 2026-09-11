@@ -5,15 +5,12 @@ import {
   resolveClinicalDayBounds,
 } from './clinicalDayScheduleUtils';
 
-export const resolveCurrentClinicalDay = (now: Date = new Date()): string => {
-  const currentCalendarDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
-    now.getDate()
-  ).padStart(2, '0')}`;
-  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(
-    now.getMinutes()
-  ).padStart(2, '0')}`;
+import { calendarStampInClinicalTimeZone } from './clinicalTimeZone';
 
-  return resolveClinicalDayForDateTime(currentCalendarDate, currentTime) ?? currentCalendarDate;
+/** Clinical day (08:00 weekday / 09:00 weekend rollover) resolved on the hospital wall clock. */
+export const resolveCurrentClinicalDay = (now: Date = new Date()): string => {
+  const { iso, hhmm } = calendarStampInClinicalTimeZone(now);
+  return resolveClinicalDayForDateTime(iso, hhmm) ?? iso;
 };
 
 export const resolveClinicalDayForDateTime = (

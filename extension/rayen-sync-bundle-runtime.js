@@ -45,7 +45,13 @@
       return { error: snapshotResult && snapshotResult.error || 'Ficha Médico no entregó el censo.' };
     }
     if (snapshot.isComplete !== true) {
-      return { error: 'Ficha Médico entregó un censo parcial; no se inició la sincronización.' };
+      const coverage = snapshot.clinicalCoverage;
+      const detail = coverage && Number(coverage.errors) > 0
+        ? ` Fallaron lecturas clínicas de ${coverage.errors} de ${coverage.total} pacientes.`
+        : '';
+      return {
+        error: `Ficha Médico entregó un censo parcial; no se inició la sincronización.${detail}`,
+      };
     }
     if (!reportResult || reportResult.ok !== true || !Array.isArray(reportResult.rows)) {
       return {

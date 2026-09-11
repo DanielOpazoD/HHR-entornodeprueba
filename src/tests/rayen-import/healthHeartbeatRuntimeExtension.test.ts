@@ -43,7 +43,7 @@ const createFixture = (overrides: Record<string, unknown> = {}) => {
   const runtime = runtimeModule.create({
     chromeApi,
     readHealth,
-    hhrMatchPatterns: PATTERNS,
+    targetMatchPatterns: PATTERNS,
     log: vi.fn(),
     ...overrides,
   });

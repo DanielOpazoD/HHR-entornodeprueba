@@ -337,6 +337,13 @@ export const useRayenImport = (selectedCensusDate?: string) => {
   return useMemo(
     () => ({
       mode,
+      /**
+       * Estado real de la política global. Ningún intento (manual o automático)
+       * puede consumirse antes de `ready`: la suscripción parte en `loading` y
+       * la compuerta de captura rechaza todo lo que llegue antes, gastando la
+       * solicitud de arranque del día en un error inmediato.
+       */
+      policyStatus,
       /** Razón por la que la política impide sincronizar, o null. */
       policyBlockReason: resolveRayenPolicyBlockMessage(policyStatus),
       execution,

@@ -111,7 +111,10 @@ const initialState: RayenImportState = {
 
 const renderPreview = (
   mode: 'auto' | 'preview',
-  { monotonicNow = Date.now }: { monotonicNow?: () => number } = {}
+  {
+    monotonicNow = Date.now,
+    reviewRequirement,
+  }: { monotonicNow?: () => number; reviewRequirement?: 'day_bootstrap' } = {}
 ) => {
   const setState = vi.fn();
   const dispatchExecution = vi.fn();
@@ -153,6 +156,7 @@ const renderPreview = (
     startedAt: '2026-08-25T10:00:00.000Z',
     by: 'Operador HHR',
     policy: { mode, clinicalBatchMode: 'enforced', revision: 1 },
+    reviewRequirement,
   };
   const hook = renderHook(() =>
     useRayenSnapshotPreview({
@@ -224,6 +228,28 @@ describe('useRayenSnapshotPreview structural persistence routes', () => {
       isPreviewOpen: false,
       isBusy: false,
       hasSkippedItems: false,
+    });
+    expect(harness.failRun).not.toHaveBeenCalled();
+  });
+
+  it('keeps a day created from Eloisa under human review despite the automatic policy', async () => {
+    mocks.prepareRayenStructuralPlan.mockResolvedValue({
+      diff: autoApplyDiff,
+      replanDiff: vi.fn(),
+    });
+    const harness = renderPreview('auto', { reviewRequirement: 'day_bootstrap' });
+
+    await act(async () => harness.result.current(snapshot, {} as never, 'run-1', 'request-1'));
+
+    expect(mocks.applyConfirmedRayenImport).not.toHaveBeenCalled();
+    expect(harness.dispatchExecution).not.toHaveBeenCalledWith(
+      expect.objectContaining({ stage: { type: 'persisting_structure' } })
+    );
+    expect(appliedState(harness.setState)).toMatchObject({
+      diff: autoApplyDiff,
+      isPreviewOpen: true,
+      result: null,
+      error: null,
     });
     expect(harness.failRun).not.toHaveBeenCalled();
   });

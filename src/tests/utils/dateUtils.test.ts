@@ -38,9 +38,16 @@ describe('dateUtils', () => {
   describe('getTodayISO', () => {
     it('should return today date in YYYY-MM-DD format', () => {
       vi.useFakeTimers();
-      const date = new Date(2024, 11, 26); // Dec 26, 2024
-      vi.setSystemTime(date);
+      vi.setSystemTime(new Date('2024-12-26T15:00:00.000Z')); // Dec 26, 10:00 in Rapa Nui
       expect(getTodayISO()).toBe('2024-12-26');
+      vi.useRealTimers();
+    });
+
+    it('follows the hospital calendar, not the mainland device clock', () => {
+      vi.useFakeTimers();
+      // Santiago midnight of Dec 26 is still Dec 25 22:00 in Rapa Nui.
+      vi.setSystemTime(new Date('2024-12-26T03:00:00.000Z'));
+      expect(getTodayISO()).toBe('2024-12-25');
       vi.useRealTimers();
     });
   });
@@ -91,7 +98,7 @@ describe('dateUtils', () => {
   describe('isFutureDate', () => {
     beforeEach(() => {
       vi.useFakeTimers();
-      vi.setSystemTime(new Date(2024, 11, 25)); // Dec 25, 2024
+      vi.setSystemTime(new Date('2024-12-25T15:00:00.000Z')); // Dec 25, 10:00 in Rapa Nui
     });
     afterEach(() => {
       vi.useRealTimers();
@@ -200,14 +207,19 @@ describe('dateUtils', () => {
   });
 
   describe('resolveCurrentClinicalDay', () => {
-    it('uses the previous clinical day before the weekday 08:00 cutoff', () => {
-      expect(resolveCurrentClinicalDay(new Date(2026, 3, 22, 6, 59))).toBe('2026-04-21');
-      expect(resolveCurrentClinicalDay(new Date(2026, 3, 22, 8, 0))).toBe('2026-04-22');
+    it('uses the Rapa Nui weekday cutoff independently of the browser time zone', () => {
+      expect(resolveCurrentClinicalDay(new Date('2026-04-22T12:59:00.000Z'))).toBe('2026-04-21');
+      expect(resolveCurrentClinicalDay(new Date('2026-04-22T14:00:00.000Z'))).toBe('2026-04-22');
     });
 
     it('uses the previous clinical day before the non-business 09:00 cutoff', () => {
-      expect(resolveCurrentClinicalDay(new Date(2024, 11, 28, 8, 59))).toBe('2024-12-27');
-      expect(resolveCurrentClinicalDay(new Date(2024, 11, 28, 9, 0))).toBe('2024-12-28');
+      expect(resolveCurrentClinicalDay(new Date('2024-12-28T13:59:00.000Z'))).toBe('2024-12-27');
+      expect(resolveCurrentClinicalDay(new Date('2024-12-28T14:00:00.000Z'))).toBe('2024-12-28');
+    });
+
+    it('does not advance with a mainland Chile browser before the Rapa Nui handoff', () => {
+      expect(resolveCurrentClinicalDay(new Date('2026-09-10T12:33:35.000Z'))).toBe('2026-09-09');
+      expect(resolveCurrentClinicalDay(new Date('2026-09-10T13:00:00.000Z'))).toBe('2026-09-10');
     });
   });
 

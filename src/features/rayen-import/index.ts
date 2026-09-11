@@ -73,10 +73,7 @@ export type {
   RayenPatientDocument,
   RayenPatientDocumentOpenResult,
 } from './bridge/clinicalPanelBridge';
-export {
-  requestClinicalPanel,
-  requestPatientDocumentOpen,
-} from './bridge/clinicalPanelBridge';
+export { requestClinicalPanel, requestPatientDocumentOpen } from './bridge/clinicalPanelBridge';
 export type {
   RayenHospitalizationDocumentType,
   RayenHospitalizationEpisode,
@@ -110,6 +107,8 @@ export type {
   ClinicalPanelCareDay,
 } from './mapping/parseClinicalCarePlan';
 export { parseClinicalPanel } from './mapping/parseClinicalPanel';
+export { requestClinicalAction } from './bridge/clinicalActionsBridge';
+export type { ClinicalActionResult, ClinicalAntecedentEntry } from './bridge/clinicalActionsBridge';
 export { mergeScaleSources } from './mapping/mergeScaleSources';
 export { parseVitalSigns, latestVitalsAsOf } from './mapping/parseVitalSigns';
 export { mergeReportVitals } from './domain/mergeReportVitals';

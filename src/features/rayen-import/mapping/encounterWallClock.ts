@@ -1,11 +1,12 @@
 import { buildSortableLocalTimestamp, parseStrictIsoInstant } from './localTimestamp';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 /** Converts an absolute instant to the sortable wall clock used by Rayen's Rapa Nui reports. */
 export const absoluteInstantInRapaNui = (raw: string | undefined): string | null => {
   const instant = parseStrictIsoInstant((raw ?? '').trim());
   if (!instant) return null;
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Pacific/Easter',
+    timeZone: CLINICAL_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

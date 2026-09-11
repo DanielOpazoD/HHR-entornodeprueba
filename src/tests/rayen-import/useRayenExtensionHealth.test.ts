@@ -71,6 +71,20 @@ describe('deriveHealthState', () => {
     expectConnection(deriveHealthState(null, 'Sin extensión.'), 'offline', false);
   });
 
+  it('explica cuando Gestión de Camas funciona solo en segundo plano', () => {
+    const state = deriveHealthState(
+      makeReport({
+        gestionCamas: {
+          status: 'ready',
+          message: 'API disponible.',
+          pageState: 'login',
+        },
+      })
+    );
+    expectConnection(state, 'ready', true);
+    expect(state.message).toContain('disponible en segundo plano');
+  });
+
   it('bloquea el arranque cuando la sesión de Gestión de Camas está por vencer', () => {
     const expiring = deriveHealthState(
       makeReport({
@@ -264,6 +278,44 @@ describe('useRayenExtensionHealth', () => {
       await Promise.resolve();
     });
     expect(result.current.connection).toBe('ready');
+  });
+
+  it('mantiene visible una conexión sana durante refrescos pasivos y reserva checking al preflight', async () => {
+    let resolvePassive!: (value: RayenExtensionHealthCheck) => void;
+    let resolvePreflight!: (value: RayenExtensionHealthCheck) => void;
+    mocks.requestHealth
+      .mockResolvedValueOnce({ report: makeReport() })
+      .mockImplementationOnce(
+        () => new Promise<RayenExtensionHealthCheck>(resolve => (resolvePassive = resolve))
+      )
+      .mockImplementationOnce(
+        () => new Promise<RayenExtensionHealthCheck>(resolve => (resolvePreflight = resolve))
+      );
+
+    const { result } = renderHook(() => useRayenExtensionHealth());
+    await act(async () => Promise.resolve());
+    expectConnection(result.current, 'ready', true);
+
+    let passiveRefresh!: Promise<RayenExtensionHealthState>;
+    act(() => {
+      passiveRefresh = result.current.refresh();
+    });
+    expectConnection(result.current, 'ready', true);
+    await act(async () => {
+      resolvePassive({ report: makeReport() });
+      await passiveRefresh;
+    });
+
+    let preflightRefresh!: Promise<RayenExtensionHealthState>;
+    act(() => {
+      preflightRefresh = result.current.refresh({ showChecking: true });
+    });
+    expectConnection(result.current, 'checking', true);
+    await act(async () => {
+      resolvePreflight({ report: makeReport() });
+      await preflightRefresh;
+    });
+    expectConnection(result.current, 'ready', true);
   });
 
   it('vence automáticamente la señal y consulta de nuevo al volver a primer plano o recuperar red', async () => {

@@ -1,6 +1,7 @@
 import type { RayenImportPolicy } from '../settings/rayenImportSettings';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
-export const RAYEN_SYNC_TIME_ZONE = 'Pacific/Easter' as const;
+export const RAYEN_SYNC_TIME_ZONE = CLINICAL_TIME_ZONE;
 
 export type RayenSyncStage =
   | { type: 'preparing_context' }

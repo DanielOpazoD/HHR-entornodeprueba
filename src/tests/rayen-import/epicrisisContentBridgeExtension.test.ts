@@ -35,7 +35,7 @@ describe('HHR epicrisis content bridge', () => {
     'https://hhr-entornodeprueba.vercel.app',
   ])('forwards only the download contract from trusted HHR origin %s', async origin => {
     let onMessage:
-      | ((event: { source: unknown; data: Record<string, unknown> }) => void)
+      | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)
       | undefined;
     const postMessage = vi.fn();
     const sendMessage = vi.fn(async () => ({
@@ -63,6 +63,7 @@ describe('HHR epicrisis content bridge', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: {
         type: 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST',
         reqId: 'request-1',

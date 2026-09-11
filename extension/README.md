@@ -309,6 +309,21 @@ actual no está autorizado; la extensión no intenta eludir esa autorización.
 
 ## Pendiente / a confirmar con datos reales
 
+- Antecedentes (v0.48.19): el panel HHR consulta HCC de forma efímera, resuelve la identidad
+  desde el episodio y muestra atenciones de los últimos 35 meses, como el visor oficial
+  (tres años completos provocan el rechazo HCC 20 por límite de 36 meses). El detalle ambulatorio se
+  valida contra el listado del mismo paciente. Las evoluciones ambulatorias parten desplegadas,
+  sobreviven al cambio de pestaña y sólo las atenciones nuevas se completan en segundo plano. Los
+  adjuntos combinan el contenedor, `PathAzure` y la firma dentro de la extensión, sin entregar la
+  URL temporal a HHR. El contrato se contrastó con una captura y una ficha del entorno de prueba;
+  falta confirmar variantes de atenciones secundarias. Los antecedentes sólo se conservan en la
+  memoria de la pestaña para evitar recargas visibles; no se persisten ni se envían URLs firmadas
+  a HHR/Firestore.
+- El permiso exacto `https://saludteintegrachileapi.rayensalud.cl/*` habilita las lecturas del visor
+  HCC. Owner: runtime de Antecedentes; rollback: retirar la pestaña, ruta y permiso en conjunto.
+  La línea base registra únicamente los módulos nuevos de lectura y detalle/adjuntos;
+  los presupuestos de archivos existentes no aumentan.
+
 - Cómo aparece un paciente **CMA** en el encounter API (servicio/cama) — el `bedMapping` lo maneja por
   prefijo `CMA`, pero conviene verlo con un caso real.
 - La representación de un **egresado** (alta / CMA / traslado) — la pestaña de egresos estaba vacía.

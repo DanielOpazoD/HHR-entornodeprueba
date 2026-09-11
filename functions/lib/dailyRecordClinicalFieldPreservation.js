@@ -94,7 +94,26 @@ const isRayenClinicalWriteFenceActive = policySnapshot => {
   return policy.schemaVersion === 2;
 };
 
+const BACKUP_RESTORE_ORIGIN = 'backup_restore';
+
+/**
+ * The fence protects clinical fields that already live in the authoritative remote day. When an
+ * administrator restores a backup into a day that no longer exists there is nothing remote to
+ * protect: stripping the fields would silently discard the only surviving copy of the vitals,
+ * devices and scales. Every other create path (blank day, copy from previous day, nurse writes)
+ * keeps the fence so the Rayen batch remains the single clinical authority.
+ */
+const isAdminBackupRestoreOfMissingDay = ({ snapshot, origin, role }) =>
+  snapshot?.exists !== true && origin === BACKUP_RESTORE_ORIGIN && role === 'admin';
+
+const shouldPreserveRayenClinicalFields = ({ policySnapshot, snapshot, origin, role }) =>
+  isRayenClinicalWriteFenceActive(policySnapshot) &&
+  !isAdminBackupRestoreOfMissingDay({ snapshot, origin, role });
+
 module.exports = {
+  BACKUP_RESTORE_ORIGIN,
+  isAdminBackupRestoreOfMissingDay,
+  shouldPreserveRayenClinicalFields,
   RAYEN_CLINICAL_FIELDS,
   RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
   RAYEN_MANUALLY_MANAGED_DEVICE_FIELDS,

@@ -133,6 +133,30 @@ describe('Rayen synchronized source bundle', () => {
     });
   });
 
+  it('explains per-patient clinical read failures without applying partial data', async () => {
+    await expect(
+      capture({
+        readSnapshot: vi.fn().mockResolvedValue({
+          snapshot: {
+            ...snapshot,
+            isComplete: false,
+            clinicalCoverage: {
+              total: 18,
+              completed: 16,
+              errors: 2,
+              headerErrors: 1,
+              diagnosisErrors: 1,
+              isolationErrors: 0,
+            },
+          },
+        }),
+      })
+    ).resolves.toEqual({
+      error:
+        'Ficha Médico entregó un censo parcial; no se inició la sincronización. Fallaron lecturas clínicas de 2 de 18 pacientes.',
+    });
+  });
+
   it('rejects different facilities and temporally torn reads', async () => {
     await expect(
       capture({

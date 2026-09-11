@@ -36,8 +36,21 @@ import {
   assertNoSamePathRemoteMutation,
   hasRemoteAppliedMutation,
 } from '@/services/storage/sync/firestoreSyncConflictPolicy';
+import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 
 const STRICT_REMOTE_DRIFT_TOLERANCE_MS = 0;
+
+const runE2ESyncTransport = async (task: SyncTask): Promise<boolean> => {
+  if (!isE2ERuntimeEnabled() || typeof window === 'undefined') return false;
+  const handler = (
+    window as Window & {
+      __HHR_E2E_RUN_SYNC_TASK__?: (task: SyncTask) => Promise<void>;
+    }
+  ).__HHR_E2E_RUN_SYNC_TASK__;
+  if (!handler) return false;
+  await handler(task);
+  return true;
+};
 
 /**
  * Blocks writes when the remote record is newer than the local copy. Without
@@ -171,6 +184,7 @@ const syncDailyRecord = async (
   record: DailyRecord,
   runtime: FirestoreServiceRuntimePort
 ): Promise<void> => {
+  if (await runE2ESyncTransport(task)) return;
   await measureRepositoryOperation(
     'syncQueue.writeDailyRecord',
     async () => {

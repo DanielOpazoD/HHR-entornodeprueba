@@ -405,9 +405,16 @@ describe('intentionalBedClearController', () => {
       },
     });
 
-    const expectedPatch = { 'beds.R1': cleared.beds.R1 };
+    // The server owns slot metadata; an old local location is not an occupant.
+    const expectedPatch = {
+      'beds.R1': { ...cleared.beds.R1, location: 'Ubicación local antigua' },
+    };
 
     expect(isIntentionalBedClearAlreadyApplied(intent, cleared, expectedPatch)).toBe(true);
+    const sparse = structuredClone(cleared);
+    Reflect.deleteProperty(sparse.beds.R1, 'devices');
+    Reflect.deleteProperty(sparse.beds.R1, 'location');
+    expect(isIntentionalBedClearAlreadyApplied(intent, sparse, expectedPatch)).toBe(true);
     expect(isIntentionalBedClearAlreadyApplied(intent, clearedWithCrib, expectedPatch)).toBe(false);
 
     const residualClinicalState = {

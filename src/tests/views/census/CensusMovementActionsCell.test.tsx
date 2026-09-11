@@ -1,8 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CensusMovementActionsCell } from '@/features/census/components/CensusMovementActionsCell';
+import { resolveMenuPosition } from '@/features/census/components/CensusMovementActionsMenu';
 
 describe('CensusMovementActionsCell', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it('renders movement actions and calls handlers by title', () => {
     const onUndo = vi.fn();
     const onEdit = vi.fn();
@@ -74,5 +80,74 @@ describe('CensusMovementActionsCell', () => {
 
     fireEvent.click(menuItem);
     expect(onConvert).toHaveBeenCalledTimes(1);
+  });
+
+  it('calculates menu position above the trigger when there is no room below', () => {
+    const anchorRect = new DOMRect(620, 700, 40, 32);
+    const menuRect = new DOMRect(0, 0, 160, 180);
+
+    const position = resolveMenuPosition(anchorRect, menuRect, {
+      width: 1280,
+      height: 768,
+    });
+
+    expect(position.top).toBe('516px');
+    expect(position.right).toBe('616px');
+  });
+
+  it('remeasures the mounted portal before placing the menu near the viewport bottom', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      if (this.querySelector('[title="Abrir menú de acciones"]')) {
+        return new DOMRect(620, 700, 40, 32);
+      }
+      if (this.getAttribute('role') === 'menu') {
+        return new DOMRect(0, 0, 160, 180);
+      }
+      return new DOMRect();
+    });
+
+    vi.stubGlobal('innerWidth', 1280);
+    vi.stubGlobal('innerHeight', 768);
+
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <CensusMovementActionsCell
+              presentation="menu"
+              actions={[
+                {
+                  kind: 'convert',
+                  title: 'Convertir a CMA',
+                  className: 'convert',
+                  onClick: vi.fn(),
+                },
+              ]}
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    fireEvent.click(screen.getByTitle('Abrir menú de acciones'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('menu')).toHaveStyle({ top: '516px' });
+    });
+  });
+
+  it('keeps menu anchored to the right when there is room in viewport', () => {
+    const anchorRect = new DOMRect(0, 120, 40, 32);
+    const menuRect = new DOMRect(0, 0, 160, 180);
+
+    const position = resolveMenuPosition(anchorRect, menuRect, {
+      width: 1280,
+      height: 768,
+    });
+
+    expect(position.top).toBe('156px');
+    expect(position.right).toBe('1236px');
   });
 });

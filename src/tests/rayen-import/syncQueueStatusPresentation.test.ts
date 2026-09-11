@@ -3,8 +3,10 @@ import {
   buildSyncQueueChipModel,
   listQuarantinedOperations,
   SYNC_QUEUE_CHIP_PENDING_VISIBILITY_MS,
+  SYNC_QUEUE_STUCK_PENDING_MS,
 } from '@/features/rayen-import/components/syncQueueStatusPresentation';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
+import { SYNC_QUEUE_RUNTIME_THRESHOLDS } from '@/services/storage/sync/syncQueueOperationalBudgets';
 
 const makeStats = (overrides: Partial<SyncQueueStats> = {}): SyncQueueStats => ({
   pending: 0,
@@ -17,6 +19,12 @@ const makeStats = (overrides: Partial<SyncQueueStats> = {}): SyncQueueStats => (
 });
 
 describe('syncQueueStatusPresentation', () => {
+  it('comparte el umbral de atasco con el presupuesto operacional', () => {
+    expect(SYNC_QUEUE_STUCK_PENDING_MS).toBe(
+      SYNC_QUEUE_RUNTIME_THRESHOLDS.warningOldestPendingAgeMs
+    );
+  });
+
   it('permanece oculto en operación normal, incluso con una escritura en vuelo', () => {
     expect(buildSyncQueueChipModel(makeStats()).tone).toBe('hidden');
     // Un guardado recién encolado (pre-outbox hold) no debe hacer parpadear la barra.
@@ -36,6 +44,19 @@ describe('syncQueueStatusPresentation', () => {
       makeStats({ pending: 1, retrying: 1, oldestPendingAgeMs: 1_000 })
     );
     expect(retrying.tone).toBe('syncing');
+  });
+
+  it('deja de llamar avance a una espera que superó el presupuesto operacional', () => {
+    const model = buildSyncQueueChipModel(
+      makeStats({ pending: 1, oldestPendingAgeMs: SYNC_QUEUE_STUCK_PENDING_MS })
+    );
+
+    expect(model).toEqual({
+      tone: 'attention',
+      label: '1 por revisar',
+      title: 'Pendiente por más de 5 min. Revisa el detalle.',
+    });
+    expect(model.title).not.toContain('en camino');
   });
 
   it('pasa a atención cuando hay tareas en cuarentena, sumando FAILED y CONFLICT', () => {

@@ -175,6 +175,18 @@ if (injectVersion !== manifest.version) {
     `inject-fichamedico.js declara INJECT_VERSION='${injectVersion ?? 'ausente'}' y el manifest ${manifest.version}; deben coincidir.`
   );
 }
+// Gestión de Camas has its own MAIN-world inject with the same lockstep requirement: a manifest
+// bump that forgets it marks every open GC tab as `outdated_tab`.
+const gestionCamasInjectPath = path.join(extensionDir, 'inject-gestioncamas.js');
+const gestionCamasInjectVersion = existsSync(gestionCamasInjectPath)
+  ? (readFileSync(gestionCamasInjectPath, 'utf8').match(/const INJECT_VERSION = '([^']+)'/) ||
+      [])[1]
+  : undefined;
+if (gestionCamasInjectVersion !== manifest.version) {
+  fail(
+    `inject-gestioncamas.js declara INJECT_VERSION='${gestionCamasInjectVersion ?? 'ausente'}' y el manifest ${manifest.version}; deben coincidir.`
+  );
+}
 
 const backgroundWorker = manifest.background?.service_worker;
 if (backgroundWorker) {
@@ -261,6 +273,8 @@ if (existsSync(vendorLockPath)) {
 const allowedHosts = new Set([
   'https://fichamedico.rayensalud.cl/*',
   'https://fichamedicoback.rayensalud.cl/*',
+  // Read-only HCC antecedents API observed in Eloisa's official visor flow.
+  'https://saludteintegrachileapi.rayensalud.cl/*',
   'https://formulariosclinicosback.rayensalud.cl/*',
   'https://hospitalizado.rayensalud.cl/*',
   'https://hospbackend.rayensalud.cl/*',

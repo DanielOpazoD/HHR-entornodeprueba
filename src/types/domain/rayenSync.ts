@@ -6,6 +6,18 @@ export const MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES = 12;
 
 export type RayenSyncStatus = 'applied' | 'complete' | 'partial' | 'failed';
 
+/**
+ * Reason why one attempt demanded human review regardless of the global policy.
+ *
+ * `day_bootstrap`: the census did not exist and Eloísa itself created it. The first import of a
+ * brand-new day is the one that decides the whole occupancy, so it is never applied unattended.
+ *
+ * An attempt-scoped requirement only tightens the global policy; it never relaxes it. It is
+ * recorded next to the policy so history can explain why an `auto` policy still opened a review
+ * instead of rewriting the policy that was actually in force.
+ */
+export type RayenSyncReviewRequirement = 'day_bootstrap';
+
 /** Immutable global import policy captured when a synchronization starts. */
 export interface RayenSyncPolicy {
   mode: 'preview' | 'auto';
@@ -281,6 +293,8 @@ export interface RayenSyncEvent {
   changes?: RayenSyncChanges;
   source?: RayenSyncSource;
   policy?: RayenSyncPolicy;
+  /** Attempt-scoped review demand; absent when the global policy alone governed the run. */
+  reviewRequirement?: RayenSyncReviewRequirement;
   staffingObservation?: RayenSyncStaffingObservation;
   /** Structural review facts kept separate from clinical coverage and free of identifiers. */
   structuralReview?: RayenSyncStructuralReviewEvidence;

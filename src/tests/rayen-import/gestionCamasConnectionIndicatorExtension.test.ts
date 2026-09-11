@@ -88,7 +88,9 @@ describe('indicador de conexiones en Gestión de Camas', () => {
     expect(part('.summary')?.textContent).toBe('Conectado');
     expect(part<HTMLButtonElement>('.primary')?.hidden).toBe(true);
     expect(part<HTMLImageElement>('.brand img')?.src).toContain('hhr-logo.svg');
-    expect(host().getAttribute('aria-label')).toContain('Estado de conexión');
+    expect(part('.copy strong')?.textContent).toBe('Eloísa');
+    expect(part('.trigger')?.getAttribute('aria-label')).toBe('Extensión Eloísa: Conectado');
+    expect(host().getAttribute('aria-label')).toBe('Estado de conexión de la extensión Eloísa');
   });
 
   it('ofrece solo abrir Gestión de Camas cuando Ficha Médico sigue vigente', async () => {

@@ -90,6 +90,7 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_GC_CONNECT_REQUEST', reqId: 'req-1', renew: true },
     });
     await vi.waitFor(() =>
@@ -109,6 +110,7 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_GC_CONNECT_REQUEST', reqId: 'req-2' },
     });
     await vi.waitFor(() =>
@@ -137,6 +139,7 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_CONNECTION_REPAIR_REQUEST', reqId: 'repair-1' },
     });
     await vi.waitFor(() =>
@@ -165,6 +168,7 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_CONNECTION_REPAIR_REQUEST', reqId: 'repair-2' },
     });
     await vi.waitFor(() =>
@@ -188,6 +192,7 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_CONNECTION_REPAIR_REQUEST', reqId: 'repair-sync-error' },
     });
     await vi.waitFor(() =>
@@ -211,6 +216,7 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
 
     onMessage?.({
       source: windowObject,
+      origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_CONNECTION_REPAIR_REQUEST', reqId: 'repair-without-gesture' },
     });
     await vi.waitFor(() =>

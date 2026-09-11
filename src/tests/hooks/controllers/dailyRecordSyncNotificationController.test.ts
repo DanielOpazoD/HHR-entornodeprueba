@@ -9,6 +9,45 @@ import {
 } from '@/services/repositories/contracts/dailyRecordResults';
 
 describe('dailyRecordSyncNotificationController', () => {
+  it('reports a server-confirmed save and patch as successful', () => {
+    expect(
+      resolveSaveOutcomeFeedback(
+        createSaveDailyRecordResult({
+          date: '2026-03-03',
+          outcome: 'clean',
+          savedLocally: true,
+          savedRemotely: true,
+          queuedForRetry: false,
+          autoMerged: false,
+        })
+      )
+    ).toEqual({
+      channel: 'success',
+      title: 'Censo guardado',
+      message: 'Los cambios quedaron confirmados en el servidor.',
+      state: 'ok',
+      actionRequired: false,
+    });
+
+    expect(
+      resolvePatchOutcomeFeedback(
+        createUpdatePartialDailyRecordResult({
+          date: '2026-03-03',
+          outcome: 'clean',
+          savedLocally: true,
+          updatedRemotely: true,
+          queuedForRetry: false,
+          autoMerged: false,
+          patchedFields: 1,
+        })
+      )
+    ).toMatchObject({
+      channel: 'success',
+      title: 'Cambio guardado',
+      message: 'La actualización quedó confirmada en el servidor.',
+    });
+  });
+
   it('returns feedback for queued and auto-merged save outcomes', () => {
     expect(
       resolveSaveOutcomeFeedback(
@@ -96,6 +135,126 @@ describe('dailyRecordSyncNotificationController', () => {
       message: 'Se bloqueó una reducción sospechosa de texto clínico. Recarga antes de reintentar.',
       state: 'blocked',
       actionRequired: true,
+    });
+  });
+
+  it('rejects a local-save claim when a blocked operation saved no local copy', () => {
+    const feedback = resolvePatchOutcomeFeedback(
+      createUpdatePartialDailyRecordResult({
+        date: '2026-03-03',
+        outcome: 'blocked',
+        savedLocally: false,
+        updatedRemotely: false,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: 1,
+        userSafeMessage: 'Los cambios se guardaron localmente.',
+      })
+    );
+
+    expect(feedback).toMatchObject({
+      channel: 'error',
+      title: 'Actualización bloqueada',
+      message: 'La actualización fue rechazada y no quedó confirmada.',
+    });
+    expect(feedback?.message).not.toMatch(/guardaron localmente/i);
+  });
+
+  it('reports a result with no confirmed copy as a complete failure', () => {
+    const feedback = resolveSaveOutcomeFeedback(
+      createSaveDailyRecordResult({
+        date: '2026-03-03',
+        outcome: 'unrecoverable',
+        savedLocally: false,
+        savedRemotely: false,
+        queuedForRetry: false,
+        autoMerged: false,
+      })
+    );
+
+    expect(feedback).toEqual({
+      channel: 'error',
+      title: 'Guardado no confirmado',
+      message: 'No fue posible confirmar una copia local ni remota de los cambios.',
+      state: 'blocked',
+      actionRequired: true,
+    });
+  });
+
+  it('does not describe an invalid queue outcome as locally saved', () => {
+    const feedback = resolveSaveOutcomeFeedback(
+      createSaveDailyRecordResult({
+        date: '2026-03-03',
+        outcome: 'queued',
+        savedLocally: false,
+        savedRemotely: false,
+        queuedForRetry: true,
+        autoMerged: false,
+      })
+    );
+
+    expect(feedback).toMatchObject({
+      channel: 'error',
+      title: 'Guardado no confirmado',
+      message: 'No fue posible confirmar una copia local ni remota de los cambios.',
+    });
+  });
+
+  it('does not claim a retry queue when the result did not enqueue one', () => {
+    const feedback = resolvePatchOutcomeFeedback(
+      createUpdatePartialDailyRecordResult({
+        date: '2026-03-03',
+        outcome: 'queued',
+        savedLocally: true,
+        updatedRemotely: false,
+        queuedForRetry: false,
+        autoMerged: false,
+        patchedFields: 1,
+      })
+    );
+
+    expect(feedback).toMatchObject({
+      channel: 'warning',
+      title: 'Cambio sólo local',
+    });
+    expect(feedback?.message).not.toMatch(/reintentar[aá]|pendiente de sincronización/i);
+  });
+
+  it('does not claim an automatic merge when the result did not perform one', () => {
+    const feedback = resolveSaveOutcomeFeedback(
+      createSaveDailyRecordResult({
+        date: '2026-03-03',
+        outcome: 'auto_merged',
+        savedLocally: false,
+        savedRemotely: false,
+        queuedForRetry: false,
+        autoMerged: false,
+      })
+    );
+
+    expect(feedback).toMatchObject({
+      channel: 'error',
+      title: 'Guardado no confirmado',
+    });
+    expect(feedback?.message).not.toMatch(/integró/i);
+  });
+
+  it('distinguishes a local-only save from a queued retry', () => {
+    expect(
+      resolveSaveOutcomeFeedback(
+        createSaveDailyRecordResult({
+          date: '2026-03-03',
+          outcome: 'clean',
+          savedLocally: true,
+          savedRemotely: false,
+          queuedForRetry: false,
+          autoMerged: false,
+        })
+      )
+    ).toMatchObject({
+      channel: 'warning',
+      title: 'Guardado sólo local',
+      message: 'Los cambios quedaron guardados en este dispositivo, sin confirmación del servidor.',
     });
   });
 

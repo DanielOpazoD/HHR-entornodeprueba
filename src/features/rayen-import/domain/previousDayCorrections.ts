@@ -10,6 +10,10 @@
  */
 
 import { planPreviousDayEdits } from './planPreviousDayEdits';
+import {
+  buildHistoricalAdmissionPatch,
+  buildHistoricalAdmissionDiagnosisPatch,
+} from './historicalAdmissionPatch';
 import { applyCrossDayDiff, type CrossDayEntry } from './applyCrossDayDiff';
 import { isOccupied, reportEgresoEntry, reportEgresoPatient } from './applyCensusImportDiff';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
@@ -221,10 +225,9 @@ export const fileCrossDayCorrections = async (
   const records = new Map<string, DailyRecord>();
   await Promise.all(
     [...affectedDays].map(async day => {
-      const record =
-        typeof port.getForDateWithMeta === 'function'
-          ? (await port.getForDateWithMeta(day, true)).record
-          : await port.getForDate(day);
+      // Use the same authority as planning. A merged local read can already contain
+      // an unconfirmed admission and incorrectly turn the remote correction into a no-op.
+      const record = await port.getAuthoritativeForDate(day);
       if (record) records.set(day, record);
     })
   );
@@ -271,9 +274,19 @@ export const fileCrossDayCorrections = async (
       });
     }
     if (admissionResult.applied > 0) {
-      patches.push({ beds: admissionResult.record.beds });
+      patches.push(buildHistoricalAdmissionPatch(movementResult.record, admissionResult.record));
     }
-    preparedCorrections.push({ day, record, patches });
+    const diagnosisPatch = buildHistoricalAdmissionDiagnosisPatch(
+      movementResult.record,
+      admissionResult.record
+    );
+    preparedCorrections.push({
+      day,
+      record,
+      patches,
+      diagnosisPatch,
+      admittedRecord: admissionResult.record,
+    });
   }
 
   const result: CrossDayCorrectionResult = { confirmed: 0, durablyQueued: 0, omitted };
@@ -286,6 +299,55 @@ export const fileCrossDayCorrections = async (
         })
       );
       if (outcome === 'durably_queued') dayOutcome = 'durably_queued';
+    }
+    if (dayOutcome === 'confirmed' && Object.keys(correction.diagnosisPatch).length > 0) {
+      // Each authority phase reads its own fresh base and preserves concurrent values.
+      for (const nested of [false, true]) {
+        const paths = Object.keys(correction.diagnosisPatch).filter(
+          path => path.includes('.clinicalCrib.') === nested
+        );
+        if (!paths.length) continue;
+        const confirmedRecord = await port.getAuthoritativeForDate(correction.day);
+        if (!confirmedRecord)
+          throw new Error('No se confirmó el ingreso histórico antes de copiar el diagnóstico.');
+        const missingPatch: typeof correction.diagnosisPatch = {};
+        for (const path of paths) {
+          const [, bedId, field] = path.split('.');
+          const expected =
+            field === 'clinicalCrib'
+              ? correction.admittedRecord.beds[bedId]?.clinicalCrib
+              : correction.admittedRecord.beds[bedId];
+          const actual =
+            field === 'clinicalCrib'
+              ? confirmedRecord.beds[bedId]?.clinicalCrib
+              : confirmedRecord.beds[bedId];
+          if (
+            !expected ||
+            !actual ||
+            !actual.patientName ||
+            (expected.clinicalEpisodeId
+              ? actual.clinicalEpisodeId !== expected.clinicalEpisodeId
+              : !normalizeRut(expected.rut) ||
+                normalizeRut(actual.rut) !== normalizeRut(expected.rut))
+          ) {
+            throw new Error(
+              'El paciente del ingreso histórico cambió antes de copiar el diagnóstico.'
+            );
+          }
+          const diagnosisField = path.split('.').at(-1) as keyof PatientData;
+          const currentValue = actual[diagnosisField];
+          if (typeof currentValue !== 'string' || !currentValue.trim())
+            missingPatch[path] = correction.diagnosisPatch[path];
+        }
+        const patch = missingPatch;
+        if (!Object.keys(patch).length) continue;
+        const outcome = classifyHistoricalPatchOutcome(
+          await patchDailyRecordWithCompatibility(port, correction.day, patch, {
+            baseRecord: confirmedRecord,
+          })
+        );
+        if (outcome === 'durably_queued') dayOutcome = outcome;
+      }
     }
     if (dayOutcome === 'confirmed') result.confirmed += 1;
     else result.durablyQueued += 1;

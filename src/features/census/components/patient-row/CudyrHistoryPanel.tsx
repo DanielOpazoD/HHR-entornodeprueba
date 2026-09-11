@@ -5,6 +5,7 @@ import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
 import { nursingRole } from '@/services/staff/eloisaStaffIdentity';
 import { CudyrCard } from './ScoresDetailCards';
 import { formatIsoDay } from './scoresDetailTokens';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 const dateTime = (value: string | undefined, day: string) => {
   if (!value || !/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(value)) {
@@ -15,7 +16,7 @@ const dateTime = (value: string | undefined, day: string) => {
   return Number.isNaN(epoch)
     ? formatIsoDay(day)
     : new Intl.DateTimeFormat('es-CL', {
-        timeZone: 'Pacific/Easter',
+        timeZone: CLINICAL_TIME_ZONE,
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

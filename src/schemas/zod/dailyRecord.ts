@@ -190,6 +190,9 @@ export const RayenSyncEventSchema = z.object({
       revision: z.number().int().nonnegative(),
     })
   ),
+  // `.catch`: a requirement written by a newer client must not invalidate the whole event; the
+  // record survives without the reason, exactly like `failureReason`.
+  reviewRequirement: nullableOptional(z.enum(['day_bootstrap']).optional().catch(undefined)),
   staffingObservation: nullableOptional(RayenSyncStaffingObservationSchema),
   structuralReview: nullableOptional(RayenSyncStructuralReviewSchema),
   performance: nullableOptional(RayenSyncPerformanceSchema),

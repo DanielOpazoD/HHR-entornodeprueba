@@ -6,7 +6,7 @@
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
     "background.js": {
-      "maxLines": 1519,
+      "maxLines": 1525,
       "hotspots": {
         "variable:handleEgresoLookup": 19,
         "variable:handleExamRequestCombinePrint": 25,
@@ -16,7 +16,7 @@
       }
     },
     "bridge-generation.js": {
-      "maxLines": 74,
+      "maxLines": 87,
       "hotspots": {}
     },
     "bridge-generation-main.js": {
@@ -50,6 +50,18 @@
     },
     "clinical-history-coverage.js": {
       "maxLines": 37,
+      "hotspots": {}
+    },
+    "clinical-antecedents-runtime.js": {
+      "maxLines": 223,
+      "hotspots": {}
+    },
+    "clinical-antecedents-attachment.js": {
+      "maxLines": 48,
+      "hotspots": {}
+    },
+    "clinical-antecedents-detail.js": {
+      "maxLines": 111,
       "hotspots": {}
     },
     "clinical-panel-fetch.js": {
@@ -147,7 +159,7 @@
       "hotspots": {}
     },
     "content-hhr-sync-bundle.js": {
-      "maxLines": 42,
+      "maxLines": 53,
       "hotspots": {}
     },
     "content-hhr-syslab.js": {
@@ -155,15 +167,15 @@
       "hotspots": {}
     },
     "content-hhr.js": {
-      "maxLines": 342,
+      "maxLines": 343,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 17
       }
     },
     "content-prescription-print.js": {
-      "maxLines": 943,
+      "maxLines": 954,
       "hotspots": {
-        "iife": 21,
+        "iife": 22,
         "iife>variable:ensureButton": 22
       }
     },
@@ -266,7 +278,7 @@
       "hotspots": {}
     },
     "gestion-camas-bridge-health.js": {
-      "maxLines": 68,
+      "maxLines": 72,
       "hotspots": {}
     },
     "gestion-camas-clinical-cribs.js": {
@@ -298,7 +310,7 @@
       "hotspots": {}
     },
     "gestion-camas-health.js": {
-      "maxLines": 102,
+      "maxLines": 104,
       "hotspots": {}
     },
     "gestion-camas-runtime.js": {
@@ -329,7 +341,11 @@
       }
     },
     "health-heartbeat-runtime.js": {
-      "maxLines": 95,
+      "maxLines": 115,
+      "hotspots": {}
+    },
+    "health-report-cache-runtime.js": {
+      "maxLines": 42,
       "hotspots": {}
     },
     "health-tab-events-runtime.js": {
@@ -353,7 +369,7 @@
       }
     },
     "hhr-connection-action-model.js": {
-      "maxLines": 153,
+      "maxLines": 166,
       "hotspots": {}
     },
     "hhr-connection-center-runtime.js": {
@@ -450,7 +466,7 @@
       "hotspots": {}
     },
     "inject-fichamedico.js": {
-      "maxLines": 621,
+      "maxLines": 690,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 32,
         "iife>variable:getVerifiedClinicalContext": 21,
@@ -459,7 +475,7 @@
       }
     },
     "inject-gestioncamas.js": {
-      "maxLines": 295,
+      "maxLines": 304,
       "hotspots": {
         "iife>callback:window.addEventListener:1": 22
       }
@@ -478,7 +494,7 @@
       }
     },
     "message-contract.js": {
-      "maxLines": 283,
+      "maxLines": 285,
       "hotspots": {}
     },
     "patient-clinical-bundle-runtime.js": {
@@ -522,7 +538,11 @@
       "hotspots": {}
     },
     "rayen-sync-bundle-runtime.js": {
-      "maxLines": 173,
+      "maxLines": 179,
+      "hotspots": {}
+    },
+    "sync-bundle-cancellation-runtime.js": {
+      "maxLines": 45,
       "hotspots": {}
     },
     "relay-reinjection-runtime.js": {

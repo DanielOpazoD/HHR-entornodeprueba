@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EmptyDayPrompt } from '@/features/census/components/EmptyDayPrompt';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
@@ -8,6 +8,25 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
   dailyRecordObservability: {
     recordEvent: vi.fn(),
   },
+}));
+
+vi.mock('@/features/rayen-import/public', () => ({
+  RayenDayBootstrapButton: ({
+    onCreateBlank,
+    onReady,
+  }: {
+    onCreateBlank: () => Promise<void>;
+    onReady: () => void;
+  }) => (
+    <button
+      type="button"
+      onClick={() => {
+        void onCreateBlank().then(onReady);
+      }}
+    >
+      Crear desde Eloísa
+    </button>
+  ),
 }));
 
 describe('EmptyDayPrompt', () => {
@@ -35,6 +54,32 @@ describe('EmptyDayPrompt', () => {
     expect(screen.getByTestId('copy-previous-btn')).toBeDisabled();
     expect(screen.getByText('Disponible hoy desde las 8:00 hrs.')).toBeInTheDocument();
     expect(screen.getByText('Se habilita en 00:30:00')).toBeInTheDocument();
+  });
+
+  it('offers today as a reviewed Eloisa bootstrap without copying the previous census', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-03T14:00:00.000Z')); // 09:00 in Rapa Nui
+    const onCreateDay = vi.fn().mockResolvedValue(undefined);
+    const onRayenBootstrapReady = vi.fn();
+
+    render(
+      <EmptyDayPrompt
+        selectedDay={3}
+        selectedMonth={2}
+        currentDateString="2026-03-03"
+        previousRecordAvailable={true}
+        previousRecordDate="2026-03-02"
+        onCreateDay={onCreateDay}
+        onRayenBootstrapReady={onRayenBootstrapReady}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Crear desde Eloísa' }));
+      await Promise.resolve();
+    });
+    expect(onRayenBootstrapReady).toHaveBeenCalledTimes(1);
+    expect(onCreateDay).toHaveBeenCalledWith(false);
   });
 
   it('shows an admin override button while the visual countdown remains locked', () => {
@@ -76,6 +121,7 @@ describe('EmptyDayPrompt', () => {
     );
 
     expect(screen.getByTestId('copy-previous-btn')).not.toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Crear desde Eloísa' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Se habilita en/)).not.toBeInTheDocument();
   });
 
@@ -141,5 +187,69 @@ describe('EmptyDayPrompt', () => {
         }),
       })
     );
+  });
+
+  // The Eloisa bootstrap must follow the clinical day (08:00 business / 09:00 weekend
+  // rollover) that the census calendar renders, not the raw calendar date. 2026-09-09 is a
+  // Wednesday and 2026-09-10 a Thursday, so both roll over at 08:00.
+  describe('clinical day alignment for the Eloisa bootstrap', () => {
+    const ELOISA_BUTTON = 'Crear desde Eloísa';
+
+    const renderPrompt = (currentDateString: string, selectedDay: number) =>
+      render(
+        <EmptyDayPrompt
+          selectedDay={selectedDay}
+          selectedMonth={8}
+          currentDateString={currentDateString}
+          previousRecordAvailable={false}
+          onCreateDay={() => undefined}
+          onRayenBootstrapReady={() => undefined}
+        />
+      );
+
+    it('offers Sept 9 during the reported Santiago/Rapa Nui pre-handoff gap', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-10T12:33:35.000Z')); // 09:33 Santiago, 07:33 Rapa Nui
+
+      renderPrompt('2026-09-09', 9);
+
+      expect(screen.getByRole('button', { name: ELOISA_BUTTON })).toBeInTheDocument();
+    });
+
+    it('hides Sept 10 during the reported Santiago/Rapa Nui pre-handoff gap', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-10T12:33:35.000Z')); // 09:33 Santiago, 07:33 Rapa Nui
+
+      renderPrompt('2026-09-10', 10);
+
+      expect(screen.queryByRole('button', { name: ELOISA_BUTTON })).not.toBeInTheDocument();
+    });
+
+    it('switches to the next clinical day when a weekday crosses 08:00', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-10T12:59:00.000Z')); // 07:59 in Rapa Nui
+
+      const sept9 = renderPrompt('2026-09-09', 9);
+      const sept10 = renderPrompt('2026-09-10', 10);
+
+      expect(
+        within(sept9.container).queryByRole('button', { name: ELOISA_BUTTON })
+      ).toBeInTheDocument();
+      expect(
+        within(sept10.container).queryByRole('button', { name: ELOISA_BUTTON })
+      ).not.toBeInTheDocument();
+
+      // Crossing 08:00 lets the reactive hook poll pick up the new clinical day.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      expect(
+        within(sept9.container).queryByRole('button', { name: ELOISA_BUTTON })
+      ).not.toBeInTheDocument();
+      expect(
+        within(sept10.container).queryByRole('button', { name: ELOISA_BUTTON })
+      ).toBeInTheDocument();
+    });
   });
 });

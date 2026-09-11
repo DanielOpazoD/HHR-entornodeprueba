@@ -1,16 +1,4 @@
-/**
- * background.js  (MV3 service worker)
- *
- * Routes messages from an HHR tab to the right Rayen tab and returns the result. The tabs
- * cannot message each other directly.
- *   - RAYEN_SNAPSHOT_REQUEST      → Ficha Médico tab (reads the census snapshot)
- *   - RAYEN_EGRESO_LOOKUP_REQUEST → Gestión de Camas tab (looks up egresos by RUN)
- *   - RAYEN_EGRESO_REPORT_REQUEST → downloads the bulk "Alta Administrativa" report .xls here
- *     in the background (host_permissions bypass CORS, which a page/content fetch cannot), using
- *     the token the Gestión de Camas tab hands over, PARSES it (vendored SheetJS) and returns
- *     clean egreso rows as JSON for HHR to enumerate.
- *   - RAYEN_EGRESO_REPORT_SAVE    → same fetch, but saves the .xls to disk (diagnostic).
- */
+/** MV3 composition root: authorized clinical reads, reports and HHR/Rayen message routing. */
 'use strict';
 
 // Manifest V3 classic service workers may call importScripts only during their initial
@@ -20,7 +8,7 @@ importScripts(
   'message-contract.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
-  'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js',
+  'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
   'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'patient-document-manager-runtime.js',
@@ -31,10 +19,12 @@ importScripts(
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
   'runtime-generation.js', 'connection-repair-runtime.js',
-  'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
+  'health-report-cache-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
   'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
+  'clinical-antecedents-attachment.js', 'clinical-antecedents-detail.js',
+  'clinical-antecedents-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
   'clinical-handoff-runtime.js',
   'clinical-score-runtime.js',
@@ -284,7 +274,7 @@ const handleHhrHealth = self.HhrExtensionHealth.createHhrProbe({
   matches: HHR_TAB_MATCH_PATTERNS,
 });
 
-const handleExtensionHealth = async (targets = {}) => {
+const readExtensionHealthUncached = async (targets = {}) => {
   const runtimeContext = await getRuntimeContext();
   const [fichaMedico, gestionCamas, hhr] = await Promise.all([
     handleFichaMedicoHealth(runtimeContext.runtimeGeneration, targets.fichaMedicoTabIds),
@@ -310,15 +300,14 @@ const handleExtensionHealth = async (targets = {}) => {
   };
 };
 
+const healthReportCache = self.HhrHealthReportCacheRuntime.create({ readHealth: readExtensionHealthUncached, ttlMs: 3000 });
+const handleExtensionHealth = () => healthReportCache.read();
 const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
   chromeApi: chrome,
-  readHealth: handleExtensionHealth,
+  // Repair must probe the tabs it just opened; the 3 s cache would keep answering for the old ones.
+  readHealth: targets => readExtensionHealthUncached(targets),
 });
-const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({
-  chromeApi: chrome,
-  readHealth: handleExtensionHealth,
-  hhrMatchPatterns: HHR_TAB_MATCH_PATTERNS,
-});
+const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }) });
 healthHeartbeat.start();
 self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();
 // Al instalar/actualizar la extensión, los relés de las pestañas abiertas
@@ -431,17 +420,20 @@ const egresoReportRuntime = self.HhrGestionCamasEgresoReportRuntime.create({
 });
 const { request: handleReportRequest, save: handleReportSave } = egresoReportRuntime;
 
+const syncBundleCancellation = self.HhrSyncBundleCancellationRuntime.create();
 const handleSyncBundleRequest = (message, sender) =>
-  patientFlowRuntime.authorizeBundleResponse(
-    sender,
-    self.HhrRayenSyncBundleRuntime.capture({
-      dateStart: message.dateStart,
-      dateEnd: message.dateEnd,
-      readHealth: handleExtensionHealth,
-      // The bundle wrapper authorizes the union of live and report-backed episodes atomically.
-      readSnapshot: readSnapshotWithClinicalCribs,
-      readReport: handleReportRequest,
-    })
+  syncBundleCancellation.run(message.requestId, () =>
+    patientFlowRuntime.authorizeBundleResponse(
+      sender,
+      self.HhrRayenSyncBundleRuntime.capture({
+        dateStart: message.dateStart,
+        dateEnd: message.dateEnd,
+        readHealth: handleExtensionHealth,
+        // The bundle wrapper authorizes the union of live and report-backed episodes atomically.
+        readSnapshot: readSnapshotWithClinicalCribs,
+        readReport: handleReportRequest,
+      })
+    )
   );
 
 const handleDeviceReportRequest = async args => {
@@ -1204,7 +1196,13 @@ const handleIndicationsPrintRequest = async ({ encId }) => {
 };
 
 const syslabRuntime = self.HhrSyslabPdfBundle.createRuntime({ chrome, downloadPdfBuffer, withTimeout });
-
+const clinicalAntecedentsRuntime = self.HhrClinicalAntecedents.create({
+  getContext: getClinicalReportContext,
+  readJson: options => fichaMedicoClinicalClient.readJson(options),
+  fetchImpl: fetch,
+  openTab: options => chrome.tabs.create(options),
+  getAuthorizationKey: async sender => { const session = await resolveFichaClinicalSession({ sender }); if (session.error) throw new Error(session.error); return fichaSessionCacheKey(session.info, sender); },
+});
 const runtimeRoute = (handle, fallback) => Object.freeze({ handle, fallback });
 
 const handlePatientClinicalBundleRequest = self.HhrPatientClinicalBundleRuntime.create({
@@ -1262,6 +1260,10 @@ const runtimeMessageRoutes = Object.freeze({
       'sync-bundle'
     ),
     'No se pudo capturar Ficha Médico y Gestión de Camas en una misma sincronización.'
+  ),
+  [RUNTIME_MESSAGES.SYNC_BUNDLE_CANCEL]: runtimeRoute(
+    message => syncBundleCancellation.cancel(message.requestId),
+    'No se pudo cancelar la captura sincronizada.'
   ),
   [RUNTIME_MESSAGES.OPEN_ENCOUNTER_REQUEST]: runtimeRoute(
     message => handleOpenEncounter(message.encId, message.routeHint),
@@ -1343,6 +1345,10 @@ const runtimeMessageRoutes = Object.freeze({
   [RUNTIME_MESSAGES.CLINICAL_PANEL_REQUEST]: runtimeRoute(
     (message, sender) => handleClinicalPanelRequest({ encId: message.encId, sender }),
     'No se pudo cargar el panel clínico.'
+  ),
+  [RUNTIME_MESSAGES.CLINICAL_ANTECEDENTS_REQUEST]: runtimeRoute(
+    (message, sender) => clinicalAntecedentsRuntime.handleRequest({ ...message, sender }),
+    'No se pudieron consultar los antecedentes.'
   ),
   [RUNTIME_MESSAGES.LAB_SEARCH_REQUEST]: runtimeRoute(
     (message, sender) => syslabRuntime.search({ ...message, sender }),

@@ -66,6 +66,10 @@ export interface RayenSourceHealth {
   lastVerifiedAt?: number | null;
   /** Origen de la conexión temporal de Gestión de Camas. */
   connectionSource?: 'session' | 'tab' | 'none';
+  /** Estado visible de la SPA de Gestión de Camas, independiente del token API temporal. */
+  pageState?: 'authenticated' | 'login' | 'unknown';
+  /** Ruta visible sin datos sensibles, útil para explicar estados híbridos. */
+  pageRoute?: string;
   /** Identidad de la sesión de la fuente, cuando la extensión la conoce. */
   identity?: { fullName?: string; username?: string; role?: string };
 }

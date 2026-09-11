@@ -11,7 +11,10 @@ interface RayenImportFlowStatusProps {
   fill: RayenFillProgress;
   error: string | null;
   hasPersistedSync: boolean;
-  persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> | null;
+  persistedSync?:
+    | (Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> &
+        Partial<Pick<RayenSyncMeta, 'at'>>)
+    | null;
   executionStage?: RayenSyncStage | null;
   targetDate?: string | null;
   compactFallback?: string;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { History, RefreshCw, UsersRound } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
@@ -7,17 +7,27 @@ import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
-import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { SyncQueueStatusChip } from './SyncQueueStatusChip';
 import { presentRayenSyncRecovery, rayenPrimaryActionLabel } from './rayenSyncPresentation';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
+import type {
+  RayenImportCaptureOptions,
+  RayenImportTriggerOutcome,
+} from '../hooks/rayenImportCaptureContracts';
 import { elapsedMilliseconds } from '../domain/rayenSyncPerformance';
 import {
   isRayenSyncExecutionActive,
   rayenSyncExecutionDate,
 } from '../hooks/rayenSyncExecutionState';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+
+// The sync history is an on-demand panel that only matters while Eloísa is connected, so its
+// sections and technical metrics stay out of the census view and the PWA precache.
+const LazyRayenSyncHistoryModal = lazy(() =>
+  import('./RayenSyncHistoryModal').then(module => ({ default: module.RayenSyncHistoryModal }))
+);
 
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
@@ -34,7 +44,7 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
   const when = new Date(meta.at);
   if (Number.isNaN(when.getTime())) return null;
   const parts = new Intl.DateTimeFormat('es-CL', {
-    timeZone: 'Pacific/Easter',
+    timeZone: CLINICAL_TIME_ZONE,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -48,9 +58,15 @@ const formatLastSync = (meta: RayenSyncMeta): string | null => {
 
 interface RayenImportButtonProps {
   selectedDate?: string;
+  autoStartRequestId?: number;
+  onAutoStartHandled?: () => void;
 }
 
-export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDate }) => {
+export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
+  selectedDate,
+  autoStartRequestId,
+  onAutoStartHandled,
+}) => {
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [recoveryBusy, setRecoveryBusy] = React.useState(false);
   const [connectionMonitorOpen, setConnectionMonitorOpen] = React.useState(false);
@@ -58,8 +74,11 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
   const [staffingReviewOpen, setStaffingReviewOpen] = React.useState(false);
   const historyTriggerRef = React.useRef<HTMLButtonElement>(null);
   const syncPreflightInFlightRef = React.useRef(false);
+  const autoStartHandledRef = React.useRef<number | null>(null);
+  const autoStartInFlightRef = React.useRef<number | null>(null);
   const {
     mode,
+    policyStatus,
     policyBlockReason,
     execution,
     diff,
@@ -78,9 +97,17 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     dismissStaffingProposal,
   } = useRayenImport(selectedDate);
 
+  // La política global llega por suscripción y parte en `loading`. Ningún intento puede
+  // consumirse antes de que esté confirmada: la compuerta de captura lo rechaza de inmediato,
+  // así que arrancar aquí sólo gasta la solicitud (el día recién creado quedaba con historial 0).
+  const policyReady = policyStatus === 'ready';
+  const policyNotice =
+    policyBlockReason ?? (policyStatus === 'loading' ? 'La política aún se está cargando.' : null);
+
   const { record } = useDailyRecordData();
   const fill = useRayenFillProgress();
   const extension = useRayenExtensionHealth();
+  const refreshExtension = extension.refresh;
   const mainWorking =
     isRayenSyncExecutionActive(execution?.stage ?? null) || fill.running || recoveryBusy;
   const working = mainWorking || isStaffingProposalBusy;
@@ -105,22 +132,55 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
     [extension.connection, history, mainWorking]
   );
 
-  const handleSync = async (): Promise<void> => {
-    if (syncPreflightInFlightRef.current) return;
-    syncPreflightInFlightRef.current = true;
-    try {
-      const startedAt = Date.now();
-      const health = await extension.refresh({
-        timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
-      });
-      await triggerImport(health, {
-        stagesMs: { preflight: elapsedMilliseconds(startedAt) },
-        counters: { requests: 1 },
-      });
-    } finally {
-      syncPreflightInFlightRef.current = false;
+  const handleSync = React.useCallback(
+    async (options?: RayenImportCaptureOptions): Promise<RayenImportTriggerOutcome> => {
+      if (!policyReady || syncPreflightInFlightRef.current) return 'blocked';
+      syncPreflightInFlightRef.current = true;
+      try {
+        const startedAt = Date.now();
+        const health = await refreshExtension({
+          timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+          showChecking: true,
+        });
+        return await triggerImport(
+          health,
+          {
+            stagesMs: { preflight: elapsedMilliseconds(startedAt) },
+            counters: { requests: 1 },
+          },
+          options
+        );
+      } finally {
+        syncPreflightInFlightRef.current = false;
+      }
+    },
+    [policyReady, refreshExtension, triggerImport]
+  );
+
+  const bootstrapRecordReady = Boolean(recordForSelectedDate);
+  React.useEffect(() => {
+    if (
+      autoStartRequestId === undefined ||
+      autoStartHandledRef.current === autoStartRequestId ||
+      autoStartInFlightRef.current === autoStartRequestId
+    ) {
+      return;
     }
-  };
+    // La solicitud sobrevive a la espera: sólo se marca como atendida cuando la captura dejó
+    // evidencia (un run, aunque falle). Si la compuerta la bloqueó sin registrar nada (política
+    // cargando, censo aún sin cargar, revisión previa terminando), el token se conserva y el
+    // arranque se reintenta en cuanto cambie alguna de esas condiciones.
+    if (!policyReady || !bootstrapRecordReady) return;
+    autoStartInFlightRef.current = autoStartRequestId;
+    // The census did not exist a moment ago; this first import defines the whole day, so it is
+    // reviewed by a human even when the global policy would otherwise apply it unattended.
+    void handleSync({ reviewRequirement: 'day_bootstrap' }).then(outcome => {
+      autoStartInFlightRef.current = null;
+      if (outcome === 'blocked') return;
+      autoStartHandledRef.current = autoStartRequestId;
+      onAutoStartHandled?.();
+    });
+  }, [autoStartRequestId, bootstrapRecordReady, handleSync, onAutoStartHandled, policyReady]);
   const pendingChangeCount = diff
     ? diff.summary.admissions +
       diff.summary.updates +
@@ -272,19 +332,19 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
               extension.connection === 'checking' ||
               isPreviewOpen ||
               !extension.canSync ||
-              Boolean(policyBlockReason)
+              Boolean(policyNotice)
             }
             aria-busy={mainWorking || extension.connection === 'checking'}
             title={
               // La política se antepone a la extensión: sin política confirmada
               // la corrida no puede aplicar aunque Eloísa esté perfecta, y ese
               // es el caso que gastaba la captura completa antes de fallar.
-              policyBlockReason ??
+              // `loading` también deshabilita, con su propio motivo: el clic
+              // prematuro sólo producía un error inmediato.
+              policyNotice ??
               (!extension.canSync && extension.connection !== 'checking'
                 ? extension.message
-                : mode === 'auto'
-                  ? 'Sincronizar el censo con Eloísa (modo automático experimental)'
-                  : 'Sincronizar el censo con Eloísa (con revisión)')
+                : 'Sincronizar con Eloísa')
             }
             data-module="rayen-import"
             data-testid="rayen-import-button"
@@ -311,15 +371,19 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({ selectedDa
         onConfirm={confirm}
         onCancel={cancel}
       />
-      <RayenSyncHistoryModal
-        isOpen={historyOpen}
-        onClose={closeHistory}
-        history={history}
-        recovery={recovery}
-        recoveryBusy={working}
-        onRecoveryAction={() => void handleRecoveryAction()}
-        targetDate={historyTargetDate}
-      />
+      {historyOpen ? (
+        <Suspense fallback={null}>
+          <LazyRayenSyncHistoryModal
+            isOpen={historyOpen}
+            onClose={closeHistory}
+            history={history}
+            recovery={recovery}
+            recoveryBusy={working}
+            onRecoveryAction={() => void handleRecoveryAction()}
+            targetDate={historyTargetDate}
+          />
+        </Suspense>
+      ) : null}
       <RayenNursingShiftProposalModal
         proposal={!isPreviewOpen && staffingReviewOpen ? staffingProposal : null}
         isBusy={isStaffingProposalBusy}

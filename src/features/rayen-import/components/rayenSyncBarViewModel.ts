@@ -24,9 +24,13 @@ export interface RayenSyncBarViewModelInput {
   fill: RayenFillProgress;
   error: string | null;
   hasPersistedSync: boolean;
-  persistedSync?: Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> | null;
+  persistedSync?:
+    | (Pick<RayenSyncMeta, 'status' | 'coverage' | 'staffingObservation'> &
+        Partial<Pick<RayenSyncMeta, 'at'>>)
+    | null;
   executionStage?: RayenSyncStage | null;
   targetDate?: string | null;
+  now?: number;
 }
 
 export interface RayenSyncBarViewModel {
@@ -99,6 +103,32 @@ const withTargetDate = (label: string, targetDate?: string | null): string => {
   return formatted ? `${label} · ${formatted}` : label;
 };
 
+const localDateKey = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const staleSyncPresentation = (input: RayenSyncBarViewModelInput): RayenSyncBarViewModel | null => {
+  const now = input.now ?? Date.now();
+  const synchronizedAt = Date.parse(input.persistedSync?.at ?? '');
+  // Without an explicit selected day, age alone cannot prove that the visible census is stale.
+  const isCurrentDay = Boolean(input.targetDate) && input.targetDate === localDateKey(now);
+  if (!isCurrentDay || !Number.isFinite(synchronizedAt)) return null;
+  const ageMinutes = Math.floor(Math.max(0, now - synchronizedAt) / 60_000);
+  if (ageMinutes <= 15) return null;
+  const ageLabel = ageMinutes < 60 ? `${ageMinutes} min` : `${Math.floor(ageMinutes / 60)} h`;
+  return settled('action', 'warning', `Datos sin actualizar · hace ${ageLabel}`, {
+    detail: `Última sincronización exitosa: ${new Date(synchronizedAt).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`,
+    visuallyHidden: false,
+  });
+};
+
 const clinicalProgress = (
   fill: RayenFillProgress,
   targetDate?: string | null
@@ -106,16 +136,19 @@ const clinicalProgress = (
   const hasTotal = fill.total > 0;
   const done = hasTotal ? Math.min(Math.max(fill.done, 0), fill.total) : 0;
   // The reader counter finishes before the authoritative batch is confirmed.
-  const readingsFinished = hasTotal && done === fill.total;
+  const readingsStarted = hasTotal && done > 0;
+  const readingsFinished = readingsStarted && done === fill.total;
   const label = readingsFinished
     ? 'Lectura finalizada · confirmando datos clínicos'
-    : hasTotal
+    : readingsStarted
       ? `Datos clínicos · ${done} de ${fill.total} pacientes`
-      : 'Revisando datos clínicos';
+      : hasTotal
+        ? `Iniciando lectura clínica · ${fill.total} pacientes`
+        : 'Revisando datos clínicos';
   return active(
     'clinical',
     withTargetDate(label, targetDate),
-    hasTotal && !readingsFinished
+    readingsStarted && !readingsFinished
       ? { kind: 'determinate', done, total: fill.total }
       : { kind: 'indeterminate' }
   );
@@ -231,6 +264,8 @@ export const buildRayenSyncBarViewModel = (
   }
 
   if (input.hasPersistedSync) {
+    const stalePresentation = staleSyncPresentation(input);
+    if (stalePresentation) return stalePresentation;
     return settled('complete', 'success', 'Todo al día', {
       visuallyHidden: input.hasPersistedSync,
     });

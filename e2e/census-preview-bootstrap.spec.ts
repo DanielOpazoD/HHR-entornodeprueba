@@ -18,7 +18,26 @@ const isFatalPreviewConsoleError = (message: string): boolean =>
 const PREVIEW_BOOTSTRAP_DATE = process.env.E2E_FIXED_DATE ?? '2026-04-03';
 const SEEDED_PATIENT_NAME = 'PACIENTE VALIDACION PREVIEW';
 
-const seedPersistedSessionAndRecord = async (page: Page) => {
+const buildViewportDischarges = () =>
+  Array.from({ length: 12 }, (_, index) => ({
+    id: `preview-discharge-${index + 1}`,
+    movementDate: PREVIEW_BOOTSTRAP_DATE,
+    admissionDate: PREVIEW_BOOTSTRAP_DATE,
+    bedName: `R${index + 1}`,
+    bedId: `R${index + 1}`,
+    bedType: 'Adulto',
+    patientName: `ALTA SINTETICA ${index + 1}`,
+    rut: '',
+    diagnosis: 'DIAGNOSTICO SINTETICO',
+    time: '12:00',
+    status: 'Vivo',
+    dischargeType: 'Domicilio (Habitual)',
+  }));
+
+const seedPersistedSessionAndRecord = async (
+  page: Page,
+  recordOverrides: Record<string, unknown> = {}
+) => {
   const firebaseConfig = await installPreviewFirebaseRuntime(page);
   const baseRecord = buildCanonicalE2ERecord(PREVIEW_BOOTSTRAP_DATE) as Record<string, unknown>;
   const baseBeds = baseRecord.beds as Record<string, Record<string, unknown>>;
@@ -33,6 +52,7 @@ const seedPersistedSessionAndRecord = async (page: Page) => {
         status: 'ESTABLE',
       },
     },
+    ...recordOverrides,
   });
 
   await page.addInitScript(
@@ -284,4 +304,43 @@ test.describe('Production Preview Bootstrap', () => {
     }
     runtimeCollector.detach();
   });
+
+  for (const width of [375, 768, 1440]) {
+    test(`keeps the final movement menu inside the initial viewport at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 768 });
+      const runtimeCollector = createPreviewRuntimeFailureCollector(page);
+      await seedPersistedSessionAndRecord(page, { discharges: buildViewportDischarges() });
+
+      await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+      await expectSeededPatientVisible(page);
+
+      const trigger = page.getByTitle('Abrir menú de acciones').last();
+      await trigger.scrollIntoViewIfNeeded();
+      const before = await page.evaluate(() => ({
+        scrollHeight: document.documentElement.scrollHeight,
+        scrollY: window.scrollY,
+      }));
+
+      await trigger.click();
+      const menu = page.getByRole('menu');
+      await expect(menu).toBeVisible();
+      await expect(menu).toBeInViewport({ ratio: 1 });
+      const after = await menu.evaluate(element => ({
+        top: element.getBoundingClientRect().top,
+        bottom: element.getBoundingClientRect().bottom,
+        viewportHeight: window.innerHeight,
+        scrollHeight: document.documentElement.scrollHeight,
+        scrollY: window.scrollY,
+      }));
+
+      expect(after.top).toBeGreaterThanOrEqual(8);
+      expect(after.bottom).toBeLessThanOrEqual(after.viewportHeight - 8);
+      expect(after.scrollHeight).toBe(before.scrollHeight);
+      expect(after.scrollY).toBe(before.scrollY);
+      await assertPreviewBootCompleted(page, runtimeCollector.failures);
+      runtimeCollector.detach();
+    });
+  }
 });

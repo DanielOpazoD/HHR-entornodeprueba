@@ -2,7 +2,11 @@ import React from 'react';
 import { CloudUpload, RefreshCw, Trash2 } from 'lucide-react';
 import { useSyncQueueMonitor } from '@/hooks/useSyncQueueMonitor';
 import { discardQuarantinedSyncTask, retryQuarantinedSyncTask } from '@/services/storage/sync';
-import { buildSyncQueueChipModel, listQuarantinedOperations } from './syncQueueStatusPresentation';
+import {
+  buildSyncQueueChipModel,
+  listQuarantinedOperations,
+  SYNC_QUEUE_STUCK_PENDING_MS,
+} from './syncQueueStatusPresentation';
 
 /**
  * Chip «cambios pendientes de sincronizar» de la barra del censo. Invisible en
@@ -25,6 +29,9 @@ export const SyncQueueStatusChip: React.FC<SyncQueueStatusChipProps> = ({ open, 
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const model = buildSyncQueueChipModel(stats);
+  const pending = operations
+    .filter(operation => operation.status === 'PENDING')
+    .sort((left, right) => left.timestamp - right.timestamp)[0];
   const quarantined = listQuarantinedOperations(operations);
   const visible = model.tone !== 'hidden';
 
@@ -91,10 +98,34 @@ export const SyncQueueStatusChip: React.FC<SyncQueueStatusChipProps> = ({ open, 
             Cambios pendientes de sincronizar
           </p>
           {stats.pending > 0 && (
-            <p className="mb-2 text-[11px] leading-snug text-slate-600">
-              {stats.pending} en cola{stats.retrying > 0 ? ` · ${stats.retrying} reintentando` : ''}
-              . Se sincronizan solos al recuperar conexión.
-            </p>
+            <div className="mb-2">
+              <p className="text-[11px] leading-snug text-slate-600">
+                {stats.pending} en cola
+                {stats.retrying > 0 ? ` · ${stats.retrying} reintentando` : ''}.
+                {pending?.key?.startsWith('daily:') && (
+                  <>
+                    <br />
+                    Censo {pending.key?.slice(6)} ·{' '}
+                    {Date.now() - pending.timestamp >= SYNC_QUEUE_STUCK_PENDING_MS
+                      ? 'Posible atasco'
+                      : 'Espera normal'}
+                    <br />
+                    Último intento fallido:{' '}
+                    {pending.lastErrorAt
+                      ? new Date(pending.lastErrorAt).toLocaleString('es-CL')
+                      : 'sin error registrado'}
+                  </>
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                disabled={busyTaskId !== null}
+                className="mt-1 text-[11px] font-semibold text-teal-700"
+              >
+                Comprobar ahora
+              </button>
+            </div>
           )}
           {quarantined.length === 0 ? (
             stats.pending === 0 && (

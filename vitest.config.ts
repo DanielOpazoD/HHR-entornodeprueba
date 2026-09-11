@@ -6,6 +6,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
 
+import { pinTestTimeZone } from './scripts/config/testTimeZone';
+
+pinTestTimeZone();
+
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const unitCoverageThresholdsPath = path.join(
   dirname,

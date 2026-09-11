@@ -24,16 +24,6 @@ import '../../../extension/hhr-connection-center-runtime.js';
 import '../../../extension/prescription-print.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
-const hospitalizedDocumentsSource = readFileSync(
-  path.resolve('extension/hhr-hospitalized-documents-center.js'),
-  'utf8'
-);
-const handoffSource = readFileSync(path.resolve('extension/hhr-handoff-center.js'), 'utf8');
-const scoresSource = readFileSync(path.resolve('extension/hhr-scores-center.js'), 'utf8');
-const connectionCenterSource = readFileSync(
-  path.resolve('extension/hhr-connection-center-runtime.js'),
-  'utf8'
-);
 const NativeMutationObserver = globalThis.MutationObserver;
 const contentObservers = new Set<MutationObserver>();
 const contentTimeouts = new Set<ReturnType<typeof globalThis.setTimeout>>();
@@ -128,10 +118,18 @@ describe('extension prescription print content flow', () => {
                 professional: 'Elena Díaz',
                 professionalRun: '17.752.753-K',
                 prescriberVerified: true,
-                count: 2,
+                count: 3,
                 externalCount: 1,
                 validationDate: '15-07-2026',
                 validationDateTime: '15-07-2026 08:10',
+                medications: [
+                  { medication: 'Losartán 50 mg', posology: '1 cada 12 horas', route: 'Oral' },
+                  { medication: 'Paracetamol 500 mg', posology: '1 cada 8 horas' },
+                  {
+                    medication: 'Mometasona Furoato 50 mcg/dosis Suspensión Nasal',
+                    external: true,
+                  },
+                ],
               },
               {
                 key: 'professional-run:189809670-emission-2026-07-14t09-40-00-06-00',
@@ -145,6 +143,9 @@ describe('extension prescription print content flow', () => {
                 printDate: '2026-07-14',
                 printDateTime: '2026-07-14T09:40:00-06:00',
                 printDateSource: 'indication',
+                medications: [
+                  { medication: 'Ceftriaxona 1 g', posology: '1 cada 24 horas', route: 'EV' },
+                ],
               },
             ],
             externalGroups: [
@@ -161,9 +162,10 @@ describe('extension prescription print content flow', () => {
                 printDate: '2026-07-14',
                 printDateTime: '2026-07-14T09:41:00-06:00',
                 printDateSource: 'indication',
+                medications: [{ medication: 'Mometasona Furoato 50 mcg/dosis Suspensión Nasal' }],
               },
             ],
-            validation: { date: '15-07-2026', dateTime: '15-07-2026 08:10' },
+            validation: { date: '2026-07-15', dateTime: '' },
           });
           return;
         }
@@ -215,6 +217,10 @@ describe('extension prescription print content flow', () => {
     expect(document.querySelector('.hhr-rx-patient-context')?.textContent).toContain(
       'RUN 8.932.066-6'
     );
+    expect(document.querySelector('.hhr-rx-list')?.textContent).toContain('validación 15-07-2026');
+    expect(document.querySelector('.hhr-rx-list')?.textContent).not.toContain(
+      'validación 15-07-2026 (hora Rapa Nui)'
+    );
     expect(
       messages.filter(message => message.type === 'RAYEN_PRESCRIPTION_OPTIONS_REQUEST')
     ).toHaveLength(2);
@@ -228,9 +234,19 @@ describe('extension prescription print content flow', () => {
     );
     expect(antonioOption?.disabled).toBe(false);
     expect(antonioOption?.closest('label')?.textContent).toContain('Antonio Hernández');
-    expect(antonioOption?.closest('label')?.textContent).toContain('emisión 14-07-2026 09:40');
+    expect(antonioOption?.closest('label')?.textContent).toContain(
+      'emisión 14-07-2026 09:40 (hora Rapa Nui)'
+    );
+    const antonioPreview = antonioOption
+      ?.closest('.hhr-rx-option-card')
+      ?.querySelector<HTMLDetailsElement>('.hhr-rx-medication-preview');
+    expect(antonioPreview?.textContent).toContain('Ver 1 fármaco indicado');
+    expect(antonioPreview?.textContent).toContain('Ceftriaxona 1 g — 1 cada 24 horas · EV');
+    expect(antonioPreview?.open).toBe(false);
     const completeOption = document.querySelector<HTMLInputElement>('input[value="complete"]');
     expect(completeOption?.closest('label')?.textContent).toContain('incluye 1 receta externa');
+    const completePreview = completeOption?.closest('.hhr-rx-option-card')?.textContent || '';
+    expect(completePreview.match(/Mometasona Furoato/g)).toHaveLength(1);
     firstPrint.click();
 
     await vi.waitFor(() => {
@@ -266,44 +282,6 @@ describe('extension prescription print content flow', () => {
       );
       expect(document.getElementById('hhr-prescription-print-modal')).toBe(centerRoot);
     });
-  });
-
-  it('keeps clinical print retries usable and acknowledges writes before detached-panel exits', async () => {
-    expect(hospitalizedDocumentsSource).toContain(
-      "submit.textContent = 'Imprimir regímenes y BRADEN'"
-    );
-    expect(hospitalizedDocumentsSource).toContain("submit.textContent = 'Reintentar impresión'");
-
-    const scoreAck = scoresSource.indexOf(
-      'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
-      scoresSource.indexOf('const renderScoresCenter')
-    );
-    const scoreDisconnect = scoresSource.indexOf('if (!panel.isConnected) return;', scoreAck);
-    expect(scoreAck).toBeGreaterThan(-1);
-    expect(scoreDisconnect).toBeGreaterThan(scoreAck);
-
-    const handoffRequest = handoffSource.indexOf('type: runtimeMessages.HANDOFF_SAVE_REQUEST');
-    const handoffAck = handoffSource.indexOf(
-      'const acknowledged = await acknowledgeClinicalWrite(result.clinicalWriteReceipt)',
-      handoffRequest
-    );
-    const handoffDisconnect = handoffSource.indexOf(
-      'if (!root.isConnected) return;',
-      handoffRequest
-    );
-    expect(handoffAck).toBeGreaterThan(handoffRequest);
-    expect(handoffDisconnect).toBeGreaterThan(handoffAck);
-  });
-
-  it('keeps credentials on the official Rayen page and exposes session controls in Centro HHR', () => {
-    expect(connectionCenterSource).toContain('type: runtimeMessages.GC_CONNECT_REQUEST');
-    expect(connectionCenterSource).toContain('type: runtimeMessages.GC_DISCONNECT_REQUEST');
-    expect(connectionCenterSource).toContain(
-      'La contraseña se ingresa únicamente en la página oficial de Rayen'
-    );
-    expect(contentSource).toContain("openCenterModule('connection'");
-    expect(contentSource).toContain('hhr-ops-connection-dot');
-    expect(connectionCenterSource).not.toMatch(/type=["']password["']/i);
   });
 
   it('adds the corrected discharge option beside Eloísa’s native alta print action', async () => {

@@ -20,9 +20,11 @@ export const clearSyncTaskRuntimeState = () => ({
   leaseUntil: undefined,
   attemptId: undefined,
   processingStartedAt: undefined,
+  preOutboxHoldState: undefined,
   preOutboxHoldOwner: undefined,
   preOutboxHoldUntil: undefined,
   preOutboxHoldReason: undefined,
+  preOutboxHoldHeartbeatAt: undefined,
 });
 
 export const getSyncTaskKey = (type: SyncTask['type'], payload: unknown): string | undefined => {

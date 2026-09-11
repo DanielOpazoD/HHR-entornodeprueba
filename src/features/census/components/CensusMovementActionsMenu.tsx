@@ -33,6 +33,33 @@ const actionTextClassName = (kind: CensusMovementActionViewModel['kind']): strin
   return 'text-slate-700 hover:bg-slate-50';
 };
 
+const VIEWPORT_PADDING = 8;
+const MENU_GAP = 4;
+
+export const resolveMenuPosition = (
+  anchorRect: DOMRect,
+  menuRect: DOMRect,
+  viewportSize: { width: number; height: number }
+): React.CSSProperties => {
+  const width = menuRect.width || 0;
+  const height = menuRect.height || 0;
+
+  const spaceBelow = viewportSize.height - anchorRect.bottom - MENU_GAP;
+  const openBelowTop = anchorRect.bottom + MENU_GAP;
+  const openAboveTop = anchorRect.top - height - MENU_GAP;
+
+  const preferredTop = height > 0 && height > spaceBelow ? openAboveTop : openBelowTop;
+  const minTop = VIEWPORT_PADDING;
+  const maxTop = viewportSize.height - height - VIEWPORT_PADDING;
+
+  return {
+    position: 'fixed',
+    top: `${Math.max(minTop, Math.min(preferredTop, maxTop))}px`,
+    right: `${Math.max(VIEWPORT_PADDING, viewportSize.width - anchorRect.right - MENU_GAP)}px`,
+    left: width > viewportSize.width - VIEWPORT_PADDING * 2 ? `${VIEWPORT_PADDING}px` : undefined,
+  };
+};
+
 export const CensusMovementActionsMenu: React.FC<CensusMovementActionsMenuProps> = ({
   actions,
 }) => {
@@ -46,12 +73,24 @@ export const CensusMovementActionsMenu: React.FC<CensusMovementActionsMenuProps>
     if (!trigger) return;
 
     const rect = trigger.getBoundingClientRect();
-    setMenuPosition({
-      position: 'fixed',
-      top: rect.bottom + 4,
-      right: Math.max(8, window.innerWidth - rect.right),
-    });
+    const menuRect = menuRef.current?.getBoundingClientRect() ?? new DOMRect();
+    setMenuPosition(
+      resolveMenuPosition(rect, menuRect, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    );
   }, []);
+
+  const setMenuNode = useCallback(
+    (node: HTMLDivElement | null) => {
+      menuRef.current = node;
+      if (node) {
+        updateMenuPosition();
+      }
+    },
+    [updateMenuPosition]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -98,10 +137,10 @@ export const CensusMovementActionsMenu: React.FC<CensusMovementActionsMenuProps>
         menuPosition &&
         createPortal(
           <div
-            ref={menuRef}
+            ref={setMenuNode}
             role="menu"
             style={menuPosition}
-            className="z-[70] min-w-44 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg print:hidden"
+            className="z-[70] min-w-44 max-h-[calc(100vh-16px)] overflow-y-auto overflow-x-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg print:hidden"
           >
             {actions.map(action => (
               <button

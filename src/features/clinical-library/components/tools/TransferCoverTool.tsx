@@ -4,7 +4,9 @@ import type { LibraryPatientOption } from '../../domain/libraryCatalogTypes';
 import {
   TRANSFER_COVER_CONTENTS,
   emptyTransferCover,
+  formatCoverDate,
   isTransferCoverPrintable,
+  normalizeCoverDateInput,
   type CoverPaper,
   type TransferCoverData,
 } from '../../domain/transferCover';
@@ -15,18 +17,11 @@ import { ToolFrame, type ToolComponentProps } from './ToolFrame';
 
 const MANUAL_ENTRY = '';
 
-const todayIsoDate = (): string => {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-};
-
 export const PRINT_ACTION_CLASS =
   'inline-flex h-8 items-center gap-1.5 rounded-md bg-medical-600 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-medical-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600 disabled:cursor-not-allowed disabled:bg-slate-300';
 
 export const TransferCoverTool: React.FC<ToolComponentProps> = ({ onBack, onClose, patients }) => {
-  const [cover, setCover] = useState<TransferCoverData>(() => emptyTransferCover(todayIsoDate()));
+  const [cover, setCover] = useState<TransferCoverData>(emptyTransferCover);
   const [selectedBed, setSelectedBed] = useState<string>(MANUAL_ENTRY);
   const [outcome, setOutcome] = useState<PrintHtmlOutcome | null>(null);
 
@@ -43,6 +38,7 @@ export const TransferCoverTool: React.FC<ToolComponentProps> = ({ onBack, onClos
       rut: patient.rut,
       age: patient.age,
       bedId: patient.bedId,
+      admissionDate: normalizeCoverDateInput(patient.admissionDate),
     }));
   };
 
@@ -118,11 +114,11 @@ export const TransferCoverTool: React.FC<ToolComponentProps> = ({ onBack, onClos
             onChange={value => update('destination', value)}
           />
           <TextField
-            id="cover-date"
-            label="Fecha"
+            id="cover-admission-date"
+            label="Fecha de ingreso a Hospital Hanga Roa"
             type="date"
-            value={cover.date}
-            onChange={value => update('date', value)}
+            value={cover.admissionDate}
+            onChange={value => update('admissionDate', value)}
           />
           <div className="col-span-2">
             <TextField
@@ -161,6 +157,9 @@ export const TransferCoverTool: React.FC<ToolComponentProps> = ({ onBack, onClos
           <p className="mt-3 text-[11px] text-slate-500">
             {cover.destination.trim() || '—'} · {TRANSFER_COVER_CONTENTS.length} casillas de
             contenido
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Ingreso a Hospital Hanga Roa: {formatCoverDate(cover.admissionDate) || '—'}
           </p>
         </div>
         {outcome === 'blocked' && (

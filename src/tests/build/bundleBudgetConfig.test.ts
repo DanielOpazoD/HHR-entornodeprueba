@@ -58,6 +58,9 @@ describe('bundle budget config', () => {
     expect(findBudget(config, '^ClinicalPanelDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 50000,
     });
+    expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')).toMatchObject({
+      maxBytes: 30000,
+    });
     expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 120000,
     });
@@ -69,8 +72,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Preserve current auth ceiling plus the original Documentos toolbar allowance.
-      maxBytes: 614400 + 2000,
+      // Preserve explicit Eloisa state presentation with bounded CI-safe headroom.
+      maxBytes: 623000,
       severity: 'error',
     });
   });
@@ -78,8 +81,8 @@ describe('bundle budget config', () => {
   it('keeps the install-time precache budget focused on critical runtime files', () => {
     const config = readBundleBudgetConfig();
 
-    // Keep both bounded allowances: shared session monitor and offline clinical library.
-    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840 + 31744);
+    // Keep bounded allowances, including Eloisa state and clinical-coverage validation.
+    expect(config.precacheMaxBytes).toBe(4840192 + 2048 + 67840 + 31744 + 2048 + 8192);
     expect(
       config.precacheIgnoredAssetPatterns.some(pattern => /sessionActivity|auth/i.test(pattern))
     ).toBe(false);
@@ -109,6 +112,7 @@ describe('bundle budget config', () => {
         '^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$',
         '^assets/PatientDocumentManagerDialog-.*\\.js$',
         '^assets/ClinicalPanelDrawer-.*\\.js$',
+        '^assets/RayenSyncHistoryModal-.*\\.js$',
       ])
     );
   });

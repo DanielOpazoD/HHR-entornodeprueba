@@ -62,8 +62,21 @@ describe('extension heavy runtime loading', () => {
     );
     const scripts = fichaEntries.flatMap(entry => entry.js || []);
 
-    expect(fichaEntries).toHaveLength(2);
-    expect(fichaEntries.every(entry => entry.run_at === 'document_start')).toBe(true);
+    // MAIN inject + ISOLATED relay at document_start (session identity, health, reads); the
+    // Centro HHR UI (~530 KB) at document_idle so it never delays Ficha Médico's own boot.
+    expect(fichaEntries).toHaveLength(3);
+    const [mainEntry, relayEntry, uiEntry] = fichaEntries;
+    expect(mainEntry?.run_at).toBe('document_start');
+    expect(relayEntry?.run_at).toBe('document_start');
+    expect(relayEntry?.js).toEqual([
+      'message-contract.js',
+      'bridge-generation.js',
+      'content-fichamedico.js',
+      'fichamedico-manual-patient-copy.js',
+    ]);
+    expect(uiEntry?.run_at).toBe('document_idle');
+    // The deferred entry stays self-contained: the contract is loaded again before its callers.
+    expect(uiEntry?.js?.slice(0, 2)).toEqual(['message-contract.js', 'hhr-ui.js']);
     expect(scripts.indexOf('fichamedico-treating-physician-dom.js')).toBeLessThan(
       scripts.indexOf('fichamedico-treating-physician-sources.js')
     );

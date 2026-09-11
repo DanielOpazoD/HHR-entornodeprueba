@@ -356,7 +356,7 @@ describe('extension prescription operations', () => {
     ).toBe(true);
   });
 
-  it('renders zoned clinical timestamps in Pacific/Easter and preserves naive local values', () => {
+  it('renders absolute timestamps in Pacific/Easter and preserves Eloísa local wall-clock values', () => {
     expect(prescriptionPrint.formatDateTimeLabel('2026-07-15T14:56:00Z')).toBe('15-07-2026 08:56');
     expect(prescriptionPrint.formatDateTimeLabel('2026-07-15T10:56:00-04:00')).toBe(
       '15-07-2026 08:56'

@@ -44,8 +44,7 @@ import {
   groupEvaluationScaleApplications,
   type RawEvaluationCampo,
 } from './groupEvaluationScaleApplications';
-
-const RAPA_NUI_TZ = 'Pacific/Easter';
+import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 export type EvaluationScaleCode = 'BRADEN' | 'DOWNTON';
 
@@ -111,7 +110,7 @@ export const str = (value: unknown): string => (value == null ? '' : String(valu
 const pad2 = (value: string | number): string => String(value).padStart(2, '0');
 
 const rapaNuiDayFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: RAPA_NUI_TZ,
+  timeZone: CLINICAL_TIME_ZONE,
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
@@ -121,7 +120,7 @@ const rapaNuiDayFormatter = new Intl.DateTimeFormat('en-CA', {
 export const rapaNuiDay = (epoch: number): string => rapaNuiDayFormatter.format(new Date(epoch));
 
 const rapaNuiClockFormatter = new Intl.DateTimeFormat('en-GB', {
-  timeZone: RAPA_NUI_TZ,
+  timeZone: CLINICAL_TIME_ZONE,
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',

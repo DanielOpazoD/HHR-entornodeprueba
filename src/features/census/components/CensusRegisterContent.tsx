@@ -34,6 +34,8 @@ interface CensusRegisterContentProps {
   onCloseBedManagerModal: () => void;
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   accessProfile?: CensusAccessProfile;
+  rayenBootstrapRequestId?: number;
+  onRayenBootstrapHandled?: () => void;
 }
 
 export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
@@ -47,6 +49,8 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
   onCloseBedManagerModal,
   renderMedicalHandoffAction,
   accessProfile = 'default',
+  rayenBootstrapRequestId,
+  onRayenBootstrapHandled,
 }) => {
   const shouldRenderSections = !isSpecialistCensusAccessProfile(accessProfile);
   const shouldRenderDeferredSections = useDeferredCensusEnhancement(shouldRenderSections);
@@ -76,6 +80,8 @@ export const CensusRegisterContent: React.FC<CensusRegisterContentProps> = ({
           onAttentionFilterChange={setAttentionFilter}
           visibleBeds={visibleBeds}
           renderMedicalHandoffAction={renderMedicalHandoffAction}
+          rayenBootstrapRequestId={rayenBootstrapRequestId}
+          onRayenBootstrapHandled={onRayenBootstrapHandled}
         />
 
         <CensusRegisterMainContent

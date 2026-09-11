@@ -28,6 +28,9 @@ const requestForms = {
   PROCEDENCIA_OPTIONS: ['Hospitalización', 'Urgencia'],
   FONASA_LEVELS: ['A', 'B'],
   LAB_FORM_COLUMNS: [['hematologia']],
+  formatDateCL: vi.fn((value: string) =>
+    /^\d{2}-\d{2}-\d{4}$/.test(value) ? value : value.split('-').reverse().join('-')
+  ),
   buildLabRequestPrintHtml: vi.fn(() => '<!doctype html><title>Solicitud</title>'),
 };
 
@@ -160,7 +163,7 @@ describe('Centro HHR Laboratorio runtime', () => {
     });
   });
 
-  it('keeps one root while navigating request to results and preserves printable patient data', async () => {
+  it('prints an unmarked request and keeps one root while navigating to results', async () => {
     vi.stubGlobal('chrome', {
       runtime: { getURL: (value: string) => `chrome-extension://test/${value}` },
     });
@@ -193,13 +196,6 @@ describe('Centro HHR Laboratorio runtime', () => {
     const root = makeRoot();
 
     runtime.renderLabRequestView(root, '141121');
-    const exam = await vi.waitFor(() => {
-      const element = root.querySelector<HTMLInputElement>('.hhr-labreq-exam input');
-      expect(element).not.toBeNull();
-      return element as HTMLInputElement;
-    });
-    exam.checked = true;
-    exam.dispatchEvent(new Event('change', { bubbles: true }));
     const print = await vi.waitFor(() => {
       const element = root.querySelector<HTMLButtonElement>('.hhr-labreq-print');
       expect(element?.disabled).toBe(false);
@@ -216,7 +212,7 @@ describe('Centro HHR Laboratorio runtime', () => {
         },
         diagnosis: 'Neumonía',
         procedencia: 'Hospitalización',
-        selected: ['hematologia|Hemograma'],
+        selected: [],
         logoUrl: 'chrome-extension://test/hhr-logo.svg',
       })
     );
@@ -247,5 +243,52 @@ describe('Centro HHR Laboratorio runtime', () => {
       expect(password.value).toBe('');
       expect(root.querySelector<HTMLElement>('.hhr-syslab-access')?.hidden).toBe(true);
     });
+  });
+
+  it('creates a printable laboratory request for a manually entered new patient', async () => {
+    vi.stubGlobal('chrome', {
+      runtime: { getURL: (value: string) => `chrome-extension://test/${value}` },
+    });
+    const fakePrintWindow = {
+      closed: false,
+      focus: vi.fn(),
+      print: vi.fn(),
+      addEventListener: vi.fn((_event: string, handler: () => void) => handler()),
+      document: { open: vi.fn(), write: vi.fn(), close: vi.fn() },
+    };
+    vi.spyOn(window, 'open').mockReturnValue(fakePrintWindow as unknown as Window);
+    const runtime = runtimeOwner().create(makeDependencies(vi.fn(async () => ({ ok: true }))));
+    const root = makeRoot();
+
+    runtime.renderLabRequestView(root, '');
+    expect(root.querySelector<HTMLInputElement>('input[value="manual"]')?.checked).toBe(true);
+    const print = root.querySelector<HTMLButtonElement>('.hhr-labreq-print')!;
+    expect(print.disabled).toBe(true);
+    const enter = (field: string, value: string) => {
+      const input = root.querySelector<HTMLInputElement>(`[data-manual="${field}"]`)!;
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    enter('name', 'Paciente Nuevo Rapa Nui');
+    enter('run', '12.345.678-5');
+    enter('birthDate', '1980-02-01');
+    enter('ficha', 'FC-204');
+    enter('diagnosis', 'Diagnóstico registrado manualmente');
+    expect(print.disabled).toBe(false);
+    print.click();
+
+    expect(requestForms.buildLabRequestPrintHtml).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patient: {
+          name: 'Paciente Nuevo Rapa Nui',
+          run: '12.345.678-5',
+          birthDate: '01-02-1980',
+        },
+        ficha: 'FC-204',
+        diagnosis: 'Diagnóstico registrado manualmente',
+        selected: [],
+      })
+    );
+    expect(fakePrintWindow.print).toHaveBeenCalledTimes(1);
   });
 });
