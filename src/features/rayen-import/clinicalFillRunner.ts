@@ -51,8 +51,8 @@ const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 const READ_CONCURRENCY = 4;
-
 export { countClinicalFillEligiblePatients } from './domain/clinicalFillCandidates';
+export { createClinicalFillWatchdog } from './domain/clinicalFillWatchdog';
 
 export const runClinicalFill = async (
   record: DailyRecord,
@@ -85,8 +85,7 @@ export const runClinicalFill = async (
     summary.performance = performance.finish(summary.incremental!);
     return summary;
   }
-  // CUDYR is a run-level preflight: capture Gestión de Camas exactly once and establish whether
-  // its official per-episode history is available before starting any patient clinical reads.
+  // CUDYR preflight: capture Gestión de Camas once and learn if per-episode history exists.
   const cudyrPreflight = await captureClinicalCudyrSource({
     fetch: deps.fetchCudyrCategories,
     trackRequest: performance.trackRequest,
@@ -95,10 +94,9 @@ export const runClinicalFill = async (
   const cudyrSource = cudyrPreflight.source;
   if (cudyrPreflight.unavailableError) summary.errors.push(cudyrPreflight.unavailableError);
   const nursingObservations: NursingActivityObservation[] = [];
-  const withDeviceReadSlot = createConcurrencyGate(READ_CONCURRENCY);
-  const withHistoryReadSlot = createConcurrencyGate(READ_CONCURRENCY);
-  const withFormsReadSlot = createConcurrencyGate(READ_CONCURRENCY);
-  const withBundleReadSlot = createConcurrencyGate(READ_CONCURRENCY);
+  const gate = () => createConcurrencyGate(READ_CONCURRENCY, deps.signal);
+  const [withDeviceReadSlot, withHistoryReadSlot] = [gate(), gate()];
+  const [withFormsReadSlot, withBundleReadSlot] = [gate(), gate()];
   // Reads are concurrent; writes are serialized to preserve the census revision contract.
   const writes = createClinicalWriteCoordinator(summary.incremental!, performance.writeObserver);
   const persistenceStrategy = deps.persistenceStrategy ?? {
@@ -169,8 +167,7 @@ export const runClinicalFill = async (
           deviceResult.value.source === 'json'
             ? mapRayenInvasiveDeviceEntries(deviceResult.value.entries)
             : mapInvasiveDevices(parseInvasiveDevices(deviceResult.value.textItems));
-        // Device synchronization is intentionally additive: without persisted source provenance,
-        // an empty remote list cannot safely remove devices maintained manually by nursing.
+        // Additive on purpose: an empty remote list must not remove devices nursing keeps by hand.
         if (devices.length > 0) {
           merged = mergeReportDevices(merged, devices, {
             now: deps.now(),
@@ -239,9 +236,8 @@ export const runClinicalFill = async (
           : [];
       const summaryScales = parseEvaluationScales(forms);
       const scales = mergeScaleSources(historyScales, summaryScales);
-      // Always pass through the canonicalizer, even when the incremental read contains no new
-      // scale. Older versions could persist one Rayen application twice under different form
-      // authors; waiting for a new application would leave that duplicate visible indefinitely.
+      // Always canonicalize, even without new scales: older versions persisted one Rayen
+      // application twice under different form authors, and that duplicate must not linger.
       if (historyAuthoritative || formsAuthoritative) {
         merged = mergeReportScales(merged, scales, {
           censusIsoDay: fecha,
@@ -329,6 +325,10 @@ export const runClinicalFill = async (
       }
     }
 
+    if (deps.signal?.aborted) {
+      reportPatientError('patch', message(deps.signal.reason ?? 'Clinical stage timeout'));
+      return;
+    }
     try {
       await writes.applyPatientPatch(
         async captureHistorySnapshot => {
