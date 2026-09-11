@@ -13,12 +13,24 @@ interface SendCensusEmailParams {
   body?: string;
 
   encryptionPin?: string;
+  /**
+   * Optional sender identity. Gmail only honours a From that belongs to the authorized mailbox
+   * (or one of its verified aliases), so a different sender needs its own refresh token.
+   */
+  sender?: { name: string; email: string };
+  /** Refresh token of the mailbox that owns `sender`; defaults to the institutional mailbox. */
+  refreshToken?: string;
 }
 
-const getOAuth2Client = () => {
+export const DEFAULT_GMAIL_SENDER = Object.freeze({
+  name: 'Hospital Hanga Roa',
+  email: 'hospitalizados@hospitalhangaroa.cl',
+});
+
+const getOAuth2Client = (refreshTokenOverride?: string) => {
   const clientId = process.env.GMAIL_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-  const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
+  const refreshToken = refreshTokenOverride || process.env.GMAIL_REFRESH_TOKEN;
 
   if (!clientId || !clientSecret || !refreshToken) {
     throw new Error(
@@ -47,6 +59,7 @@ const buildMimeMessage = (params: SendCensusEmailParams) => {
     subject,
     body,
     encryptionPin,
+    sender = DEFAULT_GMAIL_SENDER,
   } = params;
 
   const boundary = '----=_Part_0_123456789.123456789';
@@ -58,7 +71,7 @@ const buildMimeMessage = (params: SendCensusEmailParams) => {
     'Content-Type: multipart/mixed; boundary="' + boundary + '"',
     'MIME-Version: 1.0',
     'Content-Language: es-CL',
-    'From: "Hospital Hanga Roa" <hospitalizados@hospitalhangaroa.cl>',
+    `From: "${sender.name.replace(/"/g, '')}" <${sender.email}>`,
     'To: ' + recipients.join(', '),
     'Subject: ' + encodeHeaderUtf8(mailSubject),
     '',
@@ -96,7 +109,7 @@ const buildMimeMessage = (params: SendCensusEmailParams) => {
 };
 
 export const sendCensusEmail = async (params: SendCensusEmailParams) => {
-  const oauth2Client = getOAuth2Client();
+  const oauth2Client = getOAuth2Client(params.refreshToken);
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   const mimeMessage = buildMimeMessage(params);

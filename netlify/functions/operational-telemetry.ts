@@ -6,7 +6,7 @@
  * failure that needs a human, mailed to `OPERATIONAL_TELEMETRY_ALERT_RECIPIENTS` through the
  * Gmail sender the census already uses. Alerts are throttled per operation to avoid storms.
  */
-import { sendCensusEmail } from '../../src/services/email/gmailClient';
+import { DEFAULT_GMAIL_SENDER, sendCensusEmail } from '../../src/services/email/gmailClient';
 import {
   buildOperationalTelemetryAlert,
   parseOperationalTelemetryBody,
@@ -34,6 +34,8 @@ export interface OperationalTelemetryHandlerDeps {
     recipients: string[];
     subject: string;
     body: string;
+    sender?: { name: string; email: string };
+    refreshToken?: string;
   }) => Promise<unknown>;
   gmailConfigured: () => boolean;
   now: () => number;
@@ -61,12 +63,25 @@ export const createOperationalTelemetryHandler = (deps: OperationalTelemetryHand
     lastAlertByOperation.set(event.operation, now);
     const siteLabel = deps.env().URL || deps.env().SITE_URL || 'HHR';
     const { subject, body } = buildOperationalTelemetryAlert(event, siteLabel);
+    // Alerts may leave from a personal institutional mailbox instead of the shared one; that
+    // mailbox must have authorized `gmail.send` with its own refresh token.
+    const senderEmail = deps.env().OPERATIONAL_TELEMETRY_ALERT_SENDER?.trim();
+    const senderToken = deps.env().OPERATIONAL_TELEMETRY_GMAIL_REFRESH_TOKEN?.trim();
+    const sender =
+      senderEmail && senderToken
+        ? {
+            name: deps.env().OPERATIONAL_TELEMETRY_ALERT_SENDER_NAME?.trim() || 'HHR Alertas',
+            email: senderEmail,
+          }
+        : DEFAULT_GMAIL_SENDER;
     try {
       await deps.sendEmail({
         date: event.date ?? event.timestamp.slice(0, 10),
         recipients,
         subject,
         body,
+        sender,
+        refreshToken: senderEmail && senderToken ? senderToken : undefined,
       });
       return 'sent';
     } catch (error) {
