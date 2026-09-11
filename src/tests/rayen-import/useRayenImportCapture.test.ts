@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { createExecutionHarness } from './support/executionHarness';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
 import { INITIAL_RAYEN_IMPORT_STATE } from '@/features/rayen-import/hooks/rayenImportState';
@@ -78,6 +79,7 @@ describe('useRayenImportCapture', () => {
     const previewSnapshot = vi.fn();
     const { result } = renderHook(() =>
       useRayenImportCapture({
+        ...createExecutionHarness(),
         currentRecord: record,
         policy,
         policyStatus: 'ready',
@@ -150,6 +152,7 @@ describe('useRayenImportCapture', () => {
     const startRequest = vi.fn();
     const { result } = renderHook(() =>
       useRayenImportCapture({
+        ...createExecutionHarness(),
         currentRecord: record,
         policy,
         policyStatus: 'ready',
@@ -321,6 +324,7 @@ describe('useRayenImportCapture', () => {
     const startRequest = vi.fn();
     const { result } = renderHook(() =>
       useRayenImportCapture({
+        ...createExecutionHarness(),
         currentRecord: record,
         policy,
         policyStatus: 'ready',
@@ -368,6 +372,7 @@ describe('useRayenImportCapture', () => {
     const startRequest = vi.fn();
     const { result } = renderHook(() =>
       useRayenImportCapture({
+        ...createExecutionHarness(),
         currentRecord: unsupportedRecord,
         policy,
         policyStatus: 'ready',
@@ -419,6 +424,7 @@ describe('useRayenImportCapture', () => {
     const preparedSyncContextRef: { current: PreparedRayenSyncContext | null } = { current: null };
     const { result } = renderHook(() =>
       useRayenImportCapture({
+        ...createExecutionHarness(),
         currentRecord: record,
         policy,
         policyStatus: 'ready',

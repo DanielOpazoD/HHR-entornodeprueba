@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { createExecutionHarness } from './support/executionHarness';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
 import type { DailyRecord } from '@/features/rayen-import/contracts/rayenDomainContracts';
@@ -62,6 +63,7 @@ const downHealth: RayenExtensionHealthState = {
 const renderCapture = (overrides: Partial<Parameters<typeof useRayenImportCapture>[0]> = {}) => {
   const preparedSyncContextRef: { current: PreparedRayenSyncContext | null } = { current: null };
   const deps = {
+    ...createExecutionHarness(),
     currentRecord: record,
     policy,
     policyStatus: 'ready' as const,

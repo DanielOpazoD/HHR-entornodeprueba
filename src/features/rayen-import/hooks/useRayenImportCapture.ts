@@ -46,7 +46,7 @@ interface UseRayenImportCaptureInput {
   policy: RayenImportPolicy;
   policyStatus: RayenImportPolicyStatus;
   dispatchExecution?: Dispatch<RayenSyncExecutionAction>;
-  executionRef?: RefObject<RayenSyncExecutionState>;
+  executionRef: RefObject<RayenSyncExecutionState>;
   setState: Dispatch<SetStateAction<RayenImportState>>;
   setStaffingProposal: Dispatch<SetStateAction<NursingStaffingProposal | null>>;
   setStaffingProposalError: Dispatch<SetStateAction<string | null>>;
@@ -110,7 +110,7 @@ export const useRayenImportCapture = ({
         if (!runId) return;
         const selectedDate = preparedSyncContextRef.current?.selectedDate;
         if (
-          !isRayenSyncExecutionCurrent(executionRef?.current, { runId, requestId, selectedDate })
+          !isRayenSyncExecutionCurrent(executionRef.current, { runId, requestId, selectedDate })
         ) {
           return;
         }
@@ -155,7 +155,7 @@ export const useRayenImportCapture = ({
     ): Promise<RayenImportTriggerOutcome> => {
       const requestedSelectedDate =
         routeSelectedDate ?? (currentRecord ? toIsoReportDate(currentRecord) : 'no-record');
-      const activeExecution = executionRef?.current;
+      const activeExecution = executionRef.current;
       if (activeExecution && !isRayenSyncExecutionSettled(activeExecution.stage)) {
         const activeSelectedDate =
           activeExecution.context?.selectedDate ?? activeExecution.pending?.selectedDate;
@@ -177,7 +177,7 @@ export const useRayenImportCapture = ({
       const activeLock = capturePreparationLockRef.current;
       if (
         activeLock?.selectedDate === requestedSelectedDate &&
-        executionRef?.current.stage?.type !== 'cancelled'
+        executionRef.current.stage?.type !== 'cancelled'
       ) {
         return 'already_running';
       }
@@ -280,7 +280,7 @@ export const useRayenImportCapture = ({
           }
         } catch (error) {
           if (
-            !isRayenSyncExecutionCurrent(executionRef?.current, {
+            !isRayenSyncExecutionCurrent(executionRef.current, {
               runId: run.id,
               selectedDate,
             })
@@ -308,7 +308,7 @@ export const useRayenImportCapture = ({
         // The selected date or active execution may have changed while the authoritative census
         // was loading. Never start an extension request for an obsolete temporal context.
         if (
-          !isRayenSyncExecutionCurrent(executionRef?.current, {
+          !isRayenSyncExecutionCurrent(executionRef.current, {
             runId: run.id,
             selectedDate,
           })
@@ -331,7 +331,7 @@ export const useRayenImportCapture = ({
           run.id,
           () => {
             if (
-              !isRayenSyncExecutionCurrent(executionRef?.current, {
+              !isRayenSyncExecutionCurrent(executionRef.current, {
                 runId: run.id,
                 requestId,
                 selectedDate,

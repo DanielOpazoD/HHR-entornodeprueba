@@ -105,14 +105,30 @@ describe('rayenSyncExecutionReducer', () => {
     { type: 'failed' } as const,
   ])('does not revive a settled $type execution with a late callback', terminalStage => {
     const execution = context('run-1', 'request-1');
-    const active = activate(execution);
-    const settled = rayenSyncExecutionReducer(active, {
-      type: 'transition',
+    const identity = {
       runId: execution.runId,
       requestId: execution.requestId,
       selectedDate: execution.selectedDate,
+    };
+    // Walk the real graph: a terminal stage is only reachable from the clinical stage.
+    const clinical = (
+      [
+        { type: 'planning_structure' },
+        { type: 'persisting_structure' },
+        { type: 'verifying_structure' },
+        { type: 'syncing_clinical' },
+      ] as const
+    ).reduce(
+      (state, stage) =>
+        rayenSyncExecutionReducer(state, { type: 'transition', ...identity, stage }),
+      activate(execution)
+    );
+    const settled = rayenSyncExecutionReducer(clinical, {
+      type: 'transition',
+      ...identity,
       stage: terminalStage,
     });
+    expect(settled.stage).toEqual(terminalStage);
 
     const late = rayenSyncExecutionReducer(settled, {
       type: 'transition',
