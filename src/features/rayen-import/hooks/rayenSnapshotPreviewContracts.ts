@@ -18,7 +18,7 @@ export interface UseRayenSnapshotPreviewInput {
   isAdmin: boolean;
   setState: Dispatch<SetStateAction<RayenImportState>>;
   dispatchExecution?: Dispatch<RayenSyncExecutionAction>;
-  executionRef?: RefObject<RayenSyncExecutionState>;
+  executionRef: RefObject<RayenSyncExecutionState>;
   selectedDateRef?: RefObject<string | undefined>;
   clearSyncTimeout: () => void;
   applyDiff: (

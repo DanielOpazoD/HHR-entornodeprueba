@@ -8,10 +8,13 @@ import {
 } from 'react';
 import type { RayenImportState } from './rayenImportState';
 import type { ClinicalStageResult } from '../contracts/clinicalStageResult';
+import { reportRayenSyncWarning } from '../observability/rayenSyncDiagnostics';
 import {
   INITIAL_RAYEN_SYNC_EXECUTION_STATE,
   isRayenSyncPreviewStage,
   isRayenSyncExecutionSettled,
+  isRayenSyncStageTransitionAllowed,
+  matchesRayenSyncExecution,
   rayenSyncExecutionReducer,
   type RayenSyncExecutionAction,
   type RayenSyncStage,
@@ -44,6 +47,21 @@ export const useRayenSyncExecutionController = ({
     const previousExecution = executionRef.current;
     const nextExecution = rayenSyncExecutionReducer(previousExecution, action);
     const actionWasAccepted = nextExecution !== previousExecution;
+
+    if (
+      action.type === 'transition' &&
+      !actionWasAccepted &&
+      matchesRayenSyncExecution(previousExecution, action) &&
+      !isRayenSyncStageTransitionAllowed(previousExecution.stage, action.stage)
+    ) {
+      // The identity matched but the graph did not: a stage tried to move backwards or skip the
+      // structural commit. The reducer kept the state; leave a trace so it is not silent.
+      reportRayenSyncWarning('sync_stage_transition_rejected', {
+        runId: action.runId,
+        from: previousExecution.stage?.type ?? null,
+        to: action.stage.type,
+      });
+    }
 
     if (
       action.type === 'transition' &&

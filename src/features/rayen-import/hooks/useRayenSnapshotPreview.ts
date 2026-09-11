@@ -59,7 +59,7 @@ export const useRayenSnapshotPreview = ({
       const run = requestedRunId ? getRun(requestedRunId) : ensureRun();
       if (!run) return;
       const requestIdentity = { runId: run.id, requestId };
-      if (!isRayenSyncExecutionCurrent(executionRef?.current, requestIdentity)) return;
+      if (!isRayenSyncExecutionCurrent(executionRef.current, requestIdentity)) return;
       clearSyncTimeout();
       const planningSnapshot = prepareTreatingPhysicianSnapshot(snapshot);
       const preparedContext = preparedSyncContextRef.current;
@@ -84,7 +84,7 @@ export const useRayenSnapshotPreview = ({
         requestId,
         selectedDate: preparedContext.selectedDate,
       };
-      if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+      if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
       const execution = createRayenSnapshotExecutionReporter(dispatchExecution, executionIdentity);
       const returnReplanToReview = (error: unknown) =>
         returnRayenReplanToReview({
@@ -130,7 +130,7 @@ export const useRayenSnapshotPreview = ({
       });
       const { replanDiff } = structuralPlan;
       let diff = structuralPlan.diff;
-      if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+      if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
       structuralReplanRef.current = {
         ...executionIdentity,
         clinicalDay: preparedContext.target.clinicalDay,
@@ -157,7 +157,7 @@ export const useRayenSnapshotPreview = ({
       execution.recordOutcome({ structuralConflicts: structuralConflictCount });
       const persistConvergedStructure = () =>
         runSerializedPersistence(() => {
-          if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) {
+          if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
             return Promise.resolve(null);
           }
           return applyConfirmedRayenImport({
@@ -183,7 +183,7 @@ export const useRayenSnapshotPreview = ({
           });
         });
       const finishFailedPersistence = (error: unknown) => {
-        if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+        if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
         if (returnReplanToReview(error)) {
           const replan = structuralReplanRef.current;
           if (matchesRayenStructuralReplan(replan, executionIdentity)) {
@@ -208,7 +208,7 @@ export const useRayenSnapshotPreview = ({
         commit: RayenStructuralCommitSummary,
         updateVisibleState?: () => void
       ): Promise<void> => {
-        if (isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) {
+        if (isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) {
           execution.recordOutcome({
             structuralConflicts: commit.structuralConflicts,
             skippedItems: commit.skippedItems,
@@ -230,13 +230,13 @@ export const useRayenSnapshotPreview = ({
         runRayenStructuralPersistenceLifecycle({
           executionKey: rayenSyncExecutionKey(executionIdentity),
           activeExecutionKeys: structuralPersistenceExecutionKeysRef.current,
-          isCurrent: () => isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity),
+          isCurrent: () => isRayenSyncExecutionCurrent(executionRef.current, executionIdentity),
           startPersistence,
           persist: persistConvergedStructure,
           persistenceOptions: {
             now: monotonicNow,
             onDuration: durationMs => {
-              if (!isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)) return;
+              if (!isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)) return;
               recordRunPerformance({ stagesMs: { structuralPersistence: durationMs } }, run.id);
             },
           },
@@ -304,7 +304,7 @@ export const useRayenSnapshotPreview = ({
       const isExecutionDateVisible =
         !selectedDateRef || selectedDateRef.current === executionIdentity.selectedDate;
       setState(previous =>
-        !isRayenSyncExecutionCurrent(executionRef?.current, executionIdentity)
+        !isRayenSyncExecutionCurrent(executionRef.current, executionIdentity)
           ? previous
           : isExecutionDateVisible
             ? {

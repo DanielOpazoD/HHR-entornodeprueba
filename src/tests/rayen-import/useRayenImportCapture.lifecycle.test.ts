@@ -1,4 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
+import {
+  createActiveExecutionHarness,
+  createExecutionHarness,
+  settledExecutionState,
+} from './support/executionHarness';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRayenImportCapture } from '@/features/rayen-import/hooks/useRayenImportCapture';
 import { INITIAL_RAYEN_IMPORT_STATE } from '@/features/rayen-import/hooks/rayenImportState';
@@ -59,6 +64,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
     }));
     const { result } = renderHook(() =>
       useRayenImportCapture({
+        ...createExecutionHarness(),
         currentRecord: record,
         policy,
         policyStatus: 'ready',
@@ -117,6 +123,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
     };
     renderHook(() =>
       useRayenImportCapture({
+        ...createActiveExecutionHarness(),
         currentRecord: record,
         policy,
         policyStatus: 'ready',
@@ -157,6 +164,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
     const setState = vi.fn();
     renderHook(() =>
       useRayenImportCapture({
+        ...createActiveExecutionHarness(),
         currentRecord: record,
         policy,
         policyStatus: 'ready',
@@ -201,6 +209,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
     const setState = vi.fn();
     renderHook(() =>
       useRayenImportCapture({
+        ...createExecutionHarness(),
         currentRecord: record,
         policy,
         policyStatus: 'ready',
@@ -241,14 +250,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
     const startRun = vi.fn();
     const startRequest = vi.fn();
     const executionRef: { current: RayenSyncExecutionState } = {
-      current: rayenSyncExecutionReducer(
-        rayenSyncExecutionReducer(INITIAL_RAYEN_SYNC_EXECUTION_STATE, {
-          type: 'prepare',
-          runId: 'old-run',
-          selectedDate: '2026-08-02',
-        }),
-        { type: 'transition', runId: 'old-run', stage: { type: 'complete' } }
-      ),
+      current: settledExecutionState('old-run', '2026-08-02'),
     };
     const dispatchExecution = vi.fn((action: RayenSyncExecutionAction) => {
       executionRef.current = rayenSyncExecutionReducer(executionRef.current, action);
@@ -300,6 +302,7 @@ describe('useRayenImportCapture lifecycle guards', () => {
     const startRequest = vi.fn();
     const { result } = renderHook(() =>
       useRayenImportCapture({
+        ...createExecutionHarness(),
         currentRecord: record,
         selectedDate: '2026-08-03',
         policy,

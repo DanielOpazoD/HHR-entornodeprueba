@@ -31,6 +31,7 @@ export type RayenSyncDiagnosticCode =
   | 'clinical_fill_partial'
   | 'clinical_fill_queue_task_failed'
   | 'clinical_fill_stage_timeout'
+  | 'sync_stage_transition_rejected'
   | 'clinical_fill_superseded'
   | 'clinical_record_load_failed'
   | 'sync_audit_event_missing'
@@ -52,6 +53,9 @@ interface RayenSyncDiagnosticData {
   patientCount?: number;
   batchMode?: 'shadow' | 'enforced';
   durationMs?: number;
+  /** Stage names of a transition the execution graph refused. */
+  from?: string | null;
+  to?: string;
 }
 
 const errorText = (error: unknown): string => {

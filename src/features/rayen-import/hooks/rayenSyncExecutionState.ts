@@ -140,10 +140,69 @@ export const matchesRayenSyncExecution = (
 };
 
 /** Optional state keeps isolated legacy hook tests compatible; production always supplies it. */
+/**
+ * A callback is current only when a wired execution says so. A missing guard used to count as
+ * "current", which let an unwired caller revive persistence or clinical work for a run that had
+ * already been cancelled or superseded. Absence now fails closed.
+ */
 export const isRayenSyncExecutionCurrent = (
   state: RayenSyncExecutionState | null | undefined,
   identity: RayenSyncExecutionIdentity
-): boolean => !state || matchesRayenSyncExecution(state, identity);
+): boolean =>
+  Boolean(state) && matchesRayenSyncExecution(state as RayenSyncExecutionState, identity);
+
+type RayenSyncStageKey =
+  | Exclude<RayenSyncStage['type'], 'needs_review'>
+  | 'needs_review:structure'
+  | 'needs_review:post_commit';
+
+const stageKey = (stage: RayenSyncStage): RayenSyncStageKey =>
+  stage.type === 'needs_review' ? `needs_review:${stage.scope}` : stage.type;
+
+/**
+ * Forward-only graph of the synchronization. Every edge here is one the hooks actually take;
+ * anything else (a late callback re-entering an early stage, clinical work starting before the
+ * structural commit, a review reopening after commit) is dropped by the reducer and reported.
+ * Settled stages have no edges: `matchesRayenSyncExecution` already freezes them, and `cancel`
+ * is an action, not a transition.
+ */
+export const RAYEN_SYNC_STAGE_TRANSITIONS: Readonly<
+  Record<RayenSyncStageKey, readonly RayenSyncStageKey[]>
+> = Object.freeze({
+  preparing_context: ['capturing', 'syncing_clinical', 'failed'],
+  capturing: ['planning_structure', 'failed'],
+  planning_structure: [
+    'awaiting_review',
+    'needs_review:structure',
+    'persisting_structure',
+    'failed',
+  ],
+  awaiting_review: ['persisting_structure', 'awaiting_review', 'needs_review:structure', 'failed'],
+  'needs_review:structure': [
+    'persisting_structure',
+    'awaiting_review',
+    'needs_review:structure',
+    'failed',
+  ],
+  persisting_structure: [
+    'verifying_structure',
+    'awaiting_review',
+    'needs_review:structure',
+    'failed',
+  ],
+  verifying_structure: ['syncing_clinical', 'failed'],
+  syncing_clinical: ['complete', 'partial', 'needs_review:post_commit', 'failed'],
+  complete: [],
+  partial: [],
+  'needs_review:post_commit': [],
+  failed: [],
+  cancelled: [],
+});
+
+export const isRayenSyncStageTransitionAllowed = (
+  from: RayenSyncStage | null,
+  to: RayenSyncStage
+): boolean => (from ? RAYEN_SYNC_STAGE_TRANSITIONS[stageKey(from)].includes(stageKey(to)) : false);
 
 /**
  * Canonical in-memory state for one Eloisa synchronization.
@@ -178,7 +237,10 @@ export const rayenSyncExecutionReducer = (
         outcome: state.outcome,
       };
     case 'transition':
-      return matchesRayenSyncExecution(state, action) ? { ...state, stage: action.stage } : state;
+      return matchesRayenSyncExecution(state, action) &&
+        isRayenSyncStageTransitionAllowed(state.stage, action.stage)
+        ? { ...state, stage: action.stage }
+        : state;
     case 'record_outcome':
       if (!matchesRayenSyncExecution(state, action)) return state;
       return {
