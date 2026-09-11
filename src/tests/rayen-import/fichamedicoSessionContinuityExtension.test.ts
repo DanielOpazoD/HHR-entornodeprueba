@@ -147,7 +147,11 @@ const createHarness = async (
   const send = async (data: PostedMessage) => {
     const request = { runtimeGeneration: RUNTIME_GENERATION_FIXTURE, ...data };
     const callbacks = listeners.get('message') || [];
-    await Promise.all(callbacks.map(callback => callback({ source: windowObject, data: request })));
+    await Promise.all(
+      callbacks.map(callback =>
+        callback({ source: windowObject, origin: windowObject.location.origin, data: request })
+      )
+    );
     return posted.findLast(message => message.reqId === data.reqId);
   };
 
