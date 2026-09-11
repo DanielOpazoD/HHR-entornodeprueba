@@ -221,6 +221,11 @@ describe('Rayen synchronized source bundle bridge', () => {
       window.location.origin
     );
     cancelRayenSyncBundleRequest(requestId);
+    // Cancelling is not only local bookkeeping: the extension is told to drop the capture.
+    expect(postMessage).toHaveBeenLastCalledWith(
+      { type: 'HHR_RAYEN_CANCEL_SYNC_BUNDLE', requestId },
+      window.location.origin
+    );
     postMessage.mockRestore();
   });
 });

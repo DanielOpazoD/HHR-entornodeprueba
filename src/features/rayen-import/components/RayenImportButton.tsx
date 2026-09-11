@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { History, RefreshCw, UsersRound } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useRayenImport } from '../hooks/useRayenImport';
@@ -7,7 +7,6 @@ import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { RayenImportPreviewModal } from './RayenImportPreviewModal';
 import { RayenImportFlowStatus } from './RayenImportFlowStatus';
-import { RayenSyncHistoryModal } from './RayenSyncHistoryModal';
 import { RayenNursingShiftProposalModal } from './RayenNursingShiftProposalModal';
 import { RayenConnectionMonitor } from './RayenConnectionMonitor';
 import { SyncQueueStatusChip } from './SyncQueueStatusChip';
@@ -23,6 +22,12 @@ import {
   rayenSyncExecutionDate,
 } from '../hooks/rayenSyncExecutionState';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
+
+// The sync history is an on-demand panel that only matters while Eloísa is connected, so its
+// sections and technical metrics stay out of the census view and the PWA precache.
+const LazyRayenSyncHistoryModal = lazy(() =>
+  import('./RayenSyncHistoryModal').then(module => ({ default: module.RayenSyncHistoryModal }))
+);
 
 /**
  * "Sincronizar Eloísa" module for the census toolbar: the sync trigger plus its provenance line —
@@ -366,15 +371,19 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
         onConfirm={confirm}
         onCancel={cancel}
       />
-      <RayenSyncHistoryModal
-        isOpen={historyOpen}
-        onClose={closeHistory}
-        history={history}
-        recovery={recovery}
-        recoveryBusy={working}
-        onRecoveryAction={() => void handleRecoveryAction()}
-        targetDate={historyTargetDate}
-      />
+      {historyOpen ? (
+        <Suspense fallback={null}>
+          <LazyRayenSyncHistoryModal
+            isOpen={historyOpen}
+            onClose={closeHistory}
+            history={history}
+            recovery={recovery}
+            recoveryBusy={working}
+            onRecoveryAction={() => void handleRecoveryAction()}
+            targetDate={historyTargetDate}
+          />
+        </Suspense>
+      ) : null}
       <RayenNursingShiftProposalModal
         proposal={!isPreviewOpen && staffingReviewOpen ? staffingProposal : null}
         isBusy={isStaffingProposalBusy}

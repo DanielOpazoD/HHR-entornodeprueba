@@ -62,7 +62,8 @@ describe('extension hotspot budget', () => {
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
     // 117: la caché breve de salud queda aislada en un runtime propio y gobernado.
-    expect(metrics.authoredFiles).toHaveLength(117);
+    // 118: la cancelación de la captura sincronizada vive en su propio runtime.
+    expect(metrics.authoredFiles).toHaveLength(118);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,

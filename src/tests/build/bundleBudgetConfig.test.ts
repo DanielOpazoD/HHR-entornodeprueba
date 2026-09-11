@@ -58,6 +58,9 @@ describe('bundle budget config', () => {
     expect(findBudget(config, '^ClinicalPanelDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 50000,
     });
+    expect(findBudget(config, '^RayenSyncHistoryModal-.*\\.js$')).toMatchObject({
+      maxBytes: 30000,
+    });
     expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 120000,
     });
@@ -109,6 +112,7 @@ describe('bundle budget config', () => {
         '^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$',
         '^assets/PatientDocumentManagerDialog-.*\\.js$',
         '^assets/ClinicalPanelDrawer-.*\\.js$',
+        '^assets/RayenSyncHistoryModal-.*\\.js$',
       ])
     );
   });

@@ -8,6 +8,14 @@
 
   window.addEventListener('message', event => {
     if (event.source !== window || event.origin !== window.location.origin) return;
+    if (event.data?.type === 'HHR_RAYEN_CANCEL_SYNC_BUNDLE') {
+      const requestId = event.data.requestId;
+      if (typeof requestId !== 'string' || !requestId) return;
+      chrome.runtime
+        .sendMessage({ type: runtimeMessages.SYNC_BUNDLE_CANCEL, requestId })
+        .catch(() => undefined);
+      return;
+    }
     if (event.data?.type !== 'HHR_RAYEN_REQUEST_SYNC_BUNDLE') return;
     const data = event.data;
     chrome.runtime
@@ -18,6 +26,8 @@
         dateEnd: data.dateEnd,
       })
       .then(response => {
+        // A capture HHR already cancelled must not resurface as a late error.
+        if (response?.cancelled === true) return;
         if (response?.ok === true && response.snapshot && response.bundle) {
           post({
             type: 'HHR_RAYEN_CENSUS_SNAPSHOT',

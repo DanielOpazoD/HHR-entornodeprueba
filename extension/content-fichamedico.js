@@ -175,30 +175,4 @@
     return undefined;
   });
 
-  // Diagnostic: let the page trigger a background device-report download/save end-to-end, so the
-  // PDF fetch + parse can be verified from the Ficha Médico tab without an HHR tab open.
-  window.addEventListener('message', event => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
-    const d = event.data;
-    if (!d || (d.type !== 'RAYEN_FM_TEST_DEVICE_SAVE' && d.type !== 'RAYEN_FM_TEST_DEVICE')) return;
-    const isSave = d.type === 'RAYEN_FM_TEST_DEVICE_SAVE';
-    chrome.runtime.sendMessage(
-      {
-        type: isSave ? runtimeMessages.DEVICE_REPORT_SAVE : runtimeMessages.DEVICE_REPORT_REQUEST,
-        encId: d.encId,
-        fecha: d.fecha,
-      },
-      resp => {
-        const err = chrome.runtime.lastError;
-        window.postMessage(
-          {
-            type: isSave ? 'RAYEN_FM_TEST_DEVICE_SAVE_RESULT' : 'RAYEN_FM_TEST_DEVICE_RESULT',
-            reqId: d.reqId,
-            resp: err ? { error: err.message } : resp,
-          },
-          window.location.origin
-        );
-      }
-    );
-  });
 })();
