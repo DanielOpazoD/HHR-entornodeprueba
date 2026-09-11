@@ -63,6 +63,11 @@ HTTP interceptado y proxy cerrado para impedir tráfico al hospital. Comprueba A
 reales, documento único, resultados inversos, cancelación/timeout/respuestas tardías,
 conservación de sesión sintética, adopción por otro coordinador y cierre/recreación.
 Adopción por otro coordinador en el mismo worker no equivale a forzar un reinicio del worker.
+Se verifica por separado la cookie sintética sembrada en el almacén del navegador y la
+identidad de sessionStorage/bridge/iframe antes y después de concurrencia y adopción.
+La visibilidad de esa cookie dentro del iframe HTTP de otro sitio se reporta como capacidad,
+no se presupone: Chrome puede bloquearla aunque siga guardada. No se desactivan políticas
+de cookies para aprobar el smoke. Esto no prueba una sesión HTTP autenticada en el iframe.
 El smoke no valida la conectividad LAN, credenciales ni datos del Syslab real.
 
 ## Actualización del navegador clínico
