@@ -267,6 +267,68 @@ export const buildUserHealthStatus = (options: BuildUserHealthStatusOptions): Us
   userAgent: options.userAgent,
 });
 
+/**
+ * Buckets the signals the dashboard actually grades on, so routine noise (one more
+ * pending mutation while typing) does not publish a new document, while a real change
+ * of situation does. Anything outside this signature is diagnostic detail that does
+ * not change the operational picture on its own.
+ */
+const bucket = (value: number, steps: readonly number[]): number =>
+  steps.filter(step => value >= step).length;
+
+export const buildSystemHealthSignature = (status: UserHealthStatus): string =>
+  [
+    status.isOnline ? 'on' : 'off',
+    status.isOutdated ? 'old' : 'cur',
+    status.versionUpdateReason ?? 'none',
+    status.remoteSyncReason ?? 'none',
+    bucket(status.pendingSyncTasks ?? 0, [1, 5, 20]),
+    bucket(status.failedSyncTasks ?? 0, [1, 3]),
+    bucket(status.conflictSyncTasks ?? 0, [1]),
+    bucket(status.retryingSyncTasks ?? 0, [1, 3]),
+    bucket(status.syncOrphanedTasks ?? 0, [1]),
+    bucket(status.pendingMutations ?? 0, [1, 5, 20]),
+    bucket(status.localErrorCount ?? 0, [1, 5, 20]),
+    bucket(status.repositoryWarningCount ?? 0, [1, 5]),
+    bucket(status.oldestPendingAgeMs ?? 0, [60_000, 300_000, 900_000]),
+    bucket(status.oldestDirectQueueAgeMs ?? 0, [60_000, 300_000, 900_000]),
+    bucket(status.slowestRepositoryOperationMs ?? 0, [1_000, 3_000]),
+    bucket(status.operationalFailureCount ?? 0, [1, 5]),
+  ].join('|');
+
+const LAST_SIGNATURE_KEY = 'hhr_system_health_last_signature';
+
+export const readLastSystemHealthSignature = (uid: string): string | null => {
+  try {
+    return window.localStorage.getItem(`${LAST_SIGNATURE_KEY}:${uid}`);
+  } catch {
+    return null;
+  }
+};
+
+export const markSystemHealthSignature = (uid: string, signature: string): void => {
+  try {
+    window.localStorage.setItem(`${LAST_SIGNATURE_KEY}:${uid}`, signature);
+  } catch {
+    // Diagnostics must never break the clinical session.
+  }
+};
+
+/** Keep-alive so an untouched but healthy session still proves it is alive. */
+export const SYSTEM_HEALTH_KEEP_ALIVE_MS = 15 * 60 * 1000;
+
+export const shouldPublishSystemHealth = (params: {
+  now: number;
+  lastReportedAt: number;
+  signature: string;
+  lastSignature: string | null;
+  keepAliveMs: number;
+}): boolean =>
+  params.lastSignature === null ||
+  params.signature !== params.lastSignature ||
+  params.lastReportedAt <= 0 ||
+  params.now - params.lastReportedAt >= params.keepAliveMs;
+
 const LAST_REPORT_KEY = 'hhr_system_health_last_report';
 
 /**
@@ -291,10 +353,3 @@ export const markSystemHealthReported = (uid: string, at: number): void => {
     // Diagnostics must never break the clinical session.
   }
 };
-
-export const shouldReportSystemHealthNow = (
-  now: number,
-  lastReportedAt: number,
-  intervalMs: number,
-  versionStateChanged: boolean
-): boolean => versionStateChanged || lastReportedAt <= 0 || now - lastReportedAt >= intervalMs;

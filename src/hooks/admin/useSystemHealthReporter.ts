@@ -16,14 +16,18 @@ import { buildAuthRuntimeSnapshot } from '@/services/auth/authRuntimeSnapshot';
 import {
   buildRecentUserHealthEvents,
   buildUserHealthStatus,
+  buildSystemHealthSignature,
   canReportSystemHealthForRuntime,
   markSystemHealthReported,
+  markSystemHealthSignature,
   readLastSystemHealthReportAt,
-  shouldReportSystemHealthNow,
+  readLastSystemHealthSignature,
+  shouldPublishSystemHealth,
+  SYSTEM_HEALTH_KEEP_ALIVE_MS,
 } from '@/hooks/controllers/systemHealthReporterController';
 import { systemHealthReporterLogger } from '@/hooks/hookLoggers';
 
-const REPORT_INTERVAL_MS = 2 * 60 * 1000; // Report every 2 minutes
+const REPORT_INTERVAL_MS = 2 * 60 * 1000; // Evaluate the local picture every 2 minutes
 let healthServiceModulePromise: Promise<typeof import('@/services/admin/healthService')> | null =
   null;
 
@@ -42,7 +46,6 @@ export const useSystemHealthReporter = (enabled = true) => {
   const { isOutdated, updateReason } = useVersion();
   const mutatingCount = useIsMutating();
   const lastReportTime = useRef<number>(0);
-  const lastVersionStateRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (!enabled || !currentUser || !canReportSystemHealthForRuntime(role, auth.remoteSyncStatus)) {
@@ -51,7 +54,6 @@ export const useSystemHealthReporter = (enabled = true) => {
 
     const reportHealth = async () => {
       try {
-        // Get error count from IndexedDB
         const logs = await fetchErrorLogs(100);
         const localErrorCount = logs.length;
         const [syncTelemetry, recentSyncOperations] = await Promise.all([
@@ -117,33 +119,36 @@ export const useSystemHealthReporter = (enabled = true) => {
           }),
         });
 
+        const signature = buildSystemHealthSignature(status);
+        if (
+          !shouldPublishSystemHealth({
+            now: Date.now(),
+            lastReportedAt: Math.max(
+              lastReportTime.current,
+              readLastSystemHealthReportAt(currentUser.uid)
+            ),
+            signature,
+            lastSignature: readLastSystemHealthSignature(currentUser.uid),
+            keepAliveMs: SYSTEM_HEALTH_KEEP_ALIVE_MS,
+          })
+        ) {
+          return;
+        }
+
         const { reportUserHealth } = await loadHealthService();
         await reportUserHealth(status);
         lastReportTime.current = Date.now();
         markSystemHealthReported(currentUser.uid, lastReportTime.current);
+        markSystemHealthSignature(currentUser.uid, signature);
       } catch (error) {
         systemHealthReporterLogger.error('Failed to report status', error);
       }
     };
 
-    // Mount, reload and every census mutation re-run this effect. Reporting on each
-    // one repeated a full collection plus a Firestore write, so the immediate report
-    // now honours the same cadence as the interval. A real version-state change still
-    // reports right away, because that is the signal the dashboard needs quickly.
-    const versionStateChanged =
-      lastVersionStateRef.current !== null && lastVersionStateRef.current !== isOutdated;
-    lastVersionStateRef.current = isOutdated;
-
-    if (
-      shouldReportSystemHealthNow(
-        Date.now(),
-        Math.max(lastReportTime.current, readLastSystemHealthReportAt(currentUser.uid)),
-        REPORT_INTERVAL_MS,
-        versionStateChanged
-      )
-    ) {
-      reportHealth();
-    }
+    // The evaluation below is local and cheap; what used to be expensive was writing
+    // to Firestore on every mount, reload and census mutation. Publication is now
+    // decided inside reportHealth by comparing the operational picture.
+    reportHealth();
 
     // Setup interval for periodic reporting
     const interval = setInterval(() => {
