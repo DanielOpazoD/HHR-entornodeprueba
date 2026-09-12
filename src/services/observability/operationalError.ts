@@ -32,9 +32,6 @@ export class OperationalError extends Error implements OperationalErrorShape {
 export const createOperationalError = (input: OperationalErrorShape): OperationalError =>
   new OperationalError(input);
 
-export const isOperationalError = (error: unknown): error is OperationalError =>
-  error instanceof OperationalError;
-
 export const normalizeOperationalError = (
   error: unknown,
   fallback: OperationalErrorShape

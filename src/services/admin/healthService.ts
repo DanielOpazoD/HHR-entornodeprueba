@@ -191,17 +191,3 @@ export const subscribeToSystemHealth = (onUpdate: (data: UserHealthStatus[]) => 
     }
   );
 };
-
-export const getSystemHealthSnapshot = async (): Promise<UserHealthStatus[]> => {
-  try {
-    const path = `${STATS_DOC}/${HEALTH_COLLECTION}/${USERS_SUBCOLLECTION}`;
-    const users = await firestoreDb.getDocs<Partial<UserHealthStatus>>(path, {
-      orderBy: [{ field: 'lastSeen', direction: 'desc' }],
-      limit: 100,
-    });
-    return users.map(normalizeUserHealthStatus);
-  } catch (error) {
-    healthServiceLogger.error('Failed to fetch health snapshot', error);
-    return [];
-  }
-};

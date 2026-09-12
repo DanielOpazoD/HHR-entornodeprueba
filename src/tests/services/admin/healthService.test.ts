@@ -6,7 +6,6 @@ import {
   resolveSystemHealthIncident,
   subscribeToSystemHealth,
   subscribeToSystemHealthIncidentResolutions,
-  getSystemHealthSnapshot,
   normalizeUserHealthStatus,
   buildSystemHealthSummary,
   UserHealthStatus,
@@ -246,43 +245,6 @@ describe('healthService', () => {
           ],
         }),
       });
-    });
-  });
-
-  describe('getSystemHealthSnapshot', () => {
-    it('should fetch user health docs from db', async () => {
-      const mockUsers: UserHealthStatus[] = [
-        { ...mockStatus, uid: 'user1' },
-        { ...mockStatus, uid: 'user2' },
-      ];
-      vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce(mockUsers);
-
-      const results = await getSystemHealthSnapshot();
-      expect(results).toHaveLength(2);
-      expect(results[0].uid).toBe('user1');
-    });
-
-    it('should handle fetch errors and return empty array', async () => {
-      vi.mocked(firestoreDb.getDocs).mockRejectedValueOnce(new Error('Fetch Failed'));
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const results = await getSystemHealthSnapshot();
-      expect(results).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
-    });
-
-    it('normalizes partial docs when fetching snapshot', async () => {
-      vi.mocked(firestoreDb.getDocs).mockResolvedValueOnce([
-        { uid: 'u1', email: '', pendingMutations: '3' as unknown as number },
-      ]);
-
-      const results = await getSystemHealthSnapshot();
-      expect(results[0].uid).toBe('u1');
-      expect(results[0].email).toBe('unknown@local');
-      expect(results[0].pendingMutations).toBe(3);
-      expect(results[0].displayName).toBe('Usuario sin nombre');
-      expect(results[0].syncOrphanedTasks).toBe(0);
     });
   });
 
