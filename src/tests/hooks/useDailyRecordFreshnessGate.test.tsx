@@ -2,7 +2,6 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import { usePatchDailyRecordMutation } from '@/hooks/useDailyRecordQuery';
 import { useDailyRecordFreshnessUi } from '@/hooks/useDailyRecordFreshnessUi';
 import {
@@ -24,30 +23,7 @@ import { createTestQueryClient } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { PatientStatus } from '@/types/domain/patientClassification';
 import { getDailyRecordQueryKey } from '@/hooks/controllers/dailyRecordQueryController';
-
-const buildMockDailyRecordRepository = (): DailyRecordRepositoryPort => ({
-  getForDate: vi.fn(),
-  getForDateWithMeta: vi.fn(),
-  getAuthoritativeForDate: vi.fn(),
-  getLocalForDate: vi.fn(),
-  getLocalForDateWithMeta: vi.fn(),
-  getPreviousDay: vi.fn(),
-  getPreviousDayWithMeta: vi.fn(),
-  getAvailableDates: vi.fn(),
-  getMonthRecords: vi.fn(),
-  initializeDay: vi.fn(),
-  save: vi.fn(),
-  saveDetailed: vi.fn(),
-  updatePartial: vi.fn(),
-  updatePartialDetailed: vi.fn(),
-  syncWithFirestoreDetailed: vi.fn(),
-  adoptAuthoritativeRecord: vi.fn(async record => record),
-  subscribe: vi.fn(() => vi.fn()),
-  subscribeDetailed: vi.fn(() => vi.fn()),
-  delete: vi.fn(),
-  deleteDay: vi.fn(),
-  copyPatientToDateDetailed: vi.fn(),
-});
+import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 
 describe('daily record remote freshness gate', () => {
   const date = '2026-05-16';

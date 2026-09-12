@@ -42,7 +42,9 @@ export const useCensusPromptState = (currentDateString: string): CensusPromptSta
       const nextPromptState = await executeLoadCensusPromptDataController({
         currentDateString,
         getPreviousDay: defaultDailyRecordReadPort.getPreviousDay,
-        getAvailableDates: defaultDailyRecordReadPort.getAvailableDates,
+        // Startup uses the bounded reader: it only needs the closest dates, not all history.
+        getAvailableDates: () =>
+          defaultDailyRecordReadPort.getRecentAvailableDates(currentDateString),
       });
 
       if (isDisposed || requestId !== requestIdRef.current) {

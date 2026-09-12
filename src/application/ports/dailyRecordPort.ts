@@ -128,6 +128,7 @@ const adoptAuthoritativeDailyRecord = (
 export interface DailyRecordReadPort {
   getPreviousDay: (date: string) => Promise<DailyRecord | null>;
   getAvailableDates: () => Promise<string[]>;
+  getRecentAvailableDates: (referenceDate: string) => Promise<string[]>;
   getMonthRecords: (year: number, monthZeroBased: number) => Promise<DailyRecord[]>;
   getForDate: (date: string) => Promise<DailyRecord | null>;
   getForDateWithMeta: (date: string, syncFromRemote?: boolean) => Promise<DailyRecordReadResult>;
@@ -201,6 +202,8 @@ export interface DailyRecordRepositoryPort
 export const defaultDailyRecordReadPort: DailyRecordReadPort = {
   getPreviousDay: date => withReadService(service => service.getPreviousDay(date)),
   getAvailableDates: () => withReadService(service => service.getAvailableDates()),
+  getRecentAvailableDates: referenceDate =>
+    withReadService(service => service.getRecentAvailableDates(referenceDate)),
   getMonthRecords: (year, monthZeroBased) =>
     withReadService(service => service.getMonthRecords(year, monthZeroBased)),
   getForDate: date => withReadService(service => service.getForDate(date)),

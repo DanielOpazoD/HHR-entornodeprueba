@@ -226,21 +226,14 @@ export const bridgeLegacyRecordForDate = async (date: string): Promise<DailyReco
 // without caching a stale answer for later calls.
 let availableDatesInFlight: Promise<string[]> | undefined;
 
-export const getAvailableDates = async (): Promise<string[]> => {
-  availableDatesInFlight ??= readAvailableDates().finally(() => {
-    availableDatesInFlight = undefined;
-  });
-  return availableDatesInFlight;
-};
+type RemoteDateReader = (module: FirestoreRecordQueriesModule) => Promise<string[]>;
 
-const readAvailableDates = async (): Promise<string[]> => {
+const readDates = async (readRemote: RemoteDateReader): Promise<string[]> => {
   const localDates = await getAllDatesFromIndexedDB();
 
   if (isFirestoreEnabled()) {
     try {
-      const { getAvailableDatesFromFirestore } = await loadFirestoreRecordQueries();
-      const remoteDates = await getAvailableDatesFromFirestore();
-      return mergeAvailableDates(localDates, remoteDates);
+      return mergeAvailableDates(localDates, await readRemote(await loadFirestoreRecordQueries()));
     } catch (err) {
       dailyRecordReadLogger.warn('Failed to fetch remote dates', err);
     }
@@ -248,6 +241,21 @@ const readAvailableDates = async (): Promise<string[]> => {
 
   return localDates.sort().reverse();
 };
+
+/** Whole history. Reserved for migrations and backfills that need every date. */
+export const getAvailableDates = async (): Promise<string[]> => {
+  availableDatesInFlight ??= readDates(m => m.getAvailableDatesFromFirestore()).finally(() => {
+    availableDatesInFlight = undefined;
+  });
+  return availableDatesInFlight;
+};
+
+/**
+ * Startup only needs the closest dates, so the remote read is bounded and its cost
+ * no longer grows with hospital history. Locally known dates are still merged in.
+ */
+export const getRecentAvailableDates = (referenceDate: string): Promise<string[]> =>
+  readDates(m => m.getRecentAvailableDatesFromFirestore(referenceDate));
 
 export const getMonthRecords = async (
   year: number,
@@ -280,8 +288,8 @@ export const getPreviousDayWithMeta = async (date: string): Promise<DailyRecordR
 
   if (isFirestoreEnabled()) {
     try {
-      const allDates = await getAvailableDates();
-      const prevDate = allDates.find(d => d < query.date);
+      const { getPreviousRecordDateFromFirestore } = await loadFirestoreRecordQueries();
+      const prevDate = await getPreviousRecordDateFromFirestore(query.date);
 
       if (prevDate) {
         return await getForDateWithMeta(prevDate);
