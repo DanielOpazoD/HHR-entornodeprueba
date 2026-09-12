@@ -114,6 +114,7 @@ describe('bundle budget config', () => {
         '^assets/PatientDocumentManagerDialog-.*\\.js$',
         '^assets/ClinicalPanelDrawer-.*\\.js$',
         '^assets/RayenSyncHistoryModal-.*\\.js$',
+        '^assets/DiagnosisCie10Cell-.*\\.js$',
         '^assets/perfAuditReport-.*\\.js$',
       ])
     );

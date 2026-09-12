@@ -224,6 +224,9 @@ export default defineConfig(({ mode }) => {
             '**/assets/vendor-excel-*.js',
             '**/assets/vendor-canvas-*.js',
             '**/assets/terminologyService-*.js',
+            // CIE-10 cell: its catalogue is already outside precache, so caching the
+            // wrapper alone would not make the search work offline.
+            '**/assets/DiagnosisCie10Cell-*.js',
             '**/assets/fonasaDatabase-*.js',
             '**/assets/clinicalDocumentTemplateEditorController-*.js',
             '**/assets/vendor-heic2any-*.js',

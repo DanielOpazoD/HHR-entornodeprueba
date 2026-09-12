@@ -5,14 +5,12 @@
 import React from 'react';
 import clsx from 'clsx';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
-import { TerminologySuggestor } from '@/components/shared/TerminologySuggestor';
 import { DeliveryRoutePopover } from './DeliveryRoutePopover';
 import {
   isGinecobstetriciaSpecialty,
   isObstetricGinecobstetricia,
 } from '@/shared/census/ginecobstetriciaClassification';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
-import { getCIE10Description } from '@/services/terminology/terminologyService';
 import type {
   CesareanLabor,
   DeliveryRoute,
@@ -24,6 +22,19 @@ import { PatientEmptyCell } from './PatientEmptyCell';
 import { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
 import { ClinicalInitialBlockEditor } from './ClinicalInitialBlockEditor';
 import { DiagnosisCodeBadge } from './DiagnosisCodeBadge';
+
+// The CIE-10 catalogue is large and only needed in CIE-10 mode, so the census table
+// no longer pays for it on every startup.
+const DiagnosisCie10Cell = React.lazy(() => import('./DiagnosisCie10Cell'));
+
+const DiagnosisCie10CellFallback = ({ readOnlyReason }: { readOnlyReason?: string }) => (
+  <td
+    className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
+    title={readOnlyReason}
+  >
+    <div className="relative w-full h-7" />
+  </td>
+);
 
 interface DiagnosisInputProps extends BaseCellProps {
   diagnosisMode: DiagnosisMode;
@@ -73,93 +84,18 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
   // CIE-10 Mode
   if (diagnosisMode === 'cie10') {
     return (
-      <td
-        className="census-diagnosis-cell py-0.5 px-1 border-r border-slate-200 min-w-[160px]"
-        title={readOnlyReason}
-        onMouseDownCapture={freshnessPause.acknowledge}
-        onFocusCapture={freshnessPause.acknowledge}
-      >
-        <div className="relative w-full flex flex-col gap-0.5">
-          <TerminologySuggestor
-            className={clsx(
-              'w-full border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7',
-              'border-slate-200 focus:ring-medical-500/20 focus:border-medical-500',
-              isSubRow && 'text-xs h-6',
-              freshnessPause.pauseClassName
-            )}
-            placeholder="Buscar diagnóstico CIE-10..."
-            value={
-              data.cie10Description ||
-              (data.cie10Code ? getCIE10Description(data.cie10Code) : '') ||
-              ''
-            }
-            cie10Code={data.cie10Code}
-            freeTextValue={data.pathology}
-            onChange={(text, concept) => {
-              if (concept) {
-                if (onMultipleUpdate) {
-                  onMultipleUpdate({
-                    cie10Code: concept.code,
-                    cie10Description: concept.display,
-                  });
-                } else {
-                  onChange('cie10Code')(concept.code);
-                  onChange('cie10Description')(concept.display);
-                }
-              } else {
-                onChange('cie10Description')(text);
-                if (text === '') {
-                  onChange('cie10Code')('');
-                }
-              }
-            }}
-            disabled={readOnly}
-            title={readOnlyReason}
-          />
-
-          {canShowClinicalInitialBlockEditor && (
-            <ClinicalInitialBlockEditor
-              data={data}
-              alignRightClassName={data.cie10Code ? 'right-20' : 'right-1'}
-              onChange={onChange}
-              onMultipleUpdate={onMultipleUpdate}
-            />
-          )}
-
-          {data.cie10Code && (
-            <span className="absolute right-1 top-1 inline-flex items-center gap-1">
-              <DiagnosisCodeBadge
-                code={data.cie10Code}
-                description={data.cie10Description || data.pathology}
-              />
-              {!readOnly && (
-                <button
-                  type="button"
-                  aria-label="Eliminar código CIE-10"
-                  title="Eliminar código CIE-10"
-                  className="text-slate-500 hover:text-red-600 leading-none"
-                  onClick={event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (onMultipleUpdate) {
-                      onMultipleUpdate({
-                        cie10Code: '',
-                        cie10Description: '',
-                      });
-                    } else {
-                      onChange('cie10Code')('');
-                      onChange('cie10Description')('');
-                    }
-                  }}
-                >
-                  x
-                </button>
-              )}
-            </span>
-          )}
-          {freshnessPause.hint}
-        </div>
-      </td>
+      <React.Suspense fallback={<DiagnosisCie10CellFallback readOnlyReason={readOnlyReason} />}>
+        <DiagnosisCie10Cell
+          data={data}
+          isSubRow={isSubRow}
+          readOnly={readOnly}
+          readOnlyReason={readOnlyReason}
+          onChange={onChange}
+          onMultipleUpdate={onMultipleUpdate}
+          canShowClinicalInitialBlockEditor={canShowClinicalInitialBlockEditor}
+          freshnessPause={freshnessPause}
+        />
+      </React.Suspense>
     );
   }
 
