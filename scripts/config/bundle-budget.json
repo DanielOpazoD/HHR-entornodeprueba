@@ -29,7 +29,8 @@
     "^assets/PatientDocumentManagerDialog-.*\\.js$",
     "^assets/ClinicalPanelDrawer-.*\\.js$",
     "^assets/RayenSyncHistoryModal-.*\\.js$",
-    "^assets/perfAuditReport-.*\\.js$"
+    "^assets/perfAuditReport-.*\\.js$",
+    "^assets/DiagnosisCie10Cell-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [
