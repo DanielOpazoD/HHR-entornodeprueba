@@ -1,85 +1,28 @@
+import {
+  mockExecuteGoogleSignIn,
+  mockIsPopupRecoverableAuthError,
+  mockIsPopupOpenFailureAuthError,
+  mockResolveAuthErrorCode,
+  mockIsPopupCancellationAuthError,
+  mockGetCurrentAuthSessionState,
+  mockPreloadDefaultPostLoginRoute,
+  mockBeginAuthPerfAttempt,
+  mockReceiveAuthPerfCredential,
+  mockRecordAuthPerfEvent,
+  setupLoginPageControllerTests,
+} from './useLoginPageController.fixtures';
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
+import { describe, expect, it, vi } from 'vitest';
 import { AUTH_UI_COPY } from '@/services/auth/authUiCopy';
 import {
   createApplicationFailed,
   createApplicationSuccess,
 } from '@/shared/contracts/applicationOutcomeFactories';
 import type { AuthSessionState } from '@/types/authSessionTypes';
-
-const mockExecuteGoogleSignIn = vi.fn();
-const mockExecuteGoogleSignInWarmup = vi.fn();
-const mockIsPopupRecoverableAuthError = vi.fn();
-const mockIsPopupOpenFailureAuthError = vi.fn();
-const mockResolveAuthErrorCode = vi.fn();
-const mockIsPopupCancellationAuthError = vi.fn();
-const mockIsAuthBootstrapPending = vi.fn();
-const mockClearAuthBootstrapPending = vi.fn();
-const mockGetCurrentAuthSessionState = vi.fn();
-const mockPreloadDefaultPostLoginRoute = vi.fn();
-
-vi.mock('@/application/auth/authSessionUseCases', () => ({
-  executeGoogleSignIn: (...args: unknown[]) => mockExecuteGoogleSignIn(...args),
-  executeGoogleSignInWarmup: (...args: unknown[]) => mockExecuteGoogleSignInWarmup(...args),
-}));
-
-vi.mock('@/services/auth/authErrorPolicy', () => ({
-  isPopupRecoverableAuthError: (...args: unknown[]) => mockIsPopupRecoverableAuthError(...args),
-  isPopupOpenFailureAuthError: (...args: unknown[]) => mockIsPopupOpenFailureAuthError(...args),
-  isPopupCancellationAuthError: (...args: unknown[]) => mockIsPopupCancellationAuthError(...args),
-  resolveAuthErrorCode: (...args: unknown[]) => mockResolveAuthErrorCode(...args),
-}));
-
-vi.mock('@/services/auth/authBootstrapState', () => ({
-  isAuthBootstrapPending: (...args: unknown[]) => mockIsAuthBootstrapPending(...args),
-  clearAuthBootstrapPending: (...args: unknown[]) => mockClearAuthBootstrapPending(...args),
-}));
-
-vi.mock('@/services/auth/authSession', () => ({
-  getCurrentAuthSessionState: (...args: unknown[]) => mockGetCurrentAuthSessionState(...args),
-}));
-
-vi.mock('@/app-shell/bootstrap/authenticatedRoutePreloadController', () => ({
-  preloadDefaultPostLoginRoute: (...args: unknown[]) => mockPreloadDefaultPostLoginRoute(...args),
-}));
-
 import { useLoginPageController } from '@/features/auth/components/useLoginPageController';
 
 describe('useLoginPageController', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.useFakeTimers();
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-    mockIsPopupRecoverableAuthError.mockReturnValue(false);
-    mockIsPopupOpenFailureAuthError.mockReturnValue(false);
-    mockIsPopupCancellationAuthError.mockReturnValue(false);
-    mockResolveAuthErrorCode.mockReturnValue(null);
-    mockIsAuthBootstrapPending.mockReturnValue(false);
-    mockGetCurrentAuthSessionState.mockReturnValue({
-      status: 'unauthenticated',
-      user: null,
-    });
-    mockPreloadDefaultPostLoginRoute.mockResolvedValue(undefined);
-    mockExecuteGoogleSignIn.mockResolvedValue(
-      createApplicationSuccess<AuthSessionState>({
-        status: 'authorized',
-        user: {
-          uid: 'google-1',
-          email: 'test@hospital.cl',
-          displayName: 'Google User',
-          role: 'admin',
-        },
-      })
-    );
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
+  setupLoginPageControllerTests();
 
   it('initializes from the persisted login background mode', () => {
     window.localStorage.setItem('hhr_login_background_mode', 'night');
@@ -170,6 +113,9 @@ describe('useLoginPageController', () => {
     });
 
     expect(mockExecuteGoogleSignIn).not.toHaveBeenCalled();
+    expect(mockBeginAuthPerfAttempt).not.toHaveBeenCalled();
+    expect(mockReceiveAuthPerfCredential).not.toHaveBeenCalled();
+    expect(mockRecordAuthPerfEvent).not.toHaveBeenCalled();
     expect(result.current.isGoogleLoading).toBe(false);
     expect(result.current.errorCode).toBe('auth/multi-tab-login-in-progress');
     expect(result.current.error).toMatch(/Otra pestaña de HHR/);

@@ -28,7 +28,8 @@
     "^assets/replanRayenStructure-.*\\.js$",
     "^assets/PatientDocumentManagerDialog-.*\\.js$",
     "^assets/ClinicalPanelDrawer-.*\\.js$",
-    "^assets/RayenSyncHistoryModal-.*\\.js$"
+    "^assets/RayenSyncHistoryModal-.*\\.js$",
+    "^assets/perfAuditReport-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [
@@ -122,6 +123,11 @@
       "pattern": "^ClinicalLibraryDrawer-.*\\.js$",
       "_comment": "Offline-capable census library drawer (catalog, transfer cover, critical medications sheet, calculators, nine scores) loaded only after pressing Documentos. Measured 84831 bytes on 2026-09-06; the ceiling leaves room for more documents and scores while keeping drift visible.",
       "maxBytes": 120000
+    },
+    {
+      "pattern": "^perfAuditReport-.*\\.js$",
+      "_comment": "Optional diagnostic console formatter, dynamically imported only while auditing. Core measurements and all clinical functionality remain in precache.",
+      "maxBytes": 4000
     }
   ]
 }

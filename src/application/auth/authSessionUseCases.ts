@@ -132,14 +132,16 @@ export const executeGoogleSignInWarmup = (): void => {
   warmGoogleSignInRuntime();
 };
 
-export const executeGoogleSignIn = async (googleCredential?: {
-  idToken: string;
-  isCurrent: () => boolean;
-}): Promise<ApplicationOutcome<AuthSessionState>> => {
+export const executeGoogleSignIn = async (
+  googleCredential?: { idToken: string; isCurrent: () => boolean },
+  perfAttemptId?: string
+): Promise<ApplicationOutcome<AuthSessionState>> => {
   try {
-    const user = await (googleCredential
-      ? signInWithGoogle({ googleCredential })
-      : signInWithGoogle());
+    const user = await (perfAttemptId !== undefined
+      ? signInWithGoogle({ ...(googleCredential ? { googleCredential } : {}), perfAttemptId })
+      : googleCredential
+        ? signInWithGoogle({ googleCredential })
+        : signInWithGoogle());
     return createApplicationSuccess(toResolvedAuthSessionState(user));
   } catch (error) {
     return buildAuthFailure(

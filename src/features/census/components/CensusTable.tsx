@@ -1,3 +1,4 @@
+import { observeCensusTable } from '@/shared/runtime/observeCensusTable';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
@@ -73,6 +74,10 @@ export const CensusTable: React.FC<CensusTableProps> = ({
 
   const { moveOrCopyPatient, updatePatientMultiple } = useDailyRecordBedActions();
   const { record } = useDailyRecordData();
+  const canObserveTable = isReady && Boolean(bindings) && record?.date === currentDateString;
+  useEffect(() => {
+    if (canObserveTable) return observeCensusTable(currentDateString, tableRootRef.current);
+  }, [currentDateString, canObserveTable]);
   const beds = useDailyRecordBeds();
   const admitPatient = useAdmitPatient();
   const { error: notifyError, success: notifySuccess } = useNotification();
@@ -274,10 +279,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     attentionFilter === 'all' ? null : getCensusAttentionFilterLabel(attentionFilter);
 
   return (
-    <div
-      ref={tableRootRef}
-      className="overflow-visible rounded-xl bg-white print:shadow-none"
-    >
+    <div ref={tableRootRef} className="overflow-visible rounded-xl bg-white print:shadow-none">
       <div className="relative overflow-visible">
         {freshnessUi.userMessage ? (
           <div
