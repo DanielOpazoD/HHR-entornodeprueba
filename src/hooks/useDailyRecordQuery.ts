@@ -18,6 +18,10 @@ import {
   markDailyRecordTabHidden,
   markDailyRecordTabVisible,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
+import {
+  recordCensusRemoteEnabled,
+  recordCensusSubscriptionStart,
+} from '@/shared/runtime/censusStartupPerf';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
 import type { DailyRecordQueryResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import type { RemoteSyncRuntimeStatus } from '@/services/repositories/repositoryConfig';
@@ -30,10 +34,16 @@ import {
 } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 export { usePatchDailyRecordMutation } from '@/hooks/usePatchDailyRecordMutation';
 
+/**
+ * The live subscription is gated on the real runtime status, not on the deferred one.
+ * Deferring the first remote read smooths initial render; deferring the listener only
+ * delays the moment the census can be trusted as server-confirmed.
+ */
 export const useDailyRecordQuery = (
   date: string,
   isOfflineMode: boolean = false,
-  remoteSyncStatus: RemoteSyncRuntimeStatus = 'local_only'
+  remoteSyncStatus: RemoteSyncRuntimeStatus = 'local_only',
+  subscriptionSyncStatus: RemoteSyncRuntimeStatus = remoteSyncStatus
 ) => {
   const queryClient = useQueryClient();
   const { dailyRecord } = useRepositories();
@@ -42,7 +52,13 @@ export const useDailyRecordQuery = (
     isOfflineMode,
     remoteSyncStatus
   );
+  const shouldSubscribeFromRemote = shouldUseDailyRecordRealtimeSync(
+    date,
+    isOfflineMode,
+    subscriptionSyncStatus
+  );
   const previousShouldSyncFromRemoteRef = useRef(shouldSyncFromRemote);
+  const remoteConfirmedRef = useRef<string | null>(null);
   const lastRemoteConfirmedRecordRef = useRef<{ date: string; record: DailyRecord } | null>(null);
 
   const queryKey = getDailyRecordQueryKey(date);
@@ -78,6 +94,7 @@ export const useDailyRecordQuery = (
       confirmedRecord: query.data.record,
     });
     lastRemoteConfirmedRecordRef.current = { date, record: query.data.record };
+    remoteConfirmedRef.current = date;
   }, [date, query.data, shouldSyncFromRemote]);
 
   useEffect(() => {
@@ -89,21 +106,31 @@ export const useDailyRecordQuery = (
       return;
     }
 
+    recordCensusRemoteEnabled(date);
+
     if (!didRemoteSyncJustBecomeReady) {
       return;
     }
 
+    // The listener now opens before this flip, so it may already have delivered the
+    // server document. Skipping the duplicate read only when the server has actually
+    // confirmed keeps the remote-hydration guarantee intact in every other case.
+    if (remoteConfirmedRef.current === date) {
+      return;
+    }
+
     void query.refetch();
-  }, [query, shouldSyncFromRemote]);
+  }, [date, query, shouldSyncFromRemote]);
 
   useEffect(() => {
-    if (!shouldSyncFromRemote) return;
+    if (!shouldSubscribeFromRemote) return;
 
+    recordCensusSubscriptionStart(date);
     const unsubscribe = createDailyRecordSubscription(dailyRecord, date, queryClient);
     if (!unsubscribe) return;
 
     return () => unsubscribe();
-  }, [date, queryClient, dailyRecord, shouldSyncFromRemote]);
+  }, [date, queryClient, dailyRecord, shouldSubscribeFromRemote]);
 
   useEffect(() => {
     if (!shouldSyncFromRemote) return;
@@ -148,9 +175,12 @@ export const useDailyRecordQuery = (
   useEffect(() => {
     if (!shouldSyncFromRemote) return;
     if (import.meta.env.DEV) return;
+    // Only after the current day is server-confirmed: the previous day is a
+    // convenience, and it used to compete with the census for the same connection.
+    if (remoteConfirmedRef.current !== date) return;
 
     prefetchPreviousDailyRecord(queryClient, dailyRecord, date);
-  }, [date, queryClient, dailyRecord, shouldSyncFromRemote]);
+  }, [date, queryClient, dailyRecord, shouldSyncFromRemote, query.data]);
 
   return {
     ...query,

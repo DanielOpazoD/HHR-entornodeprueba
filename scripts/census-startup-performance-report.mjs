@@ -117,6 +117,8 @@ export function validateRun(run) {
         [
           'record_available',
           'local_record_available',
+          'remote_enabled',
+          'subscription_start',
           'remote_confirmed',
           'table_commit',
           'table_paint_opportunity',
@@ -134,8 +136,9 @@ export function validateRun(run) {
       if ('remote_confirmed' in visit.events)
         fail('Remote confirmation impossible for isolated no-auth fixture');
       if (
-        'local_record_available' in visit.events &&
-        finite(visit.events.local_record_available, 'local_record_available') < start
+        ['local_record_available', 'remote_enabled', 'subscription_start'].some(
+          key => key in visit.events && finite(visit.events[key], key) < start
+        )
       )
         fail('Out-of-scope local event');
     }
