@@ -9,6 +9,8 @@ export type AuthPerfEvent =
 export type CensusPerfEvent =
   | 'record_available'
   | 'local_record_available'
+  | 'remote_enabled'
+  | 'subscription_start'
   | 'remote_confirmed'
   | 'table_commit'
   | 'table_paint_opportunity';
@@ -34,6 +36,8 @@ const NAVIGATION_EVENTS = new Set([
 const VISIT_EVENTS = new Set<CensusPerfEvent>([
   'record_available',
   'local_record_available',
+  'remote_enabled',
+  'subscription_start',
   'remote_confirmed',
   'table_commit',
   'table_paint_opportunity',

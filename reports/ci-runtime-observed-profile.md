@@ -1,12 +1,12 @@
 # CI Runtime Observed Profile
 
-- Generated: 2026-09-01T19:30:24.026Z
-- Git SHA: `ea5bd8f0`
+- Generated: 2026-09-12T02:55:20.965Z
+- Git SHA: `6a492537`
 - Worktree dirty: `true`
 - Source: `github-actions`
 - Repository: `DanielOpazoD/HHR-ServicioHospitalizados`
 - Run: `28767128242`
-- Input: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/ci-runtime-observed-d1fb265b-0633-474a-91cd-4429a2550409.json`
+- Input: `/Users/daniel/.aside/runtime/tmp/ci-runtime-observed-4ea118ca-0132-401f-adbb-d8c46477c136.json`
 - Status: `observed_ci_data`
 - Observed shards: 4/4
 - Spread: 16.4% (tolerance 25%)
@@ -47,3 +47,4 @@ Observed CI unit shard spread is within observed tolerance; keep monitoring tren
 - Observed shard 2 runtime is 300.4% of the estimated duration.
 - Observed shard 3 runtime is 318.4% of the estimated duration.
 - Observed shard 4 runtime is 303.4% of the estimated duration.
+

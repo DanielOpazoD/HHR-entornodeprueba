@@ -84,26 +84,52 @@ const cacheSharedStaff = async (entries: EloisaStaffIdentity[]) => {
   });
 };
 
+/**
+ * The shared catalog is one remote document. Several consumers used to open one
+ * listener each, so it is reference counted and torn down when the last one leaves.
+ */
+let sharedCatalogSubscribers = 0;
+let sharedCatalogRelease: (() => void) | undefined;
+let sharedCatalogPending: Promise<void> | undefined;
+
+const retainSharedStaffCatalog = (error: (error: unknown) => void): (() => void) => {
+  sharedCatalogSubscribers += 1;
+  let released = false;
+  if (sharedCatalogSubscribers === 1 && !sharedCatalogPending && !sharedCatalogRelease) {
+    sharedCatalogPending = import('./sharedEloisaStaffCatalog')
+      .then(module => {
+        if (sharedCatalogSubscribers > 0) {
+          sharedCatalogRelease = module.subscribeSharedStaffCatalog(entries => {
+            void cacheSharedStaff(entries).catch(error);
+          }, error);
+        }
+      })
+      .catch(error)
+      .finally(() => {
+        sharedCatalogPending = undefined;
+      });
+  }
+  return () => {
+    if (released) return;
+    released = true;
+    sharedCatalogSubscribers = Math.max(0, sharedCatalogSubscribers - 1);
+    if (sharedCatalogSubscribers === 0) {
+      sharedCatalogRelease?.();
+      sharedCatalogRelease = undefined;
+    }
+  };
+};
+
 export const subscribeEloisaStaff = (
   next: (entries: EloisaStaffIdentity[]) => void,
   error: (error: unknown) => void,
   shared = false
 ): (() => void) => {
   const subscription = liveQuery(readEloisaStaff).subscribe({ next, error });
-  let stopped = false;
-  let unsubscribe: (() => void) | undefined;
-  if (shared && isFirestoreEnabled())
-    void import('./sharedEloisaStaffCatalog')
-      .then(module => {
-        if (!stopped)
-          unsubscribe = module.subscribeSharedStaffCatalog(entries => {
-            void cacheSharedStaff(entries).catch(error);
-          }, error);
-      })
-      .catch(error);
+  const releaseShared =
+    shared && isFirestoreEnabled() ? retainSharedStaffCatalog(error) : undefined;
   return () => {
-    stopped = true;
-    unsubscribe?.();
+    releaseShared?.();
     subscription.unsubscribe();
   };
 };

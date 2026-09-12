@@ -73,7 +73,12 @@ export const useDailyRecordSyncQuery = (
     runtime: recordRuntime,
     dataUpdatedAt,
     refetch,
-  } = useDailyRecordQuery(currentDateString, _isOfflineMode, effectiveRemoteSyncStatus);
+  } = useDailyRecordQuery(
+    currentDateString,
+    _isOfflineMode,
+    effectiveRemoteSyncStatus,
+    remoteSyncStatus
+  );
 
   useCensusRecordPerf(currentDateString, record?.date, recordRuntime?.sourceOfTruth);
 

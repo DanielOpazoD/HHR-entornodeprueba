@@ -44,6 +44,11 @@ export const recordCensusAvailability = (key: string, hasRecord: boolean, isLoca
       if (isLocal) m.census(id, 'local_record_available');
     }
   });
+/** Separates the artificial wait before talking to the server from real network latency. */
+export const recordCensusRemoteEnabled = (key: string) =>
+  safely(m => m.census(m.visit(key), 'remote_enabled'));
+export const recordCensusSubscriptionStart = (key: string) =>
+  safely(m => m.census(m.visit(key), 'subscription_start'));
 export const recordCensusServerSnapshot = (
   key: string,
   fromCache: boolean,

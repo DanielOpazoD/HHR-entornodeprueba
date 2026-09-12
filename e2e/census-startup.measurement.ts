@@ -185,6 +185,8 @@ async function collect(page: Page, timeout = MEASURED_READINESS_MS) {
         events: select(visit.events, [
           'record_available',
           'local_record_available',
+          'remote_enabled',
+          'subscription_start',
           'remote_confirmed',
           'table_commit',
           'table_paint_opportunity',

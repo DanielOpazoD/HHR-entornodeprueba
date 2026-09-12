@@ -211,4 +211,42 @@ describe('useDailyRecordQuery', () => {
       expect(result.current.data).toEqual(mockRecord);
     });
   });
+  it('opens the live listener while the first read is still deferred to local data', async () => {
+    const dailyRecord = buildMockDailyRecordRepository();
+    vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(
+      createDailyRecordReadResult(date, mockRecord, 'indexeddb')
+    );
+
+    const { result } = renderHook(() => useDailyRecordQuery(date, false, 'local_only', 'ready'), {
+      wrapper: createWrapper(dailyRecord),
+    });
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockRecord);
+    });
+
+    // The census still renders from local data, but the server connection is
+    // no longer held back by the deferred hydration window.
+    expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledWith(date, false);
+    expect(dailyRecord.subscribeDetailed).toHaveBeenCalledWith(date, expect.any(Function));
+  });
+
+  it('keeps the listener closed when the runtime itself is not ready', async () => {
+    const dailyRecord = buildMockDailyRecordRepository();
+    vi.mocked(dailyRecord.getForDateWithMeta).mockResolvedValue(
+      createDailyRecordReadResult(date, mockRecord, 'indexeddb')
+    );
+
+    const { result } = renderHook(
+      () => useDailyRecordQuery(date, false, 'local_only', 'local_only'),
+      { wrapper: createWrapper(dailyRecord) }
+    );
+
+    await waitFor(() => {
+      expect(result.current.data).toEqual(mockRecord);
+    });
+
+    expect(dailyRecord.subscribeDetailed).not.toHaveBeenCalled();
+    expect(dailyRecord.subscribe).not.toHaveBeenCalled();
+  });
 });

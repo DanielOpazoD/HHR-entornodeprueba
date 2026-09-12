@@ -221,7 +221,19 @@ export const bridgeLegacyRecordForDate = async (date: string): Promise<DailyReco
   return createBridgedDailyRecordReadResult(date, bridged);
 };
 
+// Startup asks for the available dates twice, in parallel, through two different
+// paths. Sharing the in-flight read collapses them into a single remote query
+// without caching a stale answer for later calls.
+let availableDatesInFlight: Promise<string[]> | undefined;
+
 export const getAvailableDates = async (): Promise<string[]> => {
+  availableDatesInFlight ??= readAvailableDates().finally(() => {
+    availableDatesInFlight = undefined;
+  });
+  return availableDatesInFlight;
+};
+
+const readAvailableDates = async (): Promise<string[]> => {
   const localDates = await getAllDatesFromIndexedDB();
 
   if (isFirestoreEnabled()) {
