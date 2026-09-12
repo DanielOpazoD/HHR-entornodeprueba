@@ -17,6 +17,9 @@ import {
   buildRecentUserHealthEvents,
   buildUserHealthStatus,
   canReportSystemHealthForRuntime,
+  markSystemHealthReported,
+  readLastSystemHealthReportAt,
+  shouldReportSystemHealthNow,
 } from '@/hooks/controllers/systemHealthReporterController';
 import { systemHealthReporterLogger } from '@/hooks/hookLoggers';
 
@@ -39,6 +42,7 @@ export const useSystemHealthReporter = (enabled = true) => {
   const { isOutdated, updateReason } = useVersion();
   const mutatingCount = useIsMutating();
   const lastReportTime = useRef<number>(0);
+  const lastVersionStateRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     if (!enabled || !currentUser || !canReportSystemHealthForRuntime(role, auth.remoteSyncStatus)) {
@@ -116,13 +120,30 @@ export const useSystemHealthReporter = (enabled = true) => {
         const { reportUserHealth } = await loadHealthService();
         await reportUserHealth(status);
         lastReportTime.current = Date.now();
+        markSystemHealthReported(currentUser.uid, lastReportTime.current);
       } catch (error) {
         systemHealthReporterLogger.error('Failed to report status', error);
       }
     };
 
-    // Immediate report on mount or when critical stats change
-    reportHealth();
+    // Mount, reload and every census mutation re-run this effect. Reporting on each
+    // one repeated a full collection plus a Firestore write, so the immediate report
+    // now honours the same cadence as the interval. A real version-state change still
+    // reports right away, because that is the signal the dashboard needs quickly.
+    const versionStateChanged =
+      lastVersionStateRef.current !== null && lastVersionStateRef.current !== isOutdated;
+    lastVersionStateRef.current = isOutdated;
+
+    if (
+      shouldReportSystemHealthNow(
+        Date.now(),
+        Math.max(lastReportTime.current, readLastSystemHealthReportAt(currentUser.uid)),
+        REPORT_INTERVAL_MS,
+        versionStateChanged
+      )
+    ) {
+      reportHealth();
+    }
 
     // Setup interval for periodic reporting
     const interval = setInterval(() => {
