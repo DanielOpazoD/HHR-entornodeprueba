@@ -547,7 +547,9 @@ jobs:
   census-startup-performance:
     name: census-startup-performance (${{ matrix.environment }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Ceiling for a pathologically slow startup, not an expectation.
+    # Observed: production ~4 min, development ~13 min.
+    timeout-minutes: 80
     strategy:
       fail-fast: false
       matrix:
@@ -577,7 +579,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: census-startup-performance-${{ matrix.environment }}
-          path: reports/e2e/census-performance-*.json
+          path: |
+            reports/e2e/census-performance-*.json
+            test-results/census-performance/**
           retention-days: 30
           if-no-files-found: warn
 

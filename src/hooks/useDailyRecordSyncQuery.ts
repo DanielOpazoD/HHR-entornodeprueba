@@ -1,4 +1,4 @@
-import { recordCensusAvailability } from '@/shared/runtime/censusStartupPerf';
+import { useCensusBootstrapPerf, useCensusRecordPerf } from '@/hooks/useCensusRecordPerf';
 /**
  * useDailyRecordSyncQuery Hook
  * Replaces useDailyRecordSync logic with TanStack Query.
@@ -56,7 +56,6 @@ import {
   useRemoteDailyRecordSync,
   useTodayEmptyDailyRecordRecovery,
 } from '@/hooks/useDailyRecordSyncQuerySupport';
-import { flushPerfReport, markPerf } from '@/shared/runtime/perfAudit';
 
 export const useDailyRecordSyncQuery = (
   currentDateString: string,
@@ -76,13 +75,7 @@ export const useDailyRecordSyncQuery = (
     refetch,
   } = useDailyRecordQuery(currentDateString, _isOfflineMode, effectiveRemoteSyncStatus);
 
-  useEffect(() => {
-    recordCensusAvailability(
-      currentDateString,
-      Boolean(record && record.date === currentDateString),
-      recordRuntime?.sourceOfTruth === 'local'
-    );
-  }, [currentDateString, record, recordRuntime?.sourceOfTruth]);
+  useCensusRecordPerf(currentDateString, record?.date, recordRuntime?.sourceOfTruth);
 
   // Monitor version in incoming records
   useEffect(() => {
@@ -125,14 +118,7 @@ export const useDailyRecordSyncQuery = (
     [effectiveRemoteSyncStatus, record, recordRuntime]
   );
 
-  useEffect(() => {
-    if (bootstrapPhase !== 'record_ready' && bootstrapPhase !== 'confirmed_empty') {
-      return;
-    }
-
-    markPerf('daily-record:ready', `${currentDateString}:${bootstrapPhase}`);
-    flushPerfReport(`daily-record:${bootstrapPhase}`);
-  }, [bootstrapPhase, currentDateString]);
+  useCensusBootstrapPerf(currentDateString, bootstrapPhase);
 
   const runRemoteSync = useRemoteDailyRecordSync(dailyRecord);
 

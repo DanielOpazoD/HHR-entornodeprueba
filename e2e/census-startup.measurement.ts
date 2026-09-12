@@ -5,6 +5,10 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { buildCanonicalE2ERecord } from './fixtures/auth';
 import {
+  MEASURED_READINESS_MS,
+  WARMUP_READINESS_MS,
+} from '../playwright.census-performance.config';
+import {
   CONTRACT,
   createReport,
   validateRun,
@@ -92,19 +96,48 @@ async function isolate(context: BrowserContext) {
     { fixtureRecord: record, fixtureDate: date, config: firebase }
   );
 }
-async function populated(page: Page) {
-  await expect(page.getByTestId('census-table')).toBeVisible();
-  const input = page
-    .locator('[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]')
-    .first();
-  await expect(input).toBeVisible();
-  await expect(input).toHaveValue(patient);
+/** Structural booleans/counts only: no clinical text, URLs, tokens or DOM dumps. */
+const screenState = (page: Page) =>
+  page.evaluate(() => {
+    const audit = (window as unknown as { __HHR_CENSUS_PERF__?: { navigationEvents?: object } })
+      .__HHR_CENSUS_PERF__;
+    return {
+      loginVisible: Boolean(document.querySelector('[data-testid="login-google-button"]')),
+      emptyDayVisible: Boolean(
+        document.querySelector('[data-testid="empty-day-diagnostic-message"]')
+      ),
+      tableAttached: Boolean(document.querySelector('[data-testid="census-table"]')),
+      patientRows: document.querySelectorAll('[data-testid="patient-row"]').length,
+      nameInputs: document.querySelectorAll('input[name="patientName"]').length,
+      documentReadyState: document.readyState,
+      visibility: document.visibilityState,
+      auditPresent: Boolean(audit),
+      navigationEvents: Object.keys(audit?.navigationEvents ?? {}),
+    };
+  });
+async function populated(page: Page, timeout: number) {
+  try {
+    await expect(page.getByTestId('census-table')).toBeVisible({ timeout });
+    const input = page
+      .locator('[data-testid="patient-row"][data-bed-id="R1"] input[name="patientName"]')
+      .first();
+    await expect(input).toBeVisible({ timeout });
+    await expect(input).toHaveValue(patient, { timeout });
+  } catch (error) {
+    // A bare timeout cannot distinguish a login screen from a slow build or an empty day.
+    throw new Error(
+      `Census never reached populated readiness within ${timeout} ms. Screen state: ${JSON.stringify(
+        await screenState(page)
+      )}`,
+      { cause: error }
+    );
+  }
   expect(await page.evaluate(() => document.visibilityState)).toBe('visible');
 }
-async function collect(page: Page) {
+async function collect(page: Page, timeout = MEASURED_READINESS_MS) {
   // Never accept EmptyDayPrompt as readiness. Check actual populated DOM BEFORE
   // consuming the app's paint opportunity, then recheck before taking the sample.
-  await populated(page);
+  await populated(page, timeout);
   await expect
     .poll(
       () =>
@@ -119,10 +152,10 @@ async function collect(page: Page) {
             false
           );
         }),
-      { message: 'Missing real app census paint instrumentation; no synthetic fallback' }
+      { message: 'Missing real app census paint instrumentation; no synthetic fallback', timeout }
     )
     .toBe(true);
-  await populated(page);
+  await populated(page, timeout);
   const audit = await page.evaluate(() => {
     const source = (
       window as unknown as {
@@ -205,7 +238,7 @@ test(`census startup ${smoke ? '@smoke NOT_VALID_BASELINE' : '@measurement'} (${
     await isolate(warm);
     const page = await warm.newPage();
     await page.goto(`/census?date=${date}`, { waitUntil: 'domcontentloaded' });
-    await collect(page); // excluded warmup, including completed double-rAF
+    await collect(page, WARMUP_READINESS_MS); // excluded warmup: absorbs one-time compilation
     for (let index = 0; index < count; index++) {
       await page.reload({ waitUntil: 'domcontentloaded' });
       samples.push({

@@ -161,3 +161,20 @@ no ausencia de conflictos ni convergencia clínica.
 Una comprobación funcional en Aside/localhost con sesión real verifica estos hitos
 sin modificar pacientes. No sustituye las 30 muestras aisladas ni mide login Google
 real automáticamente. Es evidencia complementaria, no baseline de rendimiento.
+
+## Esperas de observación frente a presupuestos
+
+La espera de readiness (`CENSUS_PERF_READINESS_TIMEOUT_MS`, 60 s por defecto; el triple en
+la navegación de calentamiento excluida) existe para **poder observar** un arranque lento.
+No es un presupuesto: los veredictos siguen saliendo de p95 contra
+`scripts/config/flow-performance-budgets.json`, que no se modifica. Si la espera fuera corta,
+una aplicación lenta fallaría por timeout y jamás quedaría medida; ese fue el fallo real
+observado en development sobre un servidor de desarrollo recién iniciado, donde la primera
+navegación debe compilar todo el grafo de módulos. En este equipo ya se habían medido
+recargas de hasta 27,7 s con servidor caliente, por encima de la espera anterior de 20 s.
+
+Cuando la tabla no llega a estar poblada, el banco adjunta un estado estructural de pantalla
+(login, día vacío, tabla presente, filas, estado del documento) para distinguir un fallo de
+sesión de una compilación lenta. Se conservan captura y traza solo en fallo; el fixture es
+sintético, sin pacientes ni credenciales reales. El tiempo máximo del job de CI es un techo,
+no una expectativa.

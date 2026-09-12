@@ -20,6 +20,16 @@ describe('census measurement release gate', () => {
     expect(config).toContain('retries: 0');
     expect(config).toContain('forbidOnly: true');
     expect(config).toContain('reuseExistingServer: false');
+    // Waits must never be derived from, or silently become, performance budgets.
+    expect(config).toContain('CENSUS_PERF_READINESS_TIMEOUT_MS');
+    expect(config).toContain("trace: 'retain-on-failure'");
+    expect(config).toContain("screenshot: 'only-on-failure'");
+    // Waits live in the config; verdicts live in the report module.
+    expect(config).not.toContain('enforcedMaxMs');
+    expect(read('scripts/census-startup-performance-report.mjs')).toContain('enforcedMaxMs');
+    const workflow = read('.github/workflows/ci-cd.yml');
+    expect(workflow).toContain('test-results/census-performance/**');
+    expect(read('e2e/census-startup.measurement.ts')).toContain('Screen state:');
     const server = read('scripts/census-startup-performance-server.mjs');
     expect(server).toContain('envDir: false');
     expect(server).toContain('delete process.env[key]');
