@@ -15,31 +15,7 @@ import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { createTestQueryClient } from '@/tests/utils/queryClientTestUtils';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-
-const buildMockDailyRecordRepository = (): DailyRecordRepositoryPort => ({
-  getForDate: vi.fn(),
-  getForDateWithMeta: vi.fn(),
-  getAuthoritativeForDate: vi.fn(),
-  getLocalForDate: vi.fn(),
-  getLocalForDateWithMeta: vi.fn(),
-  getPreviousDay: vi.fn(),
-  getPreviousDayWithMeta: vi.fn(),
-  getAvailableDates: vi.fn(),
-  getRecentAvailableDates: vi.fn(),
-  getMonthRecords: vi.fn(),
-  initializeDay: vi.fn(),
-  save: vi.fn(),
-  saveDetailed: vi.fn(),
-  updatePartial: vi.fn(),
-  updatePartialDetailed: vi.fn(),
-  syncWithFirestoreDetailed: vi.fn(),
-  adoptAuthoritativeRecord: vi.fn(async record => record),
-  subscribe: vi.fn(() => vi.fn()),
-  subscribeDetailed: vi.fn(() => vi.fn()),
-  delete: vi.fn(),
-  deleteDay: vi.fn(),
-  copyPatientToDateDetailed: vi.fn(),
-});
+import { buildMockDailyRecordRepository } from '@/tests/factories/dailyRecordRepositoryMock';
 
 const createWrapper = (
   dailyRecord: DailyRecordRepositoryPort,
