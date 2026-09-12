@@ -17,6 +17,7 @@ import { ReleaseEvidenceStatusPanel } from './ReleaseEvidenceStatusPanel';
 import { SystemHealthSyncConvergencePanel } from './SystemHealthSyncConvergencePanel';
 import { SystemHealthTriageToolbar } from './SystemHealthTriageToolbar';
 import { buildSystemHealthSyncConvergencePanelModel } from './systemHealthSyncConvergenceModel';
+import { useVisibleSubscription } from './useVisibleSubscription';
 import {
   buildSystemHealthTriageModel,
   exportSystemHealthIncidentsCsv,
@@ -53,18 +54,14 @@ export const SystemHealthDashboard = () => {
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [resolutionState, setResolutionState] = useState<SystemHealthIncidentResolutionState>({});
 
-  useEffect(() => {
-    const unsubscribe = subscribeToSystemHealth(data => {
+  useVisibleSubscription(() =>
+    subscribeToSystemHealth(data => {
       setStats(data);
       setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
+    })
+  );
 
-  useEffect(() => {
-    const unsubscribe = subscribeToSystemHealthIncidentResolutions(setResolutionState);
-    return () => unsubscribe();
-  }, []);
+  useVisibleSubscription(() => subscribeToSystemHealthIncidentResolutions(setResolutionState));
 
   const triageModel = useMemo(
     () =>
