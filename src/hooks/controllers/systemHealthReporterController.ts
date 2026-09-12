@@ -266,3 +266,35 @@ export const buildUserHealthStatus = (options: BuildUserHealthStatusOptions): Us
   platform: options.platform,
   userAgent: options.userAgent,
 });
+
+const LAST_REPORT_KEY = 'hhr_system_health_last_report';
+
+/**
+ * Mount, reload and every census mutation re-run the reporter effect. Reporting on
+ * each one repeated a full collection plus a Firestore write, so the last report is
+ * persisted per user and the cadence survives reloads. Storage failures fall back to
+ * reporting, never to silently skipping.
+ */
+export const readLastSystemHealthReportAt = (uid: string): number => {
+  try {
+    const parsed = Number(window.localStorage.getItem(`${LAST_REPORT_KEY}:${uid}`));
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  } catch {
+    return 0;
+  }
+};
+
+export const markSystemHealthReported = (uid: string, at: number): void => {
+  try {
+    window.localStorage.setItem(`${LAST_REPORT_KEY}:${uid}`, String(at));
+  } catch {
+    // Diagnostics must never break the clinical session.
+  }
+};
+
+export const shouldReportSystemHealthNow = (
+  now: number,
+  lastReportedAt: number,
+  intervalMs: number,
+  versionStateChanged: boolean
+): boolean => versionStateChanged || lastReportedAt <= 0 || now - lastReportedAt >= intervalMs;
