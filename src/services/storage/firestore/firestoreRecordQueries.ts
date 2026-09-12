@@ -5,6 +5,8 @@ import {
   getDocFromServer,
   getDocs,
   getDocsFromServer,
+  documentId,
+  limit as limitTo,
   onSnapshot,
   orderBy,
   query,
@@ -88,6 +90,11 @@ export const getRecordFromFirestoreDetailed = async (
   }
 };
 
+/**
+ * Reads every census document in history to keep only the document ids. The Web SDK
+ * has no field projection, so this is expensive and grows by one document per day.
+ * Reserved for migrations and backfills that genuinely need the whole range.
+ */
 export const getAvailableDatesFromFirestore = async (): Promise<string[]> => {
   try {
     const q = query(getRecordsCollection());
@@ -100,6 +107,69 @@ export const getAvailableDatesFromFirestore = async (): Promise<string[]> => {
     logFirestoreQueryError('getAvailableDates', error);
     return [];
   }
+};
+
+/**
+ * Census document ids are ISO dates, so a bounded id range reads only a recent window
+ * instead of the whole history. Descending id order needs a composite index that this
+ * project does not define, so the window is read ascending and reversed in memory.
+ */
+export const RECENT_CENSUS_WINDOW_DAYS = 30;
+
+export const shiftIsoDate = (date: string, deltaDays: number): string => {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+  parsed.setUTCDate(parsed.getUTCDate() + deltaDays);
+  return parsed.toISOString().slice(0, 10);
+};
+
+const readCensusDateWindow = async (fromDate: string, beforeDate?: string): Promise<string[]> => {
+  const constraints = [where(documentId(), '>=', fromDate)];
+  if (beforeDate) {
+    constraints.push(where(documentId(), '<', beforeDate));
+  }
+  const q = query(
+    getRecordsCollection(),
+    ...constraints,
+    orderBy(documentId()),
+    limitTo(RECENT_CENSUS_WINDOW_DAYS + 5)
+  );
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(docItem => docItem.id).sort();
+};
+
+/** Recent census dates only. Cost stays constant as the hospital accumulates days. */
+export const getRecentAvailableDatesFromFirestore = async (
+  referenceDate: string
+): Promise<string[]> => {
+  try {
+    const from = shiftIsoDate(referenceDate, -RECENT_CENSUS_WINDOW_DAYS);
+    return (await readCensusDateWindow(from)).reverse();
+  } catch (error) {
+    logFirestoreQueryError('getRecentAvailableDates', error);
+    return [];
+  }
+};
+
+/**
+ * Closest earlier census date. Reads a bounded window; only a gap longer than the
+ * window falls back to the expensive full scan, so correctness is preserved.
+ */
+export const getPreviousRecordDateFromFirestore = async (date: string): Promise<string | null> => {
+  try {
+    const from = shiftIsoDate(date, -RECENT_CENSUS_WINDOW_DAYS);
+    const windowDates = await readCensusDateWindow(from, date);
+    if (windowDates.length > 0) {
+      return windowDates[windowDates.length - 1];
+    }
+  } catch (error) {
+    logFirestoreQueryError('getPreviousRecordDate', error);
+  }
+
+  const allDates = await getAvailableDatesFromFirestore();
+  return allDates.find(candidate => candidate < date) ?? null;
 };
 
 export const getRecordFromFirestore = async (

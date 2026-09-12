@@ -249,6 +249,26 @@ const readAvailableDates = async (): Promise<string[]> => {
   return localDates.sort().reverse();
 };
 
+/**
+ * Startup only needs the closest dates, so the remote read is bounded and its cost
+ * no longer grows with hospital history. Locally known dates are still merged in.
+ */
+export const getRecentAvailableDates = async (referenceDate: string): Promise<string[]> => {
+  const localDates = await getAllDatesFromIndexedDB();
+
+  if (isFirestoreEnabled()) {
+    try {
+      const { getRecentAvailableDatesFromFirestore } = await loadFirestoreRecordQueries();
+      const remoteDates = await getRecentAvailableDatesFromFirestore(referenceDate);
+      return mergeAvailableDates(localDates, remoteDates);
+    } catch (err) {
+      dailyRecordReadLogger.warn('Failed to fetch recent remote dates', err);
+    }
+  }
+
+  return localDates.sort().reverse();
+};
+
 export const getMonthRecords = async (
   year: number,
   monthZeroBased: number
@@ -280,8 +300,8 @@ export const getPreviousDayWithMeta = async (date: string): Promise<DailyRecordR
 
   if (isFirestoreEnabled()) {
     try {
-      const allDates = await getAvailableDates();
-      const prevDate = allDates.find(d => d < query.date);
+      const { getPreviousRecordDateFromFirestore } = await loadFirestoreRecordQueries();
+      const prevDate = await getPreviousRecordDateFromFirestore(query.date);
 
       if (prevDate) {
         return await getForDateWithMeta(prevDate);
