@@ -238,6 +238,9 @@ export default defineConfig(({ mode }) => {
             '**/assets/clinicalEnrichmentBatchPayload-*.js',
             '**/assets/clinicalEnrichmentPersistenceStrategy-*.js',
             '**/assets/replanRayenStructure-*.js',
+            // The Rayen import workflow requires a live Eloisa session, so it is an
+            // online-only surface rather than PWA install payload.
+            '**/assets/RayenImportButton-*.js',
             // The patient repository requires a live Eloisa/extension session and is opened
             // explicitly from the clinical drawer, so it remains an online-only lazy surface.
             '**/assets/PatientDocumentManagerDialog-*.js',

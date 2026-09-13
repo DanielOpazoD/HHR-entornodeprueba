@@ -28,7 +28,8 @@ import {
   findManualPatientDuplicate,
   type EloisaManualPatientPayload,
 } from '@/features/rayen-manual-import';
-import { mapRayenInvasiveDeviceEntries, mergeReportDevices } from '@/features/rayen-import';
+import { mapRayenInvasiveDeviceEntries } from '@/features/rayen-import/mapping/mapDeviceToInstance';
+import { mergeReportDevices } from '@/features/rayen-import/domain/mergeReportDevices';
 
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';

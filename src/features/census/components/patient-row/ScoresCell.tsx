@@ -15,7 +15,7 @@ import { ScoresDetailModal } from './ScoresDetailModal';
 import { ScaleChip } from './ScaleChip';
 import { CellSyncIndicator } from './CellSyncIndicator';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
-import { useRayenFillStatus } from '@/features/rayen-import';
+import { useRayenFillStatus } from '@/features/rayen-import/hooks/useRayenFillStatus';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isCudyrScoreComplete } from '@/domain/cudyr/cudyrCompletion';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';

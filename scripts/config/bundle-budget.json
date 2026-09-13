@@ -30,7 +30,8 @@
     "^assets/ClinicalPanelDrawer-.*\\.js$",
     "^assets/RayenSyncHistoryModal-.*\\.js$",
     "^assets/perfAuditReport-.*\\.js$",
-    "^assets/DiagnosisCie10Cell-.*\\.js$"
+    "^assets/DiagnosisCie10Cell-.*\\.js$",
+    "^assets/RayenImportButton-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [
@@ -129,6 +130,11 @@
       "pattern": "^perfAuditReport-.*\\.js$",
       "_comment": "Optional diagnostic console formatter, dynamically imported only while auditing. Core measurements and all clinical functionality remain in precache.",
       "maxBytes": 4000
+    },
+    {
+      "pattern": "^RayenImportButton-.*\\.js$",
+      "_comment": "Online-only Rayen import workflow, deferred out of the census startup. Measured 202 KB; the ceiling keeps drift visible without relaxing the global chunk budget.",
+      "maxBytes": 260000
     }
   ]
 }

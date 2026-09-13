@@ -17,7 +17,7 @@ import {
   type VitalStatus,
 } from '@/features/census/controllers/vitalSignsView';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
-import { useRayenFillStatus } from '@/features/rayen-import';
+import { useRayenFillStatus } from '@/features/rayen-import/hooks/useRayenFillStatus';
 
 /** The four readings surfaced inline in the census cell (the rest live in the modal). */
 const CELL_READINGS: ReadonlyArray<{ key: VitalReadingView['key']; label: string }> = [

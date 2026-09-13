@@ -4,7 +4,7 @@ import { BaseCellProps, DeviceHandlers } from './inputCellTypes';
 import { History } from 'lucide-react';
 import { DeviceHistoryModal } from './DeviceHistoryModal';
 import { useDevicesCellController } from '@/features/census/components/patient-row/useDevicesCellController';
-import { useRayenFillStatus } from '@/features/rayen-import';
+import { useRayenFillStatus } from '@/features/rayen-import/hooks/useRayenFillStatus';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { CellSyncIndicator } from './CellSyncIndicator';
 
