@@ -34,26 +34,16 @@
       },
     };
   };
-  // Sondea en paralelo las pestañas restantes y devuelve la primera (por preferencia)
-  // lista que publica vigencia, o null.
-  const pickExpiryPublisher = async (tabs, ping) => {
-    const settled = await Promise.allSettled(tabs.map(ping));
-    for (const outcome of settled) {
-      const other = outcome.status === 'fulfilled' ? outcome.value : null;
-      if (!other || other.ready !== true) continue;
-      const ready = readyResult(other);
-      if (ready.publishesExpiry) return ready.result;
-    }
-    return null;
-  };
   // Solo Ficha Médico opta por `preferExpiryPublisher` (Gestión de Camas nunca publica
   // vigencia): heurística de transición (un inject < 0.48.5 respondía «lista» sin vigencia;
-  // desde 0.48.8 el relay marca «no lista» un inject de otra versión). Si otra pestaña
-  // publica vigencia, esa es la respuesta honesta; se sondean en paralelo para acotar la
-  // espera a un solo tiempo de espera, no a uno por pestaña.
-  const resolveReady = async (ready, rest, ping, preferExpiryPublisher) => {
-    if (ready.publishesExpiry || !preferExpiryPublisher || rest.length === 0) return ready.result;
-    return (await pickExpiryPublisher(rest, ping)) || ready.result;
+  // desde 0.48.8 el relay marca «no lista» un inject de otra versión). Si alguna pestaña
+  // publica vigencia, esa es la respuesta honesta.
+  const resolveReady = (readyOutcomes, preferExpiryPublisher) => {
+    if (preferExpiryPublisher) {
+      const publisher = readyOutcomes.find(ready => ready.publishesExpiry);
+      if (publisher) return publisher.result;
+    }
+    return readyOutcomes[0].result;
   };
 
   const probeTabs = async ({
@@ -72,23 +62,24 @@
     let unavailableReason = '';
     const ping = tab => sendMessage(tab.id, healthMessage);
 
-    for (let index = 0; index < ordered.length; index += 1) {
-      const tab = ordered[index];
-      if (!tab || tab.id == null) continue;
-      try {
-        const response = await ping(tab);
-        if (response && response.ready === true) {
-          const rest = ordered.slice(index + 1).filter(other => other && other.id != null);
-          return resolveReady(readyResult(response), rest, ping, preferExpiryPublisher);
-        }
-        if (!unavailableMessage && response && response.message) {
-          unavailableMessage = response.message;
-          unavailableReason = String(response.reason || 'session_unverified');
-        }
-      } catch (_error) {
-        // Try the next matching tab: another open tab may have the current relay injected.
+    // Una sola pestaña sana de la fuente basta. Se sondean todas a la vez para que la
+    // espera total sea un único tiempo de espera y no uno por pestaña: con varias
+    // pestañas abiertas, una lenta ya no puede agotar el presupuesto de las demás.
+    const candidates = ordered.filter(tab => tab && tab.id != null);
+    const settled = await Promise.allSettled(candidates.map(ping));
+    const readyOutcomes = [];
+    for (const outcome of settled) {
+      const response = outcome.status === 'fulfilled' ? outcome.value : null;
+      if (response && response.ready === true) {
+        readyOutcomes.push(readyResult(response));
+        continue;
+      }
+      if (!unavailableMessage && response && response.message) {
+        unavailableMessage = response.message;
+        unavailableReason = String(response.reason || 'session_unverified');
       }
     }
+    if (readyOutcomes.length > 0) return resolveReady(readyOutcomes, preferExpiryPublisher);
 
     return {
       status: 'stale',

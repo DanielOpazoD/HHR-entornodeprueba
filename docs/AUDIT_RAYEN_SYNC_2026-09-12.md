@@ -52,9 +52,19 @@ Ahora usa el presupuesto de sincronización **ya existente**, deduplica comproba
 
 La ventana nueva se mantiene abierta, igual que una pestaña reutilizada. No se debilitan los controles de generación, vigencia, expiración ni respuesta real. La documentación anterior que prometía sincronizar con Gestión de Camas cerrada se corrigió. Consecuencia visible: la ventana oficial queda abierta mientras se utiliza como fuente.
 
-### 6. Riesgos adicionales, no resueltos por esta rama
+### 6. Estabilidad y persistencia de la conexión (corregido)
 
-- Salud pasiva: HHR espera 2,5 s, mientras una comprobación de pestaña puede consumir 5 s y varias pestañas se recorren secuencialmente. Existe riesgo de falso estado desconectado; el cambio del cliente de evidencia evita ese presupuesto corto en la lectura crítica, no rediseña todo el sondeo pasivo.
+Cuatro causas concretas hacían que la conexión se perdiera con facilidad aparente:
+
+1. **Sondeo en serie.** `health-check.js` recorría las pestañas una por una y cada ping tenía su propio presupuesto de 5 s. Con varias pestañas de Ficha o de Gestión de Camas abiertas, una sola lenta o colgada agotaba la comprobación completa. Ahora se sondean **todas a la vez** y gana la primera lista por preferencia: **una pestaña sana de cada fuente basta**, y la espera total es un único tiempo de espera en vez de uno por pestaña.
+2. **Presupuesto pasivo más corto que el sondeo.** HHR pedía el diagnóstico con 2,5 s mientras la extensión necesitaba hasta 5 s por fuente. Una respuesta normal se leía como «desconectado». El presupuesto pasivo pasa a 10 s, muy por debajo del de sincronización.
+3. **Un sondeo perdido se mostraba como corte.** `absorbTransientHealthFailure` conserva el último diagnóstico bueno mientras siga **dentro del arriendo ya existente** de 150 s. No prolonga credenciales ni inventa salud: un reporte que sí llega manda siempre, y el corte real lo sigue declarando el vencimiento del arriendo.
+4. **Recuperación sólo manual.** Antes sólo se reintentaba al enfocar la pestaña. Ahora la página reintenta sola con espera creciente (3 s, 6 s, 12 s… hasta 30 s) y se detiene al recuperar.
+
+Comprobado en vivo con la extensión 0.48.22: con dos pestañas de cada fuente el diagnóstico tardó 106 ms; al dejar una sola de cada una siguió `ready` adoptando la superviviente; sin ninguna pestaña de Gestión de Camas reportó honestamente `missing`/`tab_missing` sin inventar conexión; al reabrirla se recuperó sola en ~2 s; y tras 45 s de inactividad total, con el worker dormido, respondió en 165 ms con ambas fuentes listas.
+
+**Límite:** sigue exigiéndose al menos una pestaña viva por fuente. Es deliberado: un token guardado sin página que lo respalde no es prueba de sesión vigente.
+
 - `fileCrossDayCorrections` toma la identidad del egreso de la cama del registro actual y puede omitir una entrada con cama vacía. Falta resolver/validar la identidad contra el registro histórico de destino y comprobar su resultado de forma explícita. Es un riesgo de la ruta de escritura, no una causa probada del HAR. La confirmación normal usa la base previa al guardado, de modo que no basta con afirmar que todo egreso vacía la cama antes de leerla.
 - Días firmados, fuera de ventana y conflictos de versión deben conservar controles y revisión. No se propone saltarlos para completar egresos.
 - Las consultas de identidad de Ficha deduplican concurrencia pero no todas las ráfagas de foco/visibilidad. Cualquier optimización necesita invalidación real al cerrar sesión; no basta con alargar una caché.

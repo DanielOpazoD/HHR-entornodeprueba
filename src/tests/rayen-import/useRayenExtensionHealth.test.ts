@@ -4,6 +4,8 @@ import {
   deriveHealthState,
   expireRayenExtensionHealthState,
   RAYEN_EXTENSION_HEALTH_LEASE_MS,
+  absorbTransientHealthFailure,
+  rayenExtensionHealthRecoveryDelayMs,
   useRayenExtensionHealth,
   type RayenExtensionHealthState,
 } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
@@ -340,6 +342,69 @@ describe('useRayenExtensionHealth', () => {
       });
       expect(mocks.requestHealth).toHaveBeenCalledTimes(2);
       expect(result.current.connection).toBe('ready');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('no declara desconexión por un sondeo perdido mientras el último diagnóstico sigue vigente', () => {
+    const healthy = deriveHealthState(makeReport());
+    const missed = deriveHealthState(null, 'La extensión Eloísa no respondió a tiempo.');
+    expectConnection(healthy, 'ready', true);
+    expectConnection(missed, 'offline', false);
+
+    // Dentro del arriendo se conserva el último verde en vez de parpadear a «desconectado».
+    expect(absorbTransientHealthFailure(healthy, missed)).toBe(healthy);
+  });
+
+  it('acepta la desconexión cuando el último diagnóstico bueno ya venció', () => {
+    const checkedAt = new Date(Date.now() - RAYEN_EXTENSION_HEALTH_LEASE_MS - 1).toISOString();
+    const stale = deriveHealthState(makeReport({ checkedAt }));
+    const missed = deriveHealthState(null, 'La extensión Eloísa no respondió a tiempo.');
+
+    expect(absorbTransientHealthFailure(stale, missed)).toBe(missed);
+  });
+
+  it('no enmascara un diagnóstico real de fuente bloqueada', () => {
+    const healthy = deriveHealthState(makeReport());
+    const blocked = deriveHealthState(
+      makeReport({ gestionCamas: { status: 'stale', message: 'Sesión vencida.' } })
+    );
+
+    // Sólo se absorbe la ausencia de respuesta; un reporte que llega manda siempre.
+    expect(absorbTransientHealthFailure(healthy, blocked)).toBe(blocked);
+  });
+
+  it('espacia los reintentos automáticos sin pasarse del techo', () => {
+    expect(rayenExtensionHealthRecoveryDelayMs(0)).toBe(3_000);
+    expect(rayenExtensionHealthRecoveryDelayMs(1)).toBe(6_000);
+    expect(rayenExtensionHealthRecoveryDelayMs(2)).toBe(12_000);
+    expect(rayenExtensionHealthRecoveryDelayMs(50)).toBe(30_000);
+  });
+
+  it('se recupera sola cuando la conexión vuelve, sin intervención del usuario', async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.requestHealth.mockResolvedValue({
+        report: null,
+        error: 'La extensión Eloísa no está disponible.',
+      } satisfies RayenExtensionHealthCheck);
+      const view = renderHook(() => useRayenExtensionHealth());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expectConnection(view.result.current, 'offline', false);
+
+      // La extensión vuelve: nadie enfoca la pestaña ni pulsa nada.
+      mocks.requestHealth.mockResolvedValue({
+        report: makeReport(),
+      } satisfies RayenExtensionHealthCheck);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(rayenExtensionHealthRecoveryDelayMs(0) + 10);
+      });
+
+      expectConnection(view.result.current, 'ready', true);
+      view.unmount();
     } finally {
       vi.useRealTimers();
     }

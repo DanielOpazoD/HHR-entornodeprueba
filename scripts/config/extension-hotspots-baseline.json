@@ -338,10 +338,8 @@
       "hotspots": {}
     },
     "health-check.js": {
-      "maxLines": 118,
-      "hotspots": {
-        "iife>variable:probeTabs": 16
-      }
+      "maxLines": 109,
+      "hotspots": {}
     },
     "health-heartbeat-runtime.js": {
       "maxLines": 115,
@@ -469,7 +467,7 @@
       "hotspots": {}
     },
     "hospitalization-reports-runtime.js": {
-      "maxLines": 142,
+      "maxLines": 105,
       "hotspots": {}
     },
     "inject-fichamedico.js": {
