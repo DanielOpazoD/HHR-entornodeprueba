@@ -45,6 +45,15 @@ export const GESTION_CAMAS_MIN_REMAINING_SECONDS = 240;
 export const FICHA_MEDICO_MIN_REMAINING_SECONDS = 240;
 /** Dos latidos perdidos más un margen breve: el último verde deja de ser confiable. */
 export const RAYEN_EXTENSION_HEALTH_LEASE_MS = 150_000;
+/** Reintento activo tras una conexión caída, con espera creciente para no saturar. */
+export const RAYEN_EXTENSION_HEALTH_RECOVERY_BASE_DELAY_MS = 3_000;
+export const RAYEN_EXTENSION_HEALTH_RECOVERY_MAX_DELAY_MS = 30_000;
+
+export const rayenExtensionHealthRecoveryDelayMs = (attempt: number): number =>
+  Math.min(
+    RAYEN_EXTENSION_HEALTH_RECOVERY_MAX_DELAY_MS,
+    RAYEN_EXTENSION_HEALTH_RECOVERY_BASE_DELAY_MS * 2 ** Math.max(0, attempt)
+  );
 
 const CHECKING_STATE: RayenExtensionHealthState = {
   connection: 'checking',
@@ -75,6 +84,27 @@ export const expireRayenExtensionHealthState = (
     message: staleMessage,
     canSync: false,
   };
+};
+
+/**
+ * Un sondeo perdido no es una desconexión. Mientras el último diagnóstico bueno siga
+ * dentro de su arriendo, se conserva y se reintenta en segundo plano: el corte real lo
+ * sigue declarando `expireRayenExtensionHealthState` al vencer ese mismo arriendo, de
+ * modo que esto no prolonga ninguna credencial ni inventa una conexión sana.
+ */
+export const absorbTransientHealthFailure = (
+  previous: RayenExtensionHealthState,
+  next: RayenExtensionHealthState,
+  now = Date.now()
+): RayenExtensionHealthState => {
+  if (next.report || next.connection !== 'offline') return next;
+  const previousReport = previous.report;
+  if (!previousReport || previous.connection === 'offline') return next;
+  const checkedAt = Date.parse(previousReport.checkedAt);
+  if (!Number.isFinite(checkedAt) || now - checkedAt >= RAYEN_EXTENSION_HEALTH_LEASE_MS) {
+    return next;
+  }
+  return previous;
 };
 
 const deriveHealthState = (
@@ -177,6 +207,14 @@ const deriveHealthState = (
 export const useRayenExtensionHealth = () => {
   const [health, setHealth] = useState<RayenExtensionHealthState>(CHECKING_STATE);
   const requestSequence = useRef(0);
+  // Espejo síncrono del estado: `refresh` necesita el último diagnóstico bueno para
+  // decidir si absorbe un fallo transitorio, sin depender del ciclo de render.
+  const latestHealth = useRef(health);
+  const recoveryAttempts = useRef(0);
+
+  useEffect(() => {
+    latestHealth.current = health;
+  }, [health]);
 
   const refresh = useCallback(
     async (
@@ -194,8 +232,9 @@ export const useRayenExtensionHealth = () => {
       );
       const result = await requestRayenExtensionHealth(options.timeoutMs);
       const next = deriveHealthState(result.report, result.error);
-      if (sequence === requestSequence.current) setHealth(next);
-      return next;
+      const applied = absorbTransientHealthFailure(latestHealth.current, next);
+      if (sequence === requestSequence.current) setHealth(applied);
+      return applied;
     },
     []
   );
@@ -244,6 +283,22 @@ export const useRayenExtensionHealth = () => {
       unsubscribePush();
     };
   }, [refresh]);
+
+  // Recuperación activa: mientras la conexión no esté sana, la propia página reintenta
+  // sola con espera creciente. Antes sólo se reintentaba al enfocar la pestaña, de modo
+  // que un corte pasajero se veía como permanente hasta que el usuario intervinía.
+  useEffect(() => {
+    if (health.connection === 'ready') {
+      recoveryAttempts.current = 0;
+      return undefined;
+    }
+    if (health.connection === 'checking') return undefined;
+    const timer = window.setTimeout(() => {
+      recoveryAttempts.current += 1;
+      void refresh({ showChecking: false });
+    }, rayenExtensionHealthRecoveryDelayMs(recoveryAttempts.current));
+    return () => window.clearTimeout(timer);
+  }, [health.connection, refresh]);
 
   useEffect(() => {
     const checkedAtText = health.report?.checkedAt;

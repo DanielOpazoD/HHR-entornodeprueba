@@ -9,7 +9,13 @@
 export const RAYEN_EXTENSION_HEALTH_REQUEST_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST';
 export const RAYEN_EXTENSION_HEALTH_RESULT_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_RESULT';
 export const RAYEN_EXTENSION_HEALTH_PUSH_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_PUSH';
-export const RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS = 2_500;
+/**
+ * La extensión sondea cada pestaña con un presupuesto propio de 5 s (HEALTH_PROBE_TIMEOUT_MS)
+ * y comprueba dos fuentes. Pedir el diagnóstico con menos margen que eso convertía una
+ * respuesta normal en un falso «desconectado». Se concede el doble del sondeo de una fuente,
+ * que sigue siendo muy inferior al presupuesto de sincronización.
+ */
+export const RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS = 10_000;
 export const RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS = 12_000;
 export const RAYEN_EXTENSION_PROTOCOL_VERSION = 5;
 export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';

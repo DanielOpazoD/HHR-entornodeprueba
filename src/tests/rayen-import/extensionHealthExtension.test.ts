@@ -39,8 +39,9 @@ describe('extension health helpers', () => {
       query: vi.fn(async () => tabs),
       get: vi.fn(async (id: number) => ({ id, url: 'https://login.rayensalud.cl/' })),
     };
-    await expect(health.resolveTabs(tabsApi, 'https://fichamedico.rayensalud.cl/*', [8]))
-      .resolves.toEqual([{ id: 8, url: 'https://login.rayensalud.cl/' }]);
+    await expect(
+      health.resolveTabs(tabsApi, 'https://fichamedico.rayensalud.cl/*', [8])
+    ).resolves.toEqual([{ id: 8, url: 'https://login.rayensalud.cl/' }]);
     expect(tabsApi.query).not.toHaveBeenCalled();
     expect(tabsApi.get).toHaveBeenCalledWith(8);
     await expect(health.resolveTabs(tabsApi, 'match')).resolves.toEqual(tabs);
@@ -71,7 +72,11 @@ describe('extension health helpers', () => {
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'ready', reason: 'connected', message: 'Ficha Médico disponible.' });
+    ).resolves.toEqual({
+      status: 'ready',
+      reason: 'connected',
+      message: 'Ficha Médico disponible.',
+    });
 
     await expect(
       health.probeTabs({
@@ -153,7 +158,11 @@ describe('extension health helpers · vigencia de la fuente', () => {
         missingMessage: 'No abierta.',
         staleMessage: 'Recarga.',
       })
-    ).resolves.toEqual({ status: 'ready', reason: 'connected', message: 'Ficha Médico disponible.' });
+    ).resolves.toEqual({
+      status: 'ready',
+      reason: 'connected',
+      message: 'Ficha Médico disponible.',
+    });
   });
 
   it('prefiere la pestaña lista que publica vigencia sobre una activa con inject antiguo (0.48.6)', async () => {
@@ -236,7 +245,9 @@ describe('extension health helpers · vigencia de la fuente', () => {
       remainingSeconds: 0,
       expiresAt: 1,
     });
-    // Sin la opción (Gestión de Camas), la primera lista gana sin sondear el resto.
+    // Sin la opción (Gestión de Camas), gana la primera lista por preferencia. Se sondean
+    // todas a la vez a propósito: una pestaña lenta no debe consumir el presupuesto de las
+    // demás, de modo que la espera total es un solo tiempo de espera y no uno por pestaña.
     const gcSend = vi
       .fn()
       .mockResolvedValueOnce({ ready: true, message: 'GC lista.' })
@@ -249,7 +260,7 @@ describe('extension health helpers · vigencia de la fuente', () => {
         staleMessage: 'Recarga.',
       })
     ).resolves.toEqual({ status: 'ready', reason: 'connected', message: 'GC lista.' });
-    expect(gcSend).toHaveBeenCalledTimes(1);
+    expect(gcSend).toHaveBeenCalledTimes(2);
   });
 
   it('las pestañas restantes se sondean en paralelo y gana la primera por preferencia, no la más rápida', async () => {
@@ -288,5 +299,48 @@ describe('extension health helpers · vigencia de la fuente', () => {
       remainingSeconds: 600,
     });
     expect(sendMessage).toHaveBeenCalledTimes(3);
+  });
+
+  it('una sola pestaña sana basta aunque otra del mismo origen esté colgada', async () => {
+    // Cada ping trae su propio tiempo de espera. En serie, la pestaña colgada agotaba el
+    // presupuesto de toda la comprobación y HHR mostraba «desconectado» sin motivo real.
+    const hungTabRejection = 'La pestaña de Gestión de Camas no respondió a la comprobación.';
+    const sendMessage = vi.fn(async (tabId: number) => {
+      if (tabId === 1) throw new Error(hungTabRejection);
+      return { ready: true, message: 'Segunda pestaña disponible.' };
+    });
+    await expect(
+      health.probeTabs({
+        tabs: [
+          { id: 1, active: true },
+          { id: 2, lastAccessed: 5 },
+        ],
+        sendMessage,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({
+      status: 'ready',
+      reason: 'connected',
+      message: 'Segunda pestaña disponible.',
+    });
+  });
+
+  it('no inventa conexión cuando ninguna pestaña responde', async () => {
+    const sendMessage = vi.fn(async () => {
+      throw new Error('sin respuesta');
+    });
+    await expect(
+      health.probeTabs({
+        tabs: [{ id: 1, active: true }, { id: 2 }],
+        sendMessage,
+        missingMessage: 'No abierta.',
+        staleMessage: 'Recarga.',
+      })
+    ).resolves.toEqual({
+      status: 'stale',
+      reason: 'relay_disconnected',
+      message: 'Recarga.',
+    });
   });
 });
