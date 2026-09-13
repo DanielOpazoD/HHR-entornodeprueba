@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import type { Statistics } from '@/types/domain/statistics';
 import { NurseSelector } from './NurseSelector';
@@ -16,7 +16,11 @@ import { useStaffContext } from '@/context/StaffContext';
 import { buildCensusStaffHeaderReadModel } from '@/application/census/censusStaffHeaderReadModel';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDetails';
-import { RayenImportButton } from '@/features/rayen-import';
+// The Rayen import machinery is only needed once the operator uses it, so the census
+// table no longer downloads it just to render the toolbar.
+const RayenImportButton = lazy(() =>
+  import('@/features/rayen-import').then(module => ({ default: module.RayenImportButton }))
+);
 import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusAttentionBar } from './CensusAttentionBar';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
@@ -114,11 +118,13 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
 
           {!readOnly && !readModel.specialistAccess && (
             <div className="w-64 max-w-full shrink-0">
-              <RayenImportButton
-                selectedDate={selectedDate}
-                autoStartRequestId={rayenBootstrapRequestId}
-                onAutoStartHandled={onRayenBootstrapHandled}
-              />
+              <Suspense fallback={null}>
+                <RayenImportButton
+                  selectedDate={selectedDate}
+                  autoStartRequestId={rayenBootstrapRequestId}
+                  onAutoStartHandled={onRayenBootstrapHandled}
+                />
+              </Suspense>
             </div>
           )}
 

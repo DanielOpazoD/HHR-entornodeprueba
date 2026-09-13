@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock('@/features/rayen-import', () => ({
+vi.mock('@/features/rayen-import/bridge/hospitalizationReportsBridge', () => ({
   requestRayenHospitalizationEpisodes: (...args: unknown[]) => mocks.list(...args),
   requestRayenHospitalizationDocument: (...args: unknown[]) => mocks.download(...args),
 }));

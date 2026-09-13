@@ -62,6 +62,7 @@ describe('bundle budget config', () => {
       maxBytes: 30000,
     });
     expect(findBudget(config, '^perfAuditReport-.*\\.js$')).toMatchObject({ maxBytes: 4000 });
+    expect(findBudget(config, '^RayenImportButton-.*\\.js$')).toMatchObject({ maxBytes: 260000 });
     expect(findBudget(config, '^ClinicalLibraryDrawer-.*\\.js$')).toMatchObject({
       maxBytes: 120000,
     });
@@ -109,6 +110,7 @@ describe('bundle budget config', () => {
         '^assets/applyClinicalEnrichmentBatch-.*\\.js$',
         '^assets/applyHistoricalCudyr-.*\\.js$',
         '^assets/clinicalFillRunner-.*\\.js$',
+        '^assets/RayenImportButton-.*\\.js$',
         '^assets/clinicalEnrichmentBatchPayload-.*\\.js$',
         '^assets/clinicalEnrichmentPersistenceStrategy-.*\\.js$',
         '^assets/PatientDocumentManagerDialog-.*\\.js$',

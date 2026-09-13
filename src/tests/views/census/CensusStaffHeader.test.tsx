@@ -127,7 +127,7 @@ describe('CensusStaffHeader', () => {
     });
   });
 
-  it('renders selectors and summary with normalized movement counts', () => {
+  it('renders selectors and summary with normalized movement counts', async () => {
     render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} />);
 
     expect(screen.getByTestId('nurse-selector')).toBeInTheDocument();
@@ -140,7 +140,8 @@ describe('CensusStaffHeader', () => {
     const staffAndSync = screen.getByTestId('census-staff-and-sync');
     expect(staffAndSync).toContainElement(screen.getByTestId('nurse-selector'));
     expect(staffAndSync).toContainElement(screen.getByTestId('tens-selector'));
-    expect(staffAndSync).toContainElement(screen.getByTestId('rayen-operations-bar'));
+    // The Rayen control is loaded on demand, so it resolves after the first paint.
+    expect(staffAndSync).toContainElement(await screen.findByTestId('rayen-operations-bar'));
     expect(screen.getAllByTestId('rayen-operations-bar')).toHaveLength(1);
   });
 
@@ -165,7 +166,7 @@ describe('CensusStaffHeader', () => {
     expect(screen.queryByTestId('summary-card')).not.toBeInTheDocument();
   });
 
-  it('keeps the scale filter outside the staff and synchronization row', () => {
+  it('keeps the scale filter outside the staff and synchronization row', async () => {
     mockedUseDailyRecordBeds.mockReturnValue({
       R1: DataFactory.createMockPatient('R1', {
         patientName: 'Paciente con escala pendiente',
@@ -185,13 +186,13 @@ describe('CensusStaffHeader', () => {
 
     render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} />);
 
-    const rayen = screen.getByTestId('rayen-operations-bar');
+    const rayen = await screen.findByTestId('rayen-operations-bar');
     const scales = screen.getByTestId('census-attention-bar');
     expect(rayen).not.toContainElement(scales);
     expect(screen.getByTestId('census-staff-and-sync')).not.toContainElement(scales);
   });
 
-  it('keeps scale surveillance available in read-only mode without showing synchronization', () => {
+  it('keeps scale surveillance available in read-only mode without showing synchronization', async () => {
     mockedUseDailyRecordBeds.mockReturnValue({
       R1: DataFactory.createMockPatient('R1', {
         patientName: 'Paciente con escala pendiente',
@@ -211,8 +212,8 @@ describe('CensusStaffHeader', () => {
 
     render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} readOnly={true} />);
 
+    expect(await screen.findByTestId('census-attention-bar')).toBeInTheDocument();
     expect(screen.queryByTestId('rayen-operations-bar')).not.toBeInTheDocument();
-    expect(screen.getByTestId('census-attention-bar')).toBeInTheDocument();
   });
 
   it('offers the spreadsheet action directly from the selected census day', () => {
