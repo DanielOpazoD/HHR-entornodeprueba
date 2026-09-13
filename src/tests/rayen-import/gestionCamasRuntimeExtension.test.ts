@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createFixture, FINITE_SESSION_TIMESTAMP } from './gestionCamasRuntimeTestHarness';
 
 describe('Gestión de Camas connection runtime', () => {
