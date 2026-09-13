@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 import { useNotification } from '@/context/UIContext';
 import { MovementProvenanceBadge } from '@/features/census/components/MovementProvenanceBadge';
-import { requestRayenStatisticalDischargeReport } from '@/features/rayen-import';
+import { requestRayenStatisticalDischargeReport } from '@/features/rayen-import/bridge/hospitalizationReportsBridge';
 import type { MovementProvenance } from '@/types/domain/movements';
 
 interface StatisticalDischargeProvenanceBadgeProps {
