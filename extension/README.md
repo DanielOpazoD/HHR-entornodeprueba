@@ -202,6 +202,40 @@ leer evidencia clínica reintenta una comprobación transitoria fallida y usa el
 sincronización existente. Una respuesta ausente no equivale a «extensión incompatible».
 Los relés aislados admiten reinyección sin registrar dos veces sus escuchas.
 
+### Estabilidad y reactivación de la conexión
+
+El estado de conexión se sostiene sobre cuatro reglas. Cambiarlas rompe la estabilidad, así que
+`src/tests/rayen-import/rayenConnectionTimingContract.test.ts` fija la relación entre los tiempos
+(no sus valores exactos, que se pueden ajustar mientras las desigualdades se cumplan).
+
+1. **Una pestaña sana por fuente basta.** Las pestañas que coinciden con el patrón se sondean
+   **en paralelo** y gana la primera lista por orden de preferencia (activa, luego la más reciente).
+   No importa cuántas pestañas de Ficha Médico o de Gestión de Camas estén abiertas: la espera total
+   es un único tiempo de espera y no uno por pestaña, de modo que una pestaña lenta o colgada no
+   puede agotar el presupuesto de las demás. Ficha Médico conserva su preferencia por la pestaña que
+   publica vigencia.
+2. **El presupuesto de espera nunca es menor que el del sondeo.** La aplicación concede al
+   diagnóstico pasivo al menos el doble del presupuesto de una fuente, porque la extensión consulta
+   dos. Pedirlo con menos margen convertía una respuesta normal en un falso «desconectado».
+3. **Un sondeo perdido no es una desconexión.** Mientras el último diagnóstico bueno siga dentro de
+   su arriendo de confianza, se conserva y se reintenta en segundo plano. El arriendo cubre al menos
+   dos latidos completos. Esto no prolonga ninguna credencial ni inventa salud: un informe que sí
+   llega manda siempre —incluido uno que reporte una fuente bloqueada— y el corte real lo sigue
+   declarando el vencimiento del arriendo.
+4. **La reactivación es automática y activa.** La página reintenta sola con espera creciente hasta
+   recuperar, sin que el usuario tenga que enfocar la pestaña ni pulsar nada, y siempre alcanza a
+   intentarlo varias veces dentro de la ventana de confianza. En paralelo, la extensión empuja su
+   estado por latido periódico y ante cada transición de sesión.
+
+Al instalar o actualizar la extensión, los relés de las pestañas ya abiertas quedan huérfanos:
+`relay-reinjection-runtime.js` los vuelve a inyectar y empuja el estado fresco de inmediato, de modo
+que la comunicación se restablece sin recargar a mano. Los scripts de mundo MAIN no se re-inyectan,
+por lo que una pestaña cuyo `inject-*.js` quedó obsoleto sí requiere abrir un documento nuevo.
+
+**Límite deliberado:** se sigue exigiendo al menos una pestaña viva por fuente. Un token guardado sin
+página que lo respalde no prueba que Rayen siga aceptando la sesión, y mostrarlo como «conectado»
+engañaría justo antes de que la sincronización falle.
+
 Cuando la vista tiene un episodio activo, **Recetas** abre primero **Paciente actual**. Desde listas,
 paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja deshabilitada la pestaña
 del paciente actual. Los accesos contextuales de Indicaciones y Receta médica se mantienen solamente en
