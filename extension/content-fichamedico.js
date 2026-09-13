@@ -11,6 +11,13 @@
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
 
+  // Deduplicate only this ISOLATED world's live runtime, never the shared DOM or MAIN
+  // generation. Extension reload/update creates a fresh context and must install anew;
+  // the existing generation handshake still rejects the surviving stale MAIN reader.
+  const installedRelay = globalThis.__hhrFichaMedicoRelayInstalled;
+  if (installedRelay && installedRelay.runtime === chrome.runtime &&
+      installedRelay.runtimeId === chrome.runtime.id) return;
+
   // Diagnostic marker on the shared DOM so page-context checks can confirm this
   // ISOLATED content script actually injected on fichamedico.
   try {
@@ -175,4 +182,8 @@
     return undefined;
   });
 
+  globalThis.__hhrFichaMedicoRelayInstalled = {
+    runtime: chrome.runtime,
+    runtimeId: chrome.runtime.id,
+  };
 })();

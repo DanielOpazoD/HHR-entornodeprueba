@@ -159,6 +159,7 @@ const RayenSyncStructuralReviewSchema = z.object({
               'cma-physical-bed-collision',
               'occupied-local-bed',
               'historical-reconstruction',
+              'previous-census-continuity',
               'historical-admission-evidence',
               'unverified-report-row',
               'episode-less-report-row',

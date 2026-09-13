@@ -11,6 +11,13 @@
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
 
+  // Deduplicate only this ISOLATED world's live runtime, never the shared DOM or MAIN
+  // generation. Extension reload/update creates a fresh context and must install anew;
+  // the existing generation handshake still rejects the surviving stale MAIN reader.
+  const installedRelay = globalThis.__hhrGestionCamasRelayInstalled;
+  if (installedRelay && installedRelay.runtime === chrome.runtime &&
+      installedRelay.runtimeId === chrome.runtime.id) return;
+
   // Diagnostic marker so page-context checks can confirm this relay injected.
   try {
     document.documentElement.setAttribute('data-rayen-gc-relay', '1');
@@ -194,4 +201,8 @@
     return undefined;
   });
 
+  globalThis.__hhrGestionCamasRelayInstalled = {
+    runtime: chrome.runtime,
+    runtimeId: chrome.runtime.id,
+  };
 })();

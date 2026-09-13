@@ -9,39 +9,6 @@
   const isEncounter = value => /^\d+$/.test(String(value || ''));
   const isValidRun = value => /^[0-9]{6,8}[0-9K]$/.test(normalizeRun(value));
 
-  const buildSearchUrl = (info, patientRun) => {
-    const url = new URL('/api/inpatientReport/getEncounterHistoryReport', info.apiOrigin);
-    url.searchParams.set('prefferedPeridentId', '2');
-    url.searchParams.set('prefferedIdentifierCode', normalizeRun(patientRun));
-    url.searchParams.set('facilityId', String(info.facId));
-    url.searchParams.set('dateFrom', '');
-    url.searchParams.set('dateTo', '');
-    return url.toString();
-  };
-
-  const fetchRows = async ({ info, patientRun, fetchWithTimeout }) => {
-    try {
-      const response = await fetchWithTimeout(buildSearchUrl(info, patientRun), {
-        headers: { Authorization: info.token, Accept: 'application/json' },
-        credentials: 'omit',
-        cache: 'no-store',
-      });
-      if (response.status === 401 || response.status === 403) {
-        return { error: 'Eloísa no autorizó la búsqueda de informes para la sesión actual.' };
-      }
-      if (!response.ok) {
-        return { error: 'Eloísa respondió HTTP ' + response.status + ' al buscar los informes.' };
-      }
-      const payload = await response.json();
-      return { rows: Array.isArray(payload) ? payload : [] };
-    } catch (error) {
-      return {
-        error: 'No se pudieron buscar los informes en Eloísa: ' +
-          String((error && error.message) || error),
-      };
-    }
-  };
-
   const matchingRows = (rows, patientRun) => {
     const expectedRun = normalizeRun(patientRun);
     const rowRuns = row => [row && row.patientIdentifier, row && row.preferredIdentifierCode,
@@ -87,13 +54,9 @@
       : 'No se encontraron hospitalizaciones para este RUN.' };
   };
 
-  const resolveRows = async request => {
-    const { info, patientRun, fetchWithTimeout } = request;
-    if (!info || !info.apiOrigin || !info.token || !/^\d+$/.test(String(info.facId || ''))) {
-      return { error: 'La sesión no permite consultar informes de hospitalización.' };
-    }
-    return fetchRows({ info, patientRun, fetchWithTimeout });
-  };
+  const resolveRows = request => root.HhrHospitalizationReportSearchRuntime.resolveRows({
+    ...request, normalizeRun, isEncounter, matchingRows,
+  });
 
   const buildHistoryReportUrl = ({ encId, startPeriod, endPeriod, now }) => {
     const encounterId = isEncounter(encId) ? String(encId) : '';

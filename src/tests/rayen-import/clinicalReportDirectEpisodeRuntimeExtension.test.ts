@@ -5,6 +5,10 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 const runtimeSource = readFileSync(path.resolve('extension/clinical-report-runtime.js'), 'utf8');
+const hospitalizationReportSearchSource = readFileSync(
+  path.resolve('extension/hospitalization-report-search-runtime.js'),
+  'utf8'
+);
 const hospitalizationReportsSource = readFileSync(
   path.resolve('extension/hospitalization-reports-runtime.js'),
   'utf8'
@@ -22,6 +26,9 @@ const loadFactory = () => {
     Uint8Array,
     TextDecoder,
     encodeURIComponent,
+  });
+  vm.runInContext(hospitalizationReportSearchSource, context, {
+    filename: 'hospitalization-report-search-runtime.js',
   });
   vm.runInContext(hospitalizationReportsSource, context, {
     filename: 'hospitalization-reports-runtime.js',

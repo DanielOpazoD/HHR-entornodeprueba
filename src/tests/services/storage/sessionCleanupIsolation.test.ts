@@ -22,10 +22,16 @@ vi.mock('@/services/observability/operationalTelemetryRecorder', () => ({
   recordOperationalTelemetry: vi.fn(),
 }));
 
+const defaultLocalStorage = globalThis.localStorage;
+const defaultSessionStorage = globalThis.sessionStorage;
+const defaultNavigator = globalThis.navigator;
+
 describe('session cleanup isolation', () => {
   afterEach(async () => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
+    vi.stubGlobal('localStorage', defaultLocalStorage);
+    vi.stubGlobal('sessionStorage', defaultSessionStorage);
+    vi.stubGlobal('navigator', defaultNavigator);
     await clearSessionScopedClientState('manual');
   });
   beforeEach(() => {
@@ -74,8 +80,11 @@ describe('session cleanup isolation', () => {
   it('still attempts Firebase logout when Web Storage is blocked', async () => {
     const signOut = vi.fn().mockResolvedValue(undefined);
     sessionStorage.setItem('hhr_private', 'old');
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('blocked');
+    vi.stubGlobal('localStorage', {
+      ...defaultLocalStorage,
+      getItem: vi.fn(() => {
+        throw new Error('blocked');
+      }),
     });
     await expect(clearSessionScopedClientState('manual', signOut)).rejects.toThrow('blocked');
     expect(signOut).toHaveBeenCalledTimes(1);
@@ -87,10 +96,13 @@ describe('session cleanup isolation', () => {
   it('attempts every backend when writing the cleanup marker fails', async () => {
     await reconcileAuthorizedSessionOwner('user:old');
     sessionStorage.setItem('hhr_private', 'old');
-    const write = Storage.prototype.setItem;
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
-      if (key === 'hhr_session_cleanup_pending_v1') throw new Error('quota');
-      write.call(this, key, value);
+    const write = defaultLocalStorage.setItem.bind(defaultLocalStorage);
+    vi.stubGlobal('localStorage', {
+      ...defaultLocalStorage,
+      setItem: vi.fn((key, value) => {
+        if (key === 'hhr_session_cleanup_pending_v1') throw new Error('quota');
+        write(key, value);
+      }),
     });
     const signOut = vi.fn().mockResolvedValue(undefined);
     await expect(clearSessionScopedClientState('manual', signOut)).rejects.toThrow('quota');

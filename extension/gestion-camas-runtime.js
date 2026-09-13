@@ -157,7 +157,7 @@
         record.sourceTabId = normalizedSourceTabId;
         // La captura adelantada al handshake llega sin attemptId: adopta el del
         // intento pendiente para que la verificación pueda completar el flujo
-        // (cerrar la ventana oficial y limpiar el intento).
+        // (limpiar el intento manteniendo viva la pestaña de origen).
         record.connectionAttemptId =
           matchesPendingAttempt && pending ? String(pending.attemptId || '') : suppliedAttemptId;
         await chromeApi.storage.session.set({ [session.SESSION_STORAGE_KEY]: record });
@@ -481,7 +481,7 @@
         await beginGestionCamasConnectionAttempt({
           windowId: popup.id,
           tabId: popupTab.id,
-          closeOnVerify: true,
+          closeOnVerify: false, // Health requires a live source, including newly opened tabs.
           renew,
         });
       } else if (renew) {

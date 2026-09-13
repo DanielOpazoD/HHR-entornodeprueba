@@ -37,6 +37,13 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
+
+  // Deduplicate only this ISOLATED world's live runtime, never the shared DOM or MAIN
+  // generation. Extension reload/update creates a fresh context and must install anew;
+  // the existing generation handshake still rejects the surviving stale MAIN reader.
+  const installedRelay = globalThis.__hhrAppRelayInstalled;
+  if (installedRelay && installedRelay.runtime === chrome.runtime &&
+      installedRelay.runtimeId === chrome.runtime.id) return;
   const post = message => window.postMessage(message, window.location.origin);
   const generationRelay = globalThis.HhrBridgeGeneration.createRelay({
     chromeApi: chrome,
@@ -75,6 +82,11 @@
     return undefined;
   });
   const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
+  const postFailure = (type, reqId, error, fallback = {}) => {
+    console.warn('[Rayen→HHR] ' + type + ' error:', error);
+    post({ type, reqId, ...fallback, error: String(error) });
+  };
+
   window.addEventListener('message', event => {
     if (!isOwnMessage(event)) return;
     const data = event.data;
@@ -107,10 +119,7 @@
             error: response && response.error,
           });
         })
-        .catch(error => {
-          console.warn('[Rayen→HHR] GC connect error:', error);
-          post({ type: 'HHR_RAYEN_GC_CONNECT_RESULT', reqId, ok: false, error: String(error) });
-        });
+        .catch(error => postFailure('HHR_RAYEN_GC_CONNECT_RESULT', reqId, error, { ok: false }));
       return;
     }
     if (data.type === 'HHR_RAYEN_REQUEST_SNAPSHOT') {
@@ -145,16 +154,9 @@
             error: response && response.error,
           });
         })
-        .catch(error => {
-          console.warn('[Rayen→HHR] Encounter navigation error:', error);
-          post({
-            type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT',
-            reqId,
-            ok: false,
-            reused: false,
-            error: String(error),
-          });
-        });
+        .catch(error => postFailure('HHR_RAYEN_OPEN_ENCOUNTER_RESULT', reqId, error, {
+          ok: false, reused: false,
+        }));
       return;
     }
     if (data.type === 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST') {
@@ -303,17 +305,10 @@
             error: response && response.error,
           });
         })
-        .catch(error => {
-          // Degrade gracefully: no events → the panel shows its empty/error state.
-          console.warn('[Rayen→HHR] Clinical panel error:', error);
-          post({
-            type: 'HHR_RAYEN_CLINICAL_PANEL_RESULT',
-            reqId,
-            events: [],
-            carePlan: { carePlanHeaders: [], medicationStates: [] },
-            error: String(error),
-          });
-        });
+        // Degrade gracefully: preserve the panel's empty/error fallback.
+        .catch(error => postFailure('HHR_RAYEN_CLINICAL_PANEL_RESULT', reqId, error, {
+          events: [], carePlan: { carePlanHeaders: [], medicationStates: [] },
+        }));
       return;
     }
     if (data.type === 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST') {
@@ -339,4 +334,8 @@
       return;
     }
   });
+  globalThis.__hhrAppRelayInstalled = {
+    runtime: chrome.runtime,
+    runtimeId: chrome.runtime.id,
+  };
 })();

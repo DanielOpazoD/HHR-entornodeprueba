@@ -149,6 +149,8 @@ const structuralIssueReasonLabel: Record<RayenSyncStructuralIssue['reason'], str
   'principal-bed-collision': 'dos episodios compiten por la misma cama',
   'cma-physical-bed-collision': 'la cama física asociada a CMA requiere una decisión',
   'occupied-local-bed': 'la cama está ocupada por otro paciente en HHR',
+  'previous-census-continuity':
+    'un paciente del censo previo no tiene continuidad ni salida explicada',
   'historical-reconstruction': 'la reconstrucción histórica requiere revisión',
   'historical-admission-evidence': 'no se confirmó la cama de una corrección nocturna',
   'unverified-report-row': 'un alta del informe de GC no se vinculó a un episodio exacto',

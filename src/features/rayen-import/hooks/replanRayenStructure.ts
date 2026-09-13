@@ -17,6 +17,10 @@ import {
   verifyPreviousDayAdmissionPlacements,
 } from '../domain/previousDayCorrections';
 import { planRayenCensusImport } from '../importRayenCensusUseCase';
+import {
+  previousCensusDate,
+  previousCensusContinuityConflicts,
+} from '../domain/previousCensusContinuity';
 import { collectEgresoLookupTargets } from './rayenSnapshotLookupTargets';
 
 export interface CapturedRayenStructuralEvidence {
@@ -44,6 +48,7 @@ const appendConflicts = (
   const conflictKey = (conflict: ConflictEntry): string =>
     [
       conflict.code ?? '',
+      conflict.continuityKey ?? '',
       conflict.bedId ?? '',
       conflict.source?.encounterId ??
         conflict.blockedAdmission?.patient.clinicalEpisodeId ??
@@ -154,6 +159,16 @@ export const replanRayenStructure = async (
       dependencies.isAdmin
     )
   );
+  const previousDate = previousCensusDate(evidence.reportDate);
+  const previousRecord = await measure(() =>
+    dependencies.dailyRecord.getAuthoritativeForDate(previousDate)
+  );
+  if (previousRecord) {
+    if (previousRecord.date !== previousDate) {
+      throw new Error('No se pudo verificar el censo previo: la fecha recibida no corresponde.');
+    }
+    diff = appendConflicts(diff, previousCensusContinuityConflicts(previousRecord, record, diff));
+  }
   const planned = { ...diff, reportEgresos: previousDayPlan.reportEgresos };
   return previousDayPlan.edits.length > 0
     ? { ...planned, previousDayEdits: previousDayPlan.edits }

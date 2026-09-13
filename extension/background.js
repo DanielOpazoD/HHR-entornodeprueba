@@ -12,7 +12,7 @@ importScripts(
   'patient-document-manager-runtime.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',
   'gestion-camas-runtime.js',
-  'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
+  'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-query-runtime.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
@@ -28,7 +28,7 @@ importScripts(
   'clinical-score-runtime.js',
   'clinical-score-write-model.js',
   'clinical-score-write-runtime.js',
-  'hospitalization-reports-runtime.js',
+  'hospitalization-report-search-runtime.js', 'hospitalization-reports-runtime.js',
   'epicrisis-download-runtime.js',
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
@@ -50,7 +50,7 @@ importScripts(
 if (!self.HhrClinicalWriteRecoveryPolicy || !self.HhrClinicalWriteRuntime || typeof self.HhrClinicalWriteRuntime.create !== 'function') {
   throw new Error('No se pudo cargar el runtime de escrituras clínicas.');
 }
-if (!self.HhrGestionCamasEgresoLookup) {
+if (!self.HhrGestionCamasEgresoLookup || typeof self.HhrGestionCamasEgresoQueryRuntime?.create !== 'function') {
   throw new Error('No se pudo cargar la política de verificación de egresos.');
 }
 if (
@@ -316,61 +316,13 @@ self.HhrRelayReinjectionRuntime.create({
   onReinjected: () => healthHeartbeat.pushNow('relays-reinjected'),
 }).start();
 
-const handleEgresoLookup = async (runs, targets, sender) => {
-  const session = await resolveGestionCamasSession();
-  if (!session.record) {
-    return { error: session.error || 'Conecta Gestión de Camas para consultar egresos.' };
-  }
-  const record = session.record;
-  if (!record.facId) return { error: 'Gestión de Camas no informó el establecimiento.' };
-  const results = [];
-  for (const target of self.HhrGestionCamasEgresoLookup.normalizeTargets(runs, targets)) {
-    const { run, encounterId, dischargeDay } = target;
-    const url =
-      `${record.apiBase}/facility/${record.facId}/encounter` +
-      `?facId=0&prefferedIdentifierCode=${encodeURIComponent(run)}&prefferedPeridentId=2`;
-    try {
-      const response = await fetchWithTimeout(url, { headers: { Authorization: record.token } });
-      if (!response.ok) {
-        const rejection = await classifyGestionCamasRejection(response, record);
-        results.push({
-          run,
-          error: rejection === 'changed'
-            ? 'La sesión cambió durante la consulta. Reintenta la operación.'
-            : rejection === 'expired'
-            ? 'La sesión de Gestión de Camas venció. Vuelve a conectarla.'
-            : rejection === 'forbidden'
-              ? 'Gestión de Camas rechazó esta consulta por permisos.'
-            : 'HTTP ' + response.status,
-        });
-        if (rejection === 'expired' || rejection === 'changed') break;
-        continue;
-      }
-      const payload = await response.json();
-      const verified = await markGestionCamasSessionVerified(record);
-      if (!verified) {
-        results.push({
-          run,
-          error: 'La sesión cambió durante la consulta. Reintenta la operación.',
-        });
-        break;
-      }
-      const item = self.HhrGestionCamasEgresoLookup.selectEncounter(payload, encounterId, dischargeDay);
-      const selectedEncounterId = self.HhrGestionCamasEgresoLookup.encounterIdOf(item, encounterId);
-      if (item && /^\d+$/.test(selectedEncounterId)) {
-        patientFlowRuntime.authorizeVerifiedEncounter(sender, selectedEncounterId);
-      }
-      results.push({
-        run,
-        encounterId: selectedEncounterId || encounterId,
-        egreso: item ? self.HhrGestionCamasEgresoLookup.pickMetadata(item) : null,
-      });
-    } catch (error) {
-      results.push({ run, error: String((error && error.message) || error) });
-    }
-  }
-  return { results };
-};
+const { request: handleEgresoLookup } = self.HhrGestionCamasEgresoQueryRuntime.create({
+  resolveSession: resolveGestionCamasSession,
+  classifyRejection: classifyGestionCamasRejection,
+  markSessionVerified: markGestionCamasSessionVerified,
+  fetchWithTimeout,
+  authorizeVerifiedEncounter: (sender, encounterId) => patientFlowRuntime.authorizeVerifiedEncounter(sender, encounterId),
+});
 // Base64-encode an ArrayBuffer in chunks (btoa chokes on huge apply() arg lists).
 const bufferToBase64 = buffer => {
   const bytes = new Uint8Array(buffer);

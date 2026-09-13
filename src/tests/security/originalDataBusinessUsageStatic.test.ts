@@ -24,6 +24,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // legacy fallback when an older movement lacks clinicalEpisodeId.
   'src/features/rayen-import/domain/applyCensusImportDiff.ts',
   'src/features/rayen-import/domain/censusDischargeHistory.ts',
+  // Continuity D-1 reads the preserved pre-discharge identity only to prove that an
+  // episode missing from today's census already has an explicit clinical outcome.
+  'src/features/rayen-import/domain/previousCensusContinuity.ts',
   'src/domain/CensusManager.ts',
   'src/services/admin/admissionDateBackfillPlanner.ts',
   // Read-only historical audit: recover signed UPC evaluations from the patient
