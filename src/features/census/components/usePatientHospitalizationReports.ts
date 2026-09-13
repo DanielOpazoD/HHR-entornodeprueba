@@ -6,7 +6,7 @@ import {
   requestRayenHospitalizationEpisodes,
   type RayenHospitalizationDocumentType,
   type RayenHospitalizationEpisode,
-} from '@/features/rayen-import/bridge/hospitalizationReportsBridge';
+} from '@/features/rayen-import/census-status';
 
 interface PatientReportContext {
   patientRun: string;

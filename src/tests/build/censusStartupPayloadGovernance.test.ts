@@ -25,18 +25,32 @@ describe('census startup payload', () => {
     expect(header).toContain("lazy(() =>\n  import('@/features/rayen-import')");
   });
 
-  it('imports the light Rayen helpers directly instead of through the feature barrel', () => {
-    for (const file of [
+  it('reaches the light Rayen helpers through the narrow surface, not the feature barrel', () => {
+    const consumers = [
       'patient-row/VitalsCell.tsx',
       'patient-row/DevicesCell.tsx',
       'patient-row/ScoresCell.tsx',
-    ]) {
-      expect(read(`src/features/census/components/${file}`)).toContain(
-        '@/features/rayen-import/hooks/useRayenFillStatus'
-      );
+      'CensusTable.tsx',
+      'StatisticalDischargeProvenanceBadge.tsx',
+      'usePatientHospitalizationReports.ts',
+    ];
+    for (const file of consumers) {
+      const source = read(`src/features/census/components/${file}`);
+      expect(source).toContain('@/features/rayen-import/census-status');
+      expect(source).not.toMatch(/from '@\/features\/rayen-import'/);
     }
-    expect(read('src/features/census/components/CensusTable.tsx')).not.toContain(
-      "from '@/features/rayen-import'"
+    // The narrow surface must stay narrow: re-exporting the barrel would undo the split.
+    expect(read('src/features/rayen-import/census-status.ts')).not.toMatch(
+      /from '\.\/index'|from '\.'/
+    );
+  });
+
+  it('declares the narrow surface in the governed boundary allowlists', () => {
+    const publicApi = JSON.parse(read('scripts/feature-public-api-allowlist.json'));
+    expect(publicApi.exceptionsByFeature['rayen-import']).toEqual(
+      expect.arrayContaining([
+        'src/features/census/components/patient-row/VitalsCell.tsx -> @/features/rayen-import/census-status',
+      ])
     );
   });
 

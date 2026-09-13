@@ -1,3 +1,10 @@
 {
-  "violations": []
+  "violations": [
+    "feature-must-use-public-api|src/features/census/components/CensusTable.tsx|@/features/rayen-import/census-status|rayen-import",
+    "feature-must-use-public-api|src/features/census/components/StatisticalDischargeProvenanceBadge.tsx|@/features/rayen-import/census-status|rayen-import",
+    "feature-must-use-public-api|src/features/census/components/patient-row/DevicesCell.tsx|@/features/rayen-import/census-status|rayen-import",
+    "feature-must-use-public-api|src/features/census/components/patient-row/ScoresCell.tsx|@/features/rayen-import/census-status|rayen-import",
+    "feature-must-use-public-api|src/features/census/components/patient-row/VitalsCell.tsx|@/features/rayen-import/census-status|rayen-import",
+    "feature-must-use-public-api|src/features/census/components/usePatientHospitalizationReports.ts|@/features/rayen-import/census-status|rayen-import"
+  ]
 }
