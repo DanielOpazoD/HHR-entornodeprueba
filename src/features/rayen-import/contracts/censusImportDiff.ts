@@ -168,6 +168,8 @@ export interface PendingAdministrativeDischargeEntry {
 
 /** Something that cannot be applied automatically and needs human resolution. */
 export interface ConflictEntry {
+  /** Transient, episode-aware identity for prior-census continuity review (not a source capture). */
+  continuityKey?: string;
   bedId: string | null;
   rut?: string;
   patientName?: string;
@@ -180,6 +182,7 @@ export interface ConflictEntry {
     | 'cma-physical-bed-collision'
     | 'occupied-local-bed'
     | 'historical-reconstruction'
+    | 'previous-census-continuity'
     | 'historical-admission-evidence'
     | 'unverified-report-row'
     | 'episode-less-report-row'

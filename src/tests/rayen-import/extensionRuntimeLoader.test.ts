@@ -40,6 +40,10 @@ const gestionCamasRuntimeSource = readFileSync(
   path.resolve('extension/gestion-camas-runtime.js'),
   'utf8'
 );
+const gestionCamasEgresoQuerySource = readFileSync(
+  path.resolve('extension/gestion-camas-egreso-query-runtime.js'),
+  'utf8'
+);
 const fichaMedicoTransportSource = readFileSync(
   path.resolve('extension/fichamedico-transport-runtime.js'),
   'utf8'
@@ -303,7 +307,7 @@ describe('extension heavy runtime loading', () => {
     expect(gestionCamasRuntimeSource).toMatch(
       /mutateGestionCamasSession\(async \(\) => \{\s+const pending = await readPendingGestionCamasConnection\(\)/
     );
-    expect(backgroundSource).toContain('if (!verified)');
+    expect(gestionCamasEgresoQuerySource).toContain('if (!(await markSessionVerified(record)))');
     expect(gestionCamasRuntimeSource).toContain("? 'expired' : 'changed'");
     expect(gestionCamasRuntimeSource).toContain('if (response.status === 401)');
     expect(gestionCamasRuntimeSource).toContain("if (response.status === 403) return 'forbidden'");

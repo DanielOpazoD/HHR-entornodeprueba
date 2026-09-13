@@ -191,9 +191,16 @@ Chrome— y la extensión conserva en `chrome.storage.session` un registro tempo
 y los metadatos mínimos de sesión necesarios para validarlo y mostrar su estado (`apiBase`,
 establecimiento, fechas de captura/verificación, expiración e identidad derivada). Si el token incluye
 expiración, el panel muestra su vigencia y advierte cuando está por vencer. La ventana creada por
-la extensión se cierra al detectar la sesión; Ficha Médico puede quedar como única pestaña Rayen abierta.
-El token temporal permite consultar egresos definitivos y el informe de Alta Administrativa hasta su
-vencimiento, incluso si Gestión de Camas ya fue cerrada. **Olvidar** elimina la sesión de la extensión.
+la extensión se mantiene abierta después de verificar la sesión: el contrato de sincronización exige
+un puente vivo tanto en Gestión de Camas como en Ficha Médico. Cerrarla interrumpe esa condición,
+aunque todavía exista un token temporal. No se declara una conexión sana solo porque el token siga
+almacenado. **Olvidar** elimina la sesión de la extensión.
+
+La comprobación activa mantiene el chequeo de expiración y de respuesta de las pestañas; no renueva
+credenciales ni prolonga artificialmente una sesión vencida. La recuperación de capacidades para
+leer evidencia clínica reintenta una comprobación transitoria fallida y usa el presupuesto de
+sincronización existente. Una respuesta ausente no equivale a «extensión incompatible».
+Los relés aislados admiten reinyección sin registrar dos veces sus escuchas.
 
 Cuando la vista tiene un episodio activo, **Recetas** abre primero **Paciente actual**. Desde listas,
 paneles u otras rutas sin episodio abre directamente **Hospitalizados** y deja deshabilitada la pestaña

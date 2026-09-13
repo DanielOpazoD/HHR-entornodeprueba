@@ -28,6 +28,9 @@ vi.mock('@/services/admin/adminLoggers', () => ({
 // Mock fetch
 global.fetch = vi.fn();
 
+const defaultLocalStorage = globalThis.localStorage;
+const defaultSessionStorage = globalThis.sessionStorage;
+
 describe('auditUtils', () => {
   const setCurrentUser = (user: Partial<User> | null) => {
     authRuntimeMocks.getCurrentUser.mockReturnValue(user as User | null);
@@ -40,7 +43,8 @@ describe('auditUtils', () => {
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    vi.stubGlobal('localStorage', defaultLocalStorage);
+    vi.stubGlobal('sessionStorage', defaultSessionStorage);
   });
 
   describe('getCurrentUserEmail', () => {

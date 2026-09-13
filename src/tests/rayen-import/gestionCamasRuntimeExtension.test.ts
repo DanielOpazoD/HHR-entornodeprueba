@@ -1,116 +1,6 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
-
-import '../../../extension/gestion-camas-health.js';
-import '../../../extension/gestion-camas-runtime.js';
-
-type StoredValues = Record<string, unknown>;
-// This runtime harness models freshness as a finite session timestamp; expiry
-// arithmetic belongs to the separately tested gestion-camas-session owner.
-const FINITE_SESSION_TIMESTAMP = 1;
-
-const createFixture = (
-  initial: StoredValues = {},
-  options: { tabs?: Array<{ id: number }> } = {}
-) => {
-  const values: StoredValues = { ...initial };
-  const storage = {
-    get: vi.fn(async (key: string | null) => {
-      if (key === null) return { ...values };
-      return { [key]: values[key] };
-    }),
-    set: vi.fn(async (entries: StoredValues) => {
-      Object.assign(values, entries);
-    }),
-    remove: vi.fn(async (keys: string | string[]) => {
-      for (const key of Array.isArray(keys) ? keys : [keys]) delete values[key];
-    }),
-  };
-  const session = {
-    SESSION_STORAGE_KEY: 'gc-session',
-    PENDING_WINDOW_STORAGE_KEY: 'gc-pending',
-    CONNECTION_CONTROL_STORAGE_KEY: 'gc-control',
-    CLOSING_WINDOW_STORAGE_KEY: 'gc-closing',
-    buildSessionRecord: (info: Record<string, unknown>) =>
-      info?.accessValue && info?.apiBase && info?.facId
-        ? {
-            accessValue: info.accessValue,
-            apiBase: info.apiBase,
-            facId: info.facId,
-            capturedAt: FINITE_SESSION_TIMESTAMP,
-            lastVerifiedAt: null,
-            expiresAt: null,
-            identity: {},
-          }
-        : null,
-    isUsable: (record: Record<string, unknown> | null) =>
-      Boolean(record?.accessValue && record?.apiBase && record?.facId),
-    isVerificationFresh: (record: Record<string, unknown> | null) =>
-      Number.isFinite(record?.lastVerifiedAt),
-    publicStatus: (record: Record<string, unknown> | null) => ({
-      status: record ? 'ready' : 'missing',
-      connected: Boolean(record),
-    }),
-  };
-  const chromeApi = {
-    storage: { session: storage },
-    tabs: {
-      query: vi.fn(async () => options.tabs ?? [{ id: 7 }]),
-      get: vi.fn(async (id: number) => (options.tabs ?? [{ id: 7 }]).find(tab => tab.id === id)),
-      sendMessage: vi.fn(async () => ({ ready: true, message: 'Pestaña disponible.' })),
-      update: vi.fn(),
-    },
-    windows: {
-      create: vi.fn(),
-      update: vi.fn(),
-      remove: vi.fn(async () => undefined),
-    },
-  };
-  const runtimeFactory = (
-    globalThis as typeof globalThis & {
-      HhrGestionCamasRuntime: {
-        create: (dependencies: Record<string, unknown>) => {
-          captureSession: (info: Record<string, unknown>, sender: unknown) => Promise<unknown>;
-          classifyRejection: (
-            response: { status: number },
-            record: Record<string, unknown>
-          ) => Promise<string>;
-          health: (runtimeGeneration?: string, targetTabIds?: number[]) => Promise<Record<string, unknown>>;
-          disconnect: () => Promise<Record<string, unknown>>;
-        };
-      };
-    }
-  ).HhrGestionCamasRuntime;
-
-  const fetchWithTimeout = vi.fn();
-  const probeTabs = vi.fn(async ({ tabs }: { tabs: unknown[] }) =>
-    tabs.length > 0
-      ? { status: 'ready', message: 'Pestaña disponible.' }
-      : { status: 'missing', message: 'Abre Gestión de Camas.' }
-  );
-  const runtime = runtimeFactory.create({
-    chrome: chromeApi,
-    session,
-    extensionHealth: {
-      orderTabs: (tabs: unknown[]) => tabs,
-      resolveTabs: async (
-        tabsApi: { query: (query: unknown) => Promise<unknown[]>; get: (id: number) => Promise<unknown> },
-        url: string,
-        targetTabIds?: number[]
-      ) => Array.isArray(targetTabIds)
-        ? (await Promise.all(targetTabIds.map(id => tabsApi.get(id)))).filter(Boolean)
-        : tabsApi.query({ url }),
-      probeTabs,
-    },
-    withTimeout: (promise: Promise<unknown>) => promise,
-    fetchWithTimeout,
-    backendRequestTimeoutMs: 45_000,
-    tabMessageTimeoutMs: 50_000,
-    healthProbeTimeoutMs: 5_000,
-  });
-
-  return { runtime, values, storage, fetchWithTimeout, chromeApi, probeTabs };
-};
+import { describe, expect, it } from 'vitest';
+import { createFixture, FINITE_SESSION_TIMESTAMP } from './gestionCamasRuntimeTestHarness';
 
 describe('Gestión de Camas connection runtime', () => {
   it('fails closed when its required dependencies are incomplete', () => {
@@ -148,7 +38,7 @@ describe('Gestión de Camas connection runtime', () => {
     // La ventana oficial emite su bootstrap autenticado antes de recibir el id
     // del intento: la captura llega sin attemptId pero desde la pestaña del
     // intento. Debe aceptarse y adoptar el id pendiente para que la
-    // verificación pueda completar el flujo (cerrar el popup).
+    // verificación pueda completar el intento manteniendo la pestaña viva.
     const { runtime, values } = createFixture(
       { 'gc-pending': { tabId: 21, attemptId: 'attempt-x' } },
       { tabs: [{ id: 21 }] }

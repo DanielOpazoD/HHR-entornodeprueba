@@ -5,6 +5,10 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 const runtimeSource = readFileSync(path.resolve('extension/clinical-report-runtime.js'), 'utf8');
+const hospitalizationReportSearchSource = readFileSync(
+  path.resolve('extension/hospitalization-report-search-runtime.js'),
+  'utf8'
+);
 const hospitalizationReportsSource = readFileSync(
   path.resolve('extension/hospitalization-reports-runtime.js'),
   'utf8'
@@ -24,6 +28,9 @@ const loadFactory = () => {
     Uint8Array,
     TextDecoder,
     encodeURIComponent,
+  });
+  vm.runInContext(hospitalizationReportSearchSource, context, {
+    filename: 'hospitalization-report-search-runtime.js',
   });
   vm.runInContext(hospitalizationReportsSource, context, {
     filename: 'hospitalization-reports-runtime.js',
@@ -301,6 +308,7 @@ describe('clinical report runtime owner', () => {
           { status: 200 }
         )
       )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(
         new Response(new TextEncoder().encode('%PDF-epicrisis'), { status: 200 })
       );
@@ -324,7 +332,10 @@ describe('clinical report runtime owner', () => {
     });
 
     expect(result).toMatchObject({ ok: true, encId: '150' });
-    expect(new URL(fetchWithTimeout.mock.calls[1][0]).searchParams.get('enc_id')).toBe('150');
+    expect(new URL(fetchWithTimeout.mock.calls[1][0]).searchParams.get('prefferedPeridentId')).toBe(
+      '4'
+    );
+    expect(new URL(fetchWithTimeout.mock.calls[2][0]).searchParams.get('enc_id')).toBe('150');
   });
 
   it('fails closed when the requested episode does not belong to the RUN search results', async () => {
@@ -356,7 +367,54 @@ describe('clinical report runtime owner', () => {
     ).resolves.toEqual({
       error: expect.stringContaining('no aparece entre los informes de este RUN'),
     });
-    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(2);
+  });
+
+  it('finds a newborn episode through the progenitor RUN identifier type', async () => {
+    const fetchWithTimeout = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              encounterId: 900001,
+              patientIdentifier: '123456785',
+              startPeriod: '2026-09-09T10:00:00.000-03:00',
+              endPeriod: '2026-09-12T16:00:00.000-03:00',
+            },
+          ]),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(new TextEncoder().encode('%PDF-epicrisis'), { status: 200 })
+      );
+    const runtime = loadFactory().create(
+      createDependencies({
+        fetchWithTimeout,
+        getFichaFetchInfo: vi.fn(async () => ({
+          info: {
+            apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+            token: 'testing',
+            facId: '2',
+          },
+        })),
+      })
+    );
+
+    await expect(
+      runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '900001',
+        patientRun: '12.345.678-5',
+        delivery: 'download',
+      })
+    ).resolves.toMatchObject({ ok: true, encId: '900001' });
+    expect(
+      fetchWithTimeout.mock.calls
+        .slice(0, 2)
+        .map(call => new URL(call[0]).searchParams.get('prefferedPeridentId'))
+    ).toEqual(['2', '4']);
   });
 
   it('lists every matching hospitalization using only episode identifiers and dates', async () => {

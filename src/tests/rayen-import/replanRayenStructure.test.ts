@@ -40,6 +40,7 @@ const makeRecord = (beds: DailyRecord['beds']): DailyRecord =>
   }) as DailyRecord;
 
 const repository = {
+  getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
   getForDate: vi.fn().mockResolvedValue(null),
 } as unknown as DailyRecordRepositoryPort;
 
@@ -47,9 +48,7 @@ const dependencies = {
   dailyRecord: repository,
   isAdmin: false,
   fetchPatientFlowReport: vi.fn().mockResolvedValue({ base64: '', error: 'unavailable' }),
-  fetchStatisticalDischarge: vi
-    .fn()
-    .mockResolvedValue({ base64: '', error: 'unavailable' }),
+  fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: '', error: 'unavailable' }),
   lookupEgresos: vi.fn().mockResolvedValue([]),
 };
 

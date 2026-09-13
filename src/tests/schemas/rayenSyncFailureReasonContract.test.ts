@@ -90,12 +90,13 @@ describe('causas de fallo de sincronización · contrato tipo ↔ esquema', () =
       structuralReview: {
         historicalCorrectionsPending: false,
         historicalCorrectionsRequireFreshCapture: false,
-        isolatedConflicts: 5,
+        isolatedConflicts: 6,
         issues: [
           { bedId: 'H5C1', reason: 'unverified-report-row' },
           { bedId: 'H4C1', reason: 'episode-less-report-row' },
           { bedId: 'H4C2', reason: 'report-predates-admission' },
           { bedId: 'H5C3', reason: 'crib-conflict-blocks-discharge' },
+          { bedId: null, reason: 'previous-census-continuity' },
           { bedId: 'H5C2', reason: 'motivo_futuro' },
         ],
       },
@@ -110,6 +111,7 @@ describe('causas de fallo de sincronización · contrato tipo ↔ esquema', () =
       'episode-less-report-row',
       'report-predates-admission',
       'crib-conflict-blocks-discharge',
+      'previous-census-continuity',
       'unclassified',
     ]);
   });
