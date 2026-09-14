@@ -568,11 +568,14 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Validate measurement report contracts
         run: npm run test:census-performance-report
-      - name: Measure 30 populated census navigations per scenario
+      - name: Measure populated census navigations per scenario
         run: npm run test:e2e:census-performance
         env:
           CENSUS_PERF_ENV: ${{ matrix.environment }}
-          CENSUS_PERF_SAMPLES: '30'
+          # Pull requests run a small screening sample for fast feedback. Pushes keep
+          # the release-quality 30-sample measurement used as a valid baseline.
+          CENSUS_PERF_SAMPLES: ${{ github.event_name == 'pull_request' && '5' || '30' }}
+          CENSUS_PERF_SMOKE: ${{ github.event_name == 'pull_request' && '1' || '0' }}
           CENSUS_PERF_RUNNER: github-ubuntu-latest
       - name: Upload privacy-safe timing evidence
         if: always()
