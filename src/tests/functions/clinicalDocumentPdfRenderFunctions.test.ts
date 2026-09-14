@@ -23,11 +23,20 @@ vi.mock('firebase-functions/v1', () => ({
 const require = createRequire(import.meta.url);
 const {
   createClinicalDocumentPdfRenderFunctions,
+  resolveChromiumDependency,
 } = require('../../../functions/lib/clinicalDocumentPdfRenderFunctions.js');
 
 describe('functions clinicalDocumentPdfRenderFunctions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('resolves both current default and legacy direct Chromium module shapes', () => {
+    const currentChromium = { executablePath: vi.fn() };
+    const legacyChromium = { executablePath: vi.fn() };
+
+    expect(resolveChromiumDependency({ default: currentChromium })).toBe(currentChromium);
+    expect(resolveChromiumDependency(legacyChromium)).toBe(legacyChromium);
   });
 
   it('rejects unauthenticated calls', async () => {
