@@ -2,6 +2,14 @@ const functions = require('firebase-functions/v1');
 
 const RENDER_ALLOWED_ROLES = new Set(['admin', 'doctor_urgency', 'nurse_hospital', 'editor']);
 const MAX_HTML_LENGTH = 650_000;
+const PDF_BROWSER_VIEWPORT = {
+  deviceScaleFactor: 1,
+  hasTouch: false,
+  height: 1080,
+  isLandscape: true,
+  isMobile: false,
+  width: 1920,
+};
 
 const assertString = (value, fieldName) => {
   if (typeof value !== 'string' || !value.trim()) {
@@ -45,9 +53,12 @@ const sanitizeHtmlPayload = html => {
   return html;
 };
 
+const resolveChromiumDependency = moduleValue => moduleValue?.default || moduleValue;
+
 const loadPuppeteerDependencies = () => {
   try {
-    const chromium = require('@sparticuz/chromium');
+    const chromiumModule = require('@sparticuz/chromium');
+    const chromium = resolveChromiumDependency(chromiumModule);
     const puppeteer = require('puppeteer-core');
     return { chromium, puppeteer };
   } catch (error) {
@@ -61,12 +72,13 @@ const loadPuppeteerDependencies = () => {
 const renderPdfFromHtml = async html => {
   const { chromium, puppeteer } = loadPuppeteerDependencies();
   const executablePath = await chromium.executablePath();
+  const headless = 'shell';
 
   const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
+    args: await puppeteer.defaultArgs({ args: chromium.args, headless }),
+    defaultViewport: PDF_BROWSER_VIEWPORT,
     executablePath,
-    headless: chromium.headless,
+    headless,
   });
 
   try {
@@ -118,4 +130,5 @@ const createClinicalDocumentPdfRenderFunctions = ({
 
 module.exports = {
   createClinicalDocumentPdfRenderFunctions,
+  resolveChromiumDependency,
 };

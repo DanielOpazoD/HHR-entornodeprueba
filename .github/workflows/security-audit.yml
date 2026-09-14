@@ -13,6 +13,7 @@ on:
       - 'package-lock.json'
       - 'functions/package.json'
       - 'functions/package-lock.json'
+      - 'functions/scripts/checkClinicalPdfRuntime.js'
       - 'scripts/check-dependency-vulnerabilities.mjs'
       - 'scripts/lib/dependencyAuditSupport.mjs'
       - '.github/workflows/security-audit.yml'
@@ -23,6 +24,7 @@ on:
       - 'package-lock.json'
       - 'functions/package.json'
       - 'functions/package-lock.json'
+      - 'functions/scripts/checkClinicalPdfRuntime.js'
       - 'scripts/check-dependency-vulnerabilities.mjs'
       - 'scripts/lib/dependencyAuditSupport.mjs'
       - '.github/workflows/security-audit.yml'
@@ -47,6 +49,10 @@ jobs:
 
       - name: Install functions dependencies
         run: npm ci
+        working-directory: functions
+
+      - name: Validate clinical PDF browser runtime
+        run: npm run check:clinical-pdf-runtime
         working-directory: functions
 
       - name: Run static security hardening
