@@ -30,6 +30,8 @@
     "^assets/ClinicalPanelDrawer-.*\\.js$",
     "^assets/RayenSyncHistoryModal-.*\\.js$",
     "^assets/perfAuditReport-.*\\.js$",
+    "^assets/SystemHealthReporterBridge-.*\\.js$",
+    "^assets/healthService-.*\\.js$",
     "^assets/DiagnosisCie10Cell-.*\\.js$",
     "^assets/RayenImportButton-.*\\.js$"
   ],

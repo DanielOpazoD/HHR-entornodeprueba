@@ -249,6 +249,8 @@ export default defineConfig(({ mode }) => {
             '**/assets/RayenSyncHistoryModal-*.js',
             // Optional console-only formatter. Core timing capture remains offline-capable.
             '**/assets/perfAuditReport-*.js',
+            '**/assets/SystemHealthReporterBridge-*.js',
+            '**/assets/healthService-*.js',
           ],
         },
         registerType: 'autoUpdate',
