@@ -64,6 +64,7 @@ const createHarness = (
         EXTENSION_RUNTIME_CONTEXT_REQUEST: 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST',
         GC_CONNECT_REQUEST: 'RAYEN_GC_CONNECT_REQUEST',
         CONNECTION_REPAIR_REQUEST: 'RAYEN_CONNECTION_REPAIR_REQUEST',
+        EGRESO_LOOKUP_REQUEST: 'RAYEN_EGRESO_LOOKUP_REQUEST',
       },
     },
   });
@@ -84,6 +85,54 @@ const createHarness = (
 };
 
 describe('content-hhr · relé de conexión de Gestión de Camas', () => {
+  it('conserva el reqId del egreso en runtime y acepta sólo su respuesta correlacionada', async () => {
+    const results = [{ run: '17.752.753-1', dischargeDate: '2026-09-13' }];
+    const sendMessage = vi.fn(async () => ({ reqId: 'egreso-1', results }));
+    const { onMessage, postMessage, windowObject } = createHarness(sendMessage);
+
+    onMessage?.({
+      source: windowObject,
+      origin: windowObject.location.origin,
+      data: {
+        type: 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST',
+        reqId: 'egreso-1',
+        runs: ['17752753-1'],
+        targets: [{ run: '17752753-1', encounterId: '141704' }],
+      },
+    });
+
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        { type: 'HHR_RAYEN_EGRESO_LOOKUP_RESULT', reqId: 'egreso-1', results },
+        'http://localhost:3001'
+      )
+    );
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'RAYEN_EGRESO_LOOKUP_REQUEST', reqId: 'egreso-1' })
+    );
+  });
+
+  it('descarta una respuesta de egreso con reqId distinto', async () => {
+    const sendMessage = vi.fn(async () => ({
+      reqId: 'egreso-anterior',
+      results: [{ run: '17.752.753-1', dischargeDate: '2026-09-12' }],
+    }));
+    const { onMessage, postMessage, windowObject } = createHarness(sendMessage);
+
+    onMessage?.({
+      source: windowObject,
+      origin: windowObject.location.origin,
+      data: { type: 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST', reqId: 'egreso-2', runs: [] },
+    });
+
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        { type: 'HHR_RAYEN_EGRESO_LOOKUP_RESULT', reqId: 'egreso-2', results: [] },
+        'http://localhost:3001'
+      )
+    );
+  });
+
   it('traduce la petición de la página al runtime y devuelve el resultado', async () => {
     const sendMessage = vi.fn(async () => ({ ok: true }));
     const { onMessage, postMessage, windowObject } = createHarness(sendMessage);

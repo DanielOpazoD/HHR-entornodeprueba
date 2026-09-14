@@ -179,12 +179,30 @@ describe('shared Rayen runtime-message contract', () => {
     expect(
       contract.validateRuntimeMessage({
         type: contract.types.EGRESO_LOOKUP_REQUEST,
+        reqId: 'egreso-1',
+        runs: [],
+      })
+    ).toMatchObject({ ok: true, known: true });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.EGRESO_LOOKUP_REQUEST,
+        reqId: 'egreso-invalid-runs',
         runs: '17752753-2',
       })
     ).toMatchObject({
       ok: false,
       known: true,
       response: { code: 'INVALID_MESSAGE', error: expect.stringContaining('runs') },
+    });
+    expect(
+      contract.validateRuntimeMessage({
+        type: contract.types.EGRESO_LOOKUP_REQUEST,
+        runs: [],
+      })
+    ).toMatchObject({
+      ok: false,
+      known: true,
+      response: { code: 'INVALID_MESSAGE', error: expect.stringContaining('reqId') },
     });
     expect(
       contract.validateRuntimeMessage({
