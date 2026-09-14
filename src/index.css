@@ -384,7 +384,8 @@
 @keyframes slideInRight {
   from {
     opacity: 0;
-    transform: translateX(100%);
+    /* Keep the entering toast inside the 1rem viewport gutter owned by UIProvider. */
+    transform: translateX(0.75rem);
   }
 
   to {
