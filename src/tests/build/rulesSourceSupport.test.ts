@@ -26,4 +26,31 @@ describe('rulesSourceSupport', () => {
       ].join('\n')
     );
   });
+
+  it('collapses multiline string lists in generated rules while preserving other lists', () => {
+    expect(
+      normalizeGeneratedRuleFragment(
+        [
+          'return payload.keys().hasOnly([',
+          "  'uid',",
+          "  'email'",
+          ']);',
+          'return values.hasAny([',
+          '  dynamicValue,',
+          "  'fallback'",
+          ']);',
+        ].join('\n'),
+        { collapseStringLists: true }
+      )
+    ).toBe(
+      [
+        "return payload.keys().hasOnly(['uid', 'email']);",
+        'return values.hasAny([',
+        '  dynamicValue,',
+        "  'fallback'",
+        ']);',
+        '',
+      ].join('\n')
+    );
+  });
 });

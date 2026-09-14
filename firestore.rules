@@ -76,21 +76,11 @@ service cloud.firestore {
     function isValidSpecialistClinicalCribMedicalUpdate(beforeCrib, afterCrib) {
       return beforeCrib != null &&
              afterCrib != null &&
-             afterCrib.diff(beforeCrib).affectedKeys().hasOnly([
-               'medicalHandoffEntries',
-               'medicalHandoffNote',
-               'medicalHandoffAudit',
-               'clinicalEvents'
-             ]);
+             afterCrib.diff(beforeCrib).affectedKeys().hasOnly(['medicalHandoffEntries', 'medicalHandoffNote', 'medicalHandoffAudit', 'clinicalEvents']);
     }
     function isValidSpecialistMedicalBedRootUpdate(beforeBed, afterBed) {
       let affectedBedKeys = afterBed.diff(beforeBed).affectedKeys();
-      return affectedBedKeys.hasOnly([
-               'medicalHandoffEntries',
-               'medicalHandoffNote',
-               'medicalHandoffAudit',
-               'clinicalEvents'
-             ]);
+      return affectedBedKeys.hasOnly(['medicalHandoffEntries', 'medicalHandoffNote', 'medicalHandoffAudit', 'clinicalEvents']);
     }
     function isValidSpecialistMedicalBedClinicalCribUpdate(beforeBed, afterBed) {
       let affectedBedKeys = afterBed.diff(beforeBed).affectedKeys();
@@ -148,25 +138,13 @@ service cloud.firestore {
         : request.resource.data.medicalHandoffBySpecialty;
     }
     function hasOnlySpecialistStructuredRecordKeys(affectedRecordKeys) {
-      return affectedRecordKeys.hasOnly([
-        'medicalHandoffBySpecialty',
-        'medicalHandoffNovedades',
-        'lastUpdated',
-        'dateTimestamp'
-      ]);
+      return affectedRecordKeys.hasOnly(['medicalHandoffBySpecialty', 'medicalHandoffNovedades', 'lastUpdated', 'dateTimestamp']);
     }
     function hasOnlySpecialistBedRecordKeys(affectedRecordKeys) {
       return affectedRecordKeys.hasOnly(['beds', 'lastUpdated', 'dateTimestamp']);
     }
     function isAllowedSpecialistStructuredSpecialty(specialty) {
-      return [
-        'cirugia',
-        'traumatologia',
-        'ginecobstetricia',
-        'pediatria',
-        'psiquiatria',
-        'medicinaInterna'
-      ].hasAny([specialty]);
+      return ['cirugia', 'traumatologia', 'ginecobstetricia', 'pediatria', 'psiquiatria', 'medicinaInterna'].hasAny([specialty]);
     }
     function isOnlyAffectedSpecialistStructuredSpecialty(affectedSpecialties, specialty) {
       return affectedSpecialties.size() == 1 &&
@@ -188,15 +166,7 @@ service cloud.firestore {
       return afterEntry != null &&
              (
                beforeEntry == null ||
-               afterEntry.diff(beforeEntry).affectedKeys().hasOnly([
-                 'note',
-                 'createdAt',
-                 'updatedAt',
-                 'author',
-                 'lastEditor',
-                 'version',
-                 'dailyContinuity'
-               ])
+               afterEntry.diff(beforeEntry).affectedKeys().hasOnly(['note', 'createdAt', 'updatedAt', 'author', 'lastEditor', 'version', 'dailyContinuity'])
              );
     }
     function resolveAffectedSpecialistStructuredSpecialties() {
@@ -260,10 +230,7 @@ service cloud.firestore {
       return isAdmin() || isDoctor() || isSpecialistClinicalDocumentDraftWrite();
     }
     function canDeleteOwnActiveClinicalDocument() {
-      return hasAnyEffectiveRole([
-               'doctor_urgency',
-               'doctor_specialist'
-             ]);
+      return hasAnyEffectiveRole(['doctor_urgency', 'doctor_specialist']);
     }
     function hasClinicalDocumentAuthorAudit() {
       return resource.data.keys().hasAny(['audit']) &&
@@ -299,23 +266,10 @@ service cloud.firestore {
              isClinicalDocumentAuthorForActiveEpisode();
     }
     function canWriteClinicalAttachment() {
-      return hasAnyEffectiveRole([
-               'admin',
-               'nurse_hospital',
-               'doctor_urgency',
-               'doctor_specialist',
-               'editor'
-             ]);
+      return hasAnyEffectiveRole(['admin', 'nurse_hospital', 'doctor_urgency', 'doctor_specialist', 'editor']);
     }
     function canReadClinicalData() {
-      return hasAnyEffectiveRole([
-               'admin',
-               'nurse_hospital',
-               'doctor_urgency',
-               'doctor_specialist',
-               'editor',
-               'viewer'
-             ]);
+      return hasAnyEffectiveRole(['admin', 'nurse_hospital', 'doctor_urgency', 'doctor_specialist', 'editor', 'viewer']);
     }
     function canReadAppendOnlyOperationalLog() {
       return isAdmin();
@@ -327,53 +281,10 @@ service cloud.firestore {
       return isAdmin() || isDoctor() || isDoctorSpecialist();
     }
     function hasOnlyMedicalIndicationRecordKeys(payload) {
-      return payload.keys().hasOnly([
-               'id',
-               'patientRut',
-               'patientName',
-               'episodeId',
-               'bedId',
-               'targetDate',
-               'generatedAt',
-               'generatedByUserId',
-               'generatedByName',
-               'generatedByRole',
-               'generatedFromTemplateIds',
-               'admissionDate',
-               'daysOfStayForTargetDate',
-               'treatingDoctor',
-               'reposo',
-               'regimen',
-               'kineType',
-               'kineTimes',
-               'pendingNotes',
-               'indications',
-               'pdfPrintedAt'
-             ]);
+      return payload.keys().hasOnly(['id', 'patientRut', 'patientName', 'episodeId', 'bedId', 'targetDate', 'generatedAt', 'generatedByUserId', 'generatedByName', 'generatedByRole', 'generatedFromTemplateIds', 'admissionDate', 'daysOfStayForTargetDate', 'treatingDoctor', 'reposo', 'regimen', 'kineType', 'kineTimes', 'pendingNotes', 'indications', 'pdfPrintedAt']);
     }
     function hasRequiredMedicalIndicationRecordKeys(payload) {
-      return payload.keys().hasAll([
-               'id',
-               'patientRut',
-               'patientName',
-               'episodeId',
-               'bedId',
-               'targetDate',
-               'generatedAt',
-               'generatedByUserId',
-               'generatedByName',
-               'generatedFromTemplateIds',
-               'admissionDate',
-               'daysOfStayForTargetDate',
-               'treatingDoctor',
-               'reposo',
-               'regimen',
-               'kineType',
-               'kineTimes',
-               'pendingNotes',
-               'indications',
-               'pdfPrintedAt'
-             ]);
+      return payload.keys().hasAll(['id', 'patientRut', 'patientName', 'episodeId', 'bedId', 'targetDate', 'generatedAt', 'generatedByUserId', 'generatedByName', 'generatedFromTemplateIds', 'admissionDate', 'daysOfStayForTargetDate', 'treatingDoctor', 'reposo', 'regimen', 'kineType', 'kineTimes', 'pendingNotes', 'indications', 'pdfPrintedAt']);
     }
     function isValidMedicalIndicationRecordCreate() {
       let payload = request.resource.data;
@@ -501,71 +412,10 @@ service cloud.firestore {
       return isOptionalBoundedInt(payload, key, 864000000);
     }
     function hasOnlySystemHealthKeys(payload) {
-      return payload.keys().hasOnly([
-               'uid',
-               'email',
-               'displayName',
-               'lastSeen',
-               'isOnline',
-               'isOutdated',
-               'pendingMutations',
-               'pendingSyncTasks',
-               'failedSyncTasks',
-               'conflictSyncTasks',
-               'retryingSyncTasks',
-               'syncOrphanedTasks',
-               'oldestPendingAgeMs',
-               'remoteSyncReason',
-               'versionUpdateReason',
-               'localErrorCount',
-               'degradedLocalPersistence',
-               'repositoryWarningCount',
-               'slowestRepositoryOperationMs',
-               'operationalObservedCount',
-               'operationalFailureCount',
-               'operationalRetryableCount',
-               'operationalRecoverableCount',
-               'operationalDegradedCount',
-               'operationalBlockedCount',
-               'operationalUnauthorizedCount',
-               'operationalLastHourObservedCount',
-               'operationalSyncObservedCount',
-               'operationalIndexedDbObservedCount',
-               'operationalClinicalDocumentObservedCount',
-               'operationalCreateDayObservedCount',
-               'operationalHandoffObservedCount',
-               'operationalExportBackupObservedCount',
-               'operationalDailyRecordRecoveredRealtimeNullCount',
-               'operationalDailyRecordConfirmedRealtimeNullCount',
-               'operationalSyncReadUnavailableCount',
-               'operationalIndexedDbFallbackModeCount',
-               'operationalAuthBootstrapTimeoutCount',
-               'operationalTopObservedCategory',
-               'operationalTopObservedOperation',
-               'latestOperationalOperation',
-               'latestOperationalRuntimeState',
-               'latestOperationalIssueAt',
-               'appVersion',
-               'platform',
-               'userAgent'
-             ]);
+      return payload.keys().hasOnly(['uid', 'email', 'displayName', 'lastSeen', 'isOnline', 'isOutdated', 'pendingMutations', 'pendingSyncTasks', 'failedSyncTasks', 'conflictSyncTasks', 'retryingSyncTasks', 'syncOrphanedTasks', 'oldestPendingAgeMs', 'remoteSyncReason', 'versionUpdateReason', 'localErrorCount', 'degradedLocalPersistence', 'repositoryWarningCount', 'slowestRepositoryOperationMs', 'operationalObservedCount', 'operationalFailureCount', 'operationalRetryableCount', 'operationalRecoverableCount', 'operationalDegradedCount', 'operationalBlockedCount', 'operationalUnauthorizedCount', 'operationalLastHourObservedCount', 'operationalSyncObservedCount', 'operationalIndexedDbObservedCount', 'operationalClinicalDocumentObservedCount', 'operationalCreateDayObservedCount', 'operationalHandoffObservedCount', 'operationalExportBackupObservedCount', 'operationalDailyRecordRecoveredRealtimeNullCount', 'operationalDailyRecordConfirmedRealtimeNullCount', 'operationalSyncReadUnavailableCount', 'operationalIndexedDbFallbackModeCount', 'operationalAuthBootstrapTimeoutCount', 'operationalTopObservedCategory', 'operationalTopObservedOperation', 'latestOperationalOperation', 'latestOperationalRuntimeState', 'latestOperationalIssueAt', 'appVersion', 'platform', 'userAgent']);
     }
     function hasOnlySystemHealthResolutionKeys(payload) {
-      return payload.keys().hasOnly([
-               'resolutionKey',
-               'status',
-               'updatedAt',
-               'resolvedAt',
-               'resolvedByUid',
-               'resolvedByEmail',
-               'resolvedByName',
-               'reopenedAt',
-               'reopenedByUid',
-               'reopenedByEmail',
-               'reopenedByName',
-               'note',
-               'history'
-             ]);
+      return payload.keys().hasOnly(['resolutionKey', 'status', 'updatedAt', 'resolvedAt', 'resolvedByUid', 'resolvedByEmail', 'resolvedByName', 'reopenedAt', 'reopenedByUid', 'reopenedByEmail', 'reopenedByName', 'note', 'history']);
     }
     function isValidSystemHealthResolutionWrite() {
       let payload = request.resource.data;
@@ -607,21 +457,8 @@ service cloud.firestore {
              isSystemHealthCounter(payload, 'retryingSyncTasks') &&
              isSystemHealthCounter(payload, 'syncOrphanedTasks') &&
              isSystemHealthAgeMs(payload, 'oldestPendingAgeMs') &&
-             isOptionalEnum(payload, 'remoteSyncReason', [
-               'ready',
-               'auth_loading',
-               'auth_connecting',
-               'auth_unavailable',
-               'manual_override',
-               'offline',
-               'runtime_unavailable'
-             ]) &&
-             isOptionalEnum(payload, 'versionUpdateReason', [
-               'current',
-               'new_build_available',
-               'runtime_contract_mismatch',
-               'schema_ahead_of_client'
-             ]) &&
+             isOptionalEnum(payload, 'remoteSyncReason', ['ready', 'auth_loading', 'auth_connecting', 'auth_unavailable', 'manual_override', 'offline', 'runtime_unavailable']) &&
+             isOptionalEnum(payload, 'versionUpdateReason', ['current', 'new_build_available', 'runtime_contract_mismatch', 'schema_ahead_of_client']) &&
              isSystemHealthCounter(payload, 'localErrorCount') &&
              isOptionalBool(payload, 'degradedLocalPersistence') &&
              isSystemHealthCounter(payload, 'repositoryWarningCount') &&
@@ -660,10 +497,7 @@ service cloud.firestore {
     }
     function preservesServerOwnedClinicalState(hospitalId) {
       return !isRayenClinicalWriteFenceActive(hospitalId) ||
-             !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-               'beds',
-               'bedTypeOverrides'
-             ]);
+             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['beds', 'bedTypeOverrides']);
     }
     function isWithinEditingWindow(recordTS) {
       let now = request.time.toMillis();
@@ -674,15 +508,7 @@ service cloud.firestore {
     }
     function isMedicalUpdate() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      return affectedKeys.hasOnly([
-        'medicalSignature',
-        'medicalSignatureByScope',
-        'medicalHandoffDoctor',
-        'medicalHandoffSentAt',
-        'medicalHandoffSentAtByScope',
-        'medicalSignatureLinkTokenByScope',
-        'lastUpdated'
-      ]);
+      return affectedKeys.hasOnly(['medicalSignature', 'medicalSignatureByScope', 'medicalHandoffDoctor', 'medicalHandoffSentAt', 'medicalHandoffSentAtByScope', 'medicalSignatureLinkTokenByScope', 'lastUpdated']);
     }
     function canNurseUpdatePersistedDailyRecord() {
       return hasPersistedRecordTimestampPayload() &&
