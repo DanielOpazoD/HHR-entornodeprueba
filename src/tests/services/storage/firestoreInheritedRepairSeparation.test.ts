@@ -57,13 +57,28 @@ describe('stripInheritedAuthorityRepair', () => {
     expect(stripInheritedAuthorityRepair(clinicalOnly, ['beds.R1.pathology'])).toBe(clinicalOnly);
   });
 
-  it('una intención semántica fuera del árbol de camas no habilita poda', () => {
-    // rayenSync/handoff u otros campos no-cama no son «estructural de cama»:
-    // ante mezcla con clínico heredado, se conserva el fail-closed existente.
+  it('poda reparaciones de cama heredadas cuando la intención solo cambia el documento', () => {
     expect(
       stripInheritedAuthorityRepair({ handoffNovedadesDayShift: 'Nota', 'beds.R1.pathology': '' }, [
         'handoffNovedadesDayShift',
       ])
-    ).toEqual({ handoffNovedadesDayShift: 'Nota', 'beds.R1.pathology': '' });
+    ).toEqual({ handoffNovedadesDayShift: 'Nota' });
+  });
+
+  it('mantiene puro un parche histórico de movimientos frente a reparaciones de cama', () => {
+    const discharges = [{ id: 'd-1', clinicalEpisodeId: '910001' }];
+    expect(
+      stripInheritedAuthorityRepair(
+        {
+          discharges,
+          transfers: [],
+          cma: [],
+          'beds.H4C1.patientName': '',
+          'beds.H4C1.pathology': '',
+          dateTimestamp: 1,
+        },
+        ['discharges', 'transfers', 'cma']
+      )
+    ).toEqual({ discharges, transfers: [], cma: [], dateTimestamp: 1 });
   });
 });

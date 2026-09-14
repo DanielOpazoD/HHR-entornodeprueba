@@ -3,6 +3,7 @@ import type { Page, Route } from '@playwright/test';
 interface AuthorityCallablePayload {
   date: string;
   patch: Record<string, unknown>;
+  record?: Record<string, unknown>;
   mode: 'shadow' | 'enforced';
   syncContract?: {
     mutationId?: string;
@@ -75,6 +76,17 @@ const applyAuthorityPatch = (
   return nextRecord;
 };
 
+const isDailyRecord = (value: Record<string, unknown>): boolean =>
+  typeof value.date === 'string' && isPlainObject(value.beds);
+
+const normalizeInitialRecords = (
+  initial: Record<string, unknown> | Record<string, Record<string, unknown>>
+): Record<string, Record<string, unknown>> => {
+  if (isDailyRecord(initial)) return { [String(initial.date)]: clone(initial) };
+  const records = initial as Record<string, Record<string, unknown>>;
+  return Object.fromEntries(Object.entries(records).map(([date, record]) => [date, clone(record)]));
+};
+
 const callableHeaders = {
   'access-control-allow-headers':
     'Authorization, Content-Type, Firebase-Instance-ID-Token, X-Firebase-AppCheck',
@@ -112,9 +124,9 @@ const updateBrowserAuthorityShadow = async (
 
 export const installDailyRecordAuthorityRoute = async (
   page: Page,
-  initialRecord: Record<string, unknown>
+  initialRecord: Record<string, unknown> | Record<string, Record<string, unknown>>
 ): Promise<DailyRecordAuthorityRouteController> => {
-  let remoteRecord = clone(initialRecord);
+  const remoteRecords = normalizeInitialRecords(initialRecord);
   let sequence = 0;
   const queuedCalls: PendingAuthorityCall[] = [];
   const waitingConsumers: Array<(call: PendingAuthorityCall) => void> = [];
@@ -130,7 +142,10 @@ export const installDailyRecordAuthorityRoute = async (
 
   const handlePost = async (route: Route): Promise<void> => {
     const body = route.request().postDataJSON() as { data?: AuthorityCallablePayload };
-    if (!body?.data?.date || !isPlainObject(body.data.patch)) {
+    if (
+      !body?.data?.date ||
+      (!isPlainObject(body.data.patch) && !isPlainObject(body.data.record))
+    ) {
       await route.fulfill({
         status: 400,
         headers: callableHeaders,
@@ -144,7 +159,12 @@ export const installDailyRecordAuthorityRoute = async (
 
     await new Promise<void>(resolve => {
       let settled = false;
-      const payload = body.data!;
+      const rawPayload = body.data!;
+      const payload: AuthorityCallablePayload = {
+        ...rawPayload,
+        patch: isPlainObject(rawPayload.patch) ? rawPayload.patch : {},
+        record: isPlainObject(rawPayload.record) ? rawPayload.record : undefined,
+      };
       const settle = async (action: () => Promise<void>) => {
         if (settled) throw new Error('E2E authority call was already settled.');
         settled = true;
@@ -160,7 +180,16 @@ export const installDailyRecordAuthorityRoute = async (
         succeed: () =>
           settle(async () => {
             sequence += 1;
-            remoteRecord = applyAuthorityPatch(remoteRecord, payload, sequence);
+            const currentRecord = remoteRecords[payload.date] ?? {
+              date: payload.date,
+              beds: {},
+              discharges: [],
+              transfers: [],
+              cma: [],
+            };
+            const mutationBase = payload.record ? clone(payload.record) : currentRecord;
+            remoteRecords[payload.date] = applyAuthorityPatch(mutationBase, payload, sequence);
+            const remoteRecord = remoteRecords[payload.date];
             await updateBrowserAuthorityShadow(page, payload.date, remoteRecord);
             const meta = isPlainObject(remoteRecord.meta) ? remoteRecord.meta : {};
             await route.fulfill({
@@ -203,7 +232,14 @@ export const installDailyRecordAuthorityRoute = async (
     });
   };
 
-  await page.route('**/patchDailyRecordWithClinicalAuthority', async route => {
+  await page.route('**/patchDailyRecordWithClinicalAuthority**', async route => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: callableHeaders });
+      return;
+    }
+    await handlePost(route);
+  });
+  await page.route('**/saveDailyRecordWithClinicalAuthority**', async route => {
     if (route.request().method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers: callableHeaders });
       return;

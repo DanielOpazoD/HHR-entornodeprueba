@@ -3,6 +3,7 @@ import { getSettingsDocPath, SETTINGS_DOCS } from '@/constants/firestorePaths';
 import { ensureFirestoreRuntimeReady } from '@/services/storage/firestore';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
+import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
   RAYEN_IMPORT_POLICY_SCHEMA_VERSION,
   DEFAULT_RAYEN_IMPORT_POLICY,
@@ -28,11 +29,44 @@ export interface RayenImportPolicySubscription {
 const policyRef = (runtime: FirestoreServiceRuntimePort) =>
   doc(runtime.getDb(), getSettingsDocPath(SETTINGS_DOCS.RAYEN_IMPORT_POLICY));
 
+const e2ePolicyOverride = (): RayenImportPolicy | null => {
+  if (!isE2ERuntimeEnabled() || typeof window === 'undefined') return null;
+  try {
+    const value = JSON.parse(
+      localStorage.getItem('hhr_e2e_rayen_import_policy') || 'null'
+    ) as Partial<RayenImportPolicy> | null;
+    if (
+      !value ||
+      (value.mode !== 'preview' && value.mode !== 'auto') ||
+      !['off', 'shadow', 'enforced'].includes(String(value.clinicalBatchMode)) ||
+      !Number.isInteger(value.revision) ||
+      Number(value.revision) < 1
+    ) {
+      return null;
+    }
+    return value as RayenImportPolicy;
+  } catch {
+    return null;
+  }
+};
+
 /** Subscribe with metadata so cached `auto` values can never enable automation. */
 export const subscribeToRayenImportPolicy = (
   handlers: RayenImportPolicySubscription,
   runtime: FirestoreServiceRuntimePort = defaultFirestoreServiceRuntime
 ): (() => void) => {
+  const e2ePolicy = e2ePolicyOverride();
+  if (e2ePolicy) {
+    queueMicrotask(() =>
+      handlers.onSnapshot({
+        policy: e2ePolicy,
+        exists: true,
+        fromCache: false,
+        hasPendingWrites: false,
+      })
+    );
+    return () => undefined;
+  }
   let active = true;
   let unsubscribe = () => {};
   void ensureFirestoreRuntimeReady(runtime)
