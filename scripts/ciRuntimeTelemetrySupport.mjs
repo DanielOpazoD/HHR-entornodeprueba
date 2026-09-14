@@ -151,27 +151,35 @@ const resolveEstimatedTotalDurationMs = estimatedProfile =>
 const buildEstimatedObservedRuntimeComparison = ({ estimatedProfile, observedProfile }) => {
   const observedShards = observedProfile?.shards || [];
   const estimatedShards = estimatedProfile?.shards || [];
+  const estimatedTotalDurationMs = resolveEstimatedTotalDurationMs(estimatedProfile);
+  const observedTotalDurationMs = Number(observedProfile?.summary?.totalDurationMs || 0);
   const shards = observedShards
     .map(observedShard => {
       const estimatedShard = estimatedShards.find(shard => Number(shard.index) === Number(observedShard.index));
       const estimatedDurationMs = Number(estimatedShard?.estimatedDurationMs || 0);
       const observedDurationMs = Number(observedShard.durationMs || 0);
+      const estimatedShare =
+        estimatedTotalDurationMs > 0 ? estimatedDurationMs / estimatedTotalDurationMs : 0;
+      const observedShare = observedTotalDurationMs > 0 ? observedDurationMs / observedTotalDurationMs : 0;
+      const estimatedSharePercent = roundOneDecimal(estimatedShare * 100);
+      const observedSharePercent = roundOneDecimal(observedShare * 100);
       return {
         deltaMs: observedDurationMs - estimatedDurationMs,
         estimatedDurationMs,
+        estimatedSharePercent,
+        hasComparableShares: estimatedShare > 0 && observedTotalDurationMs > 0,
         index: Number(observedShard.index),
         observedDurationMs,
+        observedSharePercent,
         ratioPercent:
-          estimatedDurationMs > 0 && observedDurationMs > 0
-            ? roundOneDecimal((observedDurationMs / estimatedDurationMs) * 100)
+          estimatedShare > 0 && observedShare > 0
+            ? roundOneDecimal((observedShare / estimatedShare) * 100)
             : 0,
+        shareDeltaPercentagePoints: roundOneDecimal(observedSharePercent - estimatedSharePercent),
       };
     })
     .filter(shard => shard.estimatedDurationMs > 0 || shard.observedDurationMs > 0)
     .sort((a, b) => a.index - b.index);
-  const estimatedTotalDurationMs = resolveEstimatedTotalDurationMs(estimatedProfile);
-  const observedTotalDurationMs = Number(observedProfile?.summary?.totalDurationMs || 0);
-
   return {
     shards,
     summary: {
@@ -342,9 +350,12 @@ export const compareEstimatedAndObservedRuntime = ({ estimatedProfile, observedP
   }
 
   for (const shard of estimatedObservedComparison.shards) {
-    if (shard.ratioPercent >= 250) {
+    if (
+      shard.hasComparableShares &&
+      (shard.ratioPercent >= 150 || shard.ratioPercent <= 66.7)
+    ) {
       advisoryFindings.push(
-        `Observed shard ${shard.index} runtime is ${shard.ratioPercent}% of the estimated duration.`
+        `Observed shard ${shard.index} runtime share is ${shard.ratioPercent}% of its estimated share.`
       );
     }
   }
@@ -431,15 +442,15 @@ export const formatCiRuntimeObservedProfileMarkdown = profile => {
 
   if ((profile.comparison?.shards || []).length > 0) {
     lines.push(
-      '## Estimated vs Observed',
+      '## Estimated vs Observed Workload Share',
       '',
-      '| Shard | Estimated | Observed | Ratio |',
+      'Estimated durations are relative assignment weights; observed durations include full CI job overhead. Balance decisions use each shard share of its respective total.',
+      '',
+      '| Shard | Estimated share | Observed share | Relative ratio |',
       '| ---: | ---: | ---: | ---: |',
       ...profile.comparison.shards.map(
         shard =>
-          `| ${shard.index} | ${formatMinutes(shard.estimatedDurationMs)} | ${formatMinutes(
-            shard.observedDurationMs
-          )} | ${shard.ratioPercent}% |`
+          `| ${shard.index} | ${shard.estimatedSharePercent}% | ${shard.observedSharePercent}% | ${shard.ratioPercent}% |`
       ),
       ''
     );
