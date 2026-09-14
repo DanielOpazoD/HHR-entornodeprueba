@@ -9,6 +9,7 @@ export const RULE_ASSETS = {
     generatedFormat: {
       stripBlankLines: true,
       stripLineComments: true,
+      collapseStringLists: true,
     },
     sources: [
       'rules/firestore/00-auth-and-role-helpers.rules',
@@ -51,7 +52,51 @@ export const normalizeGeneratedRuleFragment = (content, generatedFormat = {}) =>
     return true;
   });
 
-  return filteredLines.length === 0 ? '' : ensureTrailingNewline(filteredLines.join('\n'));
+  const generatedLines = generatedFormat.collapseStringLists
+    ? collapseMultilineStringLists(filteredLines)
+    : filteredLines;
+
+  return generatedLines.length === 0 ? '' : ensureTrailingNewline(generatedLines.join('\n'));
+};
+
+const STRING_LIST_ITEM = /^\s*'(?:[^'\\]|\\.)*',?\s*$/;
+const STRING_LIST_END = /^\s*\](.*)$/;
+
+const collapseMultilineStringLists = lines => {
+  const compacted = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const openingLine = lines[index];
+    if (!openingLine.trimEnd().endsWith('[')) {
+      compacted.push(openingLine);
+      continue;
+    }
+
+    const items = [];
+    let closingSuffix = null;
+    let cursor = index + 1;
+    for (; cursor < lines.length; cursor += 1) {
+      const closingMatch = lines[cursor].match(STRING_LIST_END);
+      if (closingMatch) {
+        closingSuffix = closingMatch[1];
+        break;
+      }
+      if (!STRING_LIST_ITEM.test(lines[cursor])) {
+        break;
+      }
+      items.push(lines[cursor].trim());
+    }
+
+    if (items.length === 0 || closingSuffix === null) {
+      compacted.push(openingLine);
+      continue;
+    }
+
+    compacted.push(`${openingLine.trimEnd()}${items.join(' ')}]${closingSuffix}`);
+    index = cursor;
+  }
+
+  return compacted;
 };
 
 export const buildRuleAssetContent = (root, assetName) => {
