@@ -223,6 +223,19 @@ test.describe('Eloísa · egreso madre y RN en D−1', () => {
     expect(currentWrite.payload.date).toBe(CENSUS_DAY);
     await currentWrite.succeed();
 
+    const historicalWrite = await authority.nextCall();
+    expect(historicalWrite.payload.date).toBe(DISCHARGE_DAY);
+    const historicalDischarges = historicalWrite.payload.patch.discharges as Array<{
+      clinicalEpisodeId?: string;
+      isNested?: boolean;
+    }>;
+    expect(historicalDischarges.map(entry => entry.clinicalEpisodeId).sort()).toEqual([
+      MOTHER_EPISODE,
+      NEWBORN_EPISODE,
+    ]);
+    expect(historicalDischarges.filter(entry => entry.isNested)).toHaveLength(1);
+    await historicalWrite.succeed();
+
     await expect(preview).not.toBeVisible({ timeout: 20_000 });
     await expect
       .poll(async () => {

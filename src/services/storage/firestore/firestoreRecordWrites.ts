@@ -59,6 +59,7 @@ import {
 import { createDirectFirestoreWriteReceipt } from './firestoreDirectWriteReceipt';
 import { runPartialUpdatePersistWithPermissionFallbacks } from '@/services/storage/firestore/firestoreBedTreePermissionFallback';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
+import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 import {
   buildAuthorityPatchSyncContract,
   prepareFirestorePartialData,
@@ -234,7 +235,13 @@ export const updateRecordPartial = async (
           )
         );
         const hasStructuralBedPatch = Object.keys(structuralBedPatch).length > 0;
-        const shouldUseAuthorityCallable = hasClinicalAuthorityPatch || hasStructuralBedPatch;
+        const patchPaths = Object.keys(sanitizedPatch).filter(path => path !== 'dateTimestamp');
+        const isE2EForcedMovementPatch =
+          isE2EDailyRecordAuthorityCallableForced() &&
+          patchPaths.length > 0 &&
+          patchPaths.every(path => ['discharges', 'transfers', 'cma'].includes(path));
+        const shouldUseAuthorityCallable =
+          hasClinicalAuthorityPatch || hasStructuralBedPatch || isE2EForcedMovementPatch;
         const structuralCompanionPaths = Object.keys(sanitizedPatch).filter(
           path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp'
         );
@@ -273,14 +280,22 @@ export const updateRecordPartial = async (
             'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
           );
         }
-        const callablePatch = isClinicalPatchForAuthority ? authorityPatch : structuralBedPatch;
+        const callablePatch = isE2EForcedMovementPatch
+          ? Object.fromEntries(
+              Object.entries(sanitizedPatch).filter(([path]) => path !== 'dateTimestamp')
+            )
+          : isClinicalPatchForAuthority
+            ? authorityPatch
+            : structuralBedPatch;
         const callableAuthorityMode = isClinicalPatchForAuthority
           ? clinicalAuthorityMode === 'enforced'
             ? 'enforced'
             : clinicalAuthorityFenced
               ? clinicalAuthorityMode || 'shadow'
               : null
-          : structuralAuthorityFenced
+          : isE2EForcedMovementPatch
+            ? 'enforced'
+            : structuralAuthorityFenced
             ? structuralAuthorityMode || 'shadow'
             : null;
         if (
