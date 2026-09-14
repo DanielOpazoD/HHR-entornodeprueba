@@ -207,8 +207,14 @@ describe('ci runtime telemetry support', () => {
       index: 1,
       estimatedDurationMs: 66000,
       observedDurationMs: 600000,
-      ratioPercent: 909.1,
+      estimatedSharePercent: 25,
+      observedSharePercent: 49.3,
+      ratioPercent: 197.2,
+      shareDeltaPercentagePoints: 24.3,
     });
+    expect(comparison.advisoryFindings).toContain(
+      'Observed shard 1 runtime share is 197.2% of its estimated share.'
+    );
   });
 
   it('deduplicates blocking issues already present in the comparison payload', () => {
@@ -226,6 +232,59 @@ describe('ci runtime telemetry support', () => {
         },
       })
     ).toEqual([issue, 'Comparison: Comparison-specific consistency issue.']);
+  });
+
+  it('calculates relative ratios before rounding small shard shares for display', () => {
+    const comparison = compareEstimatedAndObservedRuntime({
+      estimatedProfile: {
+        summary: { totalEstimatedDurationMs: 1000000, spreadPercent: 0, tolerancePercent: 25 },
+        shards: [{ index: 1, estimatedDurationMs: 1400 }],
+      },
+      observedProfile: {
+        ...buildCiRuntimeObservedProfile({ jobs: completedShardJobs, tolerancePercent: 25 }),
+        summary: {
+          ...buildCiRuntimeObservedProfile({ jobs: completedShardJobs, tolerancePercent: 25 }).summary,
+          totalDurationMs: 1000000,
+        },
+        shards: [{ index: 1, durationMs: 1600 }],
+      },
+    });
+
+    expect(comparison.shards[0]).toMatchObject({
+      estimatedSharePercent: 0.1,
+      observedSharePercent: 0.2,
+      ratioPercent: 114.3,
+    });
+    expect(comparison.advisoryFindings).toEqual([]);
+  });
+
+  it('reports a shard with estimated work and zero observed runtime', () => {
+    const observedProfile = buildCiRuntimeObservedProfile({
+      jobs: completedShardJobs,
+      tolerancePercent: 25,
+    });
+    const comparison = compareEstimatedAndObservedRuntime({
+      estimatedProfile: {
+        summary: { totalEstimatedDurationMs: 4000, spreadPercent: 0, tolerancePercent: 25 },
+        shards: [
+          { index: 1, estimatedDurationMs: 1000 },
+          { index: 2, estimatedDurationMs: 1000 },
+          { index: 3, estimatedDurationMs: 1000 },
+          { index: 4, estimatedDurationMs: 1000 },
+        ],
+      },
+      observedProfile: {
+        ...observedProfile,
+        shards: observedProfile.shards.map(shard =>
+          shard.index === 1 ? { ...shard, durationMs: 0 } : shard
+        ),
+      },
+    });
+
+    expect(comparison.shards[0]).toMatchObject({ hasComparableShares: true, ratioPercent: 0 });
+    expect(comparison.advisoryFindings).toContain(
+      'Observed shard 1 runtime share is 0% of its estimated share.'
+    );
   });
 
   it('formats observed and missing telemetry reports for governance artifacts', () => {
@@ -269,8 +328,9 @@ describe('ci runtime telemetry support', () => {
     expect(observedMarkdown).toContain('- Run: `28767128242`');
     expect(observedMarkdown).toContain('- Total observed runtime: 14.2m');
     expect(observedMarkdown).toContain('- Slowest shard: #1 (3.9m)');
-    expect(observedMarkdown).toContain('## Estimated vs Observed');
-    expect(observedMarkdown).toContain('| 1 | 1.1m | 3.9m | 354.5% |');
+    expect(observedMarkdown).toContain('## Estimated vs Observed Workload Share');
+    expect(observedMarkdown).toContain('Balance decisions use each shard share');
+    expect(observedMarkdown).toContain('| 1 | 25% | 27.5% | 110% |');
     expect(observedMarkdown).toContain('| 1 | unit-risk-shard-1 | 3.9m | SUCCESS |');
     expect(missingMarkdown).toContain('No observed CI unit shard data is available yet');
     expect(missingMarkdown).toContain(
