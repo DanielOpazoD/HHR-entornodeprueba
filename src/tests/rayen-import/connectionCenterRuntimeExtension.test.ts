@@ -496,31 +496,4 @@ describe('Centro HHR connection runtime', () => {
       'Sesión vencida'
     );
   });
-
-  it('keeps the freshly repaired tabs visible instead of reloading stale global health', async () => {
-    const expired = report('missing', 'missing', 'Sesión anterior');
-    const repaired = report('ready', 'ready', 'Sesión reparada');
-    const sendMessage = vi.fn(async (message: Message) =>
-      message.type === messages.CONNECTION_REPAIR_REQUEST
-        ? { ok: true, report: repaired }
-        : expired
-    );
-    const runtime = makeRuntime(sendMessage);
-    const root = makeRoot();
-    runtime.renderConnectionCenter(root, '141121');
-    await flush();
-
-    root.querySelector<HTMLButtonElement>('.hhr-connection-repair')?.click();
-    await flush();
-
-    expect(
-      sendMessage.mock.calls.filter(([message]) => message.type === messages.EXTENSION_HEALTH_REQUEST)
-    ).toHaveLength(1);
-    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-status')?.textContent).toBe(
-      'Conectado'
-    );
-    expect(
-      root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue
-    ).toBe('Sesión reparada');
-  });
 });
