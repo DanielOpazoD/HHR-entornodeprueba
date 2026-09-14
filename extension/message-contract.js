@@ -67,7 +67,7 @@
     [types.SYNC_BUNDLE_CANCEL]: { requestId: 'string' },
     [types.OPEN_ENCOUNTER_REQUEST]: { encId: 'id', routeHint: 'string?' },
     [types.PATIENT_DOCUMENT_MANAGER_REQUEST]: { encId: 'id', operation: 'string', documentId: 'string?' },
-    [types.EGRESO_LOOKUP_REQUEST]: { runs: 'array', targets: 'array?' },
+    [types.EGRESO_LOOKUP_REQUEST]: { reqId: 'id', runs: 'array', targets: 'array?' },
     [types.EGRESO_REPORT_REQUEST]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.EGRESO_REPORT_SAVE]: { dateStart: 'string?', dateEnd: 'string?' },
     [types.STATISTICAL_DISCHARGE_REPORT_REQUEST]: { encId: 'id' },

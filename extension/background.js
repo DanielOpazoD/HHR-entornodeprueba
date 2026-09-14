@@ -1223,7 +1223,7 @@ const runtimeMessageRoutes = Object.freeze({
   ),
   [RUNTIME_MESSAGES.PATIENT_DOCUMENT_MANAGER_REQUEST]: runtimeRoute((message, sender) => patientDocumentManagerRuntime.handleRequest({ ...message, sender }), 'No se pudo consultar el Gestor documental.'),
   [RUNTIME_MESSAGES.EGRESO_LOOKUP_REQUEST]: runtimeRoute(
-    (message, sender) => handleEgresoLookup(message.runs, message.targets, sender),
+    async (message, sender) => ({ ...(await handleEgresoLookup(message.runs, message.targets, sender)), reqId: message.reqId }),
     'No se pudo consultar el egreso.'
   ),
   [RUNTIME_MESSAGES.EGRESO_REPORT_REQUEST]: runtimeRoute(
