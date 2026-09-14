@@ -29,15 +29,35 @@ export const stripInheritedAuthorityRepair = (
 
   const clinicalPaths = new Set(Object.keys(extractClinicalAuthorityPatch(patch)));
   const paths = Object.keys(patch).filter(path => path !== 'dateTimestamp');
+  const hasBedTree = paths.some(isDailyRecordBedTreePath);
+  const hasDocumentFields = paths.some(path => !isDailyRecordBedTreePath(path));
   const hasClinical = clinicalPaths.size > 0;
   const hasNonClinical = paths.some(path => !clinicalPaths.has(path));
-  if (!hasClinical || !hasNonClinical) return patch;
 
   const semanticSet = new Set(semantic);
   const semanticIsClinical = semantic.every(path => clinicalPaths.has(path));
   const semanticIsStructural = semantic.every(
     path => !clinicalPaths.has(path) && isDailyRecordBedTreePath(path)
   );
+  const semanticIsDocument = semantic.every(path => !isDailyRecordBedTreePath(path));
+
+  if (semanticIsDocument) {
+    if (!hasBedTree || !hasDocumentFields) return patch;
+    const deferred = paths.filter(path => isDailyRecordBedTreePath(path) && !semanticSet.has(path));
+    if (deferred.length === 0) return patch;
+    firestoreWriteLogger.warn(
+      `Reparación heredada del árbol de camas pospuesta para no mezclarla con campos del registro ` +
+        `(${deferred.length} ruta(s)): ${deferred.join(', ')}. ` +
+        'Se reintentará con una escritura de su propia autoridad.'
+    );
+    return Object.fromEntries(
+      Object.entries(patch).filter(
+        ([path]) => !isDailyRecordBedTreePath(path) || semanticSet.has(path)
+      )
+    );
+  }
+
+  if (!hasClinical || !hasNonClinical) return patch;
   if (semanticIsClinical === semanticIsStructural) return patch;
 
   const keeps = (path: string): boolean => {

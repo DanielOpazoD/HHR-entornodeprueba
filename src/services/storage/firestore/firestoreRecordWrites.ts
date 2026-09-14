@@ -1,11 +1,4 @@
-import {
-  deleteDoc,
-  setDoc,
-  Timestamp,
-  updateDoc,
-  type DocumentData,
-  type UpdateData,
-} from 'firebase/firestore';
+import { setDoc, Timestamp, updateDoc, type DocumentData, type UpdateData } from 'firebase/firestore';
 import type { DailyRecord, DailyRecordPatch } from '@/services/storage/storageDailyRecordContracts';
 import { withRetry } from '@/utils/networkUtils';
 import { DataRegressionError } from '@/utils/integrityGuard';
@@ -18,7 +11,6 @@ import {
   asFirestoreUpdatePayload,
   assertFirestoreConcurrency,
   ConcurrencyError,
-  createDeletedRecordRef,
   saveHistorySnapshot,
   saveRecordAtomically,
   updateRecordPartiallyAtomically,
@@ -60,11 +52,19 @@ import { createDirectFirestoreWriteReceipt } from './firestoreDirectWriteReceipt
 import { runPartialUpdatePersistWithPermissionFallbacks } from '@/services/storage/firestore/firestoreBedTreePermissionFallback';
 import { stripInheritedAuthorityRepair } from '@/services/storage/firestore/firestoreInheritedRepairSeparation';
 import {
+  extractE2EForcedMovementAuthorityPatch,
+  isE2EForcedMovementAuthorityPatch,
+} from '@/services/storage/firestore/firestoreE2EAuthorityRouting';
+import {
   buildAuthorityPatchSyncContract,
   prepareFirestorePartialData,
 } from '@/services/storage/firestore/firestoreRecordWritePatchPolicy';
 
 export { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
+export {
+  deleteRecordFromFirestore,
+  moveRecordToTrash,
+} from '@/services/storage/firestore/firestoreRecordLifecycleWrites';
 
 export const saveRecordToFirestore = async (
   record: DailyRecord,
@@ -234,7 +234,9 @@ export const updateRecordPartial = async (
           )
         );
         const hasStructuralBedPatch = Object.keys(structuralBedPatch).length > 0;
-        const shouldUseAuthorityCallable = hasClinicalAuthorityPatch || hasStructuralBedPatch;
+        const isE2EForcedMovementPatch = isE2EForcedMovementAuthorityPatch(sanitizedPatch);
+        const shouldUseAuthorityCallable =
+          hasClinicalAuthorityPatch || hasStructuralBedPatch || isE2EForcedMovementPatch;
         const structuralCompanionPaths = Object.keys(sanitizedPatch).filter(
           path => !isDailyRecordBedTreePath(path) && path !== 'dateTimestamp'
         );
@@ -273,14 +275,20 @@ export const updateRecordPartial = async (
             'La edición mezcla cambios de cama con otros campos y debe guardarse por separado.'
           );
         }
-        const callablePatch = isClinicalPatchForAuthority ? authorityPatch : structuralBedPatch;
+        const callablePatch = isE2EForcedMovementPatch
+          ? extractE2EForcedMovementAuthorityPatch(sanitizedPatch)
+          : isClinicalPatchForAuthority
+            ? authorityPatch
+            : structuralBedPatch;
         const callableAuthorityMode = isClinicalPatchForAuthority
           ? clinicalAuthorityMode === 'enforced'
             ? 'enforced'
             : clinicalAuthorityFenced
               ? clinicalAuthorityMode || 'shadow'
               : null
-          : structuralAuthorityFenced
+          : isE2EForcedMovementPatch
+            ? 'enforced'
+            : structuralAuthorityFenced
             ? structuralAuthorityMode || 'shadow'
             : null;
         if (
@@ -367,33 +375,6 @@ export const updateRecordPartial = async (
     }
   } catch (error) {
     logFirestoreWriteError('partialUpdate', date, error);
-    throw error;
-  }
-};
-export const deleteRecordFromFirestore = async (date: string): Promise<void> => {
-  try {
-    const docRef = getRecordDocRef(date);
-    await withRetry(() => deleteDoc(docRef), {
-      onRetry: (err: unknown, attempt: number) =>
-        logFirestoreWriteRetry('delete', date, attempt, err),
-    });
-  } catch (error) {
-    logFirestoreWriteError('delete', date, error);
-    throw error;
-  }
-};
-export const moveRecordToTrash = async (record: DailyRecord): Promise<void> => {
-  try {
-    const trashRef = createDeletedRecordRef(record.date);
-    await withRetry(() =>
-      setDoc(trashRef, {
-        ...(sanitizeForFirestore(record) as Record<string, unknown>),
-        deletedAt: Timestamp.now(),
-        originalDate: record.date,
-      })
-    );
-  } catch (error) {
-    logFirestoreWriteError('moveToTrash', record.date, error);
     throw error;
   }
 };
