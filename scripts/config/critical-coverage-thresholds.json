@@ -206,6 +206,42 @@
         "branches": 83.0
       }
     },
+    "src/features/rayen-import/discharge-replan-critical": {
+      "label": "src/features/rayen-import/discharge-replan-critical",
+      "sources": [
+        "src/features/rayen-import/hooks/replanRayenStructure.ts",
+        "src/features/rayen-import/domain/dischargePlanInvariants.ts",
+        "src/features/rayen-import/domain/associatedClinicalCribDischarge.ts",
+        "src/features/rayen-import/domain/dischargeSubjectIdentity.ts",
+        "src/features/rayen-import/domain/dischargeVerification.ts"
+      ],
+      "tests": "src/tests/rayen-import",
+      "coverageTests": [
+        "src/tests/rayen-import/applyCensusImportDiff.test.ts",
+        "src/tests/rayen-import/clinicalCribDischargePromotion.test.ts",
+        "src/tests/rayen-import/dischargeIdentityInvariantMatrix.test.ts",
+        "src/tests/rayen-import/dischargePlanInvariants.test.ts",
+        "src/tests/rayen-import/egresoLookupFallback.test.ts",
+        "src/tests/rayen-import/egresoReport.test.ts",
+        "src/tests/rayen-import/reconcileCensus.test.ts",
+        "src/tests/rayen-import/releasedBedAdmissions.test.ts",
+        "src/tests/rayen-import/releasedBedDischargeAwareVeto.test.ts",
+        "src/tests/rayen-import/replanRayenStructure.test.ts",
+        "src/tests/rayen-import/replanRayenStructureClosedMotherCrib.test.ts",
+        "src/tests/rayen-import/replanRayenStructureCribConflict.test.ts",
+        "src/tests/rayen-import/replanRayenStructureLegacyOccupant.test.ts",
+        "src/tests/rayen-import/replanRayenStructureLegacyOccupantRelease.test.ts",
+        "src/tests/rayen-import/replanRayenStructureMotherCrib.test.ts",
+        "src/tests/rayen-import/replanRayenStructurePreviousMotherCrib.test.ts"
+      ],
+      "minTestFileCount": 16,
+      "minTestToSourceRatio": 3.0,
+      "coverageBaseline": {
+        "lines": 87.0,
+        "functions": 88.0,
+        "branches": 82.0
+      }
+    },
     "src/features/handoff": {
       "tests": "src/tests/views/handoff",
       "minTestFileCount": 15,

@@ -22,6 +22,7 @@
       "ownerAreaId": "census",
       "criticalCoverageZones": [
         "src/features/census/controllers",
+        "src/features/rayen-import/discharge-replan-critical",
         "src/app-shell",
         "src/shared/census/upc-critical"
       ],
