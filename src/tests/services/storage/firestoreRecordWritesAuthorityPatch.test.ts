@@ -103,7 +103,6 @@ import { saveHistorySnapshot } from '@/services/storage/firestore/firestoreWrite
 describe('firestoreRecordWrites authority patch routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.removeItem('hhr_e2e_force_authority_callable');
     delete (import.meta.env as Record<string, string | undefined>)
       .VITE_DAILY_RECORD_AUTHORITY_CALLABLE;
     delete (import.meta.env as Record<string, string | undefined>).VITE_DAILY_RECORD_AUTHORITY_MODE;
@@ -116,36 +115,6 @@ describe('firestoreRecordWrites authority patch routing', () => {
       exists: () => true,
       data: () => ({ schemaVersion: 2, clinicalBatchMode: 'enforced' }),
     });
-  });
-
-  it('routes pure movement patches through the callable when the E2E authority is forced', async () => {
-    localStorage.setItem('hhr_e2e_force_authority_callable', 'true');
-    const discharges = [{ id: 'd-1', clinicalEpisodeId: '910001' }];
-
-    await updateRecordPartial(
-      '2026-03-13',
-      { discharges, transfers: [], cma: [] } as never,
-      '2026-03-13T10:00:00.000Z',
-      {
-        syncContract: {
-          expectedVersion: '2026-03-13T10:00:00.000Z',
-          changedPaths: ['discharges', 'transfers', 'cma'],
-          mutationId: 'mutation-movement-e2e-1',
-          clientId: 'client-1',
-          tabId: 'tab-1',
-        },
-      }
-    );
-
-    expect(mockAuthorityCallable).toHaveBeenCalledWith(
-      expect.objectContaining({
-        date: '2026-03-13',
-        mode: 'enforced',
-        patch: { discharges, transfers: [], cma: [] },
-      })
-    );
-    expect(updateDoc).not.toHaveBeenCalled();
-    expect(saveHistorySnapshot).not.toHaveBeenCalled();
   });
 
   it('routes authenticated partial updates through the clinical authority patch callable when enabled', async () => {
