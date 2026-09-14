@@ -282,6 +282,28 @@ describe('useRayenExtensionHealth', () => {
     expect(result.current.connection).toBe('ready');
   });
 
+  it('adopts a directed repair report and invalidates an older health request', async () => {
+    let resolvePassive!: (value: RayenExtensionHealthCheck) => void;
+    mocks.requestHealth.mockImplementationOnce(
+      () => new Promise<RayenExtensionHealthCheck>(resolve => (resolvePassive = resolve))
+    );
+    const repaired = makeReport();
+    const { result } = renderHook(() => useRayenExtensionHealth());
+
+    act(() => {
+      result.current.adoptReport(repaired);
+    });
+    expect(result.current.connection).toBe('ready');
+    expect(result.current.report).toEqual(repaired);
+
+    await act(async () => {
+      resolvePassive({ report: null, error: 'Respuesta global anterior.' });
+      await Promise.resolve();
+    });
+    expect(result.current.connection).toBe('ready');
+    expect(result.current.report).toEqual(repaired);
+  });
+
   it('mantiene visible una conexión sana durante refrescos pasivos y reserva checking al preflight', async () => {
     let resolvePassive!: (value: RayenExtensionHealthCheck) => void;
     let resolvePreflight!: (value: RayenExtensionHealthCheck) => void;

@@ -161,6 +161,31 @@ describe('indicador de conexiones en Gestión de Camas', () => {
     expect(part('.feedback')?.textContent).toBe('');
   });
 
+  it('renders the directed repair report without replacing it with global health', async () => {
+    const expired = report(
+      { status: 'stale', reason: 'session_expired', message: 'Sesión vencida.' },
+      { status: 'missing', reason: 'session_expired', message: 'Sesión vencida.' }
+    );
+    const repaired = report();
+    let healthRequests = 0;
+    const { runtime } = makeRuntime(async message => {
+      if (message.type === messages.CONNECTION_REPAIR_REQUEST) {
+        return { ok: true, report: repaired };
+      }
+      healthRequests += 1;
+      return expired;
+    });
+    await runtime.refresh();
+    const healthRequestsBeforeRepair = healthRequests;
+
+    part<HTMLButtonElement>('.primary')?.click();
+    await vi.waitFor(() => expect(part('.summary')?.textContent).toBe('Conectado'));
+
+    expect(healthRequests).toBe(healthRequestsBeforeRepair);
+    expect(part('.source-ficha')?.getAttribute('data-status')).toBe('ready');
+    expect(part('.source-camas')?.getAttribute('data-status')).toBe('ready');
+  });
+
   it('no restaura un aviso obsoleto después de un health push más nuevo', async () => {
     const expired = report(
       { status: 'stale', reason: 'session_expired', message: 'Sesión vencida.' },

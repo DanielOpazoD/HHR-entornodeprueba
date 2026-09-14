@@ -1173,7 +1173,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo identificar la generación vigente de la extensión.'
   ),
   [RUNTIME_MESSAGES.CONNECTION_REPAIR_REQUEST]: runtimeRoute(
-    healthHeartbeat.pushAfter(() => connectionRepairRuntime.repair(), 'connection-repair'),
+    healthHeartbeat.pushAfter(() => connectionRepairRuntime.repair(), 'connection-repair', result => result?.report),
     'No se pudo preparar una conexión limpia con Eloísa.'
   ),
   [RUNTIME_MESSAGES.GC_SESSION_CAPTURED]: runtimeRoute(

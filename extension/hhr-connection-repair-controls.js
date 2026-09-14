@@ -96,7 +96,7 @@
           } else {
             setFeedback((response && response.message) || 'La conexión todavía no pudo verificarse.', true);
           }
-          await load();
+          await load({ report: response && response.report });
         } catch (_error) {
           if (isActionCurrent(action)) setFeedback('No se pudo reparar la conexión.', true);
         } finally {

@@ -31,12 +31,12 @@
       : Boolean(event?.isTrusted && windowRef.navigator?.userActivation?.isActive);
 
     const sendMessage = message => Promise.resolve(chromeApi.runtime.sendMessage(message));
+    const reportFromResponse = response => response?.report;
     const part = selector => shadow && shadow.querySelector(selector);
     const updateActionDisabled = () => {
       const action = part('.primary');
       if (action) action.disabled = actionInFlight || refreshInFlight > 0;
     };
-
     const css = `
       :host{--navy:#102a43;--teal:#0f938c;--teal-soft:#eefaf8;--green:#1ea86d;--amber:#d8a72e;--red:#c94c43;--line:#d7e1df;--muted:#68797a;position:fixed;top:72px;right:18px;z-index:2147483000;font-family:Inter,Roboto,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--navy)}
       *,*::before,*::after{box-sizing:border-box}button{font:inherit}button:focus-visible{outline:3px solid rgba(15,147,140,.3);outline-offset:2px}
@@ -61,7 +61,6 @@
       row.dataset.status = source && source.status || 'missing';
       row.querySelector('span:last-child').textContent = actionModel.sourceLabel(source);
     };
-
     const renderReport = report => {
       latestReport = report;
       const model = actionModel.derive(report);
@@ -91,13 +90,13 @@
         'Esta pestaña perdió el enlace con la extensión. Ábrela nuevamente desde una conexión vigente.';
     };
 
-    const refresh = async () => {
+    const refresh = async providedReport => {
       const epoch = ++requestEpoch;
       refreshInFlight += 1;
       updateActionDisabled();
       if (!latestReport) renderReport(null);
       try {
-        const report = await sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST });
+        const report = providedReport ?? await sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST });
         if (disposed || epoch !== requestEpoch) return null;
         if (!report || report.error) throw new Error(report && report.error || 'Sin reporte');
         part('.feedback').textContent = '';
@@ -153,7 +152,7 @@
         const response = await sendMessage(actionRequest(model));
         const feedback = responseFeedback(response);
         const refreshEpoch = requestEpoch + 1;
-        const refreshedReport = await refresh();
+        const refreshedReport = await refresh(reportFromResponse(response));
         if (
           !disposed &&
           refreshedReport &&
@@ -192,6 +191,7 @@
     const onVisibility = () => {
       if (!documentRef.hidden) void refresh();
     };
+    const refreshOnWindowEvent = () => void refresh();
     const onRuntimeMessage = message => {
       if (message && message.type === HEALTH_PUSH_TYPE && message.report) {
         requestEpoch += 1;
@@ -240,8 +240,8 @@
       documentRef.addEventListener('pointerdown', onDocumentPointerDown);
       documentRef.addEventListener('keydown', onDocumentKeyDown);
       documentRef.addEventListener('visibilitychange', onVisibility);
-      windowRef.addEventListener('focus', refresh);
-      windowRef.addEventListener('online', refresh);
+      windowRef.addEventListener('focus', refreshOnWindowEvent);
+      windowRef.addEventListener('online', refreshOnWindowEvent);
       chromeApi.runtime.onMessage?.addListener(onRuntimeMessage);
       host.__hhrDispose = dispose;
       documentRef.body.appendChild(host);
@@ -256,8 +256,8 @@
       documentRef.removeEventListener('pointerdown', onDocumentPointerDown);
       documentRef.removeEventListener('keydown', onDocumentKeyDown);
       documentRef.removeEventListener('visibilitychange', onVisibility);
-      windowRef.removeEventListener('focus', refresh);
-      windowRef.removeEventListener('online', refresh);
+      windowRef.removeEventListener('focus', refreshOnWindowEvent);
+      windowRef.removeEventListener('online', refreshOnWindowEvent);
       chromeApi.runtime.onMessage?.removeListener?.(onRuntimeMessage);
       if (host && host.isConnected) host.remove();
     }

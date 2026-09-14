@@ -83,4 +83,34 @@ describe('connection repair controls', () => {
     expect(repair.disabled).toBe(false);
     expect(copy.disabled).toBe(false);
   });
+
+  it('renders the directed repair report without requesting a global replacement', async () => {
+    const directedReport = report();
+    const repair = document.createElement('button');
+    const copy = document.createElement('button');
+    const load = vi.fn(async () => directedReport);
+    document.body.append(repair, copy);
+    const controls = owner().create({
+      documentRef: document,
+      windowRef: window,
+      runtimeMessages: { CONNECTION_REPAIR_REQUEST: 'CONNECTION_REPAIR_REQUEST' },
+      sendMessage: vi.fn(async () => ({ ok: true, report: directedReport })),
+    });
+    controls.attach({
+      repair,
+      copy,
+      beginAction: () => 1,
+      isActionCurrent: () => true,
+      setFeedback: vi.fn(),
+      load,
+      getReport: vi.fn(),
+      rememberReport: vi.fn(),
+    });
+
+    repair.click();
+    await flush();
+
+    expect(load).toHaveBeenCalledOnce();
+    expect(load).toHaveBeenCalledWith({ report: directedReport });
+  });
 });
