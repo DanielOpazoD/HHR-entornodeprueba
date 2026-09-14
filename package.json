@@ -288,7 +288,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
-    "@vitest/browser-playwright": "^4.1.11",
+    "@vitest/browser-playwright": "^5.0.0",
     "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
