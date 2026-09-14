@@ -19,6 +19,7 @@ import { RayenImportSummaryChips } from './RayenImportSummaryChips';
 import { reservedRayenTargetBedIds } from './rayenImportPreviewState';
 import { RayenAdmissionReview } from './RayenAdmissionReview';
 import { areCmaAdmissionsResolved } from '../domain/cmaAdmissionReview';
+import { RayenReportEgresoStamp } from './RayenReportEgresoStamp';
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
   diff: CensusImportDiff | null;
@@ -253,17 +254,12 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                       {entry.patientName} <span className="text-gray-400">({entry.run})</span>:{' '}
                       {dischargeKindLabel[entry.kind] ?? entry.kind}
                       {entry.destino && <span className="text-gray-500"> · {entry.destino}</span>}
-                      {entry.fechaEgreso && (
-                        <span className="text-gray-400"> · {entry.fechaEgreso}</span>
-                      )}
+                      <RayenReportEgresoStamp
+                        entry={entry}
+                        isPreviousDay={previousDays.has(entry.correctedDay ?? '')}
+                      />
                       {entry.status === 'Fallecido' && (
                         <span className="ml-1 text-red-600">(Fallecido)</span>
-                      )}
-                      {previousDays.has(entry.correctedDay ?? '') && (
-                        <span className="ml-1 font-medium text-amber-700">
-                          → se grabará el {ddmmyyyy(entry.correctedDay)}
-                          {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no hoy
-                        </span>
                       )}
                       <VerificationBadges
                         verification={{

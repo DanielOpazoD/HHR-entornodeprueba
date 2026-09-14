@@ -11,6 +11,7 @@ import {
 } from '../bedTraceabilityResolver';
 import { applyEgresoLookupFallback } from '../domain/applyEgresoLookupFallback';
 import { applyEgresoReport } from '../domain/applyEgresoReport';
+import { applyPreviousCensusEgresoScope } from '../domain/previousCensusEgresoScope';
 import { reconstructHistoricalSnapshotAtClose } from '../domain/historicalSnapshotReconstruction';
 import {
   computePreviousDayEdits,
@@ -143,6 +144,7 @@ export const replanRayenStructure = async (
   if (lookupResults.length > 0) {
     diff = applyEgresoLookupFallback(diff, lookupResults, record);
   }
+  diff = applyPreviousCensusEgresoScope(diff, evidence.egresoRows);
   diff = await measure(() =>
     verifyPreviousDayAdmissionPlacements(diff, evidence.reportDate, {
       fetchReport: dependencies.fetchPatientFlowReport,

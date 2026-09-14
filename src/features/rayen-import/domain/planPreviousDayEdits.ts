@@ -15,8 +15,8 @@ export interface PreviousDayProbes {
   withinEditingWindow: (day: string) => boolean;
   /** Whether `day`'s record carries a medical signature (already "closed"). */
   isSigned: (day: string) => boolean;
-  /** Whether `day`'s record ALREADY holds an egreso for this patient RUT (→ nothing to add). */
-  alreadyDischarged: (day: string, rut: string) => boolean;
+  /** Whether `day` already holds this exact episode (or the RUT for legacy evidence). */
+  alreadyDischarged: (day: string, rut: string, encounterId?: string) => boolean;
 }
 
 export const planPreviousDayEdits = (
@@ -27,7 +27,12 @@ export const planPreviousDayEdits = (
   // Every egreso the report attributes to an EARLIER island day than the census day — both bed-
   // occupying discharges (reconcile/known) and report egresos (unknown RUN, e.g. a late sync where
   // the source filed the alta a day ahead) — is filed on that real day.
-  const candidates: Array<{ correctedDay?: string; patientName: string; rut: string }> = [
+  const candidates: Array<{
+    correctedDay?: string;
+    patientName: string;
+    rut: string;
+    encounterId?: string;
+  }> = [
     ...diff.discharges.map(entry => ({ ...entry, rut: entry.rut })),
     ...(diff.reportEgresos ?? []).map(entry => ({ ...entry, rut: entry.run })),
   ];
@@ -39,7 +44,7 @@ export const planPreviousDayEdits = (
     if (!day || day >= censusDay) continue;
     // Skip a patient whose egreso is ALREADY consigned in that day's HHR record (verified by RUT):
     // re-adding it would be a no-op, so the "falta el egreso de X" message makes no sense.
-    if (probes.alreadyDischarged(day, candidate.rut)) continue;
+    if (probes.alreadyDischarged(day, candidate.rut, candidate.encounterId)) continue;
     const names = namesByDay.get(day) ?? [];
     names.push(candidate.patientName);
     namesByDay.set(day, names);

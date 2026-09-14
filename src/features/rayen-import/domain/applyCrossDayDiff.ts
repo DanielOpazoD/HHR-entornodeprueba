@@ -33,9 +33,9 @@ const normalizeEpisode = (episode?: string): string => String(episode ?? '').tri
 const crossDayMovementId = (entry: DischargeEntry, day: string): string => {
   const rut = normalizeRut(entry.rut);
   const episode = String(entry.encounterId ?? '').trim();
-  // Keep the established RUT ids stable, but namespace episode ids so a RUN-less encounter whose
-  // numeric id equals another patient's RUT cannot silently collapse into the same movement.
-  const identity = rut || (episode ? `episode-${episode}` : `bed-${entry.bedId}`);
+  // Exact episodes take precedence: mother and newborn may legitimately share one maternal RUN.
+  // Legacy rows keep their established RUT id and still fall back to bed when identity is absent.
+  const identity = episode ? `episode-${episode}` : rut || `bed-${entry.bedId}`;
   return `rayen-egreso:${identity}:${day}`;
 };
 
@@ -75,6 +75,8 @@ const associatedClinicalCribEntry = (entry: DischargeEntry): DischargeEntry | nu
 export interface CrossDayEntry {
   entry: DischargeEntry;
   patient: PatientData;
+  /** A report-only newborn from a prior clinical crib remains non-statistical. */
+  isNested?: boolean;
 }
 
 export interface CrossDayResult {
@@ -113,15 +115,14 @@ export const applyCrossDayDiff = (
   );
   let applied = 0;
 
-  for (const { entry, patient } of entries) {
+  for (const { entry, patient, isNested = false } of entries) {
     const id = crossDayMovementId(entry, day);
     const rut = normalizeRut(entry.rut);
     const episode = normalizeEpisode(entry.encounterId);
     const principalAlreadyRecorded =
       seen.has(id) ||
       hasLegacyEpisodeMovement(existing, entry, day) ||
-      (rut && seenRuts.has(rut)) ||
-      (episode && seenEpisodes.has(episode));
+      (episode ? seenEpisodes.has(episode) : Boolean(rut && seenRuts.has(rut)));
     const nestedEntry = entry.kind === 'alta' ? associatedClinicalCribEntry(entry) : null;
     const crib = patient.clinicalCrib;
     const hasAssociatedCrib =
@@ -139,7 +140,10 @@ export const applyCrossDayDiff = (
       if (entry.kind === 'cma') cma.push(buildCma(patient, entry, movementContext));
       else if (entry.kind === 'traslado')
         transfers.push(buildTransfer(patient, entry, targetRecord, movementContext));
-      else discharges.push(buildDischarge(principalSnapshot, entry, targetRecord, movementContext));
+      else
+        discharges.push(
+          buildDischarge(principalSnapshot, entry, targetRecord, movementContext, isNested)
+        );
       changed = true;
     }
 
@@ -152,8 +156,9 @@ export const applyCrossDayDiff = (
       if (
         !seen.has(nestedId) &&
         !hasLegacyEpisodeMovement(existing, nestedEntry, day) &&
-        !(nestedRut && seenRuts.has(nestedRut)) &&
-        !(nestedEpisode && seenEpisodes.has(nestedEpisode))
+        !(nestedEpisode
+          ? seenEpisodes.has(nestedEpisode)
+          : Boolean(nestedRut && seenRuts.has(nestedRut)))
       ) {
         seen.add(nestedId);
         if (nestedRut) seenRuts.add(nestedRut);

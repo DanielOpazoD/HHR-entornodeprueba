@@ -38,6 +38,8 @@ export interface EgresoReportRow {
   dischargeStatus?: 'Vivo' | 'Fallecido';
   /** Whether HHR verified this report-only row against one exact clinical episode. */
   exactEpisodeVerification?: 'verified' | 'unverified';
+  /** Internal D-1 identity evidence: this episode occupied the prior record's clinical crib. */
+  fromClinicalCrib?: boolean;
 }
 
 /**
