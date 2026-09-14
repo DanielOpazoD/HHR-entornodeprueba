@@ -278,7 +278,6 @@
         feedback.className = 'hhr-connection-feedback' + (error ? ' is-error' : '');
         setLiveRegion(feedback, message, error ? 'error' : '');
       };
-
       const renderSource = (card, source, fallbackName) => {
         const ready = source && source.status === 'ready';
         const stale = source && source.status === 'stale';
@@ -294,14 +293,15 @@
           ? [role, connectionTimeLabel(source)].filter(Boolean).join(' · ')
           : String(source && source.message || 'Inicia sesión para continuar.');
       };
-
-      const load = async () => {
+      const readReport = provided => provided ? Promise.resolve(provided) : sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST });
+      const reportOption = options => options && options.report;
+      const load = async options => {
         const epoch = controller.epoch;
         const requestId = ++nextRequestId;
         controller.loadRequestId = requestId;
         if (!isPanelRequestCurrent(controller, epoch, 'loadRequestId', requestId)) return null;
         refresh.disabled = true;
-        const report = await sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST });
+        const report = await readReport(reportOption(options));
         if (!isPanelRequestCurrent(controller, epoch, 'loadRequestId', requestId)) return null;
         refresh.disabled = false;
         if (!report || report.error) {

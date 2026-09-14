@@ -1,14 +1,21 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { RayenConnectionMonitor } from '@/features/rayen-import/components/RayenConnectionMonitor';
-import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
+import {
+  RAYEN_EXTENSION_PROTOCOL_VERSION,
+  type RayenExtensionHealthReport,
+} from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { RAYEN_GC_CONNECT_RESULT_TYPE } from '@/features/rayen-import/bridge/gestionCamasConnectChannel';
 import { RAYEN_CONNECTION_REPAIR_RESULT_TYPE } from '@/features/rayen-import/bridge/connectionRepairChannel';
+import * as connectionRepairChannel from '@/features/rayen-import/bridge/connectionRepairChannel';
 import type { RayenExtensionHealthState } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
 
 const refreshMock = () =>
   vi.fn(
-    async (_options?: { timeoutMs?: number }): Promise<RayenExtensionHealthState> => ({
+    async (_options?: {
+      timeoutMs?: number;
+      showChecking?: boolean;
+    }): Promise<RayenExtensionHealthState> => ({
       connection: 'ready',
       message: 'Extensión Eloísa operativa.',
       canSync: true,
@@ -16,10 +23,21 @@ const refreshMock = () =>
     })
   );
 
+const adoptReportMock = () =>
+  vi.fn(
+    (report: RayenExtensionHealthReport): RayenExtensionHealthState => ({
+      connection: 'ready',
+      message: 'Extensión Eloísa operativa.',
+      canSync: true,
+      report,
+    })
+  );
+
 const baseExtension = (
   overrides: Partial<RayenExtensionHealthState> = {}
 ): RayenExtensionHealthState & {
   refresh: ReturnType<typeof refreshMock>;
+  adoptReport: ReturnType<typeof adoptReportMock>;
 } => ({
   connection: 'ready',
   message: 'Extensión Eloísa v0.48.3 operativa.',
@@ -44,6 +62,7 @@ const baseExtension = (
     },
   },
   refresh: refreshMock(),
+  adoptReport: adoptReportMock(),
   ...overrides,
 });
 
@@ -266,5 +285,33 @@ describe('RayenConnectionMonitor', () => {
 
     monitor.rerenderMonitor(baseExtension());
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('adopts the directed repair report without requesting global health again', async () => {
+    const extension = baseExtension({
+      connection: 'blocked',
+      blockedBy: 'fichaMedico',
+      canSync: false,
+      report: {
+        ...baseExtension().report!,
+        fichaMedico: {
+          status: 'stale',
+          reason: 'outdated_tab',
+          message: 'Pestaña desactualizada.',
+        },
+      },
+    });
+    const repairedReport = baseExtension().report!;
+    vi.spyOn(connectionRepairChannel, 'requestRayenConnectionRepair').mockResolvedValueOnce({
+      ok: true,
+      report: repairedReport,
+    });
+    renderMonitor(extension);
+    await waitFor(() => expect(screen.getByTestId('rayen-monitor-repair')).toBeEnabled());
+
+    fireEvent.click(screen.getByTestId('rayen-monitor-repair'));
+
+    await waitFor(() => expect(extension.adoptReport).toHaveBeenCalledWith(repairedReport));
+    expect(extension.refresh).not.toHaveBeenCalledWith({ timeoutMs: 12_000 });
   });
 });

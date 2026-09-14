@@ -239,6 +239,14 @@ export const useRayenExtensionHealth = () => {
     []
   );
 
+  const adoptReport = useCallback((report: RayenExtensionHealthReport): RayenExtensionHealthState => {
+    requestSequence.current += 1;
+    const next = deriveHealthState(report);
+    latestHealth.current = next;
+    setHealth(next);
+    return next;
+  }, []);
+
   useEffect(() => {
     const sequence = ++requestSequence.current;
     let active = true;
@@ -334,7 +342,7 @@ export const useRayenExtensionHealth = () => {
     return () => window.clearTimeout(timer);
   }, [health.report]);
 
-  return { ...health, refresh };
+  return { ...health, refresh, adoptReport };
 };
 
 export { deriveHealthState };

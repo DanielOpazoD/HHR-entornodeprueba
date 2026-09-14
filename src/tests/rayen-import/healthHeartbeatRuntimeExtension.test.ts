@@ -9,7 +9,8 @@ type HeartbeatRuntime = {
     pushNow: (reason: string) => Promise<{ pushed: number }>;
     pushAfter: (
       handle: (...args: unknown[]) => unknown,
-      reason: string
+      reason: string,
+      reportFromResult?: (result: unknown) => unknown
     ) => (...args: unknown[]) => Promise<unknown>;
   };
   HEALTH_PUSH_MESSAGE_TYPE: string;
@@ -123,5 +124,25 @@ describe('health heartbeat runtime (extension)', () => {
     await expect(failing()).rejects.toThrow('captura rechazada');
     // El push posterior ocurre igual: el estado (p. ej. rechazo) también es noticia.
     await vi.waitFor(() => expect(chromeApi.tabs.sendMessage.mock.calls.length).toBeGreaterThan(2));
+  });
+
+  it('pushAfter publishes a directed report without replacing it with a global read', async () => {
+    const { runtime, chromeApi, readHealth } = createFixture();
+    const directedReport = { version: '0.48.22', gestionCamas: { status: 'ready', tabId: 42 } };
+    const wrapped = runtime.pushAfter(
+      async () => ({ ok: true, report: directedReport }),
+      'connection-repair',
+      result => (result as { report: unknown }).report
+    );
+
+    await expect(wrapped()).resolves.toEqual({ ok: true, report: directedReport });
+    await vi.waitFor(() => expect(chromeApi.tabs.sendMessage).toHaveBeenCalledTimes(2));
+
+    expect(readHealth).not.toHaveBeenCalled();
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(3, {
+      type: runtimeModule.HEALTH_PUSH_MESSAGE_TYPE,
+      report: directedReport,
+      reason: 'connection-repair',
+    });
   });
 });

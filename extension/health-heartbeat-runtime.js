@@ -35,10 +35,9 @@
           .flatMap(entry => entry.matches || [])
       )
     );
-    const pushNow = async reason => {
-      let report;
+    const pushNow = async (reason, report = null) => {
       try {
-        report = await readHealth();
+        report ||= await readHealth();
       } catch (error) {
         log('[HHR] El latido no pudo leer el estado de la extensión:', error);
         return { pushed: 0 };
@@ -77,7 +76,6 @@
       );
       return { pushed };
     };
-
     // El service worker MV3 re-evalúa TODO su top-level cada vez que despierta,
     // y chrome.alarms.create con el mismo nombre REINICIA el contador: crear la
     // alarma sin proteger hacía que nunca alcanzara a disparar (las pestañas de
@@ -88,7 +86,6 @@
       if (existing && !recreate) return;
       chromeApi.alarms.create(alarmName, { periodInMinutes: periodMinutes });
     };
-
     const start = () => {
       if (!chromeApi.alarms) return false;
       chromeApi.alarms.onAlarm.addListener(alarm => {
@@ -102,11 +99,14 @@
     };
 
     /** Envuelve un handler de ruta para empujar el estado fresco al terminar. */
-    const pushAfter =
-      (handle, reason) =>
-      (...args) =>
-        Promise.resolve(handle(...args)).finally(() => void pushNow(reason));
-
+    const pushAfter = (handle, reason, reportFromResult) => (...args) =>
+      Promise.resolve().then(() => handle(...args)).then(result => {
+        void pushNow(reason, reportFromResult?.(result));
+        return result;
+      }, error => {
+        void pushNow(reason);
+        throw error;
+      });
     return { start, pushNow, pushAfter };
   };
 

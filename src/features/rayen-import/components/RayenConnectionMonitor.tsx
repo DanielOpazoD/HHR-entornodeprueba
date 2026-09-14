@@ -4,7 +4,7 @@ import { ExternalLink, RefreshCw, Wrench } from 'lucide-react';
 import { requestRayenConnectionRepair } from '../bridge/connectionRepairChannel';
 import { requestGestionCamasConnect } from '../bridge/gestionCamasConnectChannel';
 import { deriveRayenRecoveryAction } from '../bridge/rayenRecoveryAction';
-import type { RayenSourceHealth } from '../bridge/extensionHealthBridge';
+import type { RayenExtensionHealthReport, RayenSourceHealth } from '../bridge/extensionHealthBridge';
 import type {
   RayenExtensionConnectionState,
   RayenExtensionHealthState,
@@ -97,6 +97,7 @@ interface RayenConnectionMonitorProps {
       timeoutMs?: number;
       showChecking?: boolean;
     }) => Promise<RayenExtensionHealthState>;
+    adoptReport: (report: RayenExtensionHealthReport) => RayenExtensionHealthState;
   };
   working: boolean;
   lastSyncLine: React.ReactNode;
@@ -118,6 +119,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const autoRefreshEpochRef = React.useRef(0);
   const refreshExtension = extension.refresh;
+  const adoptExtensionReport = extension.adoptReport;
 
   React.useEffect(() => {
     if (!open) return undefined;
@@ -222,7 +224,8 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
             : (result.error ?? result.message ?? 'La conexión todavía no pudo verificarse.')
         );
       }
-      await refreshExtension({ timeoutMs: 12_000 });
+      if (result.report) adoptExtensionReport(result.report);
+      else await refreshExtension({ timeoutMs: 12_000 });
       setNow(Date.now());
     } finally {
       setBusy(null);
