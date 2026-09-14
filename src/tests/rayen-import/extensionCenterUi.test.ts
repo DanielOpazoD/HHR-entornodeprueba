@@ -24,6 +24,10 @@ const medicationActionsSource = readFileSync(
   'utf8'
 );
 const stylesSource = readFileSync(path.resolve('extension/hhr-center-styles.js'), 'utf8');
+const labRequestStylesSource = readFileSync(
+  path.resolve('extension/hhr-lab-request-styles.js'),
+  'utf8'
+);
 const backgroundSource = readFileSync(path.resolve('extension/background.js'), 'utf8');
 const patientContextSource = readFileSync(
   path.resolve('extension/fichamedico-patient-context.js'),
@@ -160,7 +164,8 @@ describe('Centro HHR navigation and vital-signs overview', () => {
     expect(stylesSource).toContain(
       '#hhr-prescription-print-modal .hhr-center-content { min-height: 0; flex: 1; overflow: auto; padding: 14px clamp(20px,1.8vw,28px) 22px; }'
     );
-    expect(stylesSource).toContain(
+    // La solicitud de exámenes mantiene su hoja propia desde la extracción.
+    expect(labRequestStylesSource).toContain(
       '#hhr-prescription-print-modal .hhr-labreq-content { padding: 18px clamp(32px,3vw,44px) 32px; }'
     );
     expect(contentSource).toContain("selectVisible.textContent = 'Seleccionar todos'");

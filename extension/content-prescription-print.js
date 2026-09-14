@@ -530,6 +530,7 @@
 
   const labCenterRuntime = labCenterOwner.create({
     labHelper,
+    labRequestPatient: globalThis.HhrLabRequestPatient,
     requestForms,
     runtimeMessages,
     runClinicalTransition,
