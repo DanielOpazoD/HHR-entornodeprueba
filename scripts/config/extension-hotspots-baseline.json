@@ -172,7 +172,7 @@
       }
     },
     "content-prescription-print.js": {
-      "maxLines": 954,
+      "maxLines": 955,
       "hotspots": {
         "iife": 22,
         "iife>variable:ensureButton": 22
@@ -413,6 +413,14 @@
       "hotspots": {
         "iife>variable:create>variable:renderLabCenter>variable:load": 19
       }
+    },
+    "hhr-lab-request-patient.js": {
+      "maxLines": 134,
+      "hotspots": {}
+    },
+    "hhr-lab-request-styles.js": {
+      "maxLines": 74,
+      "hotspots": {}
     },
     "hhr-medication-actions-runtime.js": {
       "maxLines": 453,
