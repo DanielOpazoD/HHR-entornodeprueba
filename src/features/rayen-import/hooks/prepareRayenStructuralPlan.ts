@@ -20,6 +20,10 @@ interface PrepareRayenStructuralPlanInput {
   isAdmin: boolean;
   counters: EvidenceCounters;
   measureEvidence: <T>(operation: () => Promise<T>) => Promise<T>;
+  /** Test seam for the browser bridge; production always creates the live client. */
+  evidenceClient?: ReturnType<typeof createRayenSnapshotEvidenceClient>;
+  /** Test seam for PDF layouts; production uses the real PDF.js extractor. */
+  extractStatisticalText?: (buffer: ArrayBuffer) => Promise<string>;
 }
 
 /** Captures the immutable evidence used by every CAS replan in one execution. */
@@ -33,12 +37,14 @@ export const prepareRayenStructuralPlan = async ({
   isAdmin,
   counters,
   measureEvidence,
+  evidenceClient,
+  extractStatisticalText,
 }: PrepareRayenStructuralPlanInput) => {
   // Structural reconstruction depends on live Eloisa evidence, so keep its comparatively large
   // resolver graph out of the offline census shell and load it only when a sync is requested.
   const { replanRayenStructure } = await import('./replanRayenStructure');
   const { fetchPatientFlowReport, fetchStatisticalDischarge, lookupEgresos } =
-    createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
+    evidenceClient ?? createRayenSnapshotEvidenceClient(isHistoricalDay, counters);
   const { enrichReportOnlyDischarges } = await import('../domain/enrichReportOnlyDischarges');
   const {
     hasRecordedMovement,
@@ -50,16 +56,28 @@ export const prepareRayenStructuralPlan = async ({
   const { normalizeRut } = await import('@/utils/rutUtils');
   const occupied = occupiedBedsByRun(baseRecord);
   const occupiedCribs = occupiedClinicalCribsByRun(baseRecord);
+  const previousCensusCandidates = isHistoricalDay
+    ? []
+    : await measureEvidence(async () => {
+        const { previousCensusDate } = await import('../domain/previousCensusContinuity');
+        const { previousCensusEgresoCandidates } =
+          await import('../domain/previousCensusEgresoCandidates');
+        const previous = await dailyRecord.getAuthoritativeForDate(previousCensusDate(reportDate));
+        return previousCensusEgresoCandidates(previous, bundle.egresoRows, reportDate);
+      });
   const egresoRows = await measureEvidence(() =>
     enrichReportOnlyDischarges(bundle.egresoRows, reportDate, {
       fetchStatisticalDischarge,
       lookupEgresos,
-      alreadyApplied: row => {
+      previousCensusCandidates,
+      extractText: extractStatisticalText,
+      alreadyApplied: (row, exactCandidate) => {
         const run = normalizeRut(row.run);
-        if (!run || !hasRecordedMovement(baseRecord, run)) return false;
+        const episode = exactCandidate?.encounterId;
+        if (!run || !hasRecordedMovement(baseRecord, run, episode)) return false;
         return (
-          !findOccupiedBed(occupied, row.run, '') &&
-          !findOccupiedClinicalCrib(occupiedCribs, row.run, '')
+          !findOccupiedBed(occupied, row.run, episode ?? '') &&
+          !findOccupiedClinicalCrib(occupiedCribs, row.run, episode ?? '')
         );
       },
     })

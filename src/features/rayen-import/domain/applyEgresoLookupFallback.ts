@@ -1,6 +1,6 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import type { EgresoReportRow } from '../contracts/egresoReport';
+import type { EgresoReportRow, ReportEgreso } from '../contracts/egresoReport';
 import type { EgresoLookupResult, EgresoRecord } from '../contracts/egresoLookup';
 import { parseStatisticalEgresoInstant } from '../mapping/reportEgresoDateTime';
 import { applyEgresoReport } from './applyEgresoReport';
@@ -9,6 +9,25 @@ import { normalizeRut } from '@/utils/rutUtils';
 
 const lookupKey = (rut: string | undefined, encounterId: string | undefined): string =>
   `${normalizeRut(rut)}::${String(encounterId || '').trim()}`;
+
+const reportEgresoKey = (egreso: ReportEgreso): string =>
+  egreso.encounterId?.trim() ||
+  [
+    normalizeRut(egreso.run),
+    egreso.patientName.trim().toLocaleUpperCase(),
+    egreso.correctedDay ?? '',
+    egreso.correctedTime ?? '',
+    egreso.fromClinicalCrib ? 'crib' : 'principal',
+  ].join('|');
+
+const mergeReportEgresos = (
+  previous: readonly ReportEgreso[],
+  next: readonly ReportEgreso[]
+): ReportEgreso[] => {
+  const merged = new Map<string, ReportEgreso>();
+  for (const egreso of [...previous, ...next]) merged.set(reportEgresoKey(egreso), egreso);
+  return [...merged.values()];
+};
 
 const lookupStamp = (
   egreso: EgresoRecord
@@ -96,6 +115,7 @@ export const applyEgresoLookupFallback = (
   const enriched = applyEgresoReport(diff, [...eligible.values()].map(reportRowFromLookup), record);
   return {
     ...enriched,
+    reportEgresos: mergeReportEgresos(diff.reportEgresos ?? [], enriched.reportEgresos ?? []),
     discharges: enriched.discharges.map(discharge => {
       const match = eligible.get(lookupKey(discharge.rut, discharge.encounterId));
       return match

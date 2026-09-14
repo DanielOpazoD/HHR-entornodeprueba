@@ -112,6 +112,56 @@ describe('applyEgresoLookupFallback', () => {
     });
   });
 
+  it('preserves report-only mother/newborn egresos while adding another exact fallback', () => {
+    const diff = makeDiff();
+    diff.reportEgresos = [
+      {
+        run: '11.111.111-1',
+        encounterId: '910001',
+        patientName: 'Paciente Madre Sintética',
+        bedLabel: 'H4C2',
+        destino: 'Domicilio',
+        fechaEgreso: '13-09-2026 16:44',
+        correctedDay: '2026-09-13',
+        correctedTime: '14:44',
+        kind: 'alta',
+        status: 'Vivo',
+      },
+      {
+        run: '11.111.111-1',
+        encounterId: '910080',
+        patientName: 'Rn De Paciente Madre Sintética',
+        bedLabel: 'H4C2',
+        destino: 'Domicilio',
+        fechaEgreso: '13-09-2026 16:44',
+        correctedDay: '2026-09-13',
+        correctedTime: '14:44',
+        kind: 'alta',
+        status: 'Vivo',
+        fromClinicalCrib: true,
+      },
+    ];
+
+    const enriched = applyEgresoLookupFallback(
+      diff,
+      [
+        {
+          run: '220253899',
+          encounterId: '141704',
+          egreso: {
+            id: 141704,
+            endPeriod: '2026-07-19T17:10:00-04:00',
+            hasAdministrativeDischarge: true,
+          },
+        },
+      ],
+      makeRecord()
+    );
+
+    expect(enriched.discharges).toHaveLength(1);
+    expect(enriched.reportEgresos).toEqual(diff.reportEgresos);
+  });
+
   it('rejects another hospitalization of the same RUN', () => {
     const diff = makeDiff();
     const enriched = applyEgresoLookupFallback(

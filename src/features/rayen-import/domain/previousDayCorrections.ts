@@ -16,6 +16,7 @@ import {
 } from './historicalAdmissionPatch';
 import { applyCrossDayDiff, type CrossDayEntry } from './applyCrossDayDiff';
 import { isOccupied, reportEgresoEntry, reportEgresoPatient } from './applyCensusImportDiff';
+import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
@@ -71,12 +72,19 @@ export interface CrossDayCorrectionResult {
 
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
-/** True when `record` already carries an egreso (discharge/transfer/cma) for `rut` (RUT-verified). */
-const recordHasEgresoForRut = (record: DailyRecord | null | undefined, rut: string): boolean => {
+/** Exact episodes never deduplicate by a shared maternal RUN; legacy rows still use RUN. */
+const recordHasEgreso = (
+  record: DailyRecord | null | undefined,
+  rut: string,
+  encounterId?: string
+): boolean => {
   const norm = normalizeRut(rut);
-  if (!record || !norm) return false;
+  if (!record || (!norm && !encounterId)) return false;
+  const episode = encounterId?.trim();
   const movements = [...record.discharges, ...record.transfers, ...record.cma];
-  return movements.some(movement => normalizeRut(movement.rut) === norm);
+  return movements.some(movement =>
+    episode ? recordedOutcomeEpisodeId(movement) === episode : normalizeRut(movement.rut) === norm
+  );
 };
 
 /** Result of planning the previous-day corrections: the affected days + the report egresos that
@@ -122,9 +130,9 @@ export const computePreviousDayEdits = async (
       if (local.hasPendingWrites && local.record) pendingLocalRecords.set(day, local.record);
     })
   );
-  const alreadyDischarged = (day: string, rut: string): boolean =>
-    recordHasEgresoForRut(records.get(day), rut) ||
-    recordHasEgresoForRut(pendingLocalRecords.get(day), rut);
+  const alreadyDischarged = (day: string, rut: string, encounterId?: string): boolean =>
+    recordHasEgreso(records.get(day), rut, encounterId) ||
+    recordHasEgreso(pendingLocalRecords.get(day), rut, encounterId);
 
   const dischargeEdits = planPreviousDayEdits(diff, censusDay, {
     recordExists: day => !!records.get(day),
@@ -153,7 +161,7 @@ export const computePreviousDayEdits = async (
       !(
         egreso.correctedDay &&
         egreso.correctedDay < censusDay &&
-        alreadyDischarged(egreso.correctedDay, egreso.run)
+        alreadyDischarged(egreso.correctedDay, egreso.run, egreso.encounterId)
       )
   );
 
@@ -185,7 +193,8 @@ export const fileCrossDayCorrections = async (
   const add = (
     day: string | undefined,
     entry: DischargeEntry,
-    patient: PatientData | undefined
+    patient: PatientData | undefined,
+    isNested = false
   ): void => {
     // isOccupied (not just `patient != null`): mirror the primary discharge loop so a blocked or
     // nameless bed is never filed to the historical day with garbage data.
@@ -198,7 +207,7 @@ export const fileCrossDayCorrections = async (
     )
       return;
     const list = byDay.get(day) ?? [];
-    list.push({ entry, patient });
+    list.push({ entry, patient, isNested });
     byDay.set(day, list);
   };
   // Bed-occupying discharges: the patient snapshot comes from today's bed.
@@ -212,7 +221,8 @@ export const fileCrossDayCorrections = async (
         correctedDay: egreso.correctedDay,
         correctedTime: egreso.correctedTime,
       },
-      reportEgresoPatient(egreso)
+      reportEgresoPatient(egreso),
+      egreso.fromClinicalCrib === true
     );
   }
   const admissionsByDay = confirmedPreviousDayAdmissionsByDay(

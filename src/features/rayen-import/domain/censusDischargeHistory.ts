@@ -10,6 +10,15 @@ interface RecordedOutcomeSubject {
   admissionTime?: string;
 }
 
+type RecordedOutcome =
+  | DailyRecord['discharges'][number]
+  | DailyRecord['cma'][number]
+  | DailyRecord['transfers'][number];
+
+/** Reads legacy episode provenance behind the single governed historical compatibility boundary. */
+export const recordedOutcomeEpisodeId = (movement: RecordedOutcome): string | undefined =>
+  movement.clinicalEpisodeId ?? movement.originalData?.clinicalEpisodeId;
+
 /** Matches an episode already resolved in HHR by alta, traslado or CMA. */
 export const createRecordedOutcomeMatcher = (
   current: DailyRecord

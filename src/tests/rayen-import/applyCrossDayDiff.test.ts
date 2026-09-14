@@ -376,6 +376,47 @@ describe('planPreviousDayEdits', () => {
     expect(edits[0].patientNames).toEqual(['Falta']);
   });
 
+  it('does not let a mother movement suppress her newborn episode under the same RUN', () => {
+    const sharedRun = '11.111.111-1';
+    const edits = planPreviousDayEdits(
+      diff({
+        reportEgresos: [
+          {
+            run: sharedRun,
+            encounterId: '910001',
+            patientName: 'Madre',
+            bedLabel: 'H4C2',
+            destino: 'Domicilio',
+            fechaEgreso: '11-07-2026 16:44',
+            kind: 'alta',
+            status: 'Vivo',
+            correctedDay: '2026-07-11',
+          },
+          {
+            run: sharedRun,
+            encounterId: '910080',
+            patientName: 'RN',
+            bedLabel: 'H4C2',
+            destino: 'Domicilio',
+            fechaEgreso: '11-07-2026 16:44',
+            kind: 'alta',
+            status: 'Vivo',
+            correctedDay: '2026-07-11',
+            fromClinicalCrib: true,
+          },
+        ],
+      }),
+      '2026-07-12',
+      {
+        ...probes,
+        alreadyDischarged: (_day, _rut, encounterId) => encounterId === '910001',
+      }
+    );
+
+    expect(edits).toHaveLength(1);
+    expect(edits[0].patientNames).toEqual(['RN']);
+  });
+
   it('reflects the probe flags per day (out-of-window / signed)', () => {
     const edits = planPreviousDayEdits(
       diff({ discharges: [entry({ correctedDay: '2026-07-09' })] }),

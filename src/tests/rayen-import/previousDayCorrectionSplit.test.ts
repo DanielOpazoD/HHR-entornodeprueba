@@ -90,6 +90,139 @@ describe('fileCrossDayCorrections · escrituras puras por día', () => {
     expect(result).toEqual({ confirmed: 1, durablyQueued: 0, omitted: [] });
   });
 
+  it('writes historical mother/newborn episodes separately and preserves the RN nested scope', async () => {
+    const sharedRun = '11.111.111-1';
+    const reportEgresos: NonNullable<CensusImportDiff['reportEgresos']> = [
+      {
+        run: sharedRun,
+        encounterId: '910001',
+        patientName: 'Paciente Madre Sintética',
+        bedLabel: 'H4C2',
+        destino: 'Domicilio',
+        fechaEgreso: '25-07-2026 16:44',
+        correctedDay: '2026-07-25',
+        correctedTime: '14:44',
+        kind: 'alta',
+        status: 'Vivo',
+      },
+      {
+        run: sharedRun,
+        encounterId: '910080',
+        patientName: 'Rn De Paciente Madre Sintética',
+        bedLabel: 'H4C2',
+        destino: 'Domicilio',
+        fechaEgreso: '25-07-2026 16:44',
+        correctedDay: '2026-07-25',
+        correctedTime: '14:44',
+        kind: 'alta',
+        status: 'Vivo',
+        fromClinicalCrib: true,
+      },
+    ];
+    const diff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: [],
+      reportEgresos,
+      summary: { ...motherAndNewbornDiff.summary, admissions: 0 },
+    };
+    const plan = await computePreviousDayEdits(repository, diff, '2026-07-26', false);
+
+    await fileCrossDayCorrections(
+      repository,
+      { ...historicalRecord, date: '2026-07-26' },
+      { ...diff, previousDayEdits: plan.edits },
+      '2026-07-26',
+      false,
+      () => 'movement-id',
+      { actor: 'Enfermera prueba', syncRunId: 'sync-run' }
+    );
+
+    const movementPatch = vi
+      .mocked(patchDailyRecordWithCompatibility)
+      .mock.calls.find(([, , patch]) => 'discharges' in (patch as object))?.[2] as {
+      discharges: DailyRecord['discharges'];
+    };
+    expect(movementPatch.discharges).toHaveLength(2);
+    expect(movementPatch.discharges.map(entry => entry.clinicalEpisodeId).sort()).toEqual([
+      '910001',
+      '910080',
+    ]);
+    expect(movementPatch.discharges.filter(entry => entry.isNested)).toHaveLength(1);
+  });
+
+  it('repairs a missing historical RN when the mother episode is already filed', async () => {
+    const motherMovement = {
+      id: 'manual-mother',
+      rut: '11.111.111-1',
+      patientName: 'Paciente Madre Sintética',
+      clinicalEpisodeId: '910001',
+      movementDate: '2026-07-25',
+      time: '14:44',
+      dischargeType: 'Domicilio (Habitual)',
+      status: 'Vivo',
+      bedId: 'H4C2',
+    } as DailyRecord['discharges'][number];
+    const partialRecord = { ...historicalRecord, discharges: [motherMovement] };
+    vi.mocked(repository.getAuthoritativeForDate).mockImplementation(async day =>
+      day === '2026-07-25' ? partialRecord : null
+    );
+    const diff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: [],
+      reportEgresos: [
+        {
+          run: '11.111.111-1',
+          encounterId: '910001',
+          patientName: 'Paciente Madre Sintética',
+          bedLabel: 'H4C2',
+          destino: 'Domicilio',
+          fechaEgreso: '25-07-2026 16:44',
+          correctedDay: '2026-07-25',
+          correctedTime: '14:44',
+          kind: 'alta',
+          status: 'Vivo',
+        },
+        {
+          run: '11.111.111-1',
+          encounterId: '910080',
+          patientName: 'Rn De Paciente Madre Sintética',
+          bedLabel: 'H4C2',
+          destino: 'Domicilio',
+          fechaEgreso: '25-07-2026 16:44',
+          correctedDay: '2026-07-25',
+          correctedTime: '14:44',
+          kind: 'alta',
+          status: 'Vivo',
+          fromClinicalCrib: true,
+        },
+      ],
+      summary: { ...motherAndNewbornDiff.summary, admissions: 0 },
+    };
+    const plan = await computePreviousDayEdits(repository, diff, '2026-07-26', false);
+
+    expect(plan.reportEgresos).toEqual([
+      expect.objectContaining({ encounterId: '910080', fromClinicalCrib: true }),
+    ]);
+    await fileCrossDayCorrections(
+      repository,
+      { ...historicalRecord, date: '2026-07-26' },
+      { ...diff, reportEgresos: plan.reportEgresos, previousDayEdits: plan.edits },
+      '2026-07-26',
+      false,
+      () => 'movement-id',
+      { actor: 'Enfermera prueba', syncRunId: 'sync-run' }
+    );
+    const movementPatch = vi
+      .mocked(patchDailyRecordWithCompatibility)
+      .mock.calls.find(([, , patch]) => 'discharges' in (patch as object))?.[2] as {
+      discharges: DailyRecord['discharges'];
+    };
+    expect(movementPatch.discharges).toHaveLength(2);
+    expect(
+      movementPatch.discharges.find(entry => entry.clinicalEpisodeId === '910080')
+    ).toMatchObject({ isNested: true });
+  });
+
   it('omite (con motivo visible en el plan) el RN cuando la madre histórica ya conserva otro recién nacido', async () => {
     const recordWithDifferentCrib: DailyRecord = {
       ...historicalRecord,
