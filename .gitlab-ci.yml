@@ -11,6 +11,12 @@
 
 stages: [static, unit, governance, build]
 
+variables:
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+  npm_config_audit: "false"
+  npm_config_fund: "false"
+  NODE_OPTIONS: "--max-old-space-size=4096"
+
 default:
   image: node:22
   interruptible: true
@@ -21,11 +27,6 @@ default:
         - package-lock.json
     paths:
       - .npm/
-  variables:
-    npm_config_cache: "$CI_PROJECT_DIR/.npm"
-    npm_config_audit: "false"
-    npm_config_fund: "false"
-    NODE_OPTIONS: "--max-old-space-size=4096"
   before_script:
     - node --version
     - npm ci --prefer-offline
