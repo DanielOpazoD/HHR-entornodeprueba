@@ -50,11 +50,25 @@ Superficie pública mínima recomendada para trabajo diario: [docs/DEVELOPER_COM
 
 ### Selección rápida antes del PR
 
-| Cambio                                                         | Comando local mínimo                                             | Ruta automática del PR |
+| Cambio                                                         | Validación local mínima                                          | Ruta automática del PR |
 | -------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- |
 | Solo documentación permitida                                   | `npm run check:docs-drift && npm run check:operational-runbooks` | `docs-only`            |
-| Solo fuente de Firebase Functions                              | tests de `src/tests/functions` y contratos serverless afectados  | `functions-only`       |
+| Solo fuente de Firebase Functions                              | secuencia completa de Functions indicada abajo                   | `functions-only`       |
 | Aplicación, dependencias, configuración, reglas o cambio mixto | `npm run ci:pre-merge` y el gate adicional según riesgo          | `full`                 |
+
+Para reproducir localmente el gate `functions-only`, usar Node.js 22 y ejecutar:
+
+```bash
+npm ci
+npm ci --prefix functions
+npx vitest run src/tests/functions \
+  src/tests/build/firebaseFunctionDeployVerification.test.ts \
+  src/tests/build/firebaseFunctionDeleteResult.test.ts \
+  src/tests/build/firebaseFunctionRegionVerification.test.ts
+npm run check:serverless-sensitive-coverage
+npm run check:serverless-runtime-governance
+npm --prefix functions run check:clinical-pdf-runtime
+```
 
 La definición canónica, los fallbacks conservadores y los gates exactos están en
 [CI Gates and Failure Runbooks](../CI_GATES_AND_FAILURE_RUNBOOKS.md#alcance-automático-de-ci-en-pull-requests).
