@@ -32,7 +32,6 @@ describe('HHR epicrisis content bridge', () => {
     'http://localhost:3000',
     'http://localhost:3001',
     'https://testinghhr.netlify.app',
-    'https://hhr-entornodeprueba.vercel.app',
   ])('forwards only the download contract from trusted HHR origin %s', async origin => {
     let onMessage:
       | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)

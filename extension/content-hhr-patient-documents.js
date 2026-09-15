@@ -7,7 +7,6 @@
     'http://localhost:3000',
     'http://localhost:3001',
     'https://testinghhr.netlify.app',
-    'https://hhr-entornodeprueba.vercel.app',
   ]);
   if (!runtimeMessages || !trustedOrigins.has(window.location.origin)) return;
 
