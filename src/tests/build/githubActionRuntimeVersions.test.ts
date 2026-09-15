@@ -15,6 +15,6 @@ describe('GitHub Action runtime versions', () => {
     );
 
     expect(setupJavaUses).toHaveLength(3);
-    expect(setupJavaUses).toEqual(Array(3).fill('actions/setup-java@v5'));
+    expect(setupJavaUses).toEqual(Array(3).fill('actions/setup-java@v6'));
   });
 });
