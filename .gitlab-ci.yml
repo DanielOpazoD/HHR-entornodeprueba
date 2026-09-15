@@ -9,6 +9,10 @@
 # firebase-tools y secretos), Lighthouse, medicion de arranque del censo,
 # telemetria de runtime (usa la API de GitHub) y evidencia de post-merge.
 
+# Nota: GitLab.com exige verificar la identidad de la cuenta antes de ejecutar
+# jobs. Si un pipeline aparece "failed" con 0 jobs y sin errores de YAML, la
+# causa es esa verificacion, no este archivo.
+
 stages: [static, unit, governance, build]
 
 variables:
