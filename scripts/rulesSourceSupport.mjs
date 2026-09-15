@@ -21,6 +21,7 @@ export const RULE_ASSETS = {
       'rules/firestore/22-invitation-and-receipt-helpers.rules',
       'rules/firestore/24-system-health-payload-helpers.rules',
       'rules/firestore/26-rayen-import-policy-helpers.rules',
+      'rules/firestore/27-specialty-assignment-helpers.rules',
       'rules/firestore/30-daily-record-write-helpers.rules',
       'rules/firestore/40-hospitals.rules',
       'rules/firestore/50-global-rules.rules',

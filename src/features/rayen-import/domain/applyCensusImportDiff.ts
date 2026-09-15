@@ -21,6 +21,7 @@ import { buildRayenMovementProvenance } from './rayenMovementProvenance';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
+import { isLockedAssignment } from '@/domain/specialtyAssignment/contracts';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
@@ -364,8 +365,14 @@ export const applyCensusImportDiff = (
     const merged = { ...existing } as unknown as Record<string, unknown>;
     for (const change of entry.changes) {
       // Re-check local authority at apply time too: the user may have selected a specialty after
-      // the preview was built but before confirming it.
-      if (change.field === 'specialty' && String(existing.specialty ?? '').trim()) continue;
+      // the preview was built but before confirming it. Una decisión de episodio confirmada
+      // (manual/automática/legacy) también bloquea el reemplazo, incluso con valor vacío.
+      if (
+        change.field === 'specialty' &&
+        (String(existing.specialty ?? '').trim() ||
+          isLockedAssignment(existing.specialtyAssignment))
+      )
+        continue;
       merged[change.field] = change.to;
     }
     nextBeds[entry.bedId] = merged as unknown as PatientData;

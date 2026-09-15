@@ -5,7 +5,8 @@ export type ClinicalAIAction =
   | 'clinical_ai_summary'
   | 'clinical_document_import'
   | 'cie10_search'
-  | 'clinical_attachment_name_suggestion';
+  | 'clinical_attachment_name_suggestion'
+  | 'specialty_recommendation';
 
 export interface ClinicalAIRoutingRule {
   enabled?: boolean;
@@ -338,4 +339,103 @@ export const generateClinicalAIText = async (
   }
 
   return generateAnthropicText(params);
+};
+
+// ---------------------------------------------------------------------------
+// Completion API enriquecida (recomendación de especialidad)
+// ---------------------------------------------------------------------------
+
+export interface GenerateClinicalAICompletionParams extends GenerateClinicalAITextParams {
+  /** `json_object` fuerza salida JSON en proveedores OpenAI-compatible. */
+  responseFormat?: 'json_object';
+  /** Desactiva el modo de razonamiento en DeepSeek (`thinking.type`). */
+  disableThinking?: boolean;
+  /** Timeout del fetch en ms (default 20s). */
+  timeoutMs?: number;
+}
+
+export interface ClinicalAICompletion {
+  text: string;
+  /** 'stop' | 'length' | otros valores reportados por el proveedor. */
+  finishReason?: string;
+  /** Modelo efectivamente reportado por la API (puede ser un alias). */
+  model?: string;
+  usage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
+}
+
+/**
+ * Chat Completions con metadatos: expone `finish_reason` (truncamiento),
+ * modelo reportado y usage — necesarios para validar la salida de la
+ * recomendación de especialidad y auditar el consumo de presupuesto.
+ */
+export const generateClinicalAICompletion = async (
+  params: GenerateClinicalAICompletionParams
+): Promise<ClinicalAICompletion> => {
+  const {
+    config,
+    systemPrompt,
+    userPrompt,
+    temperature = 0.2,
+    maxTokens = 1000,
+    responseFormat,
+    disableThinking,
+    timeoutMs = 20_000,
+  } = params;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(config.endpoint || 'https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: config.model,
+        temperature,
+        max_tokens: maxTokens,
+        stream: false,
+        ...(responseFormat === 'json_object' ? { response_format: { type: 'json_object' } } : {}),
+        ...(disableThinking && config.provider === 'deepseek'
+          ? { thinking: { type: 'disabled' } }
+          : {}),
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(`${config.provider} request failed (${response.status}): ${message}`);
+    }
+
+    const payload = (await response.json()) as {
+      model?: string;
+      choices?: Array<{
+        message?: { content?: unknown };
+        finish_reason?: string;
+      }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+
+    const choice = payload.choices?.[0];
+    return {
+      text: parseOpenAIContent(choice?.message?.content),
+      finishReason: choice?.finish_reason,
+      model: typeof payload.model === 'string' ? payload.model : undefined,
+      usage: payload.usage
+        ? {
+            promptTokens: payload.usage.prompt_tokens,
+            completionTokens: payload.usage.completion_tokens,
+            totalTokens: payload.usage.total_tokens,
+          }
+        : undefined,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 };

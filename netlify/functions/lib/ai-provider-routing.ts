@@ -7,6 +7,7 @@ const SUPPORTED_ACTIONS = new Set<ClinicalAIAction>([
   'clinical_document_import',
   'cie10_search',
   'clinical_attachment_name_suggestion',
+  'specialty_recommendation',
 ]);
 
 const SUPPORTED_PROVIDERS = new Set<ClinicalAIProvider>([

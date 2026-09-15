@@ -49,6 +49,18 @@ export const FEATURE_FLAGS = {
   // TECHNICAL_DEBT_REGISTER `command-layer-transfer`.
   USE_TRANSFER_PATIENT_COMMAND: false,
 
+  // Asignación de especialidad por episodio (Informe v2, etapas 1-4).
+  // OFF: estampa metadatos `specialtyAssignment` en las ediciones manuales,
+  // protege la autoridad por episodio en sync/carryover y habilita el
+  // resolver determinista en modo observación. El autollenado confirmado
+  // requiere además la activación del policy doc del servidor.
+  SPECIALTY_EPISODE_ASSIGNMENT: false,
+  // Catálogo versionado de reglas + memoria diagnóstica CIE-10→especialidad.
+  SPECIALTY_RULES_MEMORY: false,
+  // Recomendación consultiva vía backend deepseek-flash. OFF y además
+  // requiere SPECIALTY_AI_MODE != off en el servidor.
+  SPECIALTY_AI_RECOMMENDATION: false,
+
   // Integration Features
   ENABLE_WHATSAPP_INTEGRATION: true,
   ENABLE_EMAIL_NOTIFICATIONS: true,

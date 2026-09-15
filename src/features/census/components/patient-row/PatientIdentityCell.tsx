@@ -308,6 +308,9 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 specialty={specialtyLabel}
                 readOnly={readOnly}
                 onAssign={handleSpecialtyAssign}
+                patient={data}
+                recordDate={currentDateString}
+                isSubRow={isSubRow}
               />
               {visibleTreatingPhysicianName && (
                 <span

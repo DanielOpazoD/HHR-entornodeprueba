@@ -65,6 +65,9 @@ const PATIENT_FIELD_OWNERSHIP = {
   origin: 'adminRemote',
   hasWristband: 'adminRemote',
 
+  // Autoría local: la autoridad del episodio la produce el usuario/reglas
+  // locales; Rayen jamás la emite y no debe pisarla en la sincronización.
+  specialtyAssignment: 'localNarrative',
   handoffNote: 'localNarrative',
   handoffNoteDayShift: 'localNarrative',
   handoffNoteNightShift: 'localNarrative',

@@ -12,8 +12,13 @@ const {
   RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
   isRayenClinicalWriteFenceActive,
   preserveRayenClinicalFields,
+  preserveSpecialtyAssignments,
   shouldPreserveRayenClinicalFields,
 } = require('./dailyRecordClinicalFieldPreservation');
+const {
+  normalizeWritableAssignment,
+  resolveAssignmentPatchDecision,
+} = require('./specialtyAssignmentContract');
 const {
   assertGuardedClinicalPatch,
   assertRayenLegacyClinicalWriteAuthority,
@@ -408,6 +413,80 @@ const parseAuthorizedPatchPath = (
   );
 };
 
+const SPECIALTY_ASSIGNMENT_FIELD = 'specialtyAssignment';
+
+/**
+ * Ruta `…specialtyAssignment` (cama o cuna clínica). Devuelve el objeto
+ * paciente remoto correspondiente y la ruta del escalar `specialty`
+ * acompañante — valor y metadatos viajan siempre en la misma escritura.
+ */
+const parseSpecialtyAssignmentPatchPath = (path, remoteData) => {
+  const parts = String(path)
+    .split('.')
+    .map(part => part.trim())
+    .filter(Boolean);
+  if (parts.length === 3 && parts[0] === 'beds' && parts[2] === SPECIALTY_ASSIGNMENT_FIELD) {
+    return {
+      bedId: parts[1],
+      patient: remoteData?.beds?.[parts[1]],
+      specialtyPath: `beds.${parts[1]}.specialty`,
+    };
+  }
+  if (
+    parts.length === 4 &&
+    parts[0] === 'beds' &&
+    parts[2] === 'clinicalCrib' &&
+    parts[3] === SPECIALTY_ASSIGNMENT_FIELD
+  ) {
+    return {
+      bedId: parts[1],
+      patient: remoteData?.beds?.[parts[1]]?.clinicalCrib,
+      specialtyPath: `beds.${parts[1]}.clinicalCrib.specialty`,
+    };
+  }
+  return null;
+};
+
+const assertSpecialtyAssignmentPatch = ({ path, value, remoteData, patch, actorUid }) => {
+  const parsed = parseSpecialtyAssignmentPatchPath(path, remoteData);
+  if (!parsed) return;
+
+  const incoming = normalizeWritableAssignment(value);
+  if (!incoming) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `specialtyAssignment patch is not a writable decision: ${String(path).slice(0, 120)}`
+    );
+  }
+
+  // El actor autenticado es el autor clínico: nadie puede firmar una decisión
+  // manual a nombre de otro usuario.
+  if (incoming.state === 'manual_locked' && actorUid && incoming.decidedByUserId !== actorUid) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'specialtyAssignment decidedByUserId must match the authenticated user.'
+    );
+  }
+
+  // Valor y metadatos viajan juntos: el escalar proyectado debe acompañar la
+  // decisión con el mismo valor en la misma escritura.
+  const companionSpecialty = patch[parsed.specialtyPath];
+  if (companionSpecialty !== incoming.value) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      `specialtyAssignment requires the matching ${parsed.specialtyPath} patch in the same write.`
+    );
+  }
+
+  const decision = resolveAssignmentPatchDecision({ incoming, remotePatient: parsed.patient });
+  if (!decision.ok) {
+    throw new functions.https.HttpsError(
+      decision.reason === 'stale_revision' ? 'aborted' : 'failed-precondition',
+      `specialtyAssignment rejected (${decision.reason}) for ${parsed.bedId}.`
+    );
+  }
+};
+
 const assertAuthorizedPatchValue = ({ path, value, parsedPath, patchPaths }) => {
   if (parsedPath.kind !== 'bedTypeOverride') {
     return;
@@ -438,6 +517,7 @@ const inspectAuthorizedPatch = ({
   guardedClinicalWrite = false,
   guardedRecordScope = 'run',
   intentionalBedClear = null,
+  actorUid = null,
 }) => {
   const patchPaths = new Set(Object.keys(patch));
   let requiresStructuralAuthority = false;
@@ -463,10 +543,16 @@ const inspectAuthorizedPatch = ({
           `Daily record patch target bed is blocked: ${parsedPath.bedId}`
         );
       }
+      // Una cuna clínica recibe su propia decisión de especialidad (episodio
+      // independiente de la madre): la forma se valida igual que en cama.
+      if (String(path).endsWith(`.${SPECIALTY_ASSIGNMENT_FIELD}`)) {
+        assertSpecialtyAssignmentPatch({ path, value, remoteData, patch, actorUid });
+      }
       requiresStructuralAuthority = true;
       return;
     }
     assertAuthorizedPatchValue({ path, value, parsedPath, patchPaths });
+    assertSpecialtyAssignmentPatch({ path, value, remoteData, patch, actorUid });
     const { bedId } = parsedPath;
     const patient = remoteData?.beds?.[bedId];
     if (!isPlainObject(patient)) {
@@ -535,6 +621,7 @@ const EMPTY_BED_NULL_FIELDS = new Set([
   'treatingPhysicianName',
   'ginecobstetriciaType',
   'secondarySpecialty',
+  'specialtyAssignment',
   'medicalHandoffAudit',
   'firstSeenDate',
   'deliveryRoute',
@@ -635,6 +722,7 @@ const buildCanonicalEmptyBed = ({ bedId, requestedBed, remoteBed }) => {
     treatingPhysicianId: null,
     treatingPhysicianName: null,
     specialty: '',
+    specialtyAssignment: null,
     ginecobstetriciaType: null,
     secondarySpecialty: null,
     status: '',
@@ -1356,7 +1444,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
           const policySnapshot = await transaction.get(policyRef);
           const remoteData = snapshot.exists ? snapshot.data() || {} : {};
-          const recordForPersistence = shouldPreserveRayenClinicalFields({
+          const rayenReconciled = shouldPreserveRayenClinicalFields({
             policySnapshot,
             snapshot,
             origin,
@@ -1364,6 +1452,13 @@ const createDailyRecordWriteAuthorityFunctions = ({
           })
             ? preserveRayenClinicalFields({ remoteRecord: remoteData, incomingRecord: record })
             : record;
+          // La decisión de especialidad se reconcilia por episodio y revisión
+          // en todo guardado completo: una copia atrasada o un cliente antiguo
+          // nunca degradan una decisión confirmada del mismo episodio.
+          const recordForPersistence = preserveSpecialtyAssignments({
+            remoteRecord: remoteData,
+            incomingRecord: rayenReconciled,
+          });
           responseAuthority = assertClinicalAuthority(recordForPersistence);
           responseCoverage = collectClinicalEpisodeCoverage(recordForPersistence);
           if (responseAuthority.status !== 'ok') {
@@ -1599,6 +1694,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
             guardedClinicalWrite: Boolean(rayenClinicalWriteGuard),
             guardedRecordScope: rayenClinicalWriteGuard?.recordScope,
             intentionalBedClear,
+            actorUid: context.auth?.uid ?? null,
           });
           if (
             isRayenClinicalWriteFenceActive(policySnapshot) &&
@@ -1616,18 +1712,21 @@ const createDailyRecordWriteAuthorityFunctions = ({
             remoteData,
             patch: authorizedPatch,
           });
-          const patchedRecord =
-            isRayenClinicalWriteFenceActive(policySnapshot) &&
-            !rayenClinicalWriteGuard &&
-            !intentionalBedClear
-              ? preserveRayenClinicalFields({
-                  remoteRecord: remoteData,
-                  incomingRecord: patchedCandidate,
-                  // Los dispositivos editados a mano ya pasaron la valla: solo
-                  // se restauran las mediciones exclusivas del lote.
-                  fields: RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
-                })
-              : patchedCandidate;
+          const patchedRecord = preserveSpecialtyAssignments({
+            remoteRecord: remoteData,
+            incomingRecord:
+              isRayenClinicalWriteFenceActive(policySnapshot) &&
+              !rayenClinicalWriteGuard &&
+              !intentionalBedClear
+                ? preserveRayenClinicalFields({
+                    remoteRecord: remoteData,
+                    incomingRecord: patchedCandidate,
+                    // Los dispositivos editados a mano ya pasaron la valla: solo
+                    // se restauran las mediciones exclusivas del lote.
+                    fields: RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
+                  })
+                : patchedCandidate,
+          });
           assertNoPatientErasures({
             snapshot,
             record: patchedRecord,

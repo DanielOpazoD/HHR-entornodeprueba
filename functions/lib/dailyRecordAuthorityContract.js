@@ -29,6 +29,7 @@ const CLINICAL_AUTHORITY_BED_FIELDS = Object.freeze([
   'cie10Code',
   'cie10Description',
   'specialty',
+  'specialtyAssignment',
   'secondarySpecialty',
   'status',
   'ginecobstetriciaType',

@@ -666,4 +666,126 @@ export function registerFirestoreRulesDomainGroups({
       await assertFails(admin().doc(reclassificationPath).delete());
     });
   });
+
+  describe('Specialty AI Recommendations', () => {
+    const recommendationPath = 'hospitals/H1/specialtyRecommendations/rec-1';
+    const recommendationPayload = {
+      recommendationId: 'rec-1',
+      episodeKey: 'patient:ep-1',
+      recordDate: CURRENT_RECORD_DATE,
+      observedRevision: 3,
+      evidenceFingerprint: 'fp-abc123',
+      ruleSetVersion: '7',
+      professionalCatalogVersion: 'pcv-2026',
+      promptVersion: 'v1',
+      modelRequested: 'deepseek-flash',
+      status: 'available',
+      candidates: [
+        {
+          specialty: 'Medicina Interna',
+          certainty: 'media',
+          rationale: 'Neumonía en adulto mayor.',
+          evidenceFor: ['J18.9'],
+          evidenceAgainst: [],
+        },
+      ],
+      missingData: [],
+      policyConflict: false,
+      requesterUid: 'user_doctor',
+      createdAt: new Date(NOW_MS).toISOString(),
+    };
+
+    it('clinical write roles can create available recommendations bound to themselves', async () => {
+      await assertSucceeds(doctor().doc(recommendationPath).set(recommendationPayload));
+      await assertSucceeds(
+        nurse()
+          .doc('hospitals/H1/specialtyRecommendations/rec-nurse')
+          .set({
+            ...recommendationPayload,
+            recommendationId: 'rec-nurse',
+            requesterUid: 'user_nurse',
+          })
+      );
+      await assertSucceeds(
+        specialist()
+          .doc('hospitals/H1/specialtyRecommendations/rec-specialist')
+          .set({
+            ...recommendationPayload,
+            recommendationId: 'rec-specialist',
+            requesterUid: 'user_specialist',
+          })
+      );
+    });
+
+    it('rejects creates from read-only roles, forged requesters, or non-available statuses', async () => {
+      await assertFails(authed().doc(recommendationPath).set(recommendationPayload));
+      await assertFails(editor().doc(recommendationPath).set(recommendationPayload));
+      await assertFails(unauth().doc(recommendationPath).set(recommendationPayload));
+      await assertFails(
+        doctor()
+          .doc(recommendationPath)
+          .set({ ...recommendationPayload, requesterUid: 'user_admin' })
+      );
+      await assertFails(
+        doctor()
+          .doc(recommendationPath)
+          .set({ ...recommendationPayload, status: 'accepted' })
+      );
+      await assertFails(
+        doctor()
+          .doc(recommendationPath)
+          .set({ ...recommendationPayload, forgedExtra: 'x' })
+      );
+    });
+
+    it('allows only atomic available-to-terminal transitions stamped by the resolver', async () => {
+      await setupDoc(doctor(), recommendationPath, recommendationPayload);
+      const resolvedAt = new Date(NOW_MS + 1000).toISOString();
+
+      await assertSucceeds(
+        doctor()
+          .doc(recommendationPath)
+          .update({ status: 'accepted', resolvedAt, resolvedByUid: 'user_doctor' })
+      );
+    });
+
+    it('rejects transitions that touch other fields, skip stamping, or start from a terminal status', async () => {
+      await setupDoc(doctor(), recommendationPath, recommendationPayload);
+      const resolvedAt = new Date(NOW_MS + 1000).toISOString();
+
+      await assertFails(
+        doctor()
+          .doc(recommendationPath)
+          .update({ status: 'accepted', resolvedAt, resolvedByUid: 'user_doctor', candidates: [] })
+      );
+      await assertFails(
+        doctor()
+          .doc('hospitals/H1/specialtyRecommendations/rec-1')
+          .update({ status: 'discarded', resolvedAt, resolvedByUid: 'user_admin' })
+      );
+
+      await setupDocBypass('hospitals/H1/specialtyRecommendations/rec-terminal', {
+        ...recommendationPayload,
+        recommendationId: 'rec-terminal',
+        status: 'accepted',
+        resolvedAt,
+        resolvedByUid: 'user_doctor',
+      });
+      await assertFails(
+        doctor()
+          .doc('hospitals/H1/specialtyRecommendations/rec-terminal')
+          .update({ status: 'discarded', resolvedAt, resolvedByUid: 'user_doctor' })
+      );
+    });
+
+    it('recommendations are readable by clinical roles, never deletable, and invisible unauthenticated', async () => {
+      await setupDoc(doctor(), recommendationPath, recommendationPayload);
+
+      await assertSucceeds(nurse().doc(recommendationPath).get());
+      await assertSucceeds(authed().doc(recommendationPath).get());
+      await assertFails(unauth().doc(recommendationPath).get());
+      await assertFails(admin().doc(recommendationPath).delete());
+      await assertFails(doctor().doc(recommendationPath).delete());
+    });
+  });
 }

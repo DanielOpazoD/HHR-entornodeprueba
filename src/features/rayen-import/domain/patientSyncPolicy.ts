@@ -1,5 +1,6 @@
 import type { FieldChange } from '../contracts/censusImportDiff';
 import type { PatientData } from '../contracts/rayenDomainContracts';
+import { isLockedAssignment } from '@/domain/specialtyAssignment/contracts';
 
 /** PatientData fields that the sync is allowed to source from Rayen. */
 const SYNCABLE_FIELDS: Array<keyof PatientData> = [
@@ -38,7 +39,15 @@ export const diffSyncablePatientFields = (
     if ((field === 'cie10Code' || field === 'cie10Description') && !incoming.cie10Code) continue;
     // Specialty is locally curated in HHR. Rayen may fill an empty value for a new/legacy patient,
     // but a physician change must never replace a specialty already selected by the user.
-    if (field === 'specialty' && (String(current.specialty ?? '').trim() || !incoming.specialty))
+    // Una decisión de episodio confirmada (manual, automática o legacy
+    // protegida) tampoco puede ser sobrescrita por la sincronización — incluso
+    // una selección manual VACÍA sigue siendo una decisión manual.
+    if (
+      field === 'specialty' &&
+      (String(current.specialty ?? '').trim() ||
+        !incoming.specialty ||
+        isLockedAssignment(current.specialtyAssignment))
+    )
       continue;
     // No Rayen assignment is not authoritative enough to erase a name-only physician selected
     // manually in HHR. Rayen-backed identities still follow the source when it removes them.

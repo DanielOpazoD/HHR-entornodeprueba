@@ -17,6 +17,10 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
+import { isFeatureEnabled } from '@/services/utils/featureFlags';
+import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
+import { buildManualSpecialtySelectionFields } from '@/services/specialty/specialtyAssignmentCommands';
+import { deriveSpecialtyAssignment } from '@/domain/specialtyAssignment/contracts';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -53,6 +57,89 @@ interface ExecuteBedManagementActionInput {
 }
 
 const MULTIPLE_PATIENT_AUDIT_FIELD_PRIORITY = ['rut', 'patientName'];
+
+/**
+ * Estampa la decisión de especialidad (`specialtyAssignment`, estado
+ * `manual_locked`) en los gestos del usuario que escriben `specialty`:
+ *
+ * - Campo único (chip/select explícito) → siempre estampa: elegir de nuevo
+ *   el mismo texto también convierte el origen a manual.
+ * - `*_MULTIPLE` que incluye `specialty` → solo cuando el valor cambia: un
+ *   guardado de diagnóstico/demografía que reenvía el mismo texto no es una
+ *   decisión de especialidad y no debe convertir una legacy ni una
+ *   automática a manual.
+ *
+ * Apagado por defecto (flag `SPECIALTY_EPISODE_ASSIGNMENT`). Sin usuario
+ * autenticado no se estampa — el servidor rechazaría un `decidedByUserId`
+ * que no coincide con el actor verificado.
+ */
+const stampManualSpecialtyAssignment = (
+  action: BedAction,
+  currentRecord: DailyRecord
+): BedAction => {
+  if (!isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')) return action;
+  const actorUid = defaultAuthRuntime.getCurrentUser()?.uid?.trim();
+  if (!actorUid) return action;
+
+  const stamp = (
+    patient: PatientData | undefined,
+    fields: Partial<PatientData>,
+    alwaysStamp: boolean
+  ): Partial<PatientData> => {
+    if (!patient || !Object.prototype.hasOwnProperty.call(fields, 'specialty')) return fields;
+    if (Object.prototype.hasOwnProperty.call(fields, 'specialtyAssignment')) return fields;
+    const nextValue = String(fields.specialty ?? '');
+    const unchanged = nextValue === String(patient.specialty ?? '');
+    if (!alwaysStamp && unchanged) return fields;
+    if (unchanged && deriveSpecialtyAssignment(patient).state === 'pending') return fields;
+    const built = buildManualSpecialtySelectionFields(patient, {
+      value: nextValue,
+      actorUid,
+      operationId: `spec-${crypto.randomUUID()}`,
+      decidedAt: new Date().toISOString(),
+      selectionOrigin: 'direct',
+    });
+    if (!built.ok) return fields;
+    return {
+      ...fields,
+      specialty: built.fields.specialty,
+      specialtyAssignment: built.fields.specialtyAssignment,
+    };
+  };
+
+  switch (action.type) {
+    case 'UPDATE_PATIENT': {
+      if (action.field !== 'specialty') return action;
+      const fields = stamp(
+        currentRecord.beds[action.bedId],
+        { specialty: action.value as PatientData['specialty'] },
+        true
+      );
+      return { type: 'UPDATE_PATIENT_MULTIPLE', bedId: action.bedId, fields };
+    }
+    case 'UPDATE_PATIENT_MULTIPLE':
+      return {
+        ...action,
+        fields: stamp(currentRecord.beds[action.bedId], action.fields, false),
+      };
+    case 'UPDATE_CLINICAL_CRIB': {
+      if (action.field !== 'specialty') return action;
+      const fields = stamp(
+        currentRecord.beds[action.bedId]?.clinicalCrib,
+        { specialty: action.value as PatientData['specialty'] },
+        true
+      );
+      return { type: 'UPDATE_CLINICAL_CRIB_MULTIPLE', bedId: action.bedId, fields };
+    }
+    case 'UPDATE_CLINICAL_CRIB_MULTIPLE':
+      return {
+        ...action,
+        fields: stamp(currentRecord.beds[action.bedId]?.clinicalCrib, action.fields, false),
+      };
+    default:
+      return action;
+  }
+};
 
 // Sobre clínico = CONTRATO ÚNICO de autoridad: la misma definición que usan
 // el enrutamiento, el aplanador y las functions. La divergencia histórica de
@@ -273,7 +360,8 @@ export const executeBedManagementAction = async ({
   )
     return false;
 
-  const validatedAction = validateAction(action, validation);
+  const stampedAction = stampManualSpecialtyAssignment(action, currentRecord);
+  const validatedAction = validateAction(stampedAction, validation);
   if (!validatedAction) {
     return false;
   }

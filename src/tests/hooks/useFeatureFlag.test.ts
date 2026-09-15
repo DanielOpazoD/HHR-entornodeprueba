@@ -94,6 +94,9 @@ describe('useAllFeatureFlags', () => {
       ENABLE_EMAIL_NOTIFICATIONS: true,
       VERBOSE_LOGGING: false,
       SHOW_PERFORMANCE_METRICS: false,
+      SPECIALTY_EPISODE_ASSIGNMENT: false,
+      SPECIALTY_RULES_MEMORY: false,
+      SPECIALTY_AI_RECOMMENDATION: false,
     };
 
     vi.mocked(featureFlags.getAll).mockReturnValue(flagsSnapshot);
