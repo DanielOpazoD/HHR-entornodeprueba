@@ -240,7 +240,7 @@
     "@tanstack/react-virtual": "^3.13.13",
     "@types/file-saver": "^2.0.7",
     "clsx": "^2.1.1",
-    "dexie": "^4.2.1",
+    "dexie": "^4.4.6",
     "docx": "^9.5.1",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
