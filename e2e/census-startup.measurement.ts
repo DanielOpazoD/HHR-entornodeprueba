@@ -303,9 +303,10 @@ test(`census startup ${smoke ? '@smoke NOT_VALID_BASELINE' : '@measurement'} (${
     body: JSON.stringify(report),
     contentType: 'application/json',
   });
-  if (!smoke)
-    expect(
-      report.violations,
-      'Structural/baseline gate; existing absolute budgets only for production'
-    ).toEqual([]);
+  expect(
+    report.violations,
+    smoke
+      ? 'PR screening gate; existing absolute budgets only for production'
+      : 'Structural/baseline gate; existing absolute budgets only for production'
+  ).toEqual([]);
 });

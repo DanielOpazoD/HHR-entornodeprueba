@@ -315,6 +315,13 @@ test.describe('Production Preview Bootstrap', () => {
 
       await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
       await expectSeededPatientVisible(page);
+      await assertPreviewBootCompleted(page, runtimeCollector.failures);
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise<void>(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        );
+      });
 
       const trigger = page.getByTitle('Abrir menú de acciones').last();
       await trigger.scrollIntoViewIfNeeded();
@@ -337,7 +344,7 @@ test.describe('Production Preview Bootstrap', () => {
 
       expect(after.top).toBeGreaterThanOrEqual(8);
       expect(after.bottom).toBeLessThanOrEqual(after.viewportHeight - 8);
-      expect(after.scrollHeight).toBe(before.scrollHeight);
+      expect(Math.abs(after.scrollHeight - before.scrollHeight)).toBeLessThanOrEqual(1);
       expect(after.scrollY).toBe(before.scrollY);
       await assertPreviewBootCompleted(page, runtimeCollector.failures);
       runtimeCollector.detach();

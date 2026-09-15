@@ -2,10 +2,15 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 const read = (path: string) => fs.readFileSync(path, 'utf8');
 describe('census measurement release gate', () => {
-  it('requires both environments, 30 samples, and the aggregate strict CI result', () => {
+  it('uses short PR screening, full push measurements, and the aggregate strict CI result', () => {
     const workflow = read('.github/workflows/ci-cd.yml');
     expect(workflow).toContain('environment: [development, production]');
-    expect(workflow).toContain("CENSUS_PERF_SAMPLES: '30'");
+    expect(workflow).toContain(
+      "CENSUS_PERF_SAMPLES: ${{ github.event_name == 'pull_request' && '5' || '30' }}"
+    );
+    expect(workflow).toContain(
+      "CENSUS_PERF_SMOKE: ${{ github.event_name == 'pull_request' && '1' || '0' }}"
+    );
     expect(workflow).toContain('run: npm run test:census-performance-report');
     expect(workflow).toContain('run: npm run test:e2e:census-performance');
     expect(workflow).toContain(
@@ -14,6 +19,11 @@ describe('census measurement release gate', () => {
     expect(workflow).toContain('"census-startup-performance:$CENSUS_PERFORMANCE_RESULT"');
     const summary = workflow.split('  ci-strict-summary:')[1].split('    env:')[0];
     expect(summary).toContain('census-startup-performance,');
+  });
+  it('keeps absolute production budgets blocking during short PR screening', () => {
+    const spec = read('e2e/census-startup.measurement.ts');
+    expect(spec).toContain("smoke\n      ? 'PR screening gate;");
+    expect(spec).not.toContain('if (!smoke)\n    expect(\n      report.violations');
   });
   it('does not erase slow samples via retries or mix production secrets with fixtures', () => {
     const config = read('playwright.census-performance.config.ts');

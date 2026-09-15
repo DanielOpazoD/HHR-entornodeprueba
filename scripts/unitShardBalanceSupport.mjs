@@ -168,6 +168,20 @@ export const estimateDurationByFile = ({ root = process.cwd(), files, config, me
   return durationByFile;
 };
 
+export const normalizePersistedDurationByFile = (report, config = {}) => {
+  const persisted = report?.durationByFile || {};
+  const persistedOverheadMs = Number(
+    report?.summary?.perFileOverheadMs ?? config?.perFileOverheadMs ?? 0
+  );
+
+  return Object.fromEntries(
+    Object.entries(persisted).map(([file, duration]) => [
+      file,
+      Math.max(1, Number(duration || 0) - persistedOverheadMs),
+    ])
+  );
+};
+
 const buildAffinityItems = ({ files, config, durationByFile, lockedFiles }) => {
   const remaining = new Set(files.filter(file => !lockedFiles.has(file)));
   const items = [];
@@ -405,8 +419,9 @@ export const buildUnitShardRuntimeProfile = ({
 export const buildUnitShardBalanceReport = root => {
   const config = loadUnitShardBalanceConfig(root);
   const files = discoverUnitTestFiles(root, config);
+  const persistedProfile = safeReadJson(root, REPORT_PATH);
   const measuredDurations = {
-    ...(safeReadJson(root, REPORT_PATH)?.durationByFile || {}),
+    ...normalizePersistedDurationByFile(persistedProfile, config),
     ...readVitestJsonDurations(root, RAW_VITEST_PROFILE_PATH),
   };
   const profile = buildUnitShardRuntimeProfile({
