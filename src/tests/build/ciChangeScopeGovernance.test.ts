@@ -31,6 +31,9 @@ describe('CI change scope governance', () => {
     expect(workflow).toContain('name: docs-scope-gate');
     expect(workflow).toContain('name: functions-scope-gate');
     expect(workflow).toContain('npx vitest run src/tests/functions');
+    expect(workflow).toContain('src/tests/build/firebaseFunctionDeployVerification.test.ts');
+    expect(workflow).toContain('src/tests/build/firebaseFunctionDeleteResult.test.ts');
+    expect(workflow).toContain('src/tests/build/firebaseFunctionRegionVerification.test.ts');
     expect(workflow).toContain('npm run check:serverless-sensitive-coverage');
     expect(workflow).toContain('npm --prefix functions run check:clinical-pdf-runtime');
     expect(workflow).toContain(

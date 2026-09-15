@@ -119,6 +119,7 @@ jobs:
           npx vitest run src/tests/functions
           src/tests/build/firebaseFunctionDeployVerification.test.ts
           src/tests/build/firebaseFunctionDeleteResult.test.ts
+          src/tests/build/firebaseFunctionRegionVerification.test.ts
 
       - name: Validate serverless contracts and runtime scripts
         if: needs.ci-scope.outputs.scope == 'functions-only'
