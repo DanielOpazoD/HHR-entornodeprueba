@@ -81,11 +81,58 @@ jobs:
         if: needs.ci-scope.outputs.scope == 'docs-only'
         run: npm run check:docs-drift && npm run check:operational-runbooks
 
+  functions-scope-gate:
+    name: functions-scope-gate
+    runs-on: ubuntu-latest
+    needs: [ci-scope]
+
+    steps:
+      - name: Record non-functions CI scope
+        if: needs.ci-scope.outputs.scope != 'functions-only'
+        run: echo "Functions-only validation is not active for this change."
+
+      - name: Checkout code
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Install application test dependencies
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        run: npm ci
+
+      - name: Install Firebase Functions dependencies
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        run: npm ci --prefix functions
+
+      - name: Run Firebase Functions tests
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        run: >-
+          npx vitest run src/tests/functions
+          src/tests/build/firebaseFunctionDeployVerification.test.ts
+          src/tests/build/firebaseFunctionDeleteResult.test.ts
+          src/tests/build/firebaseFunctionRegionVerification.test.ts
+
+      - name: Validate serverless contracts and runtime scripts
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        run: |
+          npm run check:serverless-sensitive-coverage
+          npm run check:serverless-runtime-governance
+          npm --prefix functions run check:clinical-pdf-runtime
+
   critical-coverage-report:
     name: critical-coverage-report
     runs-on: ubuntu-latest
     needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope != 'docs-only'
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -115,7 +162,7 @@ jobs:
     name: quality-static-base
     runs-on: ubuntu-latest
     needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope != 'docs-only'
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -280,7 +327,7 @@ jobs:
     name: clinical-sync-release-gate
     runs-on: ubuntu-latest
     needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope != 'docs-only'
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -321,7 +368,7 @@ jobs:
     name: unit-risk-shard-${{ matrix.shard }}
     runs-on: ubuntu-latest
     needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope != 'docs-only'
+    if: needs.ci-scope.outputs.scope == 'full'
     strategy:
       fail-fast: false
       matrix:
@@ -396,7 +443,7 @@ jobs:
     name: rules-emulator
     runs-on: ubuntu-latest
     needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope != 'docs-only'
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -433,7 +480,7 @@ jobs:
     name: e2e-critical
     runs-on: ubuntu-latest
     needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope != 'docs-only'
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -631,7 +678,7 @@ jobs:
     name: census-startup-performance (${{ matrix.environment }})
     runs-on: ubuntu-latest
     needs: [ci-scope]
-    if: needs.ci-scope.outputs.scope != 'docs-only'
+    if: needs.ci-scope.outputs.scope == 'full'
     # Ceiling for a pathologically slow startup, not an expectation.
     # Observed: production ~4 min, development ~13 min.
     timeout-minutes: 80
@@ -759,6 +806,7 @@ jobs:
       [
         ci-scope,
         docs-scope-gate,
+        functions-scope-gate,
         quality-static,
         unit-risk,
         clinical-sync-release-gate,
@@ -773,6 +821,7 @@ jobs:
       CI_SCOPE_RESULT: ${{ needs['ci-scope'].result }}
       CI_SCOPE: ${{ needs['ci-scope'].outputs.scope }}
       DOCS_SCOPE_GATE_RESULT: ${{ needs['docs-scope-gate'].result }}
+      FUNCTIONS_SCOPE_GATE_RESULT: ${{ needs['functions-scope-gate'].result }}
       QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
       UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
       CLINICAL_SYNC_RESULT: ${{ needs['clinical-sync-release-gate'].result }}
@@ -788,13 +837,13 @@ jobs:
         run: |
           failures=0
 
-          if [[ "$CI_SCOPE_RESULT" != "success" || "$DOCS_SCOPE_GATE_RESULT" != "success" ]]; then
-            echo "::error::CI scope classification or documentation validation did not pass."
+          if [[ "$CI_SCOPE_RESULT" != "success" || "$DOCS_SCOPE_GATE_RESULT" != "success" || "$FUNCTIONS_SCOPE_GATE_RESULT" != "success" ]]; then
+            echo "::error::CI scope classification or focused validation did not pass."
             exit 1
           fi
 
           expected_result="success"
-          if [[ "$CI_SCOPE" == "docs-only" ]]; then
+          if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" ]]; then
             expected_result="skipped"
           fi
 
