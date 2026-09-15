@@ -237,7 +237,7 @@
     "@google/genai": "^1.52.0",
     "@netlify/blobs": "11.0.3",
     "@tanstack/react-query": "^5.102.8",
-    "@tanstack/react-virtual": "^3.13.13",
+    "@tanstack/react-virtual": "^3.14.13",
     "@types/file-saver": "^2.0.7",
     "clsx": "^2.1.1",
     "dexie": "^4.4.6",
