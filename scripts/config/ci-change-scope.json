@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "maxFiles": 50,
+  "docsOnly": {
+    "directories": ["docs/**"],
+    "rootFiles": [
+      "ARCHITECTURE.md",
+      "CHANGELOG.md",
+      "CONTRIBUTING.md",
+      "PROJECT_STATUS.md",
+      "README.md"
+    ],
+    "excluded": ["docs/api/**"]
+  },
+  "functionsOnly": {
+    "directories": ["functions/**"],
+    "supportFiles": [
+      "scripts/check-deployed-firebase-functions.mjs",
+      "scripts/check-firebase-function-delete-result.mjs",
+      "scripts/check-firebase-function-regions.mjs",
+      "scripts/list-firebase-function-targets.mjs"
+    ],
+    "excluded": ["functions/package.json", "functions/package-lock.json"]
+  }
+}
