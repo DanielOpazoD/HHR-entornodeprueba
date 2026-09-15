@@ -9,6 +9,8 @@ const runGitCommand = (root, command) =>
 // list aligned with the tracked report artifacts that any CI flow rewrites
 // before `check:report-freshness` runs.
 const GENERATED_REPORT_STATUS_SUFFIXES = new Set([
+  'reports/bundle-risk-ledger.json',
+  'reports/bundle-risk-ledger.md',
   'reports/clinical-release-validation.json',
   'reports/clinical-release-validation.md',
   'reports/clinical-release-signoff.json',

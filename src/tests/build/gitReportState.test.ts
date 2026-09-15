@@ -27,6 +27,8 @@ describe('gitReportState', () => {
           ' M reports/release-confidence-matrix.json',
           ' M reports/release-readiness-scorecard.md',
           ' M reports/maintenance-debt-scorecard.json',
+          ' M reports/bundle-risk-ledger.json',
+          ' M reports/bundle-risk-ledger.md',
           ' M reports/sync-convergence.json',
           ' M reports/sync-convergence.md',
         ].join('\n')

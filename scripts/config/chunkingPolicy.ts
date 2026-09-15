@@ -66,12 +66,11 @@ export const chunkForModule = (moduleId: string): string | undefined => {
         return 'vendor-firebase-firestore';
       }
 
-      if (
-        has('/node_modules/firebase/storage') ||
-        has('/node_modules/firebase/functions') ||
-        has('/node_modules/@firebase/storage') ||
-        has('/node_modules/@firebase/functions')
-      ) {
+      if (has('/node_modules/firebase/functions') || has('/node_modules/@firebase/functions')) {
+        return 'vendor-firebase-functions';
+      }
+
+      if (has('/node_modules/firebase/storage') || has('/node_modules/@firebase/storage')) {
         return 'vendor-firebase-aux';
       }
 

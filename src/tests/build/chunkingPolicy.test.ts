@@ -422,6 +422,9 @@ describe('chunkingPolicy', () => {
     expect(chunkForModule('/repo/node_modules/firebase/storage/dist/index.mjs')).toBe(
       'vendor-firebase-aux'
     );
+    expect(chunkForModule('/repo/node_modules/firebase/functions/dist/index.mjs')).toBe(
+      'vendor-firebase-functions'
+    );
     expect(chunkForModule('/repo/node_modules/jspdf/dist/jspdf.es.min.js')).toBe('vendor-pdf-core');
     expect(chunkForModule('/repo/node_modules/pdfjs-dist/legacy/build/pdf.mjs')).toBe(
       'vendor-pdfjs'

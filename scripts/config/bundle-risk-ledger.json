@@ -2,6 +2,23 @@
   "policyVersion": "2026-06-v1",
   "surfaces": [
     {
+      "id": "vendor-firebase-functions",
+      "owner": "firebase-runtime/functions",
+      "workflow": "Callable Firebase Functions",
+      "loadReason": "Callable Functions cannot complete offline, so their isolated SDK runtime is fetched only when an online workflow requests it.",
+      "thresholdLabel": "30,000 bytes network-only vendor budget",
+      "chunkBudgetPattern": "^vendor-firebase-functions-.*\\.js$",
+      "precacheIgnoredPattern": "^assets/vendor-firebase-functions-.*\\.js$",
+      "releasePosture": "Keep Functions isolated, on demand and outside install-time precache; Firebase app, auth, Firestore and Storage remain cached.",
+      "guardrails": [
+        "check:bundle-budget",
+        "check:chunk-graph",
+        "src/tests/build/chunkingPolicy.test.ts",
+        "src/tests/build/pwaPrecachePolicy.test.ts"
+      ],
+      "nextAction": "Revisit only if an offline-capable workflow gains a local Functions substitute or the dedicated chunk crosses its limit."
+    },
+    {
       "id": "vendor-heic2any",
       "owner": "prescriptions/runtime",
       "workflow": "HEIC/HEIF prescription photo conversion",

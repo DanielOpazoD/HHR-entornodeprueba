@@ -33,7 +33,8 @@
 ## Vendor strategy
 
 - `vendor-firebase-core`: `firebase/app`, `firebase/auth` y módulos base acoplados al arranque.
-- `vendor-firebase-aux`: storage/functions, cargados solo cuando se necesitan capacidades auxiliares.
+- `vendor-firebase-aux`: Storage, conservado en el precache para que los módulos que presentan adjuntos puedan cargar su runtime aun cuando la conectividad se degrade.
+- `vendor-firebase-functions`: callable Functions, aislado y fuera del precache porque toda invocación requiere red. El chunk mantiene un presupuesto propio y vuelve a descargarse bajo demanda.
 - `vendor-firebase-firestore`: Firestore queda separado del core, pero no se debe separar `auth` del core mientras ambos sigan importándose mutuamente en el bundle generado.
 - `vendor-pdf` y `vendor-excel-*`: la generación documental y exportaciones deben seguir siendo capacidades lazy y aisladas del shell principal.
 
@@ -45,3 +46,9 @@
 - Run `npm run test:e2e:preview:census-bootstrap:built` after the build when the change touches startup, Firebase or lazy-loading seams.
 - Run the focused test `vitest run src/tests/build/chunkingPolicy.test.ts`.
 - Inspect the built assets and confirm there is no two-way import between runtime chunks, especially any `vendor-*` chunk importing back into a feature chunk.
+
+## Firebase update boundary
+
+- Firebase 12.14.0 es el último minor validado dentro de los presupuestos actuales. Incluye el reintento de disponibilidad de IndexedDB en Auth y mejoras de robustez del listen stream de Firestore.
+- Firebase 12.15.0 y posteriores incorporan `re2js` en Firestore. En la medición local de 12.19.0, `vendor-firebase-firestore` creció de aproximadamente 402 KB a 594 KB y superó tanto su presupuesto dedicado como el límite de precache.
+- No subir el límite ni excluir Firestore del precache para aceptar ese crecimiento: Firestore forma parte del runtime clínico offline. Reintentar el upgrade cuando el SDK permita eliminar ese código mediante tree shaking o cuando una actualización reduzca el chunk dentro de los límites vigentes.
