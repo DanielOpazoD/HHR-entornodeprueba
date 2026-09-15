@@ -7,7 +7,9 @@ import {
   resolveUpcBadgeColor,
 } from '@/domain/upc/upcClassification';
 import type { UpcClassification } from '@/domain/upc/upcClassification';
-import { UPC_CHECKLIST_PANEL_WIDTH } from '@/features/census/controllers/upcChecklistPopoverController';
+
+/** Width of the evaluation panel, shared by the day window that embeds it. */
+export const UPC_CHECKLIST_PANEL_WIDTH = 520;
 
 interface UpcChecklistPanelProps {
   draftUci: ReadonlySet<string>;

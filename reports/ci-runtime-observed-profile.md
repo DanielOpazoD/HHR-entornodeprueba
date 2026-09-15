@@ -1,12 +1,12 @@
 # CI Runtime Observed Profile
 
-- Generated: 2026-09-01T19:30:24.026Z
-- Git SHA: `ea5bd8f0`
+- Generated: 2026-09-15T21:49:44.019Z
+- Git SHA: `d49aaced`
 - Worktree dirty: `true`
 - Source: `github-actions`
 - Repository: `DanielOpazoD/HHR-ServicioHospitalizados`
 - Run: `28767128242`
-- Input: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/ci-runtime-observed-d1fb265b-0633-474a-91cd-4429a2550409.json`
+- Input: `/var/folders/6c/jzmkty3d3zdc1p13lrvwgm7m0000gn/T/ci-runtime-observed-2ba8024f-91e3-4db7-ac99-9bc783f0360b.json`
 - Status: `observed_ci_data`
 - Observed shards: 4/4
 - Spread: 16.4% (tolerance 25%)
@@ -28,22 +28,18 @@
 
 Observed CI unit shard spread is within observed tolerance; keep monitoring trend data.
 
-## Estimated vs Observed
+## Estimated vs Observed Workload Share
 
-| Shard | Estimated | Observed | Ratio |
+Estimated durations are relative assignment weights; observed durations include full CI job overhead. Balance decisions use each shard share of its respective total.
+
+| Shard | Estimated share | Observed share | Relative ratio |
 | ---: | ---: | ---: | ---: |
-| 1 | 1.1m | 3.9m | 349.8% |
-| 2 | 1.1m | 3.4m | 300.4% |
-| 3 | 1.1m | 3.5m | 318.4% |
-| 4 | 1.1m | 3.4m | 303.4% |
+| 1 | 25% | 27.5% | 110% |
+| 2 | 25% | 23.6% | 94.5% |
+| 3 | 25% | 25% | 100.1% |
+| 4 | 25% | 23.9% | 95.4% |
 
 - Estimated total: 4.5m
 - Observed total: 14.2m
 - Total ratio: 318%
 
-## Advisory Findings
-
-- Observed shard 1 runtime is 349.8% of the estimated duration.
-- Observed shard 2 runtime is 300.4% of the estimated duration.
-- Observed shard 3 runtime is 318.4% of the estimated duration.
-- Observed shard 4 runtime is 303.4% of the estimated duration.

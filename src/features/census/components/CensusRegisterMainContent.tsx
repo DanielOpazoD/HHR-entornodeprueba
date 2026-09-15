@@ -3,6 +3,7 @@ import type { BedDefinition } from '@/features/census/contracts/censusBedContrac
 import type { DailyRecord } from '@/features/census/contracts/censusRecordContracts';
 import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { CensusTable } from './CensusTable';
+import { UpcClassificationWindowProvider } from './patient-row/UpcClassificationWindowContext';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 
@@ -26,12 +27,14 @@ export const CensusRegisterMainContent: React.FC<CensusRegisterMainContentProps>
   onClearAttentionFilter,
 }) => (
   <SectionErrorBoundary sectionName="Tabla de Pacientes" fallbackHeight="400px">
-    <CensusTable
-      currentDateString={currentDateString}
-      readOnly={readOnly}
-      accessProfile={accessProfile}
-      attentionFilter={attentionFilter}
-      onClearAttentionFilter={onClearAttentionFilter}
-    />
+    <UpcClassificationWindowProvider currentDateString={currentDateString} readOnly={readOnly}>
+      <CensusTable
+        currentDateString={currentDateString}
+        readOnly={readOnly}
+        accessProfile={accessProfile}
+        attentionFilter={attentionFilter}
+        onClearAttentionFilter={onClearAttentionFilter}
+      />
+    </UpcClassificationWindowProvider>
   </SectionErrorBoundary>
 );
