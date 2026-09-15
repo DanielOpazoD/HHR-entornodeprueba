@@ -188,9 +188,11 @@ clínicos en esa telemetría.
 - **Camas:** `Habitacion N`+`Cn`→`H{N}C{n}`; `Recuperacion k`/`Rk`→`Rk` (UTI); `Neo k`→`NEOk`.
   Las ubicaciones `B1UEA`/`B2UEA`/`B3UEA` de Hospitalización de Urgencias se representan como
   `BOX1`/`BOX2`/`BOX3`: son camas extra activadas por ocupación y nunca se ofrecen vacías como
-  disponibilidad manual. Al copiar el día, una ocupación vigente se conserva hasta que una
-  conciliación segura confirme su egreso o traslado; HHR no oculta pacientes sólo por ausencia o
-  ambigüedad de una captura.
+  disponibilidad manual. Su `location` ("servicio / sala / cama", p. ej. `AMQI / B1UEA`) la escribe
+  la conciliación, por lo que la celda de cama no muestra el editor manual ámbar de ubicación que
+  sí conservan las camas extra `E1`–`E5`. Al copiar el día, una ocupación vigente se conserva hasta
+  que una conciliación segura confirme su egreso o traslado; HHR no oculta pacientes sólo por
+  ausencia o ambigüedad de una captura.
 - **CMA = tipo de egreso, no ubicación:** un paciente del servicio CMA (`CMA*`) ocupa la misma
   cama real (`CMAR1→R1`, `CMAN1→NEO1`, …); solo su egreso se traduce a tipo CMA (`record.cma[]`).
 - **Apply defensivo:** nunca sobrescribe una cama ocupada; reporta lo omitido (`skipped`).
