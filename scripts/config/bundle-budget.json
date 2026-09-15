@@ -20,6 +20,7 @@
     "^assets/fonasaDatabase-.*\\.js$",
     "^assets/clinicalDocumentTemplateEditorController-.*\\.js$",
     "^assets/vendor-heic2any-.*\\.js$",
+    "^assets/vendor-firebase-functions-.*\\.js$",
     "^assets/applyClinicalEnrichmentBatch-.*\\.js$",
     "^assets/applyHistoricalCudyr-.*\\.js$",
     "^assets/clinicalFillRunner-.*\\.js$",
@@ -78,6 +79,11 @@
     {
       "pattern": "^vendor-firebase-aux-.*\\.js$",
       "maxBytes": 120000
+    },
+    {
+      "pattern": "^vendor-firebase-functions-.*\\.js$",
+      "_comment": "Callable Functions are network-only and excluded from install-time precache. Keep their dedicated runtime bounded so dependency drift remains visible.",
+      "maxBytes": 30000
     },
     {
       "pattern": "^vendor-excel-(?!core-).*\\.js$",
