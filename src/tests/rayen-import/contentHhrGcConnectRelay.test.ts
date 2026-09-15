@@ -11,6 +11,10 @@ const repairBridgeSource = readFileSync(
   'utf8'
 );
 const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
+const healthPushOrderingSource = readFileSync(
+  path.resolve('extension/health-push-ordering-runtime.js'),
+  'utf8'
+);
 
 type PageMessage = { source: unknown; data: Record<string, unknown>; origin?: string };
 
@@ -69,6 +73,9 @@ const createHarness = (
     },
   });
   vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation.js' });
+  vm.runInContext(healthPushOrderingSource, context, {
+    filename: 'health-push-ordering-runtime.js',
+  });
   vm.runInContext(repairBridgeSource, context, {
     filename: 'content-hhr-connection-repair.js',
   });
@@ -85,6 +92,38 @@ const createHarness = (
 };
 
 describe('content-hhr · relé de conexión de Gestión de Camas', () => {
+  it('no retransmite a HHR una publicación de salud anterior que llega tarde', () => {
+    const { onRuntimeMessage, postMessage } = createHarness(vi.fn());
+
+    onRuntimeMessage?.(
+      {
+        type: 'RAYEN_EXTENSION_HEALTH_PUSH',
+        report: { version: '0.48.24' },
+        publicationSequence: 12,
+      },
+      {},
+      vi.fn()
+    );
+    onRuntimeMessage?.(
+      {
+        type: 'RAYEN_EXTENSION_HEALTH_PUSH',
+        report: { version: '0.48.24' },
+        publicationSequence: 11,
+      },
+      {},
+      vi.fn()
+    );
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH',
+        publicationSequence: 12,
+      }),
+      'http://localhost:3001'
+    );
+  });
+
   it('conserva el reqId del egreso en runtime y acepta sólo su respuesta correlacionada', async () => {
     const results = [{ run: '17.752.753-1', dischargeDate: '2026-09-13' }];
     const sendMessage = vi.fn(async () => ({ reqId: 'egreso-1', results }));

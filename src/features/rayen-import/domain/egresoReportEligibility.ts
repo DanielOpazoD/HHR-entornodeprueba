@@ -10,12 +10,15 @@ import {
   hasRecordedMovement,
   occupiedBedsByRun,
   occupiedClinicalCribsByRun,
+  reportPredatesAdmission,
   reportPredatesActiveAdmission,
   resolveActiveEpisode,
   toIsoDay,
+  type OccupiedBedEvidence,
 } from './egresoReportPolicy';
 import { appendReportConflict } from './egresoReportConflicts';
 import { resolveReportedOccupant } from './reportedOccupant';
+import { resolveReportBedId } from '../mapping/resolveReportBed';
 
 type EligibilityResult = {
   diff: CensusImportDiff;
@@ -26,6 +29,64 @@ export type PromotionCandidate = {
   principalRut?: string;
   patient: NonNullable<DailyRecord['beds'][string]>;
   source?: CensusImportDiff['admissions'][number]['source'];
+};
+
+/**
+ * Links an episode-less report row to the current local occupant only for an explicit bed
+ * turnover: the administrative row identifies that occupant by RUN and physical bed, its stamp
+ * follows the stored admission, and exactly one different patient is waiting for that same bed.
+ * The later apply still verifies the full stored occupant fingerprint before clearing the bed.
+ */
+const resolveLocalBedTurnoverEgreso = ({
+  diff,
+  row,
+  current,
+  stamp,
+  rowsSharingRun,
+  cribOccupied,
+}: {
+  diff: CensusImportDiff;
+  row: EgresoReportRow;
+  current?: OccupiedBedEvidence;
+  stamp: { iso: string; hhmm: string };
+  rowsSharingRun: number;
+  cribOccupied: boolean;
+}): EgresoReportRow | null => {
+  if (
+    !current?.clinicalEpisodeId?.trim() ||
+    cribOccupied ||
+    rowsSharingRun !== 1 ||
+    (row.encounterId?.trim() && row.encounterId.trim() !== current.clinicalEpisodeId) ||
+    normalizeRut(row.run) !== normalizeRut(current.rut) ||
+    resolveReportBedId(row.bedLabel) !== current.bedId ||
+    reportPredatesAdmission(stamp, current)
+  ) {
+    return null;
+  }
+
+  const hasDepartureSignal = diff.pendingAdministrativeDischarges.some(pending => {
+    if (pending.bedId !== current.bedId) return false;
+    const pendingEpisode = String(pending.encounterId ?? pending.source?.encounterId ?? '').trim();
+    return Boolean(pendingEpisode && pendingEpisode === current.clinicalEpisodeId);
+  });
+  if (!hasDepartureSignal) return null;
+
+  const replacements = diff.conflicts.filter(
+    conflict =>
+      conflict.code === 'occupied-local-bed' &&
+      conflict.bedId === current.bedId &&
+      Boolean(conflict.blockedAdmission)
+  );
+  if (replacements.length !== 1) return null;
+  const incomingRun = normalizeRut(replacements[0]?.blockedAdmission?.patient.rut);
+  const currentRun = normalizeRut(current.rut);
+  if (!incomingRun || !currentRun || incomingRun === currentRun) return null;
+
+  return {
+    ...row,
+    encounterId: current.clinicalEpisodeId,
+    exactEpisodeVerification: 'local-bed-turnover',
+  };
 };
 
 /**
@@ -119,6 +180,18 @@ export const selectEligibleEgresoRows = (
     const explainedByBed = (current ? 1 : 0) + (cribOccupied ? 1 : 0);
     const redundancyCandidate = Boolean(bedId) && rowsSharingRun <= explainedByBed;
     if (row.exactEpisodeVerification === 'unverified') {
+      const locallyLinked = resolveLocalBedTurnoverEgreso({
+        diff,
+        row,
+        current,
+        stamp,
+        rowsSharingRun,
+        cribOccupied,
+      });
+      if (locallyLinked) {
+        rows.push(locallyLinked);
+        continue;
+      }
       nextDiff = appendReportConflict(nextDiff, {
         bedId,
         ...(redundancyCandidate ? { code: 'unverified-report-row' as const } : {}),

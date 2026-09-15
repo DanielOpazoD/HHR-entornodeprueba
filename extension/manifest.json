@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.22",
+  "version": "0.48.24",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": [
     "tabs",
@@ -98,6 +98,7 @@
       ],
       "js": [
         "message-contract.js",
+        "health-push-ordering-runtime.js",
         "hhr-ui.js",
         "hhr-lab-request-styles.js",
         "hhr-center-styles.js",
@@ -147,6 +148,7 @@
         "message-contract.js",
         "bridge-generation.js",
         "gestion-camas-bridge-health.js",
+        "health-push-ordering-runtime.js",
         "hhr-connection-action-model.js",
         "gestion-camas-connection-indicator.js",
         "gestion-camas-connection-indicator-bootstrap.js",
@@ -175,6 +177,7 @@
       "js": [
         "message-contract.js",
         "bridge-generation.js",
+        "health-push-ordering-runtime.js",
         "content-hhr-sync-bundle.js",
         "content-hhr-connection-repair.js",
         "content-hhr.js",

@@ -137,6 +137,26 @@ describe('prepareRayenSyncTemporalContext', () => {
       validatePreparedRayenSyncContextAtCompletion(context, new Date('2026-08-09T20:00:00.000Z'))
     ).toMatchObject({ valid: false, reason: 'clinical_day_changed' });
   });
+
+  it('rejects a manually copied calendar-day capture when it crosses the morning handoff', async () => {
+    const record = recordFor('2026-09-15', '2026-09-15T10:50:00.000Z');
+    const context = await prepareRayenSyncTemporalContext({
+      displayedRecord: record,
+      runId: 'run-copied-day-crossed-handoff',
+      loadFreshRecord: vi.fn().mockResolvedValue(record),
+      now: () => new Date('2026-09-15T12:59:00.000Z'),
+    });
+
+    expect(context.target).toMatchObject({
+      kind: 'current',
+      calendarDay: '2026-09-15',
+      clinicalDay: '2026-09-14',
+      lookbackDays: 0,
+    });
+    expect(
+      validatePreparedRayenSyncContextAtCompletion(context, new Date('2026-09-15T13:01:00.000Z'))
+    ).toMatchObject({ valid: false, reason: 'clinical_day_changed' });
+  });
 });
 
 describe('prepareRayenSyncTemporalContext · techo de lectura', () => {

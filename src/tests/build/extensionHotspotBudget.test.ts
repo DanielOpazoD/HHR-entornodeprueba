@@ -65,7 +65,8 @@ describe('extension hotspot budget', () => {
     // 118: la cancelación de la captura sincronizada vive en su propio runtime.
     // 122: contrato, coordinador, router y relay cancelable del único documento compartido.
     // 126: paciente y estilos de la solicitud de exámenes extraídos del Centro.
-    expect(metrics.authoredFiles).toHaveLength(126);
+    // 127: orden monotónico compartido para publicaciones de salud entre pestañas.
+    expect(metrics.authoredFiles).toHaveLength(127);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,

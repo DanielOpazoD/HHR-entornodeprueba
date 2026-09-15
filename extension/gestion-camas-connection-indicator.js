@@ -1,9 +1,7 @@
 /** Compact, connection-only HHR surface for Gestión de Camas. */
 (function (root) {
   'use strict';
-
   if (root.HhrGestionCamasConnectionIndicator) return;
-
   const HOST_ID = 'hhr-gc-connection-indicator';
   const HEALTH_PUSH_TYPE = 'RAYEN_EXTENSION_HEALTH_PUSH';
 
@@ -26,6 +24,7 @@
     let requestEpoch = 0;
     let actionInFlight = false;
     let refreshInFlight = 0;
+    const healthPushOrdering = root.HhrHealthPushOrderingRuntime?.createReceiver?.() || { accept: () => false };
     const allowsUserAction = event => typeof isUserActivationAllowed === 'function'
       ? isUserActivationAllowed(event)
       : Boolean(event?.isTrusted && windowRef.navigator?.userActivation?.isActive);
@@ -193,7 +192,8 @@
     };
     const refreshOnWindowEvent = () => void refresh();
     const onRuntimeMessage = message => {
-      if (message && message.type === HEALTH_PUSH_TYPE && message.report) {
+      if (message && message.type === HEALTH_PUSH_TYPE && message.report &&
+          healthPushOrdering.accept(message)) {
         requestEpoch += 1;
         renderReport(message.report);
         if (actionModel.derive(message.report).action === 'none') {

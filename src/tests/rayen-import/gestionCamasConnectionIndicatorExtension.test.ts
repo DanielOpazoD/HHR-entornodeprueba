@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import '../../../extension/hhr-connection-action-model.js';
+import '../../../extension/health-push-ordering-runtime.js';
 import '../../../extension/gestion-camas-connection-indicator.js';
 
 type Indicator = { mount: () => boolean; refresh: () => Promise<unknown>; dispose: () => void };
@@ -149,6 +150,7 @@ describe('indicador de conexiones en Gestión de Camas', () => {
     getRuntimeListener()?.({
       type: 'RAYEN_EXTENSION_HEALTH_PUSH',
       report: expired,
+      publicationSequence: 1,
     });
     expect(part('.summary')?.textContent).toBe('Sesión vencida');
     expect(part('.feedback')?.textContent).toContain('Completa el inicio de sesión');
@@ -156,6 +158,7 @@ describe('indicador de conexiones en Gestión de Camas', () => {
     getRuntimeListener()?.({
       type: 'RAYEN_EXTENSION_HEALTH_PUSH',
       report: repaired,
+      publicationSequence: 2,
     });
     expect(part('.summary')?.textContent).toBe('Conectado');
     expect(part('.feedback')?.textContent).toBe('');
@@ -204,10 +207,36 @@ describe('indicador de conexiones en Gestión de Camas', () => {
     part<HTMLButtonElement>('.primary')?.click();
     await vi.waitFor(() => expect(healthRequests).toBe(3));
 
-    getRuntimeListener()?.({ type: 'RAYEN_EXTENSION_HEALTH_PUSH', report: report() });
+    getRuntimeListener()?.({
+      type: 'RAYEN_EXTENSION_HEALTH_PUSH',
+      report: report(),
+      publicationSequence: 1,
+    });
     pendingRefresh.resolve(expired);
     await vi.waitFor(() => expect(part('.summary')?.textContent).toBe('Conectado'));
     expect(part('.feedback')?.textContent).toBe('');
+  });
+
+  it('descarta un health push con una secuencia anterior aunque llegue al final', async () => {
+    const expired = report(
+      { status: 'stale', reason: 'session_expired', message: 'Sesión vencida.' },
+      { status: 'missing', reason: 'session_expired', message: 'Sesión vencida.' }
+    );
+    const { runtime, getRuntimeListener } = makeRuntime(async () => expired);
+    await runtime.refresh();
+
+    getRuntimeListener()?.({
+      type: 'RAYEN_EXTENSION_HEALTH_PUSH',
+      report: report(),
+      publicationSequence: 8,
+    });
+    getRuntimeListener()?.({
+      type: 'RAYEN_EXTENSION_HEALTH_PUSH',
+      report: expired,
+      publicationSequence: 7,
+    });
+
+    expect(part('.summary')?.textContent).toBe('Conectado');
   });
 
   it('deshabilita la acción anterior mientras obtiene un reporte fresco', async () => {

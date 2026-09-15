@@ -111,6 +111,13 @@ clínicos en esa telemetría.
 - **Autoridad de egreso:** epicrisis médica, epicrisis de enfermería y ausencia desde Ficha Médico son
   señales informativas; nunca vacían la cama por sí solas. Solo el reporte masivo de **Alta
   Administrativa** de Gestión de Camas crea el alta, traslado o CMA estadístico.
+- **Recambio secuencial de una cama:** si el reporte administrativo identifica el alta del ocupante
+  local y un ingreso distinto reclama esa misma cama, el diff aplica primero el alta y después el
+  ingreso. Una fila todavía no vinculada por las fuentes masivas solo puede resolver el bloqueo si
+  coincide con la cama y el RUN actuales, no antecede al ingreso, existe una señal administrativa
+  independiente para el `clinicalEpisodeId` exacto y hay un único reemplazo. Filas duplicadas, dos
+  reemplazos, una cuna clínica ocupada, otra cama o un episodio distinto mantienen el conflicto para
+  revisión. Al aplicar, se vuelve a exigir que el ocupante siga siendo el previsto.
 - **Inventario D al día vigente:** para un censo histórico, el reporte administrativo cubre desde
   el día solicitado hasta el día calendario actual inclusive (fin exclusivo: actual+1). Así también
   descubre episodios que ocupaban D pero egresaron varios días después. La hora se convierte de
@@ -214,6 +221,10 @@ clínicos en esa telemetría.
 - **Horizonte temporal acotado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
   promete retención ilimitada. D−1…D−7 combinan snapshot vivo, reporte administrativo, censo local
   y flujo oficial por episodio; el snapshot actual nunca proyecta por sí solo la cama vigente hacia atrás.
+- **Dos fechas vigentes antes del relevo:** antes de las 08:00 en día hábil o 09:00 en inhábil se
+  puede sincronizar tanto el día clínico aún activo como una copia manual del día calendario actual.
+  Al alcanzar exactamente el relevo, el día anterior pasa a histórico. Si una captura preparada
+  cruza ese límite, se invalida y debe repetirse con el nuevo contexto temporal.
 - **`moves` ≠ traslados:** `moves` = reubicación de cama dentro del censo; el traslado a otro hospital
   es un _tipo de egreso_ (`DischargeEntry.kind = 'traslado'`).
 

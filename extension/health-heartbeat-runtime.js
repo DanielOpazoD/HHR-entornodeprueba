@@ -1,24 +1,10 @@
-/**
- * health-heartbeat-runtime.js
- *
- * Empuja el reporte de salud de la extensión a las pestañas HHR abiertas sin
- * esperar a que la página pregunte (hoy solo consulta al montar, al enfocar o
- * al hacer clic). Dos disparadores:
- *   - un latido periódico con chrome.alarms (despierta al service worker MV3,
- *     que de otro modo duerme a los ~30 s), y
- *   - pushNow(reason) inmediato tras las transiciones de sesión de Gestión de
- *     Camas (captura, pestaña lista, desconexión).
- * El reporte es el mismo del canal request/response (sin datos clínicos ni
- * tokens); una pestaña sin content script simplemente ignora el envío.
- */
+/** Push ordenado de salud a HHR por alarma MV3 y tras transiciones de sesión. */
 (function (root) {
   'use strict';
-
   const HEALTH_PUSH_MESSAGE_TYPE = 'RAYEN_EXTENSION_HEALTH_PUSH';
-
   const create = ({
     chromeApi,
-    readHealth,
+    readHealth, invalidateHealth = () => undefined,
     targetMatchPatterns,
     alarmName = 'hhr-health-heartbeat',
     periodMinutes = 1,
@@ -35,13 +21,24 @@
           .flatMap(entry => entry.matches || [])
       )
     );
+    let pushGeneration = 0;
+    const nextPublicationSequence = root.HhrHealthPushOrderingRuntime
+      .createAllocator(chromeApi.storage && chromeApi.storage.session);
     const pushNow = async (reason, report = null) => {
+      const generation = ++pushGeneration;
+      invalidateHealth();
+      const publicationSequence = await nextPublicationSequence().catch(error => {
+        log('[HHR] El latido no pudo reservar el orden de publicación:', error);
+      });
+      if (!publicationSequence) return { pushed: 0 };
+      if (generation !== pushGeneration) return { pushed: 0 };
       try {
         report ||= await readHealth();
       } catch (error) {
         log('[HHR] El latido no pudo leer el estado de la extensión:', error);
         return { pushed: 0 };
       }
+      if (generation !== pushGeneration) return { pushed: 0 };
       let tabs = [];
       try {
         tabs = await chromeApi.tabs.query({
@@ -58,14 +55,17 @@
         log('[HHR] El latido no pudo enumerar pestañas HHR/Rayen:', error);
         return { pushed: 0 };
       }
+      if (generation !== pushGeneration) return { pushed: 0 };
       let pushed = 0;
       await Promise.all(
         tabs.map(async tab => {
+          if (generation !== pushGeneration) return;
           try {
             await chromeApi.tabs.sendMessage(tab.id, {
               type: HEALTH_PUSH_MESSAGE_TYPE,
               report,
               reason,
+              publicationSequence,
             });
             pushed += 1;
           } catch {

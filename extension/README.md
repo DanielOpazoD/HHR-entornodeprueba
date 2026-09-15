@@ -204,7 +204,7 @@ Los relés aislados admiten reinyección sin registrar dos veces sus escuchas.
 
 ### Estabilidad y reactivación de la conexión
 
-El estado de conexión se sostiene sobre cuatro reglas. Cambiarlas rompe la estabilidad, así que
+El estado de conexión se sostiene sobre seis reglas. Cambiarlas rompe la estabilidad, así que
 `src/tests/rayen-import/rayenConnectionTimingContract.test.ts` fija la relación entre los tiempos
 (no sus valores exactos, que se pueden ajustar mientras las desigualdades se cumplan).
 
@@ -226,6 +226,15 @@ El estado de conexión se sostiene sobre cuatro reglas. Cambiarlas rompe la esta
    recuperar, sin que el usuario tenga que enfocar la pestaña ni pulsar nada, y siempre alcanza a
    intentarlo varias veces dentro de la ventana de confianza. En paralelo, la extensión empuja su
    estado por latido periódico y ante cada transición de sesión.
+5. **Una transición invalida también los sondeos en curso.** El push de latido limpia la caché antes
+   de leer el nuevo estado. Si una comprobación anterior termina tarde, su resultado no repuebla la
+   caché ni se publica sobre el diagnóstico posterior. Así, abrir,
+   cerrar, recargar o cambiar de pestaña fuente no puede restaurar durante unos segundos un estado
+   que ya quedó obsoleto.
+6. **Los receptores conservan el orden de publicación.** Cada push recibe un contador monotónico
+   persistido en `chrome.storage.session`. HHR, Ficha Médico y Gestión de Camas recuerdan el último
+   contador aplicado y descartan duplicados o mensajes anteriores. Esto cubre el caso en que un
+   `tabs.sendMessage` antiguo ya había comenzado y termina después de una transición más nueva.
 
 Al instalar o actualizar la extensión, los relés de las pestañas ya abiertas quedan huérfanos:
 `relay-reinjection-runtime.js` los vuelve a inyectar y empuja el estado fresco de inmediato, de modo

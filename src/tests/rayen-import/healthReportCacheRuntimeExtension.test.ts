@@ -64,4 +64,29 @@ describe('health report cache runtime', () => {
     await expect(cache.read()).resolves.toEqual({ status: 'ready' });
     expect(readHealth).toHaveBeenCalledTimes(2);
   });
+
+  it('does not reuse or restore an in-flight report invalidated by a source transition', async () => {
+    const releases: Array<(value: unknown) => void> = [];
+    const readHealth = vi.fn(
+      () =>
+        new Promise(resolve => {
+          releases.push(resolve);
+        })
+    );
+    const cache = runtime.create({ readHealth });
+
+    const staleRead = cache.read();
+    await vi.waitFor(() => expect(readHealth).toHaveBeenCalledTimes(1));
+    cache.invalidate();
+    const freshRead = cache.read();
+    await vi.waitFor(() => expect(readHealth).toHaveBeenCalledTimes(2));
+
+    releases[1]?.({ checkedAt: 'fresh' });
+    await expect(freshRead).resolves.toEqual({ checkedAt: 'fresh' });
+    releases[0]?.({ checkedAt: 'stale' });
+    await expect(staleRead).resolves.toEqual({ checkedAt: 'stale' });
+
+    await expect(cache.read()).resolves.toEqual({ checkedAt: 'fresh' });
+    expect(readHealth).toHaveBeenCalledTimes(2);
+  });
 });

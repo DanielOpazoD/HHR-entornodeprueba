@@ -17,7 +17,7 @@ importScripts(
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
   'runtime-generation.js', 'connection-repair-runtime.js',
-  'health-report-cache-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
+  'health-report-cache-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
   'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
@@ -306,7 +306,7 @@ const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
   // Repair must probe the tabs it just opened; the 3 s cache would keep answering for the old ones.
   readHealth: targets => readExtensionHealthUncached(targets),
 });
-const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }) });
+const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }), invalidateHealth: healthReportCache.invalidate });
 healthHeartbeat.start();
 self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();
 // Al instalar/actualizar la extensión, los relés de las pestañas abiertas
