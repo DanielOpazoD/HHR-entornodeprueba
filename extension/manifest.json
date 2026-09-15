@@ -23,8 +23,7 @@
     "http://10.4.69.90/syslab/*",
     "http://localhost:3000/*",
     "http://localhost:3001/*",
-    "https://testinghhr.netlify.app/*",
-    "https://hhr-entornodeprueba.vercel.app/*"
+    "https://testinghhr.netlify.app/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -171,8 +170,7 @@
       "matches": [
         "http://localhost:3000/*",
         "http://localhost:3001/*",
-        "https://testinghhr.netlify.app/*",
-        "https://hhr-entornodeprueba.vercel.app/*"
+        "https://testinghhr.netlify.app/*"
       ],
       "js": [
         "message-contract.js",
