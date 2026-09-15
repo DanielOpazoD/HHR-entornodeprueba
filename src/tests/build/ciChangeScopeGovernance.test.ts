@@ -29,6 +29,10 @@ describe('CI change scope governance', () => {
     expect(workflow).toContain('node scripts/classify-ci-change-scope.mjs');
     expect(workflow).toContain('reason=trusted_classifier_unavailable');
     expect(workflow).toContain('name: docs-scope-gate');
+    expect(workflow).toContain('name: functions-scope-gate');
+    expect(workflow).toContain('npx vitest run src/tests/functions');
+    expect(workflow).toContain('npm run check:serverless-sensitive-coverage');
+    expect(workflow).toContain('npm --prefix functions run check:clinical-pdf-runtime');
     expect(workflow).toContain(
       'run: npm run check:docs-drift && npm run check:operational-runbooks'
     );
@@ -44,8 +48,8 @@ describe('CI change scope governance', () => {
         nextJob === -1 ? undefined : start + jobName.length + 3 + nextJob
       );
       expect(job, `${jobName} must depend on ci-scope`).toContain('needs: [ci-scope]');
-      expect(job, `${jobName} must bypass only docs-only changes`).toContain(
-        "if: needs.ci-scope.outputs.scope != 'docs-only'"
+      expect(job, `${jobName} must run only for full changes`).toContain(
+        "if: needs.ci-scope.outputs.scope == 'full'"
       );
     }
   });

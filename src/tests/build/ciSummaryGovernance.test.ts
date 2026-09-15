@@ -30,7 +30,12 @@ describe('CI summary governance', () => {
     }
     expect(summaryJob).toContain("CI_SCOPE: ${{ needs['ci-scope'].outputs.scope }}");
     expect(summaryJob).toContain("DOCS_SCOPE_GATE_RESULT: ${{ needs['docs-scope-gate'].result }}");
-    expect(summaryJob).toContain('if [[ "$CI_SCOPE" == "docs-only" ]]');
+    expect(summaryJob).toContain(
+      "FUNCTIONS_SCOPE_GATE_RESULT: ${{ needs['functions-scope-gate'].result }}"
+    );
+    expect(summaryJob).toContain(
+      'if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" ]]'
+    );
     expect(summaryJob).toContain('expected_result="skipped"');
     expect(summaryJob).toContain('if [[ "$result" != "$expected_result" ]]');
     expect(summaryJob).toContain('failures=$((failures + 1))');
