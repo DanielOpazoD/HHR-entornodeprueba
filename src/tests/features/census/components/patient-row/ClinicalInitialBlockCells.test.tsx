@@ -32,4 +32,31 @@ describe('ClinicalInitialBlockCells', () => {
     expect(diagnosis).toHaveClass('pr-32');
     expect(diagnosis).not.toHaveClass('pr-28', 'pr-14', 'pr-8');
   });
+
+  it('wraps a long diagnosis into a second line instead of clipping it in one line', () => {
+    const longDiagnosis =
+      'Neumonía adquirida en la comunidad con derrame pleural paraneumónico en tratamiento antibiótico';
+
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <ClinicalInitialBlockCells
+              data={DataFactory.createMockPatient('R1', {
+                patientName: 'Paciente Test',
+                pathology: longDiagnosis,
+              })}
+              onChange={() => vi.fn()}
+              onMultipleUpdate={vi.fn()}
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    const diagnosis = screen.getByText(longDiagnosis);
+    expect(diagnosis).toHaveClass('line-clamp-2');
+    expect(diagnosis).not.toHaveClass('truncate');
+    expect(diagnosis).toHaveAttribute('title', longDiagnosis);
+  });
 });
