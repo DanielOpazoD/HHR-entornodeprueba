@@ -241,7 +241,6 @@
     "@types/file-saver": "^2.0.7",
     "clsx": "^2.1.1",
     "dexie": "^4.4.6",
-    "docx": "^9.5.1",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "firebase": "12.13.0",
