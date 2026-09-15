@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClipboardCheck, FileCheck2 } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 import { formatDateTimeCL } from '@/utils/dateDisplayUtils';
 
 /** Tooltip shared by the medical badge and its tests. */
@@ -21,8 +21,8 @@ const badgeClassName =
 
 /**
  * Marks the clinical closures Eloísa already registered while the bed is still occupied. When both
- * the medical and the nursing discharge exist the badges overlap like stacked cards, so the census
- * shows at a glance that only the administrative egreso in Gestión de Camas is missing.
+ * the medical and the nursing discharge exist the badges overlap like stacked cards — medicine
+ * first, then nursing — using the same glyph so the color alone tells them apart.
  */
 export const RayenDischargeBadges: React.FC<{
   verification?: RayenDischargeVerification;
@@ -37,26 +37,27 @@ export const RayenDischargeBadges: React.FC<{
 
   return (
     <span className="inline-flex items-center" data-testid="rayen-discharge-badges">
-      {hasNursingDischarge && (
+      {/* Orden pedido: primero el alta médica en verde, después el alta de enfermería. */}
+      {hasMedicalDischarge && (
         <span
           role="img"
-          className={`${badgeClassName} ${hasMedicalDischarge ? 'z-0' : ''} bg-sky-100 text-sky-700`}
-          title={NURSING_DISCHARGE_DESCRIPTION}
-          aria-label={NURSING_DISCHARGE_DESCRIPTION}
+          className={`${badgeClassName} ${hasNursingDischarge ? 'z-0' : ''} bg-emerald-100 text-emerald-700`}
+          title={medicalDescription}
+          aria-label={medicalDescription}
         >
           <ClipboardCheck size={10} strokeWidth={2.5} aria-hidden="true" />
         </span>
       )}
-      {hasMedicalDischarge && (
+      {hasNursingDischarge && (
         <span
           role="img"
           className={`${badgeClassName} ${
-            hasNursingDischarge ? '-ml-1 z-10' : ''
-          } bg-emerald-100 text-emerald-700`}
-          title={medicalDescription}
-          aria-label={medicalDescription}
+            hasMedicalDischarge ? '-ml-1 z-10' : ''
+          } bg-sky-100 text-sky-700`}
+          title={NURSING_DISCHARGE_DESCRIPTION}
+          aria-label={NURSING_DISCHARGE_DESCRIPTION}
         >
-          <FileCheck2 size={10} strokeWidth={2.5} aria-hidden="true" />
+          <ClipboardCheck size={10} strokeWidth={2.5} aria-hidden="true" />
         </span>
       )}
     </span>

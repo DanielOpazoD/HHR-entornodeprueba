@@ -94,9 +94,10 @@ enfermería no se pierde cuando la médica llega en otra observación. La regla 
 1. Una observación pertenece al ocupante solo con identidad fuerte: el RUT de la entrada, o el
    `encId` de Rayen cuando la captura no pudo leer el RUN. La cama por sí sola no basta, porque pudo
    reasignarse desde que se observó el cierre.
-2. `confirmed` habilita el chip de esa dimensión; si ambas están confirmadas, los chips se dibujan
-   superpuestos como cartas encima una de otra. Una confirmación gana sobre una lectura contraria
-   capturada en paralelo.
+2. `confirmed` habilita el chip de esa dimensión. Ambos chips usan el mismo ícono y se distinguen
+   solo por color: medicina en verde, enfermería en celeste. Si ambas están confirmadas se dibujan
+   superpuestos como cartas encima una de otra, con medicina primero y enfermería después. Una
+   confirmación gana sobre una lectura contraria capturada en paralelo.
 3. `not-detected` borra esa dimensión: es evidencia negativa explícita. Si ninguna dimensión queda
    confirmada, el campo se elimina y una cama sin verificación no escribe nada, para no alterar
    registros ni forzar guardados completos.

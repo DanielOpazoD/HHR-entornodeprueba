@@ -220,11 +220,19 @@ describe('PatientBedConfig', () => {
 
     const nursing = screen.getByLabelText(NURSING_DISCHARGE_DESCRIPTION);
     const medical = screen.getByLabelText(MEDICAL_DISCHARGE_DESCRIPTION);
-    expect(nursing).toHaveClass('z-0');
-    // La tarjeta médica se superpone a la de enfermería, como cartas encima una de otra.
-    expect(medical).toHaveClass('-ml-1', 'z-10');
-    expect(screen.getByTestId('rayen-discharge-badges')).toContainElement(nursing);
-    expect(screen.getByTestId('rayen-discharge-badges')).toContainElement(medical);
+    const container = screen.getByTestId('rayen-discharge-badges');
+    // Orden pedido: primero el alta médica en verde, después la de enfermería.
+    expect(container.firstElementChild).toBe(medical);
+    expect(medical).toHaveClass('z-0');
+    // La tarjeta de enfermería se superpone a la médica, como cartas encima una de otra.
+    expect(nursing).toHaveClass('-ml-1', 'z-10');
+    expect(container).toContainElement(nursing);
+    // Ambas altas usan el mismo ícono: el color es lo único que las distingue.
+    expect(nursing.querySelector('svg')?.getAttribute('class')).toBe(
+      medical.querySelector('svg')?.getAttribute('class')
+    );
+    expect(nursing).toHaveClass('text-sky-700');
+    expect(medical).toHaveClass('text-emerald-700');
   });
 
   it('omits the markers while Eloísa has not registered any discharge', () => {
