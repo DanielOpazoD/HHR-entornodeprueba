@@ -91,9 +91,10 @@ El estado se persiste por cama en `PatientData.dischargeVerification` y se recal
 conciliación del censo. Cada alta se resuelve por separado, de modo que una confirmación de
 enfermería no se pierde cuando la médica llega en otra observación. La regla es:
 
-1. Una observación pertenece al ocupante solo con identidad fuerte: el RUT de la entrada, o el
-   `encId` de Rayen cuando la captura no pudo leer el RUN. La cama por sí sola no basta, porque pudo
-   reasignarse desde que se observó el cierre.
+1. Una observación pertenece al ocupante solo con identidad fuerte, con la misma regla que usa el
+   egreso: si cualquiera de los dos lados trae episodio, mandan los `encId` de Rayen; el RUN queda
+   como respaldo legacy solo cuando ninguno de los dos tiene episodio. Así un cierre tardío de una
+   hospitalización anterior —o de otra cama ya reasignada— no marca al ocupante actual.
 2. `confirmed` habilita el chip de esa dimensión. Ambos chips usan el mismo ícono y se distinguen
    solo por color: medicina en verde, enfermería en celeste. Si ambas están confirmadas se dibujan
    superpuestos como cartas encima una de otra, con medicina primero y enfermería después. Una

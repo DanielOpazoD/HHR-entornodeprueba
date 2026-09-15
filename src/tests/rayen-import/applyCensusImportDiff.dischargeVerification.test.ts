@@ -230,6 +230,8 @@ describe('applyCensusImportDiff · cierres clínicos verificados en Eloísa', ()
     const foreignClosure = {
       ...pendingClosure(patient, 'H1C2', 'confirmed'),
       rut: '99999999-9',
+      encounterId: '9999',
+      source: makeEncounter({ encounterId: '9999', hasMedicalDischarge: true }),
     };
 
     const result = applyCensusImportDiff(
@@ -247,6 +249,8 @@ describe('applyCensusImportDiff · cierres clínicos verificados en Eloísa', ()
     const foreignClosure = {
       ...pendingClosure(patient, 'H1C2', 'confirmed'),
       rut: '99999999-9',
+      encounterId: '9999',
+      source: makeEncounter({ encounterId: '9999', hasMedicalDischarge: true }),
     };
 
     const result = applyCensusImportDiff(
@@ -255,6 +259,46 @@ describe('applyCensusImportDiff · cierres clínicos verificados en Eloísa', ()
       makeCtx()
     );
 
+    expect(result.record.beds.H1C2.dischargeVerification).toEqual(
+      record.beds.H1C2.dischargeVerification
+    );
+  });
+
+  it('does not cross episodes when the same RUN is readmitted under a new encounter', () => {
+    const patient = seedPatient();
+    const record = makeRecord({ H1C2: patient });
+    // Mismo RUN, episodio anterior: el cierre tardío no debe marcar al nuevo ocupante.
+    const previousEpisodeClosure = {
+      ...pendingClosure(patient, 'H1C2', 'confirmed'),
+      encounterId: '8800',
+      source: makeEncounter({ encounterId: '8800', hasMedicalDischarge: true }),
+    };
+
+    const result = applyCensusImportDiff(
+      record,
+      makeDiff({ pendingAdministrativeDischarges: [previousEpisodeClosure] }),
+      makeCtx()
+    );
+
+    expect(result.record.beds.H1C2.dischargeVerification).toBeUndefined();
+  });
+
+  it('clears the verification of a previous episode when the current one is not confirmed', () => {
+    const patient = seedPatient();
+    const record = makeRecord({ H1C2: withConfirmedVerification(patient) });
+    const previousEpisodeClosure = {
+      ...pendingClosure(patient, 'H1C2', 'unknown'),
+      encounterId: '8800',
+      source: makeEncounter({ encounterId: '8800' }),
+    };
+
+    const result = applyCensusImportDiff(
+      record,
+      makeDiff({ pendingAdministrativeDischarges: [previousEpisodeClosure] }),
+      makeCtx()
+    );
+
+    // El cierre pertenece a otro episodio: no es evidencia sobre el actual, así que se preserva.
     expect(result.record.beds.H1C2.dischargeVerification).toEqual(
       record.beds.H1C2.dischargeVerification
     );

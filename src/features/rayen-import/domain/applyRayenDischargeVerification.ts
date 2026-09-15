@@ -15,17 +15,25 @@ type ClosureState = 'confirmed' | 'not-detected' | 'unknown';
 type StoredVerification = NonNullable<PatientData['dischargeVerification']>;
 
 /**
- * A pending entry only belongs to the current occupant with strong identity: the RUT, or the Rayen
- * encounter when the capture could not read a RUN. A bed id alone is not enough because the bed may
- * have been reassigned since the closure was observed.
+ * A pending entry only belongs to the current occupant with strong identity, following the same
+ * rule as `matchesDischargeSubject`: the Rayen encounter whenever either side carries an episode
+ * (a bed may have been reassigned, and the same RUN may be readmitted as a new episode the same
+ * day), and the RUT only as a legacy fallback when no episode is available on either side.
  */
 const matchesOccupant = (
   entry: PendingAdministrativeDischargeEntry,
   patient: PatientData
 ): boolean => {
+  const entryEpisode = entry.encounterId ?? entry.source?.encounterId;
+  if (patient.clinicalEpisodeId || entryEpisode) {
+    return Boolean(
+      patient.clinicalEpisodeId && entryEpisode && patient.clinicalEpisodeId === entryEpisode
+    );
+  }
+
   const entryRut = normalizeRut(entry.rut);
-  if (entryRut) return entryRut === normalizeRut(patient.rut);
-  return Boolean(entry.encounterId && entry.encounterId === patient.clinicalEpisodeId);
+  const patientRut = normalizeRut(patient.rut);
+  return Boolean(entryRut && patientRut && entryRut === patientRut);
 };
 
 /**
