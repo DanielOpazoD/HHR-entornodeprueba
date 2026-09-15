@@ -1,0 +1,87 @@
+# Pipeline de GitLab para HHR.
+#
+# Espeja los gates que bloqueaban release en GitHub Actions (lint, typecheck,
+# shards unitarios de riesgo, contratos de documentacion, gobernanza de tests
+# y simulador de convergencia clinica) mientras el repositorio migra de remoto.
+#
+# Fuera de alcance a proposito, porque dependen de infraestructura que no
+# existe en este runner: emuladores de reglas y E2E (requieren Java +
+# firebase-tools y secretos), Lighthouse, medicion de arranque del censo,
+# telemetria de runtime (usa la API de GitHub) y evidencia de post-merge.
+
+stages: [static, unit, governance, build]
+
+default:
+  image: node:22
+  interruptible: true
+  timeout: 30m
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  variables:
+    npm_config_cache: "$CI_PROJECT_DIR/.npm"
+    npm_config_audit: "false"
+    npm_config_fund: "false"
+    NODE_OPTIONS: "--max-old-space-size=4096"
+  before_script:
+    - node --version
+    - npm ci --prefer-offline
+
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+  rules:
+    # Merge requests y la rama por defecto; ademas ejecuciones manuales.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+lint:
+  stage: static
+  script:
+    - npm run lint
+
+typecheck:
+  stage: static
+  script:
+    - npm run typecheck
+
+unit-shard:
+  stage: unit
+  parallel: 4
+  script:
+    - npm run test:ci:unit:shard -- "${CI_NODE_INDEX}/${CI_NODE_TOTAL}"
+  artifacts:
+    when: always
+    paths:
+      - coverage/
+    expire_in: 1 day
+
+test-governance:
+  stage: governance
+  script:
+    - npm run check:test-governance
+
+docs-contracts:
+  stage: governance
+  script:
+    - npm run check:docs-drift
+    - npm run check:operational-runbooks
+
+clinical-sync-simulator:
+  stage: governance
+  script:
+    - npm run test:clinical-sync-simulator
+
+build:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
