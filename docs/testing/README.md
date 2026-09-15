@@ -48,6 +48,31 @@ Superficie pública mínima recomendada para trabajo diario: [docs/DEVELOPER_COM
 | `npm run ci:merge-gate`                      | Ruta blocking ampliada previa a merge                                                                                     |
 | `npm run ci:release-gate`                    | Ruta completa con Firestore + E2E                                                                                         |
 
+### Selección rápida antes del PR
+
+| Cambio                                                         | Validación local mínima                                          | Ruta automática del PR |
+| -------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------- |
+| Solo documentación permitida                                   | `npm run check:docs-drift && npm run check:operational-runbooks` | `docs-only`            |
+| Solo fuente de Firebase Functions                              | secuencia completa de Functions indicada abajo                   | `functions-only`       |
+| Aplicación, dependencias, configuración, reglas o cambio mixto | `npm run ci:pre-merge` y el gate adicional según riesgo          | `full`                 |
+
+Para reproducir localmente el gate `functions-only`, usar Node.js 22 y ejecutar:
+
+```bash
+npm ci
+npm ci --prefix functions
+npx vitest run src/tests/functions \
+  src/tests/build/firebaseFunctionDeployVerification.test.ts \
+  src/tests/build/firebaseFunctionDeleteResult.test.ts \
+  src/tests/build/firebaseFunctionRegionVerification.test.ts
+npm run check:serverless-sensitive-coverage
+npm run check:serverless-runtime-governance
+npm --prefix functions run check:clinical-pdf-runtime
+```
+
+La definición canónica, los fallbacks conservadores y los gates exactos están en
+[CI Gates and Failure Runbooks](../CI_GATES_AND_FAILURE_RUNBOOKS.md#alcance-automático-de-ci-en-pull-requests).
+
 ## 3. Cobertura crítica
 
 La cobertura crítica ya no se gobierna por conteo de tests o ratios test/source.
@@ -102,12 +127,15 @@ Los demás scripts de este documento deben tratarse como validaciones especializ
 
 El contrato PR vs nightly vive en `scripts/config/test-runtime-governance.json`.
 
-En PR deben seguir bloqueando:
+En PR con alcance `full` deben seguir bloqueando:
 
 - `unit-risk-shards`
 - `clinical-sync-release-gate`
 - `rules-emulator`
 - `e2e-critical`
+
+Los alcances `docs-only` y `functions-only` usan gates enfocados y `ci-summary`
+comprueba que la matriz completa haya quedado en `skipped` de forma intencional.
 
 Las suites más caras quedan en `.github/workflows/nightly-test-runtime.yml` con `workflow_dispatch`
 y `schedule`, no en `pull_request`:

@@ -22,6 +22,28 @@ El job `critical-coverage-report` genera el artefacto una sola vez y ejecuta des
 Los baselines son un ratchet del estado validado; no deben conservar valores ya
 incumplidos ni rebajarse para ocultar una regresión nueva.
 
+### Alcance automático de CI en pull requests
+
+El job `ci-scope` clasifica cada PR antes de iniciar los gates costosos. Lee el
+clasificador y su configuración desde el SHA base confiable, compara contra el SHA
+inmutable del candidato y falla de forma conservadora: un error, una ruta ambigua o
+una combinación no permitida ejecuta la ruta `full`.
+
+| Alcance          | Cambios admitidos                                                                              | Validación blocking                                                                                         |
+| ---------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `docs-only`      | `docs/**` salvo `docs/api/**`, o Markdown raíz expresamente permitido                          | `check:docs-drift`, `check:operational-runbooks` y `ci-summary`                                             |
+| `functions-only` | Fuente bajo `functions/**` y scripts de verificación permitidos; excluye ambos manifiestos npm | tests de Functions, despliegue, borrado y regiones; contratos serverless; runtime PDF clínico; `ci-summary` |
+| `full`           | Código de aplicación, dependencias, configuración, reglas, cambios mixtos o cualquier fallback | matriz completa de calidad, shards, sincronización, reglas, E2E, build, rendimiento y readiness             |
+
+Borrados, renombres, más de 50 archivos, documentación API generada, cambios en
+`package.json`/lockfiles y eventos `push` siempre usan `full`. `ci-summary` exige que
+los gates enfocados terminen en `success` y que los jobs completos estén exactamente
+en `skipped`; así, un salto inesperado también falla.
+
+Esta clasificación reduce el tiempo de feedback del PR. No cambia la selección local:
+usar el comando más pequeño que cubra el riesgo durante la iteración y ampliar a
+`ci:pre-merge`, `ci:merge-gate` o `ci:release-gate` según el impacto.
+
 ### `ci:inner-loop`
 
 Usar cuando el cambio todavía está en iteración local.
@@ -133,6 +155,7 @@ Si un shard se vuelve dominante, correr `npm run profile:unit-shard-runtime`, re
 El runtime observado de GitHub Actions se evidencia en `reports/ci-runtime-observed-profile.md` y se valida con `npm run check:ci-runtime-telemetry`. En PR lo captura `ci-runtime-telemetry`, con permisos mínimos `actions: read`/`contents: read`, después de los gates principales. El collector `npm run collect:ci-runtime-observed-input` usa `GITHUB_RUN_ID`, `GITHUB_REPOSITORY` y `GITHUB_TOKEN` para escribir `reports/ci-runtime-observed-input.json`; luego el reporte compara esos tiempos reales contra `reports/unit-shard-runtime-profile.json`.
 Este gate es advisory-first: no bloquea por falta de datos reales ni por una corrida aislada lenta; solo bloquea contratos rotos como JSON inválido, timestamps inválidos, shards duplicados/faltantes cuando el reporte declara datos observados o nombres imposibles de shard.
 Si el observado contradice repetidamente el balance estimado, ajustar primero `durationHints`, `perFileOverheadMs`, `affinityGroups` o `lockedAssignments`, y recién después considerar cambios de suite. No reducir cobertura clínica crítica para bajar minutos. Si el reporte queda en `no_observed_ci_data` dentro de GitHub Actions, revisar que el job `ci-runtime-telemetry` haya ejecutado el collector antes del reporter y que el token tenga permiso de lectura de Actions.
+El gate de rendimiento del censo usa 5 muestras por escenario en PR y conserva 30 en eventos que no son PR, incluidos los `push` a `main` y `develop`. El muestreo corto detecta regresiones durante revisión; el muestreo largo de los eventos que no son PR mantiene la evidencia estable sin cobrar ese costo en cada iteración.
 El reporte de release readiness ya regenera también `guardrail-governance`; no debe depender de un artefacto previo manual.
 CI regenera los snapshots report-only obligatorios con `npm run report:governance-snapshots` antes de ejecutar `check:quality`.
 `release-readiness-scorecard` sigue siendo ejecutivo y obligatorio para release, pero ya no duplica bloqueo dentro de `check:quality` si las fuentes primarias siguen verdes.
@@ -363,7 +386,22 @@ El reporte `reports/security/dependency-audit.md` debe conservar comandos de rep
 
 ## Regla práctica
 
+- cambio solo documental: `npm run check:docs-drift && npm run check:operational-runbooks`
+- cambio solo en fuente de Functions: ejecutar los tests de `src/tests/functions` y los contratos serverless afectados
 - cambio local chico: `ci:inner-loop`
 - cambio funcional antes de abrir o actualizar PR: `ci:pre-merge`
 - cambio funcional o refactor con impacto real: `ci:merge-gate`
 - cambio de release, Firebase o UX crítica: `ci:release-gate`
+
+## Actualizaciones de dependencias
+
+Dependabot agrupa parches y versiones menores por superficie: React, documentos,
+datos, APIs cloud, UI, medios, Storybook, Vitest, PWA, Vite, lint, pruebas de navegador,
+Firebase, CSS, TypeScript/documentación y tooling del repositorio. Una dependencia
+sin grupo recibe un PR individual. Los cambios mayores siguen separados.
+
+Vite 8 permanece pausado hasta que Storybook instalado admita ese peer; Vitest 5
+permanece pausado mientras `@storybook/addon-vitest` requiera Vitest 4. Al retirar una
+pausa, actualizar el toolchain relacionado en conjunto y exigir `npm ci`, los gates
+enfocados del área y CI `full`. El workspace de Functions conserva su grupo menor
+independiente. Los manifiestos de Functions siempre disparan `full`.
