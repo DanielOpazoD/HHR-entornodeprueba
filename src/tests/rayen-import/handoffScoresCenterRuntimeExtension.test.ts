@@ -5,6 +5,8 @@ import vm from 'node:vm';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/health-push-ordering-runtime.js';
+
 import '../../../extension/message-contract.js';
 import '../../../extension/hhr-ui.js';
 import '../../../extension/hhr-center-styles.js';

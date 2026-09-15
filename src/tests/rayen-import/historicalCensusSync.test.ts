@@ -62,12 +62,57 @@ describe('historical census synchronization', () => {
     const beforeWeekendHandoff = new Date('2026-07-25T14:30:00.000Z');
     expect(isCurrentCensusDay('2026-07-24', beforeWeekendHandoff)).toBe(true);
     expect(isPreviousCensusDay('2026-07-23', beforeWeekendHandoff)).toBe(true);
-    expect(isSupportedCensusSyncDay('2026-07-25', beforeWeekendHandoff)).toBe(false);
+    expect(isCurrentCensusDay('2026-07-25', beforeWeekendHandoff)).toBe(true);
 
     const afterWeekendHandoff = new Date('2026-07-25T15:01:00.000Z');
     expect(isCurrentCensusDay('2026-07-25', afterWeekendHandoff)).toBe(true);
     expect(isPreviousCensusDay('2026-07-24', afterWeekendHandoff)).toBe(true);
   });
+
+  it('also permits a manually created calendar-day census before the weekday handoff', () => {
+    // Tuesday 07:30 in Rapa Nui: 14-09 remains the clinical day, while a manually copied
+    // 15-09 census is also a valid explicit synchronization target.
+    const beforeWeekdayHandoff = new Date('2026-09-15T12:30:00.000Z');
+
+    expect(resolveCensusSyncTarget('2026-09-14', beforeWeekdayHandoff)).toMatchObject({
+      kind: 'current',
+      clinicalDay: '2026-09-14',
+      lookbackDays: 0,
+    });
+    expect(resolveCensusSyncTarget('2026-09-15', beforeWeekdayHandoff)).toMatchObject({
+      kind: 'current',
+      calendarDay: '2026-09-15',
+      clinicalDay: '2026-09-14',
+      lookbackDays: 0,
+    });
+    expect(isSupportedCensusSyncDay('2026-09-15', beforeWeekdayHandoff)).toBe(true);
+    expect(isSupportedCensusSyncDay('2026-09-16', beforeWeekdayHandoff)).toBe(false);
+  });
+
+  it.each([
+    ['weekday', '2026-09-15T12:59:00.000Z', '2026-09-15T13:00:00.000Z'],
+    ['weekend', '2026-07-25T14:59:00.000Z', '2026-07-25T15:00:00.000Z'],
+  ])(
+    'changes the previous calendar date from current to historical exactly at the %s handoff',
+    (_schedule, beforeIso, atIso) => {
+      const before = new Date(beforeIso);
+      const atHandoff = new Date(atIso);
+      const previousDay = resolveCensusSyncTarget(
+        resolveCensusSyncTarget('', before).clinicalDay,
+        before
+      );
+
+      expect(previousDay).toMatchObject({ kind: 'current', lookbackDays: 0 });
+      expect(resolveCensusSyncTarget(previousDay.clinicalDay, atHandoff)).toMatchObject({
+        kind: 'historical',
+        lookbackDays: 1,
+      });
+      expect(resolveCensusSyncTarget(previousDay.calendarDay, atHandoff)).toMatchObject({
+        kind: 'current',
+        lookbackDays: 0,
+      });
+    }
+  );
 
   it('supports the current Rapa Nui clinical day and D-1 through D-7', () => {
     const now = new Date('2026-07-16T18:00:00.000Z');

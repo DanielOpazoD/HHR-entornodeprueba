@@ -36,8 +36,8 @@ export interface EgresoReportRow {
   admissionTime?: string;
   /** Exact condition from the per-episode report, when it was available. */
   dischargeStatus?: 'Vivo' | 'Fallecido';
-  /** Whether HHR verified this report-only row against one exact clinical episode. */
-  exactEpisodeVerification?: 'verified' | 'unverified';
+  /** How HHR linked this report-only row to one clinical episode. */
+  exactEpisodeVerification?: 'verified' | 'local-bed-turnover' | 'unverified';
   /** Internal D-1 identity evidence: this episode occupied the prior record's clinical crib. */
   fromClinicalCrib?: boolean;
 }

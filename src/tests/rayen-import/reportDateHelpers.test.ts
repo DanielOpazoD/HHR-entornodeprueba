@@ -39,4 +39,30 @@ describe('Rayen sync report range', () => {
     expect(request.target).toMatchObject({ kind: 'historical', lookbackDays: 7 });
     expect(request.range).toEqual({ dateStart: '2026-07-17', dateEnd: '2026-07-25' });
   });
+
+  it('builds the report range for a manually copied calendar day before handoff', () => {
+    const record = { date: '2026-09-15', beds: {} } as DailyRecord;
+    const request = resolveSyncReportRequest(record, new Date('2026-09-15T12:30:00.000Z'));
+
+    expect(request.target).toMatchObject({
+      kind: 'current',
+      calendarDay: '2026-09-15',
+      clinicalDay: '2026-09-14',
+      lookbackDays: 0,
+    });
+    expect(request.range).toEqual({ dateStart: '2026-09-15', dateEnd: '2026-09-16' });
+  });
+
+  it('keeps the active previous clinical day eligible alongside the copied calendar day', () => {
+    const record = { date: '2026-09-14', beds: {} } as DailyRecord;
+    const request = resolveSyncReportRequest(record, new Date('2026-09-15T12:30:00.000Z'));
+
+    expect(request.target).toMatchObject({
+      kind: 'current',
+      calendarDay: '2026-09-15',
+      clinicalDay: '2026-09-14',
+      lookbackDays: 0,
+    });
+    expect(request.range).toEqual({ dateStart: '2026-09-14', dateEnd: '2026-09-16' });
+  });
 });

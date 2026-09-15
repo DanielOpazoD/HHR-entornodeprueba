@@ -23,6 +23,7 @@ import '../../../extension/hhr-connection-repair-controls.js';
 import '../../../extension/hhr-connection-action-model.js';
 import '../../../extension/hhr-connection-center-runtime.js';
 import '../../../extension/prescription-print.js';
+import '../../../extension/health-push-ordering-runtime.js';
 
 const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
 const NativeMutationObserver = globalThis.MutationObserver;
@@ -89,6 +90,7 @@ describe('extension prescription print content flow', () => {
     };
 
     const messages: Array<{ type?: string }> = [];
+    let healthPushListener: ((message: Record<string, unknown>) => void) | undefined;
     let runtimeLastError: { message: string } | undefined;
     let optionAttempts = 0;
     const sendMessage = vi.fn(
@@ -185,10 +187,37 @@ describe('extension prescription print content flow', () => {
           return runtimeLastError;
         },
         sendMessage,
+        onMessage: {
+          addListener: (listener: (message: Record<string, unknown>) => void) => {
+            healthPushListener = listener;
+          },
+        },
       },
     };
 
     vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
+
+    const connected = {
+      version: '0.48.24',
+      fichaMedico: { status: 'ready', identity: { fullName: 'Sesión clínica' } },
+      gestionCamas: { status: 'ready' },
+      hhr: { status: 'ready' },
+    };
+    const expired = {
+      ...connected,
+      fichaMedico: { status: 'stale' },
+      gestionCamas: { status: 'missing' },
+    };
+    healthPushListener?.({
+      type: 'RAYEN_EXTENSION_HEALTH_PUSH', report: connected, publicationSequence: 9,
+    });
+    healthPushListener?.({
+      type: 'RAYEN_EXTENSION_HEALTH_PUSH', report: expired, publicationSequence: 8,
+    });
+    await vi.waitFor(() => expect(
+      document.getElementById('hhr-clinical-operations-bar')?.shadowRoot
+        ?.querySelector('.hhr-ops-session .session-state')?.textContent
+    ).toBe('Conectado'));
 
     const pageButton = await vi.waitFor(() => {
       const button = document.getElementById('hhr-prescription-print-button');

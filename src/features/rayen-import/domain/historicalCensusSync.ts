@@ -28,7 +28,7 @@ export interface CensusSyncTarget {
   calendarDay: string;
   /** Clinical day that was active when the synchronization started. */
   clinicalDay: string;
-  /** 0 for D, 1..7 for an accepted historical day, null when unsupported or malformed. */
+  /** 0 for an accepted current target, 1..7 for a historical day, null when unsupported. */
   lookbackDays: number | null;
 }
 
@@ -48,10 +48,16 @@ export const resolveCensusSyncTarget = (
   const clinicalDay = clinicalCensusDayInRapaNui(now);
   const targetDayNumber = isoDayNumber(censusIsoDay);
   const clinicalDayNumber = isoDayNumber(clinicalDay);
-  const lookbackDays =
+  const clinicalLookbackDays =
     targetDayNumber === null || clinicalDayNumber === null
       ? null
       : clinicalDayNumber - targetDayNumber;
+  // Before the morning handoff, a manually copied record for the new calendar date coexists with
+  // the still-active previous clinical day. Both are explicit current targets; a run crossing the
+  // handoff remains protected by validatePreparedRayenSyncContextAtCompletion.
+  const isPreHandoffCalendarTarget =
+    censusIsoDay === calendarDay && calendarDay !== clinicalDay && targetDayNumber !== null;
+  const lookbackDays = isPreHandoffCalendarTarget ? 0 : clinicalLookbackDays;
   const kind: CensusSyncTargetKind =
     lookbackDays === 0
       ? 'current'

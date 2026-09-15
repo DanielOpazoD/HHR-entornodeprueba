@@ -26,8 +26,7 @@
  *   Page → us:  { type: 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST', reqId }
  *   us  → page: { type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT', reqId, report, error? }
  * Health heartbeat (background-initiated; same report, no request needed):
- *   bg → us   : { type: 'RAYEN_EXTENSION_HEALTH_PUSH', report, reason }
- *   us → page : { type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH', report, reason }
+ *   bg → us → page: salud ordenada por `publicationSequence`.
  * Gestión de Camas connect (opens the official login window from HHR):
  *   Page → us:  { type: 'HHR_RAYEN_GC_CONNECT_REQUEST', reqId, renew? }
  *   us  → page: { type: 'HHR_RAYEN_GC_CONNECT_RESULT', reqId, ok, error? }
@@ -37,7 +36,6 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
-
   // Deduplicate only this ISOLATED world's live runtime, never the shared DOM or MAIN
   // generation. Extension reload/update creates a fresh context and must install anew;
   // the existing generation handshake still rejects the surviving stale MAIN reader.
@@ -51,6 +49,7 @@
     extensionVersion: chrome.runtime.getManifest().version,
   });
   const runtimeContextPromise = generationRelay.context;
+  const healthPushOrdering = globalThis.HhrHealthPushOrderingRuntime?.createReceiver?.() || { accept: () => false };
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message && message.type === 'RAYEN_EXTENSION_HHR_HEALTH_PING') {
       runtimeContextPromise.then(runtimeContext => {
@@ -72,11 +71,13 @@
       });
       return true;
     }
-    if (message && message.type === 'RAYEN_EXTENSION_HEALTH_PUSH' && message.report) {
+    if (message && message.type === 'RAYEN_EXTENSION_HEALTH_PUSH' && message.report &&
+        healthPushOrdering.accept(message)) {
       post({
         type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH',
         report: message.report,
         reason: message.reason,
+        publicationSequence: message.publicationSequence,
       });
     }
     return undefined;
@@ -86,7 +87,6 @@
     console.warn('[Rayen→HHR] ' + type + ' error:', error);
     post({ type, reqId, ...fallback, error: String(error) });
   };
-
   window.addEventListener('message', event => {
     if (!isOwnMessage(event)) return;
     const data = event.data;

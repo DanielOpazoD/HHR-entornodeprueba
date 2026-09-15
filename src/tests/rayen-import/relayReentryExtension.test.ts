@@ -9,6 +9,7 @@ const generation = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const nextGeneration = 'ffffffff-1111-4222-8333-444444444444';
 const version = '0.99.1';
 const relays = ['hhr', 'fichamedico', 'gestioncamas'] as const;
+let publicationSequence = 0;
 type Relay = (typeof relays)[number];
 type Message = Record<string, unknown>;
 type PageEvent = { source: unknown; origin: string; data: Message };
@@ -75,6 +76,7 @@ const createWorld = (
       for (const file of [
         'message-contract.js',
         'bridge-generation.js',
+        'health-push-ordering-runtime.js',
         'gestion-camas-bridge-health.js',
       ]) {
         vm.runInContext(source(file), context, { filename: file });
@@ -139,6 +141,7 @@ const exerciseForwarding = async (
       type: 'RAYEN_EXTENSION_HEALTH_PUSH',
       report: { ready: true },
       reason: 'test',
+      publicationSequence: ++publicationSequence,
     });
     expect(world.posts).toHaveLength(1);
     const respond = world.dispatchRuntime({

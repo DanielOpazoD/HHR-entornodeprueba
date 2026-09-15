@@ -49,7 +49,8 @@ export const syncReportRange = (
   if (
     target.kind === 'unsupported' ||
     target.lookbackDays === null ||
-    dateStart > target.clinicalDay
+    (dateStart > target.clinicalDay &&
+      !(target.kind === 'current' && dateStart === target.calendarDay))
   ) {
     throw new Error('El intervalo administrativo solicitado no es válido.');
   }

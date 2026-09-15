@@ -490,8 +490,8 @@
     const rest = minutes % 60;
     return 'Vence en ' + hours + ' h' + (rest ? ' ' + rest + ' min' : '');
   };
-
   let latestHealthPushReport = null;
+  const healthPushOrdering = globalThis.HhrHealthPushOrderingRuntime.createReceiver();
   const connectionCenterRuntime = connectionCenterOwner.create({
     documentRef: document,
     windowRef: window,
@@ -510,12 +510,12 @@
     invalidateConnectionState,
   } = connectionCenterRuntime;
   chrome.runtime.onMessage?.addListener(message => {
-    if (!message || message.type !== 'RAYEN_EXTENSION_HEALTH_PUSH' || !message.report) return;
+    if (!message || message.type !== 'RAYEN_EXTENSION_HEALTH_PUSH' || !message.report ||
+        !healthPushOrdering.accept(message)) return;
     latestHealthPushReport = message.report;
     const bar = document.getElementById(OPERATIONS_BAR_ID);
     if (bar) void refreshOperationsConnectionBadge(bar, true, message.report);
   });
-
   const fetchPatientHeaderView = async encId => {
     const response = await sendMessage({ type: runtimeMessages.PATIENT_HEADER_REQUEST, encId });
     if (!response || response.error) {
