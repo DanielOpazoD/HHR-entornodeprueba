@@ -5,18 +5,20 @@
 # - Weekly cadence on Mondays to align with the start-of-week review window.
 # - Separate ecosystems per package.json (root + functions).
 # - github-actions kept on its own schedule; CI workflows change less often.
-# - Group non-breaking updates (patch + minor) to reduce PR noise. Majors ship
-#   individually so they can be reviewed and regression-tested on their own.
+# - Group non-breaking updates by runtime surface so one incompatible package
+#   does not block unrelated upgrades. Majors remain individually reviewable.
+# - Pause known-incompatible majors until the Storybook peer range supports
+#   them, with the unblock condition recorded beside each rule.
 
 version: 2
 updates:
   # Root workspace (Vite app + test tooling)
   - package-ecosystem: npm
-    directory: "/"
+    directory: '/'
     schedule:
       interval: weekly
       day: monday
-      time: "09:00"
+      time: '09:00'
       timezone: America/Santiago
     open-pull-requests-limit: 5
     labels:
@@ -25,24 +27,180 @@ updates:
     reviewers:
       - d-opazo
     groups:
-      dev-dependencies-minor:
-        dependency-type: development
+      react-runtime-minor:
+        patterns:
+          - react
+          - react-dom
+          - react-error-boundary
+          - react-is
+          - '@types/react'
+          - '@types/react-dom'
         update-types:
           - patch
           - minor
-      production-dependencies-minor:
-        dependency-type: production
+      document-runtime-minor:
+        patterns:
+          - docx
+          - exceljs
+          - jspdf
+          - jspdf-autotable
+          - pdf-lib
+          - pdfjs-dist
+          - pizzip
+          - xlsx-populate
         update-types:
           - patch
           - minor
+      data-runtime-minor:
+        patterns:
+          - dexie
+          - firebase
+          - zod
+        update-types:
+          - patch
+          - minor
+      cloud-api-runtime-minor:
+        patterns:
+          - '@google/genai'
+          - '@netlify/blobs'
+          - googleapis
+        update-types:
+          - patch
+          - minor
+      ui-runtime-minor:
+        patterns:
+          - '@tanstack/*'
+          - clsx
+          - lucide-react
+          - motion
+          - recharts
+        update-types:
+          - patch
+          - minor
+      media-runtime-minor:
+        patterns:
+          - '@fontsource/*'
+          - '@types/file-saver'
+          - file-saver
+          - heic2any
+          - html2canvas
+          - qrcode
+          - sharp
+        update-types:
+          - patch
+          - minor
+      storybook-toolchain-minor:
+        patterns:
+          - storybook
+          - '@storybook/*'
+          - '@chromatic-com/*'
+        update-types:
+          - patch
+          - minor
+      vitest-toolchain-minor:
+        patterns:
+          - vitest
+          - '@vitest/*'
+        update-types:
+          - patch
+          - minor
+      pwa-toolchain-minor:
+        patterns:
+          - vite-plugin-pwa
+          - 'workbox-*'
+        update-types:
+          - patch
+          - minor
+      vite-toolchain-minor:
+        patterns:
+          - vite
+          - '@vitejs/*'
+          - 'vite-plugin-*'
+        update-types:
+          - patch
+          - minor
+      lint-toolchain-minor:
+        patterns:
+          - '@eslint/js'
+          - eslint
+          - 'eslint-*'
+          - globals
+          - typescript-eslint
+        update-types:
+          - patch
+          - minor
+      browser-test-toolchain-minor:
+        patterns:
+          - '@playwright/test'
+          - playwright
+          - '@testing-library/*'
+          - fake-indexeddb
+          - fast-check
+          - jsdom
+        update-types:
+          - patch
+          - minor
+      firebase-toolchain-minor:
+        patterns:
+          - '@firebase/rules-unit-testing'
+          - firebase-functions
+          - firebase-tools
+        update-types:
+          - patch
+          - minor
+      css-toolchain-minor:
+        patterns:
+          - '@tailwindcss/*'
+          - autoprefixer
+          - postcss
+          - tailwindcss
+        update-types:
+          - patch
+          - minor
+      typescript-docs-toolchain-minor:
+        patterns:
+          - '@types/jspdf'
+          - '@types/node'
+          - '@types/qrcode'
+          - ts-node
+          - typedoc
+          - typescript
+        update-types:
+          - patch
+          - minor
+      repository-tooling-minor:
+        patterns:
+          - '@netlify/config'
+          - husky
+          - lint-staged
+          - prettier
+        update-types:
+          - patch
+          - minor
+    ignore:
+      # Storybook 10.2 accepts Vite only through v7. Remove after Storybook is
+      # upgraded to a release whose peer range includes Vite 8.
+      - dependency-name: vite
+        versions:
+          - '>=8.0.0 <9.0.0'
+      # Storybook's addon-vitest currently requires Vitest 4.x.
+      - dependency-name: '@vitest/browser-playwright'
+        versions:
+          - '>=5.0.0 <6.0.0'
+      - dependency-name: '@vitest/coverage-v8'
+        versions:
+          - '>=5.0.0 <6.0.0'
+      - dependency-name: vitest
+        versions:
+          - '>=5.0.0 <6.0.0'
 
-  # Firebase Cloud Functions (Node.js 20 runtime, separate npm workspace)
+  # Firebase Cloud Functions (Node.js 22 runtime, separate npm workspace)
   - package-ecosystem: npm
-    directory: "/functions"
+    directory: '/functions'
     schedule:
       interval: weekly
       day: monday
-      time: "09:00"
+      time: '09:00'
       timezone: America/Santiago
     open-pull-requests-limit: 3
     labels:
@@ -58,11 +216,11 @@ updates:
 
   # GitHub Actions used in .github/workflows
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: '/'
     schedule:
       interval: monthly
       day: monday
-      time: "09:00"
+      time: '09:00'
       timezone: America/Santiago
     open-pull-requests-limit: 2
     labels:
