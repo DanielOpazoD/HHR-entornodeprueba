@@ -79,6 +79,38 @@ En cama activa, los indicadores y accesos deben considerar solo documentos compa
 
 Si un documento clínico permite editar datos demográficos usados por documentos derivados, esos datos editados deben ser la fuente de los derivados, no una relectura posterior de la cama.
 
+### Indicadores de cierre clínico pendiente
+
+Una cama activa muestra indicadores cuando Eloísa ya registró el **alta médica** o el **alta de
+enfermería** del episodio y el paciente sigue ocupando la cama, es decir, cuando solo falta el egreso
+administrativo en Gestión de Camas. La señal es la misma que HHR ya usa para clasificar cierres
+clínicos: `hasMedicalDischarge` y `hasNurseDischarge` en Ficha Médico, que la conciliación traduce a
+`verification.medicalEpicrisis` y `verification.nursingEpicrisis`.
+
+El estado se persiste por cama en `PatientData.dischargeVerification` y se recalcula en cada
+conciliación del censo. Cada alta se resuelve por separado, de modo que una confirmación de
+enfermería no se pierde cuando la médica llega en otra observación. La regla es:
+
+1. Una observación pertenece al ocupante solo con identidad fuerte, con la misma regla que usa el
+   egreso: si cualquiera de los dos lados trae episodio, mandan los `encId` de Rayen; el RUN queda
+   como respaldo legacy solo cuando ninguno de los dos tiene episodio. Así un cierre tardío de una
+   hospitalización anterior —o de otra cama ya reasignada— no marca al ocupante actual.
+2. `confirmed` habilita el chip de esa dimensión. Ambos chips usan el mismo ícono y se distinguen
+   solo por color: medicina en verde, enfermería en celeste. Si ambas están confirmadas se dibujan
+   superpuestos como cartas encima una de otra, con medicina primero y enfermería después. Una
+   confirmación gana sobre una lectura contraria capturada en paralelo.
+3. `not-detected` borra esa dimensión: es evidencia negativa explícita. Si ninguna dimensión queda
+   confirmada, el campo se elimina y una cama sin verificación no escribe nada, para no alterar
+   registros ni forzar guardados completos.
+4. `unknown` o la ausencia total de observación **preservan** la verificación almacenada. Una
+   captura parcial, un cierre que pertenece a un ocupante anterior o una lectura ambigua nunca
+   borran una confirmación previa: un chip obsoleto es visible y revisable, borrar uno válido no.
+5. `registeredAt` guarda la fecha del alta médica informada por Eloísa y solo se conserva mientras
+   esa dimensión siga confirmada. El cierre de enfermería no trae fecha propia hoy.
+
+El paciente no se egresa por sí solo: la verificación es informativa y el egreso sigue siendo una
+acción explícita. Un documento `epicrisis` escrito en HHR no alimenta estos indicadores.
+
 ## Compatibilidad legacy
 
 La compatibilidad histórica debe ser mínima y explícita.

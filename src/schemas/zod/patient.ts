@@ -48,6 +48,21 @@ export const DeviceInfoSchema = z.object({
   note: nullableOptional(z.string()),
 });
 
+/**
+ * Cierre clínico verificado en Eloísa mientras la cama sigue ocupada. `confirmed` en el alta médica
+ * o en la de enfermería habilita el recordatorio de egreso pendiente en Gestión de Camas.
+ */
+const dischargeVerificationStateSchema = z
+  .enum(['confirmed', 'not-detected', 'unknown'])
+  .catch('unknown');
+
+export const DischargeVerificationSchema = z.object({
+  medicalEpicrisis: dischargeVerificationStateSchema,
+  nursingEpicrisis: dischargeVerificationStateSchema,
+  encounterId: nullableOptional(z.string()),
+  registeredAt: nullableOptional(z.string()),
+});
+
 export const DeviceDetailsSchema = z.preprocess(
   val => {
     if (!val || typeof val !== 'object' || Array.isArray(val)) return {};
@@ -229,6 +244,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       isIsolated: nullableOptional(z.boolean()),
       isolationType: nullableOptional(z.string()),
       isolationMicroorganism: nullableOptional(z.string()),
+      dischargeVerification: nullableOptional(DischargeVerificationSchema).catch(undefined),
       location: nullableOptional(z.string()),
       cudyr: nullableOptional(CudyrScoreSchema),
       handoffNote: nullableOptional(z.string()),
