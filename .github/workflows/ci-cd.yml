@@ -10,9 +10,129 @@ on:
     branches: [main, develop]
 
 jobs:
+  ci-scope:
+    name: ci-scope
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      scope: ${{ steps.classify.outputs.scope }}
+      reason: ${{ steps.classify.outputs.reason }}
+
+    steps:
+      - name: Checkout trusted classifier revision
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          path: trusted-ci
+
+      - name: Checkout immutable candidate revision
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+
+      - name: Classify CI change scope
+        id: classify
+        shell: bash
+        run: |
+          if [[ -f trusted-ci/scripts/classify-ci-change-scope.mjs ]]; then
+            cd trusted-ci
+            node scripts/classify-ci-change-scope.mjs
+          else
+            echo "scope=full" >> "$GITHUB_OUTPUT"
+            echo "reason=trusted_classifier_unavailable" >> "$GITHUB_OUTPUT"
+            echo "Trusted base does not contain the classifier; running full CI."
+          fi
+        env:
+          CI_GIT_ROOT: ${{ github.workspace }}/candidate
+
+  docs-scope-gate:
+    name: docs-scope-gate
+    runs-on: ubuntu-latest
+    needs: [ci-scope]
+
+    steps:
+      - name: Record full CI scope
+        if: needs.ci-scope.outputs.scope != 'docs-only'
+        run: echo "Documentation-only validation is not active for this change."
+
+      - name: Checkout code
+        if: needs.ci-scope.outputs.scope == 'docs-only'
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        if: needs.ci-scope.outputs.scope == 'docs-only'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: needs.ci-scope.outputs.scope == 'docs-only'
+        run: npm ci
+
+      - name: Validate documentation contracts
+        if: needs.ci-scope.outputs.scope == 'docs-only'
+        run: npm run check:docs-drift && npm run check:operational-runbooks
+
+  functions-scope-gate:
+    name: functions-scope-gate
+    runs-on: ubuntu-latest
+    needs: [ci-scope]
+
+    steps:
+      - name: Record non-functions CI scope
+        if: needs.ci-scope.outputs.scope != 'functions-only'
+        run: echo "Functions-only validation is not active for this change."
+
+      - name: Checkout code
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Install application test dependencies
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        run: npm ci
+
+      - name: Install Firebase Functions dependencies
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        run: npm ci --prefix functions
+
+      - name: Run Firebase Functions tests
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        run: >-
+          npx vitest run src/tests/functions
+          src/tests/build/firebaseFunctionDeployVerification.test.ts
+          src/tests/build/firebaseFunctionDeleteResult.test.ts
+          src/tests/build/firebaseFunctionRegionVerification.test.ts
+
+      - name: Validate serverless contracts and runtime scripts
+        if: needs.ci-scope.outputs.scope == 'functions-only'
+        run: |
+          npm run check:serverless-sensitive-coverage
+          npm run check:serverless-runtime-governance
+          npm --prefix functions run check:clinical-pdf-runtime
+
   critical-coverage-report:
     name: critical-coverage-report
     runs-on: ubuntu-latest
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -41,6 +161,8 @@ jobs:
   quality-static-base:
     name: quality-static-base
     runs-on: ubuntu-latest
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -204,6 +326,8 @@ jobs:
   clinical-sync-release-gate:
     name: clinical-sync-release-gate
     runs-on: ubuntu-latest
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -243,6 +367,8 @@ jobs:
   unit-risk-shards:
     name: unit-risk-shard-${{ matrix.shard }}
     runs-on: ubuntu-latest
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
     strategy:
       fail-fast: false
       matrix:
@@ -316,6 +442,8 @@ jobs:
   rules-emulator:
     name: rules-emulator
     runs-on: ubuntu-latest
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -351,6 +479,8 @@ jobs:
   e2e-critical-emulator:
     name: e2e-critical
     runs-on: ubuntu-latest
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
 
     steps:
       - name: Checkout code
@@ -547,6 +677,8 @@ jobs:
   census-startup-performance:
     name: census-startup-performance (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
     # Ceiling for a pathologically slow startup, not an expectation.
     # Observed: production ~4 min, development ~13 min.
     timeout-minutes: 80
@@ -568,11 +700,14 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Validate measurement report contracts
         run: npm run test:census-performance-report
-      - name: Measure 30 populated census navigations per scenario
+      - name: Measure populated census navigations per scenario
         run: npm run test:e2e:census-performance
         env:
           CENSUS_PERF_ENV: ${{ matrix.environment }}
-          CENSUS_PERF_SAMPLES: '30'
+          # Pull requests run a small screening sample for fast feedback. Pushes keep
+          # the release-quality 30-sample measurement used as a valid baseline.
+          CENSUS_PERF_SAMPLES: ${{ github.event_name == 'pull_request' && '5' || '30' }}
+          CENSUS_PERF_SMOKE: ${{ github.event_name == 'pull_request' && '1' || '0' }}
           CENSUS_PERF_RUNNER: github-ubuntu-latest
       - name: Upload privacy-safe timing evidence
         if: always()
@@ -669,6 +804,9 @@ jobs:
     permissions: {}
     needs:
       [
+        ci-scope,
+        docs-scope-gate,
+        functions-scope-gate,
         quality-static,
         unit-risk,
         clinical-sync-release-gate,
@@ -680,6 +818,10 @@ jobs:
         census-startup-performance,
       ]
     env:
+      CI_SCOPE_RESULT: ${{ needs['ci-scope'].result }}
+      CI_SCOPE: ${{ needs['ci-scope'].outputs.scope }}
+      DOCS_SCOPE_GATE_RESULT: ${{ needs['docs-scope-gate'].result }}
+      FUNCTIONS_SCOPE_GATE_RESULT: ${{ needs['functions-scope-gate'].result }}
       QUALITY_STATIC_RESULT: ${{ needs['quality-static'].result }}
       UNIT_RISK_RESULT: ${{ needs['unit-risk'].result }}
       CLINICAL_SYNC_RESULT: ${{ needs['clinical-sync-release-gate'].result }}
@@ -694,6 +836,16 @@ jobs:
         shell: bash
         run: |
           failures=0
+
+          if [[ "$CI_SCOPE_RESULT" != "success" || "$DOCS_SCOPE_GATE_RESULT" != "success" || "$FUNCTIONS_SCOPE_GATE_RESULT" != "success" ]]; then
+            echo "::error::CI scope classification or focused validation did not pass."
+            exit 1
+          fi
+
+          expected_result="success"
+          if [[ "$CI_SCOPE" == "docs-only" || "$CI_SCOPE" == "functions-only" ]]; then
+            expected_result="skipped"
+          fi
 
           for gate in \
             "quality-static:$QUALITY_STATIC_RESULT" \
@@ -710,13 +862,13 @@ jobs:
             result="${gate#*:}"
             echo "$name: $result"
 
-            if [[ "$result" != "success" ]]; then
+            if [[ "$result" != "$expected_result" ]]; then
               failures=$((failures + 1))
             fi
           done
 
           if (( failures > 0 )); then
-            echo "::error::$failures required CI gate(s) did not pass."
+            echo "::error::$failures CI gate(s) did not match the required $CI_SCOPE scope outcome."
             exit 1
           fi
 

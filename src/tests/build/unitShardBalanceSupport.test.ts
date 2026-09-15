@@ -4,6 +4,7 @@ import {
   assignUnitTestFilesToShards,
   buildUnitShardRuntimeProfile,
   collectUnitShardBalanceIssues,
+  normalizePersistedDurationByFile,
   parseUnitShardRunArguments,
 } from '../../../scripts/unitShardBalanceSupport.mjs';
 
@@ -136,6 +137,36 @@ describe('unit shard balance support', () => {
     expect(profile.durationByFile).toMatchObject({
       'src/tests/a/slow.test.ts': 1250,
       'src/tests/b/fast.test.ts': 350,
+    });
+  });
+
+  it('does not add per-file overhead twice when reusing a persisted profile', () => {
+    const measured = normalizePersistedDurationByFile(
+      {
+        summary: { perFileOverheadMs: 100 },
+        durationByFile: {
+          'src/tests/a/slow.test.ts': 1100,
+          'src/tests/b/fast.test.ts': 150,
+        },
+      },
+      { perFileOverheadMs: 100 }
+    );
+
+    const profile = buildUnitShardRuntimeProfile({
+      files: ['src/tests/a/slow.test.ts', 'src/tests/b/fast.test.ts'],
+      durationByFile: measured,
+      config: {
+        shardCount: 2,
+        tolerancePercent: 200,
+        perFileOverheadMs: 100,
+        criticalTestGlobs: [],
+        lockedAssignments: {},
+      },
+    });
+
+    expect(profile.durationByFile).toEqual({
+      'src/tests/a/slow.test.ts': 1100,
+      'src/tests/b/fast.test.ts': 150,
     });
   });
 

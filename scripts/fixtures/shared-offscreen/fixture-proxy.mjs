@@ -51,6 +51,11 @@ export async function startFixtureProxy({ fixtureHtml }) {
   });
   server.on('connection', socket => {
     sockets.add(socket);
+    // Chromium may reset a deliberately rejected proxy socket before Node's
+    // close callback. The reset is expected network noise for this fixture.
+    socket.on('error', error => {
+      if (error.code !== 'ECONNRESET') throw error;
+    });
     socket.on('close', () => sockets.delete(socket));
     socket.setTimeout(5000, () => socket.destroy());
   });
