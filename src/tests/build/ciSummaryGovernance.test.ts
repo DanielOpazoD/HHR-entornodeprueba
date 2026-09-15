@@ -13,6 +13,7 @@ describe('CI summary governance', () => {
       workflow.indexOf('postmerge-evidence:')
     );
     const requiredResults = [
+      ['CI_SCOPE_RESULT', "needs['ci-scope'].result"],
       ['QUALITY_STATIC_RESULT', "needs['quality-static'].result"],
       ['UNIT_RISK_RESULT', "needs['unit-risk'].result"],
       ['CLINICAL_SYNC_RESULT', "needs['clinical-sync-release-gate'].result"],
@@ -27,7 +28,11 @@ describe('CI summary governance', () => {
       expect(summaryJob).toContain(`${variable}: \${{ ${expression} }}`);
       expect(summaryJob).toContain(`$${variable}`);
     }
-    expect(summaryJob).toContain('if [[ "$result" != "success" ]]');
+    expect(summaryJob).toContain("CI_SCOPE: ${{ needs['ci-scope'].outputs.scope }}");
+    expect(summaryJob).toContain("DOCS_SCOPE_GATE_RESULT: ${{ needs['docs-scope-gate'].result }}");
+    expect(summaryJob).toContain('if [[ "$CI_SCOPE" == "docs-only" ]]');
+    expect(summaryJob).toContain('expected_result="skipped"');
+    expect(summaryJob).toContain('if [[ "$result" != "$expected_result" ]]');
     expect(summaryJob).toContain('failures=$((failures + 1))');
     expect(summaryJob).toContain('exit 1');
   });
