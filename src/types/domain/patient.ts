@@ -107,6 +107,20 @@ export interface PatientData {
   isolationType?: string;
   /** Microorganism associated with the active isolation, when supplied by Ficha Médico. */
   isolationMicroorganism?: string;
+  /**
+   * Cierre clínico verificado en Eloísa mientras la cama sigue ocupada, recalculado en cada
+   * conciliación del censo. `confirmed` en `medicalEpicrisis` significa que el alta médica ya está
+   * registrada; `nursingEpicrisis` refleja el alta de enfermería. En ambos casos lo que falta es
+   * el egreso administrativo en Gestión de Camas.
+   */
+  dischargeVerification?: {
+    medicalEpicrisis: 'confirmed' | 'not-detected' | 'unknown';
+    nursingEpicrisis: 'confirmed' | 'not-detected' | 'unknown';
+    /** `encId` del episodio que respalda la verificación. */
+    encounterId?: string;
+    /** ISO del alta médica informada por Eloísa, cuando la trae. */
+    registeredAt?: string;
+  };
   /** Structured UPC checklist with UCI/UTI criteria and derived classification. */
   upcChecklist?: UpcChecklistRecord;
   location?: string;

@@ -6,6 +6,7 @@ import { PatientBedConfigMenuPanel } from '@/features/census/components/patient-
 import { buildPatientBedConfigSections } from '@/features/census/controllers/patientBedConfigSectionsController';
 import type { PatientBedConfigProps } from '@/features/census/components/patient-row/patientRowContracts';
 import { IsolationBadge } from '@/features/census/components/patient-row/IsolationBadge';
+import { RayenDischargeBadges } from '@/features/census/components/patient-row/RayenDischargeBadges';
 
 export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
   bed,
@@ -96,6 +97,8 @@ export const PatientBedConfig: React.FC<PatientBedConfigProps> = ({
             microorganism={data.isolationMicroorganism}
           />
         )}
+
+        <RayenDischargeBadges verification={data.dischargeVerification} />
 
         {/* Static Indicators (Persistent information) */}
         {sections.display.showIndicators && (

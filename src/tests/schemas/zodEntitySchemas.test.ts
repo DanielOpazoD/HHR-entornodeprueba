@@ -114,6 +114,38 @@ describe('zod entity schemas', () => {
       expect(patient.isolationMicroorganism).toBe('Virus Influenza B');
     });
 
+    it('should preserve the verified Eloísa discharges and fall back on unknown states', () => {
+      const patient = PatientDataSchema.parse({
+        bedId: 'H1C2',
+        patientName: 'Paciente con altas verificadas',
+        dischargeVerification: {
+          medicalEpicrisis: 'confirmed',
+          nursingEpicrisis: 'confirmed',
+          encounterId: '8801',
+          registeredAt: '2026-09-15T09:45:00.000Z',
+        },
+      });
+      expect(patient.dischargeVerification).toEqual({
+        medicalEpicrisis: 'confirmed',
+        nursingEpicrisis: 'confirmed',
+        encounterId: '8801',
+        registeredAt: '2026-09-15T09:45:00.000Z',
+      });
+
+      const corrupted = PatientDataSchema.parse({
+        bedId: 'H1C2',
+        patientName: 'Paciente con estado corrupto',
+        dischargeVerification: {
+          medicalEpicrisis: 'inventado',
+          nursingEpicrisis: 'confirmado',
+        },
+      });
+      expect(corrupted.dischargeVerification).toEqual({
+        medicalEpicrisis: 'unknown',
+        nursingEpicrisis: 'unknown',
+      });
+    });
+
     it('should preserve a custom free-text specialty', () => {
       const patient = PatientDataSchema.parse({
         bedId: 'R1',

@@ -18,6 +18,7 @@ import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { normalizeRut } from '@/utils/rutUtils';
 import * as collisionApply from './applyBedOccupancyCollisionResolutions';
 import { buildRayenMovementProvenance } from './rayenMovementProvenance';
+import { applyRayenDischargeVerification } from './applyRayenDischargeVerification';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
@@ -371,6 +372,8 @@ export const applyCensusImportDiff = (
     nextBeds[entry.bedId] = merged as unknown as PatientData;
     applied.updates += 1;
   }
+
+  applyRayenDischargeVerification(nextBeds, effectiveDiff.pendingAdministrativeDischarges);
 
   const activeExtraBeds = [
     ...(current.activeExtraBeds ?? []).filter(bedId => !OCCUPANCY_ONLY_EXTRA_BED_IDS.has(bedId)),

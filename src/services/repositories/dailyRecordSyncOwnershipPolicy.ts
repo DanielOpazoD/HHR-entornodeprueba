@@ -45,6 +45,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   isUPC: 'remoteCanonical',
   isIsolated: 'remoteCanonical',
   isolationType: 'remoteCanonical',
+  dischargeVerification: 'remoteCanonical',
   isolationMicroorganism: 'remoteCanonical',
   upcChecklist: 'remoteCanonical',
   surgicalComplication: 'remoteCanonical',
