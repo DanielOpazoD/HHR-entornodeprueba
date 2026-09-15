@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const configPath = path.join(process.cwd(), '.github/dependabot.yml');
 const config = fs.readFileSync(configPath, 'utf8');
 
-const updateBlocks = config.split(/(?=^  - package-ecosystem:)/m).slice(1);
+const updateBlocks = config.split(/(?=^ {2}- package-ecosystem:)/m).slice(1);
 const rootNpm = updateBlocks.find(
   block => block.includes('package-ecosystem: npm') && /directory: ['"]\/['"]/.test(block)
 );
@@ -49,7 +49,7 @@ describe('Dependabot governance', () => {
     expect(rootNpm).toContain("'>=8.0.0 <9.0.0'");
     for (const dependency of ['@vitest/browser-playwright', '@vitest/coverage-v8', 'vitest']) {
       expect(rootNpm).toMatch(
-        new RegExp(`dependency-name: ['\"]?${dependency.replace('/', '\\/')}['\"]?`)
+        new RegExp(`dependency-name: ['"]?${dependency.replace('/', '\\/')}['"]?`)
       );
     }
     expect(rootNpm).toContain("'>=5.0.0 <6.0.0'");
