@@ -354,7 +354,9 @@ describe('LabResultsViewerModal', () => {
     // Controls hidden during analysis (no Buscar button) and empty state is gone
     expect(screen.queryByText('Buscar')).toBeNull();
     expect(screen.queryByText('Selecciona un paciente y busca')).toBeNull();
-    expect(await screen.findByText('Microbiología')).toBeInTheDocument();
+    // The tab list appears only after the analysis hook state settles; the 1s
+    // default is too tight when four shards run in parallel on one machine.
+    expect(await screen.findByText('Microbiología', {}, { timeout: 10000 })).toBeInTheDocument();
   });
 
   it('trends tab shows grouped charts', async () => {
