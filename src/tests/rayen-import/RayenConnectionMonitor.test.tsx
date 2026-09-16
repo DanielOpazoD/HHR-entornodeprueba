@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RayenConnectionMonitor } from '@/features/rayen-import/components/RayenConnectionMonitor';
 import {
   RAYEN_EXTENSION_PROTOCOL_VERSION,
+  RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
   type RayenExtensionHealthReport,
 } from '@/features/rayen-import/bridge/extensionHealthBridge';
 import { RAYEN_GC_CONNECT_RESULT_TYPE } from '@/features/rayen-import/bridge/gestionCamasConnectChannel';
@@ -281,7 +282,9 @@ describe('RayenConnectionMonitor', () => {
         'Completa el inicio de sesión en las pestañas nuevas de Eloísa.'
       )
     );
-    expect(extension.refresh).toHaveBeenCalledWith({ timeoutMs: 12_000 });
+    expect(extension.refresh).toHaveBeenCalledWith({
+      timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+    });
 
     monitor.rerenderMonitor(baseExtension());
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
@@ -312,6 +315,8 @@ describe('RayenConnectionMonitor', () => {
     fireEvent.click(screen.getByTestId('rayen-monitor-repair'));
 
     await waitFor(() => expect(extension.adoptReport).toHaveBeenCalledWith(repairedReport));
-    expect(extension.refresh).not.toHaveBeenCalledWith({ timeoutMs: 12_000 });
+    expect(extension.refresh).not.toHaveBeenCalledWith({
+      timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+    });
   });
 });

@@ -219,12 +219,15 @@ clínicos en esa telemetría.
   permanecen serializados para evitar conflictos de escritura.
 - **CUDYR histórico estrecho:** el cliente envía sólo la corrección CUDYR; la autoridad del
   servidor la fusiona con las demás escalas vigentes para no depender de una proyección local
-  normalizada ni modificar Braden, Downton u otros puntajes.
+  normalizada ni modificar Braden, Downton u otros puntajes. Si la historia oficial contiene un
+  CUDYR de la noche anterior pero HHR no tiene un censo para ese día, el archivo histórico se
+  considera no aplicable: el CUDYR vigente puede guardarse sin marcar la ejecución como parcial.
 - **Horizonte temporal acotado:** `RayenSyncBundle` demuestra la coherencia de una captura, no
   promete retención ilimitada. D−1…D−7 combinan snapshot vivo, reporte administrativo, censo local
   y flujo oficial por episodio; el snapshot actual nunca proyecta por sí solo la cama vigente hacia atrás.
 - **Dos fechas vigentes antes del relevo:** antes de las 08:00 en día hábil o 09:00 en inhábil se
-  puede sincronizar tanto el día clínico aún activo como una copia manual del día calendario actual.
+  puede crear y sincronizar tanto el día clínico aún activo como una copia manual del día calendario
+  actual. La interfaz y la extensión aplican la misma regla; no es necesario esperar al relevo.
   Al alcanzar exactamente el relevo, el día anterior pasa a histórico. Si una captura preparada
   cruza ese límite, se invalida y debe repetirse con el nuevo contexto temporal.
 - **`moves` ≠ traslados:** `moves` = reubicación de cama dentro del censo; el traslado a otro hospital

@@ -13,6 +13,7 @@ import {
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { RayenDayBootstrapButton } from '@/features/rayen-import/public';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 interface EmptyDayPromptProps {
   selectedDay: number;
@@ -49,10 +50,10 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   const [isConfirmingBlank, setIsConfirmingBlank] = useState(false);
   const [blankConfirmationText, setBlankConfirmationText] = useState('');
   const [now, setNow] = useState(() => new Date());
-  // Reactive clinical day (08:00 business / 09:00 weekend-holiday rollover). The Eloisa
-  // bootstrap must follow the same clinical day the census calendar renders, otherwise at
-  // 00:30 the raw calendar date would offer the next day and hide the active clinical day.
+  // Before the morning handoff, both the active nursing day and the new chronological day are
+  // legitimate synchronization targets. The extension applies the same bounded dual-day rule.
   const clinicalToday = useClinicalToday();
+  const calendarToday = calendarStampInClinicalTimeZone(now).iso;
   const diagnosticSource = emptyStateDiagnostic?.source;
   const diagnosticMessage = emptyStateDiagnostic?.message;
 
@@ -99,7 +100,9 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   const isDatePickerVisible = showDatePicker && !copyAvailability.isCopyLocked;
   const canForceCopyPrevious =
     allowAdminCopyOverride && previousRecordAvailable && !!previousRecordDate;
-  const canCreateFromRayen = currentDateString === clinicalToday && Boolean(onRayenBootstrapReady);
+  const canCreateFromRayen =
+    (currentDateString === clinicalToday || currentDateString === calendarToday) &&
+    Boolean(onRayenBootstrapReady);
   const diagnosticLabelBySource: Record<CensusEmptyStateDiagnostic['source'], string> = {
     remote_missing: 'Firebase/local confirmado',
     local_cache_empty: 'Solo copia local',

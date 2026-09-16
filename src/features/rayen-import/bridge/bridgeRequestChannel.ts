@@ -36,7 +36,7 @@ export const requestViaBridgeChannel = <T>({
     };
 
     const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
+      if (event.source !== window || event.origin !== window.location.origin) return;
       const data = event.data as Record<string, unknown> | null;
       if (!data || data.type !== resultType || data.reqId !== reqId) return;
       cleanup();

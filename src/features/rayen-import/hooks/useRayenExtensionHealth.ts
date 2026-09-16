@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { normalizeHealthExpiry } from '../bridge/sourceHealthExpiry';
 import {
+  RAYEN_HEALTH_PUSH_CAPABILITY,
   RAYEN_EXTENSION_PROTOCOL_VERSION,
   requestRayenExtensionHealth,
   subscribeToRayenExtensionHealthPush,
@@ -48,6 +49,8 @@ export const RAYEN_EXTENSION_HEALTH_LEASE_MS = 150_000;
 /** Reintento activo tras una conexión caída, con espera creciente para no saturar. */
 export const RAYEN_EXTENSION_HEALTH_RECOVERY_BASE_DELAY_MS = 3_000;
 export const RAYEN_EXTENSION_HEALTH_RECOVERY_MAX_DELAY_MS = 30_000;
+/** Refresco preventivo para extensiones compatibles anteriores a `health-push`. */
+export const RAYEN_EXTENSION_LEGACY_REFRESH_MS = 90_000;
 
 export const rayenExtensionHealthRecoveryDelayMs = (attempt: number): number =>
   Math.min(
@@ -239,13 +242,16 @@ export const useRayenExtensionHealth = () => {
     []
   );
 
-  const adoptReport = useCallback((report: RayenExtensionHealthReport): RayenExtensionHealthState => {
-    requestSequence.current += 1;
-    const next = deriveHealthState(report);
-    latestHealth.current = next;
-    setHealth(next);
-    return next;
-  }, []);
+  const adoptReport = useCallback(
+    (report: RayenExtensionHealthReport): RayenExtensionHealthState => {
+      requestSequence.current += 1;
+      const next = deriveHealthState(report);
+      latestHealth.current = next;
+      setHealth(next);
+      return next;
+    },
+    []
+  );
 
   useEffect(() => {
     const sequence = ++requestSequence.current;
@@ -324,6 +330,25 @@ export const useRayenExtensionHealth = () => {
     }, delay + 10);
     return () => window.clearTimeout(timer);
   }, [health.report?.checkedAt]);
+
+  // Protocol v5 predates the active heartbeat capability. Keep those compatible
+  // installations fresh before their 150 s lease expires, avoiding a periodic
+  // false offline state during long-running sessions.
+  useEffect(() => {
+    const report = health.report;
+    if (
+      health.connection !== 'ready' ||
+      !report ||
+      report.capabilities?.includes(RAYEN_HEALTH_PUSH_CAPABILITY) === true
+    ) {
+      return undefined;
+    }
+    const timer = window.setTimeout(
+      () => void refresh({ showChecking: false }),
+      RAYEN_EXTENSION_LEGACY_REFRESH_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [health.connection, health.report, refresh]);
 
   useEffect(() => {
     const report = health.report;

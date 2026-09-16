@@ -43,7 +43,7 @@ describe('HHR patient documents content bridge', () => {
       };
       const context = vm.createContext({
         window: windowObject,
-        chrome: { runtime: { sendMessage } },
+        chrome: { runtime: { id: 'current-extension', sendMessage } },
         console: { warn: vi.fn() },
         HhrRayenMessageContract: {
           types: { PATIENT_DOCUMENT_MANAGER_REQUEST: 'RAYEN_PATIENT_DOCUMENT_MANAGER_REQUEST' },

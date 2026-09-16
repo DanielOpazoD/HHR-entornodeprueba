@@ -38,7 +38,7 @@ describe('HHR statistical-discharge content bridge', () => {
     };
     const context = vm.createContext({
       window: windowObject,
-      chrome: { runtime: { sendMessage } },
+      chrome: { runtime: { id: 'current-extension', sendMessage } },
       console: { warn: vi.fn() },
       HhrRayenMessageContract: {
         types: {
@@ -90,7 +90,7 @@ describe('HHR statistical-discharge content bridge', () => {
     };
     const context = vm.createContext({
       window: windowObject,
-      chrome: { runtime: { sendMessage } },
+      chrome: { runtime: { id: 'current-extension', sendMessage } },
       HhrRayenMessageContract: {
         types: {
           STATISTICAL_DISCHARGE_EVIDENCE_REQUEST: 'RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
@@ -138,7 +138,7 @@ describe('HHR statistical-discharge content bridge', () => {
     };
     const context = vm.createContext({
       window: windowObject,
-      chrome: { runtime: { sendMessage } },
+      chrome: { runtime: { id: 'current-extension', sendMessage } },
       HhrRayenMessageContract: {
         types: {
           STATISTICAL_DISCHARGE_EVIDENCE_REQUEST: 'RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_REQUEST',
@@ -171,7 +171,7 @@ describe('HHR statistical-discharge content bridge', () => {
     );
   });
 
-  it('turns an invalidated extension context into an actionable reload message', async () => {
+  it('reports downstream invalidation when its own relay is still current', async () => {
     let onMessage:
       | ((event: { source: unknown; origin?: string; data: Record<string, unknown> }) => void)
       | undefined;
@@ -188,7 +188,7 @@ describe('HHR statistical-discharge content bridge', () => {
     };
     const context = vm.createContext({
       window: windowObject,
-      chrome: { runtime: { sendMessage } },
+      chrome: { runtime: { id: 'current-extension', sendMessage } },
       console: { warn: vi.fn() },
       HhrRayenMessageContract: {
         types: {
@@ -208,16 +208,14 @@ describe('HHR statistical-discharge content bridge', () => {
       },
     });
 
-    await vi.waitFor(() =>
-      expect(postMessage).toHaveBeenCalledWith(
-        {
-          type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_RESULT',
-          reqId: 'egreso-invalidated',
-          ok: false,
-          error: 'La extensión se actualizó. Recarga la página HHR y vuelve a intentarlo.',
-        },
-        'http://localhost:3000'
-      )
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reqId: 'egreso-invalidated',
+        ok: false,
+        error: 'Extension context invalidated.',
+      }),
+      'http://localhost:3000'
     );
   });
 });

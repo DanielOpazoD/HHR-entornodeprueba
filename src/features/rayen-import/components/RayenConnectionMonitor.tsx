@@ -4,7 +4,11 @@ import { ExternalLink, RefreshCw, Wrench } from 'lucide-react';
 import { requestRayenConnectionRepair } from '../bridge/connectionRepairChannel';
 import { requestGestionCamasConnect } from '../bridge/gestionCamasConnectChannel';
 import { deriveRayenRecoveryAction } from '../bridge/rayenRecoveryAction';
-import type { RayenExtensionHealthReport, RayenSourceHealth } from '../bridge/extensionHealthBridge';
+import {
+  RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+  type RayenExtensionHealthReport,
+  type RayenSourceHealth,
+} from '../bridge/extensionHealthBridge';
 import type {
   RayenExtensionConnectionState,
   RayenExtensionHealthState,
@@ -225,7 +229,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
         );
       }
       if (result.report) adoptExtensionReport(result.report);
-      else await refreshExtension({ timeoutMs: 12_000 });
+      else await refreshExtension({ timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS });
       setNow(Date.now());
     } finally {
       setBusy(null);

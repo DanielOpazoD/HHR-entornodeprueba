@@ -196,7 +196,12 @@ const attachWindowListener = (): void => {
 };
 
 const onWindowMessage = (event: MessageEvent): void => {
-  if (typeof window !== 'undefined' && event.origin !== window.location.origin) return;
+  if (
+    typeof window !== 'undefined' &&
+    (event.source !== window || event.origin !== window.location.origin)
+  ) {
+    return;
+  }
   if (
     typeof event.data === 'object' &&
     event.data !== null &&

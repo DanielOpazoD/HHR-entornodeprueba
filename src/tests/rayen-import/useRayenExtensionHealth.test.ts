@@ -11,6 +11,7 @@ import {
 } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
 import {
   RAYEN_EXTENSION_PROTOCOL_VERSION,
+  RAYEN_HEALTH_PUSH_CAPABILITY,
   RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
   type RayenExtensionHealthCheck,
   type RayenExtensionHealthReport,
@@ -31,6 +32,7 @@ const makeReport = (
 ): RayenExtensionHealthReport => ({
   version: '0.6.0',
   protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
+  capabilities: [RAYEN_HEALTH_PUSH_CAPABILITY],
   checkedAt: new Date().toISOString(),
   fichaMedico: { status: 'ready', message: 'Ficha Médico disponible.' },
   gestionCamas: { status: 'ready', message: 'Gestión de Camas disponible.' },
@@ -262,6 +264,7 @@ describe('useRayenExtensionHealth', () => {
       window.dispatchEvent(
         new MessageEvent('message', {
           origin: window.location.origin,
+          source: window,
           data: {
             type: 'HHR_RAYEN_EXTENSION_HEALTH_PUSH',
             report: makeReport(),

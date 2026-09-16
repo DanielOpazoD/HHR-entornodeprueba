@@ -16,7 +16,7 @@ importScripts(
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
-  'runtime-generation.js', 'connection-repair-runtime.js',
+  'runtime-generation-recovery.js', 'runtime-generation.js', 'connection-repair-runtime.js',
   'health-report-cache-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
   'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',

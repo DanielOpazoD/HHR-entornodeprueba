@@ -189,10 +189,8 @@ describe('EmptyDayPrompt', () => {
     );
   });
 
-  // The Eloisa bootstrap must follow the clinical day (08:00 business / 09:00 weekend
-  // rollover) that the census calendar renders, not the raw calendar date. 2026-09-09 is a
-  // Wednesday and 2026-09-10 a Thursday, so both roll over at 08:00.
-  describe('clinical day alignment for the Eloisa bootstrap', () => {
+  // Before the handoff, both the active clinical day and the new calendar day can be synchronized.
+  describe('dual current-day window for the Eloisa bootstrap', () => {
     const ELOISA_BUTTON = 'Crear desde Eloísa';
 
     const renderPrompt = (currentDateString: string, selectedDay: number) =>
@@ -216,13 +214,13 @@ describe('EmptyDayPrompt', () => {
       expect(screen.getByRole('button', { name: ELOISA_BUTTON })).toBeInTheDocument();
     });
 
-    it('hides Sept 10 during the reported Santiago/Rapa Nui pre-handoff gap', () => {
+    it('offers Sept 10 during the reported Santiago/Rapa Nui pre-handoff gap', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-09-10T12:33:35.000Z')); // 09:33 Santiago, 07:33 Rapa Nui
 
       renderPrompt('2026-09-10', 10);
 
-      expect(screen.queryByRole('button', { name: ELOISA_BUTTON })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: ELOISA_BUTTON })).toBeInTheDocument();
     });
 
     it('switches to the next clinical day when a weekday crosses 08:00', async () => {
@@ -237,7 +235,7 @@ describe('EmptyDayPrompt', () => {
       ).toBeInTheDocument();
       expect(
         within(sept10.container).queryByRole('button', { name: ELOISA_BUTTON })
-      ).not.toBeInTheDocument();
+      ).toBeInTheDocument();
 
       // Crossing 08:00 lets the reactive hook poll pick up the new clinical day.
       await act(async () => {

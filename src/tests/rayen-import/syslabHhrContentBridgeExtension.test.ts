@@ -34,6 +34,7 @@ const createHarness = (sendMessage = vi.fn(async () => ({ ok: true }))) => {
     window: windowObject,
     chrome: {
       runtime: {
+        id: 'current-extension',
         sendMessage,
         onMessage: {
           addListener: vi.fn((listener: typeof onRuntimeMessage) => {
@@ -55,7 +56,7 @@ describe('HHR Syslab content bridge', () => {
       const addEventListener = vi.fn();
       const context = vm.createContext({
         window: { location: { origin }, addEventListener },
-        chrome: { runtime: { onMessage: { addListener: vi.fn() } } },
+        chrome: { runtime: { id: 'current-extension', onMessage: { addListener: vi.fn() } } },
         HhrRayenMessageContract: { types: runtimeTypes },
       });
 
@@ -221,7 +222,7 @@ describe('HHR Syslab content bridge', () => {
     );
   });
 
-  it('turns an invalidated context into a calm reload instruction', async () => {
+  it('reports downstream invalidation when its own relay is still current', async () => {
     const sendMessage = vi.fn(() => {
       throw new Error('Extension context invalidated.');
     });
@@ -233,15 +234,13 @@ describe('HHR Syslab content bridge', () => {
       data: { type: 'HHR_RAYEN_SYSLAB_STATUS_REQUEST', reqId: 'status-1' },
     });
 
-    await vi.waitFor(() =>
-      expect(postMessage).toHaveBeenCalledWith(
-        {
-          type: 'HHR_RAYEN_SYSLAB_STATUS_RESULT',
-          reqId: 'status-1',
-          error: 'La extensión se actualizó. Recarga HHR y vuelve a intentarlo.',
-        },
-        'http://localhost:3000'
-      )
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reqId: 'status-1',
+        error: expect.stringContaining('La extensión se actualizó'),
+      }),
+      'http://localhost:3000'
     );
   });
 });

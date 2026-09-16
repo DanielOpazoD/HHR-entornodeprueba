@@ -16,7 +16,10 @@ import { describe, expect, it } from 'vitest';
  */
 
 const injectSource = readFileSync(path.resolve('extension/inject-fichamedico.js'), 'utf8');
-const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
+const bridgeGenerationSource = readFileSync(
+  path.resolve('extension/bridge-generation-main.js'),
+  'utf8'
+);
 const isolationNormalizationSource = readFileSync(
   path.resolve('extension/fichamedico-isolation-normalization.js'),
   'utf8'
@@ -127,7 +130,7 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
   });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
-  vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation.js' });
+  vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
   for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
 

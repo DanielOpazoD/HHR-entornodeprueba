@@ -63,9 +63,23 @@ describe('extensionHealthBridge', () => {
 
     expect(payload.type).toBe(RAYEN_EXTENSION_HEALTH_REQUEST_TYPE);
 
+    let settled = false;
+    void request.then(() => {
+      settled = true;
+    });
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        data: { type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE, reqId: payload.reqId, report },
+      })
+    );
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
         data: { type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE, reqId: payload.reqId, report },
       })
     );
@@ -73,25 +87,29 @@ describe('extensionHealthBridge', () => {
     await expect(request).resolves.toEqual({ report });
   });
 
-  it('accepts a valid synchronization preflight response after five seconds', async () => {
-    vi.useFakeTimers();
-    const postMessageSpy = vi.spyOn(window, 'postMessage');
-    const request = requestRayenExtensionHealth(RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS);
-    const payload = postMessageSpy.mock.calls[0]?.[0] as { reqId: string };
+  it.each([5_000, 20_000])(
+    'accepts a valid synchronization preflight after %i ms',
+    async delayMs => {
+      vi.useFakeTimers();
+      const postMessageSpy = vi.spyOn(window, 'postMessage');
+      const request = requestRayenExtensionHealth(RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS);
+      const payload = postMessageSpy.mock.calls[0]?.[0] as { reqId: string };
 
-    setTimeout(() => {
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          origin: window.location.origin,
-          data: { type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE, reqId: payload.reqId, report },
-        })
-      );
-    }, 5_000);
+      setTimeout(() => {
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            origin: window.location.origin,
+            source: window,
+            data: { type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE, reqId: payload.reqId, report },
+          })
+        );
+      }, delayMs);
 
-    await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(delayMs);
 
-    await expect(request).resolves.toEqual({ report });
-  });
+      await expect(request).resolves.toEqual({ report });
+    }
+  );
 
   it('ignores a late response whose reqId belongs to an earlier request', async () => {
     const postMessageSpy = vi.spyOn(window, 'postMessage');
@@ -105,6 +123,7 @@ describe('extensionHealthBridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE,
           reqId: `${payload.reqId}-anterior`,
@@ -118,6 +137,7 @@ describe('extensionHealthBridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: { type: RAYEN_EXTENSION_HEALTH_RESULT_TYPE, reqId: payload.reqId, report },
       })
     );
@@ -134,12 +154,14 @@ describe('extensionHealthBridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: 'https://otro-origen.example',
+        source: window,
         data: { type: RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: pushedReport },
       })
     );
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: { type: RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: { version: 42 } },
       })
     );
@@ -148,6 +170,7 @@ describe('extensionHealthBridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: { type: RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: pushedReport, reason: 'heartbeat' },
       })
     );
@@ -158,6 +181,7 @@ describe('extensionHealthBridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: { type: RAYEN_EXTENSION_HEALTH_PUSH_TYPE, report: pushedReport },
       })
     );
