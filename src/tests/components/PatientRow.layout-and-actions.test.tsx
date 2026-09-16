@@ -3,6 +3,7 @@ import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { PatientRow } from '@/features/census/components/PatientRow';
+import { UpcClassificationWindowProvider } from '@/features/census/components/patient-row/UpcClassificationWindowContext';
 import { BedType } from '@/types/domain/beds';
 import { Specialty, PatientStatus } from '@/types/domain/patientClassification';
 import { render } from '../integration/setup';
@@ -146,26 +147,26 @@ describe('PatientRow layout and actions', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('opens the UPC checklist when the classification button is clicked', async () => {
+  it('opens the day UPC panel from the classification chip', async () => {
     render(
-      <table>
-        <tbody>
-          <PatientRow
-            data={mockPatient}
-            bed={mockBedDef}
-            currentDateString="2023-01-01"
-            onAction={mockOnAction}
-            bedType={BedType.UTI}
-          />
-        </tbody>
-      </table>
+      <UpcClassificationWindowProvider currentDateString="2023-01-01">
+        <table>
+          <tbody>
+            <PatientRow
+              data={mockPatient}
+              bed={mockBedDef}
+              currentDateString="2023-01-01"
+              onAction={mockOnAction}
+              bedType={BedType.UTI}
+            />
+          </tbody>
+        </table>
+      </UpcClassificationWindowProvider>
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Evaluación UPC pendiente' }));
 
-    expect(
-      await screen.findByRole('dialog', { name: /checklist de clasificación upc/i })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: /clasificación upc/i })).toBeInTheDocument();
   });
 
   it('renders a passive UPC placeholder on non-eligible beds', () => {
