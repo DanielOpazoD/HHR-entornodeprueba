@@ -21,8 +21,10 @@
   };
   const isSupportedTargetDay = (targetDay, at) => {
     const clinicalDay = root.HhrClinicalDayRuntime?.clinicalDayAt(at);
+    const calendarDay = root.HhrClinicalDayRuntime?.calendarDayAt(at);
     const target = isoDayNumber(targetDay), current = isoDayNumber(clinicalDay);
     if (target === null || current === null) return false;
+    if (targetDay === calendarDay) return true;
     const lookbackDays = current - target;
     return lookbackDays >= 0 && lookbackDays <= MAX_HISTORICAL_LOOKBACK_DAYS;
   };
@@ -36,7 +38,5 @@
     }
     return null;
   };
-  root.HhrCensusSyncHorizonRuntime = Object.freeze({
-    MAX_HISTORICAL_LOOKBACK_DAYS, isSupportedTargetDay, validateCaptureBoundary,
-  });
+  root.HhrCensusSyncHorizonRuntime = Object.freeze({ MAX_HISTORICAL_LOOKBACK_DAYS, isSupportedTargetDay, validateCaptureBoundary });
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -198,7 +198,20 @@ export const applyHistoricalCudyrBatchAuthoritatively = async ({
     if (!historicalRecord) throw new Error('No existe el censo histórico para archivar CUDYR.');
     return historicalRecord;
   };
-  const historicalRecord = await loadHistoricalRecord();
+  const historicalRecord = await dailyRecord.getAuthoritativeForDate(censusDay);
+  // A previous CUDYR application can exist even when HHR has no census for that owning night.
+  // There is no destination to amend in that case, so the archive is not applicable and must not
+  // turn an otherwise successful current-day synchronization into a visible partial conflict.
+  if (!historicalRecord) {
+    return {
+      results: uniqueItems.map(({ clinicalEpisodeId }) => ({
+        clinicalEpisodeId,
+        persisted: false,
+        changed: false,
+        applicable: false,
+      })),
+    };
+  }
   const resolutions = uniqueItems.map(({ clinicalEpisodeId, cudyr }) => ({
     clinicalEpisodeId,
     ...resolveHistoricalCudyrBatchOperation(historicalRecord, clinicalEpisodeId, cudyr),

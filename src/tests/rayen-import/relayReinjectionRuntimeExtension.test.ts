@@ -6,14 +6,26 @@ import '../../../extension/relay-reinjection-runtime.js';
 type ReinjectionRuntime = {
   create: (deps: Record<string, unknown>) => {
     start: () => boolean;
-    reinjectRelays: () => Promise<{ injectedTabs: number }>;
+    reinjectRelays: () => Promise<{
+      injectedTabs: number;
+      failedTabs: number;
+      complete: boolean;
+    }>;
+    ensureReinjected: (options?: { force?: boolean }) => Promise<{
+      injectedTabs: number;
+      skipped: boolean;
+      failedTabs?: number;
+      complete?: boolean;
+    }>;
   };
+  STORAGE_KEY: string;
 };
 
 const runtimeModule = (globalThis as unknown as { HhrRelayReinjectionRuntime: ReinjectionRuntime })
   .HhrRelayReinjectionRuntime;
 
 const MANIFEST = {
+  version: '0.48.27',
   content_scripts: [
     {
       matches: ['https://fichamedico.rayensalud.cl/*'],
@@ -35,11 +47,18 @@ const createFixture = () => {
     async (_injection: { target: { tabId: number; allFrames: boolean }; files: string[] }) =>
       undefined
   );
+  const sessionState: Record<string, unknown> = {};
   const chromeApi = {
     runtime: {
       getManifest: () => MANIFEST,
       onInstalled: {
         addListener: vi.fn((listener: () => void) => installedListeners.push(listener)),
+      },
+    },
+    storage: {
+      session: {
+        get: vi.fn(async (key: string) => ({ [key]: sessionState[key] })),
+        set: vi.fn(async (values: Record<string, unknown>) => Object.assign(sessionState, values)),
       },
     },
     tabs: {
@@ -51,14 +70,25 @@ const createFixture = () => {
   };
   const onReinjected = vi.fn(async () => undefined);
   const runtime = runtimeModule.create({ chromeApi, onReinjected, log: vi.fn() });
-  return { runtime, chromeApi, executeScript, onReinjected, installedListeners };
+  return {
+    runtime,
+    chromeApi,
+    executeScript,
+    onReinjected,
+    installedListeners,
+    sessionState,
+  };
 };
 
 describe('relay reinjection runtime (extension)', () => {
   it('re-inyecta solo los relés ISOLATED del manifest y avisa al terminar', async () => {
     const { runtime, executeScript, onReinjected } = createFixture();
 
-    await expect(runtime.reinjectRelays()).resolves.toEqual({ injectedTabs: 3 });
+    await expect(runtime.reinjectRelays()).resolves.toEqual({
+      injectedTabs: 3,
+      failedTabs: 0,
+      complete: true,
+    });
 
     // Nunca los scripts de mundo MAIN (sobreviven al reload y guardan estado).
     const injectedFiles = executeScript.mock.calls.flatMap(call => call[0].files);
@@ -78,14 +108,42 @@ describe('relay reinjection runtime (extension)', () => {
     const { runtime, executeScript, onReinjected } = createFixture();
     executeScript.mockRejectedValue(new Error('pestaña protegida'));
 
-    await expect(runtime.reinjectRelays()).resolves.toEqual({ injectedTabs: 0 });
+    await expect(runtime.reinjectRelays()).resolves.toEqual({
+      injectedTabs: 0,
+      failedTabs: 3,
+      complete: false,
+    });
     expect(onReinjected).not.toHaveBeenCalled();
   });
 
-  it('se registra en onInstalled y ejecuta la re-inyección al instalar', async () => {
-    const { runtime, executeScript, installedListeners } = createFixture();
+  it('no marca una reparación parcial y vuelve a intentar en el siguiente arranque', async () => {
+    const { runtime, executeScript, sessionState } = createFixture();
+    executeScript.mockRejectedValueOnce(new Error('pestaña todavía cargando'));
+
+    await expect(runtime.ensureReinjected()).resolves.toMatchObject({ complete: false });
+    expect(sessionState[runtimeModule.STORAGE_KEY]).toBeUndefined();
+    executeScript.mockClear();
+    await expect(runtime.ensureReinjected()).resolves.toMatchObject({ complete: true });
+    expect(executeScript).toHaveBeenCalled();
+    expect(sessionState[runtimeModule.STORAGE_KEY]).toBe(MANIFEST.version);
+  });
+
+  it('reinyecta al arrancar aunque onInstalled no se emita y lo hace una vez por sesión', async () => {
+    const { runtime, executeScript, sessionState } = createFixture();
 
     expect(runtime.start()).toBe(true);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalled());
+    expect(sessionState[runtimeModule.STORAGE_KEY]).toBe(MANIFEST.version);
+    executeScript.mockClear();
+    await expect(runtime.ensureReinjected()).resolves.toEqual({ injectedTabs: 0, skipped: true });
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
+  it('onInstalled fuerza la reparación aunque la sesión ya estuviera marcada', async () => {
+    const { runtime, executeScript, installedListeners } = createFixture();
+    expect(runtime.start()).toBe(true);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalled());
+    executeScript.mockClear();
     installedListeners.forEach(listener => listener());
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalled());
   });

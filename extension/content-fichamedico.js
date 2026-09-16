@@ -11,12 +11,11 @@
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
 
-  // Deduplicate only this ISOLATED world's live runtime, never the shared DOM or MAIN
-  // generation. Extension reload/update creates a fresh context and must install anew;
-  // the existing generation handshake still rejects the surviving stale MAIN reader.
-  const installedRelay = globalThis.__hhrFichaMedicoRelayInstalled;
-  if (installedRelay && installedRelay.runtime === chrome.runtime &&
-      installedRelay.runtimeId === chrome.runtime.id) return;
+  const previousRelay = globalThis.__hhrFichaMedicoRelayInstalled; if (previousRelay?.runtime === chrome.runtime && previousRelay.runtimeId === chrome.runtime.id) return;
+  try { chrome.runtime.onMessage.removeListener?.(previousRelay?.runtimeListener); } catch (_) {}
+  const relayClaim = { runtime: chrome.runtime, runtimeId: chrome.runtime.id };
+  globalThis.__hhrFichaMedicoRelayInstalled = relayClaim;
+  const ownsRelay = () => globalThis.__hhrFichaMedicoRelayInstalled === relayClaim;
 
   // Diagnostic marker on the shared DOM so page-context checks can confirm this
   // ISOLATED content script actually injected on fichamedico.
@@ -27,9 +26,9 @@
   const READ_TIMEOUT_MS = 45000;
 
   // El inject de mundo principal NO se reinyecta al recargar la extensión: una pestaña
-  // ya abierta conserva el lector anterior (respondía «lista» y leía con código viejo).
-  // Cada respuesta del inject trae su versión; si no coincide con la instalada, esta
-  // pestaña no está lista ni para salud ni para lectura hasta recargarla (02-09).
+  // ya abierta conserva el lector anterior. La compatibilidad se decide en un solo lugar,
+  // mediante protocolo + generación; comparar aquí la versión del paquete volvería a
+  // desconectar una pestaña cuyo lector sigue siendo compatible tras una actualización.
   const extensionVersion = (() => {
     try {
       return String(chrome.runtime.getManifest().version || '');
@@ -50,7 +49,6 @@
   const staleReader = (d, runtimeGeneration) => {
     return (
       Boolean(d && d.type) && (
-        (Boolean(extensionVersion) && d.injectVersion !== extensionVersion) ||
         !runtimeGeneration ||
         !generationRelay.isCurrent(d, runtimeGeneration)
       )
@@ -156,7 +154,8 @@
     };
   };
 
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  const onRuntimeMessage = (msg, _sender, sendResponse) => {
+    if (!ownsRelay()) return undefined;
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
       askMainWorld(
         'RAYEN_FM_SESSION_STATUS_REQUEST',
@@ -180,10 +179,7 @@
       return true;
     }
     return undefined;
-  });
-
-  globalThis.__hhrFichaMedicoRelayInstalled = {
-    runtime: chrome.runtime,
-    runtimeId: chrome.runtime.id,
   };
+  chrome.runtime.onMessage.addListener(onRuntimeMessage);
+  relayClaim.runtimeListener = onRuntimeMessage;
 })();

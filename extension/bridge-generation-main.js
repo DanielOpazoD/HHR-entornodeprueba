@@ -3,21 +3,20 @@
   'use strict';
 
   const MAIN_WORLD_GENERATION_KEY = '__hhrExtensionRuntimeGenerationV1__';
+  const BRIDGE_PROTOCOL_VERSION = 1;
 
-  const createMain = ({ version, windowRef = root.window }) => {
+  const createMain = ({ version, protocolVersion = BRIDGE_PROTOCOL_VERSION, windowRef = root.window }) => {
     const contextFor = request => {
       const requestedRuntimeGeneration = String(request && request.runtimeGeneration || '');
       const bridgeGeneration = String(windowRef[MAIN_WORLD_GENERATION_KEY] || '');
-      return {
-        bridgeGeneration,
-        current: Boolean(
-          requestedRuntimeGeneration && bridgeGeneration === requestedRuntimeGeneration
-        ),
-      };
+      return { bridgeGeneration, current: Boolean(
+        requestedRuntimeGeneration && bridgeGeneration === requestedRuntimeGeneration
+      ) };
     };
 
     const metadata = context => ({
       injectVersion: version,
+      bridgeProtocolVersion: protocolVersion,
       bridgeGeneration: context
         ? context.bridgeGeneration
         : String(windowRef[MAIN_WORLD_GENERATION_KEY] || ''),
@@ -35,10 +34,7 @@
       return null;
     };
 
-    return Object.freeze({
-      accept,
-      contextFor,
-      metadata,
+    return Object.freeze({ accept, contextFor, metadata,
       post: (payload, context) => windowRef.postMessage(
         { ...payload, ...metadata(context) },
         windowRef.location.origin
@@ -46,5 +42,5 @@
     });
   };
 
-  root.HhrBridgeGeneration = Object.freeze({ createMain });
+  root.HhrBridgeGeneration = Object.freeze({ BRIDGE_PROTOCOL_VERSION, createMain });
 })(typeof self !== 'undefined' ? self : globalThis);

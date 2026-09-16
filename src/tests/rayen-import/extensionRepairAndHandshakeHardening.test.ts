@@ -18,6 +18,7 @@ const read = (file: string) => fs.readFileSync(path.resolve('extension', file), 
 type Relay = {
   context: Promise<{ runtimeGeneration: string } | null>;
   getContext: () => Promise<{ runtimeGeneration: string } | null>;
+  isCurrent: (data: Record<string, unknown>, runtimeGeneration: string) => boolean;
 };
 type BridgeGeneration = {
   createRelay: (input: Record<string, unknown>) => Relay;
@@ -120,6 +121,66 @@ describe('generation handshake retries while the service worker wakes up', () =>
 
     await expect(relay.context).resolves.toBeNull();
     expect(chromeApi.runtime.sendMessage).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('compatible extension updates keep existing MAIN readers connected', () => {
+  it.each(['0.48.25', '0.48.26'])(
+    'accepts pre-protocol reader %s only with the same browser-session generation',
+    legacyVersion => {
+      const relay = bridge.createRelay({
+        chromeApi: createChrome([]),
+        runtimeMessages: {},
+        extensionVersion: '0.48.27',
+      });
+
+      expect(
+        relay.isCurrent(
+          {
+            injectVersion: legacyVersion,
+            bridgeGeneration: 'generation-current',
+          },
+          'generation-current'
+        )
+      ).toBe(true);
+      expect(
+        relay.isCurrent(
+          {
+            injectVersion: legacyVersion,
+            bridgeGeneration: 'generation-old',
+          },
+          'generation-current'
+        )
+      ).toBe(false);
+    }
+  );
+
+  it('uses the bridge protocol after migration and rejects unknown legacy readers', () => {
+    const relay = bridge.createRelay({
+      chromeApi: createChrome([]),
+      runtimeMessages: {},
+      extensionVersion: '0.48.28',
+    });
+
+    expect(
+      relay.isCurrent(
+        {
+          injectVersion: '0.48.27',
+          bridgeProtocolVersion: 1,
+          bridgeGeneration: 'generation-current',
+        },
+        'generation-current'
+      )
+    ).toBe(true);
+    expect(
+      relay.isCurrent(
+        {
+          injectVersion: '0.48.24',
+          bridgeGeneration: 'generation-current',
+        },
+        'generation-current'
+      )
+    ).toBe(false);
   });
 });
 

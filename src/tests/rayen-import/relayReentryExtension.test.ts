@@ -63,7 +63,13 @@ const createWorld = (
         getManifest: () => ({ version: installedVersion }),
         lastError: undefined,
         sendMessage,
-        onMessage: { addListener: (listener: RuntimeListener) => runtimeListeners.push(listener) },
+        onMessage: {
+          addListener: (listener: RuntimeListener) => runtimeListeners.push(listener),
+          removeListener: (listener?: RuntimeListener) => {
+            const index = listener ? runtimeListeners.indexOf(listener) : -1;
+            if (index >= 0) runtimeListeners.splice(index, 1);
+          },
+        },
       },
     },
     // Responses are explicitly delivered below; do not leave 45-second timers behind.

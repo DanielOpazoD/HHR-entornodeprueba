@@ -1,4 +1,4 @@
-/** Stable identity for one loaded extension lifecycle (MV3 service-worker safe). */
+/** Stable identity for the active browser session (MV3 service-worker/update safe). */
 (function (root) {
   'use strict';
 
@@ -48,9 +48,11 @@
     const get = () => {
       if (pending) return pending;
       pending = chromeApi.storage.session.get(STORAGE_KEY)
-        .then(stored => {
+        .then(async stored => {
           const record = stored && stored[STORAGE_KEY];
-          return isRecord(record) ? record : persist(makeRecord());
+          if (isRecord(record)) return record;
+          const recovered = await root.HhrRuntimeGenerationRecovery?.recover({ chromeApi, now });
+          return persist(recovered || makeRecord());
         })
         .catch(error => {
           pending = null;
@@ -59,13 +61,9 @@
       return pending;
     };
 
-    const start = () => {
-      if (!chromeApi.runtime?.onInstalled) return false;
-      // Registration happens before relay reinjection. rotate() assigns its promise
-      // synchronously, so newly injected relays cannot observe the previous lifecycle.
-      chromeApi.runtime.onInstalled.addListener(() => void rotate());
-      return true;
-    };
+    // Updating/reloading clears storage.session but leaves MAIN readers alive. get() recovers
+    // their consensus generation; a browser restart has no surviving reader and gets a fresh one.
+    const start = () => Boolean(chromeApi.storage?.session);
 
     const getContext = version => get().then(generation => ({
       version,

@@ -6,9 +6,9 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 // El inject de mundo principal (inject-fichamedico.js) NO se reinyecta al recargar la
-// extensión: una pestaña ya abierta conserva el lector anterior. Desde 0.48.8 cada
-// respuesta del inject trae `injectVersion` y el relay (content-fichamedico.js) la
-// compara con el manifest: un lector de otra versión no está listo ni lee.
+// extensión: una pestaña ya abierta conserva el lector anterior. Cada respuesta incluye
+// generación y versión/protocolo; el relay acepta sólo contratos compatibles de la misma
+// sesión y rechaza lectores desconocidos o pertenecientes a otra generación.
 
 const contractSource = readFileSync(path.resolve('extension/message-contract.js'), 'utf8');
 const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
@@ -27,9 +27,9 @@ type Listener = (event: {
 const createRelay = (installedVersion: string) => {
   const listeners: Listener[] = [];
   const requests: Array<Record<string, unknown>> = [];
-  let onRuntimeMessage:
-    | ((msg: Record<string, unknown>, sender: unknown, respond: (r: unknown) => void) => unknown)
-    | null = null;
+  const onRuntimeMessages: Array<
+    (msg: Record<string, unknown>, sender: unknown, respond: (r: unknown) => void) => unknown
+  > = [];
   const windowStub: Record<string, unknown> = {
     location: { origin: 'https://fichamedico.rayensalud.cl' },
     addEventListener: (type: string, listener: Listener) => {
@@ -50,8 +50,8 @@ const createRelay = (installedVersion: string) => {
       runtime: {
         getManifest: () => ({ version: installedVersion }),
         onMessage: {
-          addListener: (fn: typeof onRuntimeMessage) => {
-            onRuntimeMessage = onRuntimeMessage || fn;
+          addListener: (fn: (typeof onRuntimeMessages)[number]) => {
+            onRuntimeMessages.push(fn);
           },
         },
         sendMessage: vi.fn((_message, callback) =>
@@ -100,15 +100,36 @@ const createRelay = (installedVersion: string) => {
 
   const send = (msg: Record<string, unknown>) =>
     new Promise<Record<string, unknown>>(resolve => {
-      onRuntimeMessage?.(msg, {}, response => resolve(response as Record<string, unknown>));
+      for (const listener of onRuntimeMessages) {
+        listener(msg, {}, response => resolve(response as Record<string, unknown>));
+      }
     });
 
-  return { send, answerFromInject, requests };
+  return {
+    send,
+    answerFromInject,
+    requests,
+    reinject: () => vm.runInContext(relaySource, context),
+  };
 };
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('relay de Ficha Médico · versión del inject', () => {
+  it('al reinyectarse deja inerte el listener anterior y emite una sola consulta MAIN', async () => {
+    const relay = createRelay(manifest.version);
+    relay.reinject();
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
+    await flush();
+    expect(relay.requests).toHaveLength(1);
+    relay.answerFromInject({
+      injectVersion: manifest.version,
+      bridgeProtocolVersion: 1,
+      ready: true,
+    });
+    await expect(ping).resolves.toMatchObject({ ready: true, reason: 'connected' });
+  });
+
   it('el inject declara la misma versión que el manifest (una constante, no chrome.runtime)', () => {
     expect(injectSource).toContain(`const INJECT_VERSION = '${manifest.version}';`);
   });
@@ -151,6 +172,26 @@ describe('relay de Ficha Médico · versión del inject', () => {
     relay.answerFromInject({ injectVersion: manifest.version, ready: true }, oldGeneration);
     await expect(ping).resolves.toMatchObject({ ready: false, reason: 'outdated_tab' });
   });
+
+  it.each(['0.48.25', '0.48.26'])(
+    'mantiene conectado el lector pre-protocolo %s al actualizar a 0.48.27',
+    async legacyVersion => {
+      const relay = createRelay('0.48.27');
+      const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
+      await flush();
+      relay.answerFromInject({
+        injectVersion: legacyVersion,
+        ready: true,
+        message: 'Ficha Médico disponible. Sesión clínica vigente.',
+      });
+
+      await expect(ping).resolves.toMatchObject({
+        ready: true,
+        reason: 'connected',
+        bridgeVersion: legacyVersion,
+      });
+    }
+  );
 
   it('un inject de otra versión (o sin versión) no está listo y no lee: pide recargar la pestaña', async () => {
     const relay = createRelay('0.48.8');

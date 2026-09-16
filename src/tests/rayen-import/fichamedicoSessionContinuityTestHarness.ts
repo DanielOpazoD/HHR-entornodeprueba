@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 const extensionSource = (file: string) => readFileSync(path.resolve('extension', file), 'utf8');
 const injectSource = extensionSource('inject-fichamedico.js');
-const bridgeGenerationSource = extensionSource('bridge-generation.js');
+const bridgeGenerationSource = extensionSource('bridge-generation-main.js');
 const isolationNormalizationSource = extensionSource('fichamedico-isolation-normalization.js');
 const normalizationSource = extensionSource('fichamedico-normalization.js');
 const resilienceSource = extensionSource('fichamedico-read-resilience.js');
@@ -141,7 +141,7 @@ export const createHarness = async (
   });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
-  vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation.js' });
+  vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
 
   const send = async (data: PostedMessage) => {

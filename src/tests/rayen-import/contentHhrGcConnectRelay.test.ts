@@ -91,10 +91,32 @@ const createHarness = (
     onRuntimeMessage,
     postMessage,
     windowObject,
+    reinject: () => vm.runInContext(contentBridgeSource, context, { filename: 'content-hhr.js' }),
   };
 };
 
 describe('content-hhr · relé de conexión de Gestión de Camas', () => {
+  it('al reinyectarse reemplaza al listener anterior sin duplicar solicitudes', async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ version: '0.48.27' });
+    const relay = createHarness(sendMessage);
+    relay.reinject();
+
+    relay.onMessage({
+      source: relay.windowObject,
+      data: { type: 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST', reqId: 'health-after-update' },
+    });
+    await vi.waitFor(() => {
+      expect(relay.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'HHR_RAYEN_EXTENSION_HEALTH_RESULT',
+          reqId: 'health-after-update',
+        }),
+        'http://localhost:3001'
+      );
+    });
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('no retransmite a HHR una publicación de salud anterior que llega tarde', () => {
     const { onRuntimeMessage, postMessage } = createHarness(vi.fn());
 

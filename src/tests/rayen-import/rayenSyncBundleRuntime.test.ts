@@ -104,6 +104,21 @@ describe('Rayen synchronized source bundle', () => {
     });
   });
 
+  it('accepts the new chronological day before the nursing handoff', async () => {
+    // At 07:00 local, 23 July is still the clinical day but 24 July may already be created.
+    const times = [new Date('2026-07-24T13:00:00.000Z'), new Date('2026-07-24T13:00:21.000Z')];
+    await expect(
+      capture({
+        dateStart: '2026-07-24',
+        dateEnd: '2026-07-25',
+        now: () => times.shift() ?? new Date('2026-07-24T13:00:21.000Z'),
+      })
+    ).resolves.toMatchObject({
+      ok: true,
+      bundle: { dateStart: '2026-07-24', dateEnd: '2026-07-25' },
+    });
+  });
+
   it('does not read clinical data unless both tabs are ready', async () => {
     const readSnapshot = vi.fn();
     const readReport = vi.fn();

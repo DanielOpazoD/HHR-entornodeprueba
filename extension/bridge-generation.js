@@ -1,32 +1,10 @@
 /** Recoverable ISOLATED handshake; MAIN uses bridge-generation-main.js. */
 (function (root) {
   'use strict';
-  const MAIN_WORLD_GENERATION_KEY = '__hhrExtensionRuntimeGenerationV1__';
-  const createMain = ({ version, windowRef = root.window }) => {
-    const contextFor = request => {
-      const requestedRuntimeGeneration = String(request && request.runtimeGeneration || '');
-      const bridgeGeneration = String(windowRef[MAIN_WORLD_GENERATION_KEY] || '');
-      return {
-        bridgeGeneration,
-        current: Boolean(requestedRuntimeGeneration && bridgeGeneration === requestedRuntimeGeneration),
-      };
-    };
-    const metadata = context => ({
-      injectVersion: version,
-      bridgeGeneration: context ? context.bridgeGeneration : String(windowRef[MAIN_WORLD_GENERATION_KEY] || ''),
-    });
-    const accept = (request, resultType, rejection) => {
-      const context = contextFor(request);
-      if (context.current) return context;
-      windowRef.postMessage({
-        type: resultType,
-        reqId: request && request.reqId,
-        ...metadata(context), ...rejection,
-      }, windowRef.location.origin);
-      return null;
-    };
-    return Object.freeze({ accept, contextFor, metadata, post: (payload, context) => windowRef.postMessage({ ...payload, ...metadata(context) }, windowRef.location.origin) });
-  };
+  const BRIDGE_PROTOCOL_VERSION = 1;
+  // Direct upgrade path to the first protocol-bearing release. Remove once no
+  // supported installation can still have one of these MAIN readers open.
+  const LEGACY_COMPATIBLE_VERSIONS = Object.freeze(['0.48.25', '0.48.26']);
   const requestContext = ({ chromeApi, runtimeMessages, timeoutMs }) => new Promise(resolve => {
     const finish = value => {
       clearTimeout(timer);
@@ -48,6 +26,8 @@
   });
   const createRelay = ({
     chromeApi, runtimeMessages, extensionVersion,
+    bridgeProtocolVersion = BRIDGE_PROTOCOL_VERSION,
+    compatibleLegacyVersions = LEGACY_COMPATIBLE_VERSIONS,
     maxAttempts = 3,
     retryDelayMs = 250,
     requestTimeoutMs = 1000,
@@ -75,12 +55,26 @@
     };
     // Prime once; a failed startup may recover on the next heartbeat/request.
     const context = getContext();
+    const isCompatibleBridge = data => Boolean(
+      data && (
+        data.bridgeProtocolVersion === bridgeProtocolVersion ||
+        (
+          data.bridgeProtocolVersion == null &&
+          (
+            data.injectVersion === extensionVersion ||
+            compatibleLegacyVersions.includes(String(data.injectVersion || ''))
+          )
+        )
+      )
+    );
     const isCurrent = (data, runtimeGeneration) => Boolean(
-      data &&
-      data.injectVersion === extensionVersion &&
-      data.bridgeGeneration === runtimeGeneration
+      isCompatibleBridge(data) && data.bridgeGeneration === runtimeGeneration
     );
     return Object.freeze({ context, getContext, isCurrent });
   };
-  root.HhrBridgeGeneration = Object.freeze({ createMain, createRelay });
+  root.HhrBridgeGeneration = Object.freeze({
+    BRIDGE_PROTOCOL_VERSION,
+    LEGACY_COMPATIBLE_VERSIONS,
+    createRelay,
+  });
 })(typeof self !== 'undefined' ? self : globalThis);
