@@ -89,6 +89,30 @@ describe('generation handshake retries while the service worker wakes up', () =>
     await expect(retry).resolves.toEqual({ runtimeGeneration: 'current' });
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('ignores a callback delivered after Chrome invalidates the old extension runtime', async () => {
+    let callback: ((value: unknown) => void) | undefined;
+    const runtime = {
+      sendMessage: vi.fn((_message: unknown, next: (value: unknown) => void) => {
+        callback = next;
+      }),
+      get lastError(): undefined {
+        throw new Error('Extension context invalidated.');
+      },
+    };
+    const relay = bridge.createRelay({
+      chromeApi: { runtime },
+      runtimeMessages: {
+        EXTENSION_RUNTIME_CONTEXT_REQUEST: 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST',
+      },
+      extensionVersion: '0.48.27',
+      maxAttempts: 1,
+    });
+
+    expect(() => callback?.({ runtimeGeneration: 'stale' })).not.toThrow();
+    await expect(relay.context).resolves.toBeNull();
+  });
+
   it('resolves with the context obtained on a later attempt', async () => {
     const chromeApi = createChrome([null, null, { runtimeGeneration: 'gen-b' }]);
     const delay = vi.fn(async (_ms: number) => undefined);

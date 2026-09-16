@@ -12,10 +12,14 @@
     };
     const timer = setTimeout(() => finish(null), timeoutMs);
     try {
-      chromeApi.runtime.sendMessage(
+      const runtime = chromeApi && chromeApi.runtime;
+      if (!runtime || typeof runtime.sendMessage !== 'function') return finish(null);
+      runtime.sendMessage(
         { type: runtimeMessages.EXTENSION_RUNTIME_CONTEXT_REQUEST },
         response => {
-          const error = chromeApi.runtime.lastError;
+          let error;
+          try { error = runtime.lastError; }
+          catch (_error) { return finish(null); }
           finish(!error && response && typeof response.runtimeGeneration === 'string'
             ? response : null);
         }

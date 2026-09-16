@@ -88,6 +88,7 @@
         "message-contract.js",
         "bridge-generation.js",
         "content-fichamedico.js",
+        "runtime-message-client.js",
         "fichamedico-manual-patient-copy.js"
       ],
       "run_at": "document_start"
