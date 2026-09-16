@@ -29,7 +29,7 @@
   const BACKEND_HINT = 'rayensalud.cl';
   // Publicada en cada respuesta al relay: un inject de mundo principal sobrevive a la
   // recarga de la extensión hasta recargar la página; el relay compara con el manifest.
-  const INJECT_VERSION = '0.48.24';
+  const INJECT_VERSION = '0.48.25';
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
   const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
@@ -278,14 +278,17 @@
     });
     return sessionIdentityInflight;
   };
-
   const readSafeSessionIdentityUncached = async () => {
     const revision = ++sessionBindingRevision;
     try {
-      const response = await origFetch('/api/auth/session', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-        headers: { Accept: 'application/json' },
+      const { response, payload } = await resilience.readSession(async signal => {
+        const response = await origFetch('/api/auth/session', {
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+          signal,
+        });
+        return { response, payload: response.ok ? await response.json() : null };
       });
       if (revision !== sessionBindingRevision) return null;
       if (!response.ok) {
@@ -293,8 +296,7 @@
         if (response.status === 401 || response.status === 403) clearClinicalBinding();
         return null;
       }
-      const payload = await response.json();
-      if (revision !== sessionBindingRevision) return null;
+
       const session = payload && payload.ok !== false ? payload.session : null;
       const sessionToken = String((session && session.token) || '');
       const expiresAt = normalization.normalizeSessionExpiry(session, payload);
@@ -331,11 +333,10 @@
         tokenMatchesCapturedAuth,
       };
     } catch (_) {
-      lastSessionFailureReason = 'session_unverified';
+      if (revision === sessionBindingRevision) lastSessionFailureReason = 'session_unverified';
       return null;
     }
   };
-
   const getVerifiedClinicalContext = async () => {
     const identity = await readSafeSessionIdentity();
     if (!capturedAuth || !capturedApiOrigin) {
@@ -376,8 +377,7 @@
   };
 
   // Prime and revalidate the in-memory binding whenever the SPA changes route or the tab becomes
-  // active again. No token is persisted by the extension and Eloísa remains the authority on
-  // expiration; a 401/403 clears the binding immediately.
+  // active again; Eloísa owns expiration and a 401/403 clears the binding.
   const refreshSessionBinding = () => {
     void readSafeSessionIdentity();
   };

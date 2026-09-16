@@ -1,14 +1,4 @@
-/**
- * fichamedico-read-resilience.js (MAIN world helper, loaded before inject-fichamedico.js)
- *
- * Pure helpers for reading Ficha Médico when the tab's network layer misbehaves. Seen live on
- * 02-09: a tab left open overnight still answered the health probe (same-origin session
- * endpoint) while every cross-origin API read died with a bare `TypeError('Failed to fetch')`
- * until the tab was reloaded. HHR kept offering a sync that failed in one second.
- *
- * No DOM, no fetch: the reader receives `readOnce` and `rebind` callbacks, so the policy is
- * unit-testable outside the page.
- */
+/** Bounded session checks and transient network recovery for the MAIN-world reader. */
 (function (root) {
   'use strict';
 
@@ -40,23 +30,12 @@
   const SESSION_READY_MESSAGE = 'Ficha Médico disponible. Sesión clínica vigente.';
   const SESSION_MISSING_MESSAGE = 'La sesión clínica de Ficha Médico no está disponible.';
 
-  /**
-   * A remembered network failure blocks the health probe only for this long. Seen live on
-   * 02-09: the same tab failed at 08:51 and read 15 encounters at 08:54, so a failure can be a
-   * transient backend/network blip. Blocking until the next successful read would trap the
-   * operator (the honest button stays disabled, so no read ever runs to clear it).
-   */
+  // A transient network failure expires after two minutes or a successful read.
+  // Waiting exclusively for success would deadlock the disabled sync button.
   const READ_BLOCK_TTL_MS = 2 * 60 * 1000;
 
-  /**
-   * One self-heal attempt on a network failure, and only when `rebind()` reports that it
-   * actually changed the binding (captured list URL / API origin dropped for the defaults):
-   * repeating an identical request against a backend that just failed doubles the load on
-   * Rayen for nothing. If the retry also fails at network level (or there was nothing to
-   * rebind) the failure is remembered, and `isReadBlocked()` lets the health probe stop
-   * reporting the tab as ready for READ_BLOCK_TTL_MS or until a read succeeds. HTTP errors
-   * (4xx/5xx) never retry: they are answers, not a broken tab.
-   */
+  // Retry only a changed network binding; HTTP failures are not retried.
+  // A failed read blocks health temporarily, avoiding a permanent retry deadlock.
   const createSelfHealingReader = ({ readOnce, rebind, now, blockTtlMs }) => {
     const clock = typeof now === 'function' ? now : () => Date.now();
     const ttl = Number.isFinite(blockTtlMs) && blockTtlMs > 0 ? blockTtlMs : READ_BLOCK_TTL_MS;
@@ -92,6 +71,26 @@
     };
   };
 
+  // Bound both response headers and body. A hung session check must not poison
+  // the shared in-flight promise for the remaining lifetime of the page.
+  const readSession = async (read, timeoutMs = 3000) => {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    let timer;
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => read(controller?.signal)),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error('La comprobación de sesión de Eloísa agotó el tiempo de espera.'));
+            controller?.abort();
+          }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   const describeSessionStatus = ({ sessionReady, readBlocked, failureReason }) => {
     if (failureReason === 'session_expired') return { ready: false, message: 'La sesión de Ficha Médico venció. Vuelve a iniciar sesión en Eloísa.' };
     if (sessionReady && readBlocked) return { ready: false, message: READ_BLOCKED_MESSAGE };
@@ -101,6 +100,7 @@
 
   root.HhrFichaMedicoReadResilience = {
     READ_BLOCK_TTL_MS,
+    readSession,
     isNetworkFailure,
     describeNetworkFailure,
     createSelfHealingReader,

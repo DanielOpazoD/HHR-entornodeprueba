@@ -102,6 +102,7 @@ export const receiveCorrelatedCapture = (capture: SyntheticRayenCapture): Synthe
   const requestId = requestRayenSyncBundle(capture.bundle.dateStart, capture.bundle.dateEnd);
   window.dispatchEvent(
     new MessageEvent('message', {
+      source: window,
       origin: window.location.origin,
       data: {
         type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
@@ -118,6 +119,7 @@ export const receiveCorrelatedCapture = (capture: SyntheticRayenCapture): Synthe
   }
   window.dispatchEvent(
     new MessageEvent('message', {
+      source: window,
       origin: window.location.origin,
       data: {
         type: 'HHR_RAYEN_CENSUS_SNAPSHOT',

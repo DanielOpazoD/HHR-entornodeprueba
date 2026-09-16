@@ -36,23 +36,21 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
-  // Deduplicate only this ISOLATED world's live runtime, never the shared DOM or MAIN
-  // generation. Extension reload/update creates a fresh context and must install anew;
-  // the existing generation handshake still rejects the surviving stale MAIN reader.
+  // A fresh ISOLATED context must install after reload; generation rejects stale MAIN readers.
   const installedRelay = globalThis.__hhrAppRelayInstalled;
   if (installedRelay && installedRelay.runtime === chrome.runtime &&
       installedRelay.runtimeId === chrome.runtime.id) return;
-  const post = message => window.postMessage(message, window.location.origin);
+  const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
   const generationRelay = globalThis.HhrBridgeGeneration.createRelay({
     chromeApi: chrome,
     runtimeMessages,
     extensionVersion: chrome.runtime.getManifest().version,
   });
-  const runtimeContextPromise = generationRelay.context;
+  const getRuntimeContext = generationRelay.getContext;
   const healthPushOrdering = globalThis.HhrHealthPushOrderingRuntime?.createReceiver?.() || { accept: () => false };
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message && message.type === 'RAYEN_EXTENSION_HHR_HEALTH_PING') {
-      runtimeContextPromise.then(runtimeContext => {
+      getRuntimeContext().then(runtimeContext => {
         const version = chrome.runtime.getManifest().version;
         const current = Boolean(
           runtimeContext &&
@@ -82,8 +80,9 @@
     }
     return undefined;
   });
-  const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
+  const isOwnMessage = event => Boolean(chrome.runtime?.id) && event.source === window && event.origin === window.location.origin;
   const postFailure = (type, reqId, error, fallback = {}) => {
+    if (!chrome.runtime?.id) return;
     console.warn('[Rayen→HHR] ' + type + ' error:', error);
     post({ type, reqId, ...fallback, error: String(error) });
   };

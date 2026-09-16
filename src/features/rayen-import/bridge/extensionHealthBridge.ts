@@ -9,14 +9,10 @@
 export const RAYEN_EXTENSION_HEALTH_REQUEST_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_REQUEST';
 export const RAYEN_EXTENSION_HEALTH_RESULT_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_RESULT';
 export const RAYEN_EXTENSION_HEALTH_PUSH_TYPE = 'HHR_RAYEN_EXTENSION_HEALTH_PUSH';
-/**
- * La extensión sondea cada pestaña con un presupuesto propio de 5 s (HEALTH_PROBE_TIMEOUT_MS)
- * y comprueba dos fuentes. Pedir el diagnóstico con menos margen que eso convertía una
- * respuesta normal en un falso «desconectado». Se concede el doble del sondeo de una fuente,
- * que sigue siendo muy inferior al presupuesto de sincronización.
- */
+/** Passive checks stay short; the last fresh report and heartbeat cover recovery. */
 export const RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS = 10_000;
-export const RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS = 12_000;
+/** GC renewal can need 4 × 5 s: relay, rejected token, recapture, renewed-token probe. */
+export const RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS = 25_000;
 export const RAYEN_EXTENSION_PROTOCOL_VERSION = 5;
 export const RAYEN_PATIENT_FLOW_CAPABILITY = 'patient-flow-report';
 export const RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_CAPABILITY = 'statistical-discharge-evidence';
@@ -173,7 +169,7 @@ export const subscribeToRayenExtensionHealthPush = (
 ): (() => void) => {
   if (typeof window === 'undefined') return () => {};
   const onMessage = (event: MessageEvent): void => {
-    if (event.origin !== window.location.origin) return;
+    if (event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data as { type?: unknown; report?: unknown } | null;
     if (!data || data.type !== RAYEN_EXTENSION_HEALTH_PUSH_TYPE) return;
     if (!isRayenExtensionHealthReport(data.report)) return;
@@ -206,7 +202,7 @@ export const requestRayenExtensionHealth = (
     };
 
     const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
+      if (event.source !== window || event.origin !== window.location.origin) return;
       const data = event.data;
       if (!data || data.type !== RAYEN_EXTENSION_HEALTH_RESULT_TYPE || data.reqId !== reqId) {
         return;

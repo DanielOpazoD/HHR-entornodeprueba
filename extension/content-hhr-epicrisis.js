@@ -3,9 +3,9 @@
   'use strict'; const runtimeMessages = globalThis.HhrRayenMessageContract && globalThis.HhrRayenMessageContract.types;
   const trustedOrigins = new Set(['http://localhost:3000', 'http://localhost:3001', 'https://testinghhr.netlify.app']);
   if (!runtimeMessages || !trustedOrigins.has(window.location.origin)) return;
-  const post = message => window.postMessage(message, window.location.origin);
+  const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
   window.addEventListener('message', event => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
+    if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (!data || data.type !== 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST') return;
     chrome.runtime.sendMessage({

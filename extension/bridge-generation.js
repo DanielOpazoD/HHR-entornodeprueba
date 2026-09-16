@@ -1,12 +1,7 @@
-/**
- * Version + lifecycle-generation handshake for ISOLATED relays and shared tests.
- * Chrome MAIN entries load bridge-generation-main.js as a distinct resource.
- */
+/** Recoverable ISOLATED handshake; MAIN uses bridge-generation-main.js. */
 (function (root) {
   'use strict';
-
   const MAIN_WORLD_GENERATION_KEY = '__hhrExtensionRuntimeGenerationV1__';
-
   const createMain = ({ version, windowRef = root.window }) => {
     const contextFor = request => {
       const requestedRuntimeGeneration = String(request && request.runtimeGeneration || '');
@@ -16,71 +11,76 @@
         current: Boolean(requestedRuntimeGeneration && bridgeGeneration === requestedRuntimeGeneration),
       };
     };
-
     const metadata = context => ({
       injectVersion: version,
       bridgeGeneration: context ? context.bridgeGeneration : String(windowRef[MAIN_WORLD_GENERATION_KEY] || ''),
     });
-
     const accept = (request, resultType, rejection) => {
       const context = contextFor(request);
       if (context.current) return context;
       windowRef.postMessage({
         type: resultType,
         reqId: request && request.reqId,
-        ...metadata(context),
-        ...rejection,
+        ...metadata(context), ...rejection,
       }, windowRef.location.origin);
       return null;
     };
-
     return Object.freeze({ accept, contextFor, metadata, post: (payload, context) => windowRef.postMessage({ ...payload, ...metadata(context) }, windowRef.location.origin) });
   };
-
-  const requestContext = ({ chromeApi, runtimeMessages }) => new Promise(resolve => {
+  const requestContext = ({ chromeApi, runtimeMessages, timeoutMs }) => new Promise(resolve => {
+    const finish = value => {
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish(null), timeoutMs);
     try {
       chromeApi.runtime.sendMessage(
         { type: runtimeMessages.EXTENSION_RUNTIME_CONTEXT_REQUEST },
         response => {
           const error = chromeApi.runtime.lastError;
-          resolve(!error && response && typeof response.runtimeGeneration === 'string'
-            ? response
-            : null);
+          finish(!error && response && typeof response.runtimeGeneration === 'string'
+            ? response : null);
         }
       );
     } catch (_error) {
-      resolve(null);
+      finish(null);
     }
   });
-
-  // A relay starts at document_start; if the service worker is asleep at that instant the first
-  // request fails and, without a retry, the tab stayed "desconectada" until a reload.
   const createRelay = ({
-    chromeApi,
-    runtimeMessages,
-    extensionVersion,
+    chromeApi, runtimeMessages, extensionVersion,
     maxAttempts = 3,
     retryDelayMs = 250,
+    requestTimeoutMs = 1000,
+    recoveryDelayMs = 1000,
+    now = () => Date.now(),
     delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
   }) => {
-    const context = (async () => {
-      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-        const response = await requestContext({ chromeApi, runtimeMessages });
-        if (response) return response;
-        if (attempt < maxAttempts) await delay(retryDelayMs * attempt);
-      }
-      return null;
-    })();
+    let cached = null;
+    let inFlight = null;
+    let retryAt = 0;
+    const getContext = () => {
+      if (cached) return Promise.resolve(cached);
+      if (inFlight) return inFlight;
+      if (now() < retryAt) return Promise.resolve(null);
+      inFlight = (async () => {
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          const response = await requestContext({ chromeApi, runtimeMessages, timeoutMs: requestTimeoutMs });
+          if (response) { cached = response; return response; }
+          if (attempt < maxAttempts) await delay(retryDelayMs * attempt);
+        }
+        retryAt = now() + recoveryDelayMs;
+        return null;
+      })().finally(() => { inFlight = null; });
+      return inFlight;
+    };
+    // Prime once; a failed startup may recover on the next heartbeat/request.
+    const context = getContext();
     const isCurrent = (data, runtimeGeneration) => Boolean(
       data &&
       data.injectVersion === extensionVersion &&
       data.bridgeGeneration === runtimeGeneration
     );
-    return Object.freeze({ context, isCurrent });
+    return Object.freeze({ context, getContext, isCurrent });
   };
-
-  root.HhrBridgeGeneration = Object.freeze({
-    createMain,
-    createRelay,
-  });
+  root.HhrBridgeGeneration = Object.freeze({ createMain, createRelay });
 })(typeof self !== 'undefined' ? self : globalThis);

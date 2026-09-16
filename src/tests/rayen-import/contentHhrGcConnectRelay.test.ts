@@ -43,6 +43,7 @@ const createHarness = (
     navigator: { userActivation: { isActive: userActive } },
     chrome: {
       runtime: {
+        id: 'current-extension',
         sendMessage: (message: Record<string, unknown>, callback?: (value: unknown) => void) => {
           if (message.type === 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST') {
             callback?.({
@@ -63,6 +64,8 @@ const createHarness = (
       },
     },
     console,
+    setTimeout,
+    clearTimeout,
     HhrRayenMessageContract: {
       types: {
         EXTENSION_RUNTIME_CONTEXT_REQUEST: 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST',
@@ -272,7 +275,7 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
     );
   });
 
-  it('responde de inmediato cuando un contexto invalidado lanza de forma síncrona', async () => {
+  it('comunica errores de otra pestaña mientras el relé actual sigue vigente', async () => {
     const sendMessage = vi.fn((_message: Record<string, unknown>): Promise<unknown> => {
       throw new Error('Extension context invalidated');
     });
@@ -283,16 +286,14 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
       origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_CONNECTION_REPAIR_REQUEST', reqId: 'repair-sync-error' },
     });
-    await vi.waitFor(() =>
-      expect(postMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'HHR_RAYEN_CONNECTION_REPAIR_RESULT',
-          reqId: 'repair-sync-error',
-          ok: false,
-          error: expect.stringContaining('Extension context invalidated'),
-        }),
-        'http://localhost:3001'
-      )
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reqId: 'repair-sync-error',
+        ok: false,
+        error: 'Error: Extension context invalidated',
+      }),
+      'http://localhost:3001'
     );
   });
 

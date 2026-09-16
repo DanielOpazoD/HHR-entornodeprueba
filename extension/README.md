@@ -377,3 +377,7 @@ actual no está autorizado; la extensión no intenta eludir esa autorización.
 - Cómo aparece un paciente **CMA** en el encounter API (servicio/cama) — el `bedMapping` lo maneja por
   prefijo `CMA`, pero conviene verlo con un caso real.
 - La representación de un **egresado** (alta / CMA / traslado) — la pestaña de egresos estaba vacía.
+
+## Recuperación de conexión (0.48.25)
+
+Ver [diagnóstico, política de recuperación y matriz de regresión](../docs/extension-connection-resilience.md) para múltiples pestañas, sesiones prolongadas y actualización del puente.

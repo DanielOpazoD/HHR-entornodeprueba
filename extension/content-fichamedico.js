@@ -42,7 +42,7 @@
     runtimeMessages,
     extensionVersion,
   });
-  const runtimeContextPromise = generationRelay.context;
+  const getRuntimeContext = generationRelay.getContext;
   const STALE_READER_MESSAGE =
     'Abre una pestaña nueva de Ficha Médico: esta pestaña pertenece a una versión o generación anterior de la extensión.';
   // Cada respuesta se valida sin convertir un mensaje aislado de la página en un estado
@@ -58,7 +58,7 @@
   };
 
   const readViaMainWorld = async () => {
-    const runtimeContext = await runtimeContextPromise;
+    const runtimeContext = await getRuntimeContext();
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
     if (!runtimeGeneration) return { error: 'El relé de Ficha Médico perdió conexión con la extensión.' };
     return new Promise(resolve => {
@@ -96,7 +96,7 @@
 
   // Generic request/response to the MAIN world over window.postMessage.
   const askMainWorld = async (requestType, resultType, timeoutMs = READ_TIMEOUT_MS) => {
-    const runtimeContext = await runtimeContextPromise;
+    const runtimeContext = await getRuntimeContext();
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
     if (!runtimeGeneration) {
       return { error: 'El relé de Ficha Médico perdió conexión con la extensión.' };

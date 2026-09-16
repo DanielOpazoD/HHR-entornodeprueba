@@ -31,11 +31,11 @@
     runtimeMessages,
     extensionVersion,
   });
-  const runtimeContextPromise = generationRelay.context;
+  const getRuntimeContext = generationRelay.getContext;
   const isCurrentBridgeMessage = generationRelay.isCurrent;
   const bridgeHealth = globalThis.HhrGestionCamasBridgeHealth.create({
     windowRef: window,
-    runtimeContextPromise,
+    getRuntimeContext,
     isCurrentBridgeMessage,
   });
 
@@ -54,7 +54,7 @@
 
   // Login redirects create a new MAIN-world document. Rehydrate the pending generation before
   // that document is asked for credentials, otherwise its captures would look stale.
-  void runtimeContextPromise.then(runtimeContext => {
+  void getRuntimeContext().then(runtimeContext => {
     if (!runtimeContext) return;
     try {
       const requestedRevision = connectionAttemptRevision;
@@ -71,7 +71,7 @@
   });
 
   const lookupViaMainWorld = async runs => {
-    const runtimeContext = await runtimeContextPromise;
+    const runtimeContext = await getRuntimeContext();
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
     if (!runtimeGeneration) return { error: 'El relé de Gestión de Camas perdió conexión con la extensión.' };
     return new Promise(resolve => {
@@ -113,7 +113,7 @@
   // Ask the MAIN world for the captured auth token + API base so the background can download
   // reports (see inject-gestioncamas.js). Generic request/response over window.postMessage.
   const getFetchInfoViaMainWorld = async connectionAttemptId => {
-    const runtimeContext = await runtimeContextPromise;
+    const runtimeContext = await getRuntimeContext();
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
     if (!runtimeGeneration) return { error: 'El relé de Gestión de Camas perdió conexión con la extensión.' };
     return new Promise(resolve => {
@@ -158,7 +158,7 @@
     if (event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (!data || data.type !== runtimeMessages.GC_SESSION_CAPTURED || !data.info) return;
-    const runtimeContext = await runtimeContextPromise;
+    const runtimeContext = await getRuntimeContext();
     if (
       !runtimeContext ||
       !isCurrentBridgeMessage(data, runtimeContext.runtimeGeneration)
@@ -184,7 +184,7 @@
       return true;
     }
     if (msg && msg.type === 'RAYEN_GC_SET_CONNECTION_ATTEMPT') {
-      runtimeContextPromise.then(runtimeContext => {
+      getRuntimeContext().then(runtimeContext => {
         if (!runtimeContext) {
           sendResponse({ error: 'El relé perdió conexión con la extensión.' });
           return;
