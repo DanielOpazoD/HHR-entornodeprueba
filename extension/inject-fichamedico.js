@@ -392,9 +392,8 @@
     `${base.origin}/api/encounter/patientHeaderData/${encId}/false`;
   // Fail closed: without the practitioner id of the signed-in user the diagnosis catalogue of
   // another professional would be read. Never substitute a hardcoded id.
-  const diagnosisUrl = (base, encId) => {
-    const practitionerId = base.searchParams.get('healthCarePractitionerId');
-    if (!practitionerId) {
+  const diagnosisUrl = (base, encId, practitionerId) => {
+    if (!/^\d+$/.test(String(practitionerId || ''))) {
       throw new Error('La sesión de Ficha Médico no expone el identificador del profesional; recarga la pestaña.');
     }
     return `${base.origin}/api/encounter/entrySummary/diagnosisEntry/${encId}/0/2/${practitionerId}`;
@@ -483,7 +482,7 @@
             apiGet(headerUrl(base, item.id), capturedAuth)
           ),
           readClinicalCached(`${cachePrefix}:diagnosis`, () =>
-            apiGet(diagnosisUrl(base, item.id), capturedAuth)
+            apiGet(diagnosisUrl(base, item.id, context.identity.practitionerId), capturedAuth)
           ),
           normalization.requiresIsolationDetails(item)
             ? readClinicalCached(`${cachePrefix}:isolation`, () =>
