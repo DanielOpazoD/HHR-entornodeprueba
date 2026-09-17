@@ -76,6 +76,7 @@ describe('extension heavy runtime loading', () => {
       'message-contract.js',
       'bridge-generation.js',
       'content-fichamedico.js',
+      'runtime-message-client.js',
       'fichamedico-manual-patient-copy.js',
     ]);
     expect(uiEntry?.run_at).toBe('document_idle');

@@ -145,6 +145,50 @@ describe('Ficha Medico session continuity', () => {
     });
   });
 
+  it('uses the verified nursing practitioner id for every clinical diagnosis read', async () => {
+    const requested: string[] = [];
+    const harness = await createHarness(
+      'https://fichamedico.rayensalud.cl/dashboard/encounter-list-nurse?tab=0',
+      'Enfermera(o)',
+      new Map(),
+      {},
+      true,
+      rawUrl => {
+        requested.push(rawUrl);
+        const url = new URL(rawUrl);
+        if (
+          [
+            '/api/encounter/noveltyNurseList/1342',
+            '/api/encounter/uneventfulNurseList/1342',
+          ].includes(url.pathname)
+        ) {
+          return url.pathname.includes('noveltyNurseList')
+            ? [{ id: 142070, patientName: 'Jennifer Lopez' }]
+            : [];
+        }
+        if (url.pathname === '/api/encounter/incomeNurseList/1342') return [];
+        if (url.pathname.includes('/patientHeaderData/')) {
+          return { preferredIdentifierCode: '17.764.680-6', firstGivenName: 'Jennifer' };
+        }
+        if (url.pathname.includes('/diagnosisEntry/')) return [];
+        throw new Error(`Unexpected nursing clinical request: ${rawUrl}`);
+      }
+    );
+
+    const response = await harness.send({
+      type: 'RAYEN_EXT_READ_REQUEST',
+      reqId: 'nursing-snapshot',
+    });
+
+    expect(response?.snapshot).toMatchObject({
+      isComplete: true,
+      clinicalCoverage: { total: 1, completed: 1, errors: 0 },
+    });
+    expect(requested).toContain(
+      'https://fichamedicoback.rayensalud.cl/api/encounter/entrySummary/diagnosisEntry/142070/0/2/7936'
+    );
+  });
+
   it.each(['', 'Médico'])(
     'treats the nursing route as authoritative when the session role label is %j',
     async role => {

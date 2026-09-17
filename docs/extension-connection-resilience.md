@@ -62,6 +62,11 @@ Chrome documenta que el worker puede finalizar por inactividad y que abrir un pu
 
 Ejecutar las pruebas afectadas en `src/tests/rayen-import`, `npm run check:rayen-extension-release`, `npm run test:e2e:rayen-extension-runtime` (Chromium aislado con datos sintéticos), `npm run check:extension-hotspots` y el gate previo al merge vigente del proyecto.
 
+El smoke de Chromium mantiene documentos sintéticos de HHR, Ficha Médico y Gestión de Camas
+abiertos, pulsa **Recargar** en `chrome://extensions`, verifica que ninguna página navegó y exige
+que el nuevo worker recupere la generación MAIN anterior. Finalmente consulta la salud desde el
+puente de página de HHR para comprobar que los tres relés responden después de la actualización.
+
 Para aplicar una actualización local: comprobar la carpeta cargada en `chrome://extensions` y cargar
 la versión correspondiente. Desde 0.48.27, una actualización compatible debe recuperar HHR, Ficha
 Médico y Gestión de Camas sin recargar sus documentos. Si el monitor informa un protocolo realmente

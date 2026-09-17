@@ -23,6 +23,8 @@ export type PostedMessage = {
   info?: Record<string, unknown> | null;
   snapshot?: {
     encounters?: Array<Record<string, unknown>>;
+    isComplete?: boolean;
+    clinicalCoverage?: Record<string, number>;
   };
 };
 

@@ -590,6 +590,10 @@
       "maxLines": 45,
       "hotspots": {}
     },
+    "runtime-message-client.js": {
+      "maxLines": 20,
+      "hotspots": {}
+    },
     "sync-bundle-cancellation-runtime.js": {
       "maxLines": 45,
       "hotspots": {}

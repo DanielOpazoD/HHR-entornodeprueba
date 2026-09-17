@@ -140,6 +140,10 @@ sin desplazar las acciones ni la tabla al iniciar una lectura.
 6. El botón de panel clínico de cada paciente sincronizado abre una vista en vivo con mundos
    Médico/Enfermería, entregas de turno, indicaciones y cuidados de enfermería.
 
+La captura del censo admite tanto la lista médica como `encounter-list-nurse`. En la ruta de
+enfermería, las lecturas de diagnóstico usan el identificador del profesional verificado en la sesión;
+si falta o no es numérico, el snapshot se rechaza como incompleto en vez de informar éxito parcial.
+
 ### Indicaciones y recetas desde Gestión de cuidados
 
 En todas las vistas de `fichamedico.rayensalud.cl`, la extensión agrega el **Centro HHR** con el logo
