@@ -66,7 +66,8 @@ describe('extension hotspot budget', () => {
     // 122: contrato, coordinador, router y relay cancelable del único documento compartido.
     // 126: paciente y estilos de la solicitud de exámenes extraídos del Centro.
     // 128: recuperación de generación MAIN al actualizar con pestañas abiertas.
-    expect(metrics.authoredFiles).toHaveLength(128);
+    // 129: cliente de mensajes de runtime que reconecta pestañas tras actualizar la extensión.
+    expect(metrics.authoredFiles).toHaveLength(129);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
