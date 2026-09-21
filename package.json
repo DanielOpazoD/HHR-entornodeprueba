@@ -235,7 +235,7 @@
     "@fontsource/inter": "^5.3.0",
     "@fontsource/outfit": "^5.3.0",
     "@google/genai": "^1.52.0",
-    "@netlify/blobs": "11.0.3",
+    "@netlify/blobs": "11.1.0",
     "@tanstack/react-query": "^5.103.1",
     "@tanstack/react-virtual": "^3.14.13",
     "@types/file-saver": "^2.0.7",
