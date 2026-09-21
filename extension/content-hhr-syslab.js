@@ -64,7 +64,7 @@
     ),
   };
 
-  const post = message => window.postMessage(message, window.location.origin);
+  const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
   const errorMessage = error => /extension context invalidated/i.test(String(error))
     ? 'La extensión se actualizó. Recarga HHR y vuelve a intentarlo.'
     : 'No se pudo comunicar con la extensión Eloísa. Recarga HHR y vuelve a intentarlo.';
@@ -79,7 +79,7 @@
   });
 
   window.addEventListener('message', event => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
+    if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     const route = data && routes[data.type];
     if (!route) return;

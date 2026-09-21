@@ -3,9 +3,9 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract?.types;
   const trustedOrigins = new Set(['http://localhost:3000', 'http://localhost:3001', 'https://testinghhr.netlify.app']);
   if (!runtimeMessages || !trustedOrigins.has(window.location.origin)) return;
-  const post = message => window.postMessage(message, window.location.origin);
+  const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
   window.addEventListener('message', event => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
+    if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     if (event.data?.type !== 'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_REQUEST') return;
     Promise.resolve().then(() => chrome.runtime.sendMessage({
       type: runtimeMessages.STATISTICAL_DISCHARGE_REPORT_REQUEST,
@@ -17,13 +17,12 @@
       error: response && response.error,
     })).catch(error => {
       const errorMessage = String(error && error.message ? error.message : error || '');
+      if (!chrome.runtime?.id) return;
       post({
         type: 'HHR_RAYEN_STATISTICAL_DISCHARGE_DOWNLOAD_RESULT',
         reqId: event.data.reqId,
         ok: false,
-        error: /extension context invalidated/i.test(errorMessage)
-          ? 'La extensión se actualizó. Recarga la página HHR y vuelve a intentarlo.'
-          : errorMessage,
+        error: errorMessage,
       });
     });
   });

@@ -22,6 +22,7 @@ describe('CUDYR evidence contract', () => {
       queueMicrotask(() => {
         window.dispatchEvent(
           new MessageEvent('message', {
+            source: window,
             origin: window.location.origin,
             data: {
               type: RAYEN_CUDYR_CATEGORIES_RESULT_TYPE,
@@ -79,12 +80,15 @@ describe('CUDYR evidence contract', () => {
       window: windowObject,
       chrome: {
         runtime: {
+          id: 'current-extension',
           sendMessage,
           getManifest: () => ({ version: '0.48.10' }),
           onMessage: { addListener: vi.fn() },
         },
       },
       console,
+      setTimeout,
+      clearTimeout,
       HhrRayenMessageContract: {
         types: {
           CUDYR_CATEGORIES_REQUEST: 'RAYEN_CUDYR_CATEGORIES_REQUEST',

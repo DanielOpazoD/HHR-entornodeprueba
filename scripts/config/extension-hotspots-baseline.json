@@ -168,7 +168,7 @@
     "content-hhr.js": {
       "maxLines": 342,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 17
+        "iife>variable:onPageMessage": 17
       }
     },
     "content-prescription-print.js": {
@@ -578,12 +578,20 @@
       "maxLines": 104,
       "hotspots": {}
     },
+    "runtime-generation-recovery.js": {
+      "maxLines": 40,
+      "hotspots": {}
+    },
     "runtime-generation.js": {
       "maxLines": 112,
       "hotspots": {}
     },
     "runtime-loader.js": {
       "maxLines": 45,
+      "hotspots": {}
+    },
+    "runtime-message-client.js": {
+      "maxLines": 20,
       "hotspots": {}
     },
     "sync-bundle-cancellation-runtime.js": {

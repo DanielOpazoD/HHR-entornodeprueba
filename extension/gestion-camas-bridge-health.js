@@ -1,15 +1,15 @@
 /** MAIN-world handshake used to verify that Gestión de Camas belongs to this extension lifecycle. */
 (function (root) {
   'use strict';
-
   const create = ({
     windowRef = root.window,
     runtimeContextPromise,
+    getRuntimeContext = () => runtimeContextPromise,
     isCurrentBridgeMessage,
     timeoutMs = 4000,
   }) => {
     const read = async () => {
-      const runtimeContext = await runtimeContextPromise;
+      const runtimeContext = await getRuntimeContext();
       const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
       if (!runtimeGeneration) {
         return {

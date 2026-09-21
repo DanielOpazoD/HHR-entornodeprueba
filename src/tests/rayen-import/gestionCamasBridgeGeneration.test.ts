@@ -31,13 +31,13 @@ const createRelay = (documentGeneration = '') => {
   const runtimeMessages: Array<Record<string, unknown>> = [];
   const attributes = new Map<string, string>();
   if (documentGeneration) attributes.set('data-hhr-extension-generation', documentGeneration);
-  let runtimeListener:
-    | ((
-        message: Record<string, unknown>,
-        sender: unknown,
-        respond: (value: unknown) => void
-      ) => unknown)
-    | null = null;
+  const runtimeListeners: Array<
+    (
+      message: Record<string, unknown>,
+      sender: unknown,
+      respond: (value: unknown) => void
+    ) => unknown
+  > = [];
   const windowStub: Record<string, unknown> = {
     location: { origin: 'https://hospitalizado.rayensalud.cl' },
     addEventListener: (type: string, listener: Listener) => {
@@ -63,8 +63,8 @@ const createRelay = (documentGeneration = '') => {
       }
     }),
     onMessage: {
-      addListener: (listener: typeof runtimeListener) => {
-        runtimeListener = listener;
+      addListener: (listener: (typeof runtimeListeners)[number]) => {
+        runtimeListeners.push(listener);
       },
     },
   };
@@ -118,13 +118,17 @@ const createRelay = (documentGeneration = '') => {
   };
   const ping = () =>
     new Promise<Record<string, unknown>>(resolve => {
-      runtimeListener?.({ type: 'RAYEN_EXTENSION_HEALTH_PING' }, {}, value => {
-        resolve(value as Record<string, unknown>);
-      });
+      runtimeListeners.forEach(listener =>
+        listener({ type: 'RAYEN_EXTENSION_HEALTH_PING' }, {}, value => {
+          resolve(value as Record<string, unknown>);
+        })
+      );
     });
   const requestRuntime = (message: Record<string, unknown>) =>
     new Promise<Record<string, unknown>>(resolve => {
-      runtimeListener?.(message, {}, value => resolve(value as Record<string, unknown>));
+      runtimeListeners.forEach(listener =>
+        listener(message, {}, value => resolve(value as Record<string, unknown>))
+      );
     });
   const answerLatest = (requestType: string, resultType: string, bridgeGeneration: string) => {
     const request = [...pageRequests].reverse().find(item => item.type === requestType) as {
@@ -158,10 +162,31 @@ const createRelay = (documentGeneration = '') => {
       })
     );
   };
-  return { ping, answerBridge, announceSession, requestRuntime, answerLatest, runtimeMessages };
+  return {
+    ping,
+    answerBridge,
+    announceSession,
+    requestRuntime,
+    answerLatest,
+    runtimeMessages,
+    pageRequests,
+    reinject: () => vm.runInContext(relaySource, context),
+  };
 };
 
 describe('Gestión de Camas bridge generation', () => {
+  it('al reinyectarse deja inerte el listener anterior y consulta MAIN una sola vez', async () => {
+    const relay = createRelay();
+    relay.reinject();
+    const result = relay.ping();
+    await flush();
+    expect(
+      relay.pageRequests.filter(item => item.type === 'RAYEN_GC_BRIDGE_STATUS_REQUEST')
+    ).toHaveLength(1);
+    relay.answerBridge(generation);
+    await expect(result).resolves.toMatchObject({ ready: true, reason: 'connected' });
+  });
+
   it('declares the manifest version and requires a generation on every privileged request', () => {
     expect(injectSource).toContain(`const INJECT_VERSION = '${manifest.version}';`);
     expect(injectSource).toContain('if (!bridge.current) return;');

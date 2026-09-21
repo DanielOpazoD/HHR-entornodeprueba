@@ -44,7 +44,10 @@ const globals = globalThis as typeof globalThis & {
         encId: unknown,
         routeHint?: 'medical' | 'nurse'
       ) => Promise<Record<string, unknown>>;
-      health: (runtimeGeneration?: string, targetTabIds?: number[]) => Promise<Record<string, unknown>>;
+      health: (
+        runtimeGeneration?: string,
+        targetTabIds?: number[]
+      ) => Promise<Record<string, unknown>>;
       getFetchInfo: (sender?: Record<string, unknown>) => Promise<Record<string, unknown>>;
     };
   };
@@ -100,26 +103,63 @@ describe('Ficha Médico transport runtime', () => {
     ).toThrow('El timeout tabMessageTimeoutMs no es válido.');
   });
 
-  it('tries Ficha tabs in active/recency order with the exact bounded-message contract', async () => {
+  it('preflights Ficha tabs in parallel and reads only the preferred healthy tab', async () => {
     const chrome = makeChrome();
     chrome.tabs.query.mockResolvedValue([
       { id: 1, lastAccessed: 500 },
       { id: 2, active: true, lastAccessed: 100 },
       { id: 3, lastAccessed: 300 },
     ]);
-    chrome.tabs.sendMessage
-      .mockRejectedValueOnce(new Error('stale'))
-      .mockResolvedValueOnce({ error: 'sesión vencida' })
-      .mockResolvedValueOnce({ snapshot: { encounters: [] } });
+    chrome.tabs.sendMessage.mockImplementation(async (tabId, message) => {
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING') {
+        if (tabId === 2) throw new Error('stale');
+        if (tabId === 1) return { ready: false, message: 'sesión vencida' };
+        return { ready: true };
+      }
+      return { snapshot: { encounters: [] } };
+    });
     const { runtime } = createRuntime(chrome);
 
     await expect(runtime.handleSnapshotRequest()).resolves.toEqual({
       snapshot: { encounters: [] },
     });
-    expect(chrome.tabs.sendMessage.mock.calls.map(([tabId]) => tabId)).toEqual([2, 1, 3]);
-    expect(withTimeout).toHaveBeenCalledTimes(3);
-    expect(withTimeout.mock.calls.every(call => call[1] === 50_000)).toBe(true);
+    expect(chrome.tabs.sendMessage.mock.calls.map(([tabId]) => tabId)).toEqual([2, 1, 3, 3]);
+    expect(
+      chrome.tabs.sendMessage.mock.calls.filter(([, message]) => message.type === 'RAYEN_READ')
+    ).toEqual([[3, { type: 'RAYEN_READ' }]]);
+    expect(withTimeout.mock.calls.slice(0, 3).every(call => call[1] === 5_000)).toBe(true);
+    expect(withTimeout.mock.calls[3]?.slice(1)).toEqual([
+      50_000,
+      'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.',
+    ]);
     expect(withTimeout.mock.calls[0]?.[2]).toBe(
+      'La pestaña no respondió a la verificación de conexión.'
+    );
+  });
+
+  it('keeps the ordered read fallback for relays without the health handshake', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([
+      { id: 1, lastAccessed: 500 },
+      { id: 2, active: true, lastAccessed: 100 },
+    ]);
+    chrome.tabs.sendMessage.mockImplementation(async (tabId, message) => {
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING') {
+        throw new Error('health no soportado');
+      }
+      return tabId === 2 ? { error: 'relay antiguo inactivo' } : { snapshot: { encounters: [] } };
+    });
+    const { runtime } = createRuntime(chrome);
+
+    await expect(runtime.handleSnapshotRequest()).resolves.toEqual({
+      snapshot: { encounters: [] },
+    });
+    expect(
+      chrome.tabs.sendMessage.mock.calls
+        .filter(([, message]) => message.type === 'RAYEN_READ')
+        .map(([tabId]) => tabId)
+    ).toEqual([2, 1]);
+    expect(withTimeout.mock.calls.at(-1)?.[2]).toBe(
       'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
     );
   });

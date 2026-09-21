@@ -136,9 +136,19 @@ describe('Rayen synchronized source bundle bridge', () => {
     };
     const requestId = requestRayenSyncBundle(bundle.dateStart, bundle.dateEnd);
 
+    // A same-origin frame cannot impersonate the extension relay.
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        data: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', requestId, snapshot, bundle },
+      })
+    );
+    expect(handler).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
         data: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', requestId, snapshot },
       })
     );
@@ -147,6 +157,7 @@ describe('Rayen synchronized source bundle bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
           requestId,
@@ -160,6 +171,7 @@ describe('Rayen synchronized source bundle bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', requestId, snapshot, bundle },
       })
     );
@@ -182,6 +194,7 @@ describe('Rayen synchronized source bundle bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
           requestId: staleRequestId,
@@ -195,6 +208,7 @@ describe('Rayen synchronized source bundle bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: 'HHR_RAYEN_CENSUS_SNAPSHOT',
           requestId: activeRequestId,
@@ -298,9 +312,27 @@ describe('bounded clinical-history bridge', () => {
       encId: '142040',
       censusDate: '2026-07-21',
     });
+    let settled = false;
+    void pending.then(() => {
+      settled = true;
+    });
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        data: {
+          type: 'HHR_RAYEN_HISTORY_SCALES_RESULT',
+          reqId: request.reqId,
+          events: [{ forged: true }],
+        },
+      })
+    );
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
         data: {
           type: 'HHR_RAYEN_HISTORY_SCALES_RESULT',
           reqId: request.reqId,
@@ -333,6 +365,7 @@ describe('Rayen import error bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
           error: 'Error legado sin correlación.',
@@ -344,6 +377,7 @@ describe('Rayen import error bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
           requestId,
@@ -366,6 +400,7 @@ describe('administrative-discharge report bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_EGRESO_REPORT_RESULT_TYPE,
           reqId: request.reqId,
@@ -387,6 +422,7 @@ describe('administrative-discharge report bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: { type: RAYEN_EGRESO_REPORT_RESULT_TYPE, reqId: request.reqId, rows: [] },
       })
     );
@@ -421,6 +457,7 @@ describe('exact-episode egreso lookup bridge', () => {
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: window.location.origin,
+        source: window,
         data: {
           type: RAYEN_EGRESO_LOOKUP_RESULT_TYPE,
           reqId: request.reqId,

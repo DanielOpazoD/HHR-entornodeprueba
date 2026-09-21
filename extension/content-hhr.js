@@ -4,9 +4,6 @@
  * Runs on the HHR app (localhost + testinghhr.netlify.app). Bridges the page's
  * postMessage protocol (the `rayen-import` bridge inside the app) and the background.
  *
- * Snapshot (Ficha Médico census):
- *   Page → us:  { type: 'HHR_RAYEN_REQUEST_SNAPSHOT' }
- *   us  → page: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', snapshot } | { type: 'HHR_RAYEN_IMPORT_ERROR', error }
  * Guarded sync bundle (Ficha Médico + Gestión de Camas):
  *   Page → us:  { type: 'HHR_RAYEN_REQUEST_SYNC_BUNDLE', dateStart, dateEnd }
  *   us  → page: { type: 'HHR_RAYEN_CENSUS_SNAPSHOT', snapshot, bundle } | import error
@@ -17,7 +14,6 @@
  * including patients HHR never synced; parsed to rows in the background):
  *   Page → us:  { type: 'HHR_RAYEN_EGRESO_REPORT_REQUEST', reqId, dateStart, dateEnd }
  *   us  → page: { type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, ok, rows }
- *
  * Patient navigation (read-only handoff to the exact Ficha Médico encounter):
  *   Page → us:  { type: 'HHR_RAYEN_OPEN_ENCOUNTER_REQUEST', reqId, encId }
  *   us  → page: { type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT', reqId, ok, reused, error? }
@@ -36,23 +32,26 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
-  // Deduplicate only this ISOLATED world's live runtime, never the shared DOM or MAIN
-  // generation. Extension reload/update creates a fresh context and must install anew;
-  // the existing generation handshake still rejects the surviving stale MAIN reader.
-  const installedRelay = globalThis.__hhrAppRelayInstalled;
-  if (installedRelay && installedRelay.runtime === chrome.runtime &&
-      installedRelay.runtimeId === chrome.runtime.id) return;
-  const post = message => window.postMessage(message, window.location.origin);
+  const previousRelay = globalThis.__hhrAppRelayInstalled; if (previousRelay?.runtime === chrome.runtime && previousRelay.runtimeId === chrome.runtime.id) return;
+  try {
+    chrome.runtime.onMessage.removeListener?.(previousRelay?.runtimeListener);
+    window.removeEventListener('message', previousRelay?.pageListener);
+  } catch (_) {}
+  const relayClaim = { runtime: chrome.runtime, runtimeId: chrome.runtime.id };
+  globalThis.__hhrAppRelayInstalled = relayClaim;
+  const ownsRelay = () => globalThis.__hhrAppRelayInstalled === relayClaim;
+  const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
   const generationRelay = globalThis.HhrBridgeGeneration.createRelay({
     chromeApi: chrome,
     runtimeMessages,
     extensionVersion: chrome.runtime.getManifest().version,
   });
-  const runtimeContextPromise = generationRelay.context;
+  const getRuntimeContext = generationRelay.getContext;
   const healthPushOrdering = globalThis.HhrHealthPushOrderingRuntime?.createReceiver?.() || { accept: () => false };
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  const onRuntimeMessage = (message, _sender, sendResponse) => {
+    if (!ownsRelay()) return undefined;
     if (message && message.type === 'RAYEN_EXTENSION_HHR_HEALTH_PING') {
-      runtimeContextPromise.then(runtimeContext => {
+      getRuntimeContext().then(runtimeContext => {
         const version = chrome.runtime.getManifest().version;
         const current = Boolean(
           runtimeContext &&
@@ -81,13 +80,16 @@
       });
     }
     return undefined;
-  });
-  const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
+  };
+  chrome.runtime.onMessage.addListener(onRuntimeMessage);
+  const isOwnMessage = event => ownsRelay() && Boolean(chrome.runtime?.id) &&
+    event.source === window && event.origin === window.location.origin;
   const postFailure = (type, reqId, error, fallback = {}) => {
+    if (!chrome.runtime?.id) return;
     console.warn('[Rayen→HHR] ' + type + ' error:', error);
     post({ type, reqId, ...fallback, error: String(error) });
   };
-  window.addEventListener('message', event => {
+  const onPageMessage = event => {
     if (!isOwnMessage(event)) return;
     const data = event.data;
     if (!data) return;
@@ -333,9 +335,7 @@
         });
       return;
     }
-  });
-  globalThis.__hhrAppRelayInstalled = {
-    runtime: chrome.runtime,
-    runtimeId: chrome.runtime.id,
   };
+  window.addEventListener('message', onPageMessage);
+  Object.assign(relayClaim, { runtimeListener: onRuntimeMessage, pageListener: onPageMessage });
 })();

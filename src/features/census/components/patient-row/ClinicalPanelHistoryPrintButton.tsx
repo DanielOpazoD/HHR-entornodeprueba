@@ -12,9 +12,13 @@ interface ClinicalPanelHistoryPrintButtonProps {
   censusDate?: string;
 }
 
-export const ClinicalPanelHistoryPrintButton: React.FC<
-  ClinicalPanelHistoryPrintButtonProps
-> = ({ patientName, patientRun = '', clinicalEpisodeId, admissionDate, censusDate }) => {
+export const ClinicalPanelHistoryPrintButton: React.FC<ClinicalPanelHistoryPrintButtonProps> = ({
+  patientName,
+  patientRun = '',
+  clinicalEpisodeId,
+  admissionDate,
+  censusDate,
+}) => {
   const [isOpening, setIsOpening] = useState(false);
   const { success, error: notifyError } = useNotification();
 

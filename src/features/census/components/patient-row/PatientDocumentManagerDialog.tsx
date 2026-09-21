@@ -1,10 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { useNotification } from '@/context/UIContext';
-import {
-  requestPatientDocumentOpen,
-  type RayenPatientDocument,
-} from '@/features/rayen-import';
+import { requestPatientDocumentOpen, type RayenPatientDocument } from '@/features/rayen-import';
 
 interface PatientDocumentManagerDialogProps {
   patientName: string;
@@ -82,7 +79,9 @@ export const PatientDocumentManagerDialog: React.FC<PatientDocumentManagerDialog
         <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-6">
           <div className="min-w-0">
             <h3 className="text-base font-bold text-slate-800">Documentos del paciente</h3>
-            <p className="truncate text-xs text-slate-500">{patientName} · consulta de solo lectura</p>
+            <p className="truncate text-xs text-slate-500">
+              {patientName} · consulta de solo lectura
+            </p>
           </div>
           <button
             type="button"
@@ -102,7 +101,10 @@ export const PatientDocumentManagerDialog: React.FC<PatientDocumentManagerDialog
             </div>
           )}
           {error && (
-            <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <div
+              role="alert"
+              className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+            >
               {error}
             </div>
           )}
@@ -116,8 +118,19 @@ export const PatientDocumentManagerDialog: React.FC<PatientDocumentManagerDialog
               <table className="w-full min-w-[860px] border-separate border-spacing-0 text-left text-sm">
                 <thead>
                   <tr className="bg-slate-100 text-slate-700">
-                    {['Clasificación', 'Archivo', 'Nombre', 'Adjuntado por', 'Establecimiento', 'Fecha'].map(label => (
-                      <th key={label} scope="col" className="px-3 py-3 font-semibold first:rounded-l-lg last:rounded-r-lg">
+                    {[
+                      'Clasificación',
+                      'Archivo',
+                      'Nombre',
+                      'Adjuntado por',
+                      'Establecimiento',
+                      'Fecha',
+                    ].map(label => (
+                      <th
+                        key={label}
+                        scope="col"
+                        className="px-3 py-3 font-semibold first:rounded-l-lg last:rounded-r-lg"
+                      >
                         {label}
                       </th>
                     ))}
@@ -126,7 +139,9 @@ export const PatientDocumentManagerDialog: React.FC<PatientDocumentManagerDialog
                 <tbody>
                   {documents.map(document => (
                     <tr key={document.id} className="border-b border-slate-100 text-slate-700">
-                      <td className="border-b border-slate-100 px-3 py-4">{document.classification}</td>
+                      <td className="border-b border-slate-100 px-3 py-4">
+                        {document.classification}
+                      </td>
                       <td className="border-b border-slate-100 px-3 py-4">
                         <button
                           type="button"
@@ -135,7 +150,11 @@ export const PatientDocumentManagerDialog: React.FC<PatientDocumentManagerDialog
                           className="inline-flex max-w-48 items-center gap-1.5 text-left font-medium text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-900 disabled:cursor-progress disabled:opacity-60"
                         >
                           {openingId === document.id && (
-                            <Loader2 size={14} className="shrink-0 animate-spin" aria-hidden="true" />
+                            <Loader2
+                              size={14}
+                              className="shrink-0 animate-spin"
+                              aria-hidden="true"
+                            />
                           )}
                           <span className="break-words">{document.fileName}</span>
                         </button>
@@ -143,7 +162,9 @@ export const PatientDocumentManagerDialog: React.FC<PatientDocumentManagerDialog
                       <td className="border-b border-slate-100 px-3 py-4">{document.name}</td>
                       <td className="border-b border-slate-100 px-3 py-4">{document.attachedBy}</td>
                       <td className="border-b border-slate-100 px-3 py-4">{document.facility}</td>
-                      <td className="whitespace-nowrap border-b border-slate-100 px-3 py-4">{formatDate(document.createdAt)}</td>
+                      <td className="whitespace-nowrap border-b border-slate-100 px-3 py-4">
+                        {formatDate(document.createdAt)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

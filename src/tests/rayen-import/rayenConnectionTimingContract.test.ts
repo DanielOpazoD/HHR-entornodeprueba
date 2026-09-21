@@ -43,12 +43,16 @@ const heartbeatPeriodMinutes = readNumericConstant(heartbeatSource, 'periodMinut
 const heartbeatPeriodMs = heartbeatPeriodMinutes * 60_000;
 
 describe('contrato de tiempos de la conexión Eloísa', () => {
-  it('nunca pide el diagnóstico con menos margen del que la extensión necesita para darlo', () => {
+  it('reserva al diagnóstico pasivo al menos dos presupuestos de sondeo', () => {
     // La extensión sondea Ficha Médico y Gestión de Camas; cada fuente dispone de su
     // propio presupuesto. Rendirse antes convierte una respuesta normal en un falso corte.
     expect(RAYEN_EXTENSION_PASSIVE_HEALTH_TIMEOUT_MS).toBeGreaterThanOrEqual(
       healthProbeTimeoutMs * 2
     );
+  });
+
+  it('permite completar una renovación GC con cuatro etapas y margen del relé', () => {
+    expect(RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS).toBeGreaterThan(healthProbeTimeoutMs * 4);
   });
 
   it('mantiene el diagnóstico pasivo por debajo del presupuesto de sincronización', () => {

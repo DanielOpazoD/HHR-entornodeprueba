@@ -130,12 +130,7 @@
       MutationObserver: root.MutationObserver,
       setTimeout: root.setTimeout.bind(root),
       clearTimeout: root.clearTimeout.bind(root),
-      sendMessage: message => new Promise(resolve => {
-        root.chrome.runtime.sendMessage(message, response => {
-          const runtimeError = root.chrome.runtime.lastError;
-          resolve(runtimeError ? { error: runtimeError.message } : response);
-        });
-      }),
+      sendMessage: root.HhrRuntimeMessageClient.createSender(root.chrome),
       writeClipboard: code => root.navigator.clipboard.writeText(code),
     });
     runtime.start();

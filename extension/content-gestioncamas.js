@@ -10,14 +10,14 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
-
-  // Deduplicate only this ISOLATED world's live runtime, never the shared DOM or MAIN
-  // generation. Extension reload/update creates a fresh context and must install anew;
-  // the existing generation handshake still rejects the surviving stale MAIN reader.
-  const installedRelay = globalThis.__hhrGestionCamasRelayInstalled;
-  if (installedRelay && installedRelay.runtime === chrome.runtime &&
-      installedRelay.runtimeId === chrome.runtime.id) return;
-
+  const previousRelay = globalThis.__hhrGestionCamasRelayInstalled; if (previousRelay?.runtime === chrome.runtime && previousRelay.runtimeId === chrome.runtime.id) return;
+  try {
+    chrome.runtime.onMessage.removeListener?.(previousRelay?.runtimeListener);
+    window.removeEventListener('message', previousRelay?.pageListener);
+  } catch (_) {}
+  const relayClaim = { runtime: chrome.runtime, runtimeId: chrome.runtime.id };
+  globalThis.__hhrGestionCamasRelayInstalled = relayClaim;
+  const ownsRelay = () => globalThis.__hhrGestionCamasRelayInstalled === relayClaim;
   // Diagnostic marker so page-context checks can confirm this relay injected.
   try {
     document.documentElement.setAttribute('data-rayen-gc-relay', '1');
@@ -31,11 +31,11 @@
     runtimeMessages,
     extensionVersion,
   });
-  const runtimeContextPromise = generationRelay.context;
+  const getRuntimeContext = generationRelay.getContext;
   const isCurrentBridgeMessage = generationRelay.isCurrent;
   const bridgeHealth = globalThis.HhrGestionCamasBridgeHealth.create({
     windowRef: window,
-    runtimeContextPromise,
+    getRuntimeContext,
     isCurrentBridgeMessage,
   });
 
@@ -54,12 +54,12 @@
 
   // Login redirects create a new MAIN-world document. Rehydrate the pending generation before
   // that document is asked for credentials, otherwise its captures would look stale.
-  void runtimeContextPromise.then(runtimeContext => {
-    if (!runtimeContext) return;
+  void getRuntimeContext().then(runtimeContext => {
+    if (!runtimeContext || !ownsRelay()) return;
     try {
       const requestedRevision = connectionAttemptRevision;
       chrome.runtime.sendMessage({ type: runtimeMessages.GC_DOCUMENT_READY }, response => {
-        if (chrome.runtime.lastError) return;
+        if (chrome.runtime.lastError || !ownsRelay()) return;
         if (connectionAttemptRevision !== requestedRevision) return;
         applyConnectionAttempt(
           response && response.connectionAttemptId,
@@ -71,7 +71,7 @@
   });
 
   const lookupViaMainWorld = async runs => {
-    const runtimeContext = await runtimeContextPromise;
+    const runtimeContext = await getRuntimeContext();
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
     if (!runtimeGeneration) return { error: 'El relé de Gestión de Camas perdió conexión con la extensión.' };
     return new Promise(resolve => {
@@ -113,7 +113,7 @@
   // Ask the MAIN world for the captured auth token + API base so the background can download
   // reports (see inject-gestioncamas.js). Generic request/response over window.postMessage.
   const getFetchInfoViaMainWorld = async connectionAttemptId => {
-    const runtimeContext = await runtimeContextPromise;
+    const runtimeContext = await getRuntimeContext();
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
     if (!runtimeGeneration) return { error: 'El relé de Gestión de Camas perdió conexión con la extensión.' };
     return new Promise(resolve => {
@@ -154,11 +154,12 @@
 
   // Persist only the short-lived access token in chrome.storage.session through the worker.
   // The password remains exclusively in Rayen's official login page.
-  window.addEventListener('message', async event => {
+  const onPageMessage = async event => {
+    if (!ownsRelay()) return;
     if (event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (!data || data.type !== runtimeMessages.GC_SESSION_CAPTURED || !data.info) return;
-    const runtimeContext = await runtimeContextPromise;
+    const runtimeContext = await getRuntimeContext();
     if (
       !runtimeContext ||
       !isCurrentBridgeMessage(data, runtimeContext.runtimeGeneration)
@@ -168,9 +169,11 @@
         void chrome.runtime.lastError;
       });
     } catch (_error) {}
-  });
+  };
+  window.addEventListener('message', onPageMessage);
 
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  const onRuntimeMessage = (msg, _sender, sendResponse) => {
+    if (!ownsRelay()) return undefined;
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
       bridgeHealth.read().then(sendResponse);
       return true;
@@ -184,7 +187,7 @@
       return true;
     }
     if (msg && msg.type === 'RAYEN_GC_SET_CONNECTION_ATTEMPT') {
-      runtimeContextPromise.then(runtimeContext => {
+      getRuntimeContext().then(runtimeContext => {
         if (!runtimeContext) {
           sendResponse({ error: 'El relé perdió conexión con la extensión.' });
           return;
@@ -199,10 +202,7 @@
       return true;
     }
     return undefined;
-  });
-
-  globalThis.__hhrGestionCamasRelayInstalled = {
-    runtime: chrome.runtime,
-    runtimeId: chrome.runtime.id,
   };
+  chrome.runtime.onMessage.addListener(onRuntimeMessage);
+  Object.assign(relayClaim, { runtimeListener: onRuntimeMessage, pageListener: onPageMessage });
 })();
