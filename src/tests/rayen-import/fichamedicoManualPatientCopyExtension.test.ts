@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import '../../../extension/runtime-message-client.js';
 import '../../../extension/fichamedico-manual-patient-copy.js';
 
 type CopyFactory = {
@@ -15,6 +16,13 @@ const factory = (
     HhrFichaMedicoManualPatientCopy: CopyFactory;
   }
 ).HhrFichaMedicoManualPatientCopy;
+const runtimeMessageClient = (
+  globalThis as typeof globalThis & {
+    HhrRuntimeMessageClient: {
+      createSender: (chromeApi: Record<string, unknown>) => (message: unknown) => Promise<unknown>;
+    };
+  }
+).HhrRuntimeMessageClient;
 
 describe('Ficha Médico manual patient copy action', () => {
   beforeEach(() => {
@@ -24,15 +32,33 @@ describe('Ficha Médico manual patient copy action', () => {
   });
 
   it('is registered as an isolated Ficha Médico content script', () => {
-    const manifest = JSON.parse(
-      readFileSync(path.resolve('extension/manifest.json'), 'utf8')
-    ) as { content_scripts?: Array<{ matches?: string[]; js?: string[]; world?: string }> };
+    const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json'), 'utf8')) as {
+      content_scripts?: Array<{ matches?: string[]; js?: string[]; world?: string }>;
+    };
     const entry = manifest.content_scripts?.find(candidate =>
       candidate.js?.includes('fichamedico-manual-patient-copy.js')
     );
 
     expect(entry?.matches).toContain('https://fichamedico.rayensalud.cl/*');
     expect(entry?.world).not.toBe('MAIN');
+  });
+
+  it('turns a callback from an invalidated runtime into a recoverable transport error', async () => {
+    let callback: ((value: unknown) => void) | undefined;
+    const sendMessage = runtimeMessageClient.createSender({
+      runtime: {
+        sendMessage: vi.fn((_message: unknown, next: (value: unknown) => void) => {
+          callback = next;
+        }),
+        get lastError(): undefined {
+          throw new Error('Extension context invalidated.');
+        },
+      },
+    });
+
+    const pending = sendMessage({ type: 'RAYEN_CENSUS_LIST_REQUEST' });
+    expect(() => callback?.({ patients: [] })).not.toThrow();
+    await expect(pending).resolves.toEqual({ error: 'Extension context invalidated.' });
   });
 
   it('adds one action per row, copies the selected patient code and never duplicates it', async () => {
@@ -109,8 +135,7 @@ describe('Ficha Médico manual patient copy action', () => {
     });
     await runtime.scan();
 
-    document.querySelector('tr td:first-child')!.textContent =
-      'Tomás Riroroko · 11.111.111-1';
+    document.querySelector('tr td:first-child')!.textContent = 'Tomás Riroroko · 11.111.111-1';
     await runtime.scan();
     const button = document.querySelector(
       '[data-hhr-patient-code-action="1"]'

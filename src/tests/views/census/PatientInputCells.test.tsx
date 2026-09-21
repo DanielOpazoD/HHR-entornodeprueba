@@ -7,6 +7,7 @@ import { useDailyRecordStability } from '@/context/DailyRecordContext';
 import { UIProvider } from '@/context/UIContext';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import { clearDailyRecordClinicalFieldPausesForTests } from '@/hooks/controllers/dailyRecordClinicalFieldAcknowledgementController';
+import { UpcClassificationWindowProvider } from '@/features/census/components/patient-row/UpcClassificationWindowContext';
 
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStability: vi.fn(),
@@ -17,7 +18,14 @@ vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordStaff: () => ({ nursesDayShift: [], nursesNightShift: [] }),
 }));
 
-const renderWithUI = (ui: ReactElement) => render(<UIProvider>{ui}</UIProvider>);
+const renderWithUI = (ui: ReactElement) =>
+  render(
+    <UIProvider>
+      <UpcClassificationWindowProvider currentDateString="2026-09-15">
+        {ui}
+      </UpcClassificationWindowProvider>
+    </UIProvider>
+  );
 
 describe('PatientInputCells', () => {
   beforeEach(() => {

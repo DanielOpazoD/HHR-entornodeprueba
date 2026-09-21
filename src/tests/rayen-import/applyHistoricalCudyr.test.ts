@@ -298,6 +298,41 @@ describe('applyHistoricalCudyr', () => {
     expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
   });
 
+  it('treats a missing historical census as not applicable without invoking authority', async () => {
+    const repository = {
+      getAuthoritativeForDate: vi.fn().mockResolvedValue(null),
+    } as unknown as DailyRecordRepositoryPort;
+    const applyBatch = vi.fn();
+    const sourceRecord = {
+      ...record('revision-source'),
+      date: '2026-07-30',
+    } as unknown as DailyRecord;
+
+    await expect(
+      applyHistoricalCudyrBatchAuthoritatively({
+        dailyRecord: repository,
+        sourceRecord,
+        censusDay: '2026-07-29',
+        items: [{ clinicalEpisodeId: '142000', cudyr }],
+        isAdmin: true,
+        runId: 'run-authoritative',
+        applyBatch,
+      })
+    ).resolves.toEqual({
+      results: [
+        {
+          clinicalEpisodeId: '142000',
+          persisted: false,
+          changed: false,
+          applicable: false,
+        },
+      ],
+    });
+
+    expect(repository.getAuthoritativeForDate).toHaveBeenCalledOnce();
+    expect(applyBatch).not.toHaveBeenCalled();
+  });
+
   it('preserves aggregate retries when an older callable cannot provide scoped evidence', async () => {
     const historicalRecord = recordWithTwoEpisodes('revision-1');
     const repository = {

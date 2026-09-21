@@ -8,36 +8,35 @@
   };
 
   const create = dependencies => {
-    const {
-      chromeApi,
-      extensionHealth,
-      session,
-      withTimeout,
-      healthProbeTimeoutMs,
-      matchPattern,
-      readSession,
-      clearUnusableSession,
-      requestLiveSession,
-      verifySession,
-    } = dependencies;
+    const { chromeApi, extensionHealth, session, withTimeout, healthProbeTimeoutMs } = dependencies;
+    const { matchPattern, readSession, clearUnusableSession } = dependencies;
+    const { requestLiveSession, verifySession } = dependencies;
 
     return async (runtimeGeneration, targetTabIds) => {
+      const readyTabIds = [];
       const matchingTabs = extensionHealth.orderTabs(
         await extensionHealth.resolveTabs(chromeApi.tabs, matchPattern, targetTabIds)
       );
       const tabHealth = await extensionHealth.probeTabs({
         tabs: matchingTabs,
-        sendMessage: (tabId, message) =>
-          withTimeout(
+        sendMessage: async (tabId, message) => {
+          const response = await withTimeout(
             chromeApi.tabs.sendMessage(tabId, message),
             healthProbeTimeoutMs,
             'La pestaña de Gestión de Camas no respondió a la comprobación.'
-          ),
+          );
+          if (response?.ready === true) readyTabIds.push(tabId);
+          return response;
+        },
         missingMessage: 'Abre Gestión de Camas e inicia sesión para sincronizar.',
         staleMessage: 'Abre una pestaña nueva de Gestión de Camas para activar la extensión vigente.',
         healthMessage: { type: 'RAYEN_EXTENSION_HEALTH_PING', runtimeGeneration },
       });
       if (tabHealth.status !== 'ready') return tabHealth;
+      const liveOptions = {
+        verificationTimeoutMs: healthProbeTimeoutMs, tabTimeoutMs: healthProbeTimeoutMs,
+        targetTabIds, confirmedTabIds: readyTabIds,
+      };
       const withBridge = status => ({
         ...status,
         reason: reasonOf(status),
@@ -52,13 +51,7 @@
         session.isUsable(record) &&
         !matchingTabs.some(tab => Number(tab?.id) === Number(record.sourceTabId))
       ) {
-        // La pestaña de origen murió, pero hay pestañas de Gestión de Camas
-        // vivas (el probe de arriba ya respondió): adoptar su sesión en vivo
-        // en lugar de exigir una reconexión manual.
-        const live = await requestLiveSession({
-          verificationTimeoutMs: healthProbeTimeoutMs,
-          tabTimeoutMs: healthProbeTimeoutMs, targetTabIds,
-        });
+        const live = await requestLiveSession(liveOptions);
         if (live.record) return withBridge(session.publicStatus(live.record));
         return withBridge({
           status: 'stale',
@@ -71,10 +64,7 @@
       if (!session.isUsable(record)) {
         record = await clearUnusableSession();
         if (!session.isUsable(record)) {
-          const live = await requestLiveSession({
-            verificationTimeoutMs: healthProbeTimeoutMs,
-            tabTimeoutMs: healthProbeTimeoutMs, targetTabIds,
-          });
+          const live = await requestLiveSession(liveOptions);
           if (!live.record) {
             return withBridge({
               ...session.publicStatus(null),
@@ -88,7 +78,10 @@
       if (session.isVerificationFresh(record)) return withBridge(session.publicStatus(record));
       const verified = await verifySession(record, healthProbeTimeoutMs);
       if (verified.record) return withBridge(session.publicStatus(verified.record));
-      if (verified.changed) return withBridge(session.publicStatus(await readSession()));
+      if (verified.reason === 'session_expired') {
+        const live = await requestLiveSession(liveOptions);
+        if (live.record) return withBridge(session.publicStatus(live.record));
+      }
       const status = session.publicStatus(record);
       return withBridge({
         ...status,

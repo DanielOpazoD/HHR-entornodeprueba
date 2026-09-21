@@ -158,13 +158,13 @@
       "sources": [
         "src/shared/census/upcBedPolicy.ts",
         "src/hooks/controllers/bedManagementPatchController.ts",
-        "src/features/census/components/patient-row/useUpcChecklistState.ts"
+        "src/features/census/components/patient-row/upcClassificationWindowModel.ts"
       ],
       "tests": "src/tests",
       "coverageTests": [
         "src/tests/shared/census/upcBedPolicy.test.ts",
         "src/tests/hooks/controllers/bedManagementPatchController.test.ts",
-        "src/tests/features/census/components/patient-row/useUpcChecklistState.test.ts"
+        "src/tests/features/census/components/patient-row/upcClassificationWindowModel.test.ts"
       ],
       "minTestFileCount": 4,
       "minTestToSourceRatio": 1.0,

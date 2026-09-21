@@ -30,7 +30,7 @@ const createHarness = (respond: (message: Record<string, unknown>) => Promise<un
   };
   const context = vm.createContext({
     window: windowObject,
-    chrome: { runtime: { sendMessage } },
+    chrome: { runtime: { id: 'current-extension', sendMessage } },
     console,
     HhrRayenMessageContract: {
       types: {
@@ -109,6 +109,98 @@ describe('content-hhr-sync-bundle relay · cancellation', () => {
         requestId: 'rayen-sync-3',
         error: 'Una fuente se desconectó.',
       },
+      ORIGIN
+    );
+  });
+
+  it.each(['Fallo de transporte verificable.', 'Extension context invalidated.'])(
+    'surfaces a downstream rejection while the relay remains alive: %s',
+    async message => {
+      const { dispatch, postMessage } = createHarness(async () => {
+        throw new Error(message);
+      });
+
+      dispatch({
+        type: 'HHR_RAYEN_REQUEST_SYNC_BUNDLE',
+        requestId: 'rayen-sync-network-error',
+        dateStart: '2026-09-10',
+        dateEnd: '2026-09-11',
+      });
+      await flush();
+
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'HHR_RAYEN_IMPORT_ERROR',
+          requestId: 'rayen-sync-network-error',
+          error: `Error: ${message}`,
+        }),
+        ORIGIN
+      );
+    }
+  );
+
+  it('lets only the live relay answer when an invalidated context shares the same page', async () => {
+    const listeners: Array<(event: PageMessage) => void> = [];
+    const postMessage = vi.fn();
+    const windowObject = {
+      location: { origin: ORIGIN },
+      addEventListener: vi.fn((type: string, listener: (event: PageMessage) => void) => {
+        if (type === 'message') listeners.push(listener);
+      }),
+      postMessage,
+    };
+    let resolveOld!: (value: unknown) => void;
+    const oldRuntime: { id?: string; sendMessage: ReturnType<typeof vi.fn> } = {
+      id: 'old-extension',
+      sendMessage: vi.fn(() => new Promise(resolve => (resolveOld = resolve))),
+    };
+    const install = (runtime: typeof oldRuntime) =>
+      vm.runInContext(
+        relaySource,
+        vm.createContext({
+          window: windowObject,
+          chrome: { runtime },
+          console,
+          HhrRayenMessageContract: {
+            types: {
+              SYNC_BUNDLE_REQUEST: 'RAYEN_SYNC_BUNDLE_REQUEST',
+              SYNC_BUNDLE_CANCEL: 'RAYEN_SYNC_BUNDLE_CANCEL',
+            },
+          },
+        }),
+        { filename: 'content-hhr-sync-bundle.js' }
+      );
+    const dispatch = (requestId: string) =>
+      listeners.forEach(listener =>
+        listener({
+          source: windowObject,
+          origin: ORIGIN,
+          data: {
+            type: 'HHR_RAYEN_REQUEST_SYNC_BUNDLE',
+            requestId,
+            dateStart: '2026-09-10',
+            dateEnd: '2026-09-11',
+          },
+        })
+      );
+
+    install(oldRuntime);
+    dispatch('old-in-flight');
+    oldRuntime.id = undefined;
+    const currentRuntime = {
+      id: 'current-extension',
+      sendMessage: vi.fn(async () => ({ error: 'Respuesta vigente.' })),
+    };
+    install(currentRuntime);
+    dispatch('current-request');
+    resolveOld({ error: 'Extension context invalidated.' });
+    await flush();
+
+    expect(oldRuntime.sendMessage).toHaveBeenCalledTimes(1);
+    expect(currentRuntime.sendMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: 'current-request', error: 'Respuesta vigente.' }),
       ORIGIN
     );
   });

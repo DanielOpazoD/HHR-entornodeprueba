@@ -1,6 +1,12 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFixture, FINITE_SESSION_TIMESTAMP } from './gestionCamasRuntimeTestHarness';
+
+// Deliberately unsigned, generated test data; never an actual session credential.
+const sessionTokenFixture = (expiresAt: number, signature: string) => {
+  const payload = Buffer.from(JSON.stringify({ exp: expiresAt / 1000 })).toString('base64url');
+  return ['Bearer fixture', payload, signature].join('.');
+};
 
 describe('Gestión de Camas connection runtime', () => {
   it('fails closed when its required dependencies are incomplete', () => {
@@ -209,6 +215,166 @@ describe('Gestión de Camas connection runtime', () => {
 
     await expect(fixture.runtime.health()).resolves.toMatchObject({ status: 'ready' });
     expect(fixture.values['gc-session']).toMatchObject({ accessValue: 'viva', sourceTabId: 8 });
+  });
+
+  it('preflights multiple tabs and requests credentials only from a healthy relay', async () => {
+    const expiresAt = Date.now() + 60 * 60 * 1000;
+    const token = sessionTokenFixture(expiresAt, 'healthy');
+    const fixture = createFixture({}, { tabs: [{ id: 7 }, { id: 8 }], fullLifecycle: true });
+    fixture.chromeApi.tabs.sendMessage.mockImplementation(async (tabId, message) => {
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING') {
+        if (tabId === 7) throw new Error('relay obsoleto');
+        return { ready: true };
+      }
+      return {
+        info: {
+          token,
+          apiBase: 'https://hospbackend.rayensalud.cl/api',
+          facId: '1342',
+        },
+      };
+    });
+    fixture.fetchWithTimeout.mockResolvedValue({ ok: true });
+
+    await expect(fixture.runtime.health()).resolves.toMatchObject({ status: 'ready' });
+    expect(
+      fixture.chromeApi.tabs.sendMessage.mock.calls
+        .filter(([, message]) => message.type === 'RAYEN_EXTENSION_HEALTH_PING')
+        .map(([tabId]) => tabId)
+    ).toEqual([7, 8]);
+    expect(
+      fixture.chromeApi.tabs.sendMessage.mock.calls.filter(
+        ([, message]) => message.type === 'RAYEN_GC_GET_FETCH_INFO'
+      )
+    ).toEqual([[8, { type: 'RAYEN_GC_GET_FETCH_INFO', connectionAttemptId: '' }]]);
+  });
+
+  it('recaptures and verifies a renewed token from the same tab after a 401', async () => {
+    const expiresAt = Date.now() + 60 * 60 * 1000;
+    const token = (suffix: string) => sessionTokenFixture(expiresAt, suffix);
+    const record = {
+      token: token('old'),
+      apiBase: 'https://hospbackend.rayensalud.cl/api',
+      facId: '1342',
+      sourceTabId: 7,
+      connectionAttemptId: '',
+      lastVerifiedAt: null,
+      expiresAt,
+      identity: {},
+    };
+    const fixture = createFixture(
+      { 'gc-session': record },
+      { tabs: [{ id: 7 }], fullLifecycle: true }
+    );
+    fixture.chromeApi.tabs.sendMessage.mockImplementation(async (_tabId, message) =>
+      message.type === 'RAYEN_EXTENSION_HEALTH_PING'
+        ? { ready: true }
+        : {
+            info: {
+              token: token('renewed'),
+              apiBase: record.apiBase,
+              facId: record.facId,
+            },
+          }
+    );
+    fixture.fetchWithTimeout
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+
+    await expect(fixture.runtime.health()).resolves.toMatchObject({
+      status: 'ready',
+      verification: 'fresh',
+    });
+    expect(
+      fixture.chromeApi.tabs.sendMessage.mock.calls.filter(
+        ([, message]) => message.type === 'RAYEN_EXTENSION_HEALTH_PING'
+      )
+    ).toHaveLength(1);
+    expect(fixture.fetchWithTimeout).toHaveBeenCalledTimes(2);
+    expect(fixture.values['gc-session']).toMatchObject({ token: token('renewed'), sourceTabId: 7 });
+  });
+
+  it.each([200, 401])(
+    'revalidates a renewed token when the old in-flight probe returns %i',
+    async status => {
+      const expiresAt = Date.now() + 60 * 60 * 1000;
+      const oldToken = sessionTokenFixture(expiresAt, 'old');
+      const newToken = sessionTokenFixture(expiresAt, 'new');
+      const record = {
+        token: oldToken,
+        apiBase: 'https://hospbackend.rayensalud.cl/api',
+        facId: '1342',
+        sourceTabId: 7,
+        connectionAttemptId: '',
+        lastVerifiedAt: null,
+        expiresAt,
+        identity: {},
+      };
+      const fixture = createFixture(
+        { 'gc-session': record },
+        { tabs: [{ id: 7 }], fullLifecycle: true }
+      );
+      fixture.chromeApi.tabs.sendMessage.mockResolvedValue({ ready: true });
+      let finishOldVerification!: (response: { ok: boolean; status: number }) => void;
+      fixture.fetchWithTimeout
+        .mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              finishOldVerification = resolve;
+            })
+        )
+        .mockResolvedValueOnce({ ok: true, status: 200 });
+
+      const health = fixture.runtime.health();
+      await vi.waitFor(() => expect(fixture.fetchWithTimeout).toHaveBeenCalledTimes(1));
+      await fixture.runtime.captureSession(
+        { token: newToken, apiBase: record.apiBase, facId: record.facId },
+        { tab: { id: 7 } }
+      );
+      finishOldVerification({ ok: status === 200, status });
+
+      await expect(health).resolves.toMatchObject({ status: 'ready', verification: 'fresh' });
+      expect(fixture.fetchWithTimeout).toHaveBeenCalledTimes(2);
+      expect(fixture.values['gc-session']).toMatchObject({ token: newToken, sourceTabId: 7 });
+    }
+  );
+
+  it('does not invalidate verification when the same tab recaptures the identical token', async () => {
+    const expiresAt = Date.now() + 60 * 60 * 1000;
+    const token = sessionTokenFixture(expiresAt, 'same');
+    const record = {
+      token,
+      apiBase: 'https://hospbackend.rayensalud.cl/api',
+      facId: '1342',
+      sourceTabId: 7,
+      connectionAttemptId: '',
+      lastVerifiedAt: null,
+      expiresAt,
+      identity: {},
+    };
+    const fixture = createFixture(
+      { 'gc-session': record },
+      { tabs: [{ id: 7 }], fullLifecycle: true }
+    );
+    fixture.chromeApi.tabs.sendMessage.mockResolvedValue({ ready: true });
+    let finishVerification!: (response: { ok: boolean; status: number }) => void;
+    fixture.fetchWithTimeout.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishVerification = resolve;
+        })
+    );
+
+    const health = fixture.runtime.health();
+    await vi.waitFor(() => expect(fixture.fetchWithTimeout).toHaveBeenCalledTimes(1));
+    await fixture.runtime.captureSession(
+      { token, apiBase: record.apiBase, facId: record.facId },
+      { tab: { id: 7 } }
+    );
+    finishVerification({ ok: true, status: 200 });
+
+    await expect(health).resolves.toMatchObject({ status: 'ready', verification: 'fresh' });
+    expect(fixture.fetchWithTimeout).toHaveBeenCalledTimes(1);
   });
 
   it('does not call a missing capture an expired session without a Rayen rejection', async () => {

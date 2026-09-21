@@ -8,6 +8,21 @@
   const MATCH_PATTERN = 'https://hospitalizado.rayensalud.cl/*';
   const LOGIN_URL = 'https://hospitalizado.rayensalud.cl/';
   const SESSION_PROBE_RUN = '000000000';
+  const prioritizeTab = (tabs, pending, current) => {
+    const tabId = pending?.tabId ?? current?.sourceTabId;
+    return tabId == null ? tabs : tabs.slice().sort((left, right) =>
+      Number(Number(right?.id) === Number(tabId)) - Number(Number(left?.id) === Number(tabId)));
+  };
+  const responsiveTabs = async (tabs, probe, confirmedIds) => {
+    if (Array.isArray(confirmedIds) && confirmedIds.length) {
+      return tabs.filter(tab => confirmedIds.some(id => Number(id) === Number(tab?.id)));
+    }
+    const outcomes = await Promise.allSettled(tabs.map(probe));
+    const ready = tabs.filter((_tab, index) =>
+      outcomes[index]?.status === 'fulfilled' && outcomes[index].value?.ready === true
+    );
+    return ready.length ? ready : tabs;
+  };
 
   const create = dependencies => {
     const {
@@ -34,31 +49,11 @@
       throw new Error('No se pudo inicializar el runtime de Gestión de Camas.');
     }
 
-    const readGestionCamasSession = async () => {
-      const result = await chromeApi.storage.session.get(session.SESSION_STORAGE_KEY);
-      return result && result[session.SESSION_STORAGE_KEY] || null;
-    };
-
-    const readPendingGestionCamasConnection = async () => {
-      const result = await chromeApi.storage.session.get(
-        session.PENDING_WINDOW_STORAGE_KEY
-      );
-      return (result && result[session.PENDING_WINDOW_STORAGE_KEY]) || null;
-    };
-
-    const readGestionCamasConnectionControl = async () => {
-      const result = await chromeApi.storage.session.get(
-        session.CONNECTION_CONTROL_STORAGE_KEY
-      );
-      return (result && result[session.CONNECTION_CONTROL_STORAGE_KEY]) || null;
-    };
-
-    const readClosingGestionCamasWindow = async () => {
-      const result = await chromeApi.storage.session.get(
-        session.CLOSING_WINDOW_STORAGE_KEY
-      );
-      return (result && result[session.CLOSING_WINDOW_STORAGE_KEY]) || null;
-    };
+    const readStored = async key => (await chromeApi.storage.session.get(key))?.[key] || null;
+    const readGestionCamasSession = () => readStored(session.SESSION_STORAGE_KEY);
+    const readPendingGestionCamasConnection = () => readStored(session.PENDING_WINDOW_STORAGE_KEY);
+    const readGestionCamasConnectionControl = () => readStored(session.CONNECTION_CONTROL_STORAGE_KEY);
+    const readClosingGestionCamasWindow = () => readStored(session.CLOSING_WINDOW_STORAGE_KEY);
 
     const isClosingGestionCamasWindow = (record, windowId, now = Date.now()) =>
       Boolean(
@@ -121,10 +116,7 @@
         const pending = await readPendingGestionCamasConnection();
         const control = await readGestionCamasConnectionControl();
         const suppliedAttemptId = String(info && info.connectionAttemptId || '');
-        // La ventana oficial puede emitir su bootstrap autenticado ANTES de
-        // recibir el id del intento (el handshake viaja por mensajes con
-        // reintentos): esa captura llega sin attemptId pero proviene de la
-        // pestaña del intento, verificada por sender. No debe rechazarse.
+        // The authenticated bootstrap may precede the attempt-id handshake on its bound tab.
         const matchesPendingAttempt = Boolean(
           pending &&
           Number(pending.tabId) === normalizedSourceTabId &&
@@ -135,12 +127,7 @@
           Number(current.sourceTabId) === normalizedSourceTabId &&
           String(current.connectionAttemptId || '') === suppliedAttemptId
         );
-        // Una sesión atada a una pestaña que YA NO EXISTE no debe bloquear la
-        // adopción de una pestaña viva y autenticada: ese candado dejaba al
-        // usuario logueado en Gestión de Camas pero con la extensión exigiendo
-        // reconexión manual. La captura huérfana se reemplaza igual que la
-        // inicial (misma superficie: pestaña real verificada por sender y
-        // token comprobado por el probe antes de usarse).
+        // A dead source tab must not block a live authenticated replacement.
         const currentSourceTabAlive = current
           ? await isGestionCamasTabOpen(current.sourceTabId)
           : false;
@@ -155,9 +142,6 @@
         }
 
         record.sourceTabId = normalizedSourceTabId;
-        // La captura adelantada al handshake llega sin attemptId: adopta el del
-        // intento pendiente para que la verificación pueda completar el flujo
-        // (limpiar el intento manteniendo viva la pestaña de origen).
         record.connectionAttemptId =
           matchesPendingAttempt && pending ? String(pending.attemptId || '') : suppliedAttemptId;
         await chromeApi.storage.session.set({ [session.SESSION_STORAGE_KEY]: record });
@@ -254,14 +238,21 @@
 
     const requestLiveGestionCamasSession = async ({
       verificationTimeoutMs = backendRequestTimeoutMs,
-      tabTimeoutMs = tabMessageTimeoutMs, targetTabIds,
+      tabTimeoutMs = tabMessageTimeoutMs, targetTabIds, confirmedTabIds,
     } = {}) => {
-      const tabs = extensionHealth.orderTabs(
+      let tabs = extensionHealth.orderTabs(
         await extensionHealth.resolveTabs(chromeApi.tabs, MATCH_PATTERN, targetTabIds)
       );
       if (!tabs.length) return { error: 'Gestión de Camas no está abierta.' };
       const pending = await readPendingGestionCamasConnection();
       const current = await readGestionCamasSession();
+      tabs = prioritizeTab(tabs, pending, current);
+      tabs = await responsiveTabs(tabs, tab =>
+        withTimeout(
+          chromeApi.tabs.sendMessage(tab.id, { type: 'RAYEN_EXTENSION_HEALTH_PING' }),
+          healthProbeTimeoutMs,
+          'La pestaña de Gestión de Camas no respondió a la comprobación.'
+        ), confirmedTabIds);
       let lastError = 'Gestión de Camas está abierta, pero su sesión todavía no está disponible.';
       let lastReason = 'session_unverified';
       for (const tab of tabs) {
@@ -286,10 +277,6 @@
             });
             const verified = await verifyGestionCamasSession(candidate, verificationTimeoutMs);
             if (verified.record) return { record: verified.record };
-            if (verified.changed) {
-              const replacement = await readGestionCamasSession();
-              if (session.isUsable(replacement)) return { record: replacement };
-            }
             await clearGestionCamasSession(candidate);
             lastError = verified.error || 'La credencial capturada no pudo verificarse.';
             lastReason = reasonOf(verified);
@@ -315,8 +302,10 @@
       if (session.isVerificationFresh(record)) return { record };
       const verified = await verifyGestionCamasSession(record);
       if (verified.record) return verified;
-      if (verified.changed) {
-        return { error: 'La sesión cambió durante la comprobación. Reintenta la operación.' };
+      if (verified.changed) return { error: 'La sesión cambió durante la comprobación.' };
+      if (verified.reason === 'session_expired' && allowLive) {
+        const live = await requestLiveGestionCamasSession();
+        if (live.record) return live;
       }
       return { error: verified.error || 'No se pudo comprobar la sesión de Gestión de Camas.' };
     };
@@ -330,9 +319,17 @@
       return '';
     };
 
+    const reverifyChangedGestionCamasSession = async timeoutMs => {
+      const replacement = await readGestionCamasSession();
+      if (session.isVerificationFresh(replacement)) return { record: replacement };
+      if (!session.isUsable(replacement)) return { changed: true };
+      return verifyGestionCamasSession(replacement, timeoutMs, false);
+    };
+
     const verifyGestionCamasSession = async (
       record,
-      timeoutMs = backendRequestTimeoutMs
+      timeoutMs = backendRequestTimeoutMs,
+      retryChanged = true
     ) => {
       if (!record || !record.facId) return { error: 'La sesión no informa el establecimiento.' };
       const url =
@@ -346,10 +343,13 @@
         );
         if (response.ok) {
           const verified = await markGestionCamasSessionVerified(record);
-          return verified ? { record: verified } : { changed: true };
+          return verified ? { record: verified } : retryChanged
+            ? reverifyChangedGestionCamasSession(timeoutMs) : { changed: true };
         }
         const rejection = await classifyGestionCamasRejection(response, record);
-        if (rejection === 'changed') return { changed: true };
+        if (rejection === 'changed') return retryChanged
+          ? reverifyChangedGestionCamasSession(timeoutMs)
+          : { changed: true };
         if (rejection === 'expired') {
           return verificationFailure('La sesión de Gestión de Camas venció.', 'session_expired');
         }

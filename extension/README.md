@@ -140,6 +140,10 @@ sin desplazar las acciones ni la tabla al iniciar una lectura.
 6. El botón de panel clínico de cada paciente sincronizado abre una vista en vivo con mundos
    Médico/Enfermería, entregas de turno, indicaciones y cuidados de enfermería.
 
+La captura del censo admite tanto la lista médica como `encounter-list-nurse`. En la ruta de
+enfermería, las lecturas de diagnóstico usan el identificador del profesional verificado en la sesión;
+si falta o no es numérico, el snapshot se rechaza como incompleto en vez de informar éxito parcial.
+
 ### Indicaciones y recetas desde Gestión de cuidados
 
 En todas las vistas de `fichamedico.rayensalud.cl`, la extensión agrega el **Centro HHR** con el logo
@@ -236,10 +240,15 @@ El estado de conexión se sostiene sobre seis reglas. Cambiarlas rompe la estabi
    contador aplicado y descartan duplicados o mensajes anteriores. Esto cubre el caso en que un
    `tabs.sendMessage` antiguo ya había comenzado y termina después de una transición más nueva.
 
-Al instalar o actualizar la extensión, los relés de las pestañas ya abiertas quedan huérfanos:
-`relay-reinjection-runtime.js` los vuelve a inyectar y empuja el estado fresco de inmediato, de modo
-que la comunicación se restablece sin recargar a mano. Los scripts de mundo MAIN no se re-inyectan,
-por lo que una pestaña cuyo `inject-*.js` quedó obsoleto sí requiere abrir un documento nuevo.
+Al instalar, actualizar o recargar la extensión, los relés de las pestañas ya abiertas quedan
+huérfanos. `relay-reinjection-runtime.js` los vuelve a inyectar desde el arranque del worker y empuja
+el estado fresco de inmediato; una marca en `chrome.storage.session` impide repetir esa reparación
+en cada despertar normal del worker. Cada relé nuevo reclama la propiedad de su mundo ISOLATED y
+deja inertes los listeners supervivientes antes de atender mensajes. La
+generación de la sesión se conserva durante una actualización compatible y los lectores de mundo
+MAIN negocian un protocolo independiente de la versión del paquete. Así Ficha Médico, Gestión de
+Camas y HHR recuperan la comunicación sin recargar ni duplicar interceptores. Un cambio futuro que
+rompa el protocolo seguirá fallando de forma cerrada y pedirá abrir un documento nuevo.
 
 **Límite deliberado:** se sigue exigiendo al menos una pestaña viva por fuente. Un token guardado sin
 página que lo respalde no prueba que Rayen siga aceptando la sesión, y mostrarlo como «conectado»
@@ -377,3 +386,17 @@ actual no está autorizado; la extensión no intenta eludir esa autorización.
 - Cómo aparece un paciente **CMA** en el encounter API (servicio/cama) — el `bedMapping` lo maneja por
   prefijo `CMA`, pero conviene verlo con un caso real.
 - La representación de un **egresado** (alta / CMA / traslado) — la pestaña de egresos estaba vacía.
+
+## Recuperación de conexión (0.48.25)
+
+Ver [diagnóstico, política de recuperación y matriz de regresión](../docs/extension-connection-resilience.md) para múltiples pestañas, sesiones prolongadas y actualización del puente.
+La transición a protocolo MAIN 1 conserva lectores 0.48.25 y 0.48.26 solamente cuando
+pertenecen a la misma generación de sesión; si las pestañas supervivientes discrepan, falla
+cerrado y exige documentos nuevos.
+
+## Día calendario antes del relevo (0.48.26)
+
+- Antes de las 08:00 en días hábiles o 09:00 en días inhábiles, la captura acepta tanto el día
+  clínico todavía activo como el nuevo día calendario creado manualmente en HHR.
+- La captura sigue invalidándose si cruza la medianoche o el relevo de enfermería, para no mezclar
+  evidencia perteneciente a dos contextos temporales.

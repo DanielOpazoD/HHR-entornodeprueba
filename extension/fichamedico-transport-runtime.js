@@ -29,14 +29,8 @@
     const extensionHealth = deps.extensionHealth;
     const encounterNavigation = deps.encounterNavigation;
     const withTimeout = assertFunction(deps.withTimeout, 'withTimeout');
-    const tabMessageTimeoutMs = assertPositiveTimeout(
-      deps.tabMessageTimeoutMs,
-      'tabMessageTimeoutMs'
-    );
-    const healthProbeTimeoutMs = assertPositiveTimeout(
-      deps.healthProbeTimeoutMs,
-      'healthProbeTimeoutMs'
-    );
+    const tabMessageTimeoutMs = assertPositiveTimeout(deps.tabMessageTimeoutMs, 'tabMessageTimeoutMs');
+    const healthProbeTimeoutMs = assertPositiveTimeout(deps.healthProbeTimeoutMs, 'healthProbeTimeoutMs');
 
     if (!tabs) throw new Error('Falta la dependencia chrome.tabs.');
     ['query', 'sendMessage', 'update', 'create'].forEach(method =>
@@ -45,14 +39,8 @@
     assertFunction(windows && windows.update, 'chrome.windows.update');
     assertFunction(extensionHealth && extensionHealth.orderTabs, 'extensionHealth.orderTabs');
     assertFunction(extensionHealth && extensionHealth.probeTabs, 'extensionHealth.probeTabs');
-    assertFunction(
-      encounterNavigation && encounterNavigation.normalizeEncounterId,
-      'encounterNavigation.normalizeEncounterId'
-    );
-    assertFunction(
-      encounterNavigation && encounterNavigation.orderEncounterTabs,
-      'encounterNavigation.orderEncounterTabs'
-    );
+    assertFunction(encounterNavigation?.normalizeEncounterId, 'encounterNavigation.normalizeEncounterId');
+    assertFunction(encounterNavigation?.orderEncounterTabs, 'encounterNavigation.orderEncounterTabs');
     assertFunction(
       encounterNavigation && encounterNavigation.buildEncounterUrl,
       'encounterNavigation.buildEncounterUrl'
@@ -65,12 +53,22 @@
         'La pestaña no respondió a la verificación de conexión.'
       );
 
+    const responsiveTabs = async ordered => {
+      const candidates = ordered.filter(tab => tab && tab.id != null);
+      const settled = await Promise.allSettled(candidates.map(tab => sendHealthProbe(
+        tab.id, { type: 'RAYEN_EXTENSION_HEALTH_PING' }
+      )));
+      const ready = candidates.filter((_tab, index) =>
+        settled[index]?.status === 'fulfilled' && settled[index].value?.ready === true);
+      return ready.length ? ready : candidates;
+    };
+
     // Some open tabs may be stale and lack the content script. Preserve the priority order and
     // return the first successful response while retaining the last useful diagnostic.
     const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) => {
       const matchingTabs = await tabs.query({ url: urlMatch });
       if (!matchingTabs.length) return { error: noTabError };
-      const ordered = extensionHealth.orderTabs(matchingTabs);
+      const ordered = await responsiveTabs(extensionHealth.orderTabs(matchingTabs));
       let lastError = 'Sin respuesta de la pestaña.';
       for (const tab of ordered) {
         try {

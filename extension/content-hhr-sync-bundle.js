@@ -4,10 +4,10 @@
 
   const runtimeMessages = globalThis.HhrRayenMessageContract?.types;
   if (!runtimeMessages) return;
-  const post = message => window.postMessage(message, window.location.origin);
+  const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
 
   window.addEventListener('message', event => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
+    if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     if (event.data?.type === 'HHR_RAYEN_CANCEL_SYNC_BUNDLE') {
       const requestId = event.data.requestId;
       if (typeof requestId !== 'string' || !requestId) return;

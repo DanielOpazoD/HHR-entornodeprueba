@@ -33,9 +33,8 @@
   };
   // Include today's calendar morning even while it still belongs to the prior nursing census.
   const isValidRange = (dateStart, dateEnd, at) => {
-    const clinicalDay = root.HhrClinicalDayRuntime?.clinicalDayAt(at);
     const calendarDay = root.HhrClinicalDayRuntime?.calendarDayAt(at);
-    return nextIsoDay(calendarDay) === dateEnd && dateStart <= clinicalDay;
+    return nextIsoDay(calendarDay) === dateEnd && dateStart <= calendarDay;
   };
   const hasReaders = (readHealth, readSnapshot, readReport) =>
     [readHealth, readSnapshot, readReport].every(reader => typeof reader === 'function');

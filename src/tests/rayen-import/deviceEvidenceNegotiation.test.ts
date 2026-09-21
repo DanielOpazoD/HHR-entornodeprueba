@@ -22,6 +22,7 @@ describe('device evidence capability negotiation', () => {
       queueMicrotask(() =>
         window.dispatchEvent(
           new MessageEvent('message', {
+            source: window,
             origin: window.location.origin,
             data: {
               type: RAYEN_PATIENT_CLINICAL_BUNDLE_RESULT_TYPE,
@@ -61,6 +62,7 @@ describe('device evidence capability negotiation', () => {
       queueMicrotask(() => {
         window.dispatchEvent(
           new MessageEvent('message', {
+            source: window,
             origin: window.location.origin,
             data: {
               type: RAYEN_DEVICE_REPORT_RESULT_TYPE,

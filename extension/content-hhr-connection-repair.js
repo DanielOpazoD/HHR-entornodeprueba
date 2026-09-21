@@ -8,16 +8,15 @@
   const MIN_REPAIR_INTERVAL_MS = 2_000;
   let repairInFlight = false;
   let lastRepairAt = 0;
-
   const postResult = (reqId, payload) => {
+    if (!chrome.runtime?.id) return;
     window.postMessage(
       { type: 'HHR_RAYEN_CONNECTION_REPAIR_RESULT', reqId, ...payload },
       window.location.origin
     );
   };
-
   window.addEventListener('message', event => {
-    if (event.source !== window || event.origin !== window.location.origin) return;
+    if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     const data = event.data;
     if (!data || data.type !== 'HHR_RAYEN_CONNECTION_REPAIR_REQUEST') return;
     const reqId = data.reqId;
@@ -46,6 +45,7 @@
         });
       })
       .catch(error => {
+        if (!chrome.runtime?.id) return;
         console.warn('[Rayen→HHR] Connection repair error:', error);
         postResult(reqId, { ok: false, error: String(error) });
       })

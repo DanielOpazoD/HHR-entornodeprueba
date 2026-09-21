@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/fichamedico-read-resilience.js';
 
@@ -11,6 +11,10 @@ type Reader = {
 
 type Resilience = {
   READ_BLOCK_TTL_MS: number;
+  readSession: (
+    read: (signal?: AbortSignal) => Promise<unknown>,
+    timeoutMs?: number
+  ) => Promise<unknown>;
   isNetworkFailure: (error: unknown) => boolean;
   describeNetworkFailure: (error: unknown, url: string) => Error;
   createSelfHealingReader: (input: {
@@ -29,6 +33,33 @@ const resilience = (globalThis as unknown as { HhrFichaMedicoReadResilience: Res
   .HhrFichaMedicoReadResilience;
 
 describe('HhrFichaMedicoReadResilience', () => {
+  it('bounds a stalled response body and aborts without accepting late data', async () => {
+    vi.useFakeTimers();
+    try {
+      let requestSignal: AbortSignal | undefined;
+      let finishBody: (value: unknown) => void = () => undefined;
+      const body = new Promise(resolve => {
+        finishBody = resolve;
+      });
+      const pending = resilience.readSession(async signal => {
+        requestSignal = signal;
+        const response = await Promise.resolve({ ok: true, json: () => body });
+        return response.json();
+      });
+      const rejected = expect(pending).rejects.toThrow(/tiempo de espera/);
+      await vi.advanceTimersByTimeAsync(3000);
+      await rejected;
+      expect(requestSignal?.aborted).toBe(true);
+      finishBody({ obsolete: true });
+      await expect(resilience.readSession(async () => ({ current: true }))).resolves.toEqual({
+        current: true,
+      });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('reconoce fallos de red por mensaje (Chrome, Firefox, Safari) y no confunde errores HTTP', () => {
     expect(resilience.isNetworkFailure(new TypeError('Failed to fetch'))).toBe(true);
     expect(

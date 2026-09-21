@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.24",
+  "version": "0.48.27",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": [
     "tabs",
@@ -88,6 +88,7 @@
         "message-contract.js",
         "bridge-generation.js",
         "content-fichamedico.js",
+        "runtime-message-client.js",
         "fichamedico-manual-patient-copy.js"
       ],
       "run_at": "document_start"
