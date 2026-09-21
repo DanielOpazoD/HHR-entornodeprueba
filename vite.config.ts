@@ -10,26 +10,7 @@ import { chunkForModule } from './scripts/config/chunkingPolicy';
 import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropPlugin';
 import { netlifyFunctionDevServerPlugin } from './scripts/config/netlifyFunctionDevServer';
 import { bindReleaseEvidenceToBuild } from './scripts/config/releaseEvidenceRuntimeAsset';
-
-/**
- * Generate version.json directly in the build output so the repo does not
- * accumulate tracked diffs on every build.
- */
-function versionPlugin(versionInfo: { version: string; buildDate: string }): Plugin {
-  return {
-    name: 'version-plugin',
-    buildStart() {
-      console.log(`[versionPlugin] Prepared version.json: ${versionInfo.version}`);
-    },
-    generateBundle() {
-      this.emitFile({
-        type: 'asset',
-        fileName: 'version.json',
-        source: JSON.stringify(versionInfo, null, 2),
-      });
-    },
-  };
-}
+import { versionRuntimePlugin } from './scripts/config/versionRuntimePlugin';
 
 const RELEASE_EVIDENCE_ASSET = 'release-evidence.json';
 const RELEASE_EVIDENCE_SOURCE = path.resolve(
@@ -188,7 +169,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
-      versionPlugin(buildVersionInfo),
+      versionRuntimePlugin(buildVersionInfo),
       releaseEvidenceRuntimePlugin(),
       excelJsRuntimeAssetPlugin(),
       netlifyFunctionDevServerPlugin(),
