@@ -314,7 +314,7 @@
     "typescript-eslint": "^8.56.0",
     "vite": "^6.4.3",
     "vite-plugin-compression": "^0.5.1",
-    "vite-plugin-pwa": "^1.2.0",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.11",
     "workbox-expiration": "^7.4.0",
     "workbox-precaching": "^7.4.0",
