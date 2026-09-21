@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildUpcDraftRecords,
   buildUpcClassificationRows,
   countPendingUpcClassifications,
+  isClassifiableUpcBedId,
   resolveUpcEpisodeIdentity,
   resolveUpcQuickEvaluationAvailability,
   sanitizeUpcCriteriaDraft,
@@ -89,6 +91,57 @@ describe('upcClassificationWindowModel', () => {
         { uci: ['uci_vmi'], uti: ['uti_mon_respiratoria'] }
       )
     ).toEqual({ uci: [], uti: ['uti_mon_respiratoria'] });
+  });
+
+  it('builds signed criteria and no-criteria drafts for the selected row identities', () => {
+    const rows = buildUpcClassificationRows(
+      {
+        R1: { patientName: 'Paciente R1', rut: '1-9' },
+        NEO1: { patientName: 'Paciente Neo', clinicalEpisodeId: 'neo-episode' },
+      },
+      DATE
+    );
+
+    const records = buildUpcDraftRecords({
+      rows,
+      checklistOf: () => undefined,
+      criteriaOf: row =>
+        row.bedId === 'R1'
+          ? { uci: ['uci_vmi'], uti: [] }
+          : { uci: ['uci_vmi'], uti: ['uti_mon_respiratoria'] },
+      noCriteriaSelection: { R1: true },
+      actor: { uid: 'uid-1', displayName: 'Enfermera A' },
+      date: DATE,
+      nurseName: 'Enfermera A',
+      nurseFromShift: true,
+      episodeIdentityOf: row => row.episodeIdentity,
+      evaluationIdFactory: () => 'evaluation-id',
+      now: () => '2026-09-15T12:00:00.000Z',
+    });
+
+    expect(records.R1).toMatchObject({
+      episodeIdentity: '1-9',
+      record: {
+        evaluationId: 'evaluation-id',
+        classification: null,
+        evaluatedForDate: DATE,
+      },
+    });
+    expect(records.NEO1).toMatchObject({
+      episodeIdentity: 'neo-episode',
+      record: {
+        classification: 'UPC_UTI',
+        uciCriteria: [],
+        utiCriteria: ['uti_mon_respiratoria'],
+      },
+    });
+  });
+
+  it('recognizes only beds supported by the UPC protocol', () => {
+    expect(isClassifiableUpcBedId('R4')).toBe(true);
+    expect(isClassifiableUpcBedId('NEO2')).toBe(true);
+    expect(isClassifiableUpcBedId('H1C1')).toBe(false);
+    expect(isClassifiableUpcBedId()).toBe(false);
   });
 
   it('does not count empty beds as pending and reports the day status', () => {
