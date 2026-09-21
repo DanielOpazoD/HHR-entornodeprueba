@@ -77,8 +77,8 @@ El sistema detecta automáticamente cuando hay una nueva versión desplegada y a
 - `src/context/VersionContext.tsx` - Validación de schema y contrato runtime
 - `src/services/config/runtimeContractClient.ts` - Lectura del contrato runtime publicado
 - `netlify/functions/runtime-contract.js` - Endpoint runtime publicado por Netlify/Functions
-- `vite.config.ts` - Plugin que genera `version.json` en cada build
-- `public/version.json` - Archivo con timestamp del build
+- `scripts/config/versionRuntimePlugin.ts` - Sirve la identidad actual sin caché en desarrollo y genera `version.json` en cada build
+- `vite.config.ts` - Crea una sola identidad para el runtime y el bundle
 
 ### Cuándo Ocurre la Recarga
 
