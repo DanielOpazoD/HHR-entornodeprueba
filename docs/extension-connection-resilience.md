@@ -92,12 +92,46 @@ el intento, por lo que el estado del enlace no debe interpretarse como prueba de
 Esta regresión mantiene bloqueada la aceptación de 0.48.31 hasta identificar la causa de los
 timeouts y repetir la sincronización clínica con cobertura y lectura posterior verificadas.
 
+### Reproducción aislada del trayecto clínico · 22-09-2026
+
+El smoke de Chromium ahora atraviesa el canal completo con datos sintéticos: página HHR → relé
+ISOLATED → worker MV3 recargado → sesión verificada de Ficha Médico → lecturas de dispositivos,
+historial y formularios → respuesta correlacionada en HHR. También comprueba dos pestañas de Ficha
+con una sesión cerrada, caída HTTP 503 del backend con indicador de conexión todavía verde,
+recuperación del backend, caducidad de ambas sesiones y renovación sin recargar páginas. No se
+contactan servicios clínicos reales en esta prueba.
+
+Se reprodujo además una carrera de tiempo de espera: el worker limita cada lectura del backend a
+45 s y HHR limitaba el paquete completo a los mismos 45 s. Una sección que terminaba a los 46 s,
+con las otras dos ya exitosas, llegaba después del límite de HHR; las tres se marcaban fallidas y
+se reintentaban por separado. La prueba con reloj controlado falló con la configuración anterior.
+HHR espera ahora hasta 55 s para recibir la respuesta agregada del worker y conservar las secciones
+exitosas; sólo la fuente que realmente falló requiere reintento. Esto corrige la pérdida de
+resultados parciales, pero no demuestra que haya sido la única causa de los 31 timeouts observados.
+
+| Condición simulada                                 | Resultado observado                                                         |
+| -------------------------------------------------- | --------------------------------------------------------------------------- |
+| Actualización MV3 con HHR, Ficha y Camas abiertos  | Los documentos sobreviven; relés y lectura clínica responden                |
+| Segunda Ficha con sesión caducada                  | La pestaña con sesión válida sigue proporcionando las tres fuentes          |
+| Backend clínico HTTP 503 con sesión válida         | La conexión sigue verde, pero las tres fuentes informan error explícito     |
+| Backend restaurado sin recargar pestañas           | Las tres fuentes vuelven a responder                                        |
+| Todas las sesiones de Ficha caducadas              | Salud no disponible y ninguna lectura clínica se acepta                     |
+| Sesión renovada                                    | Salud y lecturas clínicas se recuperan                                      |
+| Una sección supera 45 s y las otras dos terminaron | HHR conserva las dos secciones exitosas al recibir el paquete antes de 55 s |
+
+El simulador puede reproducir protocolos, respuestas y tiempos conocidos; no puede reproducir
+exactamente el estado desconocido del servidor Eloísa ni la instalación real de Chrome durante el
+intento fallido. Sigue pendiente una repetición clínica **sólo de lectura** en `hhr-pruebas` con las
+pestañas reales para separar backend inaccesible, sesión inválida y corte del canal. No interpretar
+una conexión verde ni el smoke sintético como cobertura clínica confirmada.
+
 Ejecutar las pruebas afectadas en `src/tests/rayen-import`, `npm run check:rayen-extension-release`, `npm run test:e2e:rayen-extension-runtime` (Chromium aislado con datos sintéticos), `npm run check:extension-hotspots` y el gate previo al merge vigente del proyecto.
 
 El smoke de Chromium mantiene documentos sintéticos de HHR, Ficha Médico y Gestión de Camas
 abiertos, pulsa **Recargar** en `chrome://extensions`, verifica que ninguna página navegó y exige
-que el nuevo worker recupere la generación MAIN anterior. Finalmente consulta la salud desde el
-puente de página de HHR para comprobar que los tres relés responden después de la actualización.
+que el nuevo worker recupere la generación MAIN anterior. Después consulta la salud y realiza una
+lectura clínica completa desde el puente de página de HHR; los casos de sesión y backend descritos
+arriba se ejecutan sobre las mismas pestañas sin acceder a Eloísa real.
 
 Para aplicar una actualización local: comprobar la carpeta cargada en `chrome://extensions` y cargar
 la versión correspondiente. Desde 0.48.30, una actualización compatible reinyecta sólo los relés
