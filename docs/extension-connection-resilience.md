@@ -80,9 +80,17 @@ añade reparación bajo demanda del receptor de Camas, también cuando otro list
 sin respuesta. El smoke MV3 elimina ese receptor con la pestaña en segundo plano y comprueba
 su reinyección sin navegación. En Chrome real, 0.48.31 mantuvo ambas fuentes conectadas después
 de varios minutos de reposo y un sondeo fresco desde HHR, sin enfocar Eloísa. La comprobación fue
-de enlace y lectura de estado: no confirmó un censo ni verificó persistencia clínica. La expiración
-real de credenciales y el reinicio completo
-de Chrome requieren una comprobación separada.
+de enlace y lectura de estado. La expiración real de credenciales y el reinicio completo de Chrome
+requieren una comprobación separada.
+
+Una sincronización real posterior en `hhr-pruebas` confirmó el límite de esa señal: la captura dual
+terminó en 7,9 s, la propuesta tenía un ingreso y ningún conflicto, y el guardado estructural
+terminó en 6,6 s. El historial registró el intento, pero la lectura clínica tardó 129,2 s y
+finalizó con cobertura **0/10**: 43 solicitudes, 30 reintentos y 31 tiempos de espera. CUDYR,
+dispositivos, escalas y signos vitales quedaron pendientes. HHR volvió a indicar **Conectada** tras
+el intento, por lo que el estado del enlace no debe interpretarse como prueba de lectura clínica.
+Esta regresión mantiene bloqueada la aceptación de 0.48.31 hasta identificar la causa de los
+timeouts y repetir la sincronización clínica con cobertura y lectura posterior verificadas.
 
 Ejecutar las pruebas afectadas en `src/tests/rayen-import`, `npm run check:rayen-extension-release`, `npm run test:e2e:rayen-extension-runtime` (Chromium aislado con datos sintéticos), `npm run check:extension-hotspots` y el gate previo al merge vigente del proyecto.
 
