@@ -5,15 +5,24 @@ import type { EgresoLookupResult, EgresoRecord } from '../contracts/egresoLookup
 import { parseStatisticalEgresoInstant } from '../mapping/reportEgresoDateTime';
 import { applyEgresoReport } from './applyEgresoReport';
 import { confirmHospitalDischarge } from './dischargeVerification';
-import { normalizeRut } from '@/utils/rutUtils';
+import {
+  normalizeOfficialPatientIdentifier,
+  officialPatientIdentityKey,
+  officialPatientTypedIdentitiesEqual,
+  type OfficialPatientDocumentType,
+} from './officialPatientIdentifier';
 
-const lookupKey = (rut: string | undefined, encounterId: string | undefined): string =>
-  `${normalizeRut(rut)}::${String(encounterId || '').trim()}`;
+const lookupKey = (
+  rut: string | undefined,
+  documentType: OfficialPatientDocumentType | undefined,
+  encounterId: string | undefined
+): string =>
+  `${officialPatientIdentityKey(rut, documentType)}::${String(encounterId || '').trim()}`;
 
 const reportEgresoKey = (egreso: ReportEgreso): string =>
   egreso.encounterId?.trim() ||
   [
-    normalizeRut(egreso.run),
+    normalizeOfficialPatientIdentifier(egreso.run),
     egreso.patientName.trim().toLocaleUpperCase(),
     egreso.correctedDay ?? '',
     egreso.correctedTime ?? '',
@@ -63,14 +72,35 @@ const hasConfirmedAdministrativeDischarge = (egreso: EgresoRecord): boolean => {
 type PendingDischarge = CensusImportDiff['pendingAdministrativeDischarges'][number];
 type EligibleLookup = { result: EgresoLookupResult; pending: PendingDischarge };
 
+const isSameLookupSubject = (pending: PendingDischarge, result: EgresoLookupResult): boolean => {
+  if (!pending.encounterId || pending.encounterId.trim() !== result.encounterId?.trim()) {
+    return false;
+  }
+  if (pending.documentType && result.documentType) {
+    return officialPatientTypedIdentitiesEqual(
+      pending.rut,
+      pending.documentType,
+      result.run,
+      result.documentType
+    );
+  }
+  if (pending.documentType === 'Pasaporte' || result.documentType === 'Pasaporte') {
+    return pending.rut.trim().toUpperCase() === result.run.trim().toUpperCase();
+  }
+  return (
+    normalizeOfficialPatientIdentifier(pending.rut) ===
+    normalizeOfficialPatientIdentifier(result.run)
+  );
+};
+
 const eligibleLookups = (
   diff: CensusImportDiff,
   lookupResults: EgresoLookupResult[]
 ): Map<string, EligibleLookup> => {
   const eligible = new Map<string, EligibleLookup>();
   for (const result of lookupResults) {
-    const pending = diff.pendingAdministrativeDischarges.find(
-      entry => lookupKey(entry.rut, entry.encounterId) === lookupKey(result.run, result.encounterId)
+    const pending = diff.pendingAdministrativeDischarges.find(entry =>
+      isSameLookupSubject(entry, result)
     );
     if (
       !pending?.encounterId ||
@@ -79,7 +109,10 @@ const eligibleLookups = (
     ) {
       continue;
     }
-    eligible.set(lookupKey(result.run, result.encounterId), { result, pending });
+    eligible.set(lookupKey(result.run, result.documentType, result.encounterId), {
+      result,
+      pending,
+    });
   }
   return eligible;
 };
@@ -89,6 +122,7 @@ const reportRowFromLookup = ({ result, pending }: EligibleLookup): EgresoReportR
   const stamp = lookupStamp(egreso);
   return {
     run: result.run,
+    documentType: result.documentType ?? pending.documentType,
     encounterId: result.encounterId,
     patientName: pending.patientName,
     bedLabel: pending.bedId,
@@ -117,7 +151,9 @@ export const applyEgresoLookupFallback = (
     ...enriched,
     reportEgresos: mergeReportEgresos(diff.reportEgresos ?? [], enriched.reportEgresos ?? []),
     discharges: enriched.discharges.map(discharge => {
-      const match = eligible.get(lookupKey(discharge.rut, discharge.encounterId));
+      const match = [...eligible.values()].find(
+        candidate => candidate.pending.encounterId === discharge.encounterId
+      );
       return match
         ? {
             ...discharge,

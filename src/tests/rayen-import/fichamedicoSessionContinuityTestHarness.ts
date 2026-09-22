@@ -96,6 +96,12 @@ export const createHarness = async (
       throw new Error(`Unexpected request: ${String(input)}`);
     },
     addEventListener: addListener,
+    removeEventListener: (type: string, listener: (event: unknown) => unknown) => {
+      listeners.set(
+        type,
+        (listeners.get(type) || []).filter(current => current !== listener)
+      );
+    },
     dispatchEvent: (event: { type: string }) => {
       for (const listener of listeners.get(event.type) || []) listener(event);
       return true;
@@ -140,6 +146,9 @@ export const createHarness = async (
 
   vm.runInContext(isolationNormalizationSource, context, {
     filename: 'fichamedico-isolation-normalization.js',
+  });
+  vm.runInContext(extensionSource('eloisa-patient-identity.js'), context, {
+    filename: 'eloisa-patient-identity.js',
   });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });

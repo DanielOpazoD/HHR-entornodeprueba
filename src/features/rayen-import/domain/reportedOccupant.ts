@@ -4,6 +4,8 @@ import {
   type OccupiedBedEvidence,
   type OccupiedClinicalCrib,
 } from './egresoReportPolicy';
+import type { OfficialPatientDocumentType } from './officialPatientIdentifier';
+import type { EgresoReportRow } from '../contracts/egresoReport';
 
 /**
  * Ocupante de cama principal al que apunta una fila del informe o del lookup.
@@ -19,7 +21,8 @@ export const resolveReportedOccupant = (
   occupied: ReadonlyMap<string, OccupiedBedEvidence>,
   occupiedCribs: ReadonlyMap<string, OccupiedClinicalCrib>,
   run: string | undefined,
-  episodeId: string | undefined
+  episodeId: string | undefined,
+  documentType?: OfficialPatientDocumentType
 ): OccupiedBedEvidence | undefined => {
   const reportedEpisode = String(episodeId ?? '').trim();
   const cribByEpisode = reportedEpisode
@@ -29,6 +32,15 @@ export const resolveReportedOccupant = (
   // sobre una cuna rancia con el mismo episodio bajo la cama de la madre.
   return (
     (reportedEpisode ? occupied.get(`episode:${reportedEpisode}`) : undefined) ??
-    (cribByEpisode ? undefined : findOccupiedBed(occupied, run, reportedEpisode || undefined))
+    (cribByEpisode
+      ? undefined
+      : findOccupiedBed(occupied, run, reportedEpisode || undefined, documentType))
   );
 };
+
+export const resolveReportedRowOccupant = (
+  occupied: ReadonlyMap<string, OccupiedBedEvidence>,
+  occupiedCribs: ReadonlyMap<string, OccupiedClinicalCrib>,
+  row: Pick<EgresoReportRow, 'run' | 'encounterId' | 'documentType'>
+): OccupiedBedEvidence | undefined =>
+  resolveReportedOccupant(occupied, occupiedCribs, row.run, row.encounterId, row.documentType);

@@ -261,6 +261,7 @@ export const reconcileCensus = (
           diff.pendingAdministrativeDischarges.push({
             bedId: parentBedId,
             rut: existingCribMatch?.patient.rut ?? mapped.patient.rut,
+            documentType: existingCribMatch?.patient.documentType ?? mapped.patient.documentType,
             patientName: existingCribMatch?.patient.patientName ?? mapped.patient.patientName,
             signal: 'clinical-closure',
             encounterId: encounter.encounterId,
@@ -307,6 +308,7 @@ export const reconcileCensus = (
       diff.pendingAdministrativeDischarges.push({
         bedId: placement.retainedBedId,
         rut: match.patient.rut,
+        documentType: match.patient.documentType,
         patientName: match.patient.patientName,
         signal: 'clinical-closure',
         encounterId: encounter.encounterId,
@@ -366,6 +368,7 @@ export const reconcileCensus = (
       diff.pendingAdministrativeDischarges.push({
         bedId,
         rut: patient.rut,
+        documentType: patient.documentType,
         patientName: patient.patientName,
         signal: 'missing-from-ficha',
         encounterId: patient.clinicalEpisodeId,

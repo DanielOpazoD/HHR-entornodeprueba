@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.27",
+  "version": "0.48.28",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": [
     "tabs",
@@ -26,7 +26,7 @@
     "https://testinghhr.netlify.app/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background-bootstrap.js"
   },
   "action": {
     "default_title": "Ver versión del puente Eloísa → HHR",
@@ -72,6 +72,7 @@
         "fichamedico-treating-physician-dom.js",
         "fichamedico-treating-physician-sources.js",
         "fichamedico-treating-physician-normalization.js",
+        "eloisa-patient-identity.js",
         "fichamedico-normalization.js",
         "fichamedico-read-resilience.js",
         "bridge-generation-main.js",
@@ -136,6 +137,7 @@
       ],
       "js": [
         "bridge-generation-main.js",
+        "eloisa-patient-identity.js",
         "inject-gestioncamas.js"
       ],
       "run_at": "document_start",

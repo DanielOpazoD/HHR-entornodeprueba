@@ -1,5 +1,12 @@
 /** Privacy-preserving bridge for official Eloisa hospitalization reports. */
 
+import {
+  formatOfficialPatientIdentifier,
+  inferOfficialPatientDocumentType,
+  normalizeOfficialPatientIdentifier,
+  type OfficialPatientDocumentType,
+} from '../domain/officialPatientIdentifier';
+
 export const RAYEN_HOSPITALIZATION_REPORT_REQUEST_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST';
 export const RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE = 'HHR_RAYEN_EPICRISIS_DOWNLOAD_RESULT';
 export const RAYEN_STATISTICAL_DISCHARGE_REPORT_REQUEST_TYPE =
@@ -27,13 +34,12 @@ export interface RayenHospitalizationReportResult {
 interface RayenHospitalizationReportRequest {
   operation: 'list' | 'download';
   patientRun: string;
+  patientDocumentType?: OfficialPatientDocumentType;
   clinicalEpisodeId?: string;
   admissionDate?: string;
   censusDate?: string;
   documentType?: RayenHospitalizationDocumentType;
 }
-
-const normalizeRun = (value: string): string => value.toUpperCase().replace(/[^0-9K]/g, '');
 
 const parseEpisode = (value: unknown): RayenHospitalizationEpisode | null => {
   if (!value || typeof value !== 'object') return null;
@@ -55,14 +61,22 @@ const requestHospitalizationReport = (
   timeoutMs: number
 ): Promise<RayenHospitalizationReportResult> =>
   new Promise(resolve => {
-    const patientRun = normalizeRun(request.patientRun);
+    const patientDocumentType = inferOfficialPatientDocumentType(
+      request.patientRun,
+      request.patientDocumentType
+    );
+    const patientRun =
+      patientDocumentType === 'Pasaporte'
+        ? formatOfficialPatientIdentifier(request.patientRun, patientDocumentType)
+        : normalizeOfficialPatientIdentifier(request.patientRun);
     const clinicalEpisodeId = request.clinicalEpisodeId?.trim() || '';
-    const hasValidRun = /^[0-9]{6,8}[0-9K]$/.test(patientRun);
+    const hasValidIdentifier = /^[A-Z0-9][A-Z0-9./-]{2,63}$/.test(patientRun);
     const hasValidEpisode = /^\d+$/.test(clinicalEpisodeId);
-    if (typeof window === 'undefined' || (!hasValidRun && !hasValidEpisode)) {
+    if (typeof window === 'undefined' || (!hasValidIdentifier && !hasValidEpisode)) {
       resolve({
         ok: false,
-        error: 'El paciente no tiene un RUN ni un episodio válido para buscar informes.',
+        error:
+          'El paciente no tiene un identificador oficial ni un episodio válido para buscar informes.',
       });
       return;
     }
@@ -109,6 +123,7 @@ const requestHospitalizationReport = (
         documentType: request.documentType,
         encId: clinicalEpisodeId || undefined,
         patientRun,
+        patientDocumentType,
         admissionDate: request.admissionDate,
         censusDate: request.censusDate,
       },
@@ -127,7 +142,7 @@ const requestHospitalizationReport = (
 export const requestRayenHospitalizationEpisodes = (
   request: Pick<
     RayenHospitalizationReportRequest,
-    'patientRun' | 'clinicalEpisodeId' | 'admissionDate' | 'censusDate'
+    'patientRun' | 'clinicalEpisodeId' | 'admissionDate' | 'censusDate' | 'patientDocumentType'
   >,
   timeoutMs = 15000
 ): Promise<RayenHospitalizationReportResult> =>

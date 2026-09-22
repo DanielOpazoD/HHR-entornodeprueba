@@ -10,7 +10,7 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
-  const previousRelay = globalThis.__hhrGestionCamasRelayInstalled; if (previousRelay?.runtime === chrome.runtime && previousRelay.runtimeId === chrome.runtime.id) return;
+  const previousRelay = globalThis.__hhrGestionCamasRelayInstalled;
   try {
     chrome.runtime.onMessage.removeListener?.(previousRelay?.runtimeListener);
     window.removeEventListener('message', previousRelay?.pageListener);
@@ -25,11 +25,21 @@
 
   const LOOKUP_TIMEOUT_MS = 45000;
   let connectionAttemptRevision = 0;
+  let documentReadyGeneration = '';
   const extensionVersion = chrome.runtime.getManifest().version;
   const generationRelay = globalThis.HhrBridgeGeneration.createRelay({
     chromeApi: chrome,
     runtimeMessages,
     extensionVersion,
+    onContext: context => {
+      if (documentReadyGeneration === context.runtimeGeneration) return;
+      const requestedRevision = connectionAttemptRevision;
+      chrome.runtime.sendMessage({ type: runtimeMessages.GC_DOCUMENT_READY }, response => {
+        if (chrome.runtime.lastError || !ownsRelay() || connectionAttemptRevision !== requestedRevision) return;
+        applyConnectionAttempt(response && response.connectionAttemptId, context.runtimeGeneration, true);
+        documentReadyGeneration = context.runtimeGeneration;
+      });
+    },
   });
   const getRuntimeContext = generationRelay.getContext;
   const isCurrentBridgeMessage = generationRelay.isCurrent;
@@ -38,7 +48,6 @@
     getRuntimeContext,
     isCurrentBridgeMessage,
   });
-
   const applyConnectionAttempt = (connectionAttemptId, runtimeGeneration, rehydrated = false) => {
     connectionAttemptRevision += 1;
     window.postMessage(
@@ -51,24 +60,6 @@
       window.location.origin
     );
   };
-
-  // Login redirects create a new MAIN-world document. Rehydrate the pending generation before
-  // that document is asked for credentials, otherwise its captures would look stale.
-  void getRuntimeContext().then(runtimeContext => {
-    if (!runtimeContext || !ownsRelay()) return;
-    try {
-      const requestedRevision = connectionAttemptRevision;
-      chrome.runtime.sendMessage({ type: runtimeMessages.GC_DOCUMENT_READY }, response => {
-        if (chrome.runtime.lastError || !ownsRelay()) return;
-        if (connectionAttemptRevision !== requestedRevision) return;
-        applyConnectionAttempt(
-          response && response.connectionAttemptId,
-          runtimeContext.runtimeGeneration,
-          true
-        );
-      });
-    } catch (_error) {}
-  });
 
   const lookupViaMainWorld = async runs => {
     const runtimeContext = await getRuntimeContext();
@@ -174,6 +165,7 @@
 
   const onRuntimeMessage = (msg, _sender, sendResponse) => {
     if (!ownsRelay()) return undefined;
+    if (msg && msg.type === 'RAYEN_EXTENSION_RELAY_PING') return sendResponse({ relayReady: 'gestioncamas' }), false;
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
       bridgeHealth.read().then(sendResponse);
       return true;

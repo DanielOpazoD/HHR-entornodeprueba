@@ -21,8 +21,9 @@ import {
   type ApplyContext,
   type ResolvedApplyContext,
 } from './applyCensusImportDiff';
+import { normalizeOfficialPatientIdentifier } from './officialPatientIdentifier';
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+const normalizeRut = normalizeOfficialPatientIdentifier;
 const normalizeEpisode = (episode?: string): string => String(episode ?? '').trim();
 
 /**

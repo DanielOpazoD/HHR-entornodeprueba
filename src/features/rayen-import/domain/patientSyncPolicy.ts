@@ -8,6 +8,7 @@ const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'lastName',
   'secondLastName',
   'rut',
+  'documentType',
   'birthDate',
   'age',
   'biologicalSex',
@@ -34,6 +35,9 @@ export const diffSyncablePatientFields = (
     const from = current[field];
     const to = incoming[field];
     if (field === 'clinicalEpisodeId' && !incoming.clinicalEpisodeId) continue;
+    // Older extension versions do not classify the identifier. Missing metadata must not erase a
+    // passport classification already reviewed in HHR.
+    if (field === 'documentType' && !incoming.documentType) continue;
     // Missing bridge coding is not an instruction to erase locally curated CIE-10 data.
     if ((field === 'cie10Code' || field === 'cie10Description') && !incoming.cie10Code) continue;
     // Specialty is locally curated in HHR. Rayen may fill an empty value for a new/legacy patient,

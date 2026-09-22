@@ -15,7 +15,7 @@ import type { DischargeData, TransferData, CMAData } from '@/types/domain/moveme
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import * as collisionApply from './applyBedOccupancyCollisionResolutions';
 import { buildRayenMovementProvenance } from './rayenMovementProvenance';
 import { applyRayenDischargeVerification } from './applyRayenDischargeVerification';

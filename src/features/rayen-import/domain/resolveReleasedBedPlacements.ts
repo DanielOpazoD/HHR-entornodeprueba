@@ -3,8 +3,9 @@ import type {
   ConflictEntry,
   DischargeEntry,
   MoveEntry,
+  CensusImportDiff,
 } from '../contracts/censusImportDiff';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import { isVerifiableLegacyOccupant } from './dischargeSubjectIdentity';
 
 interface ReleasedBedPlacementResult {
@@ -184,4 +185,21 @@ export const resolveReleasedBedPlacements = (
       conflict => !promoted.has(conflict) && !canceledPlacements.has(conflict)
     ),
   };
+};
+
+/** Keep pending discharges attached to the bed selected by a promoted move. */
+export const relocatePendingDischarges = (
+  pending: CensusImportDiff['pendingAdministrativeDischarges'],
+  promotedMoves: MoveEntry[]
+): CensusImportDiff['pendingAdministrativeDischarges'] => {
+  const bySource = new Map(promotedMoves.map(move => [move.fromBedId, move]));
+  return pending.map(entry => {
+    const move = bySource.get(entry.bedId);
+    if (!move) return entry;
+    const episode = entry.encounterId ?? entry.source?.encounterId;
+    const samePatient = episode
+      ? move.source.encounterId === episode
+      : normalizeRut(move.rut) === normalizeRut(entry.rut);
+    return samePatient ? { ...entry, bedId: move.toBedId } : entry;
+  });
 };

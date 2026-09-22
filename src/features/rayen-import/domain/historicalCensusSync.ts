@@ -2,6 +2,7 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { resolveCurrentClinicalDay } from '@/utils/clinicalDayAdmissionUtils';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import { normalizeOfficialPatientIdentifier } from './officialPatientIdentifier';
 
 const MILLISECONDS_PER_DAY = 86_400_000;
 
@@ -106,8 +107,7 @@ const occupiedPatientCount = (record: DailyRecord): number =>
     return count + primary + crib;
   }, 0);
 
-const normalizeRut = (value?: string): string =>
-  (value ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+const normalizeRut = normalizeOfficialPatientIdentifier;
 
 const hasSameStableIdentity = (
   historical: DailyRecord['beds'][string],

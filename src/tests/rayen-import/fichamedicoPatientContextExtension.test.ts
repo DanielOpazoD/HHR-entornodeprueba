@@ -4,6 +4,7 @@ import { webcrypto } from 'node:crypto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import '../../../extension/eloisa-patient-identity.js';
 import '../../../extension/fichamedico-patient-context.js';
 
 type PatientContext = {

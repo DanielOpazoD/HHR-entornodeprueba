@@ -1,4 +1,4 @@
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import {

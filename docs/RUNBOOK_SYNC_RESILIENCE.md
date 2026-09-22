@@ -341,3 +341,25 @@ Adjuntar en el ticket:
 - Usuario/email, fecha/hora, hospital.
 - Captura dashboard (métricas de sync).
 - Error de consola completo.
+
+## Recuperación después de varios días sin sincronizar
+
+La fecha del egreso estadístico de Gestión de Camas sigue siendo la autoridad del movimiento. El alta médica o de enfermería no cambia esa fecha ni libera por sí sola una cama.
+
+Al preparar una sincronización, HHR busca el último intervalo sin censo dentro de los siete días clínicos soportados. Puede encontrarlo aunque ayer ya se haya sincronizado. El reporte administrativo abarca ese intervalo hasta el calendario actual. Cada fila se verifica contra su episodio y fecha propios; una ambigüedad de RUN compartido permanece pendiente, pero no bloquea la lectura clínica de pacientes con identidad independiente.
+
+La revisión incluye **Recuperar censos sin información** por fecha, con camas, egresos y dudas. Aceptar los días previos permite crear los registros ausentes o completar registros vacíos. La ocupación pasada requiere trazabilidad al cierre de ese día; nunca se obtiene copiando las camas actuales. Un día sin evidencia aplicable no se crea. Se respetan firmas, permisos, ventana de edición y cambios locales pendientes. Un ocupante que aparece entre la revisión y la escritura obliga a revisar de nuevo.
+
+Las fechas se guardan de la más antigua a la más reciente, con confirmación del servidor. Primero se confirman los movimientos; después, camas y activación de camas extra se guardan juntas en un único CAS. Los movimientos se deduplican por episodio. Si el segundo CAS falla, queda un registro vacío con movimientos deterministas y procedencia de Gestión de Camas. Una captura nueva vuelve a mostrar esa fecha para confirmación, conserva la procedencia de la corrida anterior y completa lo pendiente sin duplicar. No se adopta como recuperación un censo con ocupantes, bloqueos, firma, sello de sincronización o movimientos manuales, reclasificados, borrados o alterados. La recuperación estructural no inventa signos vitales, vías ni diagnósticos históricos a partir de valores actuales. Para completar datos clínicos históricos, seleccionar esa fecha y sincronizar: la lectura y escritura clínica usarán el día seleccionado, conservando el comportamiento del turno activo para el calendario adelantado antes del corte.
+
+**Comprobar un resultado parcial:** separar las filas administrativas sin episodio inequívoco de los pacientes habilitados para lectura clínica. Cero lecturas con pacientes habilitados es un problema distinto de una consulta sin observaciones. El estado conectado prueba comunicación con la extensión, no que una sesión Eloísa siga autenticada.
+
+### Recuperación dirigida de pestañas (extensión 0.48.28)
+
+La última pestaña válida es una preferencia de la sesión del navegador, no prueba de autenticación. Cada lectura vuelve a verificar disponibilidad y puede usar otra pestaña que responda correctamente. Una pestaña lenta no retrasa el inicio de lectura desde otra que ya está lista. Una pestaña descartada o congelada tampoco invalida el consenso de generación de las pestañas que sí pueden leerse; al reanudarse debe demostrar que pertenece a esa generación.
+
+Si Chrome informa que desapareció el receptor del mensaje, la reparación reinstala sólo el relé aislado mínimo de Ficha Médico, Gestión de Camas o HHR, según el destino. HHR incluye además el relé idempotente del paquete de sincronización. La reparación queda confirmada únicamente cuando el listener nuevo responde al probe interno; ejecutar el script no basta para registrar éxito. Gestión de Camas reanuda su `GC_DOCUMENT_READY` cuando el contexto del worker aparece después de un arranque tardío. Una sesión vencida, un timeout del servidor o un error HTTP no activan reinyección. Las solicitudes ligadas a una pestaña emisora mantienen ese origen.
+
+Ficha Médico y Gestión de Camas conservan en MAIN el token, las cachés y los wrappers de red; la reparación vuelve a registrar solamente su listener de mensajes. El marcador booleano de versiones anteriores no contiene esa función de reactivación: al migrar desde una versión con ese marcador se requiere una recarga inicial de esas páginas. Las actualizaciones posteriores pueden recuperarlas sin navegar ni perder su estado MAIN.
+
+La reinyección automática excluye centros UI, impresión, Syslab y manejadores clínicos auxiliares. Esos módulos pueden registrar acciones propias y una segunda instalación podría duplicarlas; después de actualizar la extensión se recuperan al recargar su página. No ampliar la lista segura sin demostrar idempotencia y agregar una prueba de doble inyección.

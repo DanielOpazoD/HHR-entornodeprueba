@@ -3,7 +3,12 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
-type Target = { run: string; encounterId?: string; dischargeDay?: string };
+type Target = {
+  run: string;
+  encounterId?: string;
+  dischargeDay?: string;
+  documentType?: 'RUT' | 'Pasaporte';
+};
 type Result = {
   run: string;
   encounterId?: string;
@@ -28,14 +33,20 @@ const day = '2030-01-10';
 const sender = { tab: { id: 17 }, frameId: 0 };
 const mother = { id: 101, dateDischarge: day, hasAdministrativeDischarge: true };
 const newborn = { id: 202, dateDischarge: day, hasAdministrativeDischarge: true };
-const exact = { run: syntheticRun, encounterId: '202', dischargeDay: day };
-const reportOnly = { run: syntheticRun, dischargeDay: day };
+const exact = {
+  run: syntheticRun,
+  encounterId: '202',
+  dischargeDay: day,
+  documentType: 'RUT' as const,
+};
+const reportOnly = { run: syntheticRun, dischargeDay: day, documentType: 'RUT' as const };
 const ok = (payload: unknown) => ({ ok: true, status: 200, json: async () => payload });
 
 function harness(payloads: unknown[] = [[], []]) {
   const context = vm.createContext({});
   vm.runInContext('self = globalThis', context);
   for (const file of [
+    'eloisa-patient-identity.js',
     'clinical-day-runtime.js',
     'gestion-camas-egreso-lookup.js',
     'gestion-camas-egreso-query-runtime.js',
@@ -81,10 +92,97 @@ function harness(payloads: unknown[] = [[], []]) {
 }
 
 describe('Gestión de Camas RUN/maternal RUN discharge query runtime', () => {
+  it.each([
+    ['A123456785', 'RUT'],
+    ['B123456785', undefined],
+  ] as const)(
+    'preserves foreign identifier %s even when legacy metadata says %s',
+    async (identifier, legacyDocumentType) => {
+      const foreign = { id: 303, dateDischarge: day, hasAdministrativeDischarge: true };
+      const h = harness([[foreign]]);
+      const target: Target = {
+        run: identifier,
+        encounterId: '303',
+        dischargeDay: day,
+        ...(legacyDocumentType ? { documentType: legacyDocumentType } : {}),
+      };
+
+      expect(await h.runtime.request([], [target], sender)).toEqual({
+        results: [
+          {
+            run: identifier,
+            ...(legacyDocumentType ? { documentType: 'Pasaporte' } : {}),
+            encounterId: '303',
+            egreso: foreign,
+          },
+        ],
+      });
+      expect(h.queriedTypes()).toEqual(['3']);
+      expect(
+        new URL(h.fetchWithTimeout.mock.calls[0][0]).searchParams.get('prefferedIdentifierCode')
+      ).toBe(identifier);
+      expect(h.authorizeVerifiedEncounter).toHaveBeenCalledExactlyOnceWith(sender, '303');
+    }
+  );
+
+  it('uses passport type 9 only after type 3 for a report-only foreign identifier', async () => {
+    const foreign = { id: 303, dateDischarge: day, hasAdministrativeDischarge: true };
+    const h = harness([[], [foreign]]);
+    const target = {
+      run: 'A00001234',
+      dischargeDay: day,
+      documentType: 'Pasaporte' as const,
+    };
+
+    expect((await h.runtime.request([], [target], sender)).results?.[0]).toEqual({
+      run: 'A00001234',
+      documentType: 'Pasaporte',
+      encounterId: '303',
+      egreso: foreign,
+    });
+    expect(h.queriedTypes()).toEqual(['3', '9']);
+  });
+
+  it('keeps a numeric type 3 identifier unknown even when it coincides with a valid RUT', async () => {
+    const foreign = { id: 303, dateDischarge: day, hasAdministrativeDischarge: true };
+    const h = harness([[], [], [foreign]]);
+    const target: Target = { run: '123456785', encounterId: '303', dischargeDay: day };
+
+    expect((await h.runtime.request([], [target], sender)).results?.[0]).toEqual({
+      run: '123456785',
+      encounterId: '303',
+      egreso: foreign,
+    });
+    expect(h.queriedTypes()).toEqual(['2', '4', '3']);
+    expect(
+      h.fetchWithTimeout.mock.calls.every(
+        ([url]) => new URL(url).searchParams.get('prefferedIdentifierCode') === '123456785'
+      )
+    ).toBe(true);
+  });
+
+  it('compacts an unknown formatted RUN only for types 2/4 and preserves it for type 3', async () => {
+    const foreign = { id: 303, dateDischarge: day, hasAdministrativeDischarge: true };
+    const h = harness([[], [], [foreign]]);
+    const target: Target = { run: '12.345.678-5', encounterId: '303', dischargeDay: day };
+
+    expect((await h.runtime.request([], [target], sender)).results?.[0]).toEqual({
+      run: '12.345.678-5',
+      encounterId: '303',
+      egreso: foreign,
+    });
+    expect(h.queriedTypes()).toEqual(['2', '4', '3']);
+    expect(
+      h.fetchWithTimeout.mock.calls.map(([url]) =>
+        new URL(url).searchParams.get('prefferedIdentifierCode')
+      )
+    ).toEqual(['123456785', '123456785', '12.345.678-5']);
+  });
+
   it('finds an exact newborn episode only available under maternal RUN type 4', async () => {
     const h = harness([[mother], [newborn]]);
     expect(await h.runtime.request([], [exact], sender)).toEqual({
-      results: [{ run: syntheticRun, encounterId: '202', egreso: newborn }],
+      results: [{ run: syntheticRun, documentType: 'RUT', encounterId: '202', egreso: newborn }],
     });
     expect(h.queriedTypes()).toEqual(['2', '4']);
     for (const [url, options] of h.fetchWithTimeout.mock.calls) {
@@ -108,7 +206,7 @@ describe('Gestión de Camas RUN/maternal RUN discharge query runtime', () => {
   it('does not select a mother and newborn sharing the report-only discharge day', async () => {
     const h = harness([[mother], [newborn]]);
     expect(await h.runtime.request([], [reportOnly], sender)).toEqual({
-      results: [{ run: syntheticRun, encounterId: '', egreso: null }],
+      results: [{ run: syntheticRun, documentType: 'RUT', encounterId: '', egreso: null }],
     });
     expect(h.queriedTypes()).toEqual(['2', '4']);
     expect(h.authorizeVerifiedEncounter).not.toHaveBeenCalled();
@@ -117,7 +215,12 @@ describe('Gestión de Camas RUN/maternal RUN discharge query runtime', () => {
   it('selects a unique newborn day match only after both queries complete', async () => {
     const h = harness([[{ ...mother, dateDischarge: '2030-01-09' }], [newborn]]);
     const result = await h.runtime.request([], [reportOnly], sender);
-    expect(result.results?.[0]).toEqual({ run: syntheticRun, encounterId: '202', egreso: newborn });
+    expect(result.results?.[0]).toEqual({
+      run: syntheticRun,
+      documentType: 'RUT',
+      encounterId: '202',
+      egreso: newborn,
+    });
     expect(h.queriedTypes()).toEqual(['2', '4']);
     expect(h.authorizeVerifiedEncounter).toHaveBeenCalledExactlyOnceWith(sender, '202');
   });
@@ -182,7 +285,7 @@ describe('Gestión de Camas RUN/maternal RUN discharge query runtime', () => {
   it('never selects a wrong episode even when its discharge day matches', async () => {
     const h = harness([[mother], [{ ...newborn, id: 303 }]]);
     expect(await h.runtime.request([], [exact], sender)).toEqual({
-      results: [{ run: syntheticRun, encounterId: '202', egreso: null }],
+      results: [{ run: syntheticRun, documentType: 'RUT', encounterId: '202', egreso: null }],
     });
     expect(h.queriedTypes()).toEqual(['2', '4']);
     expect(h.authorizeVerifiedEncounter).not.toHaveBeenCalled();
@@ -202,7 +305,7 @@ describe('Gestión de Camas RUN/maternal RUN discharge query runtime', () => {
   it('does not select legacy RUN-only targets without an exact episode or discharge day', async () => {
     const h = harness([[mother], [newborn]]);
     expect((await h.runtime.request(['10.000.000-K'], undefined, sender)).results).toEqual([
-      { run: syntheticRun, encounterId: '', egreso: null },
+      { run: '10.000.000-K', encounterId: '', egreso: null },
     ]);
     expect(h.authorizeVerifiedEncounter).not.toHaveBeenCalled();
   });

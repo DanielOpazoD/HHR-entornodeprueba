@@ -25,6 +25,8 @@ const globals = globalThis as typeof globalThis & {
       targetTabIds?: number[]
     ) => Promise<Tab[]>;
     probeTabs: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    PREFERRED_TAB_STORAGE_KEY: string;
+    createTabPreference: (storage?: Record<string, unknown>) => Record<string, unknown>;
   };
   HhrEncounterNavigation: {
     normalizeEncounterId: (value: unknown) => string;
@@ -33,12 +35,6 @@ const globals = globalThis as typeof globalThis & {
   };
   HhrFichaMedicoTransportRuntime: {
     create: (dependencies: Record<string, unknown>) => {
-      sendToMatchingTab: (
-        urlMatch: string,
-        message: Record<string, unknown>,
-        noTabError: string,
-        noAnswerError: string
-      ) => Promise<Record<string, unknown>>;
       handleSnapshotRequest: () => Promise<Record<string, unknown>>;
       handleOpenEncounter: (
         encId: unknown,
@@ -57,7 +53,7 @@ const withTimeout = vi.fn(
   async (promise: Promise<unknown>, _timeoutMs: number, _message: string) => promise
 );
 
-const makeChrome = () => ({
+const makeChrome = (sessionState: Record<string, unknown> = {}) => ({
   tabs: {
     query: vi.fn<() => Promise<Tab[]>>().mockResolvedValue([]),
     get: vi.fn<(tabId: number) => Promise<Tab>>(),
@@ -68,9 +64,21 @@ const makeChrome = () => ({
   windows: {
     update: vi.fn<(windowId: number, update: Record<string, unknown>) => Promise<unknown>>(),
   },
+  storage: {
+    session: {
+      get: vi.fn(async (key: string) => ({ [key]: sessionState[key] })),
+      set: vi.fn(async (values: Record<string, unknown>) => Object.assign(sessionState, values)),
+      remove: vi.fn(async (key: string) => {
+        delete sessionState[key];
+      }),
+    },
+  },
 });
 
-const createRuntime = (chrome = makeChrome()) => ({
+const createRuntime = (
+  chrome = makeChrome(),
+  recoverMissingReceiver?: (tabId: number) => Promise<{ injected: boolean }>
+) => ({
   chrome,
   runtime: globals.HhrFichaMedicoTransportRuntime.create({
     chrome,
@@ -79,6 +87,7 @@ const createRuntime = (chrome = makeChrome()) => ({
     withTimeout,
     tabMessageTimeoutMs: 50_000,
     healthProbeTimeoutMs: 5_000,
+    recoverMissingReceiver,
   }),
 });
 
@@ -137,7 +146,7 @@ describe('Ficha Médico transport runtime', () => {
     );
   });
 
-  it('keeps the ordered read fallback for relays without the health handshake', async () => {
+  it('falls back to another verified tab when the first healthy relay cannot read', async () => {
     const chrome = makeChrome();
     chrome.tabs.query.mockResolvedValue([
       { id: 1, lastAccessed: 500 },
@@ -145,7 +154,7 @@ describe('Ficha Médico transport runtime', () => {
     ]);
     chrome.tabs.sendMessage.mockImplementation(async (tabId, message) => {
       if (message.type === 'RAYEN_EXTENSION_HEALTH_PING') {
-        throw new Error('health no soportado');
+        return { ready: true };
       }
       return tabId === 2 ? { error: 'relay antiguo inactivo' } : { snapshot: { encounters: [] } };
     });
@@ -164,6 +173,107 @@ describe('Ficha Médico transport runtime', () => {
     );
   });
 
+  it('does not let a slow stale tab delay a healthy read', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([
+      { id: 2, active: true, lastAccessed: 500 },
+      { id: 1, lastAccessed: 100 },
+    ]);
+    let releaseSlowProbe: (() => void) | undefined;
+    const slowProbe = new Promise<void>(resolve => {
+      releaseSlowProbe = resolve;
+    });
+    chrome.tabs.sendMessage.mockImplementation(async (tabId, message) => {
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING' && tabId === 2) {
+        await slowProbe;
+        return { ready: false };
+      }
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING') return { ready: true };
+      return { snapshot: { encounters: [] } };
+    });
+    const { runtime } = createRuntime(chrome);
+
+    await expect(runtime.handleSnapshotRequest()).resolves.toEqual({
+      snapshot: { encounters: [] },
+    });
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(1, { type: 'RAYEN_READ' });
+    releaseSlowProbe?.();
+  });
+
+  it('persists the last verified tab as an invalidable hint across worker restarts', async () => {
+    const sessionState: Record<string, unknown> = {};
+    const chrome = makeChrome(sessionState);
+    chrome.tabs.query.mockResolvedValue([
+      { id: 2, active: true },
+      { id: 1, lastAccessed: 500 },
+    ]);
+    chrome.tabs.sendMessage.mockImplementation(async (_tabId, message) =>
+      message.type === 'RAYEN_EXTENSION_HEALTH_PING'
+        ? { ready: true }
+        : { snapshot: { encounters: [] } }
+    );
+
+    await createRuntime(chrome).runtime.handleSnapshotRequest();
+    expect(sessionState[globals.HhrExtensionHealth.PREFERRED_TAB_STORAGE_KEY]).toBe(2);
+
+    chrome.tabs.sendMessage.mockClear();
+    chrome.tabs.query.mockResolvedValue([
+      { id: 1, active: true, lastAccessed: 900 },
+      { id: 2, lastAccessed: 100 },
+    ]);
+    await createRuntime(chrome).runtime.handleSnapshotRequest();
+    const reads = chrome.tabs.sendMessage.mock.calls.filter(
+      ([, message]) => message.type === 'RAYEN_READ'
+    );
+    expect(reads[0]?.[0]).toBe(2);
+
+    chrome.tabs.sendMessage.mockClear();
+    chrome.tabs.query.mockResolvedValue([{ id: 1, active: true }]);
+    await createRuntime(chrome).runtime.handleSnapshotRequest();
+    expect(chrome.storage.session.remove).toHaveBeenCalledWith(
+      globals.HhrExtensionHealth.PREFERRED_TAB_STORAGE_KEY
+    );
+  });
+
+  it('repairs only a missing ISOLATED receiver and verifies it before reading', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([{ id: 7, active: true }]);
+    let probeAttempts = 0;
+    chrome.tabs.sendMessage.mockImplementation(async (_tabId, message) => {
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING' && probeAttempts++ === 0) {
+        throw new Error('Could not establish connection. Receiving end does not exist.');
+      }
+      return message.type === 'RAYEN_EXTENSION_HEALTH_PING'
+        ? { ready: true }
+        : { snapshot: { encounters: [] } };
+    });
+    const recover = vi.fn(async () => ({ injected: true }));
+    const { runtime } = createRuntime(chrome, recover);
+
+    await expect(runtime.handleSnapshotRequest()).resolves.toEqual({
+      snapshot: { encounters: [] },
+    });
+    expect(recover).toHaveBeenCalledWith(7);
+    expect(probeAttempts).toBe(2);
+  });
+
+  it('does not reinject for session expiry or a generic probe timeout', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([{ id: 7, active: true }]);
+    const recover = vi.fn(async () => ({ injected: true }));
+    chrome.tabs.sendMessage.mockResolvedValueOnce({
+      ready: false,
+      reason: 'session_expired',
+      message: 'Sesión vencida',
+    });
+    await createRuntime(chrome, recover).runtime.handleSnapshotRequest();
+    expect(recover).not.toHaveBeenCalled();
+
+    chrome.tabs.sendMessage.mockRejectedValueOnce(new Error('Tiempo de espera agotado'));
+    await createRuntime(chrome, recover).runtime.handleSnapshotRequest();
+    expect(recover).not.toHaveBeenCalled();
+  });
+
   it('preserves missing-tab and last-diagnostic snapshot failures', async () => {
     const chrome = makeChrome();
     const { runtime } = createRuntime(chrome);
@@ -173,7 +283,11 @@ describe('Ficha Médico transport runtime', () => {
     });
 
     chrome.tabs.query.mockResolvedValue([{ id: 7 }]);
-    chrome.tabs.sendMessage.mockResolvedValue({ error: 'relay no autenticado' });
+    chrome.tabs.sendMessage.mockImplementation(async (_tabId, message) =>
+      message.type === 'RAYEN_EXTENSION_HEALTH_PING'
+        ? { ready: true }
+        : { error: 'relay no autenticado' }
+    );
     await expect(runtime.handleSnapshotRequest()).resolves.toEqual({
       error:
         'No se pudo leer Rayen. Recarga la pestaña de Ficha Médico (Cmd+R) para activar la extensión y reintenta. Detalle: relay no autenticado',
@@ -301,7 +415,9 @@ describe('Ficha Médico transport runtime', () => {
 
     vi.clearAllMocks();
     chrome.tabs.query.mockResolvedValue([{ id: 11 }]);
-    chrome.tabs.sendMessage.mockResolvedValue({ info });
+    chrome.tabs.sendMessage.mockImplementation(async (_tabId, message) =>
+      message.type === 'RAYEN_EXTENSION_HEALTH_PING' ? { ready: true } : { info }
+    );
     await expect(runtime.getFetchInfo()).resolves.toEqual({ info });
     expect(chrome.tabs.query).toHaveBeenCalledWith({
       url: 'https://fichamedico.rayensalud.cl/*',

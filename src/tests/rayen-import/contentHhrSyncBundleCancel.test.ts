@@ -26,6 +26,10 @@ const createHarness = (respond: (message: Record<string, unknown>) => Promise<un
     addEventListener: vi.fn((type: string, listener: (event: PageMessage) => void) => {
       if (type === 'message') listeners.push(listener);
     }),
+    removeEventListener: vi.fn((_type: string, listener: (event: PageMessage) => void) => {
+      const index = listeners.indexOf(listener);
+      if (index >= 0) listeners.splice(index, 1);
+    }),
     postMessage,
   };
   const context = vm.createContext({
@@ -39,18 +43,30 @@ const createHarness = (respond: (message: Record<string, unknown>) => Promise<un
       },
     },
   });
-  vm.runInContext(relaySource, context, { filename: 'content-hhr-sync-bundle.js' });
+  const inject = () =>
+    vm.runInContext(relaySource, context, { filename: 'content-hhr-sync-bundle.js' });
+  inject();
   const dispatch = (
     data: Record<string, unknown>,
     origin = ORIGIN,
     source: unknown = windowObject
   ) => listeners.forEach(listener => listener({ source, origin, data }));
-  return { dispatch, postMessage, sendMessage };
+  return { dispatch, inject, postMessage, sendMessage };
 };
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('content-hhr-sync-bundle relay · cancellation', () => {
+  it('replaces its page listener when the same ISOLATED world is reinjected', async () => {
+    const { dispatch, inject, sendMessage } = createHarness(async () => ({ cancelled: true }));
+    inject();
+
+    dispatch({ type: 'HHR_RAYEN_REQUEST_SYNC_BUNDLE', requestId: 'only-once' });
+    await flush();
+
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('forwards a page cancellation to the service worker with the request id', async () => {
     const { dispatch, sendMessage } = createHarness(async () => ({ ok: true }));
 

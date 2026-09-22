@@ -305,7 +305,11 @@ Flujo del Paciente RUN: 222222222
     );
 
     expect(result.conflicts).toEqual([
-      expect.objectContaining({ reason: expect.stringContaining('episodio clínico verificable') }),
+      expect.objectContaining({
+        rut: '77.777.777-7',
+        scope: 'report-row-subject',
+        reason: expect.stringContaining('episodio clínico verificable'),
+      }),
     ]);
   });
 

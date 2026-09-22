@@ -1,10 +1,13 @@
-import { normalizeRut } from '@/utils/rutUtils';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { EgresoLookupResult, EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { historicalEncounterFromLocal } from './historicalEncounterFromLocal';
 import { isPavilionRecoveryLocation } from './pavilionRecoverySyncPolicy';
+import {
+  normalizeOfficialPatientIdentifier,
+  officialPatientIdentifiersEqual,
+} from './officialPatientIdentifier';
 
 export interface LocalHistoricalOccupant {
   encounter: RayenEncounter;
@@ -59,7 +62,7 @@ const exactVerifiedDischargeAt = (
   if (
     !egreso ||
     result?.encounterId !== occupant.encounter.encounterId ||
-    normalizeRut(result?.run) !== normalizeRut(occupant.encounter.run) ||
+    !officialPatientIdentifiersEqual(result?.run, occupant.encounter.run) ||
     egreso.hasAdministrativeDischarge !== true
   )
     return null;
@@ -79,7 +82,7 @@ export const verifyLocalOccupantsByExactEgreso = async (
     item =>
       !item.isClinicalCrib &&
       /^\d+$/.test(item.encounter.encounterId) &&
-      Boolean(normalizeRut(item.encounter.run))
+      Boolean(normalizeOfficialPatientIdentifier(item.encounter.run))
   );
   if (eligible.length === 0) return { verified: [], unresolved: occupants };
 
@@ -88,6 +91,7 @@ export const verifyLocalOccupantsByExactEgreso = async (
     results = await lookup(
       eligible.map(item => ({
         run: item.encounter.run,
+        documentType: item.encounter.documentType,
         encounterId: item.encounter.encounterId,
       }))
     );

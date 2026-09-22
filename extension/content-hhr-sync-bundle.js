@@ -4,10 +4,14 @@
 
   const runtimeMessages = globalThis.HhrRayenMessageContract?.types;
   if (!runtimeMessages) return;
-  const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);
+  const previousRelay = globalThis.__hhrSyncBundleRelayInstalled, relayClaim = {};
+  try { window.removeEventListener('message', previousRelay?.pageListener); } catch (_) {}
+  globalThis.__hhrSyncBundleRelayInstalled = relayClaim;
+  const ownsRelay = () => globalThis.__hhrSyncBundleRelayInstalled === relayClaim;
+  const post = message => ownsRelay() && chrome.runtime?.id && window.postMessage(message, window.location.origin);
 
-  window.addEventListener('message', event => {
-    if (!chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
+  const onPageMessage = event => {
+    if (!ownsRelay() || !chrome.runtime?.id || event.source !== window || event.origin !== window.location.origin) return;
     if (event.data?.type === 'HHR_RAYEN_CANCEL_SYNC_BUNDLE') {
       const requestId = event.data.requestId;
       if (typeof requestId !== 'string' || !requestId) return;
@@ -18,13 +22,8 @@
     }
     if (event.data?.type !== 'HHR_RAYEN_REQUEST_SYNC_BUNDLE') return;
     const data = event.data;
-    chrome.runtime
-      .sendMessage({
-        type: runtimeMessages.SYNC_BUNDLE_REQUEST,
-        requestId: data.requestId,
-        dateStart: data.dateStart,
-        dateEnd: data.dateEnd,
-      })
+    chrome.runtime.sendMessage({ type: runtimeMessages.SYNC_BUNDLE_REQUEST,
+      requestId: data.requestId, dateStart: data.dateStart, dateEnd: data.dateEnd })
       .then(response => {
         // A capture HHR already cancelled must not resurface as a late error.
         if (response?.cancelled === true) return;
@@ -43,10 +42,8 @@
           error: response?.error || 'No se pudieron capturar ambas fuentes de Eloísa.',
         });
       })
-      .catch(error => post({
-        type: 'HHR_RAYEN_IMPORT_ERROR',
-        requestId: data.requestId,
-        error: String(error),
-      }));
-  });
+      .catch(error => post({ type: 'HHR_RAYEN_IMPORT_ERROR',
+        requestId: data.requestId, error: String(error) }));
+  };
+  window.addEventListener('message', relayClaim.pageListener = onPageMessage);
 })();

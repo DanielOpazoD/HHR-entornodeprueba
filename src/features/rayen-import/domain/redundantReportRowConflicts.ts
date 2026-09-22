@@ -1,7 +1,7 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 
 type ConflictEntry = CensusImportDiff['conflicts'][number];
 type DischargeEntry = CensusImportDiff['discharges'][number];

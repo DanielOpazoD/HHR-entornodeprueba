@@ -105,6 +105,42 @@ describe('report-only short-stay enrichment', () => {
     ]);
   });
 
+  it('verifies each supplied prior-day row against its own discharge day', async () => {
+    const prior = { ...row, fechaEgreso: '12-08-2026 18:10' };
+    const lookupEgresos = vi.fn().mockResolvedValue([]);
+
+    await enrichReportOnlyDischarges([prior, row], '2026-08-13', {
+      lookupEgresos,
+      fetchStatisticalDischarge: vi.fn(),
+    });
+
+    expect(lookupEgresos).toHaveBeenCalledWith([
+      { run: prior.run, encounterId: '', dischargeDay: '2026-08-12' },
+      { run: row.run, encounterId: '', dischargeDay: '2026-08-13' },
+    ]);
+  });
+
+  it('verifies later supplied rows for interval recovery using their own day', async () => {
+    const future = {
+      ...row,
+      fechaEgreso: '14-08-2026 12:00',
+      correctedDay: '2026-08-14',
+      correctedTime: '10:00',
+    };
+    const lookupEgresos = vi.fn().mockResolvedValue([]);
+
+    const result = await enrichReportOnlyDischarges([row, future], '2026-08-13', {
+      lookupEgresos,
+      fetchStatisticalDischarge: vi.fn(),
+    });
+
+    expect(lookupEgresos).toHaveBeenCalledWith([
+      { run: row.run, encounterId: '', dischargeDay: '2026-08-13' },
+      { run: future.run, encounterId: '', dischargeDay: '2026-08-14' },
+    ]);
+    expect(result[1]).toEqual({ ...future, exactEpisodeVerification: 'unverified' });
+  });
+
   it('resolves mother and newborn rows sharing RUN/day through exact D-1 episodes', async () => {
     const newborn = {
       ...row,
@@ -315,7 +351,7 @@ describe('report-only short-stay enrichment', () => {
     expect(result).toEqual([{ ...earlyRow, exactEpisodeVerification: 'unverified' }]);
   });
 
-  it('does not import genuine D+1 rows from the source compensation window', async () => {
+  it('keeps a compensation row unverified when its PDF calendar day contradicts the clinical target', async () => {
     const lookupEgresos = vi
       .fn()
       .mockResolvedValue([{ run: '82603646', encounterId: '143323', egreso: { id: 143323 } }]);
@@ -332,6 +368,13 @@ describe('report-only short-stay enrichment', () => {
     );
 
     expect(lookupEgresos).toHaveBeenCalledOnce();
-    expect(result[0].encounterId).toBeUndefined();
+    expect(lookupEgresos).toHaveBeenCalledWith([
+      { run: row.run, encounterId: '', dischargeDay: '2026-08-13' },
+    ]);
+    expect(result[0]).toEqual({
+      ...row,
+      fechaEgreso: '14-08-2026 01:00',
+      exactEpisodeVerification: 'unverified',
+    });
   });
 });

@@ -11,7 +11,7 @@
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
 
-  const previousRelay = globalThis.__hhrFichaMedicoRelayInstalled; if (previousRelay?.runtime === chrome.runtime && previousRelay.runtimeId === chrome.runtime.id) return;
+  const previousRelay = globalThis.__hhrFichaMedicoRelayInstalled;
   try { chrome.runtime.onMessage.removeListener?.(previousRelay?.runtimeListener); } catch (_) {}
   const relayClaim = { runtime: chrome.runtime, runtimeId: chrome.runtime.id };
   globalThis.__hhrFichaMedicoRelayInstalled = relayClaim;
@@ -156,6 +156,7 @@
 
   const onRuntimeMessage = (msg, _sender, sendResponse) => {
     if (!ownsRelay()) return undefined;
+    if (msg && msg.type === 'RAYEN_EXTENSION_RELAY_PING') return sendResponse({ relayReady: 'fichamedico' }), false;
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
       askMainWorld(
         'RAYEN_FM_SESSION_STATUS_REQUEST',

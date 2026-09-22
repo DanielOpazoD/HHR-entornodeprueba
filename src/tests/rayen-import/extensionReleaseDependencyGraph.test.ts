@@ -38,11 +38,51 @@ afterEach(() => {
 });
 
 describe('Rayen extension release dependency graph', () => {
+  it('rejects a worker entry that bypasses the startup failure boundary', () => {
+    const root = createPackageFixture();
+    const manifestPath = path.join(root, 'extension/manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest.background.service_worker = 'background.js';
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+    const result = runChecker(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('debe iniciar mediante background-bootstrap.js');
+  });
+
+  it('rejects an external import in the startup failure boundary', () => {
+    const root = createPackageFixture();
+    fs.writeFileSync(
+      path.join(root, 'extension/background-bootstrap.js'),
+      "importScripts('https://example.test/background.js');\n"
+    );
+    const result = runChecker(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('debe importar únicamente background.js');
+  });
+
   it('accepts the complete packaged extension', () => {
     const result = runChecker(createPackageFixture());
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('dependencias verificadas');
+  });
+
+  it('parses classic scripts without executing their code', () => {
+    const root = createPackageFixture();
+    fs.writeFileSync(
+      path.join(root, 'extension/syntax-fixture.js'),
+      "throw new Error('must not execute package code');\n"
+    );
+    const result = runChecker(root);
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it('rejects invalid classic script syntax', () => {
+    const root = createPackageFixture();
+    fs.writeFileSync(path.join(root, 'extension/syntax-fixture.js'), 'function {');
+    const result = runChecker(root);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Sintaxis inválida en extension/syntax-fixture.js');
   });
 
   it('rejects a Chrome minimum below the supported PDF.js legacy baseline', () => {

@@ -1,5 +1,4 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
-import { normalizeRut } from '@/utils/rutUtils';
 import type {
   EgresoLookupResult,
   EgresoLookupTarget,
@@ -17,6 +16,11 @@ import {
   previousCensusEgresoRowIdentity,
   type PreviousCensusEgresoCandidate,
 } from './previousCensusEgresoCandidates';
+import {
+  inferOfficialPatientDocumentType,
+  normalizeOfficialPatientIdentifier,
+  officialPatientIdentifiersEqual,
+} from './officialPatientIdentifier';
 
 interface ReportOnlyDischargeDependencies {
   lookupEgresos: (targets: EgresoLookupTarget[]) => Promise<EgresoLookupResult[]>;
@@ -48,7 +52,7 @@ const exactLookupMatches = (
   target: EgresoLookupTarget,
   dischargeDay: string
 ): boolean => {
-  if (normalizeRut(lookup.run) !== normalizeRut(target.run)) return false;
+  if (!officialPatientIdentifiersEqual(lookup.run, target.run)) return false;
   const requestedEpisode = target.encounterId.trim();
   const returnedEpisode = String(lookup.encounterId ?? '').trim();
   if (!requestedEpisode || returnedEpisode !== requestedEpisode) return false;
@@ -62,11 +66,13 @@ const exactLookupMatches = (
   return Boolean(lookup.egreso && exactLookupDischargeStamp(lookup.egreso)?.iso === dischargeDay);
 };
 
-const candidateKey = (row: EgresoReportRow, reportDate: string): string => {
-  if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel)) return '';
-  const run = normalizeRut(row.run);
+const candidateIdentity = (row: EgresoReportRow): { key: string; dischargeDay: string } | null => {
+  if (row.encounterId || isPavilionRecoveryLocation(row.bedLabel)) return null;
+  const run = normalizeOfficialPatientIdentifier(row.run);
   const stamp = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
-  return run && stamp.correctedDay === reportDate ? `${run}|${reportDate}` : '';
+  const dischargeDay = stamp.correctedDay ?? '';
+  if (!run || !dischargeDay) return null;
+  return { key: `${run}|${dischargeDay}`, dischargeDay };
 };
 
 /**
@@ -103,13 +109,14 @@ export const enrichReportOnlyDischarges = async (
   const ambiguousKeys = new Set<string>();
   for (const row of rows) {
     if (exactCandidateByRow.has(row)) continue;
-    const key = candidateKey(row, reportDate);
-    if (!key || ambiguousKeys.has(key) || dependencies.alreadyApplied?.(row)) continue;
-    if (keys.has(key)) {
-      keys.delete(key);
-      ambiguousKeys.add(key);
+    const candidate = candidateIdentity(row);
+    if (!candidate || ambiguousKeys.has(candidate.key) || dependencies.alreadyApplied?.(row))
+      continue;
+    if (keys.has(candidate.key)) {
+      keys.delete(candidate.key);
+      ambiguousKeys.add(candidate.key);
     } else {
-      keys.set(key, row);
+      keys.set(candidate.key, row);
     }
   }
   const enrichedByKey = new Map<string, EgresoReportRow>();
@@ -118,15 +125,20 @@ export const enrichReportOnlyDischarges = async (
     if (exactCandidateByRow.has(row)) {
       return enrichedByRow.get(row) ?? { ...row, exactEpisodeVerification: 'unverified' };
     }
-    const key = candidateKey(row, reportDate);
-    if (!key) return row;
-    return enrichedByKey.get(key) ?? { ...row, exactEpisodeVerification: 'unverified' };
+    const candidate = candidateIdentity(row);
+    if (!candidate) return row;
+    return enrichedByKey.get(candidate.key) ?? { ...row, exactEpisodeVerification: 'unverified' };
   };
 
   const keyedTargets = [...keys.entries()].map(([key, row]) => ({
     key,
     row,
-    target: { run: row.run, encounterId: '', dischargeDay: reportDate },
+    target: {
+      run: row.run,
+      documentType: inferOfficialPatientDocumentType(row.run),
+      encounterId: '',
+      dischargeDay: candidateIdentity(row)?.dischargeDay ?? reportDate,
+    },
   }));
   const exactTargets = [...exactCandidateByRow.entries()].map(([row, candidate]) => ({
     key: `episode:${candidate.encounterId}`,
@@ -149,7 +161,7 @@ export const enrichReportOnlyDischarges = async (
         ? lookupResults.find(
             result =>
               String(result.encounterId ?? '').trim() === target.encounterId &&
-              normalizeRut(result.run) === normalizeRut(target.run)
+              officialPatientIdentifiersEqual(result.run, target.run)
           )
         : lookupResults[index];
       const encounterId = String(lookup?.encounterId ?? '').trim();
@@ -163,7 +175,7 @@ export const enrichReportOnlyDischarges = async (
       const metadataEpisode = String(lookup.egreso.id ?? lookup.egreso.encounterId ?? '').trim();
       if (
         target.encounterId &&
-        (normalizeRut(lookup.run) !== normalizeRut(target.run) ||
+        (!officialPatientIdentifiersEqual(lookup.run, target.run) ||
           lookup.egreso.hasAdministrativeDischarge === false ||
           (metadataEpisode &&
             metadataEpisode.replace(/^0+(?=\d)/, '') !==
@@ -179,7 +191,7 @@ export const enrichReportOnlyDischarges = async (
         );
         if (
           evidence &&
-          (evidence.run !== normalizeRut(row.run) ||
+          (evidence.run !== normalizeOfficialPatientIdentifier(row.run) ||
             exactDay(evidence.dischargeAt) !== target.dischargeDay)
         ) {
           return;
@@ -196,6 +208,7 @@ export const enrichReportOnlyDischarges = async (
         const enriched = {
           ...row,
           encounterId,
+          documentType: lookup.documentType ?? target.documentType ?? row.documentType,
           exactEpisodeVerification: 'verified' as const,
           ...(exactPdf
             ? {

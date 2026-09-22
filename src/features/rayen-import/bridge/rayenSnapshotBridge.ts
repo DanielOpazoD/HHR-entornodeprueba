@@ -23,6 +23,9 @@ const isEncounter = (value: unknown): value is RayenEncounter => {
   return (
     typeof candidate.encounterId === 'string' &&
     typeof candidate.run === 'string' &&
+    (candidate.documentType === undefined ||
+      candidate.documentType === 'RUT' ||
+      candidate.documentType === 'Pasaporte') &&
     typeof candidate.firstGivenName === 'string' &&
     typeof candidate.firstFamilyName === 'string' &&
     (candidate.treatingPhysicianId === undefined ||

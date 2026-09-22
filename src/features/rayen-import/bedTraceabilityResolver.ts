@@ -13,7 +13,7 @@ import {
   absoluteInstantInRapaNui,
   encounterWallClockInRapaNui,
 } from './mapping/encounterWallClock';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './domain/officialPatientIdentifier';
 import { historicalEncounterFromLocal } from './domain/historicalEncounterFromLocal';
 
 export interface PatientFlowReportResult {

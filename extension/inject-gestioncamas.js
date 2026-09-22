@@ -12,15 +12,15 @@
  *      into the extension's own context, but never leaves the machine.
  *
  * Endpoint (confirmed): GET {api_app}/facility/{facId}/encounter
- *   ?facId=0&prefferedIdentifierCode={RUN digits}&prefferedPeridentId=2   ("preffered" typo is Rayen's)
+ *   ?facId=0&prefferedIdentifierCode={official code}&prefferedPeridentId={identity type}
+ *   ("preffered" typo is Rayen's)
  *
  * It talks to the isolated content script only via window.postMessage.
  */
 (() => {
   'use strict';
-  if (window.__gcInjected) return;
-  window.__gcInjected = true;
-  const INJECT_VERSION = '0.48.27';
+  const previousBridge = window.__gcInjected; if (previousBridge?.reactivate) return previousBridge.reactivate(); if (previousBridge) return; // Legacy marker: reload once.
+  const INJECT_VERSION = '0.48.28';
   const BACKEND_HINT = 'hospbackend.rayensalud.cl';
   const BRIDGE_REQUEST_TYPES = new Set(['RAYEN_GC_BRIDGE_STATUS_REQUEST', 'RAYEN_GC_CONNECTION_ATTEMPT', 'RAYEN_GC_LOOKUP_REQUEST', 'RAYEN_GC_FETCHINFO_REQUEST']);
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
@@ -29,7 +29,6 @@
   let capturedAuthConnectionAttemptId = '';
   let activeConnectionAttemptId = '';
   let lastAnnouncedSessionKey = null;
-
   const announceCapturedSession = (auth, connectionAttemptId, attempt = 0) => {
     setTimeout(() => {
       const base = apiBase();
@@ -145,7 +144,6 @@
       return '';
     }
   };
-  const normalizeRun = run => String(run || '').replace(/[^0-9kK]/g, '');
   const currentPageState = () => {
     const route = String(window.location.hash || window.location.pathname || '');
     if (/authenticate\/login/i.test(route)) return { pageState: 'login', pageRoute: route };
@@ -193,11 +191,11 @@
     // JSON (only in the server-rendered Jasper report), so the HHR side records a plain
     // 'alta' by default; it still detects traslado/cma if a destination text ever appears.
     try {
-      const encData = await getJson(
-        `${base}/facility/${facilityId()}/encounter?facId=0&prefferedIdentifierCode=${normalizeRun(run)}&prefferedPeridentId=2`
-      );
-      const item = Array.isArray(encData) ? encData[0] : encData;
-      return { run, egreso: item ? pick(item) : null };
+      const result = await globalThis.HhrEloisaPatientIdentity.lookupFirstUnique({
+        value: run, getJson,
+        buildUrl: (identifier, type) => `${base}/facility/${facilityId()}/encounter?facId=0&prefferedIdentifierCode=${encodeURIComponent(identifier)}&prefferedPeridentId=${type}`,
+      });
+      return { run: result.run, egreso: result.item ? pick(result.item) : null };
     } catch (error) {
       return { run, error: String((error && error.message) || error) };
     }
@@ -216,7 +214,7 @@
   };
 
   const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
-  window.addEventListener('message', async event => {
+  const onBridgeMessage = async event => {
     if (!isOwnMessage(event)) return;
     const d = event.data;
     const bridge = bridgeContextFor(d);
@@ -298,5 +296,7 @@
       );
       return;
     }
-  });
+  }; const reactivate = () => { window.removeEventListener('message', onBridgeMessage);
+    window.addEventListener('message', onBridgeMessage); };
+  reactivate(); window.__gcInjected = { reactivate };
 })();

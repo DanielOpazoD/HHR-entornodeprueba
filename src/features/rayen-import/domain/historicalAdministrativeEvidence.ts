@@ -1,4 +1,4 @@
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
@@ -73,24 +73,27 @@ export const invalidReportBackedConflicts = (
     const missingTimestamp = !reportClinicalStamp(row);
     if (!missingEpisode && !missingIdentity && !missingTimestamp) continue;
     surfacedEpisodes.add(conflictKey);
+    const conflict = unresolvedConflict(
+      {
+        encounterId,
+        run: row.run,
+        firstGivenName: row.patientName.trim(),
+        firstFamilyName: '',
+        diagnosis: row.diagnostico,
+        service: row.servicio,
+      },
+      missingEpisode
+        ? 'el reporte administrativo no contiene un episodio clínico verificable.'
+        : missingIdentity && missingTimestamp
+          ? 'el reporte administrativo tiene RUN y fecha de egreso inválidos.'
+          : missingIdentity
+            ? 'el reporte administrativo no contiene un RUN verificable.'
+            : 'el reporte administrativo no contiene una fecha de egreso verificable.'
+    );
     conflicts.push(
-      unresolvedConflict(
-        {
-          encounterId,
-          run: row.run,
-          firstGivenName: row.patientName.trim(),
-          firstFamilyName: '',
-          diagnosis: row.diagnostico,
-          service: row.servicio,
-        },
-        missingEpisode
-          ? 'el reporte administrativo no contiene un episodio clínico verificable.'
-          : missingIdentity && missingTimestamp
-            ? 'el reporte administrativo tiene RUN y fecha de egreso inválidos.'
-            : missingIdentity
-              ? 'el reporte administrativo no contiene un RUN verificable.'
-              : 'el reporte administrativo no contiene una fecha de egreso verificable.'
-      )
+      normalizeRut(row.run) && missingEpisode
+        ? { ...conflict, scope: 'report-row-subject' }
+        : conflict
     );
   }
   return conflicts;

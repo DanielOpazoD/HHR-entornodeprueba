@@ -14,6 +14,8 @@ import type { DischargeKind } from '../mapping/dischargeMapping';
 export interface EgresoReportRow {
   /** Patient RUN as printed (e.g. "12.345.678-9"). */
   run: string;
+  /** Official identifier class when an exact per-patient lookup proved it. */
+  documentType?: 'RUT' | 'Pasaporte';
   /** Exact episode when this row comes from the per-patient fallback. */
   encounterId?: string;
   patientName: string;
@@ -49,6 +51,7 @@ export interface EgresoReportRow {
  */
 export interface ReportEgreso {
   run: string;
+  documentType?: 'RUT' | 'Pasaporte';
   /** Exact hospitalization when the per-patient authority lookup supplied it. */
   encounterId?: string;
   patientName: string;

@@ -230,4 +230,178 @@ describe('applyEgresoLookupFallback', () => {
     expect(enriched).toBe(diff);
     expect(enriched.discharges).toHaveLength(0);
   });
+
+  it('matches a passport by its complete code and never by the numeric suffix alone', () => {
+    const diff = makeDiff();
+    diff.pendingAdministrativeDischarges[0] = {
+      ...diff.pendingAdministrativeDischarges[0],
+      rut: 'P1234567',
+      documentType: 'Pasaporte',
+    };
+    const record = makeRecord();
+    record.beds.R2 = {
+      ...record.beds.R2,
+      rut: 'P1234567',
+      documentType: 'Pasaporte',
+    };
+
+    const differentPassport = applyEgresoLookupFallback(
+      diff,
+      [
+        {
+          run: 'Q1234567',
+          documentType: 'Pasaporte',
+          encounterId: '141704',
+          egreso: {
+            id: 141704,
+            endPeriod: '2026-07-19T17:10:00-04:00',
+            hasAdministrativeDischarge: true,
+          },
+        },
+      ],
+      record
+    );
+    expect(differentPassport.discharges).toHaveLength(0);
+
+    const exactPassport = applyEgresoLookupFallback(
+      diff,
+      [
+        {
+          run: 'P1234567',
+          documentType: 'Pasaporte',
+          encounterId: '141704',
+          egreso: {
+            id: 141704,
+            endPeriod: '2026-07-19T17:10:00-04:00',
+            hasAdministrativeDischarge: true,
+          },
+        },
+      ],
+      record
+    );
+    expect(exactPassport.discharges).toContainEqual(
+      expect.objectContaining({ rut: 'P1234567', encounterId: '141704' })
+    );
+  });
+
+  it('does not satisfy a numeric passport egreso with a same-looking RUT result', () => {
+    const diff = makeDiff();
+    diff.pendingAdministrativeDischarges[0] = {
+      ...diff.pendingAdministrativeDischarges[0],
+      rut: '123456785',
+      documentType: 'Pasaporte',
+    };
+    const record = makeRecord();
+    record.beds.R2 = {
+      ...record.beds.R2,
+      rut: '123456785',
+      documentType: 'Pasaporte',
+    };
+    const result = {
+      run: '123456785',
+      encounterId: '141704',
+      egreso: {
+        id: 141704,
+        endPeriod: '2026-07-19T17:10:00-04:00',
+        hasAdministrativeDischarge: true,
+      },
+    };
+
+    expect(
+      applyEgresoLookupFallback(diff, [{ ...result, documentType: 'RUT' }], record).discharges
+    ).toHaveLength(0);
+    expect(
+      applyEgresoLookupFallback(diff, [{ ...result, documentType: 'Pasaporte' }], record).discharges
+    ).toContainEqual(expect.objectContaining({ encounterId: '141704', rut: '123456785' }));
+  });
+
+  it('accepts an old untyped result for the exact numeric-passport episode', () => {
+    const diff = makeDiff();
+    diff.pendingAdministrativeDischarges[0] = {
+      ...diff.pendingAdministrativeDischarges[0],
+      rut: '123456785',
+      documentType: 'Pasaporte',
+    };
+    const record = makeRecord();
+    record.beds.R2 = {
+      ...record.beds.R2,
+      rut: '123456785',
+      documentType: 'Pasaporte',
+    };
+
+    const enriched = applyEgresoLookupFallback(
+      diff,
+      [
+        {
+          run: '123456785',
+          encounterId: '141704',
+          egreso: {
+            id: 141704,
+            endPeriod: '2026-07-19T17:10:00-04:00',
+            hasAdministrativeDischarge: true,
+          },
+        },
+      ],
+      record
+    );
+
+    expect(enriched.discharges).toContainEqual(
+      expect.objectContaining({ encounterId: '141704', rut: '123456785' })
+    );
+  });
+
+  it('accepts an old untyped RUT result only for the exact episode', () => {
+    const diff = makeDiff();
+    diff.pendingAdministrativeDischarges[0] = {
+      ...diff.pendingAdministrativeDischarges[0],
+      documentType: 'RUT',
+    };
+
+    const enriched = applyEgresoLookupFallback(
+      diff,
+      [
+        {
+          run: '220253899',
+          encounterId: '141704',
+          egreso: {
+            id: 141704,
+            endPeriod: '2026-07-19T17:10:00-04:00',
+            hasAdministrativeDischarge: true,
+          },
+        },
+      ],
+      makeRecord()
+    );
+
+    expect(enriched.discharges).toContainEqual(
+      expect.objectContaining({ encounterId: '141704', rut: '22.025.389-9' })
+    );
+  });
+
+  it('rejects a truncated legacy passport code even for the exact episode', () => {
+    const diff = makeDiff();
+    diff.pendingAdministrativeDischarges[0] = {
+      ...diff.pendingAdministrativeDischarges[0],
+      rut: 'P1234567',
+      documentType: 'Pasaporte',
+    };
+
+    const enriched = applyEgresoLookupFallback(
+      diff,
+      [
+        {
+          run: '1234567',
+          encounterId: '141704',
+          egreso: {
+            id: 141704,
+            endPeriod: '2026-07-19T17:10:00-04:00',
+            hasAdministrativeDischarge: true,
+          },
+        },
+      ],
+      makeRecord()
+    );
+
+    expect(enriched.discharges).toHaveLength(0);
+  });
 });

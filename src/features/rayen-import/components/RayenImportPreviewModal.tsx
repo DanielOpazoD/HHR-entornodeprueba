@@ -1,3 +1,5 @@
+import { HistoricalRecoveryPreview } from './HistoricalRecoveryPreview';
+import { hasRecoverableHistory } from '../domain/historicalRecovery';
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
@@ -66,21 +68,25 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       diff.summary.discharges +
       diff.pendingAdministrativeDischarges.length +
       (diff.previousDayEdits?.length ?? 0) +
+      (diff.historicalRecovery?.length ?? 0) +
       (diff.reportEgresos?.length ?? 0) >
       0 ||
       (diff.bedOccupancyCollisions?.length ?? 0) > 0);
   const previousDayEdits = diff?.previousDayEdits ?? [];
-  const needsPreviousDayAck = previousDayEdits.length > 0;
+  const recoveryDays = diff?.historicalRecovery ?? [];
+  const needsPreviousDayAck = previousDayEdits.length > 0 || recoveryDays.length > 0;
   // La casilla de aceptación solo tiene sentido si confirmar escribirá algo en
   // un día previo; las ediciones bloqueadas (sin registro, firmadas, fuera de
   // ventana) se muestran como información, sin pedir un consentimiento vacío.
-  const hasActionablePreviousDayEdit = previousDayEdits.some(
-    edit =>
-      edit.patientNames.length > 0 &&
-      edit.recordExists &&
-      edit.withinEditingWindow &&
-      !edit.isSigned
-  );
+  const hasActionablePreviousDayEdit =
+    recoveryDays.some(hasRecoverableHistory) ||
+    previousDayEdits.some(
+      edit =>
+        edit.patientNames.length > 0 &&
+        edit.recordExists &&
+        edit.withinEditingWindow &&
+        !edit.isSigned
+    );
   const previousDays = new Set(previousDayEdits.map(edit => edit.day));
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
   const [cmaAdmissionResolutions, setCmaAdmissionResolutions] = React.useState<
@@ -275,7 +281,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                 {needsPreviousDayAck && (
                   <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
                     <h4 className="mb-1 text-sm font-semibold text-amber-800">
-                      Modificar días previos ({previousDayEdits.length})
+                      Modificar días previos (
+                      {new Set([...previousDays, ...recoveryDays.map(day => day.day)]).size})
                     </h4>
                     <p className="mb-2 text-xs text-amber-700">
                       Los ingresos de madrugada pertenecen al turno noche anterior y los egresos
@@ -320,6 +327,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                         </li>
                       ))}
                     </ul>
+                    <HistoricalRecoveryPreview days={recoveryDays} />
                     {hasActionablePreviousDayEdit && (
                       <label className="mt-2 flex items-center gap-2 text-sm font-medium text-amber-900">
                         <input

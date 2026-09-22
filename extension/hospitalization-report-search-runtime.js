@@ -1,20 +1,29 @@
 /** Query report episodes across patient and maternal/progenitor RUN identifiers. */
 (function (root) {
   'use strict';
-  const buildUrl = ({ info, patientRun, identifierType, normalizeRun }) => {
+  const identity = root.HhrEloisaPatientIdentity;
+  const buildUrl = ({ info, patientRun, patientDocumentType, identifierType }) => {
     const url = new URL('/api/inpatientReport/getEncounterHistoryReport', info.apiOrigin);
     url.searchParams.set('prefferedPeridentId', String(identifierType));
-    url.searchParams.set('prefferedIdentifierCode', normalizeRun(patientRun));
+    url.searchParams.set(
+      'prefferedIdentifierCode',
+      identity.identityKey(patientRun, patientDocumentType)
+    );
     url.searchParams.set('facilityId', String(info.facId));
     url.searchParams.set('dateFrom', '');
     url.searchParams.set('dateTo', '');
     return url.toString();
   };
   const fetchRows = async (request, identifierType) => {
-    const { info, patientRun, fetchWithTimeout, normalizeRun } = request;
+    const { info, patientRun, patientDocumentType, fetchWithTimeout } = request;
     try {
       const response = await fetchWithTimeout(
-        buildUrl({ info, patientRun, identifierType, normalizeRun }),
+        buildUrl({
+          info,
+          patientRun,
+          patientDocumentType,
+          identifierType,
+        }),
         {
           headers: { Authorization: info.token, Accept: 'application/json' },
           credentials: 'omit',
@@ -36,26 +45,10 @@
     }
   };
   const resolveRows = async request => {
-    const { info, patientRun, encId, isEncounter, matchingRows } = request;
+    const { info } = request;
     if (!info || !info.apiOrigin || !info.token || !/^\d+$/.test(String(info.facId || '')))
       return { error: 'La sesión no permite consultar informes de hospitalización.' };
-    const runRows = await fetchRows(request, 2);
-    if (runRows.error) return runRows;
-    const requested = isEncounter(encId) ? String(encId) : '';
-    if (
-      requested &&
-      matchingRows(runRows.rows, patientRun).some(row => String(row.encounterId) === requested)
-    )
-      return runRows;
-    const maternalRows = await fetchRows(request, 4);
-    if (maternalRows.error) return maternalRows;
-    const byEncounter = new Map();
-    [...runRows.rows, ...maternalRows.rows].forEach(row => {
-      const encounterId = String((row && row.encounterId) || '');
-      if (isEncounter(encounterId) && !byEncounter.has(encounterId))
-        byEncounter.set(encounterId, row);
-    });
-    return { rows: [...byEncounter.values()] };
+    return identity.resolveReportRows({ ...request, fetchRows: type => fetchRows(request, type) });
   };
   root.HhrHospitalizationReportSearchRuntime = { resolveRows };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

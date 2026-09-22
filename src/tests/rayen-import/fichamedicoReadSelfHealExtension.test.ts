@@ -24,6 +24,10 @@ const isolationNormalizationSource = readFileSync(
   path.resolve('extension/fichamedico-isolation-normalization.js'),
   'utf8'
 );
+const patientIdentitySource = readFileSync(
+  path.resolve('extension/eloisa-patient-identity.js'),
+  'utf8'
+);
 const normalizationSource = readFileSync(
   path.resolve('extension/fichamedico-normalization.js'),
   'utf8'
@@ -89,6 +93,13 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
       return { ok: true, status: 200, json: async () => value };
     },
     addEventListener: addListener,
+    removeEventListener: (type: string, listener: (event: unknown) => unknown) => {
+      const current = listeners.get(type) || [];
+      listeners.set(
+        type,
+        current.filter(candidate => candidate !== listener)
+      );
+    },
     dispatchEvent: (event: { type: string }) => {
       for (const listener of listeners.get(event.type) || []) listener(event);
       return true;
@@ -128,6 +139,7 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
   vm.runInContext(isolationNormalizationSource, context, {
     filename: 'fichamedico-isolation-normalization.js',
   });
+  vm.runInContext(patientIdentitySource, context, { filename: 'eloisa-patient-identity.js' });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
   vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });

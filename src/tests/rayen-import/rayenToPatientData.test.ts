@@ -15,6 +15,7 @@ const REFERENCE = new Date(2026, 6, 8); // 2026-07-08 local
 const baseEncounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: '141119',
   run: '144700554',
+  documentType: 'RUT',
   firstGivenName: 'Carina Aranceli',
   firstFamilyName: 'Pate',
   secondFamilyName: 'Lillo',
@@ -34,6 +35,26 @@ describe('helpers', () => {
   it('formatRun formats a raw RUN with dots and dash', () => {
     expect(formatRun('144700554')).toBe('14.470.055-4');
     expect(formatRun('12345678K')).toBe('12.345.678-K');
+  });
+
+  it('preserves an alphanumeric official identifier and classifies it as passport', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({ run: 'P1234567', documentType: 'Pasaporte' }),
+      REFERENCE
+    );
+
+    expect(patient.rut).toBe('P1234567');
+    expect(patient.documentType).toBe('Pasaporte');
+  });
+
+  it('uses explicit passport metadata for a numeric foreign identifier', () => {
+    const { patient } = rayenToPatientData(
+      baseEncounter({ run: '83001234', documentType: 'Pasaporte' }),
+      REFERENCE
+    );
+
+    expect(patient.rut).toBe('83001234');
+    expect(patient.documentType).toBe('Pasaporte');
   });
 
   it('ageFromBirthDate computes whole years against a reference', () => {

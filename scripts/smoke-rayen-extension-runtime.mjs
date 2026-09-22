@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { chromium } from 'playwright';
+import { assertExtensionStartupFailure } from './lib/extension-startup-smoke.mjs';
 
 const extensionPath = path.resolve('extension');
 const manifest = JSON.parse(await readFile(path.join(extensionPath, 'manifest.json'), 'utf8'));
@@ -342,7 +343,7 @@ try {
   assert.equal(
     recoveredHealth?.runtimeContext?.runtimeGeneration,
     runtimeContext.runtimeGeneration,
-    'The reloaded worker did not recover the surviving MAIN generation'
+    `The reloaded worker did not recover the surviving MAIN generation: ${JSON.stringify(recoveredHealth)}`
   );
   for (const [source, health] of [
     ['HHR', recoveredHealth?.hhr],
@@ -352,7 +353,7 @@ try {
     assert.equal(
       health?.bridgeGeneration,
       runtimeContext.runtimeGeneration,
-      `${source} did not reconnect to the recovered generation`
+      `${source} did not reconnect to the recovered generation: ${JSON.stringify(health)}`
     );
     assert.notEqual(health?.reason, 'outdated_tab', `${source} remained on the stale relay`);
     assert.equal(health?.error, undefined, `${source} relay did not answer after reload`);
@@ -401,3 +402,5 @@ try {
 } finally {
   await context.close();
 }
+
+await assertExtensionStartupFailure(chromium, extensionPath);

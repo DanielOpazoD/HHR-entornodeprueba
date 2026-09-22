@@ -3,7 +3,7 @@ import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImport
 import { hasRecordedMovement } from './egresoReportPolicy';
 import type { OccupiedClinicalCrib } from './egresoReportPolicy';
 import type { PromotionCandidate } from './egresoReportEligibility';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 
 const episodeIdOf = (value: unknown): string => String(value ?? '').trim();
 

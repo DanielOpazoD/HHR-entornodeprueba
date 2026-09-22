@@ -1,9 +1,9 @@
-import { normalizeRut } from '@/utils/rutUtils';
 import type { EgresoLookupTarget } from '../contracts/egresoLookup';
 import type { EgresoReportRow } from '../contracts/egresoReport';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import { correctedStamp } from './egresoReportPolicy';
 import { previousCensusDate } from './previousCensusContinuity';
+import { normalizeOfficialPatientIdentifier } from './officialPatientIdentifier';
 
 export interface PreviousCensusEgresoCandidate extends EgresoLookupTarget {
   patientName: string;
@@ -24,7 +24,7 @@ export const previousCensusEgresoIdentity = (
   patientName: string | undefined,
   dischargeDay: string
 ): string => {
-  const normalizedRun = normalizeRut(run);
+  const normalizedRun = normalizeOfficialPatientIdentifier(run);
   const name = normalizedName(patientName);
   return normalizedRun && name && /^\d{4}-\d{2}-\d{2}$/.test(dischargeDay)
     ? `${normalizedRun}|${dischargeDay}|${name}`
@@ -43,7 +43,7 @@ interface PreviousOccupant {
 }
 
 const occupantIdentityWithoutDay = (patient: PatientData): string =>
-  `${normalizeRut(patient.rut)}|${normalizedName(patient.patientName)}`;
+  `${normalizeOfficialPatientIdentifier(patient.rut)}|${normalizedName(patient.patientName)}`;
 
 /**
  * Builds exact lookup targets only when one report row maps to one identified D-1 occupant.
@@ -84,7 +84,9 @@ export const previousCensusEgresoCandidates = (
     const patientIdentity = occupantIdentityWithoutDay(patient);
     if (!/^\d+$/.test(encounterId) || occupantIdentityCount.get(patientIdentity) !== 1) return [];
     const matchingRows = eligibleRows.filter(
-      row => `${normalizeRut(row.run)}|${normalizedName(row.patientName)}` === patientIdentity
+      row =>
+        `${normalizeOfficialPatientIdentifier(row.run)}|${normalizedName(row.patientName)}` ===
+        patientIdentity
     );
     if (matchingRows.length !== 1) return [];
     const row = matchingRows[0];
@@ -99,6 +101,7 @@ export const previousCensusEgresoCandidates = (
     return [
       {
         run: patient.rut ?? '',
+        documentType: patient.documentType,
         encounterId,
         dischargeDay,
         patientName: patient.patientName ?? '',

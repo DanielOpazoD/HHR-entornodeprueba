@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
+import '../../../extension/eloisa-patient-identity.js';
 import '../../../extension/fichamedico-isolation-normalization.js';
 import '../../../extension/fichamedico-treating-physician-dom.js';
 import '../../../extension/fichamedico-treating-physician-sources.js';
@@ -81,6 +82,33 @@ describe('Ficha Medico identity and session normalization', () => {
 });
 
 describe('Ficha Medico census normalization', () => {
+  it.each(['A123456785', 'B123456785'])(
+    'preserves foreign official identifier %s despite contradictory legacy type 2 metadata',
+    identifier => {
+      expect(
+        normalization.normalizeEncounter(
+          { id: 303, patient: { identifier } },
+          { preferredIdentifierCode: identifier, prefferedPeridentId: 2 },
+          {}
+        )
+      ).toMatchObject({
+        encounterId: '303',
+        run: identifier,
+        documentType: 'Pasaporte',
+      });
+    }
+  );
+
+  it('does not classify a numeric type 3 code as passport without additional evidence', () => {
+    expect(
+      normalization.normalizeEncounter(
+        { id: 304 },
+        { preferredIdentifierCode: '123456785', prefferedPeridentId: 3 },
+        {}
+      )
+    ).not.toHaveProperty('documentType');
+  });
+
   it('normalizes the facility physician catalog and resolves the encounter assignment by id', () => {
     const physicians = treatingPhysicianNormalization.normalize([
       { id: 7947, firstGivenName: 'Angelica', firstFamilyName: 'Vargas' },

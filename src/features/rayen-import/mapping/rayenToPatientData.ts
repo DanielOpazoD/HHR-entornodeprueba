@@ -10,14 +10,14 @@ import { PatientStatus } from '@/types/domain/patientClassification';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
+import {
+  formatOfficialPatientIdentifier,
+  inferOfficialPatientDocumentType,
+} from '../domain/officialPatientIdentifier';
 
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
-  const cleaned = (raw ?? '').replace(/[^0-9kK]/g, '');
-  if (cleaned.length < 2) return (raw ?? '').trim();
-  const dv = cleaned.slice(-1).toUpperCase();
-  const body = cleaned.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `${body}-${dv}`;
+  return formatOfficialPatientIdentifier(raw, 'RUT');
 };
 
 const parseIsoCalendarDate = (
@@ -208,12 +208,14 @@ export const rayenToPatientData = (
   const firstFamily = toTitleCaseName(encounter.firstFamilyName);
   const secondFamily = normalizeOptionalPersonName(encounter.secondFamilyName);
   const fullName = [givenNames, firstFamily, secondFamily].filter(Boolean).join(' ').trim();
+  const documentType = inferOfficialPatientDocumentType(encounter.run, encounter.documentType);
 
   const patient: PatientData = {
     ...EMPTY_PATIENT,
     bedId: bedId ?? '',
     clinicalEpisodeId: encounter.encounterId,
-    rut: formatRun(encounter.run),
+    rut: formatOfficialPatientIdentifier(encounter.run, documentType),
+    documentType,
     patientName: fullName,
     firstName: givenNames,
     lastName: firstFamily,

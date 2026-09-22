@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import '../../../extension/clinical-day-runtime.js';
+import '../../../extension/eloisa-patient-identity.js';
 import '../../../extension/gestion-camas-egreso-lookup.js';
 
 const lookup = (
@@ -22,9 +23,12 @@ const lookup = (
 
 describe('Gestión de Camas exact-episode discharge lookup', () => {
   it('normalizes RUNs while retaining the requested hospitalization id', () => {
-    expect(lookup.normalizeTargets([], [{ run: '22.025.389-9', encounterId: '141704' }])).toEqual([
-      { run: '220253899', encounterId: '141704' },
-    ]);
+    expect(
+      lookup.normalizeTargets(
+        [],
+        [{ run: '22.025.389-9', documentType: 'RUT', encounterId: '141704' }]
+      )
+    ).toEqual([expect.objectContaining({ run: '220253899', encounterId: '141704' })]);
   });
 
   it('selects encounter 141704 instead of the first hospitalization for the same RUN', () => {

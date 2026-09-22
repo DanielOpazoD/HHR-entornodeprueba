@@ -5,6 +5,10 @@
   "complexityThreshold": 15,
   "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
   "files": {
+    "background-bootstrap.js": {
+      "maxLines": 45,
+      "hotspots": {}
+    },
     "background.js": {
       "maxLines": 1477,
       "hotspots": {
@@ -183,6 +187,10 @@
       "hotspots": {
         "iife>variable:buildPayload": 18
       }
+    },
+    "eloisa-patient-identity.js": {
+      "maxLines": 113,
+      "hotspots": {}
     },
     "encounter-navigation.js": {
       "maxLines": 60,
@@ -485,7 +493,7 @@
     "inject-fichamedico.js": {
       "maxLines": 688,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 32,
+        "iife>variable:onBridgeMessage": 32,
         "iife>variable:getVerifiedClinicalContext": 21,
         "iife>variable:readSafeSessionIdentityUncached": 23,
         "iife>variable:resolveNursingContext": 16
@@ -494,7 +502,7 @@
     "inject-gestioncamas.js": {
       "maxLines": 303,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 22
+        "iife>variable:onBridgeMessage": 22
       }
     },
     "lab-result-parser.js": {

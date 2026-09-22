@@ -3,7 +3,7 @@
 
 // MV3 requires initial imports. Excel/PDF stay here until their separate offscreen migrations.
 importScripts(
-  'message-contract.js', 'eloisa-patient-code-contract.js', 'fichamedico-manual-patient-code-runtime.js',
+  'message-contract.js', 'eloisa-patient-code-contract.js', 'eloisa-patient-identity.js', 'fichamedico-manual-patient-code-runtime.js',
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
@@ -174,7 +174,7 @@ const fetchWithTimeout = async (
     clearTimeout(timeout);
   }
 };
-
+let relayReinjectionRuntime = null;
 const fichaMedicoTransportRuntime = self.HhrFichaMedicoTransportRuntime.create({
   chrome,
   extensionHealth: self.HhrExtensionHealth,
@@ -182,21 +182,22 @@ const fichaMedicoTransportRuntime = self.HhrFichaMedicoTransportRuntime.create({
   withTimeout,
   tabMessageTimeoutMs: TAB_MESSAGE_TIMEOUT_MS,
   healthProbeTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+  recoverMissingReceiver: tabId => relayReinjectionRuntime?.reinjectTab({
+    tabId,
+    requiredFile: 'content-fichamedico.js',
+  }),
 });
 const {
-  sendToMatchingTab,
   handleSnapshotRequest,
   handleOpenEncounter,
   health: handleFichaMedicoHealth,
   getFetchInfo: getFichaFetchInfo,
 } = fichaMedicoTransportRuntime;
-
 const fichaMedicoClinicalClient = self.HhrFichaMedicoClinicalClient.create({
   resolveFetchInfo: getFichaFetchInfo,
   fetchWithTimeout,
   defaultTimeoutMs: BACKEND_REQUEST_TIMEOUT_MS,
 });
-
 const {
   nursingWorklists: fichaMedicoNursingWorklists,
   resolveSession: resolveFichaClinicalSession,
@@ -309,13 +310,11 @@ const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
 const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }), invalidateHealth: healthReportCache.invalidate });
 healthHeartbeat.start();
 self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();
-// Al instalar/actualizar la extensión, los relés de las pestañas abiertas
-// quedan huérfanos: re-inyectarlos y empujar el estado fresco de inmediato.
-self.HhrRelayReinjectionRuntime.create({
+relayReinjectionRuntime = self.HhrRelayReinjectionRuntime.create({
   chromeApi: chrome,
   onReinjected: () => healthHeartbeat.pushNow('relays-reinjected'),
-}).start();
-
+});
+relayReinjectionRuntime.start();
 const { request: handleEgresoLookup } = self.HhrGestionCamasEgresoQueryRuntime.create({
   resolveSession: resolveGestionCamasSession,
   classifyRejection: classifyGestionCamasRejection,

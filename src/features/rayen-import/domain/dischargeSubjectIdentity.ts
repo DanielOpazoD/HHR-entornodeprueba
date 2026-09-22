@@ -1,6 +1,9 @@
 import type { DischargeEntry } from '../contracts/censusImportDiff';
 import type { PatientData } from '../contracts/rayenDomainContracts';
-import { normalizeRut } from '@/utils/rutUtils';
+import {
+  normalizeOfficialPatientIdentifier,
+  officialPatientIdentifiersEqual,
+} from './officialPatientIdentifier';
 
 /**
  * Ocupante manual (sin episodio) cuya identidad SÍ podrá verificarse al aplicar:
@@ -14,7 +17,7 @@ export const isVerifiableLegacyOccupant = (entry: DischargeEntry): boolean => {
     expected &&
     !entryEpisode &&
     !String(expected.clinicalEpisodeId ?? '').trim() &&
-    normalizeRut(expected.rut) &&
+    normalizeOfficialPatientIdentifier(expected.rut) &&
     expected.admissionDate &&
     expected.admissionTime
   );
@@ -26,8 +29,8 @@ export const matchesDischargeSubject = (patient: PatientData, entry: DischargeEn
     if (expected.clinicalEpisodeId) {
       return patient.clinicalEpisodeId === expected.clinicalEpisodeId;
     }
-    const patientRun = normalizeRut(patient.rut);
-    const expectedRun = normalizeRut(expected.rut);
+    const patientRun = normalizeOfficialPatientIdentifier(patient.rut);
+    const expectedRun = normalizeOfficialPatientIdentifier(expected.rut);
     return Boolean(
       expected.admissionDate &&
       expected.admissionTime &&
@@ -44,7 +47,5 @@ export const matchesDischargeSubject = (patient: PatientData, entry: DischargeEn
       patient.clinicalEpisodeId && entryEpisode && patient.clinicalEpisodeId === entryEpisode
     );
   }
-  const patientRun = normalizeRut(patient.rut);
-  const entryRun = normalizeRut(entry.rut);
-  return Boolean(patientRun && entryRun && patientRun === entryRun);
+  return officialPatientIdentifiersEqual(patient.rut, entry.rut);
 };

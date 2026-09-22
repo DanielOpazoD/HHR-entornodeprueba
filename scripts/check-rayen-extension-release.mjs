@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { Script } from 'node:vm';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 
@@ -287,9 +287,21 @@ for (const host of manifest.host_permissions || []) {
   if (!allowedHosts.has(host)) fail(`Permiso de host no revisado: ${host}`);
 }
 
-const backgroundPath = isSafePackagePath(backgroundWorker)
-  ? path.join(extensionDir, backgroundWorker)
-  : null;
+// Validate the minimal failure boundary separately; keep the full startup graph mandatory.
+if (backgroundWorker !== 'background-bootstrap.js') {
+  fail('El service worker debe iniciar mediante background-bootstrap.js.');
+}
+const bootstrapPath = path.join(extensionDir, 'background-bootstrap.js');
+const bootstrapSource = isRegularFile(bootstrapPath) ? readFileSync(bootstrapPath, 'utf8') : '';
+const bootstrapImports = [...bootstrapSource.matchAll(/\bimportScripts\s*\(([^)]*)\)\s*;/g)];
+if (
+  bootstrapImports.length !== 1 ||
+  parseLiteralImportScripts(bootstrapImports[0]?.[1] || '').files.join(',') !== 'background.js'
+) {
+  fail('background-bootstrap.js debe importar únicamente background.js de forma síncrona y local.');
+}
+validateFileReferences('background-bootstrap.js importScripts()', ['background.js']);
+const backgroundPath = path.join(extensionDir, 'background.js');
 const backgroundSource =
   backgroundPath && isRegularFile(backgroundPath) ? readFileSync(backgroundPath, 'utf8') : '';
 const healthBridgeSource = existsSync(healthBridgePath)
@@ -340,10 +352,7 @@ const startupRuntimeList = parseLiteralImportScripts(String(startupCall?.[1] || 
 if (startupCall && !startupRuntimeList.valid) {
   fail('background service worker debe declarar importScripts() sólo con rutas literales locales.');
 }
-validateFileReferences(
-  `${backgroundWorker || 'background service worker'} importScripts()`,
-  startupRuntimeList.files
-);
+validateFileReferences('background.js importScripts()', startupRuntimeList.files);
 const startupRuntimes = new Set(startupRuntimeList.files);
 for (const runtime of mandatoryStartupRuntimes) {
   if (!startupRuntimes.has(runtime)) {
@@ -393,8 +402,12 @@ for (const file of extensionFiles.filter(candidate => candidate.endsWith('.map')
 for (const file of extensionFiles.filter(
   candidate => candidate.endsWith('.js') && !candidate.endsWith('.min.js')
 )) {
-  const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
-  if (check.status !== 0) fail(`Sintaxis inválida en ${relative(file)}: ${check.stderr.trim()}`);
+  try {
+    // These are classic MV3 scripts. Parse without executing code or spawning one process/file.
+    new Script(readFileSync(file, 'utf8'), { filename: relative(file) });
+  } catch (error) {
+    fail(`Sintaxis inválida en ${relative(file)}: ${error.message}`);
+  }
 }
 
 if (errors.length) {

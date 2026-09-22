@@ -1,7 +1,7 @@
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoReportRow } from '../contracts/egresoReport';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import { eligibleExactEpisodes, findPlannedPatientByEpisode } from './egresoReportEvidence';
 import {
   correctedStamp,
@@ -121,8 +121,20 @@ export const selectEligibleEgresoRows = (
     const reportedEpisode = String(row.encounterId ?? '').trim();
     if (!run && !reportedEpisode) continue;
 
-    const current = resolveReportedOccupant(occupied, occupiedCribs, row.run, reportedEpisode);
-    const currentCrib = findOccupiedClinicalCrib(occupiedCribs, row.run, reportedEpisode);
+    const current = resolveReportedOccupant(
+      occupied,
+      occupiedCribs,
+      row.run,
+      reportedEpisode,
+      row.documentType
+    );
+    const currentCrib = findOccupiedClinicalCrib(
+      occupiedCribs,
+      row.run,
+      reportedEpisode,
+      undefined,
+      row.documentType
+    );
     const normalized = correctedStamp(row.fechaEgreso, row.correctedDay, row.correctedTime);
     const stamp =
       normalized.correctedDay && normalized.correctedTime
@@ -133,8 +145,10 @@ export const selectEligibleEgresoRows = (
       // convergencia clínica bloquea todo el censo a propósito (no puede aislarse).
       nextDiff = appendReportConflict(nextDiff, {
         bedId: current?.bedId ?? currentCrib?.parentBedId ?? null,
+        ...(!current && !currentCrib && run ? { scope: 'report-row-subject' as const } : {}),
         patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
         rut: row.run,
+        documentType: row.documentType,
         reason: `El informe de Gestión de Camas contiene una fecha/hora de egreso inválida para el RUN ${run}; no se aplicó.`,
       });
       continue;
@@ -194,8 +208,10 @@ export const selectEligibleEgresoRows = (
       }
       nextDiff = appendReportConflict(nextDiff, {
         bedId,
+        ...(!bedId && run ? { scope: 'report-row-subject' as const } : {}),
         ...(redundancyCandidate ? { code: 'unverified-report-row' as const } : {}),
         rut: row.run,
+        documentType: row.documentType,
         patientName: current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName,
         reason: `El alta administrativa de ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} no pudo vincularse a un episodio clínico exacto; no se aplicó.`,
       });
@@ -223,8 +239,10 @@ export const selectEligibleEgresoRows = (
       if (!reportedEpisode && activeEpisode) continue;
       nextDiff = appendReportConflict(nextDiff, {
         bedId,
+        ...(!bedId && run ? { scope: 'report-row-subject' as const } : {}),
         ...(redundancyCandidate ? { code: 'report-predates-admission' as const } : {}),
         rut: row.run,
+        documentType: row.documentType,
         patientName: current?.patientName ?? currentCrib?.patient.patientName,
         reason: `El egreso informado para ${current?.patientName ?? currentCrib?.patient.patientName ?? row.patientName} es anterior a su ingreso activo; no se desocupó la cama.`,
       });
@@ -240,7 +258,9 @@ export const selectEligibleEgresoRows = (
     if (episodeConflict) {
       nextDiff = appendReportConflict(nextDiff, {
         ...episodeConflict,
+        ...(!episodeConflict.bedId && run ? { scope: 'report-row-subject' as const } : {}),
         ...(redundancyCandidate ? { code: 'episode-less-report-row' as const } : {}),
+        documentType: row.documentType,
       });
       continue;
     }

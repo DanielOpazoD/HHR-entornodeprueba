@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { RayenImportPreviewModal } from '@/features/rayen-import/components/RayenImportPreviewModal';
@@ -57,4 +57,53 @@ describe('RayenImportPreviewModal · contenido revisable', () => {
     ).toBeVisible();
     expect(screen.getByRole('button', { name: 'Confirmar e importar' })).toBeVisible();
   });
+});
+
+it('muestra recuperación histórica aunque el día seleccionado no tenga cambios y conserva aceptación explícita', () => {
+  const onConfirm = vi.fn();
+  const recoveryOnly: CensusImportDiff = {
+    ...pendingOnlyDiff,
+    pendingAdministrativeDischarges: [],
+    summary: { ...pendingOnlyDiff.summary, pendingAdministrativeDischarges: 0 },
+    historicalRecovery: [
+      {
+        day: '2026-09-19',
+        recordExists: false,
+        withinEditingWindow: true,
+        isSigned: false,
+        admissions: [],
+        conflicts: [],
+        reportEgresos: [
+          {
+            run: '11111111-1',
+            encounterId: '123',
+            patientName: 'Paciente ficticio',
+            bedLabel: 'H1C1',
+            destino: 'Domicilio',
+            fechaEgreso: '19-09-2026 15:00',
+            kind: 'alta',
+            status: 'Vivo',
+            correctedDay: '2026-09-19',
+            correctedTime: '15:00',
+          },
+        ],
+      },
+    ],
+  };
+  render(
+    <RayenImportPreviewModal
+      isOpen
+      diff={recoveryOnly}
+      stage={{ type: 'awaiting_review' }}
+      error={null}
+      onConfirm={onConfirm}
+      onCancel={vi.fn()}
+    />
+  );
+  expect(screen.getByText(/Crear censo/)).toBeVisible();
+  const checkbox = screen.getByRole('checkbox', { name: /Acepto modificar los días previos/ });
+  expect(checkbox).not.toBeChecked();
+  fireEvent.click(checkbox);
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar e importar' }));
+  expect(onConfirm).toHaveBeenCalledWith(true);
 });

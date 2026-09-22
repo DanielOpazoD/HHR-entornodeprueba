@@ -1,6 +1,6 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { resolveClinicalDayBounds } from '@/utils/clinicalDayScheduleUtils';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import type { ConflictEntry } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { EgresoReportRow } from '../contracts/egresoReport';
@@ -153,8 +153,8 @@ export const reconstructHistoricalSnapshotAtClose = async (
   const eligibleClinicalCribs: HistoricalClinicalCribCandidate[] = [];
   const conflicts: ConflictEntry[] = [];
 
-  // The report describes a later administrative location, not necessarily the placement at this
-  // historical cutoff. Patient-flow evidence below decides whether P-R1/P-R2 must be omitted.
+  // Later discharges can refer to occupants at this cutoff. Unverified identities remain explicit
+  // subject-scoped doubts; only exact episode + flow evidence can establish historical occupancy.
   const scopedReportRows = reportRows;
   const reportByEpisode = latestReportRowsByEpisode(scopedReportRows);
   conflicts.push(...invalidReportBackedConflicts(scopedReportRows, reportByEpisode));

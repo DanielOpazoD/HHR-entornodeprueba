@@ -5,6 +5,10 @@ import vm from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 
 const runtimeSource = readFileSync(path.resolve('extension/clinical-report-runtime.js'), 'utf8');
+const patientIdentitySource = readFileSync(
+  path.resolve('extension/eloisa-patient-identity.js'),
+  'utf8'
+);
 const hospitalizationReportSearchSource = readFileSync(
   path.resolve('extension/hospitalization-report-search-runtime.js'),
   'utf8'
@@ -29,6 +33,7 @@ const loadFactory = () => {
     TextDecoder,
     encodeURIComponent,
   });
+  vm.runInContext(patientIdentitySource, context, { filename: 'eloisa-patient-identity.js' });
   vm.runInContext(hospitalizationReportSearchSource, context, {
     filename: 'hospitalization-report-search-runtime.js',
   });
@@ -57,6 +62,7 @@ type RuntimeApi = {
   handleNursingMedicalEpicrisisPrintRequest: (request: {
     encId?: string;
     patientRun: string;
+    patientDocumentType?: 'RUT' | 'Pasaporte';
     admissionDate?: string;
     censusDate?: string;
     delivery?: string;

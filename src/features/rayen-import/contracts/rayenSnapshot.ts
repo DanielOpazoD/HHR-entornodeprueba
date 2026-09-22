@@ -12,8 +12,10 @@
 export interface RayenEncounter {
   /** Rayen `encId` — stable episode id. Maps to `PatientData.clinicalEpisodeId`. */
   encounterId: string;
-  /** Patient RUN. May arrive raw ("144700554") or formatted ("14.470.055-4"). */
+  /** Official patient identifier. It may be a Chilean RUN or a foreign alphanumeric code. */
   run: string;
+  /** Document class proven by Eloísa, when available. */
+  documentType?: 'RUT' | 'Pasaporte';
   /** Given name(s) — Rayen `firstGivenName`. */
   firstGivenName: string;
   /** Additional given names — Rayen `nextGivenNames`. */

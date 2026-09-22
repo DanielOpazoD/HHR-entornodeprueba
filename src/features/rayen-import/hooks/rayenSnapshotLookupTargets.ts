@@ -1,8 +1,6 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { EgresoLookupResult } from '../contracts/egresoLookup';
-
-const normalizeRun = (value: string): string =>
-  value.replace(/[^0-9kK]/gi, '').toUpperCase();
+import { officialPatientTypedIdentitiesEqual } from '../domain/officialPatientIdentifier';
 
 export const collectEgresoLookupTargets = (
   diff: CensusImportDiff,
@@ -15,7 +13,16 @@ export const collectEgresoLookupTargets = (
         !existingResults.some(
           result =>
             result.encounterId === entry.encounterId &&
-            normalizeRun(result.run) === normalizeRun(String(entry.rut))
+            officialPatientTypedIdentitiesEqual(
+              result.run,
+              result.documentType,
+              entry.rut,
+              entry.documentType
+            )
         )
     )
-    .map(entry => ({ run: entry.rut, encounterId: entry.encounterId as string }));
+    .map(entry => ({
+      run: entry.rut,
+      documentType: entry.documentType,
+      encounterId: entry.encounterId as string,
+    }));

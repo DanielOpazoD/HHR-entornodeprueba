@@ -61,6 +61,7 @@ describe('summarizeRayenStructuralCommit', () => {
 
     expect(summary.skippedItems).toBe(1);
     expect(summary.hasSkippedItems).toBe(true);
+    expect(summary.clinicalHandoff.historicalCorrectionsRequireFreshCapture).toBe(true);
   });
 
   it('counts overlapping historical follow-up signals only once', () => {

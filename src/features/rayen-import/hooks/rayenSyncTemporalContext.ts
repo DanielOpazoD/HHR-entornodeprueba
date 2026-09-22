@@ -29,6 +29,7 @@ interface PrepareRayenSyncTemporalContextInput {
   loadFreshRecord: (date: string) => Promise<DailyRecord>;
   now?: () => Date;
   loadTimeoutMs?: number;
+  loadRecoveryStart?: (selectedDate: string, now: Date) => Promise<string>;
 }
 
 /**
@@ -50,6 +51,7 @@ export const prepareRayenSyncTemporalContext = async ({
   displayedRecord,
   runId,
   loadFreshRecord,
+  loadRecoveryStart,
   now = () => new Date(),
   loadTimeoutMs = RAYEN_SYNC_CONTEXT_LOAD_TIMEOUT_MS,
 }: PrepareRayenSyncTemporalContextInput): Promise<PreparedRayenSyncContext> => {
@@ -65,6 +67,13 @@ export const prepareRayenSyncTemporalContext = async ({
 
   const preparedAt = now();
   const request = resolveSyncReportRequest(record, preparedAt);
+  if (loadRecoveryStart && request.target.kind !== 'unsupported') {
+    request.range.dateStart = await raceWithTimeout(
+      loadRecoveryStart(selectedDate, preparedAt),
+      loadTimeoutMs,
+      () => new Error(CONTEXT_LOAD_TIMEOUT_MESSAGE)
+    );
+  }
   return {
     runId,
     record,

@@ -27,6 +27,7 @@ import type {
 } from '../contracts/censusImportDiff';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contracts/dailyRecordResults';
+import { normalizeOfficialPatientIdentifier } from './officialPatientIdentifier';
 import {
   applyHistoricalAdmissions,
   confirmedPreviousDayAdmissionsByDay,
@@ -70,7 +71,7 @@ export interface CrossDayCorrectionResult {
   omitted: Array<{ day: string; patientName: string; reason: string }>;
 }
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+const normalizeRut = normalizeOfficialPatientIdentifier;
 
 /** Exact episodes never deduplicate by a shared maternal RUN; legacy rows still use RUN. */
 const recordHasEgreso = (

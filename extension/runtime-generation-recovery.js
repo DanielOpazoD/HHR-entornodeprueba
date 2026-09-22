@@ -22,8 +22,8 @@
     } catch (_error) { return { status: 'unreadable', generation: '' }; }
   };
   const consensus = readings => {
-    // An absent marker means no reader; an unreadable reader is ambiguous and fails closed.
-    if (readings.some(reading => reading.status === 'unreadable')) return null;
+    // A discarded tab cannot authorize a lifecycle. Readable MAIN markers may establish the
+    // generation; an unreadable tab must prove that same generation when it becomes active.
     const distinct = [...new Set(readings
       .filter(reading => reading.status === 'generation').map(reading => reading.generation))];
     return distinct.length === 1 ? distinct[0] : null;

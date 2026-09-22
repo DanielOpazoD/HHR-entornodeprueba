@@ -1,4 +1,4 @@
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { PatientFlowReportResult } from '../bedTraceabilityResolver';
 import {

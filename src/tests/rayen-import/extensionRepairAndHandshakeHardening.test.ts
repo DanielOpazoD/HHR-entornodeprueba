@@ -69,6 +69,28 @@ describe('generation handshake retries while the service worker wakes up', () =>
     expect(chromeApi.runtime.sendMessage).toHaveBeenCalledTimes(4);
   });
 
+  it('notifies the relay when a later health request finally obtains the context', async () => {
+    let now = 0;
+    const onContext = vi.fn();
+    const relay = bridge.createRelay({
+      chromeApi: createChrome([null, { runtimeGeneration: 'late-worker' }]),
+      runtimeMessages: {},
+      extensionVersion: 'test',
+      maxAttempts: 1,
+      recoveryDelayMs: 100,
+      now: () => now,
+      onContext,
+    });
+    await expect(relay.context).resolves.toBeNull();
+    expect(onContext).not.toHaveBeenCalled();
+    now = 100;
+    await expect(relay.getContext()).resolves.toEqual({ runtimeGeneration: 'late-worker' });
+    await Promise.resolve();
+    expect(onContext).toHaveBeenCalledExactlyOnceWith({ runtimeGeneration: 'late-worker' });
+    await relay.getContext();
+    expect(onContext).toHaveBeenCalledTimes(1);
+  });
+
   it('bounds a missing callback and ignores a late reply from a timed-out attempt', async () => {
     vi.useFakeTimers();
     const callbacks: Array<(value: unknown) => void> = [];

@@ -3,6 +3,7 @@ import type {
   CensusImportDiff,
   CmaAdmissionResolution,
 } from '../contracts/censusImportDiff';
+import { normalizeOfficialPatientIdentifier } from './officialPatientIdentifier';
 
 export const cmaAdmissionReviewKey = (admission: AdmissionEntry): string =>
   JSON.stringify([
@@ -13,7 +14,7 @@ export const cmaAdmissionReviewKey = (admission: AdmissionEntry): string =>
     admission.patient.patientName,
   ]);
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+const normalizeRut = normalizeOfficialPatientIdentifier;
 
 const sameAdmissionSubject = (
   admission: AdmissionEntry,

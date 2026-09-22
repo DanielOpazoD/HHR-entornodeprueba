@@ -15,6 +15,7 @@ const REFERENCE = new Date(2026, 6, 24);
 const encounter = (overrides: Partial<RayenEncounter> = {}): RayenEncounter => ({
   encounterId: 'old-episode',
   run: '111111111',
+  documentType: 'RUT',
   firstGivenName: 'Paciente',
   firstFamilyName: 'Anterior',
   service: 'Área Médico Quirúrgica Indiferenciada',
@@ -236,7 +237,11 @@ describe('local sequential bed turnover', () => {
     const concurrent = currentRecord();
     concurrent.beds.NEO1 = {
       ...rayenToPatientData(
-        encounter({ encounterId: 'concurrent-episode', run: '333333333', firstFamilyName: 'Concurrente' }),
+        encounter({
+          encounterId: 'concurrent-episode',
+          run: '333333333',
+          firstFamilyName: 'Concurrente',
+        }),
         REFERENCE
       ).patient,
       bedId: 'NEO1',

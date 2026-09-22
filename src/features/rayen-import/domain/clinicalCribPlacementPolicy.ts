@@ -3,6 +3,7 @@ import { isValidRut } from '@/utils/rutUtils';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { rayenToPatientData, type MappedPatient } from '../mapping/rayenToPatientData';
+import { normalizeOfficialPatientIdentifier } from './officialPatientIdentifier';
 
 export interface MappedClinicalEncounter {
   encounter: RayenEncounter;
@@ -92,7 +93,7 @@ export const shouldReconcileAsPrincipal = (
   );
 };
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+const normalizeRut = normalizeOfficialPatientIdentifier;
 
 export const pendingClinicalCribDischargeIdentities = (
   candidates: MappedClinicalEncounter[]

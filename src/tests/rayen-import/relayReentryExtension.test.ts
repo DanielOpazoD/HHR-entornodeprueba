@@ -165,12 +165,15 @@ const exerciseForwarding = async (
     runs: ['test-run'],
   });
   await flush();
-  expect(world.posts).toHaveLength(1);
-  expect(world.posts[0]).toMatchObject({
-    type: relay === 'fichamedico' ? 'RAYEN_EXT_READ_REQUEST' : 'RAYEN_GC_LOOKUP_REQUEST',
+  const requestType =
+    relay === 'fichamedico' ? 'RAYEN_EXT_READ_REQUEST' : 'RAYEN_GC_LOOKUP_REQUEST';
+  const relayRequests = world.posts.filter(message => message.type === requestType);
+  expect(relayRequests).toHaveLength(1);
+  expect(relayRequests[0]).toMatchObject({
+    type: requestType,
     runtimeGeneration: expectedGeneration,
   });
-  world.answer(world.posts[0]);
+  world.answer(relayRequests[0]);
   await flush();
   expect(respond).toHaveBeenCalledExactlyOnceWith(
     relay === 'fichamedico' ? { snapshot: { encounters: [] } } : { results: [] }
@@ -184,7 +187,11 @@ const exerciseForwarding = async (
       info: { apiBase: 'https://relay.test' },
     });
     await flush();
-    expect(world.sendMessage).toHaveBeenCalledTimes(1);
+    expect(
+      world.sendMessage.mock.calls.filter(
+        ([message]) => message.type === 'RAYEN_GC_SESSION_CAPTURED'
+      )
+    ).toHaveLength(1);
   }
 };
 
@@ -201,17 +208,32 @@ describe('ISOLATED relay same-world reentry', () => {
         world.sendMessage.mock.calls.filter(
           ([m]) => m.type === 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST'
         )
-      ).toHaveLength(1);
+      ).toHaveLength(2);
       if (relay === 'gestioncamas') {
         expect(
           world.sendMessage.mock.calls.filter(([m]) => m.type === 'RAYEN_GC_DOCUMENT_READY')
-        ).toHaveLength(1);
+        ).toHaveLength(2);
         expect(world.posts.filter(m => m.type === 'RAYEN_GC_CONNECTION_ATTEMPT')).toHaveLength(1);
       }
       await exerciseForwarding(relay, world);
       world.inject(); // Settled reentry must also remain inert.
       await exerciseForwarding(relay, world);
       expect(world.runtimeListeners).toHaveLength(1);
+    });
+
+    it(`${relay}: reinjection replaces an orphaned claim whose listener disappeared`, async () => {
+      const world = createWorld(relay);
+      world.inject();
+      await flush();
+      world.runtimeListeners.splice(0);
+
+      world.inject();
+      await flush();
+
+      expect(world.runtimeListeners).toHaveLength(1);
+      const respond = world.dispatchRuntime({ type: 'RAYEN_EXTENSION_RELAY_PING' });
+      expect(respond).toHaveBeenCalledExactlyOnceWith({ relayReady: relay });
+      await exerciseForwarding(relay, world);
     });
 
     it(`${relay}: a missing contract does not poison later installation`, async () => {

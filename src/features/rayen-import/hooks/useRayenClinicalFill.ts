@@ -21,7 +21,6 @@ import {
   reportRayenFillProgress,
 } from './useRayenFillStatus';
 import { selectHistoricalCudyrPersistence } from './historicalCudyrPersistenceSelection';
-import { toIsoReportDate } from './reportDateHelpers';
 import {
   requestCudyrCategories,
   requestDeviceReport,
@@ -59,6 +58,8 @@ import {
   mergeClinicalRetrySummary,
   resolveClinicalStageResult,
 } from '../domain/clinicalStageResolution';
+import { resolveClinicalFillDay } from './clinicalFillDay';
+export { resolveClinicalFillDay } from './clinicalFillDay';
 
 interface UseRayenClinicalFillInput {
   nurseCatalog: string[];
@@ -99,11 +100,6 @@ interface UseRayenClinicalFillInput {
   onStaffingProposal: (proposal: NursingStaffingProposal, attemptId: number) => void;
   createId: () => string;
 }
-
-export const resolveClinicalFillDay = (
-  source: DailyRecord | ConfirmedRayenCensusHandoff,
-  record: DailyRecord
-): string => (isConfirmedRayenCensusHandoff(source) ? source.clinicalDay : toIsoReportDate(record));
 
 const withRevalidatedClinicalRecord = (
   source: DailyRecord | ConfirmedRayenCensusHandoff,

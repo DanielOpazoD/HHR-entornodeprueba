@@ -10,7 +10,8 @@ import { mapRayenBed } from '../mapping/bedMapping';
 import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import { missingHistoricalDiagnosis } from './historicalAdmissionPatch';
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+import { normalizeOfficialPatientIdentifier } from './officialPatientIdentifier';
+const normalizeRut = normalizeOfficialPatientIdentifier;
 export type HistoricalAdmissionSubject = {
   day: string;
   kind: 'principal' | 'clinical-crib';

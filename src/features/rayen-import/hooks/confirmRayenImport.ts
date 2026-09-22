@@ -1,3 +1,4 @@
+import { resolveClinicalCensusDay } from './clinicalFillDay';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import { fileCrossDayCorrections } from '../domain/previousDayCorrections';
@@ -39,6 +40,7 @@ const comparableStructuralPlan = (diff: CensusImportDiff) => ({
   activeClinicalCribs: diff.activeClinicalCribs,
   reportEgresos: diff.reportEgresos,
   previousDayEdits: diff.previousDayEdits,
+  historicalRecovery: diff.historicalRecovery,
   previousDayAdmissionCandidates: diff.previousDayAdmissionCandidates,
   deferredHistoricalAdmissionBedIds: diff.deferredHistoricalAdmissionBedIds,
 });
@@ -75,11 +77,16 @@ export const hasSkippedPreviousDayCorrections = (
 ): boolean => {
   const previousDayEdits = diff.previousDayEdits ?? [];
   return (
-    previousDayEdits.length > 0 &&
-    (!applyPreviousDays ||
-      previousDayEdits.some(
-        edit => !edit.recordExists || !edit.withinEditingWindow || edit.isSigned
-      ))
+    ((diff.historicalRecovery?.length ?? 0) > 0 &&
+      (!applyPreviousDays ||
+        diff.historicalRecovery!.some(
+          day => !day.withinEditingWindow || day.conflicts.length > 0
+        ))) ||
+    (previousDayEdits.length > 0 &&
+      (!applyPreviousDays ||
+        previousDayEdits.some(
+          edit => !edit.recordExists || !edit.withinEditingWindow || edit.isSigned
+        )))
   );
 };
 
@@ -194,11 +201,22 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
     let lastHistoricalConflict: unknown;
     for (let attempt = 0; attempt <= MAX_FRESH_RECORD_RETRIES; attempt += 1) {
       try {
+        if (candidateDiff.historicalRecovery?.length) {
+          const { applyHistoricalRecoveryDays } = await import('../domain/applyHistoricalRecovery');
+          const { canWritePreviousDay } = await import('../domain/previousDayCorrections');
+          await applyHistoricalRecoveryDays(
+            dailyRecord,
+            candidateDiff.historicalRecovery,
+            toIsoReportDate(candidate),
+            day => canWritePreviousDay(day, isAdmin),
+            { actor: run.by, syncRunId: run.id }
+          );
+        }
         const correctionResult = await fileCrossDayCorrections(
           dailyRecord,
           candidate,
           candidateDiff,
-          clinicalDay ?? toIsoReportDate(candidate),
+          resolveClinicalCensusDay(candidate, clinicalDay),
           isAdmin,
           createId,
           { actor: run.by, syncRunId: run.id }

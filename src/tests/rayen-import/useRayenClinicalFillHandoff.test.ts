@@ -8,10 +8,7 @@ import {
   markRayenHistoricalCorrectionsRequireFreshCapture,
   resolveConfirmedRayenCensusHandoff,
 } from '@/features/rayen-import/hooks/rayenCensusPersistenceGuard';
-import {
-  resolveClinicalFillDay,
-  useRayenClinicalFill,
-} from '@/features/rayen-import/hooks/useRayenClinicalFill';
+import { useRayenClinicalFill } from '@/features/rayen-import/hooks/useRayenClinicalFill';
 import type { SaveDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
 
 const mocks = vi.hoisted(() => ({
@@ -61,21 +58,6 @@ describe('useRayenClinicalFill confirmed census handoff', () => {
     vi.clearAllMocks();
     mocks.beginRayenFill.mockReturnValue(true);
     mocks.getRayenFillAttemptId.mockReturnValue(7);
-  });
-
-  it('uses the clinical day frozen in the confirmed handoff', () => {
-    const record = {
-      date: '2026-07-15',
-      beds: {},
-      discharges: [],
-      transfers: [],
-      cma: [],
-      ...legacyRunEvidence('run-historical'),
-    } as unknown as DailyRecord;
-    const handoff = confirmedHandoff(record, '2026-07-14');
-
-    expect(resolveClinicalFillDay(handoff, record)).toBe('2026-07-14');
-    expect(resolveClinicalFillDay(record, record)).toBe('2026-07-15');
   });
 
   it('uses the confirmed census handoff without a redundant policy read', async () => {

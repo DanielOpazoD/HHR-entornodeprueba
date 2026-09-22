@@ -22,6 +22,7 @@ export const historicalEncounterFromLocal = (
   return {
     encounterId: patient.clinicalEpisodeId?.trim() ?? '',
     run: patient.rut,
+    documentType: patient.documentType,
     firstGivenName: patient.firstName?.trim() || patient.patientName,
     firstFamilyName: patient.lastName?.trim() || '',
     secondFamilyName: patient.secondLastName,

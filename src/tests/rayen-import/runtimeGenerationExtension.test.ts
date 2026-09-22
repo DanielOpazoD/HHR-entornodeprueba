@@ -143,7 +143,7 @@ describe('runtime generation (extension)', () => {
     expect(current.id).not.toBe(fixture.openReaderGenerations[1]);
   });
 
-  it('fails closed when any surviving reader cannot be inspected', async () => {
+  it('recovers readable consensus while a discarded reader is temporarily unavailable', async () => {
     const fixture = createFixture();
     fixture.openReaderGenerations.push(
       'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
@@ -154,7 +154,7 @@ describe('runtime generation (extension)', () => {
     const runtime = owner.create({ ...fixture, now: () => 300 });
     const current = await runtime.get();
 
-    expect(current.id).not.toBe(fixture.openReaderGenerations[0]);
+    expect(current.id).toBe(fixture.openReaderGenerations[0]);
   });
 
   it('rotates only when a clean repair explicitly requests a new lifecycle', async () => {

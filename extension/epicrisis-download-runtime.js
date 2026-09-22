@@ -59,8 +59,8 @@
 
   const handleRequest = async request => {
     if (request.delivery !== 'download') return request.printFallback(request);
-    const patientRun = reports.normalizeRun(request.patientRun);
-    const hasValidRun = reports.isValidRun(patientRun);
+    const patientRun = reports.normalizeIdentifier(request.patientRun);
+    const hasValidRun = reports.isSearchableIdentifier(patientRun, request.patientDocumentType);
     const resolvedDirectEpisode = resolveDirectEpisode(request);
     const hasDirectHistoryRange = request.documentType === 'history' && !resolvedDirectEpisode.error &&
       Boolean(resolvedDirectEpisode.row.startPeriod);

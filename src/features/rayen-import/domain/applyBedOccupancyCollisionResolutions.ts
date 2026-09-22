@@ -1,6 +1,6 @@
 import type { DischargeData, TransferData } from '@/types/domain/movements';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import type {
   BedOccupancyCollisionCandidate,

@@ -90,9 +90,39 @@ describe('hospitalization reports bridge', () => {
   it('rejects invalid patient identifiers before posting', async () => {
     await expect(requestRayenHospitalizationEpisodes({ patientRun: 'SIN-RUN' })).resolves.toEqual({
       ok: false,
-      error: 'El paciente no tiene un RUN ni un episodio válido para buscar informes.',
+      error:
+        'El paciente no tiene un identificador oficial ni un episodio válido para buscar informes.',
     });
   });
+
+  it.each(['P1234567', 'AB-12345', 'AB/123.45', '12.345.678-5', 'A'.repeat(64)])(
+    'preserves passport %s and its document class when listing hospitalizations',
+    async patientRun => {
+      const pending = requestRayenHospitalizationEpisodes({
+        patientRun,
+        patientDocumentType: 'Pasaporte',
+      });
+      const { outgoing } = await captureOutgoingRequest(pending);
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: window.location.origin,
+          source: window,
+          data: {
+            type: RAYEN_HOSPITALIZATION_REPORT_RESULT_TYPE,
+            reqId: outgoing.reqId,
+            ok: true,
+            episodes: [],
+          },
+        })
+      );
+
+      await expect(pending).resolves.toMatchObject({ ok: true, episodes: [] });
+      expect(outgoing).toMatchObject({
+        patientRun,
+        patientDocumentType: 'Pasaporte',
+      });
+    }
+  );
 
   it('uses the synced episode for a newborn without RUN', async () => {
     const pending = requestRayenHospitalizationEpisodes({

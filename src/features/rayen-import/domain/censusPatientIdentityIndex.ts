@@ -1,8 +1,13 @@
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
+import {
+  normalizeOfficialPatientIdentifier,
+  officialPatientIdentityKey,
+  officialPatientTypedIdentitiesEqual,
+} from './officialPatientIdentifier';
 
 export const normalizePatientRut = (rut?: string): string =>
-  (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+  normalizeOfficialPatientIdentifier(rut);
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;
@@ -27,13 +32,7 @@ export const createCensusPatientIdentityIndex = (
   const legacyPrincipalsByRut = new Map<string, CurrentPatientRef[]>();
   const cribByEpisode = new Map<string, CurrentPatientRef>();
   const legacyCribsByRut = new Map<string, CurrentPatientRef[]>();
-  const incomingRunCounts = new Map<string, number>();
   const occupiedBedIds = new Set<string>();
-
-  for (const encounter of encounters) {
-    const rut = normalizePatientRut(encounter.run);
-    if (rut) incomingRunCounts.set(rut, (incomingRunCounts.get(rut) ?? 0) + 1);
-  }
 
   const appendLegacy = (
     index: Map<string, CurrentPatientRef[]>,
@@ -48,7 +47,7 @@ export const createCensusPatientIdentityIndex = (
     occupiedBedIds.add(bedId);
     const ref = { bedId, patient };
     if (patient.clinicalEpisodeId) principalByEpisode.set(patient.clinicalEpisodeId, ref);
-    const rut = normalizePatientRut(patient.rut);
+    const rut = officialPatientIdentityKey(patient.rut, patient.documentType);
     // RUN is a legacy fallback only. Once HHR knows the episode, another hospitalization of the
     // same person must not inherit this bed or its pending movements.
     if (rut && !patient.clinicalEpisodeId) appendLegacy(legacyPrincipalsByRut, rut, ref);
@@ -58,7 +57,10 @@ export const createCensusPatientIdentityIndex = (
     if (patient.clinicalCrib.clinicalEpisodeId) {
       cribByEpisode.set(patient.clinicalCrib.clinicalEpisodeId, cribRef);
     }
-    const cribRut = normalizePatientRut(patient.clinicalCrib.rut);
+    const cribRut = officialPatientIdentityKey(
+      patient.clinicalCrib.rut,
+      patient.clinicalCrib.documentType
+    );
     if (cribRut && !patient.clinicalCrib.clinicalEpisodeId) {
       appendLegacy(legacyCribsByRut, cribRut, cribRef);
     }
@@ -68,9 +70,27 @@ export const createCensusPatientIdentityIndex = (
     index: Map<string, CurrentPatientRef[]>,
     encounter: RayenEncounter
   ): CurrentPatientRef | undefined => {
-    const rut = normalizePatientRut(encounter.run);
-    if (!rut || incomingRunCounts.get(rut) !== 1) return undefined;
-    const matches = index.get(rut) ?? [];
+    const rut = officialPatientIdentityKey(encounter.run, encounter.documentType);
+    if (!rut) return undefined;
+    const incomingMatches = encounters.filter(candidate =>
+      officialPatientTypedIdentitiesEqual(
+        candidate.run,
+        candidate.documentType,
+        encounter.run,
+        encounter.documentType
+      )
+    );
+    if (incomingMatches.length !== 1) return undefined;
+    const matches = [...index.values()]
+      .flat()
+      .filter(ref =>
+        officialPatientTypedIdentitiesEqual(
+          ref.patient.rut,
+          ref.patient.documentType,
+          encounter.run,
+          encounter.documentType
+        )
+      );
     return matches.length === 1 ? matches[0] : undefined;
   };
 

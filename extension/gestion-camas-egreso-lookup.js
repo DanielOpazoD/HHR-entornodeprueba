@@ -14,14 +14,7 @@
   const normalizeTargets = (runs, targets) => {
     const source = Array.isArray(targets) && targets.length ? targets : runs;
     return (Array.isArray(source) ? source : [])
-      .map(value => {
-        const target = value && typeof value === 'object' ? value : { run: value };
-        return {
-          run: String(target.run || '').replace(/[^0-9kK]/g, ''),
-          encounterId: String(target.encounterId || '').trim(),
-          ...(target.dischargeDay ? { dischargeDay: String(target.dischargeDay).trim() } : {}),
-        };
-      })
+      .map(globalThis.HhrEloisaPatientIdentity.normalizeLookupTarget)
       .filter(target => target.run);
   };
   const dischargeDayOf = value => {
@@ -63,5 +56,10 @@
     }
     return result;
   };
-  return Object.freeze({ encounterIdOf, normalizeTargets, pickMetadata, selectEncounter });
+  return Object.freeze({
+    encounterIdOf,
+    normalizeTargets,
+    pickMetadata,
+    selectEncounter,
+  });
 });

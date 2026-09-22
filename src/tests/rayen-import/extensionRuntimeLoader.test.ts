@@ -271,7 +271,7 @@ describe('extension heavy runtime loading', () => {
     expect(fichaMedicoTransportSource).toMatch(/withTimeout\(\s*tabs\.sendMessage/);
     expect(fichaMedicoTransportSource).toContain('sendMessage: sendHealthProbe');
     expect(gestionCamasRuntimeSource).toContain('extensionHealth.orderTabs(tabs)');
-    expect(fichaMedicoTransportSource).toContain('response && !response.error');
+    // Response acceptance and fallback are exercised by fichamedicoTransportRuntimeExtension.
     expect(backgroundSource.match(/await fetch\(/g) || []).toHaveLength(1);
     expect(backgroundSource).not.toContain('.then(sendResponse)');
   });

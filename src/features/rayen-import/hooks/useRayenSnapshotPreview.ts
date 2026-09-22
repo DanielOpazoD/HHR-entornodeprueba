@@ -147,7 +147,10 @@ export const useRayenSnapshotPreview = ({
         run.id
       );
       const previousDayEdits = diff.previousDayEdits ?? [];
-      const needsReview = requiresReview(diff) || previousDayEdits.length > 0;
+      const needsReview =
+        requiresReview(diff) ||
+        previousDayEdits.length > 0 ||
+        (diff.historicalRecovery?.length ?? 0) > 0;
       // A brand-new day created from Eloísa decides the entire occupancy in one write, and its
       // diff is clean by construction (every patient is an admission), so `needsReview` alone
       // would let the global `auto` policy apply it unattended. An attempt-scoped requirement

@@ -29,7 +29,9 @@ export const summarizeRayenStructuralCommit = (
     hasSkippedItems: skippedItems > 0,
     clinicalHandoff: applyRayenHistoricalCorrectionState(result.confirmedHandoff, {
       pending: result.historicalCorrectionsPending,
-      requiresFreshCapture,
+      requiresFreshCapture:
+        requiresFreshCapture ||
+        hasSkippedPreviousDayCorrections(result.appliedDiff, applyPreviousDays),
     }),
   };
 };

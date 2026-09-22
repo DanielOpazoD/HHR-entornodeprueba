@@ -8,6 +8,7 @@ import {
   hasRegisteredClinicalCribRut,
   withClinicalCribDefaults,
 } from './clinicalCribPlacementPolicy';
+import { normalizeOfficialPatientIdentifier } from './officialPatientIdentifier';
 
 interface ClinicalCribCandidate {
   encounter: RayenEncounter;
@@ -19,7 +20,7 @@ interface CurrentClinicalCribRef {
   patient: PatientData;
 }
 
-const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
+const normalizeRut = normalizeOfficialPatientIdentifier;
 
 const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
   !!patient && !!patient.patientName?.trim() && !patient.isBlocked;

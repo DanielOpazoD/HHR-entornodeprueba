@@ -36,6 +36,7 @@
     retryDelayMs = 250,
     requestTimeoutMs = 1000,
     recoveryDelayMs = 1000,
+    onContext = () => undefined,
     now = () => Date.now(),
     delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
   }) => {
@@ -49,7 +50,8 @@
       inFlight = (async () => {
         for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
           const response = await requestContext({ chromeApi, runtimeMessages, timeoutMs: requestTimeoutMs });
-          if (response) { cached = response; return response; }
+          if (response) { cached = response;
+            Promise.resolve().then(() => onContext(response)).catch(() => undefined); return response; }
           if (attempt < maxAttempts) await delay(retryDelayMs * attempt);
         }
         retryAt = now() + recoveryDelayMs;

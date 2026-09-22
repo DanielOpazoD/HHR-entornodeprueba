@@ -5,7 +5,7 @@
  * confirmation.
  */
 
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { PendingAdministrativeDischargeEntry } from '../contracts/censusImportDiff';
 import { isOccupiedCensusPatient } from './censusReconciliationPredicates';

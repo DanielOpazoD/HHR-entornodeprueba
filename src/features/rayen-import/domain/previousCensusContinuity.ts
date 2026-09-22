@@ -1,4 +1,4 @@
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff, ConflictEntry } from '../contracts/censusImportDiff';
 

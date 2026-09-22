@@ -35,6 +35,8 @@ export interface EgresoRecord {
 
 export interface EgresoLookupTarget {
   run: string;
+  /** Controls the ordered Eloísa identifier strategies without changing the official code. */
+  documentType?: 'RUT' | 'Pasaporte';
   /** Exact hospitalization to verify. Empty only while resolving a report-only short stay. */
   encounterId: string;
   /** Rapa Nui discharge day used to resolve one exact episode when the bulk report lacks its id. */
@@ -45,6 +47,8 @@ export interface EgresoLookupTarget {
 export interface EgresoLookupResult {
   /** The RUN that was looked up (as sent). */
   run: string;
+  /** Document class confirmed by the lookup strategy, when available. */
+  documentType?: 'RUT' | 'Pasaporte';
   /** Episode requested and selected by the extension. */
   encounterId?: string;
   /** The egreso record, when found. */

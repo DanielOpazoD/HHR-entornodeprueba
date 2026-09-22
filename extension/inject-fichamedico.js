@@ -11,9 +11,8 @@
  */
 (() => {
   'use strict';
-  if (window.__rayenBridgeInjected) return;
-  window.__rayenBridgeInjected = true;
-
+  const previousBridge = window.__rayenBridgeInjected; if (previousBridge?.reactivate) return previousBridge.reactivate();
+  if (previousBridge) return; // Legacy boolean marker: one page reload completes this migration.
   // React routing normally uses pushState/replaceState, which do not emit popstate. Surface a
   // DOM event so the isolated UI can invalidate any patient-bound modal before another action.
   ['pushState', 'replaceState'].forEach(method => {
@@ -29,7 +28,7 @@
   const BACKEND_HINT = 'rayensalud.cl';
   // Publicada en cada respuesta al relay: un inject de mundo principal sobrevive a la
   // recarga de la extensión hasta recargar la página; el relay compara con el manifest.
-  const INJECT_VERSION = '0.48.27';
+  const INJECT_VERSION = '0.48.28';
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
   const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
@@ -541,7 +540,7 @@
 
   // --- Bridge with the isolated content script ---
   const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
-  window.addEventListener('message', async event => {
+  const onBridgeMessage = async event => {
     if (!isOwnMessage(event)) return;
     const data = event.data;
     if (!data) return;
@@ -682,5 +681,7 @@
       );
       return;
     }
-  });
+  }; const reactivate = () => { window.removeEventListener('message', onBridgeMessage);
+    window.addEventListener('message', onBridgeMessage); };
+  reactivate(); window.__rayenBridgeInjected = { reactivate };
 })();

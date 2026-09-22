@@ -54,6 +54,7 @@ interface UseRayenImportCaptureInput {
   syncRequestController: RayenSyncRequestController;
   preparedSyncContextRef: RefObject<PreparedRayenSyncContext | null>;
   loadFreshRecord: (date: string) => Promise<DailyRecord>;
+  loadRecoveryStart?: (selectedDate: string, now: Date) => Promise<string>;
   startRun: (
     health?: RayenExtensionHealthState,
     performance?: RayenSyncPerformanceDelta,
@@ -71,7 +72,6 @@ interface UseRayenImportCaptureInput {
   ) => void;
 }
 
-/** Owns extension capture subscriptions and the preflight/request lifecycle for one import flow. */
 export const useRayenImportCapture = ({
   currentRecord,
   selectedDate: routeSelectedDate,
@@ -86,6 +86,7 @@ export const useRayenImportCapture = ({
   syncRequestController,
   preparedSyncContextRef,
   loadFreshRecord,
+  loadRecoveryStart,
   startRun,
   failRun,
   cancelRun,
@@ -266,10 +267,9 @@ export const useRayenImportCapture = ({
             displayedRecord: currentRecord,
             runId: run.id,
             loadFreshRecord,
+            loadRecoveryStart,
           });
-          // Reject unsupported historical targets before starting the extension request. Keeping
-          // this validation inside the preparation boundary also guarantees a terminal execution
-          // state instead of leaving an orphan request in `preparing_context`.
+          // Reject unsupported dates here so capture preparation always reaches a terminal state.
           if (
             preparedContext.target.kind === 'unsupported' ||
             preparedContext.target.lookbackDays === null
@@ -383,6 +383,7 @@ export const useRayenImportCapture = ({
       failRun,
       executionRef,
       loadFreshRecord,
+      loadRecoveryStart,
       preparedSyncContextRef,
       recordRunPerformance,
       routeSelectedDate,

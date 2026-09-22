@@ -240,6 +240,10 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     syncRequestController,
     preparedSyncContextRef,
     loadFreshRecord: loadAuthoritativeStructuralRecord,
+    loadRecoveryStart: async (date, now) => {
+      const { findHistoricalRecoveryStart } = await import('../domain/historicalRecovery');
+      return findHistoricalRecoveryStart(date, dailyRecord, now);
+    },
     startRun,
     failRun: failRunSerialized,
     cancelRun,

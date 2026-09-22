@@ -1,11 +1,12 @@
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
-import { normalizeRut } from '@/utils/rutUtils';
+import { normalizeOfficialPatientIdentifier as normalizeRut } from './officialPatientIdentifier';
 
 type ConflictEntry = CensusImportDiff['conflicts'][number];
 
 const sameConflict = (left: ConflictEntry, right: ConflictEntry): boolean =>
   left.bedId === right.bedId &&
   normalizeRut(left.rut) === normalizeRut(right.rut) &&
+  left.documentType === right.documentType &&
   (left.patientName ?? '').trim() === (right.patientName ?? '').trim() &&
   left.scope === right.scope &&
   left.code === right.code &&

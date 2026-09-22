@@ -223,7 +223,6 @@ describe('replanRayenStructure — madre y RN cerrados en Ficha, lookup confirma
     const snapshot = snapshotOf([closed(encounter({})), closed(cribEncounter())]);
 
     const diff = await runPipeline(record, snapshot, [motherRow, cribRow], ['1001']);
-
     expect(diff.discharges.map(d => `${d.bedId}:${d.encounterId}`)).toEqual(['H5C1:1001']);
     expect((diff.reportEgresos ?? []).some(e => e.encounterId === '1002')).toBe(false);
     expect(diff.conflicts.filter(c => c.reason.includes('no pudo vincularse'))).toHaveLength(1);

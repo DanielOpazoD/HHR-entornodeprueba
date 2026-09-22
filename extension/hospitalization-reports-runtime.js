@@ -1,6 +1,7 @@
 /** Discover hospitalization episodes and build official Eloisa report navigation. */
 (function (root) {
   'use strict';
+  const identity = root.HhrEloisaPatientIdentity;
   const normalizeRun = value => String(value || '').toUpperCase().replace(/[^0-9K]/g, '');
   const normalizeDate = value => {
     const match = String(value || '').trim().match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/);
@@ -8,12 +9,12 @@
   };
   const isEncounter = value => /^\d+$/.test(String(value || ''));
   const isValidRun = value => /^[0-9]{6,8}[0-9K]$/.test(normalizeRun(value));
-
-  const matchingRows = (rows, patientRun) => {
-    const expectedRun = normalizeRun(patientRun);
+  const matchingRows = (rows, patientRun, patientDocumentType) => {
+    const expectedRun = identity.identityKey(patientRun, patientDocumentType);
     const rowRuns = row => [row && row.patientIdentifier, row && row.preferredIdentifierCode,
       row && row.identifier, row && row.patient && row.patient.identifier,
-      row && row.patient && row.patient.preferredIdentifierCode].map(normalizeRun);
+      row && row.patient && row.patient.preferredIdentifierCode]
+      .map(value => identity.identityKey(value, patientDocumentType));
     return rows.filter(row => isEncounter(row && row.encounterId) && rowRuns(row).includes(expectedRun));
   };
   const sortRowsNewestFirst = rows => [...rows].sort((left, right) =>
@@ -29,11 +30,11 @@
     endDate: normalizeDate(row.endPeriod),
     active: !normalizeDate(row.endPeriod),
   });
-  const listEpisodes = ({ rows, patientRun }) => ({ ok: true,
-    episodes: sortRowsNewestFirst(matchingRows(rows, patientRun)).map(toEpisode) });
-
-  const selectEncounter = ({ rows, patientRun, encId, censusDate }) => {
-    const candidates = matchingRows(rows, patientRun);
+  const listEpisodes = ({ rows, patientRun, patientDocumentType }) => ({ ok: true,
+    episodes: sortRowsNewestFirst(matchingRows(rows, patientRun, patientDocumentType))
+      .map(toEpisode) });
+  const selectEncounter = ({ rows, patientRun, patientDocumentType, encId, censusDate }) => {
+    const candidates = matchingRows(rows, patientRun, patientDocumentType);
     const requested = isEncounter(encId) ? String(encId) : '';
     if (requested) {
       const selected = candidates.find(row => String(row.encounterId) === requested);
@@ -55,9 +56,8 @@
   };
 
   const resolveRows = request => root.HhrHospitalizationReportSearchRuntime.resolveRows({
-    ...request, normalizeRun, isEncounter, matchingRows,
+    ...request, isEncounter, matchingRows,
   });
-
   const buildHistoryReportUrl = ({ encId, startPeriod, endPeriod, now }) => {
     const encounterId = isEncounter(encId) ? String(encId) : '';
     const startDate = String(startPeriod || '').trim();
@@ -96,9 +96,9 @@
         String((error && error.message) || error) };
     }
   };
-
   root.HhrHospitalizationReportsRuntime = {
-    buildHistoryReportUrl, isValidRun, listEpisodes, normalizeRun,
+    buildHistoryReportUrl, identityKey: identity.identityKey, isSearchableIdentifier: identity.isSearchable,
+    isValidRun, listEpisodes, matchingRows, normalizeIdentifier: identity.official, normalizeRun,
     openHistoryReport, resolveRows, selectEncounter,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : self);

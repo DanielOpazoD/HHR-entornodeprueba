@@ -51,6 +51,7 @@ const appendConflicts = (
       conflict.code ?? '',
       conflict.continuityKey ?? '',
       conflict.bedId ?? '',
+      conflict.documentType ?? '',
       conflict.source?.encounterId ??
         conflict.blockedAdmission?.patient.clinicalEpisodeId ??
         conflict.blockedAdmission?.source?.encounterId ??

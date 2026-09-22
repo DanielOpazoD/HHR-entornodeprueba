@@ -179,3 +179,17 @@ describe('prepareRayenSyncTemporalContext · techo de lectura', () => {
     }
   });
 });
+
+it('amplía la captura al intervalo faltante sin cambiar el día elegido ni el turno congelado', async () => {
+  const selected = recordFor('2026-09-20', 'revision');
+  const context = await prepareRayenSyncTemporalContext({
+    displayedRecord: selected,
+    runId: 'delayed',
+    loadFreshRecord: async () => selected,
+    now: () => new Date('2026-09-21T18:00:00Z'),
+    loadRecoveryStart: async () => '2026-09-17',
+  });
+  expect(context.selectedDate).toBe('2026-09-20');
+  expect(context.target.clinicalDay).toBe('2026-09-21');
+  expect(context.range).toEqual({ dateStart: '2026-09-17', dateEnd: '2026-09-22' });
+});

@@ -11,7 +11,7 @@
     chrome.runtime.sendMessage({
       type: runtimeMessages.NURSING_MEDICAL_EPICRISIS_PRINT_REQUEST,
       encId: data.encId,
-      patientRun: data.patientRun,
+      patientRun: data.patientRun, patientDocumentType: data.patientDocumentType,
       admissionDate: data.admissionDate, censusDate: data.censusDate,
       delivery: 'download',
       operation: data.operation,

@@ -11,12 +11,11 @@
     const queryTarget = async (record, target) => {
       const rows = [];
       const seen = new Set();
-      // Exact episodes may stop at RUN. Report-only days require BOTH populations:
-      // a mother and her newborn can have distinct episodes on the same day.
-      for (const identifierType of [2, 4]) {
+      // Report-only days require every population because episodes can share a date/code.
+      for (const identifierType of target.identifierTypes) {
         const url =
           `${record.apiBase}/facility/${record.facId}/encounter` +
-          `?facId=0&prefferedIdentifierCode=${encodeURIComponent(target.run)}` +
+          `?facId=0&prefferedIdentifierCode=${encodeURIComponent(root.HhrEloisaPatientIdentity.queryIdentifier(target.queryIdentifier, identifierType))}` +
           `&prefferedPeridentId=${identifierType}`;
         const response = await fetchWithTimeout(url, { headers: { Authorization: record.token } });
         if (!response.ok) {
@@ -72,6 +71,7 @@
           }
           results.push({
             run,
+            ...(target.confirmedDocumentType ? { documentType: target.confirmedDocumentType } : {}),
             encounterId: selectedEncounterId || encounterId,
             egreso: result.item ? lookup.pickMetadata(result.item) : null,
           });

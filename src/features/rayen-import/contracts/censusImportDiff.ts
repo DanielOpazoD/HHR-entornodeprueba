@@ -157,6 +157,7 @@ export interface PreviousDayEdit {
 export interface PendingAdministrativeDischargeEntry {
   bedId: string;
   rut: string;
+  documentType?: 'RUT' | 'Pasaporte';
   patientName: string;
   /** Signal observed in Ficha Médico. It is informative and never vacates the HHR bed. */
   signal: 'clinical-closure' | 'missing-from-ficha';
@@ -172,9 +173,14 @@ export interface ConflictEntry {
   continuityKey?: string;
   bedId: string | null;
   rut?: string;
+  /** Document class of `rut` when the conflict identifies one report subject. */
+  documentType?: 'RUT' | 'Pasaporte';
   patientName?: string;
-  /** Domain scope used when a later reconciliation stage must preserve an unresolved conflict. */
-  scope?: 'clinical-crib';
+  /**
+   * Domain scope used when a later reconciliation stage must preserve an unresolved conflict.
+   * `report-row-subject` means the RUN is trustworthy even though its exact episode/bed is not.
+   */
+  scope?: 'clinical-crib' | 'report-row-subject';
   /** Stable machine-readable discriminator for conflicts consumed across reconciliation stages. */
   code?:
     | 'unconfirmed-principal-bed'
@@ -291,6 +297,18 @@ export interface CensusImportDiff {
    * authoritative selected-day census, but is retained so history can explain what was not changed.
    */
   deferredHistoricalAdmissionBedIds?: string[];
+  /** Reviewed, evidence-backed reconstruction of otherwise empty earlier censuses. */
+  historicalRecovery?: HistoricalRecoveryDay[];
   unchangedCount: number;
   summary: CensusImportSummary;
+}
+
+export interface HistoricalRecoveryDay {
+  day: string;
+  recordExists: boolean;
+  withinEditingWindow: boolean;
+  isSigned: boolean;
+  admissions: AdmissionEntry[];
+  reportEgresos: ReportEgreso[];
+  conflicts: ConflictEntry[];
 }

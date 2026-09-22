@@ -76,8 +76,14 @@ export const prepareRayenStructuralPlan = async ({
         const episode = exactCandidate?.encounterId;
         if (!run || !hasRecordedMovement(baseRecord, run, episode)) return false;
         return (
-          !findOccupiedBed(occupied, row.run, episode ?? '') &&
-          !findOccupiedClinicalCrib(occupiedCribs, row.run, episode ?? '')
+          !findOccupiedBed(occupied, row.run, episode ?? '', row.documentType) &&
+          !findOccupiedClinicalCrib(
+            occupiedCribs,
+            row.run,
+            episode ?? '',
+            undefined,
+            row.documentType
+          )
         );
       },
     })
@@ -99,5 +105,46 @@ export const prepareRayenStructuralPlan = async ({
       measureEvidence,
     });
 
-  return { diff: await replanDiff(baseRecord), replanDiff };
+  const selectedReplan = replanDiff;
+  const replanWithRecovery = async (record: DailyRecord) => {
+    const diff = await selectedReplan(record);
+    if (bundle.dateStart >= reportDate) return diff;
+    const { planHistoricalRecovery, removeCorrectionsCoveredByRecovery } =
+      await import('../domain/historicalRecovery');
+    const { buildInitializedDayRecord } =
+      await import('@/services/repositories/dailyRecordInitializationSupport');
+    const { canWritePreviousDay } = await import('../domain/previousDayCorrections');
+    const historicalRecovery = await planHistoricalRecovery({
+      dateStart: bundle.dateStart,
+      selectedDate: reportDate,
+      port: dailyRecord,
+      buildEmpty: day => buildInitializedDayRecord(day, null),
+      canWrite: day => canWritePreviousDay(day, isAdmin),
+      reconstruct: historicalRecord =>
+        replanRayenStructure(
+          historicalRecord,
+          {
+            ...capturedEvidence,
+            reportDate: historicalRecord.date,
+            isHistoricalDay: true,
+          },
+          {
+            dailyRecord,
+            isAdmin,
+            fetchPatientFlowReport,
+            fetchStatisticalDischarge,
+            lookupEgresos,
+            measureEvidence,
+          }
+        ),
+    });
+    return historicalRecovery.length
+      ? {
+          ...diff,
+          historicalRecovery,
+          previousDayEdits: removeCorrectionsCoveredByRecovery(diff, historicalRecovery),
+        }
+      : diff;
+  };
+  return { diff: await replanWithRecovery(baseRecord), replanDiff: replanWithRecovery };
 };

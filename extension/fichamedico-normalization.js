@@ -9,6 +9,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : self, function () {
   'use strict';
   const text = value => (value == null ? '' : String(value).trim());
+  const patientIdentity = globalThis.HhrEloisaPatientIdentity;
   const record = value => value && typeof value === 'object' ? value : {};
   const isolationNormalization = globalThis.HhrFichaMedicoIsolationNormalization;
   const treatingPhysicianFields = (item, physicianById, physicianByEncounterId) => globalThis.HhrFichaMedicoTreatingPhysicianNormalization?.toEncounterFields(item, physicianById, physicianByEncounterId) || {};
@@ -25,7 +26,6 @@
     return text(candidates.find(value => typeof value === 'string' && value.trim()))
       .replace(/\s+/g, ' ');
   };
-
   const normalizeSessionExpiry = (session, payload) => {
     const safeSession = record(session);
     const safePayload = record(payload);
@@ -44,18 +44,15 @@
     const parsed = Date.parse(text(value));
     return Number.isFinite(parsed) ? parsed : null;
   };
-
   const validClinicalDate = value => {
     const candidate = text(value);
     if (!candidate || Number(candidate.slice(0, 4)) <= 1) return undefined;
     return Number.isFinite(Date.parse(candidate)) ? candidate : undefined;
   };
-
   const flag = value => {
     if (value === true || value === 1) return true;
     return ['true', '1', 's', 'si', 'sí'].includes(text(value).toLowerCase());
   };
-
   const isActiveDiagnosis = row =>
     Boolean(row) &&
     !flag(row.archived) &&
@@ -91,9 +88,12 @@
     const safeHeader = record(header);
     const diagnosis = record(principalDiagnosis);
     const fullName = text(safeItem.patientName || patient.patientName).replace(/\s+/g, ' ');
+    const identifier = patientIdentity.official(safeHeader.preferredIdentifierCode || patient.identifier || safeItem.patientIdentifier);
+    const documentType = patientIdentity.documentTypeFromSources(identifier, safeHeader, patient, safeItem);
     return {
       encounterId: safeItem.id == null ? '' : String(safeItem.id),
-      run: safeHeader.preferredIdentifierCode || patient.identifier || safeItem.patientIdentifier || '',
+      run: identifier,
+      ...(documentType ? { documentType } : {}),
       firstGivenName: safeHeader.firstGivenName || fullName || '',
       nextGivenNames: safeHeader.nextGivenNames || '',
       firstFamilyName: safeHeader.firstFamilyName || '',

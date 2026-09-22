@@ -140,7 +140,6 @@
     }
 
     const patientHeaderCache = new Map();
-
     const mapWithConcurrency = async (items, limit, worker) => {
       const results = new Array(items.length);
       let nextIndex = 0;
@@ -296,7 +295,7 @@
         encId: encounterId,
         patient: {
           ...patient,
-          formattedRun: formatRun(patient.run) || String(patient.run || ''),
+          formattedRun: root.HhrEloisaPatientIdentity.display(patient.run, formatRun),
         },
       };
       patientHeaderCache.set(cacheKey, { at: now(), payload });
@@ -317,7 +316,7 @@
         patients: (result.patients || []).map(patient => ({
           encounterId: String(patient.encounterId),
           name: [patient.firstGivenName, patient.nextGivenNames, patient.firstFamilyName, patient.secondFamilyName].filter(Boolean).join(' ').trim(),
-          run: formatRun(patient.run) || String(patient.run || ''),
+          run: root.HhrEloisaPatientIdentity.display(patient.run, formatRun),
           bed: patient.bed || patient.room || '',
           service: patient.service || '',
           isCurrent: String(patient.encounterId) === String(currentEncId || ''),
@@ -335,7 +334,7 @@
         return {
           encounterId: String(patient.encounterId),
           name: [patient.firstGivenName, patient.nextGivenNames, patient.firstFamilyName, patient.secondFamilyName].filter(Boolean).join(' ').trim(),
-          run: formatRun(patient.run) || String(patient.run || ''),
+          run: root.HhrEloisaPatientIdentity.display(patient.run, formatRun),
           bed: patient.bed || patient.room || '',
           service: patient.service || '',
           birthDate: patient.birthDate || '',
