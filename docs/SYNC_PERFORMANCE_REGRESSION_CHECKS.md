@@ -17,10 +17,18 @@ y signos vitales. Con latencia simulada de 25 ms, las fuentes avanzan en paralel
 con hasta cuatro lecturas simultáneas por fuente. Un fallo transitorio de dispositivos
 añade un intento para esa fuente, sin releer los otros pacientes ni CUDYR.
 
+## Presupuesto ante un fallo parcial del canal agrupado
+
+Para 13 o 30 pacientes, una sección de dispositivos fallida añade exactamente una
+petición individual: 15 o 32 peticiones totales, respectivamente. El resto de las
+secciones permanece dentro del bundle y CUDYR se captura una sola vez. Si ese único
+reintento también falla, la ejecución termina el censo y atribuye el error solamente
+al paciente y a la fuente de dispositivos afectados.
+
 Ejecutar desde el checkout correspondiente, con su versión de Node y dependencias:
 
 ```sh
-npx vitest run src/tests/rayen-import/clinicalFillRequestBudget.test.ts src/tests/rayen-import/clinicalFillRunner.performance.test.ts src/tests/rayen-import/rayenSnapshotEvidenceClient.test.ts src/tests/rayen-import/rayenSyncTemporalContext.test.ts --maxWorkers=1
+npx vitest run src/tests/rayen-import/clinicalFillBundleFailureBudget.test.ts src/tests/rayen-import/clinicalFillRequestBudget.test.ts src/tests/rayen-import/clinicalFillRunner.bundle.test.ts src/tests/rayen-import/clinicalFillRunner.performance.test.ts src/tests/rayen-import/rayenSnapshotEvidenceClient.test.ts src/tests/rayen-import/rayenSyncTemporalContext.test.ts --maxWorkers=1
 ```
 
 El conjunto existente comprueba además los intentos acotados de conexión, la caché
