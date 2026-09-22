@@ -74,8 +74,8 @@ describe('bundle budget config', () => {
     expect(
       config.startupChunkBudgets.find(budget => budget.label === 'app-authenticated-shell')
     ).toMatchObject({
-      // Preserve explicit Eloisa state presentation with bounded CI-safe headroom.
-      maxBytes: 623000,
+      // Preserve confirmed-cache ordering within the measured PR #469 allowance.
+      maxBytes: 625000,
       severity: 'error',
     });
   });
