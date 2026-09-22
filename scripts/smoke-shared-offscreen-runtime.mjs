@@ -74,6 +74,7 @@ try {
   assert.equal(initial.contract.version, 1);
   assert.equal(initial.contract.target, 'hhr-shared-offscreen');
   assert.equal(initial.contract.documentPath, 'syslab-offscreen.html');
+  assert.equal(initial.contract.workerPath, manifest.background.service_worker);
   assert.equal(initial.contexts.length, 0);
   checks.push('native-api-empty-start');
 

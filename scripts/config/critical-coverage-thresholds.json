@@ -223,6 +223,7 @@
         "src/tests/rayen-import/dischargePlanInvariants.test.ts",
         "src/tests/rayen-import/egresoLookupFallback.test.ts",
         "src/tests/rayen-import/egresoReport.test.ts",
+        "src/tests/rayen-import/egresoReportTypedIdentity.test.ts",
         "src/tests/rayen-import/reconcileCensus.test.ts",
         "src/tests/rayen-import/releasedBedAdmissions.test.ts",
         "src/tests/rayen-import/releasedBedDischargeAwareVeto.test.ts",
@@ -234,7 +235,7 @@
         "src/tests/rayen-import/replanRayenStructureMotherCrib.test.ts",
         "src/tests/rayen-import/replanRayenStructurePreviousMotherCrib.test.ts"
       ],
-      "minTestFileCount": 16,
+      "minTestFileCount": 17,
       "minTestToSourceRatio": 3.0,
       "coverageBaseline": {
         "lines": 87.0,

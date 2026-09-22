@@ -1,11 +1,17 @@
 /** Private offscreen endpoint. Only the extension service worker may dispatch work. */
 (function (root) {
   'use strict';
-
   const RECENT_LIMIT = 256;
   const validId = value =>
     typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
-
+  const validWorkerPath = value => typeof value === 'string' &&
+    /^[A-Za-z0-9][A-Za-z0-9._/-]*\.js$/.test(value) &&
+    !value.startsWith('/') && value.split('/').every(part => part && part !== '.' && part !== '..');
+  const resolveWorkerUrl = (runtime, workerPath) => {
+    if (!validWorkerPath(workerPath) || typeof runtime.getURL !== 'function')
+      throw new Error('Offscreen worker declaration unavailable.');
+    return runtime.getURL(workerPath);
+  };
   const create = (deps = {}) => {
     const contract = root.HhrOffscreenContract;
     const runtime = deps.chrome?.runtime;
@@ -14,7 +20,7 @@
       throw new Error('Offscreen router dependencies unavailable.');
     }
     const documentId = cryptoApi.randomUUID();
-    const workerUrl = runtime.getURL('background.js');
+    const workerUrl = resolveWorkerUrl(runtime, contract.workerPath);
     const handlers = new Map(Object.entries(deps.handlers || {}));
     const now = deps.now || Date.now;
     const schedule = deps.setTimeout || root.setTimeout.bind(root);
@@ -23,7 +29,6 @@
     const active = new Map();
     const recent = new Map();
     let disposed = false;
-
     const pruneRecent = () => {
       const time = now();
       for (const [id, expires] of recent) {
@@ -62,13 +67,11 @@
       if (abort) controller.abort();
       reply(sendResponse, entry.requestId, body);
     };
-
     const isAuthorized = (message, sender) => {
       if (disposed || !message || message.target !== contract.target) return false;
       if (sender?.id !== runtime.id || sender.tab) return false;
       return sender.url === undefined || sender.url === workerUrl;
     };
-
     const validateEnvelope = message => {
       if (!validId(message.requestId))
         return failure('INVALID_REQUEST', 'Invalid request identifier.');
@@ -83,7 +86,6 @@
         return failure('STALE_DOCUMENT', 'Offscreen document changed.');
       return null;
     };
-
     const validateAdmission = message => {
       if (typeof handlers.get(message.channel) !== 'function')
         return failure('UNKNOWN_CHANNEL', 'Unsupported channel.');
@@ -99,7 +101,6 @@
         return failure('CAPACITY_EXCEEDED', 'Too many active requests.');
       return null;
     };
-
     const startRequest = (message, sendResponse) => {
       const handler = handlers.get(message.channel);
       const timeout = Math.min(
@@ -134,7 +135,6 @@
         );
       return true;
     };
-
     const dispatch = (message, sendResponse) => {
       if (message.action === 'probe') {
         reply(sendResponse, message.requestId, { ok: true, result: { ready: true } });

@@ -1,7 +1,18 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../../extension/offscreen-contract.js';
 import '../../../extension/offscreen-router.js';
+
+const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json'), 'utf8')) as {
+  background: { service_worker: string };
+};
+const contract = (
+  globalThis as typeof globalThis & {
+    HhrOffscreenContract: { workerPath: string };
+  }
+).HhrOffscreenContract;
 
 type Response = {
   version: number;
@@ -104,6 +115,10 @@ afterEach(() => {
 });
 
 describe('private offscreen router', () => {
+  it('keeps the trusted worker contract aligned with the packaged manifest', () => {
+    expect(contract.workerPath).toBe(manifest.background.service_worker);
+  });
+
   it('probes a unique UUID document with exact correlation and accepts real worker sender variants', () => {
     const first = harness();
     const second = harness();
@@ -113,7 +128,7 @@ describe('private offscreen router', () => {
     expect(second.router.documentId).not.toBe(first.router.documentId);
     for (const sender of [
       { id: 'extension-id' },
-      { id: 'extension-id', url: first.chrome.runtime.getURL('background.js') },
+      { id: 'extension-id', url: first.chrome.runtime.getURL(manifest.background.service_worker) },
     ]) {
       const result = first.send({ action: 'probe', documentId: undefined }, sender);
       expect(result.retained).toBe(false);
@@ -158,6 +173,7 @@ describe('private offscreen router', () => {
     { id: 'extension-id', tab: { id: 4 }, url: 'https://example.org' },
     { id: 'extension-id', url: 'chrome-extension://extension-id/popup.html' },
     { id: 'extension-id', url: 'chrome-extension://extension-id/syslab-offscreen.html' },
+    { id: 'extension-id', url: 'chrome-extension://extension-id/background.js' },
     { id: 'extension-id', url: 'chrome-extension://extension-id/background.js?spoof=1' },
     { id: 'extension-id', url: null },
   ])('ignores unauthorized sender %j without revealing document identity', async sender => {
@@ -169,6 +185,22 @@ describe('private offscreen router', () => {
     expect(call.respond).not.toHaveBeenCalled();
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it.each([undefined, '', '/background-bootstrap.js', '../background-bootstrap.js', 'worker.html'])(
+    'fails closed for invalid trusted worker declaration %j',
+    workerPath => {
+      const root = globalThis as typeof globalThis & {
+        HhrOffscreenContract: Record<string, unknown>;
+      };
+      const original = root.HhrOffscreenContract;
+      root.HhrOffscreenContract = Object.freeze({ ...original, workerPath });
+      try {
+        expect(() => harness()).toThrow('Offscreen worker declaration unavailable.');
+      } finally {
+        root.HhrOffscreenContract = original;
+      }
+    }
+  );
 
   it.each([
     [{ version: 2 }, 'VERSION_MISMATCH'],

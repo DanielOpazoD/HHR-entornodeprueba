@@ -45,7 +45,11 @@ con `EXTENSION_STARTUP_FAILED` y una instrucción concreta; nunca inventa genera
 sesión ni disponibilidad clínica. Los detalles del error quedan en el diagnóstico local
 de la extensión y no se devuelven a las páginas. Si el arranque termina correctamente,
 se retira ese receptor y queda sólo el router habitual. El gate conserva la validación
-de todo el grafo de módulos y exige la nueva entrada de arranque.
+de todo el grafo de módulos y exige la nueva entrada de arranque. El router privado
+del documento offscreen utiliza la ruta del worker declarada en el contrato interno;
+su E2E exige que coincida exactamente con el manifiesto y verifica la comunicación
+con el paquete real. Esto evita depender de `getManifest`, no disponible en el
+documento offscreen de la prueba, y conserva el rechazo de otros remitentes.
 
 La recuperación de relés reemplaza listeners huérfanos, exige respuesta a un ping antes
 de registrar éxito y recupera la generación de los documentos legibles sin que una

@@ -103,4 +103,25 @@ describe('replanRayenStructure', () => {
     expect(replanned.conflicts).toHaveLength(0);
     expect(replanned.admissions).toHaveLength(1);
   });
+
+  it('reconstructs a historical plan from the captured evidence through the measured path', async () => {
+    const measured = vi.fn();
+    const measureEvidence = async <T>(operation: () => Promise<T>): Promise<T> => {
+      measured();
+      return operation();
+    };
+    const historical = await replanRayenStructure(
+      makeRecord({}),
+      {
+        sourceSnapshot: snapshot,
+        egresoRows: [],
+        reportDate: '2026-07-28',
+        isHistoricalDay: true,
+      },
+      { ...dependencies, measureEvidence }
+    );
+
+    expect(measured).toHaveBeenCalled();
+    expect(historical.admissions).toEqual([]);
+  });
 });
