@@ -144,6 +144,9 @@ export const createHarness = async (
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
   vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });
+  vm.runInContext(extensionSource('connection-relay-recovery.js'), context, {
+    filename: 'connection-relay-recovery.js',
+  });
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
 
   const send = async (data: PostedMessage) => {

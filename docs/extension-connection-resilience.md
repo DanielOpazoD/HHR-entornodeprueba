@@ -5,7 +5,8 @@
 Revisión del 15 de septiembre de 2026 sobre `main` de GitLab `6c33b64c`.
 La versión instalada observada en Chrome era 0.48.24. La primera corrección fue 0.48.25;
 la validación real de una actualización con pestañas abiertas detectó todavía una desconexión y
-la continuidad compatible quedó corregida en 0.48.27.
+la continuidad inicial se incorporó en 0.48.27. La versión 0.48.30 añade reactivación
+idempotente del lector MAIN y verificación explícita del receptor después de reinyectarlo.
 
 Los dos HAR se analizaron localmente, sin incorporarlos al repositorio:
 
@@ -68,8 +69,11 @@ que el nuevo worker recupere la generación MAIN anterior. Finalmente consulta l
 puente de página de HHR para comprobar que los tres relés responden después de la actualización.
 
 Para aplicar una actualización local: comprobar la carpeta cargada en `chrome://extensions` y cargar
-la versión correspondiente. Desde 0.48.27, una actualización compatible debe recuperar HHR, Ficha
-Médico y Gestión de Camas sin recargar sus documentos. Si el monitor informa un protocolo realmente
+la versión correspondiente. Desde 0.48.30, una actualización compatible reinyecta sólo los relés
+centrales, reactiva los listeners MAIN sin duplicar interceptores y comprueba que el receptor nuevo
+responde antes de declararlo recuperado. Si el monitor informa un protocolo realmente
 incompatible, abrir un documento nuevo después de terminar o cancelar cualquier edición pendiente.
+El marcador booleano de 0.48.27 no contiene la función necesaria para restaurar un listener MAIN
+eliminado: en ese caso acotado la salud queda obsoleta y se requiere una sola recarga del documento.
 
 La evidencia sintética no sustituye una sincronización real revisada por el operador. Comprobar por separado captura, propuesta, confirmación, persistencia y lectura posterior; no usar el indicador verde de conexión como prueba de que el censo se guardó.

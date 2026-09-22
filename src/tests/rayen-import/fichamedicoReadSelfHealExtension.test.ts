@@ -20,6 +20,10 @@ const bridgeGenerationSource = readFileSync(
   path.resolve('extension/bridge-generation-main.js'),
   'utf8'
 );
+const connectionRecoverySource = readFileSync(
+  path.resolve('extension/connection-relay-recovery.js'),
+  'utf8'
+);
 const isolationNormalizationSource = readFileSync(
   path.resolve('extension/fichamedico-isolation-normalization.js'),
   'utf8'
@@ -89,6 +93,13 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
       return { ok: true, status: 200, json: async () => value };
     },
     addEventListener: addListener,
+    removeEventListener: (type: string, listener: (event: unknown) => unknown) => {
+      const current = listeners.get(type) || [];
+      listeners.set(
+        type,
+        current.filter(candidate => candidate !== listener)
+      );
+    },
     dispatchEvent: (event: { type: string }) => {
       for (const listener of listeners.get(event.type) || []) listener(event);
       return true;
@@ -131,8 +142,12 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
   vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });
+  vm.runInContext(connectionRecoverySource, context, {
+    filename: 'connection-relay-recovery.js',
+  });
   vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' });
   for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
+  const wrappedFetch = windowObject.fetch;
 
   const send = async (data: PostedMessage) => {
     const request = { runtimeGeneration: RUNTIME_GENERATION_FIXTURE, ...data };
@@ -159,7 +174,14 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
       ) as Promise<unknown>
     ).catch(() => undefined);
   };
-  return { send, captureListTraffic };
+  return {
+    send,
+    captureListTraffic,
+    disconnectBridge: () => listeners.set('message', []),
+    reinject: () => vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' }),
+    messageListenerCount: () => (listeners.get('message') || []).length,
+    fetchWasNotWrappedAgain: () => windowObject.fetch === wrappedFetch,
+  };
 };
 
 const STALE_LIST_URL =
@@ -181,6 +203,23 @@ const clinicalResolver =
   };
 
 describe('Ficha Médico · lectura ante fallo de red', () => {
+  it('restores a lost MAIN listener without wrapping fetch again', async () => {
+    const harness = await createHarness(() => []);
+    expect(harness.messageListenerCount()).toBe(1);
+
+    harness.disconnectBridge();
+    expect(harness.messageListenerCount()).toBe(0);
+    harness.reinject();
+
+    expect(harness.messageListenerCount()).toBe(1);
+    expect(harness.fetchWasNotWrappedAgain()).toBe(true);
+    await expect(
+      harness.send({ type: 'RAYEN_FM_SESSION_STATUS_REQUEST', reqId: 'reactivated-ficha' })
+    ).resolves.toMatchObject({
+      reqId: 'reactivated-ficha',
+    });
+  });
+
   it('reintenta una vez re-anclado al origen por defecto cuando la lista capturada falla en red', async () => {
     const requested: string[] = [];
     const harness = await createHarness(

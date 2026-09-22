@@ -190,7 +190,7 @@ const exerciseForwarding = async (
 
 describe('ISOLATED relay same-world reentry', () => {
   for (const relay of relays) {
-    it(`${relay}: two injections register and forward only once before and after the handshake`, async () => {
+    it(`${relay}: reinjection replaces the relay and still forwards only once`, async () => {
       const world = createWorld(relay);
       world.inject();
       world.inject(); // Before the generation handshake resolves, as in an onInstalled race.
@@ -201,7 +201,7 @@ describe('ISOLATED relay same-world reentry', () => {
         world.sendMessage.mock.calls.filter(
           ([m]) => m.type === 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST'
         )
-      ).toHaveLength(1);
+      ).toHaveLength(2);
       if (relay === 'gestioncamas') {
         expect(
           world.sendMessage.mock.calls.filter(([m]) => m.type === 'RAYEN_GC_DOCUMENT_READY')
@@ -209,7 +209,8 @@ describe('ISOLATED relay same-world reentry', () => {
         expect(world.posts.filter(m => m.type === 'RAYEN_GC_CONNECTION_ATTEMPT')).toHaveLength(1);
       }
       await exerciseForwarding(relay, world);
-      world.inject(); // Settled reentry must also remain inert.
+      world.inject(); // Settled reentry replaces the listener without duplicating forwarding.
+      await flush();
       await exerciseForwarding(relay, world);
       expect(world.runtimeListeners).toHaveLength(1);
     });

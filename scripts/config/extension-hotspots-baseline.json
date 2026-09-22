@@ -121,6 +121,10 @@
       "maxLines": 84,
       "hotspots": {}
     },
+    "connection-relay-recovery.js": {
+      "maxLines": 63,
+      "hotspots": {}
+    },
     "content-exam-request-print.js": {
       "maxLines": 212,
       "hotspots": {}
@@ -485,7 +489,7 @@
     "inject-fichamedico.js": {
       "maxLines": 688,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 32,
+        "iife>variable:onBridgeMessage": 32,
         "iife>variable:getVerifiedClinicalContext": 21,
         "iife>variable:readSafeSessionIdentityUncached": 23,
         "iife>variable:resolveNursingContext": 16
@@ -494,7 +498,7 @@
     "inject-gestioncamas.js": {
       "maxLines": 303,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 22
+        "iife>variable:onBridgeMessage": 22
       }
     },
     "lab-result-parser.js": {
@@ -568,6 +572,10 @@
     },
     "rayen-sync-bundle-runtime.js": {
       "maxLines": 179,
+      "hotspots": {}
+    },
+    "relay-reinjection-operations.js": {
+      "maxLines": 183,
       "hotspots": {}
     },
     "relay-reinjection-runtime.js": {

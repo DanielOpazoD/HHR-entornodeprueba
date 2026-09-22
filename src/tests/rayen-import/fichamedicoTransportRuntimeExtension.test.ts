@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/health-check.js';
 import '../../../extension/encounter-navigation.js';
+import '../../../extension/connection-relay-recovery.js';
 import '../../../extension/fichamedico-transport-runtime.js';
 
 type Tab = {
@@ -17,6 +18,12 @@ type Tab = {
 };
 
 const globals = globalThis as typeof globalThis & {
+  HhrConnectionRelayRecovery: {
+    repairHealth: (
+      readHealth: (...args: unknown[]) => Promise<Record<string, unknown>>,
+      recover: () => Promise<Record<string, unknown>>
+    ) => (...args: unknown[]) => Promise<Record<string, unknown>>;
+  };
   HhrExtensionHealth: {
     orderTabs: (tabs: Tab[]) => Tab[];
     resolveTabs: (
@@ -70,7 +77,10 @@ const makeChrome = () => ({
   },
 });
 
-const createRuntime = (chrome = makeChrome()) => ({
+const createRuntime = (
+  chrome = makeChrome(),
+  recoverMissingReceiver?: (tabId: number) => Promise<{ injected: boolean }>
+) => ({
   chrome,
   runtime: globals.HhrFichaMedicoTransportRuntime.create({
     chrome,
@@ -79,6 +89,7 @@ const createRuntime = (chrome = makeChrome()) => ({
     withTimeout,
     tabMessageTimeoutMs: 50_000,
     healthProbeTimeoutMs: 5_000,
+    recoverMissingReceiver,
   }),
 });
 
@@ -101,6 +112,25 @@ describe('Ficha Médico transport runtime', () => {
         healthProbeTimeoutMs: 5_000,
       })
     ).toThrow('El timeout tabMessageTimeoutMs no es válido.');
+  });
+
+  it('retries Gestión de Camas health once only for an unresponsive MAIN bridge', async () => {
+    const readHealth = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ready: false,
+        reason: 'outdated_tab',
+        message: 'El puente interno no respondió.',
+      })
+      .mockResolvedValueOnce({ ready: true, reason: 'connected' });
+    const recover = vi.fn(async () => ({ injectedTabs: 1 }));
+    const health = globals.HhrConnectionRelayRecovery.repairHealth(readHealth, recover);
+
+    await expect(health('generation')).resolves.toEqual({ ready: true, reason: 'connected' });
+    expect(readHealth).toHaveBeenCalledTimes(2);
+    expect(readHealth).toHaveBeenNthCalledWith(1, 'generation');
+    expect(readHealth).toHaveBeenNthCalledWith(2, 'generation');
+    expect(recover).toHaveBeenCalledOnce();
   });
 
   it('preflights Ficha tabs in parallel and reads only the preferred healthy tab', async () => {
@@ -162,6 +192,90 @@ describe('Ficha Médico transport runtime', () => {
     expect(withTimeout.mock.calls.at(-1)?.[2]).toBe(
       'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
     );
+  });
+
+  it('repairs only a missing receiver, verifies it, and then reads that tab', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([{ id: 7, active: true }]);
+    let probeAttempts = 0;
+    chrome.tabs.sendMessage.mockImplementation(async (_tabId, message) => {
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING' && probeAttempts++ === 0) {
+        throw new Error('Could not establish connection. Receiving end does not exist.');
+      }
+      return message.type === 'RAYEN_EXTENSION_HEALTH_PING'
+        ? { ready: true }
+        : { snapshot: { encounters: [] } };
+    });
+    const recover = vi.fn(async () => ({ injected: true }));
+
+    await expect(createRuntime(chrome, recover).runtime.handleSnapshotRequest()).resolves.toEqual({
+      snapshot: { encounters: [] },
+    });
+    expect(recover).toHaveBeenCalledExactlyOnceWith(7);
+    expect(probeAttempts).toBe(2);
+  });
+
+  it('reactivates an exact unresponsive MAIN bridge once and verifies it before reading', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([{ id: 7, active: true }]);
+    let probes = 0;
+    chrome.tabs.sendMessage.mockImplementation(async (_tabId, message) => {
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING') {
+        probes += 1;
+        return probes === 1
+          ? {
+              ready: false,
+              reason: 'outdated_tab',
+              message: 'Abre una pestaña nueva: el puente interno no respondió.',
+            }
+          : { ready: true };
+      }
+      return { snapshot: { encounters: [] } };
+    });
+    const recover = vi.fn(async () => ({ injected: true }));
+
+    await expect(createRuntime(chrome, recover).runtime.handleSnapshotRequest()).resolves.toEqual({
+      snapshot: { encounters: [] },
+    });
+    expect(recover).toHaveBeenCalledExactlyOnceWith(7);
+    expect(probes).toBe(2);
+  });
+
+  it('falls back across tabs when a missing receiver cannot be repaired', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([{ id: 7, active: true }, { id: 8 }]);
+    chrome.tabs.sendMessage.mockImplementation(async (tabId, message) => {
+      if (message.type === 'RAYEN_EXTENSION_HEALTH_PING') {
+        if (tabId === 7) {
+          throw new Error('Could not establish connection. Receiving end does not exist.');
+        }
+        return { ready: true };
+      }
+      return { snapshot: { encounters: [] } };
+    });
+    const recover = vi.fn(async () => ({ injected: false }));
+
+    await expect(createRuntime(chrome, recover).runtime.handleSnapshotRequest()).resolves.toEqual({
+      snapshot: { encounters: [] },
+    });
+    expect(recover).toHaveBeenCalledExactlyOnceWith(7);
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(8, { type: 'RAYEN_READ' });
+  });
+
+  it('does not reinject for an expired session or a generic timeout', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([{ id: 7 }]);
+    const recover = vi.fn(async () => ({ injected: true }));
+    chrome.tabs.sendMessage.mockResolvedValueOnce({
+      ready: false,
+      reason: 'session_expired',
+      message: 'Sesión vencida',
+    });
+    await createRuntime(chrome, recover).runtime.handleSnapshotRequest();
+
+    chrome.tabs.sendMessage.mockRejectedValueOnce(new Error('Tiempo de espera agotado'));
+    await createRuntime(chrome, recover).runtime.handleSnapshotRequest();
+    expect(recover).not.toHaveBeenCalled();
   });
 
   it('preserves missing-tab and last-diagnostic snapshot failures', async () => {

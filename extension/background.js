@@ -7,7 +7,7 @@ importScripts(
   'encounter-navigation.js',
   'hhr-request-forms.js',
   'health-check.js', 'clinical-day-runtime.js', 'clinical-history-coverage.js', 'census-sync-horizon-runtime.js', 'rayen-sync-bundle-runtime.js', 'sync-bundle-cancellation-runtime.js',
-  'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
+  'connection-relay-recovery.js', 'fichamedico-transport-runtime.js', 'fichamedico-history-read-model.js', 'fichamedico-device-evidence-runtime.js', 'fichamedico-clinical-client.js', 'tab-encounter-authorization.js', 'fichamedico-patient-flow-runtime.js',
   'fichamedico-patient-context.js',
   'patient-document-manager-runtime.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',
@@ -18,7 +18,7 @@ importScripts(
   'patient-clinical-bundle-runtime.js',
   'runtime-generation-recovery.js', 'runtime-generation.js', 'connection-repair-runtime.js',
   'health-report-cache-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
-  'relay-reinjection-runtime.js',
+  'relay-reinjection-operations.js', 'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
   'clinical-antecedents-attachment.js', 'clinical-antecedents-detail.js',
@@ -175,13 +175,13 @@ const fetchWithTimeout = async (
   }
 };
 
+let relayReinjectionRuntime = null;
 const fichaMedicoTransportRuntime = self.HhrFichaMedicoTransportRuntime.create({
-  chrome,
-  extensionHealth: self.HhrExtensionHealth,
-  encounterNavigation: self.HhrEncounterNavigation,
-  withTimeout,
+  chrome, withTimeout,
+  extensionHealth: self.HhrExtensionHealth, encounterNavigation: self.HhrEncounterNavigation,
   tabMessageTimeoutMs: TAB_MESSAGE_TIMEOUT_MS,
   healthProbeTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+  recoverMissingReceiver: tabId => relayReinjectionRuntime?.reinjectTab({ tabId, requiredFile: 'content-fichamedico.js' }),
 });
 const {
   sendToMatchingTab,
@@ -256,11 +256,11 @@ const {
   handleDocumentReady: handleGestionCamasDocumentReady,
   resolveSession: resolveGestionCamasSession,
   classifyRejection: classifyGestionCamasRejection,
-  health: handleGestionCamasHealth,
+  health: readGestionCamasHealth,
   connect: handleConnectGestionCamas,
   disconnect: handleDisconnectGestionCamas,
 } = gestionCamasRuntime;
-
+const handleGestionCamasHealth = self.HhrConnectionRelayRecovery.repairHealth(readGestionCamasHealth, () => relayReinjectionRuntime?.reinjectRelay('content-gestioncamas.js'));
 // Los hosts HHR viven solo en el manifest, sin duplicar la lista aquí.
 const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
   .filter(entry => (entry.js || []).includes('content-hhr.js'))
@@ -311,10 +311,10 @@ healthHeartbeat.start();
 self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();
 // Al instalar/actualizar la extensión, los relés de las pestañas abiertas
 // quedan huérfanos: re-inyectarlos y empujar el estado fresco de inmediato.
-self.HhrRelayReinjectionRuntime.create({
-  chromeApi: chrome,
+relayReinjectionRuntime = self.HhrRelayReinjectionRuntime.create({
+  chromeApi: chrome, withTimeout, timeoutMs: HEALTH_PROBE_TIMEOUT_MS,
   onReinjected: () => healthHeartbeat.pushNow('relays-reinjected'),
-}).start();
+}); relayReinjectionRuntime.start();
 
 const { request: handleEgresoLookup } = self.HhrGestionCamasEgresoQueryRuntime.create({
   resolveSession: resolveGestionCamasSession,

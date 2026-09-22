@@ -96,6 +96,60 @@ const requestHhrHealth = page =>
       })
   );
 
+const requestInvalidPatientFlow = page =>
+  page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const reqId = `patient-flow-e2e-${Date.now()}-${Math.random()}`;
+        const timeout = setTimeout(() => {
+          window.removeEventListener('message', onMessage);
+          reject(new Error('HHR patient-flow helper did not answer after reload'));
+        }, 5_000);
+        const onMessage = event => {
+          if (
+            event.source !== window ||
+            event.origin !== window.location.origin ||
+            event.data?.type !== 'HHR_RAYEN_PATIENT_FLOW_RESULT' ||
+            event.data?.reqId !== reqId
+          )
+            return;
+          clearTimeout(timeout);
+          window.removeEventListener('message', onMessage);
+          resolve(event.data);
+        };
+        window.addEventListener('message', onMessage);
+        window.postMessage(
+          { type: 'HHR_RAYEN_PATIENT_FLOW_REQUEST', reqId, encId: 'invalid' },
+          window.location.origin
+        );
+      })
+  );
+
+const removeMainBridgeListener = async (context, page, source) => {
+  const session = await context.newCDPSession(page);
+  try {
+    const evaluation = await session.send('Runtime.evaluate', {
+      expression: `(() => {
+        const listeners = (getEventListeners(window).message || [])
+          .filter(entry => entry.listener && entry.listener.name === 'onBridgeMessage');
+        listeners.forEach(entry =>
+          window.removeEventListener('message', entry.listener, entry.useCapture)
+        );
+        return listeners.length;
+      })()`,
+      includeCommandLineAPI: true,
+      returnByValue: true,
+    });
+    assert.equal(
+      evaluation.result.value,
+      1,
+      `${source} did not expose exactly one MAIN bridge listener before recovery`
+    );
+  } finally {
+    await session.detach();
+  }
+};
+
 const runtimeErrors = [];
 const context = await chromium.launchPersistentContext('', {
   channel: 'chromium',
@@ -288,6 +342,8 @@ try {
       }, documentSentinel)
     )
   );
+  await removeMainBridgeListener(context, page, 'Ficha Medico');
+  await removeMainBridgeListener(context, gestionCamasPage, 'Gestion de Camas');
 
   const extensionsPage = await context.newPage();
   await extensionsPage.goto('chrome://extensions/');
@@ -391,6 +447,13 @@ try {
   );
   assert.notEqual(hhrHealthResult.report.gestionCamas.reason, 'outdated_tab');
   assert.notEqual(hhrHealthResult.report.fichaMedico.reason, 'outdated_tab');
+  const invalidPatientFlow = await requestInvalidPatientFlow(hhrPage);
+  assert.equal(invalidPatientFlow.base64, '');
+  assert.match(
+    invalidPatientFlow.error,
+    /episodio clínico no es válido/,
+    'The reloaded HHR document did not recover its patient-flow helper'
+  );
   await reloadedStatusPage.close();
   await extensionsPage.close();
 
