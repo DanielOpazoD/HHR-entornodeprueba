@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 
-  const RECEIVER_MISSING = /could not establish connection|receiving end does not exist/i;
+  const RECEIVER_MISSING = /could not establish connection|receiving end does not exist|message (?:channel|port) closed before a response was received/i;
   const mainBridgeMissing = response => Boolean(
     response && response.ready === false && response.reason === 'outdated_tab' &&
     String(response.message || '').includes('puente interno no respondió')
@@ -32,7 +32,7 @@
     const send = () => withTimeout(sendMessage(tabId, message), timeoutMs, timeoutMessage);
     try {
       const response = await send();
-      if (!mainBridgeMissing(response) || !recoverMissingReceiver) return response;
+      if ((response != null && !mainBridgeMissing(response)) || !recoverMissingReceiver) return response;
       const recovered = await recoverMissingReceiver(tabId);
       return recovered?.injected === true ? send() : response;
     } catch (error) {

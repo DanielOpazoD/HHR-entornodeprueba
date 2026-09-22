@@ -35,7 +35,7 @@ const runtimeModule = (globalThis as unknown as { HhrRelayReinjectionRuntime: Re
   .HhrRelayReinjectionRuntime;
 
 const MANIFEST = {
-  version: '0.48.30',
+  version: '0.48.31',
   content_scripts: [
     {
       matches: ['https://fichamedico.rayensalud.cl/*'],

@@ -11,7 +11,7 @@
  */
 (() => {
   'use strict';
-  const INJECT_VERSION = '0.48.30';
+  const INJECT_VERSION = '0.48.31';
   if (globalThis.HhrConnectionRelayRecovery.reactivateMain(window, '__rayenBridgeInjected')) return;
   // React routing normally uses pushState/replaceState, which do not emit popstate. Surface a
   // DOM event so the isolated UI can invalidate any patient-bound modal before another action.

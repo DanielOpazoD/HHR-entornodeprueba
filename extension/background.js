@@ -247,7 +247,7 @@ const gestionCamasRuntime = self.HhrGestionCamasRuntime.create({
   fetchWithTimeout,
   backendRequestTimeoutMs: BACKEND_REQUEST_TIMEOUT_MS,
   tabMessageTimeoutMs: TAB_MESSAGE_TIMEOUT_MS,
-  healthProbeTimeoutMs: HEALTH_PROBE_TIMEOUT_MS,
+  healthProbeTimeoutMs: HEALTH_PROBE_TIMEOUT_MS, recoverMissingReceiver: tabId => relayReinjectionRuntime?.reinjectTab({ tabId, requiredFile: 'content-gestioncamas.js' }),
 });
 
 const {

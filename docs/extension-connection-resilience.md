@@ -61,6 +61,29 @@ Chrome documenta que el worker puede finalizar por inactividad y que abrir un pu
 
 ## Validación y operación
 
+### Comprobación en Chrome real · 22-09-2026
+
+En `localhost:3001` conectado al proyecto de prueba `hhr-pruebas`, con Ficha Médico y Gestión de
+Camas abiertas, la extensión 0.48.29 reprodujo el fallo: HHR mostró `Could not establish connection.
+Receiving end does not exist` y deshabilitó **Sincronizar**; el panel de Ficha quedó en
+**Comprobando…**. La versión cargada se verificó en `chrome://extensions`.
+
+Se conservó 0.48.29 desactivada y se cargó 0.48.30 desde un checkout aislado, sin sobrescribir
+su carpeta original. La pestaña HHR que ya estaba abierta pasó a **Conectada** sin recarga. El panel
+de Ficha verificó extensión, Ficha Médico, Gestión de Camas y HHR conectados. Con dos pestañas de
+Ficha y dos de Gestión de Camas, una de estas últimas redirigida al login, HHR siguió conectado a
+la sesión autenticada. Tras **Volver a cargar** la extensión en Chrome, las páginas abiertas
+continuaron conectadas; cerrar una Ficha dejó operativa la otra. Sin embargo, tras varios minutos
+de inactividad HHR volvió a pedir pestañas nuevas. Ficha se recuperó al visitarla y Gestión de
+Camas sólo al recibir foco; la continuidad inmediata de 0.48.30 no bastó. La versión 0.48.31
+añade reparación bajo demanda del receptor de Camas, también cuando otro listener deja el canal
+sin respuesta. El smoke MV3 elimina ese receptor con la pestaña en segundo plano y comprueba
+su reinyección sin navegación. En Chrome real, 0.48.31 mantuvo ambas fuentes conectadas después
+de varios minutos de reposo y un sondeo fresco desde HHR, sin enfocar Eloísa. La comprobación fue
+de enlace y lectura de estado: no confirmó un censo ni verificó persistencia clínica. La expiración
+real de credenciales y el reinicio completo
+de Chrome requieren una comprobación separada.
+
 Ejecutar las pruebas afectadas en `src/tests/rayen-import`, `npm run check:rayen-extension-release`, `npm run test:e2e:rayen-extension-runtime` (Chromium aislado con datos sintéticos), `npm run check:extension-hotspots` y el gate previo al merge vigente del proyecto.
 
 El smoke de Chromium mantiene documentos sintéticos de HHR, Ficha Médico y Gestión de Camas
@@ -71,7 +94,9 @@ puente de página de HHR para comprobar que los tres relés responden después d
 Para aplicar una actualización local: comprobar la carpeta cargada en `chrome://extensions` y cargar
 la versión correspondiente. Desde 0.48.30, una actualización compatible reinyecta sólo los relés
 centrales, reactiva los listeners MAIN sin duplicar interceptores y comprueba que el receptor nuevo
-responde antes de declararlo recuperado. Si el monitor informa un protocolo realmente
+responde antes de declararlo recuperado. Desde 0.48.31, Gestión de Camas también reintenta una
+reinyección exacta cuando su receptor falta durante un sondeo posterior. Si el monitor informa un
+protocolo realmente
 incompatible, abrir un documento nuevo después de terminar o cancelar cualquier edición pendiente.
 El marcador booleano de 0.48.27 no contiene la función necesaria para restaurar un listener MAIN
 eliminado: en ese caso acotado la salud queda obsoleta y se requiere una sola recarga del documento.

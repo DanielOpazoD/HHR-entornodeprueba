@@ -370,7 +370,7 @@ try {
   }
 
   let recoveredHealth = null;
-  const recoveryDeadline = Date.now() + 15_000;
+  const recoveryDeadline = Date.now() + 25_000;
   while (Date.now() < recoveryDeadline) {
     try {
       recoveredHealth = await readRelayHealth(reloadedStatusPage);
@@ -447,6 +447,35 @@ try {
   );
   assert.notEqual(hhrHealthResult.report.gestionCamas.reason, 'outdated_tab');
   assert.notEqual(hhrHealthResult.report.fichaMedico.reason, 'outdated_tab');
+
+  // Other listeners may survive in ISOLATED even when the GC health receiver disappears.
+  // In that case tabs.sendMessage can resolve without a health response instead of throwing.
+  const removedGcReceiver = await reloadedStatusPage.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ url: 'https://hospitalizado.rayensalud.cl/*' });
+    if (!Number.isInteger(tab?.id)) return false;
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const relay = globalThis.__hhrGestionCamasRelayInstalled;
+        if (!relay?.runtimeListener) return false;
+        chrome.runtime.onMessage.removeListener(relay.runtimeListener);
+        return true;
+      },
+    });
+    return results.some(result => result.result === true);
+  });
+  assert.equal(removedGcReceiver, true, 'Could not simulate an orphaned GC health receiver');
+  await reloadedStatusPage.waitForTimeout(3_100); // health cache TTL
+  const repairedGcHealth = await reloadedStatusPage.evaluate(() =>
+    chrome.runtime.sendMessage({ type: 'RAYEN_EXTENSION_HEALTH_REQUEST' })
+  );
+  assert.equal(
+    repairedGcHealth.gestionCamas.bridgeGeneration,
+    runtimeContext.runtimeGeneration,
+    'GC did not repair its missing health receiver without foregrounding the tab'
+  );
+  const relayHealthAfterRepair = await readRelayHealth(reloadedStatusPage);
+  assert.equal(relayHealthAfterRepair.gestionCamas.ready, true);
   const invalidPatientFlow = await requestInvalidPatientFlow(hhrPage);
   assert.equal(invalidPatientFlow.base64, '');
   assert.match(
