@@ -20,9 +20,9 @@ import {
 } from '@/services/repositories/repositoryConfig';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import type { SyncDailyRecordResult } from '@/services/repositories/contracts/dailyRecordResults';
-import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/dailyRecordFreshnessHydrationController';
+import { reconcileDailyRecordQueryResult } from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
 
 interface DailyRecordReader {
   getForDate: (date: string) => Promise<DailyRecord | null>;
@@ -114,6 +114,22 @@ export const createDailyRecordQueryFn =
     return createQueryResultFromRecord(query.date, record);
   };
 
+export const createReconciledDailyRecordQueryFn = (
+  dailyRecord: DailyRecordReader,
+  date: string,
+  queryClient: QueryClient,
+  syncFromRemote: boolean = true
+) => {
+  const queryFn = createDailyRecordQueryFn(dailyRecord, date, syncFromRemote);
+  return async () => {
+    const incoming = await queryFn();
+    return reconcileDailyRecordQueryResult(
+      queryClient.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date)),
+      incoming
+    );
+  };
+};
+
 export const shouldUseDailyRecordRealtimeSync = (
   date: string,
   isOfflineMode: boolean,
@@ -159,27 +175,6 @@ export const createDailyRecordSubscription = (
       ...result,
       record: resolvedRecord,
     });
-  };
-
-  const shouldPreservePreviousRecord = (
-    previousResult: DailyRecordQueryResult | undefined,
-    incomingResult: DailyRecordQueryResult
-  ): boolean => {
-    if (!previousResult?.record || !incomingResult.record) {
-      return false;
-    }
-
-    if (
-      previousResult.runtime.sourceOfTruth === 'local' &&
-      incomingResult.runtime.sourceOfTruth !== 'local'
-    ) {
-      return false;
-    }
-
-    return (
-      toRecordTimestamp(previousResult.record.lastUpdated) >
-      toRecordTimestamp(incomingResult.record.lastUpdated)
-    );
   };
 
   const reconcileNullRealtimeRecord = (previousResult: DailyRecordQueryResult) => {
@@ -282,10 +277,11 @@ export const createDailyRecordSubscription = (
       getDailyRecordQueryKey(date)
     );
     if (result.record) {
-      if (shouldPreservePreviousRecord(previousResult, result)) {
+      const reconciled = reconcileDailyRecordQueryResult(previousResult, result);
+      if (reconciled === previousResult) {
         return;
       }
-      applyResolvedRecord(result, previousResult);
+      applyResolvedRecord(reconciled, previousResult);
       if (
         result.runtime.consistencyState !== 'unavailable' &&
         result.runtime.conflictSummary?.kind !== 'remote_unavailable'
@@ -352,7 +348,11 @@ export const prefetchPreviousDailyRecord = (
 ) =>
   queryClient.prefetchQuery({
     queryKey: getDailyRecordQueryKey(buildPreviousDayDate(date)),
-    queryFn: createDailyRecordQueryFn(dailyRecord, buildPreviousDayDate(date)),
+    queryFn: createReconciledDailyRecordQueryFn(
+      dailyRecord,
+      buildPreviousDayDate(date),
+      queryClient
+    ),
     staleTime: 5 * 60 * 1000,
   });
 

@@ -6,7 +6,7 @@ import type {
   SaveDailyRecordOptions,
 } from '@/services/repositories/contracts/dailyRecordCommands';
 import {
-  createDailyRecordQueryFn,
+  createReconciledDailyRecordQueryFn,
   getDailyRecordQueryKey,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import {
@@ -132,7 +132,7 @@ export const ensureFreshDailyRecordQuery = (
   ensureDailyRecordRemoteFreshness({
     date,
     queryClient,
-    queryFn: createDailyRecordQueryFn(dailyRecord, date, true),
+    queryFn: createReconciledDailyRecordQueryFn(dailyRecord, date, queryClient, true),
     reason,
   });
 
@@ -248,5 +248,5 @@ export const prefetchDailyRecordQuery = (
 ) =>
   queryClient.prefetchQuery({
     queryKey: getDailyRecordQueryKey(date),
-    queryFn: createDailyRecordQueryFn(dailyRecord, date),
+    queryFn: createReconciledDailyRecordQueryFn(dailyRecord, date, queryClient),
   });
