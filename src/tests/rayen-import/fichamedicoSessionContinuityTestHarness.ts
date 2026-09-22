@@ -47,6 +47,13 @@ export const createHarness = async (
     current.push(listener);
     listeners.set(type, current);
   };
+  const removeListener = (type: string, listener: (event: unknown) => unknown) => {
+    const current = listeners.get(type) || [];
+    listeners.set(
+      type,
+      current.filter(candidate => candidate !== listener)
+    );
+  };
 
   const sessionResponse = async () =>
     sessionActive
@@ -96,6 +103,7 @@ export const createHarness = async (
       throw new Error(`Unexpected request: ${String(input)}`);
     },
     addEventListener: addListener,
+    removeEventListener: removeListener,
     dispatchEvent: (event: { type: string }) => {
       for (const listener of listeners.get(event.type) || []) listener(event);
       return true;
