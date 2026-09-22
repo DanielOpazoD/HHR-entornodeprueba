@@ -49,7 +49,7 @@ describe('census measurement release gate', () => {
     expect(spec).toContain('const url = new URL(route.request().url())');
     expect(spec).not.toContain('previewFirebase');
   });
-  it('retains all pre-existing production and bundle ceilings', () => {
+  it('retains production ceilings and the documented confirmed-cache bundle allowance', () => {
     const flow = JSON.parse(read('scripts/config/flow-performance-budgets.json'));
     expect(flow.flows.censoVisibleMs.enforcedMaxMs).toBe(2000);
     expect(flow.flows.censoRecordReadyMs.enforcedMaxMs).toBe(5000);
@@ -59,7 +59,7 @@ describe('census measurement release gate', () => {
       bundle.startupChunkBudgets.find(
         (b: { label: string }) => b.label === 'app-authenticated-shell'
       ).maxBytes
-    ).toBe(623000);
+    ).toBe(625000);
     expect(bundle.precacheIgnoredAssetPatterns).not.toContain('^assets/censusStartupPerf-.*\\.js$');
   });
 });

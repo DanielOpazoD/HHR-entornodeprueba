@@ -41,9 +41,12 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 - Realtime `null` must not evict a valid local record unless repository reconciliation confirms absence.
 - Recovery policy belongs in repository/query contracts, not duplicated across hooks and views.
 - Remote cache hydration checks the outbox and writes IndexedDB in one transaction. It preserves the local projection while any unresolved daily write exists; only command acknowledgement/reconciliation may replace that projection. This prevents a realtime echo arriving before the command response from invalidating its own acknowledgement.
+- A server-confirmed command acknowledgement is published with remote-authoritative cache semantics. An older realtime/refetch result cannot replace that acknowledgement, while a newer local outbox projection or a newer remote snapshot keeps precedence.
 - The “today empty state” is a last visible fallback, not the first interpretation of a transient remote miss.
 
 ## Returning to the census
+
+- An unavailable read retains the latest confirmed data while exposing the failure. A delayed response older than that known server revision does not clear the authority failure; recovery requires a successful result at that revision or a newer one. Receiving an old response is not evidence that the current census has been revalidated.
 
 - The daily-record query refetches on focus only when stale, using the existing five-minute cache policy; brief tab returns do not force another read.
 - Reconnect retains the global forced check, including short network interruptions while the page remains visible.

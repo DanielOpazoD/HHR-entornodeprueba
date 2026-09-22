@@ -24,7 +24,7 @@ import { isDailyRecordWriteRejectedResult } from '@/services/repositories/contra
 import { hasUnchangedRayenStructuralState } from '../domain/rayenStructuralCheckpoint';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
 import type { QueryClient } from '@tanstack/react-query';
-import { setDailyRecordQueryData } from '@/hooks/controllers/dailyRecordQueryController';
+import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordFreshnessGateController';
 
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
@@ -142,7 +142,11 @@ export const useRayenCensusDiffApplication = ({
               previousRecord: persistenceBase,
               confirmedRecord: confirmedCheckpointRecord,
             });
-            setDailyRecordQueryData(queryClient, persistenceBase.date, confirmedCheckpointRecord);
+            await setRemoteConfirmedDailyRecordQueryData(
+              queryClient,
+              persistenceBase.date,
+              confirmedCheckpointRecord
+            );
           }
         } else {
           persistence = await saveDailyRecord(stamped, record.lastUpdated, writeLease);

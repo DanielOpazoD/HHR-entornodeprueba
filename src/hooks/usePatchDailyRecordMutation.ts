@@ -15,6 +15,10 @@ import {
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import {
+  didDailyRecordCacheAdvanceBeyondConfirmation,
+  setAcknowledgedDailyRecordQueryData,
+} from '@/hooks/controllers/dailyRecordConfirmedCacheController';
+import {
   getDailyRecordLastRemoteConfirmedAt,
   markDailyRecordRemoteConfirmed,
 } from '@/hooks/controllers/dailyRecordFreshnessGateController';
@@ -32,7 +36,6 @@ import {
   rememberDailyRecordPatchBaseRecord,
   type DailyRecordPatchBaseRecordRegistry,
 } from '@/hooks/controllers/dailyRecordPatchBaseRecordController';
-import { toRecordTimestamp } from '@/services/repositories/dailyRecordConsistencyPolicy';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 import {
   canApplyClinicalCribCreate,
@@ -93,9 +96,6 @@ const acquireMutationTurn = async (date: string): Promise<() => void> => {
     if (mutationTails.get(date) === currentTurn) mutationTails.delete(date);
   };
 };
-
-const isNewerThan = (candidate: DailyRecord, baseline: DailyRecord): boolean =>
-  toRecordTimestamp(candidate.lastUpdated) > toRecordTimestamp(baseline.lastUpdated);
 
 class AuthoritativeDailyRecordConflictError extends ConcurrencyError {
   constructor(
@@ -332,7 +332,7 @@ export const usePatchDailyRecordMutation = (date: string) => {
       }
       forgetDailyRecordPatchBaseRecord(patchBaseRecords, resolveInput(input).partial);
     },
-    onSuccess: (payload, _input, context) => {
+    onSuccess: async (payload, _input, context) => {
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         if (context?.optimisticApplied) {
           const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
@@ -350,19 +350,10 @@ export const usePatchDailyRecordMutation = (date: string) => {
       const cachedRecord = queryClient.getQueryData<DailyRecordQueryResult>(
         getDailyRecordQueryKey(date)
       )?.record;
-      const cacheIsOwnOptimisticProjection = Boolean(
-        cachedRecord &&
-        context?.optimisticRecord &&
-        cachedRecord.lastUpdated === context.optimisticRecord.lastUpdated
-      );
-      // Only the server-confirmed revision participates in ordering. A client-generated projection
-      // may have a future wall-clock timestamp, but it must be rebased onto any newer realtime
-      // server record instead of hiding that record.
-      const cacheAdvancedBeyondConfirmation = Boolean(
-        confirmedRecord &&
-        cachedRecord &&
-        !cacheIsOwnOptimisticProjection &&
-        isNewerThan(cachedRecord, confirmedRecord)
+      const cacheAdvancedBeyondConfirmation = didDailyRecordCacheAdvanceBeyondConfirmation(
+        cachedRecord,
+        confirmedRecord,
+        context?.optimisticRecord?.lastUpdated
       );
       const nextDisplayRecord =
         cacheAdvancedBeyondConfirmation && confirmedRecord && cachedRecord
@@ -374,7 +365,15 @@ export const usePatchDailyRecordMutation = (date: string) => {
               )
             : cachedRecord
           : displayRecord;
-      if (nextDisplayRecord) setDailyRecordQueryData(queryClient, date, nextDisplayRecord);
+      if (nextDisplayRecord) {
+        await setAcknowledgedDailyRecordQueryData(
+          queryClient,
+          date,
+          nextDisplayRecord,
+          confirmedRecord,
+          context?.optimisticRecord?.lastUpdated
+        );
+      }
       const currentRecord = confirmedRecord ?? cachedRecord ?? displayRecord;
       if (!currentRecord) return;
       markDailyRecordRemoteConfirmed(date, {

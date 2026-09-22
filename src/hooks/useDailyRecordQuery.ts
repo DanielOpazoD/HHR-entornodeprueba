@@ -4,7 +4,7 @@ import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts'
 import { useRepositories } from '@/services/RepositoryContext';
 import { useEffect, useRef } from 'react';
 import {
-  createDailyRecordQueryFn,
+  createReconciledDailyRecordQueryFn,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
   invalidateDailyRecordQuery,
@@ -12,6 +12,7 @@ import {
   setDailyRecordQueryData,
   shouldUseDailyRecordRealtimeSync,
 } from '@/hooks/controllers/dailyRecordQueryController';
+import { setRemoteConfirmedDailyRecordQueryData } from '@/hooks/controllers/dailyRecordConfirmedCacheController';
 import {
   markDailyRecordRemoteConfirmed,
   markDailyRecordStaleBaseline,
@@ -64,7 +65,12 @@ export const useDailyRecordQuery = (
   const queryKey = getDailyRecordQueryKey(date);
   const query = useQuery<DailyRecordQueryResult>({
     queryKey,
-    queryFn: createDailyRecordQueryFn(dailyRecord, date, shouldSyncFromRemote),
+    queryFn: createReconciledDailyRecordQueryFn(
+      dailyRecord,
+      date,
+      queryClient,
+      shouldSyncFromRemote
+    ),
     enabled: !!date,
     // Brief tab returns can reuse fresh data. Stale resumes still pass through
     // the freshness gate; reconnect keeps the global forced remote check.
@@ -217,12 +223,20 @@ export const useSaveDailyRecordMutation = () => {
         setDailyRecordQueryData(queryClient, newRecord.date, context.previousRecord);
       }
     },
-    onSuccess: (payload, _input, context) => {
+    onSuccess: async (payload, input, context) => {
       if (isDailyRecordWriteRejectedResult(payload.result)) {
         setDailyRecordQueryData(queryClient, payload.record.date, context?.previousRecord ?? null);
         return;
       }
       if (!payload.result?.savedRemotely) return;
+      if (payload.result.confirmedRecord) {
+        await setRemoteConfirmedDailyRecordQueryData(
+          queryClient,
+          payload.record.date,
+          payload.result.confirmedRecord,
+          { replaceOptimisticLastUpdated: input.record.lastUpdated }
+        );
+      }
       markDailyRecordRemoteConfirmed(payload.record.date, {
         source: 'write',
         remoteLastUpdated: payload.record.lastUpdated,

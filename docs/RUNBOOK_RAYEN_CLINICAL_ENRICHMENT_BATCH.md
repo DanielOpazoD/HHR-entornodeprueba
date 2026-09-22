@@ -176,6 +176,10 @@ no puede introducir esos campos desde el navegador.
 
 - La fase estructural termina sólo después de leer de vuelta la revisión confirmada por Firestore.
   El enriquecimiento clínico nunca usa la copia optimista del navegador.
+- El checkpoint `applied` y el resultado terminal se publican en la caché sólo desde la respuesta
+  confirmada por la autoridad. Si el historial vuelve a mostrar un intento anterior, comprobar que
+  una respuesta realtime o refetch atrasada no haya reemplazado ese ACK; una proyección local más
+  nueva del outbox conserva precedencia hasta su reconciliación.
 - Un conflicto CAS replantea el censo con la misma captura Eloísa y el registro autoritativo nuevo;
   nunca reaplica un diff calculado contra una revisión anterior.
 - Si falla sólo la información clínica, el historial y la barra deben ofrecer **Reintentar
