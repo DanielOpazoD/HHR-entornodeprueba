@@ -4,6 +4,7 @@ const {
   RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
   RAYEN_CLINICAL_FIELDS,
 } = require('./dailyRecordAuthorityContract');
+const { normalizeStoredAssignment } = require('./specialtyAssignmentContract');
 
 const isPlainObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -94,6 +95,75 @@ const isRayenClinicalWriteFenceActive = policySnapshot => {
   return policy.schemaVersion === 2;
 };
 
+/**
+ * Reconcilia la decisión de especialidad de un paciente entrante contra la
+ * autoridad remota del MISMO episodio:
+ *
+ * - La revisión monótona decide: una decisión entrante más nueva gana (es la
+ *   corrección manual legítima); una copia atrasada nunca pisa la remota.
+ * - Una copia sin metadatos (cliente antiguo) nunca borra una decisión remota
+ *   almacenada: se restauran `specialtyAssignment` y, cuando la decisión
+ *   remota está bloqueada, también el escalar `specialty`.
+ * - Sin metadatos en ninguno de los lados (paciente legacy sin decisión
+ *   confirmada), la entrante gana — compatibilidad con el guardado actual.
+ */
+const reconcilePatientSpecialtyAssignment = (incomingPatient, remotePatient) => {
+  if (!isPlainObject(incomingPatient) || !isPlainObject(remotePatient)) {
+    return incomingPatient;
+  }
+  const remoteStored = normalizeStoredAssignment(remotePatient.specialtyAssignment);
+  const incomingStored = normalizeStoredAssignment(incomingPatient.specialtyAssignment);
+  const remoteEpisodeId = String(remotePatient.clinicalEpisodeId ?? '').trim();
+  const incomingEpisodeId = String(incomingPatient.clinicalEpisodeId ?? '').trim();
+
+  if (!remoteEpisodeId || remoteEpisodeId !== incomingEpisodeId) {
+    // Episodio distinto (reingreso/recambio): la decisión remota no aplica.
+    return incomingPatient;
+  }
+  if (incomingStored && (!remoteStored || incomingStored.revision > remoteStored.revision)) {
+    return incomingPatient;
+  }
+  if (!remoteStored) return incomingPatient;
+
+  const next = clonePlainValue(incomingPatient);
+  next.specialtyAssignment = clonePlainValue(remoteStored);
+  if (remoteStored.state === 'manual_locked' || remoteStored.state === 'automatic_locked') {
+    next.specialty = remoteStored.value;
+  }
+  return next;
+};
+
+/**
+ * Preservación por episodio de la decisión de especialidad en guardados
+ * completos. Se aplica SIEMPRE (no depende de la valla Rayen): es un
+ * reconciliado monótono que solo protege metadatos ya confirmados; las copias
+ * atrasadas y los clientes antiguos no pueden degradarlos.
+ */
+const preserveSpecialtyAssignments = ({ remoteRecord, incomingRecord }) => {
+  const nextRecord = clonePlainValue(incomingRecord);
+  const remotePatients = collectRemotePatients(remoteRecord);
+  const incomingBeds = isPlainObject(nextRecord?.beds) ? nextRecord.beds : {};
+
+  Object.entries(incomingBeds).forEach(([bedId, bed]) => {
+    if (!isPlainObject(bed)) return;
+    const key = episodeKey(bed, false);
+    const remotePatient = key ? remotePatients.get(key) : null;
+    let nextBed = remotePatient ? reconcilePatientSpecialtyAssignment(bed, remotePatient) : bed;
+    if (isPlainObject(bed.clinicalCrib)) {
+      const cribKey = episodeKey(bed.clinicalCrib, true);
+      const remoteCrib = cribKey ? remotePatients.get(cribKey) : null;
+      nextBed = { ...nextBed };
+      nextBed.clinicalCrib = remoteCrib
+        ? reconcilePatientSpecialtyAssignment(bed.clinicalCrib, remoteCrib)
+        : bed.clinicalCrib;
+    }
+    incomingBeds[bedId] = nextBed;
+  });
+
+  nextRecord.beds = incomingBeds;
+  return nextRecord;
+};
+
 const BACKUP_RESTORE_ORIGIN = 'backup_restore';
 
 /**
@@ -120,4 +190,6 @@ module.exports = {
   isRayenClinicalBatchEnforced,
   isRayenClinicalWriteFenceActive,
   preserveRayenClinicalFields,
+  preserveSpecialtyAssignments,
+  reconcilePatientSpecialtyAssignment,
 };

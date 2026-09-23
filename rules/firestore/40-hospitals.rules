@@ -74,15 +74,29 @@
         allow create, update, delete: if false;
       }
 
+      // Episodic AI recommendations are advisory evidence, not authority:
+      // they never write patient data and only resolve through an explicit
+      // human transition recorded by the client store.
+      match /specialtyRecommendations/{recommendationId} {
+        allow read: if canReadClinicalData();
+        allow create: if isValidSpecialtyRecommendationCreate();
+        allow update: if isValidSpecialtyRecommendationTransition();
+        allow delete: if false;
+      }
+
       match /settings/{settingId} {
         allow read: if canReadClinicalData();
         allow create: if settingId == 'rayenImportPolicy'
           ? canCreateRayenImportPolicy()
-          : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
+          : settingId == 'specialtyRulesCatalog'
+            ? canCreateSpecialtyRulesCatalog()
+            : (settingId in ['aiProviderRouting', 'specialtyAssignmentPolicy'] ? isAdmin() : canEdit());
         allow update: if settingId == 'rayenImportPolicy'
           ? canUpdateRayenImportPolicy()
-          : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
-        allow delete: if settingId == 'rayenImportPolicy'
+          : settingId == 'specialtyRulesCatalog'
+            ? canUpdateSpecialtyRulesCatalog()
+            : (settingId in ['aiProviderRouting', 'specialtyAssignmentPolicy'] ? isAdmin() : canEdit());
+        allow delete: if settingId in ['rayenImportPolicy', 'specialtyRulesCatalog', 'specialtyAssignmentPolicy']
           ? false
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
       }

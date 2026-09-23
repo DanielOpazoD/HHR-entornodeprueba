@@ -5,7 +5,7 @@ export interface DiscoveredTreatingPhysician {
   displayName: string;
 }
 
-const normalizedName = (value?: string): string =>
+export const normalizedName = (value?: string): string =>
   (value ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -74,7 +74,7 @@ export const mergeDiscoveredTreatingPhysicians = (
     changed = true;
   }
 
-  return { catalog: changed ? next.toSorted(byDisplayName) : current, changed };
+  return { catalog: changed ? [...next].sort(byDisplayName) : current, changed };
 };
 
 const uniqueCatalogByName = (

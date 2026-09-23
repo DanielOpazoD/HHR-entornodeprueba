@@ -100,6 +100,9 @@ export const isDifferentPatientIdentity = ({
 export const getClearClinicalDataPatches = (bedId: string): Record<string, unknown> => ({
   [`beds.${bedId}.cie10Code`]: undefined,
   [`beds.${bedId}.cie10Description`]: undefined,
+  // Un reemplazo de persona es un episodio nuevo: la decisión de especialidad
+  // del episodio anterior nunca se hereda al nuevo ocupante de la cama.
+  [`beds.${bedId}.specialtyAssignment`]: undefined,
   [`beds.${bedId}.pathology`]: '',
   [`beds.${bedId}.clinicalEvents`]: [],
   [`beds.${bedId}.cudyr`]: undefined,

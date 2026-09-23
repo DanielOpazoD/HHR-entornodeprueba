@@ -499,6 +499,95 @@ service cloud.firestore {
       return !isRayenClinicalWriteFenceActive(hospitalId) ||
              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['beds', 'bedTypeOverrides']);
     }
+    function isValidSpecialtyRulesCatalog() {
+      let catalog = request.resource.data;
+      return catalog.keys().hasOnly([
+               'schemaVersion', 'revision', 'rules', 'updatedAt', 'updatedByUid'
+             ]) &&
+             catalog.schemaVersion == 1 &&
+             catalog.revision is int &&
+             catalog.revision >= 1 &&
+             catalog.rules is list &&
+             catalog.updatedAt is timestamp &&
+             catalog.updatedAt == request.time &&
+             catalog.updatedByUid is string &&
+             catalog.updatedByUid == request.auth.uid;
+    }
+    function canCreateSpecialtyRulesCatalog() {
+      return isAdmin() &&
+             isValidSpecialtyRulesCatalog() &&
+             request.resource.data.revision == 1;
+    }
+    function canUpdateSpecialtyRulesCatalog() {
+      return isAdmin() &&
+             isValidSpecialtyRulesCatalog() &&
+             request.resource.data.revision == resource.data.revision + 1;
+    }
+    function canWriteSpecialtyRecommendation() {
+      return hasAnyEffectiveRole(['admin', 'nurse_hospital', 'doctor_urgency', 'doctor_specialist']);
+    }
+    function hasOnlySpecialtyRecommendationKeys(payload) {
+      return payload.keys().hasOnly([
+               'recommendationId', 'episodeKey', 'recordDate', 'observedRevision',
+               'evidenceFingerprint', 'ruleSetVersion', 'professionalCatalogVersion',
+               'promptVersion', 'modelRequested', 'modelReported', 'status',
+               'candidates', 'missingData', 'policyConflict', 'requesterUid',
+               'createdAt', 'expiresAt', 'resolvedAt', 'resolvedByUid'
+             ]);
+    }
+    function isValidSpecialtyRecommendationCreate() {
+      let payload = request.resource.data;
+      return canWriteSpecialtyRecommendation() &&
+             hasOnlySpecialtyRecommendationKeys(payload) &&
+             payload.keys().hasAll([
+               'recommendationId', 'episodeKey', 'recordDate', 'observedRevision',
+               'evidenceFingerprint', 'ruleSetVersion', 'professionalCatalogVersion',
+               'promptVersion', 'modelRequested', 'status', 'candidates',
+               'missingData', 'policyConflict', 'requesterUid', 'createdAt'
+             ]) &&
+             payload.recommendationId is string &&
+             payload.recommendationId.size() <= 160 &&
+             payload.episodeKey is string &&
+             payload.episodeKey.size() <= 200 &&
+             payload.recordDate is string &&
+             payload.observedRevision is int &&
+             payload.observedRevision >= 0 &&
+             payload.evidenceFingerprint is string &&
+             payload.evidenceFingerprint.size() <= 160 &&
+             payload.ruleSetVersion is string &&
+             payload.ruleSetVersion.size() <= 60 &&
+             payload.professionalCatalogVersion is string &&
+             payload.professionalCatalogVersion.size() <= 80 &&
+             payload.promptVersion is string &&
+             payload.promptVersion.size() <= 60 &&
+             payload.modelRequested is string &&
+             payload.modelRequested.size() <= 80 &&
+             isOptionalString(payload, 'modelReported') &&
+             payload.status == 'available' &&
+             payload.candidates is list &&
+             payload.candidates.size() <= 8 &&
+             payload.missingData is list &&
+             payload.missingData.size() <= 20 &&
+             payload.policyConflict is bool &&
+             payload.requesterUid is string &&
+             payload.requesterUid == request.auth.uid &&
+             payload.createdAt is string &&
+             payload.createdAt.size() <= 60 &&
+             isOptionalString(payload, 'expiresAt') &&
+             isOptionalString(payload, 'resolvedAt') &&
+             isOptionalString(payload, 'resolvedByUid');
+    }
+    function isValidSpecialtyRecommendationTransition() {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return canWriteSpecialtyRecommendation() &&
+             hasOnlySpecialtyRecommendationKeys(request.resource.data) &&
+             affectedKeys.hasOnly(['status', 'resolvedAt', 'resolvedByUid']) &&
+             resource.data.status == 'available' &&
+             request.resource.data.status in ['accepted', 'discarded', 'obsolete', 'superseded'] &&
+             request.resource.data.resolvedAt is string &&
+             request.resource.data.resolvedByUid is string &&
+             request.resource.data.resolvedByUid == request.auth.uid;
+    }
     function isWithinEditingWindow(recordTS) {
       let now = request.time.toMillis();
       return recordTS == null || (
@@ -605,15 +694,25 @@ service cloud.firestore {
         allow read: if canReadClinicalData();
         allow create, update, delete: if false;
       }
+      match /specialtyRecommendations/{recommendationId} {
+        allow read: if canReadClinicalData();
+        allow create: if isValidSpecialtyRecommendationCreate();
+        allow update: if isValidSpecialtyRecommendationTransition();
+        allow delete: if false;
+      }
       match /settings/{settingId} {
         allow read: if canReadClinicalData();
         allow create: if settingId == 'rayenImportPolicy'
           ? canCreateRayenImportPolicy()
-          : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
+          : settingId == 'specialtyRulesCatalog'
+            ? canCreateSpecialtyRulesCatalog()
+            : (settingId in ['aiProviderRouting', 'specialtyAssignmentPolicy'] ? isAdmin() : canEdit());
         allow update: if settingId == 'rayenImportPolicy'
           ? canUpdateRayenImportPolicy()
-          : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
-        allow delete: if settingId == 'rayenImportPolicy'
+          : settingId == 'specialtyRulesCatalog'
+            ? canUpdateSpecialtyRulesCatalog()
+            : (settingId in ['aiProviderRouting', 'specialtyAssignmentPolicy'] ? isAdmin() : canEdit());
+        allow delete: if settingId in ['rayenImportPolicy', 'specialtyRulesCatalog', 'specialtyAssignmentPolicy']
           ? false
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
       }

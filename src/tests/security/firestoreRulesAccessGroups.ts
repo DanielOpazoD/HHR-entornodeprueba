@@ -13,6 +13,7 @@ export function registerFirestoreRulesAccessGroups({
   specialist,
   specialistWithoutClaim,
   adminWithoutClaim,
+  editor,
   firestoreForUser,
   unauthorizedAuthed,
   NOW_MS,
@@ -1418,6 +1419,95 @@ export function registerFirestoreRulesAccessGroups({
 
     it('Unauthenticated users cannot read settings', async () => {
       await assertFails(unauth().doc(settingsPath).get());
+    });
+  });
+
+  describe('Specialty Assignment Settings', () => {
+    const specialtyRulesCatalogPath = 'hospitals/H1/settings/specialtyRulesCatalog';
+    const specialtyAssignmentPolicyPath = 'hospitals/H1/settings/specialtyAssignmentPolicy';
+    const specialtyCatalog = (revision: number, updatedByUid = 'user_admin') => ({
+      schemaVersion: 1,
+      revision,
+      rules: [
+        {
+          ruleId: 'rule-1',
+          kind: 'cie10_memory',
+          cie10Code: 'J18.9',
+          specialty: 'Medicina Interna',
+          status: 'active',
+          scope: { facilityId: 'H1' },
+          approvedByUid: 'user_admin',
+          approvedAt: new Date(NOW_MS).toISOString(),
+          createdAt: new Date(NOW_MS).toISOString(),
+        },
+      ],
+      updatedAt: serverTimestamp(),
+      updatedByUid,
+    });
+
+    it('clinical roles can read the specialty rule catalog and assignment policy', async () => {
+      await setupDocBypass(specialtyRulesCatalogPath, {
+        schemaVersion: 1,
+        revision: 1,
+        rules: [],
+        updatedAt: new Date(0),
+        updatedByUid: 'user_admin',
+      });
+      await setupDocBypass(specialtyAssignmentPolicyPath, { enabled: false });
+
+      await assertSucceeds(nurse().doc(specialtyRulesCatalogPath).get());
+      await assertSucceeds(doctor().doc(specialtyAssignmentPolicyPath).get());
+    });
+
+    it('only admins can create the specialty rule catalog at revision 1', async () => {
+      await assertSucceeds(admin().doc(specialtyRulesCatalogPath).set(specialtyCatalog(1)));
+      await assertFails(
+        nurse().doc(specialtyRulesCatalogPath).set(specialtyCatalog(1, 'user_nurse'))
+      );
+      await assertFails(
+        doctor().doc(specialtyRulesCatalogPath).set(specialtyCatalog(1, 'user_doctor'))
+      );
+    });
+
+    it('requires sequential catalog revisions and the authenticated actor', async () => {
+      await setupDoc(admin(), specialtyRulesCatalogPath, specialtyCatalog(1));
+      await assertSucceeds(admin().doc(specialtyRulesCatalogPath).set(specialtyCatalog(2)));
+      await assertFails(admin().doc(specialtyRulesCatalogPath).set(specialtyCatalog(4)));
+      await assertFails(
+        admin().doc(specialtyRulesCatalogPath).set(specialtyCatalog(3, 'another-admin'))
+      );
+      await assertFails(admin().doc(specialtyRulesCatalogPath).delete());
+    });
+
+    it('rejects malformed or expanded specialty rule catalogs', async () => {
+      await assertFails(
+        admin()
+          .doc(specialtyRulesCatalogPath)
+          .set({ ...specialtyCatalog(1), schemaVersion: 2 })
+      );
+      await assertFails(
+        admin()
+          .doc(specialtyRulesCatalogPath)
+          .set({ ...specialtyCatalog(1), unexpected: true })
+      );
+      await assertFails(
+        admin()
+          .doc(specialtyRulesCatalogPath)
+          .set({ ...specialtyCatalog(1), updatedAt: new Date(0) })
+      );
+    });
+
+    it('only admins can write the specialty assignment policy and nobody deletes it', async () => {
+      await assertSucceeds(
+        admin().doc(specialtyAssignmentPolicyPath).set({ enabled: false, mode: 'observation' })
+      );
+      await assertFails(
+        nurse().doc(specialtyAssignmentPolicyPath).set({ enabled: false, mode: 'observation' })
+      );
+      await assertFails(
+        editor().doc(specialtyAssignmentPolicyPath).set({ enabled: false, mode: 'observation' })
+      );
+      await assertFails(admin().doc(specialtyAssignmentPolicyPath).delete());
     });
   });
 }

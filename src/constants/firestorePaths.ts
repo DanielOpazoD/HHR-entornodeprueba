@@ -73,6 +73,8 @@ export const HOSPITAL_COLLECTIONS = {
   MEDICAL_INDICATION_RECORDS: 'medicalIndicationRecords',
   /** Server-owned statistical specialty reclassifications for analytics reporting */
   ANALYTICS_SPECIALTY_RECLASSIFICATIONS: 'analyticsSpecialtyReclassifications',
+  /** Episodic AI specialty recommendations (created by the authorized backend). */
+  SPECIALTY_RECOMMENDATIONS: 'specialtyRecommendations',
 } as const;
 
 // ============================================================================
@@ -93,6 +95,10 @@ export const SETTINGS_DOCS = {
   CLINICAL_DOCUMENT_INDICATIONS: 'clinicalDocumentIndications',
   /** Global Rayen import apply policy */
   RAYEN_IMPORT_POLICY: 'rayenImportPolicy',
+  /** Versioned shared catalog of specialty rules (base rules + CIE-10 memory). */
+  SPECIALTY_RULES_CATALOG: 'specialtyRulesCatalog',
+  /** Server-side enforcement switch for episode specialty assignment. */
+  SPECIALTY_ASSIGNMENT_POLICY: 'specialtyAssignmentPolicy',
 } as const;
 
 /**
@@ -175,6 +181,12 @@ export const getAnalyticsSpecialtyReclassificationsPath = (
   hospitalId: string = getActiveHospitalId()
 ) =>
   `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.ANALYTICS_SPECIALTY_RECLASSIFICATIONS}` as const;
+
+/**
+ * Build path to the episodic AI specialty recommendations collection
+ */
+export const getSpecialtyRecommendationsPath = (hospitalId: string = getActiveHospitalId()) =>
+  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.SPECIALTY_RECOMMENDATIONS}` as const;
 
 // ============================================================================
 // Type Exports

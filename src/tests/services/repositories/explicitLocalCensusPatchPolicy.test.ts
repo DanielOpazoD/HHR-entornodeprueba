@@ -27,6 +27,7 @@ describe('explicitLocalCensusPatchPolicy', () => {
       'cie10Code',
       'cie10Description',
       'specialty',
+      'specialtyAssignment',
       'secondarySpecialty',
       'status',
       'ginecobstetriciaType',

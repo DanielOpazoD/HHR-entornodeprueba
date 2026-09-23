@@ -9,6 +9,7 @@ import type { ClinicalSyncCheckpoint } from './clinicalSync';
 import type { FhirResource } from './fhir';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { EloisaManualImportAudit } from '@/shared/contracts/eloisaManualImport';
+import type { SpecialtyAssignment } from '@/domain/specialtyAssignment/contracts';
 
 export interface MedicalHandoffAuditActor {
   uid: string;
@@ -128,6 +129,12 @@ export interface PatientData {
   firstSeenDate?: string;
   /** Stable episode identifier. Optional during legacy tuple-to-ID migration. */
   clinicalEpisodeId?: string;
+  /**
+   * Decisión autoritativa de especialidad del episodio (estado + trazabilidad).
+   * `specialty` sigue siendo la proyección; ambos viajan juntos por el canal
+   * clínico y la autoridad del episodio los reconcilia por revisión.
+   */
+  specialtyAssignment?: SpecialtyAssignment;
 
   /** Technical/audit-only metadata. It is not rendered in the clinical census. */
   eloisaManualImportAudit?: EloisaManualImportAudit;

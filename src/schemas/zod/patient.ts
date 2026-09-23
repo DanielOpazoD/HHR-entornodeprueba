@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UpcChecklistSchema } from './upc';
+import { normalizeSpecialtyAssignment } from '@/domain/specialtyAssignment/contracts';
 import { BedType } from '@/types/domain/beds';
 import { PatientStatus, Specialty } from '@/types/domain/patientClassification';
 import {
@@ -222,6 +223,14 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       admissionDate: z.string().default(''),
       admissionTime: z.string().default(''),
       clinicalEpisodeId: nullableOptional(z.string()),
+      // Metadatos corruptos se descartan (undefined) en lugar de persistirse:
+      // una forma inválida nunca puede fingir procedencia ni bloquear el episodio.
+      specialtyAssignment: z
+        .preprocess(
+          value => normalizeSpecialtyAssignment(value) ?? undefined,
+          z.custom<PatientData['specialtyAssignment']>().optional()
+        )
+        .optional(),
       eloisaManualImportAudit: nullableOptional(
         z.object({
           method: z.literal('eloisa_manual_code'),

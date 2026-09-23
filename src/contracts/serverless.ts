@@ -115,6 +115,70 @@ export type ClinicalAttachmentNameSuggestionResponse = z.infer<
   typeof ClinicalAttachmentNameSuggestionResponseSchema
 >;
 
+export const SpecialtyAiRecommendationRequestSchema = z.object({
+  recordDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  bedId: z.string().min(1).max(40),
+  target: z.enum(['bed', 'clinicalCrib']).default('bed'),
+  /** Idempotencia del cliente: reintentos de la misma acción no duplican. */
+  clientRequestId: z.string().min(8).max(120),
+  /** Huella que el cliente calculó al decidir pedir la recomendación. */
+  evidenceFingerprint: z.string().min(4).max(120),
+  ruleSetVersion: z.string().max(40).default('0'),
+});
+
+export type SpecialtyAiRecommendationRequest = z.infer<
+  typeof SpecialtyAiRecommendationRequestSchema
+>;
+
+export const SpecialtyAiCandidateSchema = z.object({
+  specialty: z.string(),
+  certainty: z.enum(['alta', 'media', 'baja']),
+  rationale: z.string(),
+  evidenceFor: z.array(z.string()),
+  evidenceAgainst: z.array(z.string()),
+});
+
+export const StoredSpecialtyRecommendationSchema = z.object({
+  recommendationId: z.string(),
+  episodeKey: z.string(),
+  recordDate: z.string(),
+  observedRevision: z.number().int(),
+  evidenceFingerprint: z.string(),
+  ruleSetVersion: z.string(),
+  professionalCatalogVersion: z.string(),
+  promptVersion: z.string(),
+  modelRequested: z.string(),
+  modelReported: z.string().optional(),
+  status: z.enum(['available', 'accepted', 'discarded', 'obsolete', 'superseded']),
+  candidates: z.array(SpecialtyAiCandidateSchema),
+  missingData: z.array(z.string()),
+  policyConflict: z.boolean(),
+  requesterUid: z.string(),
+  createdAt: z.string(),
+  expiresAt: z.string().optional(),
+  resolvedAt: z.string().optional(),
+  resolvedByUid: z.string().optional(),
+});
+
+export type StoredSpecialtyRecommendationDto = z.infer<typeof StoredSpecialtyRecommendationSchema>;
+
+export const SpecialtyAiRecommendationResponseSchema = z.object({
+  available: z.boolean(),
+  /** 'deduplicated' cuando el backend devolvió la recomendación vigente. */
+  deduplicated: z.boolean().optional(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  recommendation: StoredSpecialtyRecommendationSchema.optional(),
+  /** Razón de rechazo estable para el cliente (disabled, not_pending, …). */
+  reason: z.string().optional(),
+  message: z.string().optional(),
+  error: z.string().optional(),
+});
+
+export type SpecialtyAiRecommendationResponse = z.infer<
+  typeof SpecialtyAiRecommendationResponseSchema
+>;
+
 export const FhirIssueSchema = z.object({
   severity: z.string(),
   code: z.string(),
