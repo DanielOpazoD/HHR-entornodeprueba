@@ -11,14 +11,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import type { SpecialtyDecisionMeta } from '@/types/domain/specialtyDecision';
-import {
-  JevSuggestionUnavailableError,
-  acceptSpecialtySuggestion,
-  publishSpecialtyMemory,
-  requestSpecialtySuggestion,
-  type JevSuggestion,
-  type SpecialtyTarget,
-} from '@/services/specialty/specialtyJevClient';
+import type { JevSuggestion, SpecialtyTarget } from '@/services/specialty/specialtyJevClient';
 import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
 import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import {
@@ -109,14 +102,18 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     if (!scope || busy) return;
     setBusy(true);
     setMessage('');
+    let jevService: typeof import('@/services/specialty/specialtyJevClient') | null = null;
     try {
       const requestId = suggestion ? crypto.randomUUID()
         : (jevRequestIdRef.current ?? crypto.randomUUID());
       jevRequestIdRef.current = requestId;
-      const result = await requestSpecialtySuggestion(scope, requestId);
+      jevService = await import('@/services/specialty/specialtyJevClient');
+      const result = await jevService.requestSpecialtySuggestion(scope, requestId);
       setSuggestion({ requestId, result });
     } catch (error) {
-      if (error instanceof JevSuggestionUnavailableError) jevRequestIdRef.current = null;
+      if (jevService && error instanceof jevService.JevSuggestionUnavailableError) {
+        jevRequestIdRef.current = null;
+      }
       setMessage('No se pudo consultar Jev. La asignación manual sigue disponible.');
     } finally {
       setBusy(false);
@@ -128,6 +125,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     setBusy(true);
     setMessage('');
     try {
+      const { acceptSpecialtySuggestion } = await import('@/services/specialty/specialtyJevClient');
       await acceptSpecialtySuggestion(scope, suggestion.requestId,
         suggestion.result.specialty, decision?.decisionId ?? null);
       jevRequestIdRef.current = null;
@@ -146,6 +144,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     setBusy(true);
     setMessage('');
     try {
+      const { publishSpecialtyMemory } = await import('@/services/specialty/specialtyJevClient');
       await publishSpecialtyMemory(scope, trimmed, cie10Code.toUpperCase().replace(/\s+/g, ''),
         decision.decisionId);
       setConfirmMemory(false);
