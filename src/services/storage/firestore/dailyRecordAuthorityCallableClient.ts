@@ -5,6 +5,7 @@ import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRu
 import type { DailyRecordAuthorityMode } from '@/services/storage/firestore/dailyRecordAuthorityMode';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { IntentionalBedClearRequest } from '@/types/domain/intentionalBedClear';
+import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
 
 const NON_RETRYABLE_AUTHORITY_CODES = new Set([
@@ -91,6 +92,7 @@ export interface DailyRecordAuthorityPatchCallablePayload {
   rayenClinicalWriteGuard?: RayenClinicalWriteGuard;
   historyPolicy?: 'snapshot' | 'skip';
   intentionalBedClear?: IntentionalBedClearRequest;
+  specialtyIntent?: SpecialtyManualIntent;
   dryRun?: boolean;
 }
 

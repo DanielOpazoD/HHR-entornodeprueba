@@ -31,6 +31,7 @@ import type {
   ClinicalCribCreateRequest,
   IntentionalBedClearRequest,
 } from '@/types/domain/intentionalBedClear';
+import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import { isE2EDailyRecordAuthorityCallableForced } from '@/shared/runtime/e2eRuntime';
 
 export interface DailyRecordPartialWriteOptions {
@@ -45,6 +46,7 @@ export interface DailyRecordPartialWriteOptions {
   intentionalBedClear?: IntentionalBedClearRequest;
   /** Explicit create-only command whose empty Rayen fields must not overwrite server authority. */
   clinicalCribCreate?: ClinicalCribCreateRequest;
+  specialtyIntent?: SpecialtyManualIntent;
 }
 
 export interface DailyRecordSaveWriteOptions {

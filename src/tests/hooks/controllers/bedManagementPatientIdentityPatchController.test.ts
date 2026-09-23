@@ -8,6 +8,8 @@ import {
 describe('bedManagementPatientIdentityPatchController', () => {
   it('builds the clinical reset patch used when patient identity changes', () => {
     expect(getClearClinicalDataPatches('R1')).toEqual({
+      'beds.R1.specialty': '',
+      'beds.R1.specialtyAssignment': undefined,
       'beds.R1.cie10Code': undefined,
       'beds.R1.cie10Description': undefined,
       'beds.R1.pathology': '',

@@ -9,6 +9,7 @@ import type { ClinicalSyncCheckpoint } from './clinicalSync';
 import type { FhirResource } from './fhir';
 import type { UpcChecklistRecord } from '@/domain/upc/upcContracts';
 import type { EloisaManualImportAudit } from '@/shared/contracts/eloisaManualImport';
+import type { SpecialtyDecisionMeta } from './specialtyDecision';
 
 export interface MedicalHandoffAuditActor {
   uid: string;
@@ -90,6 +91,8 @@ export interface PatientData {
   /** Treating physician display name for census presentation and manual fallback. */
   treatingPhysicianName?: string;
   specialty: Specialty | string;
+  /** Server-confirmed decision for this clinical episode; never authored by census/import clients. */
+  specialtyAssignment?: SpecialtyDecisionMeta;
   ginecobstetriciaType?: GinecobstetriciaType;
   /** Optional secondary specialty for co-managed patients. Not used for statistics. */
   secondarySpecialty?: Specialty | string;

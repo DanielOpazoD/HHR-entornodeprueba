@@ -140,6 +140,8 @@ const buildPatientFieldPatches = ({
 
   if (resetsClinicalEpisodeOwnership) {
     patches[`beds.${bedId}.clinicalEpisodeId`] = undefined;
+    patches[`beds.${bedId}.specialty`] = '';
+    patches[`beds.${bedId}.specialtyAssignment`] = undefined;
     patches[`beds.${bedId}.firstSeenDate`] =
       nextPatientName.trim() || nextRut.trim() ? recordDate : undefined;
   } else if (

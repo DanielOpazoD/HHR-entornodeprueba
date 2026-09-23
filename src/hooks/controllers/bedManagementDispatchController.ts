@@ -1,8 +1,4 @@
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-  DailyRecordPatch,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch, DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import type { CudyrScore } from '@/types/domain/cudyr';
 import type { PatientFieldValue } from '@/types/valueTypes';
@@ -17,6 +13,11 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
+import {
+  blocksUnanchoredSpecialtyEdit,
+  preserveExplicitEmptySpecialtyChoice,
+  resolveManualSpecialtyIntent,
+} from '@/hooks/controllers/bedManagementSpecialtyIntentController';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -278,11 +279,15 @@ export const executeBedManagementAction = async ({
     return false;
   }
 
+  const specialtyIntent = resolveManualSpecialtyIntent(validatedAction, currentRecord);
+
   try {
-    const patch = bedManagementReducer(currentRecord, validatedAction);
-    if (!patch) {
+    const originalPatch = bedManagementReducer(currentRecord, validatedAction);
+    if (!originalPatch) {
       return false;
     }
+    const patch = preserveExplicitEmptySpecialtyChoice(originalPatch, specialtyIntent, currentRecord);
+    if (blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent)) return false;
     if (Object.keys(patch).length === 0) {
       // Diff vacío: el gesto no cambia nada respecto del registro vigente.
       // No hay nada que escribir, auditar ni confirmar (tampoco prompt de día
@@ -350,7 +355,9 @@ export const executeBedManagementAction = async ({
           // Estructural/identidad primero (ancla el episodio), clínico después.
           // La cola por fecha serializa ambos comandos en orden.
           await patchRecord(mixedSplit.structural);
-          await patchRecord(mixedSplit.clinical);
+          await patchRecord(mixedSplit.clinical, specialtyIntent
+            ? { consistency: 'remote_confirmed', requireAtomicCas: true, specialtyIntent }
+            : undefined);
         } else {
           const isUpcEvaluation =
             (validatedAction.type === 'UPDATE_PATIENT_MULTIPLE' ||
@@ -360,6 +367,10 @@ export const executeBedManagementAction = async ({
             // A completed daily review is never an optimistic/offline success.
             // Do not auto-merge a stale journal over another signed evaluation.
             await patchRecord(patch, { consistency: 'remote_confirmed', requireAtomicCas: true });
+          } else if (specialtyIntent) {
+            await patchRecord(patch, {
+              consistency: 'remote_confirmed', requireAtomicCas: true, specialtyIntent,
+            });
           } else {
             await patchRecord(patch);
           }

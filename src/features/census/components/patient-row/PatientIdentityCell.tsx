@@ -306,8 +306,15 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
               <SpecialtyChip
                 specialty={specialtyLabel}
+                decision={data.specialtyAssignment}
+                cie10Code={data.cie10Code}
                 readOnly={readOnly}
                 onAssign={handleSpecialtyAssign}
+                scope={currentDateString && data.clinicalEpisodeId
+                  ? { date: currentDateString, bedId: data.bedId,
+                      target: isSubRow ? 'clinicalCrib' : 'bed',
+                      episodeId: data.clinicalEpisodeId }
+                  : undefined}
               />
               {visibleTreatingPhysicianName && (
                 <span

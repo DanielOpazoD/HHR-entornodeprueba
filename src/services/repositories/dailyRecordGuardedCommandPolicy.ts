@@ -44,6 +44,7 @@ export const buildGuardedDailyRecordRemoteWriteOptions = ({
     ? { rayenClinicalWriteGuard: options.rayenClinicalWriteGuard }
     : {}),
   ...(options.intentionalBedClear ? { intentionalBedClear: options.intentionalBedClear } : {}),
+  ...(options.specialtyIntent ? { specialtyIntent: options.specialtyIntent } : {}),
   ...(policy.clinicalCribCreate ? { clinicalCribCreate: policy.clinicalCribCreate } : {}),
 });
 
@@ -145,7 +146,7 @@ export const buildGuardedDailyRecordPatchPolicy = ({
     baseRecord,
     options.clinicalCribCreate
   );
-  const guardedCommand = Boolean(options.intentionalBedClear || manualClinicalCribCreation);
+  const guardedCommand = Boolean(options.intentionalBedClear || manualClinicalCribCreation || options.specialtyIntent);
   const resolveAlreadyAppliedRemoteRecord = guardedCommand
     ? async (error: unknown): Promise<DailyRecord | null> => {
         const isAmbiguousRemoteOutcome = classifySyncError(error).category === 'network';
@@ -172,17 +173,18 @@ export const buildGuardedDailyRecordPatchPolicy = ({
     // Destructive or exact create commands must not inherit unrelated persistence-repair fields.
     remoteAuthorityPatch: manualClinicalCribCreation
       ? (manualClinicalCribCreation.authorityPatch as DailyRecordPatch)
-      : options.intentionalBedClear
+      : options.intentionalBedClear || options.specialtyIntent
         ? patch
         : mergedPatches,
     resolveAlreadyAppliedRemoteRecord,
     requireConfirmedRecord: options.requireConfirmedRecord || guardedCommand,
-    requireAtomicCas: Boolean(manualClinicalCribCreation),
+    requireAtomicCas: Boolean(manualClinicalCribCreation || options.specialtyIntent),
     clinicalCribCreate: manualClinicalCribCreation?.request,
     remoteAuthorityFirst: Boolean(
       options.rayenClinicalWriteGuard ||
       options.requireRemoteAuthorityFirst ||
       options.intentionalBedClear ||
+      options.specialtyIntent ||
       manualClinicalCribCreation
     ),
   };
