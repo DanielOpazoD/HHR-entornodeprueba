@@ -42,3 +42,9 @@ pacientes y disponibilidad de fuentes. Separar captura, lectura clínica, guarda
 tiempo humano de confirmación. Informar al menos tres ejecuciones comparables y los
 reintentos; no extrapolar el reloj virtual a segundos reales ni publicar HAR con datos
 clínicos. Confirmar también el historial tras recargar y la persistencia de los datos.
+
+La primera línea base leída del historial real, con cinco ejecuciones comparables de
+0.48.31 y una observación aislada de 0.48.32, está en
+[SYNC_REAL_PERFORMANCE_BASELINE_2026-09-23.md](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-23.md).
+La repetición de 0.48.32 y el readback posterior aún están pendientes; esta evidencia
+no autoriza a fijar un presupuesto temporal bloqueante ni a declarar una regresión.
