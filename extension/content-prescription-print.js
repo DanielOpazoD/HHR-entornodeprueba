@@ -50,9 +50,15 @@
     !medicationActionsOwner ||
     !connectionCenterOwner ||
     !runtimeMessages ||
-    globalThis.__hhrPrescriptionPrintInjected
+    !globalThis.HhrPrescriptionContentRuntime
   ) return;
+  const initialize = () => {
+    if (!globalThis.HhrPrescriptionContentRuntime.preparePrevious()) {
+      globalThis.HhrPrescriptionContentRuntime.waitForModalClosure(initialize);
+      return;
+    }
   globalThis.__hhrPrescriptionPrintInjected = true;
+  let active = true;
 
   const BUTTON_ID = 'hhr-prescription-print-button';
   const INDICATIONS_BUTTON_ID = 'hhr-indications-print-button';
@@ -162,57 +168,9 @@
     );
   } catch (_error) {}
 
-  const retryableMessageTypes = new Set([
-    runtimeMessages.PRESCRIPTION_OPTIONS_REQUEST,
-    runtimeMessages.HOSPITALIZED_PRESCRIPTION_OPTIONS_REQUEST,
-    runtimeMessages.SCALES_REPORT_REQUEST,
-    runtimeMessages.PATIENT_HEADER_REQUEST,
-    runtimeMessages.CENSUS_LIST_REQUEST,
-    runtimeMessages.VITALS_CENSUS_REQUEST,
-  ]);
-  const isTransientMessageChannelError = value =>
-    /message channel closed|receiving end does not exist|asynchronous response|extension context invalidated/i
-      .test(String(value || ''));
-  const friendlyTransportMessage = (error, isClinicalWrite) => {
-    const raw = String((error && error.message) || error || 'La extensión no respondió.');
-    if (!isTransientMessageChannelError(raw)) return raw;
-    return isClinicalWrite
-      ? 'Se perdió la conexión con la extensión durante el guardado. Verifica el dato visible antes de reintentar.'
-      : 'Se perdió temporalmente la conexión mientras se preparaban los datos. Reintenta; no se imprimió ni modificó información.';
-  };
-
-  const sendMessage = message =>
-    new Promise(resolve => {
-      const isClinicalWrite = message && (
-        message.type === runtimeMessages.HANDOFF_SAVE_REQUEST ||
-        message.type === runtimeMessages.SCORE_SAVE_REQUEST
-      );
-      const transportFailure = error => ({
-        error: friendlyTransportMessage(error, isClinicalWrite),
-        ...(isClinicalWrite ? { writeMayHaveSucceeded: true } : {}),
-      });
-      const mayRetry = retryableMessageTypes.has(String(message && message.type || ''));
-      const attempt = retryCount => {
-        try {
-          chrome.runtime.sendMessage(message, response => {
-            const error = chrome.runtime.lastError;
-            const rawError = String(error && error.message || error || '');
-            if (error && mayRetry && retryCount < 1 && isTransientMessageChannelError(rawError)) {
-              window.setTimeout(() => attempt(retryCount + 1), 180);
-              return;
-            }
-            resolve(error ? transportFailure(error) : response || transportFailure('La extensión no respondió.'));
-          });
-        } catch (error) {
-          if (mayRetry && retryCount < 1 && isTransientMessageChannelError(error && error.message)) {
-            window.setTimeout(() => attempt(retryCount + 1), 180);
-            return;
-          }
-          resolve(transportFailure(error));
-        }
-      };
-      attempt(0);
-    });
+  const sendMessage = globalThis.HhrPrescriptionContentRuntime.createSendMessage({
+    runtimeMessages, chromeApi: chrome, windowRef: window,
+  });
 
   const focusableElements = root => Array.from(root.querySelectorAll(
     'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), ' +
@@ -509,13 +467,20 @@
     refreshOperationsConnectionBadge,
     invalidateConnectionState,
   } = connectionCenterRuntime;
-  chrome.runtime.onMessage?.addListener(message => {
+  const onRuntimeMessage = (message, _sender, sendResponse) => {
+    if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') {
+      sendMessage({ type: runtimeMessages.EXTENSION_RUNTIME_CONTEXT_REQUEST })
+        .then(context => sendResponse({ uiReady: Boolean(context?.runtimeGeneration) }))
+        .catch(() => sendResponse({ uiReady: false }));
+      return true;
+    }
     if (!message || message.type !== 'RAYEN_EXTENSION_HEALTH_PUSH' || !message.report ||
         !healthPushOrdering.accept(message)) return;
     latestHealthPushReport = message.report;
     const bar = document.getElementById(OPERATIONS_BAR_ID);
     if (bar) void refreshOperationsConnectionBadge(bar, true, message.report);
-  });
+  };
+  chrome.runtime.onMessage?.addListener(onRuntimeMessage);
   const fetchPatientHeaderView = async encId => {
     const response = await sendMessage({ type: runtimeMessages.PATIENT_HEADER_REQUEST, encId });
     if (!response || response.error) {
@@ -931,10 +896,11 @@
 
   let scheduled = false;
   const scheduleEnsureButton = () => {
-    if (scheduled) return;
+    if (!active || scheduled) return;
     scheduled = true;
     window.setTimeout(() => {
       scheduled = false;
+      if (!active) return;
       ensureButton();
     }, 80);
   };
@@ -947,8 +913,34 @@
   window.addEventListener('resize', scheduleEnsureButton);
   window.addEventListener('focus', scheduleEnsureButton);
   window.addEventListener('pageshow', scheduleEnsureButton);
-  document.addEventListener('visibilitychange', () => {
+  const onVisibilityChange = () => {
     if (!document.hidden) scheduleEnsureButton();
-  });
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  globalThis.__hhrPrescriptionPrintRuntime = {
+    dispose: () => {
+      const modal = document.getElementById(MODAL_ID);
+      if (modal) {
+        const guard = getClinicalGuard(modal);
+        if (guard.pending.size || guard.dirty.size) return false;
+      }
+      active = false;
+      observer.disconnect();
+      window.removeEventListener('popstate', scheduleEnsureButton);
+      window.removeEventListener('hashchange', scheduleEnsureButton);
+      window.removeEventListener('hhr:fichamedico-locationchange', scheduleEnsureButton);
+      window.removeEventListener('resize', scheduleEnsureButton);
+      window.removeEventListener('focus', scheduleEnsureButton);
+      window.removeEventListener('pageshow', scheduleEnsureButton);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      try { chrome.runtime.onMessage?.removeListener?.(onRuntimeMessage); } catch (_error) {}
+      connectionCenterRuntime.dispose();
+      [BUTTON_ID, INDICATIONS_BUTTON_ID, OPERATIONS_BAR_ID, MODAL_ID, NOTICE_HOST_ID]
+        .forEach(id => document.getElementById(id)?.remove());
+      return true;
+    },
+  };
   scheduleEnsureButton();
+  };
+  initialize();
 })();

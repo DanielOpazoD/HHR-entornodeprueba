@@ -9,8 +9,15 @@
 
   const create = dependencies => {
     const { chromeApi, extensionHealth, session, withTimeout, healthProbeTimeoutMs } = dependencies;
-    const { matchPattern, readSession, clearUnusableSession } = dependencies;
+    const { matchPattern, readSession, clearUnusableSession, recoverMissingReceiver } = dependencies;
     const { requestLiveSession, verifySession } = dependencies;
+    const sendHealthProbe = root.HhrConnectionRelayRecovery.createHealthProbe({
+      sendMessage: chromeApi.tabs.sendMessage.bind(chromeApi.tabs),
+      withTimeout,
+      timeoutMs: healthProbeTimeoutMs,
+      recoverMissingReceiver,
+      timeoutMessage: 'La pestaña de Gestión de Camas no respondió a la comprobación.',
+    });
 
     return async (runtimeGeneration, targetTabIds) => {
       const readyTabIds = [];
@@ -20,11 +27,7 @@
       const tabHealth = await extensionHealth.probeTabs({
         tabs: matchingTabs,
         sendMessage: async (tabId, message) => {
-          const response = await withTimeout(
-            chromeApi.tabs.sendMessage(tabId, message),
-            healthProbeTimeoutMs,
-            'La pestaña de Gestión de Camas no respondió a la comprobación.'
-          );
+          const response = await sendHealthProbe(tabId, message);
           if (response?.ready === true) readyTabIds.push(tabId);
           return response;
         },

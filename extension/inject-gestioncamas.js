@@ -18,9 +18,8 @@
  */
 (() => {
   'use strict';
-  if (window.__gcInjected) return;
-  window.__gcInjected = true;
-  const INJECT_VERSION = '0.48.27';
+  const INJECT_VERSION = '0.48.31';
+  if (globalThis.HhrConnectionRelayRecovery.reactivateMain(window, '__gcInjected')) return;
   const BACKEND_HINT = 'hospbackend.rayensalud.cl';
   const BRIDGE_REQUEST_TYPES = new Set(['RAYEN_GC_BRIDGE_STATUS_REQUEST', 'RAYEN_GC_CONNECTION_ATTEMPT', 'RAYEN_GC_LOOKUP_REQUEST', 'RAYEN_GC_FETCHINFO_REQUEST']);
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
@@ -29,7 +28,6 @@
   let capturedAuthConnectionAttemptId = '';
   let activeConnectionAttemptId = '';
   let lastAnnouncedSessionKey = null;
-
   const announceCapturedSession = (auth, connectionAttemptId, attempt = 0) => {
     setTimeout(() => {
       const base = apiBase();
@@ -216,7 +214,7 @@
   };
 
   const isOwnMessage = event => event.source === window && event.origin === window.location.origin;
-  window.addEventListener('message', async event => {
+  const onBridgeMessage = async event => {
     if (!isOwnMessage(event)) return;
     const d = event.data;
     const bridge = bridgeContextFor(d);
@@ -298,5 +296,7 @@
       );
       return;
     }
-  });
+  };
+
+  globalThis.HhrConnectionRelayRecovery.installMain(window, '__gcInjected', onBridgeMessage);
 })();

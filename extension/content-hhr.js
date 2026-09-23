@@ -32,8 +32,7 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
-  const previousRelay = globalThis.__hhrAppRelayInstalled; if (previousRelay?.runtime === chrome.runtime && previousRelay.runtimeId === chrome.runtime.id) return;
-  try {
+  const previousRelay = globalThis.__hhrAppRelayInstalled; try {
     chrome.runtime.onMessage.removeListener?.(previousRelay?.runtimeListener);
     window.removeEventListener('message', previousRelay?.pageListener);
   } catch (_) {}
@@ -50,6 +49,7 @@
   const healthPushOrdering = globalThis.HhrHealthPushOrderingRuntime?.createReceiver?.() || { accept: () => false };
   const onRuntimeMessage = (message, _sender, sendResponse) => {
     if (!ownsRelay()) return undefined;
+    if (message && message.type === 'RAYEN_EXTENSION_RELAY_PING') return sendResponse({ relayReady: 'hhr' }), false;
     if (message && message.type === 'RAYEN_EXTENSION_HHR_HEALTH_PING') {
       getRuntimeContext().then(runtimeContext => {
         const version = chrome.runtime.getManifest().version;

@@ -121,6 +121,10 @@
       "maxLines": 84,
       "hotspots": {}
     },
+    "connection-relay-recovery.js": {
+      "maxLines": 63,
+      "hotspots": {}
+    },
     "content-exam-request-print.js": {
       "maxLines": 212,
       "hotspots": {}
@@ -172,10 +176,10 @@
       }
     },
     "content-prescription-print.js": {
-      "maxLines": 955,
+      "maxLines": 947,
       "hotspots": {
         "iife": 22,
-        "iife>variable:ensureButton": 22
+        "iife>variable:initialize>variable:ensureButton": 22
       }
     },
     "eloisa-patient-code-contract.js": {
@@ -378,10 +382,8 @@
       "hotspots": {}
     },
     "hhr-connection-center-runtime.js": {
-      "maxLines": 442,
-      "hotspots": {
-        "iife>variable:create>variable:applyBadgeReport": 21
-      }
+      "maxLines": 410,
+      "hotspots": {}
     },
     "hhr-connection-repair-controls.js": {
       "maxLines": 127,
@@ -485,7 +487,7 @@
     "inject-fichamedico.js": {
       "maxLines": 688,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 32,
+        "iife>variable:onBridgeMessage": 32,
         "iife>variable:getVerifiedClinicalContext": 21,
         "iife>variable:readSafeSessionIdentityUncached": 23,
         "iife>variable:resolveNursingContext": 16
@@ -494,7 +496,7 @@
     "inject-gestioncamas.js": {
       "maxLines": 303,
       "hotspots": {
-        "iife>callback:window.addEventListener:1": 22
+        "iife>variable:onBridgeMessage": 22
       }
     },
     "lab-result-parser.js": {
@@ -570,8 +572,12 @@
       "maxLines": 179,
       "hotspots": {}
     },
+    "relay-reinjection-operations.js": {
+      "maxLines": 118,
+      "hotspots": {}
+    },
     "relay-reinjection-runtime.js": {
-      "maxLines": 67,
+      "maxLines": 60,
       "hotspots": {}
     },
     "report-parser.js": {
@@ -644,6 +650,28 @@
     },
     "tab-encounter-authorization.js": {
       "maxLines": 60,
+      "hotspots": {}
+    },
+    "hhr-connection-presentation.js": {
+      "maxLines": 115,
+      "hotspots": {
+        "iife>variable:renderBadgeReport": 16
+      }
+    },
+    "hhr-prescription-content-runtime.js": {
+      "maxLines": 86,
+      "hotspots": {}
+    },
+    "relay-reinjection-health.js": {
+      "maxLines": 104,
+      "hotspots": {}
+    },
+    "relay-reinjection-manifest.js": {
+      "maxLines": 98,
+      "hotspots": {}
+    },
+    "relay-reinjection-session.js": {
+      "maxLines": 47,
       "hotspots": {}
     }
   }

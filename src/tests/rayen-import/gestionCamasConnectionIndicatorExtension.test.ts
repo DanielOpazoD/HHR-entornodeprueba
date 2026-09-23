@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import '../../../extension/hhr-connection-action-model.js';
+import '../../../extension/hhr-connection-presentation.js';
 import '../../../extension/health-push-ordering-runtime.js';
 import '../../../extension/gestion-camas-connection-indicator.js';
 
@@ -21,6 +22,7 @@ const actionModel = () =>
     .HhrConnectionActionModel;
 const messages = {
   EXTENSION_HEALTH_REQUEST: 'EXTENSION_HEALTH_REQUEST',
+  EXTENSION_RUNTIME_CONTEXT_REQUEST: 'EXTENSION_RUNTIME_CONTEXT_REQUEST',
   CONNECTION_REPAIR_REQUEST: 'CONNECTION_REPAIR_REQUEST',
   GC_CONNECT_REQUEST: 'GC_CONNECT_REQUEST',
 };
@@ -45,15 +47,29 @@ const makeRuntime = (
   sendMessage: (message: Record<string, unknown>) => Promise<unknown>,
   isUserActivationAllowed: (event: Event) => boolean = () => true
 ) => {
-  let runtimeListener: ((message: Record<string, unknown>) => void) | undefined;
+  let runtimeListener:
+    | ((
+        message: Record<string, unknown>,
+        sender?: unknown,
+        sendResponse?: (response: unknown) => void
+      ) => void)
+    | undefined;
   const chromeApi = {
     runtime: {
       sendMessage: vi.fn(sendMessage),
       getURL: vi.fn((value: string) => `chrome-extension://test/${value}`),
       onMessage: {
-        addListener: vi.fn((listener: (message: Record<string, unknown>) => void) => {
-          runtimeListener = listener;
-        }),
+        addListener: vi.fn(
+          (
+            listener: (
+              message: Record<string, unknown>,
+              sender?: unknown,
+              sendResponse?: (response: unknown) => void
+            ) => void
+          ) => {
+            runtimeListener = listener;
+          }
+        ),
         removeListener: vi.fn(),
       },
     },
@@ -92,6 +108,32 @@ describe('indicador de conexiones en Gestión de Camas', () => {
     expect(part('.copy strong')?.textContent).toBe('Eloísa');
     expect(part('.trigger')?.getAttribute('aria-label')).toBe('Extensión Eloísa: Conectado');
     expect(host().getAttribute('aria-label')).toBe('Estado de conexión de la extensión Eloísa');
+  });
+
+  it('reemplaza el indicador huérfano aunque su contexto anterior no pueda disponer listeners', async () => {
+    makeRuntime(async () => report());
+    const previous = host() as HTMLElement & { __hhrDispose?: () => void };
+    previous.__hhrDispose = () => {
+      throw new Error('Extension context invalidated');
+    };
+
+    const { runtime } = makeRuntime(async () => report());
+    await runtime.refresh();
+
+    expect(host()).not.toBe(previous);
+    expect(previous.isConnected).toBe(false);
+    expect(part('.summary')?.textContent).toBe('Conectado');
+  });
+
+  it('sólo confirma que el indicador está vivo si puede hablar con el worker vigente', async () => {
+    const { getRuntimeListener } = makeRuntime(async message =>
+      message.type === messages.EXTENSION_RUNTIME_CONTEXT_REQUEST
+        ? { runtimeGeneration: 'current-generation' }
+        : report()
+    );
+    const sendResponse = vi.fn();
+    getRuntimeListener()?.({ type: 'RAYEN_EXTENSION_INDICATOR_PING' }, undefined, sendResponse);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalledWith({ indicatorReady: true }));
   });
 
   it('ofrece solo abrir Gestión de Camas cuando Ficha Médico sigue vigente', async () => {

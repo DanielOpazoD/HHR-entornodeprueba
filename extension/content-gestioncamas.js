@@ -10,8 +10,7 @@
   const runtimeMessages = globalThis.HhrRayenMessageContract &&
     globalThis.HhrRayenMessageContract.types;
   if (!runtimeMessages) return;
-  const previousRelay = globalThis.__hhrGestionCamasRelayInstalled; if (previousRelay?.runtime === chrome.runtime && previousRelay.runtimeId === chrome.runtime.id) return;
-  try {
+  const previousRelay = globalThis.__hhrGestionCamasRelayInstalled; try {
     chrome.runtime.onMessage.removeListener?.(previousRelay?.runtimeListener);
     window.removeEventListener('message', previousRelay?.pageListener);
   } catch (_) {}
@@ -174,6 +173,7 @@
 
   const onRuntimeMessage = (msg, _sender, sendResponse) => {
     if (!ownsRelay()) return undefined;
+    if (msg && msg.type === 'RAYEN_EXTENSION_RELAY_PING') return sendResponse({ relayReady: 'gestioncamas' }), false;
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
       bridgeHealth.read().then(sendResponse);
       return true;

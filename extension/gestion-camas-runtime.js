@@ -33,7 +33,7 @@
       fetchWithTimeout,
       backendRequestTimeoutMs,
       tabMessageTimeoutMs,
-      healthProbeTimeoutMs,
+      healthProbeTimeoutMs, recoverMissingReceiver,
     } = dependencies || {};
 
     if (
@@ -373,7 +373,7 @@
       extensionHealth,
       session,
       withTimeout,
-      healthProbeTimeoutMs,
+      healthProbeTimeoutMs, recoverMissingReceiver,
       matchPattern: MATCH_PATTERN,
       readSession: readGestionCamasSession,
       clearUnusableSession: clearUnusableGestionCamasSession,

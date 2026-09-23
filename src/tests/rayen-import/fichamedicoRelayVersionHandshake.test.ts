@@ -134,6 +134,23 @@ describe('relay de Ficha Médico · versión del inject', () => {
     expect(injectSource).toContain(`const INJECT_VERSION = '${manifest.version}';`);
   });
 
+  it('acepta un MAIN 0.48.27 vivo cuando conserva protocolo 1 y la generación vigente', async () => {
+    const relay = createRelay(manifest.version);
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
+    await flush();
+    relay.answerFromInject({
+      injectVersion: '0.48.27',
+      bridgeProtocolVersion: 1,
+      ready: true,
+    });
+
+    await expect(ping).resolves.toMatchObject({
+      ready: true,
+      reason: 'connected',
+      bridgeVersion: '0.48.27',
+    });
+  });
+
   it('un inject de la misma versión pasa la salud y la lectura tal cual', async () => {
     const relay = createRelay('0.48.8');
     const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });

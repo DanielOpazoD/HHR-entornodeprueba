@@ -46,12 +46,12 @@
       'encounterNavigation.buildEncounterUrl'
     );
 
-    const sendHealthProbe = (tabId, message) =>
-      withTimeout(
-        tabs.sendMessage(tabId, message),
-        healthProbeTimeoutMs,
-        'La pestaña no respondió a la verificación de conexión.'
-      );
+    const sendHealthProbe = root.HhrConnectionRelayRecovery.createHealthProbe({
+      sendMessage: tabs.sendMessage.bind(tabs), withTimeout,
+      timeoutMs: healthProbeTimeoutMs,
+      recoverMissingReceiver: deps.recoverMissingReceiver,
+      timeoutMessage: 'La pestaña no respondió a la verificación de conexión.',
+    });
 
     const responsiveTabs = async ordered => {
       const candidates = ordered.filter(tab => tab && tab.id != null);

@@ -67,7 +67,9 @@ describe('extension hotspot budget', () => {
     // 126: paciente y estilos de la solicitud de exámenes extraídos del Centro.
     // 128: recuperación de generación MAIN al actualizar con pestañas abiertas.
     // 129: cliente de mensajes de runtime que reconecta pestañas tras actualizar la extensión.
-    expect(metrics.authoredFiles).toHaveLength(129);
+    // 131: recuperación compartida del relé y reinyección acotada de scripts.
+    // 136: manifest, receiver health, session repair, Ficha transport and connection presentation.
+    expect(metrics.authoredFiles).toHaveLength(136);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,

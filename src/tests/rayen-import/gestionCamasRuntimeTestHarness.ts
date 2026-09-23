@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 
 import '../../../extension/health-check.js';
 import '../../../extension/gestion-camas-session.js';
+import '../../../extension/connection-relay-recovery.js';
 import '../../../extension/gestion-camas-health.js';
 import '../../../extension/gestion-camas-runtime.js';
 

@@ -14,7 +14,10 @@ import {
 } from '@/features/rayen-import/bridge/rayenImportBridge';
 
 describe('device evidence capability negotiation', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it('negotiates JSON in the bundled channel too, preserving the normalized section', async () => {
     vi.spyOn(extensionHealth, 'hasRayenExtensionCapability').mockReturnValue(true);
@@ -54,6 +57,38 @@ describe('device evidence capability negotiation', () => {
       requestPatientClinicalBundle('synthetic-episode', '2026-09-05')
     ).resolves.toBeNull();
     expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it('keeps successful sections when the worker responds just after its 45 s backend deadline', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(extensionHealth, 'hasRayenExtensionCapability').mockReturnValue(true);
+    vi.spyOn(window, 'postMessage').mockImplementation(message => {
+      const request = message as { reqId: string };
+      setTimeout(() => {
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            source: window,
+            origin: window.location.origin,
+            data: {
+              type: RAYEN_PATIENT_CLINICAL_BUNDLE_RESULT_TYPE,
+              reqId: request.reqId,
+              devices: { entries: [], source: 'json' },
+              history: { events: [] },
+              forms: { error: 'Tiempo de espera agotado consultando Eloísa.' },
+            },
+          })
+        );
+      }, 46_000);
+    });
+
+    const pending = requestPatientClinicalBundle('synthetic-episode', '2026-09-05');
+    await vi.advanceTimersByTimeAsync(46_000);
+    await expect(pending).resolves.toMatchObject({
+      devices: { entries: [], source: 'json' },
+      history: { events: [] },
+      forms: { error: 'Tiempo de espera agotado consultando Eloísa.' },
+    });
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('has the new page explicitly request structured entries', async () => {

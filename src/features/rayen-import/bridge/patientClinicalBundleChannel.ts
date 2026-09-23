@@ -70,7 +70,9 @@ export const requestPatientClinicalBundle = (
   encId: string,
   fecha: string,
   options: { censusDate?: string; lookbackDays?: number } = {},
-  timeoutMs = 45_000
+  // The MV3 worker gives each Eloísa read 45 s. Its aggregate response also needs time to
+  // cross the content/page relays; an equal page timeout discards successful sibling sections.
+  timeoutMs = 55_000
 ): Promise<RayenPatientClinicalBundle | null> => {
   if (typeof window === 'undefined' || !encId || !fecha) return Promise.resolve(null);
   if (!hasRayenExtensionCapability(RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY)) {
