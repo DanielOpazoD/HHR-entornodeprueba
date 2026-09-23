@@ -12,8 +12,6 @@ import clsx from 'clsx';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import type { SpecialtyDecisionMeta } from '@/types/domain/specialtyDecision';
 import type { JevSuggestion, SpecialtyTarget } from '@/services/specialty/specialtyJevClient';
-import { resolveFirebaseUserRole } from '@/services/auth/authAccessResolution';
-import { defaultAuthRuntime } from '@/services/firebase-runtime/authRuntime';
 import {
   SPECIALTY_OPTIONS,
   SPECIALTY_CHIP_STYLES,
@@ -67,6 +65,10 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     let active = true;
     void (async () => {
       try {
+        const [{ defaultAuthRuntime }, { resolveFirebaseUserRole }] = await Promise.all([
+          import('@/services/firebase-runtime/authRuntime'),
+          import('@/services/auth/authAccessResolution'),
+        ]);
         await defaultAuthRuntime.ready;
         const user = defaultAuthRuntime.getCurrentUser();
         const role = user ? await resolveFirebaseUserRole(user) : null;

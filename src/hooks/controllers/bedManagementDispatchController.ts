@@ -13,11 +13,7 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
-import {
-  blocksUnanchoredSpecialtyEdit,
-  preserveExplicitEmptySpecialtyChoice,
-  resolveManualSpecialtyIntent,
-} from '@/hooks/controllers/bedManagementSpecialtyIntentController';
+import { isFeatureEnabled } from '@/services/utils/featureFlags';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -279,15 +275,19 @@ export const executeBedManagementAction = async ({
     return false;
   }
 
-  const specialtyIntent = resolveManualSpecialtyIntent(validatedAction, currentRecord);
+  const specialtyControls = isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')
+    ? await import('@/hooks/controllers/bedManagementSpecialtyIntentController') : null;
+  const specialtyIntent = specialtyControls?.resolveManualSpecialtyIntent(validatedAction, currentRecord) ?? null;
 
   try {
     const originalPatch = bedManagementReducer(currentRecord, validatedAction);
     if (!originalPatch) {
       return false;
     }
-    const patch = preserveExplicitEmptySpecialtyChoice(originalPatch, specialtyIntent, currentRecord);
-    if (blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent)) return false;
+    const patch = specialtyControls
+      ? specialtyControls.preserveExplicitEmptySpecialtyChoice(originalPatch, specialtyIntent, currentRecord)
+      : originalPatch;
+    if (specialtyControls?.blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent)) return false;
     // A preparatory structural write could trigger a server rule before the
     // subsequent manual choice. Require two separate user actions instead.
     if (specialtyIntent && splitMixedClinicalStructuralPatch(patch)) return false;

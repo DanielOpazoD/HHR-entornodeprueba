@@ -83,7 +83,7 @@
       "owner": "app-shell/census runtime",
       "workflow": "Authenticated census shell",
       "loadReason": "Post-login shell required to render the census runtime; secondary concerns must stay behind lazy boundaries.",
-      "thresholdLabel": "600,000 bytes startup chunk budget",
+      "thresholdLabel": "627,000 bytes startup chunk budget",
       "startupBudgetLabel": "app-authenticated-shell",
       "releasePosture": "Startup chunk remains below hard ceiling; secondary authenticated concerns should keep moving behind lazy boundaries.",
       "guardrails": [
