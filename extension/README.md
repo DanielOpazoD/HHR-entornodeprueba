@@ -363,6 +363,9 @@ actual no está autorizado; la extensión no intenta eludir esa autorización.
   `RayenCensusSnapshot` con apellidos separados, RUN, cama, diagnóstico principal, CIE-10 e
   `isComplete`.
 - La sintaxis de los scripts operativos pasa `node --check`.
+- `npm run test:e2e:rayen-extension-upgrade` comprueba en Chromium aislado la actualización
+  descomprimida 0.48.31 → 0.48.32 con las tres pestañas abiertas; al publicar una versión nueva,
+  actualizar el commit de origen y la versión anterior esperada en el smoke.
 - El protocolo v3 minimiza el historial, los estados de medicación y el plan de cuidados antes de
   cruzar hacia HHR; el contenido del panel sigue siendo efímero y de solo lectura.
 

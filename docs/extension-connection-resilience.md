@@ -269,3 +269,19 @@ real de servidor: esta última sigue pendiente de observación en Eloísa cuando
 natural. Playwright mantiene una referencia obsoleta al objeto `Worker` después de una terminación
 CDP en la versión fijada del proyecto; por ello los ciclos de reanudación verifican respuestas por
 el canal real de extensión y no evalúan código mediante ese objeto obsoleto.
+
+### Actualización entre paquetes con pestañas abiertas · prueba automatizada
+
+`npm run test:e2e:rayen-extension-upgrade` instala en Chromium aislado el paquete publicado en
+el commit `229f6872` (0.48.31), abre HHR, Ficha Médico y Gestión de Camas con respuestas
+sintéticas y sustituye **el mismo directorio descomprimido** por el paquete actual (0.48.32).
+Después usa el control de recarga de `chrome://extensions`, tal como se actualizaría una
+extensión local, sin refrescar los tres documentos. Exige respuesta de los tres relés, misma
+generación compatible, un solo panel de Ficha y una lectura clínica sintética desde HHR.
+El test se ejecuta en el gate `e2e-critical`; CI obtiene el commit anterior fijado antes de
+preparar el paquete de prueba. Una versión futura debe actualizar explícitamente ese commit y
+la versión esperada para seguir probando el salto desde su predecesora real.
+
+La prueba no usa credenciales ni endpoints clínicos reales y no sustituye la comprobación de
+sesiones vencidas en Eloísa. La prueba de recarga del mismo paquete y reactivación después de
+inactividad sigue en `test:e2e:rayen-extension-runtime`.
