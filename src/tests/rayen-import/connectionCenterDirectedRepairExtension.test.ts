@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../../extension/hhr-connection-repair-controls.js';
 import '../../../extension/hhr-connection-action-model.js';
+import '../../../extension/hhr-connection-presentation.js';
 import '../../../extension/hhr-connection-center-runtime.js';
 
 type Message = { type?: string };
@@ -47,16 +48,16 @@ describe('Centro HHR directed repair report', () => {
     const expired = report('missing', 'Sesión anterior');
     const repaired = report('ready', 'Sesión reparada');
     const sendMessage = vi.fn(async (message: Message) =>
-      message.type === messages.CONNECTION_REPAIR_REQUEST
-        ? { ok: true, report: repaired }
-        : expired
+      message.type === messages.CONNECTION_REPAIR_REQUEST ? { ok: true, report: repaired } : expired
     );
     const runtime = owner().create({
       documentRef: document,
       windowRef: window,
       runtimeMessages: messages,
       sendMessage,
-      setLiveRegion: (element: HTMLElement, text: string) => { element.textContent = text; },
+      setLiveRegion: (element: HTMLElement, text: string) => {
+        element.textContent = text;
+      },
       connectionInitials: () => 'SR',
       connectionTimeLabel: () => 'Vence en 1 h',
       handoffLabelForIdentity: () => 'Entrega médica',
@@ -71,12 +72,15 @@ describe('Centro HHR directed repair report', () => {
 
     root.querySelector<HTMLButtonElement>('.hhr-connection-repair')?.click();
     await vi.waitFor(() =>
-      expect(root.querySelector('.hhr-connection-ficha .hhr-connection-status')?.textContent)
-        .toBe('Conectado')
+      expect(root.querySelector('.hhr-connection-ficha .hhr-connection-status')?.textContent).toBe(
+        'Conectado'
+      )
     );
 
     expect(
-      sendMessage.mock.calls.filter(([message]) => message.type === messages.EXTENSION_HEALTH_REQUEST)
+      sendMessage.mock.calls.filter(
+        ([message]) => message.type === messages.EXTENSION_HEALTH_REQUEST
+      )
     ).toHaveLength(1);
     expect(
       root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue

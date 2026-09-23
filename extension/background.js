@@ -18,7 +18,7 @@ importScripts(
   'patient-clinical-bundle-runtime.js',
   'runtime-generation-recovery.js', 'runtime-generation.js', 'connection-repair-runtime.js',
   'health-report-cache-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
-  'relay-reinjection-operations.js', 'relay-reinjection-runtime.js',
+  'relay-reinjection-manifest.js', 'relay-reinjection-health.js', 'relay-reinjection-operations.js', 'relay-reinjection-session.js', 'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
   'clinical-antecedents-attachment.js', 'clinical-antecedents-detail.js',

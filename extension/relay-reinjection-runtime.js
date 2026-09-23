@@ -1,12 +1,10 @@
 /** Session policy for bounded relay reinjection operations. */
 (function (root) {
   'use strict';
-  const STORAGE_KEY = 'hhrRelaysInjectedForSessionV1';
   const create = ({
     chromeApi, withTimeout, timeoutMs,
     onReinjected, log = (...args) => console.warn(...args),
   }) => {
-    let pending = null;
     const operations = root.HhrRelayReinjectionOperations.create({
       chromeApi, withTimeout, timeoutMs, log,
     });
@@ -35,32 +33,27 @@
       if (result.injectedTabs) notify(result.injectedTabs);
       return result;
     };
-    const ensureReinjected = ({ force = false } = {}) => {
-      if (pending) return pending;
-      pending = (async () => {
-        const session = chromeApi.storage?.session;
-        const version = String(chromeApi.runtime.getManifest().version || 'unknown');
-        if (!force && session) {
-          const stored = await session.get(STORAGE_KEY).catch(() => ({}));
-          if (stored?.[STORAGE_KEY] === version) return { injectedTabs: 0, skipped: true };
-        }
-        const result = await reinjectRelays();
-        if (session && result.complete) {
-          await session.set({ [STORAGE_KEY]: version }).catch(error =>
-            log('[HHR] No se pudo registrar la re-inyección de esta sesión:', error)
-          );
-        }
-        return { ...result, skipped: false };
-      })().finally(() => { pending = null; });
-      return pending;
+    const { ensureReinjected, whenIdle } = root.HhrRelayReinjectionSession.create({
+      chromeApi, operations, reinjectRelays, notify, log,
+    });
+    const repairActivatedTab = async tabId => {
+      await whenIdle();
+      const result = await operations.repairActivatedTab(tabId);
+      if (result.injected) notify(1);
+      return result;
     };
     const start = () => {
       if (!chromeApi.scripting || !chromeApi.runtime.onInstalled) return false;
       chromeApi.runtime.onInstalled.addListener(() => void ensureReinjected({ force: true }));
+      chromeApi.tabs?.onActivated?.addListener(({ tabId }) => {
+        void repairActivatedTab(tabId).catch(error =>
+          log('[HHR] No se pudo verificar la pestaña activa:', error)
+        );
+      });
       void ensureReinjected();
       return true;
     };
-    return { start, reinjectRelay, reinjectRelays, reinjectTab, ensureReinjected };
+    return { start, reinjectRelay, reinjectRelays, reinjectTab, ensureReinjected, repairActivatedTab };
   };
-  root.HhrRelayReinjectionRuntime = { create, STORAGE_KEY };
+  root.HhrRelayReinjectionRuntime = { create, STORAGE_KEY: root.HhrRelayReinjectionSession.STORAGE_KEY };
 })(typeof self !== 'undefined' ? self : globalThis);

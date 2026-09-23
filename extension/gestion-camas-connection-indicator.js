@@ -77,18 +77,8 @@
 
     const renderUnavailable = () => {
       latestReport = null;
-      host.dataset.tone = 'offline';
-      part('.summary').textContent = 'Pestaña desactualizada';
-      part('.trigger').setAttribute(
-        'aria-label',
-        'Extensión Eloísa: pestaña desactualizada; abre una pestaña nueva'
-      );
-      part('.version').textContent = 'sin enlace';
-      part('.primary').hidden = true;
-      part('.feedback').textContent =
-        'Esta pestaña perdió el enlace con la extensión. Ábrela nuevamente desde una conexión vigente.';
+      root.HhrConnectionPresentation.renderIndicatorUnavailable(host, part);
     };
-
     const refresh = async providedReport => {
       const epoch = ++requestEpoch;
       refreshInFlight += 1;
@@ -191,7 +181,13 @@
       if (!documentRef.hidden) void refresh();
     };
     const refreshOnWindowEvent = () => void refresh();
-    const onRuntimeMessage = message => {
+    const onRuntimeMessage = (message, _sender, sendResponse) => {
+      if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') {
+        sendMessage({ type: runtimeMessages.EXTENSION_RUNTIME_CONTEXT_REQUEST })
+          .then(context => sendResponse({ indicatorReady: Boolean(context?.runtimeGeneration) }))
+          .catch(() => sendResponse({ indicatorReady: false }));
+        return true;
+      }
       if (message && message.type === HEALTH_PUSH_TYPE && message.report &&
           healthPushOrdering.accept(message)) {
         requestEpoch += 1;
@@ -206,8 +202,12 @@
       if (disposed || !documentRef.body) return false;
       const existing = documentRef.getElementById(HOST_ID);
       if (existing) {
-        if (typeof existing.__hhrDispose === 'function') existing.__hhrDispose();
-        else existing.remove();
+        try {
+          if (typeof existing.__hhrDispose === 'function') existing.__hhrDispose();
+        } catch (_error) {
+          // The old extension context can be invalidated before its listener is removed.
+        }
+        existing.remove();
       }
       host = documentRef.createElement('aside');
       host.id = HOST_ID;
@@ -258,7 +258,7 @@
       documentRef.removeEventListener('visibilitychange', onVisibility);
       windowRef.removeEventListener('focus', refreshOnWindowEvent);
       windowRef.removeEventListener('online', refreshOnWindowEvent);
-      chromeApi.runtime.onMessage?.removeListener?.(onRuntimeMessage);
+      try { chromeApi.runtime.onMessage?.removeListener?.(onRuntimeMessage); } catch (_error) {}
       if (host && host.isConnected) host.remove();
     }
 

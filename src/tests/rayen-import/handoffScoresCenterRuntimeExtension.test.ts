@@ -23,8 +23,10 @@ import '../../../extension/hhr-discharge-actions-runtime.js';
 import '../../../extension/hhr-medication-actions-runtime.js';
 import '../../../extension/hhr-connection-repair-controls.js';
 import '../../../extension/hhr-connection-action-model.js';
+import '../../../extension/hhr-connection-presentation.js';
 import '../../../extension/hhr-connection-center-runtime.js';
 import '../../../extension/prescription-print.js';
+import '../../../extension/hhr-prescription-content-runtime.js';
 
 type HandoffRuntime = {
   renderHandoffCenter: (root: HTMLElement, encId: string) => void;
@@ -136,6 +138,8 @@ describe('Centro HHR Turno y Scores runtime', () => {
     contentObservers.clear();
     delete (globalThis as typeof globalThis & { __hhrPrescriptionPrintInjected?: boolean })
       .__hhrPrescriptionPrintInjected;
+    delete (globalThis as typeof globalThis & { __hhrPrescriptionPrintRuntime?: unknown })
+      .__hhrPrescriptionPrintRuntime;
     document.body.innerHTML = '';
     document.documentElement.removeAttribute('data-hhr-prescription-print-script');
     document.documentElement.removeAttribute('data-hhr-prescription-print-state');

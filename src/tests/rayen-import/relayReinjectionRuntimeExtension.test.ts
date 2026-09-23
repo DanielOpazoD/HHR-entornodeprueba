@@ -1,166 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 
-import '../../../extension/relay-reinjection-operations.js';
-import '../../../extension/relay-reinjection-runtime.js';
+import { runtimeModule, MANIFEST, createFixture } from './relayReinjectionHarness';
 
-type ReinjectionRuntime = {
-  create: (deps: Record<string, unknown>) => {
-    start: () => boolean;
-    reinjectRelays: () => Promise<{
-      injectedTabs: number;
-      failedTabs: number;
-      complete: boolean;
-    }>;
-    reinjectTab: (target: { tabId: number; requiredFile: string }) => Promise<{
-      injected: boolean;
-      reason?: string;
-    }>;
-    reinjectRelay: (requiredFile: string) => Promise<{
-      injectedTabs: number;
-      failedTabs: number;
-      complete: boolean;
-    }>;
-    ensureReinjected: (options?: { force?: boolean }) => Promise<{
-      injectedTabs: number;
-      skipped: boolean;
-      failedTabs?: number;
-      complete?: boolean;
-    }>;
-  };
-  STORAGE_KEY: string;
-};
-
-const runtimeModule = (globalThis as unknown as { HhrRelayReinjectionRuntime: ReinjectionRuntime })
-  .HhrRelayReinjectionRuntime;
-
-const MANIFEST = {
-  version: '0.48.31',
-  content_scripts: [
-    {
-      matches: ['https://fichamedico.rayensalud.cl/*'],
-      js: [
-        'fichamedico-isolation-normalization.js',
-        'fichamedico-treating-physician-dom.js',
-        'fichamedico-treating-physician-sources.js',
-        'fichamedico-treating-physician-normalization.js',
-        'fichamedico-normalization.js',
-        'fichamedico-read-resilience.js',
-        'bridge-generation-main.js',
-        'connection-relay-recovery.js',
-        'inject-fichamedico.js',
-      ],
-      world: 'MAIN',
-    },
-    {
-      matches: ['https://fichamedico.rayensalud.cl/*'],
-      js: ['message-contract.js', 'bridge-generation.js', 'content-fichamedico.js'],
-    },
-    {
-      matches: ['https://hospitalizado.rayensalud.cl/*'],
-      js: ['bridge-generation-main.js', 'connection-relay-recovery.js', 'inject-gestioncamas.js'],
-      world: 'MAIN',
-    },
-    {
-      matches: ['https://hospitalizado.rayensalud.cl/*'],
-      js: [
-        'message-contract.js',
-        'bridge-generation.js',
-        'gestion-camas-bridge-health.js',
-        'content-gestioncamas.js',
-      ],
-    },
-    {
-      matches: ['http://localhost:3001/*'],
-      js: [
-        'message-contract.js',
-        'bridge-generation.js',
-        'health-push-ordering-runtime.js',
-        'content-hhr-sync-bundle.js',
-        'content-hhr-connection-repair.js',
-        'content-hhr.js',
-        'content-hhr-patient-flow.js',
-        'content-hhr-epicrisis.js',
-        'content-hhr-patient-documents.js',
-        'content-hhr-statistical-discharge.js',
-        'content-hhr-statistical-evidence.js',
-        'content-hhr-syslab.js',
-      ],
-    },
-    {
-      matches: ['http://10.4.69.90/syslab/*'],
-      js: ['lab-result-parser.js', 'lab-viewer.js', 'syslab-bridge.js'],
-      all_frames: true,
-    },
-  ],
-};
-
-const createFixture = () => {
-  const installedListeners: Array<() => void> = [];
-  const executeScript = vi.fn(
-    async (_injection: { target: { tabId: number; allFrames: boolean }; files: string[] }) =>
-      undefined
-  );
-  const sessionState: Record<string, unknown> = {};
-  const chromeApi = {
-    runtime: {
-      getManifest: () => MANIFEST,
-      onInstalled: {
-        addListener: vi.fn((listener: () => void) => installedListeners.push(listener)),
-      },
-    },
-    storage: {
-      session: {
-        get: vi.fn(async (key: string) => ({ [key]: sessionState[key] })),
-        set: vi.fn(async (values: Record<string, unknown>) => Object.assign(sessionState, values)),
-      },
-    },
-    tabs: {
-      query: vi.fn(async ({ url }: { url: string[] }) =>
-        url.includes('https://fichamedico.rayensalud.cl/*')
-          ? [{ id: 5, url: 'https://fichamedico.rayensalud.cl/dashboard' }]
-          : url.includes('https://hospitalizado.rayensalud.cl/*')
-            ? [{ id: 6, url: 'https://hospitalizado.rayensalud.cl/#/bed' }]
-            : url.includes('http://10.4.69.90/syslab/*')
-              ? [{ id: 9, url: 'http://10.4.69.90/syslab/index.php' }]
-              : [{ id: 8, url: 'http://localhost:3001/census' }]
-      ),
-      get: vi.fn(async (tabId: number) => ({
-        id: tabId,
-        url:
-          tabId === 5
-            ? 'https://fichamedico.rayensalud.cl/dashboard'
-            : tabId === 6
-              ? 'https://hospitalizado.rayensalud.cl/#/bed'
-              : tabId === 9
-                ? 'http://10.4.69.90/syslab/index.php'
-                : 'http://localhost:3001/census',
-      })),
-      sendMessage: vi.fn(async (tabId: number) => ({
-        relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr',
-      })),
-    },
-    scripting: { executeScript },
-  };
-  const onReinjected = vi.fn(async () => undefined);
-  const withTimeout = vi.fn(async (promise: Promise<unknown>) => promise);
-  const runtime = runtimeModule.create({
-    chromeApi,
-    onReinjected,
-    log: vi.fn(),
-    timeoutMs: 5_000,
-    withTimeout,
-  });
-  return {
-    runtime,
-    chromeApi,
-    executeScript,
-    onReinjected,
-    withTimeout,
-    installedListeners,
-    sessionState,
-  };
-};
+const fileInjections = (mock: ReturnType<typeof createFixture>['executeScript']) =>
+  mock.mock.calls.filter(([injection]) => Boolean(injection.files));
 
 describe('relay reinjection runtime (extension)', () => {
   it('re-inyecta solo los relés ISOLATED del manifest y avisa al terminar', async () => {
@@ -183,6 +27,10 @@ describe('relay reinjection runtime (extension)', () => {
       files: ['message-contract.js', 'bridge-generation.js', 'content-fichamedico.js'],
     });
     expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 5, allFrames: false },
+      files: MANIFEST.content_scripts[6].js,
+    });
+    expect(executeScript).toHaveBeenCalledWith({
       target: { tabId: 8, allFrames: false },
       files: MANIFEST.content_scripts[4].js,
     });
@@ -190,7 +38,11 @@ describe('relay reinjection runtime (extension)', () => {
       target: { tabId: 9, allFrames: true },
       files: ['lab-result-parser.js', 'lab-viewer.js', 'syslab-bridge.js'],
     });
-    expect(chromeApi.tabs.sendMessage).not.toHaveBeenCalledWith(9, expect.anything());
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      9,
+      { type: 'RAYEN_SYSLAB_STATUS' },
+      { frameId: 0 }
+    );
     expect(onReinjected).toHaveBeenCalledWith(4);
   });
 
@@ -225,7 +77,232 @@ describe('relay reinjection runtime (extension)', () => {
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalled());
     expect(sessionState[runtimeModule.STORAGE_KEY]).toBe(MANIFEST.version);
     executeScript.mockClear();
-    await expect(runtime.ensureReinjected()).resolves.toEqual({ injectedTabs: 0, skipped: true });
+    await expect(runtime.ensureReinjected()).resolves.toEqual({
+      injectedTabs: 0,
+      failedTabs: 0,
+      complete: true,
+      skipped: true,
+    });
+    expect(fileInjections(executeScript)).toHaveLength(0);
+  });
+
+  it('repara un receptor HHR invalidado aunque Chrome conserve la marca de la misma versión', async () => {
+    const { runtime, chromeApi, executeScript, sessionState, onReinjected } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    let hhrPingCount = 0;
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }) => {
+        if (message?.type === 'RAYEN_SYSLAB_STATUS') return { ok: true, bridgeId: 'syslab-test' };
+        if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (tabId === 8 && ++hhrPingCount === 1) throw new Error('Receiving end does not exist');
+        return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
+      }
+    );
+
+    await expect(runtime.ensureReinjected()).resolves.toMatchObject({
+      injectedTabs: 1,
+      complete: true,
+      skipped: false,
+    });
+    expect(fileInjections(executeScript)).toHaveLength(1);
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 8, allFrames: false },
+      files: MANIFEST.content_scripts[4].js,
+    });
+    expect(onReinjected).toHaveBeenCalledWith(1);
+  });
+
+  it('repara Syslab al conservar Chrome la marca de versión pero perder su receptor', async () => {
+    const { runtime, chromeApi, executeScript, sessionState } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    let syslabPings = 0;
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }) => {
+        if (message?.type === 'RAYEN_SYSLAB_STATUS') {
+          if (++syslabPings === 1) throw new Error('Receiving end does not exist');
+          return { ok: true, bridgeId: 'syslab-test' };
+        }
+        if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
+      }
+    );
+    await expect(runtime.ensureReinjected()).resolves.toMatchObject({
+      injectedTabs: 1,
+      complete: true,
+    });
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 9, allFrames: true },
+      files: MANIFEST.content_scripts[5].js,
+    });
+  });
+
+  it('no acepta la respuesta de un iframe sano si otro marco Syslab perdió su receptor', async () => {
+    const { runtime, chromeApi, executeScript, sessionState } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    executeScript.mockImplementation(async injection =>
+      injection.func
+        ? [
+            { frameId: 0, result: 'http://10.4.69.90/syslab/index.php' },
+            { frameId: 7, result: 'http://10.4.69.90/syslab/parbusqueRut.php' },
+          ]
+        : undefined
+    );
+    let secondFramePings = 0;
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }, options?: { frameId?: number }) => {
+        if (message?.type === 'RAYEN_SYSLAB_STATUS') {
+          if (options?.frameId === 7 && ++secondFramePings === 1)
+            throw new Error('Receiving end does not exist');
+          return { ok: true, bridgeId: `frame-${options?.frameId}` };
+        }
+        if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
+      }
+    );
+
+    await expect(runtime.ensureReinjected()).resolves.toMatchObject({
+      injectedTabs: 1,
+      complete: true,
+    });
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 9, allFrames: true },
+      files: MANIFEST.content_scripts[5].js,
+    });
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(
+      9,
+      { type: 'RAYEN_SYSLAB_STATUS' },
+      { frameId: 7 }
+    );
+  });
+
+  it('no pierde onInstalled si llega mientras la comprobación de arranque está pendiente', async () => {
+    const { runtime, chromeApi, executeScript, installedListeners, sessionState } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    let releaseGet: ((value: Record<string, unknown>) => void) | undefined;
+    chromeApi.storage.session.get.mockImplementationOnce(
+      (_key: string) =>
+        new Promise(resolve => {
+          releaseGet = resolve;
+        })
+    );
+
+    expect(runtime.start()).toBe(true);
+    installedListeners.forEach(listener => listener());
+    releaseGet?.({ [runtimeModule.STORAGE_KEY]: MANIFEST.version });
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalled());
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 8, allFrames: false },
+      files: MANIFEST.content_scripts[4].js,
+    });
+  });
+
+  it('reinyecta la interfaz de Camas si el relé responde pero el indicador quedó huérfano', async () => {
+    const { runtime, chromeApi, executeScript, sessionState } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    let indicatorPings = 0;
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }) =>
+        message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
+          ? { indicatorReady: ++indicatorPings > 1 }
+          : { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' }
+    );
+
+    await expect(runtime.ensureReinjected()).resolves.toMatchObject({ injectedTabs: 1 });
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 6, allFrames: false },
+      files: MANIFEST.content_scripts[3].js,
+    });
+  });
+
+  it('reinyecta la interfaz de Ficha si el relé responde pero el panel quedó huérfano', async () => {
+    const { runtime, chromeApi, executeScript, sessionState } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    let uiPings = 0;
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }) =>
+        message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
+          ? { uiReady: ++uiPings > 1 }
+          : message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
+            ? { indicatorReady: true }
+            : { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' }
+    );
+
+    await expect(runtime.ensureReinjected()).resolves.toMatchObject({ injectedTabs: 1 });
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 5, allFrames: false },
+      files: MANIFEST.content_scripts[6].js,
+    });
+  });
+
+  it('con dos pestañas de Ficha repara sólo la que perdió su receptor', async () => {
+    const { runtime, chromeApi, executeScript, sessionState } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    chromeApi.tabs.query.mockImplementation(async ({ url }: { url: string[] }) =>
+      url.includes('https://fichamedico.rayensalud.cl/*')
+        ? [
+            { id: 5, url: 'https://fichamedico.rayensalud.cl/dashboard' },
+            { id: 7, url: 'https://fichamedico.rayensalud.cl/dashboard' },
+          ]
+        : []
+    );
+    chromeApi.tabs.get.mockImplementation(async (tabId: number) => ({
+      id: tabId,
+      url: 'https://fichamedico.rayensalud.cl/dashboard',
+    }));
+    let orphanPings = 0;
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }) =>
+        message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
+          ? { uiReady: tabId !== 7 || ++orphanPings > 1 }
+          : { relayReady: 'fichamedico' }
+    );
+
+    await expect(runtime.ensureReinjected()).resolves.toMatchObject({
+      injectedTabs: 1,
+      complete: true,
+    });
+    expect(executeScript.mock.calls.every(([injection]) => injection.target.tabId === 7)).toBe(
+      true
+    );
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 7, allFrames: false },
+      files: MANIFEST.content_scripts[6].js,
+    });
+  });
+
+  it('repara sólo la pestaña activada cuando Ficha perdió su panel tras reactivar la extensión', async () => {
+    const { runtime, chromeApi, executeScript, onReinjected, activatedListeners, sessionState } =
+      createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    expect(runtime.start()).toBe(true);
+    await runtime.ensureReinjected();
+    expect(fileInjections(executeScript)).toHaveLength(0);
+    executeScript.mockClear();
+    onReinjected.mockClear();
+    let uiReady = false;
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }) => {
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady };
+        if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
+        return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
+      }
+    );
+    executeScript.mockImplementation(async injection => {
+      if (injection.files?.includes('content-prescription-print.js')) uiReady = true;
+      return undefined;
+    });
+
+    activatedListeners.forEach(listener => listener({ tabId: 5 }));
+    await vi.waitFor(() => expect(onReinjected).toHaveBeenCalledWith(1));
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 5, allFrames: false },
+      files: MANIFEST.content_scripts[6].js,
+    });
+    executeScript.mockClear();
+    await runtime.repairActivatedTab(5);
     expect(executeScript).not.toHaveBeenCalled();
   });
 
@@ -242,14 +319,22 @@ describe('relay reinjection runtime (extension)', () => {
     const { runtime, executeScript, sessionState, chromeApi } = createFixture();
     sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
 
-    await expect(runtime.ensureReinjected()).resolves.toEqual({ injectedTabs: 0, skipped: true });
+    await expect(runtime.ensureReinjected()).resolves.toEqual({
+      injectedTabs: 0,
+      failedTabs: 0,
+      complete: true,
+      skipped: true,
+    });
     await expect(
       runtime.reinjectTab({ tabId: 5, requiredFile: 'content-fichamedico.js' })
     ).resolves.toEqual({ injected: true });
 
-    expect(executeScript).toHaveBeenCalledTimes(2);
+    expect(fileInjections(executeScript)).toHaveLength(3);
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(5, {
       type: 'RAYEN_EXTENSION_RELAY_PING',
+    });
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(5, {
+      type: 'RAYEN_EXTENSION_FICHA_UI_PING',
     });
   });
 
@@ -279,6 +364,19 @@ describe('relay reinjection runtime (extension)', () => {
     ).resolves.toEqual({ injected: false, reason: 'injection_failed' });
   });
 
+  it('no declara reparado Camas si su indicador sigue sin responder tras inyectar', async () => {
+    const { runtime, chromeApi } = createFixture();
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }) =>
+        message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
+          ? { indicatorReady: false }
+          : { relayReady: tabId === 6 ? 'gestioncamas' : 'hhr' }
+    );
+    await expect(
+      runtime.reinjectTab({ tabId: 6, requiredFile: 'content-gestioncamas.js' })
+    ).resolves.toEqual({ injected: false, reason: 'injection_failed' });
+  });
+
   it('bounds script injection and receiver verification with the configured deadline', async () => {
     const { runtime, withTimeout } = createFixture();
 
@@ -289,7 +387,9 @@ describe('relay reinjection runtime (extension)', () => {
       [5_000, 'No se pudo revalidar la pestaña.'],
       [5_000, 'La reinyección MAIN excedió el tiempo esperado.'],
       [5_000, 'La reinyección ISOLATED excedió el tiempo esperado.'],
-      [5_000, 'El relé reinyectado no confirmó su receptor.'],
+      [5_000, 'La interfaz de Ficha Médico excedió el tiempo esperado.'],
+      [5_000, 'El relé no confirmó su receptor.'],
+      [5_000, 'La interfaz de Ficha Médico no confirmó su conexión.'],
     ]);
   });
 

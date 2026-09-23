@@ -121,12 +121,14 @@
         "hhr-medication-actions-runtime.js",
         "hhr-connection-action-model.js",
         "hhr-connection-repair-controls.js",
+        "hhr-connection-presentation.js",
         "hhr-connection-center-runtime.js",
         "prescription-print.js",
         "lab-result-parser.js",
         "lab-viewer.js",
         "exam-request-print.js",
         "content-exam-request-print.js",
+        "hhr-prescription-content-runtime.js",
         "content-prescription-print.js"
       ],
       "run_at": "document_idle"
@@ -153,6 +155,7 @@
         "gestion-camas-bridge-health.js",
         "health-push-ordering-runtime.js",
         "hhr-connection-action-model.js",
+        "hhr-connection-presentation.js",
         "gestion-camas-connection-indicator.js",
         "gestion-camas-connection-indicator-bootstrap.js",
         "content-gestioncamas.js"

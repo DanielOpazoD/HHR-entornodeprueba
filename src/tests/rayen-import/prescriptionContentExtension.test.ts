@@ -1,58 +1,38 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import vm from 'node:vm';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import '../../../extension/message-contract.js';
-import '../../../extension/hhr-ui.js';
-import '../../../extension/hhr-center-styles.js';
-import '../../../extension/hhr-center-shell-runtime.js';
-import '../../../extension/hhr-prescription-center.js';
-import '../../../extension/hhr-hospitalized-documents-center.js';
-import '../../../extension/hhr-handoff-center.js';
-import '../../../extension/hhr-scores-presentation.js';
-import '../../../extension/hhr-scores-center.js';
-import '../../../extension/hhr-lab-request-patient.js';
-import '../../../extension/hhr-lab-center.js';
-import '../../../extension/hhr-clinical-write-client-runtime.js';
-import '../../../extension/hhr-discharge-actions-runtime.js';
-import '../../../extension/hhr-medication-actions-runtime.js';
-import '../../../extension/hhr-connection-repair-controls.js';
-import '../../../extension/hhr-connection-action-model.js';
-import '../../../extension/hhr-connection-center-runtime.js';
-import '../../../extension/prescription-print.js';
-import '../../../extension/health-push-ordering-runtime.js';
-
-const contentSource = readFileSync(path.resolve('extension/content-prescription-print.js'), 'utf8');
-const NativeMutationObserver = globalThis.MutationObserver;
-const contentObservers = new Set<MutationObserver>();
-const contentTimeouts = new Set<ReturnType<typeof globalThis.setTimeout>>();
-const nativeSetTimeout = globalThis.setTimeout.bind(globalThis);
+import {
+  contentSource,
+  NativeMutationObserver,
+  contentObservers,
+  setupContent,
+  cleanupContent,
+} from './prescriptionContentHarness';
 
 describe('extension prescription print content flow', () => {
-  beforeEach(() => {
-    vi.spyOn(window, 'setTimeout').mockImplementation((handler, timeout, ...args) => {
-      const timeoutId = nativeSetTimeout(handler, timeout, ...args);
-      contentTimeouts.add(timeoutId);
-      return timeoutId;
-    });
+  it('preserva un modal clínico huérfano y reintenta al cerrarlo', async () => {
+    document.body.innerHTML = '<div id="hhr-prescription-print-modal"></div>';
+    const runtime = (
+      globalThis as typeof globalThis & {
+        HhrPrescriptionContentRuntime: {
+          preparePrevious: () => boolean;
+          waitForModalClosure: (callback: () => void) => void;
+        };
+      }
+    ).HhrPrescriptionContentRuntime;
+    expect(runtime.preparePrevious()).toBe(false);
+    const retry = vi.fn();
+    runtime.waitForModalClosure(retry);
+    expect(retry).not.toHaveBeenCalled();
+    document.body.innerHTML = '';
+    await vi.waitFor(() => expect(retry).toHaveBeenCalledOnce());
+    expect(runtime.preparePrevious()).toBe(true);
   });
 
-  afterEach(() => {
-    contentObservers.forEach(observer => observer.disconnect());
-    contentObservers.clear();
-    contentTimeouts.forEach(timeoutId => globalThis.clearTimeout(timeoutId));
-    contentTimeouts.clear();
-    delete (globalThis as typeof globalThis & { __hhrPrescriptionPrintInjected?: boolean })
-      .__hhrPrescriptionPrintInjected;
-    document.body.innerHTML = '';
-    document.documentElement.removeAttribute('data-hhr-prescription-print-script');
-    document.documentElement.removeAttribute('data-hhr-prescription-print-state');
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-  });
+  beforeEach(setupContent);
+  afterEach(cleanupContent);
 
   it('keeps the print action available for consecutive prescriptions', async () => {
     vi.stubGlobal(
@@ -196,6 +176,32 @@ describe('extension prescription print content flow', () => {
     };
 
     vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
+    await vi.waitFor(() =>
+      expect(document.querySelectorAll('#hhr-clinical-operations-bar')).toHaveLength(1)
+    );
+    const originalBar = document.getElementById('hhr-clinical-operations-bar');
+    vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
+    await vi.waitFor(() =>
+      expect(document.querySelectorAll('#hhr-clinical-operations-bar')).toHaveLength(1)
+    );
+    const reloadedBar = document.getElementById('hhr-clinical-operations-bar');
+    expect(reloadedBar).not.toBe(originalBar);
+
+    const unsavedModal = document.createElement('div');
+    unsavedModal.id = 'hhr-prescription-print-modal';
+    (
+      unsavedModal as typeof unsavedModal & {
+        __hhrClinicalGuard?: { dirty: Set<string>; pending: Set<string> };
+      }
+    ).__hhrClinicalGuard = { dirty: new Set(['unsaved']), pending: new Set() };
+    document.body.append(unsavedModal);
+    vm.runInThisContext(contentSource, { filename: 'content-prescription-print.js' });
+    expect(document.getElementById('hhr-clinical-operations-bar')).toBe(reloadedBar);
+    expect(document.getElementById('hhr-prescription-print-modal')).toBe(unsavedModal);
+    unsavedModal.remove();
+    await vi.waitFor(() =>
+      expect(document.getElementById('hhr-clinical-operations-bar')).not.toBe(reloadedBar)
+    );
 
     const connected = {
       version: '0.48.24',
@@ -209,15 +215,22 @@ describe('extension prescription print content flow', () => {
       gestionCamas: { status: 'missing' },
     };
     healthPushListener?.({
-      type: 'RAYEN_EXTENSION_HEALTH_PUSH', report: connected, publicationSequence: 9,
+      type: 'RAYEN_EXTENSION_HEALTH_PUSH',
+      report: connected,
+      publicationSequence: 9,
     });
     healthPushListener?.({
-      type: 'RAYEN_EXTENSION_HEALTH_PUSH', report: expired, publicationSequence: 8,
+      type: 'RAYEN_EXTENSION_HEALTH_PUSH',
+      report: expired,
+      publicationSequence: 8,
     });
-    await vi.waitFor(() => expect(
-      document.getElementById('hhr-clinical-operations-bar')?.shadowRoot
-        ?.querySelector('.hhr-ops-session .session-state')?.textContent
-    ).toBe('Conectado'));
+    await vi.waitFor(() =>
+      expect(
+        document
+          .getElementById('hhr-clinical-operations-bar')
+          ?.shadowRoot?.querySelector('.hhr-ops-session .session-state')?.textContent
+      ).toBe('Conectado')
+    );
 
     const pageButton = await vi.waitFor(() => {
       const button = document.getElementById('hhr-prescription-print-button');

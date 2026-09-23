@@ -144,3 +144,62 @@ El marcador booleano de 0.48.27 no contiene la función necesaria para restaurar
 eliminado: en ese caso acotado la salud queda obsoleta y se requiere una sola recarga del documento.
 
 La evidencia sintética no sustituye una sincronización real revisada por el operador. Comprobar por separado captura, propuesta, confirmación, persistencia y lectura posterior; no usar el indicador verde de conexión como prueba de que el censo se guardó.
+
+### Seguimiento de la recarga con pestañas abiertas · 22–23-09-2026
+
+Una sincronización real posterior en `hhr-pruebas` completó la lectura clínica de 10/10 pacientes
+en 38 s. Esto refutó que la regresión de 0/10 fuese permanente, pero no acreditó la recuperación
+tras recargar la extensión. Una recarga posterior dejó a HHR sin respuesta y el centro de Ficha
+Médico en «Comprobando…». La página interna de la propia extensión tampoco pudo enviar una
+petición mínima al worker (`Receiving end does not exist`); por tanto el fallo no provenía sólo
+de una pestaña clínica antigua. Chrome mostraba la extensión habilitada, pero su worker inactivo.
+
+La reparación de esta rama verifica los receptores reales incluso cuando `storage.session` ya
+indica la misma versión, no deja que una comprobación de arranque absorba el evento de instalación,
+y reinyecta las interfaces de Ficha Médico y Gestión de Camas junto con sus relés. Además, al
+activar una pestaña conocida comprueba su receptor y repara sólo esa pestaña si el arranque
+anterior no pudo hacerlo. La reinyección de Camas sólo se declara completa cuando responden tanto
+el relé como su indicador visual; Ficha exige la misma verificación para su panel. No mantiene el
+worker despierto mediante sondeos periódicos. Syslab se comprueba con su mensaje de estado
+existente en cada marco elegible y se reinyecta si alguno perdió el receptor; esto se cubre con una prueba sintética, no con
+una sesión real de Syslab. Ficha Médico
+desmonta y reconstruye su barra al reinyectarse, salvo que haya un formulario clínico con ediciones
+o escrituras pendientes. Si una generación anterior dejó un modal abierto sin runtime accesible,
+la reinyección espera a que se cierre para no sustituir posibles datos sin guardar y reconstruye
+el panel automáticamente después. El script
+previo a esta reparación no tenía desmontaje seguro: una única recarga de esa pestaña, una vez
+instalada esta versión, permite adoptar el nuevo ciclo de vida.
+La política de manifest, la comprobación de receptores y la sesión de reinyección tienen módulos
+separados; el transporte de Ficha y la presentación de estados de conexión se extrajeron para
+mantener los límites de tamaño de los archivos existentes. La línea base de hotspots incorpora
+sólo esos módulos nuevos y reduce los límites de los archivos originales.
+
+En la instalación observada, desactivar y volver a activar la extensión restableció el worker;
+después, una nueva recarga con HHR, Ficha Médico y Gestión de Camas abiertos mantuvo las tres
+superficies conectadas sin volver a cargar sus páginas. Esta evidencia valida la reinyección
+cuando Chrome conserva o vuelve a registrar el worker. **No demuestra** que la extensión pueda
+repararse por sí misma si Chrome deja de registrar el worker: ningún content script puede recibir
+respuestas del background en ese estado. Se debe distinguir este fallo del relé huérfano en el
+diagnóstico y no presentar el badge visible como prueba suficiente de conexión.
+
+En Chrome se provocó también un panel huérfano de Ficha sin recargar la página. Al activar la
+pestaña, la comprobación dirigida reconstruyó el panel y volvió a mostrar la conexión. Otra
+prueba provocó un indicador huérfano de Camas: la activación lo reconstruyó sin perder la
+conexión con HHR ni Ficha. Al desactivar y reactivar la extensión con HHR, Ficha y Camas
+abiertos, las tres superficies
+volvieron a mostrar conexión sin refrescar sus páginas. Son pruebas de la instancia local
+0.48.31 con los cambios de esta rama, no de versiones antiguas ni de un vencimiento de sesión
+Rayen ocurrido realmente.
+
+Una recarga adicional dejó abierto el modal de conexiones de Ficha. Al cerrarlo, apareció de
+nuevo el botón del Centro HHR; el panel reconstruido verificó Extensión, Ficha, Camas y HHR
+conectados. Camas y HHR conservaron sus indicadores sin refrescar las páginas. Esta prueba
+cubre la recuperación del modal huérfano en la sesión observada, sin afirmar que se haya probado
+un formulario clínico con datos sin guardar.
+
+La repetición de sincronización posterior quedó registrada en el historial del 22-09: un egreso,
+cobertura clínica 9/9 completa, 0 reintentos y 0 timeouts en 1 min 3 s. El tiempo incluye 27,3 s
+de revisión humana; la captura dual tardó 4,9 s y las lecturas clínicas 3,9 s. La prueba confirma
+lectura, guardado e historial de esa ejecución en `hhr-pruebas`; no cubre por sí sola expiración
+real de una sesión ni un reinicio completo del navegador. El centro de conexiones ahora termina
+su estado «Comprobando…» con un error recuperable si falla la mensajería con el worker.

@@ -38,6 +38,7 @@
       throw new Error('No se pudo inicializar el runtime de conexiones HHR.');
     }
     const actionModel = globalThis.HhrConnectionActionModel;
+    const presentation = globalThis.HhrConnectionPresentation;
 
     const panelControllers = new Map();
     let runtimeDisposed = false;
@@ -123,50 +124,15 @@
     };
 
     const applyBadgeReport = (bar, report, epoch, requestId) => {
-      if (
-        runtimeDisposed ||
-        epoch !== badgeEpoch ||
-        requestId !== badgeRequestId ||
-        !report ||
-        !bar.isConnected
-      ) return report;
-      const button = barPart(bar, '.hhr-ops-session');
-      if (!button) return report;
-      const ficha = report.fichaMedico || {};
-      const camas = report.gestionCamas || {};
-      const identity = ficha.identity || {};
-      const name = identity.fullName || 'Sesión HHR';
-      const role = String(identity.role || '');
-      const handoffButton = barPart(bar, '.hhr-ops-handoff');
-      if (handoffButton) {
-        const handoffTitle = handoffLabelForIdentity(role, identity.practitionerRoleId);
-        handoffButton.dataset.tip = handoffTitle;
-        handoffButton.setAttribute('aria-label', handoffTitle);
-      }
-      const state = ficha.status !== 'ready'
-        ? 'is-offline'
-        : camas.status === 'ready' ? 'is-ready' : 'is-degraded';
-      button.classList.remove('is-ready', 'is-degraded', 'is-offline');
-      button.classList.add(state);
-      button.querySelector('.hhr-ops-avatar').textContent = connectionInitials(name);
-      const sessionName = button.querySelector('.session-name');
-      if (sessionName) sessionName.textContent = name;
-      const sessionState = button.querySelector('.session-state');
-      if (sessionState) {
-        sessionState.textContent = state === 'is-ready'
-          ? 'Conectado'
-          : state === 'is-degraded' ? 'Conexión parcial' : 'Sin conexión';
-      }
-      const details = [
-        ficha.status === 'ready' ? 'Ficha Médico conectada' : 'Ficha Médico no conectada',
-        camas.status === 'ready'
-          ? 'Gestión de Camas · ' + connectionTimeLabel(camas)
-          : 'Gestión de Camas no conectada',
-      ];
-      button.dataset.tip = name;
-      button.dataset.tipNote = details.join(' · ');
-      button.setAttribute('aria-label', [name, ...details].join(' · '));
-      return report;
+      if (runtimeDisposed || epoch !== badgeEpoch || requestId !== badgeRequestId || !report || !bar.isConnected) return report;
+      return presentation.renderBadgeReport(bar, report, {
+        handoffLabelForIdentity, connectionInitials, connectionTimeLabel,
+      });
+    };
+
+    const applyBadgeUnavailable = (bar, epoch, requestId, transportFailed) => {
+      if (runtimeDisposed || epoch !== badgeEpoch || requestId !== badgeRequestId || !bar.isConnected) return null;
+      return presentation.renderBadgeUnavailable(bar, transportFailed);
     };
 
     const refreshOperationsConnectionBadge = (bar, force = false, knownReport = null) => {
@@ -195,8 +161,11 @@
       const request = sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST })
         .then(report => {
           if (epoch !== badgeEpoch || requestId !== badgeRequestId) return null;
-          return applyBadgeReport(bar, report && !report.error ? report : null, epoch, requestId);
+          return report && !report.error
+            ? applyBadgeReport(bar, report, epoch, requestId)
+            : applyBadgeUnavailable(bar, epoch, requestId, report?.transportError === true);
         })
+        .catch(() => applyBadgeUnavailable(bar, epoch, requestId, true))
         .finally(() => {
           if (epoch !== badgeEpoch || requestId !== badgeRequestId) return;
           badgeCheckAt = Date.now();
@@ -278,34 +247,33 @@
         feedback.className = 'hhr-connection-feedback' + (error ? ' is-error' : '');
         setLiveRegion(feedback, message, error ? 'error' : '');
       };
-      const renderSource = (card, source, fallbackName) => {
-        const ready = source && source.status === 'ready';
-        const stale = source && source.status === 'stale';
-        card.className = card.className.replace(/\s+is-(?:ready|stale|missing)/g, '') +
-          (ready ? ' is-ready' : stale ? ' is-stale' : ' is-missing');
-        card.querySelector('.hhr-connection-status').textContent = actionModel.sourceLabel(source);
-        const identity = source && source.identity || {};
-        const name = identity.fullName || identity.username || fallbackName;
-        const user = card.querySelector('.hhr-connection-user');
-        user.childNodes[0].nodeValue = name || 'Cuenta no identificada';
-        const role = identity.role || '';
-        user.querySelector('.hhr-connection-detail').textContent = ready
-          ? [role, connectionTimeLabel(source)].filter(Boolean).join(' · ')
-          : String(source && source.message || 'Inicia sesión para continuar.');
-      };
+      const renderSource = (card, source, fallbackName) =>
+        presentation.renderSource(card, source, fallbackName, actionModel, connectionTimeLabel);
       const readReport = provided => provided ? Promise.resolve(provided) : sendMessage({ type: runtimeMessages.EXTENSION_HEALTH_REQUEST });
       const reportOption = options => options && options.report;
+      const renderUnavailable = transportFailed => {
+        presentation.renderPanelUnavailable({
+          extensionCard, fichaCard, camasCard, hhrCard, connect, repair, forget, transportFailed,
+        });
+        latestReport = null;
+      };
       const load = async options => {
         const epoch = controller.epoch;
         const requestId = ++nextRequestId;
         controller.loadRequestId = requestId;
         if (!isPanelRequestCurrent(controller, epoch, 'loadRequestId', requestId)) return null;
         refresh.disabled = true;
-        const report = await readReport(reportOption(options));
+        const { report, transportFailed } = await presentation.readHealth(
+          () => readReport(reportOption(options))
+        );
         if (!isPanelRequestCurrent(controller, epoch, 'loadRequestId', requestId)) return null;
         refresh.disabled = false;
-        if (!report || report.error) {
-          setFeedback((report && report.error) || 'No se pudo comprobar la conexión.', true);
+        if (presentation.isUnavailable(report)) {
+          const connectionFailed = presentation.isTransportFailure(report, transportFailed);
+          renderUnavailable(connectionFailed);
+          setFeedback(connectionFailed
+            ? 'La extensión no responde. Comprueba su estado en Chrome y pulsa Actualizar estado.'
+            : (report && report.error) || 'No se pudo comprobar la conexión.', true);
           return null;
         }
         const ficha = report.fichaMedico || {};

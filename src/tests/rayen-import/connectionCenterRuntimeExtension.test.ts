@@ -2,116 +2,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import '../../../extension/hhr-connection-repair-controls.js';
-import '../../../extension/hhr-connection-action-model.js';
-import '../../../extension/hhr-connection-center-runtime.js';
-
-type Message = { type?: string; renew?: boolean };
-type Runtime = {
-  renderConnectionCenter: (root: HTMLElement, encId: string) => void;
-  refreshOperationsConnectionBadge: (
-    bar: HTMLElement,
-    force?: boolean,
-    report?: unknown
-  ) => Promise<unknown>;
-  invalidateConnectionState: (root: HTMLElement) => void;
-  dispose: () => void;
-};
-type RuntimeOwner = { create: (dependencies: Record<string, unknown>) => Runtime };
-
-const owner = () =>
-  (globalThis as unknown as { HhrConnectionCenterRuntime: RuntimeOwner })
-    .HhrConnectionCenterRuntime;
-
-const messages = {
-  EXTENSION_HEALTH_REQUEST: 'EXTENSION_HEALTH_REQUEST',
-  CONNECTION_REPAIR_REQUEST: 'CONNECTION_REPAIR_REQUEST',
-  GC_CONNECT_REQUEST: 'GC_CONNECT_REQUEST',
-  GC_DISCONNECT_REQUEST: 'GC_DISCONNECT_REQUEST',
-};
-
-const deferred = <T>() => {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>(done => {
-    resolve = done;
-  });
-  return { promise, resolve };
-};
-
-const report = (fichaStatus = 'ready', camasStatus = 'ready', name = 'Ana Riroroko') => ({
-  version: '0.48.10',
-  runtimeGeneration: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
-  capabilities: ['clean-connection-repair'],
-  fichaMedico: {
-    status: fichaStatus,
-    reason: fichaStatus === 'ready' ? 'connected' : 'session_expired',
-    identity: { fullName: name, role: 'Médico', practitionerRoleId: '10' },
-  },
-  gestionCamas: {
-    status: camasStatus,
-    reason: camasStatus === 'ready' ? 'connected' : 'session_expired',
-    identity: { username: 'ana.riroroko' },
-    remainingSeconds: 3_600,
-    connectionSource: 'session',
-    message: camasStatus === 'ready' ? '' : 'Inicia sesión para continuar.',
-  },
-  hhr: {
-    status: 'ready',
-    reason: 'connected',
-    message: 'HHR enlazado.',
-  },
-});
-
-const makeRoot = () => {
-  const root = document.createElement('div');
-  root.dataset.activeModule = 'connection';
-  root.innerHTML = '<main class="hhr-center-main"></main>';
-  document.body.appendChild(root);
-  return root;
-};
-
-const makeBar = () => {
-  const bar = document.createElement('aside') as HTMLElement & { __hhrRoot?: ShadowRoot };
-  bar.id = 'operations-bar';
-  const shadow = bar.attachShadow({ mode: 'open' });
-  bar.__hhrRoot = shadow;
-  shadow.innerHTML = `
-    <button class="hhr-ops-handoff"></button>
-    <button class="hhr-ops-session is-degraded">
-      <span class="hhr-ops-avatar">HHR</span>
-      <span class="session-name">Conexiones</span>
-      <span class="session-state">Comprobando…</span>
-    </button>
-  `;
-  document.body.appendChild(bar);
-  return bar;
-};
-
-const flush = async () => {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-};
-
-const makeRuntime = (sendMessage: (message: Message) => Promise<unknown>) =>
-  owner().create({
-    documentRef: document,
-    windowRef: window,
-    runtimeMessages: messages,
-    sendMessage,
-    setLiveRegion: (element: HTMLElement, text: string, state = '') => {
-      element.textContent = text;
-      element.dataset.state = state;
-    },
-    connectionInitials: (name: string) =>
-      name
-        .split(/\s+/)
-        .map(part => part[0])
-        .join(''),
-    connectionTimeLabel: () => 'Vence en 1 h',
-    handoffLabelForIdentity: () => 'Entrega médica',
-    operationsBarId: 'operations-bar',
-  });
+import {
+  owner,
+  messages,
+  deferred,
+  report,
+  makeRoot,
+  makeBar,
+  flush,
+  makeRuntime,
+} from './connectionCenterHarness';
+import type { Message } from './connectionCenterHarness';
 
 describe('Centro HHR connection runtime', () => {
   beforeEach(() => {
@@ -181,6 +82,38 @@ describe('Centro HHR connection runtime', () => {
       root.querySelector('.hhr-connection-ficha .hhr-connection-user')?.firstChild?.nodeValue
     ).toBe('Respuesta nueva');
     expect(root.querySelector('.hhr-connection-status')?.textContent).toBe('Conectado');
+  });
+
+  it('shows a recoverable error when the extension worker cannot answer', async () => {
+    const runtime = makeRuntime(
+      vi.fn(async () => ({
+        error: 'Se perdió temporalmente la conexión.',
+        transportError: true,
+      }))
+    );
+    const root = makeRoot();
+    const bar = makeBar();
+
+    runtime.renderConnectionCenter(root, '141121');
+    await flush();
+    expect(
+      root.querySelector('.hhr-connection-extension .hhr-connection-status')?.textContent
+    ).toBe('Sin respuesta');
+    expect(root.querySelector('.hhr-connection-ficha .hhr-connection-status')?.textContent).toBe(
+      'No comprobado'
+    );
+    expect(root.querySelector<HTMLButtonElement>('.hhr-connection-refresh')?.disabled).toBe(false);
+    expect(root.querySelector('.hhr-connection-feedback')?.textContent).toContain(
+      'La extensión no responde'
+    );
+
+    await expect(runtime.refreshOperationsConnectionBadge(bar, true)).resolves.toBeNull();
+    expect(bar.shadowRoot?.querySelector('.session-state')?.textContent).toBe(
+      'Extensión sin respuesta'
+    );
+    expect(
+      bar.shadowRoot?.querySelector('.hhr-ops-session')?.classList.contains('is-offline')
+    ).toBe(true);
   });
 
   it('invalidates the previous render before the same root is rendered again', async () => {
