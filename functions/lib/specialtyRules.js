@@ -91,10 +91,13 @@ const applyPendingSpecialtyRules = ({ remoteRecord, candidate, policy, actorUid,
       patient.specialty = rule.specialty;
       patient.specialtyAssignment = {
         schemaVersion: 3, episodeId: patient.clinicalEpisodeId, decisionId,
+        recordDate: candidate.date,
         source: 'rule', actorUid: text(actorUid) || 'system', decidedAt: now,
         rule: { id: rule.id, revision: rule.revision || 1, catalogRevision: policy.revision },
       };
       decisions.push({ bedId, target, episodeId: patient.clinicalEpisodeId, decisionId,
+        recordDate: candidate.date,
+        metadata: patient.specialtyAssignment,
         previousValue: '', value: rule.specialty, source: 'rule',
         actorUid: text(actorUid) || 'system', decidedAt: now,
         ruleId: rule.id, catalogRevision: policy.revision });

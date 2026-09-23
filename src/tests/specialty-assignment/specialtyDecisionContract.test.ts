@@ -8,11 +8,14 @@ const { protectSpecialtyDecisions, SpecialtyDecisionError, parseSpecialtyIntent 
 const patient = (episodeId = 'episode-one', specialty = '', specialtyAssignment?: object) => ({
   clinicalEpisodeId: episodeId, specialty, ...(specialtyAssignment ? { specialtyAssignment } : {}),
 });
-const record = (bed: object, crib?: object) => ({ beds: { R1: { ...bed, ...(crib ? { clinicalCrib: crib } : {}) } } });
+const record = (bed: object, crib?: object) => ({ date: '2026-09-23',
+  beds: { R1: { ...bed, ...(crib ? { clinicalCrib: crib } : {}) } } });
 const meta = { schemaVersion: 3, episodeId: 'episode-one', decisionId: 'old',
-  source: 'manual', actorUid: 'synthetic-user', decidedAt: '2026-09-23T00:00:00.000Z' };
+  source: 'manual', recordDate: '2026-09-23', actorUid: 'synthetic-user',
+  decidedAt: '2026-09-23T00:00:00.000Z' };
 const apply = (remoteRecord: object, candidate: object, options: Record<string, unknown> = {}) =>
-  protectSpecialtyDecisions({ remoteRecord, candidate, actorUid: 'synthetic-user',
+  protectSpecialtyDecisions({ remoteRecord, candidate: { date: '2026-09-23', ...candidate },
+    actorUid: 'synthetic-user',
     mutationId: 'new-mutation', now: '2026-09-23T01:00:00.000Z', ...options });
 
 describe('specialty decision authority', () => {

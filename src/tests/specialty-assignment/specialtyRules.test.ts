@@ -46,7 +46,8 @@ describe('deterministic specialty resolver', () => {
   });
 
   it('writes an automatic decision only for a pending episode, separate from its crib', () => {
-    const record = { beds: { R1: { ...patient(), clinicalCrib: patient({ clinicalEpisodeId: 'crib-episode' }) } } };
+    const record = { date: '2026-09-23', beds: { R1: { ...patient(),
+      clinicalCrib: patient({ clinicalEpisodeId: 'crib-episode' }) } } };
     const events = applyPendingSpecialtyRules({ remoteRecord: { beds: {} }, candidate: record,
       policy: policy([rule('base-one', 'Med Interna')]), actorUid: 'synthetic-user',
       mutationId: 'synthetic-mutation', now: '2026-09-23T00:00:00.000Z' });

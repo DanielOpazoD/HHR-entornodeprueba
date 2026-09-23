@@ -16,14 +16,23 @@ describe('explicit specialty memory publication', () => {
   it('publishes only a confirmed current manual decision with matching diagnosis and revision', async () => {
     process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
     const date = currentRapaNuiDate();
+    const metadata = { schemaVersion: 3, episodeId: 'synthetic-episode',
+      decisionId: 'manual-decision', recordDate: date, source: 'manual',
+      actorUid: 'synthetic-admin', decidedAt: new Date().toISOString() };
     const docs = new Map<string, Record<string, unknown>>([
       ['settings/rayenImportPolicy', { schemaVersion: 2 }],
       [`dailyRecords/${date}`, { beds: { R1: { clinicalEpisodeId: 'synthetic-episode',
         specialty: 'Cirugía', cie10Code: 'K35.8',
-        specialtyAssignment: { source: 'manual', decisionId: 'manual-decision' } } } }],
+        specialtyAssignment: metadata } } }],
+      [`dailyRecords/${date}/specialtyDecisions/manual-decision`, {
+        recordDate: date, decisionId: 'manual-decision', episodeId: 'synthetic-episode',
+        value: 'Cirugía', metadata }],
     ]);
+    type Ref = { key: string; collection: (name: string) => { doc: (id: string) => Ref } };
+    const ref = (key: string): Ref => ({ key,
+      collection: (name: string) => ({ doc: (id: string) => ref(`${key}/${name}/${id}`) }) });
     const firestore = { collection: () => ({ doc: () => ({
-      collection: (name: string) => ({ doc: (id: string) => ({ key: `${name}/${id}` }) }),
+      collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
     }) }),
     runTransaction: async (callback: (transaction: object) => Promise<unknown>) => callback({
       get: async (reference: { key: string }) => ({

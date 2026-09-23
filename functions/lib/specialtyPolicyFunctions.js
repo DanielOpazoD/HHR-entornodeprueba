@@ -4,6 +4,7 @@ const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
 const { SPECIALTIES, getPatient } = require('./specialtyDecisionContract');
 const { normalizeCode, validCode, validatePolicy, isCurrentRapaNuiDay } = require('./specialtyRules');
+const { assertTrustedSpecialtyPatient } = require('./specialtyAuditAuthority');
 
 const fail = (code, message) => { throw new functions.https.HttpsError(code, message); };
 const assertPilotEnabled = () => {
@@ -60,6 +61,7 @@ const createSpecialtyPolicyFunctions = ({ firestore, resolveRoleForEmail }) => (
           !['manual', 'manual_ai'].includes(patient?.specialtyAssignment?.source)) {
         fail('aborted', 'Specialty decision or episode changed.');
       }
+      await assertTrustedSpecialtyPatient({ transaction, hospitalRef: hospital, patient });
       const code = normalizeCode(patient.cie10Code);
       if (!validCode(code) || code !== data.expectedCie10Code) {
         fail('aborted', 'Diagnosis changed; reload before publishing memory.');

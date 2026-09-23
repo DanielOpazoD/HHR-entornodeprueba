@@ -23,7 +23,10 @@ describe('specialty decision through the real clinical authority callable', () =
     process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
     const remote = { ...makeRecord(), meta: { revision: 2 },
       beds: { R1: { ...makeRecord().beds.R1, specialty: '' } } };
-    const { admin, docRef, transaction, update, set } = createAdminMock({ remoteData: remote });
+    const specialtyPolicyData = { schemaVersion: 1, revision: 1, autoEnabled: false,
+      memoryEnabled: false, aiMode: 'off', rules: [], memory: [] };
+    const { admin, docRef, transaction, update, set } = createAdminMock({ remoteData: remote,
+      specialtyPolicyData });
     const functionsApi = createDailyRecordWriteAuthorityFunctions({
       firestore: admin.firestore(), Timestamp: admin.firestore.Timestamp,
       resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),

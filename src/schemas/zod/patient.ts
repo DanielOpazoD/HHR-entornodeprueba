@@ -219,6 +219,7 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
           schemaVersion: z.literal(3),
           episodeId: z.string(),
           decisionId: z.string(),
+          recordDate: z.string(),
           source: z.enum(['manual', 'rule', 'manual_ai']),
           actorUid: z.string(),
           decidedAt: z.string(),

@@ -288,6 +288,9 @@ export const executeBedManagementAction = async ({
     }
     const patch = preserveExplicitEmptySpecialtyChoice(originalPatch, specialtyIntent, currentRecord);
     if (blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent)) return false;
+    // A preparatory structural write could trigger a server rule before the
+    // subsequent manual choice. Require two separate user actions instead.
+    if (specialtyIntent && splitMixedClinicalStructuralPatch(patch)) return false;
     if (Object.keys(patch).length === 0) {
       // Diff vacío: el gesto no cambia nada respecto del registro vigente.
       // No hay nada que escribir, auditar ni confirmar (tampoco prompt de día
@@ -355,9 +358,7 @@ export const executeBedManagementAction = async ({
           // Estructural/identidad primero (ancla el episodio), clínico después.
           // La cola por fecha serializa ambos comandos en orden.
           await patchRecord(mixedSplit.structural);
-          await patchRecord(mixedSplit.clinical, specialtyIntent
-            ? { consistency: 'remote_confirmed', requireAtomicCas: true, specialtyIntent }
-            : undefined);
+          await patchRecord(mixedSplit.clinical);
         } else {
           const isUpcEvaluation =
             (validatedAction.type === 'UPDATE_PATIENT_MULTIPLE' ||

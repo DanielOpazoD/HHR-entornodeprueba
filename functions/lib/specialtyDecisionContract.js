@@ -51,6 +51,7 @@ const validExistingMeta = (meta, patient) =>
   object(meta) && meta.schemaVersion === 3 &&
   text(meta.episodeId) === text(patient?.clinicalEpisodeId) &&
   Boolean(text(meta.decisionId)) &&
+  /^\d{4}-\d{2}-\d{2}$/.test(text(meta.recordDate)) &&
   ['manual', 'rule', 'manual_ai'].includes(meta.source);
 
 const eachTarget = (record, fn) => {
@@ -101,6 +102,7 @@ const protectSpecialtyDecisions = ({ remoteRecord, priorRecord, candidate, inten
       // by an explicit human action from a fresh authoritative view.
       const nextMeta = {
         schemaVersion: 3, episodeId, decisionId: mutationId,
+        recordDate: candidate.date,
         source: intent.kind === 'accept_ai' ? 'manual_ai' : 'manual',
         actorUid, decidedAt: now,
         ...(aiDecision ? { ai: aiDecision } : {}),
@@ -108,6 +110,8 @@ const protectSpecialtyDecisions = ({ remoteRecord, priorRecord, candidate, inten
       patient.specialty = intent.value;
       patient.specialtyAssignment = nextMeta;
       decisions.push({ bedId, target, episodeId, decisionId: mutationId,
+        recordDate: candidate.date,
+        metadata: nextMeta,
         previousValue: text(remote.specialty), value: intent.value,
         source: nextMeta.source, actorUid, decidedAt: now,
         ...(aiDecision ? { ai: aiDecision } : {}) });

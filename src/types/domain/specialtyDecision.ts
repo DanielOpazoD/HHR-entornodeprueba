@@ -2,6 +2,7 @@ export interface SpecialtyDecisionMeta {
   schemaVersion: 3;
   episodeId: string;
   decisionId: string;
+  recordDate: string;
   source: 'manual' | 'rule' | 'manual_ai';
   actorUid: string;
   decidedAt: string;

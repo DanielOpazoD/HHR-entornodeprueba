@@ -73,9 +73,12 @@ export const createAdminMock = ({
   const historySet = vi.fn().mockResolvedValue(undefined);
   const historyDoc = { path: 'history-doc', kind: 'history', set: historySet };
   const historyCollection = { doc: vi.fn(() => historyDoc) };
+  const auditDoc = { path: 'specialty-audit-doc' };
+  const auditCollection = { doc: vi.fn(() => auditDoc) };
   const docRef = {
     path: 'daily-record-doc',
-    collection: vi.fn(() => historyCollection),
+    collection: vi.fn((name: string) =>
+      name === 'specialtyDecisions' ? auditCollection : historyCollection),
   };
   const dailyRecordsCollection = { doc: vi.fn(() => docRef) };
   const policyRef = { path: 'settings/rayenImportPolicy' };
@@ -113,6 +116,8 @@ export const createAdminMock = ({
                 exists: historyExists,
                 data: () => undefined,
               }
+            : reference === auditDoc
+              ? { exists: false, data: () => undefined }
             : {
                 exists: Boolean(remoteData),
                 data: () => remoteData,

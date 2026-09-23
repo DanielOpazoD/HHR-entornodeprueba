@@ -5,6 +5,8 @@ const { evaluateDailyRecordClinicalAuthority } = require('./dailyRecordClinicalA
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
 const { protectSpecialtyDecisions, SpecialtyDecisionError } = require('./specialtyDecisionContract');
 const { applyPendingSpecialtyRules, isCurrentRapaNuiDay } = require('./specialtyRules');
+const { assertTrustedSpecialtyAssignments, assertUnusedSpecialtyDecisionIds } =
+  require('./specialtyAuditAuthority');
 const {
   assertRayenClinicalBatchAuthority,
   assertRayenClinicalRunAuthority,
@@ -292,6 +294,8 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           effectiveTargets,
           payload.fieldContractVersion
         );
+        await assertTrustedSpecialtyAssignments({ transaction, hospitalRef,
+          records: [remoteData] });
         protectSpecialtyDecisions({
           remoteRecord: remoteData,
           candidate: nextRecord,
@@ -309,6 +313,8 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
                 now: new Date().toISOString(),
                 eligibleBedIds: [...new Set(effectiveTargets.map(target => target.bedId))],
               }) : [];
+        await assertUnusedSpecialtyDecisionIds({ transaction, docRef,
+          decisions: automaticSpecialtyDecisions });
         // Shadow runs after the established per-patient writes. Compare against that independently
         // persisted record; comparing with our own projection would certify the request tautologically.
         const parityRecord = payload.dryRun ? remoteData : nextRecord;

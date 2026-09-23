@@ -14,6 +14,8 @@ const {
   getPatient,
 } = require('./specialtyDecisionContract');
 const { applyPendingSpecialtyRules, isCurrentRapaNuiDay } = require('./specialtyRules');
+const { assertTrustedSpecialtyAssignments, assertUnusedSpecialtyDecisionIds } =
+  require('./specialtyAuditAuthority');
 const { buildJevEvidence } = require('./specialtyJevEvidence');
 const {
   RAYEN_CLINICAL_FIELDS,
@@ -1386,6 +1388,8 @@ const createDailyRecordWriteAuthorityFunctions = ({
           const specialtyPolicySnapshot = specialtyEpisodeEnabled()
             ? await transaction.get(specialtyPolicyRef) : null;
           const remoteData = snapshot.exists ? snapshot.data() || {} : {};
+          await assertTrustedSpecialtyAssignments({ transaction, hospitalRef,
+            records: [remoteData, priorSnapshot?.exists ? priorSnapshot.data() : null] });
           const recordForPersistence = shouldPreserveRayenClinicalFields({
             policySnapshot,
             snapshot,
@@ -1424,6 +1428,9 @@ const createDailyRecordWriteAuthorityFunctions = ({
           if (dryRun) {
             return;
           }
+
+          await assertUnusedSpecialtyDecisionIds({ transaction, docRef,
+            decisions: automaticSpecialtyDecisions });
 
           const now = Timestamp.now();
           if (snapshot.exists) {
@@ -1622,6 +1629,12 @@ const createDailyRecordWriteAuthorityFunctions = ({
             assertExpectedVersion({ snapshot, expectedLastUpdated });
           }
           assertExpectedRevision({ snapshot, syncContract });
+          await assertTrustedSpecialtyAssignments({ transaction, hospitalRef,
+            records: [remoteData] });
+          if (specialtyIntent && specialtyEpisodeEnabled() && !specialtyPolicySnapshot?.exists) {
+            throw new functions.https.HttpsError('failed-precondition',
+              'Specialty policy must be published before clinical decisions.');
+          }
           let aiDecision = null;
           if (specialtyIntent?.kind === 'accept_ai') {
             const request = aiRequestSnapshot?.exists ? aiRequestSnapshot.data() : null;
@@ -1741,6 +1754,8 @@ const createDailyRecordWriteAuthorityFunctions = ({
                   .filter(path => path.startsWith('beds.'))
                   .map(path => path.split('.')[1]))],
               }) : [];
+          await assertUnusedSpecialtyDecisionIds({ transaction, docRef,
+            decisions: [...specialtyDecisions, ...automaticSpecialtyDecisions] });
           assertNoPatientErasures({
             snapshot,
             record: patchedRecord,
