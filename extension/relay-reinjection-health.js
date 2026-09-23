@@ -32,7 +32,8 @@
           chromeApi.tabs.sendMessage(tabId, { type: 'RAYEN_EXTENSION_FICHA_UI_PING' }),
           timeoutMs, 'La interfaz de Ficha Médico no confirmó su conexión.'
         );
-        if (ui?.uiReady !== true) return false;
+        if (ui?.uiReady !== true || ui.uiBuildVersion !== chromeApi.runtime.getManifest().version)
+          return false;
         const main = await withTimeout(
           chromeApi.tabs.sendMessage(tabId, { type: 'RAYEN_EXTENSION_MAIN_PING' }),
           timeoutMs, 'El lector interno de Ficha Médico no confirmó su conexión.'
@@ -66,12 +67,11 @@
       return reinjectTab({ tabId: tab.id, requiredFile });
     };
 
-    const repairMissingRelays = async () => {
-      let injectedTabs = 0;
-      let failedTabs = 0;
-      for (const requiredFile of requiredFiles) {
+    const repairMissingRelays = async requiredRelayFile => {
+      const files = requiredRelayFile ? [requiredRelayFile] : requiredFiles;
+      const results = await Promise.all(files.map(async requiredFile => {
         const relay = resolveRelay(requiredFile);
-        if (!relay) continue;
+        if (!relay) return { injectedTabs: 0, failedTabs: 1 };
         let tabs;
         try {
           tabs = await withTimeout(
@@ -81,15 +81,14 @@
           );
         } catch (error) {
           log('[HHR] No se pudieron verificar pestañas del relé:', error);
-          failedTabs += 1;
-          continue;
+          return { injectedTabs: 0, failedTabs: 1 };
         }
-        const results = await Promise.all(tabs.map(tab => verifyOrReinject(tab, requiredFile, relay)));
-        for (const result of results) {
-          if (result.injected) injectedTabs += 1;
-          else if (!result.healthy) failedTabs += 1;
-        }
-      }
+        const checks = await Promise.all(tabs.map(tab => verifyOrReinject(tab, requiredFile, relay)));
+        return { injectedTabs: checks.filter(result => result.injected).length,
+          failedTabs: checks.filter(result => !result.injected && !result.healthy).length };
+      }));
+      const injectedTabs = results.reduce((total, result) => total + result.injectedTabs, 0);
+      const failedTabs = results.reduce((total, result) => total + result.failedTabs, 0);
       return { injectedTabs, failedTabs, complete: failedTabs === 0 };
     };
 

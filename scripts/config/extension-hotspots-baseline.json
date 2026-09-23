@@ -357,6 +357,10 @@
       "maxLines": 37,
       "hotspots": {}
     },
+    "health-relay-self-repair.js": {
+      "maxLines": 57,
+      "hotspots": {}
+    },
     "health-report-cache-runtime.js": {
       "maxLines": 42,
       "hotspots": {}
@@ -668,6 +672,10 @@
     },
     "hhr-prescription-content-runtime.js": {
       "maxLines": 86,
+      "hotspots": {}
+    },
+    "hhr-prescription-ui-lifecycle.js": {
+      "maxLines": 67,
       "hotspots": {}
     },
     "relay-reinjection-health.js": {

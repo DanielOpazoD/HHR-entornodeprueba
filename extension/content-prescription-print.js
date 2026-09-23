@@ -50,13 +50,16 @@
     !medicationActionsOwner ||
     !connectionCenterOwner ||
     !runtimeMessages ||
-    !globalThis.HhrPrescriptionContentRuntime
+    !globalThis.HhrPrescriptionContentRuntime ||
+    !globalThis.HhrPrescriptionUiLifecycle
   ) return;
+  const uiLifecycle = globalThis.HhrPrescriptionUiLifecycle.create(chrome);
   const initialize = () => {
-    if (!globalThis.HhrPrescriptionContentRuntime.preparePrevious()) {
-      globalThis.HhrPrescriptionContentRuntime.waitForModalClosure(initialize);
+    if (!uiLifecycle.preparePrevious()) {
+      uiLifecycle.waitForModalClosure(initialize);
       return;
     }
+  uiLifecycle.claim();
   globalThis.__hhrPrescriptionPrintInjected = true;
   let active = true;
 
@@ -161,12 +164,7 @@
     return apply;
   };
 
-  try {
-    document.documentElement.setAttribute(
-      'data-hhr-prescription-print-script',
-      chrome.runtime.getManifest().version
-    );
-  } catch (_error) {}
+  document.documentElement.dataset.hhrPrescriptionPrintScript = uiLifecycle.version;
 
   const sendMessage = globalThis.HhrPrescriptionContentRuntime.createSendMessage({
     runtimeMessages, chromeApi: chrome, windowRef: window,
@@ -470,7 +468,7 @@
   const onRuntimeMessage = (message, _sender, sendResponse) => {
     if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') {
       sendMessage({ type: runtimeMessages.EXTENSION_RUNTIME_CONTEXT_REQUEST })
-        .then(context => sendResponse({ uiReady: Boolean(context?.runtimeGeneration) }))
+        .then(context => sendResponse({ uiReady: Boolean(context?.runtimeGeneration), uiBuildVersion: uiLifecycle.version }))
         .catch(() => sendResponse({ uiReady: false }));
       return true;
     }
@@ -686,11 +684,12 @@
   ];
 
   const ensureOperationsBar = encId => {
-    let bar = document.getElementById(OPERATIONS_BAR_ID);
+    let bar = uiLifecycle.takeBar(OPERATIONS_BAR_ID);
     if (!bar) {
       ensureStyles();
       bar = document.createElement('aside');
       bar.id = OPERATIONS_BAR_ID;
+      uiLifecycle.markBar(bar);
       bar.setAttribute('role', 'toolbar');
       bar.setAttribute('aria-label', 'Centro de operaciones del Hospital Hanga Roa');
       const shadow = bar.attachShadow({ mode: 'open' });
@@ -896,11 +895,11 @@
 
   let scheduled = false;
   const scheduleEnsureButton = () => {
-    if (!active || scheduled) return;
+    if (!active || scheduled || !uiLifecycle.owns()) return;
     scheduled = true;
     window.setTimeout(() => {
       scheduled = false;
-      if (!active) return;
+      if (!active || !uiLifecycle.owns()) return;
       ensureButton();
     }, 80);
   };

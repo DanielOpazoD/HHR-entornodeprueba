@@ -10,7 +10,8 @@ describe('Ficha MAIN reader health after an idle worker wake', () => {
     chromeApi.tabs.sendMessage.mockImplementation(
       async (tabId: number, message?: { type?: string }) => {
         if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady };
-        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING')
+          return { uiReady: true, uiBuildVersion: MANIFEST.version };
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
@@ -38,7 +39,8 @@ describe('Ficha MAIN reader health after an idle worker wake', () => {
         if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') {
           return { mainReady: false, reason: 'incompatible_reader' };
         }
-        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING')
+          return { uiReady: true, uiBuildVersion: MANIFEST.version };
         return { relayReady: tabId === 5 ? 'fichamedico' : 'hhr' };
       }
     );
@@ -58,7 +60,8 @@ describe('Ficha MAIN reader health after an idle worker wake', () => {
         if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') {
           return { mainReady: false, reason: 'unverified_reader' };
         }
-        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING')
+          return { uiReady: true, uiBuildVersion: MANIFEST.version };
         return { relayReady: tabId === 5 ? 'fichamedico' : 'hhr' };
       }
     );

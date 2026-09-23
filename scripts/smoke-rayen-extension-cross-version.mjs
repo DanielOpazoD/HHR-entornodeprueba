@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 import { chromium } from 'playwright';
 
-// #472 is the last released 0.48.31 tree. Pin the commit so the fixture cannot
+// #473 is the last released 0.48.32 tree. Pin the commit so the fixture cannot
 // silently change when a branch or tag moves.
-const PREVIOUS_REF = '229f6872f4bd362b0483c64a04c5339566de2845';
+const PREVIOUS_REF = 'a6704bcbe412db12975948e76199778875a9529e';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_EXTENSION = path.join(ROOT, 'extension');
 const currentManifest = JSON.parse(
@@ -122,7 +122,7 @@ try {
   const previousManifest = JSON.parse(
     await readFile(path.join(extensionPath, 'manifest.json'), 'utf8')
   );
-  assert.equal(previousManifest.version, '0.48.31', 'The pinned previous tree changed');
+  assert.equal(previousManifest.version, '0.48.32', 'The pinned previous tree changed');
   assert.notEqual(previousManifest.version, currentManifest.version);
 
   context = await chromium.launchPersistentContext('', {
@@ -187,7 +187,19 @@ try {
   assert.equal(before.hhr.ready, true);
   await oldStatus.close();
 
+  await ficha
+    .locator('#hhr-clinical-operations-bar')
+    .waitFor({ state: 'attached', timeout: 10_000 });
+  await ficha.locator('#hhr-clinical-operations-bar .hhr-ops-session').click();
+  await ficha.waitForFunction(
+    () =>
+      document.querySelector('#hhr-prescription-print-modal')?.dataset.activeModule === 'connection'
+  );
+
   const sentinel = `original-documents-${Date.now()}`;
+  await ficha.evaluate(() => {
+    document.querySelector('#hhr-clinical-operations-bar').dataset.upgradeSentinel = 'old-bar';
+  });
   await Promise.all(
     [ficha, camas, hhr].map(page =>
       page.evaluate(value => {
@@ -243,7 +255,35 @@ try {
     [sentinel, sentinel, sentinel],
     'An open document reloaded during the version upgrade'
   );
+  await ficha
+    .locator('#hhr-clinical-operations-bar')
+    .waitFor({ state: 'attached', timeout: 10_000 });
+  // Relay recovery and Ficha UI replacement are separate asynchronous steps.
+  await ficha.waitForFunction(
+    version =>
+      document.getElementById('hhr-clinical-operations-bar')?.dataset.hhrUiBuildVersion === version,
+    currentManifest.version,
+    { timeout: 15_000 }
+  );
   assert.equal(await ficha.locator('#hhr-clinical-operations-bar').count(), 1);
+  assert.equal(
+    await ficha.locator('#hhr-clinical-operations-bar').getAttribute('data-upgrade-sentinel'),
+    null,
+    'The old Ficha operations bar survived the extension upgrade'
+  );
+  assert.equal(
+    await ficha.locator('#hhr-clinical-operations-bar').getAttribute('data-hhr-ui-build-version'),
+    currentManifest.version
+  );
+  await ficha.waitForFunction(() => !document.querySelector('#hhr-prescription-print-modal'));
+  await ficha.locator('#hhr-clinical-operations-bar .hhr-ops-session').click();
+  await ficha.waitForFunction(
+    () =>
+      document.querySelector('.hhr-connection-extension .hhr-connection-status')?.textContent ===
+      'Conectado',
+    undefined,
+    { timeout: 10_000 }
+  );
 
   const newWorker = context
     .serviceWorkers()

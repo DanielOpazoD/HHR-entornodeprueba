@@ -11,7 +11,7 @@
  */
 (() => {
   'use strict';
-  const INJECT_VERSION = '0.48.32';
+  const INJECT_VERSION = '0.48.33';
   // Install the bridge probe separately so an older, compatible MAIN reader can keep its
   // captured session when this script is re-injected after an extension update.
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });

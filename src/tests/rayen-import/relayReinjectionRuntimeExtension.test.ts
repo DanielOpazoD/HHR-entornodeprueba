@@ -58,15 +58,35 @@ describe('relay reinjection runtime (extension)', () => {
     expect(onReinjected).not.toHaveBeenCalled();
   });
 
-  it('no marca una reparación parcial y vuelve a intentar en el siguiente arranque', async () => {
-    const { runtime, executeScript, sessionState } = createFixture();
-    executeScript.mockRejectedValueOnce(new Error('pestaña todavía cargando'));
+  it('tras una reparación parcial reintenta solo la fuente fallida al despertar', async () => {
+    const { runtime, chromeApi, executeScript, sessionState } = createFixture();
+    const originalExecute = executeScript.getMockImplementation()!;
+    const originalSend = chromeApi.tabs.sendMessage.getMockImplementation()!;
+    let failFicha = true;
+    let fichaMissing = false;
+    executeScript.mockImplementation(async injection => {
+      if (injection.target.tabId === 5 && failFicha) {
+        failFicha = false;
+        fichaMissing = true;
+        throw new Error('pestaña todavía cargando');
+      }
+      if (injection.target.tabId === 5) fichaMissing = false;
+      return originalExecute(injection);
+    });
+    chromeApi.tabs.sendMessage.mockImplementation(async (...args) => {
+      if (args[0] === 5 && args[1]?.type === 'RAYEN_EXTENSION_RELAY_PING' && fichaMissing) {
+        throw new Error('Receiving end does not exist');
+      }
+      return originalSend(...args);
+    });
 
     await expect(runtime.ensureReinjected()).resolves.toMatchObject({ complete: false });
-    expect(sessionState[runtimeModule.STORAGE_KEY]).toBeUndefined();
+    expect(sessionState[runtimeModule.STORAGE_KEY]).toEqual({ attempted: MANIFEST.version });
     executeScript.mockClear();
     await expect(runtime.ensureReinjected()).resolves.toMatchObject({ complete: true });
-    expect(executeScript).toHaveBeenCalled();
+    expect(fileInjections(executeScript).every(([injection]) => injection.target.tabId === 5)).toBe(
+      true
+    );
     expect(sessionState[runtimeModule.STORAGE_KEY]).toBe(MANIFEST.version);
   });
 
@@ -94,7 +114,8 @@ describe('relay reinjection runtime (extension)', () => {
       async (tabId: number, message?: { type?: string }) => {
         if (message?.type === 'RAYEN_SYSLAB_STATUS') return { ok: true, bridgeId: 'syslab-test' };
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
-        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING')
+          return { uiReady: true, uiBuildVersion: MANIFEST.version };
         if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         if (tabId === 8 && ++hhrPingCount === 1) throw new Error('Receiving end does not exist');
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
@@ -125,7 +146,8 @@ describe('relay reinjection runtime (extension)', () => {
           return { ok: true, bridgeId: 'syslab-test' };
         }
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
-        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING')
+          return { uiReady: true, uiBuildVersion: MANIFEST.version };
         if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
@@ -160,7 +182,8 @@ describe('relay reinjection runtime (extension)', () => {
           return { ok: true, bridgeId: `frame-${options?.frameId}` };
         }
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
-        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING')
+          return { uiReady: true, uiBuildVersion: MANIFEST.version };
         if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
@@ -227,7 +250,7 @@ describe('relay reinjection runtime (extension)', () => {
     chromeApi.tabs.sendMessage.mockImplementation(
       async (tabId: number, message?: { type?: string }) =>
         message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
-          ? { uiReady: ++uiPings > 1 }
+          ? { uiReady: ++uiPings > 1, uiBuildVersion: MANIFEST.version }
           : message?.type === 'RAYEN_EXTENSION_MAIN_PING'
             ? { mainReady: true }
             : message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
@@ -261,7 +284,7 @@ describe('relay reinjection runtime (extension)', () => {
     chromeApi.tabs.sendMessage.mockImplementation(
       async (tabId: number, message?: { type?: string }) =>
         message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
-          ? { uiReady: tabId !== 7 || ++orphanPings > 1 }
+          ? { uiReady: tabId !== 7 || ++orphanPings > 1, uiBuildVersion: MANIFEST.version }
           : message?.type === 'RAYEN_EXTENSION_MAIN_PING'
             ? { mainReady: true }
             : { relayReady: 'fichamedico' }
@@ -292,7 +315,8 @@ describe('relay reinjection runtime (extension)', () => {
     let uiReady = false;
     chromeApi.tabs.sendMessage.mockImplementation(
       async (tabId: number, message?: { type?: string }) => {
-        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING')
+          return { uiReady, uiBuildVersion: MANIFEST.version };
         if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
@@ -347,6 +371,14 @@ describe('relay reinjection runtime (extension)', () => {
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(5, {
       type: 'RAYEN_EXTENSION_MAIN_PING',
     });
+    const companion =
+      fileInjections(executeScript).find(([injection]) =>
+        injection.files?.includes('content-prescription-print.js')
+      )?.[0].files || [];
+    expect(companion.indexOf('hhr-prescription-ui-lifecycle.js')).toBeGreaterThanOrEqual(0);
+    expect(companion.indexOf('hhr-prescription-ui-lifecycle.js')).toBeLessThan(
+      companion.indexOf('content-prescription-print.js')
+    );
   });
 
   it('repairs only Gestión de Camas when its MAIN health bridge is unresponsive', async () => {

@@ -5,6 +5,8 @@
   const create = ({ chromeApi, operations, reinjectRelays, notify, log }) => {
     let pending = null;
     let forcedPending = null;
+    const save = (session, value) => session.set({ [STORAGE_KEY]: value }).catch(error =>
+      log('[HHR] No se pudo registrar la re-inyección de esta sesión:', error));
     const ensureReinjected = ({ force = false } = {}) => {
       if (pending) {
         if (!force) return pending;
@@ -20,18 +22,16 @@
         const version = String(chromeApi.runtime.getManifest().version || 'unknown');
         if (!force && session) {
           const stored = await session.get(STORAGE_KEY).catch(() => ({}));
-          if (stored?.[STORAGE_KEY] === version) {
+          const previous = stored?.[STORAGE_KEY];
+          if (previous === version || previous?.attempted === version) {
             const checked = await operations.repairMissingRelays();
             if (checked.injectedTabs) notify(checked.injectedTabs);
+            if (checked.complete && previous !== version) await save(session, version);
             return { ...checked, skipped: checked.injectedTabs === 0 && checked.complete };
           }
         }
         const result = await reinjectRelays();
-        if (session && result.complete) {
-          await session.set({ [STORAGE_KEY]: version }).catch(error =>
-            log('[HHR] No se pudo registrar la re-inyección de esta sesión:', error)
-          );
-        }
+        if (session) await save(session, result.complete ? version : { attempted: version });
         return { ...result, skipped: false };
       })().finally(() => { pending = null; });
       return pending;

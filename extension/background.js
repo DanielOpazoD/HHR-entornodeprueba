@@ -17,7 +17,7 @@ importScripts(
   'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
   'runtime-generation-recovery.js', 'runtime-generation.js', 'connection-repair-runtime.js',
-  'health-report-cache-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js',
+  'health-report-cache-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js', 'health-relay-self-repair.js',
   'relay-reinjection-manifest.js', 'relay-reinjection-health.js', 'relay-reinjection-operations.js', 'relay-reinjection-session.js', 'relay-reinjection-tab-events.js', 'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
@@ -265,14 +265,16 @@ const handleGestionCamasHealth = self.HhrConnectionRelayRecovery.repairHealth(re
 const HHR_TAB_MATCH_PATTERNS = (chrome.runtime.getManifest().content_scripts || [])
   .filter(entry => (entry.js || []).includes('content-hhr.js'))
   .flatMap(entry => entry.matches || []);
-
 const handleHhrHealth = self.HhrExtensionHealth.createHhrProbe({
   chromeApi: chrome,
   withTimeout,
   timeoutMs: HEALTH_PROBE_TIMEOUT_MS,
   matches: HHR_TAB_MATCH_PATTERNS,
 });
-
+const healthRelaySelfRepair = self.HhrHealthRelaySelfRepair.create({
+  repairRelay: requiredFile => relayReinjectionRuntime?.repairMissingRelay(requiredFile),
+  publishHealth: () => healthHeartbeat.pushNow('relay-health-rechecked'),
+});
 const readExtensionHealthUncached = async (targets = {}) => {
   const runtimeContext = await getRuntimeContext();
   const [fichaMedico, gestionCamas, hhr] = await Promise.all([
@@ -281,7 +283,7 @@ const readExtensionHealthUncached = async (targets = {}) => {
     handleHhrHealth(runtimeContext),
   ]);
 
-  return {
+  const report = {
     ...runtimeContext,
     protocolVersion: EXTENSION_PROTOCOL_VERSION,
     capabilities: [
@@ -297,8 +299,9 @@ const readExtensionHealthUncached = async (targets = {}) => {
     gestionCamas,
     hhr,
   };
+  healthRelaySelfRepair.schedule(report);
+  return report;
 };
-
 const healthReportCache = self.HhrHealthReportCacheRuntime.create({ readHealth: readExtensionHealthUncached, ttlMs: 3000 });
 const handleExtensionHealth = () => healthReportCache.read();
 const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
@@ -309,13 +312,10 @@ const connectionRepairRuntime = self.HhrConnectionRepairRuntime.create({
 const healthHeartbeat = self.HhrHealthHeartbeatRuntime.create({ chromeApi: chrome, readHealth: () => healthReportCache.read({ force: true }), invalidateHealth: healthReportCache.invalidate });
 healthHeartbeat.start();
 self.HhrHealthTabEventsRuntime.create({ chromeApi: chrome, pushHealth: healthHeartbeat.pushNow }).start();
-// Al instalar/actualizar la extensión, los relés de las pestañas abiertas
-// quedan huérfanos: re-inyectarlos y empujar el estado fresco de inmediato.
 relayReinjectionRuntime = self.HhrRelayReinjectionRuntime.create({
   chromeApi: chrome, withTimeout, timeoutMs: HEALTH_PROBE_TIMEOUT_MS,
   onReinjected: () => healthHeartbeat.pushNow('relays-reinjected'),
 }); relayReinjectionRuntime.start();
-
 const { request: handleEgresoLookup } = self.HhrGestionCamasEgresoQueryRuntime.create({
   resolveSession: resolveGestionCamasSession,
   classifyRejection: classifyGestionCamasRejection,

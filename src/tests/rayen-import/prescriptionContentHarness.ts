@@ -23,6 +23,7 @@ import '../../../extension/hhr-connection-center-runtime.js';
 import '../../../extension/prescription-print.js';
 import '../../../extension/health-push-ordering-runtime.js';
 import '../../../extension/hhr-prescription-content-runtime.js';
+import '../../../extension/hhr-prescription-ui-lifecycle.js';
 
 export const contentSource = readFileSync(
   path.resolve('extension/content-prescription-print.js'),
@@ -58,6 +59,7 @@ export const cleanupContent = () => {
   document.body.innerHTML = '';
   document.documentElement.removeAttribute('data-hhr-prescription-print-script');
   document.documentElement.removeAttribute('data-hhr-prescription-print-state');
+  document.documentElement.removeAttribute('data-hhr-ui-active-instance');
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 };

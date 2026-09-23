@@ -270,14 +270,37 @@ natural. Playwright mantiene una referencia obsoleta al objeto `Worker` después
 CDP en la versión fijada del proyecto; por ello los ciclos de reanudación verifican respuestas por
 el canal real de extensión y no evalúan código mediante ese objeto obsoleto.
 
+### Autorreparación de un relé huérfano durante la sesión
+
+Un relé puede quedar huérfano después del barrido inicial sin que Chrome vuelva a activar o
+cargar su pestaña. Cuando un diagnóstico periódico identifica específicamente
+`relay_disconnected`, el worker ahora verifica y repara únicamente la fuente afectada
+(Ficha Médico, Gestión de Camas o HHR) en la pestaña existente. Las reparaciones simultáneas
+de una misma fuente se agrupan. Si el estado posterior aún no confirma la recuperación,
+el siguiente intento espera 30 segundos; un nuevo fallo tras un estado sano se atiende de inmediato.
+En cada despertar o actualización del worker, HHR se verifica primero y las otras fuentes
+se comprueban en paralelo: una Ficha lenta ya no retiene la recuperación del censo.
+Si una actualización reparó HHR pero otra pestaña falló, el siguiente despertar verifica y
+reintenta sólo la pestaña fallida; no vuelve a reinyectar todas las pestañas sanas.
+Una inyección comprobada publica un nuevo estado; no se abren pestañas ni se repite una
+sincronización clínica. `session_expired`, `outdated_tab` y `tab_missing` no se reinterpretan
+como relés ausentes: conservan sus acciones de autenticación o revisión. El comportamiento
+queda cubierto por pruebas de selección de fuente, concurrencia, espera y reinyección
+verificada. La observación en Chrome sigue siendo necesaria para confirmar el entorno real.
+
 ### Actualización entre paquetes con pestañas abiertas · prueba automatizada
 
 `npm run test:e2e:rayen-extension-upgrade` instala en Chromium aislado el paquete publicado en
-el commit `229f6872` (0.48.31), abre HHR, Ficha Médico y Gestión de Camas con respuestas
-sintéticas y sustituye **el mismo directorio descomprimido** por el paquete actual (0.48.32).
+el commit `a6704bcb` (0.48.32), abre HHR, Ficha Médico y Gestión de Camas con respuestas
+sintéticas y sustituye **el mismo directorio descomprimido** por el paquete actual (0.48.33).
 Después usa el control de recarga de `chrome://extensions`, tal como se actualizaría una
 extensión local, sin refrescar los tres documentos. Exige respuesta de los tres relés, misma
 generación compatible, un solo panel de Ficha y una lectura clínica sintética desde HHR.
+La prueba deja abierto **Conexiones y sesión** durante la actualización: comprueba que el
+panel huérfano se retira, que la barra nueva reclama la interfaz y que al abrirla de nuevo
+puede consultar el worker. El ping de Ficha identifica la versión del código de interfaz
+capturada al inyectarse; una interfaz anterior no queda validada sólo porque su relé responda.
+Los formularios clínicos con datos sin guardar permanecen protegidos.
 El test se ejecuta en el gate `e2e-critical`; CI obtiene el commit anterior fijado antes de
 preparar el paquete de prueba. Una versión futura debe actualizar explícitamente ese commit y
 la versión esperada para seguir probando el salto desde su predecesora real.

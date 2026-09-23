@@ -1,32 +1,6 @@
-/** Reentrant Ficha content lifecycle and bounded extension-message transport. */
+/** Bounded extension-message transport for the Ficha content interface. */
 (function (root) {
   'use strict';
-  const preparePrevious = () => {
-    const previous = root.__hhrPrescriptionPrintRuntime;
-    // A former extension generation may leave a modal in the DOM but no callable runtime.
-    // Wait for that modal to close rather than replace a potentially unsaved clinical form.
-    if (!previous) {
-      if (root.document?.getElementById('hhr-prescription-print-modal')) return false;
-      ['hhr-prescription-print-button', 'hhr-indications-print-button',
-        'hhr-clinical-operations-bar', 'hhr-clinical-page-notices']
-        .forEach(id => root.document?.getElementById(id)?.remove());
-      root.__hhrPrescriptionPrintInjected = false;
-      return true;
-    }
-    try { return previous.dispose() !== false; } catch (_error) { return false; }
-  };
-  const waitForModalClosure = initialize => {
-    root.__hhrPrescriptionPrintWaiter?.disconnect();
-    if (!root.document?.getElementById('hhr-prescription-print-modal')) return;
-    const observer = new MutationObserver(() => {
-      if (root.document.getElementById('hhr-prescription-print-modal')) return;
-      observer.disconnect();
-      root.__hhrPrescriptionPrintWaiter = null;
-      initialize();
-    });
-    observer.observe(root.document.documentElement, { childList: true, subtree: true });
-    root.__hhrPrescriptionPrintWaiter = observer;
-  };
   const createSendMessage = ({ runtimeMessages, chromeApi, windowRef }) => {
     const retryableTypes = new Set([
       runtimeMessages.PRESCRIPTION_OPTIONS_REQUEST,
@@ -79,7 +53,5 @@
       attempt(0);
     });
   };
-  root.HhrPrescriptionContentRuntime = Object.freeze({
-    preparePrevious, waitForModalClosure, createSendMessage,
-  });
+  root.HhrPrescriptionContentRuntime = Object.freeze({ createSendMessage });
 })(typeof self !== 'undefined' ? self : globalThis);

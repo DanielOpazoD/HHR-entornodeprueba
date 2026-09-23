@@ -24,6 +24,11 @@ type ReinjectionRuntime = {
       failedTabs: number;
       complete: boolean;
     }>;
+    repairMissingRelay: (requiredFile: string) => Promise<{
+      injectedTabs: number;
+      failedTabs: number;
+      complete: boolean;
+    }>;
     ensureReinjected: (options?: { force?: boolean }) => Promise<{
       injectedTabs: number;
       skipped: boolean;
@@ -40,7 +45,7 @@ export const runtimeModule = (
 ).HhrRelayReinjectionRuntime;
 
 export const MANIFEST = {
-  version: '0.48.32',
+  version: '0.48.33',
   content_scripts: [
     {
       matches: ['https://fichamedico.rayensalud.cl/*'],
@@ -109,6 +114,7 @@ export const MANIFEST = {
         'hhr-ui.js',
         'hhr-connection-presentation.js',
         'hhr-prescription-content-runtime.js',
+        'hhr-prescription-ui-lifecycle.js',
         'content-prescription-print.js',
       ],
     },
@@ -186,7 +192,7 @@ export const createFixture = () => {
             : message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
               ? { indicatorReady: true }
               : message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
-                ? { uiReady: true }
+                ? { uiReady: true, uiBuildVersion: MANIFEST.version }
                 : message?.type === 'RAYEN_EXTENSION_MAIN_PING'
                   ? { mainReady: true }
                   : {
