@@ -24,6 +24,12 @@ describe('deterministic specialty resolver', () => {
     });
   });
 
+  it('rejects missing and non-string rule IDs before publication', () => {
+    for (const id of [undefined, null, 123, true]) {
+      expect(validatePolicy(policy([{ ...rule('base-one', 'Med Interna'), id }]))).toBe(false);
+    }
+  });
+
   it('protects manual, legacy and empty manual values before applying any rule', () => {
     const config = policy([rule('base-one', 'Med Interna')]);
     expect(resolvePendingSpecialty(patient({ specialty: 'Cirugía' }), config).kind).toBe('keep');

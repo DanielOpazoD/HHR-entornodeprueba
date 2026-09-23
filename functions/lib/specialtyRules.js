@@ -5,7 +5,8 @@ const { validRubrics } = require('./specialtyJevAdapter');
 const text = value => typeof value === 'string' ? value.trim() : '';
 const normalizeCode = value => text(value).toUpperCase().replace(/\s+/g, '');
 const validCode = value => /^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(value);
-const validRuleId = value => /^[A-Za-z0-9_-]{1,80}$/.test(value);
+const validRuleId = value => typeof value === 'string' &&
+  /^[A-Za-z0-9_-]{1,80}$/.test(value);
 const allowedSpecialty = value => SPECIALTIES.has(value) && value !== '' && value !== 'Otro';
 const isCurrentRapaNuiDay = date => {
   const parts = new Intl.DateTimeFormat('en-CA', {

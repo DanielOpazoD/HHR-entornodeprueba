@@ -213,9 +213,9 @@ describe('Critical Integration Paths', () => {
     await waitFor(() => {
       const bed = result.current.record?.beds['bed-1'];
       expect(bed?.patientName).toBe('Juan Perez');
-      // Replacing the occupant resets the old specialty. Assignment is a
-      // separate episode-bound decision after admission is confirmed.
-      expect(bed?.specialty).toBe('');
+      // With the pilot disabled, the established combined-admission flow
+      // keeps the specialty explicitly selected for the incoming patient.
+      expect(bed?.specialty).toBe(Specialty.CIRUGIA);
       expect(bed?.status).toBe(PatientStatus.GRAVE);
     });
 

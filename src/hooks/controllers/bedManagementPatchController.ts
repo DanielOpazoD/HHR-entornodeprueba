@@ -26,6 +26,7 @@ import {
 } from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
 import { buildClinicalCribDraft } from '@/hooks/controllers/clinicalCribController';
 import { arePatchValuesDeepEqual } from '@/utils/patchValueEquality';
+import { isFeatureEnabled } from '@/services/utils/featureFlags';
 
 /**
  * Un gesto = un parche MÍNIMO: los guardados del censo reenvían el paciente
@@ -115,6 +116,11 @@ const buildPatientFieldPatches = ({
   const hadPatientIdentity = Boolean(
     String(currentPatient.patientName || '').trim() || String(currentPatient.rut || '').trim()
   );
+  // A replacement form may resend the old specialty. Only a different value
+  // is evidence of a new explicit choice while the pilot is disabled.
+  const selectedSpecialty = !isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT') &&
+    typeof updates.specialty === 'string' && updates.specialty !== currentPatient.specialty
+      ? updates.specialty : null;
   const resetsClinicalEpisodeOwnership = shouldResetClinicalEpisodeOwnership({
     currentClinicalEpisodeId: currentPatient.clinicalEpisodeId,
     currentPatientName: currentPatient.patientName,
@@ -136,11 +142,15 @@ const buildPatientFieldPatches = ({
     });
   if (identityReplaced && hadPatientIdentity) {
     Object.assign(patches, getClearClinicalDataPatches(bedId));
+    if (selectedSpecialty !== null) patches[`beds.${bedId}.specialty`] = selectedSpecialty;
   }
 
   if (resetsClinicalEpisodeOwnership) {
     patches[`beds.${bedId}.clinicalEpisodeId`] = undefined;
-    patches[`beds.${bedId}.specialty`] = '';
+    // Keep the established combined-admission behavior while the episode
+    // pilot is off. When enabled, classification requires a later explicit
+    // decision on the confirmed new episode.
+    patches[`beds.${bedId}.specialty`] = selectedSpecialty ?? '';
     patches[`beds.${bedId}.specialtyAssignment`] = undefined;
     patches[`beds.${bedId}.firstSeenDate`] =
       nextPatientName.trim() || nextRut.trim() ? recordDate : undefined;
