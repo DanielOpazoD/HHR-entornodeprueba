@@ -258,6 +258,13 @@ try {
   await ficha
     .locator('#hhr-clinical-operations-bar')
     .waitFor({ state: 'attached', timeout: 10_000 });
+  // Relay recovery and Ficha UI replacement are separate asynchronous steps.
+  await ficha.waitForFunction(
+    version =>
+      document.getElementById('hhr-clinical-operations-bar')?.dataset.hhrUiBuildVersion === version,
+    currentManifest.version,
+    { timeout: 15_000 }
+  );
   assert.equal(await ficha.locator('#hhr-clinical-operations-bar').count(), 1);
   assert.equal(
     await ficha.locator('#hhr-clinical-operations-bar').getAttribute('data-upgrade-sentinel'),
