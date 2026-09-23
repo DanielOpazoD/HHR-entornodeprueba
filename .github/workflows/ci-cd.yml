@@ -505,12 +505,12 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Fetch pinned previous extension release
-        run: git fetch --depth=1 origin 229f6872f4bd362b0483c64a04c5339566de2845
+        run: git fetch --depth=1 origin a6704bcbe412db12975948e76199778875a9529e
 
       - name: Validate the packaged Rayen extension in Chromium
         run: npm run test:e2e:rayen-extension-runtime
 
-      - name: Validate 0.48.31 to current extension upgrade with open tabs
+      - name: Validate 0.48.32 to current extension upgrade with open tabs
         run: npm run test:e2e:rayen-extension-upgrade
 
       - name: Validate shared offscreen lifecycle in Chromium
