@@ -70,6 +70,15 @@ const eachTarget = (record, fn) => {
 const protectSpecialtyDecisions = ({ remoteRecord, priorRecord, candidate, intent, patch, actorUid, mutationId, now, aiDecision, guardScalarChanges = true }) => {
   const decisions = [];
   let intentApplied = false;
+  if (intent) {
+    const scalarPath = intent.target === 'clinicalCrib'
+      ? `beds.${intent.bedId}.clinicalCrib.specialty` : `beds.${intent.bedId}.specialty`;
+    if (!patch || Object.keys(patch).length !== 1 ||
+        !Object.prototype.hasOwnProperty.call(patch, scalarPath)) {
+      throw new SpecialtyDecisionError('invalid-argument',
+        'A specialty decision must be the only change in its patch.');
+    }
+  }
   eachTarget(candidate, ({ bedId, target, patient }) => {
     const remote = getPatient(remoteRecord, bedId, target);
     const episodeId = text(patient.clinicalEpisodeId);

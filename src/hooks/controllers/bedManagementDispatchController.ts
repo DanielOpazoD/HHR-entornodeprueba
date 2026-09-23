@@ -277,20 +277,22 @@ export const executeBedManagementAction = async ({
 
   const specialtyControls = isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')
     ? await import('@/hooks/controllers/bedManagementSpecialtyIntentController') : null;
-  const specialtyIntent = specialtyControls?.resolveManualSpecialtyIntent(validatedAction, currentRecord) ?? null;
-
   try {
     const originalPatch = bedManagementReducer(currentRecord, validatedAction);
     if (!originalPatch) {
       return false;
     }
+    const specialtyIntent = specialtyControls?.resolveManualSpecialtyIntent(
+      validatedAction, currentRecord, originalPatch
+    ) ?? null;
     const patch = specialtyControls
       ? specialtyControls.preserveExplicitEmptySpecialtyChoice(originalPatch, specialtyIntent, currentRecord)
       : originalPatch;
     if (specialtyControls?.blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent)) return false;
-    // A preparatory structural write could trigger a server rule before the
-    // subsequent manual choice. Require two separate user actions instead.
-    if (specialtyIntent && splitMixedClinicalStructuralPatch(patch)) return false;
+    // One accepted decision is one scalar write. The server enforces this too,
+    // including for direct callers and Jev acceptance.
+    if (specialtyIntent &&
+        !specialtyControls?.isExclusiveSpecialtyIntentPatch(patch, specialtyIntent)) return false;
     if (Object.keys(patch).length === 0) {
       // Diff vacío: el gesto no cambia nada respecto del registro vigente.
       // No hay nada que escribir, auditar ni confirmar (tampoco prompt de día

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
-import { blocksUnanchoredSpecialtyEdit, resolveManualSpecialtyIntent, preserveExplicitEmptySpecialtyChoice } from
+import { blocksUnanchoredSpecialtyEdit, isExclusiveSpecialtyIntentPatch,
+  resolveManualSpecialtyIntent, preserveExplicitEmptySpecialtyChoice } from
   '@/hooks/controllers/bedManagementSpecialtyIntentController';
 
 vi.mock('@/services/utils/featureFlags', () => ({ isFeatureEnabled: () => true }));
@@ -31,6 +32,24 @@ describe('episode-bound specialty action projection', () => {
       R1: { ...record.beds.R1, specialtyAssignment: { source: 'manual' } } } };
     expect(preserveExplicitEmptySpecialtyChoice({}, intent, alreadyManual as unknown as DailyRecord))
       .toEqual({});
+  });
+
+  it('ignores a specialty repeated unchanged by a multi-field form', () => {
+    const action = { type: 'UPDATE_PATIENT_MULTIPLE', bedId: 'R1',
+      fields: { patientName: 'Cambio', specialty: '' } } as const;
+    const patch = { 'beds.R1.patientName': 'Cambio' };
+    const intent = resolveManualSpecialtyIntent(action, record, patch);
+    expect(intent).toBeNull();
+    expect(blocksUnanchoredSpecialtyEdit(action, patch, intent)).toBe(false);
+  });
+
+  it('keeps an explicit decision in a one-field patch', () => {
+    const intent = resolveManualSpecialtyIntent({ type: 'UPDATE_PATIENT', bedId: 'R1',
+      field: 'specialty', value: 'Cirugía' }, record);
+    expect(intent).not.toBeNull();
+    expect(isExclusiveSpecialtyIntentPatch({ 'beds.R1.specialty': 'Cirugía' }, intent!)).toBe(true);
+    expect(isExclusiveSpecialtyIntentPatch({ 'beds.R1.specialty': 'Cirugía',
+      'beds.R1.diagnosisComments': 'Sintético' }, intent!)).toBe(false);
   });
 
   it('blocks a combined identity reset and specialty before the first write', () => {

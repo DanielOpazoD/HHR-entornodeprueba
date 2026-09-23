@@ -69,6 +69,39 @@ describeEmulator('specialty decision with real Firestore transactions', () => {
     });
   });
 
+  it('rejects a specialty decision bundled with another clinical field without writing either', async () => {
+    await environment.clearFirestore();
+    await environment.withSecurityRulesDisabled(async context => {
+      const db = context.firestore();
+      await db.doc(recordPath).set({ ...makeRecord(), date, meta: { revision: 2 },
+        beds: { R1: { ...makeRecord().beds.R1, specialty: '' } } });
+      await db.doc('hospitals/hanga_roa/settings/specialtyAssignment').set({
+        schemaVersion: 1, revision: 1, autoEnabled: false,
+        memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
+      });
+      const api = createDailyRecordWriteAuthorityFunctions({ firestore: db, Timestamp,
+        resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital') });
+      const patch = { 'beds.R1.specialty': 'Cirugía',
+        'beds.R1.diagnosisComments': 'Dato sintético' };
+      process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+      try {
+        await expect(api.patchDailyRecordWithClinicalAuthority.run({ date, patch,
+          syncContract: { mutationId: 'mixed-specialty', baseRevision: 2,
+            changedPaths: Object.keys(patch) },
+          specialtyIntent: { kind: 'manual', bedId: 'R1', target: 'bed',
+            episodeId: 'ep-uno', value: 'Cirugía', expectedDecisionId: null },
+        }, { ...makeContext(), auth: { ...makeContext().auth, uid: 'synthetic-user' } }))
+          .rejects.toThrow(/only change/);
+        const stored = (await db.doc(recordPath).get()).data();
+        expect(stored?.meta.revision).toBe(2);
+        expect(stored?.beds.R1.specialty).toBe('');
+        expect((await db.doc(recordPath).collection('specialtyDecisions').get()).size).toBe(0);
+      } finally {
+        delete process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT;
+      }
+    });
+  });
+
   it('rejects forged pre-catalog provenance and never overwrites a reused audit ID', async () => {
     await environment.clearFirestore();
     await environment.withSecurityRulesDisabled(async context => {

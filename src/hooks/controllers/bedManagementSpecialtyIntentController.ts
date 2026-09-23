@@ -6,7 +6,8 @@ import { isFeatureEnabled } from '@/services/utils/featureFlags';
 /** Translate an existing bed edit to an episode-bound request; the server remains authoritative. */
 export const resolveManualSpecialtyIntent = (
   action: BedAction,
-  record: DailyRecord
+  record: DailyRecord,
+  patch?: DailyRecordPatch
 ): SpecialtyManualIntent | null => {
   if (!isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')) return null;
   const isCrib = action.type === 'UPDATE_CLINICAL_CRIB' ||
@@ -17,6 +18,14 @@ export const resolveManualSpecialtyIntent = (
     ? action.field === 'specialty' ? action.value : undefined
     : 'fields' in action ? action.fields.specialty : undefined;
   if (typeof value !== 'string') return null;
+  // Multi-field forms may resend an unchanged specialty. Only a scalar that
+  // survived the reducer's diff represents a new explicit decision.
+  if (patch && 'fields' in action) {
+    const scalarPath = isCrib
+      ? `beds.${action.bedId}.clinicalCrib.specialty`
+      : `beds.${action.bedId}.specialty`;
+    if (!Object.prototype.hasOwnProperty.call(patch, scalarPath)) return null;
+  }
   const patient = isCrib
     ? record.beds[action.bedId]?.clinicalCrib
     : record.beds[action.bedId];
@@ -43,12 +52,31 @@ export const changesSpecialtyEpisode = (
     (patch as Record<string, unknown>)[path] !== intent.episodeId;
 };
 
+/** A confirmed decision never shares a patch with another patient field. */
+export const isExclusiveSpecialtyIntentPatch = (
+  patch: DailyRecordPatch,
+  intent: SpecialtyManualIntent
+): boolean => {
+  const scalarPath = intent.target === 'clinicalCrib'
+    ? `beds.${intent.bedId}.clinicalCrib.specialty`
+    : `beds.${intent.bedId}.specialty`;
+  return Object.keys(patch).length === 1 &&
+    Object.prototype.hasOwnProperty.call(patch, scalarPath);
+};
+
 export const blocksUnanchoredSpecialtyEdit = (
   action: BedAction,
   patch: DailyRecordPatch,
   intent: SpecialtyManualIntent | null
-): boolean => isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT') && isSpecialtyEditAction(action) &&
-  (!intent || changesSpecialtyEpisode(patch, intent));
+): boolean => {
+  if (!isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT') || !isSpecialtyEditAction(action)) return false;
+  if (action.type !== 'UPDATE_PATIENT' && action.type !== 'UPDATE_PATIENT_MULTIPLE' &&
+      action.type !== 'UPDATE_CLINICAL_CRIB' && action.type !== 'UPDATE_CLINICAL_CRIB_MULTIPLE') return false;
+  const scalarPath = (action.type === 'UPDATE_CLINICAL_CRIB' || action.type === 'UPDATE_CLINICAL_CRIB_MULTIPLE')
+    ? `beds.${action.bedId}.clinicalCrib.specialty` : `beds.${action.bedId}.specialty`;
+  return (Boolean(intent) || Object.prototype.hasOwnProperty.call(patch, scalarPath)) &&
+    (!intent || changesSpecialtyEpisode(patch, intent));
+};
 
 /** An intentional empty choice is a write even when the visible scalar was already empty. */
 export const preserveExplicitEmptySpecialtyChoice = (

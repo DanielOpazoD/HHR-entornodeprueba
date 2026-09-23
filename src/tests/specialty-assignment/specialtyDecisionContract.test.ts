@@ -30,6 +30,19 @@ describe('specialty decision authority', () => {
     expect(apply(next, record(patient()), {})).toEqual([]);
   });
 
+  it('rejects clinical or structural changes bundled with an AI acceptance', () => {
+    const intent = parseSpecialtyIntent({ kind: 'accept_ai', bedId: 'R1', target: 'bed',
+      episodeId: 'episode-one', value: 'Cirugía', expectedDecisionId: null,
+      requestId: 'synthetic-request-123' });
+    const remote = record({ ...patient(), diagnosisCie10: 'A00' });
+    const next = record({ ...patient('episode-one', 'Cirugía'), diagnosisCie10: 'B00' });
+    expect(() => apply(remote, next, { intent,
+      aiDecision: { requestId: 'synthetic-request-123' },
+      patch: { 'beds.R1.specialty': 'Cirugía', 'beds.R1.diagnosisCie10': 'B00' },
+    })).toThrow(/only change/);
+    expect((next.beds.R1 as Record<string, unknown>).specialtyAssignment).toBeUndefined();
+  });
+
   it('does not allow a copied record or Rayen patch to change a manual or legacy specialty', () => {
     expect(() => apply(record(patient('episode-one', 'Cirugía', meta)),
       record(patient('episode-one', 'Pediatría', meta)))).toThrow(SpecialtyDecisionError);
