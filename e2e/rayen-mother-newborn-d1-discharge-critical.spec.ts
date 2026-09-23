@@ -217,7 +217,7 @@ test.describe('Eloísa · egreso madre y RN en D−1', () => {
     await expect(preview).toContainText('Modificar días previos (1)');
     await expect(preview).toContainText('Paciente Materna Sintética');
     await preview.getByLabel('Acepto modificar los días previos indicados').check();
-    await preview.getByRole('button', { name: 'Confirmar e importar' }).click();
+    await preview.getByRole('button', { name: 'Confirmar censo y días previos' }).click();
 
     const currentWrite = await authority.nextCall();
     expect(currentWrite.payload.date).toBe(CENSUS_DAY);

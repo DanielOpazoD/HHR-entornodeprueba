@@ -54,26 +54,10 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   onConfirm,
   onCancel,
 }) => {
-  // Todo lo que el plan considera revisable debe contar aquí: si el
-  // planificador abre la revisión por egresos administrativos pendientes o por
-  // ediciones de días previos y este conteo los omite, el modal aparece VACÍO
-  // con un botón «Listo» y la decisión queda inaccesible.
-  const hasChanges =
-    !!diff &&
-    (diff.summary.admissions +
-      diff.summary.updates +
-      diff.summary.moves +
-      diff.summary.discharges +
-      diff.pendingAdministrativeDischarges.length +
-      (diff.previousDayEdits?.length ?? 0) +
-      (diff.reportEgresos?.length ?? 0) >
-      0 ||
-      (diff.bedOccupancyCollisions?.length ?? 0) > 0);
+  // Mostrar también las correcciones históricas bloqueadas; sólo las aplicables
+  // habilitan la confirmación. Así el motivo del bloqueo sigue siendo visible.
   const previousDayEdits = diff?.previousDayEdits ?? [];
   const needsPreviousDayAck = previousDayEdits.length > 0;
-  // La casilla de aceptación solo tiene sentido si confirmar escribirá algo en
-  // un día previo; las ediciones bloqueadas (sin registro, firmadas, fuera de
-  // ventana) se muestran como información, sin pedir un consentimiento vacío.
   const hasActionablePreviousDayEdit = previousDayEdits.some(
     edit =>
       edit.patientNames.length > 0 &&
@@ -81,6 +65,18 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       edit.withinEditingWindow &&
       !edit.isSigned
   );
+  const hasChanges =
+    !!diff &&
+    (diff.summary.admissions +
+      diff.summary.updates +
+      diff.summary.moves +
+      diff.summary.discharges +
+      diff.pendingAdministrativeDischarges.length +
+      (diff.reportEgresos?.length ?? 0) >
+      0 ||
+      (diff.bedOccupancyCollisions?.length ?? 0) > 0 ||
+      hasActionablePreviousDayEdit);
+  const hasReviewContent = hasChanges || needsPreviousDayAck;
   const previousDays = new Set(previousDayEdits.map(edit => edit.day));
   const [acceptedPreviousDays, setAcceptedPreviousDays] = React.useState(false);
   const [cmaAdmissionResolutions, setCmaAdmissionResolutions] = React.useState<
@@ -116,7 +112,12 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
     !stage ||
     stage.type === 'awaiting_review' ||
     (stage.type === 'needs_review' && stage.scope === 'structure');
-  const showReview = (hasChanges || hasConflicts) && canReview && !isApplied;
+  const showReview = (hasReviewContent || hasConflicts) && canReview && !isApplied;
+  const confirmLabel = hasActionablePreviousDayEdit
+    ? acceptedPreviousDays
+      ? 'Confirmar censo y días previos'
+      : 'Confirmar solo censo seleccionado'
+    : 'Confirmar e importar';
   return (
     <BaseModal
       isOpen={isOpen}
@@ -382,7 +383,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
             }
             className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
           >
-            Confirmar e importar
+            {confirmLabel}
           </button>
         )}
       </div>
