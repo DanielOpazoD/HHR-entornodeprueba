@@ -116,6 +116,14 @@ const createRelay = (installedVersion: string) => {
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('relay de Ficha Médico · versión del inject', () => {
+  it('reinyecta el probe MAIN cuando no llega ningún pong', async () => {
+    const relay = createRelay(manifest.version);
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_MAIN_PING' });
+    await flush();
+    expect(relay.requests.at(-1)?.type).toBe('RAYEN_FM_BRIDGE_PING');
+    await expect(ping).resolves.toMatchObject({ mainReady: false, reason: 'missing_probe' });
+  }, 6_000);
+
   it('al reinyectarse deja inerte el listener anterior y emite una sola consulta MAIN', async () => {
     const relay = createRelay(manifest.version);
     relay.reinject();

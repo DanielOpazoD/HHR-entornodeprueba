@@ -166,7 +166,7 @@
         .then(status => sendResponse({
           mainReady: status?.mainReady === true &&
             status?.bridgeProtocolVersion === globalThis.HhrBridgeGeneration.BRIDGE_PROTOCOL_VERSION,
-          reason: status?.reason || 'unverified_reader',
+          reason: status?.error ? 'missing_probe' : status?.reason || 'unverified_reader',
         }));
       return true;
     }

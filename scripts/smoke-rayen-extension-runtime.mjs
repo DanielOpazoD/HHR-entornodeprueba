@@ -48,27 +48,36 @@ const requestRuntimeContext = statusPage =>
       })
   );
 
-const diagnoseFichaReader = page => page.evaluate(() => new Promise(resolve => {
-  const reqId = `reader-diagnostic-${Date.now()}`;
-  const details = {
-    readerPresent: typeof window.__rayenBridgeInjected?.reactivate === 'function',
-    probePresent: typeof window.__hhrFichaMainPingListenerV1 === 'function',
-    bridgeGeneration: String(window.__hhrExtensionRuntimeGenerationV1__ || ''),
-  };
-  const onMessage = event => {
-    if (event.source !== window || event.origin !== window.location.origin ||
-        event.data?.type !== 'RAYEN_FM_BRIDGE_PONG' || event.data?.reqId !== reqId) return;
-    clearTimeout(timeout);
-    window.removeEventListener('message', onMessage);
-    resolve({ ...details, directReply: event.data?.mainReady === true });
-  };
-  const timeout = setTimeout(() => {
-    window.removeEventListener('message', onMessage);
-    resolve({ ...details, directReply: false });
-  }, 2_500);
-  window.addEventListener('message', onMessage);
-  window.postMessage({ type: 'RAYEN_FM_BRIDGE_PING', reqId }, window.location.origin);
-}));
+const diagnoseFichaReader = page =>
+  page.evaluate(
+    () =>
+      new Promise(resolve => {
+        const reqId = `reader-diagnostic-${Date.now()}`;
+        const details = {
+          readerPresent: typeof window.__rayenBridgeInjected?.reactivate === 'function',
+          probePresent: typeof window.__hhrFichaMainPingListenerV1 === 'function',
+          bridgeGeneration: String(window.__hhrExtensionRuntimeGenerationV1__ || ''),
+        };
+        const onMessage = event => {
+          if (
+            event.source !== window ||
+            event.origin !== window.location.origin ||
+            event.data?.type !== 'RAYEN_FM_BRIDGE_PONG' ||
+            event.data?.reqId !== reqId
+          )
+            return;
+          clearTimeout(timeout);
+          window.removeEventListener('message', onMessage);
+          resolve({ ...details, directReply: event.data?.mainReady === true });
+        };
+        const timeout = setTimeout(() => {
+          window.removeEventListener('message', onMessage);
+          resolve({ ...details, directReply: false });
+        }, 2_500);
+        window.addEventListener('message', onMessage);
+        window.postMessage({ type: 'RAYEN_FM_BRIDGE_PING', reqId }, window.location.origin);
+      })
+  );
 
 const readRelayHealth = statusPage =>
   statusPage.evaluate(async () => {
@@ -173,52 +182,65 @@ const requestClinicalBundle = (page, fecha, encId = '141121') =>
             event.origin !== window.location.origin ||
             event.data?.type !== 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_RESULT' ||
             event.data?.reqId !== reqId
-          ) return;
+          )
+            return;
           clearTimeout(timeout);
           window.removeEventListener('message', onMessage);
           resolve(event.data);
         };
         window.addEventListener('message', onMessage);
-        window.postMessage({
-          type: 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_REQUEST',
-          reqId,
-          encId,
-          fecha,
-          acceptEntries: true,
-          lookbackDays: 7,
-        }, window.location.origin);
+        window.postMessage(
+          {
+            type: 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_REQUEST',
+            reqId,
+            encId,
+            fecha,
+            acceptEntries: true,
+            lookbackDays: 7,
+          },
+          window.location.origin
+        );
       }),
     { encId, fecha }
   );
 
-const installSyntheticClinicalBackend = worker => worker.evaluate(() => {
-  const originalFetch = globalThis.fetch;
-  globalThis.__hhrSyntheticClinicalRequests = [];
-  globalThis.__hhrSyntheticBackendMode = 'ok';
-  globalThis.fetch = (input, init) => {
-    const url = String(input);
-    if (!url.startsWith('https://fichamedicoback.rayensalud.cl/')) {
-      return originalFetch(input, init);
-    }
-    globalThis.__hhrSyntheticClinicalRequests.push(new URL(url).pathname);
-    if (globalThis.__hhrSyntheticBackendMode === 'http-503') {
-      return Promise.resolve(new Response('Service unavailable', { status: 503 }));
-    }
-    if (url.includes('/invasiveDeviceEntry/')) {
-      return Promise.resolve(new Response('[]', {
-        status: 200, headers: { 'Content-Type': 'application/json' },
-      }));
-    }
-    if (url.includes('/getPatientEncounterHistoryReportServer/') ||
-        url.includes('/encounterFormEntry/')) {
-      return Promise.resolve(new Response('[]', {
-        status: 200, headers: { 'Content-Type': 'application/json' },
-      }));
-    }
-    throw new Error(`Unexpected synthetic clinical endpoint: ${new URL(url).pathname}`);
-  };
-  return true;
-});
+const installSyntheticClinicalBackend = worker =>
+  worker.evaluate(() => {
+    const originalFetch = globalThis.fetch;
+    globalThis.__hhrSyntheticClinicalRequests = [];
+    globalThis.__hhrSyntheticBackendMode = 'ok';
+    globalThis.fetch = (input, init) => {
+      const url = String(input);
+      if (!url.startsWith('https://fichamedicoback.rayensalud.cl/')) {
+        return originalFetch(input, init);
+      }
+      globalThis.__hhrSyntheticClinicalRequests.push(new URL(url).pathname);
+      if (globalThis.__hhrSyntheticBackendMode === 'http-503') {
+        return Promise.resolve(new Response('Service unavailable', { status: 503 }));
+      }
+      if (url.includes('/invasiveDeviceEntry/')) {
+        return Promise.resolve(
+          new Response('[]', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+      if (
+        url.includes('/getPatientEncounterHistoryReportServer/') ||
+        url.includes('/encounterFormEntry/')
+      ) {
+        return Promise.resolve(
+          new Response('[]', {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+      throw new Error(`Unexpected synthetic clinical endpoint: ${new URL(url).pathname}`);
+    };
+    return true;
+  });
 
 const removeMainBridgeListener = async (context, page, source) => {
   const session = await context.newCDPSession(page);
@@ -251,9 +273,10 @@ const terminateWorker = async (context, page, extensionId) => {
   const session = await context.newCDPSession(page);
   try {
     const { targetInfos } = await session.send('Target.getTargets');
-    const target = targetInfos.find(info =>
-      info.type === 'service_worker' &&
-      info.url === `chrome-extension://${extensionId}/background.js`
+    const target = targetInfos.find(
+      info =>
+        info.type === 'service_worker' &&
+        info.url === `chrome-extension://${extensionId}/background.js`
     );
     assert.ok(target, 'MV3 worker target was missing before idle simulation');
     const result = await session.send('Target.closeTarget', { targetId: target.targetId });
@@ -264,8 +287,10 @@ const terminateWorker = async (context, page, extensionId) => {
 };
 
 const idleDelayMs = Number(process.env.HHR_EXTENSION_IDLE_WAIT_MS || 0);
-assert.ok(Number.isInteger(idleDelayMs) && idleDelayMs >= 0 && idleDelayMs <= 180_000,
-  'HHR_EXTENSION_IDLE_WAIT_MS must be between 0 and 180000');
+assert.ok(
+  Number.isInteger(idleDelayMs) && idleDelayMs >= 0 && idleDelayMs <= 180_000,
+  'HHR_EXTENSION_IDLE_WAIT_MS must be between 0 and 180000'
+);
 
 const runtimeErrors = [];
 const context = await chromium.launchPersistentContext('', {
@@ -324,7 +349,11 @@ try {
     const staleTab = route.request().frame().url().includes('stale-session=1');
     return sessionExpired || staleTab
       ? route.fulfill({ status: 401, contentType: 'application/json', body: '{"ok":false}' })
-      : route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(syntheticSession) });
+      : route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(syntheticSession),
+        });
   });
   await context.route('https://hospitalizado.rayensalud.cl/**', route =>
     route.fulfill({
@@ -592,8 +621,8 @@ try {
   assert.ok(Array.isArray(clinicalBundle.devices?.entries));
   assert.ok(Array.isArray(clinicalBundle.history?.events));
   assert.ok(Array.isArray(clinicalBundle.forms?.forms));
-  const backendRequests = await reloadedWorker.evaluate(() =>
-    globalThis.__hhrSyntheticClinicalRequests || []
+  const backendRequests = await reloadedWorker.evaluate(
+    () => globalThis.__hhrSyntheticClinicalRequests || []
   );
   assert.ok(backendRequests.some(url => url.includes('/invasiveDeviceEntry/')));
   assert.ok(backendRequests.some(url => url.includes('/getPatientEncounterHistoryReportServer/')));
@@ -612,14 +641,18 @@ try {
 
   // A verified session alone cannot establish clinical availability. Model the observed
   // "green connection, no clinical data" failure, then recover without reloading tabs.
-  await reloadedWorker.evaluate(() => { globalThis.__hhrSyntheticBackendMode = 'http-503'; });
+  await reloadedWorker.evaluate(() => {
+    globalThis.__hhrSyntheticBackendMode = 'http-503';
+  });
   const unavailableBundle = await requestClinicalBundle(hhrPage, syntheticClinicalDate);
   for (const section of ['devices', 'history', 'forms']) {
     assert.ok(unavailableBundle[section]?.error, `${section} must fail explicitly on HTTP 503`);
   }
   const greenDuringOutage = await readRelayHealth(reloadedStatusPage);
   assert.equal(greenDuringOutage.fichaMedico.ready, true);
-  await reloadedWorker.evaluate(() => { globalThis.__hhrSyntheticBackendMode = 'ok'; });
+  await reloadedWorker.evaluate(() => {
+    globalThis.__hhrSyntheticBackendMode = 'ok';
+  });
   const recoveredBundle = await requestClinicalBundle(hhrPage, syntheticClinicalDate);
   for (const section of ['devices', 'history', 'forms']) {
     assert.equal(recoveredBundle[section]?.error, undefined, `${section} did not recover`);
@@ -637,7 +670,11 @@ try {
   assert.equal(renewedHealth.fichaMedico.ready, true);
   const renewedBundle = await requestClinicalBundle(hhrPage, syntheticClinicalDate);
   for (const section of ['devices', 'history', 'forms']) {
-    assert.equal(renewedBundle[section]?.error, undefined, `${section} did not read after session renewal`);
+    assert.equal(
+      renewedBundle[section]?.error,
+      undefined,
+      `${section} did not read after session renewal`
+    );
   }
   await staleFichaPage.close();
 
@@ -652,8 +689,8 @@ try {
     return true;
   });
   assert.equal(removedMainProbe, true, 'Could not simulate a compatible pre-probe MAIN reader');
-  const fichaMainFiles = manifest.content_scripts.find(entry =>
-    entry.world === 'MAIN' && entry.js.includes('inject-fichamedico.js')
+  const fichaMainFiles = manifest.content_scripts.find(
+    entry => entry.world === 'MAIN' && entry.js.includes('inject-fichamedico.js')
   )?.js;
   assert.ok(fichaMainFiles, 'Ficha MAIN manifest entry is missing');
   await reloadedStatusPage.evaluate(async files => {
@@ -661,8 +698,11 @@ try {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: 'MAIN', files });
   }, fichaMainFiles);
   const upgradedMain = await readRelayHealth(reloadedStatusPage);
-  assert.equal(upgradedMain.fichaMedico.ready, true,
-    'A compatible older MAIN reader did not gain the probe after reinjection');
+  assert.equal(
+    upgradedMain.fichaMedico.ready,
+    true,
+    'A compatible older MAIN reader did not gain the probe after reinjection'
+  );
 
   // Repeat the idle → resumed-tab path. The optional delay supports a real multi-minute
   // local soak without adding four minutes to every CI run.
@@ -687,8 +727,12 @@ try {
     while (Date.now() < resumeDeadline) {
       try {
         resumedHealth = await readRelayHealth(reloadedStatusPage);
-        if (resumedHealth?.fichaMedico?.ready && resumedHealth?.gestionCamas?.ready &&
-            resumedHealth?.hhr?.ready) break;
+        if (
+          resumedHealth?.fichaMedico?.ready &&
+          resumedHealth?.gestionCamas?.ready &&
+          resumedHealth?.hhr?.ready
+        )
+          break;
       } catch (error) {
         // Chrome may still be registering the replacement worker.
         lastResumeError = String(error);
@@ -703,29 +747,77 @@ try {
       lastResumeError,
     });
     if (resumedHealth?.fichaMedico?.ready !== true) {
-      const directReader = await diagnoseFichaReader(page).catch(error => ({ error: String(error) }));
+      const directReader = await diagnoseFichaReader(page).catch(error => ({
+        error: String(error),
+      }));
       console.error(`[idle] cycle ${cycle} MAIN diagnostic: ${JSON.stringify(directReader)}`);
     }
-    assert.equal(resumedHealth?.fichaMedico?.ready, true,
-      `Ficha did not resume in cycle ${cycle}: ${resumeDiagnostic}`);
-    assert.equal(resumedHealth?.gestionCamas?.ready, true, `Camas did not resume in cycle ${cycle}`);
+    assert.equal(
+      resumedHealth?.fichaMedico?.ready,
+      true,
+      `Ficha did not resume in cycle ${cycle}: ${resumeDiagnostic}`
+    );
+    assert.equal(
+      resumedHealth?.gestionCamas?.ready,
+      true,
+      `Camas did not resume in cycle ${cycle}`
+    );
     assert.equal(resumedHealth?.hhr?.ready, true, `HHR did not resume in cycle ${cycle}`);
     assert.equal(resumedHealth.runtimeContext.runtimeGeneration, runtimeContext.runtimeGeneration);
     console.log(`[idle] cycle ${cycle}: three relays ready in ${Date.now() - resumeStartedAt} ms`);
-    assert.equal(await page.locator('#hhr-clinical-operations-bar').count(), 1,
-      `Ficha controls duplicated after idle cycle ${cycle}`);
+    assert.equal(
+      await page.locator('#hhr-clinical-operations-bar').count(),
+      1,
+      `Ficha controls duplicated after idle cycle ${cycle}`
+    );
     // A runtime-context answer proves the worker woke; Playwright versions before its
     // MV3 target-reuse fix retain a stale Worker handle after CDP terminates that target.
     const resumedPageHealth = await requestHhrHealth(hhrPage);
     assert.equal(resumedPageHealth.report?.hhr?.status, 'ready');
     const resumedPageRoute = await requestInvalidPatientFlow(hhrPage);
     assert.match(resumedPageRoute.error || '', /episodio clínico no es válido/);
-    assert.deepEqual(await Promise.all(
-      [page, gestionCamasPage, hhrPage].map(fixturePage =>
-        fixturePage.evaluate(() => window.__hhrExtensionUpdateDocumentSentinel)
-      )
-    ), [documentSentinel, documentSentinel, documentSentinel]);
+    assert.deepEqual(
+      await Promise.all(
+        [page, gestionCamasPage, hhrPage].map(fixturePage =>
+          fixturePage.evaluate(() => window.__hhrExtensionUpdateDocumentSentinel)
+        )
+      ),
+      [documentSentinel, documentSentinel, documentSentinel]
+    );
   }
+
+  // A lost probe listener is different from a retained reader that answered but could not
+  // prove compatibility. Activation must reinstall the probe instead of failing closed.
+  const removedFichaProbe = await page.evaluate(() => {
+    const key = '__hhrFichaMainPingListenerV1';
+    const listener = window[key];
+    if (typeof listener !== 'function') return false;
+    window.removeEventListener('message', listener);
+    delete window[key];
+    return true;
+  });
+  assert.equal(removedFichaProbe, true, 'Could not simulate a lost Ficha MAIN probe');
+  await page.bringToFront();
+  let repairedFichaProbe;
+  const probeDeadline = Date.now() + 15_000;
+  while (Date.now() < probeDeadline) {
+    repairedFichaProbe = await reloadedStatusPage.evaluate(async () => {
+      const [tab] = await chrome.tabs.query({ url: 'https://fichamedico.rayensalud.cl/*' });
+      return chrome.tabs.sendMessage(tab.id, { type: 'RAYEN_EXTENSION_MAIN_PING' });
+    });
+    if (repairedFichaProbe?.mainReady === true) break;
+    await reloadedStatusPage.waitForTimeout(250);
+  }
+  assert.equal(
+    repairedFichaProbe?.mainReady,
+    true,
+    'Activation did not reinstall a missing Ficha MAIN probe'
+  );
+  assert.equal(
+    await page.evaluate(() => window.__hhrExtensionUpdateDocumentSentinel),
+    documentSentinel,
+    'Ficha document reloaded while repairing its probe'
+  );
 
   // Other listeners may survive in ISOLATED even when the GC health receiver disappears.
   // In that case tabs.sendMessage can resolve without a health response instead of throwing.
@@ -767,14 +859,22 @@ try {
   await removeMainBridgeListener(context, page, 'incompatible Ficha MAIN reader');
   await page.evaluate(() => {
     const incompatibleReader = event => {
-      if (event.source !== window || event.origin !== window.location.origin ||
-          event.data?.type !== 'RAYEN_FM_SESSION_STATUS_REQUEST') return;
-      window.postMessage({
-        type: 'RAYEN_FM_SESSION_STATUS_RESULT', reqId: event.data.reqId,
-        bridgeProtocolVersion: 0,
-        bridgeGeneration: window.__hhrExtensionRuntimeGenerationV1__,
-        ready: false,
-      }, window.location.origin);
+      if (
+        event.source !== window ||
+        event.origin !== window.location.origin ||
+        event.data?.type !== 'RAYEN_FM_SESSION_STATUS_REQUEST'
+      )
+        return;
+      window.postMessage(
+        {
+          type: 'RAYEN_FM_SESSION_STATUS_RESULT',
+          reqId: event.data.reqId,
+          bridgeProtocolVersion: 0,
+          bridgeGeneration: window.__hhrExtensionRuntimeGenerationV1__,
+          ready: false,
+        },
+        window.location.origin
+      );
     };
     window.__rayenBridgeInjected = {
       reactivate: () => {
@@ -784,7 +884,8 @@ try {
     };
     // A persistent marker from an older injection must not certify this reader.
     window.__hhrFichaMainReaderProtocolV1 = {
-      reader: window.__rayenBridgeInjected, protocolVersion: 1,
+      reader: window.__rayenBridgeInjected,
+      protocolVersion: 1,
     };
   });
   await reloadedStatusPage.evaluate(async files => {
@@ -795,17 +896,25 @@ try {
     const [tab] = await chrome.tabs.query({ url: 'https://fichamedico.rayensalud.cl/*' });
     return chrome.tabs.sendMessage(tab.id, { type: 'RAYEN_EXTENSION_MAIN_PING' });
   });
-  assert.equal(incompatibleProbe?.mainReady, false,
-    'The new probe falsely certified an incompatible retained MAIN reader');
+  assert.equal(
+    incompatibleProbe?.mainReady,
+    false,
+    'The new probe falsely certified an incompatible retained MAIN reader'
+  );
   assert.equal(incompatibleProbe?.reason, 'incompatible_reader');
   await reloadedStatusPage.close();
   await extensionsPage.close();
 
   const unexpectedRuntimeErrors = runtimeErrors.filter(
-    error => !error.endsWith('Failed to load resource: the server responded with a status of 401 (Unauthorized)')
+    error =>
+      !error.endsWith(
+        'Failed to load resource: the server responded with a status of 401 (Unauthorized)'
+      )
   );
   assert.deepEqual(
-    unexpectedRuntimeErrors, [], `Unexpected runtime errors:\n${unexpectedRuntimeErrors.join('\n')}`
+    unexpectedRuntimeErrors,
+    [],
+    `Unexpected runtime errors:\n${unexpectedRuntimeErrors.join('\n')}`
   );
   console.log(
     `Rayen extension runtime smoke passed (MV3 v${manifest.version}, update recovery, live clinical bridge simulation, reinjection, limits, route isolation).`

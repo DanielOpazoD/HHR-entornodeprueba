@@ -241,7 +241,8 @@ incluye ahora un ping al lector MAIN, independiente de la sesión clínica. El p
 el listener existente si Chrome lo dejó sin registrar. Si falta el lector, reinyecta esa
 pestaña y comprueba el ping otra vez antes de declararla reparada. Si el lector retenido no
 puede demostrar compatibilidad, detiene la reparación automática y ofrece abrir una conexión
-limpia en otra pestaña. Una sesión
+limpia en otra pestaña. La ausencia total de respuesta del propio ping se trata como un probe
+faltante y permite reinstalarlo al activar la pestaña. Una sesión
 realmente vencida sigue siendo un estado de autenticación, no un motivo para reinyectar.
 El listener del ping se instala por separado: una pestaña con el lector compatible de 0.48.31
 puede conservar su captura y adquirir esta comprobación al actualizar la extensión, sin recarga
@@ -249,8 +250,8 @@ ni duplicar el lector original. En ese caso, la primera comprobación pide al le
 respuesta de estado con su propio protocolo y generación; sólo entonces guarda el resultado
 para los pings siguientes. Esto se exige también al lector de la versión actual. Un lector
 incompatible o sin respuesta no queda certificado por los metadatos del ping nuevo.
-El smoke simula ambos lados: adopta un lector compatible sin recargarlo y rechaza un lector
-retenido que responde con protocolo incompatible.
+El smoke simula ambos lados: adopta un lector compatible sin recargarlo, restaura un probe
+ausente y rechaza un lector retenido que responde con protocolo incompatible.
 En este último caso la verificación evita reinyecciones automáticas repetidas sobre el mismo
 lector antiguo; el centro de conexiones ofrece **Abrir conexión limpia**, que abre documentos
 nuevos sin cerrar la pestaña clínica anterior ni descartar ediciones pendientes.
