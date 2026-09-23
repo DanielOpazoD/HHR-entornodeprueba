@@ -65,6 +65,20 @@ Referencia técnica:
 - [useDailyRecordQuery.ts](../src/hooks/useDailyRecordQuery.ts)
 - [Clinical sync simulator contract](CLINICAL_SYNC_SIMULATOR_CONTRACT.md)
 
+## Reconstruir un día anterior sin censo
+
+Cuando la ausencia del registro está confirmada y la fecha pertenece al censo vigente o a los
+siete días clínicos anteriores, el estado vacío ofrece **Reconstruir desde Eloísa** para un día
+histórico. Primero comprueba Ficha Médico y Gestión de Camas; después crea el registro de esa
+fecha y abre la importación con revisión obligatoria. La vista previa usa evidencia del cierre
+de ese día. No se deben copiar al pasado signos vitales u observaciones actuales ni confirmar
+una cama o episodio que el informe de flujo no permita demostrar.
+
+Si la lectura de Eloísa falla después de crear el registro, el día puede quedar en blanco:
+volver a esa fecha y repetir **Sincronizar**, revisar el historial y comprobar el resultado
+persistido tras recargar. No usar «Copiar del día anterior» para sustituir la evidencia histórica.
+Las fechas anteriores al límite de siete días requieren revisión manual; el botón no aparece.
+
 ## Procedimiento 1: IndexedDB bloqueado
 
 Síntomas:

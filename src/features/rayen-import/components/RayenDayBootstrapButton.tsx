@@ -4,11 +4,13 @@ import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealt
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 
 interface RayenDayBootstrapButtonProps {
+  historical?: boolean;
   onCreateBlank: () => Promise<void>;
   onReady: () => void;
 }
 
 export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = ({
+  historical = false,
   onCreateBlank,
   onReady,
 }) => {
@@ -50,10 +52,20 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
       >
         <div className="flex items-center gap-2 text-lg font-bold">
           <RefreshCw size={20} className={busy ? 'animate-spin' : undefined} />
-          <span>{busy ? 'Preparando…' : checking ? 'Comprobando…' : 'Crear desde Eloísa'}</span>
+          <span>
+            {busy
+              ? 'Preparando…'
+              : checking
+                ? 'Comprobando…'
+                : historical
+                  ? 'Reconstruir desde Eloísa'
+                  : 'Crear desde Eloísa'}
+          </span>
         </div>
         <span className="text-xs font-normal text-medical-100">
-          Revisar pacientes y camas antes de importar
+          {historical
+            ? 'Revisar evidencia del día antes de importar'
+            : 'Revisar pacientes y camas antes de importar'}
         </span>
       </button>
       <p className="min-h-5 text-center text-xs text-slate-500" role="status" aria-live="polite">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CensusView } from '@/features/census/components/CensusView';
 
 /**
@@ -156,10 +156,10 @@ const importState = (overrides: Record<string, unknown> = {}) => ({
 });
 
 /** Mutable census world: a blank census day that only exists after `createDay` resolves. */
-const createCensusWorld = () => {
+const createCensusWorld = (date = CLINICAL_TODAY) => {
   const world = { hasRecord: false, createDayCalls: [] as unknown[][] };
   const registerContentProps = {
-    currentDateString: CLINICAL_TODAY,
+    currentDateString: date,
     readOnly: false,
     beds: {},
     visibleBeds: [],
@@ -175,14 +175,14 @@ const createCensusWorld = () => {
           emptyDayPromptProps: null,
           registerContentProps,
           shouldDeferTodayEmptyState: false,
-          resolvedTodayEmptyDate: CLINICAL_TODAY,
+          resolvedTodayEmptyDate: date,
         }
       : {
           branch: 'empty',
           emptyDayPromptProps: {
-            selectedDay: 10,
+            selectedDay: Number(date.slice(-2)),
             selectedMonth: 8,
-            currentDateString: CLINICAL_TODAY,
+            currentDateString: date,
             previousRecordAvailable: false,
             onCreateDay: async (...args: unknown[]) => {
               world.createDayCalls.push(args);
@@ -191,29 +191,31 @@ const createCensusWorld = () => {
           },
           registerContentProps: null,
           shouldDeferTodayEmptyState: false,
-          resolvedTodayEmptyDate: CLINICAL_TODAY,
+          resolvedTodayEmptyDate: date,
         }
   );
   mocks.dailyRecordData.mockImplementation(() => ({
     bootstrapPhase: world.hasRecord ? 'record_ready' : 'confirmed_empty',
-    record: world.hasRecord ? { date: CLINICAL_TODAY, beds: {} } : null,
+    record: world.hasRecord ? { date, beds: {} } : null,
   }));
   return world;
 };
 
-const censusElement = () => (
+const censusElement = (date = CLINICAL_TODAY) => (
   <CensusView
-    selectedDay={10}
+    selectedDay={Number(date.slice(-2))}
     selectedMonth={8}
-    currentDateString={CLINICAL_TODAY}
+    currentDateString={date}
     showBedManagerModal={false}
     onCloseBedManagerModal={vi.fn()}
   />
 );
-const renderCensus = () => render(censusElement());
+const renderCensus = (date = CLINICAL_TODAY) => render(censusElement(date));
 
 describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-10T17:00:00.000Z'));
     vi.clearAllMocks();
     mocks.dailyRecordStatus.mockReturnValue({
       bootstrapPhase: 'confirmed_empty',
@@ -230,6 +232,8 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     mocks.rayenImport.mockReturnValue(importState());
     mocks.triggerImport.mockResolvedValue('started');
   });
+
+  afterEach(() => vi.useRealTimers());
 
   it('creates the blank day and starts exactly one reviewed import through the real chain', async () => {
     const world = createCensusWorld();
@@ -260,6 +264,24 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     });
     // Health was checked twice on purpose: once before creating the day, once as import preflight.
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(2);
+  });
+
+  it('starts the same reviewed import for a missing historical census within seven days', async () => {
+    vi.setSystemTime(new Date('2026-09-23T17:00:00.000Z'));
+    const historicalDay = '2026-09-19';
+    const world = createCensusWorld(historicalDay);
+    renderCensus(historicalDay);
+
+    const bootstrapButton = await screen.findByTestId('create-from-rayen-btn');
+    await act(async () => {
+      fireEvent.click(bootstrapButton);
+    });
+
+    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1), { timeout: 10000 });
+    expect(world.createDayCalls).toEqual([[false]]);
+    expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
   });
 
   it('does not create the day when the extension cannot sync', async () => {

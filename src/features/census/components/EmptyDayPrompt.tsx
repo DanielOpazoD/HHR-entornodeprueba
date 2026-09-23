@@ -12,8 +12,7 @@ import {
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { useClinicalToday } from '@/hooks/useClinicalToday';
-import { RayenDayBootstrapButton } from '@/features/rayen-import/public';
-import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
+import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
 
 interface EmptyDayPromptProps {
   selectedDay: number;
@@ -50,10 +49,8 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   const [isConfirmingBlank, setIsConfirmingBlank] = useState(false);
   const [blankConfirmationText, setBlankConfirmationText] = useState('');
   const [now, setNow] = useState(() => new Date());
-  // Before the morning handoff, both the active nursing day and the new chronological day are
-  // legitimate synchronization targets. The extension applies the same bounded dual-day rule.
-  const clinicalToday = useClinicalToday();
-  const calendarToday = calendarStampInClinicalTimeZone(now).iso;
+  // Keep the eligibility and label fresh when a long-lived tab crosses the clinical handoff.
+  useClinicalToday();
   const diagnosticSource = emptyStateDiagnostic?.source;
   const diagnosticMessage = emptyStateDiagnostic?.message;
 
@@ -100,9 +97,11 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   const isDatePickerVisible = showDatePicker && !copyAvailability.isCopyLocked;
   const canForceCopyPrevious =
     allowAdminCopyOverride && previousRecordAvailable && !!previousRecordDate;
+  // Match the importer's temporal gate: current/pre-handoff calendar day and D-1…D-7.
+  // Historical empty days can be prepared from evidence instead of requiring a manual blank day.
+  const rayenSyncTarget = resolveCensusSyncTarget(currentDateString, new Date());
   const canCreateFromRayen =
-    (currentDateString === clinicalToday || currentDateString === calendarToday) &&
-    Boolean(onRayenBootstrapReady);
+    Boolean(onRayenBootstrapReady) && rayenSyncTarget.kind !== 'unsupported';
   const diagnosticLabelBySource: Record<CensusEmptyStateDiagnostic['source'], string> = {
     remote_missing: 'Firebase/local confirmado',
     local_cache_empty: 'Solo copia local',
@@ -157,6 +156,7 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
         <div className="flex flex-col sm:flex-row gap-4 flex-wrap justify-center items-start">
           {canCreateFromRayen && (
             <RayenDayBootstrapButton
+              historical={rayenSyncTarget.kind === 'historical'}
               onCreateBlank={() => Promise.resolve(onCreateDay(false))}
               onReady={() => onRayenBootstrapReady?.()}
             />
