@@ -16,7 +16,7 @@ Este ledger gobierna los chunks que hoy explican el warning de tamaño de Vite o
 | `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime               | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
 | `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                          | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                         |
 | `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling      | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin` |
-| `app-authenticated-shell` | app-shell/census runtime          | 627,000 bytes startup chunk budget  | 625,981 bytes with PR #481 specialty pilot; near ceiling | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`     |
+| `app-authenticated-shell` | app-shell/census runtime          | 627,000 bytes startup chunk budget  | 626,136 bytes with PR #481 specialty pilot; near ceiling | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`     |
 
 ## Trigger policy
 
@@ -65,7 +65,7 @@ Owner: app-shell/census runtime. The pilot remains disabled by default. Jev's
 network client and specialty intent controller load only on demand; the shared
 episode metadata and validation stay on the census write path so old clients
 cannot erase a signed decision. The production build after these splits measured
-`app-authenticated-shell` at 625,981 bytes, 981 bytes over the prior ceiling.
+`app-authenticated-shell` at 626,136 bytes, 1,136 bytes over the prior ceiling.
 Allow only +2,000 bytes (625,000 → 627,000; +0.32%) for this correctness
 boundary. Do not change the entry, Firebase, precache, or async chunk budgets.
 
