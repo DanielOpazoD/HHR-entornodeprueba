@@ -155,6 +155,20 @@
     };
   };
 
+  const describeMainProbe = status => {
+    if (status?.replyReceived !== true) return { mainReady: false, reason: 'missing_probe' };
+    const verifiedProbe = !status.error &&
+      status.bridgeProtocolVersion === globalThis.HhrBridgeGeneration.BRIDGE_PROTOCOL_VERSION;
+    if (verifiedProbe && status.reason === 'missing_reader') {
+      return { mainReady: false, reason: 'missing_reader' };
+    }
+    if (verifiedProbe && status.reason === 'connected' && status.mainReady === true) {
+      return { mainReady: true, reason: 'connected' };
+    }
+    return { mainReady: false, reason: status.reason === 'incompatible_reader'
+      ? 'incompatible_reader' : 'unverified_reader' };
+  };
+
   const onRuntimeMessage = (msg, _sender, sendResponse) => {
     if (!ownsRelay()) return undefined;
     if (msg && msg.type === 'RAYEN_EXTENSION_RELAY_PING') {
@@ -163,20 +177,7 @@
     }
     if (msg && msg.type === 'RAYEN_EXTENSION_MAIN_PING') {
       askMainWorld('RAYEN_FM_BRIDGE_PING', 'RAYEN_FM_BRIDGE_PONG', 4500, false)
-        .then(status => {
-          const verifiedProbe = status?.replyReceived === true && !status?.error &&
-            status?.bridgeProtocolVersion === globalThis.HhrBridgeGeneration.BRIDGE_PROTOCOL_VERSION;
-          const mainReady = verifiedProbe && status?.mainReady === true &&
-            status?.reason === 'connected';
-          sendResponse({
-            mainReady,
-            reason: status?.replyReceived !== true ? 'missing_probe' :
-              verifiedProbe && status?.reason === 'missing_reader' ? 'missing_reader' :
-                mainReady ? 'connected' :
-                  status?.reason === 'incompatible_reader' ? 'incompatible_reader' :
-                    'unverified_reader',
-          });
-        });
+        .then(status => sendResponse(describeMainProbe(status)));
       return true;
     }
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
