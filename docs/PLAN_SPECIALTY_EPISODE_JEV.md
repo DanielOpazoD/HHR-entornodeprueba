@@ -1,6 +1,6 @@
 # Plan: especialidad por episodio, reglas y Jev consultivo
 
-Base: `origin/main` en `8b73d03e` (23-09-2026). PR #457 es referencia de requisitos y pruebas; no es base ni se integrará completo. Automatización y Jev permanecen apagados por defecto. Sin despliegue ni datos clínicos reales.
+Base: `origin/main` actualizado a `3430a13c` (23-09-2026, incluido #480). PR #457 es referencia de requisitos y pruebas; no es base ni se integrará completo. Automatización y Jev permanecen apagados por defecto. Sin despliegue de producción ni datos clínicos reales.
 
 ## Alcance y responsabilidades
 
