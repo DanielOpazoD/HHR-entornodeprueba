@@ -25,7 +25,7 @@ describe('RayenDayBootstrapButton', () => {
     mocks.health.message = 'Extensión operativa.';
   });
 
-  it('checks both sources, creates a blank record and then requests the reviewed sync', async () => {
+  it('checks both sources and requests reviewed reconstruction for a historical day', async () => {
     const order: string[] = [];
     mocks.refresh.mockImplementation(async () => {
       order.push('health');
@@ -36,8 +36,8 @@ describe('RayenDayBootstrapButton', () => {
     });
     const onReady = vi.fn(() => order.push('review'));
 
-    render(<RayenDayBootstrapButton onCreateBlank={onCreateBlank} onReady={onReady} />);
-    fireEvent.click(screen.getByRole('button', { name: /Crear desde Eloísa/i }));
+    render(<RayenDayBootstrapButton historical onCreateBlank={onCreateBlank} onReady={onReady} />);
+    fireEvent.click(screen.getByRole('button', { name: /Reconstruir desde Eloísa/i }));
 
     await waitFor(() => expect(onReady).toHaveBeenCalledTimes(1));
     expect(mocks.refresh).toHaveBeenCalledWith({
@@ -46,6 +46,7 @@ describe('RayenDayBootstrapButton', () => {
     });
     expect(onCreateBlank).toHaveBeenCalledTimes(1);
     expect(order).toEqual(['health', 'create', 'review']);
+    expect(screen.getByText('Revisar evidencia del día antes de importar')).toBeVisible();
   });
 
   it('does not create the day when a required Rayen source is unavailable', async () => {

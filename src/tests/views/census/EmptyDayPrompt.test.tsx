@@ -10,11 +10,14 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
   },
 }));
 
-vi.mock('@/features/rayen-import/public', () => ({
+vi.mock('@/features/rayen-import/public', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/rayen-import/public')>()),
   RayenDayBootstrapButton: ({
+    historical,
     onCreateBlank,
     onReady,
   }: {
+    historical?: boolean;
     onCreateBlank: () => Promise<void>;
     onReady: () => void;
   }) => (
@@ -24,7 +27,7 @@ vi.mock('@/features/rayen-import/public', () => ({
         void onCreateBlank().then(onReady);
       }}
     >
-      Crear desde Eloísa
+      {historical ? 'Reconstruir desde Eloísa' : 'Crear desde Eloísa'}
     </button>
   ),
 }));
@@ -102,6 +105,49 @@ describe('EmptyDayPrompt', () => {
     expect(screen.getByTestId('copy-previous-btn')).toBeDisabled();
     expect(screen.getByTestId('admin-copy-override-btn')).toBeInTheDocument();
     expect(screen.getByText('Se habilita en 00:30:00')).toBeInTheDocument();
+  });
+
+  it('offers evidence-based bootstrap for a missing historical day within seven days', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-23T17:00:00.000Z')); // 11:00 in Rapa Nui
+    const onCreateDay = vi.fn().mockResolvedValue(undefined);
+    const onRayenBootstrapReady = vi.fn();
+
+    render(
+      <EmptyDayPrompt
+        selectedDay={19}
+        selectedMonth={8}
+        currentDateString="2026-09-19"
+        previousRecordAvailable={false}
+        onCreateDay={onCreateDay}
+        onRayenBootstrapReady={onRayenBootstrapReady}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Reconstruir desde Eloísa' }));
+      await Promise.resolve();
+    });
+    expect(onCreateDay).toHaveBeenCalledWith(false);
+    expect(onRayenBootstrapReady).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer Eloísa bootstrap outside the supported seven-day window', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-23T17:00:00.000Z'));
+
+    render(
+      <EmptyDayPrompt
+        selectedDay={15}
+        selectedMonth={8}
+        currentDateString="2026-09-15"
+        previousRecordAvailable={false}
+        onCreateDay={() => undefined}
+        onRayenBootstrapReady={() => undefined}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /desde Eloísa/i })).not.toBeInTheDocument();
   });
 
   it('keeps copy button enabled for days that are not today', () => {
@@ -223,7 +269,7 @@ describe('EmptyDayPrompt', () => {
       expect(screen.getByRole('button', { name: ELOISA_BUTTON })).toBeInTheDocument();
     });
 
-    it('switches to the next clinical day when a weekday crosses 08:00', async () => {
+    it('keeps the previous day eligible as historical when a weekday crosses 08:00', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-09-10T12:59:00.000Z')); // 07:59 in Rapa Nui
 
@@ -237,14 +283,14 @@ describe('EmptyDayPrompt', () => {
         within(sept10.container).queryByRole('button', { name: ELOISA_BUTTON })
       ).toBeInTheDocument();
 
-      // Crossing 08:00 lets the reactive hook poll pick up the new clinical day.
+      // Crossing 08:00 changes the previous day from current to supported historical.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(60_000);
       });
 
       expect(
-        within(sept9.container).queryByRole('button', { name: ELOISA_BUTTON })
-      ).not.toBeInTheDocument();
+        within(sept9.container).queryByRole('button', { name: 'Reconstruir desde Eloísa' })
+      ).toBeInTheDocument();
       expect(
         within(sept10.container).queryByRole('button', { name: ELOISA_BUTTON })
       ).toBeInTheDocument();

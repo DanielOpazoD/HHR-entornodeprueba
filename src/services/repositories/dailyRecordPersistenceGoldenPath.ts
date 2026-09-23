@@ -1,5 +1,8 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
-import { resolveDailyRecordReadConsistency } from '@/services/repositories/dailyRecordConsistencyPolicy';
+import {
+  resolveDailyRecordReadConsistency,
+  toRecordTimestamp,
+} from '@/services/repositories/dailyRecordConsistencyPolicy';
 import {
   shouldKeepLocalRecordOverRemote,
   resolvePreferredDailyRecord,
@@ -12,6 +15,7 @@ import {
   recordRemoteCanonicalReconciliationTelemetry,
   type DailyRecordClinicalConsistencyPhase,
 } from '@/services/repositories/dailyRecordClinicalConsistencyCheck';
+import { mergeRayenSyncHistory } from '@/services/repositories/dailyRecordRayenSyncHistoryPolicy';
 
 export type DailyRecordRemoteAvailability =
   | 'resolved'
@@ -94,7 +98,7 @@ export const resolveDailyRecordPersistenceGoldenPath = ({
   clinicalConsistencyPhase = 'read_publish',
 }: ResolveDailyRecordPersistenceGoldenPathInput): DailyRecordPersistenceGoldenPathResult => {
   const shouldProtectLocalClinicalText = hasRemoteClinicalTextShrinkage(localRecord, remoteRecord);
-  const candidateRecord =
+  const baseCandidateRecord =
     remoteAvailability === 'not_requested'
       ? localRecord
       : localRecord && remoteRecord && shouldProtectLocalClinicalText
@@ -102,6 +106,21 @@ export const resolveDailyRecordPersistenceGoldenPath = ({
         : localRecord && remoteRecord && shouldKeepLocalRecordOverRemote(localRecord, remoteRecord)
           ? resolveDailyRecordConflict(remoteRecord, localRecord)
           : resolvePreferredDailyRecord(localRecord, remoteRecord);
+  // With equal revisions, Firestore is authoritative for an existing audit event. The generic
+  // conflict merge prefers local on ties, which can retain a stale version of that same run.
+  const candidateRecord =
+    baseCandidateRecord &&
+    localRecord &&
+    remoteRecord &&
+    toRecordTimestamp(localRecord.lastUpdated) === toRecordTimestamp(remoteRecord.lastUpdated)
+      ? {
+          ...baseCandidateRecord,
+          rayenSyncHistory: mergeRayenSyncHistory(
+            localRecord.rayenSyncHistory,
+            remoteRecord.rayenSyncHistory
+          ),
+        }
+      : baseCandidateRecord;
   const clinicalConsistency = candidateRecord
     ? applyDailyRecordClinicalConsistencyCheck(candidateRecord, {
         date: candidateRecord.date,
@@ -140,11 +159,19 @@ export const resolveDailyRecordPersistenceGoldenPath = ({
     remoteAvailability,
     repairApplied,
   });
+  // An audit-only authority patch can retain the same lastUpdated revision. Hydrate the complete
+  // selected event, including review details, so a later local read cannot hide server evidence.
+  const remoteAuditAdvanced = Boolean(
+    localRecord &&
+      remoteRecord &&
+      JSON.stringify(selectedRecord?.rayenSyncHistory ?? []) !==
+        JSON.stringify(localRecord.rayenSyncHistory ?? [])
+  );
 
   return {
     selectedRecord,
     selectedStore,
-    shouldHydrateLocal: consistency.shouldHydrateLocal,
+    shouldHydrateLocal: consistency.shouldHydrateLocal || remoteAuditAdvanced,
     consistencyState: consistency.consistencyState,
     sourceOfTruth: consistency.sourceOfTruth,
     retryability: consistency.retryability,

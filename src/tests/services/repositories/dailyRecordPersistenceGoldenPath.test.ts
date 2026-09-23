@@ -101,6 +101,89 @@ describe('dailyRecordPersistenceGoldenPath', () => {
     expect(result.consistencyState).toBe('remote_authoritative');
   });
 
+  it('hydrates a confirmed audit event even when the local census has the same revision', () => {
+    const lastUpdated = '2026-09-23T15:39:50.727Z';
+    const local = buildRecord('2026-09-19', lastUpdated);
+    local.rayenSyncHistory = [];
+    const remote = buildRecord('2026-09-19', lastUpdated);
+    remote.rayenSyncHistory = [{
+      id: 'run-historical',
+      sourceDate: '2026-09-19',
+      startedAt: '2026-09-23T15:37:00.000Z',
+      completedAt: '2026-09-23T15:39:00.000Z',
+      by: 'Operador HHR',
+      status: 'partial',
+    }];
+
+    const result = resolveDailyRecordPersistenceGoldenPath({
+      localRecord: local,
+      remoteRecord: remote,
+      remoteAvailability: 'resolved',
+    });
+
+    expect(result.selectedRecord?.rayenSyncHistory).toEqual(remote.rayenSyncHistory);
+    expect(result.shouldHydrateLocal).toBe(true);
+  });
+
+  it('replaces stale local review details when the remote event has the same status and time', () => {
+    const lastUpdated = '2026-09-23T15:39:50.727Z';
+    const local = buildRecord('2026-09-19', lastUpdated);
+    local.rayenSyncHistory = [{
+      id: 'run-historical',
+      startedAt: '2026-09-23T15:37:00.000Z',
+      completedAt: '2026-09-23T15:39:00.000Z',
+      by: 'Operador HHR',
+      status: 'partial',
+    }];
+    const remote = buildRecord('2026-09-19', lastUpdated);
+    remote.rayenSyncHistory = [{
+      ...local.rayenSyncHistory[0],
+      reviewRequirement: 'day_bootstrap',
+      structuralReview: {
+        structureConfirmed: true,
+        historicalCorrectionsPending: false,
+        historicalCorrectionsRequireFreshCapture: false,
+        isolatedConflicts: 1,
+        issues: [{ bedId: null, reason: 'unverified-report-row' }],
+      },
+    }];
+
+    const result = resolveDailyRecordPersistenceGoldenPath({
+      localRecord: local,
+      remoteRecord: remote,
+      remoteAvailability: 'resolved',
+    });
+
+    expect(result.selectedRecord?.rayenSyncHistory).toEqual(remote.rayenSyncHistory);
+    expect(result.shouldHydrateLocal).toBe(true);
+  });
+
+  it('keeps a newer local terminal event when the server has an older revision', () => {
+    const local = buildRecord('2026-09-19', '2026-09-23T15:40:00.000Z');
+    local.rayenSyncHistory = [{
+      id: 'run-historical',
+      startedAt: '2026-09-23T15:37:00.000Z',
+      completedAt: '2026-09-23T15:39:00.000Z',
+      by: 'Operador HHR',
+      status: 'complete',
+    }];
+    const remote = buildRecord('2026-09-19', '2026-09-23T15:38:00.000Z');
+    remote.rayenSyncHistory = [{
+      ...local.rayenSyncHistory[0],
+      status: 'applied',
+      completedAt: '2026-09-23T15:38:00.000Z',
+    }];
+
+    const result = resolveDailyRecordPersistenceGoldenPath({
+      localRecord: local,
+      remoteRecord: remote,
+      remoteAvailability: 'resolved',
+    });
+
+    expect(result.selectedRecord?.rayenSyncHistory).toEqual(local.rayenSyncHistory);
+    expect(result.shouldHydrateLocal).toBe(false);
+  });
+
   it('accepts a newer remote canonical diagnosis even when it is shorter than local text', () => {
     const local = buildRecord('2026-03-18', '2026-03-18T12:00:00.000Z');
     local.beds = {
