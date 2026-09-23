@@ -28,7 +28,7 @@ const STAFFING_SECTION_LABELS = {
 const TechnicalMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
   const source = sourceLabel(event);
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px]">
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-xs">
       {source && <span className="font-medium text-slate-400">{source}</span>}
       {event.policy && (
         <span className="font-medium text-slate-400">
@@ -78,14 +78,14 @@ export const RayenSyncClinicalSection: React.FC<{ event: RayenSyncEvent }> = ({ 
   return (
     <section aria-label="Datos clínicos" className="mt-3 border-t border-slate-100 pt-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-xs font-bold text-slate-800">Datos clínicos</h4>
+        <h4 className="text-sm font-bold text-slate-800">Datos clínicos</h4>
         <span
           className={
             coverage.tone === 'success'
-              ? 'text-xs font-semibold text-emerald-700'
+              ? 'text-sm font-semibold text-emerald-700'
               : coverage.tone === 'warning'
-                ? 'text-xs font-semibold text-amber-700'
-                : 'text-xs text-slate-500'
+                ? 'text-sm font-semibold text-amber-700'
+                : 'text-sm text-slate-500'
           }
         >
           Cobertura clínica: {coverage.label}
@@ -96,7 +96,7 @@ export const RayenSyncClinicalSection: React.FC<{ event: RayenSyncEvent }> = ({ 
         (event.coverage.errors > 0 ||
           event.coverage.sourceErrors > 0 ||
           Boolean(event.coverage.issues?.length)) && (
-          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-sm leading-relaxed text-amber-900">
             <p className="font-bold">Qué quedó pendiente en la información clínica</p>
             {event.coverage.issues?.length ? (
               <ul className="mt-1 space-y-1">
@@ -114,7 +114,7 @@ export const RayenSyncClinicalSection: React.FC<{ event: RayenSyncEvent }> = ({ 
 
       <details
         data-testid="rayen-sync-technical-report"
-        className="mt-2 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-[11px] text-slate-700"
+        className="mt-2 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-700"
       >
         <summary className="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600">
           Reporte técnico
@@ -135,11 +135,11 @@ export const RayenSyncStaffingSection: React.FC<{ event: RayenSyncEvent }> = ({ 
   const staffingNeedsReview = Boolean(event.staffingObservation?.ambiguousSections.length);
   return (
     <section aria-label="Enfermería y TENS" className="mt-3 border-t border-slate-100 pt-3">
-      <h4 className="text-xs font-bold text-slate-800">Enfermería y TENS</h4>
+      <h4 className="text-sm font-bold text-slate-800">Enfermería y TENS</h4>
       {event.staffingObservation && (
         <details
           data-testid="rayen-staffing-observation"
-          className="mt-1 rounded-md text-[11px] text-slate-600"
+          className="mt-1 rounded-md text-xs text-slate-600"
         >
           <summary className="cursor-pointer rounded-md py-1.5 font-semibold hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600">
             <span className={staffingNeedsReview ? 'text-amber-700' : 'text-slate-600'}>
@@ -169,7 +169,7 @@ export const RayenSyncStaffingSection: React.FC<{ event: RayenSyncEvent }> = ({ 
       )}
 
       {!event.staffingObservation && (
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-sm text-slate-500">
           Sin diagnóstico de dotación registrado en esta ejecución.
         </p>
       )}
