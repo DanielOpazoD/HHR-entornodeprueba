@@ -346,6 +346,23 @@ const readValueAtPath = (record, path) =>
       return current[segment];
     }, record);
 
+// Keep track of fields that the server, rather than the incoming patch,
+// changes while preserving a confirmed episode or applying a rule. A partial
+// Firestore update must include those fields as well as the client paths.
+const specialtyFieldSnapshot = record => {
+  const fields = new Map();
+  Object.entries(record.beds || {}).forEach(([bedId, bed]) => {
+    for (const [target, patient] of [['bed', bed], ['clinicalCrib', bed?.clinicalCrib]]) {
+      if (!isPlainObject(patient)) continue;
+      const prefix = target === 'bed' ? `beds.${bedId}` : `beds.${bedId}.clinicalCrib`;
+      for (const field of ['specialty', 'specialtyAssignment']) {
+        fields.set(`${prefix}.${field}`, JSON.stringify(patient[field]));
+      }
+    }
+  });
+  return fields;
+};
+
 const parseAuthorizedPatchPath = (
   path,
   role,
@@ -1728,6 +1745,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
                   fields: RAYEN_BATCH_ONLY_CLINICAL_FIELDS,
                 })
               : patchedCandidate;
+          const specialtyFieldsBefore = specialtyFieldSnapshot(patchedRecord);
           const specialtyDecisions = protectSpecialtyDecisions({
                 remoteRecord: remoteData,
                 candidate: patchedRecord,
@@ -1803,17 +1821,14 @@ const createDailyRecordWriteAuthorityFunctions = ({
             const finalValue = readValueAtPath(patchedRecord, path);
             txnUpdate[path] = finalValue === undefined ? null : finalValue;
           });
+          specialtyFieldSnapshot(patchedRecord).forEach((value, path) => {
+            if (specialtyFieldsBefore.get(path) === value ||
+                Object.keys(authorizedPatch).some(patchedPath =>
+                  path === patchedPath || path.startsWith(`${patchedPath}.`))) return;
+            const finalValue = readValueAtPath(patchedRecord, path);
+            txnUpdate[path] = finalValue === undefined ? null : finalValue;
+          });
           [...specialtyDecisions, ...automaticSpecialtyDecisions].forEach(decision => {
-            const path = decision.target === 'clinicalCrib'
-              ? `beds.${decision.bedId}.clinicalCrib.specialtyAssignment`
-              : `beds.${decision.bedId}.specialtyAssignment`;
-            txnUpdate[path] = readValueAtPath(patchedRecord, path);
-            if (decision.source === 'rule') {
-              const scalarPath = decision.target === 'clinicalCrib'
-                ? `beds.${decision.bedId}.clinicalCrib.specialty`
-                : `beds.${decision.bedId}.specialty`;
-              txnUpdate[scalarPath] = readValueAtPath(patchedRecord, scalarPath);
-            }
             transaction.set(docRef.collection('specialtyDecisions').doc(decision.decisionId), decision);
           });
           if (aiRequestRef) {

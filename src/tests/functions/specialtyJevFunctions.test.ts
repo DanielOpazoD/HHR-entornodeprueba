@@ -111,4 +111,28 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     expect(await callable.run(input, context)).toEqual({ status: 'unavailable' });
     expect(docs.get('specialtyAiRequests/synthetic-request-001')?.status).toBe('failed');
   });
+
+  it('keeps an ambiguous provider failure on the same reserved ID and quota', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs } = harness();
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error('synthetic timeout'))
+      .mockResolvedValue({ ok: true, body: null, text: async () => JSON.stringify(result) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await callable.run(input, context)).toEqual({ status: 'pending' });
+    expect(docs.get('specialtyAiRequests/synthetic-request-001')?.status).toBe('pending');
+    expect(await callable.run(input, context)).toEqual({ status: 'pending' });
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    const pending = docs.get('specialtyAiRequests/synthetic-request-001')!;
+    docs.set('specialtyAiRequests/synthetic-request-001', {
+      ...pending, deadlineAt: new Date(Date.now() - 1000).toISOString(),
+    });
+    expect(await callable.run(input, context)).toMatchObject({ status: 'complete' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(docs.get('specialtyAiUsage/' + input.date.slice(0, 7))?.count).toBe(1);
+  });
 });

@@ -11,7 +11,7 @@ Esta implementación se apoya en el `DailyRecord` y en `patchDailyRecordWithClin
 
 ## Barreras y activación
 
-Todos los flags de interfaz `SPECIALTY_EPISODE_ASSIGNMENT`, `SPECIALTY_RULES_MEMORY` y `SPECIALTY_JEV_CONSULTATION` comienzan en `false`. La autoridad requiere `HHR_SPECIALTY_EPISODE_ASSIGNMENT=enabled`; para consultas y aceptación Jev exige además `HHR_JEV_CLINICAL_APPROVED=enabled`, `TYPESAFE_API_KEY` y `aiMode=consultative` en el catálogo. Ninguna de esas condiciones se configura en este PR. **No hay despliegue ni autorización de uso clínico.**
+Todos los flags de interfaz `SPECIALTY_EPISODE_ASSIGNMENT`, `SPECIALTY_RULES_MEMORY` y `SPECIALTY_JEV_CONSULTATION` comienzan en `false`. La autoridad requiere `HHR_SPECIALTY_EPISODE_ASSIGNMENT=enabled`; para consultas y aceptación Jev exige además `HHR_JEV_CLINICAL_APPROVED=enabled`, `TYPESAFE_API_KEY` y `aiMode=consultative` en el catálogo. Ninguna de esas condiciones se configura en este PR. **No se solicita despliegue en producción ni autorización de uso clínico.** El repositorio puede generar previews automáticas al abrir un PR; no se usan con datos clínicos reales.
 
 Antes de activar el piloto, el destino debe tener la valla `rayenImportPolicy` de esquema 2. La función administrativa se niega a publicar el catálogo si falta. Publicar `settings/specialtyAssignment` activa también una valla de Firestore contra escrituras directas de camas por clientes antiguos; el despliegue futuro deberá comprobar que sus clientes usan la autoridad clínica. Los documentos de decisiones, solicitudes y cuota son de escritura exclusiva del servidor.
 

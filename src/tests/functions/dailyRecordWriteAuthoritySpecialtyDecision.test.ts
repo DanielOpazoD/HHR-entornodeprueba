@@ -55,6 +55,48 @@ describe('specialty decision through the real clinical authority callable', () =
       actorUid: 'synthetic-user', mutationId: 'm', now: '2026-09-23T00:00:00.000Z' })).toThrow();
   });
 
+  it('persists verified provenance copied by a partial bed swap', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    const base = makeRecord();
+    const metadata = { schemaVersion: 3, episodeId: 'ep-uno', decisionId: 'prior-decision',
+      recordDate: base.date, source: 'manual', actorUid: 'synthetic-user',
+      decidedAt: '2026-05-13T08:00:00.000Z' };
+    const remote = { ...base, meta: { revision: 2 }, beds: {
+      R1: { ...base.beds.R1, specialty: 'Cirugía', specialtyAssignment: metadata },
+      R2: { ...base.beds.R1, bedId: 'R2', patientName: 'Paciente Dos',
+        rut: '22.222.222-2', clinicalEpisodeId: 'ep-dos', specialty: '' },
+    } };
+    const patch = {
+      'beds.R1.patientName': 'Paciente Dos', 'beds.R1.rut': '22.222.222-2',
+      'beds.R1.clinicalEpisodeId': 'ep-dos', 'beds.R1.specialty': '',
+      'beds.R1.specialtyAssignment': null,
+      'beds.R2.patientName': 'Paciente Uno', 'beds.R2.rut': '11.111.111-1',
+      'beds.R2.clinicalEpisodeId': 'ep-uno', 'beds.R2.specialty': 'Cirugía',
+    };
+    const { admin, docRef, update, set } = createAdminMock({ remoteData: remote,
+      policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
+      specialtyPolicyData: { schemaVersion: 1, revision: 1, autoEnabled: false,
+        memoryEnabled: false, aiMode: 'off', rules: [], memory: [] },
+      specialtyAuditData: { recordDate: base.date, decisionId: 'prior-decision',
+        episodeId: 'ep-uno', value: 'Cirugía', metadata },
+    });
+    const functionsApi = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin.firestore(), Timestamp: admin.firestore.Timestamp,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+    });
+    const response = await functionsApi.patchDailyRecordWithClinicalAuthority.run({
+      date: base.date, patch,
+      syncContract: { mutationId: 'swap-mutation', baseRevision: 2,
+        changedPaths: Object.keys(patch) },
+    }, { ...makeContext(), auth: { ...makeContext().auth, uid: 'synthetic-user' } });
+    expect(response.success).toBe(true);
+    expect(update).toHaveBeenCalledWith(docRef, expect.objectContaining({
+      'beds.R2.specialtyAssignment': metadata,
+      'beds.R1.specialtyAssignment': null,
+    }));
+    expect(set).not.toHaveBeenCalled();
+  });
+
   it('accepts one fresh Jev receipt as one authorized patient write plus audit', async () => {
     process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
     process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';

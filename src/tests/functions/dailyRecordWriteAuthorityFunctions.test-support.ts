@@ -59,12 +59,14 @@ export const createAdminMock = ({
   policyData,
   specialtyPolicyData,
   aiRequestData,
+  specialtyAuditData,
   historyExists = false,
 }: {
   remoteData?: Record<string, unknown>;
   policyData?: Record<string, unknown>;
   specialtyPolicyData?: Record<string, unknown>;
   aiRequestData?: Record<string, unknown>;
+  specialtyAuditData?: Record<string, unknown>;
   historyExists?: boolean;
 } = {}) => {
   const set = vi.fn();
@@ -117,7 +119,7 @@ export const createAdminMock = ({
                 data: () => undefined,
               }
             : reference === auditDoc
-              ? { exists: false, data: () => undefined }
+              ? { exists: Boolean(specialtyAuditData), data: () => specialtyAuditData }
             : {
                 exists: Boolean(remoteData),
                 data: () => remoteData,

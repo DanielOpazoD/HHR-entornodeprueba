@@ -116,4 +116,55 @@ describeEmulator('specialty decision with real Firestore transactions', () => {
       }
     });
   });
+
+  it('moves a verified specialty with its episode through a partial Firestore update', async () => {
+    await environment.clearFirestore();
+    await environment.withSecurityRulesDisabled(async context => {
+      const db = context.firestore();
+      const first = makeRecord().beds.R1;
+      const metadata = { schemaVersion: 3, episodeId: 'ep-uno',
+        decisionId: 'signed-before-move', recordDate: date, source: 'manual',
+        actorUid: 'synthetic-user', decidedAt: '2026-09-23T08:00:00.000Z' };
+      await db.doc(recordPath).set({ ...makeRecord(), date, meta: { revision: 2 }, beds: {
+        R1: { ...first, specialty: 'Cirugía', specialtyAssignment: metadata },
+        R2: { ...first, bedId: 'R2', patientName: 'Paciente Dos',
+          rut: '22.222.222-2', clinicalEpisodeId: 'ep-dos', specialty: '' },
+      } });
+      await db.doc(`${recordPath}/specialtyDecisions/signed-before-move`).set({
+        recordDate: date, decisionId: 'signed-before-move', episodeId: 'ep-uno',
+        value: 'Cirugía', metadata,
+      });
+      await db.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
+        schemaVersion: 2, clinicalBatchMode: 'enforced',
+      });
+      await db.doc('hospitals/hanga_roa/settings/specialtyAssignment').set({
+        schemaVersion: 1, revision: 1, autoEnabled: false,
+        memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
+      });
+      const api = createDailyRecordWriteAuthorityFunctions({ firestore: db, Timestamp,
+        resolveRoleForEmail: vi.fn().mockResolvedValue('admin') });
+      const patch = {
+        'beds.R1.patientName': 'Paciente Dos', 'beds.R1.rut': '22.222.222-2',
+        'beds.R1.clinicalEpisodeId': 'ep-dos', 'beds.R1.specialty': '',
+        'beds.R1.specialtyAssignment': null,
+        'beds.R2.patientName': 'Paciente Uno', 'beds.R2.rut': '11.111.111-1',
+        'beds.R2.clinicalEpisodeId': 'ep-uno', 'beds.R2.specialty': 'Cirugía',
+      };
+      process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+      try {
+        await api.patchDailyRecordWithClinicalAuthority.run({ date, patch,
+          syncContract: { mutationId: 'swap-mutation', baseRevision: 2,
+            changedPaths: Object.keys(patch) } },
+        { ...makeContext(), auth: { ...makeContext().auth, uid: 'synthetic-user' } });
+        const stored = (await db.doc(recordPath).get()).data();
+        expect(stored?.beds.R2.specialtyAssignment).toEqual(metadata);
+        expect(stored?.beds.R2.specialty).toBe('Cirugía');
+        expect(stored?.beds.R1.specialtyAssignment).toBeNull();
+        expect((await db.doc(`${recordPath}/specialtyDecisions/signed-before-move`).get())
+          .data()?.value).toBe('Cirugía');
+      } finally {
+        delete process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT;
+      }
+    });
+  });
 });

@@ -138,10 +138,16 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
             buildJevEvidence({ date: data.date, bedId: data.bedId, target: data.target,
               patient: currentPatient, policy: currentPolicy })?.digest === reservation.evidence.digest);
         } catch { fresh = false; }
-        const status = !fresh ? 'obsolete' : result ? 'complete' : 'failed';
+        // A transport timeout can occur after Jev received the request. Keep
+        // the reserved ID pending so one bounded same-ID retry uses its quota
+        // reservation, rather than charging a new request on the next click.
+        const status = !fresh ? 'obsolete' : result ? 'complete'
+          : errorCode === 'JEV_UNAVAILABLE' && reservation.attempt < 2
+            ? 'pending' : 'failed';
         transaction.update(requestRef, {
           status, ...(status === 'complete' ? { result } : {}),
-          ...(errorCode ? { errorCode } : {}), completedAt: new Date().toISOString(),
+          ...(errorCode ? { errorCode } : {}),
+          ...(status === 'pending' ? {} : { completedAt: new Date().toISOString() }),
         });
         return status === 'complete' ? { status, result } : { status };
       });
