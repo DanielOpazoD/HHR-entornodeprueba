@@ -19,6 +19,8 @@ const { createAdminCudyrResultFunctions } = require('./lib/adminCudyrResultFunct
 const {
   createRayenClinicalEnrichmentFunctions,
 } = require('./lib/rayenClinicalEnrichmentFunctions');
+const { createSpecialtyPolicyFunctions } = require('./lib/specialtyPolicyFunctions');
+const { createSpecialtyJevFunctions } = require('./lib/specialtyJevFunctions');
 const { createClinicalDocumentExportFunctions } = require('./lib/clinicalDocumentExportFunctions');
 const {
   createClinicalDocumentPdfRenderFunctions,
@@ -68,6 +70,14 @@ module.exports = {
   ...createRayenClinicalEnrichmentFunctions({
     firestore,
     Timestamp,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
+  ...createSpecialtyPolicyFunctions({
+    firestore,
+    resolveRoleForEmail: authHelpers.resolveRoleForEmail,
+  }),
+  ...createSpecialtyJevFunctions({
+    firestore,
     resolveRoleForEmail: authHelpers.resolveRoleForEmail,
   }),
   ...createClinicalDocumentExportFunctions({

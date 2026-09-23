@@ -4,7 +4,7 @@
       
       match /dailyRecords/{date} {
         allow read: if canReadClinicalData();
-        allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId);
+        allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId) && !isSpecialtyDecisionFenceActive(hospitalId);
         allow update: if canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId);
         // Delete: Admin only (nurses must not hard-delete census records)
         allow delete: if isAdmin();
@@ -76,13 +76,16 @@
 
       match /settings/{settingId} {
         allow read: if canReadClinicalData();
-        allow create: if settingId == 'rayenImportPolicy'
+        allow create: if settingId == 'specialtyAssignment' ? false
+          : settingId == 'rayenImportPolicy'
           ? canCreateRayenImportPolicy()
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
-        allow update: if settingId == 'rayenImportPolicy'
+        allow update: if settingId == 'specialtyAssignment' ? false
+          : settingId == 'rayenImportPolicy'
           ? canUpdateRayenImportPolicy()
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
-        allow delete: if settingId == 'rayenImportPolicy'
+        allow delete: if settingId == 'specialtyAssignment' ? false
+          : settingId == 'rayenImportPolicy'
           ? false
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
       }

@@ -495,8 +495,13 @@ service cloud.firestore {
       return exists(policyPath) &&
              get(policyPath).data.schemaVersion == 2;
     }
+    function isSpecialtyDecisionFenceActive(hospitalId) {
+      let policyPath = /databases/$(database)/documents/hospitals/$(hospitalId)/settings/specialtyAssignment;
+      return exists(policyPath) && get(policyPath).data.schemaVersion == 1;
+    }
     function preservesServerOwnedClinicalState(hospitalId) {
-      return !isRayenClinicalWriteFenceActive(hospitalId) ||
+      return !(isRayenClinicalWriteFenceActive(hospitalId) ||
+               isSpecialtyDecisionFenceActive(hospitalId)) ||
              !request.resource.data.diff(resource.data).affectedKeys().hasAny(['beds', 'bedTypeOverrides']);
     }
     function isWithinEditingWindow(recordTS) {
@@ -557,7 +562,7 @@ service cloud.firestore {
       allow write: if isAdmin();
       match /dailyRecords/{date} {
         allow read: if canReadClinicalData();
-        allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId);
+        allow create: if canEdit() && !isRayenClinicalWriteFenceActive(hospitalId) && !isSpecialtyDecisionFenceActive(hospitalId);
         allow update: if canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId);
         allow delete: if isAdmin();
         match /history/{historyId} {
@@ -607,13 +612,16 @@ service cloud.firestore {
       }
       match /settings/{settingId} {
         allow read: if canReadClinicalData();
-        allow create: if settingId == 'rayenImportPolicy'
+        allow create: if settingId == 'specialtyAssignment' ? false
+          : settingId == 'rayenImportPolicy'
           ? canCreateRayenImportPolicy()
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
-        allow update: if settingId == 'rayenImportPolicy'
+        allow update: if settingId == 'specialtyAssignment' ? false
+          : settingId == 'rayenImportPolicy'
           ? canUpdateRayenImportPolicy()
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
-        allow delete: if settingId == 'rayenImportPolicy'
+        allow delete: if settingId == 'specialtyAssignment' ? false
+          : settingId == 'rayenImportPolicy'
           ? false
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
       }
@@ -684,6 +692,16 @@ service cloud.firestore {
         allow create: if canCreateAppendOnlyOperationalLogEntry();
         allow update, delete: if false;
       }
+    }
+    match /hospitals/{hospitalId}/dailyRecords/{date}/specialtyDecisions/{decisionId} {
+      allow read: if canReadClinicalData();
+      allow create, update, delete: if false;
+    }
+    match /hospitals/{hospitalId}/specialtyAiRequests/{requestId} {
+      allow read, create, update, delete: if false;
+    }
+    match /hospitals/{hospitalId}/specialtyAiUsage/{month} {
+      allow read, create, update, delete: if false;
     }
     match /auditLogs/{logId} {
       allow read: if canReadAppendOnlyOperationalLog();

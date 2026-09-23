@@ -248,6 +248,28 @@ export function registerFirestoreRulesAccessGroups({
       );
     });
 
+    it('fences specialty decisions and older direct bed clients after a catalog is published', async () => {
+      await setupDocBypass('hospitals/H1/settings/specialtyAssignment', {
+        schemaVersion: 1, revision: 1, autoEnabled: false,
+        memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
+      });
+      await setupDocBypass(recordPath, {
+        date: CURRENT_RECORD_DATE, dateTimestamp: NOW_MS,
+        beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode',
+          specialty: 'Cirugía' } },
+      });
+      await assertFails(nurse().doc(recordPath).update({
+        beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode',
+          specialty: 'Pediatría' } },
+      }));
+      await assertFails(admin().doc('hospitals/H1/settings/specialtyAssignment')
+        .update({ autoEnabled: true }));
+      await assertFails(nurse().doc(`${recordPath}/specialtyDecisions/decision-1`)
+        .set({ source: 'manual' }));
+      await assertFails(nurse().doc('hospitals/H1/specialtyAiRequests/request-1')
+        .set({ status: 'complete' }));
+    });
+
     it('keeps non-clinical staffing edits available while clinical batching is enforced', async () => {
       await setupDocBypass('hospitals/H1/settings/rayenImportPolicy', {
         schemaVersion: 2,
