@@ -89,13 +89,9 @@
     });
 
     const reinjectRelays = async () => {
-      let injectedTabs = 0;
-      let failedTabs = 0;
-      for (const requiredFile of requiredFiles) {
-        const result = await reinjectMatching(requiredFile);
-        injectedTabs += result.injectedTabs;
-        failedTabs += result.failedTabs;
-      }
+      const results = await Promise.all(requiredFiles.map(reinjectMatching));
+      const injectedTabs = results.reduce((total, result) => total + result.injectedTabs, 0);
+      const failedTabs = results.reduce((total, result) => total + result.failedTabs, 0);
       return { injectedTabs, failedTabs, complete: failedTabs === 0 };
     };
 

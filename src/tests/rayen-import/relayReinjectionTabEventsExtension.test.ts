@@ -41,7 +41,8 @@ describe('restored clinical tabs (extension)', () => {
     chromeApi.tabs.sendMessage.mockImplementation(
       async (tabId: number, message?: { type?: string }) => {
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
-        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING')
+          return { uiReady: true, uiBuildVersion: MANIFEST.version };
         if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         if (tabId === 6 && !receiverReady) throw new Error('Receiving end does not exist');
         return { relayReady: tabId === 6 ? 'gestioncamas' : 'hhr' };

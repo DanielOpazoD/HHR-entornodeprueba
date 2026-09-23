@@ -2,9 +2,28 @@
 (function (root) {
   'use strict';
   const RELAYS = Object.freeze({
+    'content-hhr.js': Object.freeze({
+      ready: 'hhr',
+      main: Object.freeze([]),
+      isolated: Object.freeze([
+        'message-contract.js',
+        'bridge-generation.js',
+        'health-push-ordering-runtime.js',
+        'content-hhr-sync-bundle.js',
+        'content-hhr-connection-repair.js',
+        'content-hhr.js',
+        'content-hhr-patient-flow.js',
+        'content-hhr-epicrisis.js',
+        'content-hhr-patient-documents.js',
+        'content-hhr-statistical-discharge.js',
+        'content-hhr-statistical-evidence.js',
+        'content-hhr-syslab.js',
+      ]),
+    }),
     'content-fichamedico.js': Object.freeze({
       ready: 'fichamedico',
       companionFile: 'content-prescription-print.js',
+      companionRequires: Object.freeze(['hhr-prescription-ui-lifecycle.js']),
       main: Object.freeze([
         'fichamedico-isolation-normalization.js',
         'fichamedico-treating-physician-dom.js',
@@ -41,24 +60,6 @@
         'content-gestioncamas.js',
       ]),
     }),
-    'content-hhr.js': Object.freeze({
-      ready: 'hhr',
-      main: Object.freeze([]),
-      isolated: Object.freeze([
-        'message-contract.js',
-        'bridge-generation.js',
-        'health-push-ordering-runtime.js',
-        'content-hhr-sync-bundle.js',
-        'content-hhr-connection-repair.js',
-        'content-hhr.js',
-        'content-hhr-patient-flow.js',
-        'content-hhr-epicrisis.js',
-        'content-hhr-patient-documents.js',
-        'content-hhr-statistical-discharge.js',
-        'content-hhr-statistical-evidence.js',
-        'content-hhr-syslab.js',
-      ]),
-    }),
     'syslab-bridge.js': Object.freeze({
       ready: null,
       allFrames: true,
@@ -86,9 +87,8 @@
       const mainEntry = definition.main.length ? entryFor(definition.main.at(-1), 'MAIN') : null;
       if (definition.main.length &&
           (!mainEntry || !definition.main.every(file => mainEntry.js.includes(file)))) return null;
-      const companionEntry = definition.companionFile
-        ? entryFor(definition.companionFile, 'ISOLATED') : null;
-      if (definition.companionFile && !companionEntry) return null;
+      const companionEntry = definition.companionFile ? entryFor(definition.companionFile, 'ISOLATED') : null;
+      if (definition.companionFile && (!companionEntry || definition.companionRequires?.some(file => !companionEntry.js.includes(file)))) return null;
       return { definition, isolatedEntry, companionEntry };
     };
     return { requiredFiles: Object.keys(RELAYS), resolveRelay, matchesPattern };
