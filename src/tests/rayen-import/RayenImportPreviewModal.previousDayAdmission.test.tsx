@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { EMPTY_PATIENT } from '@/constants/patient';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
@@ -6,6 +6,7 @@ import { RayenImportPreviewModal } from '@/features/rayen-import/components/Raye
 
 describe('RayenImportPreviewModal previous-day admissions', () => {
   it('explains that a madrugada mother and newborn will also be filed in the prior night shift', () => {
+    const onConfirm = vi.fn();
     const diff = {
       admissions: [
         {
@@ -46,7 +47,7 @@ describe('RayenImportPreviewModal previous-day admissions', () => {
         isOpen
         diff={diff}
         error={null}
-        onConfirm={vi.fn()}
+        onConfirm={onConfirm}
         onCancel={vi.fn()}
       />
     );
@@ -56,6 +57,12 @@ describe('RayenImportPreviewModal previous-day admissions', () => {
       screen.getByText(/Maeva Elisabet Maria Tuki Garcia, RN de Maeva Tuki Garcia/)
     ).toBeVisible();
     expect(screen.getByLabelText('Acepto modificar los días previos indicados')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar solo censo seleccionado' }));
+    expect(onConfirm).toHaveBeenLastCalledWith(false);
+
+    fireEvent.click(screen.getByLabelText('Acepto modificar los días previos indicados'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar censo y días previos' }));
+    expect(onConfirm).toHaveBeenLastCalledWith(true);
   });
 
   it('no pide aceptación cuando ninguna edición de día previo escribirá algo', () => {
@@ -104,5 +111,7 @@ describe('RayenImportPreviewModal previous-day admissions', () => {
     expect(
       screen.queryByLabelText('Acepto modificar los días previos indicados')
     ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Listo' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Confirmar/ })).not.toBeInTheDocument();
   });
 });
