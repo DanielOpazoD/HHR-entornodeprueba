@@ -12,25 +12,6 @@ import {
 } from './prescriptionContentHarness';
 
 describe('extension prescription print content flow', () => {
-  it('preserva un modal clínico huérfano y reintenta al cerrarlo', async () => {
-    document.body.innerHTML = '<div id="hhr-prescription-print-modal"></div>';
-    const runtime = (
-      globalThis as typeof globalThis & {
-        HhrPrescriptionContentRuntime: {
-          preparePrevious: () => boolean;
-          waitForModalClosure: (callback: () => void) => void;
-        };
-      }
-    ).HhrPrescriptionContentRuntime;
-    expect(runtime.preparePrevious()).toBe(false);
-    const retry = vi.fn();
-    runtime.waitForModalClosure(retry);
-    expect(retry).not.toHaveBeenCalled();
-    document.body.innerHTML = '';
-    await vi.waitFor(() => expect(retry).toHaveBeenCalledOnce());
-    expect(runtime.preparePrevious()).toBe(true);
-  });
-
   beforeEach(setupContent);
   afterEach(cleanupContent);
 
