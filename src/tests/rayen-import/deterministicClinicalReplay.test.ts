@@ -8,6 +8,7 @@ import {
   type ClinicalFillDeps,
   type EgresoReportRow,
   type RayenHistoryScaleEvent,
+  type RayenInvasiveDeviceEntry,
 } from '@/features/rayen-import';
 import { buildStructuralReviewEvidence } from '@/features/rayen-import/domain/clinicalStageResolution';
 import {
@@ -37,6 +38,8 @@ import {
 } from './deterministicClinicalReplay.fixtures';
 
 interface ReplayEvidence {
+  devicesByEpisode?: Record<string, RayenInvasiveDeviceEntry[]>;
+  deviceErrorsByEpisode?: Record<string, string>;
   historyByEpisode?: Record<string, RayenHistoryScaleEvent[]>;
   formsByEpisode?: Record<string, unknown[]>;
   formsErrorByEpisode?: Record<string, string>;
@@ -137,7 +140,14 @@ const replay = async (
     await persistPatch(patch);
   });
   const deps: ClinicalFillDeps = {
-    fetchDeviceReport: vi.fn().mockResolvedValue({ base64: '' }),
+    fetchDeviceReport: vi.fn(async (episodeId: string) => ({
+      base64: '',
+      ...(evidence.deviceErrorsByEpisode?.[episodeId]
+        ? { error: evidence.deviceErrorsByEpisode[episodeId] }
+        : evidence.devicesByEpisode?.[episodeId]
+          ? { entries: evidence.devicesByEpisode[episodeId], source: 'json' as const }
+          : {}),
+    })),
     extractDeviceItems: vi.fn().mockResolvedValue([]),
     fetchHistoryScales: vi.fn(async (episodeId: string) => ({
       events: evidence.historyByEpisode?.[episodeId] ?? [],
@@ -182,6 +192,90 @@ const replay = async (
 };
 
 describe('deterministic sanitized clinical replay', () => {
+  it('persists vital signs despite a device-source failure, then recovers VVP without duplicate clinical facts', async () => {
+    const admission = syntheticEncounter('admission');
+    const census = captureFor(CURRENT_CLINICAL_DAY, [admission]);
+    const formsByEpisode = {
+      [admission.encounterId]: [vitalSignsForm(CURRENT_CLINICAL_DAY, 1001)],
+    };
+    const failed = await replay(emptyRecordFor(CURRENT_CLINICAL_DAY), census, {
+      formsByEpisode,
+      deviceErrorsByEpisode: { [admission.encounterId]: 'Fuente de dispositivos no disponible' },
+    });
+
+    expect(failed.terminalEvent.status).toBe('partial');
+    expect(failed.clinical.errors).toEqual([
+      expect.objectContaining({ source: 'devices', clinicalEpisodeId: admission.encounterId }),
+    ]);
+    expect(failed.record.beds.H1C1.vitalSigns).toMatchObject({ heartRate: 76, spo2: 98 });
+    expect(failed.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
+    expect(failed.record.beds.H1C1.devices).toEqual([]);
+
+    const recovered = await replay(failed.record, census, {
+      formsByEpisode,
+      devicesByEpisode: {
+        [admission.encounterId]: [
+          {
+            name: 'Vía venosa periférica',
+            location: 'Antebrazo derecho',
+            installationDatetime: `${CURRENT_CLINICAL_DAY}T09:15:00-06:00`,
+          },
+        ],
+      },
+    });
+
+    expect(recovered.terminalEvent.status).toBe('complete');
+    expect(recovered.clinical.errors).toEqual([]);
+    expect(recovered.record.beds.H1C1.devices).toEqual(['VVP#1']);
+    expect(recovered.record.beds.H1C1.deviceInstanceHistory).toEqual([
+      expect.objectContaining({
+        type: 'VVP#1',
+        status: 'Active',
+        installationDate: CURRENT_CLINICAL_DAY,
+        location: 'Antebrazo derecho',
+        clinicalEpisodeId: admission.encounterId,
+      }),
+    ]);
+    expect(recovered.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
+  });
+
+  it('retains a confirmed VVP when forms fail and adds vital signs on clinical retry', async () => {
+    const admission = syntheticEncounter('admission');
+    const census = captureFor(CURRENT_CLINICAL_DAY, [admission]);
+    const devicesByEpisode = {
+      [admission.encounterId]: [
+        {
+          name: 'Vía venosa periférica',
+          location: 'Antebrazo izquierdo',
+          installationDatetime: `${CURRENT_CLINICAL_DAY}T10:20:00-06:00`,
+        },
+      ],
+    };
+    const failed = await replay(emptyRecordFor(CURRENT_CLINICAL_DAY), census, {
+      devicesByEpisode,
+      formsErrorByEpisode: { [admission.encounterId]: 'Formularios no disponibles' },
+    });
+
+    expect(failed.terminalEvent.status).toBe('partial');
+    expect(failed.clinical.errors.map(error => error.source)).toContain('vitals');
+    expect(failed.record.beds.H1C1.devices).toEqual(['VVP#1']);
+    expect(failed.record.beds.H1C1.deviceInstanceHistory).toHaveLength(1);
+    expect(failed.record.beds.H1C1.vitalSigns).toBeUndefined();
+
+    const recovered = await replay(failed.record, census, {
+      devicesByEpisode,
+      formsByEpisode: {
+        [admission.encounterId]: [vitalSignsForm(CURRENT_CLINICAL_DAY, 1001)],
+      },
+    });
+
+    expect(recovered.terminalEvent.status).toBe('complete');
+    expect(recovered.record.beds.H1C1.devices).toEqual(['VVP#1']);
+    expect(recovered.record.beds.H1C1.deviceInstanceHistory).toHaveLength(1);
+    expect(recovered.record.beds.H1C1.vitalSigns).toMatchObject({ heartRate: 76, spo2: 98 });
+    expect(recovered.record.beds.H1C1.vitalSignsHistory).toHaveLength(1);
+  });
+
   it('enriches a new admission with vitals and Braden in its first synchronization', async () => {
     const admission = syntheticEncounter('admission');
     const result = await replay(
