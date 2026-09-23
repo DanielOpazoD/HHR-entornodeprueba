@@ -108,7 +108,7 @@
         const d = event.data;
         if (!d || d.type !== resultType || d.reqId !== reqId) return;
         cleanup();
-        resolve({ ...d, requestedRuntimeGeneration: runtimeGeneration });
+        resolve({ ...d, requestedRuntimeGeneration: runtimeGeneration, replyReceived: true });
       };
       const cleanup = () => {
         if (settled) return;
@@ -120,7 +120,7 @@
       setTimeout(() => {
         if (settled) return;
         cleanup();
-        resolve({ error: 'Tiempo de espera agotado (Ficha Médico).' });
+        resolve({ error: 'Tiempo de espera agotado (Ficha Médico).', replyReceived: false });
       }, timeoutMs);
     });
   };
@@ -163,11 +163,20 @@
     }
     if (msg && msg.type === 'RAYEN_EXTENSION_MAIN_PING') {
       askMainWorld('RAYEN_FM_BRIDGE_PING', 'RAYEN_FM_BRIDGE_PONG', 4500, false)
-        .then(status => sendResponse({
-          mainReady: status?.mainReady === true &&
-            status?.bridgeProtocolVersion === globalThis.HhrBridgeGeneration.BRIDGE_PROTOCOL_VERSION,
-          reason: status?.error ? 'missing_probe' : status?.reason || 'unverified_reader',
-        }));
+        .then(status => {
+          const verifiedProbe = status?.replyReceived === true && !status?.error &&
+            status?.bridgeProtocolVersion === globalThis.HhrBridgeGeneration.BRIDGE_PROTOCOL_VERSION;
+          const mainReady = verifiedProbe && status?.mainReady === true &&
+            status?.reason === 'connected';
+          sendResponse({
+            mainReady,
+            reason: status?.replyReceived !== true ? 'missing_probe' :
+              verifiedProbe && status?.reason === 'missing_reader' ? 'missing_reader' :
+                mainReady ? 'connected' :
+                  status?.reason === 'incompatible_reader' ? 'incompatible_reader' :
+                    'unverified_reader',
+          });
+        });
       return true;
     }
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
