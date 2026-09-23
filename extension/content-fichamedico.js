@@ -93,10 +93,11 @@
   };
 
   // Generic request/response to the MAIN world over window.postMessage.
-  const askMainWorld = async (requestType, resultType, timeoutMs = READ_TIMEOUT_MS) => {
-    const runtimeContext = await getRuntimeContext();
+  const askMainWorld = async (requestType, resultType, timeoutMs = READ_TIMEOUT_MS,
+    requireContext = true) => {
+    const runtimeContext = requireContext ? await getRuntimeContext() : null;
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
-    if (!runtimeGeneration) {
+    if (requireContext && !runtimeGeneration) {
       return { error: 'El relé de Ficha Médico perdió conexión con la extensión.' };
     }
     return new Promise(resolve => {
@@ -159,6 +160,15 @@
     if (msg && msg.type === 'RAYEN_EXTENSION_RELAY_PING') {
       sendResponse({ relayReady: 'fichamedico' });
       return false;
+    }
+    if (msg && msg.type === 'RAYEN_EXTENSION_MAIN_PING') {
+      askMainWorld('RAYEN_FM_BRIDGE_PING', 'RAYEN_FM_BRIDGE_PONG', 4500, false)
+        .then(status => sendResponse({
+          mainReady: status?.mainReady === true &&
+            status?.bridgeProtocolVersion === globalThis.HhrBridgeGeneration.BRIDGE_PROTOCOL_VERSION,
+          reason: status?.reason || 'unverified_reader',
+        }));
+      return true;
     }
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
       askMainWorld(

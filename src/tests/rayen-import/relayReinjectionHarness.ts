@@ -4,6 +4,7 @@ import '../../../extension/relay-reinjection-manifest.js';
 import '../../../extension/relay-reinjection-health.js';
 import '../../../extension/relay-reinjection-operations.js';
 import '../../../extension/relay-reinjection-session.js';
+import '../../../extension/relay-reinjection-tab-events.js';
 import '../../../extension/relay-reinjection-runtime.js';
 
 type ReinjectionRuntime = {
@@ -39,7 +40,7 @@ export const runtimeModule = (
 ).HhrRelayReinjectionRuntime;
 
 export const MANIFEST = {
-  version: '0.48.31',
+  version: '0.48.32',
   content_scripts: [
     {
       matches: ['https://fichamedico.rayensalud.cl/*'],
@@ -116,12 +117,17 @@ export const MANIFEST = {
 
 export const createFixture = () => {
   const installedListeners: Array<() => void> = [];
+  const startupListeners: Array<() => void> = [];
   const activatedListeners: Array<(event: { tabId: number }) => void> = [];
+  const updatedListeners: Array<
+    (tabId: number, changeInfo: { status?: string }, tab: { url?: string }) => void
+  > = [];
   const executeScript = vi.fn(
     async (injection: {
       target: { tabId: number; allFrames: boolean };
       files?: string[];
       func?: () => unknown;
+      world?: string;
     }) =>
       injection.func ? [{ frameId: 0, result: 'http://10.4.69.90/syslab/index.php' }] : undefined
   );
@@ -131,6 +137,9 @@ export const createFixture = () => {
       getManifest: () => MANIFEST,
       onInstalled: {
         addListener: vi.fn((listener: () => void) => installedListeners.push(listener)),
+      },
+      onStartup: {
+        addListener: vi.fn((listener: () => void) => startupListeners.push(listener)),
       },
     },
     storage: {
@@ -143,6 +152,11 @@ export const createFixture = () => {
       onActivated: {
         addListener: vi.fn((listener: (event: { tabId: number }) => void) =>
           activatedListeners.push(listener)
+        ),
+      },
+      onUpdated: {
+        addListener: vi.fn((listener: (typeof updatedListeners)[number]) =>
+          updatedListeners.push(listener)
         ),
       },
       query: vi.fn(async ({ url }: { url: string[] }) =>
@@ -173,7 +187,12 @@ export const createFixture = () => {
               ? { indicatorReady: true }
               : message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
                 ? { uiReady: true }
-                : { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' }
+                : message?.type === 'RAYEN_EXTENSION_MAIN_PING'
+                  ? { mainReady: true }
+                  : {
+                      relayReady:
+                        tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr',
+                    }
       ),
     },
     scripting: { executeScript },
@@ -194,7 +213,9 @@ export const createFixture = () => {
     onReinjected,
     withTimeout,
     installedListeners,
+    startupListeners,
     activatedListeners,
+    updatedListeners,
     sessionState,
   };
 };

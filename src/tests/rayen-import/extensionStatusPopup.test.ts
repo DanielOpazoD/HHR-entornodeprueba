@@ -26,15 +26,53 @@ describe('extension version popup', () => {
       { filename: 'extension-status.js' }
     );
 
-    expect(manifest.version).toBe('0.48.31');
+    expect(manifest.version).toBe('0.48.32');
     expect(manifest.action).toEqual({
       default_title: 'Ver versión del puente Eloísa → HHR',
       default_popup: 'extension-status.html',
     });
     expect(html).toContain('Versión que Chrome está usando');
     expect(html).toContain('Gestor documental incluido');
+    expect(html).toContain('id="worker-status"');
+    expect(html).toContain('src="extension-worker-status.js"');
     expect(background).toContain("'patient-document-manager'");
     expect(versionElement.textContent).toBe(`v${manifest.version}`);
     expect(documentObject.title).toBe(`Puente Eloísa → HHR · v${manifest.version}`);
+  });
+
+  it('comprueba el worker y muestra una recuperación accionable si no responde', async () => {
+    const source = readFileSync(path.resolve('extension/extension-worker-status.js'), 'utf8');
+    const manifest = JSON.parse(readFileSync(path.resolve('extension/manifest.json'), 'utf8'));
+    const render = (sendMessage: () => Promise<unknown>) => {
+      const worker = { textContent: '', dataset: { state: '' } };
+      vm.runInNewContext(source, {
+        chrome: { runtime: { getManifest: () => manifest, sendMessage } },
+        document: {
+          title: '',
+          getElementById: () => worker,
+        },
+        setTimeout,
+        clearTimeout,
+      });
+      return worker;
+    };
+
+    const connected = render(() =>
+      Promise.resolve({
+        version: manifest.version,
+        runtimeGeneration: 'test-generation',
+      })
+    );
+    await vi.waitFor(() => expect(connected.dataset.state).toBe('ready'));
+    expect(connected.textContent).toContain('Worker operativo');
+
+    const missing = render(() => Promise.reject(new Error('Receiving end does not exist')));
+    await vi.waitFor(() => expect(missing.dataset.state).toBe('error'));
+    expect(missing.textContent).toContain('chrome://extensions');
+
+    const unregistered = render(() => {
+      throw new Error('worker not registered');
+    });
+    await vi.waitFor(() => expect(unregistered.dataset.state).toBe('error'));
   });
 });

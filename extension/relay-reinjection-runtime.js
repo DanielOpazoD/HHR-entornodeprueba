@@ -36,24 +36,24 @@
     const { ensureReinjected, whenIdle } = root.HhrRelayReinjectionSession.create({
       chromeApi, operations, reinjectRelays, notify, log,
     });
-    const repairActivatedTab = async tabId => {
-      await whenIdle();
-      const result = await operations.repairActivatedTab(tabId);
-      if (result.injected) notify(1);
-      return result;
-    };
+    const tabEvents = root.HhrRelayReinjectionTabEvents.create({
+      chromeApi, operations, whenIdle, notify, log,
+    });
     const start = () => {
       if (!chromeApi.scripting || !chromeApi.runtime.onInstalled) return false;
-      chromeApi.runtime.onInstalled.addListener(() => void ensureReinjected({ force: true }));
-      chromeApi.tabs?.onActivated?.addListener(({ tabId }) => {
-        void repairActivatedTab(tabId).catch(error =>
-          log('[HHR] No se pudo verificar la pestaña activa:', error)
+      const verifyOpenTabs = (reason, options) => {
+        void ensureReinjected(options).catch(error =>
+          log(`[HHR] No se pudo verificar las pestañas al ${reason}:`, error)
         );
-      });
-      void ensureReinjected();
+      };
+      chromeApi.runtime.onInstalled.addListener(() => verifyOpenTabs('actualizar', { force: true }));
+      // Restored tabs may appear after onStartup; tabEvents repairs them on load completion.
+      chromeApi.runtime.onStartup?.addListener(() => verifyOpenTabs('iniciar Chrome'));
+      tabEvents.start();
+      verifyOpenTabs('despertar el worker');
       return true;
     };
-    return { start, reinjectRelay, reinjectRelays, reinjectTab, ensureReinjected, repairActivatedTab };
+    return { start, reinjectRelay, reinjectRelays, reinjectTab, ensureReinjected, repairActivatedTab: tabEvents.repairTab };
   };
   root.HhrRelayReinjectionRuntime = { create, STORAGE_KEY: root.HhrRelayReinjectionSession.STORAGE_KEY };
 })(typeof self !== 'undefined' ? self : globalThis);

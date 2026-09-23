@@ -31,7 +31,7 @@
         }, 'La interfaz de Ficha Médico excedió el tiempo esperado.');
       }
       if (!await health.verifyRelay(tabId, requiredFile, relay)) throw new Error('relay_not_ready');
-      if (!await health.verifyPresentation(tabId, requiredFile, relay))
+      if (await health.verifyPresentation(tabId, requiredFile, relay) !== true)
         throw new Error('presentation_not_ready');
     };
 

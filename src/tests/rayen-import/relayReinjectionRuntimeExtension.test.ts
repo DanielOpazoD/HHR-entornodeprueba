@@ -95,6 +95,7 @@ describe('relay reinjection runtime (extension)', () => {
         if (message?.type === 'RAYEN_SYSLAB_STATUS') return { ok: true, bridgeId: 'syslab-test' };
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         if (tabId === 8 && ++hhrPingCount === 1) throw new Error('Receiving end does not exist');
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
@@ -125,6 +126,7 @@ describe('relay reinjection runtime (extension)', () => {
         }
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
     );
@@ -159,6 +161,7 @@ describe('relay reinjection runtime (extension)', () => {
         }
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
     );
@@ -225,9 +228,11 @@ describe('relay reinjection runtime (extension)', () => {
       async (tabId: number, message?: { type?: string }) =>
         message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
           ? { uiReady: ++uiPings > 1 }
-          : message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
-            ? { indicatorReady: true }
-            : { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' }
+          : message?.type === 'RAYEN_EXTENSION_MAIN_PING'
+            ? { mainReady: true }
+            : message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
+              ? { indicatorReady: true }
+              : { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' }
     );
 
     await expect(runtime.ensureReinjected()).resolves.toMatchObject({ injectedTabs: 1 });
@@ -257,7 +262,9 @@ describe('relay reinjection runtime (extension)', () => {
       async (tabId: number, message?: { type?: string }) =>
         message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
           ? { uiReady: tabId !== 7 || ++orphanPings > 1 }
-          : { relayReady: 'fichamedico' }
+          : message?.type === 'RAYEN_EXTENSION_MAIN_PING'
+            ? { mainReady: true }
+            : { relayReady: 'fichamedico' }
     );
 
     await expect(runtime.ensureReinjected()).resolves.toMatchObject({
@@ -286,6 +293,7 @@ describe('relay reinjection runtime (extension)', () => {
     chromeApi.tabs.sendMessage.mockImplementation(
       async (tabId: number, message?: { type?: string }) => {
         if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
@@ -315,6 +323,94 @@ describe('relay reinjection runtime (extension)', () => {
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalled());
   });
 
+  it('registra onStartup y no duplica la inspección mientras arranca Chrome', async () => {
+    const { runtime, chromeApi, startupListeners, sessionState } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    let release!: (value: Record<string, unknown>) => void;
+    chromeApi.storage.session.get.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = resolve;
+        })
+    );
+
+    expect(runtime.start()).toBe(true);
+    expect(startupListeners).toHaveLength(1);
+    startupListeners[0]();
+    release({ [runtimeModule.STORAGE_KEY]: MANIFEST.version });
+    await vi.waitFor(() => expect(chromeApi.storage.session.get).toHaveBeenCalledTimes(1));
+  });
+
+  it('repara una pestaña restaurada después del primer barrido y comparte la activación', async () => {
+    const {
+      runtime,
+      chromeApi,
+      executeScript,
+      onReinjected,
+      updatedListeners,
+      activatedListeners,
+      sessionState,
+    } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    chromeApi.tabs.query.mockResolvedValue([]);
+    expect(runtime.start()).toBe(true);
+    await runtime.ensureReinjected();
+    executeScript.mockClear();
+    let receiverReady = false;
+    chromeApi.tabs.sendMessage.mockImplementation(
+      async (tabId: number, message?: { type?: string }) => {
+        if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
+        if (tabId === 6 && !receiverReady) throw new Error('Receiving end does not exist');
+        return { relayReady: tabId === 6 ? 'gestioncamas' : 'hhr' };
+      }
+    );
+    executeScript.mockImplementation(async () => {
+      receiverReady = true;
+      return undefined;
+    });
+
+    updatedListeners[0](
+      6,
+      { status: 'loading' },
+      { url: 'https://hospitalizado.rayensalud.cl/#/bed' }
+    );
+    updatedListeners[0](9, { status: 'complete' }, { url: 'http://10.4.69.90/syslab/index.php' });
+    expect(executeScript).not.toHaveBeenCalled();
+    updatedListeners[0](
+      6,
+      { status: 'complete' },
+      { url: 'https://hospitalizado.rayensalud.cl/#/bed' }
+    );
+    activatedListeners[0]({ tabId: 6 });
+    await vi.waitFor(() => expect(onReinjected).toHaveBeenCalledWith(1));
+    expect(executeScript).toHaveBeenCalledTimes(2);
+    expect(onReinjected).toHaveBeenCalledTimes(1);
+    expect(chromeApi.tabs.get).toHaveBeenCalledWith(6);
+  });
+
+  it('comprueba de nuevo una pestaña HHR tras reanudarla sin reinyectar si sigue sana', async () => {
+    const {
+      runtime,
+      chromeApi,
+      executeScript,
+      updatedListeners,
+      activatedListeners,
+      sessionState,
+    } = createFixture();
+    sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
+    expect(runtime.start()).toBe(true);
+    await runtime.ensureReinjected();
+    executeScript.mockClear();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      updatedListeners[0](8, { status: 'complete' }, { url: 'http://localhost:3001/census' });
+      activatedListeners[0]({ tabId: 8 });
+      await vi.waitFor(() => expect(chromeApi.tabs.get).toHaveBeenCalledTimes(attempt + 1));
+    }
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
   it('repairs one exact relay after the session marker and verifies its receiver', async () => {
     const { runtime, executeScript, sessionState, chromeApi } = createFixture();
     sessionState[runtimeModule.STORAGE_KEY] = MANIFEST.version;
@@ -335,6 +431,9 @@ describe('relay reinjection runtime (extension)', () => {
     });
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(5, {
       type: 'RAYEN_EXTENSION_FICHA_UI_PING',
+    });
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(5, {
+      type: 'RAYEN_EXTENSION_MAIN_PING',
     });
   });
 
@@ -390,6 +489,7 @@ describe('relay reinjection runtime (extension)', () => {
       [5_000, 'La interfaz de Ficha Médico excedió el tiempo esperado.'],
       [5_000, 'El relé no confirmó su receptor.'],
       [5_000, 'La interfaz de Ficha Médico no confirmó su conexión.'],
+      [5_000, 'El lector interno de Ficha Médico no confirmó su conexión.'],
     ]);
   });
 

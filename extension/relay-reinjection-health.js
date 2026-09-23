@@ -32,7 +32,15 @@
           chromeApi.tabs.sendMessage(tabId, { type: 'RAYEN_EXTENSION_FICHA_UI_PING' }),
           timeoutMs, 'La interfaz de Ficha Médico no confirmó su conexión.'
         );
-        return ui?.uiReady === true;
+        if (ui?.uiReady !== true) return false;
+        const main = await withTimeout(
+          chromeApi.tabs.sendMessage(tabId, { type: 'RAYEN_EXTENSION_MAIN_PING' }),
+          timeoutMs, 'El lector interno de Ficha Médico no confirmó su conexión.'
+        );
+        if (main?.reason === 'incompatible_reader' || main?.reason === 'unverified_reader') {
+          return main.reason;
+        }
+        return main?.mainReady === true;
       }
       if (requiredFile === 'content-gestioncamas.js') {
         const indicator = await withTimeout(
@@ -45,9 +53,13 @@
     };
     const verifyOrReinject = async (tab, requiredFile, relay) => {
       try {
-        if (await verifyRelay(tab.id, requiredFile, relay) &&
-            await verifyPresentation(tab.id, requiredFile, relay))
-          return { injected: false, healthy: true };
+        if (await verifyRelay(tab.id, requiredFile, relay)) {
+          const presentation = await verifyPresentation(tab.id, requiredFile, relay);
+          if (presentation === true) return { injected: false, healthy: true };
+          if (presentation === 'incompatible_reader' || presentation === 'unverified_reader') {
+            return { injected: false, healthy: false, reason: presentation };
+          }
+        }
       } catch (_error) {
         // A missing/invalidated receiver is expected after an extension reload.
       }

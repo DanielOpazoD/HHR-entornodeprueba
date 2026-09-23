@@ -48,6 +48,28 @@ const requestRuntimeContext = statusPage =>
       })
   );
 
+const diagnoseFichaReader = page => page.evaluate(() => new Promise(resolve => {
+  const reqId = `reader-diagnostic-${Date.now()}`;
+  const details = {
+    readerPresent: typeof window.__rayenBridgeInjected?.reactivate === 'function',
+    probePresent: typeof window.__hhrFichaMainPingListenerV1 === 'function',
+    bridgeGeneration: String(window.__hhrExtensionRuntimeGenerationV1__ || ''),
+  };
+  const onMessage = event => {
+    if (event.source !== window || event.origin !== window.location.origin ||
+        event.data?.type !== 'RAYEN_FM_BRIDGE_PONG' || event.data?.reqId !== reqId) return;
+    clearTimeout(timeout);
+    window.removeEventListener('message', onMessage);
+    resolve({ ...details, directReply: event.data?.mainReady === true });
+  };
+  const timeout = setTimeout(() => {
+    window.removeEventListener('message', onMessage);
+    resolve({ ...details, directReply: false });
+  }, 2_500);
+  window.addEventListener('message', onMessage);
+  window.postMessage({ type: 'RAYEN_FM_BRIDGE_PING', reqId }, window.location.origin);
+}));
+
 const readRelayHealth = statusPage =>
   statusPage.evaluate(async () => {
     const runtimeContext = await chrome.runtime.sendMessage({
@@ -222,6 +244,28 @@ const removeMainBridgeListener = async (context, page, source) => {
     await session.detach();
   }
 };
+
+// Chrome's own extension testing guide closes the worker target to exercise a cold wake.
+// Keep the three documents open so a passing health probe cannot hide a page reload.
+const terminateWorker = async (context, page, extensionId) => {
+  const session = await context.newCDPSession(page);
+  try {
+    const { targetInfos } = await session.send('Target.getTargets');
+    const target = targetInfos.find(info =>
+      info.type === 'service_worker' &&
+      info.url === `chrome-extension://${extensionId}/background.js`
+    );
+    assert.ok(target, 'MV3 worker target was missing before idle simulation');
+    const result = await session.send('Target.closeTarget', { targetId: target.targetId });
+    assert.equal(result.success, true, 'Chrome did not terminate the MV3 worker');
+  } finally {
+    await session.detach();
+  }
+};
+
+const idleDelayMs = Number(process.env.HHR_EXTENSION_IDLE_WAIT_MS || 0);
+assert.ok(Number.isInteger(idleDelayMs) && idleDelayMs >= 0 && idleDelayMs <= 180_000,
+  'HHR_EXTENSION_IDLE_WAIT_MS must be between 0 and 180000');
 
 const runtimeErrors = [];
 const context = await chromium.launchPersistentContext('', {
@@ -597,6 +641,92 @@ try {
   }
   await staleFichaPage.close();
 
+  // An already-open compatible MAIN reader may predate the new bridge probe. Re-injecting
+  // the current MAIN entry must add that probe while retaining the existing reader/session.
+  const removedMainProbe = await page.evaluate(() => {
+    const key = '__hhrFichaMainPingListenerV1';
+    const listener = window[key];
+    if (typeof listener !== 'function') return false;
+    window.removeEventListener('message', listener);
+    delete window[key];
+    return true;
+  });
+  assert.equal(removedMainProbe, true, 'Could not simulate a compatible pre-probe MAIN reader');
+  const fichaMainFiles = manifest.content_scripts.find(entry =>
+    entry.world === 'MAIN' && entry.js.includes('inject-fichamedico.js')
+  )?.js;
+  assert.ok(fichaMainFiles, 'Ficha MAIN manifest entry is missing');
+  await reloadedStatusPage.evaluate(async files => {
+    const [tab] = await chrome.tabs.query({ url: 'https://fichamedico.rayensalud.cl/*' });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: 'MAIN', files });
+  }, fichaMainFiles);
+  const upgradedMain = await readRelayHealth(reloadedStatusPage);
+  assert.equal(upgradedMain.fichaMedico.ready, true,
+    'A compatible older MAIN reader did not gain the probe after reinjection');
+
+  // Repeat the idle → resumed-tab path. The optional delay supports a real multi-minute
+  // local soak without adding four minutes to every CI run.
+  for (let cycle = 1; cycle <= 2; cycle += 1) {
+    if (cycle === 2) {
+      // A live ISOLATED listener can mask a missing MAIN listener. The next tab activation
+      // must discover and restore that inner reader rather than trusting the outer relay.
+      await removeMainBridgeListener(context, page, 'Ficha Medico after idle');
+    }
+    await terminateWorker(context, reloadedStatusPage, extensionId);
+    if (idleDelayMs) await new Promise(resolve => setTimeout(resolve, idleDelayMs));
+    // Resume actual tab use after the pause, rather than waking the worker only from its
+    // extension page. These activations exercise the restored-tab repair listener too.
+    await page.bringToFront();
+    await gestionCamasPage.bringToFront();
+    await hhrPage.bringToFront();
+    let resumedHealth;
+    let lastResumeError;
+    // Match HHR's bounded pre-sync health budget under a busy test runner.
+    const resumeStartedAt = Date.now();
+    const resumeDeadline = resumeStartedAt + 25_000;
+    while (Date.now() < resumeDeadline) {
+      try {
+        resumedHealth = await readRelayHealth(reloadedStatusPage);
+        if (resumedHealth?.fichaMedico?.ready && resumedHealth?.gestionCamas?.ready &&
+            resumedHealth?.hhr?.ready) break;
+      } catch (error) {
+        // Chrome may still be registering the replacement worker.
+        lastResumeError = String(error);
+      }
+      await reloadedStatusPage.waitForTimeout(150);
+    }
+    const resumeDiagnostic = JSON.stringify({
+      runtimeGeneration: resumedHealth?.runtimeContext?.runtimeGeneration,
+      fichaMedico: resumedHealth?.fichaMedico,
+      gestionCamas: resumedHealth?.gestionCamas,
+      hhr: resumedHealth?.hhr,
+      lastResumeError,
+    });
+    if (resumedHealth?.fichaMedico?.ready !== true) {
+      const directReader = await diagnoseFichaReader(page).catch(error => ({ error: String(error) }));
+      console.error(`[idle] cycle ${cycle} MAIN diagnostic: ${JSON.stringify(directReader)}`);
+    }
+    assert.equal(resumedHealth?.fichaMedico?.ready, true,
+      `Ficha did not resume in cycle ${cycle}: ${resumeDiagnostic}`);
+    assert.equal(resumedHealth?.gestionCamas?.ready, true, `Camas did not resume in cycle ${cycle}`);
+    assert.equal(resumedHealth?.hhr?.ready, true, `HHR did not resume in cycle ${cycle}`);
+    assert.equal(resumedHealth.runtimeContext.runtimeGeneration, runtimeContext.runtimeGeneration);
+    console.log(`[idle] cycle ${cycle}: three relays ready in ${Date.now() - resumeStartedAt} ms`);
+    assert.equal(await page.locator('#hhr-clinical-operations-bar').count(), 1,
+      `Ficha controls duplicated after idle cycle ${cycle}`);
+    // A runtime-context answer proves the worker woke; Playwright versions before its
+    // MV3 target-reuse fix retain a stale Worker handle after CDP terminates that target.
+    const resumedPageHealth = await requestHhrHealth(hhrPage);
+    assert.equal(resumedPageHealth.report?.hhr?.status, 'ready');
+    const resumedPageRoute = await requestInvalidPatientFlow(hhrPage);
+    assert.match(resumedPageRoute.error || '', /episodio clínico no es válido/);
+    assert.deepEqual(await Promise.all(
+      [page, gestionCamasPage, hhrPage].map(fixturePage =>
+        fixturePage.evaluate(() => window.__hhrExtensionUpdateDocumentSentinel)
+      )
+    ), [documentSentinel, documentSentinel, documentSentinel]);
+  }
+
   // Other listeners may survive in ISOLATED even when the GC health receiver disappears.
   // In that case tabs.sendMessage can resolve without a health response instead of throwing.
   const removedGcReceiver = await reloadedStatusPage.evaluate(async () => {
@@ -632,6 +762,42 @@ try {
     /episodio clínico no es válido/,
     'The reloaded HHR document did not recover its patient-flow helper'
   );
+  // A new probe must not certify an incompatible retained MAIN reader merely because
+  // that reader exposes a reactivation function.
+  await removeMainBridgeListener(context, page, 'incompatible Ficha MAIN reader');
+  await page.evaluate(() => {
+    const incompatibleReader = event => {
+      if (event.source !== window || event.origin !== window.location.origin ||
+          event.data?.type !== 'RAYEN_FM_SESSION_STATUS_REQUEST') return;
+      window.postMessage({
+        type: 'RAYEN_FM_SESSION_STATUS_RESULT', reqId: event.data.reqId,
+        bridgeProtocolVersion: 0,
+        bridgeGeneration: window.__hhrExtensionRuntimeGenerationV1__,
+        ready: false,
+      }, window.location.origin);
+    };
+    window.__rayenBridgeInjected = {
+      reactivate: () => {
+        window.removeEventListener('message', incompatibleReader);
+        window.addEventListener('message', incompatibleReader);
+      },
+    };
+    // A persistent marker from an older injection must not certify this reader.
+    window.__hhrFichaMainReaderProtocolV1 = {
+      reader: window.__rayenBridgeInjected, protocolVersion: 1,
+    };
+  });
+  await reloadedStatusPage.evaluate(async files => {
+    const [tab] = await chrome.tabs.query({ url: 'https://fichamedico.rayensalud.cl/*' });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: 'MAIN', files });
+  }, fichaMainFiles);
+  const incompatibleProbe = await reloadedStatusPage.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ url: 'https://fichamedico.rayensalud.cl/*' });
+    return chrome.tabs.sendMessage(tab.id, { type: 'RAYEN_EXTENSION_MAIN_PING' });
+  });
+  assert.equal(incompatibleProbe?.mainReady, false,
+    'The new probe falsely certified an incompatible retained MAIN reader');
+  assert.equal(incompatibleProbe?.reason, 'incompatible_reader');
   await reloadedStatusPage.close();
   await extensionsPage.close();
 

@@ -85,6 +85,16 @@
         content: "";
       }
 
+      .worker-status {
+        margin-top: 14px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .worker-status[data-state="error"] {
+        color: #9a3412;
+      }
+
       footer {
         margin-top: 14px;
         border-top: 1px solid #e2e8f0;
@@ -111,11 +121,13 @@
       </section>
 
       <p class="capability">Gestor documental incluido</p>
+      <p id="worker-status" class="worker-status" role="status" aria-live="polite">Comprobando conexión interna…</p>
 
       <footer>
         Pulsa este icono cuando necesites confirmar rápidamente la versión cargada.
       </footer>
     </main>
     <script src="extension-status.js"></script>
+    <script src="extension-worker-status.js"></script>
   </body>
 </html>
