@@ -5,6 +5,7 @@ import type { RayenSyncRun } from '@/features/rayen-import/domain/rayenSyncHisto
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import { RayenSyncEventSchema } from '@/schemas/zod/dailyRecord';
 import { safeParseDailyRecord } from '@/schemas/zodSchemas';
+import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSafeParsers';
 
 /**
  * Contrato del requisito de revisión propio del intento.
@@ -98,5 +99,39 @@ describe('requisito de revisión por inicio del día · dominio ↔ esquema', ()
     expect(parsed?.rayenSyncHistory).toHaveLength(1);
     expect(parsed?.rayenSyncHistory?.[0]?.reviewRequirement).toBeUndefined();
     expect(parsed?.rayenSyncHistory?.[0]?.status).toBe('applied');
+  });
+
+  it('conserva el historial con conflictos estructurales sin cama tras normalizar nulos', () => {
+    const { record, report } = parseDailyRecordWithDefaultsReport(
+      {
+        date: '2026-09-19',
+        beds: {},
+        rayenSyncHistory: [
+          {
+            id: 'run-historical',
+            sourceDate: '2026-09-19',
+            startedAt: '2026-09-23T15:37:00.000Z',
+            completedAt: '2026-09-23T15:39:00.000Z',
+            by: 'Operador HHR',
+            status: 'partial',
+            reviewRequirement: 'day_bootstrap',
+            structuralReview: {
+              structureConfirmed: true,
+              historicalCorrectionsPending: false,
+              historicalCorrectionsRequireFreshCapture: false,
+              isolatedConflicts: 1,
+              issues: [{ bedId: null, reason: 'unverified-report-row' }],
+            },
+          },
+        ],
+      },
+      '2026-09-19'
+    );
+
+    expect(report.droppedRayenSyncEvents).toBe(0);
+    expect(record.rayenSyncHistory).toHaveLength(1);
+    expect(record.rayenSyncHistory?.[0]?.structuralReview?.issues).toEqual([
+      { bedId: null, reason: 'unverified-report-row' },
+    ]);
   });
 });
