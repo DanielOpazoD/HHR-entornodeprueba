@@ -203,3 +203,69 @@ de revisión humana; la captura dual tardó 4,9 s y las lecturas clínicas 3,9 s
 lectura, guardado e historial de esa ejecución en `hhr-pruebas`; no cubre por sí sola expiración
 real de una sesión ni un reinicio completo del navegador. El centro de conexiones ahora termina
 su estado «Comprobando…» con un error recuperable si falla la mensajería con el worker.
+
+### Restauración del navegador e inactividad repetida · 23-09-2026
+
+Con el `main` de GitHub en `localhost:3001`, la extensión 0.48.31 cargada desde la carpeta local
+y las pestañas reales de HHR, Ficha Médico y Gestión de Camas abiertas, se cerró Chrome por
+completo y se abrió de nuevo el mismo perfil. Tras restaurar la ventana, Chrome registró el
+worker sin desactivar ni reactivar la extensión: HHR indicó **Conectada**, Ficha mostró su
+conexión y Camas mostró **Conectado**. Esta observación cubre **un** reinicio completo; no prueba
+que Chrome registre siempre el worker. Si el proceso del navegador no registra el worker, los
+scripts de la extensión no pueden recibir eventos ni repararlo desde dentro. Distinguir ese caso
+de un worker **inactivo** normal en `chrome://extensions`: este último despierta al recibir un
+evento o mensaje. El popup de 0.48.32 envía una petición mínima al worker: si no obtiene una
+respuesta de la versión cargada, muestra cómo recargar la extensión en Chrome y, si persiste,
+desactivarla y activarla. Una etiqueta de versión sola ya no se presenta como prueba de conexión.
+El popup 0.48.32 se comprobó en Chrome real tras recargar esa misma carpeta: indicó **Worker
+operativo** y HHR volvió a mostrar **Conectada** sin refrescar la página.
+
+En un segundo cierre y arranque completos con 0.48.32, el popup volvió a responder, pero el
+Centro HHR informó **sesión vencida** para Ficha Médico y **sin token** para Gestión de Camas.
+Esto distingue un worker disponible de credenciales utilizables: después de cerrar Chrome,
+`chrome.storage.session` pierde el token temporal de Camas por diseño y Ficha debe superar de
+nuevo la verificación de su sesión oficial. Ver datos que la página dejó en memoria no acredita
+esa verificación. No se considera recuperada la sincronización hasta que ambas fuentes vuelvan a
+estar autenticadas. La renovación real posterior a ese segundo reinicio aún no se verificó.
+
+La versión 0.48.32 añade un listener `runtime.onStartup` registrado al cargar el worker. El
+primer barrido de pestañas puede ocurrir antes de que Chrome restaure sus documentos; por eso
+`tabs.onUpdated` comprueba al terminar la carga sólo las páginas de HHR, Ficha Médico y Gestión de
+Camas y repara un receptor ausente. La activación y la finalización de carga de una misma pestaña
+comparten una comprobación en curso, para evitar dos reinyecciones. Una página que ya responde no
+se reinyecta. No se modificó el flujo de Syslab.
+
+La pausa prolongada con carga simultánea reveló una condición más estrecha: el relé ISOLATED y
+la interfaz de Ficha respondían, pero el lector MAIN ya no contestaba. La verificación de Ficha
+incluye ahora un ping al lector MAIN, independiente de la sesión clínica. El ping reancla
+el listener existente si Chrome lo dejó sin registrar. Si falta el lector, reinyecta esa
+pestaña y comprueba el ping otra vez antes de declararla reparada. Si el lector retenido no
+puede demostrar compatibilidad, detiene la reparación automática y ofrece abrir una conexión
+limpia en otra pestaña. La ausencia total de respuesta del propio ping se trata como un probe
+faltante y permite reinstalarlo al activar la pestaña. Una sesión
+realmente vencida sigue siendo un estado de autenticación, no un motivo para reinyectar.
+El listener del ping se instala por separado: una pestaña con el lector compatible de 0.48.31
+puede conservar su captura y adquirir esta comprobación al actualizar la extensión, sin recarga
+ni duplicar el lector original. En ese caso, la primera comprobación pide al lector retenido una
+respuesta de estado con su propio protocolo y generación; sólo entonces guarda el resultado
+para los pings siguientes. Esto se exige también al lector de la versión actual. Un lector
+incompatible o sin respuesta no queda certificado por los metadatos del ping nuevo.
+El smoke simula ambos lados: adopta un lector compatible sin recargarlo, restaura un probe
+ausente y rechaza un lector retenido que responde con protocolo incompatible.
+En este último caso la verificación evita reinyecciones automáticas repetidas sobre el mismo
+lector antiguo; el centro de conexiones ofrece **Abrir conexión limpia**, que abre documentos
+nuevos sin cerrar la pestaña clínica anterior ni descartar ediciones pendientes.
+
+El smoke aislado fuerza dos terminaciones del worker MV3 con las tres páginas abiertas. Después de
+cada pausa reactiva Ficha Médico, Gestión de Camas y HHR, y comprueba la nueva respuesta del worker,
+la salud de las tres fuentes, el puente de HHR, la ausencia de controles duplicados y que ningún
+documento se recargó. Antes del segundo despertar elimina a propósito el listener MAIN de Ficha
+para comprobar la reparación aunque el relé exterior siga vivo. Antes de terminarlo, verifica
+además una lectura clínica sintética completa y la
+caducidad/renovación simulada de Ficha Médico. Para reproducir una pausa real entre los dos ciclos
+en local, ejecutar `HHR_EXTENSION_IDLE_WAIT_MS=180000 npm run test:e2e:rayen-extension-runtime`;
+el valor por defecto no retrasa CI. El reingreso después de tres minutos no equivale a una caducidad
+real de servidor: esta última sigue pendiente de observación en Eloísa cuando ocurra de forma
+natural. Playwright mantiene una referencia obsoleta al objeto `Worker` después de una terminación
+CDP en la versión fijada del proyecto; por ello los ciclos de reanudación verifican respuestas por
+el canal real de extensión y no evalúan código mediante ese objeto obsoleto.

@@ -116,6 +116,53 @@ const createRelay = (installedVersion: string) => {
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('relay de Ficha Médico · versión del inject', () => {
+  it('reinyecta el probe MAIN cuando no llega ningún pong', async () => {
+    const relay = createRelay(manifest.version);
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_MAIN_PING' });
+    await flush();
+    expect(relay.requests.at(-1)?.type).toBe('RAYEN_FM_BRIDGE_PING');
+    await expect(ping).resolves.toMatchObject({ mainReady: false, reason: 'missing_probe' });
+  }, 6_000);
+
+  it('no confunde un pong con error con la ausencia del probe', async () => {
+    const relay = createRelay(manifest.version);
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_MAIN_PING' });
+    await flush();
+    relay.answerFromInject({
+      type: 'RAYEN_FM_BRIDGE_PONG',
+      error: 'reader_verification_failed',
+      mainReady: false,
+      bridgeProtocolVersion: 0,
+    });
+    await expect(ping).resolves.toMatchObject({ mainReady: false, reason: 'unverified_reader' });
+  });
+
+  it('no acepta que un pong se autodeclare como probe ausente', async () => {
+    const relay = createRelay(manifest.version);
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_MAIN_PING' });
+    await flush();
+    relay.answerFromInject({
+      type: 'RAYEN_FM_BRIDGE_PONG',
+      noReply: true,
+      replyReceived: false,
+      reason: 'missing_probe',
+      mainReady: false,
+    });
+    await expect(ping).resolves.toMatchObject({ mainReady: false, reason: 'unverified_reader' });
+  });
+
+  it.each([
+    [{ reason: 'missing_reader', bridgeProtocolVersion: 1 }, 'missing_reader'],
+    [{ reason: 'missing_reader', bridgeProtocolVersion: 0 }, 'unverified_reader'],
+    [{ reason: 'missing_reader', bridgeProtocolVersion: 1, error: 'invalid' }, 'unverified_reader'],
+  ])('sólo acepta lector ausente desde un probe verificado', async (payload, reason) => {
+    const relay = createRelay(manifest.version);
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_MAIN_PING' });
+    await flush();
+    relay.answerFromInject({ type: 'RAYEN_FM_BRIDGE_PONG', mainReady: false, ...payload });
+    await expect(ping).resolves.toMatchObject({ mainReady: false, reason });
+  });
+
   it('al reinyectarse deja inerte el listener anterior y emite una sola consulta MAIN', async () => {
     const relay = createRelay(manifest.version);
     relay.reinject();

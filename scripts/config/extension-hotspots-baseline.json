@@ -130,7 +130,7 @@
       "hotspots": {}
     },
     "content-fichamedico.js": {
-      "maxLines": 190,
+      "maxLines": 210,
       "hotspots": {}
     },
     "content-gestioncamas.js": {
@@ -212,6 +212,10 @@
     },
     "extension-status.js": {
       "maxLines": 17,
+      "hotspots": {}
+    },
+    "extension-worker-status.js": {
+      "maxLines": 27,
       "hotspots": {}
     },
     "fichamedico-clinical-client.js": {
@@ -485,9 +489,9 @@
       "hotspots": {}
     },
     "inject-fichamedico.js": {
-      "maxLines": 688,
+      "maxLines": 753,
       "hotspots": {
-        "iife>variable:onBridgeMessage": 32,
+        "iife>variable:onBridgeMessage": 34,
         "iife>variable:getVerifiedClinicalContext": 21,
         "iife>variable:readSafeSessionIdentityUncached": 23,
         "iife>variable:resolveNursingContext": 16
@@ -580,6 +584,10 @@
       "maxLines": 60,
       "hotspots": {}
     },
+    "relay-reinjection-tab-events.js": {
+      "maxLines": 39,
+      "hotspots": {}
+    },
     "report-parser.js": {
       "maxLines": 104,
       "hotspots": {}
@@ -663,7 +671,7 @@
       "hotspots": {}
     },
     "relay-reinjection-health.js": {
-      "maxLines": 104,
+      "maxLines": 116,
       "hotspots": {}
     },
     "relay-reinjection-manifest.js": {

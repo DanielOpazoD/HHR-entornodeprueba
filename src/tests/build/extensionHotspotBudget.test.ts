@@ -69,7 +69,8 @@ describe('extension hotspot budget', () => {
     // 129: cliente de mensajes de runtime que reconecta pestañas tras actualizar la extensión.
     // 131: recuperación compartida del relé y reinyección acotada de scripts.
     // 136: manifest, receiver health, session repair, Ficha transport and connection presentation.
-    expect(metrics.authoredFiles).toHaveLength(136);
+    // 138: restored-tab events and the popup worker probe remain separately governed.
+    expect(metrics.authoredFiles).toHaveLength(138);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,

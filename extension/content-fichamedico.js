@@ -93,10 +93,11 @@
   };
 
   // Generic request/response to the MAIN world over window.postMessage.
-  const askMainWorld = async (requestType, resultType, timeoutMs = READ_TIMEOUT_MS) => {
-    const runtimeContext = await getRuntimeContext();
+  const askMainWorld = async (requestType, resultType, timeoutMs = READ_TIMEOUT_MS,
+    requireContext = true) => {
+    const runtimeContext = requireContext ? await getRuntimeContext() : null;
     const runtimeGeneration = runtimeContext && runtimeContext.runtimeGeneration;
-    if (!runtimeGeneration) {
+    if (requireContext && !runtimeGeneration) {
       return { error: 'El relé de Ficha Médico perdió conexión con la extensión.' };
     }
     return new Promise(resolve => {
@@ -107,7 +108,7 @@
         const d = event.data;
         if (!d || d.type !== resultType || d.reqId !== reqId) return;
         cleanup();
-        resolve({ ...d, requestedRuntimeGeneration: runtimeGeneration });
+        resolve({ ...d, requestedRuntimeGeneration: runtimeGeneration, replyReceived: true });
       };
       const cleanup = () => {
         if (settled) return;
@@ -119,7 +120,7 @@
       setTimeout(() => {
         if (settled) return;
         cleanup();
-        resolve({ error: 'Tiempo de espera agotado (Ficha Médico).' });
+        resolve({ error: 'Tiempo de espera agotado (Ficha Médico).', replyReceived: false });
       }, timeoutMs);
     });
   };
@@ -154,11 +155,30 @@
     };
   };
 
+  const describeMainProbe = status => {
+    if (status?.replyReceived !== true) return { mainReady: false, reason: 'missing_probe' };
+    const verifiedProbe = !status.error &&
+      status.bridgeProtocolVersion === globalThis.HhrBridgeGeneration.BRIDGE_PROTOCOL_VERSION;
+    if (verifiedProbe && status.reason === 'missing_reader') {
+      return { mainReady: false, reason: 'missing_reader' };
+    }
+    if (verifiedProbe && status.reason === 'connected' && status.mainReady === true) {
+      return { mainReady: true, reason: 'connected' };
+    }
+    return { mainReady: false, reason: status.reason === 'incompatible_reader'
+      ? 'incompatible_reader' : 'unverified_reader' };
+  };
+
   const onRuntimeMessage = (msg, _sender, sendResponse) => {
     if (!ownsRelay()) return undefined;
     if (msg && msg.type === 'RAYEN_EXTENSION_RELAY_PING') {
       sendResponse({ relayReady: 'fichamedico' });
       return false;
+    }
+    if (msg && msg.type === 'RAYEN_EXTENSION_MAIN_PING') {
+      askMainWorld('RAYEN_FM_BRIDGE_PING', 'RAYEN_FM_BRIDGE_PONG', 4500, false)
+        .then(status => sendResponse(describeMainProbe(status)));
+      return true;
     }
     if (msg && msg.type === 'RAYEN_EXTENSION_HEALTH_PING') {
       askMainWorld(

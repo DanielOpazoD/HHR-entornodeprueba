@@ -11,7 +11,66 @@
  */
 (() => {
   'use strict';
-  const INJECT_VERSION = '0.48.31';
+  const INJECT_VERSION = '0.48.32';
+  // Install the bridge probe separately so an older, compatible MAIN reader can keep its
+  // captured session when this script is re-injected after an extension update.
+  const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
+  const pingKey = '__hhrFichaMainPingListenerV1';
+  let legacyVerification = null;
+  const verifyRetainedReader = (reader, generation) => {
+    if (!generation) return Promise.resolve('unverified');
+    if (legacyVerification?.reader === reader && legacyVerification.generation === generation) {
+      return legacyVerification.promise;
+    }
+    const promise = new Promise(resolve => {
+      const reqId = 'main-compat-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+      const finish = value => {
+        clearTimeout(timer);
+        window.removeEventListener('message', onReply);
+        resolve(value);
+      };
+      const onReply = event => {
+        const data = event.data;
+        if (event.source !== window || event.origin !== window.location.origin ||
+            data?.type !== 'RAYEN_FM_SESSION_STATUS_RESULT' || data.reqId !== reqId) return;
+        finish(data.bridgeProtocolVersion === 1 && data.bridgeGeneration === generation
+          ? 'compatible' : 'incompatible');
+      };
+      const timer = setTimeout(() => finish('unverified'), 4000);
+      window.addEventListener('message', onReply);
+      window.postMessage({
+        type: 'RAYEN_FM_SESSION_STATUS_REQUEST', reqId, runtimeGeneration: generation,
+      }, window.location.origin);
+    });
+    legacyVerification = { reader, generation, promise };
+    void promise.then(result => {
+      if (result === 'unverified' && legacyVerification?.promise === promise) legacyVerification = null;
+    });
+    return promise;
+  };
+  if (window[pingKey]) window.removeEventListener('message', window[pingKey]);
+  const onMainPing = async event => {
+    if (event.source !== window || event.origin !== window.location.origin) return;
+    const data = event.data;
+    if (data?.type !== 'RAYEN_FM_BRIDGE_PING') return;
+    const reader = window.__rayenBridgeInjected;
+    let mainReady = typeof reader?.reactivate === 'function';
+    let reason = mainReady ? 'connected' : 'missing_reader';
+    if (mainReady) {
+      reader.reactivate();
+      const result = await verifyRetainedReader(reader,
+        String(window.__hhrExtensionRuntimeGenerationV1__ || ''));
+      mainReady = result === 'compatible';
+      reason = mainReady ? 'connected' : result === 'incompatible'
+        ? 'incompatible_reader' : 'unverified_reader';
+    }
+    window.postMessage({
+      type: 'RAYEN_FM_BRIDGE_PONG', reqId: data.reqId, mainReady, reason,
+      ...bridgeRuntime.metadata(),
+    }, window.location.origin);
+  };
+  window.addEventListener('message', onMainPing);
+  window[pingKey] = onMainPing;
   if (globalThis.HhrConnectionRelayRecovery.reactivateMain(window, '__rayenBridgeInjected')) return;
   // React routing normally uses pushState/replaceState, which do not emit popstate. Surface a
   // DOM event so the isolated UI can invalidate any patient-bound modal before another action.
@@ -28,7 +87,6 @@
   const BACKEND_HINT = 'rayensalud.cl';
   // Publicada en cada respuesta al relay: un inject de mundo principal sobrevive a la
   // recarga de la extensión hasta recargar la página; el relay compara con el manifest.
-  const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
   const DEFAULT_API_ORIGIN = 'https://fichamedicoback.rayensalud.cl';
   const LIST_PATH = '/encounter/list/filter';
   const NURSING_ROUTE_RE = /^\/dashboard\/encounter-list-nurse(?:\/|$)/;

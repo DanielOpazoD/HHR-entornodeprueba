@@ -95,6 +95,7 @@ describe('relay reinjection runtime (extension)', () => {
         if (message?.type === 'RAYEN_SYSLAB_STATUS') return { ok: true, bridgeId: 'syslab-test' };
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         if (tabId === 8 && ++hhrPingCount === 1) throw new Error('Receiving end does not exist');
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
@@ -125,6 +126,7 @@ describe('relay reinjection runtime (extension)', () => {
         }
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
     );
@@ -159,6 +161,7 @@ describe('relay reinjection runtime (extension)', () => {
         }
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady: true };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
     );
@@ -225,9 +228,11 @@ describe('relay reinjection runtime (extension)', () => {
       async (tabId: number, message?: { type?: string }) =>
         message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
           ? { uiReady: ++uiPings > 1 }
-          : message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
-            ? { indicatorReady: true }
-            : { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' }
+          : message?.type === 'RAYEN_EXTENSION_MAIN_PING'
+            ? { mainReady: true }
+            : message?.type === 'RAYEN_EXTENSION_INDICATOR_PING'
+              ? { indicatorReady: true }
+              : { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' }
     );
 
     await expect(runtime.ensureReinjected()).resolves.toMatchObject({ injectedTabs: 1 });
@@ -257,7 +262,9 @@ describe('relay reinjection runtime (extension)', () => {
       async (tabId: number, message?: { type?: string }) =>
         message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING'
           ? { uiReady: tabId !== 7 || ++orphanPings > 1 }
-          : { relayReady: 'fichamedico' }
+          : message?.type === 'RAYEN_EXTENSION_MAIN_PING'
+            ? { mainReady: true }
+            : { relayReady: 'fichamedico' }
     );
 
     await expect(runtime.ensureReinjected()).resolves.toMatchObject({
@@ -286,6 +293,7 @@ describe('relay reinjection runtime (extension)', () => {
     chromeApi.tabs.sendMessage.mockImplementation(
       async (tabId: number, message?: { type?: string }) => {
         if (message?.type === 'RAYEN_EXTENSION_FICHA_UI_PING') return { uiReady };
+        if (message?.type === 'RAYEN_EXTENSION_MAIN_PING') return { mainReady: true };
         if (message?.type === 'RAYEN_EXTENSION_INDICATOR_PING') return { indicatorReady: true };
         return { relayReady: tabId === 5 ? 'fichamedico' : tabId === 6 ? 'gestioncamas' : 'hhr' };
       }
@@ -335,6 +343,9 @@ describe('relay reinjection runtime (extension)', () => {
     });
     expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(5, {
       type: 'RAYEN_EXTENSION_FICHA_UI_PING',
+    });
+    expect(chromeApi.tabs.sendMessage).toHaveBeenCalledWith(5, {
+      type: 'RAYEN_EXTENSION_MAIN_PING',
     });
   });
 
@@ -390,6 +401,7 @@ describe('relay reinjection runtime (extension)', () => {
       [5_000, 'La interfaz de Ficha Médico excedió el tiempo esperado.'],
       [5_000, 'El relé no confirmó su receptor.'],
       [5_000, 'La interfaz de Ficha Médico no confirmó su conexión.'],
+      [5_000, 'El lector interno de Ficha Médico no confirmó su conexión.'],
     ]);
   });
 

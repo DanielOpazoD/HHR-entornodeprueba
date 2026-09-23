@@ -46,6 +46,7 @@ type PostedMessage = {
   reqId?: string;
   runtimeGeneration?: string;
   ready?: boolean;
+  mainReady?: boolean;
   message?: string;
   error?: string | null;
   snapshot?: {
@@ -104,7 +105,18 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
       for (const listener of listeners.get(event.type) || []) listener(event);
       return true;
     },
-    postMessage: (message: PostedMessage) => posted.push(message),
+    postMessage: (message: PostedMessage) => {
+      posted.push(message);
+      queueMicrotask(() => {
+        for (const listener of listeners.get('message') || []) {
+          void listener({
+            source: windowObject,
+            origin: windowObject.location.origin,
+            data: message,
+          });
+        }
+      });
+    },
   };
   Object.defineProperty(windowObject, MAIN_WORLD_GENERATION_KEY, {
     value: RUNTIME_GENERATION_FIXTURE,
@@ -178,6 +190,11 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
     send,
     captureListTraffic,
     disconnectBridge: () => listeners.set('message', []),
+    disconnectReader: () =>
+      listeners.set(
+        'message',
+        (listeners.get('message') || []).filter(listener => listener.name !== 'onBridgeMessage')
+      ),
     reinject: () => vm.runInContext(injectSource, context, { filename: 'inject-fichamedico.js' }),
     messageListenerCount: () => (listeners.get('message') || []).length,
     fetchWasNotWrappedAgain: () => windowObject.fetch === wrappedFetch,
@@ -205,19 +222,34 @@ const clinicalResolver =
 describe('Ficha Médico · lectura ante fallo de red', () => {
   it('restores a lost MAIN listener without wrapping fetch again', async () => {
     const harness = await createHarness(() => []);
-    expect(harness.messageListenerCount()).toBe(1);
+    expect(harness.messageListenerCount()).toBe(2);
 
     harness.disconnectBridge();
     expect(harness.messageListenerCount()).toBe(0);
     harness.reinject();
 
-    expect(harness.messageListenerCount()).toBe(1);
+    expect(harness.messageListenerCount()).toBe(2);
     expect(harness.fetchWasNotWrappedAgain()).toBe(true);
     await expect(
       harness.send({ type: 'RAYEN_FM_SESSION_STATUS_REQUEST', reqId: 'reactivated-ficha' })
     ).resolves.toMatchObject({
       reqId: 'reactivated-ficha',
     });
+  });
+
+  it('reactivates the existing reader through the small MAIN ping after its listener disappears', async () => {
+    const harness = await createHarness(() => []);
+    harness.disconnectReader();
+    expect(harness.messageListenerCount()).toBe(1);
+
+    await expect(
+      harness.send({ type: 'RAYEN_FM_BRIDGE_PING', reqId: 'reader-ping' })
+    ).resolves.toMatchObject({ mainReady: true });
+    expect(harness.messageListenerCount()).toBe(2);
+    expect(harness.fetchWasNotWrappedAgain()).toBe(true);
+    await expect(
+      harness.send({ type: 'RAYEN_FM_SESSION_STATUS_REQUEST', reqId: 'reader-health' })
+    ).resolves.toMatchObject({ reqId: 'reader-health' });
   });
 
   it('reintenta una vez re-anclado al origen por defecto cuando la lista capturada falla en red', async () => {
