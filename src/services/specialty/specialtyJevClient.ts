@@ -11,6 +11,17 @@ import type { DailyRecordPatch } from '@/application/shared/dailyRecordCoreContr
 const REGION = 'southamerica-east1';
 
 export class JevSuggestionUnavailableError extends Error {}
+export class JevSuggestionPendingError extends Error {}
+
+/** Reuse a reservation only when the result of the previous call is uncertain. */
+export const shouldRetainJevRequestId = (error: unknown): boolean => {
+  if (error instanceof JevSuggestionPendingError) return true;
+  if (error instanceof JevSuggestionUnavailableError) return false;
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code !== 'string') return true;
+  return ['functions/unavailable', 'functions/deadline-exceeded', 'functions/internal',
+    'unavailable', 'deadline-exceeded', 'internal'].includes(code);
+};
 
 export interface JevSuggestion {
   model: string;
@@ -41,7 +52,7 @@ export const requestSpecialtySuggestion = async (
     if (data.status !== 'pending') {
       throw new JevSuggestionUnavailableError('Jev no entregó una sugerencia vigente.');
     }
-    throw new Error('La consulta Jev sigue pendiente.');
+    throw new JevSuggestionPendingError('La consulta Jev sigue pendiente.');
   }
   return data.result;
 };

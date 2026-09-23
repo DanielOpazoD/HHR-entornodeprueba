@@ -51,7 +51,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   const jevRequestIdRef = useRef<string | null>(null);
 
   const scopeKey = scope
-    ? `${scope.date}|${scope.bedId}|${scope.target}|${scope.episodeId}|${decision?.decisionId ?? ''}`
+    ? `${scope.date}|${scope.bedId}|${scope.target}|${scope.episodeId}|${decision?.decisionId ?? ''}|${cie10Code?.trim().toUpperCase() ?? ''}`
     : '';
   useEffect(() => {
     jevRequestIdRef.current = null;
@@ -113,7 +113,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
       const result = await jevService.requestSpecialtySuggestion(scope, requestId);
       setSuggestion({ requestId, result });
     } catch (error) {
-      if (jevService && error instanceof jevService.JevSuggestionUnavailableError) {
+      if (!jevService || !jevService.shouldRetainJevRequestId(error)) {
         jevRequestIdRef.current = null;
       }
       setMessage('No se pudo consultar Jev. La asignación manual sigue disponible.');
