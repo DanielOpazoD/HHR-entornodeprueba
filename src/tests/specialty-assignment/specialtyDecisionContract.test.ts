@@ -116,11 +116,11 @@ describe('specialty decision authority', () => {
     const remote = record(occupant);
     const next = record({ ...occupant, specialty: '', age: '42' });
     expect(apply(remote, next, { patch: { 'beds.R1.age': '42' } })).toEqual([]);
-    expect(next.beds.R1.specialty).toBe('Cirugía');
+    expect((next.beds.R1 as Record<string, unknown>).specialty).toBe('Cirugía');
 
     const identified = record({ ...occupant, clinicalEpisodeId: 'episode-new', specialty: '' });
     expect(apply(remote, identified)).toEqual([]);
-    expect(identified.beds.R1.specialty).toBe('Cirugía');
+    expect((identified.beds.R1 as Record<string, unknown>).specialty).toBe('Cirugía');
   });
 
   it('fails closed for ambiguous legacy replacement and does not carry specialty to a new admission', () => {
@@ -135,7 +135,7 @@ describe('specialty decision authority', () => {
     const replacement = record({ ...occupant, patientName: 'Otro Paciente',
       rut: '22.222.222-2', clinicalEpisodeId: 'other-episode', specialty: 'Pediatría' });
     expect(apply(remote, replacement)).toEqual([]);
-    expect(replacement.beds.R1.specialty).toBe('');
+    expect((replacement.beds.R1 as Record<string, unknown>).specialty).toBe('');
   });
 
   it('leaves legacy scalar editing unchanged while episode mode is disabled', () => {
@@ -143,7 +143,7 @@ describe('specialty decision authority', () => {
       admissionDate: '2026-09-20' };
     const next = record({ ...occupant, specialty: 'Pediatría' });
     expect(apply(record(occupant), next, { guardScalarChanges: false })).toEqual([]);
-    expect(next.beds.R1.specialty).toBe('Pediatría');
+    expect((next.beds.R1 as Record<string, unknown>).specialty).toBe('Pediatría');
   });
 
   it('rejects a duplicate manual decision through the server authority', () => {
