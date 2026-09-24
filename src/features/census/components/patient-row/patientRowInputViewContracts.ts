@@ -12,6 +12,7 @@ import type { HydratedRemoteClinicalFieldLocks } from '@/hooks/controllers/daily
 
 export interface PatientInputCellsProps {
   data: PatientData;
+  parentBedId?: string;
   currentDateString: string;
   isNewAdmission?: boolean;
   isSubRow?: boolean;

@@ -46,14 +46,12 @@ const buildClinicalPause = (
  * (nombre + edad + RUT). Los componentes NameInput / RutPassportInput / AgeInput
  * se conservan intactos para reactivación futura de las columnas separadas.
  */
-export const PatientInputIdentitySection: React.FC<PatientInputIdentitySectionBindings> = ({
-  shared,
-  hasRutError,
-  handleDebouncedText,
-  onDemo,
-}) => (
+export const PatientInputIdentitySection: React.FC<
+  PatientInputIdentitySectionBindings & { parentBedId?: string }
+> = ({ shared, parentBedId, hasRutError, handleDebouncedText, onDemo }) => (
   <PatientIdentityCell
     data={shared.data}
+    parentBedId={parentBedId}
     isSubRow={shared.isSubRow}
     isEmpty={shared.isEmpty}
     readOnly={shared.isLocked}

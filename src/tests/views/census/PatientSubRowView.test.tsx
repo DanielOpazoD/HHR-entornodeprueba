@@ -4,8 +4,18 @@ import { PatientSubRowView } from '@/features/census/components/patient-row/Pati
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/features/census/components/patient-row/PatientInputCells', () => ({
-  PatientInputCells: ({ diagnosisMode }: { diagnosisMode?: string }) => (
-    <td data-testid="sub-input-cells" data-diagnosis-mode={diagnosisMode} />
+  PatientInputCells: ({
+    diagnosisMode,
+    parentBedId,
+  }: {
+    diagnosisMode?: string;
+    parentBedId?: string;
+  }) => (
+    <td
+      data-testid="sub-input-cells"
+      data-diagnosis-mode={diagnosisMode}
+      data-parent-bed-id={parentBedId}
+    />
   ),
 }));
 
@@ -41,6 +51,17 @@ describe('PatientSubRowView', () => {
     expect(screen.getByTitle('Acciones')).toBeInTheDocument();
     expect(screen.getByTestId('sub-input-cells')).toBeInTheDocument();
     expect(screen.getByTestId('sub-input-cells')).toHaveAttribute('data-diagnosis-mode', 'cie10');
+  });
+
+  it('passes the containing bed ID to clinical-crib inputs', () => {
+    render(
+      <table>
+        <tbody>
+          <PatientSubRowView {...baseProps} parentBedId="R1" readOnly={false} />
+        </tbody>
+      </table>
+    );
+    expect(screen.getByTestId('sub-input-cells')).toHaveAttribute('data-parent-bed-id', 'R1');
   });
 
   it('hides demographics shortcut when read-only', () => {

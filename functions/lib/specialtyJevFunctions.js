@@ -100,6 +100,9 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
           attempt: 1,
           createdAt: new Date(now).toISOString(), deadlineAt: new Date(now + 30_000).toISOString(),
           expiresAt: new Date(now + 30 * 60_000).toISOString(),
+          // Firestore stores Date as Timestamp; the collection-group TTL policy
+          // removes clinical request metadata after its acceptance window.
+          expireAt: new Date(now + 30 * 60_000),
         });
         return { status: 'reserved', evidence, attempt: 1 };
       });

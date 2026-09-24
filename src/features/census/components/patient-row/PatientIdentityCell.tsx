@@ -46,6 +46,7 @@ const formatAdmissionShort = (raw?: string): string => {
 
 interface PatientIdentityCellProps extends BaseCellProps {
   currentDateString?: string;
+  parentBedId?: string;
   hasRutError: boolean;
   onNameChange: DebouncedTextHandler;
   onOpenDemographics: () => void;
@@ -53,6 +54,7 @@ interface PatientIdentityCellProps extends BaseCellProps {
 
 export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   data,
+  parentBedId,
   isSubRow = false,
   isEmpty = false,
   readOnly = false,
@@ -88,6 +90,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   // Especialidad como etiqueta de texto (rediseño 2026): ya no tiene columna propia; se muestra
   // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
+  const specialtyScopeBedId = isSubRow ? parentBedId : data.bedId;
   const visibleTreatingPhysicianName = resolveVisibleTreatingPhysicianName(
     professionalsCatalog,
     data.treatingPhysicianId,
@@ -311,10 +314,10 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 readOnly={readOnly}
                 onAssign={handleSpecialtyAssign}
                 scope={
-                  currentDateString && data.clinicalEpisodeId
+                  currentDateString && specialtyScopeBedId && data.clinicalEpisodeId
                     ? {
                         date: currentDateString,
-                        bedId: data.bedId,
+                        bedId: specialtyScopeBedId,
                         target: isSubRow ? 'clinicalCrib' : 'bed',
                         episodeId: data.clinicalEpisodeId,
                       }

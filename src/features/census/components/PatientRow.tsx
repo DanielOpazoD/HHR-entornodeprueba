@@ -66,7 +66,11 @@ const PatientRowComponent: React.FC<PatientRowProps> = ({
   return (
     <>
       {isSubRow ? (
-        <PatientSubRowView {...bindings.subRowProps} isPendingClear={isPendingClear} />
+        <PatientSubRowView
+          {...bindings.subRowProps}
+          parentBedId={bed.id}
+          isPendingClear={isPendingClear}
+        />
       ) : (
         <PatientMainRowView
           {...bindings.mainRowProps}

@@ -20,6 +20,7 @@ import { isSpecialistCensusAccessProfile } from '@/features/census/types/censusA
 
 export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
   data,
+  parentBedId,
   currentDateString,
   isNewAdmission = false,
   isSubRow = false,
@@ -59,7 +60,7 @@ export const PatientInputCells: React.FC<PatientInputCellsProps> = ({
       {/* Estado clínico primero (columna movida al lugar de "Tipo de cama"). */}
       <PatientInputStatusSection {...sectionBindings.clinical} accessProfile={accessProfile} />
 
-      <PatientInputIdentitySection {...sectionBindings.identity} />
+      <PatientInputIdentitySection {...sectionBindings.identity} parentBedId={parentBedId} />
 
       <PatientInputClinicalSection {...sectionBindings.clinical} accessProfile={accessProfile} />
 
