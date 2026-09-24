@@ -93,9 +93,9 @@ export interface SpecialtyRoundSetup {
 
 const loadSpecialtyPolicy = async (): Promise<SpecialtyRoundSetup['policy']> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
-  const callable = httpsCallable<void, SpecialtyRoundSetup['policy']>(
-    functions, 'readSpecialtyPolicy', { timeout: 30_000 });
-  const { data } = await callable();
+  const callable = httpsCallable<{ action: 'read_policy' }, SpecialtyRoundSetup['policy']>(
+    functions, 'requestSpecialtyJevSuggestion', { timeout: 30_000 });
+  const { data } = await callable({ action: 'read_policy' });
   if (!Number.isInteger(data?.revision) ||
       !['off', 'consultative'].includes(data.aiMode) || !Array.isArray(data.rules)) {
     throw new JevSuggestionUnavailableError('Catálogo inválido.');

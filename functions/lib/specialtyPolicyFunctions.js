@@ -32,16 +32,6 @@ const assertPolicy = policy => {
 };
 
 const createSpecialtyPolicyFunctions = ({ firestore, resolveRoleForEmail }) => ({
-  readSpecialtyPolicy: functions.region('southamerica-east1').https.onCall(async (_data, context) => {
-    await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
-    assertPilotEnabled();
-    const snapshot = await firestore.collection('hospitals').doc(HOSPITAL_ID)
-      .collection('specialtyPolicies').doc('active').get();
-    const policy = readPolicy(snapshot);
-    if (policy.revision > 0) assertPolicy(policy);
-    return { revision: policy.revision, autoEnabled: policy.autoEnabled,
-      memoryEnabled: policy.memoryEnabled, aiMode: policy.aiMode, rules: policy.rules };
-  }),
   publishSpecialtyMemory: functions.region('southamerica-east1').https.onCall(async (data, context) => {
     await assertAdmin(context, resolveRoleForEmail);
     assertPilotEnabled();

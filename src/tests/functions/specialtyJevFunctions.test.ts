@@ -58,7 +58,11 @@ const harness = () => {
   const firestore = {
     collection: () => ({
       doc: () => ({
-        collection: (name: string) => ({ doc: (id: string) => ({ key: `${name}/${id}` }) }),
+        collection: (name: string) => ({ doc: (id: string) => ({
+          key: `${name}/${id}`,
+          get: async () => ({ exists: docs.has(`${name}/${id}`),
+            data: () => docs.get(`${name}/${id}`) }),
+        }) }),
       }),
     }),
     runTransaction: async (callback: (transaction: object) => Promise<unknown>) =>
@@ -106,6 +110,21 @@ describe('consultative Jev callable with synthetic provider responses', () => {
   it('stays disabled without explicit clinical approval', async () => {
     const { callable, input, context } = harness();
     await expect(callable.run(input, context)).rejects.toThrow(/disabled/i);
+  });
+
+  it('reads only an authorized policy projection without calling Jev or requiring its key', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    const { callable, context, docs } = harness();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const read = () => callable.run({ action: 'read_policy' }, context);
+    await expect(read()).resolves.toEqual({ revision: 1, autoEnabled: false,
+      memoryEnabled: false, aiMode: 'consultative', rules: [] });
+    docs.delete('specialtyPolicies/active');
+    await expect(read()).resolves.toEqual({ revision: 0, autoEnabled: false,
+      memoryEnabled: false, aiMode: 'off', rules: [] });
+    await expect(callable.run({ action: 'read_policy' }, { auth: null })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('rejects a changed canonical diagnosis before calling Jev', async () => {

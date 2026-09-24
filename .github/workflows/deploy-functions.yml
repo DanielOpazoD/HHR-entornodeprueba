@@ -199,7 +199,6 @@ jobs:
             applyRayenClinicalEnrichmentBatch \
             setAdminCudyrResult \
             configureSpecialtyPolicy \
-            readSpecialtyPolicy \
             publishSpecialtyMemory \
             requestSpecialtyJevSuggestion
           # Las callables de autoridad deben vivir en la región del cliente y en
