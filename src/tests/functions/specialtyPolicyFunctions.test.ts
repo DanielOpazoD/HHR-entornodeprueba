@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import pilotConfig from '../../../config/specialty-jev-pilot.hhr-pruebas.json';
 
 const require = createRequire(import.meta.url);
 const { createSpecialtyPolicyFunctions } = require('../../../functions/lib/specialtyPolicyFunctions.js');
@@ -12,6 +13,27 @@ const currentRapaNuiDate = () => {
 
 describe('explicit specialty memory publication', () => {
   afterEach(() => { delete process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT; });
+
+  it('reads only the authorized policy projection, including an unpublished catalog', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    const context = { auth: { uid: 'synthetic-admin',
+      token: { email: 'admin@example.test' } } };
+    let current: Record<string, unknown> | null = null;
+    const firestore = { collection: () => ({ doc: () => ({ collection: () => ({
+      doc: () => ({ get: async () => ({ exists: current !== null, data: () => current }) }),
+    }) }) }) };
+    const callable = createSpecialtyPolicyFunctions({ firestore,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin') }).readSpecialtyPolicy;
+    await expect(callable.run(undefined, context)).resolves.toEqual({
+      revision: 0, autoEnabled: false, memoryEnabled: false, aiMode: 'off', rules: [],
+    });
+    current = { ...pilotConfig, updatedByUid: 'synthetic-user' };
+    await expect(callable.run(undefined, context)).resolves.toEqual({
+      revision: 1, autoEnabled: false, memoryEnabled: false,
+      aiMode: 'consultative', rules: [],
+    });
+    await expect(callable.run(undefined, { auth: null })).rejects.toThrow();
+  });
 
   it('publishes only a confirmed current manual decision with matching diagnosis and revision', async () => {
     process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';

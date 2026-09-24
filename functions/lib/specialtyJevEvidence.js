@@ -1,12 +1,13 @@
 const crypto = require('node:crypto');
 const { normalizeCode, validCode } = require('./specialtyRules');
 const { MODEL, PROMPT_VERSION, buildJevRequest } = require('./specialtyJevAdapter');
+const { resolveCie10Label } = require('./specialtyCie10Catalog');
 
 const buildJevEvidence = ({ date, bedId, target, patient, policy }) => {
   const episodeId = typeof patient?.clinicalEpisodeId === 'string'
     ? patient.clinicalEpisodeId.trim() : '';
   const code = normalizeCode(patient?.cie10Code);
-  const label = policy?.diagnosisLabels?.[code];
+  const label = resolveCie10Label(code);
   if (!episodeId || !validCode(code) || typeof label !== 'string' || !label.trim()) {
     return null;
   }

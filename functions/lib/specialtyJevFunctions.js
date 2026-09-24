@@ -51,8 +51,10 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
         if (patient.specialtyAssignment != null || String(patient.specialty || '').trim()) {
           fail('failed-precondition', 'Specialty already decided.');
         }
-        if (resolvePendingSpecialty(patient, policy).kind === 'assign') {
-          fail('failed-precondition', 'A deterministic rule already resolves this episode.');
+        const ruleOutcome = resolvePendingSpecialty(patient, policy);
+        if (ruleOutcome.kind === 'assign' ||
+            ['manual_required', 'rule_conflict'].includes(ruleOutcome.reason)) {
+          fail('failed-precondition', 'A specialty rule requires a different decision path.');
         }
         let evidence;
         try {
