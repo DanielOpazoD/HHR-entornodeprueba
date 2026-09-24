@@ -27,7 +27,10 @@ export const textChecks = [
       'Environment files must not contain hardcoded Gemini API keys in client or local-dev vars.',
     appliesTo: file => /(^|\/)\.env(\.|$)/.test(file),
     matches: content =>
-      hasPattern(content, /\b(?:VITE_LOCAL_GEMINI_API_KEY|GEMINI_API_KEY|API_KEY)\s*=\s*AIza[0-9A-Za-z_-]{35}/),
+      hasPattern(
+        content,
+        /\b(?:VITE_LOCAL_GEMINI_API_KEY|GEMINI_API_KEY|API_KEY)\s*=\s*AIza[0-9A-Za-z_-]{35}/
+      ),
   },
   {
     id: 'client-inline-googlegenai-key',
@@ -41,7 +44,8 @@ export const textChecks = [
   },
   {
     id: 'vite-define-client-ai-key',
-    description: 'Vite define config must not inject client AI keys into import.meta.env for bundles.',
+    description:
+      'Vite define config must not inject client AI keys into import.meta.env for bundles.',
     appliesTo: file => file === 'vite.config.ts',
     matches: content => hasPattern(content, /import\.meta\.env\.VITE_LOCAL_GEMINI_API_KEY/),
   },
@@ -54,13 +58,13 @@ export const textChecks = [
   },
   {
     id: 'tracked-private-key-material',
-    description: 'Tracked files must not contain PEM private keys or other raw private key material.',
+    description:
+      'Tracked files must not contain PEM private keys or other raw private key material.',
     appliesTo: () => true,
     ignores: file =>
       file === 'scripts/lib/secretLeakChecks.mjs' ||
       file === 'src/tests/build/secretLeakChecks.test.ts',
-    matches: content =>
-      hasPattern(content, /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/),
+    matches: content => hasPattern(content, /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/),
   },
   {
     id: 'client-hardcoded-firebase-web-config',
@@ -84,11 +88,22 @@ export const isTextFile = buffer => {
 export const findForbiddenTrackedPaths = trackedFiles =>
   trackedFiles.filter(file => forbiddenTrackedPaths.some(pattern => pattern.test(file)));
 
+export const findFunctionSourcesMissingLocalSecretIgnore = firebaseConfig => {
+  const functions = Array.isArray(firebaseConfig.functions)
+    ? firebaseConfig.functions
+    : [firebaseConfig.functions];
+  return functions
+    .filter(config => config?.source === 'functions' && !config.ignore?.includes('.secret.local'))
+    .map(config => config.codebase ?? config.source);
+};
+
 export const findSecretLeakFailuresForFile = ({ file, content }) =>
   textChecks
     .filter(
       check =>
-        check.appliesTo(file) && !(typeof check.ignores === 'function' && check.ignores(file)) && check.matches(content)
+        check.appliesTo(file) &&
+        !(typeof check.ignores === 'function' && check.ignores(file)) &&
+        check.matches(content)
     )
     .map(check => ({ file, check }));
 

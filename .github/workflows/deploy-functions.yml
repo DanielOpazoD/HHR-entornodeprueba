@@ -15,6 +15,9 @@ env:
 # with at least these IAM roles on `hhr-pruebas`:
 #   - Cloud Functions Developer (roles/cloudfunctions.developer)
 #   - Service Account User      (roles/iam.serviceAccountUser)
+#   - Secret Manager Viewer (roles/secretmanager.viewer) on the
+#     TYPESAFE_API_KEY secret only, for deployment metadata access.
+#     The deployer does not need permission to read the secret value.
 #   - Firebase Admin SDK Administrator Service Agent
 #     (roles/firebase.sdkAdminServiceAgent)  — only if the function reads/writes
 #     Firestore via firebase-admin under a privileged path; otherwise omit.
@@ -33,6 +36,7 @@ on:
     branches: [main]
     paths:
       - 'functions/**'
+      - 'firebase.json'
       - '.github/workflows/deploy-functions.yml'
       - 'scripts/check-deployed-firebase-functions.mjs'
       - 'scripts/check-firebase-function-regions.mjs'
