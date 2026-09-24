@@ -78,6 +78,10 @@ jobs:
         working-directory: functions
         run: npm ci --no-audit --no-fund
 
+      - name: Verify Functions discovery runtime
+        working-directory: functions
+        run: node scripts/checkDeployRuntime.js
+
       - name: Write service account credentials to disk
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HHR }}
@@ -180,7 +184,10 @@ jobs:
           node scripts/check-deployed-firebase-functions.mjs \
             "$RUNNER_TEMP/firebase/functions-list.json" \
             applyRayenClinicalEnrichmentBatch \
-            setAdminCudyrResult
+            setAdminCudyrResult \
+            configureSpecialtyPolicy \
+            publishSpecialtyMemory \
+            requestSpecialtyJevSuggestion
           # Las callables de autoridad deben vivir en la región del cliente y en
           # ninguna otra: esta es la evidencia de que el borrado surtió efecto.
           node scripts/check-firebase-function-regions.mjs \
