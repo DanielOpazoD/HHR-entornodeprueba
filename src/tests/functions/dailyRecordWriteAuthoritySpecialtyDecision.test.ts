@@ -55,6 +55,32 @@ describe('specialty decision through the real clinical authority callable', () =
       actorUid: 'synthetic-user', mutationId: 'm', now: '2026-09-23T00:00:00.000Z' })).toThrow();
   });
 
+  it('does not erase an occupied legacy specialty during an unrelated partial write', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    const base = makeRecord();
+    const remote = { ...base, meta: { revision: 2 }, beds: { R1: {
+      ...base.beds.R1, clinicalEpisodeId: '', specialty: 'Cirugía', age: '41',
+    } } };
+    const { admin, docRef, update } = createAdminMock({ remoteData: remote,
+      policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
+      specialtyPolicyData: { schemaVersion: 1, revision: 1, autoEnabled: false,
+        memoryEnabled: false, aiMode: 'off', rules: [], memory: [] } });
+    const api = createDailyRecordWriteAuthorityFunctions({
+      firestore: admin.firestore(), Timestamp: admin.firestore.Timestamp,
+      resolveRoleForEmail: vi.fn().mockResolvedValue('admin'),
+    });
+    const response = await api.patchDailyRecordWithClinicalAuthority.run({
+      date: base.date, patch: { 'beds.R1.age': '42' },
+      syncContract: { mutationId: 'legacy-age-edit', baseRevision: 2,
+        changedPaths: ['beds.R1.age'] },
+    }, { ...makeContext(), auth: { ...makeContext().auth, uid: 'synthetic-user' } });
+    expect(response.success).toBe(true);
+    const write = update.mock.calls.find(([reference]) => reference === docRef)?.[1] as
+      Record<string, unknown>;
+    expect(write['beds.R1.age']).toBe('42');
+    expect(write['beds.R1.specialty']).not.toBe('');
+  });
+
   it('persists verified provenance copied by a partial bed swap', async () => {
     process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
     const base = makeRecord();

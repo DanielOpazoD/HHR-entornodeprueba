@@ -109,4 +109,48 @@ describe('specialty decision authority', () => {
       patientName: 'Sintético' }))).toThrow(/replacement episode/i);
     expect(apply(remote, record({ ...patient(''), patientName: '', rut: '' }))).toEqual([]);
   });
+
+  it('preserves a legacy specialty without episode on an unrelated edit for the same admission', () => {
+    const occupant = { ...patient('', 'Cirugía'), patientName: 'Paciente Sintético',
+      rut: '11.111.111-1', admissionDate: '2026-09-20', admissionTime: '08:00' };
+    const remote = record(occupant);
+    const next = record({ ...occupant, specialty: '', age: '42' });
+    expect(apply(remote, next, { patch: { 'beds.R1.age': '42' } })).toEqual([]);
+    expect(next.beds.R1.specialty).toBe('Cirugía');
+
+    const identified = record({ ...occupant, clinicalEpisodeId: 'episode-new', specialty: '' });
+    expect(apply(remote, identified)).toEqual([]);
+    expect(identified.beds.R1.specialty).toBe('Cirugía');
+  });
+
+  it('fails closed for ambiguous legacy replacement and does not carry specialty to a new admission', () => {
+    const occupant = { ...patient('', 'Cirugía'), patientName: 'Paciente Sintético',
+      rut: '11.111.111-1', admissionDate: '2026-09-20', admissionTime: '08:00' };
+    const remote = record(occupant);
+    expect(() => apply(remote, record({ ...occupant, patientName: 'Otro Paciente',
+      rut: '22.222.222-2', specialty: '' }))).toThrow(/replacement episode/i);
+    expect(() => apply(remote, record({ ...occupant, specialty: 'Pediatría' }),
+      { patch: { 'beds.R1.specialty': 'Pediatría' } })).toThrow(/explicit intent/i);
+
+    const replacement = record({ ...occupant, patientName: 'Otro Paciente',
+      rut: '22.222.222-2', clinicalEpisodeId: 'other-episode', specialty: 'Pediatría' });
+    expect(apply(remote, replacement)).toEqual([]);
+    expect(replacement.beds.R1.specialty).toBe('');
+  });
+
+  it('leaves legacy scalar editing unchanged while episode mode is disabled', () => {
+    const occupant = { ...patient('', 'Cirugía'), patientName: 'Paciente Sintético',
+      admissionDate: '2026-09-20' };
+    const next = record({ ...occupant, specialty: 'Pediatría' });
+    expect(apply(record(occupant), next, { guardScalarChanges: false })).toEqual([]);
+    expect(next.beds.R1.specialty).toBe('Pediatría');
+  });
+
+  it('rejects a duplicate manual decision through the server authority', () => {
+    const remote = record(patient('episode-one', 'Cirugía', meta));
+    const intent = parseSpecialtyIntent({ kind: 'manual', bedId: 'R1', target: 'bed',
+      episodeId: 'episode-one', value: 'Cirugía', expectedDecisionId: 'old' });
+    expect(() => apply(remote, record(patient('episode-one', 'Cirugía')),
+      { intent, patch: { 'beds.R1.specialty': 'Cirugía' } })).toThrow(/already manually confirmed/i);
+  });
 });

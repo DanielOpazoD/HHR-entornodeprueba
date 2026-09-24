@@ -1,7 +1,17 @@
 import type { DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { BedAction } from '@/hooks/contracts/bedManagementActionContracts';
 import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
+import type { PatientData } from '@/types/domain/patient';
 import { isFeatureEnabled } from '@/services/utils/featureFlags';
+
+const currentSpecialtyDecision = (patient: PatientData | undefined) => {
+  const decision = patient?.specialtyAssignment;
+  return patient?.clinicalEpisodeId && decision?.schemaVersion === 3 &&
+    decision.episodeId === patient.clinicalEpisodeId &&
+    typeof decision.decisionId === 'string' && decision.decisionId.trim() &&
+    /^\d{4}-\d{2}-\d{2}$/.test(decision.recordDate)
+    ? decision : null;
+};
 
 /** Translate an existing bed edit to an episode-bound request; the server remains authoritative. */
 export const resolveManualSpecialtyIntent = (
@@ -30,9 +40,11 @@ export const resolveManualSpecialtyIntent = (
     ? record.beds[action.bedId]?.clinicalCrib
     : record.beds[action.bedId];
   if (!patient?.clinicalEpisodeId) return null;
+  const currentDecision = currentSpecialtyDecision(patient);
+  if (currentDecision?.source === 'manual' && value === patient.specialty) return null;
   return { kind: 'manual', bedId: action.bedId,
     target: isCrib ? 'clinicalCrib' : 'bed', episodeId: patient.clinicalEpisodeId,
-    value, expectedDecisionId: patient.specialtyAssignment?.decisionId ?? null };
+    value, expectedDecisionId: currentDecision?.decisionId ?? null };
 };
 
 export const isSpecialtyEditAction = (action: BedAction): boolean =>
@@ -87,7 +99,7 @@ export const preserveExplicitEmptySpecialtyChoice = (
   if (Object.keys(patch).length || !intent) return patch;
   const patient = intent.target === 'clinicalCrib'
     ? record.beds[intent.bedId]?.clinicalCrib : record.beds[intent.bedId];
-  if (intent.value === '' && patient?.specialtyAssignment?.source === 'manual') return patch;
+  if (intent.value === '' && currentSpecialtyDecision(patient)?.source === 'manual') return patch;
   const path = intent.target === 'clinicalCrib'
     ? `beds.${intent.bedId}.clinicalCrib.specialty`
     : `beds.${intent.bedId}.specialty`;

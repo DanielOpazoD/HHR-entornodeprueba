@@ -54,6 +54,23 @@ const validExistingMeta = (meta, patient) =>
   /^\d{4}-\d{2}-\d{2}$/.test(text(meta.recordDate)) &&
   ['manual', 'rule', 'manual_ai'].includes(meta.source);
 
+// An episode-less record can still be an occupied legacy patient. Preserve its
+// scalar only when the occupant and admission anchor are unchanged; otherwise
+// require a confirmed episode instead of carrying it to a replacement patient.
+const sameLegacyOccupant = (remote, candidate) => {
+  const name = text(remote?.patientName).toLowerCase();
+  const candidateName = text(candidate?.patientName).toLowerCase();
+  const document = text(remote?.rut).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const candidateDocument = text(candidate?.rut).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const admission = text(remote?.firstSeenDate || remote?.admissionDate);
+  const candidateAdmission = text(candidate?.firstSeenDate || candidate?.admissionDate);
+  return Boolean(admission && admission === candidateAdmission &&
+    text(remote?.admissionTime) === text(candidate?.admissionTime) &&
+    (document || candidateDocument
+      ? document && document === candidateDocument && (!name || name === candidateName)
+      : name && name === candidateName));
+};
+
 const eachTarget = (record, fn) => {
   for (const bedId of Object.keys(record?.beds || {})) {
     for (const target of TARGETS) {
@@ -102,6 +119,11 @@ const protectSpecialtyDecisions = ({ remoteRecord, priorRecord, candidate, inten
       if ((currentMeta?.decisionId ?? null) !== intent.expectedDecisionId) {
         throw new SpecialtyDecisionError('aborted', 'Specialty decision changed.');
       }
+      if (intent.kind === 'manual' && currentMeta?.source === 'manual' &&
+          text(remote.specialty) === intent.value) {
+        throw new SpecialtyDecisionError('failed-precondition',
+          'Specialty was already manually confirmed for this episode.');
+      }
       if (intent.kind === 'accept_ai' &&
           (!aiDecision || aiDecision.requestId !== intent.requestId ||
            currentMeta || text(remote.specialty))) {
@@ -146,6 +168,28 @@ const protectSpecialtyDecisions = ({ remoteRecord, priorRecord, candidate, inten
       }
       if (scalarProtected) patient.specialty = remote.specialty;
       return;
+    }
+
+    if (guardScalarChanges && !remoteEpisodeId && object(remote) &&
+        (text(remote.specialty) || remote.specialtyAssignment != null)) {
+      const candidateOccupied = Boolean(text(patient.patientName) || text(patient.rut));
+      if (candidateOccupied && sameLegacyOccupant(remote, patient)) {
+        if (remote.specialtyAssignment != null || patient.specialtyAssignment != null) {
+          throw new SpecialtyDecisionError('failed-precondition',
+            'Episode-less specialty provenance cannot be verified.');
+        }
+        if (patch && Object.prototype.hasOwnProperty.call(patch, scalarPath) &&
+            text(patient.specialty) !== text(remote.specialty)) {
+          throw new SpecialtyDecisionError('failed-precondition',
+            'Specialty change requires explicit intent.');
+        }
+        patient.specialty = remote.specialty;
+        return;
+      }
+      if (candidateOccupied && !episodeId) {
+        throw new SpecialtyDecisionError('failed-precondition',
+          'A protected legacy specialty requires a confirmed replacement episode.');
+      }
     }
 
     if (remoteEpisodeId && !episodeId &&

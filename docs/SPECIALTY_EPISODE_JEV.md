@@ -2,6 +2,8 @@
 
 Esta implementación se apoya en el `DailyRecord` y en `patchDailyRecordWithClinicalAuthority`. El valor visible de `specialty` sigue en la cama/cuna existente; `specialtyAssignment` añade procedencia firmada por el servidor para el `clinicalEpisodeId`. No existe un segundo registro de pacientes ni un motor de reglas en el navegador.
 
+Una especialidad heredada sin `clinicalEpisodeId` se conserva durante ediciones ajenas si el ocupante y el ingreso siguen siendo los mismos. Si la identidad no se puede corroborar, la escritura se detiene sin borrar esa especialidad; un reemplazo con episodio confirmado empieza pendiente. Volver a elegir una especialidad manual ya confirmada no crea otra decisión ni auditoría, mientras que confirmar explícitamente un valor heredado o de regla sí la crea.
+
 ## Escrituras y prioridad
 
 1. Una selección manual, incluido **«Dejar sin asignar»**, envía `specialtyIntent` con cama/cuna, episodio y `expectedDecisionId`. Requiere catálogo publicado. La autoridad comprueba la revisión del censo y la decisión observada; cambia el valor, la procedencia y el evento `specialtyDecisions` en la misma transacción. El ID de auditoría no puede reutilizarse. Un valor vacío manual no es un pendiente para la automatización. Un patch con intención de especialidad contiene exclusivamente ese campo; cualquier otro cambio clínico o estructural se guarda en otro gesto. Un formulario que reenvía una especialidad sin modificarla puede guardar los otros campos sin crear una decisión nueva.

@@ -9,6 +9,10 @@
     match /hospitals/{hospitalId}/specialtyAiUsage/{month} {
       allow read, create, update, delete: if false;
     }
+    match /hospitals/{hospitalId}/specialtyPolicies/{policyId} {
+      allow read: if canReadClinicalData();
+      allow create, update, delete: if false;
+    }
 
     match /auditLogs/{logId} {
       allow read: if canReadAppendOnlyOperationalLog();
