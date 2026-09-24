@@ -184,6 +184,10 @@ const createCensusWorld = (date = CLINICAL_TODAY) => {
             selectedMonth: 8,
             currentDateString: date,
             previousRecordAvailable: false,
+            emptyStateDiagnostic: {
+              source: date === CLINICAL_TODAY ? 'remote_missing' : 'date_mismatch',
+              message: 'No hay censo para esta fecha.',
+            },
             onCreateDay: async (...args: unknown[]) => {
               world.createDayCalls.push(args);
               world.hasRecord = true;
