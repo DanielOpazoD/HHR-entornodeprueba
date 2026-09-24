@@ -15,6 +15,9 @@ describe('secretLeakChecks', () => {
     expect(findForbiddenTrackedPaths(['functions/firebase-adminsdk-prod.json'])).toEqual([
       'functions/firebase-adminsdk-prod.json',
     ]);
+    expect(findForbiddenTrackedPaths(['functions/.secret.local'])).toEqual([
+      'functions/.secret.local',
+    ]);
   });
 
   it('flags Google Cloud service account JSON payloads', () => {

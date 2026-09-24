@@ -6,6 +6,7 @@ export const forbiddenTrackedPaths = [
   /^dist\//,
   /^coverage\//,
   /^functions\/llave-beta\.json$/,
+  /^functions\/\.secret\.local$/,
   /(^|\/)firebase-adminsdk-[^/]+\.json$/i,
 ];
 
