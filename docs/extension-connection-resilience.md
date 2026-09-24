@@ -32,32 +32,33 @@ Chrome registra `Extension context invalidated` en el relé de reparación de HH
 - **Arranque fallido del relé:** tres intentos acotados y una pausa antes de permitir otra tanda. Las llamadas concurrentes comparten el intento. Un resultado nulo no se memoriza para toda la vida de la pestaña; un contexto válido sí se conserva para no adoptar una generación ajena.
 - **Consulta de sesión atascada:** la lectura same-origin de Ficha Médico limita a tres segundos la espera de cabeceras y cuerpo. Aborta cuando es posible y libera la consulta compartida; la siguiente comprobación puede recuperarse. Una respuesta tardía no modifica la identidad verificada.
 - **Varias pestañas:** la actividad visual no acredita que una pestaña pueda responder. Se comprueban candidatos antes de la lectura completa. Las operaciones vinculadas a un emisor conservan su identidad; no se trasladan escrituras a otra sesión.
-- **Actualización o recarga de extensión:** un relé huérfano no debe responder solicitudes nuevas ni publicar respuestas pendientes. La reparación se ejecuta al arrancar el worker, sin depender de que Chrome emita `runtime.onInstalled`; una marca de `storage.session` evita repetirla durante despertares normales. El relé reinyectado reclama la propiedad del mundo ISOLATED y deja inertes los listeners anteriores. El worker conserva la generación de la sesión y negocia con el lector MAIN mediante un protocolo estable independiente de la versión del paquete. Una actualización compatible mantiene conectadas las pestañas abiertas sin recargarlas ni duplicar interceptores.
+- **Actualización o recarga de extensión:** un relé huérfano no debe responder solicitudes nuevas ni publicar respuestas pendientes. La reparación se ejecuta al arrancar el worker, sin depender de que Chrome emita `runtime.onInstalled`; una marca de `storage.session` evita repetirla durante despertares normales. El relé reinyectado reclama la propiedad del mundo ISOLATED y deja inertes los listeners anteriores. El worker conserva la generación de la instalación en `storage.local` y negocia con el lector MAIN mediante un protocolo estable independiente de la versión del paquete. Una actualización compatible mantiene conectadas las pestañas abiertas sin recargarlas ni duplicar interceptores.
 - **Compatibilidad:** se conserva el protocolo de mensajes 5 y el protocolo MAIN 1. Los lectores legados 0.48.25 y 0.48.26 se admiten solamente durante la transición y siempre exigen la misma generación de sesión. Un cambio incompatible falla cerrado y requiere un documento nuevo. Una extensión compatible sin `health-push` necesita comprobación preventiva desde HHR.
 - **Presupuesto previo a sincronizar:** HHR espera hasta 25 segundos, porque una renovación de Gestión de Camas puede requerir cuatro etapas de cinco segundos (sondeo, rechazo de la credencial anterior, recaptura y verificación). El diagnóstico pasivo conserva diez segundos y recuperación por latido. Varias pestañas que responden al sondeo pero fallan después todavía pueden superar ese presupuesto; se informa el fallo sin aceptar una sesión sin verificar.
 - **Sesiones prolongadas:** una credencial sin fecha de expiración no equivale a una sesión perpetua. Gestión de Camas conserva verificación periódica y rechazos del servidor; Ficha Médico consulta su sesión oficial. Se respetan el cierre de sesión, la caducidad y la desconexión voluntaria.
-- **Worker suspendido:** la generación y sesión temporal usan `chrome.storage.session`; las alarmas y los eventos de pestañas despiertan comprobaciones. Chrome borra ese almacenamiento al actualizar, por lo que el worker recupera la generación inmutable sólo cuando todos los lectores MAIN supervivientes que responden coinciden. Una pestaña sin marcador no participa; una pestaña cuyo MAIN no puede inspeccionarse hace fallar el consenso. HHR no entra en este consenso porque no conserva lector MAIN ni credenciales: su relé ISOLATED recibe la generación del worker al reinyectarse. Si los lectores discrepan o no sobrevive ninguno —como después de reiniciar el navegador— se crea una generación nueva. No se implementa un bucle para mantener Chrome despierto indefinidamente.
+- **Worker suspendido:** la sesión y los tokens temporales siguen en `chrome.storage.session`; las alarmas y los eventos de pestañas despiertan comprobaciones. La generación no es una credencial: se conserva también en `storage.local` para no depender del estado de todas las pestañas durante una actualización o un reinicio de Chrome. Si falta esa copia (migración desde 0.48.33), el worker intenta recuperar el consenso de lectores MAIN; un lector ininspeccionable o generaciones discrepantes hacen fallar esa recuperación. HHR no participa porque no conserva lector MAIN ni credenciales. Si faltan ambas copias y no hay consenso, se crea una generación nueva; los lectores antiguos no coincidentes permanecen bloqueados. No se implementa un bucle para mantener Chrome despierto indefinidamente.
 
 Chrome documenta que el worker puede finalizar por inactividad y que abrir un puerto no basta para mantenerlo vivo: [ciclo de vida MV3](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle). La recuperación se basa en mensajes acotados y estado recuperable, siguiendo el [contrato de mensajería](https://developer.chrome.com/docs/extensions/develop/concepts/messaging).
 
 ## Matriz de regresión
 
-| Situación                                              | Resultado exigido                                                |
-| ------------------------------------------------------ | ---------------------------------------------------------------- |
-| Worker no responde al primer arranque                  | Fallo acotado; recuperación posterior sin recargar HHR           |
-| Callback de contexto nunca llega                       | Expira; respuesta tardía no sustituye la tanda vigente           |
-| Consulta de sesión colgada                             | Salud deja de estar lista; siguiente comprobación funciona       |
-| Pestaña antigua activa y pestaña válida secundaria     | Se evita esperar una lectura completa en la antigua              |
-| Sesión renovada en la pestaña de origen                | Se comprueba el token vigente, conservando identidad e intento   |
-| Captura idéntica durante verificación                  | No se pierde una verificación válida por repetir la captura      |
-| Desconexión voluntaria / intento anterior              | No se adopta silenciosamente una credencial ajena                |
-| Extensión compatible sin push                          | Se refresca antes de vencer el estado de conexión                |
-| Extensión compatible actualizada con pestañas abiertas | Reinyección automática; conserva conexión y sesión verificable   |
-| Recarga de extensión descomprimida sin `onInstalled`   | El arranque del worker reinyecta una vez y recupera las pestañas |
-| Lector con protocolo incompatible o generación ajena   | Falla cerrado; no entrega datos ni credenciales                  |
-| Mensaje desde otro frame                               | No puede completar una solicitud del HHR principal               |
-| Token vencido o respuesta 401                          | No se informa conexión vigente ni se reintenta una escritura     |
-| Reinicio del worker / varias alarmas                   | Se conserva generación y orden de publicaciones                  |
+| Situación                                               | Resultado exigido                                                |
+| ------------------------------------------------------- | ---------------------------------------------------------------- |
+| Worker no responde al primer arranque                   | Fallo acotado; recuperación posterior sin recargar HHR           |
+| Callback de contexto nunca llega                        | Expira; respuesta tardía no sustituye la tanda vigente           |
+| Consulta de sesión colgada                              | Salud deja de estar lista; siguiente comprobación funciona       |
+| Pestaña antigua activa y pestaña válida secundaria      | Se evita esperar una lectura completa en la antigua              |
+| Sesión renovada en la pestaña de origen                 | Se comprueba el token vigente, conservando identidad e intento   |
+| Captura idéntica durante verificación                   | No se pierde una verificación válida por repetir la captura      |
+| Desconexión voluntaria / intento anterior               | No se adopta silenciosamente una credencial ajena                |
+| Extensión compatible sin push                           | Se refresca antes de vencer el estado de conexión                |
+| Extensión compatible actualizada con pestañas abiertas  | Reinyección automática; conserva conexión y sesión verificable   |
+| Recarga de extensión descomprimida sin `onInstalled`    | El arranque del worker reinyecta una vez y recupera las pestañas |
+| Lector con protocolo incompatible o generación ajena    | Falla cerrado; no entrega datos ni credenciales                  |
+| Mensaje desde otro frame                                | No puede completar una solicitud del HHR principal               |
+| Token vencido o respuesta 401                           | No se informa conexión vigente ni se reintenta una escritura     |
+| Reinicio del worker / varias alarmas                    | Se conserva generación y orden de publicaciones                  |
+| Actualización con una pestaña transitoriamente ilegible | La generación local conserva las pestañas sanas                  |
 
 ## Validación y operación
 
