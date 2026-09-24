@@ -3,14 +3,12 @@ import { History, ListChecks } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import { SPECIALTY_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import { useDailyRecordBeds } from '@/context/DailyRecordContext';
-import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
 import type { SpecialtyCatalogRule, SpecialtyRoundSetup } from '@/services/specialty/specialtyJevClient';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
 import {
-  historicalMonthRange, isValidDiagnosisCode, normalizeDiagnosisCode,
-  summarizeCurrentDiagnoses, summarizeHistoricalAssociations,
+  isValidDiagnosisCode, normalizeDiagnosisCode, summarizeCurrentDiagnoses,
 } from './specialtyRulesHistoryModel';
-import type { DiagnosisAssociation } from './specialtyRulesHistoryModel';
+import { useSpecialtyRuleSources } from './useSpecialtyRuleSources';
 
 export const SpecialtyRulesWindow = ({ date = getClinicalCalendarDateISO(), onClose }: {
   date?: string; onClose: () => void;
@@ -26,15 +24,10 @@ export const SpecialtyRulesWindow = ({ date = getClinicalCalendarDateISO(), onCl
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [historicalViewCurrentBeds, setHistoricalViewCurrentBeds] =
-    useState<Record<string, PatientData> | null>(null);
-  const [currentError, setCurrentError] = useState(false);
   const [selectedSpecialties, setSelectedSpecialties] = useState<Record<string, string>>({});
-  const [historyMonth, setHistoryMonth] = useState(today.slice(0, 7));
-  const [historyState, setHistoryState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  const [history, setHistory] = useState<DiagnosisAssociation[]>([]);
+  const { currentBeds, currentError, historyMonth, historyState, history,
+    changeHistoryMonth, loadHistory } = useSpecialtyRuleSources(date, beds, today);
   const mountedRef = useRef(true);
-  const historyRequestRef = useRef(0);
   const dirty = Boolean(setup && (autoEnabled !== setup.policy.autoEnabled ||
     JSON.stringify(rules) !== JSON.stringify(setup.policy.rules) ||
     JSON.stringify(memory) !== JSON.stringify(setup.policy.memory)));
@@ -59,43 +52,6 @@ export const SpecialtyRulesWindow = ({ date = getClinicalCalendarDateISO(), onCl
       });
     return () => { mountedRef.current = false; };
   }, []);
-
-  useEffect(() => {
-    if (date === today) return;
-    let active = true;
-    setCurrentError(false);
-    void import('@/services/storage/firestore/firestoreRecordQueries')
-      .then(service => service.getRecordFromFirestoreDetailed(today, { source: 'server' }))
-      .then(result => {
-        if (!active) return;
-        setHistoricalViewCurrentBeds(result.status === 'resolved' ? result.record?.beds ?? null : null);
-        setCurrentError(result.status !== 'resolved');
-      }).catch(() => { if (active) setCurrentError(true); });
-    return () => { active = false; };
-  }, [date, today]);
-
-  const currentBeds = date === today ? beds : historicalViewCurrentBeds;
-
-  const loadHistory = async () => {
-    const request = ++historyRequestRef.current;
-    const range = historicalMonthRange(historyMonth, today);
-    setHistoryState('loading');
-    setHistory([]);
-    if (!range) {
-      setHistoryState('ready');
-      return;
-    }
-    try {
-      const service = await import('@/services/storage/firestore/firestoreRecordQueries');
-      const records = await service.getRecordsRangeFromFirestore(range.start, range.end,
-        { requireServer: true });
-      if (!mountedRef.current || request !== historyRequestRef.current) return;
-      setHistory(summarizeHistoricalAssociations(records));
-      setHistoryState('ready');
-    } catch {
-      if (mountedRef.current && request === historyRequestRef.current) setHistoryState('error');
-    }
-  };
 
   const recordedLabels = useMemo(() => {
     const patients = Object.values(currentBeds ?? {}).flatMap(bed => [bed, bed.clinicalCrib]);
@@ -316,8 +272,7 @@ export const SpecialtyRulesWindow = ({ date = getClinicalCalendarDateISO(), onCl
           <label htmlFor="specialty-history-month">Mes del censo</label>
           <input id="specialty-history-month" type="month" value={historyMonth}
             max={today.slice(0, 7)} disabled={historyState === 'loading'}
-            onChange={event => { historyRequestRef.current += 1;
-              setHistoryMonth(event.target.value); setHistoryState('idle'); setHistory([]); }}
+            onChange={event => changeHistoryMonth(event.target.value)}
             className="rounded border border-slate-300 px-2 py-1.5" />
           <button type="button" disabled={historyState === 'loading'}
             onClick={() => void loadHistory()}
