@@ -2,7 +2,6 @@ import { observeCensusTable } from '@/shared/runtime/observeCensusTable';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
-import { SpecialtyRoundEntry } from '@/features/census/components/specialty-round/SpecialtyRoundEntry';
 import { useCensusTableBindingsModel } from '@/features/census/hooks/useCensusTableBindingsModel';
 import { DragDropConfirmation } from '@/features/census/drag-drop/DragDropConfirmation';
 import { useCensusTableDragDrop } from '@/features/census/drag-drop/useCensusTableDragDrop';
@@ -282,7 +281,6 @@ export const CensusTable: React.FC<CensusTableProps> = ({
 
   return (
     <div ref={tableRootRef} className="overflow-visible rounded-xl bg-white print:shadow-none">
-      <SpecialtyRoundEntry date={currentDateString} disabled={readOnly || clinicalEditingDisabled} />
       <div className="relative overflow-visible">
         {freshnessUi.userMessage ? (
           <div

@@ -76,8 +76,18 @@ una cama o episodio que el informe de flujo no permita demostrar.
 
 Si la lectura de Eloísa falla después de crear el registro, el día puede quedar en blanco:
 volver a esa fecha y repetir **Sincronizar**, revisar el historial y comprobar el resultado
-persistido tras recargar. No usar «Copiar del día anterior» para sustituir la evidencia histórica.
-Las fechas anteriores al límite de siete días requieren revisión manual; el botón no aparece.
+persistido tras recargar. La pantalla de un día sin censo confirmado ofrece una sola acción:
+**Crear desde Eloísa** (o **Reconstruir desde Eloísa** para un día histórico admitido).
+Primero verifica la conexión; después crea el día vacío y abre la vista previa de importación.
+Junto al botón se informa si la extensión está comprobando la conexión, lista para sincronizar,
+requiere atención o está preparando la sincronización. El estado se alimenta de Ficha Médico y
+Gestión de Camas y se vuelve a comprobar al pulsar. Si falla esa comprobación en el día actual,
+aparece **Iniciar censo sin Eloísa** con una segunda confirmación explícita. Ese camino crea un
+censo vacío para registro manual y no inicia una importación ni copia pacientes del día anterior.
+Si todavía se está comprobando el registro remoto, no permite crear otro día. La información
+de Firebase y caché queda en telemetría, sin ocupar la pantalla de enfermería.
+No usar una copia del día anterior para sustituir la evidencia histórica. Las fechas anteriores
+al límite de siete días requieren revisión manual; el botón no aparece.
 
 ## Procedimiento 1: IndexedDB bloqueado
 

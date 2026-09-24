@@ -166,7 +166,7 @@ describe('CensusStaffHeader', () => {
     expect(screen.queryByTestId('summary-card')).not.toBeInTheDocument();
   });
 
-  it('keeps the scale filter outside the staff and synchronization row', async () => {
+  it('keeps the scale filter beside the census summary without a dedicated row', async () => {
     mockedUseDailyRecordBeds.mockReturnValue({
       R1: DataFactory.createMockPatient('R1', {
         patientName: 'Paciente con escala pendiente',
@@ -189,7 +189,7 @@ describe('CensusStaffHeader', () => {
     const rayen = await screen.findByTestId('rayen-operations-bar');
     const scales = screen.getByTestId('census-attention-bar');
     expect(rayen).not.toContainElement(scales);
-    expect(screen.getByTestId('census-staff-and-sync')).not.toContainElement(scales);
+    expect(screen.getByTestId('census-staff-and-sync')).toContainElement(scales);
   });
 
   it('keeps scale surveillance available in read-only mode without showing synchronization', async () => {

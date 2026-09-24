@@ -21,6 +21,11 @@ import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDet
 const RayenImportButton = lazy(() =>
   import('@/features/rayen-import').then(module => ({ default: module.RayenImportButton }))
 );
+const SpecialtyRoundEntry = lazy(() =>
+  import('./specialty-round/SpecialtyRoundEntry').then(module => ({
+    default: module.SpecialtyRoundEntry,
+  }))
+);
 import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusAttentionBar } from './CensusAttentionBar';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
@@ -129,24 +134,31 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )}
 
           {/* Combined Stats Summary Card */}
-          {readModel.showSummary && stats && (
-            <CombinedSummaryCard
-              stats={stats}
-              discharges={readModel.movementSummaryState.discharges}
-              transfers={readModel.movementSummaryState.transfers}
-              cmaCount={readModel.movementSummaryState.cmaCount}
-              newAdmissions={readModel.movementSummaryState.admissionsCount}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {readModel.showSummary && stats && (
+              <CombinedSummaryCard
+                stats={stats}
+                discharges={readModel.movementSummaryState.discharges}
+                transfers={readModel.movementSummaryState.transfers}
+                cmaCount={readModel.movementSummaryState.cmaCount}
+                newAdmissions={readModel.movementSummaryState.admissionsCount}
+              />
+            )}
+            <CensusAttentionBar
+              beds={beds ?? {}}
+              censusIsoDay={dailyRecordData.record?.date ?? ''}
+              activeFilter={attentionFilter}
+              onFilterChange={onAttentionFilterChange}
             />
-          )}
-        </div>
-
-        <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          <CensusAttentionBar
-            beds={beds ?? {}}
-            censusIsoDay={dailyRecordData.record?.date ?? ''}
-            activeFilter={attentionFilter}
-            onFilterChange={onAttentionFilterChange}
-          />
+            {dailyRecordData.record?.date && (
+              <Suspense fallback={null}>
+                <SpecialtyRoundEntry
+                  date={dailyRecordData.record.date}
+                  disabled={Boolean(readOnly)}
+                />
+              </Suspense>
+            )}
+          </div>
         </div>
       </div>
 

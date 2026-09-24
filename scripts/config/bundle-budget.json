@@ -61,8 +61,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "PR #469 allowed 625000 bytes for confirmed-cache protection. PR #481 defers dormant specialty intent and Jev clients, then grants a bounded +2000 bytes for episode-aware census metadata: measured authenticated shell 626136 bytes. Rationale and rollback: docs/BUNDLE_RISK_LEDGER.md. All other startup and precache limits remain unchanged.",
-      "maxBytes": 627000,
+      "_comment": "PR #469 allowed 625000 bytes for confirmed-cache protection. PR #481 allowed 627000 bytes for episode-aware metadata. The compact specialty control beside the census summary measures 628453 bytes against 626182 bytes on main (same local lockfile); allow 630000 bytes with rollback and guardrails documented in docs/BUNDLE_RISK_LEDGER.md. Other budgets remain unchanged.",
+      "maxBytes": 630000,
       "severity": "error"
     }
   ],

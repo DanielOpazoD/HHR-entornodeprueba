@@ -1,17 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import { MONTH_NAMES } from '@/constants/export';
-import { Copy, Calendar, Plus, ChevronDown, ShieldCheck, Shield } from 'lucide-react';
-import clsx from 'clsx';
-import {
-  buildCopyUnlockDescription,
-  resolveCreateDayCopyAvailability,
-} from '@/features/census/controllers/censusCreateDayAvailabilityController';
 import {
   shouldRecordCensusEmptyStateDiagnostic,
   type CensusEmptyStateDiagnostic,
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
-import { useClinicalToday } from '@/hooks/useClinicalToday';
 import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
 
 interface EmptyDayPromptProps {
@@ -19,8 +13,8 @@ interface EmptyDayPromptProps {
   selectedMonth: number;
   currentDateString: string;
   previousRecordAvailable: boolean;
-  previousRecordDate?: string; // YYYY-MM-DD format
-  availableDates?: string[]; // All dates with records
+  previousRecordDate?: string;
+  availableDates?: string[];
   onCreateDay: (
     copyFromPrevious: boolean,
     specificDate?: string,
@@ -32,44 +26,45 @@ interface EmptyDayPromptProps {
   emptyStateDiagnostic?: CensusEmptyStateDiagnostic;
 }
 
+const emptyDayMessage = (source?: CensusEmptyStateDiagnostic['source']): string => {
+  switch (source) {
+    case 'sync_pending':
+    case 'post_deploy_refresh':
+      return 'Comprobando si ya existe un censo para esta fecha…';
+    case 'local_cache_empty':
+      return 'No se pudo comprobar el censo. Revisa tu conexión e inténtalo de nuevo.';
+    case 'date_mismatch':
+      return 'No hay censo para esta fecha. Comprueba el día seleccionado.';
+    default:
+      return 'No hay censo para esta fecha.';
+  }
+};
+
 export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   selectedDay,
   selectedMonth,
   currentDateString,
-  previousRecordAvailable,
-  previousRecordDate,
-  availableDates = [],
   onCreateDay,
   onRayenBootstrapReady,
   readOnly = false,
-  allowAdminCopyOverride = false,
   emptyStateDiagnostic,
 }) => {
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isConfirmingBlank, setIsConfirmingBlank] = useState(false);
-  const [blankConfirmationText, setBlankConfirmationText] = useState('');
+  // Calendar midnight and the morning clinical handoff can both change eligibility.
   const [now, setNow] = useState(() => new Date());
-  // Keep the eligibility and label fresh when a long-lived tab crosses the clinical handoff.
-  useClinicalToday();
+  useEffect(() => {
+    const refresh = () => setNow(new Date());
+    const interval = window.setInterval(refresh, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
   const diagnosticSource = emptyStateDiagnostic?.source;
   const diagnosticMessage = emptyStateDiagnostic?.message;
-
-  const copyAvailability = useMemo(
-    () => resolveCreateDayCopyAvailability(currentDateString, now),
-    [currentDateString, now]
-  );
-
-  useEffect(() => {
-    if (!copyAvailability.isCopyLocked) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setNow(new Date());
-    }, 1000);
-
-    return () => window.clearInterval(intervalId);
-  }, [copyAvailability.isCopyLocked]);
 
   useEffect(() => {
     if (
@@ -80,269 +75,53 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
         source: diagnosticSource,
         isVisible: true,
       })
-    ) {
+    )
       return;
-    }
-
     dailyRecordObservability.recordEvent('census_empty_state_visible', 'degraded', {
       date: currentDateString,
       runtimeState: 'retryable',
       issues: [diagnosticMessage],
-      context: {
-        source: diagnosticSource,
-      },
+      context: { source: diagnosticSource },
     });
   }, [currentDateString, diagnosticMessage, diagnosticSource]);
 
-  const isDatePickerVisible = showDatePicker && !copyAvailability.isCopyLocked;
-  const canForceCopyPrevious =
-    allowAdminCopyOverride && previousRecordAvailable && !!previousRecordDate;
-  // Match the importer's temporal gate: current/pre-handoff calendar day and D-1…D-7.
-  // Historical empty days can be prepared from evidence instead of requiring a manual blank day.
-  const rayenSyncTarget = resolveCensusSyncTarget(currentDateString, new Date());
-  const canCreateFromRayen =
-    Boolean(onRayenBootstrapReady) && rayenSyncTarget.kind !== 'unsupported';
-  const diagnosticLabelBySource: Record<CensusEmptyStateDiagnostic['source'], string> = {
-    remote_missing: 'Firebase/local confirmado',
-    local_cache_empty: 'Solo copia local',
-    sync_pending: 'Sincronizacion pendiente',
-    post_deploy_refresh: 'Actualizacion reciente',
-    date_mismatch: 'Fecha seleccionada',
-  };
-
-  // Format date for display (DD de Mes)
-  const formatDate = (dateStr: string) => {
-    const [_year, month, day] = dateStr.split('-');
-    const monthName = MONTH_NAMES[parseInt(month, 10) - 1];
-    return `${parseInt(day, 10)} de ${monthName} `;
-  };
-
-  const handleSelectDate = (date: string) => {
-    setShowDatePicker(false);
-    onCreateDay(true, date);
-  };
-
-  const unlockDescription = buildCopyUnlockDescription(currentDateString, now);
+  const rayenTarget = resolveCensusSyncTarget(currentDateString, now);
+  // date_mismatch is emitted only for a different selected date after confirmed_empty.
+  const dayConfirmedEmpty =
+    diagnosticSource === 'remote_missing' || diagnosticSource === 'date_mismatch';
+  const canCreate =
+    Boolean(onRayenBootstrapReady) && dayConfirmedEmpty && rayenTarget.kind !== 'unsupported';
 
   return (
-    <div className="card flex flex-col items-center justify-center py-16 mt-8 print:hidden animate-fade-in overflow-visible">
-      <div className="bg-slate-50 p-6 rounded-full mb-6">
-        <Calendar size={64} className="text-medical-200" />
+    <div className="card mt-8 flex flex-col items-center justify-center px-5 py-14 text-center print:hidden animate-fade-in">
+      <div className="mb-5 rounded-full bg-slate-50 p-5">
+        <Calendar size={48} className="text-medical-200" aria-hidden="true" />
       </div>
-      <h2 className="text-2xl font-bold text-slate-800 mb-2">
+      <h2 className="mb-2 text-2xl font-bold text-slate-800">
         {selectedDay} de {MONTH_NAMES[selectedMonth]}
       </h2>
-      <div className="mb-8 max-w-md text-center">
-        <p
-          aria-live="polite"
-          className="text-slate-500"
-          data-testid="empty-day-diagnostic-message"
-          role="status"
-        >
-          {emptyStateDiagnostic?.message || 'No existe registro para esta fecha.'}
+      <p
+        className="mb-6 max-w-md text-sm text-slate-500"
+        role="status"
+        aria-live="polite"
+        data-testid="empty-day-diagnostic-message"
+      >
+        {emptyDayMessage(diagnosticSource)}
+      </p>
+      {readOnly ? (
+        <p className="max-w-sm text-sm text-amber-800">Pide a enfermería que inicie el censo.</p>
+      ) : canCreate ? (
+        <RayenDayBootstrapButton
+          historical={rayenTarget.kind === 'historical'}
+          onCreateBlank={() => Promise.resolve(onCreateDay(false))}
+          onReady={() => onRayenBootstrapReady?.()}
+        />
+      ) : rayenTarget.kind === 'unsupported' && dayConfirmedEmpty ? (
+        <p className="max-w-md text-sm text-slate-600">
+          No se puede crear este día desde Eloísa. La reconstrucción está disponible hasta siete
+          días atrás.
         </p>
-        {emptyStateDiagnostic && (
-          <span
-            className="mt-3 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
-            data-testid="empty-day-diagnostic-source"
-            data-source={emptyStateDiagnostic.source}
-          >
-            {diagnosticLabelBySource[emptyStateDiagnostic.source]}
-          </span>
-        )}
-      </div>
-
-      {!readOnly ? (
-        <div className="flex flex-col sm:flex-row gap-4 flex-wrap justify-center items-start">
-          {canCreateFromRayen && (
-            <RayenDayBootstrapButton
-              historical={rayenSyncTarget.kind === 'historical'}
-              onCreateBlank={() => Promise.resolve(onCreateDay(false))}
-              onReady={() => onRayenBootstrapReady?.()}
-            />
-          )}
-
-          {/* Copy from Previous Day Button with subtle date picker */}
-          {previousRecordAvailable && previousRecordDate && (
-            <div className="flex flex-col gap-2">
-              <div className="relative flex items-stretch">
-                {/* Main Copy Button */}
-                <button
-                  onClick={() => onCreateDay(true, previousRecordDate)}
-                  disabled={copyAvailability.isCopyLocked}
-                  className={clsx(
-                    'btn group !p-6 !h-auto border-2 border-slate-300 text-medical-700 bg-white shadow-sm flex-col rounded-r-none border-r-0',
-                    copyAvailability.isCopyLocked
-                      ? 'cursor-not-allowed opacity-60'
-                      : 'hover:bg-medical-50'
-                  )}
-                  style={{ width: '230px' }}
-                  data-testid="copy-previous-btn"
-                >
-                  <div className="flex items-center gap-2 text-lg font-bold">
-                    <Copy size={20} />
-                    <span>Copiar del {formatDate(previousRecordDate)}</span>
-                  </div>
-                  {copyAvailability.isCopyLocked ? (
-                    <span className="text-xs text-center font-semibold text-amber-700 leading-snug">
-                      {unlockDescription}
-                      <span className="block text-[11px] font-normal text-amber-600">
-                        Se habilita en {copyAvailability.countdownLabel}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="text-xs font-normal text-medical-600/80">
-                      Incluye pacientes, camas y entregas de turno
-                    </span>
-                  )}
-                </button>
-
-                {/* Subtle "+" expander for other dates */}
-                {availableDates.length > 1 && (
-                  <>
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        if (copyAvailability.isCopyLocked) {
-                          return;
-                        }
-                        setShowDatePicker(!showDatePicker);
-                      }}
-                      disabled={copyAvailability.isCopyLocked}
-                      className={clsx(
-                        'border-2 border-slate-300 text-slate-400 bg-white shadow-sm rounded-l-none px-2 transition-colors',
-                        copyAvailability.isCopyLocked
-                          ? 'cursor-not-allowed opacity-60'
-                          : 'hover:bg-slate-50 hover:text-slate-600',
-                        isDatePickerVisible && 'bg-medical-50 text-medical-600'
-                      )}
-                      title="Seleccionar otra fecha"
-                      aria-label="Seleccionar otra fecha para copiar"
-                    >
-                      <ChevronDown
-                        size={16}
-                        className={clsx(
-                          'transition-transform',
-                          isDatePickerVisible && 'rotate-180'
-                        )}
-                      />
-                    </button>
-
-                    {/* Date Picker Dropdown - Opens Upward */}
-                    {isDatePickerVisible && (
-                      <div className="absolute bottom-full right-0 mb-2 w-56 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 animate-fade-in">
-                        <div className="p-2">
-                          <p className="text-[10px] text-slate-400 uppercase font-bold px-2 py-1">
-                            Otras fechas
-                          </p>
-                          {availableDates
-                            .filter(d => d !== previousRecordDate)
-                            .map(date => (
-                              <button
-                                key={date}
-                                onClick={() => handleSelectDate(date)}
-                                className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-medical-50 hover:text-medical-700"
-                              >
-                                {formatDate(date)}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {canForceCopyPrevious && copyAvailability.isCopyLocked && (
-                <button
-                  onClick={() =>
-                    onCreateDay(true, previousRecordDate, { forceCopyScheduleOverride: true })
-                  }
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800 shadow-sm transition-colors hover:bg-amber-100"
-                  data-testid="admin-copy-override-btn"
-                >
-                  <Shield size={14} />
-                  <span>Crear ahora como admin</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Blank Record Button */}
-          <button
-            onClick={() => setIsConfirmingBlank(true)}
-            className="btn group !p-6 !h-auto border-2 border-slate-300 bg-white text-medical-700 shadow-sm flex-col w-64 hover:bg-medical-50"
-            data-testid="blank-record-btn"
-          >
-            <div className="flex items-center gap-2 text-lg font-bold">
-              <Plus size={20} />
-              <span>Registro en Blanco</span>
-            </div>
-            <span className="text-xs font-normal text-medical-600/80">
-              Iniciar turno desde cero
-            </span>
-          </button>
-        </div>
-      ) : (
-        <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl text-amber-800 flex flex-col items-center gap-2 max-w-sm text-center">
-          <ShieldCheck size={32} className="text-amber-500 mb-2" />
-          <p className="font-bold">Acceso de Invitado</p>
-          <p className="text-sm">
-            No tienes permisos para iniciar nuevos registros. Por favor, contacta a una enfermera o
-            administrador.
-          </p>
-        </div>
-      )}
-
-      {/* Confirmation Modal for Blank Record */}
-      {isConfirmingBlank && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-scale-up">
-            <div className="flex items-center gap-3 mb-4 text-amber-600">
-              <ShieldCheck size={28} />
-              <h3 className="text-xl font-bold">¿Registro en Blanco?</h3>
-            </div>
-            <p className="text-slate-600 mb-4">
-              ¿Realmente quieres iniciar un registro nuevo{' '}
-              <strong>sin copiar los datos previos</strong>? Se perderán las camas, pacientes y
-              diagnósticos anteriores para el inicio de este día.
-            </p>
-            <p className="text-slate-600 mb-2 text-sm">
-              Si estás seguro, por favor escribe <strong>Registroenblanco</strong> para continuar:
-            </p>
-            <input
-              type="text"
-              value={blankConfirmationText}
-              onChange={e => setBlankConfirmationText(e.target.value)}
-              className="input w-full mb-6 font-mono text-center"
-              placeholder="Registroenblanco"
-              autoFocus
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setIsConfirmingBlank(false);
-                  setBlankConfirmationText('');
-                }}
-                className="btn btn-secondary"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  setIsConfirmingBlank(false);
-                  setBlankConfirmationText('');
-                  onCreateDay(false);
-                }}
-                disabled={blankConfirmationText !== 'Registroenblanco'}
-                className="btn btn-primary bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
-              >
-                Aceptar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 };
