@@ -95,7 +95,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   );
   // A real occupant always shows the details row so the specialty chip (or "Pendiente asignar")
   // has a home, even before RUT/edad/FI are filled in.
-  const isRealPatient = !isEmpty && !isSubRow && !!fullName.trim();
+  const isRealPatient = !isEmpty && !!fullName.trim();
   const showIdentityDetails =
     !isEmpty &&
     (hasRutValue ||
@@ -310,11 +310,16 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 cie10Code={data.cie10Code}
                 readOnly={readOnly}
                 onAssign={handleSpecialtyAssign}
-                scope={currentDateString && data.clinicalEpisodeId
-                  ? { date: currentDateString, bedId: data.bedId,
-                      target: isSubRow ? 'clinicalCrib' : 'bed',
-                      episodeId: data.clinicalEpisodeId }
-                  : undefined}
+                scope={
+                  currentDateString && data.clinicalEpisodeId
+                    ? {
+                        date: currentDateString,
+                        bedId: data.bedId,
+                        target: isSubRow ? 'clinicalCrib' : 'bed',
+                        episodeId: data.clinicalEpisodeId,
+                      }
+                    : undefined
+                }
               />
               {visibleTreatingPhysicianName && (
                 <span

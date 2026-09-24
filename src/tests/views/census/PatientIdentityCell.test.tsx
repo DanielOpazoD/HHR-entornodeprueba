@@ -157,6 +157,22 @@ describe('PatientIdentityCell', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('shows the pending specialty for a named clinical crib without other demographics', () => {
+    const data = DataFactory.createMockPatient('H5C1', {
+      patientName: 'RN de Madre',
+      rut: '',
+      age: '',
+      admissionDate: '',
+      specialty: '',
+      treatingPhysicianId: '',
+      treatingPhysicianName: '',
+    });
+
+    renderCell({ data, isSubRow: true });
+
+    expect(screen.getByTitle('Asignar especialidad')).toHaveTextContent('Pendiente asignar');
+  });
+
   it('shows a "Pendiente asignar" chip when the patient has no specialty, and assigns on click', () => {
     const assign = vi.fn();
     const onNameChange: DebouncedTextHandler = field => (field === 'specialty' ? assign : vi.fn());
