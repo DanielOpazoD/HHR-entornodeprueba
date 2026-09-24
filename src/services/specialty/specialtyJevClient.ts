@@ -38,16 +38,43 @@ export interface SpecialtyTarget {
   episodeId: string;
 }
 
+export interface JevConsultationPreparation {
+  code: string;
+  canonicalLabel: string;
+}
+
+/** Read-only preflight. The provider receives only this approved code/label after confirmation. */
+export const prepareSpecialtyJevConsultation = async (
+  cie10Code: string
+): Promise<JevConsultationPreparation> => {
+  await defaultFirestoreServiceRuntime.ready;
+  const db = defaultFirestoreServiceRuntime.getDb();
+  if (db.app.options.projectId !== 'hhr-pruebas') {
+    throw new JevSuggestionUnavailableError('La consulta Jev sólo está habilitada en hhr-pruebas.');
+  }
+  const snapshot = await getDoc(doc(db, getSpecialtyPolicyDocPath()));
+  const policy = snapshot.data();
+  const code = cie10Code.trim().toUpperCase().replace(/\s+/g, '');
+  const canonicalLabel = policy?.diagnosisLabels?.[code];
+  if (policy?.aiMode !== 'consultative' || typeof canonicalLabel !== 'string' ||
+      !canonicalLabel.trim()) {
+    throw new JevSuggestionUnavailableError('El diagnóstico no está habilitado en el catálogo Jev.');
+  }
+  return { code, canonicalLabel: canonicalLabel.trim() };
+};
+
 export const requestSpecialtySuggestion = async (
   scope: SpecialtyTarget,
-  requestId: string
+  requestId: string,
+  preparation: JevConsultationPreparation
 ): Promise<JevSuggestion> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
-  const callable = httpsCallable<SpecialtyTarget & { requestId: string },
+  const callable = httpsCallable<SpecialtyTarget & { requestId: string; expectedCode: string; expectedCanonicalLabel: string },
     { status: string; result?: JevSuggestion }>(
     functions, 'requestSpecialtyJevSuggestion', { timeout: 30_000 }
   );
-  const { data } = await callable({ ...scope, requestId });
+  const { data } = await callable({ ...scope, requestId,
+    expectedCode: preparation.code, expectedCanonicalLabel: preparation.canonicalLabel });
   if (data.status !== 'complete' || !data.result) {
     if (data.status !== 'pending') {
       throw new JevSuggestionUnavailableError('Jev no entregó una sugerencia vigente.');
