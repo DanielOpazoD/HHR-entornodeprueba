@@ -30,10 +30,24 @@ describe('SpecialtyRoundEntry', () => {
     expect(within(group).getByRole('button', { name: 'Asignar especialidades' })).toBeEnabled();
   });
 
-  it('hides administration from nurses and blocks the round outside the current day', () => {
+  it('keeps the menu visible for nurses while blocking the round outside the current day', () => {
     role.value = 'nurse_hospital';
     render(<SpecialtyRoundEntry date="2026-09-23" disabled={false} />);
-    expect(screen.queryByText('Especialidades')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Especialidades'));
+    expect(screen.queryByRole('button', { name: 'Reglas automáticas' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Asignar especialidades' })).toBeDisabled();
+  });
+
+  it('shows nurses why assignment is unavailable when no patient is pending', () => {
+    role.value = 'nurse_hospital';
+    candidates.count = 0;
+    render(<SpecialtyRoundEntry date="2026-09-24" disabled={false} />);
+    fireEvent.click(screen.getByText('Especialidades'));
+    expect(screen.getByRole('button', { name: 'Asignar especialidades' })).toBeDisabled();
+    expect(screen.getByTitle('No hay pacientes pendientes de especialidad')).toBeInTheDocument();
+  });
+
+  it('blocks the administrator round outside the current day', () => {
     role.value = 'admin';
     render(<SpecialtyRoundEntry date="2026-09-23" disabled={false} />);
     fireEvent.click(screen.getByText('Especialidades'));

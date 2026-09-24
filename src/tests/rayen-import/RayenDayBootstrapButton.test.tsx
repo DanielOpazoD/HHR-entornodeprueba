@@ -59,11 +59,18 @@ describe('RayenDayBootstrapButton', () => {
     expect(screen.getByText('Revisar evidencia del día antes de importar')).toBeVisible();
   });
 
-  it('checks Eloísa, copies the prior census, then starts a reviewed import', async () => {
-    mocks.refresh.mockResolvedValue({ connection: 'ready', canSync: true, message: 'Operativa.' });
-    const onCopyPrevious = vi.fn().mockResolvedValue(true);
+  it('copies the prior census before checking Eloísa and starting a reviewed import', async () => {
+    const order: string[] = [];
+    mocks.refresh.mockImplementation(async () => {
+      order.push('health');
+      return { connection: 'ready', canSync: true, message: 'Operativa.' };
+    });
+    const onCopyPrevious = vi.fn(async () => {
+      order.push('copy');
+      return true;
+    });
     const onCreateBlank = vi.fn();
-    const onReady = vi.fn();
+    const onReady = vi.fn(() => order.push('review'));
     render(
       <RayenDayBootstrapButton
         copySourceDate="2026-09-23"
@@ -78,6 +85,7 @@ describe('RayenDayBootstrapButton', () => {
     expect(onCreateBlank).not.toHaveBeenCalled();
     expect(onReady).toHaveBeenCalledOnce();
     expect(mocks.warning).not.toHaveBeenCalled();
+    expect(order).toEqual(['copy', 'health', 'review']);
   });
 
   it('keeps the copied census and warns when Eloísa is unavailable', async () => {
@@ -113,6 +121,7 @@ describe('RayenDayBootstrapButton', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /Copiar pacientes del 23/i }));
     expect(await screen.findByText(/No se pudo copiar el censo anterior/)).toBeVisible();
+    expect(mocks.refresh).not.toHaveBeenCalled();
     expect(onReady).not.toHaveBeenCalled();
   });
 

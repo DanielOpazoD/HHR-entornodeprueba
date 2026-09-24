@@ -30,7 +30,7 @@ export const SpecialtyRoundEntry = ({ date, disabled }: { date: string; disabled
   const count = useMemo(() => buildSpecialtyRoundCandidates(beds, date).length, [beds, date]);
   const roundDisabled =
     disabled || freshnessUi.isClinicalEditingBlocked || date !== getClinicalCalendarDateISO();
-  if (!enabled || (!open && !rulesOpen && !isAdmin && (roundDisabled || count === 0))) return null;
+  if (!enabled) return null;
   return (
     <>
       <details
@@ -69,7 +69,11 @@ export const SpecialtyRoundEntry = ({ date, disabled }: { date: string; disabled
             }}
             disabled={roundDisabled || count === 0}
             title={
-              roundDisabled && !disabled ? 'Disponible sólo para el día clínico vigente' : undefined
+              count === 0
+                ? 'No hay pacientes pendientes de especialidad'
+                : roundDisabled && !disabled
+                  ? 'Disponible sólo para el día clínico vigente'
+                  : undefined
             }
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >

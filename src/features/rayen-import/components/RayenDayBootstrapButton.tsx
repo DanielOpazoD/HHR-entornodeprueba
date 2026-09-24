@@ -36,23 +36,23 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
     setManualAvailable(false);
     setConfirmManual(false);
     if (copySourceDate && onCopyPrevious) {
-      setStep('checking');
-      let canSync = false;
-      try {
-        const health = await extension.refresh({
-          timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
-          showChecking: true,
-        });
-        canSync = health.canSync;
-      } catch {
-        // The census may still be copied; an unavailable extension only delays import.
-      }
       setStep('copying');
       try {
         const copied = await onCopyPrevious();
         if (!copied) {
           setError('No se pudo copiar el censo anterior. Inténtalo de nuevo.');
           return;
+        }
+        setStep('checking');
+        let canSync = false;
+        try {
+          const health = await extension.refresh({
+            timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+            showChecking: true,
+          });
+          canSync = health.canSync;
+        } catch {
+          // A copied census remains usable when the extension is unavailable.
         }
         if (canSync) {
           onReady();
