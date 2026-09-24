@@ -1,4 +1,4 @@
-/** Stable identity for the active browser session (MV3 service-worker/update safe). */
+/** Stable identity for this extension installation (MV3 worker/update safe). */
 (function (root) {
   'use strict';
 
@@ -19,12 +19,10 @@
 
   const create = ({ chromeApi, cryptoApi = root.crypto, now = () => Date.now() }) => {
     let pending = null;
-
     const makeRecord = () => ({
       id: cryptoApi.randomUUID(),
       createdAt: now(),
     });
-
     const isRecord = value => Boolean(
       value &&
       typeof value.id === 'string' &&
@@ -32,25 +30,30 @@
       Number.isFinite(value.createdAt)
     );
 
+    // Store only the non-secret marker locally, independent of open Rayen tabs.
+    const remember = async record => {
+      try { await chromeApi.storage.local?.set({ [STORAGE_KEY]: record }); }
+      catch (_error) { /* The session copy still keeps the current worker usable. */ }
+    };
     const persist = async record => {
       await chromeApi.storage.session.set({ [STORAGE_KEY]: record });
+      await remember(record);
       return record;
     };
-
-    const rotate = () => {
-      pending = persist(makeRecord()).catch(error => {
-        pending = null;
-        throw error;
-      });
-      return pending;
-    };
-
     const get = () => {
       if (pending) return pending;
       pending = chromeApi.storage.session.get(STORAGE_KEY)
         .then(async stored => {
           const record = stored && stored[STORAGE_KEY];
-          if (isRecord(record)) return record;
+          if (isRecord(record)) {
+            await remember(record); // Migrate a running pre-update installation.
+            return record;
+          }
+          let remembered;
+          try {
+            remembered = (await chromeApi.storage.local?.get(STORAGE_KEY))?.[STORAGE_KEY];
+          } catch (_error) { /* Fall back to the surviving MAIN readers. */ }
+          if (isRecord(remembered)) return persist(remembered);
           const recovered = await root.HhrRuntimeGenerationRecovery?.recover({ chromeApi, now });
           return persist(recovered || makeRecord());
         })
@@ -61,8 +64,7 @@
       return pending;
     };
 
-    // Updating/reloading clears storage.session but leaves MAIN readers alive. get() recovers
-    // their consensus generation; a browser restart has no surviving reader and gets a fresh one.
+    // MAIN-reader consensus migrates older installations without a local copy.
     const start = () => Boolean(chromeApi.storage?.session);
 
     const getContext = version => get().then(generation => ({
@@ -97,7 +99,7 @@
       return context;
     };
 
-    return Object.freeze({ bindMainWorld, get, getContext, getContextForSender, rotate, start });
+    return Object.freeze({ bindMainWorld, get, getContext, getContextForSender, start });
   };
 
   root.HhrRuntimeGeneration = Object.freeze({

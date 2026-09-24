@@ -144,7 +144,7 @@ describe('native Eloisa laboratory viewer wiring', () => {
     expect(manifest).toContain('"clipboardWrite"');
     expect(manifest).toContain('"all_frames": true');
     expect(manifest).toContain('"syslab-login.html"');
-    expect(manifest).toContain('"version": "0.48.32"');
+    expect(manifest).toContain('"version": "0.48.34"');
     expect(manifest).toContain('"default_popup": "extension-status.html"');
   });
 });

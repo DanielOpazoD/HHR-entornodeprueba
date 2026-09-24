@@ -23,16 +23,14 @@
       if (result.injected) notify(1);
       return result;
     };
-    const reinjectRelays = async () => {
-      const result = await operations.reinjectRelays();
+    const runAndNotify = async operation => {
+      const result = await operation();
       if (result.injectedTabs) notify(result.injectedTabs);
       return result;
     };
-    const reinjectRelay = async requiredFile => {
-      const result = await operations.reinjectMatching(requiredFile);
-      if (result.injectedTabs) notify(result.injectedTabs);
-      return result;
-    };
+    const reinjectRelays = () => runAndNotify(() => operations.reinjectRelays());
+    const reinjectRelay = requiredFile => runAndNotify(() => operations.reinjectMatching(requiredFile));
+    const repairMissingRelay = requiredFile => runAndNotify(() => operations.repairMissingRelays(requiredFile));
     const { ensureReinjected, whenIdle } = root.HhrRelayReinjectionSession.create({
       chromeApi, operations, reinjectRelays, notify, log,
     });
@@ -53,7 +51,7 @@
       verifyOpenTabs('despertar el worker');
       return true;
     };
-    return { start, reinjectRelay, reinjectRelays, reinjectTab, ensureReinjected, repairActivatedTab: tabEvents.repairTab };
+    return { start, repairMissingRelay, reinjectRelay, reinjectRelays, reinjectTab, ensureReinjected, repairActivatedTab: tabEvents.repairTab };
   };
   root.HhrRelayReinjectionRuntime = { create, STORAGE_KEY: root.HhrRelayReinjectionSession.STORAGE_KEY };
 })(typeof self !== 'undefined' ? self : globalThis);

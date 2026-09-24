@@ -27,6 +27,7 @@ import '../../../extension/hhr-connection-presentation.js';
 import '../../../extension/hhr-connection-center-runtime.js';
 import '../../../extension/prescription-print.js';
 import '../../../extension/hhr-prescription-content-runtime.js';
+import '../../../extension/hhr-prescription-ui-lifecycle.js';
 
 type HandoffRuntime = {
   renderHandoffCenter: (root: HTMLElement, encId: string) => void;
