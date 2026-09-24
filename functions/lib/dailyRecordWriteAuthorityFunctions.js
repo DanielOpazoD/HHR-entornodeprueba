@@ -1366,7 +1366,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
       const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
       const docRef = hospitalRef.collection('dailyRecords').doc(date);
       const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
-      const specialtyPolicyRef = hospitalRef.collection('settings').doc('specialtyAssignment');
+      const specialtyPolicyRef = hospitalRef.collection('specialtyPolicies').doc('active');
       const priorDate = previousIsoDay(date);
       const priorRef = priorDate ? hospitalRef.collection('dailyRecords').doc(priorDate) : null;
       let revision;
@@ -1588,7 +1588,7 @@ const createDailyRecordWriteAuthorityFunctions = ({
       const hospitalRef = db.collection('hospitals').doc(HOSPITAL_ID);
       const docRef = hospitalRef.collection('dailyRecords').doc(date);
       const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
-      const specialtyPolicyRef = hospitalRef.collection('settings').doc('specialtyAssignment');
+      const specialtyPolicyRef = hospitalRef.collection('specialtyPolicies').doc('active');
       const aiRequestRef = specialtyIntent?.kind === 'accept_ai'
         ? hospitalRef.collection('specialtyAiRequests').doc(specialtyIntent.requestId) : null;
       const sourceRef =

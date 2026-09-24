@@ -205,7 +205,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
       const legacyBatchDigest = buildLegacyClinicalEnrichmentDigest(payload);
       const hospitalRef = firestore.collection('hospitals').doc(HOSPITAL_ID);
       const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
-      const specialtyPolicyRef = hospitalRef.collection('settings').doc('specialtyAssignment');
+      const specialtyPolicyRef = hospitalRef.collection('specialtyPolicies').doc('active');
       const docRef = hospitalRef.collection('dailyRecords').doc(payload.date);
       const authorityRef = hospitalRef.collection('dailyRecords').doc(payload.authorityDate);
       const transactionOutcome = await firestore.runTransaction(async transaction => {

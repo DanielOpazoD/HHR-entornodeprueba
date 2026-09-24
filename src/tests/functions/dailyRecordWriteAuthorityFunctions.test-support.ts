@@ -84,15 +84,17 @@ export const createAdminMock = ({
   };
   const dailyRecordsCollection = { doc: vi.fn(() => docRef) };
   const policyRef = { path: 'settings/rayenImportPolicy' };
-  const specialtyPolicyRef = { path: 'settings/specialtyAssignment' };
+  const specialtyPolicyRef = { path: 'specialtyPolicies/active' };
+  const legacySpecialtyPolicyRef = { path: 'settings/specialtyAssignment' };
   const aiRequestRef = { path: 'specialtyAiRequests/request' };
   const settingsCollection = { doc: vi.fn((id: string) =>
-    id === 'specialtyAssignment' ? specialtyPolicyRef : policyRef) };
+    id === 'rayenImportPolicy' ? policyRef : legacySpecialtyPolicyRef) };
   const functionsTelemetryCollection = { add: telemetryAdd };
   const hospitalDoc = {
     collection: vi.fn((name: string) => {
       if (name === 'functionsTelemetry') return functionsTelemetryCollection;
       if (name === 'settings') return settingsCollection;
+      if (name === 'specialtyPolicies') return { doc: vi.fn(() => specialtyPolicyRef) };
       if (name === 'specialtyAiRequests') return { doc: vi.fn(() => aiRequestRef) };
       return dailyRecordsCollection;
     }),
@@ -111,6 +113,8 @@ export const createAdminMock = ({
             }
           : reference === specialtyPolicyRef
             ? { exists: Boolean(specialtyPolicyData), data: () => specialtyPolicyData }
+          : reference === legacySpecialtyPolicyRef
+            ? { exists: false, data: () => undefined }
           : reference === aiRequestRef
             ? { exists: Boolean(aiRequestData), data: () => aiRequestData }
           : reference === historyDoc

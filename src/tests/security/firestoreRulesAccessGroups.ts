@@ -248,9 +248,9 @@ export function registerFirestoreRulesAccessGroups({
       );
     });
 
-    it('fences specialty decisions and older direct bed clients after a catalog is published', async () => {
+    it('fences direct bed clients only with server-owned specialty policy', async () => {
       await setupDocBypass('hospitals/H1/settings/specialtyAssignment', {
-        schemaVersion: 1, revision: 1, autoEnabled: false,
+        schemaVersion: 1, revision: 99, autoEnabled: true,
         memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
       });
       await setupDocBypass(recordPath, {
@@ -258,12 +258,24 @@ export function registerFirestoreRulesAccessGroups({
         beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode',
           specialty: 'Cirugía' } },
       });
-      await assertFails(nurse().doc(recordPath).update({
+      await assertSucceeds(nurse().doc(recordPath).update({
         beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode',
           specialty: 'Pediatría' } },
       }));
-      await assertFails(admin().doc('hospitals/H1/settings/specialtyAssignment')
+      await assertFails(admin().doc('hospitals/H1/specialtyPolicies/active')
+        .set({ schemaVersion: 1, revision: 1 }));
+      await setupDocBypass('hospitals/H1/specialtyPolicies/active', {
+        schemaVersion: 1, revision: 1, autoEnabled: false,
+        memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
+      });
+      await assertFails(nurse().doc(recordPath).update({
+        beds: { R1: { bedId: 'R1', clinicalEpisodeId: 'synthetic-episode',
+          specialty: 'Cirugía' } },
+      }));
+      await assertFails(admin().doc('hospitals/H1/specialtyPolicies/active')
         .update({ autoEnabled: true }));
+      await assertFails(admin().doc('hospitals/H1/settings/specialtyAssignment')
+        .update({ autoEnabled: false }));
       await assertFails(nurse().doc(`${recordPath}/specialtyDecisions/decision-1`)
         .set({ source: 'manual' }));
       await assertFails(nurse().doc('hospitals/H1/specialtyAiRequests/request-1')

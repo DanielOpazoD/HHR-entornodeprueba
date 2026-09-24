@@ -53,7 +53,7 @@ const harness = () => {
         beds: { R1: { clinicalEpisodeId: 'synthetic-episode', specialty: '', cie10Code: 'J18.9' } },
       },
     ],
-    ['settings/specialtyAssignment', policy],
+    ['specialtyPolicies/active', policy],
   ]);
   const firestore = {
     collection: () => ({
@@ -207,5 +207,43 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     expect(await callable.run(input, context)).toMatchObject({ status: 'complete' });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(docs.get('specialtyAiUsage/' + input.date.slice(0, 7))?.count).toBe(1);
+  });
+
+  it('does not publish a provider result after its acceptance window expires', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs } = harness();
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
+      const key = 'specialtyAiRequests/synthetic-request-001';
+      docs.set(key, { ...docs.get(key), expiresAt: new Date(Date.now() - 1000).toISOString() });
+      return { ok: true, body: null, text: async () => JSON.stringify(result) };
+    }));
+
+    expect(await callable.run(input, context)).toEqual({ status: 'failed' });
+    expect(docs.get('specialtyAiRequests/synthetic-request-001')).toMatchObject({
+      status: 'failed', errorCode: 'JEV_EXPIRED',
+    });
+    expect(docs.get('specialtyAiRequests/synthetic-request-001')?.result).toBeUndefined();
+  });
+
+  it('does not retry a pending request with less than one provider deadline remaining', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs } = harness();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, body: null, text: async () => JSON.stringify(result),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await callable.run(input, context);
+    const key = 'specialtyAiRequests/synthetic-request-001';
+    docs.set(key, { ...docs.get(key), status: 'pending', result: undefined, attempt: 1,
+      deadlineAt: new Date(Date.now() - 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 10_000).toISOString() });
+
+    expect(await callable.run(input, context)).toEqual({ status: 'unavailable' });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(docs.get(key)).toMatchObject({ status: 'failed', errorCode: 'JEV_EXPIRED' });
   });
 });

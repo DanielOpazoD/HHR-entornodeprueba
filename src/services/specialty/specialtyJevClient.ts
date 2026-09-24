@@ -2,7 +2,7 @@ import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc } from 'firebase/firestore';
 import { defaultFunctionsRuntime } from '@/services/firebase-runtime/functionsRuntime';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
-import { getSettingsDocPath } from '@/constants/firestorePaths';
+import { getSpecialtyPolicyDocPath } from '@/constants/firestorePaths';
 import { updatePartialDetailed } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { assertDailyRecordPartialUpdateAccepted } from '@/services/repositories/dailyRecordRepositoryWriteOutcome';
 import type { SpecialtyIntent } from '@/types/domain/specialtyDecision';
@@ -87,7 +87,7 @@ export const publishSpecialtyMemory = async (
   expectedDecisionId: string
 ): Promise<void> => {
   const snapshot = await getDoc(doc(defaultFirestoreServiceRuntime.getDb(),
-    getSettingsDocPath('specialtyAssignment')));
+    getSpecialtyPolicyDocPath()));
   const expectedRevision = snapshot.exists() ? snapshot.data().revision : 0;
   if (!Number.isInteger(expectedRevision)) throw new Error('Catálogo de especialidades no disponible.');
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);

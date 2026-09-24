@@ -34,7 +34,7 @@ describeEmulator('specialty decision with real Firestore transactions', () => {
       const remote = { ...makeRecord(), date, meta: { revision: 2 },
         beds: { R1: { ...makeRecord().beds.R1, specialty: '' } } };
       await db.doc(recordPath).set(remote);
-      await db.doc('hospitals/hanga_roa/settings/specialtyAssignment').set({
+      await db.doc('hospitals/hanga_roa/specialtyPolicies/active').set({
         schemaVersion: 1, revision: 1, autoEnabled: false,
         memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
       });
@@ -75,7 +75,7 @@ describeEmulator('specialty decision with real Firestore transactions', () => {
       const db = context.firestore();
       await db.doc(recordPath).set({ ...makeRecord(), date, meta: { revision: 2 },
         beds: { R1: { ...makeRecord().beds.R1, specialty: '' } } });
-      await db.doc('hospitals/hanga_roa/settings/specialtyAssignment').set({
+      await db.doc('hospitals/hanga_roa/specialtyPolicies/active').set({
         schemaVersion: 1, revision: 1, autoEnabled: false,
         memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
       });
@@ -106,7 +106,7 @@ describeEmulator('specialty decision with real Firestore transactions', () => {
     await environment.clearFirestore();
     await environment.withSecurityRulesDisabled(async context => {
       const db = context.firestore();
-      const policyPath = 'hospitals/hanga_roa/settings/specialtyAssignment';
+      const policyPath = 'hospitals/hanga_roa/specialtyPolicies/active';
       await db.doc(policyPath).set({ schemaVersion: 1, revision: 1,
         autoEnabled: false, memoryEnabled: false, aiMode: 'off', rules: [], memory: [] });
       const base = { ...makeRecord(), date, meta: { revision: 2 },
@@ -170,7 +170,7 @@ describeEmulator('specialty decision with real Firestore transactions', () => {
       await db.doc('hospitals/hanga_roa/settings/rayenImportPolicy').set({
         schemaVersion: 2, clinicalBatchMode: 'enforced',
       });
-      await db.doc('hospitals/hanga_roa/settings/specialtyAssignment').set({
+      await db.doc('hospitals/hanga_roa/specialtyPolicies/active').set({
         schemaVersion: 1, revision: 1, autoEnabled: false,
         memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
       });

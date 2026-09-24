@@ -43,7 +43,7 @@ const createSpecialtyPolicyFunctions = ({ firestore, resolveRoleForEmail }) => (
       fail('invalid-argument', 'Explicit current-episode memory confirmation is required.');
     }
     const hospital = firestore.collection('hospitals').doc(HOSPITAL_ID);
-    const policyRef = hospital.collection('settings').doc('specialtyAssignment');
+    const policyRef = hospital.collection('specialtyPolicies').doc('active');
     const authorityPolicyRef = hospital.collection('settings').doc('rayenImportPolicy');
     const recordRef = hospital.collection('dailyRecords').doc(data.date);
     return firestore.runTransaction(async transaction => {
@@ -96,7 +96,7 @@ const createSpecialtyPolicyFunctions = ({ firestore, resolveRoleForEmail }) => (
       fail('invalid-argument', 'Rules and memory must be complete replacement lists.');
     }
     const hospital = firestore.collection('hospitals').doc(HOSPITAL_ID);
-    const policyRef = hospital.collection('settings').doc('specialtyAssignment');
+    const policyRef = hospital.collection('specialtyPolicies').doc('active');
     const authorityPolicyRef = hospital.collection('settings').doc('rayenImportPolicy');
     return firestore.runTransaction(async transaction => {
       const [snapshot, authorityPolicySnapshot] = await Promise.all([

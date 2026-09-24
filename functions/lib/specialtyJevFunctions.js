@@ -28,7 +28,7 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
       }
       const hospital = firestore.collection('hospitals').doc(HOSPITAL_ID);
       const recordRef = hospital.collection('dailyRecords').doc(data.date);
-      const policyRef = hospital.collection('settings').doc('specialtyAssignment');
+      const policyRef = hospital.collection('specialtyPolicies').doc('active');
       const requestRef = hospital.collection('specialtyAiRequests').doc(data.requestId);
       const usageRef = hospital.collection('specialtyAiUsage').doc(data.date.slice(0, 7));
       const uid = context.auth.uid;
@@ -69,8 +69,12 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
           if (existing.status === 'pending' &&
               Number.isFinite(Date.parse(existing.deadlineAt)) &&
               Date.parse(existing.deadlineAt) <= Date.now()) {
-            if ((existing.attempt || 1) >= 2 || Date.parse(existing.expiresAt) <= Date.now()) {
-              transaction.update(requestRef, { status: 'failed', errorCode: 'JEV_TIMEOUT',
+            const expiresAt = Date.parse(existing.expiresAt);
+            if ((existing.attempt || 1) >= 2 || !Number.isFinite(expiresAt) ||
+                expiresAt <= Date.now() + 30_000) {
+              transaction.update(requestRef, { status: 'failed',
+                errorCode: !Number.isFinite(expiresAt) || expiresAt <= Date.now() + 30_000
+                  ? 'JEV_EXPIRED' : 'JEV_TIMEOUT',
                 completedAt: new Date().toISOString() });
               return { status: 'failed' };
             }
@@ -130,6 +134,7 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
             requestSnap.data().attempt !== reservation.attempt) {
           return { status: 'unavailable' };
         }
+        const expiresAt = Date.parse(requestSnap.data().expiresAt);
         const currentPolicy = policySnap.exists ? policySnap.data() : null;
         const currentPatient = recordSnap.exists
           ? getPatient(recordSnap.data(), data.bedId, data.target) : null;
@@ -144,12 +149,13 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
         // A transport timeout can occur after Jev received the request. Keep
         // the reserved ID pending so one bounded same-ID retry uses its quota
         // reservation, rather than charging a new request on the next click.
-        const status = !fresh ? 'obsolete' : result ? 'complete'
+        const expired = !Number.isFinite(expiresAt) || expiresAt <= Date.now();
+        const status = expired ? 'failed' : !fresh ? 'obsolete' : result ? 'complete'
           : errorCode === 'JEV_UNAVAILABLE' && reservation.attempt < 2
             ? 'pending' : 'failed';
         transaction.update(requestRef, {
           status, ...(status === 'complete' ? { result } : {}),
-          ...(errorCode ? { errorCode } : {}),
+          ...(expired ? { errorCode: 'JEV_EXPIRED' } : errorCode ? { errorCode } : {}),
           ...(status === 'pending' ? {} : { completedAt: new Date().toISOString() }),
         });
         return status === 'complete' ? { status, result } : { status };

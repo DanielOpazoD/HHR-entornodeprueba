@@ -50,9 +50,9 @@ describe('explicit specialty memory publication', () => {
       expectedRevision: 0 };
     await expect(callable.run({ ...input, expectedCie10Code: 'J18.9' }, context))
       .rejects.toThrow(/diagnosis changed/i);
-    expect(docs.has('settings/specialtyAssignment')).toBe(false);
+    expect(docs.has('specialtyPolicies/active')).toBe(false);
     expect(await callable.run(input, context)).toMatchObject({ status: 'published', revision: 1 });
-    expect((docs.get('settings/specialtyAssignment')?.memory as Array<object>))
+    expect((docs.get('specialtyPolicies/active')?.memory as Array<object>))
       .toEqual([expect.objectContaining({ cie10Code: 'K35.8', specialty: 'Cirugía' })]);
     expect(await callable.run({ ...input, expectedRevision: 1 }, context))
       .toMatchObject({ status: 'already_published', revision: 1 });
@@ -64,6 +64,8 @@ describe('explicit specialty memory publication', () => {
     process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
     const docs = new Map<string, Record<string, unknown>>([
       ['settings/rayenImportPolicy', { schemaVersion: 2 }],
+      ['settings/specialtyAssignment', { schemaVersion: 1, revision: 20,
+        autoEnabled: true, memoryEnabled: false, aiMode: 'off', rules: [], memory: [] }],
     ]);
     const firestore = { collection: () => ({ doc: () => ({
       collection: (name: string) => ({ doc: (id: string) => ({ key: `${name}/${id}` }) }),
@@ -84,12 +86,13 @@ describe('explicit specialty memory publication', () => {
       specialty: 'Med Interna', scope: 'all', revision: 1 };
     expect(await callable.run({ ...base, expectedRevision: 0, rules: [rule] }, context))
       .toMatchObject({ revision: 1, ruleCount: 1 });
+    expect(docs.get('settings/specialtyAssignment')?.revision).toBe(20);
     await expect(callable.run({ ...base, expectedRevision: 0, rules: [] }, context))
       .rejects.toThrow(/catalog changed/i);
     const corrected = { ...rule, specialty: 'Pediatría', revision: 2 };
     expect(await callable.run({ ...base, expectedRevision: 1, rules: [corrected] }, context))
       .toMatchObject({ revision: 2, ruleCount: 1 });
-    expect((docs.get('settings/specialtyAssignment')?.rules as Array<object>))
+    expect((docs.get('specialtyPolicies/active')?.rules as Array<object>))
       .toEqual([corrected]);
     expect(await callable.run({ ...base, expectedRevision: 2, rules: [] }, context))
       .toMatchObject({ revision: 3, ruleCount: 0 });

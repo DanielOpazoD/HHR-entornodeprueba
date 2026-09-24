@@ -496,7 +496,7 @@ service cloud.firestore {
              get(policyPath).data.schemaVersion == 2;
     }
     function isSpecialtyDecisionFenceActive(hospitalId) {
-      let policyPath = /databases/$(database)/documents/hospitals/$(hospitalId)/settings/specialtyAssignment;
+      let policyPath = /databases/$(database)/documents/hospitals/$(hospitalId)/specialtyPolicies/active;
       return exists(policyPath) && get(policyPath).data.schemaVersion == 1;
     }
     function preservesServerOwnedClinicalState(hospitalId) {
@@ -624,6 +624,10 @@ service cloud.firestore {
           : settingId == 'rayenImportPolicy'
           ? false
           : (settingId == 'aiProviderRouting' ? isAdmin() : canEdit());
+      }
+      match /specialtyPolicies/{policyId} {
+        allow read: if canReadClinicalData();
+        allow create, update, delete: if false;
       }
       match /reminders/{reminderId} {
         allow read: if canReadClinicalData();

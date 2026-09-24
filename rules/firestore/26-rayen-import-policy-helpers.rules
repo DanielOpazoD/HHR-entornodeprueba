@@ -35,7 +35,7 @@
     // A published specialty catalog makes episode decisions server-owned. This
     // also fences older clients which do not know about specialtyAssignment.
     function isSpecialtyDecisionFenceActive(hospitalId) {
-      let policyPath = /databases/$(database)/documents/hospitals/$(hospitalId)/settings/specialtyAssignment;
+      let policyPath = /databases/$(database)/documents/hospitals/$(hospitalId)/specialtyPolicies/active;
       return exists(policyPath) && get(policyPath).data.schemaVersion == 1;
     }
 
