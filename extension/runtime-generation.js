@@ -1,4 +1,4 @@
-/** Stable identity for the active browser session (MV3 service-worker/update safe). */
+/** Stable identity for this extension installation (MV3 worker/update safe). */
 (function (root) {
   'use strict';
 
@@ -32,8 +32,16 @@
       Number.isFinite(value.createdAt)
     );
 
+    // The generation is a non-secret routing marker, not a credential. Keep it in
+    // local storage so an extension update does not have to infer it from every
+    // open Rayen tab while some tabs may be temporarily unreadable.
+    const remember = async record => {
+      try { await chromeApi.storage.local?.set({ [STORAGE_KEY]: record }); }
+      catch (_error) { /* The session copy still keeps the current worker usable. */ }
+    };
     const persist = async record => {
       await chromeApi.storage.session.set({ [STORAGE_KEY]: record });
+      await remember(record);
       return record;
     };
 
@@ -50,7 +58,15 @@
       pending = chromeApi.storage.session.get(STORAGE_KEY)
         .then(async stored => {
           const record = stored && stored[STORAGE_KEY];
-          if (isRecord(record)) return record;
+          if (isRecord(record)) {
+            await remember(record); // Migrate a running pre-update installation.
+            return record;
+          }
+          let remembered;
+          try {
+            remembered = (await chromeApi.storage.local?.get(STORAGE_KEY))?.[STORAGE_KEY];
+          } catch (_error) { /* Fall back to the surviving MAIN readers. */ }
+          if (isRecord(remembered)) return persist(remembered);
           const recovered = await root.HhrRuntimeGenerationRecovery?.recover({ chromeApi, now });
           return persist(recovered || makeRecord());
         })
@@ -61,8 +77,8 @@
       return pending;
     };
 
-    // Updating/reloading clears storage.session but leaves MAIN readers alive. get() recovers
-    // their consensus generation; a browser restart has no surviving reader and gets a fresh one.
+    // The MAIN-reader consensus is a migration path for installations predating
+    // the local copy. An uninstall clears both Chrome storage areas.
     const start = () => Boolean(chromeApi.storage?.session);
 
     const getContext = version => get().then(generation => ({

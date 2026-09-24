@@ -22,6 +22,7 @@ const owner = (globalThis as unknown as { HhrRuntimeGeneration: Owner }).HhrRunt
 
 const createFixture = () => {
   const values: Record<string, unknown> = {};
+  const localValues: Record<string, unknown> = {};
   const installed: Array<() => void> = [];
   const openReaderGenerations: string[] = [];
   const unreadableReaderTabIds = new Set<number>();
@@ -47,6 +48,10 @@ const createFixture = () => {
         get: vi.fn(async (key: string) => ({ [key]: values[key] })),
         set: vi.fn(async (entries: Record<string, unknown>) => Object.assign(values, entries)),
       },
+      local: {
+        get: vi.fn(async (key: string) => ({ [key]: localValues[key] })),
+        set: vi.fn(async (entries: Record<string, unknown>) => Object.assign(localValues, entries)),
+      },
     },
     runtime: {
       onInstalled: { addListener: vi.fn((listener: () => void) => installed.push(listener)) },
@@ -57,6 +62,7 @@ const createFixture = () => {
   };
   return {
     values,
+    localValues,
     installed,
     openReaderGenerations,
     unreadableReaderTabIds,
@@ -94,28 +100,31 @@ describe('runtime generation (extension)', () => {
     const [left, right] = await Promise.all([first.get(), first.get()]);
     expect(left).toEqual(right);
     expect(fixture.chromeApi.storage.session.set).toHaveBeenCalledTimes(1);
+    expect(fixture.localValues[owner.STORAGE_KEY]).toEqual(left);
 
     const restarted = owner.create({ ...fixture, now: () => 200 });
     await expect(restarted.get()).resolves.toEqual(left);
     expect(fixture.chromeApi.storage.session.set).toHaveBeenCalledTimes(1);
   });
 
-  it('recovers the surviving MAIN generation when Chrome clears session storage on update', async () => {
+  it('migrates a pre-local-storage update from surviving MAIN readers', async () => {
     const fixture = createFixture();
     const runtime = owner.create({ ...fixture, now: () => 100 });
     const previous = await runtime.get();
     expect(runtime.start()).toBe(true);
 
     delete fixture.values[owner.STORAGE_KEY];
+    delete fixture.localValues[owner.STORAGE_KEY];
     fixture.openReaderGenerations.push(previous.id);
     const updated = owner.create({ ...fixture, now: () => 200 });
     const current = await updated.get();
     expect(current.id).toBe(previous.id);
     expect(current.createdAt).toBe(200);
+    expect(fixture.localValues[owner.STORAGE_KEY]).toEqual(current);
     expect(fixture.chromeApi.runtime.onInstalled.addListener).not.toHaveBeenCalled();
   });
 
-  it('creates a fresh generation after browser restart when no MAIN reader survives', async () => {
+  it('keeps the installation generation after a browser restart', async () => {
     const fixture = createFixture();
     const first = owner.create({ ...fixture, now: () => 100 });
     const previous = await first.get();
@@ -124,8 +133,53 @@ describe('runtime generation (extension)', () => {
     const restarted = owner.create({ ...fixture, now: () => 200 });
     const current = await restarted.get();
 
-    expect(current.id).not.toBe(previous.id);
+    expect(current).toEqual(previous);
+  });
+
+  it('creates a fresh generation for a new installation without storage or surviving readers', async () => {
+    const fixture = createFixture();
+    const runtime = owner.create({ ...fixture, now: () => 200 });
+    const current = await runtime.get();
+
     expect(current.createdAt).toBe(200);
+    expect(fixture.localValues[owner.STORAGE_KEY]).toEqual(current);
+  });
+
+  it('uses the stored installation generation when another open tab is unreadable', async () => {
+    const fixture = createFixture();
+    const previous = await owner.create({ ...fixture, now: () => 100 }).get();
+    delete fixture.values[owner.STORAGE_KEY];
+    fixture.openReaderGenerations.push(previous.id, previous.id);
+    fixture.unreadableReaderTabIds.add(2);
+
+    const current = await owner.create({ ...fixture, now: () => 300 }).get();
+
+    expect(current).toEqual(previous);
+    expect(fixture.chromeApi.scripting.executeScript).not.toHaveBeenCalled();
+  });
+
+  it('keeps the active connection when mirroring the non-secret marker locally fails', async () => {
+    const fixture = createFixture();
+    fixture.chromeApi.storage.local.set.mockRejectedValue(
+      new Error('storage temporarily unavailable')
+    );
+
+    const current = await owner.create({ ...fixture, now: () => 100 }).get();
+
+    expect(fixture.values[owner.STORAGE_KEY]).toEqual(current);
+    expect(fixture.localValues[owner.STORAGE_KEY]).toBeUndefined();
+  });
+
+  it('keeps the trusted stored generation when old open tabs disagree', async () => {
+    const fixture = createFixture();
+    const previous = await owner.create({ ...fixture, now: () => 100 }).get();
+    delete fixture.values[owner.STORAGE_KEY];
+    fixture.openReaderGenerations.push(previous.id, 'ffffffff-1111-4222-8333-444444444444');
+
+    const current = await owner.create({ ...fixture, now: () => 300 }).get();
+
+    expect(current).toEqual(previous);
+    expect(fixture.chromeApi.scripting.executeScript).not.toHaveBeenCalled();
   });
 
   it('fails closed whenever open readers disagree, even if one has a majority', async () => {

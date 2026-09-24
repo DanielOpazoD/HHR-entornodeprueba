@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 import { chromium } from 'playwright';
 
-// #473 is the last released 0.48.32 tree. Pin the commit so the fixture cannot
+// #482 is the last released 0.48.33 tree. Pin the commit so the fixture cannot
 // silently change when a branch or tag moves.
-const PREVIOUS_REF = 'a6704bcbe412db12975948e76199778875a9529e';
+const PREVIOUS_REF = 'eb77f41ae151251f7158fc28721cefe15145926c';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_EXTENSION = path.join(ROOT, 'extension');
 const currentManifest = JSON.parse(
@@ -122,7 +122,7 @@ try {
   const previousManifest = JSON.parse(
     await readFile(path.join(extensionPath, 'manifest.json'), 'utf8')
   );
-  assert.equal(previousManifest.version, '0.48.32', 'The pinned previous tree changed');
+  assert.equal(previousManifest.version, '0.48.33', 'The pinned previous tree changed');
   assert.notEqual(previousManifest.version, currentManifest.version);
 
   context = await chromium.launchPersistentContext('', {
