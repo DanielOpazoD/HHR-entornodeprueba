@@ -13,7 +13,6 @@ type Owner = {
   create: (dependencies: Record<string, unknown>) => {
     get: () => Promise<{ id: string; createdAt: number }>;
     bindMainWorld: (sender: Record<string, unknown>, generation: string) => Promise<boolean>;
-    rotate: () => Promise<{ id: string; createdAt: number }>;
     start: () => boolean;
   };
 };
@@ -209,17 +208,6 @@ describe('runtime generation (extension)', () => {
     const current = await runtime.get();
 
     expect(current.id).not.toBe(fixture.openReaderGenerations[0]);
-  });
-
-  it('rotates only when a clean repair explicitly requests a new lifecycle', async () => {
-    const fixture = createFixture();
-    const runtime = owner.create({ ...fixture, now: () => 100 });
-    const previous = await runtime.get();
-
-    const current = await runtime.rotate();
-
-    expect(current.id).not.toBe(previous.id);
-    expect(current.createdAt).toBe(100);
   });
 
   it('binds Rayen MAIN world through Chrome injection instead of trusting page messages', async () => {

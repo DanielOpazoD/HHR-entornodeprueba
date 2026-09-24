@@ -19,12 +19,10 @@
 
   const create = ({ chromeApi, cryptoApi = root.crypto, now = () => Date.now() }) => {
     let pending = null;
-
     const makeRecord = () => ({
       id: cryptoApi.randomUUID(),
       createdAt: now(),
     });
-
     const isRecord = value => Boolean(
       value &&
       typeof value.id === 'string' &&
@@ -32,9 +30,7 @@
       Number.isFinite(value.createdAt)
     );
 
-    // The generation is a non-secret routing marker, not a credential. Keep it in
-    // local storage so an extension update does not have to infer it from every
-    // open Rayen tab while some tabs may be temporarily unreadable.
+    // Store only the non-secret marker locally, independent of open Rayen tabs.
     const remember = async record => {
       try { await chromeApi.storage.local?.set({ [STORAGE_KEY]: record }); }
       catch (_error) { /* The session copy still keeps the current worker usable. */ }
@@ -44,15 +40,6 @@
       await remember(record);
       return record;
     };
-
-    const rotate = () => {
-      pending = persist(makeRecord()).catch(error => {
-        pending = null;
-        throw error;
-      });
-      return pending;
-    };
-
     const get = () => {
       if (pending) return pending;
       pending = chromeApi.storage.session.get(STORAGE_KEY)
@@ -77,8 +64,7 @@
       return pending;
     };
 
-    // The MAIN-reader consensus is a migration path for installations predating
-    // the local copy. An uninstall clears both Chrome storage areas.
+    // MAIN-reader consensus migrates older installations without a local copy.
     const start = () => Boolean(chromeApi.storage?.session);
 
     const getContext = version => get().then(generation => ({
@@ -113,7 +99,7 @@
       return context;
     };
 
-    return Object.freeze({ bindMainWorld, get, getContext, getContextForSender, rotate, start });
+    return Object.freeze({ bindMainWorld, get, getContext, getContextForSender, start });
   };
 
   root.HhrRuntimeGeneration = Object.freeze({
