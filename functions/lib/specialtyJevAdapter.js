@@ -2,7 +2,7 @@
 // /primitives/choice on 2026-09-23. No model output can write a patient.
 const MODEL = 'jev-1.13.0';
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
-const PROMPT_VERSION = 'hhr-specialty-choice-v1';
+const PROMPT_VERSION = 'hhr-specialty-choice-v2';
 const CHOICE_TO_SPECIALTY = Object.freeze({
   internal_medicine: 'Med Interna', surgery: 'Cirugía',
   traumatology: 'Traumatología', obstetrics_gynecology: 'Ginecobstetricia',
@@ -31,7 +31,7 @@ const buildJevRequest = ({ code, canonicalLabel, rubrics }) => {
     questions: {
       specialty: {
         type: 'choice',
-        instructions: 'Suggest one operational specialty from this closed list using only the approved diagnosis label. Choose review_required if evidence is insufficient or ambiguous. Do not infer missing patient facts.',
+        instructions: 'Suggest one operational specialty from this closed list using only the CIE-10 code and its catalog label when supplied. If the label only repeats the code, do not invent a diagnosis: choose review_required unless the code alone is unambiguous. Do not infer missing patient facts.',
         criteria: Object.fromEntries(OPTIONS.map(key => [key, rubrics[key]])),
       },
     },

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const { createSpecialtyJevFunctions } = require('../../../functions/lib/specialtyJevFunctions.js');
+const { getCie10Label } = require('../../../functions/lib/specialtyCie10Catalog.js');
 const { OPTIONS } = require('../../../functions/lib/specialtyJevAdapter.js');
 const firestoreIndexes = require('../../../firestore.indexes.json');
 const currentRapaNuiDate = () => {
@@ -24,7 +25,6 @@ const policy = {
   rules: [],
   memory: [],
   aiMonthlyLimit: 3,
-  diagnosisLabels: { 'J18.9': 'Neumonía sintética' },
   aiRubrics: Object.fromEntries(
     OPTIONS.map((key: string) => [key, `Criterio sintético aprobado para ${key}.`])
   ),
@@ -85,7 +85,7 @@ const harness = () => {
     episodeId: 'synthetic-episode',
     requestId: 'synthetic-request-001',
     expectedCode: 'J18.9',
-    expectedCanonicalLabel: 'Neumonía sintética',
+    expectedCanonicalLabel: getCie10Label('J18.9'),
   };
   return { docs, callable, context, input, date };
 };
@@ -119,6 +119,39 @@ describe('consultative Jev callable with synthetic provider responses', () => {
       .rejects.toThrow(/catalog changed/i);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(docs.has('specialtyAiRequests/synthetic-request-001')).toBe(false);
+  });
+
+  it('never sends a recorded patient description for a code absent from the catalog', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs, date } = harness();
+    const record = docs.get(`dailyRecords/${date}`)!;
+    (record.beds as Record<string, Record<string, unknown>>).R1.cie10Code = 'F23';
+    (record.beds as Record<string, Record<string, unknown>>).R1.cie10Description =
+      'Dato clínico privado NO DEBE SALIR';
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, body: null,
+      text: async () => JSON.stringify(result) });
+    vi.stubGlobal('fetch', fetchMock);
+    await callable.run({ ...input, expectedCode: 'F23',
+      expectedCanonicalLabel: 'CIE-10 F23' }, context);
+    const requestBody = fetchMock.mock.calls[0][1].body as string;
+    expect(requestBody).toContain('CIE-10 F23');
+    expect(requestBody).not.toContain('NO DEBE SALIR');
+  });
+
+  it('does not consult Jev when an active exact-code rule requires manual review', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs } = harness();
+    docs.set('specialtyPolicies/active', { ...policy, autoEnabled: true,
+      rules: [{ id: 'review_j18_9', kind: 'review', cie10Code: 'J18.9',
+        scope: 'all', revision: 1 }] });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(callable.run(input, context)).rejects.toThrow(/rule requires/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('returns a suggestion without writing the patient and invalidates a late episode', async () => {

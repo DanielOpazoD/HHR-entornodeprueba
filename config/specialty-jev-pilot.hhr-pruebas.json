@@ -7,13 +7,6 @@
   "rules": [],
   "memory": [],
   "aiMonthlyLimit": 25,
-  "diagnosisLabels": {
-    "A09.0": "Otras gastroenteritis y colitis no especificadas de origen infeccioso",
-    "K57.2": "Enfermedad diverticular del intestino grueso con perforacion y absceso",
-    "M54.5": "Lumbago no especificado",
-    "M86.2": "Osteomielitis subaguda",
-    "Z65.3": "Problemas relacionados con otras circunstancias legales"
-  },
   "aiRubrics": {
     "internal_medicine": "Elegir sólo cuando el diagnóstico identifica una enfermedad médica no quirúrgica cuya especialidad operativa sea Medicina Interna. No inferir edad, gravedad, manejo ni contexto ausentes.",
     "surgery": "Elegir sólo cuando el diagnóstico señala una condición quirúrgica general o digestiva de forma suficientemente específica. Si no determina la necesidad de Cirugía, pedir revisión.",
