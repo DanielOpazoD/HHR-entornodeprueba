@@ -63,6 +63,7 @@ tsc_*.log
 
 # Misc
 .env*
+functions/.secret.local
 # Archivo local opcional no trackeado. El mirror debe configurarse por secretos
 # de entorno/runtime (BETA_SERVICE_ACCOUNT_JSON/B64 o functions config).
 functions/llave-beta.json

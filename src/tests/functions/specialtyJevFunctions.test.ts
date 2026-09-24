@@ -96,6 +96,11 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     vi.unstubAllGlobals();
   });
 
+  it('binds the API key only to the Jev callable through Secret Manager', () => {
+    const { callable } = harness();
+    expect(callable.__endpoint.secretEnvironmentVariables).toEqual([{ key: 'TYPESAFE_API_KEY' }]);
+  });
+
   it('stays disabled without explicit clinical approval', async () => {
     const { callable, input, context } = harness();
     await expect(callable.run(input, context)).rejects.toThrow(/disabled/i);
