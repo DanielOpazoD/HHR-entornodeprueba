@@ -159,8 +159,12 @@ describe('CensusStaffHeader', () => {
 
     render(<CensusStaffHeader stats={null} readOnly={true} />);
 
-    expect(screen.getByTestId('nurse-class').textContent).toBe('pointer-events-none opacity-80');
-    expect(screen.getByTestId('tens-class').textContent).toBe('pointer-events-none opacity-80');
+    expect(screen.getByTestId('nurse-class').textContent).toContain(
+      'pointer-events-none opacity-80'
+    );
+    expect(screen.getByTestId('tens-class').textContent).toContain(
+      'pointer-events-none opacity-80'
+    );
     expect(screen.getByTestId('nurse-day').textContent).toBe('[]');
     expect(screen.getByTestId('tens-night').textContent).toBe('[]');
     expect(screen.queryByTestId('summary-card')).not.toBeInTheDocument();

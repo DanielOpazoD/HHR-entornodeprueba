@@ -324,6 +324,24 @@ const protectSpecialtyDecisions = ({
         });
       }
     }
+    if (!prior && priorRecord && (text(patient.patientName) || text(patient.rut))) {
+      const legacyMatches = [];
+      eachTarget(priorRecord, ({ patient: previous }) => {
+        // Old censuses may have a human-selected scalar without episode metadata.
+        // Carry it only for one unambiguous occupant with the same admission.
+        if (
+          previous.specialtyAssignment == null &&
+          (!episodeId || !text(previous.clinicalEpisodeId)) &&
+          sameLegacyOccupant(previous, patient)
+        ) {
+          legacyMatches.push(previous);
+        }
+      });
+      if (legacyMatches.length === 1) {
+        prior = legacyMatches[0];
+        priorFromPreviousDay = true;
+      }
+    }
     if (patient.specialtyAssignment != null) {
       if (
         !prior ||

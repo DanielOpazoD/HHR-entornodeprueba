@@ -1,25 +1,33 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
+import { useNotification } from '@/context/UIContext';
 import { RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS } from '../bridge/extensionHealthBridge';
 import { useRayenExtensionHealth } from '../hooks/useRayenExtensionHealth';
 
 interface RayenDayBootstrapButtonProps {
   historical?: boolean;
-  onCreateBlank: () => Promise<void>;
+  onCreateBlank: () => Promise<boolean>;
   onReady: () => void;
+  copySourceDate?: string;
+  onCopyPrevious?: () => Promise<boolean>;
 }
 
 export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = ({
   historical = false,
   onCreateBlank,
   onReady,
+  copySourceDate,
+  onCopyPrevious,
 }) => {
   const extension = useRayenExtensionHealth();
+  const { warning } = useNotification();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [manualAvailable, setManualAvailable] = React.useState(false);
   const [confirmManual, setConfirmManual] = React.useState(false);
-  const [step, setStep] = React.useState<'checking' | 'creating' | 'manual' | null>(null);
+  const [step, setStep] = React.useState<'checking' | 'creating' | 'copying' | 'manual' | null>(
+    null
+  );
 
   const handleClick = async (): Promise<void> => {
     if (busy) return;
@@ -27,6 +35,41 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
     setError(null);
     setManualAvailable(false);
     setConfirmManual(false);
+    if (copySourceDate && onCopyPrevious) {
+      setStep('checking');
+      let canSync = false;
+      try {
+        const health = await extension.refresh({
+          timeoutMs: RAYEN_EXTENSION_SYNC_HEALTH_TIMEOUT_MS,
+          showChecking: true,
+        });
+        canSync = health.canSync;
+      } catch {
+        // The census may still be copied; an unavailable extension only delays import.
+      }
+      setStep('copying');
+      try {
+        const copied = await onCopyPrevious();
+        if (!copied) {
+          setError('No se pudo copiar el censo anterior. Inténtalo de nuevo.');
+          return;
+        }
+        if (canSync) {
+          onReady();
+        } else {
+          warning(
+            'Censo copiado',
+            'Eloísa no está disponible. Usa Sincronizar cuando vuelva la conexión.'
+          );
+        }
+      } catch {
+        setError('No se pudo copiar el censo anterior. Inténtalo de nuevo.');
+      } finally {
+        setBusy(false);
+        setStep(null);
+      }
+      return;
+    }
     setStep('checking');
     try {
       let health;
@@ -46,7 +89,11 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
         return;
       }
       setStep('creating');
-      await onCreateBlank();
+      const created = await onCreateBlank();
+      if (!created) {
+        setError('No se pudo crear el día. No se importó información desde Eloísa.');
+        return;
+      }
       onReady();
     } catch {
       setError('No se pudo crear el día. No se importó información desde Eloísa.');
@@ -62,7 +109,11 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
     setError(null);
     setStep('manual');
     try {
-      await onCreateBlank();
+      const created = await onCreateBlank();
+      if (!created) {
+        setError('No se pudo iniciar el censo. Inténtalo de nuevo.');
+        return;
+      }
       setConfirmManual(false);
     } catch {
       setError('No se pudo iniciar el censo. Inténtalo de nuevo.');
@@ -74,46 +125,47 @@ export const RayenDayBootstrapButton: React.FC<RayenDayBootstrapButtonProps> = (
 
   const checking = extension.connection === 'checking';
   const status =
-    step === 'creating'
-      ? 'Preparando sincronización'
-      : step === 'manual'
-        ? 'Iniciando censo manual'
-        : step === 'checking' || checking
-          ? 'Comprobando conexión'
-          : !error && extension.canSync
-            ? 'Lista para sincronizar'
-            : 'Extensión requiere atención';
+    step === 'copying'
+      ? 'Copiando pacientes'
+      : step === 'creating'
+        ? 'Preparando sincronización'
+        : step === 'manual'
+          ? 'Iniciando censo manual'
+          : step === 'checking' || checking
+            ? 'Comprobando conexión'
+            : !error && extension.canSync
+              ? 'Lista para sincronizar'
+              : 'Extensión requiere atención';
   const statusTone =
     step || checking
       ? 'bg-blue-500'
       : !error && extension.canSync
         ? 'bg-emerald-500'
         : 'bg-amber-500';
+  const actionLabel = copySourceDate
+    ? `Copiar pacientes del ${Number(copySourceDate.slice(-2))}`
+    : historical
+      ? 'Reconstruir desde Eloísa'
+      : 'Crear desde Eloísa';
   return (
     <div className="flex w-64 flex-col gap-2">
       <button
         type="button"
         onClick={() => void handleClick()}
-        disabled={busy || checking}
+        disabled={busy || (checking && !copySourceDate)}
         className="btn btn-primary group !h-auto !p-6 shadow-lg shadow-medical-500/30 flex-col"
         data-testid="create-from-rayen-btn"
       >
         <div className="flex items-center gap-2 text-lg font-bold">
           <RefreshCw size={20} className={busy ? 'animate-spin' : undefined} />
-          <span>
-            {busy
-              ? 'Preparando…'
-              : checking
-                ? 'Comprobando…'
-                : historical
-                  ? 'Reconstruir desde Eloísa'
-                  : 'Crear desde Eloísa'}
-          </span>
+          <span>{busy ? (copySourceDate ? 'Copiando…' : 'Preparando…') : actionLabel}</span>
         </div>
         <span className="text-xs font-normal text-medical-100">
-          {historical
-            ? 'Revisar evidencia del día antes de importar'
-            : 'Revisar pacientes y camas antes de importar'}
+          {copySourceDate
+            ? 'Conserva especialidades y abre la sincronización para revisar'
+            : historical
+              ? 'Revisar evidencia del día antes de importar'
+              : 'Revisar pacientes y camas antes de importar'}
         </span>
       </button>
       <div

@@ -68,7 +68,7 @@ export interface DailyRecordDayActions {
     copyFromPrevious: boolean,
     specificDate?: string,
     options?: { forceCopyScheduleOverride?: boolean }
-  ) => void;
+  ) => Promise<boolean>;
   resetDay: () => Promise<void>;
   refresh: () => void;
 }

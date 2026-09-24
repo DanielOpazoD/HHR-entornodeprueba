@@ -13,18 +13,27 @@ vi.mock('@/features/rayen-import/public', async importOriginal => ({
     historical,
     onCreateBlank,
     onReady,
+    copySourceDate,
+    onCopyPrevious,
   }: {
     historical?: boolean;
-    onCreateBlank: () => Promise<void>;
+    onCreateBlank: () => Promise<boolean>;
     onReady: () => void;
+    copySourceDate?: string;
+    onCopyPrevious?: () => Promise<boolean>;
   }) => (
     <button
       type="button"
       onClick={() => {
-        void onCreateBlank().then(onReady);
+        if (copySourceDate) void onCopyPrevious?.().then(copied => copied && onReady());
+        else void onCreateBlank().then(onReady);
       }}
     >
-      {historical ? 'Reconstruir desde Eloísa' : 'Crear desde Eloísa'}
+      {copySourceDate
+        ? `Copiar pacientes del ${Number(copySourceDate.slice(-2))}`
+        : historical
+          ? 'Reconstruir desde Eloísa'
+          : 'Crear desde Eloísa'}
     </button>
   ),
 }));
@@ -33,9 +42,10 @@ const renderPrompt = (
   date: string,
   options: {
     source?: 'remote_missing' | 'sync_pending' | 'local_cache_empty' | 'date_mismatch';
-    onCreateDay?: (copyFromPrevious: boolean) => Promise<void>;
+    onCreateDay?: (...args: unknown[]) => Promise<boolean>;
     onReady?: () => void;
     readOnly?: boolean;
+    previousRecordDate?: string;
   } = {}
 ) =>
   render(
@@ -44,8 +54,8 @@ const renderPrompt = (
       selectedMonth={Number(date.slice(5, 7)) - 1}
       currentDateString={date}
       previousRecordAvailable={true}
-      previousRecordDate="2026-09-22"
-      onCreateDay={options.onCreateDay ?? vi.fn().mockResolvedValue(undefined)}
+      previousRecordDate={options.previousRecordDate ?? '2026-09-22'}
+      onCreateDay={options.onCreateDay ?? vi.fn().mockResolvedValue(true)}
       onRayenBootstrapReady={options.onReady ?? vi.fn()}
       readOnly={options.readOnly}
       emptyStateDiagnostic={
@@ -68,7 +78,7 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
   it('shows one creation action and starts the reviewed import without copying yesterday', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
-    const onCreateDay = vi.fn().mockResolvedValue(undefined);
+    const onCreateDay = vi.fn().mockResolvedValue(true);
     const onReady = vi.fn();
     renderPrompt('2026-09-24', { source: 'remote_missing', onCreateDay, onReady });
     expect(screen.getAllByRole('button')).toHaveLength(1);
@@ -81,10 +91,34 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     expect(onReady).toHaveBeenCalledOnce();
   });
 
+  it('copies the adjacent census before starting the Eloísa import', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
+    const onCreateDay = vi.fn().mockResolvedValue(true);
+    const onReady = vi.fn();
+    renderPrompt('2026-09-24', {
+      source: 'remote_missing',
+      previousRecordDate: '2026-09-23',
+      onCreateDay,
+      onReady,
+    });
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copiar pacientes del 23' }));
+    });
+    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-23', {
+      forceCopyScheduleOverride: true,
+    });
+    expect(onReady).toHaveBeenCalledOnce();
+  });
+
   it('keeps a supported historical day in the same single Eloísa flow', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));
-    renderPrompt('2026-09-20', { source: 'date_mismatch' });
+    renderPrompt('2026-09-20', {
+      source: 'date_mismatch',
+      previousRecordDate: '2026-09-19',
+    });
     expect(screen.getAllByRole('button')).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Reconstruir desde Eloísa' })).toBeInTheDocument();
   });
@@ -120,6 +154,12 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.getByText(/hasta siete días atrás/i)).toBeInTheDocument();
     old.unmount();
+    const future = renderPrompt('2026-09-25', {
+      source: 'date_mismatch',
+      previousRecordDate: '2026-09-24',
+    });
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    future.unmount();
     renderPrompt('2026-09-24', { source: 'remote_missing', readOnly: true });
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });

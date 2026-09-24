@@ -38,6 +38,10 @@ vi.mock('@/context', () => ({
   }),
 }));
 
+vi.mock('@/context/UIContext', () => ({
+  useNotification: () => ({ warning: vi.fn() }),
+}));
+
 vi.mock('@/context/DailyRecordContext', () => ({
   useDailyRecordData: () => mocks.dailyRecordData(),
   useDailyRecordStatus: () => mocks.dailyRecordStatus(),
@@ -156,7 +160,7 @@ const importState = (overrides: Record<string, unknown> = {}) => ({
 });
 
 /** Mutable census world: a blank census day that only exists after `createDay` resolves. */
-const createCensusWorld = (date = CLINICAL_TODAY) => {
+const createCensusWorld = (date = CLINICAL_TODAY, previousRecordDate?: string) => {
   const world = { hasRecord: false, createDayCalls: [] as unknown[][] };
   const registerContentProps = {
     currentDateString: date,
@@ -183,7 +187,8 @@ const createCensusWorld = (date = CLINICAL_TODAY) => {
             selectedDay: Number(date.slice(-2)),
             selectedMonth: 8,
             currentDateString: date,
-            previousRecordAvailable: false,
+            previousRecordAvailable: Boolean(previousRecordDate),
+            previousRecordDate,
             emptyStateDiagnostic: {
               source: date === CLINICAL_TODAY ? 'remote_missing' : 'date_mismatch',
               message: 'No hay censo para esta fecha.',
@@ -191,6 +196,7 @@ const createCensusWorld = (date = CLINICAL_TODAY) => {
             onCreateDay: async (...args: unknown[]) => {
               world.createDayCalls.push(args);
               world.hasRecord = true;
+              return true;
             },
           },
           registerContentProps: null,
@@ -267,6 +273,29 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
       reviewRequirement: 'day_bootstrap',
     });
     // Health was checked twice on purpose: once before creating the day, once as import preflight.
+    expect(mocks.refreshHealth).toHaveBeenCalledTimes(2);
+  });
+
+  it('copies yesterday, then starts one reviewed Eloísa import', async () => {
+    const world = createCensusWorld(CLINICAL_TODAY, '2026-09-09');
+    const view = renderCensus();
+
+    const copyButton = await screen.findByTestId('create-from-rayen-btn');
+    expect(copyButton).toHaveTextContent('Copiar pacientes del 9');
+    await act(async () => {
+      fireEvent.click(copyButton);
+    });
+
+    // The mock record store is mutable; render again to represent the real context update.
+    view.rerender(censusElement());
+    await waitFor(() => expect(screen.getByTestId('census-table')).toBeInTheDocument());
+    expect(world.createDayCalls).toEqual([
+      [true, '2026-09-09', { forceCopyScheduleOverride: true }],
+    ]);
+    await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1), { timeout: 10000 });
+    expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+      reviewRequirement: 'day_bootstrap',
+    });
     expect(mocks.refreshHealth).toHaveBeenCalledTimes(2);
   });
 

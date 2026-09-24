@@ -39,7 +39,7 @@ export const createPublicMedicalSignatureContextValue = ({
   bootstrapPhase: 'record_ready',
   inventory: buildEmptyInventory(),
   stabilityRules: buildEmptyStabilityRules(),
-  createDay: noop,
+  createDay: asyncFalse,
   resetDay: asyncNoop,
   refresh: noop,
   validateRecordSchema: () => ({

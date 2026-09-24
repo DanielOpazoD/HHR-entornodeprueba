@@ -227,6 +227,37 @@ describe('specialty decision authority', () => {
     expect((next.beds.R1 as Record<string, unknown>).specialtyAssignment).toBeUndefined();
   });
 
+  it('carries a legacy specialty across days only for one exact occupant and admission', () => {
+    const previousPatient = {
+      ...patient('', 'Cirugía'),
+      patientName: 'Paciente Sintético',
+      rut: '11.111.111-1',
+      admissionDate: '2026-09-20',
+      admissionTime: '08:00',
+    };
+    const previous = record(previousPatient);
+    const copied = record({ ...previousPatient, specialty: '' });
+    apply({}, copied, { priorRecord: previous });
+    expect((copied.beds.R1 as Record<string, unknown>).specialty).toBe('Cirugía');
+    expect((copied.beds.R1 as Record<string, unknown>).specialtyAssignment).toBeUndefined();
+
+    const replacement = record({
+      ...previousPatient,
+      rut: '22.222.222-2',
+      specialty: 'Cirugía',
+    });
+    apply({}, replacement, { priorRecord: previous });
+    expect((replacement.beds.R1 as Record<string, unknown>).specialty).toBe('');
+
+    const ambiguous = {
+      date: '2026-09-23',
+      beds: { R1: previousPatient, R2: { ...previousPatient, bedId: 'R2' } },
+    };
+    const uniqueTarget = record({ ...previousPatient, specialty: '' });
+    apply({}, uniqueTarget, { priorRecord: ambiguous });
+    expect((uniqueTarget.beds.R1 as Record<string, unknown>).specialty).toBe('');
+  });
+
   it('rejects an occupied legacy snapshot that drops a protected episode, but permits an empty bed', () => {
     const remote = record({ ...patient('episode-one', 'Cirugía', meta), patientName: 'Sintético' });
     expect(() =>

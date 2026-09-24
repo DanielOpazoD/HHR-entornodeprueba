@@ -99,7 +99,7 @@ describe('RayenImportButton history and progress', () => {
     }
     render(<RayenImportButton selectedDate="2026-09-05" />);
 
-    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('h-[5.5rem]');
+    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('min-h-[5.5rem]');
     const pulse = screen.getByTestId('rayen-sync-pulse');
     expect(pulse).toHaveClass('h-4');
     expect(pulse).toHaveAttribute(

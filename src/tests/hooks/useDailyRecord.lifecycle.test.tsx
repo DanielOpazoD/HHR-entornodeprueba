@@ -288,10 +288,12 @@ describe('useDailyRecord lifecycle', () => {
     const futureDate = '2025-01-02';
     const { result } = renderHook(() => useDailyRecord(futureDate), { wrapper: createWrapper() });
 
+    let created = true;
     await act(async () => {
-      await result.current.createDay(true, mockDate);
+      created = await result.current.createDay(true, mockDate);
     });
 
+    expect(created).toBe(false);
     expect(mockDailyRecordPorts.initializeDayDetailed).not.toHaveBeenCalledWith(
       futureDate,
       mockDate
@@ -309,10 +311,12 @@ describe('useDailyRecord lifecycle', () => {
     recordsMap[sourceDate] = DataFactory.createMockDailyRecord(sourceDate);
     const { result } = renderHook(() => useDailyRecord(targetDate), { wrapper: createWrapper() });
 
+    let created = false;
     await act(async () => {
-      await result.current.createDay(true, sourceDate);
+      created = await result.current.createDay(true, sourceDate);
     });
 
+    expect(created).toBe(true);
     expect(defaultDailyRecordRepositoryPort.initializeDay).toHaveBeenCalledWith(
       targetDate,
       sourceDate

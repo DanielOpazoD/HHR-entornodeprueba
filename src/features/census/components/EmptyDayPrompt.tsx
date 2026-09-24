@@ -7,6 +7,7 @@ import {
 } from '@/hooks/controllers/dailyRecordBootstrapController';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { RayenDayBootstrapButton, resolveCensusSyncTarget } from '@/features/rayen-import/public';
+import { getPreviousDay } from '@/utils/clinicalDayUtils';
 
 interface EmptyDayPromptProps {
   selectedDay: number;
@@ -19,7 +20,7 @@ interface EmptyDayPromptProps {
     copyFromPrevious: boolean,
     specificDate?: string,
     options?: { forceCopyScheduleOverride?: boolean }
-  ) => void | Promise<void>;
+  ) => Promise<boolean>;
   onRayenBootstrapReady?: () => void;
   readOnly?: boolean;
   allowAdminCopyOverride?: boolean;
@@ -44,6 +45,8 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   selectedDay,
   selectedMonth,
   currentDateString,
+  previousRecordAvailable,
+  previousRecordDate,
   onCreateDay,
   onRayenBootstrapReady,
   readOnly = false,
@@ -86,11 +89,18 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
   }, [currentDateString, diagnosticMessage, diagnosticSource]);
 
   const rayenTarget = resolveCensusSyncTarget(currentDateString, now);
+  const copySourceDate =
+    rayenTarget.kind === 'current' &&
+    currentDateString === rayenTarget.calendarDay &&
+    previousRecordAvailable &&
+    previousRecordDate === getPreviousDay(currentDateString)
+      ? previousRecordDate
+      : undefined;
   // date_mismatch is emitted only for a different selected date after confirmed_empty.
   const dayConfirmedEmpty =
     diagnosticSource === 'remote_missing' || diagnosticSource === 'date_mismatch';
   const canCreate =
-    Boolean(onRayenBootstrapReady) && dayConfirmedEmpty && rayenTarget.kind !== 'unsupported';
+    dayConfirmedEmpty && Boolean(onRayenBootstrapReady) && rayenTarget.kind !== 'unsupported';
 
   return (
     <div className="card mt-8 flex flex-col items-center justify-center px-5 py-14 text-center print:hidden animate-fade-in">
@@ -113,7 +123,11 @@ export const EmptyDayPrompt: React.FC<EmptyDayPromptProps> = ({
       ) : canCreate ? (
         <RayenDayBootstrapButton
           historical={rayenTarget.kind === 'historical'}
-          onCreateBlank={() => Promise.resolve(onCreateDay(false))}
+          copySourceDate={copySourceDate}
+          onCopyPrevious={() =>
+            onCreateDay(true, copySourceDate, { forceCopyScheduleOverride: true })
+          }
+          onCreateBlank={() => onCreateDay(false)}
           onReady={() => onRayenBootstrapReady?.()}
         />
       ) : rayenTarget.kind === 'unsupported' && dayConfirmedEmpty ? (
