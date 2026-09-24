@@ -52,8 +52,7 @@ export const SpecialtyRulesWindow = ({ onClose }: { onClose: () => void }) => {
       entryCode.startsWith(normalizedCode) || label.toLowerCase().includes(code.toLowerCase())
     ).slice(0, 8);
   }, [code, normalizedCode, setup]);
-  const isValidCode = /^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(normalizedCode) &&
-    Boolean(codeLabel);
+  const isValidCode = /^[A-Z][0-9]{2}(?:\.[0-9A-Z]{1,4})?$/.test(normalizedCode);
   const addRule = () => {
     if (!isValidCode || !specialty || rules.some(rule => rule.cie10Code === normalizedCode) ||
       rules.length >= 128) return;
@@ -135,7 +134,9 @@ export const SpecialtyRulesWindow = ({ onClose }: { onClose: () => void }) => {
               onChange={event => setCode(event.target.value)} placeholder="Ej.: J18.9"
               className="w-full rounded border border-slate-300 px-2 py-1.5" />
             {code && <span className="mt-1 block text-xs text-slate-600">
-              {codeLabel || 'Código sin descripción CIE-10 registrada'}
+              {codeLabel || (isValidCode
+                ? 'Código válido sin descripción en el catálogo; la regla usará este código exacto.'
+                : 'Introduce un código CIE-10 válido.')}
             </span>}
             {suggestions.length > 0 && <div className="mt-1 max-h-28 overflow-auto rounded border border-slate-200 bg-white">
               {suggestions.map(([suggestedCode, label]) => <button key={suggestedCode}

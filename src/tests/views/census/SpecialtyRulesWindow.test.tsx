@@ -57,4 +57,20 @@ describe('admin specialty rules panel', () => {
       expect.objectContaining({ revision: 0, aiMode: 'off' }), [], false, true
     ));
   });
+
+  it('allows an exact-code rule when a valid CIE-10 code has no catalog description', async () => {
+    render(<SpecialtyRulesWindow onClose={vi.fn()} />);
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Código CIE-10' }),
+      { target: { value: 'Z99.9' } });
+    expect(screen.getByText(/Código válido sin descripción en el catálogo/)).toBeVisible();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Especialidad de la nueva regla' }),
+      { target: { value: 'Med Interna' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar reglas' }));
+    await waitFor(() => expect(service.save).toHaveBeenCalledWith(
+      expect.objectContaining({ revision: 4 }),
+      [expect.objectContaining({ cie10Code: 'Z99.9', specialty: 'Med Interna' })],
+      false, false
+    ));
+  });
 });
