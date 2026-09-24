@@ -23,7 +23,9 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
           !['bed', 'clinicalCrib'].includes(data?.target) ||
           !isCurrentRapaNuiDay(data?.date) ||
           typeof data?.episodeId !== 'string' || !data.episodeId.trim() ||
-          data.episodeId.length > 160) {
+          data.episodeId.length > 160 ||
+          typeof data?.expectedCode !== 'string' ||
+          typeof data?.expectedCanonicalLabel !== 'string') {
         fail('invalid-argument', 'Invalid Jev request scope.');
       }
       const hospital = firestore.collection('hospitals').doc(HOSPITAL_ID);
@@ -60,6 +62,10 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
           fail('failed-precondition', 'Jev rubric is not configured.');
         }
         if (!evidence) fail('failed-precondition', 'Jev evidence is incomplete.');
+        if (evidence.code !== data.expectedCode ||
+            evidence.request.state.diagnosis.label !== data.expectedCanonicalLabel) {
+          fail('aborted', 'Diagnosis catalog changed; prepare the consultation again.');
+        }
         if (requestSnap.exists) {
           const existing = requestSnap.data();
           if (existing.requesterUid !== uid || existing.digest !== evidence.digest ||

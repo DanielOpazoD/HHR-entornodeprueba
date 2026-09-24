@@ -1,13 +1,15 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const request = vi.hoisted(() => vi.fn());
+const prepare = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/useFeatureFlag', () => ({
   useFeatureFlag: (name: string) => name !== 'SPECIALTY_RULES_MEMORY',
 }));
 vi.mock('@/services/specialty/specialtyJevClient', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/specialty/specialtyJevClient')>()),
   requestSpecialtySuggestion: request,
+  prepareSpecialtyJevConsultation: prepare,
   acceptSpecialtySuggestion: vi.fn(),
   publishSpecialtyMemory: vi.fn(),
 }));
@@ -21,9 +23,61 @@ import {
 } from '@/services/specialty/specialtyJevClient';
 
 describe('SpecialtyChip Jev request identity', () => {
+  const startConsult = async () => {
+    fireEvent.click(screen.getByRole('button', { name: /Preparar (nueva )?consulta Jev/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar y consultar' }));
+  };
+
+  beforeEach(() => {
+    prepare.mockResolvedValue({ code: 'J18.9', canonicalLabel: 'Neumonía de prueba' });
+  });
   afterEach(() => {
     request.mockReset();
+    prepare.mockReset();
+    vi.mocked(acceptSpecialtySuggestion).mockReset();
     vi.unstubAllGlobals();
+  });
+
+  it('shows the exact outbound evidence and requires two distinct confirmations', async () => {
+    request.mockResolvedValueOnce({
+      model: 'jev-1.13.0', promptVersion: '1', choice: 'internal_medicine',
+      specialty: 'Med Interna', confidence: 0.8,
+    });
+    vi.mocked(acceptSpecialtySuggestion).mockResolvedValueOnce(undefined);
+    render(<SpecialtyChip specialty="" onAssign={vi.fn()} cie10Code="J18.9"
+      scope={{ date: '2026-09-23', bedId: 'R1', target: 'bed', episodeId: 'synthetic-episode' }} />);
+    fireEvent.click(screen.getByTitle('Asignar especialidad'));
+    fireEvent.click(screen.getByRole('button', { name: 'Preparar consulta Jev' }));
+    expect(request).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Neumonía de prueba/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(request).not.toHaveBeenCalled();
+    await startConsult();
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
+    fireEvent.click(await screen.findByRole('button', { name: 'Revisar aceptación' }));
+    expect(acceptSpecialtySuggestion).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(acceptSpecialtySuggestion).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar aceptación' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar asignación' }));
+    await waitFor(() => expect(acceptSpecialtySuggestion).toHaveBeenCalledOnce());
+  });
+
+  it('requires a fresh acceptance review after a second consultation', async () => {
+    request.mockResolvedValue({
+      model: 'jev-1.13.0', promptVersion: '1', choice: 'internal_medicine',
+      specialty: 'Med Interna', confidence: 0.8,
+    });
+    render(<SpecialtyChip specialty="" onAssign={vi.fn()} cie10Code="J18.9"
+      scope={{ date: '2026-09-23', bedId: 'R1', target: 'bed', episodeId: 'synthetic-episode' }} />);
+    fireEvent.click(screen.getByTitle('Asignar especialidad'));
+    await startConsult();
+    fireEvent.click(await screen.findByRole('button', { name: 'Revisar aceptación' }));
+    expect(screen.getByRole('button', { name: 'Confirmar asignación' })).toBeVisible();
+    await startConsult();
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('button', { name: 'Confirmar asignación' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Revisar aceptación' })).toBeVisible();
   });
 
   it('reuses a request after an ambiguous network failure', async () => {
@@ -45,15 +99,15 @@ describe('SpecialtyChip Jev request identity', () => {
       />
     );
     fireEvent.click(screen.getByTitle('Asignar especialidad'));
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
+    await startConsult();
     await screen.findByRole('alert');
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
+    await startConsult();
     await screen.findByText('Med Interna');
     expect(request).toHaveBeenCalledTimes(2);
     expect(request.mock.calls[0][1]).toBe(request.mock.calls[1][1]);
     expect(randomUUID).toHaveBeenCalledTimes(1);
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Nueva consulta Jev' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Preparar nueva consulta Jev' })).toBeEnabled()
     );
   });
 
@@ -88,9 +142,9 @@ describe('SpecialtyChip Jev request identity', () => {
       />
     );
     fireEvent.click(screen.getByTitle('Asignar especialidad'));
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
+    await startConsult();
     await screen.findByRole('alert');
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
+    await startConsult();
     await screen.findByText('Med Interna');
     expect(request.mock.calls.map(call => call[1])).toEqual([
       'synthetic-request-001',
@@ -121,7 +175,7 @@ describe('SpecialtyChip Jev request identity', () => {
       <SpecialtyChip specialty="" onAssign={vi.fn()} cie10Code="J18.9" scope={scope} />
     );
     fireEvent.click(screen.getByTitle('Asignar especialidad'));
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
+    await startConsult();
     await screen.findByRole('alert');
     view.rerender(
       <SpecialtyChip specialty="" onAssign={vi.fn()} cie10Code="J18.1" scope={scope} />
@@ -129,7 +183,7 @@ describe('SpecialtyChip Jev request identity', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
     expect(screen.queryByRole('dialog', { name: 'Asignar especialidad' })).toBeNull();
     fireEvent.click(screen.getByTitle('Asignar especialidad'));
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
+    await startConsult();
     await screen.findByText('Med Interna');
     expect(request.mock.calls.map(call => call[1])).toEqual([
       'synthetic-request-001',
@@ -163,7 +217,7 @@ describe('SpecialtyChip Jev request identity', () => {
       <SpecialtyChip specialty="" onAssign={vi.fn()} cie10Code="J18.9" scope={oldScope} />
     );
     fireEvent.click(screen.getByTitle('Asignar especialidad'));
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
+    await startConsult();
     await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
     view.rerender(
       <SpecialtyChip
@@ -184,10 +238,10 @@ describe('SpecialtyChip Jev request identity', () => {
       });
     });
     expect(screen.queryByText('Sugerencia:')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Aceptar para este episodio' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Revisar aceptación' })).toBeNull();
     fireEvent.click(screen.getByTitle('Asignar especialidad'));
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
-    await screen.findByRole('button', { name: 'Aceptar para este episodio' });
+    await startConsult();
+    await screen.findByRole('button', { name: 'Revisar aceptación' });
     expect(request.mock.calls[1][0].episodeId).toBe('new-episode');
     expect(request.mock.calls[1][1]).not.toBe(request.mock.calls[0][1]);
   });
@@ -281,10 +335,12 @@ describe('SpecialtyChip Jev request identity', () => {
     );
     const trigger = screen.getByTitle('Asignar especialidad');
     fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole('button', { name: 'Consultar sugerencia Jev' }));
-    const accept = await screen.findByRole('button', { name: 'Aceptar para este episodio' });
+    await startConsult();
+    const accept = await screen.findByRole('button', { name: 'Revisar aceptación' });
     accept.focus();
     fireEvent.click(accept);
+    expect(acceptSpecialtySuggestion).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar asignación' }));
     await waitFor(() => expect(acceptSpecialtySuggestion).toHaveBeenCalledOnce());
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Asignar especialidad' })).toBeNull()

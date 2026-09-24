@@ -84,6 +84,8 @@ const harness = () => {
     target: 'bed',
     episodeId: 'synthetic-episode',
     requestId: 'synthetic-request-001',
+    expectedCode: 'J18.9',
+    expectedCanonicalLabel: 'Neumonía sintética',
   };
   return { docs, callable, context, input, date };
 };
@@ -104,6 +106,19 @@ describe('consultative Jev callable with synthetic provider responses', () => {
   it('stays disabled without explicit clinical approval', async () => {
     const { callable, input, context } = harness();
     await expect(callable.run(input, context)).rejects.toThrow(/disabled/i);
+  });
+
+  it('rejects a changed canonical diagnosis before calling Jev', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs } = harness();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(callable.run({ ...input, expectedCanonicalLabel: 'Otra etiqueta' }, context))
+      .rejects.toThrow(/catalog changed/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(docs.has('specialtyAiRequests/synthetic-request-001')).toBe(false);
   });
 
   it('returns a suggestion without writing the patient and invalidates a late episode', async () => {

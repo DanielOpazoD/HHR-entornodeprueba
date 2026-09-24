@@ -14,8 +14,8 @@ import clsx from 'clsx';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import type { SpecialtyDecisionMeta } from '@/types/domain/specialtyDecision';
-import type { JevSuggestion, SpecialtyTarget } from '@/services/specialty/specialtyJevClient';
-import { SpecialtyJevControls, SpecialtyMemoryControls } from './SpecialtyActionControls';
+import type { JevConsultationPreparation, JevSuggestion, SpecialtyTarget } from '@/services/specialty/specialtyJevClient';
+import { SpecialtyBadge, SpecialtyJevControls, SpecialtyMemoryControls } from './SpecialtyActionControls';
 import {
   SPECIALTY_OPTIONS,
   SPECIALTY_CHIP_STYLES,
@@ -51,6 +51,8 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   const [suggestion, setSuggestion] = useState<{ requestId: string; result: JevSuggestion } | null>(
     null
   );
+  const [preparation, setPreparation] = useState<JevConsultationPreparation | null>(null);
+  const [confirmAccept, setConfirmAccept] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState<'error' | 'success'>('error');
@@ -68,6 +70,8 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     if (popoverRef.current?.contains(document.activeElement)) anchorRef.current?.focus();
     setOpen(false);
     setSuggestion(null);
+    setPreparation(null);
+    setConfirmAccept(false);
     setMessage('');
     setConfirmMemory(false);
     setBusy(false);
@@ -133,14 +137,37 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   const select = (value: string): void => {
     jevRequestIdRef.current = null;
     setSuggestion(null);
+    setPreparation(null);
+    setConfirmAccept(false);
     onAssign(value);
     closePopover();
   };
 
-  const consult = async (): Promise<void> => {
-    if (!scope || busy) return;
+  const prepareConsultation = async (): Promise<void> => {
+    if (!cie10Code || busy) return;
     const generation = operationGenerationRef.current;
     setBusy(true);
+    setMessage('');
+    setConfirmAccept(false);
+    try {
+      const { prepareSpecialtyJevConsultation } = await import('@/services/specialty/specialtyJevClient');
+      const next = await prepareSpecialtyJevConsultation(cie10Code);
+      if (operationGenerationRef.current === generation) setPreparation(next);
+    } catch {
+      if (operationGenerationRef.current === generation) {
+        setMessage('Jev no está disponible para este diagnóstico. Revisa el catálogo o asigna manualmente.');
+      }
+    } finally {
+      if (operationGenerationRef.current === generation) setBusy(false);
+    }
+  };
+
+  const consult = async (): Promise<void> => {
+    if (!scope || !preparation || busy) return;
+    const generation = operationGenerationRef.current;
+    const confirmedPreparation = preparation;
+    setBusy(true);
+    setPreparation(null);
     setMessage('');
     setMessageTone('error');
     let jevService: typeof import('@/services/specialty/specialtyJevClient') | null = null;
@@ -150,8 +177,11 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
         : (jevRequestIdRef.current ?? crypto.randomUUID());
       jevRequestIdRef.current = requestId;
       jevService = await import('@/services/specialty/specialtyJevClient');
-      const result = await jevService.requestSpecialtySuggestion(scope, requestId);
-      if (operationGenerationRef.current === generation) setSuggestion({ requestId, result });
+      const result = await jevService.requestSpecialtySuggestion(scope, requestId, confirmedPreparation);
+      if (operationGenerationRef.current === generation) {
+        setConfirmAccept(false);
+        setSuggestion({ requestId, result });
+      }
     } catch (error) {
       if (operationGenerationRef.current !== generation) return;
       if (!jevService || !jevService.shouldRetainJevRequestId(error)) {
@@ -164,7 +194,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   };
 
   const accept = async (): Promise<void> => {
-    if (!scope || !suggestion?.result.specialty || busy) return;
+    if (!scope || !suggestion?.result.specialty || !confirmAccept || busy) return;
     const generation = operationGenerationRef.current;
     setBusy(true);
     setMessage('');
@@ -180,6 +210,8 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
       if (operationGenerationRef.current !== generation) return;
       jevRequestIdRef.current = null;
       setSuggestion(null);
+      setConfirmAccept(false);
+      anchorRef.current?.focus();
       closePopover();
     } catch {
       if (operationGenerationRef.current === generation) {
@@ -223,36 +255,8 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     }
   };
 
-  const chip = assigned ? (
-    <span
-      className={clsx(
-        'truncate rounded px-1 py-px text-[9px] font-medium ring-1',
-        styleFor(trimmed),
-        !readOnly && 'cursor-pointer'
-      )}
-    >
-      {trimmed}
-    </span>
-  ) : (
-    <span
-      className={clsx(
-        'inline-flex items-center gap-0.5 rounded border border-dashed border-amber-300 bg-amber-50/60 px-1 py-px text-[9px] font-medium text-amber-600',
-        !readOnly && 'cursor-pointer hover:bg-amber-100'
-      )}
-    >
-      {episodeMode && decision?.source === 'manual' ? 'Sin asignar · manual' : 'Pendiente asignar'}
-    </span>
-  );
-
   if (readOnly) {
-    return (
-      <span
-        className="flex min-w-0 items-center gap-1"
-        title={assigned ? `Especialidad: ${trimmed}` : 'Sin especialidad'}
-      >
-        {chip}
-      </span>
-    );
+    return <SpecialtyBadge specialty={trimmed} decision={episodeMode ? decision : undefined} readOnly />;
   }
 
   return (
@@ -269,7 +273,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        {chip}
+        <SpecialtyBadge specialty={trimmed} decision={episodeMode ? decision : undefined} />
       </button>
       {open &&
         createPortal(
@@ -348,7 +352,13 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
                   <SpecialtyJevControls
                     busy={busy}
                     suggestion={suggestion}
+                    preparation={preparation}
+                    confirmAccept={confirmAccept}
+                    onPrepare={() => void prepareConsultation()}
+                    onCancelPrepare={() => setPreparation(null)}
                     onConsult={() => void consult()}
+                    onReviewAccept={() => setConfirmAccept(true)}
+                    onCancelAccept={() => setConfirmAccept(false)}
                     onAccept={() => void accept()}
                   />
                 )}

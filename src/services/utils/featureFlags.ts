@@ -142,6 +142,13 @@ class FeatureFlagsService {
   }
 
   private applyEnvironmentOverrides(): void {
+    // This public build flag is set only for the hhr-pruebas pilot builds.
+    // The Jev client independently verifies the Firebase project before consulting.
+    if (import.meta.env.MODE !== 'test' &&
+        import.meta.env.VITE_HHR_SPECIALTY_JEV_PILOT === 'enabled') {
+      this.overrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
+      this.overrides.SPECIALTY_JEV_CONSULTATION = true;
+    }
     // Enable debug features in development
     const isDev =
       typeof window !== 'undefined' &&
