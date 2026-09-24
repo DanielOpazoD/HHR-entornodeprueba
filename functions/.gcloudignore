@@ -3,6 +3,7 @@
 
 # Ignore the node_modules directory - dependencies are installed fresh
 node_modules/
+.secret.local
 
 # Ignore TypeScript source files
 *.ts
