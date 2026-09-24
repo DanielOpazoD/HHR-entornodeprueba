@@ -184,8 +184,8 @@ const bootstrapRecordAndUser = async (
 const waitForCensoReady = async (page: Parameters<typeof ensureRecordExists>[0]) => {
   const candidates = [
     page.getByTestId('census-table').first(),
-    page.getByTestId('blank-record-btn').first(),
-    page.getByText(/No existe registro para esta fecha/i, { exact: false }).first(),
+    page.getByTestId('create-from-rayen-btn').first(),
+    page.getByTestId('empty-day-diagnostic-message').first(),
   ];
 
   await expect

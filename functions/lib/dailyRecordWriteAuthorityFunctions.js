@@ -14,8 +14,10 @@ const {
   getPatient,
 } = require('./specialtyDecisionContract');
 const { applyPendingSpecialtyRules, isCurrentRapaNuiDay } = require('./specialtyRules');
-const { assertTrustedSpecialtyAssignments, assertUnusedSpecialtyDecisionIds } =
-  require('./specialtyAuditAuthority');
+const {
+  assertTrustedSpecialtyAssignments,
+  assertUnusedSpecialtyDecisionIds,
+} = require('./specialtyAuditAuthority');
 const { buildJevEvidence } = require('./specialtyJevEvidence');
 const {
   RAYEN_CLINICAL_FIELDS,
@@ -352,7 +354,10 @@ const readValueAtPath = (record, path) =>
 const specialtyFieldSnapshot = record => {
   const fields = new Map();
   Object.entries(record.beds || {}).forEach(([bedId, bed]) => {
-    for (const [target, patient] of [['bed', bed], ['clinicalCrib', bed?.clinicalCrib]]) {
+    for (const [target, patient] of [
+      ['bed', bed],
+      ['clinicalCrib', bed?.clinicalCrib],
+    ]) {
       if (!isPlainObject(patient)) continue;
       const prefix = target === 'bed' ? `beds.${bedId}` : `beds.${bedId}.clinicalCrib`;
       for (const field of ['specialty', 'specialtyAssignment']) {
@@ -1380,8 +1385,20 @@ const createDailyRecordWriteAuthorityFunctions = ({
           txnAttempts += 1;
           pendingHistoryData = null;
           const snapshot = await transaction.get(docRef);
-          const priorSnapshot = !snapshot.exists && priorRef
-            ? await transaction.get(priorRef) : null;
+          // Day bootstrap first writes an empty census, then imports Eloísa. The first
+          // occupied write still needs yesterday's confirmed episode decisions.
+          const hasActiveEpisodeIdentity = patient =>
+            patient &&
+            ['clinicalEpisodeId', 'rut', 'patientName', 'admissionDate'].some(field =>
+              String(patient[field] ?? '').trim()
+            );
+          const isEmptyDay =
+            !snapshot.exists ||
+            !Object.values(snapshot.data()?.beds || {}).some(
+              patient =>
+                hasActiveEpisodeIdentity(patient) || hasActiveEpisodeIdentity(patient?.clinicalCrib)
+            );
+          const priorSnapshot = isEmptyDay && priorRef ? await transaction.get(priorRef) : null;
           if (hasAlreadyAppliedMutation({ snapshot, syncContract })) {
             const remoteData = snapshot.data() || {};
             responseAuthority = idempotentAuthority;
@@ -1403,10 +1420,14 @@ const createDailyRecordWriteAuthorityFunctions = ({
 
           const policySnapshot = await transaction.get(policyRef);
           const specialtyPolicySnapshot = specialtyEpisodeEnabled()
-            ? await transaction.get(specialtyPolicyRef) : null;
+            ? await transaction.get(specialtyPolicyRef)
+            : null;
           const remoteData = snapshot.exists ? snapshot.data() || {} : {};
-          await assertTrustedSpecialtyAssignments({ transaction, hospitalRef,
-            records: [remoteData, priorSnapshot?.exists ? priorSnapshot.data() : null] });
+          await assertTrustedSpecialtyAssignments({
+            transaction,
+            hospitalRef,
+            records: [remoteData, priorSnapshot?.exists ? priorSnapshot.data() : null],
+          });
           const recordForPersistence = shouldPreserveRayenClinicalFields({
             policySnapshot,
             snapshot,
@@ -1424,15 +1445,17 @@ const createDailyRecordWriteAuthorityFunctions = ({
             now: new Date().toISOString(),
             guardScalarChanges: specialtyEpisodeEnabled(),
           });
-          const automaticSpecialtyDecisions = specialtyEpisodeEnabled() && isCurrentRapaNuiDay(date)
-            ? applyPendingSpecialtyRules({
-                remoteRecord: remoteData,
-                candidate: recordForPersistence,
-                policy: specialtyPolicySnapshot?.exists ? specialtyPolicySnapshot.data() : null,
-                actorUid: context.auth?.uid,
-                mutationId: syncContract?.mutationId,
-                now: new Date().toISOString(),
-              }) : [];
+          const automaticSpecialtyDecisions =
+            specialtyEpisodeEnabled() && isCurrentRapaNuiDay(date)
+              ? applyPendingSpecialtyRules({
+                  remoteRecord: remoteData,
+                  candidate: recordForPersistence,
+                  policy: specialtyPolicySnapshot?.exists ? specialtyPolicySnapshot.data() : null,
+                  actorUid: context.auth?.uid,
+                  mutationId: syncContract?.mutationId,
+                  now: new Date().toISOString(),
+                })
+              : [];
           responseAuthority = assertClinicalAuthority(recordForPersistence);
           responseCoverage = collectClinicalEpisodeCoverage(recordForPersistence);
           if (responseAuthority.status !== 'ok') {
@@ -1446,8 +1469,11 @@ const createDailyRecordWriteAuthorityFunctions = ({
             return;
           }
 
-          await assertUnusedSpecialtyDecisionIds({ transaction, docRef,
-            decisions: automaticSpecialtyDecisions });
+          await assertUnusedSpecialtyDecisionIds({
+            transaction,
+            docRef,
+            decisions: automaticSpecialtyDecisions,
+          });
 
           const now = Timestamp.now();
           if (snapshot.exists) {
@@ -1474,7 +1500,10 @@ const createDailyRecordWriteAuthorityFunctions = ({
             lastUpdated: now,
           });
           automaticSpecialtyDecisions.forEach(decision => {
-            transaction.set(docRef.collection('specialtyDecisions').doc(decision.decisionId), decision);
+            transaction.set(
+              docRef.collection('specialtyDecisions').doc(decision.decisionId),
+              decision
+            );
           });
         });
         txnMs = Date.now() - txnStartedAt;
@@ -1589,8 +1618,10 @@ const createDailyRecordWriteAuthorityFunctions = ({
       const docRef = hospitalRef.collection('dailyRecords').doc(date);
       const policyRef = hospitalRef.collection('settings').doc('rayenImportPolicy');
       const specialtyPolicyRef = hospitalRef.collection('specialtyPolicies').doc('active');
-      const aiRequestRef = specialtyIntent?.kind === 'accept_ai'
-        ? hospitalRef.collection('specialtyAiRequests').doc(specialtyIntent.requestId) : null;
+      const aiRequestRef =
+        specialtyIntent?.kind === 'accept_ai'
+          ? hospitalRef.collection('specialtyAiRequests').doc(specialtyIntent.requestId)
+          : null;
       const sourceRef =
         rayenClinicalWriteGuard?.recordScope === 'historical'
           ? hospitalRef.collection('dailyRecords').doc(rayenClinicalWriteGuard.sourceDate)
@@ -1609,17 +1640,23 @@ const createDailyRecordWriteAuthorityFunctions = ({
         await db.runTransaction(async transaction => {
           txnAttempts += 1;
           pendingHistoryData = null;
-          const [snapshot, policySnapshot, sourceSnapshot, guardedHistorySnapshot, specialtyPolicySnapshot, aiRequestSnapshot] =
-            await Promise.all([
-              transaction.get(docRef),
-              transaction.get(policyRef),
-              rayenClinicalWriteGuard?.recordScope === 'historical'
-                ? transaction.get(sourceRef)
-                : Promise.resolve(null),
-              guardedHistoryRef ? transaction.get(guardedHistoryRef) : Promise.resolve(null),
-              specialtyEpisodeEnabled() ? transaction.get(specialtyPolicyRef) : Promise.resolve(null),
-              aiRequestRef ? transaction.get(aiRequestRef) : Promise.resolve(null),
-            ]);
+          const [
+            snapshot,
+            policySnapshot,
+            sourceSnapshot,
+            guardedHistorySnapshot,
+            specialtyPolicySnapshot,
+            aiRequestSnapshot,
+          ] = await Promise.all([
+            transaction.get(docRef),
+            transaction.get(policyRef),
+            rayenClinicalWriteGuard?.recordScope === 'historical'
+              ? transaction.get(sourceRef)
+              : Promise.resolve(null),
+            guardedHistoryRef ? transaction.get(guardedHistoryRef) : Promise.resolve(null),
+            specialtyEpisodeEnabled() ? transaction.get(specialtyPolicyRef) : Promise.resolve(null),
+            aiRequestRef ? transaction.get(aiRequestRef) : Promise.resolve(null),
+          ]);
           if (!snapshot.exists) {
             throw new functions.https.HttpsError(
               'failed-precondition',
@@ -1646,11 +1683,16 @@ const createDailyRecordWriteAuthorityFunctions = ({
             assertExpectedVersion({ snapshot, expectedLastUpdated });
           }
           assertExpectedRevision({ snapshot, syncContract });
-          await assertTrustedSpecialtyAssignments({ transaction, hospitalRef,
-            records: [remoteData] });
+          await assertTrustedSpecialtyAssignments({
+            transaction,
+            hospitalRef,
+            records: [remoteData],
+          });
           if (specialtyIntent && specialtyEpisodeEnabled() && !specialtyPolicySnapshot?.exists) {
-            throw new functions.https.HttpsError('failed-precondition',
-              'Specialty policy must be published before clinical decisions.');
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              'Specialty policy must be published before clinical decisions.'
+            );
           }
           let aiDecision = null;
           if (specialtyIntent?.kind === 'accept_ai') {
@@ -1659,27 +1701,46 @@ const createDailyRecordWriteAuthorityFunctions = ({
             const patient = getPatient(remoteData, specialtyIntent.bedId, specialtyIntent.target);
             let digest = null;
             try {
-              digest = buildJevEvidence({ date, bedId: specialtyIntent.bedId,
-                target: specialtyIntent.target, patient, policy })?.digest;
-            } catch { /* Invalid catalog or evidence fails closed. */ }
-            if (!specialtyEpisodeEnabled() ||
-                process.env.HHR_JEV_CLINICAL_APPROVED !== 'enabled' ||
-                !isCurrentRapaNuiDay(date) ||
-                policy?.aiMode !== 'consultative' || !request ||
-                request.status !== 'complete' || request.requesterUid !== context.auth?.uid ||
-                request.date !== date || request.bedId !== specialtyIntent.bedId ||
-                request.target !== specialtyIntent.target ||
-                request.episodeId !== specialtyIntent.episodeId ||
-                request.policyRevision !== policy.revision ||
-                request.digest !== digest || !digest ||
-                !Number.isFinite(Date.parse(request.expiresAt)) ||
-                Date.parse(request.expiresAt) <= Date.now() ||
-                request.result?.specialty !== specialtyIntent.value ||
-                request.result?.choice === 'review_required') {
-              throw new functions.https.HttpsError('aborted', 'Jev suggestion is stale or unavailable.');
+              digest = buildJevEvidence({
+                date,
+                bedId: specialtyIntent.bedId,
+                target: specialtyIntent.target,
+                patient,
+                policy,
+              })?.digest;
+            } catch {
+              /* Invalid catalog or evidence fails closed. */
             }
-            aiDecision = { requestId: specialtyIntent.requestId,
-              model: request.result.model, promptVersion: request.result.promptVersion };
+            if (
+              !specialtyEpisodeEnabled() ||
+              process.env.HHR_JEV_CLINICAL_APPROVED !== 'enabled' ||
+              !isCurrentRapaNuiDay(date) ||
+              policy?.aiMode !== 'consultative' ||
+              !request ||
+              request.status !== 'complete' ||
+              request.requesterUid !== context.auth?.uid ||
+              request.date !== date ||
+              request.bedId !== specialtyIntent.bedId ||
+              request.target !== specialtyIntent.target ||
+              request.episodeId !== specialtyIntent.episodeId ||
+              request.policyRevision !== policy.revision ||
+              request.digest !== digest ||
+              !digest ||
+              !Number.isFinite(Date.parse(request.expiresAt)) ||
+              Date.parse(request.expiresAt) <= Date.now() ||
+              request.result?.specialty !== specialtyIntent.value ||
+              request.result?.choice === 'review_required'
+            ) {
+              throw new functions.https.HttpsError(
+                'aborted',
+                'Jev suggestion is stale or unavailable.'
+              );
+            }
+            aiDecision = {
+              requestId: specialtyIntent.requestId,
+              model: request.result.model,
+              promptVersion: request.result.promptVersion,
+            };
           }
           if (rayenClinicalWriteGuard) {
             assertGuardedClinicalPatch({
@@ -1747,33 +1808,45 @@ const createDailyRecordWriteAuthorityFunctions = ({
               : patchedCandidate;
           const specialtyFieldsBefore = specialtyFieldSnapshot(patchedRecord);
           const specialtyDecisions = protectSpecialtyDecisions({
-                remoteRecord: remoteData,
-                candidate: patchedRecord,
-                intent: specialtyEpisodeEnabled() ? specialtyIntent : null,
-                patch: authorizedPatch,
-                actorUid: context.auth?.uid,
-                mutationId: syncContract?.mutationId,
-                now: new Date().toISOString(),
-                aiDecision,
-                guardScalarChanges: specialtyEpisodeEnabled(),
-              });
+            remoteRecord: remoteData,
+            candidate: patchedRecord,
+            intent: specialtyEpisodeEnabled() ? specialtyIntent : null,
+            patch: authorizedPatch,
+            actorUid: context.auth?.uid,
+            mutationId: syncContract?.mutationId,
+            now: new Date().toISOString(),
+            aiDecision,
+            guardScalarChanges: specialtyEpisodeEnabled(),
+          });
           if (!specialtyEpisodeEnabled() && specialtyIntent) {
-            throw new functions.https.HttpsError('failed-precondition', 'Specialty episode mode is disabled.');
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              'Specialty episode mode is disabled.'
+            );
           }
-          const automaticSpecialtyDecisions = specialtyEpisodeEnabled() && !specialtyIntent && isCurrentRapaNuiDay(date)
-            ? applyPendingSpecialtyRules({
-                remoteRecord: remoteData,
-                candidate: patchedRecord,
-                policy: specialtyPolicySnapshot?.exists ? specialtyPolicySnapshot.data() : null,
-                actorUid: context.auth?.uid,
-                mutationId: syncContract?.mutationId,
-                now: new Date().toISOString(),
-                eligibleBedIds: [...new Set(Object.keys(authorizedPatch)
-                  .filter(path => path.startsWith('beds.'))
-                  .map(path => path.split('.')[1]))],
-              }) : [];
-          await assertUnusedSpecialtyDecisionIds({ transaction, docRef,
-            decisions: [...specialtyDecisions, ...automaticSpecialtyDecisions] });
+          const automaticSpecialtyDecisions =
+            specialtyEpisodeEnabled() && !specialtyIntent && isCurrentRapaNuiDay(date)
+              ? applyPendingSpecialtyRules({
+                  remoteRecord: remoteData,
+                  candidate: patchedRecord,
+                  policy: specialtyPolicySnapshot?.exists ? specialtyPolicySnapshot.data() : null,
+                  actorUid: context.auth?.uid,
+                  mutationId: syncContract?.mutationId,
+                  now: new Date().toISOString(),
+                  eligibleBedIds: [
+                    ...new Set(
+                      Object.keys(authorizedPatch)
+                        .filter(path => path.startsWith('beds.'))
+                        .map(path => path.split('.')[1])
+                    ),
+                  ],
+                })
+              : [];
+          await assertUnusedSpecialtyDecisionIds({
+            transaction,
+            docRef,
+            decisions: [...specialtyDecisions, ...automaticSpecialtyDecisions],
+          });
           assertNoPatientErasures({
             snapshot,
             record: patchedRecord,
@@ -1822,18 +1895,28 @@ const createDailyRecordWriteAuthorityFunctions = ({
             txnUpdate[path] = finalValue === undefined ? null : finalValue;
           });
           specialtyFieldSnapshot(patchedRecord).forEach((value, path) => {
-            if (specialtyFieldsBefore.get(path) === value ||
-                Object.keys(authorizedPatch).some(patchedPath =>
-                  path === patchedPath || path.startsWith(`${patchedPath}.`))) return;
+            if (
+              specialtyFieldsBefore.get(path) === value ||
+              Object.keys(authorizedPatch).some(
+                patchedPath => path === patchedPath || path.startsWith(`${patchedPath}.`)
+              )
+            )
+              return;
             const finalValue = readValueAtPath(patchedRecord, path);
             txnUpdate[path] = finalValue === undefined ? null : finalValue;
           });
           [...specialtyDecisions, ...automaticSpecialtyDecisions].forEach(decision => {
-            transaction.set(docRef.collection('specialtyDecisions').doc(decision.decisionId), decision);
+            transaction.set(
+              docRef.collection('specialtyDecisions').doc(decision.decisionId),
+              decision
+            );
           });
           if (aiRequestRef) {
-            transaction.update(aiRequestRef, { status: 'accepted',
-              acceptedMutationId: mutationId, acceptedAt: new Date().toISOString() });
+            transaction.update(aiRequestRef, {
+              status: 'accepted',
+              acceptedMutationId: mutationId,
+              acceptedAt: new Date().toISOString(),
+            });
           }
           transaction.update(docRef, txnUpdate);
         });

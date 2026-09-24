@@ -23,7 +23,7 @@ export interface BuildEmptyDayPromptPropsParams {
     copyFromPrevious: boolean,
     specificDate?: string,
     options?: { forceCopyScheduleOverride?: boolean }
-  ) => void | Promise<void>;
+  ) => Promise<boolean>;
   readOnly: boolean;
   allowAdminCopyOverride: boolean;
   emptyStateDiagnostic?: CensusEmptyStateDiagnostic;

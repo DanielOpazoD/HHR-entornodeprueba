@@ -51,6 +51,10 @@ export const BedSummaryCard: React.FC<{ stats: Statistics }> = ({ stats }) => {
           <span className="text-slate-400 text-[10px]">Lib.</span>
           <span className="font-bold text-slate-600 text-[11px]">{stats.availableCapacity}</span>
         </div>
+        <div className="col-span-2 flex justify-between items-center px-1.5">
+          <span className="text-slate-500 text-[10px]">Cunas</span>
+          <span className="font-bold text-accent-800 text-[11px]">{stats.totalCribsUsed}</span>
+        </div>
       </div>
     </BaseSummaryCard>
   );
@@ -146,7 +150,7 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
   const movementSummary = buildMovementSummaryModel(discharges, transfers, cmaCount, newAdmissions);
 
   return (
-    <div className="flex flex-row gap-0 rounded-xl border border-slate-200/80 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-slate-300 animate-fade-in">
+    <div className="flex self-stretch flex-row gap-0 rounded-xl border border-slate-200/80 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-slate-300 animate-fade-in">
       {/* Section 1: Censo Camas */}
       <div className="pr-3 flex flex-col gap-0.5">
         <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
@@ -177,31 +181,8 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
             <span className="font-bold text-slate-600 text-[10px]">{stats.availableCapacity}</span>
           </div>
         </div>
-      </div>
-
-      {/* Vertical Separator */}
-      <div className="w-px bg-slate-200/60 mx-2 self-stretch" />
-
-      {/* Section 2: Cunas RN */}
-      <div className="px-3 flex flex-col gap-0.5">
-        <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
-          <Baby size={11} className="text-accent-500" />
-          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-[0.08em]">
-            Cunas RN
-          </span>
-        </div>
-        {/* Row 1: cunas RN con registro electrónico */}
-        <div className="flex items-center gap-3 mt-0.5">
-          <div className="flex items-center gap-1">
-            <span className="text-slate-500 text-[9px]">Con ficha</span>
-            <span className="font-bold text-accent-600 text-[10px]">
-              {stats.clinicalCribsCount}
-            </span>
-          </div>
-        </div>
-        {/* Row 2: Total */}
-        <div className="flex items-center gap-1">
-          <span className="text-accent-900 font-bold text-[9px]">Total Uso</span>
+        <div className="flex items-center gap-1 px-1.5 py-0.5">
+          <span className="text-slate-500 text-[9px]">Cunas</span>
           <span className="font-bold text-accent-800 text-[10px]">{stats.totalCribsUsed}</span>
         </div>
       </div>
@@ -209,7 +190,7 @@ export const CombinedSummaryCard: React.FC<SummaryCardProps> = ({
       {/* Vertical Separator */}
       <div className="w-px bg-slate-200/60 mx-2 self-stretch" />
 
-      {/* Section 3: Movimientos */}
+      {/* Section 2: Movimientos */}
       <div className="pl-3 flex flex-col gap-0.5">
         <div className="flex items-center gap-1 pb-0.5 border-b border-slate-100">
           <Activity size={11} className="text-accent-500" />

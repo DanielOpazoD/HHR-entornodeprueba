@@ -34,7 +34,8 @@ describe('SummaryCard Components', () => {
       expect(screen.getByText('10')).toBeInTheDocument(); // Occupied
       expect(screen.getByText('18')).toBeInTheDocument(); // Capacity (20 - 2)
       expect(screen.getByText('2')).toBeInTheDocument(); // Blocked
-      expect(screen.getByText('8')).toBeInTheDocument(); // Available
+      expect(screen.getByText('Lib.').nextElementSibling).toHaveTextContent('8');
+      expect(screen.getByText('Cunas').nextElementSibling).toHaveTextContent('8');
     });
   });
 
@@ -101,7 +102,9 @@ describe('SummaryCard Components', () => {
       );
 
       expect(screen.getByText('Censo Camas')).toBeInTheDocument();
-      expect(screen.getByText('Cunas RN')).toBeInTheDocument();
+      expect(screen.getByText('Cunas')).toBeInTheDocument();
+      expect(screen.getByText('Cunas').nextElementSibling).toHaveTextContent('8');
+      expect(screen.queryByText('Cunas RN')).not.toBeInTheDocument();
       expect(screen.getByText('Movimientos')).toBeInTheDocument();
       expect(screen.getByText('Ingresos')).toBeInTheDocument();
       const ingresos = screen.getByText('Ingresos').nextElementSibling;

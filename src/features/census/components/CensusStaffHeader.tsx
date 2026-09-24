@@ -21,6 +21,11 @@ import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDet
 const RayenImportButton = lazy(() =>
   import('@/features/rayen-import').then(module => ({ default: module.RayenImportButton }))
 );
+const SpecialtyRoundEntry = lazy(() =>
+  import('./specialty-round/SpecialtyRoundEntry').then(module => ({
+    default: module.SpecialtyRoundEntry,
+  }))
+);
 import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusAttentionBar } from './CensusAttentionBar';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
@@ -86,9 +91,9 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     // solo con un popover abierto): un z estático aquí tapaba los menús del
     // toolbar y de la primera fila que solapan el header (cazado por e2e).
     <div className="flex w-full flex-col items-center gap-2 animate-fade-in has-[[data-overlay-open]]:relative has-[[data-overlay-open]]:z-40">
-      <div className="flex w-full max-w-[1180px] flex-col items-stretch gap-2">
+      <div className="flex w-full max-w-[1400px] flex-col items-stretch gap-2">
         <div
-          className="flex flex-wrap items-start justify-center gap-2"
+          className="flex flex-wrap items-stretch justify-center gap-2 2xl:flex-nowrap 2xl:justify-start"
           data-testid="census-staff-and-sync"
         >
           {/* Staff Selectors */}
@@ -100,7 +105,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               onUpdateNurse={updateNurse}
               shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
               onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('nurse')}
-              className={readModel.selectorsClassName}
+              className={`self-stretch ${readModel.selectorsClassName}`}
             />
           )}
 
@@ -112,12 +117,12 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               onUpdateTens={updateTens}
               shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
               onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('tens')}
-              className={readModel.selectorsClassName}
+              className={`self-stretch ${readModel.selectorsClassName}`}
             />
           )}
 
           {!readOnly && !readModel.specialistAccess && (
-            <div className="w-64 max-w-full shrink-0">
+            <div className="w-64 max-w-full shrink-0 self-stretch">
               <Suspense fallback={null}>
                 <RayenImportButton
                   selectedDate={selectedDate}
@@ -129,24 +134,35 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )}
 
           {/* Combined Stats Summary Card */}
-          {readModel.showSummary && stats && (
-            <CombinedSummaryCard
-              stats={stats}
-              discharges={readModel.movementSummaryState.discharges}
-              transfers={readModel.movementSummaryState.transfers}
-              cmaCount={readModel.movementSummaryState.cmaCount}
-              newAdmissions={readModel.movementSummaryState.admissionsCount}
-            />
-          )}
-        </div>
-
-        <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          <CensusAttentionBar
-            beds={beds ?? {}}
-            censusIsoDay={dailyRecordData.record?.date ?? ''}
-            activeFilter={attentionFilter}
-            onFilterChange={onAttentionFilterChange}
-          />
+          <div className="flex shrink-0 items-stretch justify-center gap-2">
+            {readModel.showSummary && stats && (
+              <CombinedSummaryCard
+                stats={stats}
+                discharges={readModel.movementSummaryState.discharges}
+                transfers={readModel.movementSummaryState.transfers}
+                cmaCount={readModel.movementSummaryState.cmaCount}
+                newAdmissions={readModel.movementSummaryState.admissionsCount}
+              />
+            )}
+            <div className="self-center">
+              <CensusAttentionBar
+                beds={beds ?? {}}
+                censusIsoDay={dailyRecordData.record?.date ?? ''}
+                activeFilter={attentionFilter}
+                onFilterChange={onAttentionFilterChange}
+              />
+            </div>
+            {dailyRecordData.record?.date && (
+              <div className="self-center">
+                <Suspense fallback={null}>
+                  <SpecialtyRoundEntry
+                    date={dailyRecordData.record.date}
+                    disabled={Boolean(readOnly)}
+                  />
+                </Suspense>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

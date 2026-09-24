@@ -242,7 +242,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
 
   return (
     <div
-      className={`h-[5.5rem] w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+      className={`h-full min-h-[5.5rem] w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
         connectionMonitorOpen || queuePanelOpen ? 'relative z-[70]' : ''
       }`}
       data-testid="rayen-operations-bar"

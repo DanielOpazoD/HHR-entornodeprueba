@@ -659,10 +659,7 @@ export async function clearAuth(page: Page) {
   });
 }
 
-/**
- * Helper to ensure a record exists for current day
- * Uses stable data-testid instead of text selectors
- */
+/** Wait for the census record seeded by the test fixture. */
 export async function ensureRecordExists(page: Page) {
   const initialStateTimeoutMs = 45_000;
   const loginButton = page.getByRole('button', { name: /Ingresar con Google/i });
@@ -686,13 +683,6 @@ export async function ensureRecordExists(page: Page) {
   }
 
   const tableById = page.getByTestId('census-table');
-  const blankBtn = page
-    .getByRole('button', { name: /Comenzar Día|Registro en Blanco|Iniciar turno desde cero/i })
-    .first();
-  const copyBtn = page.getByRole('button', { name: /Copiar día anterior/i }).first();
-  const hasVisibleCreatePrompt = async () =>
-    (await blankBtn.isVisible().catch(() => false)) ||
-    (await copyBtn.isVisible().catch(() => false));
 
   if (await tableById.isVisible().catch(() => false)) {
     return;
@@ -704,49 +694,19 @@ export async function ensureRecordExists(page: Page) {
     return;
   }
 
-  if (await hasVisibleCreatePrompt()) {
-    // El prompt visible ya implica que la pantalla está lista para interactuar.
-  } else {
-    // Solo esperar quietud de red si todavía no apareció ni tabla ni prompt.
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-
-    if (await tableById.isVisible().catch(() => false)) {
-      return;
-    }
-  }
-
   try {
-    // Si la tabla no cargó, uno de estos DEBE estar.
-    await expect
-      .poll(
-        async () => {
-          if (await tableById.isVisible().catch(() => false)) return 'table';
-          if (await blankBtn.isVisible().catch(() => false)) return 'blank';
-          if (await copyBtn.isVisible().catch(() => false)) return 'copy';
-          return 'pending';
-        },
-        { timeout: initialStateTimeoutMs }
-      )
-      .toMatch(/table|blank|copy/);
+    await expect(tableById).toBeVisible({ timeout: initialStateTimeoutMs });
   } catch {
-    // Fallback: si aun así no está, vemos si en el ínterin apareció la tabla
-    if (await tableById.isVisible().catch(() => false)) return;
-    throw new Error('Timeout waiting for census initial state (table or create buttons)');
-  }
-
-  if (await blankBtn.isVisible().catch(() => false)) {
-    await blankBtn.click();
-    const confirmationInput = page.getByRole('textbox', { name: /Registroenblanco/i }).first();
-    if (await confirmationInput.isVisible().catch(() => false)) {
-      await confirmationInput.fill('Registroenblanco');
-      await page.getByRole('button', { name: /Aceptar/i }).click();
+    if (
+      await page
+        .getByTestId('empty-day-diagnostic-message')
+        .isVisible()
+        .catch(() => false)
+    ) {
+      throw new Error('The E2E fixture did not seed a census record for the selected day');
     }
-  } else if (await copyBtn.isVisible().catch(() => false)) {
-    await copyBtn.click();
+    throw new Error('Timeout waiting for the seeded census record');
   }
-
-  // Final confirmation
-  await expect(tableById).toBeVisible({ timeout: initialStateTimeoutMs });
 }
 
 export { expect };
