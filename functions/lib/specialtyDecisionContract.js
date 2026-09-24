@@ -332,6 +332,10 @@ const protectSpecialtyDecisions = ({
         if (
           previous.specialtyAssignment == null &&
           (!episodeId || !text(previous.clinicalEpisodeId)) &&
+          text(previous.rut) &&
+          text(patient.rut) &&
+          text(previous.patientName) &&
+          text(patient.patientName) &&
           sameLegacyOccupant(previous, patient)
         ) {
           legacyMatches.push(previous);

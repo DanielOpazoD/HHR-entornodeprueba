@@ -112,6 +112,24 @@ describe('EmptyDayPrompt · una acción para iniciar desde Eloísa', () => {
     expect(onReady).toHaveBeenCalledOnce();
   });
 
+  it('allows copying the new calendar day before the 08:00 nursing handoff', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-24T10:00:00Z'));
+    const onCreateDay = vi.fn().mockResolvedValue(true);
+    renderPrompt('2026-09-24', {
+      source: 'remote_missing',
+      previousRecordDate: '2026-09-23',
+      onCreateDay,
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copiar pacientes del 23' }));
+    });
+    expect(onCreateDay).toHaveBeenCalledWith(true, '2026-09-23', {
+      forceCopyScheduleOverride: true,
+    });
+  });
+
   it('keeps a supported historical day in the same single Eloísa flow', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-24T17:00:00Z'));

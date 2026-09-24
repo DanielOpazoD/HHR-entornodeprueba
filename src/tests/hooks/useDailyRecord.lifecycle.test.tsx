@@ -325,6 +325,31 @@ describe('useDailyRecord lifecycle', () => {
     vi.useRealTimers();
   });
 
+  it('should create the current calendar day before 08:00 when the confirmed empty-day flow overrides the schedule', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2025, 0, 2, 7, 0, 0));
+
+    const sourceDate = '2025-01-01';
+    const targetDate = '2025-01-02';
+    recordsMap[sourceDate] = DataFactory.createMockDailyRecord(sourceDate);
+    const { result } = renderHook(() => useDailyRecord(targetDate), { wrapper: createWrapper() });
+
+    let created = false;
+    await act(async () => {
+      created = await result.current.createDay(true, sourceDate, {
+        forceCopyScheduleOverride: true,
+      });
+    });
+
+    expect(created).toBe(true);
+    expect(defaultDailyRecordRepositoryPort.initializeDay).toHaveBeenCalledWith(
+      targetDate,
+      sourceDate
+    );
+
+    vi.useRealTimers();
+  });
+
   it('should force the default copy source to the exact previous calendar day', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2025, 0, 2, 8, 1, 0));

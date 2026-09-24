@@ -82,6 +82,8 @@ confirmar cambios. Si la copia falla, no se inicia la importación. Si Eloísa n
 la copia queda creada y aparece un aviso para sincronizar cuando se restablezca la conexión.
 La conexión de Ficha Médico y Gestión de Camas sigue visible como estado informativo.
 Una copia no reemplaza la evidencia de un día histórico que aún no existe.
+El nuevo día calendario puede iniciarse antes de las 08:00; esa excepción no habilita crear
+fechas futuras ni copiar un día histórico fuera del flujo de reconstrucción.
 
 Si no existe ese censo anterior, la acción principal es **Crear desde Eloísa** (o
 **Reconstruir desde Eloísa** para un día histórico admitido). Primero verifica la conexión;

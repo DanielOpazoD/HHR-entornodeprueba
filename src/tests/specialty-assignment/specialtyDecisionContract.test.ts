@@ -249,6 +249,18 @@ describe('specialty decision authority', () => {
     apply({}, replacement, { priorRecord: previous });
     expect((replacement.beds.R1 as Record<string, unknown>).specialty).toBe('');
 
+    const missingDocument = record({ ...previousPatient, rut: '', specialty: '' });
+    apply({}, missingDocument, {
+      priorRecord: record({ ...previousPatient, rut: '' }),
+    });
+    expect((missingDocument.beds.R1 as Record<string, unknown>).specialty).toBe('');
+
+    const missingName = record({ ...previousPatient, patientName: '', specialty: '' });
+    apply({}, missingName, {
+      priorRecord: record({ ...previousPatient, patientName: '' }),
+    });
+    expect((missingName.beds.R1 as Record<string, unknown>).specialty).toBe('');
+
     const ambiguous = {
       date: '2026-09-23',
       beds: { R1: previousPatient, R2: { ...previousPatient, bedId: 'R2' } },
