@@ -1,4 +1,4 @@
-import type { PatientData } from '@/types/domain/patient';
+import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
 import type { SpecialtyTarget } from '@/services/specialty/specialtyJevClient';
 import type { SpecialtyCatalogRule } from '@/services/specialty/specialtyJevClient';
 
