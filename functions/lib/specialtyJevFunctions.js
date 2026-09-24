@@ -15,7 +15,7 @@ const clinicalApproved = () => process.env.HHR_JEV_CLINICAL_APPROVED === 'enable
 
 const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
   requestSpecialtyJevSuggestion: functions.region('southamerica-east1')
-    .runWith({ timeoutSeconds: 30, memory: '512MB' })
+    .runWith({ timeoutSeconds: 30, memory: '512MB', secrets: ['TYPESAFE_API_KEY'] })
     .https.onCall(async (data, context) => {
       await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
       if (!clinicalApproved()) fail('failed-precondition', 'Jev consultation is disabled.');

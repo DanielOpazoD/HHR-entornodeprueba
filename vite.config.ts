@@ -157,6 +157,10 @@ export default defineConfig(({ mode }) => {
         'Cross-Origin-Opener-Policy': 'unsafe-none',
       },
       fs: {
+        // Keep Vite 6's default deny patterns when extending the list. The
+        // Functions emulator reads .secret.local inside this repository, but
+        // the frontend dev server must never serve it over HTTP.
+        deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/.secret.*'],
         // Allow Vite to serve files (notably @fontsource .woff2 assets) when
         // node_modules is symlinked from a `.claude/worktrees/<name>/`
         // git-worktree to the parent project's install. The worktree sits
