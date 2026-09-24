@@ -46,7 +46,7 @@ export const SpecialtyRoundEntry = ({ date, disabled }: { date: string; disabled
           onClose={() => setOpen(false)} />
       </Suspense>}
       {rulesOpen && <Suspense fallback={null}>
-        <SpecialtyRulesWindow onClose={() => setRulesOpen(false)} />
+        <SpecialtyRulesWindow date={date} onClose={() => setRulesOpen(false)} />
       </Suspense>}
     </>
   );

@@ -88,6 +88,9 @@ export interface SpecialtyRoundSetup {
     memoryEnabled: boolean;
     aiMode: 'off' | 'consultative';
     rules: SpecialtyCatalogRule[];
+    memory: SpecialtyCatalogRule[];
+    /** False while an older deployed callable still omits memory from read_policy. */
+    memoryAvailable?: boolean;
   };
 }
 
@@ -97,10 +100,11 @@ const loadSpecialtyPolicy = async (): Promise<SpecialtyRoundSetup['policy']> => 
     functions, 'requestSpecialtyJevSuggestion', { timeout: 30_000 });
   const { data } = await callable({ action: 'read_policy' });
   if (!Number.isInteger(data?.revision) ||
-      !['off', 'consultative'].includes(data.aiMode) || !Array.isArray(data.rules)) {
+      !['off', 'consultative'].includes(data.aiMode) || !Array.isArray(data.rules) ||
+      (data.memory !== undefined && !Array.isArray(data.memory))) {
     throw new JevSuggestionUnavailableError('Catálogo inválido.');
   }
-  return data;
+  return { ...data, memory: data.memory ?? [], memoryAvailable: Array.isArray(data.memory) };
 };
 
 /** Read-only policy and complete CIE-10 catalog; the server checks the same packaged labels. */
@@ -127,11 +131,12 @@ export const loadSpecialtyJevCatalog = async (): Promise<Record<string, string>>
 
 export const saveSpecialtyRules = async (
   policy: SpecialtyRoundSetup['policy'], rules: SpecialtyCatalogRule[], autoEnabled: boolean,
-  activateJev = false
+  activateJev = false, memory: SpecialtyCatalogRule[] = policy.memory
 ): Promise<void> => {
   const functions = await defaultFunctionsRuntime.getRegionalFunctions(REGION);
   const callable = httpsCallable(functions, 'configureSpecialtyPolicy', { timeout: 30_000 });
   await callable({ confirmed: true, expectedRevision: policy.revision, rules,
+    ...(policy.memoryAvailable === false ? {} : { memory }),
     autoEnabled, memoryEnabled: policy.memoryEnabled,
     aiMode: activateJev ? 'consultative' : policy.aiMode,
     ...(activateJev ? { aiMonthlyLimit: pilotConfig.aiMonthlyLimit,

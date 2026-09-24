@@ -119,10 +119,16 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     vi.stubGlobal('fetch', fetchMock);
     const read = () => callable.run({ action: 'read_policy' }, context);
     await expect(read()).resolves.toEqual({ revision: 1, autoEnabled: false,
-      memoryEnabled: false, aiMode: 'consultative', rules: [] });
+      memoryEnabled: false, aiMode: 'consultative', rules: [], memory: [] });
+    docs.set('specialtyPolicies/active', { ...policy,
+      memory: [{ id: 'memory_J18_9', kind: 'assign', cie10Code: 'J18.9',
+        specialty: 'Med Interna', scope: 'all', revision: 1 }] });
+    await expect(read()).resolves.toMatchObject({
+      memory: [{ cie10Code: 'J18.9', specialty: 'Med Interna' }],
+    });
     docs.delete('specialtyPolicies/active');
     await expect(read()).resolves.toEqual({ revision: 0, autoEnabled: false,
-      memoryEnabled: false, aiMode: 'off', rules: [] });
+      memoryEnabled: false, aiMode: 'off', rules: [], memory: [] });
     await expect(callable.run({ action: 'read_policy' }, { auth: null })).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
   });

@@ -25,13 +25,14 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
         const snapshot = await firestore.collection('hospitals').doc(HOSPITAL_ID)
           .collection('specialtyPolicies').doc('active').get();
         const policy = snapshot.exists ? snapshot.data() : {
-          revision: 0, autoEnabled: false, memoryEnabled: false, aiMode: 'off', rules: [],
+          revision: 0, autoEnabled: false, memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
         };
         if (policy.revision > 0 && !validatePolicy(policy)) {
           fail('failed-precondition', 'Specialty catalog is invalid.');
         }
         return { revision: policy.revision, autoEnabled: policy.autoEnabled,
-          memoryEnabled: policy.memoryEnabled, aiMode: policy.aiMode, rules: policy.rules };
+          memoryEnabled: policy.memoryEnabled, aiMode: policy.aiMode,
+          rules: policy.rules, memory: policy.memory };
       }
       if (!clinicalApproved()) fail('failed-precondition', 'Jev consultation is disabled.');
       if (!validRequestId(data?.requestId) || !validBedId(data?.bedId) ||
