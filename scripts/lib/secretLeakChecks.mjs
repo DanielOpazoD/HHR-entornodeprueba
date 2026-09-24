@@ -93,8 +93,13 @@ export const findFunctionSourcesMissingLocalSecretIgnore = firebaseConfig => {
     ? firebaseConfig.functions
     : [firebaseConfig.functions];
   return functions
-    .filter(config => config?.source === 'functions' && !config.ignore?.includes('.secret.local'))
-    .map(config => config.codebase ?? config.source);
+    .filter(
+      config =>
+        config &&
+        (config.source ?? 'functions') === 'functions' &&
+        !config.ignore?.includes('.secret.local')
+    )
+    .map(config => config.codebase ?? 'functions');
 };
 
 export const findSecretLeakFailuresForFile = ({ file, content }) =>

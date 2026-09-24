@@ -15,6 +15,9 @@ describe('secretLeakChecks', () => {
         functions: [{ source: 'functions', codebase: 'default', ignore: ['node_modules'] }],
       })
     ).toEqual(['default']);
+    expect(findFunctionSourcesMissingLocalSecretIgnore({ functions: { ignore: [] } })).toEqual([
+      'functions',
+    ]);
     expect(
       findFunctionSourcesMissingLocalSecretIgnore({
         functions: [
