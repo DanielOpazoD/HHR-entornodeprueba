@@ -26,6 +26,10 @@ export const FEATURE_FLAGS = {
   // Experimental Features
   ENABLE_OPTIMISTIC_UPDATES: true,
   ENABLE_OFFLINE_MODE: false,
+  /** Server-controlled episode assignment is opt-in; this only exposes its client intent. */
+  SPECIALTY_EPISODE_ASSIGNMENT: false,
+  SPECIALTY_RULES_MEMORY: false,
+  SPECIALTY_JEV_CONSULTATION: false,
   // Routes empty-bed admission saves through the canonical
   // useAdmitPatient command (validated → audited → typed outcome) when
   // the input qualifies as a "pure admission" (only patientName + rut +

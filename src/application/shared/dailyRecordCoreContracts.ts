@@ -5,6 +5,7 @@ import type {
   ClinicalCribCreateRequest,
   IntentionalBedClearRequest,
 } from '@/types/domain/intentionalBedClear';
+import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 
 /**
  * Core application-facing daily record contracts.
@@ -34,6 +35,8 @@ export type ApplyDailyRecordPatchOptions = {
   clinicalCribCreate?: ClinicalCribCreateRequest;
   /** Explicit user-confirmed destructive intent; never inferred from an empty patch. */
   intentionalBedClear?: IntentionalBedClearRequest;
+  /** Exact online decision; cannot enter the generic offline merge queue. */
+  specialtyIntent?: SpecialtyManualIntent;
 };
 
 export type ApplyDailyRecordPatch = (

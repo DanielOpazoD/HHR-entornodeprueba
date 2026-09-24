@@ -252,7 +252,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     // React.lazy + Suspense, so this assertion has to outwait the dynamic chunk
     // instead of the 1s default, which loses under a parallel shard run.
     await waitFor(() => expect(screen.getByTestId('rayen-operations-bar')).toBeInTheDocument(), {
-      timeout: 10000,
+      timeout: 20000,
     });
     expect(world.createDayCalls).toEqual([[false]]);
     expect(screen.queryByTestId('create-from-rayen-btn')).not.toBeInTheDocument();

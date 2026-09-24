@@ -43,6 +43,7 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 - Remote cache hydration checks the outbox and writes IndexedDB in one transaction. It preserves the local projection while any unresolved daily write exists; only command acknowledgement/reconciliation may replace that projection. This prevents a realtime echo arriving before the command response from invalidating its own acknowledgement.
 - A server-confirmed command acknowledgement is published with remote-authoritative cache semantics. An older realtime/refetch result cannot replace that acknowledgement, while a newer local outbox projection or a newer remote snapshot keeps precedence.
 - The “today empty state” is a last visible fallback, not the first interpretation of a transient remote miss.
+- When the specialty episode pilot is enabled, a human specialty change or acceptance of a Jev suggestion uses the existing `patchDailyRecordWithClinicalAuthority` path with `specialtyIntent`, exact episode and decision version. The repository confirms that remote transaction before local persistence and never queues a rejected acceptance. The scalar, provenance and decision audit event commit together. See [specialty episode pilot](./SPECIALTY_EPISODE_JEV.md).
 
 ## Returning to the census
 

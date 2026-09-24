@@ -47,6 +47,8 @@ export const HOSPITAL_COLLECTIONS = {
   CLINICAL_DOCUMENT_TEMPLATES: 'clinicalDocumentTemplates',
   /** Settings documents (nurses, tens, etc.) */
   SETTINGS: 'settings',
+  /** Server-owned episode specialty policy catalog */
+  SPECIALTY_POLICIES: 'specialtyPolicies',
   /** Export passwords for Excel files */
   EXPORT_PASSWORDS: 'exportPasswords',
   /** Global bookmarks for the hospital */
@@ -124,6 +126,10 @@ export const getDailyRecordsPath = (hospitalId: string = getActiveHospitalId()) 
  */
 export const getSettingsPath = (hospitalId: string = getActiveHospitalId()) =>
   `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.SETTINGS}` as const;
+
+/** Server-owned specialty policy; never sourced from the legacy writable settings path. */
+export const getSpecialtyPolicyDocPath = (hospitalId: string = getActiveHospitalId()) =>
+  `${COLLECTIONS.HOSPITALS}/${hospitalId}/${HOSPITAL_COLLECTIONS.SPECIALTY_POLICIES}/active` as const;
 
 /**
  * Build path to a specific settings document

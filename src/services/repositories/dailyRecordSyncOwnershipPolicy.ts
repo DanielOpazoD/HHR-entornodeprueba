@@ -36,6 +36,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   treatingPhysicianId: 'remoteCanonical',
   treatingPhysicianName: 'remoteCanonical',
   specialty: 'remoteCanonical',
+  specialtyAssignment: 'remoteCanonical',
   secondarySpecialty: 'remoteCanonical',
   status: 'remoteCanonical',
   ginecobstetriciaType: 'remoteCanonical',

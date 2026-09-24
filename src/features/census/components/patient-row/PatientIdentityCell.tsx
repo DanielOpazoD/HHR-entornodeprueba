@@ -46,6 +46,7 @@ const formatAdmissionShort = (raw?: string): string => {
 
 interface PatientIdentityCellProps extends BaseCellProps {
   currentDateString?: string;
+  parentBedId?: string;
   hasRutError: boolean;
   onNameChange: DebouncedTextHandler;
   onOpenDemographics: () => void;
@@ -53,6 +54,7 @@ interface PatientIdentityCellProps extends BaseCellProps {
 
 export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   data,
+  parentBedId,
   isSubRow = false,
   isEmpty = false,
   readOnly = false,
@@ -88,6 +90,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   // Especialidad como etiqueta de texto (rediseño 2026): ya no tiene columna propia; se muestra
   // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
+  const specialtyScopeBedId = isSubRow ? parentBedId : data.bedId;
   const visibleTreatingPhysicianName = resolveVisibleTreatingPhysicianName(
     professionalsCatalog,
     data.treatingPhysicianId,
@@ -95,7 +98,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   );
   // A real occupant always shows the details row so the specialty chip (or "Pendiente asignar")
   // has a home, even before RUT/edad/FI are filled in.
-  const isRealPatient = !isEmpty && !isSubRow && !!fullName.trim();
+  const isRealPatient = !isEmpty && !!fullName.trim();
   const showIdentityDetails =
     !isEmpty &&
     (hasRutValue ||
@@ -306,8 +309,20 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
               <SpecialtyChip
                 specialty={specialtyLabel}
+                decision={data.specialtyAssignment}
+                cie10Code={data.cie10Code}
                 readOnly={readOnly}
                 onAssign={handleSpecialtyAssign}
+                scope={
+                  currentDateString && specialtyScopeBedId && data.clinicalEpisodeId
+                    ? {
+                        date: currentDateString,
+                        bedId: specialtyScopeBedId,
+                        target: isSubRow ? 'clinicalCrib' : 'bed',
+                        episodeId: data.clinicalEpisodeId,
+                      }
+                    : undefined
+                }
               />
               {visibleTreatingPhysicianName && (
                 <span

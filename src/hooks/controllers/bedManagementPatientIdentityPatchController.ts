@@ -98,6 +98,8 @@ export const isDifferentPatientIdentity = ({
 };
 
 export const getClearClinicalDataPatches = (bedId: string): Record<string, unknown> => ({
+  [`beds.${bedId}.specialty`]: '',
+  [`beds.${bedId}.specialtyAssignment`]: undefined,
   [`beds.${bedId}.cie10Code`]: undefined,
   [`beds.${bedId}.cie10Description`]: undefined,
   [`beds.${bedId}.pathology`]: '',

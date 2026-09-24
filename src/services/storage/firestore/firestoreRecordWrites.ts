@@ -295,7 +295,8 @@ export const updateRecordPartial = async (
           shouldUseAuthorityCallable &&
           (callableAuthorityMode === 'enforced' ||
             bedTreeAuthorityFenced ||
-            Boolean(intentionalBedClear))
+            Boolean(intentionalBedClear) ||
+            Boolean(options.specialtyIntent))
         ) {
           return withRetry(
             () =>
@@ -303,9 +304,10 @@ export const updateRecordPartial = async (
                 date,
                 patch: callablePatch,
                 expectedLastUpdated,
-                mode: callableAuthorityMode || 'shadow',
+                mode: options.specialtyIntent ? 'enforced' : callableAuthorityMode || 'shadow',
                 origin: 'direct_partial_update',
                 intentionalBedClear,
+                specialtyIntent: options.specialtyIntent,
                 syncContract: buildAuthorityPatchSyncContract(options.syncContract, callablePatch),
               }),
             {

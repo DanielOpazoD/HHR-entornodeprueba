@@ -2,6 +2,7 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { RayenClinicalWriteGuard } from '@/types/domain/rayenSync';
 import type { DailyRecordWriteLease } from '@/services/repositories/dailyRecordWriteCoordinator';
+import type { SpecialtyManualIntent } from '@/types/domain/specialtyDecision';
 import type {
   ClinicalCribCreateRequest,
   IntentionalBedClearRequest,
@@ -84,6 +85,7 @@ export interface PartialUpdateDailyRecordOptions {
   clinicalCribCreate?: ClinicalCribCreateRequest;
   /** User-confirmed replacement of one occupied bed with its canonical empty shape. */
   intentionalBedClear?: IntentionalBedClearRequest;
+  specialtyIntent?: SpecialtyManualIntent;
   /** Internal lease for a patch executed inside an existing daily-record write critical section. */
   dailyRecordWriteLease?: DailyRecordWriteLease;
 }

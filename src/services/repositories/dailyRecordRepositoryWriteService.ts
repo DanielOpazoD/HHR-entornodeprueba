@@ -347,6 +347,7 @@ const updatePartialDetailedWithinLock = async (
     allowConflictAutoMerge:
       !isReclassification &&
       !options.rayenClinicalWriteGuard &&
+      !options.specialtyIntent &&
       !options.requireAtomicCas &&
       !guardedCommandPolicy.requireAtomicCas,
     remoteAuthorityFirst: guardedCommandPolicy.remoteAuthorityFirst,

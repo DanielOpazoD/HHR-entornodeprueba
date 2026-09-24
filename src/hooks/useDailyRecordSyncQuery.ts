@@ -248,7 +248,7 @@ export const useDailyRecordSyncQuery = (
     async (partial: DailyRecordPatch, options?: ApplyDailyRecordPatchOptions) => {
       try {
         const payload = await patchMutation.mutateAsync(
-          options?.consistency === 'remote_confirmed' || options?.intentionalBedClear
+          options?.consistency === 'remote_confirmed' || options?.intentionalBedClear || options?.specialtyIntent
             ? {
                 partial,
                 options: {
@@ -265,6 +265,7 @@ export const useDailyRecordSyncQuery = (
                   ...(options.intentionalBedClear
                     ? { intentionalBedClear: options.intentionalBedClear }
                     : {}),
+                  ...(options.specialtyIntent ? { specialtyIntent: options.specialtyIntent } : {}),
                 },
               }
             : partial

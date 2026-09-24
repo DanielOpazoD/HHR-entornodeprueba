@@ -77,6 +77,7 @@ export interface PatientMainRowViewProps
 
 export interface PatientSubRowViewProps {
   data: PatientData;
+  parentBedId?: string;
   currentDateString: string;
   readOnly: boolean;
   clinicalEditingDisabled?: boolean;

@@ -59,7 +59,7 @@ describe('census measurement release gate', () => {
       bundle.startupChunkBudgets.find(
         (b: { label: string }) => b.label === 'app-authenticated-shell'
       ).maxBytes
-    ).toBe(625000);
+    ).toBe(627000);
     expect(bundle.precacheIgnoredAssetPatterns).not.toContain('^assets/censusStartupPerf-.*\\.js$');
   });
 });

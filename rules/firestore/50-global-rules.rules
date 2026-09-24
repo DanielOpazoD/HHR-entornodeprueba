@@ -1,3 +1,19 @@
+    // Backend-only transient Jev request and quota documents under each hospital.
+    match /hospitals/{hospitalId}/dailyRecords/{date}/specialtyDecisions/{decisionId} {
+      allow read: if canReadClinicalData();
+      allow create, update, delete: if false;
+    }
+    match /hospitals/{hospitalId}/specialtyAiRequests/{requestId} {
+      allow read, create, update, delete: if false;
+    }
+    match /hospitals/{hospitalId}/specialtyAiUsage/{month} {
+      allow read, create, update, delete: if false;
+    }
+    match /hospitals/{hospitalId}/specialtyPolicies/{policyId} {
+      allow read: if canReadClinicalData();
+      allow create, update, delete: if false;
+    }
+
     match /auditLogs/{logId} {
       allow read: if canReadAppendOnlyOperationalLog();
       allow create: if canCreateAppendOnlyOperationalLogEntry();

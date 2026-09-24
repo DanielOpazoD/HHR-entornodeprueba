@@ -61,8 +61,8 @@
     {
       "label": "app-authenticated-shell",
       "pattern": "^app-authenticated-shell-.*\\.js$",
-      "_comment": "PR #469: bounded +2000-byte allowance over 623000 for confirmed-cache ordering and stale-read protection. CI baseline main bfecb6c3: 622.38 kB; PR 56951e36: 624.47 kB (decimal). No optional runtime moved into startup; rationale and rollback: docs/BUNDLE_RISK_LEDGER.md.",
-      "maxBytes": 625000,
+      "_comment": "PR #469 allowed 625000 bytes for confirmed-cache protection. PR #481 defers dormant specialty intent and Jev clients, then grants a bounded +2000 bytes for episode-aware census metadata: measured authenticated shell 626136 bytes. Rationale and rollback: docs/BUNDLE_RISK_LEDGER.md. All other startup and precache limits remain unchanged.",
+      "maxBytes": 627000,
       "severity": "error"
     }
   ],

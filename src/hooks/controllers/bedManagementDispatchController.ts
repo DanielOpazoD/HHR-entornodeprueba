@@ -1,8 +1,4 @@
-import type {
-  ApplyDailyRecordPatch,
-  DailyRecord,
-  DailyRecordPatch,
-} from '@/application/shared/dailyRecordCoreContracts';
+import type { ApplyDailyRecordPatch, DailyRecord, DailyRecordPatch } from '@/application/shared/dailyRecordCoreContracts';
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import type { CudyrScore } from '@/types/domain/cudyr';
 import type { PatientFieldValue } from '@/types/valueTypes';
@@ -17,6 +13,7 @@ import { recordOperationalTelemetry } from '@/services/observability/operational
 import { buildBedPatchFailureTelemetryEvent } from '@/hooks/controllers/bedManagementHealthTelemetry';
 import { buildConfirmedBedOccupantIdentity } from '@/hooks/controllers/intentionalBedClearController';
 import { isClinicalAuthorityCallablePatchPath } from '@/services/storage/dailyRecordAuthorityContract';
+import { isFeatureEnabled } from '@/services/utils/featureFlags';
 export interface BedManagementValidationPort {
   processFieldValue: (
     field: keyof PatientData,
@@ -278,11 +275,24 @@ export const executeBedManagementAction = async ({
     return false;
   }
 
+  const specialtyControls = isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT')
+    ? await import('@/hooks/controllers/bedManagementSpecialtyIntentController') : null;
   try {
-    const patch = bedManagementReducer(currentRecord, validatedAction);
-    if (!patch) {
+    const originalPatch = bedManagementReducer(currentRecord, validatedAction);
+    if (!originalPatch) {
       return false;
     }
+    const specialtyIntent = specialtyControls?.resolveManualSpecialtyIntent(
+      validatedAction, currentRecord, originalPatch
+    ) ?? null;
+    const patch = specialtyControls
+      ? specialtyControls.preserveExplicitEmptySpecialtyChoice(originalPatch, specialtyIntent, currentRecord)
+      : originalPatch;
+    if (specialtyControls?.blocksUnanchoredSpecialtyEdit(validatedAction, patch, specialtyIntent)) return false;
+    // One accepted decision is one scalar write. The server enforces this too,
+    // including for direct callers and Jev acceptance.
+    if (specialtyIntent &&
+        !specialtyControls?.isExclusiveSpecialtyIntentPatch(patch, specialtyIntent)) return false;
     if (Object.keys(patch).length === 0) {
       // Diff vacío: el gesto no cambia nada respecto del registro vigente.
       // No hay nada que escribir, auditar ni confirmar (tampoco prompt de día
@@ -360,6 +370,10 @@ export const executeBedManagementAction = async ({
             // A completed daily review is never an optimistic/offline success.
             // Do not auto-merge a stale journal over another signed evaluation.
             await patchRecord(patch, { consistency: 'remote_confirmed', requireAtomicCas: true });
+          } else if (specialtyIntent) {
+            await patchRecord(patch, {
+              consistency: 'remote_confirmed', requireAtomicCas: true, specialtyIntent,
+            });
           } else {
             await patchRecord(patch);
           }

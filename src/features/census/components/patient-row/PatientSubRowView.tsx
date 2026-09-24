@@ -9,6 +9,7 @@ import { LoaderCircle } from 'lucide-react';
 
 export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
   data,
+  parentBedId,
   currentDateString,
   readOnly,
   clinicalEditingDisabled,
@@ -71,6 +72,7 @@ export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
       </td>
       <PatientInputCells
         data={data}
+        parentBedId={parentBedId}
         currentDateString={currentDateString}
         isSubRow={true}
         diagnosisMode={diagnosisMode}
