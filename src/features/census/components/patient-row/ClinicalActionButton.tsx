@@ -46,7 +46,7 @@ export const ClinicalActionButton: React.FC<ClinicalActionButtonProps> = ({
       onClick?.(event);
     }}
     className={clsx(
-      'group relative inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400',
+      'group relative inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-400',
       tones[tone],
       className
     )}

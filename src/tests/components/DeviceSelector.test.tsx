@@ -17,6 +17,11 @@ describe('DeviceSelector', () => {
   });
 
   describe('when disabled (readOnly mode)', () => {
+    it('shows a previously saved full nasogastric label as SNG', () => {
+      render(<DeviceSelector devices={['Sonda Nasogástrica']} onChange={mockOnChange} disabled />);
+      expect(screen.getByText('SNG')).toBeInTheDocument();
+      expect(screen.queryByText('Sonda Nasogástrica')).not.toBeInTheDocument();
+    });
     it('should render device badges when disabled with devices', () => {
       const devices = ['VVP#1', 'CVC', 'SNG'];
 

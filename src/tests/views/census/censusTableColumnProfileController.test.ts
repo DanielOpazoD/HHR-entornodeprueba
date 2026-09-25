@@ -49,7 +49,7 @@ describe('censusTableColumnProfileController', () => {
 
   it('keeps VVP within the DMI column for old compact preferences', () => {
     const compact = { ...columns, dmi: 60 };
-    expect(resolveVisibleCensusColumns(compact)).toMatchObject({ admission: 128, dmi: 96 });
+    expect(resolveVisibleCensusColumns(compact)).toMatchObject({ admission: 116, dmi: 96 });
     expect(resolveVisibleCensusColumns(compact, 'specialist').dmi).toBe(0);
     expect(compact.dmi).toBe(60);
   });
@@ -87,10 +87,10 @@ describe('censusTableColumnProfileController', () => {
       const projected = resolveVisibleCensusColumns(saved, profile);
       expect(projected).toMatchObject({
         actions: 40,
-        bed: 64,
-        name: 320,
+        bed: 54,
+        name: 400,
         diagnosis: profile === 'specialist' ? 200 : 188,
-        status: profile === 'specialist' ? 0 : 64,
+        status: profile === 'specialist' ? 0 : 32,
       });
       expect(saved).toMatchObject({ actions: 22, bed: 28, name: 150, diagnosis: 123, status: 20 });
       const wider = resolveVisibleCensusColumns({ ...saved, name: 400, diagnosis: 350 }, profile);

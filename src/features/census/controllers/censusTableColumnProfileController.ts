@@ -71,15 +71,13 @@ export const resolveVisibleCensusColumns = (
   const baseColumns = zeroHiddenCensusColumns({
     ...columns,
     actions: Math.max(columns.actions, 40),
-    bed: Math.max(columns.bed, 64),
-    // Reallocate a few pixels from the two flexible text columns so "Estado"
-    // can be read in full without widening the 1280px census viewport.
-    name: Math.max(columns.name, 320),
+    bed: Math.max(columns.bed, 54),
+    // The status dot and fixed vital grid need less room than their former labels.
+    // Give the recovered width to identity, where RUT, specialty and actions coexist.
+    name: Math.max(columns.name, 400),
     diagnosis: Math.max(columns.diagnosis, 188),
-    status: Math.max(columns.status, 64),
-    // Keep the four readings and an abnormal-value icon legible at 125% zoom.
-    // Recover the pixels from flexible text columns; names and diagnoses wrap.
-    admission: Math.max(columns.admission, 128),
+    status: Math.max(columns.status, 32),
+    admission: Math.max(columns.admission, 116),
     dmi: Math.max(columns.dmi, 96),
     scores: Math.max(columns.scores, 160),
     upc: Math.max(columns.upc, 52),

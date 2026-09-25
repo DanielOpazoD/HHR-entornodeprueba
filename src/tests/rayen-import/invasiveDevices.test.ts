@@ -84,6 +84,13 @@ describe('parseInvasiveDevices', () => {
 });
 
 describe('mapInvasiveDevices', () => {
+  it('maps nasogastric tubes to SNG without conflating nasojejunal tubes', () => {
+    const mapped = mapRayenInvasiveDeviceEntries([
+      { name: 'Sonda Nasogástrica', installationDatetime: '2026-09-25T08:00:00-06:00' },
+      { name: 'Sonda Nasoyeyunal', installationDatetime: '2026-09-25T08:00:00-06:00' },
+    ]);
+    expect(mapped.map(device => device.type)).toEqual(['SNG', 'Sonda Nasoyeyunal']);
+  });
   it('maps Sonda vesical → CUP with ISO install date + expiration note', () => {
     expect(mapInvasiveDevices(parseInvasiveDevices(REAL_LAYOUT))).toEqual([
       {

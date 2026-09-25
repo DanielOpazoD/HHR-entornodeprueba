@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
-import { installPreviewFirebaseRuntime, type FirebasePreviewConfig } from './fixtures/previewFirebase';
+import {
+  installPreviewFirebaseRuntime,
+  type FirebasePreviewConfig,
+} from './fixtures/previewFirebase';
 
 const DATE = process.env.E2E_FIXED_DATE ?? '2026-04-03';
 const PATIENT = 'MARÍA ANTONIETA DEL CARMEN PAKOMIO RIVERO';
@@ -19,7 +22,8 @@ const seedCensus = async (page: Page) => {
         clinicalEpisodeId: 'visual-episode',
         age: '44',
         admissionDate: '2026-03-29',
-        pathology: 'Diagnóstico clínico sintético de descripción extensa para comprobar el ajuste de columnas',
+        pathology:
+          'Diagnóstico clínico sintético de descripción extensa para comprobar el ajuste de columnas',
         devices: ['VVP'],
         vitalSigns: {
           recordedDate: DATE,
@@ -31,11 +35,25 @@ const seedCensus = async (page: Page) => {
           temperature: 36.5,
         },
       },
+      R2: {
+        ...beds.R2,
+        patientName: 'CARINA ARANCELI PATE LILLO',
+        rut: '12345678-5',
+        clinicalEpisodeId: 'visual-episode-r2',
+        age: '52',
+        admissionDate: '2026-03-29',
+        specialty: 'Medicina Interna',
+      },
     },
   });
 
   await page.addInitScript(
-    ({ date, seededRecord, bootstrapUser, runtimeConfig }: {
+    ({
+      date,
+      seededRecord,
+      bootstrapUser,
+      runtimeConfig,
+    }: {
       date: string;
       seededRecord: unknown;
       bootstrapUser: unknown;
@@ -52,7 +70,9 @@ const seedCensus = async (page: Page) => {
   );
 };
 
-test('keeps long identity, vital grid, devices and open clinical panels legible at 13-inch 100% and 125%', async ({ page }) => {
+test('keeps long identity, vital grid, devices and open clinical panels legible at 13-inch 100% and 125%', async ({
+  page,
+}) => {
   await seedCensus(page);
   await page.goto(`/?date=${DATE}`);
   const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]');
@@ -88,16 +108,30 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
         scrollWidth: element.scrollWidth,
       }));
       expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
-      const statusHeader = page.getByRole('columnheader', { name: 'ESTADO' });
-      const headerFits = await statusHeader.evaluate(element => element.scrollWidth <= element.clientWidth + 1);
-      expect(headerFits).toBe(true);
+      const statusHeader = page.getByRole('columnheader', { name: 'Estado clínico' });
+      await expect(statusHeader).toBeEmpty();
     }
-    await page.screenshot({ path: test.info().outputPath(`census-air-${zoom}.png`), animations: 'disabled' });
+    const secondRow = page.locator('[data-testid="patient-row"][data-bed-id="R2"]');
+    const secondIdentity = secondRow.locator('.census-identity-cell');
+    const action = secondRow.getByTestId('clinical-panel-trigger-R2');
+    await expect(secondIdentity).toContainText('CARINA ARANCELI PATE LILLO');
+    const detailsBox = await secondIdentity.locator('.census-identity-details').boundingBox();
+    const actionBox = await action.boundingBox();
+    expect(actionBox!.y).toBeLessThan(detailsBox!.y + 8);
+    await action.focus();
+    const rowColor = await secondRow.evaluate(element => getComputedStyle(element).backgroundColor);
+    expect(rowColor).not.toBe('rgb(240, 253, 250)');
+    await page.screenshot({
+      path: test.info().outputPath(`census-air-${zoom}.png`),
+      animations: 'disabled',
+    });
 
     await deviceCell.locator('div.cursor-pointer').first().click();
     const deviceMenu = page.getByText('Vías Venosas (VVP)');
     await expect(deviceMenu).toBeVisible();
-    const menuBounds = await deviceMenu.locator('xpath=ancestor::div[contains(@class,"fixed")]').boundingBox();
+    const menuBounds = await deviceMenu
+      .locator('xpath=ancestor::div[contains(@class,"fixed")]')
+      .boundingBox();
     expect(menuBounds!.x).toBeGreaterThanOrEqual(0);
     expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(width + 1);
     await page.mouse.click(10, 300);
@@ -107,14 +141,22 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     await expect(drawer).toBeVisible();
     const drawerBounds = await drawer.boundingBox();
     expect(drawerBounds!.x + drawerBounds!.width).toBeLessThanOrEqual(width + 1);
-    await page.screenshot({ path: test.info().outputPath(`clinical-air-${zoom}.png`), animations: 'disabled' });
-    await drawer.getByRole('button', { name: `Abrir informes de hospitalización de ${PATIENT}` }).click();
+    await page.screenshot({
+      path: test.info().outputPath(`clinical-air-${zoom}.png`),
+      animations: 'disabled',
+    });
+    await drawer
+      .getByRole('button', { name: `Abrir informes de hospitalización de ${PATIENT}` })
+      .click();
     const reports = page.getByTestId('patient-hospitalization-reports-dialog');
     await expect(reports).toBeVisible();
     const reportsBounds = await reports.boundingBox();
     expect(reportsBounds!.x).toBeGreaterThanOrEqual(0);
     expect(reportsBounds!.x + reportsBounds!.width).toBeLessThanOrEqual(width + 1);
-    await page.screenshot({ path: test.info().outputPath(`reports-air-${zoom}.png`), animations: 'disabled' });
+    await page.screenshot({
+      path: test.info().outputPath(`reports-air-${zoom}.png`),
+      animations: 'disabled',
+    });
     await reports.getByRole('button', { name: 'Cerrar modal' }).click();
     await drawer.getByRole('button', { name: 'Cerrar panel clínico' }).click();
   }

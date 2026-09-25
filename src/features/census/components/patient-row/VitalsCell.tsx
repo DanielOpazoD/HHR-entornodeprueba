@@ -57,9 +57,10 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
   const abnormalReadings = vitals?.readings.filter(
     reading => reading.status === 'warn' || reading.status === 'alert'
   );
-  const abnormalLabels = abnormalReadings?.map(
-    reading => CELL_READINGS.find(({ key }) => key === reading.key)?.label ?? reading.label
-  ) ?? [];
+  const abnormalLabels =
+    abnormalReadings?.map(
+      reading => CELL_READINGS.find(({ key }) => key === reading.key)?.label ?? reading.label
+    ) ?? [];
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
@@ -73,11 +74,10 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
             setIsDetailOpen(true);
           }}
           className="flex w-full cursor-pointer items-center rounded-md px-0.5 py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
-          title={`Signos vitales (${vitals.recordedAt}) — ver detalle`}
           aria-label="Ver signos vitales"
-          aria-description={abnormalLabels.length
-            ? `Fuera de rango: ${abnormalLabels.join(', ')}`
-            : undefined}
+          aria-description={
+            abnormalLabels.length ? `Fuera de rango: ${abnormalLabels.join(', ')}` : undefined
+          }
         >
           <span className="census-vitals-grid grid w-full grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-x-1 gap-y-0.5 text-left leading-tight tabular-nums">
             {CELL_READINGS.map(({ key, label }) => {
@@ -87,16 +87,20 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
                 <span
                   key={key}
                   className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-baseline gap-0.5 whitespace-nowrap text-[10px]"
-                  title={
-                    reading
-                      ? `${label}: ${reading.value} ${reading.unit}${reading.status === 'warn' || reading.status === 'alert' ? ' · Fuera de rango' : ''}`
-                      : `${label}: sin dato`
-                  }
                 >
                   <span className="font-medium text-slate-500">{label}</span>
-                  <span className={`inline-flex min-w-0 items-center justify-end gap-0.5 font-semibold ${reading ? STATUS_TEXT[reading.status] : 'text-slate-300'}`}>
+                  <span
+                    className={`inline-flex min-w-0 items-center justify-end gap-0.5 font-semibold ${reading ? STATUS_TEXT[reading.status] : 'text-slate-300'}`}
+                  >
                     {reading ? reading.value : '—'}
-                    {abnormal && <TriangleAlert size={9} strokeWidth={2.5} aria-hidden="true" className="shrink-0" />}
+                    {abnormal && (
+                      <TriangleAlert
+                        size={9}
+                        strokeWidth={2.5}
+                        aria-hidden="true"
+                        className="shrink-0"
+                      />
+                    )}
                   </span>
                 </span>
               );
@@ -106,23 +110,21 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
       ) : isFilling ? (
         <div
           className="census-vitals-grid grid grid-cols-2 gap-x-1 gap-y-0.5 text-[10px] tabular-nums"
-          title="Sincronizando signos vitales desde Rayen…"
           aria-label="Cargando signos vitales"
         >
           {CELL_READINGS.map(({ key, label }) => (
             <span key={key} className="flex items-center justify-between gap-0.5 text-slate-500">
-              {label}<span aria-hidden="true" className="h-2 w-5 rounded bg-slate-100" />
+              {label}
+              <span aria-hidden="true" className="h-2 w-5 rounded bg-slate-100" />
             </span>
           ))}
         </div>
       ) : (
-        <div
-          className="census-vitals-grid grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-x-1 gap-y-0.5 select-none text-[10px] text-slate-400 tabular-nums"
-          title="Sin signos vitales"
-        >
+        <div className="census-vitals-grid grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-x-1 gap-y-0.5 select-none text-[10px] text-slate-400 tabular-nums">
           {CELL_READINGS.map(({ key, label }) => (
             <span key={key} className="flex justify-between gap-0.5">
-              <span>{label}</span><span className="text-slate-300">—</span>
+              <span>{label}</span>
+              <span className="text-slate-300">—</span>
             </span>
           ))}
         </div>

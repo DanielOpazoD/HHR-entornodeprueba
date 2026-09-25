@@ -155,6 +155,37 @@ describe('mergeReportDevices', () => {
     ]);
   });
 
+  it('coalesces an existing full nasogastric label with a new SNG report', () => {
+    const before = patient({
+      devices: ['Sonda Nasogástrica'],
+      deviceDetails: { 'Sonda Nasogástrica': { installationDate: '2026-07-01' } },
+      deviceInstanceHistory: [
+        {
+          id: 'existing-sng',
+          type: 'Sonda Nasogástrica',
+          status: 'Active',
+          installationDate: '2026-07-01',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+    const report: MappedDevice = {
+      type: 'SNG',
+      installationDate: '2026-07-02',
+      installationTime: '08:00',
+      location: '',
+      note: '',
+    };
+
+    const result = mergeReportDevices(before, [report], ctx);
+    expect(result.devices).toEqual(['SNG']);
+    expect(result.deviceDetails?.SNG?.installationDate).toBe('2026-07-02');
+    expect(result.deviceInstanceHistory).toEqual([
+      expect.objectContaining({ id: 'existing-sng', type: 'SNG', installationDate: '2026-07-02' }),
+    ]);
+  });
+
   it.each([
     ['legacy-first', ['Solucion para gotas Orales Catéter subcutáneo', 'Catéter subcutáneo']],
     ['canonical-first', ['Catéter subcutáneo', 'Solucion para gotas Orales Catéter subcutáneo']],

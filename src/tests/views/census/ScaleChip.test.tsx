@@ -50,6 +50,22 @@ describe('ScaleChip', () => {
     expect(container.firstElementChild).not.toHaveClass('border-red-300');
     expect(container.querySelector('.animate-pulse')).toBeNull();
   });
+  it('keeps a Downton risk value legible without the extra alert icon', () => {
+    const { container } = render(
+      <ScaleChip
+        hue="indigo"
+        icon={Bandage}
+        label="Downton"
+        value="4"
+        severity="alto"
+        showValueAlertIcon={false}
+        note={note}
+      />
+    );
+    expect(screen.getByText('4')).toHaveClass('text-red-600');
+    expect(screen.getByText(/Riesgo alto/)).toBeInTheDocument();
+    expect(container.querySelector('.lucide-triangle-alert')).toBeNull();
+  });
   it('keeps identity, value and countdown on the same fixed axes for every score', () => {
     const { container, rerender } = render(
       <ScaleChip hue="violet" icon={Bandage} label="Braden" value="12" countdown="2d" note={note} />
