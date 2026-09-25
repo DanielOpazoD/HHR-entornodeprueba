@@ -208,6 +208,60 @@ const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRu
 test.describe('Production Preview Bootstrap', () => {
   test.describe.configure({ timeout: 60_000 });
 
+  test('keeps quiet fields, hover admission, floating menus and the header usable', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 800 });
+    const runtimeCollector = createPreviewRuntimeFailureCollector(page);
+    await seedPersistedSessionAndRecord(page, { discharges: buildViewportDischarges() });
+    // The pilot is enabled on the developer's machine, but not in standard CI builds.
+    // Seed the UI feature explicitly; this test never consults Jev or writes clinical data.
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'hhr_feature_flags',
+        JSON.stringify({ SPECIALTY_JEV_CONSULTATION: true })
+      );
+    });
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    await assertPreviewBootCompleted(page, runtimeCollector.failures);
+
+    const name = page.locator('.census-identity-name').first();
+    const diagnosis = page.getByRole('button', { name: 'Editar diagnóstico', exact: true }).first();
+    await expect(name).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(diagnosis).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+    await diagnosis.focus();
+    await expect(diagnosis).not.toHaveCSS('box-shadow', 'none');
+
+    const admission = page.getByRole('button', { name: 'Agregar paciente', exact: true }).first();
+    await expect(admission).toHaveCSS('opacity', '0');
+    await admission.focus();
+    await expect(admission).toHaveCSS('opacity', '1');
+    await page.mouse.move(1, 1);
+    await admission.blur();
+    await expect(admission).toHaveCSS('opacity', '0');
+
+    const specialty = page.getByTestId('specialty-actions').locator('summary');
+    await specialty.click();
+    const rules = page.getByRole('button', { name: 'Reglas automáticas', exact: true });
+    await expect(rules).toBeInViewport({ ratio: 1 });
+    const hitTest = await rules.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return element.contains(
+        document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      );
+    });
+    expect(hitTest).toBe(true);
+    await specialty.click();
+
+    await page.evaluate(() => window.scrollTo(0, 360));
+    const header = page.getByTestId('census-table').locator('thead');
+    await expect.poll(async () => (await header.boundingBox())?.y).toBeCloseTo(96, 0);
+    await expect(header).toBeInViewport({ ratio: 1 });
+    await assertPreviewBootCompleted(page, runtimeCollector.failures);
+    runtimeCollector.detach();
+  });
+
   for (const width of [375, 768, 1440]) {
     test(`keeps navigation above usable census actions at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });

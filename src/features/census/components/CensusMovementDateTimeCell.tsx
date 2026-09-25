@@ -17,7 +17,7 @@ export const CensusMovementDateTimeCell: React.FC<CensusMovementDateTimeCellProp
 
   return (
     <div className="flex flex-col items-center">
-      <div className="w-24 rounded-md border border-slate-300 bg-slate-50 px-2 py-1">
+      <div className="min-w-20 px-1 py-0.5 tabular-nums">
         <div className="flex items-center justify-center gap-1 text-[12px] font-semibold text-slate-700 leading-tight">
           <span>{displayValue.timeLabel}</span>
           <Clock3 size={11} className="text-slate-500" />

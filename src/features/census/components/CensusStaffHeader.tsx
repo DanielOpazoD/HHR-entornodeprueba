@@ -111,7 +111,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     <div className="flex w-full flex-col items-center gap-2 animate-fade-in has-[[data-overlay-open]]:relative has-[[data-overlay-open]]:z-40">
       <div className="flex w-full flex-col items-stretch gap-2">
         <div
-          className="flex flex-wrap items-stretch justify-center gap-2 xl:flex-nowrap"
+          className="census-toolbar flex flex-wrap items-stretch justify-center gap-2 xl:flex-nowrap"
           data-testid="census-staff-and-sync"
         >
           {/* Staff Selectors */}
@@ -162,7 +162,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 newAdmissions={readModel.movementSummaryState.admissionsCount}
               />
             )}
-            <div className="self-stretch">
+            <div className="flex items-center">
               <CensusAttentionBar
                 beds={beds ?? {}}
                 censusIsoDay={dailyRecordData.record?.date ?? ''}
@@ -171,7 +171,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               />
             </div>
             {dailyRecordData.record?.date && (
-              <div className="self-stretch">
+              <div className="flex items-center">
                 <Suspense fallback={null}>
                   <SpecialtyRoundEntry
                     date={dailyRecordData.record.date}

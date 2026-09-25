@@ -34,12 +34,12 @@ export const SpecialtyRoundEntry = ({ date, disabled }: { date: string; disabled
   return (
     <>
       <details
-        className="group relative h-full print:hidden"
+        className="group relative print:hidden"
         data-testid="specialty-actions"
         data-overlay-open={menuOpen ? '' : undefined}
         onToggle={event => setMenuOpen(event.currentTarget.open)}
       >
-        <summary className="inline-flex min-h-20 cursor-pointer list-none items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 [&::-webkit-details-marker]:hidden">
+        <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 [&::-webkit-details-marker]:hidden">
           <ListChecks size={14} aria-hidden="true" /> Especialidades
           <ChevronDown
             size={13}

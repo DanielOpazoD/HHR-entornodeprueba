@@ -1,5 +1,6 @@
 import { observeCensusTable } from '@/shared/runtime/observeCensusTable';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CensusTableViewport } from './CensusTableViewport';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
 import { useCensusTableBindingsModel } from '@/features/census/hooks/useCensusTableBindingsModel';
@@ -320,19 +321,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             ) : null}
           </div>
         ) : null}
-        <div
-          className="census-table-scroll"
-          role="region"
-          aria-label="Censo de pacientes, tabla desplazable"
-          tabIndex={0}
-          onKeyDown={event => {
-            if (event.target !== event.currentTarget) return;
-            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-            event.preventDefault();
-            event.stopPropagation();
-            event.currentTarget.scrollBy({ left: event.key === 'ArrowRight' ? 240 : -240 });
-          }}
-        >
+        <CensusTableViewport>
           <table
             data-testid="census-table"
             className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
@@ -353,7 +342,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
               clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
             />
           </table>
-        </div>
+        </CensusTableViewport>
       </div>
 
       {dragDrop.state.pendingMove && (

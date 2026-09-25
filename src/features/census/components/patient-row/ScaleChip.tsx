@@ -36,7 +36,7 @@ const HUE_ICON: Record<ScaleHue, string> = {
 
 /** Severity tint for the value text (semantic, shared with vitals + the rest of the app). */
 const SEVERITY_TEXT: Record<BradenRiskLevel, string> = {
-  bajo: 'text-emerald-600',
+  bajo: 'text-slate-600',
   medio: 'text-amber-600',
   alto: 'text-red-600',
 };
@@ -218,7 +218,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       onFocus={show}
       onBlur={hide}
       className={clsx(
-        'grid w-full grid-cols-[70px_minmax(0,1fr)_34px] items-stretch overflow-hidden rounded bg-slate-50/60 text-[10px] leading-tight'
+        'grid w-full grid-cols-[minmax(64px,1fr)_28px_42px] items-stretch rounded text-[10px] leading-tight'
       )}
     >
       {/* identity zone — icon in the scale's hue, name neutral; no fill competes with the value */}
@@ -240,7 +240,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       {countdown != null && (
         <span
           className={clsx(
-            'flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 font-medium tabular-nums',
+            'flex shrink-0 items-center justify-end gap-0.5 rounded px-1 py-0.5 font-medium tabular-nums',
             countdownUrgent ? 'bg-red-50 text-red-700' : 'text-slate-500'
           )}
           title="Próxima aplicación"
