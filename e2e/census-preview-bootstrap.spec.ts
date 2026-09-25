@@ -214,6 +214,14 @@ test.describe('Production Preview Bootstrap', () => {
     await page.setViewportSize({ width: 1440, height: 800 });
     const runtimeCollector = createPreviewRuntimeFailureCollector(page);
     await seedPersistedSessionAndRecord(page, { discharges: buildViewportDischarges() });
+    // The pilot is enabled on the developer's machine, but not in standard CI builds.
+    // Seed the UI feature explicitly; this test never consults Jev or writes clinical data.
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'hhr_feature_flags',
+        JSON.stringify({ SPECIALTY_JEV_CONSULTATION: true })
+      );
+    });
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
     await assertPreviewBootCompleted(page, runtimeCollector.failures);
