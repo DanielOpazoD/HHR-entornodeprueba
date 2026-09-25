@@ -411,9 +411,9 @@ test.describe('Production Preview Bootstrap', () => {
       expect(layout.toolbarTopSpread).toBeLessThanOrEqual(1);
       expect(layout.toolbarHeightSpread).toBeLessThanOrEqual(1);
     }
-    const statusHeader = page.locator('th[title="Estado clínico del paciente"]');
-    await expect(statusHeader).toContainText('Estado');
-    expect(await statusHeader.evaluate(element => element.clientWidth)).toBeGreaterThanOrEqual(52);
+    const statusHeader = page.getByRole('columnheader', { name: 'Estado clínico' });
+    await expect(statusHeader).toBeEmpty();
+    expect(await statusHeader.evaluate(element => element.clientWidth)).toBeLessThanOrEqual(40);
     await expect(page.getByRole('button', { name: /viernes.*3 de abril de 2026/i })).toBeVisible();
     await expect(page.getByTitle('Opciones de guardado')).toHaveClass(/bg-white/);
     await expect(page.getByTitle('Enviar censo')).toHaveClass(/bg-teal-600/);

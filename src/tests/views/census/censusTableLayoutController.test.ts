@@ -58,10 +58,10 @@ describe('censusTableLayoutController', () => {
     // The projected table reserves room for signs, VVP and UPC even with old saved widths.
     expect(bindings.headerProps.columns.upc).toBe(60);
     expect(bindings.bodyProps.columns.upc).toBe(60);
-    expect(bindings.headerProps.columns.admission).toBe(128);
+    expect(bindings.headerProps.columns.admission).toBe(116);
     expect(bindings.headerProps.columns.dmi).toBe(96);
-    // The status heading gains room by reclaiming unused width from text columns.
-    expect(bindings.tableStyle).toEqual({ width: '1194px', minWidth: '100%' });
+    // The unlabeled status dot and compact signs return width to the patient identity.
+    expect(bindings.tableStyle).toEqual({ width: '1262px', minWidth: '100%' });
   });
 
   it('keeps rows and bed data references untouched', () => {
