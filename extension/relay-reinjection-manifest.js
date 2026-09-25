@@ -29,13 +29,13 @@
         'fichamedico-treating-physician-dom.js',
         'fichamedico-treating-physician-sources.js',
         'fichamedico-treating-physician-normalization.js',
+        'fichamedico-diagnosis-coding.js',
         'fichamedico-normalization.js',
         'fichamedico-read-resilience.js',
         'bridge-generation-main.js',
         'connection-relay-recovery.js',
         'inject-fichamedico.js',
-      ]),
-      isolated: Object.freeze([
+      ]), isolated: Object.freeze([
         'message-contract.js',
         'bridge-generation.js',
         'content-fichamedico.js',

@@ -54,6 +54,7 @@ export const MANIFEST = {
         'fichamedico-treating-physician-dom.js',
         'fichamedico-treating-physician-sources.js',
         'fichamedico-treating-physician-normalization.js',
+        'fichamedico-diagnosis-coding.js',
         'fichamedico-normalization.js',
         'fichamedico-read-resilience.js',
         'bridge-generation-main.js',

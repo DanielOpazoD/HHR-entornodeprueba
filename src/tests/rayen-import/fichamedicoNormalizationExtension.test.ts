@@ -4,6 +4,7 @@ import '../../../extension/fichamedico-isolation-normalization.js';
 import '../../../extension/fichamedico-treating-physician-dom.js';
 import '../../../extension/fichamedico-treating-physician-sources.js';
 import '../../../extension/fichamedico-treating-physician-normalization.js';
+import '../../../extension/fichamedico-diagnosis-coding.js';
 import '../../../extension/fichamedico-normalization.js';
 
 const treatingPhysicianNormalization = (
@@ -46,7 +47,8 @@ const normalization = (
         rows: unknown[],
         header?: Record<string, unknown>,
         listItem?: Record<string, unknown>
-      ) => { name: string; code: string; source: string };
+      ) => { name: string; code: string; classificationId: number | null; source: string };
+      indexDiagnosisCatalog: (rows: unknown) => Map<number, string>;
       validClinicalDate: (value: unknown) => string | undefined;
       requiresIsolationDetails: (value: unknown) => boolean;
     };
@@ -402,6 +404,7 @@ describe('Ficha Medico diagnosis normalization', () => {
           {
             diagnosisName: 'Neumonía bacteriana',
             internalCode: 'J15.9',
+            diagnosisClassifyId: 4405,
             isPrincipal: 'S',
             archived: 'N',
             deleted: 0,
@@ -417,6 +420,7 @@ describe('Ficha Medico diagnosis normalization', () => {
     ).toEqual({
       name: 'Neumonía bacteriana',
       code: 'J15.9',
+      classificationId: 4405,
       source: 'principal-entry',
     });
   });
@@ -424,6 +428,101 @@ describe('Ficha Medico diagnosis normalization', () => {
   it('falls back to the principal header diagnosis when entries are unavailable', () => {
     expect(
       normalization.selectPrincipalDiagnosis([], { principalDiagName: 'Diagnóstico principal' })
-    ).toEqual({ name: 'Diagnóstico principal', code: '', source: 'principal-header' });
+    ).toEqual({
+      name: 'Diagnóstico principal',
+      code: '',
+      classificationId: null,
+      source: 'principal-header',
+    });
+  });
+
+  it('uses the matching Rayen classification id for a principal or admission-only diagnosis', () => {
+    expect(
+      normalization.selectPrincipalDiagnosis([], {
+        principalDiagId: 12,
+        principalDiagName: 'Principal',
+        haoDiagId: 99,
+        haoDiagName: 'Ingreso',
+      })
+    ).toMatchObject({ name: 'Principal', classificationId: 12, source: 'principal-header' });
+    expect(
+      normalization.selectPrincipalDiagnosis([], {
+        principalDiagId: null,
+        haoDiagId: 4405,
+        haoDiagName: 'Neumonía bacteriana',
+      })
+    ).toMatchObject({ name: 'Neumonía bacteriana', classificationId: 4405, source: 'admission' });
+    expect(
+      normalization.selectPrincipalDiagnosis(
+        [],
+        {
+          haoDiagName: 'Neumonía bacteriana',
+        },
+        {
+          diagnosisId: 4405,
+          diagnosisName: 'Neumonía bacteriana (Ingreso) (solicitud hospitalización)',
+        }
+      )
+    ).toMatchObject({ name: 'Neumonía bacteriana', classificationId: 4405, source: 'admission' });
+    expect(
+      normalization.selectPrincipalDiagnosis(
+        [],
+        {
+          principalDiagName: 'Diagnóstico principal',
+          haoDiagName: 'Neumonía bacteriana',
+        },
+        { diagnosisId: 4405, diagnosisName: 'Neumonía bacteriana' }
+      )
+    ).toMatchObject({
+      name: 'Diagnóstico principal',
+      classificationId: null,
+      source: 'principal-header',
+    });
+    expect(
+      normalization.selectPrincipalDiagnosis(
+        [],
+        {
+          haoDiagName: 'Neumonía bacteriana',
+        },
+        { diagnosisId: 6535, diagnosisName: 'Balanitis' }
+      )
+    ).toMatchObject({ name: 'Neumonía bacteriana', classificationId: null, source: 'admission' });
+    expect(
+      normalization.selectPrincipalDiagnosis(
+        [],
+        {},
+        {
+          diagnosisId: 6535,
+          diagnosisName: 'Balanitis',
+        }
+      )
+    ).toMatchObject({ name: 'Balanitis', classificationId: 6535, source: 'admission' });
+    expect(
+      normalization.selectPrincipalDiagnosis(
+        [
+          {
+            isPrincipal: true,
+            diagnosisClassifyId: 8,
+            diagnosisName: 'Sin código',
+          },
+        ],
+        { principalDiagId: 12, principalDiagName: 'Otro' }
+      )
+    ).toMatchObject({ name: 'Sin código', classificationId: 8, source: 'principal-entry' });
+  });
+
+  it('indexes only official CIE-10 codes by exact Rayen classification id', () => {
+    const catalog = normalization.indexDiagnosisCatalog([
+      { id: 4405, name: 'Neumonía bacteriana', internalCode: 'J15' },
+      { id: 6535, name: 'Balanitis', internalCode: 'N51.2' },
+      { id: 4125, name: 'Insuficiencia cardíaca', internalCode: 'inválido', standarCode: 'I50.0' },
+      { id: 999, name: 'Texto libre', internalCode: 'SIN CÓDIGO' },
+    ]);
+    expect([...catalog.entries()]).toEqual([
+      [4405, 'J15'],
+      [6535, 'N51.2'],
+      [4125, 'I50.0'],
+    ]);
+    expect(() => normalization.indexDiagnosisCatalog({ errorCode: 500 })).toThrow();
   });
 });
