@@ -83,10 +83,16 @@ describe('censusTableColumnProfileController', () => {
   it.each(['default', 'specialist'] as const)(
     'keeps identity readable without mutating saved widths (%s)',
     profile => {
-      const saved = { ...columns, actions: 22, bed: 28, name: 150, diagnosis: 123 };
+      const saved = { ...columns, actions: 22, bed: 28, name: 150, diagnosis: 123, status: 20 };
       const projected = resolveVisibleCensusColumns(saved, profile);
-      expect(projected).toMatchObject({ actions: 40, bed: 64, name: 308, diagnosis: 226 });
-      expect(saved).toMatchObject({ actions: 22, bed: 28, name: 150, diagnosis: 123 });
+      expect(projected).toMatchObject({
+        actions: 40,
+        bed: 64,
+        name: 296,
+        diagnosis: 214,
+        status: profile === 'specialist' ? 0 : 52,
+      });
+      expect(saved).toMatchObject({ actions: 22, bed: 28, name: 150, diagnosis: 123, status: 20 });
       const wider = resolveVisibleCensusColumns({ ...saved, name: 400, diagnosis: 350 }, profile);
       expect(wider).toMatchObject({ name: 400, diagnosis: 350 });
     }
