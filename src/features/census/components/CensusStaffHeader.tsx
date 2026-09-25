@@ -31,25 +31,16 @@ const SpecialtyRoundEntry = lazy(() =>
 // This shell has no controls or connection claim until the extension has been checked.
 const RayenOperationsLoadingCard = () => (
   <div
-    className="flex h-full min-h-20 w-full flex-col justify-between rounded-xl border border-slate-200/90 bg-white px-2 py-1.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    className="flex h-full min-h-20 w-full items-center gap-2 rounded-xl border border-slate-200/90 bg-white px-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
     role="status"
     aria-busy="true"
     aria-label="Cargando panel de Eloísa"
     data-testid="rayen-operations-loading"
   >
-    <div className="flex items-center gap-2">
-      <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
-        <img src="/images/logos/rayen-mark.png" alt="" className="size-7 object-contain" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[13px] font-semibold leading-tight text-slate-800">Eloísa</p>
-        <p className="text-[10px] leading-tight text-slate-500">Cargando controles…</p>
-      </div>
-    </div>
-    <div className="flex items-center justify-end gap-1" aria-hidden="true">
-      <span className="h-7 w-8 rounded-md border border-slate-200 bg-slate-50" />
-      <span className="h-7 w-[68px] rounded-md border border-slate-200 bg-slate-50" />
-      <span className="h-7 w-28 rounded-md bg-slate-100" />
+    <img src="/images/logos/rayen-mark.png" alt="" className="size-8 shrink-0 object-contain" />
+    <div className="min-w-0">
+      <p className="text-[13px] font-semibold leading-tight text-slate-800">Eloísa</p>
+      <p className="text-[10px] leading-tight text-slate-500">Cargando controles…</p>
     </div>
   </div>
 );
