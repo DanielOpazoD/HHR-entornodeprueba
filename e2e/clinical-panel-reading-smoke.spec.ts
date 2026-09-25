@@ -134,8 +134,9 @@ test('keeps the patient identity fixed above a calm chronological clinical list'
 
   await page.setViewportSize({ width: 375, height: 812 });
   const mobileBounds = await drawer.boundingBox();
+  const overlayBounds = await page.getByTestId('clinical-panel-overlay').boundingBox();
   expect(mobileBounds?.x).toBe(0);
-  expect(mobileBounds?.width).toBe(375);
+  expect(mobileBounds?.width).toBe(overlayBounds?.width);
   await expect(drawer.getByRole('navigation', { name: 'Secciones clínicas' })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('clinical-panel-mobile.png') });
 });

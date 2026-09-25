@@ -145,6 +145,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         type="button"
         aria-hidden
         tabIndex={-1}
+        data-testid="clinical-panel-overlay"
         style={{ zIndex: LAYER_Z_INDEX.drawerBackdrop }}
         className="fixed inset-0 cursor-default bg-slate-900/30"
         onClick={onClose}
