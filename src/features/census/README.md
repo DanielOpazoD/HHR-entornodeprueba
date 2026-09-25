@@ -195,6 +195,23 @@ botón IEEH
 - El formateo de fechas compactas de `census` debe reutilizar presentation helpers compartidos;
   no deben reaparecer `toLocaleDateString()` o `toLocaleString()` inline en controllers de UI.
 
+## Presentación compacta del censo
+
+- Nombre y diagnóstico usan superficies neutras en reposo; hover, foco y errores siguen visibles.
+  Los nombres se ajustan a varias líneas sin elipsis y el documento permanece en una sola línea.
+- Las camas vacías siguen despejadas: el ingreso aparece al pasar el cursor o recibir foco.
+- Signos usan una cuadrícula estable; los valores alterados conservan su color, detalle textual y
+  un subrayado punteado. Las escalas alinean resultado y vencimiento sin colorear todo el control.
+- Enfermería, TENS, Eloísa y estadísticas comparten contornos discretos; Escalas y Especialidades
+  son controles compactos centrados. El estado inicial de Eloísa conserva su espacio reservado.
+- `CensusTableViewport` observa el ancho real de tabla y contenedor. Si cabe, permite al encabezado
+  permanecer bajo navegación y fechas (96 px); si no, conserva desplazamiento horizontal con
+  teclado. No oculta columnas ni modifica preferencias de ancho. Impresión mantiene proporciones.
+- Altas, Traslados y Hospitalización Diurna comparten identidad, encabezados, fechas y superficies;
+  se conservan los accesos a epicrisis y los menús de acciones en portal.
+- Validación visual reproducible: `npm run test:e2e:preview:census-bootstrap` usa datos sintéticos
+  y cubre geometría de portátil, foco, admisión discreta, encabezado y menús sin recortes.
+
 ## Test entrypoints recomendados
 
 - `npx vitest run src/tests/views/census`

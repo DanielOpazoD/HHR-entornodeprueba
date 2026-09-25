@@ -75,13 +75,13 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
               : undefined
           }
         >
-          <span className="grid w-full grid-cols-[max-content_max-content] justify-between gap-x-1 gap-y-0.5 text-left leading-tight">
+          <span className="census-vitals-grid grid w-full grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-left leading-tight">
             {CELL_READINGS.map(({ key, label }) => {
               const reading = readingByKey(key);
               return (
                 <span
                   key={key}
-                  className="flex items-baseline gap-0.5 whitespace-nowrap text-[10px]"
+                  className="flex items-baseline justify-between gap-0.5 whitespace-nowrap text-[10px]"
                   title={
                     reading
                       ? `${label}: ${reading.value} ${reading.unit}${reading.status === 'warn' || reading.status === 'alert' ? ' · Fuera de rango' : ''}`
@@ -92,6 +92,9 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
                   <span
                     className={clsx(
                       'font-semibold tabular-nums',
+                      reading &&
+                        (reading.status === 'warn' || reading.status === 'alert') &&
+                        'underline decoration-dotted underline-offset-2',
                       reading ? STATUS_TEXT[reading.status] : 'text-slate-300'
                     )}
                   >

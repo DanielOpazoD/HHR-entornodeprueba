@@ -60,7 +60,7 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
 
   return (
     <div
-      className={`card min-h-20 px-2 py-1 flex flex-col justify-between gap-0.5 !border-slate-200/80 !shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:!border-slate-300 transition-colors w-fit !overflow-visible ${className || ''}`}
+      className={`census-toolbar-card rounded-xl border border-slate-200 bg-white min-h-20 px-2 py-1 flex flex-col justify-between gap-0.5 hover:border-slate-300 transition-colors w-fit overflow-visible ${className || ''}`}
     >
       <div className="flex justify-between items-center pb-0.5 border-b border-slate-100">
         <button

@@ -42,7 +42,7 @@ const DiagnosisCie10Cell = ({
     <div className="relative w-full flex flex-col gap-0.5">
       <TerminologySuggestor
         className={clsx(
-          'w-full border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7',
+          'census-inline-field w-full border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7',
           'border-slate-200 focus:ring-medical-500/20 focus:border-medical-500',
           isSubRow && 'text-xs h-6',
           freshnessPause.pauseClassName

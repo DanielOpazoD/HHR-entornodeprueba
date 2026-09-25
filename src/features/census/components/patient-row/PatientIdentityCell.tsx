@@ -160,7 +160,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           {canEditInlineName ? (
             <div
               className={clsx(
-                'flex min-h-7 w-full min-w-0 flex-1 items-start gap-1 rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
+                'census-identity-name flex min-h-7 w-full min-w-0 flex-1 items-start gap-1 rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
@@ -201,7 +201,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           ) : (
             <div
               className={clsx(
-                'relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 cursor-default',
+                'census-identity-name relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 cursor-default',
                 'border-slate-200',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
@@ -252,12 +252,12 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           )}
         </div>
         {showIdentityDetails && (
-          <div className="mt-0.5 flex items-center gap-1 pl-0.5 text-[10px] leading-tight text-slate-400">
+          <div className="census-identity-details mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 pl-0.5 text-[10px] leading-tight text-slate-500">
             {hasRutValue ? (
               <>
                 <span
                   className={clsx(
-                    'truncate tabular-nums',
+                    'whitespace-nowrap tabular-nums',
                     hasRutError && 'text-red-500',
                     isRutMode && 'cursor-pointer hover:text-slate-500'
                   )}

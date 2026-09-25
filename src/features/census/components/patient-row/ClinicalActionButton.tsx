@@ -52,7 +52,7 @@ export const ClinicalActionButton: React.FC<ClinicalActionButtonProps> = ({
     <span
       aria-hidden="true"
       className={clsx(
-        'inline-flex [&>svg]:size-3.5',
+        'inline-flex [&>svg]:size-3.5 [&>svg]:stroke-2',
         muted && !loading && 'opacity-40 group-hover:opacity-100 group-focus-visible:opacity-100'
       )}
     >
