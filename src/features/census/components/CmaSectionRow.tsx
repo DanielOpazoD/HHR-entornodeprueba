@@ -8,6 +8,11 @@ import { buildCmaClinicalDocumentsPatientSnapshot } from '@/features/census/cont
 import { resolveCmaUndoButtonTitle } from '@/features/census/controllers/censusCmaTableController';
 import { useCensusMovementActionsCellModel } from '@/features/census/hooks/useCensusMovementActionsCellModel';
 import { MovementProvenanceBadge } from '@/features/census/components/MovementProvenanceBadge';
+import { CensusMovementPatientIdentity } from './CensusMovementPatientIdentity';
+import { CensusMovementEpicrisisButton } from './CensusMovementEpicrisisButton';
+import { PatientHospitalizationReportsDialog } from './PatientHospitalizationReportsDialog';
+import { resolveCmaHistoricalAdmissionDate } from '@/types/domain/movements';
+import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
 const LazyClinicalDocumentsModal = lazy(() =>
   import('@/features/clinical-documents').then(module => ({
@@ -28,6 +33,7 @@ interface CmaSectionRowProps {
 export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
   ({ item, recordDate, onUpdate, onUndo, onDelete, onConvertToDischarge, onConvertToTransfer }) => {
     const [showClinicalDocuments, setShowClinicalDocuments] = useState(false);
+    const [showHospitalizationReports, setShowHospitalizationReports] = useState(false);
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [draftInterventionType, setDraftInterventionType] = useState(item.interventionType);
     const [draftDischargeTime, setDraftDischargeTime] = useState(item.dischargeTime || '');
@@ -117,25 +123,19 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
               ))}
             </select>
           </td>
-          <td className="p-2">
-            <span className="text-[13px] font-medium text-slate-800">
-              {item.patientName || '-'}
-            </span>
-          </td>
-          <td className="p-2">
-            <span className="text-[11px] font-mono text-slate-500">{item.rut || '-'}</span>
-          </td>
-          <td className="p-2 text-center">
-            <span className="text-[11px] text-slate-400">{item.age || '-'}</span>
-          </td>
+          <CensusMovementPatientIdentity
+            name={item.patientName}
+            identifier={item.rut}
+            admissionDate={resolveCmaHistoricalAdmissionDate(item)}
+          />
           <td className="p-2">
             <span className="text-[12px] text-slate-600">{item.diagnosis || '-'}</span>
           </td>
-          <td className="p-2">
-            <span className="text-xs text-slate-600">{item.specialty || '-'}</span>
-          </td>
           <td className="p-2 text-center">
             <div className="flex flex-col items-center">
+              <span className="mb-1 whitespace-nowrap text-[11px] tabular-nums text-slate-500">
+                {formatDateDDMMYYYY(recordDate)}
+              </span>
               <input
                 type="time"
                 step="300"
@@ -147,9 +147,27 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
             </div>
           </td>
           <td className="p-2 text-right print:hidden">
-            <CensusMovementActionsMenu actions={actionViewModels} />
+            <div className="flex items-center justify-end gap-2">
+              <CensusMovementEpicrisisButton
+                patientName={item.patientName}
+                onClick={() => setShowHospitalizationReports(true)}
+              />
+              <CensusMovementActionsMenu actions={actionViewModels} />
+            </div>
           </td>
         </tr>
+
+        {showHospitalizationReports && (
+          <PatientHospitalizationReportsDialog
+            isOpen={showHospitalizationReports}
+            onClose={() => setShowHospitalizationReports(false)}
+            patientName={item.patientName}
+            patientRun={item.rut}
+            currentEpisodeId={item.clinicalEpisodeId}
+            admissionDate={resolveCmaHistoricalAdmissionDate(item)}
+            censusDate={recordDate}
+          />
+        )}
 
         {showClinicalDocuments &&
           createPortal(

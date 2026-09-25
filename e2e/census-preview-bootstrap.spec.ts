@@ -305,6 +305,36 @@ test.describe('Production Preview Bootstrap', () => {
     runtimeCollector.detach();
   });
 
+  test('fits the census and compact toolbar in a 1280px viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const runtimeCollector = createPreviewRuntimeFailureCollector(page);
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    await assertPreviewBootCompleted(page, runtimeCollector.failures);
+
+    const layout = await page.evaluate(() => {
+      const table = document.querySelector('[aria-label="Censo de pacientes, tabla desplazable"]');
+      const toolbar = document.querySelector('[data-testid="census-staff-and-sync"]');
+      if (!table || !toolbar) return null;
+      return {
+        tableWidth: table.clientWidth,
+        tableScrollWidth: table.scrollWidth,
+        toolbarHeight: toolbar.getBoundingClientRect().height,
+        pageWidth: document.documentElement.clientWidth,
+        pageScrollWidth: document.documentElement.scrollWidth,
+      };
+    });
+
+    expect(layout).not.toBeNull();
+    if (layout) {
+      expect(layout.tableScrollWidth).toBeLessThanOrEqual(layout.tableWidth);
+      expect(layout.pageScrollWidth).toBeLessThanOrEqual(layout.pageWidth);
+      expect(layout.toolbarHeight).toBeLessThanOrEqual(92);
+    }
+    runtimeCollector.detach();
+  });
+
   for (const width of [375, 768, 1440]) {
     test(`keeps the final movement menu inside the initial viewport at ${width}px`, async ({
       page,

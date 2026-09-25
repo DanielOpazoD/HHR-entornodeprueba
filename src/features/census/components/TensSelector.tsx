@@ -60,13 +60,13 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
 
   return (
     <div
-      className={`card px-2 py-1.5 flex flex-col gap-0.5 !border-slate-200/80 !shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:!border-slate-300 transition-colors w-fit !overflow-visible ${className || ''}`}
+      className={`card min-h-20 px-2 py-1 flex flex-col justify-between gap-0.5 !border-slate-200/80 !shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:!border-slate-300 transition-colors w-fit !overflow-visible ${className || ''}`}
     >
       <div className="flex justify-between items-center pb-0.5 border-b border-slate-100">
         <button
           type="button"
           onClick={() => setShowTensManager(true)}
-          className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1 transition-colors hover:text-medical-600"
+          className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1 transition-colors hover:text-medical-600"
           aria-label="Abrir catálogo de TENS"
         >
           <Users size={11} /> TENS

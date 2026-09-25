@@ -9,13 +9,12 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 describe('censusDischargesTableController', () => {
   it('defines stable table headers for discharges section', () => {
     expect(DISCHARGES_TABLE_HEADERS.map(header => header.label)).toEqual([
-      'Cama Origen',
+      'Cama',
       'Paciente',
-      'RUT / ID',
       'Diagnóstico',
       'Tipo Alta',
       'Estado',
-      'Fecha / Hora Alta',
+      'Fecha',
       'Acciones',
     ]);
   });

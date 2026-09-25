@@ -47,6 +47,13 @@ describe('censusTableColumnProfileController', () => {
     expect(compact.upc).toBe(22);
   });
 
+  it('keeps VVP within the DMI column for old compact preferences', () => {
+    const compact = { ...columns, dmi: 60 };
+    expect(resolveVisibleCensusColumns(compact)).toMatchObject({ admission: 118, dmi: 92 });
+    expect(resolveVisibleCensusColumns(compact, 'specialist').dmi).toBe(0);
+    expect(compact.dmi).toBe(60);
+  });
+
   it('hides rut, age, cqx, type and specialty columns in every access profile', () => {
     expect(HIDDEN_CENSUS_COLUMNS).toEqual(['rut', 'age', 'cqx', 'type', 'specialty']);
 
@@ -78,7 +85,7 @@ describe('censusTableColumnProfileController', () => {
     profile => {
       const saved = { ...columns, actions: 22, bed: 28, name: 150, diagnosis: 123 };
       const projected = resolveVisibleCensusColumns(saved, profile);
-      expect(projected).toMatchObject({ actions: 40, bed: 64, name: 380, diagnosis: 280 });
+      expect(projected).toMatchObject({ actions: 40, bed: 64, name: 308, diagnosis: 226 });
       expect(saved).toMatchObject({ actions: 22, bed: 28, name: 150, diagnosis: 123 });
       const wider = resolveVisibleCensusColumns({ ...saved, name: 400, diagnosis: 350 }, profile);
       expect(wider).toMatchObject({ name: 400, diagnosis: 350 });

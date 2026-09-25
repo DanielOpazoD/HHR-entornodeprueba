@@ -91,9 +91,9 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     // solo con un popover abierto): un z estático aquí tapaba los menús del
     // toolbar y de la primera fila que solapan el header (cazado por e2e).
     <div className="flex w-full flex-col items-center gap-2 animate-fade-in has-[[data-overlay-open]]:relative has-[[data-overlay-open]]:z-40">
-      <div className="flex w-full max-w-[1400px] flex-col items-stretch gap-2">
+      <div className="flex w-full flex-col items-stretch gap-2">
         <div
-          className="flex flex-wrap items-stretch justify-center gap-2 2xl:flex-nowrap 2xl:justify-start"
+          className="flex flex-wrap items-stretch justify-center gap-2 xl:flex-nowrap"
           data-testid="census-staff-and-sync"
         >
           {/* Staff Selectors */}
@@ -122,7 +122,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )}
 
           {!readOnly && !readModel.specialistAccess && (
-            <div className="w-64 max-w-full shrink-0 self-stretch">
+            <div className="w-60 max-w-full shrink-0 self-stretch">
               <Suspense fallback={null}>
                 <RayenImportButton
                   selectedDate={selectedDate}
@@ -134,7 +134,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )}
 
           {/* Combined Stats Summary Card */}
-          <div className="flex shrink-0 items-stretch justify-center gap-2">
+          <div className="flex min-w-0 shrink-0 items-stretch justify-center gap-2">
             {readModel.showSummary && stats && (
               <CombinedSummaryCard
                 stats={stats}
@@ -144,7 +144,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 newAdmissions={readModel.movementSummaryState.admissionsCount}
               />
             )}
-            <div className="self-center">
+            <div className="self-stretch">
               <CensusAttentionBar
                 beds={beds ?? {}}
                 censusIsoDay={dailyRecordData.record?.date ?? ''}
@@ -153,7 +153,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               />
             </div>
             {dailyRecordData.record?.date && (
-              <div className="self-center">
+              <div className="self-stretch">
                 <Suspense fallback={null}>
                   <SpecialtyRoundEntry
                     date={dailyRecordData.record.date}

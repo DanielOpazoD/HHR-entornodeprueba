@@ -5,6 +5,7 @@ import { CensusMovementDateActionsCells } from '@/features/census/components/Cen
 import type { DischargeRowViewModel } from '@/features/census/types/censusMovementRowViewModelTypes';
 import type { DischargeData } from '@/features/census/contracts/censusMovementContracts';
 import { MailWarning } from 'lucide-react';
+import { CensusMovementEpicrisisButton } from './CensusMovementEpicrisisButton';
 
 const LazyFugaNotificationModal = lazy(() =>
   import('@/features/census/components/FugaNotificationModal').then(module => ({
@@ -15,12 +16,14 @@ interface DischargeRowViewProps {
   viewModel: DischargeRowViewModel;
   recordDate: string;
   dischargeItem?: DischargeData;
+  onOpenEpicrisis?: () => void;
 }
 
 export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
   viewModel,
   recordDate,
   dischargeItem,
+  onOpenEpicrisis,
 }) => {
   const [showFugaNotificationModal, setShowFugaNotificationModal] = useState(false);
 
@@ -63,6 +66,12 @@ export const DischargeRowView: React.FC<DischargeRowViewProps> = ({
           actions={viewModel.actions}
           actionsPresentation="menu"
         >
+          {onOpenEpicrisis && (
+            <CensusMovementEpicrisisButton
+              patientName={viewModel.patientName}
+              onClick={onOpenEpicrisis}
+            />
+          )}
           {isFugaDischarge && dischargeItem && (
             <button
               type="button"
