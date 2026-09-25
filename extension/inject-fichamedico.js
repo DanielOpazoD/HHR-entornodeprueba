@@ -11,7 +11,7 @@
  */
 (() => {
   'use strict';
-  const INJECT_VERSION = '0.48.34';
+  const INJECT_VERSION = '0.48.35';
   // Install the bridge probe separately so an older, compatible MAIN reader can keep its
   // captured session when this script is re-injected after an extension update.
   const bridgeRuntime = globalThis.HhrBridgeGeneration.createMain({ version: INJECT_VERSION });
@@ -101,10 +101,11 @@
   let epicrisisCapture = null;
   const epicrisisPdfCandidates = new Map();
   const CLINICAL_READ_CACHE_TTL_MS = 30 * 1000;
+  const DIAGNOSIS_CATALOG_CACHE_TTL_MS = 60 * 60 * 1000;
   const CLINICAL_READ_CACHE_MAX_ENTRIES = 300;
   const clinicalReadCache = new Map();
   const clearClinicalReadCache = () => clinicalReadCache.clear();
-  const readClinicalCached = (key, reader, now = Date.now()) => {
+  const readClinicalCached = (key, reader, now = Date.now(), ttlMs = CLINICAL_READ_CACHE_TTL_MS) => {
     const cached = clinicalReadCache.get(key);
     if (cached && cached.expiresAt > now) return cached.promise;
     if (cached) clinicalReadCache.delete(key);
@@ -115,7 +116,7 @@
       clinicalReadCache.delete(clinicalReadCache.keys().next().value);
     }
     const promise = Promise.resolve().then(reader);
-    const entry = { expiresAt: now + CLINICAL_READ_CACHE_TTL_MS, promise };
+    const entry = { expiresAt: now + ttlMs, promise };
     clinicalReadCache.set(key, entry);
     promise.catch(() => {
       if (clinicalReadCache.get(key) === entry) clinicalReadCache.delete(key);
@@ -522,6 +523,11 @@
       diagnosisErrors: 0,
       isolationErrors: 0,
     };
+    const diagnosisCoding = globalThis.HhrFichaMedicoDiagnosisCoding.createEnricher(() =>
+      readClinicalCached(`${context.apiOrigin}:diagnosis-catalog`,
+        async () => normalization.indexDiagnosisCatalog(await apiGet(
+          `${context.apiOrigin}/api/core/diagnosisClassify?tid=0`, capturedAuth
+        )), Date.now(), DIAGNOSIS_CATALOG_CACHE_TTL_MS));
     let cursor = 0;
     const worker = async () => {
       while (cursor < rows.length) {
@@ -564,6 +570,7 @@
           header,
           itemWithIsolation
         );
+        diagnosisCoding.queue(index, principalDiagnosis);
         encounters[index] = normalization.normalizeEncounter(
           itemWithIsolation,
           header,
@@ -573,6 +580,7 @@
       }
     };
     await Promise.all(Array.from({ length: Math.min(6, rows.length) }, () => worker()));
+    await diagnosisCoding.apply(encounters);
 
     return {
       capturedAt: new Date().toISOString(),

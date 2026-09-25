@@ -25,7 +25,12 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
   reducen a una sesión temporal de la extensión y nunca se persisten en disco ni se envían a HHR.
 - La lectura usa `filterType=3` (sin médico + Servicio Todos = censo completo) + `filterType=2`
   (egresos), `patientHeaderData/{encId}` y el diagnóstico principal activo por paciente. Marca
-  `isComplete=true` y entrega el código CIE-10 cuando Ficha Médico lo informa.
+  `isComplete=true` y entrega el código CIE-10 cuando Ficha Médico lo informa. Si el paciente
+  aún tiene solo un diagnóstico de ingreso, usa su `haoDiagId` (o `diagnosisId` de la lista)
+  para buscar el código exacto en el catálogo oficial de Eloísa. Ese catálogo se lee solo si
+  hay diagnósticos sin código y se reutiliza durante una hora en la pestaña; nunca se asigna
+  un código por semejanza del texto. Una nueva sincronización completa los códigos de los
+  pacientes ya presentes en HHR sin rehacer su ingreso.
 - El panel clínico se consulta solo al abrirlo: combina historial, estado vigente de fármacos y
   plan de cuidados. Así distingue suspendidos, muestra acciones de enfermería ejecutadas y separa
   entregas de turno médicas y de enfermería sin persistir ese contenido en HHR.
@@ -72,7 +77,8 @@ sin desplazar las acciones ni la tabla al iniciar una lectura.
 | --- | --- |
 | `manifest.json` | MV3: permisos de host, content scripts (MAIN + ISOLATED), service worker |
 | `inject-fichamedico.js` | MAIN world en Rayen: captura token, lee y **normaliza** al snapshot |
-| `fichamedico-normalization.js` | Selecciona el diagnóstico principal activo y su CIE-10 sin depender de la UI de Rayen |
+| `fichamedico-diagnosis-coding.js` | Resuelve por ID exacto el CIE-10 oficial de diagnósticos de ingreso sin codificación en el episodio |
+| `fichamedico-normalization.js` | Normaliza los episodios y sus campos clínicos para HHR |
 | `content-fichamedico.js` | ISOLATED en Rayen: relé background ⇄ mundo principal |
 | `fichamedico-clinical-client.js` | Cliente read-only: valida la sesión, construye rutas relativas y centraliza GET JSON/PDF autenticados de Ficha Médico |
 | `fichamedico-patient-context.js` | Contexto clínico read-only: caché de cabeceras, modelo normalizado de hospitalizados y revalidación de episodios activos |

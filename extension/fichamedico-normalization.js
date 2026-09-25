@@ -51,39 +51,7 @@
     return Number.isFinite(Date.parse(candidate)) ? candidate : undefined;
   };
 
-  const flag = value => {
-    if (value === true || value === 1) return true;
-    return ['true', '1', 's', 'si', 'sí'].includes(text(value).toLowerCase());
-  };
-
-  const isActiveDiagnosis = row =>
-    Boolean(row) &&
-    !flag(row.archived) &&
-    !flag(row.deleted) &&
-    text(row.status).toLowerCase() !== 'inactivo';
-
-  /** Select the first active principal diagnosis exactly as ordered by Ficha Medico. */
-  const selectPrincipalDiagnosis = (rows, header, listItem) => {
-    const diagnoses = Array.isArray(rows) ? rows : [];
-    const firstPrincipal = diagnoses.find(row => isActiveDiagnosis(row) && flag(row.isPrincipal));
-    const fallbackHeader = header || {};
-    const fallbackItem = listItem || {};
-
-    const name = text(
-      firstPrincipal &&
-        (firstPrincipal.diagnosisName ||
-          firstPrincipal.name ||
-          firstPrincipal.description ||
-          firstPrincipal.freeTextDiagnosis)
-    );
-    const headerName = text(fallbackHeader.principalDiagName);
-
-    return {
-      name: name || headerName || text(fallbackHeader.haoDiagName) || text(fallbackItem.diagnosisName),
-      code: text(firstPrincipal && firstPrincipal.internalCode),
-      source: firstPrincipal ? 'principal-entry' : headerName ? 'principal-header' : 'admission',
-    };
-  };
+  const diagnosisCoding = globalThis.HhrFichaMedicoDiagnosisCoding;
 
   const normalizeEncounter = (item, header, principalDiagnosis, discharged, physicianById, physicianByEncounterId) => {
     const safeItem = record(item);
@@ -127,7 +95,8 @@
     normalizeEncounter,
     normalizeSessionExpiry,
     normalizeSessionRole,
-    selectPrincipalDiagnosis,
+    selectPrincipalDiagnosis: diagnosisCoding.selectPrincipalDiagnosis,
+    indexDiagnosisCatalog: diagnosisCoding.indexDiagnosisCatalog,
     validClinicalDate,
   };
 });

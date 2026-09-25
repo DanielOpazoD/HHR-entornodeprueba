@@ -224,6 +224,10 @@
         "iife>variable:create>variable:request": 17
       }
     },
+    "fichamedico-diagnosis-coding.js": {
+      "maxLines": 108,
+      "hotspots": {}
+    },
     "fichamedico-device-evidence-runtime.js": {
       "maxLines": 70,
       "hotspots": {}

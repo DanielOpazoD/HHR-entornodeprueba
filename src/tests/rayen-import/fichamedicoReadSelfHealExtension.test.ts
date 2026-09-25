@@ -28,6 +28,10 @@ const isolationNormalizationSource = readFileSync(
   path.resolve('extension/fichamedico-isolation-normalization.js'),
   'utf8'
 );
+const diagnosisCodingSource = readFileSync(
+  path.resolve('extension/fichamedico-diagnosis-coding.js'),
+  'utf8'
+);
 const normalizationSource = readFileSync(
   path.resolve('extension/fichamedico-normalization.js'),
   'utf8'
@@ -151,6 +155,7 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
   vm.runInContext(isolationNormalizationSource, context, {
     filename: 'fichamedico-isolation-normalization.js',
   });
+  vm.runInContext(diagnosisCodingSource, context, { filename: 'fichamedico-diagnosis-coding.js' });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
   vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });
@@ -309,6 +314,53 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
     expect(first?.snapshot?.isComplete).toBe(true);
     expect(second?.snapshot?.isComplete).toBe(true);
     expect({ headerCalls, diagnosisCalls }).toEqual({ headerCalls: 1, diagnosisCalls: 1 });
+  });
+
+  it('recupera CIE-10 del diagnóstico de ingreso por ID oficial y consulta el catálogo una sola vez', async () => {
+    let catalogCalls = 0;
+    const harness = await createHarness((rawUrl: string) => {
+      const url = new URL(rawUrl);
+      if (url.pathname === LIST_PATH) {
+        return url.searchParams.get('filterType') === '3'
+          ? [
+              { id: 101, diagnosisId: 4405, diagnosisName: 'Neumonía bacteriana' },
+              { id: 102, diagnosisId: 6535, diagnosisName: 'Balanitis' },
+              { id: 103, diagnosisId: 999, diagnosisName: 'Diagnóstico sin código' },
+            ]
+          : [];
+      }
+      if (url.pathname.includes('/patientHeaderData/101/')) {
+        return { haoDiagId: 4405, haoDiagName: 'Neumonía bacteriana' };
+      }
+      if (url.pathname.includes('/patientHeaderData/102/')) {
+        return { haoDiagId: 6535, haoDiagName: 'Balanitis' };
+      }
+      if (url.pathname.includes('/patientHeaderData/103/')) {
+        return { haoDiagId: 999, haoDiagName: 'Diagnóstico sin código' };
+      }
+      if (url.pathname.includes('/diagnosisEntry/')) return [];
+      if (url.pathname === '/api/core/diagnosisClassify') {
+        catalogCalls += 1;
+        return [
+          { id: 4405, name: 'Neumonía bacteriana', internalCode: 'J15' },
+          { id: 6535, name: 'Balanitis', internalCode: 'N51.2' },
+          { id: 999, name: 'Diagnóstico sin código', internalCode: '' },
+        ];
+      }
+      return [];
+    });
+
+    const first = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'coding-1' });
+    const second = await harness.send({ type: 'RAYEN_EXT_READ_REQUEST', reqId: 'coding-2' });
+
+    expect(first?.snapshot?.isComplete).toBe(true);
+    expect(first?.snapshot?.encounters).toMatchObject([
+      { diagnosis: 'Neumonía bacteriana', diagnosisCode: 'J15' },
+      { diagnosis: 'Balanitis', diagnosisCode: 'N51.2' },
+      { diagnosis: 'Diagnóstico sin código', diagnosisCode: undefined },
+    ]);
+    expect(second?.snapshot?.encounters?.[0]).toMatchObject({ diagnosisCode: 'J15' });
+    expect(catalogCalls).toBe(1);
   });
 
   it('no guarda fallos clínicos en caché y permite recuperarlos en la siguiente captura', async () => {
