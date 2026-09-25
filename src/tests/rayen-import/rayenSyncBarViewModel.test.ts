@@ -317,7 +317,7 @@ describe('buildRayenSyncBarViewModel', () => {
     expect(model.label).not.toContain('Enfermería/TENS');
   });
 
-  it('warns when today’s last successful synchronization is older than 15 minutes', () => {
+  it('shows elapsed time without warning when today’s successful synchronization is older than 15 minutes', () => {
     const now = new Date(2026, 8, 9, 12, 30).getTime();
     const model = buildRayenSyncBarViewModel(
       input({
@@ -340,12 +340,12 @@ describe('buildRayenSyncBarViewModel', () => {
     );
 
     expect(model).toMatchObject({
-      phase: 'action',
-      tone: 'warning',
-      label: 'Datos sin actualizar · hace 30 min',
+      phase: 'idle',
+      tone: 'neutral',
+      label: 'Última lectura · hace 30 min',
       visuallyHidden: false,
     });
-    expect(model.detail).toContain('Última sincronización exitosa');
+    expect(model.detail).toBeUndefined();
   });
 
   it('does not mark a selected historical census as stale', () => {
