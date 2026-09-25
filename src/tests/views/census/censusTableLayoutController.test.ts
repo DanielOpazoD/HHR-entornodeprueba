@@ -60,7 +60,8 @@ describe('censusTableLayoutController', () => {
     expect(bindings.bodyProps.columns.upc).toBe(64);
     expect(bindings.headerProps.columns.admission).toBe(118);
     expect(bindings.headerProps.columns.dmi).toBe(92);
-    expect(bindings.tableStyle).toEqual({ width: '1210px', minWidth: '100%' });
+    // The status heading gains room by reclaiming unused width from text columns.
+    expect(bindings.tableStyle).toEqual({ width: '1186px', minWidth: '100%' });
   });
 
   it('keeps rows and bed data references untouched', () => {
