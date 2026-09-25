@@ -48,6 +48,7 @@ describe('VitalsCell', () => {
     expect(screen.getByText('130/82')).toBeInTheDocument();
     expect(screen.getByText('84')).toBeInTheDocument(); // FC
     expect(screen.getByText('88')).toBeInTheDocument(); // SAT (low → styled, still shown)
+    expect(screen.getByText('88')).not.toHaveClass('decoration-dotted');
     expect(screen.getByText('36.5')).toBeInTheDocument(); // T°
     expect(screen.getByTitle('SAT: 88 % · Fuera de rango')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveClass(

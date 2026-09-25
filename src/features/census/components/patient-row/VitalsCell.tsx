@@ -5,7 +5,6 @@
  */
 
 import React, { useState } from 'react';
-import clsx from 'clsx';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { VitalsDetailModal } from './VitalsDetailModal';
@@ -90,13 +89,7 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
                 >
                   <span className="font-medium text-slate-500">{label}</span>
                   <span
-                    className={clsx(
-                      'font-semibold tabular-nums',
-                      reading &&
-                        (reading.status === 'warn' || reading.status === 'alert') &&
-                        'underline decoration-dotted underline-offset-2',
-                      reading ? STATUS_TEXT[reading.status] : 'text-slate-300'
-                    )}
+                    className={`font-semibold tabular-nums ${reading ? STATUS_TEXT[reading.status] : 'text-slate-300'}`}
                   >
                     {reading ? reading.value : '—'}
                   </span>

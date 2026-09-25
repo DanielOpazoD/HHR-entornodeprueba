@@ -12,7 +12,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, FileDown, Loader2, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileDown, RefreshCw } from 'lucide-react';
 import { type EvolutionProfession } from '@/features/rayen-import';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
@@ -91,7 +91,10 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
+      if (
+        event.key === 'Escape' &&
+        document.activeElement?.closest('[role="dialog"]') === drawerRef.current
+      ) {
         event.stopPropagation();
         onClose();
       }
@@ -229,10 +232,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
               title="Actualizar desde Ficha Médico"
               aria-label="Actualizar panel clínico"
             >
-              <RefreshCw
-                size={14}
-                className={state.phase === 'loading' ? 'animate-spin' : undefined}
-              />
+              <RefreshCw size={14} />
             </button>
           </div>
         </header>
@@ -285,8 +285,14 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           className="min-h-0 flex-1 cursor-text select-text space-y-2 overflow-y-auto overscroll-contain break-words bg-white p-3"
         >
           {state.phase === 'loading' && tab !== 'antecedents' && (
-            <div className="flex flex-col items-center gap-2 py-10 text-slate-400">
-              <Loader2 size={20} className="animate-spin" />
+            <div role="status" className="flex flex-col items-center gap-2 py-10 text-slate-500">
+              <span className="flex size-11 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-200">
+                <img
+                  src="/images/logos/logo_HHR.png"
+                  alt=""
+                  className="h-7 w-7 object-contain animate-pulse motion-reduce:animate-none"
+                />
+              </span>
               <p className="text-[12px]">Consultando Ficha Médico…</p>
             </div>
           )}

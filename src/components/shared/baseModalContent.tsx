@@ -29,6 +29,7 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
   initialFocusRef,
   headerActions,
   bodyClassName,
+  backdropZIndex,
   scrollableBody = true,
   dataModule,
   dataTestId,
@@ -53,6 +54,7 @@ export const BaseModalContent: React.FC<BaseModalProps> = ({
     <BaseModalBackdrop
       printable={printable}
       scrollableBody={scrollableBody}
+      zIndex={backdropZIndex}
       onClick={handleBackdropClick}
     >
       <div
