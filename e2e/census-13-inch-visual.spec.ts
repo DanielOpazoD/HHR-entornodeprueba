@@ -37,7 +37,7 @@ const seedCensus = async (page: Page) => {
       },
       R2: {
         ...beds.R2,
-        patientName: 'CARINA ARANCELI PATE LILLO',
+        patientName: 'PACIENTE SINTÉTICA DE NOMBRE LARGO',
         rut: '12345678-5',
         clinicalEpisodeId: 'visual-episode-r2',
         age: '52',
@@ -87,6 +87,8 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     const vitals = row.locator('.census-vitals-grid');
     const vitalCell = vitals.locator('xpath=ancestor::td');
     const deviceCell = row.locator('td').nth(6);
+    const identityCell = row.locator('.census-identity-cell');
+    const diagnosisCell = row.locator('.census-diagnosis-cell');
 
     await expect(name).toBeVisible();
     await expect(vitals).toContainText('PA');
@@ -97,10 +99,26 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     const vitalBounds = await vitalCell.boundingBox();
     const deviceBounds = await deviceCell.boundingBox();
     const nameBounds = await name.boundingBox();
+    const identityBounds = await identityCell.boundingBox();
+    const diagnosisBounds = await diagnosisCell.boundingBox();
     expect(vitalBounds).not.toBeNull();
     expect(deviceBounds).not.toBeNull();
     expect(nameBounds!.height).toBeLessThanOrEqual(33);
     expect(vitalBounds!.x + vitalBounds!.width).toBeLessThanOrEqual(deviceBounds!.x + 1);
+    if (zoom === '100') {
+      expect(diagnosisBounds!.width).toBeGreaterThanOrEqual(identityBounds!.width * 0.7);
+    }
+    const viewportBounds = await page.locator('.census-table-scroll').boundingBox();
+    const shell = page.getByTestId('census-table-shell');
+    const shellBounds = await shell.boundingBox();
+    const shellBackground = await shell.evaluate(
+      element => getComputedStyle(element).backgroundColor
+    );
+    expect(viewportBounds).not.toBeNull();
+    expect(shellBounds).not.toBeNull();
+    expect(viewportBounds!.x - shellBounds!.x).toBeGreaterThanOrEqual(56);
+    expect(shellBounds!.width - viewportBounds!.width).toBeGreaterThanOrEqual(56);
+    expect(shellBackground).toBe('rgba(0, 0, 0, 0)');
     if (zoom === '125') {
       const scroll = page.locator('.census-table-scroll');
       const { clientWidth, scrollWidth } = await scroll.evaluate(element => ({
@@ -114,15 +132,19 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     const secondRow = page.locator('[data-testid="patient-row"][data-bed-id="R2"]');
     const secondIdentity = secondRow.locator('.census-identity-cell');
     const action = secondRow.getByTestId('clinical-panel-trigger-R2');
-    await expect(secondIdentity).toContainText('CARINA ARANCELI PATE LILLO');
+    await expect(secondIdentity).toContainText('PACIENTE SINTÉTICA DE NOMBRE LARGO');
     const detailsBox = await secondIdentity.locator('.census-identity-details').boundingBox();
     const actionBox = await action.boundingBox();
     expect(actionBox!.y).toBeLessThan(detailsBox!.y + 8);
     await action.focus();
     const rowColor = await secondRow.evaluate(element => getComputedStyle(element).backgroundColor);
     expect(rowColor).not.toBe('rgb(240, 253, 250)');
+    await action.evaluate(element => element.blur());
+    await page.mouse.move(1, 1);
     await page.screenshot({
-      path: test.info().outputPath(`census-air-${zoom}.png`),
+      path: process.env.CENSUS_VISUAL_OUTPUT_DIR
+        ? `${process.env.CENSUS_VISUAL_OUTPUT_DIR}/census-air-${zoom}.png`
+        : test.info().outputPath(`census-air-${zoom}.png`),
       animations: 'disabled',
     });
 

@@ -81,15 +81,15 @@ describe('censusTableColumnProfileController', () => {
   });
 
   it.each(['default', 'specialist'] as const)(
-    'keeps identity readable without mutating saved widths (%s)',
+    'balances patient identity and diagnosis without mutating saved widths (%s)',
     profile => {
       const saved = { ...columns, actions: 22, bed: 28, name: 150, diagnosis: 123, status: 20 };
       const projected = resolveVisibleCensusColumns(saved, profile);
       expect(projected).toMatchObject({
         actions: 40,
         bed: 54,
-        name: 400,
-        diagnosis: profile === 'specialist' ? 200 : 188,
+        name: 340,
+        diagnosis: 280,
         status: profile === 'specialist' ? 0 : 32,
       });
       expect(saved).toMatchObject({ actions: 22, bed: 28, name: 150, diagnosis: 123, status: 20 });

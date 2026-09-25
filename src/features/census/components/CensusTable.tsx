@@ -281,7 +281,11 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     attentionFilter === 'all' ? null : getCensusAttentionFilterLabel(attentionFilter);
 
   return (
-    <div ref={tableRootRef} className="overflow-visible rounded-xl bg-white print:shadow-none">
+    <div
+      ref={tableRootRef}
+      className="overflow-visible rounded-xl print:bg-white print:shadow-none"
+      data-testid="census-table-shell"
+    >
       <div className="relative overflow-visible">
         {freshnessUi.userMessage ? (
           <div
@@ -321,7 +325,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             ) : null}
           </div>
         ) : null}
-        <CensusTableViewport>
+        <CensusTableViewport accessProfile={bodyProps.accessProfile}>
           <table
             data-testid="census-table"
             className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"

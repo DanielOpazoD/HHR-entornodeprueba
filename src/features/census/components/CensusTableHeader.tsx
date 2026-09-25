@@ -33,7 +33,7 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
           responsiveShare={responsiveShare(columns.actions)}
           isEditMode={isEditMode}
           onResize={onResizeColumn('actions')}
-          headerClassName={headerClassName}
+          headerClassName={clsx(headerClassName, 'census-column-actions')}
           readOnly={readOnly}
           canDeleteRecord={accessProfile === 'specialist' ? false : canDeleteRecord}
           deniedMessage={resetDayDeniedMessage}
@@ -48,7 +48,7 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
               responsiveShare={responsiveShare(columns.diagnosis)}
               isEditMode={isEditMode}
               onResize={onResizeColumn('diagnosis')}
-              headerClassName={clsx(headerClassName, cell.className)}
+              headerClassName={clsx(headerClassName, cell.className, `census-column-${cell.key}`)}
               readOnly={readOnly}
               diagnosisMode={diagnosisMode}
               onToggleDiagnosisMode={onToggleDiagnosisMode}
@@ -60,7 +60,7 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
               responsiveShare={responsiveShare(columns[cell.key])}
               isEditMode={isEditMode}
               onResize={onResizeColumn(cell.key)}
-              className={clsx(headerClassName, cell.className)}
+              className={clsx(headerClassName, cell.className, `census-column-${cell.key}`)}
               title={cell.title}
               ariaLabel={cell.key === 'status' ? 'Estado clínico' : undefined}
               minWidth={cell.key === 'status' ? 32 : undefined}
