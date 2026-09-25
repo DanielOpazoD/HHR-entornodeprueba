@@ -29,7 +29,7 @@ export interface CensusHeaderCellModel {
 export const CENSUS_HEADER_COLUMNS: readonly CensusHeaderColumnDefinition[] = [
   { key: 'bed', label: 'Cama' },
   // Estado movido al lugar de "Tipo" (rediseño 2026): círculo de color tras la cama.
-  { key: 'status', label: 'Estado' },
+  { key: 'status', label: 'Estado', title: 'Estado clínico del paciente' },
   // "Tipo" queda oculto (ver HIDDEN_CENSUS_COLUMNS); la entrada se mantiene por compatibilidad.
   { key: 'type', label: 'Tipo' },
   { key: 'name', label: 'Paciente' },

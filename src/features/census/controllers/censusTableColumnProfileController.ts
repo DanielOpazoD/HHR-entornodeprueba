@@ -72,9 +72,11 @@ export const resolveVisibleCensusColumns = (
     ...columns,
     actions: Math.max(columns.actions, 40),
     bed: Math.max(columns.bed, 64),
-    name: Math.max(columns.name, 308),
-    diagnosis: Math.max(columns.diagnosis, 226),
-    status: Math.max(columns.status, 28),
+    // Reallocate a few pixels from the two flexible text columns so "Estado"
+    // can be read in full without widening the 1280px census viewport.
+    name: Math.max(columns.name, 296),
+    diagnosis: Math.max(columns.diagnosis, 214),
+    status: Math.max(columns.status, 52),
     // `admission` is the vital-sign grid; compact its content rather than
     // widening the table past the census viewport.
     admission: Math.max(columns.admission, 118),

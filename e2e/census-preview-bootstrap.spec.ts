@@ -213,7 +213,11 @@ test.describe('Production Preview Bootstrap', () => {
   }) => {
     await page.setViewportSize({ width: 1440, height: 800 });
     const runtimeCollector = createPreviewRuntimeFailureCollector(page);
-    await seedPersistedSessionAndRecord(page, { discharges: buildViewportDischarges() });
+    await seedPersistedSessionAndRecord(page, {
+      discharges: buildViewportDischarges(),
+      nursesDayShift: ['Ana María Soto Rojas', ''],
+      tensDayShift: ['Carolina Valenzuela Riquelme', '', ''],
+    });
     // The pilot is enabled on the developer's machine, but not in standard CI builds.
     // Seed the UI feature explicitly; this test never consults Jev or writes clinical data.
     await page.addInitScript(() => {
@@ -225,6 +229,17 @@ test.describe('Production Preview Bootstrap', () => {
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
     await assertPreviewBootCompleted(page, runtimeCollector.failures);
+
+    const nurse = page.getByRole('combobox', { name: 'Enfermería · turno largo · puesto 1' });
+    await nurse.focus();
+    await expect(
+      page.getByRole('tooltip').filter({ hasText: 'Ana María Soto Rojas' })
+    ).toBeVisible();
+    const tens = page.getByRole('combobox', { name: 'TENS · turno largo · puesto 1' });
+    await tens.focus();
+    await expect(
+      page.getByRole('tooltip').filter({ hasText: 'Carolina Valenzuela Riquelme' })
+    ).toBeVisible();
 
     const name = page.locator('.census-identity-name').first();
     const diagnosis = page.getByRole('button', { name: 'Editar diagnóstico', exact: true }).first();
@@ -371,10 +386,18 @@ test.describe('Production Preview Bootstrap', () => {
       const table = document.querySelector('[aria-label="Censo de pacientes, tabla desplazable"]');
       const toolbar = document.querySelector('[data-testid="census-staff-and-sync"]');
       if (!table || !toolbar) return null;
+      const surfaces = Array.from(
+        toolbar.querySelectorAll('.census-toolbar-card, [data-testid="rayen-operations-bar"]')
+      ).map(element => element.getBoundingClientRect());
       return {
         tableWidth: table.clientWidth,
         tableScrollWidth: table.scrollWidth,
         toolbarHeight: toolbar.getBoundingClientRect().height,
+        toolbarTopSpread:
+          Math.max(...surfaces.map(rect => rect.top)) - Math.min(...surfaces.map(rect => rect.top)),
+        toolbarHeightSpread:
+          Math.max(...surfaces.map(rect => rect.height)) -
+          Math.min(...surfaces.map(rect => rect.height)),
         pageWidth: document.documentElement.clientWidth,
         pageScrollWidth: document.documentElement.scrollWidth,
       };
@@ -385,7 +408,15 @@ test.describe('Production Preview Bootstrap', () => {
       expect(layout.tableScrollWidth).toBeLessThanOrEqual(layout.tableWidth);
       expect(layout.pageScrollWidth).toBeLessThanOrEqual(layout.pageWidth);
       expect(layout.toolbarHeight).toBeLessThanOrEqual(92);
+      expect(layout.toolbarTopSpread).toBeLessThanOrEqual(1);
+      expect(layout.toolbarHeightSpread).toBeLessThanOrEqual(1);
     }
+    const statusHeader = page.locator('th[title="Estado clínico del paciente"]');
+    await expect(statusHeader).toContainText('Estado');
+    expect(await statusHeader.evaluate(element => element.clientWidth)).toBeGreaterThanOrEqual(52);
+    await expect(page.getByRole('button', { name: /viernes.*3 de abril de 2026/i })).toBeVisible();
+    await expect(page.getByTitle('Opciones de guardado')).toHaveClass(/bg-white/);
+    await expect(page.getByTitle('Enviar censo')).toHaveClass(/bg-teal-600/);
     runtimeCollector.detach();
   });
 

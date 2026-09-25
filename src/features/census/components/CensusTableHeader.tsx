@@ -56,6 +56,7 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
               onResize={onResizeColumn(cell.key)}
               className={clsx(headerClassName, cell.className)}
               title={cell.title}
+              minWidth={cell.key === 'status' ? 52 : undefined}
             >
               {cell.label}
             </ResizableHeader>

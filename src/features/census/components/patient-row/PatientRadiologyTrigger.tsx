@@ -58,6 +58,7 @@ export const PatientRadiologyTrigger: React.FC<PatientRadiologyTriggerProps> = (
             setOpenPatientIdentity(patientIdentity);
           }}
           title="Radiología / Imagenología MMRAD"
+          hint="Imagenología"
           label={`Abrir MMRAD de ${patientName}`}
         >
           <Radio size={14} />

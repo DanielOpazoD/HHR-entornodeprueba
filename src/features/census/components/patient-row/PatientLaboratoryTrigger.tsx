@@ -75,6 +75,7 @@ export const PatientLaboratoryTrigger: React.FC<PatientLaboratoryTriggerProps> =
             setOpenSurface({ kind: 'viewer', patientIdentity });
           }}
           title="Laboratorio / Exámenes Syslab"
+          hint="Laboratorio"
           label={`Abrir laboratorio de ${patientName}`}
         >
           <FlaskConical size={14} />

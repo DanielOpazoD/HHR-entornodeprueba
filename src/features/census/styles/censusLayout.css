@@ -66,6 +66,15 @@
     box-shadow: none;
   }
 
+  .census-toolbar > *,
+  .census-toolbar-summary > * {
+    align-self: stretch;
+  }
+
+  .census-toolbar-quick-actions:empty {
+    display: none;
+  }
+
   .census-movement-section tbody > tr:focus-within {
     background-color: #f0fdfa;
   }
