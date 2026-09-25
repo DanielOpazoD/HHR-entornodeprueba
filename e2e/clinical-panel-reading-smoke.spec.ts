@@ -127,6 +127,15 @@ test('keeps the patient identity fixed above a calm chronological clinical list'
   });
   await page.screenshot({ path: test.info().outputPath('clinical-panel-desktop.png') });
 
+  await drawer
+    .getByRole('button', { name: `Abrir informes de hospitalización de ${PATIENT}` })
+    .click();
+  const reports = page.getByTestId('patient-hospitalization-reports-dialog');
+  await expect(reports).toBeVisible();
+  // A real click catches a modal rendered visually behind the side panel.
+  await reports.getByRole('button', { name: 'Cerrar modal' }).click();
+  await expect(drawer).toBeVisible();
+
   await drawer.getByRole('button', { name: 'Entregas (1)' }).click();
   await expect(drawer.getByText('Entrega médica sintética.')).toBeVisible();
   await drawer.getByRole('button', { name: 'Notas (12)' }).click();

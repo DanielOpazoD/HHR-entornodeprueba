@@ -5,6 +5,7 @@ import clsx from 'clsx';
 interface BaseModalBackdropProps {
   printable: boolean;
   scrollableBody: boolean;
+  zIndex?: number;
   onClick: (event: React.MouseEvent<HTMLDivElement>) => void;
   children: React.ReactNode;
 }
@@ -12,6 +13,7 @@ interface BaseModalBackdropProps {
 export const BaseModalBackdrop: React.FC<BaseModalBackdropProps> = ({
   printable,
   scrollableBody,
+  zIndex,
   onClick,
   children,
 }) => (
@@ -22,7 +24,7 @@ export const BaseModalBackdrop: React.FC<BaseModalBackdropProps> = ({
       scrollableBody ? 'flex items-center justify-center p-4' : 'overflow-y-auto p-4',
       !printable && 'print:hidden'
     )}
-    style={{ isolation: 'isolate' }}
+    style={{ isolation: 'isolate', zIndex }}
     onClick={onClick}
   >
     {children}

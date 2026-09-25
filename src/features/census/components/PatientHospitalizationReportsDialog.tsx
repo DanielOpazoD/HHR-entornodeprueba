@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { CalendarDays, Download, ExternalLink, FileClock, Loader2, RefreshCw } from 'lucide-react';
 
 import { BaseModal } from '@/components/shared/BaseModal';
+import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { usePatientHospitalizationReports } from '@/features/census/components/usePatientHospitalizationReports';
 
 interface PatientHospitalizationReportsDialogProps {
@@ -49,6 +50,7 @@ export const PatientHospitalizationReportsDialog: React.FC<
       icon={<FileClock size={18} />}
       size="lg"
       dataTestId="patient-hospitalization-reports-dialog"
+      backdropZIndex={LAYER_Z_INDEX.modal}
       bodyClassName="p-0"
     >
       <div className="border-b border-slate-100 px-5 py-3">

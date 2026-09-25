@@ -18,6 +18,7 @@ vi.mock('@/context/UIContext', () => ({
 }));
 
 import { PatientHospitalizationReportsDialog } from '@/features/census/components/PatientHospitalizationReportsDialog';
+import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 
 describe('PatientHospitalizationReportsDialog', () => {
   beforeEach(() => {
@@ -30,6 +31,23 @@ describe('PatientHospitalizationReportsDialog', () => {
       ],
     });
     mocks.download.mockResolvedValue({ ok: true, opened: true });
+  });
+
+  it('opens above the clinical side panel', () => {
+    render(
+      <PatientHospitalizationReportsDialog
+        isOpen
+        onClose={vi.fn()}
+        patientName="Paciente de prueba"
+        patientRun="17.752.753-1"
+      />
+    );
+
+    const reports = screen.getByTestId('patient-hospitalization-reports-dialog');
+    expect(reports.closest<HTMLElement>('.fixed.inset-0')).toHaveStyle({
+      zIndex: LAYER_Z_INDEX.modal,
+    });
+    expect(LAYER_Z_INDEX.modal).toBeGreaterThan(LAYER_Z_INDEX.drawer);
   });
 
   it('lists multiple episodes and requests each document for the selected hospitalization', async () => {
