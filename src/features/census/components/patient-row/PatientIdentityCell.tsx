@@ -2,8 +2,7 @@
  * PatientIdentityCell - Celda única de identidad del paciente (rediseño censo 2026)
  *
  * Unifica las antiguas columnas Nombre / RUT / Edad en un solo <td>:
- * - Fila 1: nombre + edad inline inmediatamente después, como una sola línea
- *   visual "Daniel Opazo (35a)"; la edad abre datos demográficos. El nombre
+ * - Fila 1: nombre (puede envolver a dos líneas) + edad; la edad abre datos demográficos. El nombre
  *   solo es editable (input real) para cuna RN provisional y camas
  *   vacías (el selector de activación necesita input[name="patientName"]).
  * - Fila 2: RUT en letra pequeña gris, solo lectura, con check de validación
@@ -161,19 +160,27 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           {canEditInlineName ? (
             <div
               className={clsx(
-                'flex h-7 w-full min-w-0 flex-1 items-center gap-1 overflow-hidden rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
+                'flex min-h-7 w-full min-w-0 flex-1 items-start gap-1 rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
-              <DebouncedInput
-                type="text"
-                name="patientName"
-                className="h-full min-w-0 flex-1 truncate border-0 bg-transparent p-0 text-[13px] font-semibold text-inherit focus:outline-none"
-                placeholder="Nombre RN / Niño"
-                value={fullName}
-                onChange={handlePatientNameChange}
-                debounceMs={350}
-              />
+              <div className="group/name relative min-h-6 min-w-0 flex-1">
+                <DebouncedInput
+                  type="text"
+                  name="patientName"
+                  className="absolute inset-0 h-full w-full border-0 bg-slate-50 p-0 text-[13px] font-semibold text-inherit opacity-0 focus:opacity-100 focus:outline-none"
+                  placeholder="Nombre RN / Niño"
+                  value={fullName}
+                  onChange={handlePatientNameChange}
+                  debounceMs={350}
+                />
+                <span
+                  aria-hidden="true"
+                  className="block min-w-0 break-words leading-4 group-focus-within/name:invisible"
+                >
+                  {fullName || 'Nombre RN / Niño'}
+                </span>
+              </div>
               {ageBadge}
             </div>
           ) : isEmpty ? (
@@ -194,16 +201,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           ) : (
             <div
               className={clsx(
-                'flex w-full min-w-0 flex-1 items-center gap-1 overflow-hidden p-0.5 h-7 border rounded transition-all duration-200 text-[13px] font-semibold bg-slate-50 text-slate-700 cursor-default',
+                'relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 cursor-default',
                 'border-slate-200',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
               {/*
-                Read-only display of an official patient's name. Rendered as a borderless, content-width
-                <input> (not a <span>) so the row keeps `input[name="patientName"]` — the stable hook the
-                whole census test/e2e suite reads a patient's name through — while still looking like plain
-                text. `size` sizes it to the name so the "(edad)" badge hugs right after it.
+                Preserve the read-only input as the census/e2e value hook. Its visible text is rendered
+                separately so names can wrap naturally instead of being truncated by a one-line input.
               */}
               <input
                 type="text"
@@ -211,14 +216,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 readOnly
                 tabIndex={-1}
                 value={fullName}
-                title={fullName || undefined}
-                size={Math.max(fullName.length, 1)}
-                placeholder={isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente'}
-                className={clsx(
-                  'min-w-0 max-w-full truncate border-0 bg-transparent p-0 cursor-default focus:outline-none',
-                  !fullName && 'text-slate-400'
-                )}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-0 top-0 h-px w-px border-0 opacity-0"
               />
+              <span
+                className={clsx('min-w-0 break-words leading-4', !fullName && 'text-slate-400')}
+              >
+                {fullName || (isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente')}
+              </span>
               {ageBadge}
             </div>
           )}

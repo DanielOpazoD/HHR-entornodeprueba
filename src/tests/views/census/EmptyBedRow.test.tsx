@@ -42,7 +42,9 @@ describe('EmptyBedRow', () => {
     fireEvent.click(screen.getByText('R4'));
     expect(onClick).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: /agregar paciente/i }));
+    const addButton = screen.getByRole('button', { name: /agregar paciente/i });
+    expect(addButton).toHaveClass('opacity-0', 'group-hover:opacity-100', 'focus:opacity-100');
+    fireEvent.click(addButton);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
