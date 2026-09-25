@@ -7,6 +7,7 @@ export interface CensusMovementRowBaseViewModel {
   bedType: string;
   patientName: string;
   rut: string;
+  admissionDate?: string;
   diagnosis: string;
   movementDate?: string;
   movementTime?: string;

@@ -3,13 +3,12 @@ import type { CensusMovementTableHeader } from '@/features/census/types/censusMo
 import { buildMovementRowActions } from '@/features/census/controllers/censusMovementRowActionsController';
 
 export const TRANSFERS_TABLE_HEADERS: readonly CensusMovementTableHeader[] = [
-  { label: 'Cama Origen' },
+  { label: 'Cama' },
   { label: 'Paciente' },
-  { label: 'RUT / ID' },
   { label: 'Diagnóstico' },
   { label: 'Medio' },
   { label: 'Centro Destino' },
-  { label: 'Fecha / Hora', className: 'text-center' },
+  { label: 'Fecha', className: 'text-center' },
   { label: 'Acciones', className: 'text-right print:hidden' },
 ] as const;
 

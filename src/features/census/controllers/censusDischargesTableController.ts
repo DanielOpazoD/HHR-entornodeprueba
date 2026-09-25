@@ -4,13 +4,12 @@ import { buildMovementRowActions } from '@/features/census/controllers/censusMov
 import { canReclassifyHomeDischarge } from '@/application/census/movementTypeConversionPolicy';
 
 export const DISCHARGES_TABLE_HEADERS: readonly CensusMovementTableHeader[] = [
-  { label: 'Cama Origen' },
+  { label: 'Cama' },
   { label: 'Paciente' },
-  { label: 'RUT / ID' },
   { label: 'Diagnóstico' },
   { label: 'Tipo Alta' },
   { label: 'Estado' },
-  { label: 'Fecha / Hora Alta', className: 'text-center' },
+  { label: 'Fecha', className: 'text-center' },
   { label: 'Acciones', className: 'text-right print:hidden' },
 ] as const;
 

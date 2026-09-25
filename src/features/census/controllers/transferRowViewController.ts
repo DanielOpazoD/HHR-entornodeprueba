@@ -6,6 +6,7 @@ import {
   getTransferEscortLabel,
 } from '@/features/census/controllers/censusTransfersTableController';
 import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
+import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
 
 interface TransferRowActionHandlers {
   undoTransfer: (id: string) => void | Promise<void>;
@@ -25,6 +26,7 @@ export const resolveTransferRowViewModel = (
   bedType: item.bedType,
   patientName: item.patientName,
   rut: item.rut,
+  admissionDate: resolveMovementHistoricalAdmissionDate(item),
   diagnosis: item.diagnosis,
   movementDate: item.movementDate,
   movementTime: item.time,

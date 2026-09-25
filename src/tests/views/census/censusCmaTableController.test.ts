@@ -10,11 +10,8 @@ describe('censusCmaTableController', () => {
       'Cama',
       'Tipo Intervención',
       'Paciente',
-      'RUT',
-      'Edad',
       'Diagnóstico',
-      'Especialidad',
-      'Hora Alta',
+      'Fecha',
       'Acciones',
     ]);
   });

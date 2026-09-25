@@ -4,12 +4,9 @@ import type { CensusMovementTableHeader } from '@/features/census/types/censusMo
 export const CMA_TABLE_HEADERS: readonly CensusMovementTableHeader[] = [
   { label: 'Cama', className: 'w-20' },
   { label: 'Tipo Intervención', className: 'w-40' },
-  { label: 'Paciente', className: 'w-48' },
-  { label: 'RUT', className: 'w-32' },
-  { label: 'Edad', className: 'w-14 text-center' },
+  { label: 'Paciente', className: 'min-w-52' },
   { label: 'Diagnóstico', className: 'min-w-[180px]' },
-  { label: 'Especialidad', className: 'w-28' },
-  { label: 'Hora Alta', className: 'w-20 text-center' },
+  { label: 'Fecha', className: 'w-28 text-center' },
   { label: 'Acciones', className: 'w-16 text-right print:hidden' },
 ] as const;
 

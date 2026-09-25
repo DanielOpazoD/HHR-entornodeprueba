@@ -38,13 +38,14 @@ const Harness: React.FC = () => {
 };
 
 describe('CensusAttentionBar', () => {
-  it('shows only the compact scale filter and toggles the full census', () => {
+  it('shows the scale filter as a toolbar card and toggles the full census', () => {
     render(<Harness />);
 
     const scale = screen.getByTestId('census-attention-filter-scale');
     expect(scale).toHaveTextContent('1 escala');
     expect(scale).toHaveAttribute('aria-pressed', 'false');
-    expect(scale).toHaveClass('min-h-8', 'px-2', 'text-[11px]');
+    expect(scale).toHaveClass('min-h-20', 'px-2', 'text-[11px]');
+    expect(scale).toHaveClass('bg-white');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByText('Vigilancia')).not.toBeInTheDocument();
     expect(screen.queryByText(/requiere atención/)).not.toBeInTheDocument();
@@ -53,6 +54,8 @@ describe('CensusAttentionBar', () => {
     fireEvent.click(scale);
     expect(screen.getByTestId('active-filter')).toHaveTextContent('scale');
     expect(scale).toHaveAttribute('aria-pressed', 'true');
+    expect(scale).toHaveClass('bg-amber-100');
+    expect(scale).not.toHaveClass('bg-white');
 
     fireEvent.click(scale);
     expect(screen.getByTestId('active-filter')).toHaveTextContent('all');

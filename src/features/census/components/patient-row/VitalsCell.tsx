@@ -6,7 +6,6 @@
 
 import React, { useState } from 'react';
 import clsx from 'clsx';
-import { Activity } from 'lucide-react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { VitalsDetailModal } from './VitalsDetailModal';
@@ -67,21 +66,16 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
             e.stopPropagation();
             setIsDetailOpen(true);
           }}
-          className="flex w-full cursor-pointer items-center gap-1 rounded-md px-1 py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
+          className="flex w-full cursor-pointer items-center rounded-md px-0.5 py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
           title={`Signos vitales (${vitals.recordedAt}) — ver detalle`}
           aria-label="Ver signos vitales"
+          aria-description={
+            vitals.worst === 'warn' || vitals.worst === 'alert'
+              ? 'Hay valores fuera de rango'
+              : undefined
+          }
         >
-          <Activity
-            size={10}
-            strokeWidth={2.5}
-            className={clsx('shrink-0', STATUS_TEXT[vitals.worst])}
-            aria-label={
-              vitals.worst === 'warn' || vitals.worst === 'alert'
-                ? 'Hay valores fuera de rango; ver detalle'
-                : undefined
-            }
-          />
-          <span className="grid flex-1 grid-cols-[max-content_max-content] justify-between gap-x-1.5 gap-y-0.5 text-left leading-tight">
+          <span className="grid w-full grid-cols-[max-content_max-content] justify-between gap-x-1 gap-y-0.5 text-left leading-tight">
             {CELL_READINGS.map(({ key, label }) => {
               const reading = readingByKey(key);
               return (

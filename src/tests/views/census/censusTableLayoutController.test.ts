@@ -55,10 +55,12 @@ describe('censusTableLayoutController', () => {
     expect(bindings.bodyProps.currentDateString).toBe('2026-02-15');
     expect(bindings.bodyProps.onAction).toBe(onAction);
     expect(bindings.bodyProps.onActivateEmptyBed).toBe(onActivateEmptyBed);
-    // Visible columns include identity, diagnosis and the 64px UPC minimum (+4px).
+    // The projected table reserves room for signs, VVP and UPC even with old saved widths.
     expect(bindings.headerProps.columns.upc).toBe(64);
     expect(bindings.bodyProps.columns.upc).toBe(64);
-    expect(bindings.tableStyle).toEqual({ width: '1294px', minWidth: '100%' });
+    expect(bindings.headerProps.columns.admission).toBe(118);
+    expect(bindings.headerProps.columns.dmi).toBe(92);
+    expect(bindings.tableStyle).toEqual({ width: '1210px', minWidth: '100%' });
   });
 
   it('keeps rows and bed data references untouched', () => {

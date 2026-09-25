@@ -5,6 +5,7 @@ import {
   getDischargeStatusBadgeClassName,
 } from '@/features/census/controllers/censusDischargesTableController';
 import { normalizeCribDisplayText } from '@/services/terminology/cribTerminology';
+import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
 
 interface DischargeRowActionHandlers {
   undoDischarge: (id: string) => void | Promise<void>;
@@ -26,6 +27,7 @@ export const resolveDischargeRowViewModel = (
   bedType: item.bedType,
   patientName: item.patientName,
   rut: item.rut,
+  admissionDate: resolveMovementHistoricalAdmissionDate(item),
   diagnosis: item.diagnosis,
   movementDate: item.movementDate,
   movementTime: item.time,

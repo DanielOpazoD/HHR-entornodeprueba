@@ -72,11 +72,14 @@ export const resolveVisibleCensusColumns = (
     ...columns,
     actions: Math.max(columns.actions, 40),
     bed: Math.max(columns.bed, 64),
-    name: Math.max(columns.name, 380),
-    diagnosis: Math.max(columns.diagnosis, 280),
+    name: Math.max(columns.name, 308),
+    diagnosis: Math.max(columns.diagnosis, 226),
     status: Math.max(columns.status, 28),
-    admission: Math.max(columns.admission, 96),
-    scores: Math.max(columns.scores, 180),
+    // `admission` is the vital-sign grid; compact its content rather than
+    // widening the table past the census viewport.
+    admission: Math.max(columns.admission, 118),
+    dmi: Math.max(columns.dmi, 92),
+    scores: Math.max(columns.scores, 172),
     upc: Math.max(columns.upc, 64),
   });
 

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import type { TransferData } from '@/features/census/contracts/censusMovementContracts';
 import { resolveTransferRowViewModel } from '@/features/census/controllers/transferRowViewController';
 import { TransferRowView } from '@/features/census/components/TransferRowView';
+import { PatientHospitalizationReportsDialog } from './PatientHospitalizationReportsDialog';
+import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
 
 interface TransferRowProps {
   item: TransferData;
@@ -16,6 +18,7 @@ interface TransferRowProps {
 
 export const TransferRow: React.FC<TransferRowProps> = React.memo(
   ({ item, recordDate, onUndo, onEdit, onDelete, onConvertToHomeDischarge, onConvertToCma }) => {
+    const [showHospitalizationReports, setShowHospitalizationReports] = useState(false);
     const viewModel = resolveTransferRowViewModel(item, {
       undoTransfer: onUndo,
       editTransfer: onEdit,
@@ -24,7 +27,26 @@ export const TransferRow: React.FC<TransferRowProps> = React.memo(
       convertTransferToCma: onConvertToCma,
     });
 
-    return <TransferRowView viewModel={viewModel} recordDate={recordDate} />;
+    return (
+      <>
+        <TransferRowView
+          viewModel={viewModel}
+          recordDate={recordDate}
+          onOpenEpicrisis={() => setShowHospitalizationReports(true)}
+        />
+        {showHospitalizationReports && (
+          <PatientHospitalizationReportsDialog
+            isOpen={showHospitalizationReports}
+            onClose={() => setShowHospitalizationReports(false)}
+            patientName={item.patientName}
+            patientRun={item.rut}
+            currentEpisodeId={item.clinicalEpisodeId}
+            admissionDate={resolveMovementHistoricalAdmissionDate(item)}
+            censusDate={item.movementDate || recordDate}
+          />
+        )}
+      </>
+    );
   }
 );
 

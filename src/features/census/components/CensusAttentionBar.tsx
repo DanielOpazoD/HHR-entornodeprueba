@@ -37,7 +37,7 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
       role="group"
       aria-label="Vigilancia de escalas"
       data-testid="census-attention-bar"
-      className="ml-0 inline-flex shrink-0 items-center"
+      className="ml-0 inline-flex h-full shrink-0 items-stretch"
     >
       <button
         type="button"
@@ -45,10 +45,10 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
         aria-label={`${scaleLabel(summary.scale)} por reaplicar. ${active ? 'Mostrar censo completo' : 'Mostrar solo pacientes con escalas por reaplicar'}`}
         data-testid="census-attention-filter-scale"
         onClick={() => onFilterChange?.(active ? 'all' : 'scale')}
-        className={`inline-flex min-h-8 items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${
+        className={`inline-flex min-h-20 items-center gap-1 rounded-xl border px-2 py-1 text-[11px] font-semibold tabular-nums shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${
           active
             ? 'border-amber-400 bg-amber-100 text-amber-800'
-            : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
+            : 'border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
         }`}
       >
         <AlarmClock
