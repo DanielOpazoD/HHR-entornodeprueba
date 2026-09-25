@@ -74,15 +74,15 @@ export const resolveVisibleCensusColumns = (
     bed: Math.max(columns.bed, 64),
     // Reallocate a few pixels from the two flexible text columns so "Estado"
     // can be read in full without widening the 1280px census viewport.
-    name: Math.max(columns.name, 296),
-    diagnosis: Math.max(columns.diagnosis, 214),
-    status: Math.max(columns.status, 52),
-    // `admission` is the vital-sign grid; compact its content rather than
-    // widening the table past the census viewport.
-    admission: Math.max(columns.admission, 118),
-    dmi: Math.max(columns.dmi, 92),
-    scores: Math.max(columns.scores, 172),
-    upc: Math.max(columns.upc, 64),
+    name: Math.max(columns.name, 320),
+    diagnosis: Math.max(columns.diagnosis, 188),
+    status: Math.max(columns.status, 64),
+    // Keep the four readings and an abnormal-value icon legible at 125% zoom.
+    // Recover the pixels from flexible text columns; names and diagnoses wrap.
+    admission: Math.max(columns.admission, 128),
+    dmi: Math.max(columns.dmi, 96),
+    scores: Math.max(columns.scores, 160),
+    upc: Math.max(columns.upc, 52),
   });
 
   if (!isSpecialistCensusAccessProfile(accessProfile)) {

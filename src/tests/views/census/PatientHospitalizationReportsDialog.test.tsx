@@ -33,6 +33,23 @@ describe('PatientHospitalizationReportsDialog', () => {
     mocks.download.mockResolvedValue({ ok: true, opened: true });
   });
 
+  it('reserves episode rows during lookup without a moving spinner', () => {
+    mocks.list.mockImplementation(() => new Promise(() => undefined));
+    render(
+      <PatientHospitalizationReportsDialog
+        isOpen
+        onClose={vi.fn()}
+        patientName="Paciente de prueba"
+        patientRun="17.752.753-1"
+      />
+    );
+
+    const placeholder = screen.getByTestId('reports-loading-content');
+    expect(placeholder.parentElement).toHaveAttribute('aria-busy', 'true');
+    expect(placeholder.querySelectorAll('[aria-hidden="true"]')).toHaveLength(2);
+    expect(placeholder.querySelector('.animate-spin')).toBeNull();
+  });
+
   it('opens above the clinical side panel', () => {
     render(
       <PatientHospitalizationReportsDialog

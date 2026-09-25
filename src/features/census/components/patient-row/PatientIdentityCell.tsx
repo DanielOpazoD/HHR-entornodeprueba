@@ -114,17 +114,6 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
         data.treatingPhysicianId,
         data.treatingPhysicianName
       );
-  // A real occupant always shows the details row so the specialty chip (or "Pendiente asignar")
-  // has a home, even before RUT/edad/FI are filled in.
-  const isRealPatient = !isEmpty && !!fullName.trim();
-  const showIdentityDetails =
-    !isEmpty &&
-    (hasRutValue ||
-      !!data.age ||
-      !!admissionShort ||
-      !!specialtyLabel ||
-      !!visibleTreatingPhysicianName ||
-      isRealPatient);
   const handleSpecialtyAssign = onNameChange('specialty');
 
   useEffect(() => {
@@ -246,31 +235,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               {ageBadge}
             </div>
           )}
-          {!isEmpty && (
-            <span className="inline-flex shrink-0 items-center gap-0.5">
-              <ClinicalPanelTrigger
-                bedId={data.bedId}
-                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-                patientName={fullName}
-                patientRun={data.rut}
-                clinicalEpisodeId={data.clinicalEpisodeId}
-                encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
-                admissionDate={data.admissionDate}
-                censusDate={currentDateString}
-              />
-              <PatientLaboratoryTrigger
-                patient={data}
-                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-                censusDate={currentDateString}
-              />
-              <PatientRadiologyTrigger
-                patient={data}
-                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-              />
-            </span>
-          )}
         </div>
-        {showIdentityDetails && (
+        {!isEmpty && (
           <div className="census-identity-details mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 pl-0.5 text-[10px] leading-tight text-slate-500">
             {hasRutValue ? (
               <>
@@ -377,6 +343,29 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 </span>
               )}
             </span>
+            {!isEmpty && (
+              <span className="ml-auto inline-flex shrink-0 items-center gap-0.5">
+                <ClinicalPanelTrigger
+                  bedId={data.bedId}
+                  triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+                  patientName={fullName}
+                  patientRun={data.rut}
+                  clinicalEpisodeId={data.clinicalEpisodeId}
+                  encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
+                  admissionDate={data.admissionDate}
+                  censusDate={currentDateString}
+                />
+                <PatientLaboratoryTrigger
+                  patient={data}
+                  triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+                  censusDate={currentDateString}
+                />
+                <PatientRadiologyTrigger
+                  patient={data}
+                  triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+                />
+              </span>
+            )}
           </div>
         )}
       </div>

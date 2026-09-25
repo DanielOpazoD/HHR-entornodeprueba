@@ -5,6 +5,7 @@ import { resolveActionHeaderState } from '@/features/census/controllers/censusAc
 
 interface CensusActionHeaderCellProps {
   width: number;
+  responsiveShare?: string;
   isEditMode: boolean;
   onResize: (width: number) => void;
   headerClassName: string;
@@ -16,6 +17,7 @@ interface CensusActionHeaderCellProps {
 
 export const CensusActionHeaderCell: React.FC<CensusActionHeaderCellProps> = ({
   width,
+  responsiveShare,
   isEditMode,
   onResize,
   headerClassName,
@@ -33,6 +35,7 @@ export const CensusActionHeaderCell: React.FC<CensusActionHeaderCellProps> = ({
   return (
     <ResizableHeader
       width={width}
+      responsiveShare={responsiveShare}
       isEditMode={isEditMode}
       onResize={onResize}
       className={`${headerClassName} print:hidden`}

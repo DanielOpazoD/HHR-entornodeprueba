@@ -46,11 +46,11 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
   const isFilling = useRayenFillStatus();
 
   if (isEmpty && !isSubRow) {
-    return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 w-32 relative" />;
+    return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
   }
 
   return (
-    <td className="py-0.5 px-1 border-r border-slate-200 w-32 relative group">
+    <td className="min-w-0 py-0.5 px-1 border-r border-slate-200 relative group">
       {isFilling && <CellSyncIndicator />}
       <DeviceSelector
         devices={devices}

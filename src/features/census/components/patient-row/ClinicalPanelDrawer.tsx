@@ -25,6 +25,7 @@ import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
 import { ClinicalPanelAntecedents } from './ClinicalPanelAntecedents';
 import { ClinicalPanelPrescriptionButton } from './ClinicalPanelPrescriptionButton';
 import { ClinicalPanelProfessionTabs } from './ClinicalPanelProfessionTabs';
+import { ClinicalPanelLoadingContent } from './ClinicalPanelLoadingContent';
 
 const PatientDocumentManagerDialog = React.lazy(() =>
   import('./PatientDocumentManagerDialog').then(module => ({
@@ -285,16 +286,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           className="min-h-0 flex-1 cursor-text select-text space-y-2 overflow-y-auto overscroll-contain break-words bg-white p-3"
         >
           {state.phase === 'loading' && tab !== 'antecedents' && (
-            <div role="status" className="flex flex-col items-center gap-2 py-10 text-slate-500">
-              <span className="flex size-11 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-200">
-                <img
-                  src="/images/logos/logo_HHR.png"
-                  alt=""
-                  className="h-7 w-7 object-contain animate-pulse motion-reduce:animate-none"
-                />
-              </span>
-              <p className="text-[12px]">Consultando Ficha Médico…</p>
-            </div>
+            <ClinicalPanelLoadingContent />
           )}
           {state.phase === 'error' && tab !== 'antecedents' && (
             <ClinicalPanelUnavailable message={state.message} onRetry={reload} />

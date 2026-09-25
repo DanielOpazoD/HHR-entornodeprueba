@@ -325,12 +325,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
           <table
             data-testid="census-table"
             className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
-            style={
-              {
-                ...tableStyle,
-                '--census-table-width': parseFloat(String(tableStyle.width)),
-              } as React.CSSProperties
-            }
+            style={tableStyle}
           >
             <CensusTableHeader {...headerProps} />
             <CensusTableBody

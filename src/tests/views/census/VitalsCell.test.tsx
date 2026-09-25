@@ -51,6 +51,8 @@ describe('VitalsCell', () => {
     expect(screen.getByText('88')).not.toHaveClass('decoration-dotted');
     expect(screen.getByText('36.5')).toBeInTheDocument(); // T°
     expect(screen.getByTitle('SAT: 88 % · Fuera de rango')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).toHaveAttribute('aria-description', 'Fuera de rango: SAT');
+    expect(screen.getByTitle('SAT: 88 % · Fuera de rango').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveClass(
       'border-l-red-500'
     );
@@ -64,6 +66,15 @@ describe('VitalsCell', () => {
     const { container } = renderCell(undefined);
     expect(container.querySelector('button')).toBeNull();
     expect(screen.getByTitle('Sin signos vitales')).toBeInTheDocument();
+  });
+
+  it('announces a detail-only abnormal reading even when the compact four are normal', () => {
+    renderCell({ ...VITALS, spo2: 98, painEva: 8 }, 'R1', { age: '44' });
+
+    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).toHaveAttribute(
+      'aria-description',
+      'Fuera de rango: EVA'
+    );
   });
 
   it('does not use neonatal ranges solely because the bed is NEO', () => {
@@ -137,7 +148,8 @@ describe('VitalsCell', () => {
     const historySection = screen.getByText('Historial · 2 tomas').closest('section');
     expect(historySection).not.toBeNull();
     const history = within(historySection as HTMLElement);
-    expect(history.getByText('79')).toHaveClass('text-red-600');
-    expect(history.getByText('78')).toHaveClass('text-slate-500');
+    expect(history.getByText('79').closest('td')).toHaveClass('text-red-600');
+    expect(history.getByText('79').parentElement?.querySelector('[aria-label="Fuera de rango"]')).toBeInTheDocument();
+    expect(history.getByText('78').closest('td')).toHaveClass('text-slate-500');
   });
 });
