@@ -16,7 +16,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { AlarmClock, type LucideIcon } from 'lucide-react';
+import { AlarmClock, TriangleAlert, type LucideIcon } from 'lucide-react';
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
@@ -41,12 +41,12 @@ const SEVERITY_TEXT: Record<BradenRiskLevel, string> = {
   alto: 'text-red-600',
 };
 
-/** CUDYR band tint (A highest acuity → D lowest), matching the CUDYR night-handoff view. */
+/** Only the high-acuity CUDYR bands receive an attention color. */
 const BAND_TEXT: Record<'A' | 'B' | 'C' | 'D', string> = {
   A: 'text-rose-600',
   B: 'text-amber-600',
-  C: 'text-sky-600',
-  D: 'text-emerald-600',
+  C: 'text-slate-600',
+  D: 'text-slate-600',
 };
 
 const NEUTRAL_TEXT = 'text-slate-600';
@@ -209,6 +209,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
   const hide = useCallback(() => setAnchor(null), []);
 
   const valueTone = band ? BAND_TEXT[band] : severity ? SEVERITY_TEXT[severity] : NEUTRAL_TEXT;
+  const needsAttention = band === 'A' || band === 'B' || severity === 'medio' || severity === 'alto';
 
   return (
     <span
@@ -218,7 +219,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       onFocus={show}
       onBlur={hide}
       className={clsx(
-        'grid w-full grid-cols-[minmax(64px,1fr)_28px_42px] items-stretch rounded text-[10px] leading-tight'
+        'grid w-full grid-cols-[minmax(64px,1fr)_34px_42px] items-stretch rounded text-[10px] leading-tight'
       )}
     >
       {/* identity zone — icon in the scale's hue, name neutral; no fill competes with the value */}
@@ -234,7 +235,9 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
         )}
       >
         {value}
+        {needsAttention && <TriangleAlert size={9} strokeWidth={2.5} aria-hidden="true" className="ml-0.5 shrink-0" />}
         {severity && <span className="sr-only"> · Riesgo {severity}</span>}
+        {(band === 'A' || band === 'B') && <span className="sr-only"> · Categoría CUDYR {band}</span>}
       </span>
       {/* reapplication zone — separated in its own space; neutral until it comes due */}
       {countdown != null && (

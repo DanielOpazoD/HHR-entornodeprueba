@@ -15,6 +15,7 @@ interface ResizableHeaderProps {
     title?: string;
     minWidth?: number;
     maxWidth?: number;
+    responsiveShare?: string;
 }
 
 export const ResizableHeader: React.FC<ResizableHeaderProps> = ({
@@ -25,7 +26,8 @@ export const ResizableHeader: React.FC<ResizableHeaderProps> = ({
     className = '',
     title,
     minWidth = 24,
-    maxWidth = 400
+    maxWidth = 400,
+    responsiveShare,
 }) => {
     const headerRef = useRef<HTMLTableCellElement>(null);
     const startXRef = useRef(0);
@@ -61,7 +63,7 @@ export const ResizableHeader: React.FC<ResizableHeaderProps> = ({
         <th
             ref={headerRef}
             className={clsx(className, 'relative')}
-            style={{ width: `${width}px`, maxWidth: `${width}px`, '--census-column-width': width } as React.CSSProperties}
+            style={{ width: `${width}px`, maxWidth: `${width}px`, '--census-column-share': responsiveShare } as React.CSSProperties}
             title={title}
         >
             {children}

@@ -27,12 +27,13 @@ const renderDrawer = (onClose = vi.fn()) =>
   );
 
 describe('ClinicalPanelDrawer loading and modal layering', () => {
-  it('uses one branded progress indicator and leaves refresh still', () => {
+  it('reserves the clinical note area with still placeholders and leaves refresh still', () => {
     renderDrawer();
     const loading = screen.getByRole('status');
     expect(within(loading).getByText('Consultando Ficha Médico…')).toBeInTheDocument();
-    expect(loading.querySelector('img')).toHaveAttribute('src', '/images/logos/logo_HHR.png');
-    expect(loading.querySelector('img')).toHaveClass('animate-pulse');
+    expect(loading).toHaveAttribute('aria-busy', 'true');
+    expect(loading.querySelectorAll('.min-h-28')).toHaveLength(3);
+    expect(loading.querySelector('.animate-pulse')).toBeNull();
     expect(screen.getByTestId('clinical-panel-content').querySelector('.animate-spin')).toBeNull();
     const refresh = screen.getByRole('button', { name: 'Actualizar panel clínico' });
     expect(refresh).toBeDisabled();

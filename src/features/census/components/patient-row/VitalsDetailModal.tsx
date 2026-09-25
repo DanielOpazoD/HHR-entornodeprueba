@@ -6,7 +6,7 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import { Activity } from 'lucide-react';
+import { Activity, TriangleAlert } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
   buildVitalsHistory,
@@ -101,6 +101,11 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
                 <span className="text-lg font-bold leading-tight tabular-nums">
                   {reading.value}
                 </span>
+                {(reading.status === 'warn' || reading.status === 'alert') && (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-semibold">
+                    <TriangleAlert size={10} aria-hidden="true" /> Fuera de rango
+                  </span>
+                )}
                 <span className="text-[9px] opacity-60">{reading.unit}</span>
               </div>
             ))}
@@ -157,7 +162,14 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
                                   cell ? CELL_TEXT[cell.status] : 'text-slate-300'
                                 )}
                               >
-                                {cell ? cell.value : '·'}
+                                {cell ? (
+                                  <span className="inline-flex items-center justify-center gap-0.5">
+                                    {cell.value}
+                                    {(cell.status === 'warn' || cell.status === 'alert') && (
+                                      <TriangleAlert size={9} aria-label="Fuera de rango" />
+                                    )}
+                                  </span>
+                                ) : '·'}
                               </td>
                             );
                           })}

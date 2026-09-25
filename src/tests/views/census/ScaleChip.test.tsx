@@ -55,11 +55,12 @@ describe('ScaleChip', () => {
       <ScaleChip hue="violet" icon={Bandage} label="Braden" value="12" countdown="2d" note={note} />
     );
 
-    expect(container.firstElementChild).toHaveClass('grid-cols-[minmax(64px,1fr)_28px_42px]');
+    expect(container.firstElementChild).toHaveClass('grid-cols-[minmax(64px,1fr)_34px_42px]');
     expect(screen.getByText('2d')).toBeInTheDocument();
 
     rerender(<ScaleChip hue="teal" icon={Bandage} label="CUDYR" value="C3" note={note} />);
-    expect(container.firstElementChild).toHaveClass('grid-cols-[minmax(64px,1fr)_28px_42px]');
+    expect(container.firstElementChild).toHaveClass('grid-cols-[minmax(64px,1fr)_34px_42px]');
+    expect(screen.getByText('C3')).toHaveClass('text-slate-600');
     expect(container.querySelector('.border-l')).not.toBeInTheDocument();
   });
 

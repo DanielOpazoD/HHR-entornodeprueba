@@ -7,6 +7,7 @@ import { resolveDiagnosisToggleUiState } from '@/features/census/controllers/cen
 
 interface CensusDiagnosisHeaderCellProps {
     width: number;
+    responsiveShare?: string;
     isEditMode: boolean;
     onResize: (width: number) => void;
     headerClassName: string;
@@ -17,6 +18,7 @@ interface CensusDiagnosisHeaderCellProps {
 
 export const CensusDiagnosisHeaderCell: React.FC<CensusDiagnosisHeaderCellProps> = ({
     width,
+    responsiveShare,
     isEditMode,
     onResize,
     headerClassName,
@@ -29,6 +31,7 @@ export const CensusDiagnosisHeaderCell: React.FC<CensusDiagnosisHeaderCellProps>
     return (
         <ResizableHeader
             width={width}
+            responsiveShare={responsiveShare}
             isEditMode={isEditMode}
             onResize={onResize}
             className={headerClassName}
