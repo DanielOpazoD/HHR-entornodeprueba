@@ -57,6 +57,26 @@ describe('ClinicalActionButton', () => {
     expect(onOpen).toHaveBeenCalledOnce();
   });
 
+  it('exposes the same short action hint to pointer and keyboard users', () => {
+    render(
+      <ClinicalActionButton
+        tone="clinical"
+        label="Abrir panel clínico de Ana"
+        title="Panel clínico de Eloísa"
+        hint="Ficha clínica"
+      >
+        <svg />
+      </ClinicalActionButton>
+    );
+
+    const button = screen.getByRole('button', { name: 'Abrir panel clínico de Ana' });
+    expect(button).not.toHaveAttribute('title');
+    expect(screen.getByText('Ficha clínica')).toHaveClass(
+      'group-hover:visible',
+      'group-focus:visible'
+    );
+  });
+
   it.each([0, null])('keeps documents accessible with count=%s, without a false badge', count => {
     render(<PatientDocumentManagerButton patientName="Prueba" count={count} onOpen={vi.fn()} />);
     const button = screen.getByRole('button');

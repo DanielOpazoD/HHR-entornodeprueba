@@ -28,6 +28,7 @@ export const PatientDocumentManagerButton: React.FC<PatientDocumentManagerButton
       tone="documents"
       label={title}
       title={title}
+      hint="Documentos"
       loading={loading}
       muted={count === 0}
       badge={count ?? undefined}

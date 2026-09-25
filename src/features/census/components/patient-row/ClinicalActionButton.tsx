@@ -12,6 +12,7 @@ const tones = {
 interface ClinicalActionButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;
   title: string;
+  hint?: string;
   tone: keyof typeof tones;
   loading?: boolean;
   muted?: boolean;
@@ -22,6 +23,7 @@ interface ClinicalActionButtonProps extends React.ButtonHTMLAttributes<HTMLButto
 export const ClinicalActionButton: React.FC<ClinicalActionButtonProps> = ({
   label,
   title,
+  hint,
   tone,
   loading = false,
   muted = false,
@@ -35,7 +37,7 @@ export const ClinicalActionButton: React.FC<ClinicalActionButtonProps> = ({
   <button
     {...props}
     type="button"
-    title={title}
+    title={hint ? undefined : title}
     aria-label={label}
     aria-busy={loading || undefined}
     disabled={disabled || loading}
@@ -64,6 +66,14 @@ export const ClinicalActionButton: React.FC<ClinicalActionButtonProps> = ({
         className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-teal-700 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white"
       >
         {badge > 99 ? '99+' : badge}
+      </span>
+    )}
+    {hint && !loading && (
+      <span
+        aria-hidden="true"
+        className="pointer-events-none invisible absolute left-1/2 top-full z-50 mt-1 w-max max-w-40 -translate-x-1/2 rounded-md border border-slate-200 bg-slate-900 px-2 py-1 text-[11px] font-medium leading-tight text-white opacity-0 shadow-md transition-opacity group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100"
+      >
+        {hint}
       </span>
     )}
   </button>

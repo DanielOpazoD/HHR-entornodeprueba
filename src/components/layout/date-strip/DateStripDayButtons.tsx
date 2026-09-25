@@ -7,6 +7,18 @@ import {
 import { classifyDateStripDay } from '@/components/layout/date-strip/dateStripDayClassification';
 import type { ModuleType } from '@/constants/navigationConfig';
 
+const shortWeekdayFormatter = new Intl.DateTimeFormat('es-CL', {
+  weekday: 'short',
+  timeZone: 'UTC',
+});
+const fullDateFormatter = new Intl.DateTimeFormat('es-CL', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
 interface DateStripDayButtonsProps {
   selectedDay: number;
   setSelectedDay: React.Dispatch<React.SetStateAction<number>>;
@@ -73,6 +85,9 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
     { length: Math.max(0, endDay - startDay + 1) },
     (_, index): React.ReactNode => {
       const day = startDay + index;
+      const calendarDate = new Date(Date.UTC(selectedYear, selectedMonth, day));
+      const weekday = shortWeekdayFormatter.format(calendarDate).replace(/\.$/, '');
+      const fullDate = fullDateFormatter.format(calendarDate);
       const hasData = existingDaysSet.has(day);
       const isSelected = day === selectedDay;
       const classification = clinicalToday
@@ -103,9 +118,10 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
           key={day}
           onClick={() => !isFutureBlocked && setSelectedDay(day)}
           disabled={isFutureBlocked}
-          aria-label={isClinicalToday ? `Día ${day} (hoy)` : `Día ${day}`}
+          aria-label={isClinicalToday ? `${fullDate} (hoy)` : fullDate}
+          title={fullDate}
           className={clsx(
-            'flex items-center justify-center w-8 h-[30px] rounded-lg text-[11px] font-semibold transition-all shrink-0 relative border',
+            'flex items-center justify-center w-10 h-[30px] rounded-lg text-[10px] font-semibold transition-all shrink-0 relative border',
             isFutureBlocked
               ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
               : isSelected
@@ -123,11 +139,17 @@ export const DateStripDayButtons: React.FC<DateStripDayButtonsProps> = ({
         >
           {isClinicalToday ? (
             <span className="flex flex-col items-center justify-center leading-none">
-              <span>{day}</span>
+              <span className="flex items-center gap-0.5">
+                <span className="text-[8px] font-medium">{weekday}</span>
+                <span>{day}</span>
+              </span>
               <span className="text-[8px] font-bold tracking-wider mt-px">HOY</span>
             </span>
           ) : (
-            <span>{day}</span>
+            <span className="flex items-center gap-0.5 leading-none">
+              <span className="text-[8px] font-medium">{weekday}</span>
+              <span>{day}</span>
+            </span>
           )}
           {hasData && (
             <span

@@ -152,7 +152,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )}
 
           {/* Combined Stats Summary Card */}
-          <div className="flex min-w-0 shrink-0 items-stretch justify-center gap-2">
+          <div className="census-toolbar-summary flex min-w-0 shrink-0 items-stretch justify-center gap-2">
             {readModel.showSummary && stats && (
               <CombinedSummaryCard
                 stats={stats}
@@ -162,24 +162,22 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 newAdmissions={readModel.movementSummaryState.admissionsCount}
               />
             )}
-            <div className="flex items-center">
+            <div className="census-toolbar-quick-actions flex items-center gap-2 border-l border-slate-200 pl-2">
               <CensusAttentionBar
                 beds={beds ?? {}}
                 censusIsoDay={dailyRecordData.record?.date ?? ''}
                 activeFilter={attentionFilter}
                 onFilterChange={onAttentionFilterChange}
               />
-            </div>
-            {dailyRecordData.record?.date && (
-              <div className="flex items-center">
+              {dailyRecordData.record?.date && (
                 <Suspense fallback={null}>
                   <SpecialtyRoundEntry
                     date={dailyRecordData.record.date}
                     disabled={Boolean(readOnly)}
                   />
                 </Suspense>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

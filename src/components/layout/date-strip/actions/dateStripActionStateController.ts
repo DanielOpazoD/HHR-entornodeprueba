@@ -24,7 +24,7 @@ export const resolveSaveButtonUiState = ({
       buttonClassName:
         variant === 'handoff'
           ? 'bg-slate-100 text-slate-400 border-slate-200'
-          : 'bg-amber-100 text-amber-700 border-amber-200',
+          : 'border border-slate-200 bg-slate-50 text-slate-600',
       iconKind: 'loading',
       widthClassName: variant === 'handoff' ? 'min-w-[40px]' : 'w-[34px]',
     };
@@ -33,7 +33,10 @@ export const resolveSaveButtonUiState = ({
   if (isArchived) {
     return {
       label: 'Sincronizado',
-      buttonClassName: 'bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-sm',
+      buttonClassName:
+        variant === 'handoff'
+          ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-sm'
+          : 'border border-slate-200 bg-slate-50 text-teal-700 hover:bg-slate-100',
       iconKind: 'archived',
       widthClassName: variant === 'handoff' ? 'min-w-[40px]' : 'w-[34px]',
     };
@@ -41,7 +44,10 @@ export const resolveSaveButtonUiState = ({
 
   return {
     label: 'Guardar',
-    buttonClassName: 'btn-primary bg-emerald-500 hover:bg-emerald-600 border-none shadow-sm',
+    buttonClassName:
+      variant === 'handoff'
+        ? 'btn-primary bg-emerald-500 hover:bg-emerald-600 border-none shadow-sm'
+        : 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50',
     iconKind: 'default',
     widthClassName: variant === 'handoff' ? 'min-w-[40px]' : 'w-[34px]',
   };
