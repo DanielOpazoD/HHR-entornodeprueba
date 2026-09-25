@@ -56,6 +56,99 @@ const renderEditor = (
 };
 
 describe('ClinicalInitialBlockEditor treating physician', () => {
+  it('keeps the old dismissal when another physician is selected', () => {
+    const onMultipleUpdate = renderEditor(
+      [{ name: 'Médico B', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-b' }],
+      {
+        clinicalEpisodeId: 'episode-a',
+        dismissedTreatingPhysician: {
+          episodeId: 'episode-a',
+          practitionerId: 'physician-a',
+          name: 'Médico A',
+        },
+      }
+    );
+    fireEvent.change(screen.getByLabelText('Médico tratante'), {
+      target: { value: 'rayen:physician-b' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(onMultipleUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        treatingPhysicianId: 'physician-b',
+        treatingPhysicianName: 'Médico B',
+      })
+    );
+    expect(onMultipleUpdate.mock.calls[0][0]).not.toHaveProperty('dismissedTreatingPhysician');
+  });
+
+  it('allows explicitly restoring the dismissed physician', () => {
+    const onMultipleUpdate = renderEditor(
+      [{ name: 'Médico A', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-a' }],
+      {
+        clinicalEpisodeId: 'episode-a',
+        dismissedTreatingPhysician: {
+          episodeId: 'episode-a',
+          practitionerId: 'physician-a',
+          name: 'Médico A',
+        },
+      }
+    );
+    fireEvent.change(screen.getByLabelText('Médico tratante'), {
+      target: { value: 'rayen:physician-a' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(onMultipleUpdate.mock.calls[0][0]).toHaveProperty(
+      'dismissedTreatingPhysician',
+      undefined
+    );
+  });
+
+  it('shows an empty selector for a dismissed physician retained by an older record', () => {
+    const onMultipleUpdate = renderEditor(
+      [{ name: 'Médico A', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-a' }],
+      {
+        clinicalEpisodeId: 'episode-a',
+        treatingPhysicianId: 'physician-a',
+        treatingPhysicianName: 'Médico A',
+        dismissedTreatingPhysician: {
+          episodeId: 'episode-a',
+          practitionerId: 'physician-a',
+          name: 'Médico A',
+        },
+      }
+    );
+    expect(screen.getByLabelText('Médico tratante')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Médico tratante'), {
+      target: { value: 'rayen:physician-a' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(onMultipleUpdate.mock.calls[0][0]).toHaveProperty(
+      'dismissedTreatingPhysician',
+      undefined
+    );
+  });
+
+  it('keeps the old dismissal when only the diagnosis changes after another physician appeared', () => {
+    const onMultipleUpdate = renderEditor(
+      [{ name: 'Médico B', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-b' }],
+      {
+        clinicalEpisodeId: 'episode-a',
+        treatingPhysicianId: 'physician-b',
+        treatingPhysicianName: 'Médico B',
+        dismissedTreatingPhysician: {
+          episodeId: 'episode-a',
+          practitionerId: 'physician-a',
+          name: 'Médico A',
+        },
+      }
+    );
+    fireEvent.change(screen.getByLabelText('Diagnóstico'), {
+      target: { value: 'Otro diagnóstico' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(onMultipleUpdate.mock.calls[0][0]).not.toHaveProperty('dismissedTreatingPhysician');
+  });
+
   it('auto-selects the configured specialty and saves physician identity atomically', () => {
     const onMultipleUpdate = renderEditor([
       {

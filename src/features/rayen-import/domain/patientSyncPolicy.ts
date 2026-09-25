@@ -1,5 +1,6 @@
 import type { FieldChange } from '../contracts/censusImportDiff';
 import type { PatientData } from '../contracts/rayenDomainContracts';
+import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
 
 /** PatientData fields that the sync is allowed to source from Rayen. */
 const SYNCABLE_FIELDS: Array<keyof PatientData> = [
@@ -30,7 +31,13 @@ export const diffSyncablePatientFields = (
   incoming: PatientData
 ): FieldChange[] => {
   const changes: FieldChange[] = [];
+  const dismissedPhysician = isDismissedTreatingPhysician(current, incoming);
   for (const field of SYNCABLE_FIELDS) {
+    if (
+      dismissedPhysician &&
+      (field === 'treatingPhysicianId' || field === 'treatingPhysicianName')
+    )
+      continue;
     const from = current[field];
     const to = incoming[field];
     if (field === 'clinicalEpisodeId' && !incoming.clinicalEpisodeId) continue;

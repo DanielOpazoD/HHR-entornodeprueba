@@ -14,20 +14,28 @@
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useStaffContext } from '@/context/StaffContext';
-import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
+import {
+  findProfessionalByRayenIdentity,
+  resolveVisibleTreatingPhysicianName,
+} from '@/services/staff/treatingPhysicianCatalog';
+import {
+  dismissTreatingPhysician,
+  isDismissedTreatingPhysician,
+} from '@/shared/census/treatingPhysicianDismissal';
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { PatientLaboratoryTrigger } from './PatientLaboratoryTrigger';
 import { PatientRadiologyTrigger } from './PatientRadiologyTrigger';
 import { SpecialtyChip } from './SpecialtyChip';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
+import type { PatientRowPatientPatch } from './patientRowContracts';
 
 /** Admission date as "DD-MM-YYYY" for the FI (fecha de ingreso) tag under the name. */
 const formatAdmissionShort = (raw?: string): string => {
@@ -48,6 +56,8 @@ interface PatientIdentityCellProps extends BaseCellProps {
   parentBedId?: string;
   hasRutError: boolean;
   onNameChange: DebouncedTextHandler;
+  onMultipleUpdate?: (fields: PatientRowPatientPatch) => void;
+  physicianReadOnly?: boolean;
   onOpenDemographics: () => void;
 }
 
@@ -60,6 +70,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   currentDateString,
   hasRutError,
   onNameChange,
+  onMultipleUpdate,
+  physicianReadOnly = readOnly,
   onOpenDemographics,
 }) => {
   const [copyFeedback, setCopyFeedback] = useState<'idle' | 'copied'>('idle');
@@ -90,11 +102,18 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
   const specialtyScopeBedId = isSubRow ? parentBedId : data.bedId;
-  const visibleTreatingPhysicianName = resolveVisibleTreatingPhysicianName(
+  const matchedPhysician = findProfessionalByRayenIdentity(
     professionalsCatalog,
     data.treatingPhysicianId,
     data.treatingPhysicianName
   );
+  const visibleTreatingPhysicianName = isDismissedTreatingPhysician(data, data)
+    ? ''
+    : resolveVisibleTreatingPhysicianName(
+        professionalsCatalog,
+        data.treatingPhysicianId,
+        data.treatingPhysicianName
+      );
   // A real occupant always shows the details row so the specialty chip (or "Pendiente asignar")
   // has a home, even before RUT/edad/FI are filled in.
   const isRealPatient = !isEmpty && !!fullName.trim();
@@ -330,11 +349,31 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 }
               />
               {visibleTreatingPhysicianName && (
-                <span
-                  className="max-w-28 truncate text-[9px] font-medium text-slate-400"
-                  title={`Médico tratante: ${visibleTreatingPhysicianName}`}
-                >
-                  · {visibleTreatingPhysicianName}
+                <span className="group/physician inline-flex min-w-0 items-center gap-0.5">
+                  <span
+                    className="max-w-28 truncate text-[9px] font-medium text-slate-400"
+                    title={`Médico tratante: ${visibleTreatingPhysicianName}`}
+                  >
+                    · {visibleTreatingPhysicianName}
+                  </span>
+                  {!physicianReadOnly && onMultipleUpdate && data.clinicalEpisodeId?.trim() && (
+                    <button
+                      type="button"
+                      className="rounded p-0.5 text-slate-400 opacity-0 transition-opacity hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500 group-hover/physician:opacity-100"
+                      aria-label={`Quitar médico tratante ${visibleTreatingPhysicianName}`}
+                      title={`Quitar médico tratante ${visibleTreatingPhysicianName}`}
+                      onClick={() =>
+                        onMultipleUpdate(
+                          dismissTreatingPhysician(data, {
+                            practitionerId: matchedPhysician?.rayenPractitionerId,
+                            name: visibleTreatingPhysicianName,
+                          })
+                        )
+                      }
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  )}
                 </span>
               )}
             </span>

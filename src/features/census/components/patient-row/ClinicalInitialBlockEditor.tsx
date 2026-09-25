@@ -18,12 +18,17 @@ import type {
 import type { DebouncedTextHandler } from '@/features/census/components/patient-row/inputCellTypes';
 import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 import { resolveClinicalInitialBlockEditorPosition } from '@/features/census/controllers/clinicalInitialBlockEditorPosition';
+import {
+  dismissTreatingPhysician,
+  isDismissedTreatingPhysician,
+} from '@/shared/census/treatingPhysicianDismissal';
 
 // The clinical status was decoupled from this editor (rediseño 2026): it now lives in its own
 // column as a colored dot (StatusSelect). This editor only edits diagnosis + specialty.
 interface ClinicalInitialBlockDraft {
   pathology: string;
   treatingPhysicianKey: string;
+  physicianTouched: boolean;
   specialtySelection: string;
   specialtyOther: string;
 }
@@ -54,16 +59,20 @@ const buildClinicalInitialBlockDraft = (
     data.treatingPhysicianId,
     data.treatingPhysicianName
   );
+  const storedPhysicianDismissed = isDismissedTreatingPhysician(data, data);
 
   return {
     pathology: data.pathology || '',
-    treatingPhysicianKey: matchingProfessional
-      ? professionalCatalogKey(matchingProfessional)
-      : data.treatingPhysicianId
-        ? `rayen:${data.treatingPhysicianId}`
-        : data.treatingPhysicianName
-          ? `stored-name:${encodeURIComponent(data.treatingPhysicianName)}`
-          : '',
+    physicianTouched: false,
+    treatingPhysicianKey: storedPhysicianDismissed
+      ? ''
+      : matchingProfessional
+        ? professionalCatalogKey(matchingProfessional)
+        : data.treatingPhysicianId
+          ? `rayen:${data.treatingPhysicianId}`
+          : data.treatingPhysicianName
+            ? `stored-name:${encodeURIComponent(data.treatingPhysicianName)}`
+            : '',
     specialtySelection: isKnownSpecialty ? specialty : 'Otro',
     specialtyOther: isKnownSpecialty ? '' : specialty,
   };
@@ -78,19 +87,44 @@ const buildClinicalInitialBlockPatch = (
     professionalsCatalog,
     draft.treatingPhysicianKey
   );
-  const keepsStoredIdentity = Boolean(draft.treatingPhysicianKey);
+  const currentProfessional = findProfessionalByRayenIdentity(
+    professionalsCatalog,
+    data.treatingPhysicianId,
+    data.treatingPhysicianName
+  );
+  const keepsStoredIdentity =
+    Boolean(draft.treatingPhysicianKey) ||
+    (!draft.physicianTouched && isDismissedTreatingPhysician(data, data));
 
+  const physicianId = selectedProfessional
+    ? selectedProfessional.rayenPractitionerId
+    : draft.treatingPhysicianKey.startsWith('rayen:')
+      ? draft.treatingPhysicianKey.slice('rayen:'.length)
+      : keepsStoredIdentity
+        ? data.treatingPhysicianId
+        : undefined;
+  const physicianName =
+    selectedProfessional?.name ?? (keepsStoredIdentity ? data.treatingPhysicianName : undefined);
   return {
     pathology: draft.pathology,
-    treatingPhysicianId: selectedProfessional
-      ? selectedProfessional.rayenPractitionerId
-      : draft.treatingPhysicianKey.startsWith('rayen:')
-        ? draft.treatingPhysicianKey.slice('rayen:'.length)
-        : keepsStoredIdentity
-          ? data.treatingPhysicianId
-          : undefined,
-    treatingPhysicianName:
-      selectedProfessional?.name ?? (keepsStoredIdentity ? data.treatingPhysicianName : undefined),
+    treatingPhysicianId: physicianId,
+    treatingPhysicianName: physicianName,
+    ...(draft.physicianTouched
+      ? physicianId || physicianName
+        ? isDismissedTreatingPhysician(data, {
+            ...data,
+            treatingPhysicianId: physicianId,
+            treatingPhysicianName: physicianName,
+          })
+          ? { dismissedTreatingPhysician: undefined }
+          : {}
+        : data.treatingPhysicianId || data.treatingPhysicianName
+          ? dismissTreatingPhysician(data, {
+              practitionerId: currentProfessional?.rayenPractitionerId,
+              name: currentProfessional?.name,
+            })
+          : {}
+      : {}),
     specialty: (draft.specialtySelection === 'Otro'
       ? draft.specialtyOther.trim() || 'Otro'
       : draft.specialtySelection) as PatientData['specialty'],
@@ -241,6 +275,7 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
                   setDraft(current => ({
                     ...current,
                     treatingPhysicianKey: key,
+                    physicianTouched: true,
                     ...(configuredSpecialty
                       ? {
                           specialtySelection: isKnownSpecialtyOption(configuredSpecialty)

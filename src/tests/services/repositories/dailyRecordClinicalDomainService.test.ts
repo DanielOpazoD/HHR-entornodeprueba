@@ -219,6 +219,11 @@ describe('dailyRecordClinicalDomainService', () => {
       specialty: Specialty.CIRUGIA,
       treatingPhysicianId: 'rayen-1',
       treatingPhysicianName: 'Médico tratante',
+      dismissedTreatingPhysician: {
+        episodeId: 'E1',
+        practitionerId: 'previous-physician',
+        name: 'Médico anterior',
+      },
     });
 
     const carried = preparePatientForCarryover(source);
@@ -226,6 +231,11 @@ describe('dailyRecordClinicalDomainService', () => {
     expect(carried.specialty).toBe(Specialty.CIRUGIA);
     expect(carried.treatingPhysicianId).toBe('rayen-1');
     expect(carried.treatingPhysicianName).toBe('Médico tratante');
+    expect(carried.dismissedTreatingPhysician).toEqual({
+      episodeId: 'E1',
+      practitionerId: 'previous-physician',
+      name: 'Médico anterior',
+    });
   });
 
   it('does not carry residual patient identity without admission date into a new day', () => {

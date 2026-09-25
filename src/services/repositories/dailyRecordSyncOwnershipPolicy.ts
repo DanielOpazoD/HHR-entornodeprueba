@@ -35,6 +35,7 @@ const PATIENT_FIELD_OWNERSHIP = {
   diagnosisComments: 'remoteCanonical',
   treatingPhysicianId: 'remoteCanonical',
   treatingPhysicianName: 'remoteCanonical',
+  dismissedTreatingPhysician: 'remoteCanonical',
   specialty: 'remoteCanonical',
   specialtyAssignment: 'remoteCanonical',
   secondarySpecialty: 'remoteCanonical',
