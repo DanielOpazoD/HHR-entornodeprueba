@@ -49,15 +49,6 @@
     color: #64748b;
   }
 
-  .census-table-scroll > table > tbody > tr:focus-within {
-    background-color: #f0fdfa;
-  }
-
-  .census-table-scroll > table > tbody > tr:hover > td:nth-child(2),
-  .census-table-scroll > table > tbody > tr:focus-within > td:nth-child(2) {
-    background-color: #f0fdfa;
-  }
-
   .census-toolbar .census-toolbar-card,
   .census-toolbar [data-testid='rayen-operations-bar'],
   .census-toolbar [data-testid='rayen-operations-loading'] {

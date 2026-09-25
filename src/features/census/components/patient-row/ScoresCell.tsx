@@ -108,6 +108,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                   icon={Footprints}
                   label="Downton"
                   value={String(model.downton.total)}
+                  showValueAlertIcon={false}
                   severity={model.downton.displayLevel}
                   countdown={model.downton.chipCountdown}
                   countdownUrgent={

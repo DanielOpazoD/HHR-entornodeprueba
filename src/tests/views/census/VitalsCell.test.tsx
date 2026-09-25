@@ -50,9 +50,9 @@ describe('VitalsCell', () => {
     expect(screen.getByText('88')).toBeInTheDocument(); // SAT (low → styled, still shown)
     expect(screen.getByText('88')).not.toHaveClass('decoration-dotted');
     expect(screen.getByText('36.5')).toBeInTheDocument(); // T°
-    expect(screen.getByTitle('SAT: 88 % · Fuera de rango')).toBeInTheDocument();
+    expect(screen.queryByTitle('SAT: 88 % · Fuera de rango')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver signos vitales' })).toHaveAttribute('aria-description', 'Fuera de rango: SAT');
-    expect(screen.getByTitle('SAT: 88 % · Fuera de rango').querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByText('88').querySelector('svg')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveClass(
       'border-l-red-500'
     );
@@ -65,7 +65,8 @@ describe('VitalsCell', () => {
   it('renders an empty marker when there are no vitals', () => {
     const { container } = renderCell(undefined);
     expect(container.querySelector('button')).toBeNull();
-    expect(screen.getByTitle('Sin signos vitales')).toBeInTheDocument();
+    expect(container.querySelector('.census-vitals-grid')).toHaveTextContent('PA—FC—SAT—T°—');
+    expect(screen.queryByTitle('Sin signos vitales')).not.toBeInTheDocument();
   });
 
   it('announces a detail-only abnormal reading even when the compact four are normal', () => {

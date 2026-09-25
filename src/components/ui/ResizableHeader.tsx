@@ -13,6 +13,7 @@ interface ResizableHeaderProps {
     onResize: (newWidth: number) => void;
     className?: string;
     title?: string;
+    ariaLabel?: string;
     minWidth?: number;
     maxWidth?: number;
     responsiveShare?: string;
@@ -25,6 +26,7 @@ export const ResizableHeader: React.FC<ResizableHeaderProps> = ({
     onResize,
     className = '',
     title,
+    ariaLabel,
     minWidth = 24,
     maxWidth = 400,
     responsiveShare,
@@ -65,6 +67,7 @@ export const ResizableHeader: React.FC<ResizableHeaderProps> = ({
             className={clsx(className, 'relative')}
             style={{ width: `${width}px`, maxWidth: `${width}px`, '--census-column-share': responsiveShare } as React.CSSProperties}
             title={title}
+            aria-label={ariaLabel}
         >
             {children}
 

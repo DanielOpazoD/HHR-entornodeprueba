@@ -21,7 +21,8 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
   const headerClassName =
     'sticky top-0 z-20 bg-slate-50 py-1.5 px-1.5 border-r border-slate-200/80 text-center text-slate-500 text-[10px] leading-none uppercase tracking-[0.04em] font-semibold';
   const headerCells = buildCensusHeaderCellModels(undefined, accessProfile);
-  const visibleWidth = columns.actions + headerCells.reduce((sum, cell) => sum + columns[cell.key], 0);
+  const visibleWidth =
+    columns.actions + headerCells.reduce((sum, cell) => sum + columns[cell.key], 0);
   const responsiveShare = (width: number): string => `${(width / visibleWidth) * 100}%`;
 
   return (
@@ -61,7 +62,8 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
               onResize={onResizeColumn(cell.key)}
               className={clsx(headerClassName, cell.className)}
               title={cell.title}
-              minWidth={cell.key === 'status' ? 64 : undefined}
+              ariaLabel={cell.key === 'status' ? 'Estado clínico' : undefined}
+              minWidth={cell.key === 'status' ? 32 : undefined}
             >
               {cell.label}
             </ResizableHeader>

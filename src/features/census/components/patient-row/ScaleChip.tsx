@@ -74,6 +74,8 @@ export interface ScaleChipProps {
   value: string;
   /** Severity level driving the value tint; null → neutral. */
   severity?: BradenRiskLevel | null;
+  /** Some scales show their risk through the number alone in the compact census. */
+  showValueAlertIcon?: boolean;
   /** CUDYR band driving the value tint (used instead of severity for CUDYR). */
   band?: 'A' | 'B' | 'C' | 'D' | null;
   /** Reapplication countdown, e.g. "5d" | "hoy" | "-2d"; omitted → no third zone. */
@@ -195,6 +197,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
   label,
   value,
   severity = null,
+  showValueAlertIcon = true,
   band = null,
   countdown = null,
   countdownUrgent = false,
@@ -209,7 +212,8 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
   const hide = useCallback(() => setAnchor(null), []);
 
   const valueTone = band ? BAND_TEXT[band] : severity ? SEVERITY_TEXT[severity] : NEUTRAL_TEXT;
-  const needsAttention = band === 'A' || band === 'B' || severity === 'medio' || severity === 'alto';
+  const needsAttention =
+    band === 'A' || band === 'B' || severity === 'medio' || severity === 'alto';
 
   return (
     <span
@@ -235,9 +239,18 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
         )}
       >
         {value}
-        {needsAttention && <TriangleAlert size={9} strokeWidth={2.5} aria-hidden="true" className="ml-0.5 shrink-0" />}
+        {needsAttention && showValueAlertIcon && (
+          <TriangleAlert
+            size={9}
+            strokeWidth={2.5}
+            aria-hidden="true"
+            className="ml-0.5 shrink-0"
+          />
+        )}
         {severity && <span className="sr-only"> · Riesgo {severity}</span>}
-        {(band === 'A' || band === 'B') && <span className="sr-only"> · Categoría CUDYR {band}</span>}
+        {(band === 'A' || band === 'B') && (
+          <span className="sr-only"> · Categoría CUDYR {band}</span>
+        )}
       </span>
       {/* reapplication zone — separated in its own space; neutral until it comes due */}
       {countdown != null && (

@@ -6,6 +6,7 @@
  */
 
 import type { InvasiveDeviceRow } from './parseInvasiveDevices';
+import { isNasogastricDevice } from '@/constants/clinicalDeviceConstants';
 
 export interface MappedDevice {
   /** HHR DeviceType: 'CUP' | 'CVC' | 'VVP#1'.. | 'LA' | 'VMNI' | 'CNAF' | 'TET' | raw name. */
@@ -40,6 +41,7 @@ const norm = (value: string): string =>
 /** Rayen device name → HHR base device type (VVP left unnumbered here; numbered by the caller). */
 export const canonicalizeRayenDeviceType = (nombre: string): string => {
   const n = norm(nombre);
+  if (isNasogastricDevice(nombre)) return 'SNG';
   if (/sonda vesical|foley|urinar|\bcup\b/.test(n)) return 'CUP';
   if (/cateter venoso central|venoso central|\bcvc\b/.test(n)) return 'CVC';
   if (/cateter subcutaneo|via subcutanea/.test(n)) return 'Catéter subcutáneo';

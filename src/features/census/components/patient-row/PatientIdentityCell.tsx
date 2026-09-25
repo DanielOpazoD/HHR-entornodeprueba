@@ -158,13 +158,13 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
 
   return (
     <td className="census-identity-cell py-1 px-1 border-r border-slate-200 align-middle">
-      <div className="relative">
+      <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-0.5">
         {isSubRow && (
           <div className="absolute left-[-15px] top-2 text-slate-300">
             <ArrowRight size={14} />
           </div>
         )}
-        <div className="flex items-center gap-1">
+        <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-1">
           {canEditInlineName ? (
             <div
               className={clsx(
@@ -237,7 +237,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           )}
         </div>
         {!isEmpty && (
-          <div className="census-identity-details mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 pl-0.5 text-[10px] leading-tight text-slate-500">
+          <div className="census-identity-details col-start-1 row-start-2 mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 pl-0.5 text-[10px] leading-tight text-slate-500">
             {hasRutValue ? (
               <>
                 <span
@@ -343,30 +343,30 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 </span>
               )}
             </span>
-            {!isEmpty && (
-              <span className="ml-auto inline-flex shrink-0 items-center gap-0.5">
-                <ClinicalPanelTrigger
-                  bedId={data.bedId}
-                  triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-                  patientName={fullName}
-                  patientRun={data.rut}
-                  clinicalEpisodeId={data.clinicalEpisodeId}
-                  encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
-                  admissionDate={data.admissionDate}
-                  censusDate={currentDateString}
-                />
-                <PatientLaboratoryTrigger
-                  patient={data}
-                  triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-                  censusDate={currentDateString}
-                />
-                <PatientRadiologyTrigger
-                  patient={data}
-                  triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-                />
-              </span>
-            )}
           </div>
+        )}
+        {!isEmpty && (
+          <span className="col-start-2 row-span-2 row-start-1 inline-flex shrink-0 items-center gap-0">
+            <ClinicalPanelTrigger
+              bedId={data.bedId}
+              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+              patientName={fullName}
+              patientRun={data.rut}
+              clinicalEpisodeId={data.clinicalEpisodeId}
+              encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
+              admissionDate={data.admissionDate}
+              censusDate={currentDateString}
+            />
+            <PatientLaboratoryTrigger
+              patient={data}
+              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+              censusDate={currentDateString}
+            />
+            <PatientRadiologyTrigger
+              patient={data}
+              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+            />
+          </span>
         )}
       </div>
     </td>
