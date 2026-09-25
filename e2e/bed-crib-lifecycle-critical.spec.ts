@@ -81,7 +81,7 @@ const getParentRow = (page: Page) =>
 const getCribRow = (page: Page) =>
   page
     .locator('tr[data-testid="patient-row"]')
-    .filter({ hasText: /\bCUNA\b/ })
+    .filter({ has: page.getByText('CUNA', { exact: true }) })
     .first();
 
 const expectLocalMirrorState = async (

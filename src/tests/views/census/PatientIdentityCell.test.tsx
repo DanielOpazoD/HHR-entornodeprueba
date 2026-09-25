@@ -54,16 +54,14 @@ describe('PatientIdentityCell', () => {
 
     expect(container.querySelectorAll('td')).toHaveLength(1);
 
-    // Read-only official names render as a borderless, read-only input (keeps
-    // input[name="patientName"] as the stable hook for the census/e2e suite) with
-    // the age badge hugging it in the same line: "Juana Rapu (45a)".
+    // The input remains a stable value hook; visible text can wrap independently.
     const nameInput = container.querySelector('input[name="patientName"]') as HTMLInputElement;
     expect(nameInput).toBeInTheDocument();
     expect(nameInput).toHaveValue('Juana Rapu');
     expect(nameInput).toHaveAttribute('readonly');
     const ageBadge = screen.getByText('(45a)');
     expect(nameInput.parentElement).toBe(ageBadge.parentElement);
-    expect(nameInput.nextElementSibling).toBe(ageBadge);
+    expect(screen.getByText('Juana Rapu').nextElementSibling).toBe(ageBadge);
 
     expect(screen.getByText('12.345.678-5')).toBeInTheDocument();
     expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
@@ -143,7 +141,7 @@ describe('PatientIdentityCell', () => {
     const nameInput = container.querySelector('input[name="patientName"]') as HTMLInputElement;
     const ageBadge = screen.getByText('(1d)');
     expect(nameInput.parentElement).toBe(ageBadge.parentElement);
-    expect(nameInput.parentElement).toHaveClass('border-slate-200', 'bg-slate-50', 'h-7');
+    expect(nameInput.parentElement).toHaveClass('border-slate-200', 'bg-slate-50');
     expect(container.querySelector('svg.lucide-baby')).not.toBeInTheDocument();
 
     expect(screen.getByTitle('Especialidad: Pediatría')).toBeVisible();
@@ -282,6 +280,16 @@ describe('PatientIdentityCell', () => {
     expect(handlePatientName).not.toHaveBeenCalled();
   });
 
+  it('shows the full official name as wrapping text without ellipsis', () => {
+    const fullName = 'María de los Ángeles Fernández del Río de la Cruz';
+    const data = DataFactory.createMockPatient('R1', { patientName: fullName });
+    const { container } = renderCell({ data });
+
+    expect(screen.getByText(fullName)).toHaveClass('break-words');
+    expect(screen.getByText(fullName)).not.toHaveClass('truncate');
+    expect(container.querySelector('input[name="patientName"]')).toHaveValue(fullName);
+  });
+
   it('allows inline name edition for provisional clinical crib sub-rows', () => {
     const handlePatientName = vi.fn();
     const onNameChange: DebouncedTextHandler = field =>
@@ -297,6 +305,8 @@ describe('PatientIdentityCell', () => {
 
     const nameInput = container.querySelector('input[name="patientName"]') as HTMLInputElement;
     expect(nameInput).not.toHaveAttribute('readonly');
+    expect(nameInput).toHaveClass('h-full');
+    expect(screen.getByText('RN de Madre')).toHaveClass('break-words');
 
     fireEvent.change(nameInput, { target: { value: 'RN de Maria Tuki' } });
     fireEvent.blur(nameInput);

@@ -34,6 +34,8 @@ describe('StatusSelect (colored dot + popover)', () => {
 
     fireEvent.click(dot);
     const dialog = screen.getByRole('dialog', { name: 'Estado clínico' });
+    expect(dialog.parentElement).toBe(document.body);
+    expect(dialog).toHaveClass('fixed');
     // The popover names the current status and offers the options to change it.
     expect(within(dialog).getAllByText('Estable').length).toBeGreaterThan(0);
     expect(within(dialog).getByRole('button', { name: 'Grave' })).toBeInTheDocument();
