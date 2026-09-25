@@ -41,6 +41,16 @@ describe('Clinical panel reading density', () => {
     if (archived) expect(screen.getByText('Archivada')).toBeVisible();
   });
 
+  it('separates long notes into paragraphs and highlights only the latest valid entry', () => {
+    render(
+      <EvolutionCard entry={{ ...entry, text: 'Primer párrafo.\n\nSegundo párrafo.' }} isLatest />
+    );
+    expect(screen.getByText('Primer párrafo.').tagName).toBe('P');
+    expect(screen.getByText('Segundo párrafo.').tagName).toBe('P');
+    expect(screen.getByRole('article')).toHaveClass('border-l-medical-600');
+    expect(screen.getByText('04-09-2026 10:00').tagName).toBe('TIME');
+  });
+
   it('shows only the bed below the patient name', () => {
     render(
       <ClinicalPanelHeading

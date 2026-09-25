@@ -1,4 +1,5 @@
 import type { ScoreTone } from '../domain/scoreEngine';
+import type { LibraryDocumentFormat } from '../domain/libraryCatalogTypes';
 
 export const TONE_BADGE_CLASSES: Readonly<Record<ScoreTone, string>> = {
   success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
@@ -9,6 +10,12 @@ export const TONE_BADGE_CLASSES: Readonly<Record<ScoreTone, string>> = {
 
 /** «3 pág.» dice más que el tamaño a quien va a imprimir; Word no declara páginas. */
 export const documentPagesLabel = (pages?: number): string => (pages ? `${pages} pág.` : 'Word');
+
+export const documentFormatLabel = (format: LibraryDocumentFormat, pages?: number): string => {
+  if (format === 'docx') return 'Word';
+  if (format === 'image') return 'Imagen';
+  return pages ? `PDF · ${documentPagesLabel(pages)}` : 'PDF';
+};
 
 export const formatDocumentSize = (sizeKb: number): string =>
   sizeKb >= 1024
