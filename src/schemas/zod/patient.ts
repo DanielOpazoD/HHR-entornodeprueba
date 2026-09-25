@@ -213,6 +213,14 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       diagnosisComments: nullableOptional(z.string()),
       treatingPhysicianId: nullableOptional(z.string()),
       treatingPhysicianName: nullableOptional(z.string()),
+      dismissedTreatingPhysician: nullableOptional(
+        z.object({
+          episodeId: z.string().min(1),
+          practitionerId: nullableOptional(z.string()),
+          name: nullableOptional(z.string()),
+          displayName: nullableOptional(z.string()),
+        })
+      ),
       specialty: SpecialtySchema.default(Specialty.EMPTY),
       specialtyAssignment: nullableOptional(
         z.object({
@@ -223,12 +231,20 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
           source: z.enum(['manual', 'rule', 'manual_ai']),
           actorUid: z.string(),
           decidedAt: z.string(),
-          rule: nullableOptional(z.object({
-            id: z.string(), revision: z.number(), catalogRevision: z.number(),
-          })),
-          ai: nullableOptional(z.object({
-            requestId: z.string(), model: z.string(), promptVersion: z.string(),
-          })),
+          rule: nullableOptional(
+            z.object({
+              id: z.string(),
+              revision: z.number(),
+              catalogRevision: z.number(),
+            })
+          ),
+          ai: nullableOptional(
+            z.object({
+              requestId: z.string(),
+              model: z.string(),
+              promptVersion: z.string(),
+            })
+          ),
         })
       ),
       ginecobstetriciaType: nullableOptional(

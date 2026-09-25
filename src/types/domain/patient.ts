@@ -90,6 +90,13 @@ export interface PatientData {
   treatingPhysicianId?: string;
   /** Treating physician display name for census presentation and manual fallback. */
   treatingPhysicianName?: string;
+  /** Clinician dismissed for this episode; a different Rayen assignment remains eligible. */
+  dismissedTreatingPhysician?: {
+    episodeId: string;
+    practitionerId?: string;
+    name?: string;
+    displayName?: string;
+  };
   specialty: Specialty | string;
   /** Server-confirmed decision for this clinical episode; never authored by census/import clients. */
   specialtyAssignment?: SpecialtyDecisionMeta;

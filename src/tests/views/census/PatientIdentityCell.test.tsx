@@ -107,6 +107,121 @@ describe('PatientIdentityCell', () => {
     expect(screen.queryByText(/Méd\./)).not.toBeInTheDocument();
   });
 
+  it('dismisses the treating physician with an episode-scoped atomic patch', () => {
+    mockedStaffContext.professionalsCatalog = [
+      { name: 'Médica A', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-a' },
+    ];
+    const onMultipleUpdate = vi.fn();
+    const data = DataFactory.createMockPatient('R1', {
+      clinicalEpisodeId: 'episode-a',
+      treatingPhysicianId: 'physician-a',
+      treatingPhysicianName: 'Médica A',
+    });
+
+    renderCell({ data, onMultipleUpdate });
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar médico tratante Médica A' }));
+
+    expect(onMultipleUpdate).toHaveBeenCalledWith({
+      treatingPhysicianId: undefined,
+      treatingPhysicianName: undefined,
+      dismissedTreatingPhysician: {
+        episodeId: 'episode-a',
+        practitionerId: 'physician-a',
+        name: 'Médica A',
+        displayName: 'Médica A',
+      },
+    });
+  });
+
+  it('remembers the catalog name when the stored physician has only an ID', () => {
+    mockedStaffContext.professionalsCatalog = [
+      { name: 'Médica A', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-a' },
+    ];
+    const onMultipleUpdate = vi.fn();
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        clinicalEpisodeId: 'episode-a',
+        treatingPhysicianId: 'physician-a',
+        treatingPhysicianName: undefined,
+      }),
+      onMultipleUpdate,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar médico tratante Médica A' }));
+    expect(onMultipleUpdate.mock.calls[0][0].dismissedTreatingPhysician).toMatchObject({
+      practitionerId: 'physician-a',
+      name: 'Médica A',
+    });
+  });
+
+  it('does not offer physician dismissal in read-only mode', () => {
+    mockedStaffContext.professionalsCatalog = [
+      { name: 'Médica A', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-a' },
+    ];
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        treatingPhysicianId: 'physician-a',
+        treatingPhysicianName: 'Médica A',
+      }),
+      onMultipleUpdate: vi.fn(),
+      readOnly: true,
+    });
+    expect(screen.queryByRole('button', { name: /Quitar médico tratante/ })).toBeNull();
+  });
+
+  it('waits for an episode ID before offering a durable dismissal', () => {
+    mockedStaffContext.professionalsCatalog = [
+      { name: 'Médica A', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-a' },
+    ];
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        clinicalEpisodeId: undefined,
+        treatingPhysicianId: 'physician-a',
+        treatingPhysicianName: 'Médica A',
+      }),
+      onMultipleUpdate: vi.fn(),
+    });
+    expect(screen.getByTitle('Médico tratante: Médica A')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Quitar médico tratante/ })).toBeNull();
+  });
+
+  it('keeps identity editing independent from a physician-only lock', () => {
+    mockedStaffContext.professionalsCatalog = [
+      { name: 'Médica A', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-a' },
+    ];
+    const { container } = renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        identityStatus: 'provisional',
+        treatingPhysicianId: 'physician-a',
+        treatingPhysicianName: 'Médica A',
+      }),
+      isSubRow: true,
+      physicianReadOnly: true,
+      onMultipleUpdate: vi.fn(),
+    });
+    expect(screen.queryByRole('button', { name: /Quitar médico tratante/ })).toBeNull();
+    expect(container.querySelector('input[name="patientName"]')).not.toHaveAttribute('readonly');
+  });
+
+  it('honors a stored dismissal even if an older physician value remains in the record', () => {
+    mockedStaffContext.professionalsCatalog = [
+      { name: 'Médica A', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-a' },
+    ];
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        clinicalEpisodeId: 'episode-a',
+        treatingPhysicianId: 'physician-a',
+        treatingPhysicianName: 'Médica A',
+        dismissedTreatingPhysician: {
+          episodeId: 'episode-a',
+          practitionerId: 'physician-a',
+          name: 'Médica A',
+        },
+      }),
+      onMultipleUpdate: vi.fn(),
+    });
+    expect(screen.queryByTitle('Médico tratante: Médica A')).toBeNull();
+  });
+
   it('hides a treating physician whose catalog entry has no specialty', () => {
     mockedStaffContext.professionalsCatalog = [
       {

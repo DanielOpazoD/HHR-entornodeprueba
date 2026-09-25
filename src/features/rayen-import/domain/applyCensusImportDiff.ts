@@ -1,11 +1,4 @@
-/**
- * Applies a (reviewed) `CensusImportDiff` onto a `DailyRecord`, returning the next
- * record plus what was applied/skipped. Pure and deterministic given `idFactory`
- * and `now` — no persistence here (that is the use-case's job).
- *
- * It never overwrites an occupied bed; skipped operations are reported.
- */
-
+/** Applies a reviewed census diff without overwriting occupied beds; pure and deterministic. */
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { CensusManager } from '@/domain/CensusManager';
@@ -22,6 +15,7 @@ import { applyRayenDischargeVerification } from './applyRayenDischargeVerificati
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
+import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
@@ -367,6 +361,11 @@ export const applyCensusImportDiff = (
       // Re-check local authority at apply time too: the user may have selected a specialty after
       // the preview was built but before confirming it.
       if (change.field === 'specialty' && String(existing.specialty ?? '').trim()) continue;
+      if (
+        (change.field === 'treatingPhysicianId' || change.field === 'treatingPhysicianName') &&
+        isDismissedTreatingPhysician(existing, entry.patient)
+      )
+        continue;
       merged[change.field] = change.to;
     }
     nextBeds[entry.bedId] = merged as unknown as PatientData;

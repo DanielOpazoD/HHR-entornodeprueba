@@ -48,16 +48,18 @@ const buildClinicalPause = (
  */
 export const PatientInputIdentitySection: React.FC<
   PatientInputIdentitySectionBindings & { parentBedId?: string }
-> = ({ shared, parentBedId, hasRutError, handleDebouncedText, onDemo }) => (
+> = ({ shared, parentBedId, hasRutError, handleDebouncedText, onDemo, onChange }) => (
   <PatientIdentityCell
     data={shared.data}
     parentBedId={parentBedId}
     isSubRow={shared.isSubRow}
     isEmpty={shared.isEmpty}
     readOnly={shared.isLocked}
+    physicianReadOnly={shared.isLocked || shared.clinicalEditingDisabled}
     currentDateString={shared.currentDateString}
     hasRutError={hasRutError}
     onNameChange={handleDebouncedText}
+    onMultipleUpdate={onChange.multiple}
     onOpenDemographics={onDemo}
   />
 );
