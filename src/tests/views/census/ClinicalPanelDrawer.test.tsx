@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -219,7 +219,7 @@ describe('ClinicalPanelDrawer', () => {
     expect(mocks.request).toHaveBeenCalledWith('141121', undefined, expect.any(AbortSignal));
     expect(screen.queryByText('Entrega médica: controlar laboratorio.')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Entrega de turno (1)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Entregas (1)' }));
     expect(screen.getByText('Entrega médica: controlar laboratorio.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Enfermería (1)' }));
@@ -235,6 +235,16 @@ describe('ClinicalPanelDrawer', () => {
     expect(screen.getByText('Cambio de posición')).toBeInTheDocument();
     expect(screen.getByText('Ejecutada')).toBeInTheDocument();
     expect(screen.getByText('1/1 ejecutadas')).toBeInTheDocument();
+  });
+
+  it('uses one clinical section row and a single evolution filter row', async () => {
+    renderDrawer('H1C2');
+    await screen.findByText('Evolución médica estable.');
+    const sections = screen.getByRole('navigation', { name: 'Secciones clínicas' });
+    expect(within(sections).getByRole('button', { name: 'Antecedentes' })).toBeInTheDocument();
+    expect(within(sections).getByRole('button', { name: /Evoluciones/ })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Filtrar evoluciones' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Entrega de turno (1)' })).not.toBeInTheDocument();
   });
 
   it('fails closed instead of rendering partial clinical data alongside an error', async () => {

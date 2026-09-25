@@ -110,7 +110,13 @@ test.describe('Clinical library (preview build)', () => {
     await expect(page.getByRole('dialog', { name: 'Documentos y herramientas' })).toBeVisible();
     await expect(page.getByRole('searchbox')).toBeFocused();
     await expect(drawer.getByTestId('library-document-consentimiento-informado')).toBeVisible();
+    await expect(drawer.getByText('Aún no hay protocolos publicados')).toHaveCount(0);
+    await expect(drawer.getByTestId('library-document-consentimiento-informado')).toContainText(
+      'PDF · 1 pág.'
+    );
+    await drawer.getByRole('button', { name: 'Protocolos' }).click();
     await expect(drawer.getByText('Aún no hay protocolos publicados')).toBeVisible();
+    await drawer.getByRole('button', { name: 'Todo' }).click();
     await capture(page, '02-documents-panel');
 
     await page.getByRole('searchbox').fill('imagenologia');
