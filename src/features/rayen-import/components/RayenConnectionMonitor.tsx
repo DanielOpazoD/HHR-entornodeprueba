@@ -188,7 +188,8 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
     working,
     expiredSource ?? extension.blockedBy
   );
-  const attention = !working && connection !== 'ready';
+  const checking = working || connection === 'checking';
+  const attention = !checking && connection !== 'ready';
 
   const handleRefresh = async (): Promise<void> => {
     setBusy('refresh');
@@ -280,7 +281,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           data-testid="rayen-connection-monitor-trigger"
           className="flex w-full min-w-0 items-center gap-1.5 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600"
         >
-          <p className="text-[13px] font-bold leading-tight text-slate-800">Eloísa</p>
+          <p className="text-[13px] font-semibold leading-tight text-slate-800">Eloísa</p>
           <span
             className={`size-1.5 rounded-full ${
               working || connection === 'checking'
@@ -293,7 +294,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           />
           <span
             className={`truncate text-[11px] font-medium ${
-              attention ? 'text-amber-700' : 'text-slate-500'
+              checking ? 'text-teal-700' : attention ? 'text-amber-700' : 'text-slate-500'
             }`}
           >
             {stateLabel}

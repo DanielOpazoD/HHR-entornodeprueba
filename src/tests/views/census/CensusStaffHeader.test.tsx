@@ -130,6 +130,8 @@ describe('CensusStaffHeader', () => {
   it('renders selectors and summary with normalized movement counts', async () => {
     render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} />);
 
+    expect(screen.getByTestId('rayen-operations-loading')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Cargando controles…')).toBeVisible();
     expect(screen.getByTestId('nurse-selector')).toBeInTheDocument();
     expect(screen.getByTestId('tens-selector')).toBeInTheDocument();
     expect(screen.getByTestId('summary-card')).toBeInTheDocument();
@@ -143,6 +145,7 @@ describe('CensusStaffHeader', () => {
     // The Rayen control is loaded on demand, so it resolves after the first paint.
     expect(staffAndSync).toContainElement(await screen.findByTestId('rayen-operations-bar'));
     expect(screen.getAllByTestId('rayen-operations-bar')).toHaveLength(1);
+    expect(screen.queryByTestId('rayen-operations-loading')).not.toBeInTheDocument();
   });
 
   it('passes readOnly class to selectors and hides summary when stats are null', () => {

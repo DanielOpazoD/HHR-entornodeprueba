@@ -26,6 +26,24 @@ const SpecialtyRoundEntry = lazy(() =>
     default: module.SpecialtyRoundEntry,
   }))
 );
+
+// Keep the Eloísa card in place while its heavier synchronization module loads.
+// This shell has no controls or connection claim until the extension has been checked.
+const RayenOperationsLoadingCard = () => (
+  <div
+    className="flex h-full min-h-20 w-full items-center gap-2 rounded-xl border border-slate-200/90 bg-white px-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    role="status"
+    aria-busy="true"
+    aria-label="Cargando panel de Eloísa"
+    data-testid="rayen-operations-loading"
+  >
+    <img src="/images/logos/rayen-mark.png" alt="" className="size-8 shrink-0 object-contain" />
+    <div className="min-w-0">
+      <p className="text-[13px] font-semibold leading-tight text-slate-800">Eloísa</p>
+      <p className="text-[10px] leading-tight text-slate-500">Cargando controles…</p>
+    </div>
+  </div>
+);
 import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusAttentionBar } from './CensusAttentionBar';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
@@ -123,7 +141,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
 
           {!readOnly && !readModel.specialistAccess && (
             <div className="w-60 max-w-full shrink-0 self-stretch">
-              <Suspense fallback={null}>
+              <Suspense fallback={<RayenOperationsLoadingCard />}>
                 <RayenImportButton
                   selectedDate={selectedDate}
                   autoStartRequestId={rayenBootstrapRequestId}

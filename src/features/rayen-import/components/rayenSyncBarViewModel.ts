@@ -120,13 +120,9 @@ const staleSyncPresentation = (input: RayenSyncBarViewModelInput): RayenSyncBarV
   const ageMinutes = Math.floor(Math.max(0, now - synchronizedAt) / 60_000);
   if (ageMinutes <= 15) return null;
   const ageLabel = ageMinutes < 60 ? `${ageMinutes} min` : `${Math.floor(ageMinutes / 60)} h`;
-  return settled('action', 'warning', `Datos sin actualizar · hace ${ageLabel}`, {
-    detail: `Última sincronización exitosa: ${new Date(synchronizedAt).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    })}`,
-    visuallyHidden: false,
-  });
+  // El tiempo transcurrido es contexto, no un fallo: sólo una corrida parcial o fallida
+  // debe ocupar el espacio de alerta. La acción Sincronizar sigue disponible.
+  return settled('idle', 'neutral', `Última lectura · hace ${ageLabel}`);
 };
 
 const clinicalProgress = (
