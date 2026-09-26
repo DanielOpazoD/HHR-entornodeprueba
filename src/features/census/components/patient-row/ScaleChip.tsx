@@ -5,9 +5,8 @@
  * information owns its own space instead of competing inside a single colored pill:
  *   [ identidad ]  — icon + scale name, tinted with the SCALE's own hue (Braden violet, Downton
  *                    indigo, CUDYR teal). The hue never changes with the result: it identifies.
- *   [ valor ]      — the score, tinted by SEVERITY (emerald/amber/red — clinical semantics).
- *   [ reaplicar ]  — the reapplication countdown, visually separate; neutral until due/overdue,
- *                    then red with the alarm icon.
+ *   [ valor ]      — the score, kept neutral alongside its scale identity.
+ *   [ reaplicar ]  — the reapplication countdown as neutral text.
  *
  * Hovering the chip shows a "sticky note" (portal-positioned, so the table can't clip it) with the
  * date/time it was applied and by whom — data synced from Ficha Médico.
@@ -15,16 +14,13 @@
 
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import clsx from 'clsx';
-import { AlarmClock, TriangleAlert, type LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
 import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 /**
  * Scale identity hue — fixed per scale, independent of the clinical result. It ONLY tints the small
- * icon: identity is carried by the icon + name (neutral), never by a colored fill, so the only
- * saturated color in the chip is the clinical one (severity on the value, red on an overdue
- * countdown). Restraint is what makes the abnormal value read at a glance.
+ * icon: identity is carried by the icon + name, without alarm colors in the census row.
  */
 export type ScaleHue = 'violet' | 'indigo' | 'teal';
 
@@ -33,23 +29,6 @@ const HUE_ICON: Record<ScaleHue, string> = {
   indigo: 'text-indigo-500',
   teal: 'text-teal-600',
 };
-
-/** Severity tint for the value text (semantic, shared with vitals + the rest of the app). */
-const SEVERITY_TEXT: Record<BradenRiskLevel, string> = {
-  bajo: 'text-slate-600',
-  medio: 'text-amber-600',
-  alto: 'text-red-600',
-};
-
-/** Only the high-acuity CUDYR bands receive an attention color. */
-const BAND_TEXT: Record<'A' | 'B' | 'C' | 'D', string> = {
-  A: 'text-rose-600',
-  B: 'text-amber-600',
-  C: 'text-slate-600',
-  D: 'text-slate-600',
-};
-
-const NEUTRAL_TEXT = 'text-slate-600';
 
 export interface StickyNoteData {
   /** Instrument display name, e.g. "Escala de riesgo UPP (Braden)". */
@@ -72,16 +51,12 @@ export interface ScaleChipProps {
   label: string;
   /** The score value shown in the value zone, e.g. "16" or "D3". */
   value: string;
-  /** Severity level driving the value tint; null → neutral. */
+  /** Severity level retained in the accessible score description. */
   severity?: BradenRiskLevel | null;
-  /** Some scales show their risk through the number alone in the compact census. */
-  showValueAlertIcon?: boolean;
-  /** CUDYR band driving the value tint (used instead of severity for CUDYR). */
+  /** CUDYR band retained in the accessible score description. */
   band?: 'A' | 'B' | 'C' | 'D' | null;
   /** Reapplication countdown, e.g. "5d" | "hoy" | "-2d"; omitted → no third zone. */
   countdown?: string | null;
-  /** True when the scale is due/overdue — countdown zone turns red and alarms. */
-  countdownUrgent?: boolean;
   note: StickyNoteData;
 }
 
@@ -197,10 +172,8 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
   label,
   value,
   severity = null,
-  showValueAlertIcon = true,
   band = null,
   countdown = null,
-  countdownUrgent = false,
   note,
 }) => {
   const chipRef = useRef<HTMLSpanElement | null>(null);
@@ -211,10 +184,6 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
   }, []);
   const hide = useCallback(() => setAnchor(null), []);
 
-  const valueTone = band ? BAND_TEXT[band] : severity ? SEVERITY_TEXT[severity] : NEUTRAL_TEXT;
-  const needsAttention =
-    band === 'A' || band === 'B' || severity === 'medio' || severity === 'alto';
-
   return (
     <span
       ref={chipRef}
@@ -222,47 +191,28 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
       onMouseLeave={hide}
       onFocus={show}
       onBlur={hide}
-      className={clsx(
-        'grid w-full grid-cols-[minmax(64px,1fr)_34px_42px] items-stretch rounded text-[10px] leading-tight'
-      )}
+      className="grid w-full grid-cols-[minmax(64px,1fr)_34px_42px] items-stretch rounded text-[10px] leading-tight"
     >
       {/* identity zone — icon in the scale's hue, name neutral; no fill competes with the value */}
       <span className="flex min-w-0 items-center gap-1 px-1.5 py-0.5 font-semibold text-slate-600">
         <Icon size={10} strokeWidth={2.5} className={HUE_ICON[hue]} aria-hidden />
         {label}
       </span>
-      {/* value zone — the only place the clinical (severity) color lives */}
-      <span
-        className={clsx(
-          'flex min-w-[18px] flex-1 items-center justify-center px-1 py-0.5 font-semibold tabular-nums',
-          valueTone
-        )}
-      >
+      {/* value zone — risk remains in the number and the detail, without an alarm marker */}
+      <span className="flex min-w-[18px] flex-1 items-center justify-center px-1 py-0.5 font-semibold text-slate-600 tabular-nums">
         {value}
-        {needsAttention && showValueAlertIcon && (
-          <TriangleAlert
-            size={9}
-            strokeWidth={2.5}
-            aria-hidden="true"
-            className="ml-0.5 shrink-0"
-          />
-        )}
         {severity && <span className="sr-only"> · Riesgo {severity}</span>}
         {(band === 'A' || band === 'B') && (
           <span className="sr-only"> · Categoría CUDYR {band}</span>
         )}
       </span>
-      {/* reapplication zone — separated in its own space; neutral until it comes due */}
+      {/* reapplication zone — separated in its own space and neutral */}
       {countdown != null && (
         <span
-          className={clsx(
-            'flex shrink-0 items-center justify-end gap-0.5 rounded px-1 py-0.5 font-medium tabular-nums',
-            countdownUrgent ? 'bg-red-50 text-red-700' : 'text-slate-500'
-          )}
+          className="flex shrink-0 items-center justify-end rounded px-1 py-0.5 font-medium text-slate-500 tabular-nums"
           title="Próxima aplicación"
           aria-label={`Próxima aplicación: ${countdown}`}
         >
-          <AlarmClock size={9} strokeWidth={2.5} aria-hidden />
           {countdown}
         </span>
       )}

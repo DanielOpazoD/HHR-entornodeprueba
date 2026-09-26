@@ -47,12 +47,14 @@ describe('VitalsCell', () => {
 
     expect(screen.getByText('130/82')).toBeInTheDocument();
     expect(screen.getByText('84')).toBeInTheDocument(); // FC
-    expect(screen.getByText('88')).toBeInTheDocument(); // SAT (low → styled, still shown)
+    expect(screen.getByText('88')).toBeInTheDocument(); // SAT remains visible without alarm styling.
     expect(screen.getByText('88')).not.toHaveClass('decoration-dotted');
     expect(screen.getByText('36.5')).toBeInTheDocument(); // T°
     expect(screen.queryByTitle('SAT: 88 % · Fuera de rango')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).toHaveAttribute('aria-description', 'Fuera de rango: SAT');
-    expect(screen.getByText('88').querySelector('svg')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveAttribute(
+      'aria-description'
+    );
+    expect(screen.getByText('88').querySelector('svg')).toBeNull();
     expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveClass(
       'border-l-red-500'
     );
@@ -69,13 +71,15 @@ describe('VitalsCell', () => {
     expect(screen.queryByTitle('Sin signos vitales')).not.toBeInTheDocument();
   });
 
-  it('announces a detail-only abnormal reading even when the compact four are normal', () => {
+  it('keeps detail-only readings available without adding an inline warning', () => {
     renderCell({ ...VITALS, spo2: 98, painEva: 8 }, 'R1', { age: '44' });
 
-    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).toHaveAttribute(
-      'aria-description',
-      'Fuera de rango: EVA'
+    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveAttribute(
+      'aria-description'
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    expect(screen.getByText('8')).toBeInTheDocument();
+    expect(screen.queryByText('Fuera de rango')).toBeNull();
   });
 
   it('does not use neonatal ranges solely because the bed is NEO', () => {
@@ -88,7 +92,7 @@ describe('VitalsCell', () => {
       { birthDate: '1986-01-01', age: '40' }
     );
 
-    expect(screen.getByText('45')).toHaveClass('text-amber-600');
+    expect(screen.getByText('45')).toHaveClass('text-slate-600');
   });
 
   it('uses neonatal ranges by age regardless of the bed and shows no population label', () => {
@@ -118,7 +122,7 @@ describe('VitalsCell', () => {
       { birthDate: '2024-07-11', age: '2a' }
     );
 
-    expect(screen.getByText('145')).toHaveClass('text-amber-600');
+    expect(screen.getByText('145')).toHaveClass('text-slate-600');
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
     expect(screen.queryByText(/pediátrico|años|perfil/i)).not.toBeInTheDocument();
   });
@@ -126,10 +130,10 @@ describe('VitalsCell', () => {
   it('uses a bare completed-year age when birth date is unavailable', () => {
     renderCell(VITALS, 'R3', { age: '52', birthDate: undefined });
 
-    expect(screen.getByText('88')).toHaveClass('text-red-600');
+    expect(screen.getByText('88')).toHaveClass('text-slate-600');
   });
 
-  it('keeps age-only alert colors consistent between the cell and history table', () => {
+  it('keeps age-only readings neutral and aligned between the cell and history table', () => {
     const latest = { ...VITALS, heartRate: 79 };
     renderCell(latest, 'R3', {
       age: '21d',
@@ -149,8 +153,10 @@ describe('VitalsCell', () => {
     const historySection = screen.getByText('Historial · 2 tomas').closest('section');
     expect(historySection).not.toBeNull();
     const history = within(historySection as HTMLElement);
-    expect(history.getByText('79').closest('td')).toHaveClass('text-red-600');
-    expect(history.getByText('79').parentElement?.querySelector('[aria-label="Fuera de rango"]')).toBeInTheDocument();
-    expect(history.getByText('78').closest('td')).toHaveClass('text-slate-500');
+    expect(history.getByText('79').closest('td')).toHaveClass('text-slate-700');
+    expect(
+      history.getByText('79').parentElement?.querySelector('[aria-label="Fuera de rango"]')
+    ).toBeNull();
+    expect(history.getByText('78').closest('td')).toHaveClass('text-slate-700');
   });
 });

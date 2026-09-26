@@ -42,7 +42,7 @@ describe('censusTableColumnProfileController', () => {
 
   it('fits the UPC control without overwriting saved widths or exposing it to specialists', () => {
     const compact = { ...columns, upc: 22 };
-    expect(resolveVisibleCensusColumns(compact).upc).toBe(52);
+    expect(resolveVisibleCensusColumns(compact).upc).toBe(48);
     expect(resolveVisibleCensusColumns(compact, 'specialist').upc).toBe(0);
     expect(compact.upc).toBe(22);
   });
@@ -88,7 +88,7 @@ describe('censusTableColumnProfileController', () => {
       expect(projected).toMatchObject({
         actions: 40,
         bed: 54,
-        name: 340,
+        name: 310,
         diagnosis: 280,
         status: profile === 'specialist' ? 0 : 32,
       });

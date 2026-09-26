@@ -13,10 +13,13 @@
   outline-offset: 2px;
 }
 
-/* Reserve a left gutter for the floating turtle control; keep it outside the table. */
+/* Keep the turtle outside the table while matching the three movement cards below it. */
 @media screen and (min-width: 960px) {
-  .census-table-scroll {
+  .census-table-scroll,
+  .census-movement-section,
+  [data-testid='census-register-sections-loading'] {
     margin-left: 56px;
+    margin-right: 24px;
   }
 }
 
@@ -164,17 +167,17 @@
     > thead
     > tr
     > th.census-column-admission {
-    width: 9% !important;
+    width: 12% !important;
   }
   .census-table-scroll[data-access-profile='default'] > table > thead > tr > th.census-column-dmi {
-    width: 7% !important;
+    width: 6% !important;
   }
   .census-table-scroll[data-access-profile='default']
     > table
     > thead
     > tr
     > th.census-column-scores {
-    width: 10% !important;
+    width: 8% !important;
   }
   .census-table-scroll[data-access-profile='default'] > table > thead > tr > th.census-column-upc {
     width: 4% !important;

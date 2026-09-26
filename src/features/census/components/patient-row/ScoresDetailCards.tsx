@@ -6,7 +6,7 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import { AlarmClock, Bandage, CalendarClock, Footprints, Layers3 } from 'lucide-react';
+import { Bandage, CalendarClock, Footprints, Layers3 } from 'lucide-react';
 import type {
   BradenCellModel,
   CudyrCellModel,
@@ -26,15 +26,10 @@ const formatCudyrTime = (value?: string): string => {
   }).format(new Date(epoch));
 };
 
-/** Small reapplication pill: green "en Nd", red "Reaplicar hoy"/"vencida". */
-const ReapplyPill: React.FC<{ label: string; urgent: boolean }> = ({ label, urgent }) => (
-  <span
-    className={clsx(
-      'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold',
-      urgent ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
-    )}
-  >
-    {urgent ? <AlarmClock size={11} strokeWidth={2.5} /> : <CalendarClock size={11} />}
+/** Reapplication timing stays factual without an alarm color or icon. */
+const ReapplyPill: React.FC<{ label: string }> = ({ label }) => (
+  <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">
+    <CalendarClock size={11} />
     {label}
   </span>
 );
@@ -131,14 +126,7 @@ export const BradenCard: React.FC<{ braden: BradenCellModel }> = ({ braden }) =>
       recordedDate={braden.entry.recordedDate}
       applicationDate={braden.application.recordedDate}
       applicationArchived={braden.application.archived}
-      footer={
-        braden.countdownLabel ? (
-          <ReapplyPill
-            label={braden.countdownLabel}
-            urgent={braden.assessment.reapplication.urgency !== 'ok'}
-          />
-        ) : undefined
-      }
+      footer={braden.countdownLabel ? <ReapplyPill label={braden.countdownLabel} /> : undefined}
     />
   );
 };
@@ -159,10 +147,7 @@ export const DowntonCard: React.FC<{ downton: DowntonCellModel }> = ({ downton }
       applicationArchived={downton.application.archived}
       footer={
         downton.reapplication && downton.countdownLabel ? (
-          <ReapplyPill
-            label={downton.countdownLabel}
-            urgent={downton.reapplication.urgency !== 'ok'}
-          />
+          <ReapplyPill label={downton.countdownLabel} />
         ) : undefined
       }
     />

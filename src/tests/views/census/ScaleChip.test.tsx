@@ -32,7 +32,7 @@ describe('ScaleChip', () => {
     fireEvent.mouseLeave(chip);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
-  it('distinguishes risk from reapplication without coloring the whole chip', () => {
+  it('shows reapplication timing without alarm styling', () => {
     const { container } = render(
       <ScaleChip
         hue="violet"
@@ -41,12 +41,11 @@ describe('ScaleChip', () => {
         value="12"
         severity="alto"
         countdown="hoy"
-        countdownUrgent
         note={note}
       />
     );
     expect(screen.getByText(/Riesgo alto/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Próxima aplicación: hoy')).toHaveClass('text-red-700');
+    expect(screen.getByLabelText('Próxima aplicación: hoy')).toHaveClass('text-slate-500');
     expect(container.firstElementChild).not.toHaveClass('border-red-300');
     expect(container.querySelector('.animate-pulse')).toBeNull();
   });
@@ -58,11 +57,10 @@ describe('ScaleChip', () => {
         label="Downton"
         value="4"
         severity="alto"
-        showValueAlertIcon={false}
         note={note}
       />
     );
-    expect(screen.getByText('4')).toHaveClass('text-red-600');
+    expect(screen.getByText('4')).toHaveClass('text-slate-600');
     expect(screen.getByText(/Riesgo alto/)).toBeInTheDocument();
     expect(container.querySelector('.lucide-triangle-alert')).toBeNull();
   });

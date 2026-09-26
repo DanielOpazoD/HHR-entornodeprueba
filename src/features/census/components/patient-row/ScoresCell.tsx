@@ -57,10 +57,6 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
       ? resolveCudyrPendingStatus(currentDateString)
       : null;
   const hasCellContent = model.hasAny || cudyrPending != null;
-  const pendingClass =
-    cudyrPending?.phase === 'overdue'
-      ? 'border-red-200 bg-red-50 text-red-700'
-      : 'border-transparent text-slate-500';
 
   return (
     <td className="py-0.5 px-1 border-r border-slate-200 relative">
@@ -86,7 +82,6 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                   value={String(model.braden.total)}
                   severity={model.braden.displayLevel}
                   countdown={model.braden.chipCountdown}
-                  countdownUrgent={model.braden.assessment.reapplication.urgency !== 'ok'}
                   note={{
                     title: model.braden.entry.name,
                     recordedDate: model.braden.entry.recordedDate,
@@ -108,12 +103,8 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                   icon={Footprints}
                   label="Downton"
                   value={String(model.downton.total)}
-                  showValueAlertIcon={false}
                   severity={model.downton.displayLevel}
                   countdown={model.downton.chipCountdown}
-                  countdownUrgent={
-                    !!model.downton.reapplication && model.downton.reapplication.urgency !== 'ok'
-                  }
                   note={{
                     title: 'Downton',
                     recordedDate: model.downton.entry.recordedDate,
@@ -150,7 +141,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
           )}
           {cudyrPending && (
             <div
-              className={`flex flex-wrap items-center justify-between gap-x-1 rounded border px-1.5 py-0.5 text-[9px] ${pendingClass}`}
+              className="flex flex-wrap items-center justify-between gap-x-1 rounded border border-transparent px-1.5 py-0.5 text-[9px] text-slate-500"
               data-testid="cudyr-pending-status"
               title={cudyrPending.detail}
               aria-label={`CUDYR ${cudyrPending.label}. ${cudyrPending.detail}`}

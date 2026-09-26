@@ -77,6 +77,8 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
   await page.goto(`/?date=${DATE}`);
   const row = page.locator('[data-testid="patient-row"][data-bed-id="R1"]');
   await expect(row).toContainText(PATIENT, { timeout: 20_000 });
+  const movementSections = page.locator('.census-movement-section');
+  await expect(movementSections).toHaveCount(3);
 
   for (const [zoom, width, height] of [
     ['100', 1280, 832],
@@ -117,15 +119,26 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     expect(viewportBounds).not.toBeNull();
     expect(shellBounds).not.toBeNull();
     expect(viewportBounds!.x - shellBounds!.x).toBeGreaterThanOrEqual(56);
-    expect(shellBounds!.width - viewportBounds!.width).toBeGreaterThanOrEqual(56);
+    expect(
+      shellBounds!.x + shellBounds!.width - viewportBounds!.x - viewportBounds!.width
+    ).toBeGreaterThanOrEqual(23);
+    expect(shellBounds!.width - viewportBounds!.width).toBeGreaterThanOrEqual(79);
     expect(shellBackground).toBe('rgba(0, 0, 0, 0)');
+    for (const section of await movementSections.all()) {
+      const bounds = await section.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(Math.abs(bounds!.x - viewportBounds!.x)).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(bounds!.x + bounds!.width - viewportBounds!.x - viewportBounds!.width)
+      ).toBeLessThanOrEqual(1);
+    }
+    const scroll = page.locator('.census-table-scroll');
+    const { clientWidth, scrollWidth } = await scroll.evaluate(element => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
     if (zoom === '125') {
-      const scroll = page.locator('.census-table-scroll');
-      const { clientWidth, scrollWidth } = await scroll.evaluate(element => ({
-        clientWidth: element.clientWidth,
-        scrollWidth: element.scrollWidth,
-      }));
-      expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
       const statusHeader = page.getByRole('columnheader', { name: 'Estado clínico' });
       await expect(statusHeader).toBeEmpty();
     }
@@ -182,4 +195,13 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     await reports.getByRole('button', { name: 'Cerrar modal' }).click();
     await drawer.getByRole('button', { name: 'Cerrar panel clínico' }).click();
   }
+
+  await page.setViewportSize({ width: 1280, height: 832 });
+  await movementSections.first().scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: process.env.CENSUS_VISUAL_OUTPUT_DIR
+      ? `${process.env.CENSUS_VISUAL_OUTPUT_DIR}/census-movement-alignment.png`
+      : test.info().outputPath('census-movement-alignment.png'),
+    animations: 'disabled',
+  });
 });

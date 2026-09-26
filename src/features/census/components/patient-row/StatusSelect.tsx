@@ -8,7 +8,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { AlertCircle } from 'lucide-react';
 import { STATUS_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import { BaseCellProps, EventTextHandler } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
@@ -55,7 +54,6 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const isCriticalEmpty = !data.status && !!data.patientName;
 
   const closePopover = useCallback((): void => {
     setOpen(false);
@@ -135,21 +133,7 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
           title={readOnlyReason || (status ? `Estado: ${status}` : 'Sin estado clínico — asignar')}
           aria-label={status ? `Estado: ${status}` : 'Sin estado clínico'}
         >
-          <span
-            className={clsx(
-              'h-2 w-2 rounded-full',
-              DOT_CLASSES[level],
-              isCriticalEmpty && 'animate-pulse'
-            )}
-          />
-          {isCriticalEmpty && (
-            <span
-              className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500"
-              title="Campo crítico vacío"
-            >
-              <AlertCircle size={8} className="text-white" />
-            </span>
-          )}
+          <span className={clsx('h-2 w-2 rounded-full', DOT_CLASSES[level])} />
         </button>
 
         {open &&

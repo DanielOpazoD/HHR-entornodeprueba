@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import clsx from 'clsx';
-import { AlertCircle } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
 import { resolveEffectiveUpcState, isUpcEligibleBedId } from '@/shared/census/upcBedPolicy';
 import {
@@ -79,7 +79,7 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
           readOnly && 'cursor-default',
           freshnessPause.pauseClassName,
           reviewReason
-            ? 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+            ? 'bg-slate-50 text-slate-600 hover:bg-slate-100'
             : label
               ? clsx(colors.text, colors.bg, !readOnly && 'hover:opacity-80')
               : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
@@ -94,7 +94,7 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
       >
         {label && <span>{label}</span>}
         {reviewReason ? (
-          <AlertCircle size={15} aria-hidden="true" />
+          <ClipboardList size={15} aria-hidden="true" />
         ) : !label ? (
           <span>Sin criterios</span>
         ) : null}

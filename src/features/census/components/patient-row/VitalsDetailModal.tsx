@@ -1,19 +1,17 @@
 /**
- * Detail modal for the census "Signos vitales" column: the latest reading as colored cards, plus a
+ * Detail modal for the census "Signos vitales" column: the latest readings as quiet cards, plus a
  * scrollable history table grouped by day (several days of measurements), so a patient's trend is
- * easy to review at a glance. Values are colored by out-of-range status. Informational only.
+ * easy to review at a glance. Informational only.
  */
 
 import React from 'react';
-import clsx from 'clsx';
-import { Activity, TriangleAlert } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
   buildVitalsHistory,
   VITALS_HISTORY_COLUMNS,
   type VitalSignsView,
   type VitalSignsProfile,
-  type VitalStatus,
 } from '@/features/census/controllers/vitalSignsView';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
@@ -27,20 +25,6 @@ interface VitalsDetailModalProps {
   profile: VitalSignsProfile;
   onClose: () => void;
 }
-
-const CARD_TOKENS: Record<VitalStatus, string> = {
-  neutral: 'bg-slate-50 text-slate-500 border-slate-200',
-  normal: 'bg-slate-50 text-slate-700 border-slate-200',
-  warn: 'bg-amber-50 text-amber-700 border-amber-300',
-  alert: 'bg-red-50 text-red-700 border-red-300',
-};
-
-const CELL_TEXT: Record<VitalStatus, string> = {
-  neutral: 'text-slate-500',
-  normal: 'text-slate-700',
-  warn: 'text-amber-600 font-semibold',
-  alert: 'text-red-600 font-bold',
-};
 
 /** "2026-07-11" → "11-07-2026" for a day-group heading. */
 const dayHeading = (isoDay: string): string => {
@@ -90,10 +74,7 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
             {vitals.readings.map(reading => (
               <div
                 key={reading.key}
-                className={clsx(
-                  'flex flex-col items-center rounded-lg border px-2 py-2',
-                  CARD_TOKENS[reading.status]
-                )}
+                className="flex flex-col items-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-slate-700"
               >
                 <span className="text-[10px] font-medium uppercase tracking-wide opacity-70">
                   {reading.label}
@@ -101,11 +82,6 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
                 <span className="text-lg font-bold leading-tight tabular-nums">
                   {reading.value}
                 </span>
-                {(reading.status === 'warn' || reading.status === 'alert') && (
-                  <span className="inline-flex items-center gap-1 text-[9px] font-semibold">
-                    <TriangleAlert size={10} aria-hidden="true" /> Fuera de rango
-                  </span>
-                )}
                 <span className="text-[9px] opacity-60">{reading.unit}</span>
               </div>
             ))}
@@ -157,19 +133,15 @@ export const VitalsDetailModal: React.FC<VitalsDetailModalProps> = ({
                             return (
                               <td
                                 key={column.key}
-                                className={clsx(
-                                  'px-2 py-1 text-center',
-                                  cell ? CELL_TEXT[cell.status] : 'text-slate-300'
-                                )}
+                                className={`px-2 py-1 text-center ${cell ? 'text-slate-700' : 'text-slate-300'}`}
                               >
                                 {cell ? (
                                   <span className="inline-flex items-center justify-center gap-0.5">
                                     {cell.value}
-                                    {(cell.status === 'warn' || cell.status === 'alert') && (
-                                      <TriangleAlert size={9} aria-label="Fuera de rango" />
-                                    )}
                                   </span>
-                                ) : '·'}
+                                ) : (
+                                  '·'
+                                )}
                               </td>
                             );
                           })}

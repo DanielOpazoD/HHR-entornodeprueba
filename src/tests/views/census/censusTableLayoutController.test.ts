@@ -60,8 +60,8 @@ describe('censusTableLayoutController', () => {
     expect(bindings.bodyProps.columns.upc).toBe(60);
     expect(bindings.headerProps.columns.admission).toBe(116);
     expect(bindings.headerProps.columns.dmi).toBe(96);
-    // The unlabeled status dot and compact signs return width to the patient identity.
-    expect(bindings.tableStyle).toEqual({ width: '1262px', minWidth: '100%' });
+    // Compact patient identity leaves more room for diagnosis in the projected table.
+    expect(bindings.tableStyle).toEqual({ width: '1242px', minWidth: '100%' });
   });
 
   it('keeps rows and bed data references untouched', () => {
