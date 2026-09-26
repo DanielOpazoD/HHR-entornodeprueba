@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenConnectionMonitor } from '@/features/rayen-import/components/RayenConnectionMonitor';
 import {
   RAYEN_EXTENSION_PROTOCOL_VERSION,
@@ -10,6 +10,11 @@ import { RAYEN_GC_CONNECT_RESULT_TYPE } from '@/features/rayen-import/bridge/ges
 import { RAYEN_CONNECTION_REPAIR_RESULT_TYPE } from '@/features/rayen-import/bridge/connectionRepairChannel';
 import * as connectionRepairChannel from '@/features/rayen-import/bridge/connectionRepairChannel';
 import type { RayenExtensionHealthState } from '@/features/rayen-import/hooks/useRayenExtensionHealth';
+
+const NOW = Date.parse('2026-09-25T12:00:00.000Z');
+
+beforeEach(() => vi.spyOn(Date, 'now').mockReturnValue(NOW));
+afterEach(() => vi.restoreAllMocks());
 
 const refreshMock = () =>
   vi.fn(
@@ -46,7 +51,7 @@ const baseExtension = (
   report: {
     version: '0.48.3',
     protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
-    checkedAt: new Date(Date.now() - 45_000).toISOString(),
+    checkedAt: new Date(NOW - 45_000).toISOString(),
     capabilities: ['clean-connection-repair', 'hhr-connection-repair-bridge'],
     fichaMedico: {
       status: 'ready',
@@ -59,7 +64,7 @@ const baseExtension = (
       status: 'ready',
       message: 'Gestión de Camas conectada con sesión vigente.',
       remainingSeconds: 1800,
-      lastVerifiedAt: Date.now() - 3 * 60_000,
+      lastVerifiedAt: NOW - 3 * 60_000,
     },
   },
   refresh: refreshMock(),
@@ -102,7 +107,7 @@ const renderMonitor = (
 describe('RayenConnectionMonitor', () => {
   it('no muestra verde ni sesión vigente si el reporte listo ya venció', () => {
     const extension = baseExtension();
-    extension.report!.fichaMedico.expiresAt = Date.now() - 1;
+    extension.report!.fichaMedico.expiresAt = NOW - 1;
     renderMonitor(extension);
     expect(screen.queryByText('Conectada')).not.toBeInTheDocument();
     expect(screen.queryByText(/Sesión clínica vigente/)).not.toBeInTheDocument();
@@ -174,7 +179,7 @@ describe('RayenConnectionMonitor', () => {
         fichaMedico: {
           ...baseExtension().report!.fichaMedico,
           remainingSeconds: 150,
-          expiresAt: Date.now() + 150_000,
+          expiresAt: NOW + 150_000,
         },
       },
     });
