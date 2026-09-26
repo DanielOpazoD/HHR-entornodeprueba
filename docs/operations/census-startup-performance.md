@@ -30,8 +30,30 @@ sintética, métodos diferentes de GET/HEAD y WebSockets externos. Solo HMR loca
 Este fixture usa `__HHR_E2E_OVERRIDE__`, que activa el repositorio E2E, no el transporte
 real IndexedDB/Firestore. **NO auth Google real, NO emulador, NO latencia remota.** Se
 revisaron fixtures existentes y scripts CI de emuladores Firestore/Storage: no se reutilizan
-como evidencia de auth real porque también inyectan sesión. Un futuro escenario emulador
-debe usar proyecto demo, endpoints loopback y contrato/baseline independiente.
+como evidencia de auth real porque también inyectan sesión. El escenario emulador
+complementario de abajo usa proyecto demo y endpoints loopback, con contrato separado.
+
+## Comprobación complementaria con emuladores
+
+`npm run test:e2e:census-remote-performance` levanta Auth y Firestore locales con
+el proyecto `demo-hhr-e2e`. Crea una cuenta y un registro **sintéticos**, inicia
+sesión mediante Firebase Auth y exige que la fila aparezca tras una confirmación
+de servidor (`remote_confirmed`). La consulta de rol se responde con una función
+simulada porque este comando no levanta el emulador de Functions; la sesión Auth y
+la lectura Firestore sí usan sus emuladores. El test elimina usuario y documento
+al terminar. Bloquea peticiones del navegador fuera de loopback salvo la función
+de rol simulada.
+
+Adjunta al reporte `reports/e2e/census-remote-performance.json` de Playwright tres
+duraciones: inicio de bootstrap
+hasta confirmación remota, hasta oportunidad de pintura de la tabla e inicio de
+visita hasta confirmación remota. No guarda nombres, correos ni datos clínicos.
+Es **una muestra de diagnóstico**, en Vite development, sin presupuesto ni
+baseline; no se compara con los 30+30 casos sintéticos de producción. Su función
+es impedir que llamemos «lectura remota» a un fixture en memoria y ofrecer un
+recorrido reproducible antes de optimizar una causa medida. CI ejecuta este test
+funcional en el job `e2e-critical`; sus tiempos son observacionales, sin gate
+numérico.
 
 ## Readiness e instrumentación
 

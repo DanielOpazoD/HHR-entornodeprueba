@@ -61,6 +61,7 @@ const baseEnv = {
   VITE_FIREBASE_MESSAGING_SENDER_ID: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1234567890',
   VITE_FIREBASE_APP_ID: process.env.VITE_FIREBASE_APP_ID || '1:1234567890:web:abcdef123456',
   VITE_FIRESTORE_EMULATOR_HOST: process.env.VITE_FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080',
+  VITE_AUTH_EMULATOR_HOST: process.env.VITE_AUTH_EMULATOR_HOST || '',
   VITE_SYSLAB_ENABLE_DIRECT_LOCAL: process.env.VITE_SYSLAB_ENABLE_DIRECT_LOCAL || 'true',
 };
 
@@ -114,7 +115,7 @@ export default defineConfig({
   webServer: {
     command: webServerCommand,
     url: webServerOrigin,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !process.env.CI && process.env.PLAYWRIGHT_FORCE_FRESH_SERVER !== '1',
     env: baseEnv,
     // Preview mode needs extra headroom for the vite build step before
     // the server starts accepting connections.
