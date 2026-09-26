@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import clsx from 'clsx';
-import { CheckCircle2, ChevronRight, CircleOff, Clock3, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, ChevronRight, CircleOff, Clock3 } from 'lucide-react';
 import type {
   ClinicalPanelCareActionStatus,
   ClinicalPanelCareDay,
@@ -229,12 +229,12 @@ const CARE_STATUS: Record<
   },
   'outside-plan': {
     label: 'Ejecutada fuera de plan',
-    className: 'bg-amber-50 text-amber-700 ring-amber-200',
-    icon: <TriangleAlert size={11} />,
+    className: 'bg-slate-100 text-slate-600 ring-slate-200',
+    icon: <CheckCircle2 size={11} />,
   },
   'not-performed': {
     label: 'No ejecutada',
-    className: 'bg-red-50 text-red-700 ring-red-200',
+    className: 'bg-slate-100 text-slate-600 ring-slate-200',
     icon: <CircleOff size={11} />,
   },
   pending: {

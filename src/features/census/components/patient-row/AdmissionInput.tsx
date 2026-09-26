@@ -12,7 +12,6 @@
 
 import React from 'react';
 import clsx from 'clsx';
-import { AlertCircle } from 'lucide-react';
 import type { PatientData } from '@/features/census/components/patient-row/patientRowContracts';
 import { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
@@ -65,11 +64,9 @@ export const AdmissionInput: React.FC<AdmissionInputProps> = ({
         <div
           className={clsx(
             'w-full h-7 border rounded text-[11px] leading-none flex items-center bg-white px-1.5 cursor-default',
-            isCriticalEmpty
-              ? 'border-red-400 border-2 bg-red-50'
-              : isAdmissionDateSuspicious
-                ? 'border-amber-400 border-2 bg-amber-50'
-                : 'border-slate-300',
+            isCriticalEmpty || isAdmissionDateSuspicious
+              ? 'border-slate-300 border-dashed bg-slate-50'
+              : 'border-slate-300',
             isSubRow && 'h-6'
           )}
           title={
@@ -82,14 +79,6 @@ export const AdmissionInput: React.FC<AdmissionInputProps> = ({
         >
           <span className="truncate">{selectedAdmissionLabel}</span>
         </div>
-        {isCriticalEmpty && (
-          <div
-            className="absolute -right-1 -top-1 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center z-20"
-            title="Campo crítico vacío"
-          >
-            <AlertCircle size={8} className="text-white" />
-          </div>
-        )}
       </div>
     </td>
   );

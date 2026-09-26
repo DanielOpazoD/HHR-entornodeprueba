@@ -53,15 +53,17 @@ describe('StatusSelect (colored dot + popover)', () => {
     expect(inner).toHaveBeenCalledWith(expect.objectContaining({ target: { value: 'Grave' } }));
   });
 
-  it('flags a critical-empty status (admitted patient without status)', () => {
+  it('keeps an empty status identifiable without an alarm marker', () => {
     renderStatus({
       data: DataFactory.createMockPatient('R1', {
         patientName: 'Juana',
         status: PatientStatus.EMPTY,
       }),
     });
-    expect(screen.getByRole('button', { name: 'Sin estado clínico' })).toBeInTheDocument();
-    expect(screen.getByTitle('Campo crítico vacío')).toBeInTheDocument();
+    const dot = screen.getByRole('button', { name: 'Sin estado clínico' });
+    expect(dot).toHaveAttribute('title', 'Sin estado clínico — asignar');
+    expect(screen.queryByTitle('Campo crítico vacío')).toBeNull();
+    expect(dot.querySelector('.animate-pulse')).toBeNull();
   });
 
   it('does not open the popover when read-only', () => {

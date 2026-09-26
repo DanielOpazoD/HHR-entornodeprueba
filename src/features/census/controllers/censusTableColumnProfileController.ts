@@ -72,15 +72,15 @@ export const resolveVisibleCensusColumns = (
     ...columns,
     actions: Math.max(columns.actions, 40),
     bed: Math.max(columns.bed, 54),
-    // The status dot and fixed vital grid need less room than their former labels.
-    // Give the recovered width to identity, where RUT, specialty and actions coexist.
-    name: Math.max(columns.name, 400),
-    diagnosis: Math.max(columns.diagnosis, 188),
+    // Keep patient identity compact while reserving enough space for a readable diagnosis.
+    // Identity still includes the name, RUT, specialty and three clinical shortcuts.
+    name: Math.max(columns.name, 310),
+    diagnosis: Math.max(columns.diagnosis, 280),
     status: Math.max(columns.status, 32),
     admission: Math.max(columns.admission, 116),
     dmi: Math.max(columns.dmi, 96),
-    scores: Math.max(columns.scores, 160),
-    upc: Math.max(columns.upc, 52),
+    scores: Math.max(columns.scores, 150),
+    upc: Math.max(columns.upc, 48),
   });
 
   if (!isSpecialistCensusAccessProfile(accessProfile)) {

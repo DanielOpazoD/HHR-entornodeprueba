@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 
 /** Keep the page's sticky header when the table fits; preserve horizontal access on narrow screens. */
-export const CensusTableViewport: React.FC<React.PropsWithChildren> = ({ children }) => {
+export const CensusTableViewport: React.FC<
+  React.PropsWithChildren<{ accessProfile?: CensusAccessProfile }>
+> = ({ children, accessProfile = 'default' }) => {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(true);
 
@@ -29,6 +32,7 @@ export const CensusTableViewport: React.FC<React.PropsWithChildren> = ({ childre
     <div
       ref={viewportRef}
       className="census-table-scroll"
+      data-access-profile={accessProfile}
       data-horizontal-overflow={overflows}
       role="region"
       aria-label="Censo de pacientes, tabla desplazable"
