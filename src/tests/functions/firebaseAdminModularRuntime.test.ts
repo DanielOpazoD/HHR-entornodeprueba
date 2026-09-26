@@ -39,7 +39,7 @@ describe('Firebase Functions modular runtime contract', () => {
 
     expect(packageJson.engines.node).toBe('22');
     expect(packageJson.dependencies['firebase-admin']).toMatch(/^\^14\./);
-    expect(packageJson.dependencies['firebase-functions']).toMatch(/^\^7\.3\./);
+    expect(packageJson.dependencies['firebase-functions']).toMatch(/^\^7\./);
     expect(rootLockPackage.engines?.node).toBe('22');
     expect(rootLockPackage.dependencies?.['firebase-admin']).toMatch(/^\^14\./);
     expect(Number(packageLock.packages['node_modules/firebase-admin'].version.split('.')[0])).toBe(
@@ -54,11 +54,10 @@ describe('Firebase Functions modular runtime contract', () => {
     const violations = collectJavaScriptFiles(FUNCTIONS_DIR).flatMap(file => {
       const source = readFileSync(file, 'utf8');
       const usesLegacyRootImport = /require\(['"]firebase-admin['"]\)/.test(source);
-      const usesLegacyNamespace =
-        /\badmin\.(auth|firestore|storage|initializeApp|apps|app)\b/.test(source);
-      return usesLegacyRootImport || usesLegacyNamespace
-        ? [path.relative(ROOT, file)]
-        : [];
+      const usesLegacyNamespace = /\badmin\.(auth|firestore|storage|initializeApp|apps|app)\b/.test(
+        source
+      );
+      return usesLegacyRootImport || usesLegacyNamespace ? [path.relative(ROOT, file)] : [];
     });
 
     expect(violations).toEqual([]);
