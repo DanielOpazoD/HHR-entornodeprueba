@@ -309,3 +309,4 @@ describe('replanRayenStructure — fila sin episodio con otro episodio del día 
     expect(kept[0]?.code).toBeUndefined();
   });
 });
+// @vitest-environment node

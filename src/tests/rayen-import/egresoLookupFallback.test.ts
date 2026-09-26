@@ -231,3 +231,4 @@ describe('applyEgresoLookupFallback', () => {
     expect(enriched.discharges).toHaveLength(0);
   });
 });
+// @vitest-environment node

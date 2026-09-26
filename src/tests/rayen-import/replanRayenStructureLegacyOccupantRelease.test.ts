@@ -117,3 +117,4 @@ describe('replanRayenStructure — ocupante manual sin episodio egresa y otro pa
     expect(applied.skipped).toEqual([]);
   });
 });
+// @vitest-environment node

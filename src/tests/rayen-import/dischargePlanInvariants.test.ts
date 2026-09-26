@@ -116,3 +116,4 @@ describe('dedupeDischargesByBed', () => {
     expect(dedupeDischargesByBed([], record)).toEqual([]);
   });
 });
+// @vitest-environment node
