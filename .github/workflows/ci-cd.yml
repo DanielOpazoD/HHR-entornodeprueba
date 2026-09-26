@@ -527,6 +527,11 @@ jobs:
           E2E_BUDGET_AUTH_FEEDBACK_MS: 3000
           E2E_BUDGET_CENSO_VISIBLE_MS: 8000
 
+      - name: Verify authenticated census read against local emulators
+        run: npm run test:e2e:census-remote-performance
+        env:
+          CI: true
+
       - name: Generate and enforce E2E operational metrics
         if: always()
         run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce

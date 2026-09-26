@@ -22,7 +22,6 @@ vi.mock('@/services/storage/indexeddb/indexedDbCore', () => ({
 
 const load = async () =>
   (await import('@/services/staff/eloisaStaffRegistry')).subscribeEloisaStaff;
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -35,8 +34,7 @@ describe('shared Eloisa staff catalog subscription', () => {
     const subscribe = await load();
     const first = subscribe(vi.fn(), vi.fn(), true);
     const second = subscribe(vi.fn(), vi.fn(), true);
-    await flush();
-    expect(mocks.subscribeShared).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(mocks.subscribeShared).toHaveBeenCalledTimes(1));
     first();
     second();
   });
@@ -47,7 +45,7 @@ describe('shared Eloisa staff catalog subscription', () => {
     const subscribe = await load();
     const first = subscribe(vi.fn(), vi.fn(), true);
     const second = subscribe(vi.fn(), vi.fn(), true);
-    await flush();
+    await vi.waitFor(() => expect(mocks.subscribeShared).toHaveBeenCalledTimes(1));
     first();
     expect(release).not.toHaveBeenCalled();
     second();
@@ -58,14 +56,12 @@ describe('shared Eloisa staff catalog subscription', () => {
     mocks.subscribeShared.mockReturnValue(vi.fn());
     const subscribe = await load();
     const first = subscribe(vi.fn(), vi.fn(), true);
-    await flush();
+    await vi.waitFor(() => expect(mocks.subscribeShared).toHaveBeenCalledTimes(1));
     first();
     const second = subscribe(vi.fn(), vi.fn(), true);
-    await flush();
-    expect(mocks.subscribeShared).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(mocks.subscribeShared).toHaveBeenCalledTimes(2));
     second();
     const local = subscribe(vi.fn(), vi.fn(), false);
-    await flush();
     expect(mocks.subscribeShared).toHaveBeenCalledTimes(2);
     local();
   });
@@ -76,7 +72,8 @@ describe('shared Eloisa staff catalog subscription', () => {
     const subscribe = await load();
     const only = subscribe(vi.fn(), vi.fn(), true);
     only();
-    await flush();
+    await import('@/services/staff/sharedEloisaStaffCatalog');
+    await Promise.resolve();
     expect(mocks.subscribeShared).not.toHaveBeenCalled();
   });
 });

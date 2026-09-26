@@ -12,7 +12,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, FileDown, Loader2, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileDown, RefreshCw } from 'lucide-react';
 import { type EvolutionProfession } from '@/features/rayen-import';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
@@ -25,6 +25,7 @@ import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
 import { ClinicalPanelAntecedents } from './ClinicalPanelAntecedents';
 import { ClinicalPanelPrescriptionButton } from './ClinicalPanelPrescriptionButton';
 import { ClinicalPanelProfessionTabs } from './ClinicalPanelProfessionTabs';
+import { ClinicalPanelLoadingContent } from './ClinicalPanelLoadingContent';
 
 const PatientDocumentManagerDialog = React.lazy(() =>
   import('./PatientDocumentManagerDialog').then(module => ({
@@ -48,7 +49,7 @@ interface ClinicalPanelDrawerProps {
   onClose: () => void;
 }
 
-type PanelTab = 'evolutions' | 'indications' | 'care';
+type PanelTab = 'evolutions' | 'indications' | 'care' | 'antecedents';
 type EvolutionView = 'notes' | 'handoffs';
 
 const PROFESSION_TABS: { key: EvolutionProfession; label: string; empty: string }[] = [
@@ -82,7 +83,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
 }) => {
   const { state, documentState, reload } = useClinicalPanelSnapshot(clinicalEpisodeId);
   const [tab, setTab] = useState<PanelTab>('evolutions');
-  const [profession, setProfession] = useState<EvolutionProfession | 'antecedents'>('medical');
+  const [profession, setProfession] = useState<EvolutionProfession>('medical');
   const [antecedentsEpisode, setAntecedentsEpisode] = useState<string | null>(null);
   const [evolutionView, setEvolutionView] = useState<EvolutionView>('notes');
   const [isDocumentManagerOpen, setIsDocumentManagerOpen] = useState(false);
@@ -91,7 +92,10 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
+      if (
+        event.key === 'Escape' &&
+        document.activeElement?.closest('[role="dialog"]') === drawerRef.current
+      ) {
         event.stopPropagation();
         onClose();
       }
@@ -117,11 +121,15 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
       ? entry.kind === 'shift-change'
       : entry.kind !== 'shift-change';
   });
+  const latestVisibleEntry = visibleEvolutions.find(entry => !entry.crossedOut);
 
   const tabButton = (key: PanelTab, label: string, count: number | null): React.ReactElement => (
     <button
       type="button"
-      onClick={() => setTab(key)}
+      onClick={() => {
+        setTab(key);
+        if (key === 'antecedents') setAntecedentsEpisode(clinicalEpisodeId);
+      }}
       aria-label={count === null ? label : `${label} (${count})`}
       aria-pressed={tab === key}
       className={clsx(
@@ -141,6 +149,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
         type="button"
         aria-hidden
         tabIndex={-1}
+        data-testid="clinical-panel-overlay"
         style={{ zIndex: LAYER_Z_INDEX.drawerBackdrop }}
         className="fixed inset-0 cursor-default bg-slate-900/30"
         onClick={onClose}
@@ -168,7 +177,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             onClose={onClose}
           />
           <div
-            className="mt-1 flex flex-wrap items-center gap-2"
+            className="mt-1 flex items-center gap-1.5"
             role="group"
             aria-label="Accesos del paciente"
           >
@@ -224,10 +233,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
               title="Actualizar desde Ficha Médico"
               aria-label="Actualizar panel clínico"
             >
-              <RefreshCw
-                size={14}
-                className={state.phase === 'loading' ? 'animate-spin' : undefined}
-              />
+              <RefreshCw size={14} />
             </button>
           </div>
         </header>
@@ -252,16 +258,18 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
             'Cuidados',
             panel ? panel.careDays.reduce((sum, day) => sum + day.actions.length, 0) : null
           )}
+          {tabButton('antecedents', 'Antecedentes', null)}
         </nav>
 
         {tab === 'evolutions' && (
           <ClinicalPanelProfessionTabs
             selected={profession}
-            onSelect={value => {
-              setProfession(value);
-              if (value === 'antecedents') setAntecedentsEpisode(clinicalEpisodeId);
-            }}
+            onSelect={setProfession}
             count={professionCount}
+            view={evolutionView}
+            onViewChange={setEvolutionView}
+            notesCount={professionEntries.filter(entry => entry.kind !== 'shift-change').length}
+            handoffsCount={professionEntries.filter(entry => entry.kind === 'shift-change').length}
           >
             <ClinicalPanelHistoryPrintButton
               patientName={patientName}
@@ -273,68 +281,26 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           </ClinicalPanelProfessionTabs>
         )}
 
-        {tab === 'evolutions' &&
-          state.phase === 'ready' &&
-          profession !== 'other' &&
-          profession !== 'antecedents' && (
-            <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-0.5">
-              {(
-                [
-                  {
-                    key: 'notes' as const,
-                    label: 'Evoluciones',
-                    count: professionEntries.filter(entry => entry.kind !== 'shift-change').length,
-                  },
-                  {
-                    key: 'handoffs' as const,
-                    label: 'Entrega de turno',
-                    count: professionEntries.filter(entry => entry.kind === 'shift-change').length,
-                  },
-                ] satisfies Array<{ key: EvolutionView; label: string; count: number }>
-              ).map(item => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setEvolutionView(item.key)}
-                  aria-label={`${item.label} (${item.count})`}
-                  aria-pressed={evolutionView === item.key}
-                  className={clsx(
-                    'rounded px-2 py-0.5 text-[10px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700',
-                    evolutionView === item.key
-                      ? 'bg-slate-700 text-white'
-                      : 'text-slate-500 hover:bg-slate-100'
-                  )}
-                >
-                  {item.label}
-                  <span className="ml-1 opacity-70">{item.count}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
         <div
           data-testid="clinical-panel-content"
-          className="min-h-0 flex-1 cursor-text select-text space-y-2 overflow-y-auto overscroll-contain break-words p-3"
+          className="min-h-0 flex-1 cursor-text select-text space-y-2 overflow-y-auto overscroll-contain break-words bg-white p-3"
         >
-          {state.phase === 'loading' && !(tab === 'evolutions' && profession === 'antecedents') && (
-            <div className="flex flex-col items-center gap-2 py-10 text-slate-400">
-              <Loader2 size={20} className="animate-spin" />
-              <p className="text-[12px]">Consultando Ficha Médico…</p>
-            </div>
+          {state.phase === 'loading' && tab !== 'antecedents' && (
+            <ClinicalPanelLoadingContent />
           )}
-          {state.phase === 'error' && !(tab === 'evolutions' && profession === 'antecedents') && (
+          {state.phase === 'error' && tab !== 'antecedents' && (
             <ClinicalPanelUnavailable message={state.message} onRetry={reload} />
           )}
 
-          {(profession === 'antecedents' || antecedentsEpisode === clinicalEpisodeId) && (
-            <div className={tab === 'evolutions' && profession === 'antecedents' ? '' : 'hidden'}>
+          {(tab === 'antecedents' || antecedentsEpisode === clinicalEpisodeId) && (
+            <div className={tab === 'antecedents' ? '' : 'hidden'}>
               <ClinicalPanelAntecedents
                 key={clinicalEpisodeId}
                 clinicalEpisodeId={clinicalEpisodeId}
               />
             </div>
           )}
-          {state.phase === 'ready' && tab === 'evolutions' && profession !== 'antecedents' && (
+          {state.phase === 'ready' && tab === 'evolutions' && (
             <>
               {visibleEvolutions.length === 0 && (
                 <p className="py-10 text-center text-[12px] italic text-slate-400">
@@ -343,9 +309,17 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                     : PROFESSION_TABS.find(p => p.key === profession)?.empty}
                 </p>
               )}
-              {visibleEvolutions.map(entry => (
-                <EvolutionCard key={`${entry.kind}-${entry.id}`} entry={entry} />
-              ))}
+              {visibleEvolutions.length > 0 && (
+                <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                  {visibleEvolutions.map(entry => (
+                    <EvolutionCard
+                      key={`${entry.kind}-${entry.id}`}
+                      entry={entry}
+                      isLatest={entry === latestVisibleEntry}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
 

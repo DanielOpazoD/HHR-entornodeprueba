@@ -74,10 +74,30 @@ fecha y abre la importación con revisión obligatoria. La vista previa usa evid
 de ese día. No se deben copiar al pasado signos vitales u observaciones actuales ni confirmar
 una cama o episodio que el informe de flujo no permita demostrar.
 
-Si la lectura de Eloísa falla después de crear el registro, el día puede quedar en blanco:
-volver a esa fecha y repetir **Sincronizar**, revisar el historial y comprobar el resultado
-persistido tras recargar. No usar «Copiar del día anterior» para sustituir la evidencia histórica.
-Las fechas anteriores al límite de siete días requieren revisión manual; el botón no aparece.
+Para el día calendario actual, cuando existe un censo del día inmediatamente anterior, la pantalla ofrece
+**Copiar pacientes del día anterior** como única acción principal. La copia conserva sus
+especialidades y otros datos de continuidad. Si se confirma la creación del día, inicia
+automáticamente la sincronización con Eloísa y abre la vista previa para revisión antes de
+confirmar cambios. Si la copia falla, no se inicia la importación. Si Eloísa no está disponible,
+la copia queda creada y aparece un aviso para sincronizar cuando se restablezca la conexión.
+La conexión de Ficha Médico y Gestión de Camas sigue visible como estado informativo.
+Una copia no reemplaza la evidencia de un día histórico que aún no existe.
+El nuevo día calendario puede iniciarse antes de las 08:00; esa excepción no habilita crear
+fechas futuras ni copiar un día histórico fuera del flujo de reconstrucción.
+
+Si no existe ese censo anterior, la acción principal es **Crear desde Eloísa** (o
+**Reconstruir desde Eloísa** para un día histórico admitido). Primero verifica la conexión;
+después crea el día vacío y abre la vista previa de importación. Si la lectura de Eloísa falla
+después de crear el registro, el día puede quedar en blanco: volver a esa fecha y repetir
+**Sincronizar**, revisar el historial y comprobar el resultado persistido tras recargar.
+Junto al botón se informa si la extensión está comprobando la conexión, lista para sincronizar,
+requiere atención o está preparando la sincronización. Si falla esa comprobación en el día
+actual, aparece **Iniciar censo sin Eloísa** con una segunda confirmación explícita. Ese camino
+crea un censo vacío para registro manual y no inicia una importación.
+Si todavía se está comprobando el registro remoto, no permite crear otro día. La información
+de Firebase y caché queda en telemetría, sin ocupar la pantalla de enfermería.
+No usar una copia del día anterior para sustituir la evidencia histórica. Las fechas anteriores
+al límite de siete días requieren revisión manual; el botón no aparece.
 
 ## Procedimiento 1: IndexedDB bloqueado
 

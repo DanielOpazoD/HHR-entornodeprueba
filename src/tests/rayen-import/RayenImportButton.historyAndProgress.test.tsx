@@ -99,7 +99,7 @@ describe('RayenImportButton history and progress', () => {
     }
     render(<RayenImportButton selectedDate="2026-09-05" />);
 
-    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('h-[5.5rem]');
+    expect(screen.getByTestId('rayen-operations-bar')).toHaveClass('min-h-20');
     const pulse = screen.getByTestId('rayen-sync-pulse');
     expect(pulse).toHaveClass('h-4');
     expect(pulse).toHaveAttribute(
@@ -294,6 +294,7 @@ describe('RayenImportButton history and progress', () => {
     });
     render(<RayenImportButton />);
     expect(screen.getByRole('button', { name: 'Comprobando…' })).toHaveClass('w-28');
+    expect(screen.getByText('Comprobando', { exact: true })).toHaveClass('text-teal-700');
     expect(screen.getByTestId('rayen-operations-bar')).not.toHaveTextContent('Sincronizado:');
   });
 

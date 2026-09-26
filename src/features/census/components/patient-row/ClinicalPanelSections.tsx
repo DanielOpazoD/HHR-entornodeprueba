@@ -7,7 +7,7 @@
 
 import React, { useState } from 'react';
 import clsx from 'clsx';
-import { CheckCircle2, ChevronRight, CircleOff, Clock3, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, ChevronRight, CircleOff, Clock3 } from 'lucide-react';
 import type {
   ClinicalPanelCareActionStatus,
   ClinicalPanelCareDay,
@@ -46,72 +46,88 @@ const INDICATION_KIND_LABEL: Partial<Record<ClinicalPanelEntry['kind'], string>>
   'free-indication': 'Indicación',
 };
 
-export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry }> = ({ entry }) => {
+export const EvolutionCard: React.FC<{ entry: ClinicalPanelEntry; isLatest?: boolean }> = ({
+  entry,
+  isLatest = false,
+}) => {
   const [showAnnulledText, setShowAnnulledText] = useState(false);
   // Only an ANNULLED (crossed-out) note is dimmed. Archived notes keep normal styling — just the
   // "Archivada" tag — since being superseded doesn't make the text less readable.
   return (
     <article
       className={clsx(
-        'rounded-lg border border-slate-200/80 bg-white p-3',
+        'border-l-2 border-transparent px-3 py-3.5',
+        isLatest && 'border-l-medical-600 bg-medical-50/40',
         entry.crossedOut && 'opacity-60'
       )}
     >
-      <header className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-        <span className="text-[12px] font-semibold text-slate-700">
-          {entry.author || entry.role || 'Sin autor'}
-        </span>
-        {entry.author && entry.role && (
-          <span
-            className={clsx(
-              'rounded px-1 py-px text-[9px] font-medium ring-1',
-              PROFESSION_CHIP[entry.profession ?? 'other']
-            )}
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+          <span className="text-[12px] font-semibold text-slate-800">
+            {entry.author || entry.role || 'Sin autor'}
+          </span>
+          {entry.author && entry.role && (
+            <span
+              className={clsx(
+                'rounded px-1 py-px text-[9px] font-medium ring-1',
+                PROFESSION_CHIP[entry.profession ?? 'other']
+              )}
+            >
+              {entry.role}
+            </span>
+          )}
+          {entry.kind === 'shift-change' && (
+            <span className="rounded border border-slate-300 bg-slate-50 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-600">
+              Entrega turno
+            </span>
+          )}
+          {(entry.archived || entry.crossedOut) && (
+            <span className="rounded bg-slate-200 px-1 py-px text-[9px] font-bold uppercase text-slate-600">
+              {entry.crossedOut ? 'Anulada' : 'Archivada'}
+            </span>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <time
+            className="whitespace-nowrap text-[10px] tabular-nums text-slate-500"
+            dateTime={entry.publishedAt}
           >
-            {entry.role}
-          </span>
-        )}
-        {entry.kind === 'shift-change' && (
-          <span className="rounded border border-slate-300 bg-slate-50 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-slate-600">
-            Entrega turno
-          </span>
-        )}
-        {(entry.archived || entry.crossedOut) && (
-          <span className="rounded bg-slate-200 px-1 py-px text-[9px] font-bold uppercase text-slate-600">
-            {entry.crossedOut ? 'Anulada' : 'Archivada'}
-          </span>
-        )}
-        <span className="ml-auto text-[10px] tabular-nums text-slate-500">
-          {formatWhen(entry.publishedAt)}
-        </span>
-        {entry.crossedOut && (
-          <button
-            type="button"
-            onClick={() => setShowAnnulledText(show => !show)}
-            aria-expanded={showAnnulledText}
-            aria-label={
-              showAnnulledText ? 'Ocultar evolución anulada' : 'Mostrar evolución anulada'
-            }
-            className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
-          >
-            <ChevronRight
-              size={12}
-              className={clsx(showAnnulledText && 'rotate-90')}
-              aria-hidden="true"
-            />
-            {showAnnulledText ? 'Ocultar' : 'Ver texto'}
-          </button>
-        )}
+            {formatWhen(entry.publishedAt)}
+          </time>
+          {entry.crossedOut && (
+            <button
+              type="button"
+              onClick={() => setShowAnnulledText(show => !show)}
+              aria-expanded={showAnnulledText}
+              aria-label={
+                showAnnulledText ? 'Ocultar evolución anulada' : 'Mostrar evolución anulada'
+              }
+              className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
+            >
+              <ChevronRight
+                size={12}
+                className={clsx(showAnnulledText && 'rotate-90')}
+                aria-hidden="true"
+              />
+              {showAnnulledText ? 'Ocultar' : 'Ver texto'}
+            </button>
+          )}
+        </div>
       </header>
       {(!entry.crossedOut || showAnnulledText) && (
-        <p
-          className={clsx(
-            'mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-slate-700',
-            entry.crossedOut && 'line-through decoration-slate-400'
-          )}
-        >
-          {entry.text}
-        </p>
+        <div className="mt-2 max-w-[68ch] space-y-2.5 text-[12px] leading-[1.65] text-slate-700">
+          {entry.text.split(/\r?\n\s*\r?\n/).map((paragraph, index) => (
+            <p
+              key={index}
+              className={clsx(
+                'whitespace-pre-wrap',
+                entry.crossedOut && 'line-through decoration-slate-400'
+              )}
+            >
+              {paragraph}
+            </p>
+          ))}
+        </div>
       )}
     </article>
   );
@@ -213,12 +229,12 @@ const CARE_STATUS: Record<
   },
   'outside-plan': {
     label: 'Ejecutada fuera de plan',
-    className: 'bg-amber-50 text-amber-700 ring-amber-200',
-    icon: <TriangleAlert size={11} />,
+    className: 'bg-slate-100 text-slate-600 ring-slate-200',
+    icon: <CheckCircle2 size={11} />,
   },
   'not-performed': {
     label: 'No ejecutada',
-    className: 'bg-red-50 text-red-700 ring-red-200',
+    className: 'bg-slate-100 text-slate-600 ring-slate-200',
     icon: <CircleOff size={11} />,
   },
   pending: {

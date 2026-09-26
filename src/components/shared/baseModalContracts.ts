@@ -19,6 +19,8 @@ export interface BaseModalProps {
   initialFocusRef?: React.RefObject<HTMLElement | null>;
   headerActions?: React.ReactNode;
   bodyClassName?: string;
+  /** Raise a modal opened over a drawer without changing the default modal stack. */
+  backdropZIndex?: number;
   scrollableBody?: boolean;
   dataModule?: string;
   dataTestId?: string;

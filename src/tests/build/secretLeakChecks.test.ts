@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   findForbiddenTrackedPaths,
+  findFunctionSourcesMissingLocalSecretIgnore,
   findSecretLeakFailuresForFile,
 } from '../../../scripts/lib/secretLeakChecks.mjs';
 
@@ -8,6 +9,23 @@ const buildPrivateKeyFixture = () =>
   ['-----BEGIN ', 'PRIVATE KEY-----\\nabc\\n-----END ', 'PRIVATE KEY-----\\n'].join('');
 
 describe('secretLeakChecks', () => {
+  it('requires the local emulator secret to be excluded from Firebase uploads', () => {
+    expect(
+      findFunctionSourcesMissingLocalSecretIgnore({
+        functions: [{ source: 'functions', codebase: 'default', ignore: ['node_modules'] }],
+      })
+    ).toEqual(['default']);
+    expect(findFunctionSourcesMissingLocalSecretIgnore({ functions: { ignore: [] } })).toEqual([
+      'functions',
+    ]);
+    expect(
+      findFunctionSourcesMissingLocalSecretIgnore({
+        functions: [
+          { source: 'functions', codebase: 'default', ignore: ['node_modules', '.secret.local'] },
+        ],
+      })
+    ).toEqual([]);
+  });
   it('flags forbidden tracked credential filenames', () => {
     expect(findForbiddenTrackedPaths(['functions/llave-beta.json'])).toEqual([
       'functions/llave-beta.json',

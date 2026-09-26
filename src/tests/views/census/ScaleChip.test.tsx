@@ -7,6 +7,24 @@ import { ScaleChip } from '@/features/census/components/patient-row/ScaleChip';
 const note = { title: 'Escala', recordedDate: '2026-07-15' };
 
 describe('ScaleChip', () => {
+  it.each([
+    ['bajo', '23', 'text-emerald-600'],
+    ['medio', '2', 'text-amber-600'],
+    ['alto', '4', 'text-red-600'],
+  ] as const)('restores the %s score color without warning glyphs', (severity, value, tone) => {
+    const { container } = render(
+      <ScaleChip
+        hue="violet"
+        icon={Bandage}
+        label="Escala"
+        value={value}
+        severity={severity}
+        note={note}
+      />
+    );
+    expect(screen.getByText(value)).toHaveClass(tone);
+    expect(container.querySelector('.lucide-triangle-alert, .lucide-alarm-clock')).toBeNull();
+  });
   it('shows a light provenance card with room for the scale title', () => {
     render(
       <ScaleChip
@@ -32,7 +50,7 @@ describe('ScaleChip', () => {
     fireEvent.mouseLeave(chip);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
-  it('distinguishes risk from reapplication without coloring the whole chip', () => {
+  it('colors due reapplication timing without an alarm icon', () => {
     const { container } = render(
       <ScaleChip
         hue="violet"
@@ -47,19 +65,36 @@ describe('ScaleChip', () => {
     );
     expect(screen.getByText(/Riesgo alto/)).toBeInTheDocument();
     expect(screen.getByLabelText('Próxima aplicación: hoy')).toHaveClass('text-red-700');
+    expect(screen.getByLabelText('Próxima aplicación: hoy').querySelector('svg')).toBeNull();
     expect(container.firstElementChild).not.toHaveClass('border-red-300');
     expect(container.querySelector('.animate-pulse')).toBeNull();
+  });
+  it('keeps a Downton risk value legible without the extra alert icon', () => {
+    const { container } = render(
+      <ScaleChip
+        hue="indigo"
+        icon={Bandage}
+        label="Downton"
+        value="4"
+        severity="alto"
+        note={note}
+      />
+    );
+    expect(screen.getByText('4')).toHaveClass('text-red-600');
+    expect(screen.getByText(/Riesgo alto/)).toBeInTheDocument();
+    expect(container.querySelector('.lucide-triangle-alert')).toBeNull();
   });
   it('keeps identity, value and countdown on the same fixed axes for every score', () => {
     const { container, rerender } = render(
       <ScaleChip hue="violet" icon={Bandage} label="Braden" value="12" countdown="2d" note={note} />
     );
 
-    expect(container.firstElementChild).toHaveClass('grid-cols-[70px_minmax(0,1fr)_34px]');
+    expect(container.firstElementChild).toHaveClass('grid-cols-[minmax(64px,1fr)_34px_42px]');
     expect(screen.getByText('2d')).toBeInTheDocument();
 
     rerender(<ScaleChip hue="teal" icon={Bandage} label="CUDYR" value="C3" note={note} />);
-    expect(container.firstElementChild).toHaveClass('grid-cols-[70px_minmax(0,1fr)_34px]');
+    expect(container.firstElementChild).toHaveClass('grid-cols-[minmax(64px,1fr)_34px_42px]');
+    expect(screen.getByText('C3')).toHaveClass('text-slate-600');
     expect(container.querySelector('.border-l')).not.toBeInTheDocument();
   });
 

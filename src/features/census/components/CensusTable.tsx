@@ -1,5 +1,6 @@
 import { observeCensusTable } from '@/shared/runtime/observeCensusTable';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CensusTableViewport } from './CensusTableViewport';
 import { CensusTableHeader } from '@/features/census/components/CensusTableHeader';
 import { CensusTableBody } from '@/features/census/components/CensusTableBody';
 import { useCensusTableBindingsModel } from '@/features/census/hooks/useCensusTableBindingsModel';
@@ -32,10 +33,8 @@ import {
   mapRayenInvasiveDeviceEntries,
   mergeReportDevices,
 } from '@/features/rayen-import/census-status';
-
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
-
 const LazyDemographicsModal = lazy(() =>
   import('@/components/modals/DemographicsModal').then(module => ({
     default: module.DemographicsModal,
@@ -282,7 +281,11 @@ export const CensusTable: React.FC<CensusTableProps> = ({
     attentionFilter === 'all' ? null : getCensusAttentionFilterLabel(attentionFilter);
 
   return (
-    <div ref={tableRootRef} className="overflow-visible rounded-xl bg-white print:shadow-none">
+    <div
+      ref={tableRootRef}
+      className="overflow-visible rounded-xl print:bg-white print:shadow-none"
+      data-testid="census-table-shell"
+    >
       <div className="relative overflow-visible">
         {freshnessUi.userMessage ? (
           <div
@@ -322,28 +325,11 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             ) : null}
           </div>
         ) : null}
-        <div
-          className="census-table-scroll"
-          role="region"
-          aria-label="Censo de pacientes, tabla desplazable"
-          tabIndex={0}
-          onKeyDown={event => {
-            if (event.target !== event.currentTarget) return;
-            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-            event.preventDefault();
-            event.stopPropagation();
-            event.currentTarget.scrollBy({ left: event.key === 'ArrowRight' ? 240 : -240 });
-          }}
-        >
+        <CensusTableViewport accessProfile={bodyProps.accessProfile}>
           <table
             data-testid="census-table"
             className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
-            style={
-              {
-                ...tableStyle,
-                '--census-table-width': parseFloat(String(tableStyle.width)),
-              } as React.CSSProperties
-            }
+            style={tableStyle}
           >
             <CensusTableHeader {...headerProps} />
             <CensusTableBody
@@ -355,7 +341,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
               clinicalDocumentInfoByBedId={clinicalDocumentInfoByBedId}
             />
           </table>
-        </div>
+        </CensusTableViewport>
       </div>
 
       {dragDrop.state.pendingMove && (

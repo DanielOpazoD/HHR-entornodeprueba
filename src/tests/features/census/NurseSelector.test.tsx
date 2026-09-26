@@ -65,6 +65,11 @@ describe('NurseSelector', () => {
     expect(screen.getByLabelText('Enfermería · turno largo · puesto 1')).toHaveValue(
       'Ana Maria Soto Rojas'
     );
+    expect(screen.getByLabelText('Enfermería · turno largo · puesto 1')).toHaveAttribute(
+      'aria-describedby',
+      'nurse-day-0-name'
+    );
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Ana Maria Soto Rojas');
     expect(update).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText('Enfermería · turno largo · puesto 1'), {
       target: { value: 'Ana Maria Soto Rojas' },

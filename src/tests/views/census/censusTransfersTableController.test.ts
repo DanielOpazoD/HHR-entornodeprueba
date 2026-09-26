@@ -10,13 +10,12 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 describe('censusTransfersTableController', () => {
   it('defines stable table headers for transfers section', () => {
     expect(TRANSFERS_TABLE_HEADERS.map(header => header.label)).toEqual([
-      'Cama Origen',
+      'Cama',
       'Paciente',
-      'RUT / ID',
       'Diagnóstico',
       'Medio',
       'Centro Destino',
-      'Fecha / Hora',
+      'Fecha',
       'Acciones',
     ]);
   });

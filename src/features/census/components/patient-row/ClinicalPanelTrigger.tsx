@@ -73,6 +73,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
             open();
           }}
           title="Panel clínico (evoluciones, indicaciones y cuidados de Eloísa)"
+          hint="Ficha clínica"
           label={`Abrir panel clínico de ${patientName}`}
         >
           <BookOpenText size={14} />

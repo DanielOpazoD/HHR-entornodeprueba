@@ -242,7 +242,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
 
   return (
     <div
-      className={`h-[5.5rem] w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
+      className={`h-full min-h-20 w-full rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${
         connectionMonitorOpen || queuePanelOpen ? 'relative z-[70]' : ''
       }`}
       data-testid="rayen-operations-bar"
@@ -252,7 +252,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
       // y del toolbar (cazado por e2e-critical).
       data-overlay-open={connectionMonitorOpen || queuePanelOpen ? 'true' : undefined}
     >
-      <div className="flex h-full min-w-0 flex-col justify-between gap-1 px-2 py-1.5">
+      <div className="flex h-full min-w-0 flex-col justify-between gap-1 px-2 py-1">
         <RayenConnectionMonitor
           extension={extension}
           working={working}

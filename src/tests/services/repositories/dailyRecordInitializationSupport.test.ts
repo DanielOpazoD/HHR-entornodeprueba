@@ -44,6 +44,35 @@ const buildRecord = (date: string): DailyRecord =>
   }) as DailyRecord;
 
 describe('dailyRecordInitializationSupport', () => {
+  it('copies manual and legacy specialties with their patients into the next census', () => {
+    const previous = buildRecord('2026-09-23');
+    const assignment = {
+      schemaVersion: 3 as const,
+      episodeId: 'episode-r1',
+      decisionId: 'decision-r1',
+      recordDate: '2026-09-23',
+      source: 'manual_ai' as const,
+      actorUid: 'synthetic-user',
+      decidedAt: '2026-09-23T14:00:00.000Z',
+    };
+    previous.beds.R1 = buildPatient('R1', {
+      clinicalEpisodeId: 'episode-r1',
+      specialty: 'Cirugía',
+      specialtyAssignment: assignment,
+    });
+    previous.beds.R2 = buildPatient('R2', {
+      patientName: 'Paciente legado',
+      clinicalEpisodeId: undefined,
+      specialty: 'Med Interna',
+    });
+
+    const copied = buildInitializedDayRecord('2026-09-24', previous);
+    expect(copied.beds.R1.specialty).toBe('Cirugía');
+    expect(copied.beds.R1.specialtyAssignment).toEqual(assignment);
+    expect(copied.beds.R2.specialty).toBe('Med Interna');
+    expect(copied.beds.R2.specialtyAssignment).toBeUndefined();
+  });
+
   it('prepares carryover patient by clearing CUDYR and inheriting night notes', () => {
     const source = buildPatient('R1', {
       patientName: 'Madre',

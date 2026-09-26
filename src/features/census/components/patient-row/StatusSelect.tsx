@@ -5,13 +5,14 @@
  * popover that names the current status and lets the nurse change it. Still fully editable.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import { AlertCircle } from 'lucide-react';
 import { STATUS_OPTIONS } from '@/constants/clinicalSpecialtyConstants';
 import { BaseCellProps, EventTextHandler } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
 import { useClinicalFieldFreshnessPause } from './useClinicalFieldFreshnessPause';
+import { usePortalPopoverRuntime } from '@/hooks/usePortalPopoverRuntime';
 
 interface StatusSelectProps extends BaseCellProps {
   onChange: EventTextHandler;
@@ -53,25 +54,40 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const isCriticalEmpty = !data.status && !!data.patientName;
 
-  const closePopover = (returnFocus = true): void => {
+  const closePopover = useCallback((): void => {
     setOpen(false);
-    if (returnFocus) buttonRef.current?.focus();
-  };
+    buttonRef.current?.focus();
+  }, []);
 
-  // Keyboard access for the popover: focus the first option on open, close on Escape.
+  const resolvePosition = useCallback(() => {
+    const anchor = buttonRef.current?.getBoundingClientRect();
+    if (!anchor) return null;
+    const width = popoverRef.current?.offsetWidth ?? 128;
+    const height = popoverRef.current?.offsetHeight ?? 0;
+    const below = anchor.bottom + 4;
+    const preferredTop = below + height <= window.innerHeight - 8 ? below : anchor.top - height - 4;
+    return {
+      top: Math.max(8, Math.min(preferredTop, window.innerHeight - height - 8)),
+      left: Math.max(
+        8,
+        Math.min(anchor.left + anchor.width / 2 - width / 2, window.innerWidth - width - 8)
+      ),
+    };
+  }, []);
+  const { position } = usePortalPopoverRuntime({
+    isOpen: open,
+    anchorRef: buttonRef,
+    popoverRef,
+    initialPosition: { top: 8, left: 8 },
+    resolvePosition,
+    onClose: closePopover,
+  });
+
+  // Focus the first option when the portal opens; the shared runtime closes on Escape/outside click.
   useEffect(() => {
     if (!open) return;
     popoverRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        closePopover();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
   if (isEmpty && !isSubRow) {
@@ -117,38 +133,17 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
           title={readOnlyReason || (status ? `Estado: ${status}` : 'Sin estado clínico — asignar')}
           aria-label={status ? `Estado: ${status}` : 'Sin estado clínico'}
         >
-          <span
-            className={clsx(
-              'h-2 w-2 rounded-full',
-              DOT_CLASSES[level],
-              isCriticalEmpty && 'animate-pulse'
-            )}
-          />
-          {isCriticalEmpty && (
-            <span
-              className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500"
-              title="Campo crítico vacío"
-            >
-              <AlertCircle size={8} className="text-white" />
-            </span>
-          )}
+          <span className={clsx('h-2 w-2 rounded-full', DOT_CLASSES[level])} />
         </button>
 
-        {open && (
-          <>
-            {/* Click-away backdrop */}
-            <button
-              type="button"
-              aria-hidden
-              tabIndex={-1}
-              className="fixed inset-0 z-10 cursor-default"
-              onClick={() => closePopover(false)}
-            />
+        {open &&
+          createPortal(
             <div
               ref={popoverRef}
               role="dialog"
               aria-label="Estado clínico"
-              className="absolute left-1/2 top-full z-20 mt-1 w-32 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg"
+              className="fixed z-[110] max-h-[calc(100vh-16px)] w-32 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 text-left shadow-lg print:hidden"
+              style={position}
             >
               <div className="px-1.5 py-1 text-[11px] font-semibold text-slate-700">
                 {status || 'Sin estado'}
@@ -176,9 +171,9 @@ export const StatusSelect: React.FC<StatusSelectProps> = ({
                   ))}
                 </div>
               )}
-            </div>
-          </>
-        )}
+            </div>,
+            document.body
+          )}
         {freshnessPause.hint}
       </div>
     </td>

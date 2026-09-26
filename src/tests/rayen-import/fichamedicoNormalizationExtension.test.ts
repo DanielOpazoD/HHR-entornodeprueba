@@ -4,6 +4,7 @@ import '../../../extension/fichamedico-isolation-normalization.js';
 import '../../../extension/fichamedico-treating-physician-dom.js';
 import '../../../extension/fichamedico-treating-physician-sources.js';
 import '../../../extension/fichamedico-treating-physician-normalization.js';
+import '../../../extension/fichamedico-diagnosis-coding.js';
 import '../../../extension/fichamedico-normalization.js';
 
 const treatingPhysicianNormalization = (
@@ -46,7 +47,8 @@ const normalization = (
         rows: unknown[],
         header?: Record<string, unknown>,
         listItem?: Record<string, unknown>
-      ) => { name: string; code: string; source: string };
+      ) => { name: string; code: string; classificationId: number | null; source: string };
+      indexDiagnosisCatalog: (rows: unknown) => Map<number, string>;
       validClinicalDate: (value: unknown) => string | undefined;
       requiresIsolationDetails: (value: unknown) => boolean;
     };
@@ -402,6 +404,7 @@ describe('Ficha Medico diagnosis normalization', () => {
           {
             diagnosisName: 'Neumonía bacteriana',
             internalCode: 'J15.9',
+            diagnosisClassifyId: 4405,
             isPrincipal: 'S',
             archived: 'N',
             deleted: 0,
@@ -417,6 +420,7 @@ describe('Ficha Medico diagnosis normalization', () => {
     ).toEqual({
       name: 'Neumonía bacteriana',
       code: 'J15.9',
+      classificationId: 4405,
       source: 'principal-entry',
     });
   });
@@ -424,6 +428,11 @@ describe('Ficha Medico diagnosis normalization', () => {
   it('falls back to the principal header diagnosis when entries are unavailable', () => {
     expect(
       normalization.selectPrincipalDiagnosis([], { principalDiagName: 'Diagnóstico principal' })
-    ).toEqual({ name: 'Diagnóstico principal', code: '', source: 'principal-header' });
+    ).toEqual({
+      name: 'Diagnóstico principal',
+      code: '',
+      classificationId: null,
+      source: 'principal-header',
+    });
   });
 });

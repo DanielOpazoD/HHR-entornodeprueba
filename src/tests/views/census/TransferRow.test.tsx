@@ -4,6 +4,17 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { TransferRow } from '@/features/census/components/TransferRow';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
+vi.mock('@/features/census/components/PatientHospitalizationReportsDialog', () => ({
+  PatientHospitalizationReportsDialog: ({
+    isOpen,
+    currentEpisodeId,
+  }: {
+    isOpen: boolean;
+    currentEpisodeId?: string;
+  }) =>
+    isOpen ? <div data-testid="hospitalization-reports-dialog">{currentEpisodeId}</div> : null,
+}));
+
 describe('TransferRow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -88,5 +99,27 @@ describe('TransferRow', () => {
         name: /Generar Informe Estadístico de Egreso \(IEEH\)/i,
       })
     ).not.toBeInTheDocument();
+  });
+
+  it('opens the Eloísa epicrisis search from the visible transfer action', () => {
+    const item = DataFactory.createMockTransfer({
+      patientName: 'Paciente Traslado',
+      clinicalEpisodeId: '141337',
+    });
+    render(
+      <table>
+        <tbody>
+          <TransferRow
+            item={item}
+            recordDate="2026-07-19"
+            onUndo={vi.fn().mockResolvedValue(undefined)}
+            onEdit={vi.fn()}
+            onDelete={vi.fn().mockResolvedValue(undefined)}
+          />
+        </tbody>
+      </table>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Ver epicrisis de Paciente Traslado' }));
+    expect(screen.getByTestId('hospitalization-reports-dialog')).toHaveTextContent('141337');
   });
 });

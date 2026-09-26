@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "autoEnabled": false,
+  "memoryEnabled": false,
+  "aiMode": "consultative",
+  "rules": [],
+  "memory": [],
+  "aiMonthlyLimit": 25,
+  "aiRubrics": {
+    "internal_medicine": "Elegir sólo cuando el diagnóstico identifica una enfermedad médica no quirúrgica cuya especialidad operativa sea Medicina Interna. No inferir edad, gravedad, manejo ni contexto ausentes.",
+    "surgery": "Elegir sólo cuando el diagnóstico señala una condición quirúrgica general o digestiva de forma suficientemente específica. Si no determina la necesidad de Cirugía, pedir revisión.",
+    "traumatology": "Elegir sólo ante un diagnóstico traumatológico u ortopédico explícito. Dolor musculoesquelético inespecífico por sí solo requiere revisión.",
+    "obstetrics_gynecology": "Elegir sólo ante un diagnóstico obstétrico o ginecológico explícito. No inferir embarazo ni sexo desde el código si éste no lo establece.",
+    "psychiatry": "Elegir sólo ante un diagnóstico psiquiátrico explícito y específico. Un problema social o administrativo aislado requiere revisión.",
+    "pediatrics": "Elegir sólo cuando el diagnóstico describe una condición neonatal o pediátrica de forma explícita. No inferir edad a partir de la cama o del episodio.",
+    "dentistry": "Elegir sólo ante una enfermedad dental u oral con manejo odontológico explícito en la etiqueta diagnóstica.",
+    "review_required": "Elegir si el diagnóstico es inespecífico, administrativo, ambiguo, compatible con varias especialidades o necesita edad, exploración o contexto clínico no presentes. La revisión manual tiene prioridad ante dudas."
+  }
+}

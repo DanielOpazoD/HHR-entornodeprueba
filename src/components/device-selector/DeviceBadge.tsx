@@ -2,6 +2,7 @@ import React from 'react';
 import { calculateDeviceDays } from './DeviceDateConfigModal';
 import type { DeviceDetails } from '@/types/domain/devices';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
+import { isNasogastricDevice } from '@/constants/clinicalDeviceConstants';
 
 import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 
@@ -19,6 +20,7 @@ export const DeviceBadge: React.FC<DeviceBadgeProps> = React.memo(
       const num = device.split('#')[1];
       badgeText = num === '1' ? 'VVP' : `VVP#${num}`;
     }
+    if (isNasogastricDevice(device)) badgeText = 'SNG';
 
     // Get details for ANY device
     const details = deviceDetails[device];

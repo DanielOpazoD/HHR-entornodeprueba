@@ -4,12 +4,14 @@ import { useStaffContext } from '@/context/StaffContext';
 import type { ShiftIndicatorState } from '@/features/census/controllers/censusStaffHeaderController';
 import {
   buildResolvedStaffSelectionOptions,
+  isVacancySelection,
   resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
 import { buildStaffSelectionSelectClassName } from './staffSelectionSelectStyles';
 import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
 import { partitionStaffOptions } from '@/services/staff/staffUsage';
 import { StaffMoreOptionsButton } from './StaffMoreOptionsButton';
+import { StaffSelectionNameHint } from './StaffSelectionNameHint';
 
 interface TensSelectorProps {
   tensDayShift: string[];
@@ -60,13 +62,13 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
 
   return (
     <div
-      className={`card px-2 py-1.5 flex flex-col gap-0.5 !border-slate-200/80 !shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:!border-slate-300 transition-colors w-fit !overflow-visible ${className || ''}`}
+      className={`census-toolbar-card rounded-xl border border-slate-200 bg-white min-h-20 px-2 py-1 flex flex-col justify-between gap-0.5 hover:border-slate-300 transition-colors w-fit overflow-visible ${className || ''}`}
     >
       <div className="flex justify-between items-center pb-0.5 border-b border-slate-100">
         <button
           type="button"
           onClick={() => setShowTensManager(true)}
-          className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1 transition-colors hover:text-medical-600"
+          className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1 transition-colors hover:text-medical-600"
           aria-label="Abrir catálogo de TENS"
         >
           <Users size={11} /> TENS
@@ -94,7 +96,7 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
           )}
         </span>
         {[0, 1, 2].map(idx => (
-          <div key={`day-${idx}`} className="relative">
+          <div key={`day-${idx}`} className="group relative hover:z-50 focus-within:z-50">
             <select
               className={buildStaffSelectionSelectClassName({
                 baseClassName: selectClassName,
@@ -102,6 +104,9 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 tone: 'day',
               })}
               value={resolveStaffSelectionValue(tensDayShift[idx], staffIdentities, 'tens')}
+              aria-describedby={
+                isVacancySelection(tensDayShift[idx]) ? undefined : `tens-day-${idx}-name`
+              }
               onChange={e => onUpdateTens('day', idx, e.target.value)}
               aria-label={`TENS · turno largo · puesto ${idx + 1}`}
             >
@@ -111,6 +116,10 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 </option>
               ))}
             </select>
+            <StaffSelectionNameHint
+              id={`tens-day-${idx}-name`}
+              name={resolveStaffSelectionValue(tensDayShift[idx], staffIdentities, 'tens')}
+            />
             {groups.hidden.length === 0 && (
               <ChevronDown
                 size={10}
@@ -142,7 +151,7 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
           )}
         </span>
         {[0, 1, 2].map(idx => (
-          <div key={`night-${idx}`} className="relative">
+          <div key={`night-${idx}`} className="group relative hover:z-50 focus-within:z-50">
             <select
               className={buildStaffSelectionSelectClassName({
                 baseClassName: selectClassName,
@@ -150,6 +159,9 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 tone: 'night',
               })}
               value={resolveStaffSelectionValue(tensNightShift[idx], staffIdentities, 'tens')}
+              aria-describedby={
+                isVacancySelection(tensNightShift[idx]) ? undefined : `tens-night-${idx}-name`
+              }
               onChange={e => onUpdateTens('night', idx, e.target.value)}
               aria-label={`TENS · turno noche · puesto ${idx + 1}`}
             >
@@ -159,6 +171,10 @@ export const TensSelector: React.FC<TensSelectorProps> = ({
                 </option>
               ))}
             </select>
+            <StaffSelectionNameHint
+              id={`tens-night-${idx}-name`}
+              name={resolveStaffSelectionValue(tensNightShift[idx], staffIdentities, 'tens')}
+            />
             {groups.hidden.length === 0 && (
               <ChevronDown
                 size={10}

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { CalendarDays, Download, ExternalLink, FileClock, Loader2, RefreshCw } from 'lucide-react';
 
 import { BaseModal } from '@/components/shared/BaseModal';
+import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { usePatientHospitalizationReports } from '@/features/census/components/usePatientHospitalizationReports';
 
 interface PatientHospitalizationReportsDialogProps {
@@ -49,6 +50,7 @@ export const PatientHospitalizationReportsDialog: React.FC<
       icon={<FileClock size={18} />}
       size="lg"
       dataTestId="patient-hospitalization-reports-dialog"
+      backdropZIndex={LAYER_Z_INDEX.modal}
       bodyClassName="p-0"
     >
       <div className="border-b border-slate-100 px-5 py-3">
@@ -58,11 +60,24 @@ export const PatientHospitalizationReportsDialog: React.FC<
         </p>
       </div>
 
-      <div className="space-y-2 p-4">
+      <div className="min-h-40 space-y-2 p-4" aria-busy={isLoading}>
         {isLoading ? (
-          <div className="flex min-h-32 items-center justify-center gap-2 text-sm text-slate-500">
-            <Loader2 size={17} className="animate-spin" aria-hidden="true" />
-            Buscando hospitalizaciones en Eloísa…
+          <div role="status" className="space-y-2" data-testid="reports-loading-content">
+            <span className="sr-only">Buscando hospitalizaciones en Eloísa…</span>
+            {[0, 1].map(index => (
+              <div key={index} aria-hidden="true" className="min-h-[60px] rounded-lg border border-slate-200 bg-white px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="h-3 w-40 rounded bg-slate-100" />
+                    <div className="h-2 w-24 rounded bg-slate-50" />
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="h-8 w-20 rounded-md bg-slate-100" />
+                    <span className="h-8 w-24 rounded-md bg-slate-100" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">

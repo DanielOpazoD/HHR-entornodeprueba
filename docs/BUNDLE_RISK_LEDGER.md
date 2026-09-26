@@ -10,12 +10,12 @@ Este ledger gobierna los chunks que hoy explican el warning de tamaño de Vite o
 
 ## Current surfaces
 
-| Surface                   | Owner                             | Threshold                           | Current signal                                          | Release posture                                                          | Guardrail                                                                      |
-| ------------------------- | --------------------------------- | ----------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `vendor-heic2any`         | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
-| `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime               | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
-| `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                          | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                         |
-| `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling      | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin` |
+| Surface                   | Owner                             | Threshold                           | Current signal                                           | Release posture                                                          | Guardrail                                                                      |
+| ------------------------- | --------------------------------- | ----------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `vendor-heic2any`         | prescriptions/runtime             | 1,450,000 bytes chunk budget        | ~1,320 KB, async only for HEIC/HEIF prescription photos  | Not a release blocker while it stays out of precache and below threshold | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
+| `vendor-pdfjs`            | clinical-documents/PDF runtime    | 520,000 bytes chunk budget          | ~455 KB, async PDF.js text/import runtime                | Not a release blocker while excluded from PWA install-time precache      | `chunkingPolicy.test`, `pwaPrecachePolicy.test`, `check:bundle-budget`         |
+| `pdfjs-worker`            | clinical-documents/PDF runtime    | 2,500,000 bytes async worker budget | ~2,303 KB, async PDF.js worker                           | Not a release blocker while excluded from PWA install-time precache      | `pwaPrecachePolicy.test`, `check:runtime-asset-margin`                         |
+| `vendor-pdf-lib`          | clinical-documents/PDF generation | 430,000 bytes chunk budget          | ~382 KB, near warning band but still below ceiling       | Not a release blocker while PDF generation remains on-demand             | `bundleBudgetConfig.test`, `check:bundle-budget`, `check:runtime-asset-margin` |
 | `app-authenticated-shell` | app-shell/census runtime          | 627,000 bytes startup chunk budget  | 626,136 bytes with PR #481 specialty pilot; near ceiling | Not a release blocker while startup imports remain guarded               | `chunkingPolicy.test`, `check:bundle-budget`, `check:runtime-asset-margin`     |
 
 ## Trigger policy
@@ -73,3 +73,19 @@ The authenticated shell remains near its hard limit; next census feature work
 must measure and preferably defer an optional dependency. Roll back this
 allowance with the specialty pilot if that pilot fails acceptance; retain the
 server-side provenance guard until its replacement is independently verified.
+
+## Censo: inicio y menú de especialidades (2026-09-24)
+
+Owner: app-shell/census runtime. The compact specialty menu now appears beside
+the census summary instead of loading with the deferred patient table. The Jev
+window and rule editor remain lazy; moving the entry control to the header adds
+a small synchronous UI cost. With the same local lockfile and build command,
+`origin/main` 11d1ea6a measured `app-authenticated-shell` at 626,182 bytes;
+this branch measured 628,453 bytes (+2,271 bytes, 0.36%).
+
+Raise only this startup chunk ceiling from 627,000 to 630,000 bytes (+0.48%).
+The remaining margin is 1,547 bytes on the measured build; entry, precache and
+other chunk limits remain unchanged. Keep the size warning visible and run
+`build`, `check:bundle-budget` and startup performance checks before release.
+Rollback: move the specialty entry back behind the deferred census table and
+restore the 627,000-byte ceiling if the header change regresses startup.

@@ -22,16 +22,17 @@ const validatePolicy = policy => {
       typeof policy.autoEnabled !== 'boolean' || typeof policy.memoryEnabled !== 'boolean' ||
       !['off', 'consultative'].includes(policy.aiMode) ||
       (policy.aiMode === 'consultative' &&
-        (!validRubrics(policy.aiRubrics) || !policy.diagnosisLabels ||
-         typeof policy.diagnosisLabels !== 'object' ||
-         Array.isArray(policy.diagnosisLabels) ||
+        (!validRubrics(policy.aiRubrics) ||
+         !Number.isInteger(policy.aiMonthlyLimit) || policy.aiMonthlyLimit < 1 ||
+         policy.aiMonthlyLimit > 1000)) ||
+      (policy.diagnosisLabels !== undefined &&
+        (typeof policy.diagnosisLabels !== 'object' ||
+         policy.diagnosisLabels === null || Array.isArray(policy.diagnosisLabels) ||
          Object.keys(policy.diagnosisLabels).length > 256 ||
          !Object.entries(policy.diagnosisLabels).every(([code, label]) =>
            validCode(code) && typeof label === 'string' &&
            label.trim().length >= 4 && label.length <= 160 &&
-           !/[<>\r\n]/.test(label)) ||
-         !Number.isInteger(policy.aiMonthlyLimit) || policy.aiMonthlyLimit < 1 ||
-         policy.aiMonthlyLimit > 1000)) ||
+           !/[<>\r\n]/.test(label)))) ||
       !Array.isArray(policy.rules) || !Array.isArray(policy.memory) ||
       policy.rules.length > 128 || policy.memory.length > 256) return false;
   const rules = [...policy.rules, ...policy.memory];

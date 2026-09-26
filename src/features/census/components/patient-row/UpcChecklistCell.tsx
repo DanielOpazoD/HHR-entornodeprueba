@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import clsx from 'clsx';
-import { AlertCircle } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import { resolveUpcReviewReason } from '@/shared/census/upcEvaluationPolicy';
 import { resolveEffectiveUpcState, isUpcEligibleBedId } from '@/shared/census/upcBedPolicy';
 import {
@@ -74,11 +74,12 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
         }
         aria-haspopup="dialog"
         className={clsx(
-          'inline-flex min-h-8 min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[10px] font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700',
+          'inline-flex min-h-8 min-w-8 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[10px] font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700',
+          !reviewReason && 'min-w-[56px]',
           readOnly && 'cursor-default',
           freshnessPause.pauseClassName,
           reviewReason
-            ? 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+            ? 'bg-slate-50 text-slate-600 hover:bg-slate-100'
             : label
               ? clsx(colors.text, colors.bg, !readOnly && 'hover:opacity-80')
               : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
@@ -93,10 +94,7 @@ export const UpcChecklistCell: React.FC<UpcChecklistCellProps> = ({
       >
         {label && <span>{label}</span>}
         {reviewReason ? (
-          <span className="inline-flex items-center gap-0.5 text-[9px]">
-            <AlertCircle size={10} aria-hidden="true" />
-            Evaluar
-          </span>
+          <ClipboardList size={15} aria-hidden="true" />
         ) : !label ? (
           <span>Sin criterios</span>
         ) : null}

@@ -14,7 +14,8 @@ describe('resolveSaveButtonUiState', () => {
 
     expect(state.label).toBe('Guardando...');
     expect(state.iconKind).toBe('loading');
-    expect(state.buttonClassName).toContain('amber');
+    expect(state.buttonClassName).toContain('slate');
+    expect(state.buttonClassName).not.toContain('btn-primary');
     expect(state.widthClassName).toBe('w-[34px]');
   });
 
@@ -41,6 +42,18 @@ describe('resolveSaveButtonUiState', () => {
     expect(state.label).toBe('Guardar');
     expect(state.iconKind).toBe('default');
     expect(state.widthClassName).toBe('min-w-[40px]');
+  });
+
+  it('keeps census save secondary to the send action', () => {
+    const state = resolveSaveButtonUiState({
+      isArchived: false,
+      isBackingUp: false,
+      variant: 'census',
+    });
+
+    expect(state.buttonClassName).toContain('bg-white');
+    expect(state.buttonClassName).not.toContain('btn-primary');
+    expect(resolveEmailButtonUiState({ status: 'idle' }).buttonClassName).toContain('btn-primary');
   });
 });
 

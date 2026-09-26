@@ -4,6 +4,17 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { CmaSectionRow } from '@/features/census/components/CmaSectionRow';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
+vi.mock('@/features/census/components/PatientHospitalizationReportsDialog', () => ({
+  PatientHospitalizationReportsDialog: ({
+    isOpen,
+    currentEpisodeId,
+  }: {
+    isOpen: boolean;
+    currentEpisodeId?: string;
+  }) =>
+    isOpen ? <div data-testid="hospitalization-reports-dialog">{currentEpisodeId}</div> : null,
+}));
+
 vi.mock('@/features/clinical-documents', () => ({
   ClinicalDocumentsModal: ({
     isOpen,
@@ -25,6 +36,32 @@ vi.mock('@/features/clinical-documents', () => ({
 }));
 
 describe('CmaSectionRow', () => {
+  it('shows admission date beneath the identity and opens epicrisis from the CMA row', () => {
+    const item = DataFactory.createMockCMA({
+      patientName: 'Paciente CMA',
+      rut: 'A33206667',
+      clinicalEpisodeId: '141338',
+      originalData: DataFactory.createMockPatient('R1', { admissionDate: '2026-04-29' }),
+    });
+    render(
+      <table>
+        <tbody>
+          <CmaSectionRow
+            item={item}
+            recordDate="2026-04-30"
+            onUpdate={vi.fn()}
+            onUndo={vi.fn().mockResolvedValue(undefined)}
+            onDelete={vi.fn()}
+            onConvertToDischarge={vi.fn()}
+          />
+        </tbody>
+      </table>
+    );
+    expect(screen.getByText('FI: 29-04-2026')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver epicrisis de Paciente CMA' }));
+    expect(screen.getByTestId('hospitalization-reports-dialog')).toHaveTextContent('141338');
+  });
+
   it('renders item values and emits update callbacks', () => {
     const item = DataFactory.createMockCMA({
       id: 'cma-1',

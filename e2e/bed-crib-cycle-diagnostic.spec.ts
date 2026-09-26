@@ -139,7 +139,7 @@ const getSecondRow = (page: Page) =>
 const getCribRow = (page: Page) =>
   page
     .locator('tr[data-testid="patient-row"]')
-    .filter({ hasText: /\bCUNA\b/ })
+    .filter({ has: page.getByText('CUNA', { exact: true }) })
     .first();
 
 const openCensus = async (
@@ -188,8 +188,8 @@ const armCribRowWatcher = (page: Page) =>
   page.evaluate(() => {
     const w = window as Window & { __HHR_DIAG__?: PageClockDiag };
     const hasCribRow = () =>
-      Array.from(document.querySelectorAll('tr[data-testid="patient-row"]')).some(row =>
-        /\bCUNA\b/.test(row.textContent || '')
+      Array.from(document.querySelectorAll('tr[data-testid="patient-row"]')).some(
+        row => (row.querySelector('td:nth-child(2)')?.textContent || '').trim() === 'CUNA'
       );
     w.__HHR_DIAG__ = { t0: 0, tCribVisible: 0, tCribHidden: 0 };
     if (hasCribRow()) w.__HHR_DIAG__.tCribVisible = -1; // ya visible al armar
@@ -440,14 +440,16 @@ test.describe('Diagnóstico ciclo cama–cuna', () => {
     // subtree while the guarded CLEAR is confirmed. The hold keeps the worker
     // out of the race, so only atomic authoritative adoption can remove it.
     await seedPendingClinicalCribEditTask(page);
-    await expect.poll(() => readDailyRecordQueueDiag(page)).toMatchObject([
-      {
-        status: 'PENDING',
-        mutationId: 'diag-pending-clinical-crib-edit',
-        changedPaths: ['beds.R1.clinicalCrib.patientName'],
-        hasLease: false,
-      },
-    ]);
+    await expect
+      .poll(() => readDailyRecordQueueDiag(page))
+      .toMatchObject([
+        {
+          status: 'PENDING',
+          mutationId: 'diag-pending-clinical-crib-edit',
+          changedPaths: ['beds.R1.clinicalCrib.patientName'],
+          hasLease: false,
+        },
+      ]);
     mark(scenario, 'edit.pending_outbox_precondition_established');
 
     // ---- CLEAR (cuna) ----

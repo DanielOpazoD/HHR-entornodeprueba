@@ -13,11 +13,13 @@ export const renderPreviewSummary = report => {
       for (const spec of suite.specs ?? []) {
         const group = spec.file?.endsWith('clinical-library-smoke.spec.ts')
           ? 'Biblioteca: documentos y herramientas'
-          : spec.file?.endsWith('census-preview-bootstrap.spec.ts')
-            ? spec.title.startsWith('keeps navigation')
-              ? 'Censo: navegación adaptable'
-              : 'Censo: arranque y recargas'
-            : 'Otras comprobaciones';
+          : spec.file?.endsWith('clinical-panel-reading-smoke.spec.ts')
+            ? 'Ficha clínica: lectura y navegación'
+            : spec.file?.endsWith('census-preview-bootstrap.spec.ts')
+              ? spec.title.startsWith('keeps navigation')
+                ? 'Censo: navegación adaptable'
+                : 'Censo: arranque y recargas'
+              : 'Otras comprobaciones';
         const row = groups.get(group) ?? { passed: 0, total: 0, duration: 0 };
         for (const test of spec.tests ?? []) {
           row.total += 1;
@@ -40,7 +42,7 @@ export const renderPreviewSummary = report => {
       `| ${label} | ${row.total > 0 && row.passed === row.total ? '✅' : '⚠️'} ${row.passed}/${row.total} | ${seconds(row.duration)} |`
   );
   return [
-    '## Preview: censo y biblioteca',
+    '## Preview: censo, ficha y biblioteca',
     '',
     '| Comprobación | Aprobadas | Tiempo de pruebas |',
     '|---|---:|---:|',
@@ -63,7 +65,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     );
   } catch {
     summary =
-      '## Preview: censo y biblioteca\n\n⚠️ Reporte ausente o inválido. Revisar el paso de compilación/preview y sus logs.';
+      '## Preview: censo, ficha y biblioteca\n\n⚠️ Reporte ausente o inválido. Revisar el paso de compilación/preview y sus logs.';
     process.exitCode = 1;
   }
   if (process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID) {

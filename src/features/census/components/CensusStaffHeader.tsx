@@ -21,6 +21,36 @@ import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDet
 const RayenImportButton = lazy(() =>
   import('@/features/rayen-import').then(module => ({ default: module.RayenImportButton }))
 );
+const SpecialtyRoundEntry = lazy(() =>
+  import('./specialty-round/SpecialtyRoundEntry').then(module => ({
+    default: module.SpecialtyRoundEntry,
+  }))
+);
+
+// Keep the Eloísa card in place while its heavier synchronization module loads.
+// This shell has no controls or connection claim until the extension has been checked.
+const RayenOperationsLoadingCard = () => (
+  <div
+    className="flex h-full min-h-20 w-full flex-col justify-between rounded-xl border border-slate-200/90 bg-white px-2 py-1.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+    role="status"
+    aria-busy="true"
+    aria-label="Cargando panel de Eloísa"
+    data-testid="rayen-operations-loading"
+  >
+    <div className="flex min-h-8 items-center gap-2">
+      <img src="/images/logos/rayen-mark.png" alt="" className="size-8 shrink-0 object-contain" />
+      <div className="min-w-0">
+        <p className="text-[13px] font-semibold leading-tight text-slate-800">Eloísa</p>
+        <p className="text-[10px] leading-tight text-slate-500">Cargando controles…</p>
+      </div>
+    </div>
+    <div aria-hidden="true" className="flex h-7 items-center gap-1.5">
+      <span className="h-7 w-7 rounded-md bg-slate-100" />
+      <span className="h-7 w-16 rounded-md bg-slate-100" />
+      <span className="h-7 min-w-0 flex-1 rounded-md bg-slate-100" />
+    </div>
+  </div>
+);
 import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusAttentionBar } from './CensusAttentionBar';
 import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
@@ -86,9 +116,9 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     // solo con un popover abierto): un z estático aquí tapaba los menús del
     // toolbar y de la primera fila que solapan el header (cazado por e2e).
     <div className="flex w-full flex-col items-center gap-2 animate-fade-in has-[[data-overlay-open]]:relative has-[[data-overlay-open]]:z-40">
-      <div className="flex w-full max-w-[1180px] flex-col items-stretch gap-2">
+      <div className="flex w-full flex-col items-stretch gap-2">
         <div
-          className="flex flex-wrap items-start justify-center gap-2"
+          className="census-toolbar flex flex-wrap items-stretch justify-center gap-2 xl:flex-nowrap"
           data-testid="census-staff-and-sync"
         >
           {/* Staff Selectors */}
@@ -100,7 +130,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               onUpdateNurse={updateNurse}
               shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
               onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('nurse')}
-              className={readModel.selectorsClassName}
+              className={`self-stretch ${readModel.selectorsClassName}`}
             />
           )}
 
@@ -112,13 +142,13 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               onUpdateTens={updateTens}
               shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
               onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('tens')}
-              className={readModel.selectorsClassName}
+              className={`self-stretch ${readModel.selectorsClassName}`}
             />
           )}
 
           {!readOnly && !readModel.specialistAccess && (
-            <div className="w-64 max-w-full shrink-0">
-              <Suspense fallback={null}>
+            <div className="w-60 max-w-full shrink-0 self-stretch">
+              <Suspense fallback={<RayenOperationsLoadingCard />}>
                 <RayenImportButton
                   selectedDate={selectedDate}
                   autoStartRequestId={rayenBootstrapRequestId}
@@ -129,24 +159,33 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )}
 
           {/* Combined Stats Summary Card */}
-          {readModel.showSummary && stats && (
-            <CombinedSummaryCard
-              stats={stats}
-              discharges={readModel.movementSummaryState.discharges}
-              transfers={readModel.movementSummaryState.transfers}
-              cmaCount={readModel.movementSummaryState.cmaCount}
-              newAdmissions={readModel.movementSummaryState.admissionsCount}
-            />
-          )}
-        </div>
-
-        <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          <CensusAttentionBar
-            beds={beds ?? {}}
-            censusIsoDay={dailyRecordData.record?.date ?? ''}
-            activeFilter={attentionFilter}
-            onFilterChange={onAttentionFilterChange}
-          />
+          <div className="census-toolbar-summary flex min-w-0 shrink-0 items-stretch justify-center gap-2">
+            {readModel.showSummary && stats && (
+              <CombinedSummaryCard
+                stats={stats}
+                discharges={readModel.movementSummaryState.discharges}
+                transfers={readModel.movementSummaryState.transfers}
+                cmaCount={readModel.movementSummaryState.cmaCount}
+                newAdmissions={readModel.movementSummaryState.admissionsCount}
+              />
+            )}
+            <div className="census-toolbar-quick-actions flex items-center gap-2 border-l border-slate-200 pl-2">
+              <CensusAttentionBar
+                beds={beds ?? {}}
+                censusIsoDay={dailyRecordData.record?.date ?? ''}
+                activeFilter={attentionFilter}
+                onFilterChange={onAttentionFilterChange}
+              />
+              {dailyRecordData.record?.date && (
+                <Suspense fallback={null}>
+                  <SpecialtyRoundEntry
+                    date={dailyRecordData.record.date}
+                    disabled={Boolean(readOnly)}
+                  />
+                </Suspense>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

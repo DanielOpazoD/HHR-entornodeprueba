@@ -45,7 +45,7 @@ interface ClinicalInitialBlockCellButtonProps {
 
 const clinicalBlockButtonClassName = clsx(
   // `min-h` en vez de `h`: el diagnóstico puede crecer a una segunda línea.
-  'min-h-7 w-full rounded border border-slate-200 bg-white px-2 text-left text-[13px] transition-colors',
+  'census-inline-field min-h-7 w-full rounded border border-slate-200 bg-white px-2 text-left text-[13px] transition-colors',
   'hover:border-medical-300 hover:bg-medical-50/40 focus:outline-none focus:ring-2 focus:ring-medical-500/20',
   'disabled:cursor-default disabled:bg-slate-50 disabled:text-slate-500 disabled:hover:border-slate-200'
 );

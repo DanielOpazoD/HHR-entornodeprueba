@@ -288,10 +288,12 @@ describe('useDailyRecord lifecycle', () => {
     const futureDate = '2025-01-02';
     const { result } = renderHook(() => useDailyRecord(futureDate), { wrapper: createWrapper() });
 
+    let created = true;
     await act(async () => {
-      await result.current.createDay(true, mockDate);
+      created = await result.current.createDay(true, mockDate);
     });
 
+    expect(created).toBe(false);
     expect(mockDailyRecordPorts.initializeDayDetailed).not.toHaveBeenCalledWith(
       futureDate,
       mockDate
@@ -309,10 +311,37 @@ describe('useDailyRecord lifecycle', () => {
     recordsMap[sourceDate] = DataFactory.createMockDailyRecord(sourceDate);
     const { result } = renderHook(() => useDailyRecord(targetDate), { wrapper: createWrapper() });
 
+    let created = false;
     await act(async () => {
-      await result.current.createDay(true, sourceDate);
+      created = await result.current.createDay(true, sourceDate);
     });
 
+    expect(created).toBe(true);
+    expect(defaultDailyRecordRepositoryPort.initializeDay).toHaveBeenCalledWith(
+      targetDate,
+      sourceDate
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('should create the current calendar day before 08:00 when the confirmed empty-day flow overrides the schedule', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2025, 0, 2, 7, 0, 0));
+
+    const sourceDate = '2025-01-01';
+    const targetDate = '2025-01-02';
+    recordsMap[sourceDate] = DataFactory.createMockDailyRecord(sourceDate);
+    const { result } = renderHook(() => useDailyRecord(targetDate), { wrapper: createWrapper() });
+
+    let created = false;
+    await act(async () => {
+      created = await result.current.createDay(true, sourceDate, {
+        forceCopyScheduleOverride: true,
+      });
+    });
+
+    expect(created).toBe(true);
     expect(defaultDailyRecordRepositoryPort.initializeDay).toHaveBeenCalledWith(
       targetDate,
       sourceDate

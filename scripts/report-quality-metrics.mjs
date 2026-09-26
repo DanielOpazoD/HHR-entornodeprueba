@@ -26,10 +26,6 @@ const IMPORT_REGEX =
   /(?:^|\n)\s*import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["']|(?:^|\n)\s*export\s+[^;\n]*\sfrom\s*["']([^"']+)["']/g;
 
 const ALLOWED_SKIP_FILES = new Set(['src/tests/security/firestore-rules.test.ts']);
-const GOVERNED_FEATURE_PUBLIC_IMPORTS = new Set([
-  'src/views/LazyViews.ts|@/features/census/census-view',
-  'src/components/layout/app-content/AppContentOverlays.tsx|@/features/census/public-components',
-]);
 const FEATURE_PUBLIC_BOUNDARIES = [
   {
     importPrefix: '@/features/census/',
@@ -56,7 +52,8 @@ const FEATURE_PUBLIC_BOUNDARIES = [
 const DEPRECATED_IMPORTS = [
   {
     importPath: '@/shared/census/patientContracts',
-    allowBypass: file => file === 'src/shared/census/patientContracts.ts' || file.startsWith('src/tests/'),
+    allowBypass: file =>
+      file === 'src/shared/census/patientContracts.ts' || file.startsWith('src/tests/'),
   },
   {
     importPath: '@/shared/controllerResult',
@@ -433,6 +430,28 @@ const getTypeSafetySignals = () => {
 };
 
 const getConvergenceSignals = () => {
+  const featureAllowlist = safeReadJson(
+    path.join(ROOT, 'scripts', 'feature-public-api-allowlist.json')
+  );
+  const publicModulesByFeature = featureAllowlist?.publicModulesByFeature || {};
+  const exceptionsByFeature = featureAllowlist?.exceptionsByFeature || {};
+  const featureImportPolicies = Object.fromEntries(
+    FEATURE_PUBLIC_BOUNDARIES.map(boundary => {
+      const feature = boundary.importPrefix.split('/')[2];
+      return [
+        feature,
+        {
+          publicModules: new Set([
+            `@/features/${feature}`,
+            `@/features/${feature}/index`,
+            `@/features/${feature}/public`,
+            ...(publicModulesByFeature[feature] || []),
+          ]),
+          exceptions: new Set(exceptionsByFeature[feature] || []),
+        },
+      ];
+    })
+  );
   const files = walkFiles(SRC_ROOT).filter(filePath => {
     const extension = path.extname(filePath);
     if (!SOURCE_EXTENSIONS.has(extension)) return false;
@@ -481,8 +500,11 @@ const getConvergenceSignals = () => {
         if (!importPath.startsWith(boundary.importPrefix)) {
           return false;
         }
-
-        return !GOVERNED_FEATURE_PUBLIC_IMPORTS.has(`${relative}|${importPath}`);
+        const policy = featureImportPolicies[boundary.importPrefix.split('/')[2]];
+        return (
+          !policy.publicModules.has(importPath) &&
+          !policy.exceptions.has(`${relative} -> ${importPath}`)
+        );
       });
 
       if (hasUngovernedFeatureImport) {
@@ -541,7 +563,8 @@ const getConvergenceSignals = () => {
       fs
         .readdirSync(dirPath, { withFileTypes: true })
         .filter(
-          entry => entry.isFile() && ['.ts', '.tsx', '.js', '.jsx'].includes(path.extname(entry.name))
+          entry =>
+            entry.isFile() && ['.ts', '.tsx', '.js', '.jsx'].includes(path.extname(entry.name))
         )
         .map(entry => entry.name)
     );

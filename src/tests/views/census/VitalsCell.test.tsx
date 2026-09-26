@@ -47,9 +47,14 @@ describe('VitalsCell', () => {
 
     expect(screen.getByText('130/82')).toBeInTheDocument();
     expect(screen.getByText('84')).toBeInTheDocument(); // FC
-    expect(screen.getByText('88')).toBeInTheDocument(); // SAT (low → styled, still shown)
+    expect(screen.getByText('88')).toBeInTheDocument(); // SAT keeps its status color without an alarm icon.
+    expect(screen.getByText('88')).not.toHaveClass('decoration-dotted');
     expect(screen.getByText('36.5')).toBeInTheDocument(); // T°
-    expect(screen.getByTitle('SAT: 88 % · Fuera de rango')).toBeInTheDocument();
+    expect(screen.queryByTitle('SAT: 88 % · Fuera de rango')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveAttribute(
+      'aria-description'
+    );
+    expect(screen.getByText('88').querySelector('svg')).toBeNull();
     expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveClass(
       'border-l-red-500'
     );
@@ -62,7 +67,19 @@ describe('VitalsCell', () => {
   it('renders an empty marker when there are no vitals', () => {
     const { container } = renderCell(undefined);
     expect(container.querySelector('button')).toBeNull();
-    expect(screen.getByTitle('Sin signos vitales')).toBeInTheDocument();
+    expect(container.querySelector('.census-vitals-grid')).toHaveTextContent('PA—FC—SAT—T°—');
+    expect(screen.queryByTitle('Sin signos vitales')).not.toBeInTheDocument();
+  });
+
+  it('keeps detail-only readings available without adding an inline warning', () => {
+    renderCell({ ...VITALS, spo2: 98, painEva: 8 }, 'R1', { age: '44' });
+
+    expect(screen.getByRole('button', { name: 'Ver signos vitales' })).not.toHaveAttribute(
+      'aria-description'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
+    expect(screen.getByText('8')).toBeInTheDocument();
+    expect(screen.queryByText('Fuera de rango')).toBeNull();
   });
 
   it('does not use neonatal ranges solely because the bed is NEO', () => {
@@ -116,7 +133,7 @@ describe('VitalsCell', () => {
     expect(screen.getByText('88')).toHaveClass('text-red-600');
   });
 
-  it('keeps age-only alert colors consistent between the cell and history table', () => {
+  it('keeps age-only readings neutral and aligned between the cell and history table', () => {
     const latest = { ...VITALS, heartRate: 79 };
     renderCell(latest, 'R3', {
       age: '21d',
@@ -136,7 +153,10 @@ describe('VitalsCell', () => {
     const historySection = screen.getByText('Historial · 2 tomas').closest('section');
     expect(historySection).not.toBeNull();
     const history = within(historySection as HTMLElement);
-    expect(history.getByText('79')).toHaveClass('text-red-600');
-    expect(history.getByText('78')).toHaveClass('text-slate-500');
+    expect(history.getByText('79').closest('td')).toHaveClass('text-slate-700');
+    expect(
+      history.getByText('79').parentElement?.querySelector('[aria-label="Fuera de rango"]')
+    ).toBeNull();
+    expect(history.getByText('78').closest('td')).toHaveClass('text-slate-700');
   });
 });

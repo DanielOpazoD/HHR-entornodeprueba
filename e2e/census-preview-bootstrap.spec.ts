@@ -208,6 +208,75 @@ const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRu
 test.describe('Production Preview Bootstrap', () => {
   test.describe.configure({ timeout: 60_000 });
 
+  test('keeps quiet fields, hover admission, floating menus and the header usable', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 800 });
+    const runtimeCollector = createPreviewRuntimeFailureCollector(page);
+    await seedPersistedSessionAndRecord(page, {
+      discharges: buildViewportDischarges(),
+      nursesDayShift: ['Ana María Soto Rojas', ''],
+      tensDayShift: ['Carolina Valenzuela Riquelme', '', ''],
+    });
+    // The pilot is enabled on the developer's machine, but not in standard CI builds.
+    // Seed the UI feature explicitly; this test never consults Jev or writes clinical data.
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'hhr_feature_flags',
+        JSON.stringify({ SPECIALTY_JEV_CONSULTATION: true })
+      );
+    });
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    await assertPreviewBootCompleted(page, runtimeCollector.failures);
+
+    const nurse = page.getByRole('combobox', { name: 'Enfermería · turno largo · puesto 1' });
+    await nurse.focus();
+    await expect(
+      page.getByRole('tooltip').filter({ hasText: 'Ana María Soto Rojas' })
+    ).toBeVisible();
+    const tens = page.getByRole('combobox', { name: 'TENS · turno largo · puesto 1' });
+    await tens.focus();
+    await expect(
+      page.getByRole('tooltip').filter({ hasText: 'Carolina Valenzuela Riquelme' })
+    ).toBeVisible();
+
+    const name = page.locator('.census-identity-name').first();
+    const diagnosis = page.getByRole('button', { name: 'Editar diagnóstico', exact: true }).first();
+    await expect(name).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(diagnosis).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+    await diagnosis.focus();
+    await expect(diagnosis).not.toHaveCSS('box-shadow', 'none');
+
+    const admission = page.getByRole('button', { name: 'Agregar paciente', exact: true }).first();
+    await expect(admission).toHaveCSS('opacity', '0');
+    await admission.focus();
+    await expect(admission).toHaveCSS('opacity', '1');
+    await page.mouse.move(1, 1);
+    await admission.blur();
+    await expect(admission).toHaveCSS('opacity', '0');
+
+    const specialty = page.getByTestId('specialty-actions').locator('summary');
+    await specialty.click();
+    const rules = page.getByRole('button', { name: 'Reglas automáticas', exact: true });
+    await expect(rules).toBeInViewport({ ratio: 1 });
+    const hitTest = await rules.evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return element.contains(
+        document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      );
+    });
+    expect(hitTest).toBe(true);
+    await specialty.click();
+
+    await page.evaluate(() => window.scrollTo(0, 360));
+    const header = page.getByTestId('census-table').locator('thead');
+    await expect.poll(async () => (await header.boundingBox())?.y).toBeCloseTo(96, 0);
+    await expect(header).toBeInViewport({ ratio: 1 });
+    await assertPreviewBootCompleted(page, runtimeCollector.failures);
+    runtimeCollector.detach();
+  });
+
   for (const width of [375, 768, 1440]) {
     test(`keeps navigation above usable census actions at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
@@ -302,6 +371,52 @@ test.describe('Production Preview Bootstrap', () => {
       await expect(page.getByTestId('empty-day-prompt')).toHaveCount(0);
       if (visit < 3) await page.reload();
     }
+    runtimeCollector.detach();
+  });
+
+  test('fits the census and compact toolbar in a 1280px viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const runtimeCollector = createPreviewRuntimeFailureCollector(page);
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    await assertPreviewBootCompleted(page, runtimeCollector.failures);
+
+    const layout = await page.evaluate(() => {
+      const table = document.querySelector('[aria-label="Censo de pacientes, tabla desplazable"]');
+      const toolbar = document.querySelector('[data-testid="census-staff-and-sync"]');
+      if (!table || !toolbar) return null;
+      const surfaces = Array.from(
+        toolbar.querySelectorAll('.census-toolbar-card, [data-testid="rayen-operations-bar"]')
+      ).map(element => element.getBoundingClientRect());
+      return {
+        tableWidth: table.clientWidth,
+        tableScrollWidth: table.scrollWidth,
+        toolbarHeight: toolbar.getBoundingClientRect().height,
+        toolbarTopSpread:
+          Math.max(...surfaces.map(rect => rect.top)) - Math.min(...surfaces.map(rect => rect.top)),
+        toolbarHeightSpread:
+          Math.max(...surfaces.map(rect => rect.height)) -
+          Math.min(...surfaces.map(rect => rect.height)),
+        pageWidth: document.documentElement.clientWidth,
+        pageScrollWidth: document.documentElement.scrollWidth,
+      };
+    });
+
+    expect(layout).not.toBeNull();
+    if (layout) {
+      expect(layout.tableScrollWidth).toBeLessThanOrEqual(layout.tableWidth);
+      expect(layout.pageScrollWidth).toBeLessThanOrEqual(layout.pageWidth);
+      expect(layout.toolbarHeight).toBeLessThanOrEqual(92);
+      expect(layout.toolbarTopSpread).toBeLessThanOrEqual(1);
+      expect(layout.toolbarHeightSpread).toBeLessThanOrEqual(1);
+    }
+    const statusHeader = page.getByRole('columnheader', { name: 'Estado clínico' });
+    await expect(statusHeader).toBeEmpty();
+    expect(await statusHeader.evaluate(element => element.clientWidth)).toBeLessThanOrEqual(40);
+    await expect(page.getByRole('button', { name: /viernes.*3 de abril de 2026/i })).toBeVisible();
+    await expect(page.getByTitle('Opciones de guardado')).toHaveClass(/bg-white/);
+    await expect(page.getByTitle('Enviar censo')).toHaveClass(/bg-teal-600/);
     runtimeCollector.detach();
   });
 

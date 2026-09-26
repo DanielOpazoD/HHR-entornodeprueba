@@ -127,7 +127,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
           Documentos y herramientas
         </h2>
         {!activeTool && (
-          <header className="shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3">
+          <header className="shrink-0 border-b border-slate-200 bg-white px-3 pb-2 pt-2">
             <div className="flex items-center gap-2">
               <FolderOpen size={18} className="shrink-0 text-medical-700" aria-hidden="true" />
               <p className="min-w-0 flex-1 truncate text-[15px] font-bold text-slate-800">
@@ -143,7 +143,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 <X size={16} aria-hidden="true" />
               </button>
             </div>
-            <div className="relative mt-3">
+            <div className="relative mt-2">
               <Search
                 size={14}
                 className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
@@ -157,7 +157,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 placeholder="Buscar"
                 aria-label="Buscar en documentos y herramientas"
                 autoComplete="off"
-                className="h-9 w-full appearance-none rounded-full border border-slate-200 bg-white pl-8 pr-8 text-[13px] text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200 [&::-webkit-search-cancel-button]:hidden"
+                className="h-8 w-full appearance-none rounded-md border border-slate-200 bg-white pl-8 pr-8 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-200 [&::-webkit-search-cancel-button]:hidden"
               />
               {query && (
                 <button
@@ -173,7 +173,11 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                 </button>
               )}
             </div>
-            <div className="mt-2 flex flex-wrap gap-0.5" role="group" aria-label="Categorías">
+            <div
+              className="mt-1.5 flex gap-0.5 overflow-x-auto pb-0.5"
+              role="group"
+              aria-label="Categorías"
+            >
               {chips.map(chip => (
                 <button
                   key={chip.id}
@@ -181,7 +185,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
                   aria-pressed={category === chip.id}
                   onClick={() => setCategory(chip.id)}
                   className={clsx(
-                    'rounded-full px-3 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600',
+                    'shrink-0 rounded-md px-2 py-1 text-[11px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600',
                     category === chip.id
                       ? 'bg-slate-100 text-slate-900'
                       : 'text-slate-500 hover:text-slate-800'
@@ -196,7 +200,7 @@ export const ClinicalLibraryDrawer: React.FC<ClinicalLibraryDrawerProps> = ({
 
         <div
           data-testid="clinical-library-content"
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2"
         >
           {activeTool ? (
             <activeTool.Component

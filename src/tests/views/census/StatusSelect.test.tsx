@@ -34,6 +34,8 @@ describe('StatusSelect (colored dot + popover)', () => {
 
     fireEvent.click(dot);
     const dialog = screen.getByRole('dialog', { name: 'Estado clínico' });
+    expect(dialog.parentElement).toBe(document.body);
+    expect(dialog).toHaveClass('fixed');
     // The popover names the current status and offers the options to change it.
     expect(within(dialog).getAllByText('Estable').length).toBeGreaterThan(0);
     expect(within(dialog).getByRole('button', { name: 'Grave' })).toBeInTheDocument();
@@ -51,15 +53,17 @@ describe('StatusSelect (colored dot + popover)', () => {
     expect(inner).toHaveBeenCalledWith(expect.objectContaining({ target: { value: 'Grave' } }));
   });
 
-  it('flags a critical-empty status (admitted patient without status)', () => {
+  it('keeps an empty status identifiable without an alarm marker', () => {
     renderStatus({
       data: DataFactory.createMockPatient('R1', {
         patientName: 'Juana',
         status: PatientStatus.EMPTY,
       }),
     });
-    expect(screen.getByRole('button', { name: 'Sin estado clínico' })).toBeInTheDocument();
-    expect(screen.getByTitle('Campo crítico vacío')).toBeInTheDocument();
+    const dot = screen.getByRole('button', { name: 'Sin estado clínico' });
+    expect(dot).toHaveAttribute('title', 'Sin estado clínico — asignar');
+    expect(screen.queryByTitle('Campo crítico vacío')).toBeNull();
+    expect(dot.querySelector('.animate-pulse')).toBeNull();
   });
 
   it('does not open the popover when read-only', () => {

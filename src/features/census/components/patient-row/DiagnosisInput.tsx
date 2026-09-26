@@ -111,7 +111,7 @@ export const DiagnosisInput: React.FC<DiagnosisInputProps> = ({
         <DebouncedInput
           type="text"
           className={clsx(
-            'w-full border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7 px-2',
+            'census-inline-field w-full border rounded transition-all duration-200 focus:ring-2 focus:outline-none text-[13px] h-7 px-2',
             hasPathologyError
               ? 'border-red-400 focus:ring-red-200 focus:border-red-500'
               : 'border-slate-200 focus:ring-medical-500/20 focus:border-medical-500',

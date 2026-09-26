@@ -15,7 +15,7 @@ const renderDrawer = (
 };
 
 describe('ClinicalLibraryDrawer', () => {
-  it('opens as a labelled dialog with the search focused and every category visible', () => {
+  it('opens with the search focused and omits empty sections from Todo', () => {
     renderDrawer();
     const dialog = screen.getByRole('dialog', { name: 'Documentos y herramientas' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
@@ -25,9 +25,10 @@ describe('ClinicalLibraryDrawer', () => {
 
     expect(screen.getByRole('button', { name: /^Todo/ })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('heading', { name: 'Formularios' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Protocolos' })).toBeInTheDocument();
-    expect(screen.getByText('Aún no hay protocolos publicados')).toBeInTheDocument();
-    expect(screen.getByText('Aún no hay infografías publicadas')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Protocolos' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Protocolos' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Aún no hay protocolos publicados')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aún no hay infografías publicadas')).not.toBeInTheDocument();
     expect(screen.getByTestId('library-tool-infusion')).toBeInTheDocument();
     expect(screen.getByTestId('library-document-consentimiento-informado')).toBeInTheDocument();
   });
@@ -69,6 +70,8 @@ describe('ClinicalLibraryDrawer', () => {
   it('prints PDFs through the injected handler and downloads Word templates', () => {
     const { documentActions } = renderDrawer();
     const consent = within(screen.getByTestId('library-document-consentimiento-informado'));
+    expect(consent.getByText('PDF · 1 pág.')).toBeInTheDocument();
+    expect(consent.getByRole('button', { name: /^Imprimir/ })).toHaveTextContent('Imprimir');
     fireEvent.click(consent.getByRole('button', { name: /^Imprimir/ }));
     expect(documentActions.print).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'consentimiento-informado' })
@@ -77,6 +80,8 @@ describe('ClinicalLibraryDrawer', () => {
     expect(consent.getAllByRole('button')).toHaveLength(1);
 
     const vmi = within(screen.getByTestId('library-document-planilla-monitorizacion-ventilatoria'));
+    expect(vmi.getByText('Word')).toBeInTheDocument();
+    expect(vmi.getByRole('link', { name: /^Descargar/ })).toHaveTextContent('Descargar');
     expect(vmi.queryByRole('button')).not.toBeInTheDocument();
     expect(vmi.getByRole('link', { name: /^Descargar/ })).toHaveAttribute(
       'href',

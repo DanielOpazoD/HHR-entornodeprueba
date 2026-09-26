@@ -66,6 +66,52 @@ const makeDiff = (overrides: Partial<CensusImportDiff>): CensusImportDiff => ({
 });
 
 describe('manual HHR census authority', () => {
+  it('honors a physician dismissal made after the synchronization preview', () => {
+    const encounter = makeEncounter();
+    const { bedId, patient } = rayenToPatientData(encounter, REFERENCE);
+    const currentPatient = {
+      ...patient,
+      treatingPhysicianId: undefined,
+      treatingPhysicianName: undefined,
+      dismissedTreatingPhysician: {
+        episodeId: encounter.encounterId,
+        practitionerId: 'physician-a',
+        name: 'Médica A',
+      },
+    };
+    const incoming = {
+      ...patient,
+      treatingPhysicianId: 'physician-a',
+      treatingPhysicianName: 'Médica A',
+    };
+    const diff = makeDiff({
+      updates: [
+        {
+          bedId: bedId!,
+          rut: patient.rut,
+          patientName: patient.patientName,
+          patient: incoming,
+          source: encounter,
+          changes: [
+            { field: 'treatingPhysicianId', from: undefined, to: 'physician-a' },
+            { field: 'treatingPhysicianName', from: undefined, to: 'Médica A' },
+          ],
+        },
+      ],
+    });
+
+    const result = applyCensusImportDiff(
+      makeRecord({ [bedId!]: currentPatient }),
+      diff,
+      makeContext()
+    );
+    expect(result.record.beds[bedId!].treatingPhysicianId).toBeUndefined();
+    expect(result.record.beds[bedId!].treatingPhysicianName).toBeUndefined();
+    expect(result.record.beds[bedId!].dismissedTreatingPhysician).toEqual(
+      currentPatient.dismissedTreatingPhysician
+    );
+  });
+
   it('preserves a specialty selected after preview while updating the treating physician', () => {
     const encounter = makeEncounter();
     const { bedId, patient } = rayenToPatientData(encounter, REFERENCE);

@@ -1,13 +1,13 @@
 import React from 'react';
 import clsx from 'clsx';
-import { AlertCircle, CheckCheck } from 'lucide-react';
+import { CheckCheck } from 'lucide-react';
 import type { UpcClassificationRow } from './upcClassificationWindowModel';
 
 export const isAlreadySignedWithoutCriteria = (row: UpcClassificationRow): boolean =>
   row.pendingReason === null && row.classification === null;
 
 const chipClass = (row: UpcClassificationRow): string => {
-  if (row.pendingReason) return 'bg-amber-50 text-amber-800 ring-amber-200';
+  if (row.pendingReason) return 'bg-slate-50 text-slate-600 ring-slate-200';
   if (row.classification === 'UPC_UCI') return 'bg-red-50 text-red-700 ring-red-200';
   if (row.classification === 'UPC_UTI') return 'bg-amber-50 text-amber-800 ring-amber-200';
   return 'bg-slate-50 text-slate-600 ring-slate-200';
@@ -60,8 +60,7 @@ export const UpcClassificationRowItem: React.FC<UpcClassificationRowItemProps> =
           </span>
         )}
         {row.pendingReason && (
-          <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-700">
-            <AlertCircle size={10} aria-hidden="true" />
+          <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-500">
             Pendiente
           </span>
         )}

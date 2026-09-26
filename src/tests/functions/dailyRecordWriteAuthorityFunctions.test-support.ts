@@ -56,6 +56,7 @@ export const makeContext = () => ({
 
 export const createAdminMock = ({
   remoteData,
+  previousData,
   policyData,
   specialtyPolicyData,
   aiRequestData,
@@ -63,6 +64,7 @@ export const createAdminMock = ({
   historyExists = false,
 }: {
   remoteData?: Record<string, unknown>;
+  previousData?: Record<string, unknown>;
   policyData?: Record<string, unknown>;
   specialtyPolicyData?: Record<string, unknown>;
   aiRequestData?: Record<string, unknown>;
@@ -80,15 +82,27 @@ export const createAdminMock = ({
   const docRef = {
     path: 'daily-record-doc',
     collection: vi.fn((name: string) =>
-      name === 'specialtyDecisions' ? auditCollection : historyCollection),
+      name === 'specialtyDecisions' ? auditCollection : historyCollection
+    ),
   };
-  const dailyRecordsCollection = { doc: vi.fn(() => docRef) };
+  const previousDocRef = {
+    path: 'previous-daily-record-doc',
+    collection: vi.fn((name: string) =>
+      name === 'specialtyDecisions' ? auditCollection : historyCollection
+    ),
+  };
+  const dailyRecordsCollection = {
+    doc: vi.fn((date: string) =>
+      previousData && date === previousData.date ? previousDocRef : docRef
+    ),
+  };
   const policyRef = { path: 'settings/rayenImportPolicy' };
   const specialtyPolicyRef = { path: 'specialtyPolicies/active' };
   const legacySpecialtyPolicyRef = { path: 'settings/specialtyAssignment' };
   const aiRequestRef = { path: 'specialtyAiRequests/request' };
-  const settingsCollection = { doc: vi.fn((id: string) =>
-    id === 'rayenImportPolicy' ? policyRef : legacySpecialtyPolicyRef) };
+  const settingsCollection = {
+    doc: vi.fn((id: string) => (id === 'rayenImportPolicy' ? policyRef : legacySpecialtyPolicyRef)),
+  };
   const functionsTelemetryCollection = { add: telemetryAdd };
   const hospitalDoc = {
     collection: vi.fn((name: string) => {
@@ -113,21 +127,23 @@ export const createAdminMock = ({
             }
           : reference === specialtyPolicyRef
             ? { exists: Boolean(specialtyPolicyData), data: () => specialtyPolicyData }
-          : reference === legacySpecialtyPolicyRef
-            ? { exists: false, data: () => undefined }
-          : reference === aiRequestRef
-            ? { exists: Boolean(aiRequestData), data: () => aiRequestData }
-          : reference === historyDoc
-            ? {
-                exists: historyExists,
-                data: () => undefined,
-              }
-            : reference === auditDoc
-              ? { exists: Boolean(specialtyAuditData), data: () => specialtyAuditData }
-            : {
-                exists: Boolean(remoteData),
-                data: () => remoteData,
-              }
+            : reference === legacySpecialtyPolicyRef
+              ? { exists: false, data: () => undefined }
+              : reference === aiRequestRef
+                ? { exists: Boolean(aiRequestData), data: () => aiRequestData }
+                : reference === previousDocRef
+                  ? { exists: Boolean(previousData), data: () => previousData }
+                  : reference === historyDoc
+                    ? {
+                        exists: historyExists,
+                        data: () => undefined,
+                      }
+                    : reference === auditDoc
+                      ? { exists: Boolean(specialtyAuditData), data: () => specialtyAuditData }
+                      : {
+                          exists: Boolean(remoteData),
+                          data: () => remoteData,
+                        }
       )
     ),
     set,

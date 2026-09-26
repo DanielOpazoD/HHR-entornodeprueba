@@ -21,12 +21,12 @@ const LibraryToolRow: React.FC<{
       type="button"
       data-testid={`library-tool-${entry.id}`}
       onClick={() => onOpen(entry.id)}
-      className="group flex w-full items-center gap-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
+      className="group flex w-full items-center gap-2.5 py-1.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-600"
     >
-      <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-medical-700">
+      <span className="inline-flex size-5 shrink-0 items-center justify-center text-medical-700 [&>svg]:size-4">
         {TOOL_REGISTRY[entry.id].icon}
       </span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-slate-800 group-hover:text-medical-800">
+      <span className="min-w-0 flex-1 text-[13px] leading-snug text-slate-800 group-hover:text-medical-800">
         {entry.title}
       </span>
       <ChevronRight
@@ -58,18 +58,19 @@ export const LibraryEntryList: React.FC<LibraryEntryListProps> = ({
     entries,
     category === 'all' ? LIBRARY_CATEGORY_IDS : [category]
   );
-  const visibleGroups = trimmedQuery ? groups.filter(group => group.entries.length > 0) : groups;
+  const visibleGroups =
+    category === 'all' || trimmedQuery ? groups.filter(group => group.entries.length > 0) : groups;
 
   if (visibleGroups.length === 0) {
     return (
       <p className="py-8 text-center text-[12px] text-slate-500">
-        Sin resultados para «{trimmedQuery}»
+        {trimmedQuery ? `Sin resultados para «${trimmedQuery}»` : 'No hay documentos disponibles.'}
       </p>
     );
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {visibleGroups.map(group => {
         const meta = findLibraryCategory(group.category);
         const headingId = `library-group-${group.category}`;

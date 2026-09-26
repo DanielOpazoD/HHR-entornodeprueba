@@ -42,9 +42,16 @@ describe('censusTableColumnProfileController', () => {
 
   it('fits the UPC control without overwriting saved widths or exposing it to specialists', () => {
     const compact = { ...columns, upc: 22 };
-    expect(resolveVisibleCensusColumns(compact).upc).toBe(64);
+    expect(resolveVisibleCensusColumns(compact).upc).toBe(48);
     expect(resolveVisibleCensusColumns(compact, 'specialist').upc).toBe(0);
     expect(compact.upc).toBe(22);
+  });
+
+  it('keeps VVP within the DMI column for old compact preferences', () => {
+    const compact = { ...columns, dmi: 60 };
+    expect(resolveVisibleCensusColumns(compact)).toMatchObject({ admission: 116, dmi: 96 });
+    expect(resolveVisibleCensusColumns(compact, 'specialist').dmi).toBe(0);
+    expect(compact.dmi).toBe(60);
   });
 
   it('hides rut, age, cqx, type and specialty columns in every access profile', () => {
@@ -74,12 +81,18 @@ describe('censusTableColumnProfileController', () => {
   });
 
   it.each(['default', 'specialist'] as const)(
-    'keeps identity readable without mutating saved widths (%s)',
+    'balances patient identity and diagnosis without mutating saved widths (%s)',
     profile => {
-      const saved = { ...columns, actions: 22, bed: 28, name: 150, diagnosis: 123 };
+      const saved = { ...columns, actions: 22, bed: 28, name: 150, diagnosis: 123, status: 20 };
       const projected = resolveVisibleCensusColumns(saved, profile);
-      expect(projected).toMatchObject({ actions: 40, bed: 64, name: 380, diagnosis: 280 });
-      expect(saved).toMatchObject({ actions: 22, bed: 28, name: 150, diagnosis: 123 });
+      expect(projected).toMatchObject({
+        actions: 40,
+        bed: 54,
+        name: 310,
+        diagnosis: 280,
+        status: profile === 'specialist' ? 0 : 32,
+      });
+      expect(saved).toMatchObject({ actions: 22, bed: 28, name: 150, diagnosis: 123, status: 20 });
       const wider = resolveVisibleCensusColumns({ ...saved, name: 400, diagnosis: 350 }, profile);
       expect(wider).toMatchObject({ name: 400, diagnosis: 350 });
     }

@@ -36,7 +36,7 @@ describe('ScoresCell', () => {
 
     const status = screen.getByTestId('cudyr-pending-status');
     expect(status).toHaveTextContent('Programado · turno noche');
-    expect(status).toHaveClass('border-slate-200', 'bg-slate-50', 'text-slate-500');
+    expect(status).toHaveClass('border-transparent', 'text-slate-500');
     expect(status).not.toHaveClass('border-amber-200', 'bg-amber-50', 'text-amber-700');
   });
 

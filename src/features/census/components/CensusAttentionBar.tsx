@@ -48,7 +48,7 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
         className={`inline-flex min-h-8 items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${
           active
             ? 'border-amber-400 bg-amber-100 text-amber-800'
-            : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
+            : 'border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
         }`}
       >
         <AlarmClock

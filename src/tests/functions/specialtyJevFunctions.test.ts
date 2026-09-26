@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const { createSpecialtyJevFunctions } = require('../../../functions/lib/specialtyJevFunctions.js');
+const { getCie10Label } = require('../../../functions/lib/specialtyCie10Catalog.js');
 const { OPTIONS } = require('../../../functions/lib/specialtyJevAdapter.js');
 const firestoreIndexes = require('../../../firestore.indexes.json');
 const currentRapaNuiDate = () => {
@@ -24,7 +25,6 @@ const policy = {
   rules: [],
   memory: [],
   aiMonthlyLimit: 3,
-  diagnosisLabels: { 'J18.9': 'Neumonía sintética' },
   aiRubrics: Object.fromEntries(
     OPTIONS.map((key: string) => [key, `Criterio sintético aprobado para ${key}.`])
   ),
@@ -58,7 +58,11 @@ const harness = () => {
   const firestore = {
     collection: () => ({
       doc: () => ({
-        collection: (name: string) => ({ doc: (id: string) => ({ key: `${name}/${id}` }) }),
+        collection: (name: string) => ({ doc: (id: string) => ({
+          key: `${name}/${id}`,
+          get: async () => ({ exists: docs.has(`${name}/${id}`),
+            data: () => docs.get(`${name}/${id}`) }),
+        }) }),
       }),
     }),
     runTransaction: async (callback: (transaction: object) => Promise<unknown>) =>
@@ -84,6 +88,8 @@ const harness = () => {
     target: 'bed',
     episodeId: 'synthetic-episode',
     requestId: 'synthetic-request-001',
+    expectedCode: 'J18.9',
+    expectedCanonicalLabel: getCie10Label('J18.9'),
   };
   return { docs, callable, context, input, date };
 };
@@ -104,6 +110,73 @@ describe('consultative Jev callable with synthetic provider responses', () => {
   it('stays disabled without explicit clinical approval', async () => {
     const { callable, input, context } = harness();
     await expect(callable.run(input, context)).rejects.toThrow(/disabled/i);
+  });
+
+  it('reads only an authorized policy projection without calling Jev or requiring its key', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    const { callable, context, docs } = harness();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const read = () => callable.run({ action: 'read_policy' }, context);
+    await expect(read()).resolves.toEqual({ revision: 1, autoEnabled: false,
+      memoryEnabled: false, aiMode: 'consultative', rules: [], memory: [] });
+    docs.set('specialtyPolicies/active', { ...policy,
+      memory: [{ id: 'memory_J18_9', kind: 'assign', cie10Code: 'J18.9',
+        specialty: 'Med Interna', scope: 'all', revision: 1 }] });
+    await expect(read()).resolves.toMatchObject({
+      memory: [{ cie10Code: 'J18.9', specialty: 'Med Interna' }],
+    });
+    docs.delete('specialtyPolicies/active');
+    await expect(read()).resolves.toEqual({ revision: 0, autoEnabled: false,
+      memoryEnabled: false, aiMode: 'off', rules: [], memory: [] });
+    await expect(callable.run({ action: 'read_policy' }, { auth: null })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a changed canonical diagnosis before calling Jev', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs } = harness();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(callable.run({ ...input, expectedCanonicalLabel: 'Otra etiqueta' }, context))
+      .rejects.toThrow(/catalog changed/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(docs.has('specialtyAiRequests/synthetic-request-001')).toBe(false);
+  });
+
+  it('never sends a recorded patient description for a code absent from the catalog', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs, date } = harness();
+    const record = docs.get(`dailyRecords/${date}`)!;
+    (record.beds as Record<string, Record<string, unknown>>).R1.cie10Code = 'F23';
+    (record.beds as Record<string, Record<string, unknown>>).R1.cie10Description =
+      'Dato clínico privado NO DEBE SALIR';
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, body: null,
+      text: async () => JSON.stringify(result) });
+    vi.stubGlobal('fetch', fetchMock);
+    await callable.run({ ...input, expectedCode: 'F23',
+      expectedCanonicalLabel: 'CIE-10 F23' }, context);
+    const requestBody = fetchMock.mock.calls[0][1].body as string;
+    expect(requestBody).toContain('CIE-10 F23');
+    expect(requestBody).not.toContain('NO DEBE SALIR');
+  });
+
+  it('does not consult Jev when an active exact-code rule requires manual review', async () => {
+    process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT = 'enabled';
+    process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
+    process.env.TYPESAFE_API_KEY = 'test';
+    const { callable, input, context, docs } = harness();
+    docs.set('specialtyPolicies/active', { ...policy, autoEnabled: true,
+      rules: [{ id: 'review_j18_9', kind: 'review', cie10Code: 'J18.9',
+        scope: 'all', revision: 1 }] });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(callable.run(input, context)).rejects.toThrow(/rule requires/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('returns a suggestion without writing the patient and invalidates a late episode', async () => {

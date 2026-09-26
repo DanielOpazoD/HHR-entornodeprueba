@@ -65,14 +65,6 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
           className="flex gap-1 border-b border-slate-200"
         >
           {(['CUDYR', 'BRADEN', 'DOWNTON'] as const).map((code, index) => {
-            const score =
-              code === 'BRADEN' ? model.braden : code === 'DOWNTON' ? model.downton : model.cudyr;
-            const urgency =
-              code === 'BRADEN'
-                ? model.braden?.assessment.reapplication.urgency
-                : code === 'DOWNTON'
-                  ? model.downton?.reapplication?.urgency
-                  : undefined;
             return (
               <button
                 key={code}
@@ -106,9 +98,6 @@ export const ScoresDetailModal: React.FC<ScoresDetailModalProps> = ({
                 )}
               >
                 {code === 'BRADEN' ? 'Braden' : code === 'DOWNTON' ? 'Downton' : 'CUDYR'}
-                {score && urgency && urgency !== 'ok' && (
-                  <span className="text-xs text-red-700">Pendiente</span>
-                )}
               </button>
             );
           })}

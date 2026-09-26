@@ -4,12 +4,14 @@ import { useStaffContext } from '@/context/StaffContext';
 import type { ShiftIndicatorState } from '@/features/census/controllers/censusStaffHeaderController';
 import {
   buildResolvedStaffSelectionOptions,
+  isVacancySelection,
   resolveStaffSelectionValue,
 } from '@/services/staff/staffSelectionPresentation';
 import { buildStaffSelectionSelectClassName } from './staffSelectionSelectStyles';
 import { formatStaffDisplayName } from '@/services/staff/staffDisplayName';
 import { partitionStaffOptions } from '@/services/staff/staffUsage';
 import { StaffMoreOptionsButton } from './StaffMoreOptionsButton';
+import { StaffSelectionNameHint } from './StaffSelectionNameHint';
 import {
   reconcileNurseCatalogNames,
   reconcileSelectedNurseName,
@@ -76,13 +78,13 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
 
   return (
     <div
-      className={`card px-2 py-1.5 flex flex-col gap-0.5 !border-slate-200/80 !shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:!border-slate-300 transition-colors w-fit !overflow-visible ${className || ''}`}
+      className={`census-toolbar-card rounded-xl border border-slate-200 bg-white min-h-20 px-2 py-1 flex flex-col justify-between gap-0.5 hover:border-slate-300 transition-colors w-fit overflow-visible ${className || ''}`}
     >
       <div className="flex justify-between items-center pb-0.5 border-b border-slate-100">
         <button
           type="button"
           onClick={() => setShowNurseManager(true)}
-          className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1 transition-colors hover:text-medical-600"
+          className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-1 transition-colors hover:text-medical-600"
           aria-label="Abrir catálogo de Enfermería"
         >
           <Users size={11} /> Enfermería
@@ -110,7 +112,7 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
           )}
         </span>
         {[0, 1].map(idx => (
-          <div key={`day-${idx}`} className="relative">
+          <div key={`day-${idx}`} className="group relative hover:z-50 focus-within:z-50">
             <select
               className={buildStaffSelectionSelectClassName({
                 baseClassName: selectClassName,
@@ -118,6 +120,9 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
                 tone: 'day',
               })}
               value={resolveStaffSelectionValue(reconciledDayShift[idx], staffIdentities, 'nurse')}
+              aria-describedby={
+                isVacancySelection(nursesDayShift[idx]) ? undefined : `nurse-day-${idx}-name`
+              }
               onChange={e => onUpdateNurse('day', idx, e.target.value)}
               aria-label={`Enfermería · turno largo · puesto ${idx + 1}`}
             >
@@ -127,6 +132,10 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
                 </option>
               ))}
             </select>
+            <StaffSelectionNameHint
+              id={`nurse-day-${idx}-name`}
+              name={resolveStaffSelectionValue(reconciledDayShift[idx], staffIdentities, 'nurse')}
+            />
             {groups.hidden.length === 0 && (
               <ChevronDown
                 size={10}
@@ -158,7 +167,7 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
           )}
         </span>
         {[0, 1].map(idx => (
-          <div key={`night-${idx}`} className="relative">
+          <div key={`night-${idx}`} className="group relative hover:z-50 focus-within:z-50">
             <select
               className={buildStaffSelectionSelectClassName({
                 baseClassName: selectClassName,
@@ -170,6 +179,9 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
                 staffIdentities,
                 'nurse'
               )}
+              aria-describedby={
+                isVacancySelection(nursesNightShift[idx]) ? undefined : `nurse-night-${idx}-name`
+              }
               onChange={e => onUpdateNurse('night', idx, e.target.value)}
               aria-label={`Enfermería · turno noche · puesto ${idx + 1}`}
             >
@@ -179,6 +191,10 @@ export const NurseSelector: React.FC<NurseSelectorProps> = ({
                 </option>
               ))}
             </select>
+            <StaffSelectionNameHint
+              id={`nurse-night-${idx}-name`}
+              name={resolveStaffSelectionValue(reconciledNightShift[idx], staffIdentities, 'nurse')}
+            />
             {groups.hidden.length === 0 && (
               <ChevronDown
                 size={10}

@@ -2,8 +2,7 @@
  * PatientIdentityCell - Celda única de identidad del paciente (rediseño censo 2026)
  *
  * Unifica las antiguas columnas Nombre / RUT / Edad en un solo <td>:
- * - Fila 1: nombre + edad inline inmediatamente después, como una sola línea
- *   visual "Daniel Opazo (35a)"; la edad abre datos demográficos. El nombre
+ * - Fila 1: nombre (puede envolver a dos líneas) + edad; la edad abre datos demográficos. El nombre
  *   solo es editable (input real) para cuna RN provisional y camas
  *   vacías (el selector de activación necesita input[name="patientName"]).
  * - Fila 2: RUT en letra pequeña gris, solo lectura, con check de validación
@@ -15,20 +14,28 @@
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
 import { formatAge } from '@/utils/ageDisplayUtils';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useStaffContext } from '@/context/StaffContext';
-import { resolveVisibleTreatingPhysicianName } from '@/services/staff/treatingPhysicianCatalog';
+import {
+  findProfessionalByRayenIdentity,
+  resolveVisibleTreatingPhysicianName,
+} from '@/services/staff/treatingPhysicianCatalog';
+import {
+  dismissTreatingPhysician,
+  isDismissedTreatingPhysician,
+} from '@/shared/census/treatingPhysicianDismissal';
 import { resolveNameInputState } from './nameInputController';
 import { ClinicalPanelTrigger } from './ClinicalPanelTrigger';
 import { PatientLaboratoryTrigger } from './PatientLaboratoryTrigger';
 import { PatientRadiologyTrigger } from './PatientRadiologyTrigger';
 import { SpecialtyChip } from './SpecialtyChip';
 import type { BaseCellProps, DebouncedTextHandler } from './inputCellTypes';
+import type { PatientRowPatientPatch } from './patientRowContracts';
 
 /** Admission date as "DD-MM-YYYY" for the FI (fecha de ingreso) tag under the name. */
 const formatAdmissionShort = (raw?: string): string => {
@@ -49,6 +56,8 @@ interface PatientIdentityCellProps extends BaseCellProps {
   parentBedId?: string;
   hasRutError: boolean;
   onNameChange: DebouncedTextHandler;
+  onMultipleUpdate?: (fields: PatientRowPatientPatch) => void;
+  physicianReadOnly?: boolean;
   onOpenDemographics: () => void;
 }
 
@@ -61,6 +70,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   currentDateString,
   hasRutError,
   onNameChange,
+  onMultipleUpdate,
+  physicianReadOnly = readOnly,
   onOpenDemographics,
 }) => {
   const [copyFeedback, setCopyFeedback] = useState<'idle' | 'copied'>('idle');
@@ -91,22 +102,18 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
   const specialtyScopeBedId = isSubRow ? parentBedId : data.bedId;
-  const visibleTreatingPhysicianName = resolveVisibleTreatingPhysicianName(
+  const matchedPhysician = findProfessionalByRayenIdentity(
     professionalsCatalog,
     data.treatingPhysicianId,
     data.treatingPhysicianName
   );
-  // A real occupant always shows the details row so the specialty chip (or "Pendiente asignar")
-  // has a home, even before RUT/edad/FI are filled in.
-  const isRealPatient = !isEmpty && !!fullName.trim();
-  const showIdentityDetails =
-    !isEmpty &&
-    (hasRutValue ||
-      !!data.age ||
-      !!admissionShort ||
-      !!specialtyLabel ||
-      !!visibleTreatingPhysicianName ||
-      isRealPatient);
+  const visibleTreatingPhysicianName = isDismissedTreatingPhysician(data, data)
+    ? ''
+    : resolveVisibleTreatingPhysicianName(
+        professionalsCatalog,
+        data.treatingPhysicianId,
+        data.treatingPhysicianName
+      );
   const handleSpecialtyAssign = onNameChange('specialty');
 
   useEffect(() => {
@@ -151,29 +158,37 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
 
   return (
     <td className="census-identity-cell py-1 px-1 border-r border-slate-200 align-middle">
-      <div className="relative">
+      <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-0.5">
         {isSubRow && (
           <div className="absolute left-[-15px] top-2 text-slate-300">
             <ArrowRight size={14} />
           </div>
         )}
-        <div className="flex items-center gap-1">
+        <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-1">
           {canEditInlineName ? (
             <div
               className={clsx(
-                'flex h-7 w-full min-w-0 flex-1 items-center gap-1 overflow-hidden rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
+                'census-identity-name flex min-h-7 w-full min-w-0 flex-1 items-start gap-1 rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
-              <DebouncedInput
-                type="text"
-                name="patientName"
-                className="h-full min-w-0 flex-1 truncate border-0 bg-transparent p-0 text-[13px] font-semibold text-inherit focus:outline-none"
-                placeholder="Nombre RN / Niño"
-                value={fullName}
-                onChange={handlePatientNameChange}
-                debounceMs={350}
-              />
+              <div className="group/name relative min-h-6 min-w-0 flex-1">
+                <DebouncedInput
+                  type="text"
+                  name="patientName"
+                  className="absolute inset-0 h-full w-full border-0 bg-slate-50 p-0 text-[13px] font-semibold text-inherit opacity-0 focus:opacity-100 focus:outline-none"
+                  placeholder="Nombre RN / Niño"
+                  value={fullName}
+                  onChange={handlePatientNameChange}
+                  debounceMs={350}
+                />
+                <span
+                  aria-hidden="true"
+                  className="block min-w-0 break-words leading-4 group-focus-within/name:invisible"
+                >
+                  {fullName || 'Nombre RN / Niño'}
+                </span>
+              </div>
               {ageBadge}
             </div>
           ) : isEmpty ? (
@@ -194,16 +209,14 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           ) : (
             <div
               className={clsx(
-                'flex w-full min-w-0 flex-1 items-center gap-1 overflow-hidden p-0.5 h-7 border rounded transition-all duration-200 text-[13px] font-semibold bg-slate-50 text-slate-700 cursor-default',
+                'census-identity-name relative flex w-full min-w-0 flex-1 items-start gap-1 rounded border bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 cursor-default',
                 'border-slate-200',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
               {/*
-                Read-only display of an official patient's name. Rendered as a borderless, content-width
-                <input> (not a <span>) so the row keeps `input[name="patientName"]` — the stable hook the
-                whole census test/e2e suite reads a patient's name through — while still looking like plain
-                text. `size` sizes it to the name so the "(edad)" badge hugs right after it.
+                Preserve the read-only input as the census/e2e value hook. Its visible text is rendered
+                separately so names can wrap naturally instead of being truncated by a one-line input.
               */}
               <input
                 type="text"
@@ -211,48 +224,25 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 readOnly
                 tabIndex={-1}
                 value={fullName}
-                title={fullName || undefined}
-                size={Math.max(fullName.length, 1)}
-                placeholder={isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente'}
-                className={clsx(
-                  'min-w-0 max-w-full truncate border-0 bg-transparent p-0 cursor-default focus:outline-none',
-                  !fullName && 'text-slate-400'
-                )}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-0 top-0 h-px w-px border-0 opacity-0"
               />
+              <span
+                className={clsx('min-w-0 break-words leading-4', !fullName && 'text-slate-400')}
+              >
+                {fullName || (isSubRow ? 'Nombre RN / Niño' : 'Nombre Paciente')}
+              </span>
               {ageBadge}
             </div>
           )}
-          {!isEmpty && (
-            <span className="inline-flex shrink-0 items-center gap-0.5">
-              <ClinicalPanelTrigger
-                bedId={data.bedId}
-                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-                patientName={fullName}
-                patientRun={data.rut}
-                clinicalEpisodeId={data.clinicalEpisodeId}
-                encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
-                admissionDate={data.admissionDate}
-                censusDate={currentDateString}
-              />
-              <PatientLaboratoryTrigger
-                patient={data}
-                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-                censusDate={currentDateString}
-              />
-              <PatientRadiologyTrigger
-                patient={data}
-                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-              />
-            </span>
-          )}
         </div>
-        {showIdentityDetails && (
-          <div className="mt-0.5 flex items-center gap-1 pl-0.5 text-[10px] leading-tight text-slate-400">
+        {!isEmpty && (
+          <div className="census-identity-details col-start-1 row-start-2 mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 pl-0.5 text-[10px] leading-tight text-slate-500">
             {hasRutValue ? (
               <>
                 <span
                   className={clsx(
-                    'truncate tabular-nums',
+                    'whitespace-nowrap tabular-nums',
                     hasRutError && 'text-red-500',
                     isRutMode && 'cursor-pointer hover:text-slate-500'
                   )}
@@ -325,15 +315,58 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
                 }
               />
               {visibleTreatingPhysicianName && (
-                <span
-                  className="max-w-28 truncate text-[9px] font-medium text-slate-400"
-                  title={`Médico tratante: ${visibleTreatingPhysicianName}`}
-                >
-                  · {visibleTreatingPhysicianName}
+                <span className="group/physician inline-flex min-w-0 items-center gap-0.5">
+                  <span
+                    className="max-w-28 truncate text-[9px] font-medium text-slate-400"
+                    title={`Médico tratante: ${visibleTreatingPhysicianName}`}
+                  >
+                    · {visibleTreatingPhysicianName}
+                  </span>
+                  {!physicianReadOnly && onMultipleUpdate && data.clinicalEpisodeId?.trim() && (
+                    <button
+                      type="button"
+                      className="rounded p-0.5 text-slate-400 opacity-0 transition-opacity hover:text-slate-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500 group-hover/physician:opacity-100"
+                      aria-label={`Quitar médico tratante ${visibleTreatingPhysicianName}`}
+                      title={`Quitar médico tratante ${visibleTreatingPhysicianName}`}
+                      onClick={() =>
+                        onMultipleUpdate(
+                          dismissTreatingPhysician(data, {
+                            practitionerId: matchedPhysician?.rayenPractitionerId,
+                            name: visibleTreatingPhysicianName,
+                          })
+                        )
+                      }
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  )}
                 </span>
               )}
             </span>
           </div>
+        )}
+        {!isEmpty && (
+          <span className="col-start-2 row-span-2 row-start-1 inline-flex shrink-0 items-center gap-0">
+            <ClinicalPanelTrigger
+              bedId={data.bedId}
+              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+              patientName={fullName}
+              patientRun={data.rut}
+              clinicalEpisodeId={data.clinicalEpisodeId}
+              encounterRouteHint={data.eloisaManualImportAudit?.encounterRoute}
+              admissionDate={data.admissionDate}
+              censusDate={currentDateString}
+            />
+            <PatientLaboratoryTrigger
+              patient={data}
+              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+              censusDate={currentDateString}
+            />
+            <PatientRadiologyTrigger
+              patient={data}
+              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+            />
+          </span>
         )}
       </div>
     </td>

@@ -130,6 +130,8 @@ describe('CensusStaffHeader', () => {
   it('renders selectors and summary with normalized movement counts', async () => {
     render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} />);
 
+    expect(screen.getByTestId('rayen-operations-loading')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByText('Cargando controles…')).toBeVisible();
     expect(screen.getByTestId('nurse-selector')).toBeInTheDocument();
     expect(screen.getByTestId('tens-selector')).toBeInTheDocument();
     expect(screen.getByTestId('summary-card')).toBeInTheDocument();
@@ -143,6 +145,7 @@ describe('CensusStaffHeader', () => {
     // The Rayen control is loaded on demand, so it resolves after the first paint.
     expect(staffAndSync).toContainElement(await screen.findByTestId('rayen-operations-bar'));
     expect(screen.getAllByTestId('rayen-operations-bar')).toHaveLength(1);
+    expect(screen.queryByTestId('rayen-operations-loading')).not.toBeInTheDocument();
   });
 
   it('passes readOnly class to selectors and hides summary when stats are null', () => {
@@ -159,14 +162,18 @@ describe('CensusStaffHeader', () => {
 
     render(<CensusStaffHeader stats={null} readOnly={true} />);
 
-    expect(screen.getByTestId('nurse-class').textContent).toBe('pointer-events-none opacity-80');
-    expect(screen.getByTestId('tens-class').textContent).toBe('pointer-events-none opacity-80');
+    expect(screen.getByTestId('nurse-class').textContent).toContain(
+      'pointer-events-none opacity-80'
+    );
+    expect(screen.getByTestId('tens-class').textContent).toContain(
+      'pointer-events-none opacity-80'
+    );
     expect(screen.getByTestId('nurse-day').textContent).toBe('[]');
     expect(screen.getByTestId('tens-night').textContent).toBe('[]');
     expect(screen.queryByTestId('summary-card')).not.toBeInTheDocument();
   });
 
-  it('keeps the scale filter outside the staff and synchronization row', async () => {
+  it('keeps the scale filter beside the census summary without a dedicated row', async () => {
     mockedUseDailyRecordBeds.mockReturnValue({
       R1: DataFactory.createMockPatient('R1', {
         patientName: 'Paciente con escala pendiente',
@@ -189,7 +196,7 @@ describe('CensusStaffHeader', () => {
     const rayen = await screen.findByTestId('rayen-operations-bar');
     const scales = screen.getByTestId('census-attention-bar');
     expect(rayen).not.toContainElement(scales);
-    expect(screen.getByTestId('census-staff-and-sync')).not.toContainElement(scales);
+    expect(screen.getByTestId('census-staff-and-sync')).toContainElement(scales);
   });
 
   it('keeps scale surveillance available in read-only mode without showing synchronization', async () => {

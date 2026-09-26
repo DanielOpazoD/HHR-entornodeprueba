@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const { buildJevEvidence } = require('../../../functions/lib/specialtyJevEvidence.js');
+const { getCie10Label } = require('../../../functions/lib/specialtyCie10Catalog.js');
 const { OPTIONS } = require('../../../functions/lib/specialtyJevAdapter.js');
 const policy = { revision: 4,
-  diagnosisLabels: { 'J18.9': 'Neumonía de prueba' },
   aiRubrics: Object.fromEntries(OPTIONS.map((key: string) => [key,
     `Criterio de prueba sintético para ${key}.`])),
 };
@@ -23,8 +23,15 @@ describe('Jev evidence scoping', () => {
       .not.toBe(evidence.digest);
   });
 
-  it('requires an approved canonical label', () => {
-    expect(buildJevEvidence({ ...base, policy: { ...policy,
-      diagnosisLabels: {} } })).toBeNull();
+  it('uses catalog labels where available and code only for unknown codes, never record text', () => {
+    expect(buildJevEvidence(base).request.state.diagnosis.label).toBe(getCie10Label('J18.9'));
+    const unknown = buildJevEvidence({ ...base, patient: { ...base.patient,
+      cie10Code: 'F23', cie10Description: 'Nombre y dato privado NO DEBE SALIR' } });
+    expect(unknown.request.state.diagnosis).toEqual({ code: 'F23', label: 'CIE-10 F23' });
+    expect(JSON.stringify(unknown.request)).not.toContain('NO DEBE SALIR');
+    expect(buildJevEvidence({ ...base, patient: { ...base.patient,
+      cie10Code: 'J18.9999' } }).request.state.diagnosis.label).toBe('CIE-10 J18.9999');
+    expect(buildJevEvidence({ ...base, patient: { ...base.patient,
+      cie10Code: 'not-a-code' } })).toBeNull();
   });
 });

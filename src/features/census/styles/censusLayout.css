@@ -2,6 +2,8 @@
 .census-table-scroll {
   max-width: 100%;
   overflow-x: auto;
+  background-color: #fff;
+  border-radius: 12px;
   scrollbar-width: auto;
   scroll-padding-inline-start: 72px;
 }
@@ -9,6 +11,16 @@
 .census-table-scroll:focus-visible {
   outline: 2px solid #0f766e;
   outline-offset: 2px;
+}
+
+/* Keep the turtle outside the table while matching the three movement cards below it. */
+@media screen and (min-width: 960px) {
+  .census-table-scroll,
+  .census-movement-section,
+  [data-testid='census-register-sections-loading'] {
+    margin-left: 56px;
+    margin-right: 24px;
+  }
 }
 
 @media screen {
@@ -34,15 +46,56 @@
     padding-top: 6px;
   }
 
-  /* Neutral field outlines recede at rest; errors, hover and focus stay explicit. */
-  .census-identity-cell .h-7.border-slate-200:not(.border-red-400):not(:hover):not(:focus-within),
-  .census-diagnosis-cell button.h-7.border-slate-200:not(:hover):not(:focus-visible) {
+  /* Explicit component classes survive changes in field height and wrapping. */
+  .census-identity-name:not(.border-red-400):not(:hover):not(:focus-within),
+  .census-inline-field:not(.border-red-400):not(:hover):not(:focus-visible):not(:focus-within) {
     border-color: transparent;
     background-color: transparent;
   }
 
-  .census-identity-cell .text-slate-400 {
+  .census-identity-name:not(.border-red-400):hover {
+    background-color: #f8fafc;
+  }
+
+  .census-identity-details .text-slate-400 {
     color: #64748b;
+  }
+
+  .census-toolbar .census-toolbar-card,
+  .census-toolbar [data-testid='rayen-operations-bar'],
+  .census-toolbar [data-testid='rayen-operations-loading'] {
+    border-radius: 10px;
+    border-color: #e2e8f0;
+    box-shadow: none;
+  }
+
+  .census-toolbar > *,
+  .census-toolbar-summary > * {
+    align-self: stretch;
+  }
+
+  .census-toolbar-quick-actions:empty {
+    display: none;
+  }
+
+  .census-movement-section tbody > tr:focus-within {
+    background-color: #f0fdfa;
+  }
+
+  /* overflow-x:auto otherwise captures vertical sticky positioning, even without overflow. */
+  .census-table-scroll[data-horizontal-overflow='false'] {
+    overflow: visible;
+  }
+
+  .census-table-scroll[data-horizontal-overflow='false'] > table > thead {
+    top: 96px; /* Main navigation (56px) + date strip (40px). */
+    z-index: 38;
+  }
+
+  .census-table-scroll[data-horizontal-overflow='false'] > table > thead > tr > th {
+    position: relative;
+    top: auto;
+    box-shadow: 0 1px 0 #e2e8f0;
   }
 
   /* Every occupied, empty and crib row has actions first and bed second. */
@@ -66,6 +119,71 @@
   }
 }
 
+/* A 13-inch Retina Air at 125% has about 1024 CSS pixels. Preserve all clinical
+   columns in that range by sharing the available width proportionally. Narrower
+   viewports keep the table's deliberate horizontal scrolling. */
+@media screen and (min-width: 960px) and (max-width: 1100px) {
+  .census-table-scroll > table {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .census-table-scroll > table > thead > tr > th {
+    width: var(--census-column-share) !important;
+    max-width: none !important;
+  }
+
+  /* Keep the identity's two-line name layout at 125% zoom while giving diagnosis
+     a substantially larger share; reclaim the difference from less text-heavy columns. */
+  .census-table-scroll[data-access-profile='default']
+    > table
+    > thead
+    > tr
+    > th.census-column-actions {
+    width: 4% !important;
+  }
+  .census-table-scroll[data-access-profile='default'] > table > thead > tr > th.census-column-bed {
+    width: 5% !important;
+  }
+  .census-table-scroll[data-access-profile='default']
+    > table
+    > thead
+    > tr
+    > th.census-column-status {
+    width: 3% !important;
+  }
+  .census-table-scroll[data-access-profile='default'] > table > thead > tr > th.census-column-name {
+    width: 35% !important;
+  }
+  .census-table-scroll[data-access-profile='default']
+    > table
+    > thead
+    > tr
+    > th.census-column-diagnosis {
+    width: 23% !important;
+  }
+  .census-table-scroll[data-access-profile='default']
+    > table
+    > thead
+    > tr
+    > th.census-column-admission {
+    width: 12% !important;
+  }
+  .census-table-scroll[data-access-profile='default'] > table > thead > tr > th.census-column-dmi {
+    width: 6% !important;
+  }
+  .census-table-scroll[data-access-profile='default']
+    > table
+    > thead
+    > tr
+    > th.census-column-scores {
+    width: 8% !important;
+  }
+  .census-table-scroll[data-access-profile='default'] > table > thead > tr > th.census-column-upc {
+    width: 4% !important;
+  }
+}
+
 @media print {
   .census-table-scroll {
     overflow: visible;
@@ -78,7 +196,7 @@
 
   /* Preserve column proportions, not screen pixels. Hidden columns stay hidden. */
   .census-table-scroll > table > thead > tr > th {
-    width: calc(var(--census-column-width) / var(--census-table-width) * 100%) !important;
+    width: var(--census-column-share) !important;
     max-width: none !important;
   }
 }

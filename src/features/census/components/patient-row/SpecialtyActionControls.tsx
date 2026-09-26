@@ -1,48 +1,51 @@
-import type { JevSuggestion } from '@/services/specialty/specialtyJevClient';
+import type { SpecialtyDecisionMeta } from '@/types/domain/specialtyDecision';
+import {
+  SPECIALTY_CHIP_FALLBACK,
+  SPECIALTY_CHIP_STYLES,
+} from '@/constants/clinicalSpecialtyConstants';
+import clsx from 'clsx';
 
-interface JevControlsProps {
-  busy: boolean;
-  suggestion: { requestId: string; result: JevSuggestion } | null;
-  onConsult: () => void;
-  onAccept: () => void;
-}
-
-export const SpecialtyJevControls = ({
-  busy,
-  suggestion,
-  onConsult,
-  onAccept,
-}: JevControlsProps) => (
-  <div className="mt-1 border-t border-slate-200 pt-1">
-    <button
-      type="button"
-      onClick={onConsult}
-      disabled={busy}
-      className="rounded px-1.5 py-1 text-left text-[11px] text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+export const SpecialtyBadge = ({
+  specialty,
+  decision,
+  readOnly = false,
+}: {
+  specialty: string;
+  decision?: SpecialtyDecisionMeta;
+  readOnly?: boolean;
+}) => {
+  const assigned = specialty.length > 0;
+  const badge = assigned ? (
+    <span
+      className={clsx(
+        'truncate rounded px-1 py-px text-[9px] font-medium ring-1',
+        SPECIALTY_CHIP_STYLES[specialty] ?? SPECIALTY_CHIP_FALLBACK,
+        !readOnly && 'cursor-pointer'
+      )}
     >
-      {busy ? 'Consultando…' : suggestion ? 'Nueva consulta Jev' : 'Consultar sugerencia Jev'}
-    </button>
-    {suggestion && (
-      <div className="px-1.5 text-[11px] text-slate-600">
-        {suggestion.result.specialty ? (
-          <>
-            Sugerencia: <strong>{suggestion.result.specialty}</strong>
-            <button
-              type="button"
-              onClick={onAccept}
-              disabled={busy}
-              className="mt-1 block rounded bg-teal-700 px-2 py-1 text-white disabled:opacity-50"
-            >
-              Aceptar para este episodio
-            </button>
-          </>
-        ) : (
-          'Jev indica que requiere revisión manual.'
-        )}
-      </div>
-    )}
-  </div>
-);
+      {specialty}
+    </span>
+  ) : (
+    <span
+      className={clsx(
+        'inline-flex items-center gap-0.5 rounded border border-dashed border-slate-300 bg-slate-50 px-1 py-px text-[9px] font-medium text-slate-500',
+        !readOnly && 'cursor-pointer hover:bg-slate-100'
+      )}
+    >
+      {decision?.source === 'manual' ? 'Sin asignar · manual' : 'Pendiente asignar'}
+    </span>
+  );
+  return readOnly ? (
+    <span
+      className="flex min-w-0 items-center gap-1"
+      title={assigned ? `Especialidad: ${specialty}` : 'Sin especialidad'}
+    >
+      {badge}
+    </span>
+  ) : (
+    badge
+  );
+};
 
 interface MemoryControlsProps {
   busy: boolean;

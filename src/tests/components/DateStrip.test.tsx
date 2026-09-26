@@ -47,6 +47,10 @@ describe('DateStrip', () => {
     // Check days strip
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument(); // 9 is the compact desktop visible end day
+    expect(
+      screen.getByRole('button', { name: /jueves.*1 de febrero de 2024/i })
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('jue').length).toBeGreaterThan(0);
   });
 
   it('places census options after the dates without duplicate quick actions', async () => {

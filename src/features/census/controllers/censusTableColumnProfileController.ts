@@ -71,13 +71,16 @@ export const resolveVisibleCensusColumns = (
   const baseColumns = zeroHiddenCensusColumns({
     ...columns,
     actions: Math.max(columns.actions, 40),
-    bed: Math.max(columns.bed, 64),
-    name: Math.max(columns.name, 380),
+    bed: Math.max(columns.bed, 54),
+    // Keep patient identity compact while reserving enough space for a readable diagnosis.
+    // Identity still includes the name, RUT, specialty and three clinical shortcuts.
+    name: Math.max(columns.name, 310),
     diagnosis: Math.max(columns.diagnosis, 280),
-    status: Math.max(columns.status, 28),
-    admission: Math.max(columns.admission, 96),
-    scores: Math.max(columns.scores, 180),
-    upc: Math.max(columns.upc, 64),
+    status: Math.max(columns.status, 32),
+    admission: Math.max(columns.admission, 116),
+    dmi: Math.max(columns.dmi, 96),
+    scores: Math.max(columns.scores, 150),
+    upc: Math.max(columns.upc, 48),
   });
 
   if (!isSpecialistCensusAccessProfile(accessProfile)) {

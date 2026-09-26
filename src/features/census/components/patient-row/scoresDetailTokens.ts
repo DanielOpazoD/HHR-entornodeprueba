@@ -1,14 +1,13 @@
 /**
  * Shared visual tokens + tiny formatters for the census "Scores" detail modal, factored out so the
- * summary cards (`ScoresDetailCards`) and the modal body (`ScoresDetailModal`) share one palette
- * without a circular import. Risk-level → colors is reused across chips, big numbers, left accents
- * and timeline dots.
+ * summary cards (`ScoresDetailCards`) and the modal body (`ScoresDetailModal`) share one neutral
+ * palette without a circular import. Risk remains explicit in text, without alarm styling.
  */
 
 import type { BradenRiskLevel } from '@/types/domain/evaluationScores';
 import { parseSourceRiskLevel } from '@/domain/evaluationScales/sourceRiskSeverity';
 
-/** One risk-level's palette, reused across chips, big numbers, accents and timeline dots. */
+/** One risk-level's visual tokens, kept neutral across risk levels. */
 export interface LevelTokens {
   chip: string;
   accent: string;
@@ -20,27 +19,27 @@ export interface LevelTokens {
 
 export const LEVEL_TOKENS: Record<BradenRiskLevel, LevelTokens> = {
   bajo: {
-    chip: 'bg-emerald-100 text-emerald-800',
-    accent: 'border-l-emerald-400',
-    number: 'text-emerald-700',
-    dot: 'bg-emerald-500',
-    soft: 'bg-emerald-50 text-emerald-700',
+    chip: 'bg-slate-100 text-slate-600',
+    accent: 'border-l-slate-300',
+    number: 'text-slate-700',
+    dot: 'bg-slate-400',
+    soft: 'bg-slate-50 text-slate-600',
     label: 'Riesgo bajo',
   },
   medio: {
-    chip: 'bg-amber-100 text-amber-800',
-    accent: 'border-l-amber-400',
-    number: 'text-amber-700',
-    dot: 'bg-amber-500',
-    soft: 'bg-amber-50 text-amber-700',
+    chip: 'bg-slate-100 text-slate-600',
+    accent: 'border-l-slate-300',
+    number: 'text-slate-700',
+    dot: 'bg-slate-400',
+    soft: 'bg-slate-50 text-slate-600',
     label: 'Riesgo medio',
   },
   alto: {
-    chip: 'bg-red-100 text-red-800',
-    accent: 'border-l-red-400',
-    number: 'text-red-700',
-    dot: 'bg-red-500',
-    soft: 'bg-red-50 text-red-700',
+    chip: 'bg-slate-100 text-slate-600',
+    accent: 'border-l-slate-300',
+    number: 'text-slate-700',
+    dot: 'bg-slate-400',
+    soft: 'bg-slate-50 text-slate-600',
     label: 'Riesgo alto',
   },
 };

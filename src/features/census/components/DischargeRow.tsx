@@ -6,6 +6,7 @@ import { resolveDischargeRowViewModel } from '@/features/census/controllers/disc
 import { DischargeRowView } from '@/features/census/components/DischargeRowView';
 import { buildDischargeClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';
 import { PatientHospitalizationReportsDialog } from '@/features/census/components/PatientHospitalizationReportsDialog';
+import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
 
 const LazyClinicalDocumentsModal = lazy(() =>
   import('@/features/clinical-documents').then(module => ({
@@ -24,15 +25,7 @@ interface DischargeRowProps {
 }
 
 export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
-  ({
-    item,
-    recordDate,
-    onUndo,
-    onEdit,
-    onDelete,
-    onConvertToCma,
-    onConvertToTransfer,
-  }) => {
+  ({ item, recordDate, onUndo, onEdit, onDelete, onConvertToCma, onConvertToTransfer }) => {
     const [showClinicalDocuments, setShowClinicalDocuments] = useState(false);
     const [showHospitalizationReports, setShowHospitalizationReports] = useState(false);
     const clinicalDocumentsPatient = useMemo(
@@ -55,6 +48,7 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
           viewModel={viewModel}
           recordDate={recordDate}
           dischargeItem={item}
+          onOpenEpicrisis={() => setShowHospitalizationReports(true)}
         />
         {showClinicalDocuments &&
           createPortal(
@@ -75,6 +69,7 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
           patientName={item.patientName}
           patientRun={item.rut}
           currentEpisodeId={item.clinicalEpisodeId}
+          admissionDate={resolveMovementHistoricalAdmissionDate(item)}
           censusDate={item.movementDate || recordDate}
         />
       </>

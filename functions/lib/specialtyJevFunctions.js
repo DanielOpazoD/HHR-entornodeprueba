@@ -18,12 +18,30 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
     .runWith({ timeoutSeconds: 30, memory: '512MB', secrets: ['TYPESAFE_API_KEY'] })
     .https.onCall(async (data, context) => {
       await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
+      if (data?.action === 'read_policy') {
+        if (process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT !== 'enabled') {
+          fail('failed-precondition', 'Specialty episode mode is disabled.');
+        }
+        const snapshot = await firestore.collection('hospitals').doc(HOSPITAL_ID)
+          .collection('specialtyPolicies').doc('active').get();
+        const policy = snapshot.exists ? snapshot.data() : {
+          revision: 0, autoEnabled: false, memoryEnabled: false, aiMode: 'off', rules: [], memory: [],
+        };
+        if (policy.revision > 0 && !validatePolicy(policy)) {
+          fail('failed-precondition', 'Specialty catalog is invalid.');
+        }
+        return { revision: policy.revision, autoEnabled: policy.autoEnabled,
+          memoryEnabled: policy.memoryEnabled, aiMode: policy.aiMode,
+          rules: policy.rules, memory: policy.memory };
+      }
       if (!clinicalApproved()) fail('failed-precondition', 'Jev consultation is disabled.');
       if (!validRequestId(data?.requestId) || !validBedId(data?.bedId) ||
           !['bed', 'clinicalCrib'].includes(data?.target) ||
           !isCurrentRapaNuiDay(data?.date) ||
           typeof data?.episodeId !== 'string' || !data.episodeId.trim() ||
-          data.episodeId.length > 160) {
+          data.episodeId.length > 160 ||
+          typeof data?.expectedCode !== 'string' ||
+          typeof data?.expectedCanonicalLabel !== 'string') {
         fail('invalid-argument', 'Invalid Jev request scope.');
       }
       const hospital = firestore.collection('hospitals').doc(HOSPITAL_ID);
@@ -49,8 +67,10 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
         if (patient.specialtyAssignment != null || String(patient.specialty || '').trim()) {
           fail('failed-precondition', 'Specialty already decided.');
         }
-        if (resolvePendingSpecialty(patient, policy).kind === 'assign') {
-          fail('failed-precondition', 'A deterministic rule already resolves this episode.');
+        const ruleOutcome = resolvePendingSpecialty(patient, policy);
+        if (ruleOutcome.kind === 'assign' ||
+            ['manual_required', 'rule_conflict'].includes(ruleOutcome.reason)) {
+          fail('failed-precondition', 'A specialty rule requires a different decision path.');
         }
         let evidence;
         try {
@@ -60,6 +80,10 @@ const createSpecialtyJevFunctions = ({ firestore, resolveRoleForEmail }) => ({
           fail('failed-precondition', 'Jev rubric is not configured.');
         }
         if (!evidence) fail('failed-precondition', 'Jev evidence is incomplete.');
+        if (evidence.code !== data.expectedCode ||
+            evidence.request.state.diagnosis.label !== data.expectedCanonicalLabel) {
+          fail('aborted', 'Diagnosis catalog changed; prepare the consultation again.');
+        }
         if (requestSnap.exists) {
           const existing = requestSnap.data();
           if (existing.requesterUid !== uid || existing.digest !== evidence.digest ||

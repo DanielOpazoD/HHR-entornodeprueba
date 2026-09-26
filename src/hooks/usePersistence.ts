@@ -75,7 +75,7 @@ export const usePersistence = ({
               'Copia con observaciones',
               `La copia del día previo aún no está disponible. ${buildCopyUnlockDescription(currentDateString, new Date())}`
             );
-            return;
+            return false;
           }
         }
 
@@ -97,7 +97,7 @@ export const usePersistence = ({
                 'No se encontró registro anterior',
                 'No hay datos del día seleccionado para copiar.'
               );
-              return;
+              return false;
             }
             prevDate = requestedSourceDate;
             copySourceMeta = source;
@@ -111,7 +111,7 @@ export const usePersistence = ({
                 'No se encontró registro anterior',
                 'No hay datos sincronizados del día previo para copiar.'
               );
-              return;
+              return false;
             }
             prevDate = requestedSourceDate;
             copySourceMeta = prevRecord;
@@ -141,7 +141,7 @@ export const usePersistence = ({
             context: { copyFromPrevious, sourceDate: prevDate || null, reason: initOutcome.reason },
           });
           notifyError(failureNotice.title, failureNotice.message);
-          return;
+          return false;
         }
         markLocalChange();
         setRecord(newRecord);
@@ -165,6 +165,7 @@ export const usePersistence = ({
           currentDateString,
           copyFromPrevious ? specificDate || 'previous_day' : 'blank'
         );
+        return true;
       } catch (error) {
         recordOperationalTelemetry({
           category: 'create_day',
@@ -175,6 +176,7 @@ export const usePersistence = ({
           context: { copyFromPrevious, sourceDate: prevDate || null },
         });
         notifyError('No se pudo crear el día', getUserFriendlyErrorMessage(error));
+        return false;
       }
     },
     [

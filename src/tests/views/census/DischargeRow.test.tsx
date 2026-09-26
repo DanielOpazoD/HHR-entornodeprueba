@@ -174,6 +174,30 @@ describe('DischargeRow', () => {
     );
   });
 
+  it('offers epicrisis directly in the discharge row without opening the actions menu', () => {
+    const item = DataFactory.createMockDischarge({
+      patientName: 'Paciente Alta',
+      rut: '17.752.753-1',
+      clinicalEpisodeId: '141336',
+    });
+    render(
+      <table>
+        <tbody>
+          <DischargeRow
+            item={item}
+            recordDate="2026-07-19"
+            onUndo={vi.fn().mockResolvedValue(undefined)}
+            onEdit={vi.fn()}
+            onDelete={vi.fn().mockResolvedValue(undefined)}
+            onConvertToCma={vi.fn().mockResolvedValue(undefined)}
+          />
+        </tbody>
+      </table>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Ver epicrisis de Paciente Alta' }));
+    expect(screen.getByTestId('hospitalization-reports-dialog')).toHaveTextContent('141336');
+  });
+
   it('lazy-loads the fuga modal and keeps IEEH unavailable', async () => {
     const item = DataFactory.createMockDischarge({
       id: 'd2',

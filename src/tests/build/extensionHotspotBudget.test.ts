@@ -71,7 +71,8 @@ describe('extension hotspot budget', () => {
     // 136: manifest, receiver health, session repair, Ficha transport and connection presentation.
     // 138: restored-tab events and the popup worker probe remain separately governed.
     // 140: targeted relay repair and Ficha UI lifecycle are separately governed.
-    expect(metrics.authoredFiles).toHaveLength(140);
+    // 141: Ficha diagnosis coding is separately governed.
+    expect(metrics.authoredFiles).toHaveLength(141);
     expect(
       Object.values(metrics.files).reduce(
         (total, file) => total + Object.keys(file.hotspots).length,
