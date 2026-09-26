@@ -245,7 +245,7 @@
     "dexie": "^4.4.6",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
-    "firebase": "12.14.0",
+    "firebase": "12.19.0",
     "googleapis": "^172.0.0",
     "hash.js": "^1.1.7",
     "heic2any": "^0.0.4",
