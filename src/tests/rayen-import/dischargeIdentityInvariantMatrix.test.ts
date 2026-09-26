@@ -202,3 +202,4 @@ describe('invariantes de identidad entre vista previa y aplicación de egresos R
     }
   });
 });
+// @vitest-environment node

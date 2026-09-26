@@ -167,3 +167,4 @@ describe('resolveReleasedBedPlacements · conflicto de revisión sobre el RUN qu
     }
   );
 });
+// @vitest-environment node
