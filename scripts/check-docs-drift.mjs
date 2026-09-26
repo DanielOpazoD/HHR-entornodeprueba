@@ -2,11 +2,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import MarkdownIt from 'markdown-it';
 
 const workspaceRoot = process.cwd();
 const documentationMap = path.join(workspaceRoot, 'docs', 'DOCUMENTATION_MAP.md');
 const docsDirectory = path.join(workspaceRoot, 'docs');
-const localLinkPattern = /\]\((<[^>]+>|[^)\s]+)(?:\s+["'][^"']+["'])?\)/g;
+const markdown = new MarkdownIt();
 
 const checks = [
   {
@@ -55,8 +56,12 @@ for (const check of checks) {
 
 const getLocalLinks = filePath => {
   const content = fs.readFileSync(filePath, 'utf8');
-  return [...content.matchAll(localLinkPattern)]
-    .map(match => match[1].replace(/^<|>$/g, ''))
+  return markdown
+    .parse(content, {})
+    .flatMap(token => token.children || [])
+    .filter(token => token.type === 'link_open')
+    .map(token => token.attrGet('href'))
+    .filter(Boolean)
     .filter(target => !/^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(target))
     .map(target => decodeURIComponent(target.split(/[?#]/)[0]))
     .filter(Boolean)
