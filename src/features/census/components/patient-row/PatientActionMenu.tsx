@@ -3,6 +3,7 @@ import { FileText, MoreHorizontal, User } from 'lucide-react';
 import { MedicalButton } from '@/components/ui/base/MedicalButton';
 import type { CensusAccessProfile } from '@/features/census/types/censusAccessProfile';
 import { PatientRowOrbitalQuickActions } from '@/features/census/components/patient-row/PatientRowOrbitalQuickActions';
+import { PatientRowMenuPortal } from '@/features/census/components/patient-row/PatientRowMenuPortal';
 import type {
   PatientActionMenuActionFilter,
   PatientActionMenuCallbacks,
@@ -167,7 +168,18 @@ export const PatientActionMenu: React.FC<PatientActionMenuProps> = ({
       )}
 
       {isOpen ? (
-        <Suspense fallback={null}>
+        <Suspense
+          fallback={
+            <PatientRowMenuPortal anchorRef={menuRef} align={align} onClose={close}>
+              <div
+                className="w-60 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-xl"
+                role="status"
+              >
+                Cargando acciones…
+              </div>
+            </PatientRowMenuPortal>
+          }
+        >
           <LazyPatientActionMenuPanel
             anchorRef={menuRef}
             isOpen={isOpen}
