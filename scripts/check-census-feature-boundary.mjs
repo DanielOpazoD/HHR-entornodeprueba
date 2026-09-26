@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { runFeatureBoundaryCheck } from './lib/featureBoundaryRunner.mjs';
 
@@ -26,6 +27,10 @@ const GOVERNED_APPLICATION_PUBLIC_IMPORTS = new Set([
   '@/features/census/types/censusAccessProfile',
 ]);
 
+const { publicModulesByFeature } = JSON.parse(
+  fs.readFileSync(new URL('./feature-public-api-allowlist.json', import.meta.url), 'utf8')
+);
+
 const isGovernedCensusControllerShim = ({ importerPath, importPath, source }) => {
   if (!importerPath.startsWith('src/hooks/controllers/')) return false;
   if (!importPath.startsWith('@/features/census/controllers/')) return false;
@@ -45,7 +50,7 @@ runFeatureBoundaryCheck({
   // Heavy-component entrypoint, split out from public.ts so external static
   // importers do not pull CensusView into their chunks. Callers must use a
   // dynamic import() for this module (enforced by convention, not by lint).
-  extraPublicModules: ['@/features/census/census-view', '@/features/census/public-components'],
+  extraPublicModules: publicModulesByFeature.census,
   allowException: ctx =>
     isGovernedCensusControllerShim(ctx) || isGovernedCensusApplicationFacadeImport(ctx),
 });
