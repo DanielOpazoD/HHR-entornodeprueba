@@ -14,7 +14,7 @@ const password = randomBytes(18).toString('base64url');
 const patientName = 'SYNTHETIC REMOTE CENSUS';
 const projectId = 'demo-hhr-e2e';
 const firebaseConfig = {
-  apiKey: 'demo-api-key',
+  apiKey: 'fake',
   authDomain: 'demo-hhr.firebaseapp.com',
   projectId,
   appId: '1:1234567890:web:abcdef123456',
