@@ -102,12 +102,12 @@ describe('useDailyRecordQuery', () => {
           focusManager.setFocused(true);
           window.dispatchEvent(new Event('focus'));
         }
-        // Drain QueryClient's async manager callbacks and React notifications.
-        await new Promise(resolve => setTimeout(resolve, 20));
       });
-      expect(result.current.isFetching).toBe(false);
+      await waitFor(() => {
+        expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledTimes(reads);
+        expect(result.current.isFetching).toBe(false);
+      });
       expect(result.current.data).toEqual(mockRecord);
-      expect(dailyRecord.getForDateWithMeta).toHaveBeenCalledTimes(reads);
       expect(dailyRecord.subscribeDetailed).toHaveBeenCalledTimes(1);
       unmount();
       queryClient.clear();
