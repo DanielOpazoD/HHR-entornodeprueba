@@ -82,6 +82,7 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                   value={String(model.braden.total)}
                   severity={model.braden.displayLevel}
                   countdown={model.braden.chipCountdown}
+                  countdownUrgent={model.braden.assessment.reapplication.urgency !== 'ok'}
                   note={{
                     title: model.braden.entry.name,
                     recordedDate: model.braden.entry.recordedDate,
@@ -105,6 +106,9 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
                   value={String(model.downton.total)}
                   severity={model.downton.displayLevel}
                   countdown={model.downton.chipCountdown}
+                  countdownUrgent={Boolean(
+                    model.downton.reapplication && model.downton.reapplication.urgency !== 'ok'
+                  )}
                   note={{
                     title: 'Downton',
                     recordedDate: model.downton.entry.recordedDate,

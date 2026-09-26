@@ -47,7 +47,7 @@ describe('VitalsCell', () => {
 
     expect(screen.getByText('130/82')).toBeInTheDocument();
     expect(screen.getByText('84')).toBeInTheDocument(); // FC
-    expect(screen.getByText('88')).toBeInTheDocument(); // SAT remains visible without alarm styling.
+    expect(screen.getByText('88')).toBeInTheDocument(); // SAT keeps its status color without an alarm icon.
     expect(screen.getByText('88')).not.toHaveClass('decoration-dotted');
     expect(screen.getByText('36.5')).toBeInTheDocument(); // T°
     expect(screen.queryByTitle('SAT: 88 % · Fuera de rango')).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('VitalsCell', () => {
       { birthDate: '1986-01-01', age: '40' }
     );
 
-    expect(screen.getByText('45')).toHaveClass('text-slate-600');
+    expect(screen.getByText('45')).toHaveClass('text-amber-600');
   });
 
   it('uses neonatal ranges by age regardless of the bed and shows no population label', () => {
@@ -122,7 +122,7 @@ describe('VitalsCell', () => {
       { birthDate: '2024-07-11', age: '2a' }
     );
 
-    expect(screen.getByText('145')).toHaveClass('text-slate-600');
+    expect(screen.getByText('145')).toHaveClass('text-amber-600');
     fireEvent.click(screen.getByRole('button', { name: 'Ver signos vitales' }));
     expect(screen.queryByText(/pediátrico|años|perfil/i)).not.toBeInTheDocument();
   });
@@ -130,7 +130,7 @@ describe('VitalsCell', () => {
   it('uses a bare completed-year age when birth date is unavailable', () => {
     renderCell(VITALS, 'R3', { age: '52', birthDate: undefined });
 
-    expect(screen.getByText('88')).toHaveClass('text-slate-600');
+    expect(screen.getByText('88')).toHaveClass('text-red-600');
   });
 
   it('keeps age-only readings neutral and aligned between the cell and history table', () => {

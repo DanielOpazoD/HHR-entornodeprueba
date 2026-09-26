@@ -143,6 +143,29 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
       await expect(statusHeader).toBeEmpty();
     }
     const secondRow = page.locator('[data-testid="patient-row"][data-bed-id="R2"]');
+    // Filled and empty readings must share the same inset value axes.
+    const valueAxes = async (grid: typeof vitals) =>
+      grid.evaluate(element =>
+        Array.from(element.children).map(pair => {
+          const value = pair.lastElementChild!;
+          const range = document.createRange();
+          range.selectNodeContents(value);
+          const text = range.getBoundingClientRect();
+          const slot = value.getBoundingClientRect();
+          return { center: slot.x + slot.width / 2, textCenter: text.x + text.width / 2 };
+        })
+      );
+    const filledAxes = await valueAxes(vitals);
+    const emptyAxes = await valueAxes(secondRow.locator('.census-vitals-grid'));
+    for (let index = 0; index < filledAxes.length; index += 1) {
+      expect(Math.abs(filledAxes[index].center - emptyAxes[index].center)).toBeLessThanOrEqual(1);
+      expect(Math.abs(filledAxes[index].center - filledAxes[index].textCenter)).toBeLessThanOrEqual(
+        1
+      );
+      expect(Math.abs(emptyAxes[index].center - emptyAxes[index].textCenter)).toBeLessThanOrEqual(
+        1
+      );
+    }
     const secondIdentity = secondRow.locator('.census-identity-cell');
     const action = secondRow.getByTestId('clinical-panel-trigger-R2');
     await expect(secondIdentity).toContainText('PACIENTE SINTÉTICA DE NOMBRE LARGO');
