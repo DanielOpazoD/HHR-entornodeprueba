@@ -4,58 +4,12 @@ import {
   createDailyRecordWriteAuthorityFunctions,
   makeContext,
   makeRecord,
+  makeCanonicalEmptyBed,
 } from '@/tests/functions/dailyRecordWriteAuthorityFunctions.test-support';
 
-const makeCanonicalEmptyBed = (bedId = 'R1', location = '') => ({
-  bedId,
-  isBlocked: false,
-  blockedReason: '',
-  bedMode: 'Cama',
-  hasCompanionCrib: false,
-  clinicalCrib: null,
-  patientName: '',
-  firstName: '',
-  lastName: '',
-  secondLastName: '',
-  identityStatus: 'official',
-  rut: '',
-  clinicalEpisodeId: '',
-  documentType: 'RUT',
-  age: '',
-  birthDate: '',
-  biologicalSex: 'Indeterminado',
-  insurance: null,
-  admissionOrigin: null,
-  admissionOriginDetails: '',
-  origin: null,
-  isRapanui: false,
-  pathology: '',
-  cie10Code: null,
-  cie10Description: null,
-  treatingPhysicianId: null,
-  treatingPhysicianName: null,
-  specialty: '',
-  ginecobstetriciaType: null,
+const makeCanonicalEmptyBedWithSpecialty = (bedId = 'R1', location = '') => ({
+  ...makeCanonicalEmptyBed(bedId, location),
   secondarySpecialty: null,
-  status: '',
-  admissionDate: '',
-  admissionTime: '',
-  hasWristband: true,
-  devices: [],
-  surgicalComplication: false,
-  isUPC: false,
-  location,
-  handoffNote: '',
-  handoffNoteDayShift: '',
-  handoffNoteNightShift: '',
-  medicalHandoffNote: '',
-  medicalHandoffAudit: null,
-  medicalHandoffEntries: [],
-  clinicalEvents: [],
-  firstSeenDate: null,
-  deliveryRoute: null,
-  deliveryDate: null,
-  deliveryCesareanLabor: null,
 });
 
 const makeClearableRecord = (): ReturnType<typeof makeRecord> => ({
@@ -141,7 +95,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
       dateTimestamp: Date.now(),
       meta: { revision: 4, lastMutationId: 'previous' },
     };
-    const emptyBed = makeCanonicalEmptyBed();
+    const emptyBed = makeCanonicalEmptyBedWithSpecialty();
     const { admin, update, docRef, historySet } = createAdminMock({
       remoteData: remote,
       policyData: { schemaVersion: 2, clinicalBatchMode: 'enforced' },
@@ -249,7 +203,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
           intentionalBedClear: makeIntentionalBedClear(remote),
           patch: {
             'beds.R1': {
-              ...makeCanonicalEmptyBed(),
+              ...makeCanonicalEmptyBedWithSpecialty(),
               pathology: 'Contenido que no debe sobrevivir a la limpieza',
             },
           },
@@ -284,7 +238,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
           mode: 'enforced',
           intentionalBedClear: makeIntentionalBedClear(remote),
           patch: {
-            'beds.R1': { ...makeCanonicalEmptyBed('R1', ''), bedMode: 'Cuna' },
+            'beds.R1': { ...makeCanonicalEmptyBedWithSpecialty('R1', ''), bedMode: 'Cuna' },
           },
         },
         makeContext()
@@ -356,7 +310,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
           expectedLastUpdated: remote.lastUpdated,
           mode: 'enforced',
           intentionalBedClear: makeIntentionalBedClear(remote, '2026-05-13T09:59:59.000Z'),
-          patch: { 'beds.R1': makeCanonicalEmptyBed() },
+          patch: { 'beds.R1': makeCanonicalEmptyBedWithSpecialty() },
         },
         makeContext()
       )
@@ -403,7 +357,7 @@ describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
               patientName: 'Paciente confirmado',
             },
           },
-          patch: { 'beds.R1': makeCanonicalEmptyBed() },
+          patch: { 'beds.R1': makeCanonicalEmptyBedWithSpecialty() },
         },
         makeContext()
       )
