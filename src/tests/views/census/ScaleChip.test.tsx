@@ -7,6 +7,24 @@ import { ScaleChip } from '@/features/census/components/patient-row/ScaleChip';
 const note = { title: 'Escala', recordedDate: '2026-07-15' };
 
 describe('ScaleChip', () => {
+  it.each([
+    ['bajo', '23', 'text-emerald-600'],
+    ['medio', '2', 'text-amber-600'],
+    ['alto', '4', 'text-red-600'],
+  ] as const)('restores the %s score color without warning glyphs', (severity, value, tone) => {
+    const { container } = render(
+      <ScaleChip
+        hue="violet"
+        icon={Bandage}
+        label="Escala"
+        value={value}
+        severity={severity}
+        note={note}
+      />
+    );
+    expect(screen.getByText(value)).toHaveClass(tone);
+    expect(container.querySelector('.lucide-triangle-alert, .lucide-alarm-clock')).toBeNull();
+  });
   it('shows a light provenance card with room for the scale title', () => {
     render(
       <ScaleChip
@@ -32,7 +50,7 @@ describe('ScaleChip', () => {
     fireEvent.mouseLeave(chip);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
-  it('shows reapplication timing without alarm styling', () => {
+  it('colors due reapplication timing without an alarm icon', () => {
     const { container } = render(
       <ScaleChip
         hue="violet"
@@ -41,11 +59,13 @@ describe('ScaleChip', () => {
         value="12"
         severity="alto"
         countdown="hoy"
+        countdownUrgent
         note={note}
       />
     );
     expect(screen.getByText(/Riesgo alto/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Próxima aplicación: hoy')).toHaveClass('text-slate-500');
+    expect(screen.getByLabelText('Próxima aplicación: hoy')).toHaveClass('text-red-700');
+    expect(screen.getByLabelText('Próxima aplicación: hoy').querySelector('svg')).toBeNull();
     expect(container.firstElementChild).not.toHaveClass('border-red-300');
     expect(container.querySelector('.animate-pulse')).toBeNull();
   });
@@ -60,7 +80,7 @@ describe('ScaleChip', () => {
         note={note}
       />
     );
-    expect(screen.getByText('4')).toHaveClass('text-slate-600');
+    expect(screen.getByText('4')).toHaveClass('text-red-600');
     expect(screen.getByText(/Riesgo alto/)).toBeInTheDocument();
     expect(container.querySelector('.lucide-triangle-alert')).toBeNull();
   });

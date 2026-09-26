@@ -12,6 +12,7 @@ import { CellSyncIndicator } from './CellSyncIndicator';
 import {
   buildVitalSignsView,
   type VitalReadingView,
+  type VitalStatus,
 } from '@/features/census/controllers/vitalSignsView';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
 import { useRayenFillStatus } from '@/features/rayen-import/census-status';
@@ -23,6 +24,18 @@ const CELL_READINGS: ReadonlyArray<{ key: VitalReadingView['key']; label: string
   { key: 'spo2', label: 'SAT' },
   { key: 'temp', label: 'T°' },
 ];
+
+const STATUS_TEXT: Record<VitalStatus, string> = {
+  neutral: 'text-slate-500',
+  normal: 'text-slate-600',
+  warn: 'text-amber-600',
+  alert: 'text-red-600',
+};
+
+const GRID_CLASS =
+  'census-vitals-grid mx-auto grid w-full max-w-[144px] grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-x-1 gap-y-0.5 px-0.5 text-left text-[10px] leading-tight tabular-nums';
+const READING_CLASS =
+  'grid min-w-0 grid-cols-[18px_minmax(0,1fr)] items-baseline whitespace-nowrap';
 
 export const VitalsCell: React.FC<BaseCellProps> = ({
   data,
@@ -55,20 +68,17 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
             e.stopPropagation();
             setIsDetailOpen(true);
           }}
-          className="flex w-full cursor-pointer items-center rounded-md px-0.5 py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
+          className="flex w-full cursor-pointer items-center rounded-md py-1 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-medical-700"
           aria-label="Ver signos vitales"
         >
-          <span className="census-vitals-grid grid w-full grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-x-1 gap-y-0.5 text-left leading-tight tabular-nums">
+          <span className={GRID_CLASS}>
             {CELL_READINGS.map(({ key, label }) => {
               const reading = readingByKey(key);
               return (
-                <span
-                  key={key}
-                  className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-baseline gap-0.5 whitespace-nowrap text-[10px]"
-                >
+                <span key={key} className={READING_CLASS}>
                   <span className="font-medium text-slate-500">{label}</span>
                   <span
-                    className={`inline-flex min-w-0 items-center justify-end gap-0.5 font-semibold ${reading ? 'text-slate-600' : 'text-slate-300'}`}
+                    className={`inline-flex min-w-0 items-center justify-center font-semibold ${reading ? STATUS_TEXT[reading.status] : 'text-slate-300'}`}
                   >
                     {reading ? reading.value : '—'}
                   </span>
@@ -78,23 +88,20 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
           </span>
         </button>
       ) : isFilling ? (
-        <div
-          className="census-vitals-grid grid grid-cols-2 gap-x-1 gap-y-0.5 text-[10px] tabular-nums"
-          aria-label="Cargando signos vitales"
-        >
+        <div className={GRID_CLASS} aria-label="Cargando signos vitales">
           {CELL_READINGS.map(({ key, label }) => (
-            <span key={key} className="flex items-center justify-between gap-0.5 text-slate-500">
-              {label}
-              <span aria-hidden="true" className="h-2 w-5 rounded bg-slate-100" />
+            <span key={key} className={READING_CLASS}>
+              <span className="text-slate-500">{label}</span>
+              <span aria-hidden="true" className="mx-auto h-2 w-4 rounded bg-slate-100" />
             </span>
           ))}
         </div>
       ) : (
-        <div className="census-vitals-grid grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-x-1 gap-y-0.5 select-none text-[10px] text-slate-400 tabular-nums">
+        <div className={GRID_CLASS}>
           {CELL_READINGS.map(({ key, label }) => (
-            <span key={key} className="flex justify-between gap-0.5">
-              <span>{label}</span>
-              <span className="text-slate-300">—</span>
+            <span key={key} className={READING_CLASS}>
+              <span className="text-slate-400">{label}</span>
+              <span className="text-center text-slate-300">—</span>
             </span>
           ))}
         </div>

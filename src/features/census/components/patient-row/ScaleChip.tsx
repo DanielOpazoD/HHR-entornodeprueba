@@ -5,8 +5,8 @@
  * information owns its own space instead of competing inside a single colored pill:
  *   [ identidad ]  — icon + scale name, tinted with the SCALE's own hue (Braden violet, Downton
  *                    indigo, CUDYR teal). The hue never changes with the result: it identifies.
- *   [ valor ]      — the score, kept neutral alongside its scale identity.
- *   [ reaplicar ]  — the reapplication countdown as neutral text.
+ *   [ valor ]      — the score, colored by its recorded risk level, without alarm icons.
+ *   [ reaplicar ]  — the reapplication countdown, red when due or overdue.
  *
  * Hovering the chip shows a "sticky note" (portal-positioned, so the table can't clip it) with the
  * date/time it was applied and by whom — data synced from Ficha Médico.
@@ -20,7 +20,7 @@ import { CLINICAL_TIME_ZONE } from '@/utils/clinicalTimeZone';
 
 /**
  * Scale identity hue — fixed per scale, independent of the clinical result. It ONLY tints the small
- * icon: identity is carried by the icon + name, without alarm colors in the census row.
+ * icon: identity is carried by the icon + name, independently of the value's status color.
  */
 export type ScaleHue = 'violet' | 'indigo' | 'teal';
 
@@ -28,6 +28,18 @@ const HUE_ICON: Record<ScaleHue, string> = {
   violet: 'text-violet-500',
   indigo: 'text-indigo-500',
   teal: 'text-teal-600',
+};
+
+const SEVERITY_TEXT: Record<BradenRiskLevel, string> = {
+  bajo: 'text-emerald-600',
+  medio: 'text-amber-600',
+  alto: 'text-red-600',
+};
+const BAND_TEXT = {
+  A: 'text-rose-600',
+  B: 'text-amber-600',
+  C: 'text-sky-600',
+  D: 'text-emerald-600',
 };
 
 export interface StickyNoteData {
@@ -51,12 +63,13 @@ export interface ScaleChipProps {
   label: string;
   /** The score value shown in the value zone, e.g. "16" or "D3". */
   value: string;
-  /** Severity level retained in the accessible score description. */
+  /** Severity level used for the value color and accessible score description. */
   severity?: BradenRiskLevel | null;
-  /** CUDYR band retained in the accessible score description. */
+  /** CUDYR band used for the value color and accessible score description. */
   band?: 'A' | 'B' | 'C' | 'D' | null;
   /** Reapplication countdown, e.g. "5d" | "hoy" | "-2d"; omitted → no third zone. */
   countdown?: string | null;
+  countdownUrgent?: boolean;
   note: StickyNoteData;
 }
 
@@ -174,6 +187,7 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
   severity = null,
   band = null,
   countdown = null,
+  countdownUrgent = false,
   note,
 }) => {
   const chipRef = useRef<HTMLSpanElement | null>(null);
@@ -199,17 +213,19 @@ export const ScaleChip: React.FC<ScaleChipProps> = ({
         {label}
       </span>
       {/* value zone — risk remains in the number and the detail, without an alarm marker */}
-      <span className="flex min-w-[18px] flex-1 items-center justify-center px-1 py-0.5 font-semibold text-slate-600 tabular-nums">
+      <span
+        className={`flex min-w-[18px] flex-1 items-center justify-center px-1 py-0.5 font-semibold tabular-nums ${band ? BAND_TEXT[band] : severity ? SEVERITY_TEXT[severity] : 'text-slate-600'}`}
+      >
         {value}
         {severity && <span className="sr-only"> · Riesgo {severity}</span>}
         {(band === 'A' || band === 'B') && (
           <span className="sr-only"> · Categoría CUDYR {band}</span>
         )}
       </span>
-      {/* reapplication zone — separated in its own space and neutral */}
+      {/* Due dates use color without adding an alarm glyph. */}
       {countdown != null && (
         <span
-          className="flex shrink-0 items-center justify-end rounded px-1 py-0.5 font-medium text-slate-500 tabular-nums"
+          className={`inline-flex w-fit justify-self-end items-center rounded px-1 py-0.5 font-medium tabular-nums ${countdownUrgent ? 'bg-red-50 text-red-700' : 'text-slate-500'}`}
           title="Próxima aplicación"
           aria-label={`Próxima aplicación: ${countdown}`}
         >
