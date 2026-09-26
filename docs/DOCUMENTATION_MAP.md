@@ -1,10 +1,11 @@
 # Documentation Map
 
-Última actualización: 2026-07-02
+Última actualización: 2026-09-26
 
 > Índice único del repositorio. Si un documento nuevo no aparece aquí, o queda
 > sin categoría, debe añadirse en el mismo PR que lo crea. `check:docs-drift`
-> ayuda a detectar referencias rotas, no ausencias.
+> comprueba enlaces locales en los documentos aquí enlazados y exige indexar
+> todos los ADR y runbooks de `docs/`.
 
 ## Lectura recomendada
 
@@ -60,11 +61,13 @@ actualizar el `Estado` y apuntar al ADR reemplazante.
 - [ADR_DAILY_RECORD_RUNTIME_PATH](ADR_DAILY_RECORD_RUNTIME_PATH.md) — Vigente
 - [ADR_DAILY_CENSUS_TRUTH_CONTRACT](ADR_DAILY_CENSUS_TRUTH_CONTRACT.md) — Vigente
 - [ADR_DAILY_CENSUS_MOVEMENT_CONFLICT_INVARIANTS](ADR_DAILY_CENSUS_MOVEMENT_CONFLICT_INVARIANTS.md) — Vigente
+- [ADR_DAILY_CENSUS_CLINICAL_DATA_OWNERSHIP](ADR_DAILY_CENSUS_CLINICAL_DATA_OWNERSHIP.md) — Vigente
 - [ADR_DEBOUNCED_INPUT_MULTITAB_SAFETY](ADR_DEBOUNCED_INPUT_MULTITAB_SAFETY.md) — Vigente
 - [ADR_HANDOFF_RUNTIME_SURFACES](ADR_HANDOFF_RUNTIME_SURFACES.md) — Vigente
 - [ADR_PATIENT_CENTERED_OBSERVABILITY](ADR_PATIENT_CENTERED_OBSERVABILITY.md) — Adoptado
 - [ADR_REPOSITORY_PROVIDER_REQUIRED](ADR_REPOSITORY_PROVIDER_REQUIRED.md) — Vigente
 - [ADR_SYNC_OUTCOME_POLICY](ADR_SYNC_OUTCOME_POLICY.md) — Vigente
+- [ADR_SYNC_CONVERGENCE_HEALTH](ADR_SYNC_CONVERGENCE_HEALTH.md) — Vigente
 
 #### Runbooks
 
@@ -77,7 +80,13 @@ actualizar el `Estado` y apuntar al ADR reemplazante.
 - [RUNBOOK_AI_PROVIDER_OPERATIONS](RUNBOOK_AI_PROVIDER_OPERATIONS.md) — providers AI (Gemini/OpenAI/Anthropic)
 - [RUNBOOK_OPERATIONAL_BUDGETS](RUNBOOK_OPERATIONAL_BUDGETS.md) — presupuestos operacionales
 - [RUNBOOK_DAILY_CENSUS_RECOVERY](RUNBOOK_DAILY_CENSUS_RECOVERY.md) — recuperación de altas, movimientos y conflictos del censo diario
+- [RUNBOOK_DAILY_RECORD_AUTHORITY_ROLLOUT](RUNBOOK_DAILY_RECORD_AUTHORITY_ROLLOUT.md) — transición de autoridad de escrituras diarias
+- [RUNBOOK_DAILY_RECORD_MOVEMENT_TOMBSTONES](RUNBOOK_DAILY_RECORD_MOVEMENT_TOMBSTONES.md) — recuperación de movimientos eliminados
 - [RUNBOOK_NETLIFY_SERVERLESS_DEPLOY](RUNBOOK_NETLIFY_SERVERLESS_DEPLOY.md) — deploy serverless
+- [RUNBOOK_PRESCRIPTIONS_BACKUP](RUNBOOK_PRESCRIPTIONS_BACKUP.md) — respaldo de recetas
+- [RUNBOOK_PROFESSIONAL_RELEASE_CHECK](RUNBOOK_PROFESSIONAL_RELEASE_CHECK.md) — verificación profesional previa a release
+- [RUNBOOK_RAYEN_CLINICAL_ENRICHMENT_BATCH](RUNBOOK_RAYEN_CLINICAL_ENRICHMENT_BATCH.md) — enriquecimiento clínico Rayen
+- [RUNBOOK_RELEASE_EVIDENCE_CONTRACT](RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md) — evidencia vigente de release
 - [CI_GATES_AND_FAILURE_RUNBOOKS](CI_GATES_AND_FAILURE_RUNBOOKS.md) — gates de CI y recuperación
 - [TEST_FLAKY_QUARANTINE_POLICY](TEST_FLAKY_QUARANTINE_POLICY.md) — cuarentena de tests flaky
 - [RUNBOOK_LOCAL_E2E_EMULATOR](RUNBOOK_LOCAL_E2E_EMULATOR.md) — correr E2E con emulador Firestore en local
