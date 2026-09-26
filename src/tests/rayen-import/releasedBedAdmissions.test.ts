@@ -421,3 +421,4 @@ describe('released bed admissions', () => {
     expect(result.conflicts).toEqual([expect.objectContaining({ blockedAdmission: candidate })]);
   });
 });
+// @vitest-environment node

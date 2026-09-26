@@ -472,3 +472,4 @@ describe('collectRecordedMovementRuns', () => {
     expect(known.has('19')).toBe(false);
   });
 });
+// @vitest-environment node
