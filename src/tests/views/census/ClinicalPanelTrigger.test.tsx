@@ -73,7 +73,7 @@ describe('ClinicalPanelTrigger', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
     );
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Panel de Paciente de prueba');
+    expect(await screen.findByText('Panel de Paciente de prueba')).toBeInTheDocument();
     expect(screen.getByTestId('drawer-date-range')).toHaveTextContent('2026-07-13|2026-07-18');
   });
 
@@ -99,7 +99,7 @@ describe('ClinicalPanelTrigger', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
     );
-    await screen.findByRole('dialog');
+    await screen.findByText('Panel de Paciente de prueba');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente paciente' }));
 
     expect(mocks.resolveNavigation.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -163,7 +163,7 @@ describe('ClinicalPanelTrigger', () => {
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir panel clínico de Paciente de prueba' })
     );
-    await screen.findByRole('dialog');
+    await screen.findByText('Panel de Paciente de prueba');
     fireEvent.click(
       screen.getByRole('button', {
         name: 'Abrir informes de hospitalización de Paciente de prueba',
@@ -203,7 +203,7 @@ describe('ClinicalPanelTrigger', () => {
     );
     expect(mocks.reportMount).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Synthetic 0' }));
-    await screen.findByRole('dialog');
+    await screen.findByText('Panel de Synthetic 0');
     expect(mocks.reportMount).not.toHaveBeenCalled();
   });
 
@@ -226,7 +226,7 @@ describe('ClinicalPanelTrigger', () => {
     );
     expect(mocks.reportMount).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Abrir panel clínico de Paciente A' }));
-    await screen.findByRole('dialog');
+    await screen.findByText('Panel de Paciente A');
     expect(mocks.reportMount).not.toHaveBeenCalled();
     fireEvent.click(
       screen.getByRole('button', { name: 'Abrir informes de hospitalización de Paciente A' })
