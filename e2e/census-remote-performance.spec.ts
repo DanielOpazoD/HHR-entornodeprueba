@@ -65,13 +65,25 @@ test('measures authenticated census readiness after a real emulator read', async
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith('/checkUserRole')) {
+        const requestedHeaders = route.request().headers()['access-control-request-headers'];
+        if (route.request().method() === 'OPTIONS') {
+          return route.fulfill({
+            status: 204,
+            headers: {
+              'access-control-allow-origin': '*',
+              'access-control-allow-headers': requestedHeaders || 'authorization, content-type',
+              'access-control-allow-methods': 'POST, OPTIONS',
+            },
+          });
+        }
+        if (route.request().method() !== 'POST') {
+          throw new Error('Unexpected role lookup method');
+        }
         roleLookups += 1;
         return route.fulfill({
           json: { result: { role: 'admin' } },
           headers: {
             'access-control-allow-origin': '*',
-            'access-control-allow-headers': '*',
-            'access-control-allow-methods': 'POST, OPTIONS',
           },
         });
       }
