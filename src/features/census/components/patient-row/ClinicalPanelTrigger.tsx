@@ -7,8 +7,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpenText, X } from 'lucide-react';
+import { BookOpenText, FileClock, X } from 'lucide-react';
 
+import { BaseModal } from '@/components/shared/BaseModal';
 import { resolveClinicalPanelNavigation } from '@/features/census/controllers/clinicalPanelNavigationController';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { useActiveClinicalPanel } from './useActiveClinicalPanel';
@@ -125,6 +126,43 @@ const ClinicalPanelImportFallback: React.FC<{
   );
 };
 
+const ReportsImportFallback: React.FC<{ patientName: string; onClose: () => void }> = ({
+  patientName,
+  onClose,
+}) => (
+  <BaseModal
+    isOpen
+    onClose={onClose}
+    title="Informes de hospitalización"
+    icon={<FileClock size={18} />}
+    size="lg"
+    dataTestId="reports-module-loading"
+    backdropZIndex={LAYER_Z_INDEX.modal}
+    bodyClassName="p-0"
+  >
+    <div className="border-b border-slate-100 px-5 py-3">
+      <p className="truncate text-sm font-semibold text-slate-800">{patientName}</p>
+      <p className="mt-0.5 text-xs text-slate-500">
+        Selecciona una hospitalización y el documento que necesitas.
+      </p>
+    </div>
+    <div aria-busy="true" className="min-h-40 space-y-3 p-4">
+      <p className="text-xs text-slate-500">Abriendo informes…</p>
+      <div aria-hidden="true" className="space-y-2">
+        {[0, 1].map(index => (
+          <div
+            key={index}
+            className="min-h-[60px] rounded-lg border border-slate-200 bg-white px-4 py-3"
+          >
+            <div className="h-3 w-40 rounded bg-slate-100" />
+            <div className="mt-2 h-2 w-24 rounded bg-slate-50" />
+          </div>
+        ))}
+      </div>
+    </div>
+  </BaseModal>
+);
+
 export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   bedId,
   triggerKey = bedId,
@@ -201,7 +239,14 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
         </React.Suspense>
       )}
       {isOpen && areReportsOpen && (
-        <React.Suspense fallback={null}>
+        <React.Suspense
+          fallback={
+            <ReportsImportFallback
+              patientName={patientName}
+              onClose={() => setAreReportsOpen(false)}
+            />
+          }
+        >
           <PatientHospitalizationReportsDialog
             isOpen
             onClose={() => setAreReportsOpen(false)}
