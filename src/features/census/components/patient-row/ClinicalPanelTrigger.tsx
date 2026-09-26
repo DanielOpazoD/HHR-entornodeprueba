@@ -39,9 +39,15 @@ interface ClinicalPanelTriggerProps {
 const ClinicalPanelImportFallback: React.FC<{
   bedId: string;
   patientName: string;
+  openerRef: React.RefObject<HTMLSpanElement | null>;
   onClose: () => void;
-}> = ({ bedId, patientName, onClose }) => {
+}> = ({ bedId, patientName, openerRef, onClose }) => {
   const panelRef = useRef<HTMLElement>(null);
+
+  const closeAndRestoreFocus = (): void => {
+    onClose();
+    openerRef.current?.querySelector('button')?.focus();
+  };
 
   useEffect(() => {
     panelRef.current?.focus();
@@ -49,11 +55,12 @@ const ClinicalPanelImportFallback: React.FC<{
       if (event.key === 'Escape' && panelRef.current?.contains(document.activeElement)) {
         event.stopPropagation();
         onClose();
+        openerRef.current?.querySelector('button')?.focus();
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [onClose, openerRef]);
 
   return createPortal(
     <>
@@ -61,7 +68,7 @@ const ClinicalPanelImportFallback: React.FC<{
         type="button"
         aria-hidden="true"
         tabIndex={-1}
-        onClick={onClose}
+        onClick={closeAndRestoreFocus}
         style={{ zIndex: LAYER_Z_INDEX.drawerBackdrop }}
         className="fixed inset-0 cursor-default bg-slate-900/30"
       />
@@ -85,7 +92,7 @@ const ClinicalPanelImportFallback: React.FC<{
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={closeAndRestoreFocus}
             aria-label="Cerrar panel clínico"
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-medical-700"
           >
@@ -128,6 +135,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   admissionDate,
   censusDate,
 }) => {
+  const triggerRef = useRef<HTMLSpanElement>(null);
   const [areReportsOpen, setAreReportsOpen] = useState(false);
   const episode = (clinicalEpisodeId || '').trim();
   const { isOpen, open, close } = useActiveClinicalPanel(
@@ -148,7 +156,7 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
 
   return (
     <>
-      <span className="inline-flex shrink-0 items-center">
+      <span ref={triggerRef} className="inline-flex shrink-0 items-center">
         <ClinicalActionButton
           tone="clinical"
           data-testid={`clinical-panel-trigger-${triggerKey}`}
@@ -167,7 +175,12 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
       {isOpen && (
         <React.Suspense
           fallback={
-            <ClinicalPanelImportFallback bedId={bedId} patientName={patientName} onClose={close} />
+            <ClinicalPanelImportFallback
+              bedId={bedId}
+              patientName={patientName}
+              openerRef={triggerRef}
+              onClose={close}
+            />
           }
         >
           <ClinicalPanelDrawer

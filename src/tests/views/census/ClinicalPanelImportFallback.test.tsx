@@ -40,6 +40,7 @@ describe('clinical panel deferred import', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByTestId('clinical-panel-module-loading')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
 
     fireEvent.click(trigger);
     expect(screen.getByTestId('clinical-panel-module-loading')).toBeInTheDocument();
