@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { randomBytes } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -9,7 +10,7 @@ import { buildCanonicalE2ERecord } from './fixtures/auth';
 // Development/Vite timings must not be compared with the production synthetic gate.
 const date = '2026-02-20';
 const email = 'census-performance@synthetic.invalid';
-const password = 'emulator-only-password';
+const password = randomBytes(18).toString('base64url');
 const patientName = 'SYNTHETIC REMOTE CENSUS';
 const projectId = 'demo-hhr-e2e';
 const firebaseConfig = {
