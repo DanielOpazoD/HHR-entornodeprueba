@@ -156,8 +156,10 @@ test('measures authenticated census readiness after a real emulator read', async
     });
     expect(Number.isFinite(result.bootstrapToRemoteConfirmedMs)).toBe(true);
     expect(Number.isFinite(result.bootstrapToTablePaintMs)).toBe(true);
+    expect(Number.isFinite(result.visitToRemoteConfirmedMs)).toBe(true);
     expect(result.bootstrapToRemoteConfirmedMs).toBeGreaterThanOrEqual(0);
     expect(result.bootstrapToTablePaintMs).toBeGreaterThanOrEqual(0);
+    expect(result.visitToRemoteConfirmedMs).toBeGreaterThanOrEqual(0);
     await testInfo.attach('census-remote-performance.json', {
       body: JSON.stringify(result, null, 2),
       contentType: 'application/json',
