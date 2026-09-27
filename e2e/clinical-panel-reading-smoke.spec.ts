@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { PatientDataSchema } from '../src/schemas/zod/patient';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
 import {
   installPreviewFirebaseRuntime,
@@ -17,6 +18,7 @@ const seedClinicalPanel = async (page: Page) => {
       ...beds,
       R1: {
         ...beds.R1,
+        bedMode: 'Cama',
         patientName: PATIENT,
         rut: '12345678-5',
         clinicalEpisodeId: 'preview-episode',
@@ -26,6 +28,11 @@ const seedClinicalPanel = async (page: Page) => {
       },
     },
   });
+
+  // Invalid fixtures enter salvage normalization, replacing the episode while the panel opens.
+  expect(
+    PatientDataSchema.parse((record.beds as Record<string, unknown>).R1).clinicalEpisodeId
+  ).toBe('preview-episode');
 
   await page.addInitScript(
     ({

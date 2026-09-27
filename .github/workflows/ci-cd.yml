@@ -9,6 +9,12 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Only a newer revision of the same PR supersedes an existing run.
+# Pushes use run_id so every main/develop validation is preserved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ci-scope:
     name: ci-scope
