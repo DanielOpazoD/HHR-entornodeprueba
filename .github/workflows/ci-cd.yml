@@ -355,8 +355,7 @@ jobs:
   quality-static:
     name: quality-static
     runs-on: ubuntu-latest
-    needs:
-      [quality-static-governance-snapshots, quality-static-groups, quality-static-dependent-groups]
+    needs: [quality-static-governance-snapshots, quality-static-groups, quality-static-dependent-groups]
 
     steps:
       - name: Quality static gates passed
@@ -822,15 +821,7 @@ jobs:
   ci-runtime-telemetry:
     name: ci-runtime-telemetry
     runs-on: ubuntu-latest
-    needs:
-      [
-        quality-static,
-        unit-risk,
-        clinical-sync-release-gate,
-        rules-emulator,
-        e2e-critical-emulator,
-        build,
-      ]
+    needs: [quality-static, unit-risk, clinical-sync-release-gate, rules-emulator, e2e-critical-emulator, build]
     permissions:
       actions: read
       contents: read
