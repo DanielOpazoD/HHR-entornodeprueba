@@ -651,6 +651,8 @@ jobs:
           name: preview-bootstrap-artifacts
           path: reports/e2e/preview-bootstrap/
           retention-days: 14
+          if-no-files-found: error
+          overwrite: true
 
       - name: Upload production build artifact
         uses: actions/upload-artifact@v7
@@ -658,6 +660,8 @@ jobs:
           name: dist
           path: dist/
           retention-days: 7
+          if-no-files-found: error
+          overwrite: true
 
   final-confidence-and-readiness:
     name: final-confidence-and-readiness

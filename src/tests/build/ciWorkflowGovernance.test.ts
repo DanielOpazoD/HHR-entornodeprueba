@@ -364,10 +364,14 @@ jobs:
         with:
           name: preview-bootstrap-artifacts
           path: reports/e2e/preview-bootstrap/
+          if-no-files-found: error
+          overwrite: true
       - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
+          if-no-files-found: error
+          overwrite: true
       - run: echo "unnamed follow-up step"
         with:
           name: wrong-artifact-name
