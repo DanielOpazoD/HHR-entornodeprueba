@@ -89,6 +89,13 @@ todas las muestras. Si output existe se falla, no se reutiliza ni borra automát
 ## Comandos
 
 Scripts integrados: `npm run test:e2e:census-performance` y `npm run test:census-performance-report`.
+
+El banco complementario `npm run test:e2e:census-interactions` usa el mismo servidor aislado
+con un registro sintético. Mide cinco aperturas del editor de diagnóstico y del panel clínico;
+`test-results/census-interactions/summary.json` conserva únicamente tiempos y nombres de acción.
+El resultado es una señal de comparación, no un presupuesto de aprobación: cinco muestras no
+justifican un umbral estadístico y el doble `requestAnimationFrame` indica oportunidad de pintado,
+no presentación física de píxeles. CI lo adjunta al artefacto de performance de producción.
 CI ejecuta development y production y exige ambos en `ci-summary`. El archivo
 `e2e/census-startup.measurement.ts` solo se descubre con su configuración dedicada,
 no desde suites genéricas que usan otros servidores. Ejecutar desde raíz:

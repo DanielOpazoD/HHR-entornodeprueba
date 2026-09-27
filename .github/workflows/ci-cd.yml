@@ -754,6 +754,9 @@ jobs:
           CENSUS_PERF_SAMPLES: ${{ github.event_name == 'pull_request' && '5' || '30' }}
           CENSUS_PERF_SMOKE: ${{ github.event_name == 'pull_request' && '1' || '0' }}
           CENSUS_PERF_RUNNER: github-ubuntu-latest
+      - name: Measure synthetic census interactions
+        if: matrix.environment == 'production'
+        run: npm run test:e2e:census-interactions
       - name: Upload privacy-safe timing evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -762,6 +765,7 @@ jobs:
           path: |
             reports/e2e/census-performance-*.json
             test-results/census-performance/**
+            test-results/census-interactions/**
           retention-days: 30
           if-no-files-found: warn
 
