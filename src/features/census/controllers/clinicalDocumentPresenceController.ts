@@ -30,6 +30,12 @@ type ClinicalDocumentPresenceRecord = {
   patientRut?: string;
 };
 
+/** Retain only badge inputs in the polling cache; full records remain repository-owned. */
+export const projectClinicalDocumentPresence = (
+  records: ClinicalDocumentPresenceRecord[]
+): ClinicalDocumentPresenceRecord[] =>
+  records.map(({ status, episodeKey, patientRut }) => ({ status, episodeKey, patientRut }));
+
 /** Maps a bed to its patient's clinical episode key. */
 export interface BedEpisodeBinding {
   bedId: string;

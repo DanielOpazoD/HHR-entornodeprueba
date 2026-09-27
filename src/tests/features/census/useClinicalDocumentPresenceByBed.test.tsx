@@ -136,6 +136,52 @@ describe('useClinicalDocumentPresenceByBed', () => {
     await waitFor(() => expect(result.current.byBedId.R1).toBe(false));
   });
 
+  it('caches only presence fields and keeps badge data stable when document content changes', async () => {
+    const presence = { status: 'draft', episodeKey: '1-9__2026-03-05', patientRut: '1-9' };
+    vi.mocked(executeListClinicalDocumentsByEpisodeKeys)
+      .mockResolvedValueOnce({
+        status: 'success',
+        issues: [],
+        data: [
+          {
+            ...presence,
+            renderedText: 'Primera versión sintética',
+            versionHistory: [{ version: 1 }],
+          },
+        ] as never,
+      })
+      .mockResolvedValueOnce({
+        status: 'success',
+        issues: [],
+        data: [
+          {
+            ...presence,
+            renderedText: 'Segunda versión sintética',
+            versionHistory: [{ version: 1 }, { version: 2 }],
+          },
+        ] as never,
+      });
+    const { wrapper, queryClient } = createQueryClientTestWrapper();
+    const { result } = renderHook(
+      () =>
+        useClinicalDocumentPresenceByBed({
+          unifiedRows,
+          currentDateString: '2026-03-05',
+          enabled: true,
+        }),
+      { wrapper }
+    );
+    await waitFor(() => expect(result.current.byBedId.R1).toBe(true));
+    const query = queryClient.getQueryCache().getAll()[0];
+    const cached = query.state.data;
+    const badges = result.current;
+    expect(cached).toEqual([presence]);
+    await queryClient.invalidateQueries({ queryKey: ['clinicalDocuments', 'presenceByBed'] });
+    expect(executeListClinicalDocumentsByEpisodeKeys).toHaveBeenCalledTimes(2);
+    expect(query.state.data).toBe(cached);
+    expect(result.current).toBe(badges);
+  });
+
   it('does not mark a bed as having documents when the returned document rut belongs to another patient', async () => {
     vi.mocked(executeListClinicalDocumentsByEpisodeKeys).mockResolvedValueOnce({
       status: 'success',
