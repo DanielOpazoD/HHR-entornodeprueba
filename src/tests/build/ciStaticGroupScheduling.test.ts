@@ -5,6 +5,13 @@ import { describe, expect, it } from 'vitest';
 const workflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/ci-cd.yml'), 'utf8');
 
 describe('CI static group scheduling', () => {
+  it('generates API docs alongside the full test gates', () => {
+    const docsJob = workflow.slice(workflow.indexOf('  docs:\n'));
+    expect(docsJob).toContain('needs: [ci-scope]');
+    expect(docsJob).toContain("if: needs.ci-scope.outputs.scope == 'full'");
+    expect(docsJob).toContain('run: npm run docs:generate');
+  });
+
   it('splits quality-static into governed groups while preserving an aggregate quality-static check', () => {
     expect(workflow).toContain('quality-static-governance-snapshots:');
     expect(workflow).toContain('quality-static-groups:');

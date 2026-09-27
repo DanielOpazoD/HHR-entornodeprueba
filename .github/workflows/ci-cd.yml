@@ -1024,7 +1024,8 @@ jobs:
   docs:
     name: API Documentation
     runs-on: ubuntu-latest
-    needs: [quality-static, unit-risk, rules-emulator, e2e-critical-emulator]
+    needs: [ci-scope]
+    if: needs.ci-scope.outputs.scope == 'full'
 
     permissions:
       contents: read
