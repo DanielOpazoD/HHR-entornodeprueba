@@ -61,11 +61,9 @@ export const useClinicalDocumentPresenceByBed = ({
         const { executeListClinicalDocumentsByEpisodeKeys } = await loadClinicalDocumentUseCases();
         const outcome = await executeListClinicalDocumentsByEpisodeKeys(episodeKeys);
         if (outcome.status === 'failed') {
-          clinicalDocumentPresenceLogger.warn(
-            'Failed to resolve clinical document presence',
+          throw new Error(
             resolveApplicationOutcomeMessage(outcome, 'No se pudo resolver presencia documental.')
           );
-          return [];
         }
         return outcome.data;
       } catch (error) {
@@ -73,7 +71,7 @@ export const useClinicalDocumentPresenceByBed = ({
           'Failed to resolve clinical document presence',
           error instanceof Error ? error.message : 'No se pudo resolver presencia documental.'
         );
-        return [];
+        throw error;
       }
     },
     staleTime: 30 * 1000,

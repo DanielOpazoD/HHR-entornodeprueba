@@ -92,6 +92,50 @@ describe('useClinicalDocumentPresenceByBed', () => {
     expect(warnMock).toHaveBeenCalled();
   });
 
+  it('keeps confirmed document indicators during a failed refresh and recovers on success', async () => {
+    vi.mocked(executeListClinicalDocumentsByEpisodeKeys)
+      .mockResolvedValueOnce({
+        status: 'success',
+        data: [
+          {
+            status: 'draft',
+            episodeKey: '1-9__2026-03-05',
+            patientRut: '1-9',
+          },
+        ] as never,
+        issues: [],
+      })
+      .mockResolvedValueOnce({
+        status: 'failed',
+        data: [],
+        userSafeMessage: 'No se pudo actualizar la presencia documental.',
+        issues: [{ kind: 'unknown', message: 'temporary failure' }],
+      });
+    const { queryClient, wrapper } = createQueryClientTestWrapper();
+    const { result } = renderHook(
+      () =>
+        useClinicalDocumentPresenceByBed({
+          unifiedRows,
+          currentDateString: '2026-03-05',
+          enabled: true,
+        }),
+      { wrapper }
+    );
+
+    await waitFor(() => expect(result.current.byBedId.R1).toBe(true));
+    await queryClient.invalidateQueries({ queryKey: ['clinicalDocuments', 'presenceByBed'] });
+
+    expect(executeListClinicalDocumentsByEpisodeKeys).toHaveBeenCalledTimes(2);
+    expect(result.current.byBedId.R1).toBe(true);
+    expect(warnMock).toHaveBeenCalledWith(
+      'Failed to resolve clinical document presence',
+      'No se pudo actualizar la presencia documental.'
+    );
+
+    await queryClient.invalidateQueries({ queryKey: ['clinicalDocuments', 'presenceByBed'] });
+    await waitFor(() => expect(result.current.byBedId.R1).toBe(false));
+  });
+
   it('does not mark a bed as having documents when the returned document rut belongs to another patient', async () => {
     vi.mocked(executeListClinicalDocumentsByEpisodeKeys).mockResolvedValueOnce({
       status: 'success',
