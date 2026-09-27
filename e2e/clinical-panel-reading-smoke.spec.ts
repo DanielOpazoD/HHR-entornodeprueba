@@ -156,3 +156,43 @@ test('keeps the patient identity fixed above a calm chronological clinical list'
   await expect(drawer.getByRole('navigation', { name: 'Secciones clínicas' })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('clinical-panel-mobile.png') });
 });
+
+for (const panel of ['drawer', 'reports'] as const) {
+  test(`contains a failed ${panel} chunk without replacing the census`, async ({ page }) => {
+    await seedClinicalPanel(page);
+    const chunk =
+      panel === 'drawer'
+        ? /\/ClinicalPanelDrawer-[^/]+\.js(?:\?.*)?$/
+        : /\/PatientHospitalizationReportsDialog-[^/]+\.js(?:\?.*)?$/;
+    let blocked = 0;
+    await page.route(chunk, route => {
+      blocked += 1;
+      return route.abort('failed');
+    });
+    await page.goto(`/?date=${DATE}`);
+    const trigger = page.getByTestId('clinical-panel-trigger-R1');
+    await trigger.click();
+    if (panel === 'reports') {
+      await page
+        .getByTestId('clinical-panel-drawer-R1')
+        .getByRole('button', { name: `Abrir informes de hospitalización de ${PATIENT}` })
+        .click();
+    }
+    const fallback = page.getByTestId(
+      panel === 'drawer' ? 'clinical-panel-module-loading' : 'reports-module-loading'
+    );
+    await expect(fallback.getByRole('alert')).toContainText('No se pudo abrir este panel');
+    expect(blocked).toBeGreaterThan(0);
+    await expect(trigger).toBeAttached();
+    await fallback
+      .getByRole('button', { name: panel === 'drawer' ? 'Cerrar panel clínico' : 'Cerrar modal' })
+      .click();
+    await expect(fallback).toBeHidden();
+    if (panel === 'drawer') {
+      await expect(trigger).toBeVisible();
+      await expect(trigger).toBeFocused();
+    } else {
+      await expect(page.getByTestId('clinical-panel-drawer-R1')).toBeVisible();
+    }
+  });
+}

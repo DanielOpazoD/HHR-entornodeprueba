@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import type { TransferData } from '@/features/census/contracts/censusMovementContracts';
 import { resolveTransferRowViewModel } from '@/features/census/controllers/transferRowViewController';
 import { TransferRowView } from '@/features/census/components/TransferRowView';
-import { PatientHospitalizationReportsDialog } from './PatientHospitalizationReportsDialog';
+import { DeferredHospitalizationReportsDialog } from './DeferredHospitalizationReportsDialog';
 import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
 
 interface TransferRowProps {
@@ -35,7 +35,7 @@ export const TransferRow: React.FC<TransferRowProps> = React.memo(
           onOpenEpicrisis={() => setShowHospitalizationReports(true)}
         />
         {showHospitalizationReports && (
-          <PatientHospitalizationReportsDialog
+          <DeferredHospitalizationReportsDialog
             isOpen={showHospitalizationReports}
             onClose={() => setShowHospitalizationReports(false)}
             patientName={item.patientName}
