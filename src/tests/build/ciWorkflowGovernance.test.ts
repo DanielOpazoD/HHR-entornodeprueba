@@ -158,11 +158,11 @@ describe('CI workflow governance', () => {
     expect(freshnessStep).toBeGreaterThan(contractStep);
     expect(uploadStep).toBeGreaterThan(freshnessStep);
     expect(syncGateJob).toContain('path: reports/sync-convergence.*');
-    expect(buildJob).toContain(
-      'needs: [quality-static, unit-risk, clinical-sync-release-gate, rules-emulator, e2e-critical-emulator]'
-    );
+    expect(buildJob).toContain('needs: [quality-static-governance-snapshots]');
+    expect(buildJob).toContain('name: release-evidence-runtime');
     expect(summaryJob).toContain('ci-runtime-telemetry');
     expect(summaryJob).toContain('clinical-sync-release-gate:$CLINICAL_SYNC_RESULT');
+    expect(summaryJob).toContain('e2e-critical-emulator:$E2E_CRITICAL_RESULT');
   });
 
   it('collects real GitHub Actions runtime after PR-blocking gates finish', () => {

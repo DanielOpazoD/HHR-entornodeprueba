@@ -584,7 +584,9 @@ jobs:
   build:
     name: build-budget
     runs-on: ubuntu-latest
-    needs: [quality-static, unit-risk, clinical-sync-release-gate, rules-emulator, e2e-critical-emulator]
+    # The build consumes the release-evidence runtime contract from this job.
+    # Other release gates still block ci-summary, but can run alongside the build.
+    needs: [quality-static-governance-snapshots]
 
     steps:
       - name: Checkout code
