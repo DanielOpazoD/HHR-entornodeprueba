@@ -193,6 +193,12 @@ export const collectCiArtifactContractIssues = workflowText => {
 
   const distProducers = uploads.filter(upload => upload.name === 'dist');
   for (const producer of distProducers) {
+    if (producer.jobName === 'build' && !/^\s+overwrite:\s*true\s*$/m.test(producer.block)) {
+      issues.push('build: dist upload must replace an artifact from an earlier run attempt.');
+    }
+    if (producer.jobName === 'build' && getField(producer.block, 'if-no-files-found') !== 'error') {
+      issues.push('build: dist upload must fail when the new build is missing.');
+    }
     const normalizedPath = normalizePath(producer.path);
     if (normalizedPath !== 'dist' && !normalizedPath.startsWith('dist/')) {
       issues.push(
@@ -442,6 +448,20 @@ export const collectCiArtifactContractIssues = workflowText => {
     issues.push(`No job uploads required artifact "${PREVIEW_BOOTSTRAP_ARTIFACT}".`);
   }
   for (const upload of previewUploads) {
+    if (
+      upload.jobName === PREVIEW_BOOTSTRAP_PRODUCER_JOB &&
+      !/^\s+overwrite:\s*true\s*$/m.test(upload.block)
+    ) {
+      issues.push(
+        'build: preview bootstrap upload must replace an artifact from an earlier run attempt.'
+      );
+    }
+    if (
+      upload.jobName === PREVIEW_BOOTSTRAP_PRODUCER_JOB &&
+      getField(upload.block, 'if-no-files-found') !== 'error'
+    ) {
+      issues.push('build: preview bootstrap upload must fail when new evidence is missing.');
+    }
     if (upload.jobName !== PREVIEW_BOOTSTRAP_PRODUCER_JOB) {
       issues.push(
         `${upload.jobName}: uploads "${PREVIEW_BOOTSTRAP_ARTIFACT}"; expected producer ` +
