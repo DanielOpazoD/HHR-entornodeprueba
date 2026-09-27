@@ -405,3 +405,11 @@ permanece pausado mientras `@storybook/addon-vitest` requiera Vitest 4. Al retir
 pausa, actualizar el toolchain relacionado en conjunto y exigir `npm ci`, los gates
 enfocados del área y CI `full`. El workspace de Functions conserva su grupo menor
 independiente. Los manifiestos de Functions siempre disparan `full`.
+
+## Superseded pull-request runs
+
+`CI/CD Pipeline` and `Preview Validation` share a concurrency group only for revisions
+of the same pull request within the same workflow. A newer revision cancels that
+PR's obsolete run; reviewers must inspect checks for the current head SHA.
+Push validations use a unique run ID, preserving every `main` and `develop` run
+(including pending runs). This does not change jobs, required checks, or test scope.
