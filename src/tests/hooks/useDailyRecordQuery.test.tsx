@@ -151,6 +151,59 @@ describe('useDailyRecordQuery', () => {
     expect(dailyRecord.subscribeDetailed).toHaveBeenCalledWith(date, expect.any(Function));
   });
 
+  it('keeps one live listener and releases it on date, offline, and unmount transitions', async () => {
+    const dailyRecord = buildMockDailyRecordRepository();
+    const queryClient = createTestQueryClient();
+    const activeDates = new Set<string>();
+    const stops: Array<ReturnType<typeof vi.fn>> = [];
+    vi.mocked(dailyRecord.getForDateWithMeta).mockImplementation(async requestedDate =>
+      createDailyRecordReadResult(
+        requestedDate,
+        DataFactory.createMockDailyRecord(requestedDate),
+        'firestore'
+      )
+    );
+    vi.mocked(dailyRecord.subscribeDetailed).mockImplementation(requestedDate => {
+      activeDates.add(requestedDate);
+      const stop = vi.fn(() => activeDates.delete(requestedDate));
+      stops.push(stop);
+      return stop;
+    });
+
+    const { rerender, unmount } = renderHook(
+      ({ selectedDate, offline }: { selectedDate: string; offline: boolean }) =>
+        useDailyRecordQuery(selectedDate, offline, 'ready'),
+      {
+        initialProps: { selectedDate: date, offline: false },
+        wrapper: createWrapper(dailyRecord, queryClient),
+      }
+    );
+
+    await waitFor(() => expect(activeDates).toEqual(new Set([date])));
+    rerender({ selectedDate: date, offline: false });
+    expect(dailyRecord.subscribeDetailed).toHaveBeenCalledTimes(1);
+    expect(stops[0]).not.toHaveBeenCalled();
+
+    const nextDate = '2026-04-04';
+    rerender({ selectedDate: nextDate, offline: false });
+    await waitFor(() => expect(activeDates).toEqual(new Set([nextDate])));
+    expect(stops[0]).toHaveBeenCalledTimes(1);
+    expect(dailyRecord.subscribeDetailed).toHaveBeenCalledTimes(2);
+
+    rerender({ selectedDate: nextDate, offline: true });
+    expect(activeDates.size).toBe(0);
+    expect(stops[1]).toHaveBeenCalledTimes(1);
+
+    rerender({ selectedDate: nextDate, offline: false });
+    await waitFor(() => expect(activeDates).toEqual(new Set([nextDate])));
+    expect(dailyRecord.subscribeDetailed).toHaveBeenCalledTimes(3);
+
+    unmount();
+    expect(activeDates.size).toBe(0);
+    expect(stops[2]).toHaveBeenCalledTimes(1);
+    queryClient.clear();
+  });
+
   it('refetches from remote when the runtime transitions from local_only to ready', async () => {
     const dailyRecord = buildMockDailyRecordRepository();
     const initialProps: { remoteSyncStatus: 'local_only' | 'ready' } = {
