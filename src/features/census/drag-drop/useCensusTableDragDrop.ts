@@ -28,17 +28,21 @@ export function useCensusTableDragDrop(
   const [dragOverBedId, setDragOverBedId] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<PendingBedMove | null>(null);
   const dragCounterRef = useRef(0);
+  const dragStartHandlersRef = useRef(new Map<string, (event: DragEvent) => void>());
 
   // ---- Patient row handlers ----
 
-  const onDragStart = useCallback(
-    (bedId: string) => (e: DragEvent) => {
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData(DRAG_DATA_FORMAT, bedId);
+  const onDragStart = useCallback((bedId: string) => {
+    const cached = dragStartHandlersRef.current.get(bedId);
+    if (cached) return cached;
+    const handler = (event: DragEvent) => {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData(DRAG_DATA_FORMAT, bedId);
       setDragSourceBedId(bedId);
-    },
-    []
-  );
+    };
+    dragStartHandlersRef.current.set(bedId, handler);
+    return handler;
+  }, []);
 
   const onDragEnd = useCallback(() => {
     setDragSourceBedId(null);
