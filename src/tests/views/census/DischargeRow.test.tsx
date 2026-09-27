@@ -174,7 +174,7 @@ describe('DischargeRow', () => {
     );
   });
 
-  it('offers epicrisis directly in the discharge row without opening the actions menu', () => {
+  it('offers epicrisis directly in the discharge row without opening the actions menu', async () => {
     const item = DataFactory.createMockDischarge({
       patientName: 'Paciente Alta',
       rut: '17.752.753-1',
@@ -195,7 +195,7 @@ describe('DischargeRow', () => {
       </table>
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ver epicrisis de Paciente Alta' }));
-    expect(screen.getByTestId('hospitalization-reports-dialog')).toHaveTextContent('141336');
+    expect(await screen.findByTestId('hospitalization-reports-dialog')).toHaveTextContent('141336');
   });
 
   it('lazy-loads the fuga modal and keeps IEEH unavailable', async () => {

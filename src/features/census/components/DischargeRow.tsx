@@ -5,7 +5,7 @@ import type { DischargeData } from '@/features/census/contracts/censusMovementCo
 import { resolveDischargeRowViewModel } from '@/features/census/controllers/dischargeRowViewController';
 import { DischargeRowView } from '@/features/census/components/DischargeRowView';
 import { buildDischargeClinicalDocumentsPatientSnapshot } from '@/features/census/controllers/movementClinicalDocumentsController';
-import { PatientHospitalizationReportsDialog } from '@/features/census/components/PatientHospitalizationReportsDialog';
+import { DeferredHospitalizationReportsDialog } from '@/features/census/components/DeferredHospitalizationReportsDialog';
 import { resolveMovementHistoricalAdmissionDate } from '@/types/domain/movements';
 
 const LazyClinicalDocumentsModal = lazy(() =>
@@ -63,7 +63,7 @@ export const DischargeRow: React.FC<DischargeRowProps> = React.memo(
             </Suspense>,
             document.body
           )}
-        <PatientHospitalizationReportsDialog
+        <DeferredHospitalizationReportsDialog
           isOpen={showHospitalizationReports}
           onClose={() => setShowHospitalizationReports(false)}
           patientName={item.patientName}

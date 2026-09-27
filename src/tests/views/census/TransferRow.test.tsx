@@ -101,7 +101,7 @@ describe('TransferRow', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('opens the Eloísa epicrisis search from the visible transfer action', () => {
+  it('opens the Eloísa epicrisis search from the visible transfer action', async () => {
     const item = DataFactory.createMockTransfer({
       patientName: 'Paciente Traslado',
       clinicalEpisodeId: '141337',
@@ -120,6 +120,6 @@ describe('TransferRow', () => {
       </table>
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ver epicrisis de Paciente Traslado' }));
-    expect(screen.getByTestId('hospitalization-reports-dialog')).toHaveTextContent('141337');
+    expect(await screen.findByTestId('hospitalization-reports-dialog')).toHaveTextContent('141337');
   });
 });

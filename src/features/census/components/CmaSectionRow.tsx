@@ -10,7 +10,7 @@ import { useCensusMovementActionsCellModel } from '@/features/census/hooks/useCe
 import { MovementProvenanceBadge } from '@/features/census/components/MovementProvenanceBadge';
 import { CensusMovementPatientIdentity } from './CensusMovementPatientIdentity';
 import { CensusMovementEpicrisisButton } from './CensusMovementEpicrisisButton';
-import { PatientHospitalizationReportsDialog } from './PatientHospitalizationReportsDialog';
+import { DeferredHospitalizationReportsDialog } from './DeferredHospitalizationReportsDialog';
 import { resolveCmaHistoricalAdmissionDate } from '@/types/domain/movements';
 import { formatDateDDMMYYYY } from '@/utils/dateDisplayUtils';
 
@@ -158,7 +158,7 @@ export const CmaSectionRow: React.FC<CmaSectionRowProps> = React.memo(
         </tr>
 
         {showHospitalizationReports && (
-          <PatientHospitalizationReportsDialog
+          <DeferredHospitalizationReportsDialog
             isOpen={showHospitalizationReports}
             onClose={() => setShowHospitalizationReports(false)}
             patientName={item.patientName}

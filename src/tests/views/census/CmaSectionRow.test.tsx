@@ -36,7 +36,7 @@ vi.mock('@/features/clinical-documents', () => ({
 }));
 
 describe('CmaSectionRow', () => {
-  it('shows admission date beneath the identity and opens epicrisis from the CMA row', () => {
+  it('shows admission date beneath the identity and opens epicrisis from the CMA row', async () => {
     const item = DataFactory.createMockCMA({
       patientName: 'Paciente CMA',
       rut: 'A33206667',
@@ -59,7 +59,7 @@ describe('CmaSectionRow', () => {
     );
     expect(screen.getByText('FI: 29-04-2026')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Ver epicrisis de Paciente CMA' }));
-    expect(screen.getByTestId('hospitalization-reports-dialog')).toHaveTextContent('141338');
+    expect(await screen.findByTestId('hospitalization-reports-dialog')).toHaveTextContent('141338');
   });
 
   it('renders item values and emits update callbacks', () => {

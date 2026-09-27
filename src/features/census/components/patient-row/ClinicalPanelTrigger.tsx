@@ -7,23 +7,22 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpenText, FileClock, X } from 'lucide-react';
+import { BookOpenText, X } from 'lucide-react';
 
-import { BaseModal } from '@/components/shared/BaseModal';
 import { resolveClinicalPanelNavigation } from '@/features/census/controllers/clinicalPanelNavigationController';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { useActiveClinicalPanel } from './useActiveClinicalPanel';
 import { ClinicalActionButton } from './ClinicalActionButton';
+import { RecoverableClinicalPanelModule, PanelModuleRetry } from './RecoverableClinicalPanelModule';
+import { DeferredHospitalizationReportsDialog } from '../DeferredHospitalizationReportsDialog';
 
-const PatientHospitalizationReportsDialog = React.lazy(() =>
-  import('@/features/census/components/PatientHospitalizationReportsDialog').then(module => ({
-    default: module.PatientHospitalizationReportsDialog,
-  }))
-);
+const loadDrawer = () =>
+  import('./ClinicalPanelDrawer').then(module => ({ default: module.ClinicalPanelDrawer }));
 
-const ClinicalPanelDrawer = React.lazy(() =>
-  import('./ClinicalPanelDrawer').then(module => ({ default: module.ClinicalPanelDrawer }))
-);
+let DrawerModule = React.lazy(loadDrawer);
+const resetDrawerModule = () => {
+  DrawerModule = React.lazy(loadDrawer);
+};
 
 interface ClinicalPanelTriggerProps {
   bedId: string;
@@ -42,7 +41,8 @@ const ClinicalPanelImportFallback: React.FC<{
   patientName: string;
   openerRef: React.RefObject<HTMLSpanElement | null>;
   onClose: () => void;
-}> = ({ bedId, patientName, openerRef, onClose }) => {
+  onRetry?: () => void;
+}> = ({ bedId, patientName, openerRef, onClose, onRetry }) => {
   const panelRef = useRef<HTMLElement>(null);
 
   const closeAndRestoreFocus = (): void => {
@@ -77,8 +77,8 @@ const ClinicalPanelImportFallback: React.FC<{
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`Abriendo panel clínico de ${patientName}`}
-        aria-busy="true"
+        aria-label={`${onRetry ? 'Panel clínico' : 'Abriendo panel clínico'} de ${patientName}`}
+        aria-busy={!onRetry}
         tabIndex={-1}
         data-testid="clinical-panel-module-loading"
         style={{ zIndex: LAYER_Z_INDEX.drawer }}
@@ -109,7 +109,11 @@ const ClinicalPanelImportFallback: React.FC<{
           ))}
         </div>
         <div className="flex-1 space-y-3 bg-white p-3">
-          <p className="text-xs text-slate-500">Abriendo ficha clínica…</p>
+          {onRetry ? (
+            <PanelModuleRetry onRetry={onRetry} />
+          ) : (
+            <p className="text-xs text-slate-500">Abriendo ficha clínica…</p>
+          )}
           <div aria-hidden="true" className="space-y-3">
             {[0, 1].map(index => (
               <div key={index} className="space-y-3 rounded-lg border border-slate-200 p-3">
@@ -125,43 +129,6 @@ const ClinicalPanelImportFallback: React.FC<{
     document.body
   );
 };
-
-const ReportsImportFallback: React.FC<{ patientName: string; onClose: () => void }> = ({
-  patientName,
-  onClose,
-}) => (
-  <BaseModal
-    isOpen
-    onClose={onClose}
-    title="Informes de hospitalización"
-    icon={<FileClock size={18} />}
-    size="lg"
-    dataTestId="reports-module-loading"
-    backdropZIndex={LAYER_Z_INDEX.modal}
-    bodyClassName="p-0"
-  >
-    <div className="border-b border-slate-100 px-5 py-3">
-      <p className="truncate text-sm font-semibold text-slate-800">{patientName}</p>
-      <p className="mt-0.5 text-xs text-slate-500">
-        Selecciona una hospitalización y el documento que necesitas.
-      </p>
-    </div>
-    <div aria-busy="true" className="min-h-40 space-y-3 p-4">
-      <p className="text-xs text-slate-500">Abriendo informes…</p>
-      <div aria-hidden="true" className="space-y-2">
-        {[0, 1].map(index => (
-          <div
-            key={index}
-            className="min-h-[60px] rounded-lg border border-slate-200 bg-white px-4 py-3"
-          >
-            <div className="h-3 w-40 rounded bg-slate-100" />
-            <div className="mt-2 h-2 w-24 rounded bg-slate-50" />
-          </div>
-        ))}
-      </div>
-    </div>
-  </BaseModal>
-);
 
 export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
   bedId,
@@ -211,52 +178,50 @@ export const ClinicalPanelTrigger: React.FC<ClinicalPanelTriggerProps> = ({
         </ClinicalActionButton>
       </span>
       {isOpen && (
-        <React.Suspense
-          fallback={
+        <RecoverableClinicalPanelModule
+          resetModule={resetDrawerModule}
+          fallback={retry => (
             <ClinicalPanelImportFallback
               bedId={bedId}
               patientName={patientName}
               openerRef={triggerRef}
               onClose={close}
+              onRetry={retry}
             />
-          }
-        >
-          <ClinicalPanelDrawer
-            bedId={bedId}
-            patientName={patientName}
-            patientRun={patientRun}
-            clinicalEpisodeId={episode}
-            admissionDate={admissionDate}
-            censusDate={censusDate}
-            encounterRouteHint={encounterRouteHint}
-            canNavigatePrevious={navigation.previous !== null}
-            canNavigateNext={navigation.next !== null}
-            onNavigatePrevious={() => navigatePanel('previous')}
-            onNavigateNext={() => navigatePanel('next')}
-            onOpenHospitalizationReports={() => setAreReportsOpen(true)}
-            onClose={close}
-          />
-        </React.Suspense>
+          )}
+          render={() => (
+            <DrawerModule
+              {...{
+                bedId,
+                patientName,
+                patientRun,
+                clinicalEpisodeId: episode,
+                admissionDate,
+                censusDate,
+                encounterRouteHint,
+                canNavigatePrevious: navigation.previous !== null,
+                canNavigateNext: navigation.next !== null,
+                onNavigatePrevious: () => navigatePanel('previous'),
+                onNavigateNext: () => navigatePanel('next'),
+                onOpenHospitalizationReports: () => {
+                  setAreReportsOpen(true);
+                },
+                onClose: close,
+              }}
+            />
+          )}
+        />
       )}
       {isOpen && areReportsOpen && (
-        <React.Suspense
-          fallback={
-            <ReportsImportFallback
-              patientName={patientName}
-              onClose={() => setAreReportsOpen(false)}
-            />
-          }
-        >
-          <PatientHospitalizationReportsDialog
-            isOpen
-            onClose={() => setAreReportsOpen(false)}
-            patientName={patientName}
-            patientRun={patientRun}
-            currentEpisodeId={episode}
-            admissionDate={admissionDate}
-            censusDate={censusDate}
-          />
-        </React.Suspense>
+        <DeferredHospitalizationReportsDialog
+          isOpen
+          onClose={() => setAreReportsOpen(false)}
+          patientName={patientName}
+          patientRun={patientRun}
+          currentEpisodeId={episode}
+          admissionDate={admissionDate}
+          censusDate={censusDate}
+        />
       )}
     </>
   );

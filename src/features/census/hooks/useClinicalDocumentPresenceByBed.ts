@@ -18,18 +18,10 @@ interface UseClinicalDocumentPresenceByBedParams {
   enabled: boolean;
 }
 
-let clinicalDocumentUseCasesPromise: Promise<
-  typeof import('@/application/clinical-documents/clinicalDocumentUseCases')
-> | null = null;
-
-const loadClinicalDocumentUseCases = async () => {
-  if (!clinicalDocumentUseCasesPromise) {
-    clinicalDocumentUseCasesPromise =
-      import('@/application/clinical-documents/clinicalDocumentUseCases');
-  }
-
-  return clinicalDocumentUseCasesPromise;
-};
+// The module runtime caches successful imports. Do not retain a rejected promise here:
+// a later poll must be able to retry a transient chunk/network failure.
+const loadClinicalDocumentUseCases = () =>
+  import('@/application/clinical-documents/clinicalDocumentUseCases');
 
 export interface ClinicalDocumentPresenceResult {
   byBedId: Record<string, boolean>;
