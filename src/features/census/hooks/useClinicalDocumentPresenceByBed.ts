@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import {
   buildActiveClinicalDocumentEpisodeKeys,
+  projectClinicalDocumentPresence,
   buildBedEpisodeBindings,
   buildClinicalDocumentPresenceByBed,
   buildClinicalDocumentPresenceInfoByBed,
@@ -65,7 +66,7 @@ export const useClinicalDocumentPresenceByBed = ({
             resolveApplicationOutcomeMessage(outcome, 'No se pudo resolver presencia documental.')
           );
         }
-        return outcome.data;
+        return projectClinicalDocumentPresence(outcome.data);
       } catch (error) {
         clinicalDocumentPresenceLogger.warn(
           'Failed to resolve clinical document presence',
