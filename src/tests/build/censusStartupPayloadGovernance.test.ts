@@ -30,15 +30,18 @@ describe('census startup payload', () => {
       'patient-row/VitalsCell.tsx',
       'patient-row/DevicesCell.tsx',
       'patient-row/ScoresCell.tsx',
-      'CensusTable.tsx',
       'StatisticalDischargeProvenanceBadge.tsx',
       'usePatientHospitalizationReports.ts',
-    ];
+    ].map(file => `src/features/census/components/${file}`);
+    consumers.push('src/application/census/eloisaAdmissionInput.ts');
     for (const file of consumers) {
-      const source = read(`src/features/census/components/${file}`);
+      const source = read(file);
       expect(source).toContain('@/features/rayen-import/census-status');
       expect(source).not.toMatch(/from '@\/features\/rayen-import'/);
     }
+    const table = read('src/features/census/components/CensusTable.tsx');
+    expect(table).toContain('@/application/census/eloisaAdmissionInput');
+    expect(table).not.toMatch(/from '@\/features\/rayen-import'/);
     // The narrow surface must stay narrow: re-exporting the barrel would undo the split.
     expect(read('src/features/rayen-import/census-status.ts')).not.toMatch(
       /from '\.\/index'|from '\.'/
@@ -50,6 +53,7 @@ describe('census startup payload', () => {
     expect(publicApi.exceptionsByFeature['rayen-import']).toEqual(
       expect.arrayContaining([
         'src/features/census/components/patient-row/VitalsCell.tsx -> @/features/rayen-import/census-status',
+        'src/application/census/eloisaAdmissionInput.ts -> @/features/rayen-import/census-status',
       ])
     );
   });
