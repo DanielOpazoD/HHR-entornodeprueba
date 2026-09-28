@@ -78,7 +78,7 @@ describe('extension hotspot budget', () => {
         (total, file) => total + Object.keys(file.hotspots).length,
         0
       )
-    ).toBe(87);
+    ).toBe(86);
     expect(evaluateExtensionHotspots({ baseline, metrics })).toEqual([]);
   });
 

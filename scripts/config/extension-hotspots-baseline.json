@@ -86,7 +86,6 @@
       "maxLines": 574,
       "hotspots": {
         "iife>variable:create": 28,
-        "iife>variable:create>variable:fetchCudyrCategories": 18,
         "iife>variable:create>variable:handleScoreFormRequest": 19,
         "iife>variable:create>variable:handleScoresOptionsRequest": 20,
         "iife>variable:create>variable:normalizeScaleDefinition": 18,

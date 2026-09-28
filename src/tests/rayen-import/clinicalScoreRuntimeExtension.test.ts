@@ -100,14 +100,18 @@ describe('clinical Scores read runtime owner', () => {
     { status: 503, rejection: '', message: 'HTTP 503' },
   ])('classifies an official beds HTTP $status without a ReferenceError', async entry => {
     const classifyGestionCamasRejection = vi.fn(async () => entry.rejection);
-    const fetchWithTimeout = vi.fn(async (url: string) => url.endsWith('/beds')
-      ? { ok: false, status: entry.status, json: async () => [] }
-      : { ok: true, status: 200, json: async () => [] });
-    const runtime = loadFactory().create(createDependencies({
-      resolveGestionCamasSession: vi.fn(async () => ({ record: gestionCamasRecord })),
-      classifyGestionCamasRejection,
-      fetchWithTimeout,
-    }));
+    const fetchWithTimeout = vi.fn(async (url: string) =>
+      url.endsWith('/beds')
+        ? { ok: false, status: entry.status, json: async () => [] }
+        : { ok: true, status: 200, json: async () => [] }
+    );
+    const runtime = loadFactory().create(
+      createDependencies({
+        resolveGestionCamasSession: vi.fn(async () => ({ record: gestionCamasRecord })),
+        classifyGestionCamasRejection,
+        fetchWithTimeout,
+      })
+    );
 
     const result = await runtime.handleCudyrCategoriesRequest();
 
@@ -136,11 +140,13 @@ describe('clinical Scores read runtime owner', () => {
       }
       return { ok: true, status: 200, json: async () => [] };
     });
-    const runtime = loadFactory().create(createDependencies({
-      getFichaFetchInfo: vi.fn(async () => ({ info })),
-      resolveGestionCamasSession: vi.fn(async () => ({ record: gestionCamasRecord })),
-      fetchWithTimeout,
-    }));
+    const runtime = loadFactory().create(
+      createDependencies({
+        getFichaFetchInfo: vi.fn(async () => ({ info })),
+        resolveGestionCamasSession: vi.fn(async () => ({ record: gestionCamasRecord })),
+        fetchWithTimeout,
+      })
+    );
 
     const result = await runtime.handleCudyrCategoriesRequest();
 
@@ -156,6 +162,75 @@ describe('clinical Scores read runtime owner', () => {
     ).toHaveLength(3);
   });
 
+  it('reads the three fallback lists concurrently and merges in stable list order', async () => {
+    const pending: Array<(value: unknown) => void> = [];
+    const fetchWithTimeout = vi.fn(() => new Promise(resolve => pending.push(resolve)));
+    const runtime = loadFactory().create(
+      createDependencies({
+        getFichaFetchInfo: vi.fn(async () => ({
+          info: {
+            apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+            facId: '1342',
+            token: 'fixture',
+          },
+        })),
+        fetchWithTimeout,
+      })
+    );
+    const result = runtime.handleCudyrCategoriesRequest();
+    await vi.waitFor(() => expect(fetchWithTimeout).toHaveBeenCalledTimes(3));
+    // Finish out of order: the source precedence must not depend on network speed.
+    for (const index of [2, 0, 1])
+      pending[index]({
+        ok: true,
+        json: async () => [{ id: 901, crdValue: `C${index + 1}` }],
+      });
+    await expect(result).resolves.toMatchObject({
+      source: 'ficha_medico',
+      historyAvailable: false,
+      items: [{ encId: '901', crdValue: 'C3' }],
+    });
+  });
+
+  it.each(['timeout', 'invalid-json', 'invalid-shape'])(
+    'keeps official history when a fallback list has %s',
+    async failure => {
+      const runtime = loadFactory().create(
+        createDependencies({
+          getFichaFetchInfo: vi.fn(async () => ({
+            info: {
+              apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+              facId: '1342',
+              token: 'fixture',
+            },
+          })),
+          resolveGestionCamasSession: vi.fn(async () => ({ record: gestionCamasRecord })),
+          fetchWithTimeout: vi.fn(async (url: string) => {
+            if (!url.includes('incomeNurseList')) return { ok: true, json: async () => [] };
+            if (failure === 'timeout') throw new Error('timeout');
+            return {
+              ok: true,
+              json: async () => {
+                if (failure === 'invalid-json') throw new Error('invalid JSON');
+                return { error: 'not a list' };
+              },
+            };
+          }),
+          gestionCamasCudyr: {
+            buildSnapshot: vi.fn(() => [{ encId: '901', source: 'gestion_camas', crdValue: 'C2' }]),
+            mergeEncounterSnapshots: vi.fn((official: unknown[]) => official),
+          },
+        })
+      );
+      await expect(runtime.handleCudyrCategoriesRequest()).resolves.toMatchObject({
+        historyAvailable: true,
+        source: 'gestion_camas',
+        items: [{ encId: '901', crdValue: 'C2' }],
+        warning: expect.stringContaining('tres listas CUDYR'),
+      });
+    }
+  );
+
   it('preserves the 30-minute batch TTL and encounter allowlist', async () => {
     const batchId = '12345678-1234-1234-1234-123456789012';
     const key = `hhr-scores-batch-${batchId}`;
@@ -165,9 +240,11 @@ describe('clinical Scores read runtime owner', () => {
         patients: [{ encounterId: '901', hospitalDepartmentId: '44' }],
       },
     }));
-    const runtime = loadFactory().create(createDependencies({
-      chrome: { storage: { session: { get, set: vi.fn(async () => undefined) } } },
-    }));
+    const runtime = loadFactory().create(
+      createDependencies({
+        chrome: { storage: { session: { get, set: vi.fn(async () => undefined) } } },
+      })
+    );
 
     await expect(runtime.readScoresBatch(batchId, '901')).resolves.toMatchObject({
       patient: { encounterId: '901' },
@@ -177,10 +254,12 @@ describe('clinical Scores read runtime owner', () => {
       error: 'El paciente no pertenece a esta lista activa.',
     });
 
-    const expired = loadFactory().create(createDependencies({
-      chrome: { storage: { session: { get, set: vi.fn(async () => undefined) } } },
-      now: vi.fn(() => 1_000_001),
-    }));
+    const expired = loadFactory().create(
+      createDependencies({
+        chrome: { storage: { session: { get, set: vi.fn(async () => undefined) } } },
+        now: vi.fn(() => 1_000_001),
+      })
+    );
     await expect(expired.readScoresBatch(batchId, '901')).resolves.toEqual({
       error: 'La sesión de Scores expiró. Actualiza el módulo.',
     });
@@ -205,26 +284,30 @@ describe('clinical Scores read runtime owner', () => {
         status: 200,
         json: async () => ({
           metaFormId: 70,
-          sections: [{
-            fields: [
-              {
-                metaField: {
-                  metaFieldName: 'downton_medicamentos',
-                  label: 'Medicamentos',
-                  metaDataType: 1,
-                  listValues: [{ id: 1, description: 'Sí', active: true }],
+          sections: [
+            {
+              fields: [
+                {
+                  metaField: {
+                    metaFieldName: 'downton_medicamentos',
+                    label: 'Medicamentos',
+                    metaDataType: 1,
+                    listValues: [{ id: 1, description: 'Sí', active: true }],
+                  },
+                  listValueScore: [{ listValueId: 1, score: 1 }],
                 },
-                listValueScore: [{ listValueId: 1, score: 1 }],
-              },
-              { metaField: { metaFieldName: 'downton_puntaje', metaDataType: 2 } },
-              { metaField: { metaFieldName: 'downton_resultadoscore', metaDataType: 2 } },
-            ],
-          }],
-          results: [{
-            minScore: 0,
-            maxScore: 10,
-            listValueResult: { id: 9, description: 'Riesgo' },
-          }],
+                { metaField: { metaFieldName: 'downton_puntaje', metaDataType: 2 } },
+                { metaField: { metaFieldName: 'downton_resultadoscore', metaDataType: 2 } },
+              ],
+            },
+          ],
+          results: [
+            {
+              minScore: 0,
+              maxScore: 10,
+              listValueResult: { id: 9, description: 'Riesgo' },
+            },
+          ],
         }),
       };
     });
@@ -234,25 +317,31 @@ describe('clinical Scores read runtime owner', () => {
     const verifyEncounterStillHospitalized = vi.fn(async () => ({
       encounter: { id: 901, hospitalDepartmentId: 44 },
     }));
-    const runtime = loadFactory().create(createDependencies({
-      chrome: {
-        storage: {
-          session: {
-            get: vi.fn(async () => ({
-              [key]: { createdAt: 1_000_000, patients: [{ encounterId: '901' }] },
-            })),
-            set: vi.fn(async () => undefined),
+    const runtime = loadFactory().create(
+      createDependencies({
+        chrome: {
+          storage: {
+            session: {
+              get: vi.fn(async () => ({
+                [key]: { createdAt: 1_000_000, patients: [{ encounterId: '901' }] },
+              })),
+              set: vi.fn(async () => undefined),
+            },
           },
         },
-      },
-      getFichaFetchInfo: vi.fn(async () => ({ info })),
-      fetchFichaClaims,
-      hasFichaClaim: vi.fn(() => true),
-      verifyEncounterStillHospitalized,
-      fetchWithTimeout,
-    }));
+        getFichaFetchInfo: vi.fn(async () => ({ info })),
+        fetchFichaClaims,
+        hasFichaClaim: vi.fn(() => true),
+        verifyEncounterStillHospitalized,
+        fetchWithTimeout,
+      })
+    );
 
-    const result = await runtime.handleFormRequest({ batchId, encId: '901', instrument: 'DOWNTON' });
+    const result = await runtime.handleFormRequest({
+      batchId,
+      encId: '901',
+      instrument: 'DOWNTON',
+    });
 
     expect(result).toMatchObject({
       ok: true,

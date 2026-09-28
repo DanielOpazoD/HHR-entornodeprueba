@@ -237,8 +237,10 @@ export const requestHistoryScales = (
  * worklists. Rayen exposes only the aggregate category (e.g. "D3") + datetime per encounter, not the
  * 14 variables. Resolves to `[]` if the extension / Ficha Médico tab is unavailable or times out.
  */
+// CUDYR may renew the source session and then perform 45-second backend reads.
+// Keep the page deadline above that chain; the clinical-stage watchdog remains the ceiling.
 export const requestCudyrCategories = (
-  timeoutMs = 30000
+  timeoutMs = 120_000
 ): Promise<RayenCudyrCategoriesResponse> => {
   if (typeof window === 'undefined') {
     return Promise.resolve({ items: [] });
