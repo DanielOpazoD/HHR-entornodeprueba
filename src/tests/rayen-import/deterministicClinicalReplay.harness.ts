@@ -34,6 +34,7 @@ interface ReplayEvidence {
   historyByEpisode?: Record<string, RayenHistoryScaleEvent[]>;
   formsByEpisode?: Record<string, unknown[]>;
   formsErrorByEpisode?: Record<string, string>;
+  cudyrResponse?: Awaited<ReturnType<ClinicalFillDeps['fetchCudyrCategories']>>;
 }
 
 interface ReplayResult {
@@ -151,11 +152,13 @@ export const replay = async (
       forms: evidence.formsByEpisode?.[episodeId] ?? [],
       error: evidence.formsErrorByEpisode?.[episodeId],
     })),
-    fetchCudyrCategories: vi.fn().mockResolvedValue({
-      items: [],
-      source: 'gestion_camas',
-      historyAvailable: true,
-    }),
+    fetchCudyrCategories: vi.fn().mockResolvedValue(
+      evidence.cudyrResponse ?? {
+        items: [],
+        source: 'gestion_camas',
+        historyAvailable: true,
+      }
+    ),
     applyPatch,
     allowedClinicalEpisodeIds: handoff.safeClinicalEpisodeIds,
     now: () => now,
