@@ -5,11 +5,8 @@
  * Searches by RUT to find all beds, discharges, and transfers.
  */
 
-import type {
-  DailyRecord,
-  DailyRecordPatientHistoryState,
-} from '@/services/contracts/dailyRecordServiceContracts';
-import { getAllRecords, saveRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
+import type { DailyRecordPatientHistoryState } from '@/services/contracts/dailyRecordServiceContracts';
+import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   getAllRecordsFromFirestore,
   getRecordsRangeFromFirestore,
@@ -129,46 +126,40 @@ const resolveRemoteHistoryRange = (
   };
 };
 
-const mergeRecords = (
-  localRecords: Record<string, DailyRecordPatientHistoryState>,
-  remoteRecords: DailyRecordPatientHistoryState[]
-): Record<string, DailyRecordPatientHistoryState> => {
-  const merged = { ...localRecords };
+export interface PatientHistoryReadResult {
+  history: PatientHistoryResult | null;
+  source: 'server' | 'local' | 'local-only';
+}
 
-  remoteRecords.forEach(record => {
-    merged[record.date] = record;
-  });
-
-  return merged;
-};
-
-const loadPatientHistoryRecords = async (
-  options?: PatientHistoryLoadOptions
-): Promise<Record<string, DailyRecordPatientHistoryState>> => {
-  const localRecords = (await getAllRecords()) as Record<string, DailyRecordPatientHistoryState>;
-  if (!isFirestoreEnabled()) {
-    return localRecords;
-  }
-
+const loadPatientHistoryRecords = async (options?: PatientHistoryLoadOptions) => {
   const remoteRange = options?.forceFullRemoteHydration ? null : resolveRemoteHistoryRange(options);
-
-  try {
-    const remoteRecords = remoteRange
-      ? ((await getRecordsRangeFromFirestore(
-          remoteRange.startDate,
-          remoteRange.endDate
-        )) as DailyRecordPatientHistoryState[])
-      : (Object.values(await getAllRecordsFromFirestore()) as DailyRecordPatientHistoryState[]);
-
-    if (remoteRecords.length > 0) {
-      await saveRecords(remoteRecords as unknown as DailyRecord[]);
+  const remoteEnabled = isFirestoreEnabled();
+  if (remoteEnabled) {
+    try {
+      const records = remoteRange
+        ? await getRecordsRangeFromFirestore(remoteRange.startDate, remoteRange.endDate, {
+            requireServer: true,
+          })
+        : Object.values(await getAllRecordsFromFirestore({ requireServer: true }));
+      // Successful server reads are authoritative, including removed/absent days.
+      // A history lookup must not overwrite the editable census cache.
+      return { records, source: 'server' as const };
+    } catch {
+      // Local data remains useful, but must never be presented as a complete server read.
     }
-
-    return mergeRecords(localRecords, remoteRecords);
-  } catch {
-    return localRecords;
   }
+  const records = Object.values(await getAllRecords());
+  return { records, source: remoteEnabled ? ('local' as const) : ('local-only' as const) };
 };
+
+export async function getPatientMovementHistoryDetailed(
+  rut: string,
+  options?: PatientHistoryLoadOptions
+): Promise<PatientHistoryReadResult> {
+  if (!rut || rut.trim().length < 3) throw new Error('Invalid patient identifier');
+  const { records, source } = await loadPatientHistoryRecords(options);
+  return { history: collectPatientMovementHistory(rut, records), source };
+}
 
 // ============================================================================
 // Main Service Function
@@ -186,8 +177,15 @@ export async function getPatientMovementHistory(
 ): Promise<PatientHistoryResult | null> {
   if (!rut || rut.trim().length < 3) return null;
 
+  return (await getPatientMovementHistoryDetailed(rut, options)).history;
+}
+
+function collectPatientMovementHistory(
+  rut: string,
+  records: DailyRecordPatientHistoryState[]
+): PatientHistoryResult | null {
   const normalizedRut = normalizeRut(rut);
-  const allRecords = await loadPatientHistoryRecords(options);
+  const allRecords = Object.fromEntries(records.map(record => [record.date, record]));
 
   // Sort records by date (oldest first for timeline)
   const sortedDates = Object.keys(allRecords).sort();

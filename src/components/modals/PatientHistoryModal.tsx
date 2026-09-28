@@ -10,7 +10,7 @@ import { Clock, Loader2, MapPin, LogOut, Ambulance, ArrowRight, Home } from 'luc
 import clsx from 'clsx';
 import { BaseModal } from '@/components/shared/BaseModal';
 import {
-  getPatientMovementHistory,
+  getPatientMovementHistoryDetailed,
   PatientHistoryResult,
   MovementType,
 } from '@/services/patient/patientHistoryService';
@@ -78,31 +78,45 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [isPartial, setIsPartial] = useState(false);
+  const [retry, setRetry] = useState(0);
+
   useEffect(() => {
+    let active = true;
     if (isOpen && patientRut) {
       const loadData = async () => {
         setIsLoading(true);
         setError(null);
         setHistory(null);
+        setIsPartial(false);
 
         try {
-          const result = await getPatientMovementHistory(patientRut);
-          if (result) {
-            setHistory(result);
-          } else {
-            setError('No se encontró historial para este paciente.');
+          const result = await getPatientMovementHistoryDetailed(patientRut);
+          if (!active) return;
+          setHistory(result.history);
+          setIsPartial(result.source === 'local');
+          if (!result.history) {
+            setError(
+              result.source === 'local'
+                ? 'No se pudo comprobar el historial en el servidor. No hay movimientos disponibles localmente.'
+                : 'No se encontró historial para este paciente.'
+            );
           }
         } catch (err) {
+          if (!active) return;
           patientHistoryLogger.warn('Error fetching patient history', err);
           setError('Error al cargar el historial.');
         } finally {
-          setIsLoading(false);
+          if (active) setIsLoading(false);
         }
       };
 
       loadData();
     }
-  }, [isOpen, patientRut]);
+    return () => {
+      active = false;
+    };
+  }, [isOpen, patientRut, retry]);
 
   return (
     <BaseModal
@@ -141,6 +155,27 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
             </div>
           )}
         </div>
+
+        {!isLoading && (isPartial || error === 'Error al cargar el historial.') && (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+          >
+            {isPartial && (
+              <p>
+                Historial parcial: no se pudo consultar el servidor. Se muestran los datos
+                disponibles localmente.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setRetry(value => value + 1)}
+              className="mt-2 font-semibold underline"
+            >
+              Reintentar consulta
+            </button>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8 text-slate-400">

@@ -47,7 +47,7 @@ const buildRecord = (date: string, overrides: Partial<DailyRecord> = {}): DailyR
 
 describe('patientHistoryService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-18T12:00:00.000Z'));
     isFirestoreEnabled.mockReturnValue(true);
@@ -83,6 +83,9 @@ describe('patientHistoryService', () => {
     });
 
     getRecordsRangeFromFirestore.mockResolvedValue([
+      buildRecord('2026-04-07', {
+        beds: { H1C1: { rut: '8.932.066-6', admissionDate: '2026-04-07' } as never },
+      }),
       buildRecord('2026-04-15', {
         discharges: [
           {
@@ -106,10 +109,10 @@ describe('patientHistoryService', () => {
       lastAdmission: '2026-04-07',
     });
 
-    expect(getRecordsRangeFromFirestore).toHaveBeenCalledWith('2026-04-07', '2026-04-18');
-    expect(saveRecords).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ date: '2026-04-15' })])
-    );
+    expect(getRecordsRangeFromFirestore).toHaveBeenCalledWith('2026-04-07', '2026-04-18', {
+      requireServer: true,
+    });
+    expect(saveRecords).not.toHaveBeenCalled();
     expect(history).toEqual(
       expect.objectContaining({
         firstSeen: '2026-04-07',
@@ -152,7 +155,9 @@ describe('patientHistoryService', () => {
       lastAdmission: '2026-04-07',
     });
 
-    expect(getRecordsRangeFromFirestore).toHaveBeenCalledWith('2026-04-07', '2026-04-15');
+    expect(getRecordsRangeFromFirestore).toHaveBeenCalledWith('2026-04-07', '2026-04-15', {
+      requireServer: true,
+    });
   });
 
   it('hydrates remote records without hospitalization hints when local history has no patient matches', async () => {
@@ -191,12 +196,7 @@ describe('patientHistoryService', () => {
 
     expect(getRecordsRangeFromFirestore).not.toHaveBeenCalled();
     expect(getAllRecordsFromFirestore).toHaveBeenCalledTimes(1);
-    expect(saveRecords).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ date: '2026-02-02' }),
-        expect.objectContaining({ date: '2026-02-05' }),
-      ])
-    );
+    expect(saveRecords).not.toHaveBeenCalled();
     expect(history?.movements.map(movement => movement.type)).toEqual(['admission', 'discharge']);
     expect(history).toEqual(
       expect.objectContaining({
@@ -383,6 +383,7 @@ describe('patientHistoryService', () => {
   });
 
   it('tracks crib admissions and crib moves as part of the current hospitalization', async () => {
+    isFirestoreEnabled.mockReturnValue(false);
     getAllRecords.mockResolvedValue({
       '2026-04-07': buildRecord('2026-04-07', {
         beds: {
