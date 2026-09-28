@@ -1,3 +1,4 @@
+import type { SyncQueueLeaseClaim } from '@/services/storage/sync/syncQueuePorts';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 
@@ -65,5 +66,16 @@ export const sanitizeSyncContractForOperationalSnapshot = (
     clientId: anonymizeSyncActorId(syncContract.clientId),
     tabId: anonymizeSyncActorId(syncContract.tabId),
     resolution: syncContract.resolution,
+  };
+};
+
+export const buildTaskClaim = (task: SyncTask): SyncQueueLeaseClaim | null => {
+  if (!task.leaseOwner || !task.attemptId || !task.leaseUntil) {
+    return null;
+  }
+  return {
+    leaseOwner: task.leaseOwner,
+    leaseUntil: task.leaseUntil,
+    attemptId: task.attemptId,
   };
 };
