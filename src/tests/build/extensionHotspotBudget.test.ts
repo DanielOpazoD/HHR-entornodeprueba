@@ -61,24 +61,8 @@ describe('extension hotspot budget', () => {
     ) as Baseline;
     const metrics = collectExtensionMetrics({ root: process.cwd(), baseline });
 
-    // 117: la caché breve de salud queda aislada en un runtime propio y gobernado.
-    // 118: la cancelación de la captura sincronizada vive en su propio runtime.
-    // 122: contrato, coordinador, router y relay cancelable del único documento compartido.
-    // 126: paciente y estilos de la solicitud de exámenes extraídos del Centro.
-    // 128: recuperación de generación MAIN al actualizar con pestañas abiertas.
-    // 129: cliente de mensajes de runtime que reconecta pestañas tras actualizar la extensión.
-    // 131: recuperación compartida del relé y reinyección acotada de scripts.
-    // 136: manifest, receiver health, session repair, Ficha transport and connection presentation.
-    // 138: restored-tab events and the popup worker probe remain separately governed.
-    // 140: targeted relay repair and Ficha UI lifecycle are separately governed.
-    // 141: Ficha diagnosis coding is separately governed.
-    expect(metrics.authoredFiles).toHaveLength(141);
-    expect(
-      Object.values(metrics.files).reduce(
-        (total, file) => total + Object.keys(file.hotspots).length,
-        0
-      )
-    ).toBe(86);
+    // Govern the current inventory and its per-function ratchets, independent of release size.
+    expect([...metrics.authoredFiles].sort()).toEqual(Object.keys(baseline.files).sort());
     expect(evaluateExtensionHotspots({ baseline, metrics })).toEqual([]);
   });
 
