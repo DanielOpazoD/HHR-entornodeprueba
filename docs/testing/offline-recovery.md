@@ -86,3 +86,36 @@ RUN_FIRESTORE_EMULATOR_TESTS=1 npx vitest run -c vitest.emulator.config.ts src/t
 `npm run test:emulator:sync:ci` inicia un emulador y ejecuta las suites de sync y UI,
 incluida esta prueba. Para este cambio exclusivamente de tests/documentación se usa
 `ci:pre-merge` más ese gate de emulador; no se modifican reglas ni código de producción.
+
+## Tercer PR: actualización de extensión durante una lectura
+
+`npm run test:e2e:rayen-extension-upgrade` amplía el smoke de Chromium existente.
+Compila `requestPatientClinicalBundle` y su canal real desde el código de HHR;
+no reproduce los temporizadores ni la correlación de respuestas dentro de la prueba.
+
+La secuencia retiene en `fetch` las tres fuentes clínicas de la extensión 0.48.33,
+comprueba que la solicitud sigue pendiente y reemplaza el paquete por la versión
+actual mediante el botón de recarga de `chrome://extensions`. Las pestañas conservan
+sus documentos. La lectura interrumpida debe terminar con error en las tres fuentes,
+no con un paquete vacío presentado como éxito.
+
+Después inicia un reintento explícito, también retenido en las tres fuentes. Una
+respuesta tardía con el identificador anterior no puede resolver la solicitud nueva.
+Sólo al liberar las respuestas del nuevo worker se acepta el paquete del reintento.
+Se comprueba una petición nueva y una lectura por fuente, además de la recuperación
+de los relays, la identidad de la extensión y la ausencia de barras duplicadas que
+ya verificaba el smoke.
+
+Los controles negativos eliminan temporalmente la comparación de `reqId` o el error
+de una fuente interrumpida; cada modificación debe hacer fallar su aserción específica.
+No forman parte del código publicado.
+
+Límites: Chromium usa un perfil temporal y páginas/backend sintéticos. Se monta el
+cliente de lectura y se declara su capability en el fixture; no se monta la aplicación
+completa ni se acredita su indicador visual de sincronización, persistencia clínica,
+la descarga desde Chrome Web Store o la reanudación automática de una escritura.
+Los `fetch` controlados sólo sirven de barrera en el test y no añaden estado al worker
+de producción. El plazo de fallo del cliente conserva la política real de HHR.
+
+La prueba ya forma parte del job `e2e-critical` de CI. Este PR no cambia el paquete,
+la versión ni los permisos de la extensión instalada.
