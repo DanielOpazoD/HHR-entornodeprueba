@@ -74,6 +74,15 @@ de una cuna ajena a la escritura. Usa datos sintéticos y Admin SDK sólo contra
 no acredita el transporte HTTPS, la extensión ni la autorización por reglas del cliente.
 Se ejecuta dentro de `npm run test:emulator:sync:ci`.
 
+La suite `specialty-clinical-concurrency.emulator.test.ts` añade dos escritores reales
+que parten de la misma revisión: decisión manual y carga clínica. Sólo uno confirma;
+el otro conserva su intención y se recupera tras releer la revisión vigente. Después
+mueve el episodio y comprueba que una respuesta perdida es idempotente, pero una medición
+nueva o una decisión dirigida a la ubicación anterior se rechazan sin alterar el censo,
+las auditorías ni el historial. Cubre cama en modo Cuna y cuna asociada, con selección
+manual de otra especialidad o vacía. La recuperación está orquestada por la prueba;
+no acredita el reintento automático del cliente ni un flujo de navegador.
+
 ## Rechazo sin intención explícita
 
 Las callables mantienen el estado `failed-precondition` y su mensaje anterior, y añaden
