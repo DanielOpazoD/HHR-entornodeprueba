@@ -1,3 +1,4 @@
+import { needsClinicalRead, type ClinicalReadSelection } from '../contracts/clinicalReadSelection';
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
 import { retryClinicalReadOnce } from './clinicalReadRetry';
 
@@ -24,6 +25,7 @@ interface ClinicalPatientReadInput {
   fecha: string;
   lookbackDays: number | undefined;
   deps: ReaderDeps;
+  pendingReads?: ClinicalReadSelection;
   performance: {
     trackRequest: <T>(operation: () => Promise<T>) => Promise<T>;
     recordTimeout: (value: unknown) => void;
@@ -57,6 +59,7 @@ export const readClinicalPatientSources = async ({
   deps,
   performance,
   slots,
+  pendingReads,
 }: ClinicalPatientReadInput) => {
   const countRetry = () => performance.recordRetries(1);
   const toDeviceRead = async (report: DeviceReport): Promise<DeviceRead> => {
@@ -84,19 +87,28 @@ export const readClinicalPatientSources = async ({
   const readForms = () =>
     slots.forms(() => performance.trackRequest(() => deps.fetchScalesForms(encId)));
 
-  const bundle = deps.fetchPatientClinicalBundle
-    ? await slots.bundle(() =>
-        performance.trackRequest(() =>
-          deps.fetchPatientClinicalBundle!(encId, fecha, { censusDate: fecha, lookbackDays })
+  const needs = (source: 'devices' | 'history' | 'forms') =>
+    needsClinicalRead(pendingReads, encId, source);
+  const bundle =
+    needs('devices') && needs('history') && needs('forms') && deps.fetchPatientClinicalBundle
+      ? await slots.bundle(() =>
+          performance.trackRequest(() =>
+            deps.fetchPatientClinicalBundle!(encId, fecha, { censusDate: fecha, lookbackDays })
+          )
         )
-      )
-    : null;
+      : null;
 
   if (!bundle) {
-    return Promise.allSettled([
-      retryClinicalReadOnce(readDevices, () => false, countRetry),
-      retryClinicalReadOnce(readHistory, result => Boolean(result.error), countRetry),
-      retryClinicalReadOnce(readForms, result => Boolean(result.error), countRetry),
+    const selected = <T>(source: 'devices' | 'history' | 'forms', read: () => Promise<T>) =>
+      needs(source) ? settleOnce(read) : Promise.resolve({ status: 'skipped' } as const);
+    return Promise.all([
+      selected('devices', () => retryClinicalReadOnce(readDevices, () => false, countRetry)),
+      selected('history', () =>
+        retryClinicalReadOnce(readHistory, result => Boolean(result.error), countRetry)
+      ),
+      selected('forms', () =>
+        retryClinicalReadOnce(readForms, result => Boolean(result.error), countRetry)
+      ),
     ]);
   }
 

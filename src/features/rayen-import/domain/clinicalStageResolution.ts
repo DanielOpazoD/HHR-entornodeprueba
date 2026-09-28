@@ -1,3 +1,4 @@
+import { needsClinicalRead } from '../contracts/clinicalReadSelection';
 import type { ClinicalFillSummary } from '../contracts/clinicalFillContracts';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { ClinicalRetryToken, ClinicalStageResult } from '../contracts/clinicalStageResult';
@@ -6,6 +7,7 @@ import {
   MAX_RAYEN_STRUCTURAL_REVIEW_ISSUES,
   type RayenSyncStructuralReviewEvidence,
 } from '@/types/domain/rayenSync';
+import { selectClinicalRetryReads } from './clinicalRetryReadSelection';
 import { collectClinicalFillCandidates } from './clinicalFillCandidates';
 import { mergeRayenSyncPerformance } from './rayenSyncPerformance';
 
@@ -14,17 +16,43 @@ export const buildClinicalRetryToken = (
   record: DailyRecord,
   allowedClinicalEpisodeIds: readonly string[] | undefined,
   failedBedIds?: ReadonlySet<string>,
-  previousSummary?: ClinicalFillSummary
+  previousSummary?: ClinicalFillSummary,
+  completionFailed = false,
+  clinicalCohortEpisodeIds = allowedClinicalEpisodeIds
 ): ClinicalRetryToken => {
   const candidates = collectClinicalFillCandidates(record, allowedClinicalEpisodeIds);
+  let pending = candidates.filter(candidate => !failedBedIds || failedBedIds.has(candidate.bedId));
+  let pendingReads =
+    !completionFailed && previousSummary
+      ? selectClinicalRetryReads(candidates, previousSummary.errors)
+      : undefined;
+  if (
+    previousSummary &&
+    pending.some(({ patient }) =>
+      needsClinicalRead(pendingReads, patient.clinicalEpisodeId!, 'history')
+    )
+  ) {
+    const cohort = collectClinicalFillCandidates(record, clinicalCohortEpisodeIds);
+    const pendingIds = new Set(pending.map(({ patient }) => patient.clinicalEpisodeId));
+    // Staffing is inferred for the entire confirmed census. Recover its history cohort,
+    // while other successful sources remain omitted for these additional episodes.
+    const expandedReads = { ...pendingReads };
+    for (const { patient } of cohort) {
+      if (!completionFailed && !pendingIds.has(patient.clinicalEpisodeId)) {
+        expandedReads[patient.clinicalEpisodeId!] = ['history'];
+      }
+    }
+    pending = cohort;
+    pendingReads = Object.keys(expandedReads).length ? expandedReads : undefined;
+  }
   return {
     type: 'clinical_retry',
     source,
-    pendingClinicalEpisodeIds: candidates
-      .filter(candidate => !failedBedIds || failedBedIds.has(candidate.bedId))
-      .map(candidate => candidate.patient.clinicalEpisodeId!)
-      .filter((clinicalEpisodeId, index, values) => values.indexOf(clinicalEpisodeId) === index),
+    pendingClinicalEpisodeIds: [
+      ...new Set(pending.map(candidate => candidate.patient.clinicalEpisodeId!)),
+    ],
     ...(previousSummary ? { previousSummary } : {}),
+    ...(pendingReads ? { pendingReads } : {}),
   };
 };
 
@@ -99,7 +127,8 @@ export const resolveClinicalStageResult = (
   record: DailyRecord,
   allowedClinicalEpisodeIds: readonly string[] | undefined,
   summary: ClinicalFillSummary,
-  completionFailed: boolean
+  completionFailed: boolean,
+  clinicalCohortEpisodeIds?: readonly string[]
 ): ClinicalStageResult => {
   if (summary.errors.length === 0 && !completionFailed) return { status: 'complete' };
   const hasRetryableCudyrOutage = summary.errors.some(
@@ -140,7 +169,9 @@ export const resolveClinicalStageResult = (
     record,
     allowedClinicalEpisodeIds,
     failedBedIds,
-    summary
+    summary,
+    completionFailed,
+    clinicalCohortEpisodeIds
   );
   const hasCompletedTargets =
     summary.patched > 0 ||

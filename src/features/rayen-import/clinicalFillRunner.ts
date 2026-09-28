@@ -1,3 +1,5 @@
+import { collectClinicalFillStaffing } from './domain/clinicalFillStaffing';
+import { needsClinicalRead } from './contracts/clinicalReadSelection';
 import type { DailyRecord, PatientData } from './contracts/rayenDomainContracts';
 import { mergeReportDevices } from './domain/mergeReportDevices';
 import { mergeReportScales } from './domain/mergeReportScales';
@@ -73,24 +75,32 @@ export const runClinicalFill = async (
       patientWrites: 0,
       historySnapshots: 0,
     },
-    staffingProposal: inferNursingShifts(
-      [],
-      fecha,
-      deps.nurseCatalog ?? [],
-      deps.tensCatalog ?? []
-    ),
   };
+  const needs = (encId: string, source: Parameters<typeof needsClinicalRead>[2]) =>
+    needsClinicalRead(deps.pendingReads, encId, source);
+  const cudyrEpisodeIds = eligible.flatMap(({ patient }) =>
+    patient.clinicalEpisodeId && needs(patient.clinicalEpisodeId, 'cudyr')
+      ? [patient.clinicalEpisodeId]
+      : []
+  );
+  const readsStaffing = eligible.some(({ patient }) =>
+    needs(patient.clinicalEpisodeId!, 'history')
+  );
   const performance = createClinicalFillPerformance(deps.monotonicNow);
   if (eligible.length === 0) {
+    if (!deps.pendingReads)
+      summary.staffingProposal = inferNursingShifts([], fecha, deps.nurseCatalog, deps.tensCatalog);
     summary.performance = performance.finish(summary.incremental!);
     return summary;
   }
   // CUDYR preflight: capture Gestión de Camas once and learn if per-episode history exists.
-  const cudyrPreflight = await captureClinicalCudyrSource({
-    fetch: deps.fetchCudyrCategories,
-    trackRequest: performance.trackRequest,
-    recordTimeout: performance.recordTimeout,
-  });
+  const cudyrPreflight = cudyrEpisodeIds.length
+    ? await captureClinicalCudyrSource({
+        fetch: deps.fetchCudyrCategories,
+        trackRequest: performance.trackRequest,
+        recordTimeout: performance.recordTimeout,
+      })
+    : { source: { map: new Map(), historyAvailable: false }, unavailableError: undefined };
   const cudyrSource = cudyrPreflight.source;
   if (cudyrPreflight.unavailableError) summary.errors.push(cudyrPreflight.unavailableError);
   const nursingObservations: NursingActivityObservation[] = [];
@@ -106,9 +116,7 @@ export const runClinicalFill = async (
   const pendingBatch: ClinicalFillPatchOperation[] = [];
   const cudyr = createClinicalCudyrCoordinator({
     censusDate: fecha,
-    clinicalEpisodeIds: eligible.flatMap(({ patient }) =>
-      patient.clinicalEpisodeId ? [patient.clinicalEpisodeId] : []
-    ),
+    clinicalEpisodeIds: cudyrEpisodeIds,
     source: cudyrSource,
     applyBatch: deps.applyHistoricalCudyrBatch,
     applySingle: deps.applyHistoricalCudyr,
@@ -150,6 +158,7 @@ export const runClinicalFill = async (
       encId,
       fecha,
       lookbackDays: historyReadPolicy.lookbackDays,
+      pendingReads: deps.pendingReads,
       deps,
       performance,
       slots: {
@@ -161,7 +170,7 @@ export const runClinicalFill = async (
     });
     if (deviceResult.status === 'rejected') {
       reportPatientError('devices', message(deviceResult.reason));
-    } else {
+    } else if (deviceResult.status === 'fulfilled') {
       try {
         const devices =
           deviceResult.value.source === 'json'
@@ -180,7 +189,11 @@ export const runClinicalFill = async (
     }
     // One forms read supplies both scales and vital signs.
     const formsReadError =
-      formsResult.status === 'rejected' ? message(formsResult.reason) : formsResult.value.error;
+      formsResult.status === 'rejected'
+        ? message(formsResult.reason)
+        : formsResult.status === 'fulfilled'
+          ? formsResult.value.error
+          : undefined;
     if (formsResult.status === 'fulfilled') performance.recordTimeout(formsResult.value.error);
     if (formsReadError) {
       reportPatientError('scales', formsReadError);
@@ -191,7 +204,9 @@ export const runClinicalFill = async (
     const historyReadError =
       historyResult.status === 'rejected'
         ? message(historyResult.reason)
-        : historyResult.value.error;
+        : historyResult.status === 'fulfilled'
+          ? historyResult.value.error
+          : undefined;
     if (historyResult.status === 'fulfilled') performance.recordTimeout(historyResult.value.error);
     if (historyReadError) {
       reportPatientError('scales', historyReadError);
@@ -287,7 +302,9 @@ export const runClinicalFill = async (
     }
 
     try {
-      const cudyrResult = await cudyr.apply(merged, encId, bedId);
+      const cudyrResult = needs(encId, 'cudyr')
+        ? await cudyr.apply(merged, encId, bedId)
+        : { patient: merged, historicalChanged: false };
       merged = cudyrResult.patient;
       historicalCudyrPatched = cudyrResult.historicalChanged;
     } catch (error) {
@@ -370,29 +387,12 @@ export const runClinicalFill = async (
     summary.incremental.checkpointOnlyTargets = batchPersistence.batch.checkpointOnlyTargets;
   }
 
-  let staffingObservations = nursingObservations;
-  if (deps.registerStaff) {
-    try {
-      staffingObservations = await deps.registerStaff(nursingObservations);
-    } catch {
-      staffingObservations = [];
-      summary.errors.push(
-        buildClinicalFillError({
-          bedId: '*',
-          source: 'staffing',
-          error:
-            'No se pudo confirmar el catálogo compartido de Enfermería/TENS. Los nombres locales se conservan; reintenta la sincronización.',
-        })
-      );
-    }
+  if (readsStaffing) {
+    const staffing = await collectClinicalFillStaffing(nursingObservations, fecha, deps);
+    summary.staffingProposal = staffing.proposal;
+    if (staffing.error) summary.errors.push(staffing.error);
   }
-  summary.staffingProposal = inferNursingShifts(
-    staffingObservations,
-    fecha,
-    deps.nurseCatalog ?? [],
-    deps.tensCatalog ?? []
-  );
-  const cudyrCacheHits = cudyrSource.historyAvailable ? Math.max(0, eligible.length - 1) : 0;
+  const cudyrCacheHits = cudyrSource.historyAvailable ? Math.max(0, cudyrEpisodeIds.length - 1) : 0;
   summary.performance = performance.finish(summary.incremental!, cudyrCacheHits);
 
   return summary;
