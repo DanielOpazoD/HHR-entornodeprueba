@@ -1,4 +1,5 @@
 import { requestViaBridgeChannel } from './bridgeRequestChannel';
+import { CLINICAL_READ_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
 import {
   RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY,
   hasRayenExtensionCapability,
@@ -72,7 +73,8 @@ export const requestPatientClinicalBundle = (
   options: { censusDate?: string; lookbackDays?: number } = {},
   // The MV3 worker gives each Eloísa read 45 s. Its aggregate response also needs time to
   // cross the content/page relays; an equal page timeout discards successful sibling sections.
-  timeoutMs = 55_000
+  timeoutMs = CLINICAL_READ_TIMEOUT_MS,
+  signal?: AbortSignal
 ): Promise<RayenPatientClinicalBundle | null> => {
   if (typeof window === 'undefined' || !encId || !fecha) return Promise.resolve(null);
   if (!hasRayenExtensionCapability(RAYEN_PATIENT_CLINICAL_BUNDLE_CAPABILITY)) {
@@ -90,6 +92,7 @@ export const requestPatientClinicalBundle = (
       lookbackDays: options.lookbackDays,
     },
     timeoutMs,
+    signal,
     onTimeout: () =>
       allSectionsFailed('Tiempo de espera agotado leyendo el paquete clínico del paciente.'),
     mapResult: data => {

@@ -7,7 +7,9 @@
  * the worker kept reading and writing). The watchdog aborts the reads that have not started,
  * skips writes for patients still in flight, and lets the batch persist what was already read.
  */
-export const RAYEN_CLINICAL_STAGE_TIMEOUT_MS = 5 * 60 * 1000;
+import { CLINICAL_STAGE_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
+
+export const RAYEN_CLINICAL_STAGE_TIMEOUT_MS = CLINICAL_STAGE_TIMEOUT_MS;
 
 /** Message deliberately says "timeout" (classified as such) and never "aborted" (concurrency). */
 export const CLINICAL_FILL_TIMEOUT_MESSAGE =
