@@ -128,4 +128,43 @@ describe('PatientHistoryModal', () => {
     expect(screen.queryByText(/Historial parcial/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reintentar consulta' })).not.toBeInTheDocument();
   });
+  it('loads the census period first and older hospitalizations only on explicit request', async () => {
+    vi.mocked(getPatientMovementHistoryDetailed).mockResolvedValue({
+      history: null,
+      source: 'server',
+    });
+    const { rerender } = render(
+      <PatientHistoryModal
+        isOpen
+        onClose={() => {}}
+        patientRut="test-1"
+        admissionDate="2026-03-06"
+        throughDate="2026-03-08"
+      />
+    );
+    await screen.findByText('No se encontró historial para este paciente.');
+    expect(getPatientMovementHistoryDetailed).toHaveBeenLastCalledWith('test-1', {
+      dateRange: { startDate: '2026-03-06', endDate: '2026-03-08' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ver historial completo' }));
+    await waitFor(() =>
+      expect(getPatientMovementHistoryDetailed).toHaveBeenLastCalledWith('test-1', {
+        forceFullRemoteHydration: true,
+      })
+    );
+    rerender(
+      <PatientHistoryModal
+        isOpen
+        onClose={() => {}}
+        patientRut="test-2"
+        admissionDate="2026-03-07"
+        throughDate="2026-03-08"
+      />
+    );
+    await waitFor(() =>
+      expect(getPatientMovementHistoryDetailed).toHaveBeenLastCalledWith('test-2', {
+        dateRange: { startDate: '2026-03-07', endDate: '2026-03-08' },
+      })
+    );
+  });
 });

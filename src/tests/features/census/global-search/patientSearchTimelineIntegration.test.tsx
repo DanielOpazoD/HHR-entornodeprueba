@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PatientEpisodeTimeline } from '@/features/census/components/global-search/PatientEpisodeTimeline';
@@ -9,7 +9,7 @@ import type { PatientHistoryResult } from '@/services/patient/patientHistoryServ
 const mockGetPatientMovementHistory = vi.fn();
 
 vi.mock('@/services/patient/patientHistoryService', () => ({
-  getPatientMovementHistory: (...args: unknown[]) => mockGetPatientMovementHistory(...args),
+  getPatientMovementHistoryDetailed: (...args: unknown[]) => mockGetPatientMovementHistory(...args),
 }));
 
 const patientWithPartialMasterIndex: MasterPatient = {
@@ -101,6 +101,8 @@ const PatientSelectionHarness = ({ patient }: { patient: MasterPatient }) => {
       patient={selection.selectedPatient.master}
       history={selection.selectedPatient.history}
       isLoadingHistory={selection.selectedPatient.isLoadingHistory}
+      historyWarning={selection.selectedPatient.historyWarning}
+      onRetryHistory={() => selection.selectPatient(patient)}
       timelineState={selection.selectedPatient.timelineState}
       episodeDocuments={selection.episodeDocuments}
       onLoadDocuments={selection.loadEpisodeDocuments}
@@ -113,7 +115,10 @@ const PatientSelectionHarness = ({ patient }: { patient: MasterPatient }) => {
 describe('global patient search timeline integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetPatientMovementHistory.mockResolvedValue(completeRemoteHistory);
+    mockGetPatientMovementHistory.mockResolvedValue({
+      history: completeRemoteHistory,
+      source: 'server',
+    });
   });
 
   it('hydrates remote history and renders all readmission episodes without false bed changes', async () => {
@@ -148,5 +153,14 @@ describe('global patient search timeline integration', () => {
     expect(within(readmissionRow).getByText('Ingreso')).toBeInTheDocument();
     expect(within(readmissionRow).getByText(/H2C2/)).toBeInTheDocument();
     expect(screen.queryByText(/Desde cama H4C1/)).not.toBeInTheDocument();
+  });
+  it('renders a partial warning and re-queries the server through the retry button', async () => {
+    mockGetPatientMovementHistory.mockResolvedValueOnce({ history: null, source: 'local' });
+    render(<PatientSelectionHarness patient={patientWithPartialMasterIndex} />);
+    expect(await screen.findByText(/Historial parcial/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar consulta' }));
+    await screen.findByText('Episodios de hospitalizacion (2)');
+    expect(mockGetPatientMovementHistory).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/Historial parcial/)).not.toBeInTheDocument();
   });
 });

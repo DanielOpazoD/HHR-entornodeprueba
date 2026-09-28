@@ -205,6 +205,10 @@ export const GlobalPatientSearchModal: React.FC<GlobalPatientSearchModalProps> =
                 patient={search.selectedPatient.master}
                 history={search.selectedPatient.history}
                 isLoadingHistory={search.selectedPatient.isLoadingHistory}
+                historyWarning={search.selectedPatient.historyWarning}
+                onRetryHistory={() => {
+                  if (search.selectedPatient) search.selectPatient(search.selectedPatient.master);
+                }}
                 timelineState={search.selectedPatient.timelineState}
                 episodeDocuments={search.episodeDocuments}
                 onLoadDocuments={search.loadEpisodeDocuments}

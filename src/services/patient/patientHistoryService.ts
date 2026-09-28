@@ -6,7 +6,10 @@
  */
 
 import type { DailyRecordPatientHistoryState } from '@/services/contracts/dailyRecordServiceContracts';
-import { getAllRecords } from '@/services/storage/indexeddb/indexedDbRecordService';
+import {
+  getAllRecords,
+  getRecordsRange,
+} from '@/services/storage/indexeddb/indexedDbRecordService';
 import {
   getAllRecordsFromFirestore,
   getRecordsRangeFromFirestore,
@@ -14,6 +17,7 @@ import {
 import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 import { BEDS } from '@/constants/beds';
+import { getTodayISO } from '@/utils/dateCoreUtils';
 import {
   getActiveDischarges,
   getActiveTransfers,
@@ -45,6 +49,7 @@ export interface PatientHistoryResult {
 }
 
 export interface PatientHistoryLoadOptions {
+  dateRange?: { startDate: string; endDate: string };
   hospitalizationHints?: HospitalizationEvent[];
   lastAdmission?: string;
   lastDischarge?: string;
@@ -117,8 +122,9 @@ const resolveRemoteHistoryRange = (
     .filter((value): value is string => Boolean(value))
     .sort()
     .at(-1);
-  const today = new Date().toISOString().slice(0, 10);
-  const endDate = latestKnownCloseDate || today;
+  const today = getTodayISO();
+  const endDate =
+    latestKnownCloseDate && latestKnownCloseDate >= startDate ? latestKnownCloseDate : today;
 
   return {
     startDate,
@@ -132,7 +138,26 @@ export interface PatientHistoryReadResult {
 }
 
 const loadPatientHistoryRecords = async (options?: PatientHistoryLoadOptions) => {
-  const remoteRange = options?.forceFullRemoteHydration ? null : resolveRemoteHistoryRange(options);
+  const remoteRange = options?.forceFullRemoteHydration
+    ? null
+    : (options?.dateRange ?? resolveRemoteHistoryRange(options));
+  if (remoteRange) {
+    const validDay = (day: string) => {
+      const date = new Date(`${day}T12:00:00Z`);
+      return (
+        /^\d{4}-\d{2}-\d{2}$/.test(day) &&
+        Number.isFinite(date.getTime()) &&
+        date.toISOString().slice(0, 10) === day
+      );
+    };
+    if (
+      !validDay(remoteRange.startDate) ||
+      !validDay(remoteRange.endDate) ||
+      remoteRange.startDate > remoteRange.endDate
+    ) {
+      throw new Error('Invalid history date range');
+    }
+  }
   const remoteEnabled = isFirestoreEnabled();
   if (remoteEnabled) {
     try {
@@ -148,7 +173,9 @@ const loadPatientHistoryRecords = async (options?: PatientHistoryLoadOptions) =>
       // Local data remains useful, but must never be presented as a complete server read.
     }
   }
-  const records = Object.values(await getAllRecords());
+  const records = remoteRange
+    ? await getRecordsRange(remoteRange.startDate, remoteRange.endDate)
+    : Object.values(await getAllRecords());
   return { records, source: remoteEnabled ? ('local' as const) : ('local-only' as const) };
 };
 

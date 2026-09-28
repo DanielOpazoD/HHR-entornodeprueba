@@ -3,12 +3,14 @@ import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const {
   getAllRecords,
+  getRecordsRange,
   getAllRecordsFromFirestore,
   getRecordsRangeFromFirestore,
   saveRecords,
   isFirestoreEnabled,
 } = vi.hoisted(() => ({
   getAllRecords: vi.fn(),
+  getRecordsRange: vi.fn(),
   getAllRecordsFromFirestore: vi.fn(),
   getRecordsRangeFromFirestore: vi.fn(),
   saveRecords: vi.fn(),
@@ -16,6 +18,7 @@ const {
 }));
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords,
+  getRecordsRange,
   saveRecords,
 }));
 vi.mock('@/services/storage/firestore', () => ({

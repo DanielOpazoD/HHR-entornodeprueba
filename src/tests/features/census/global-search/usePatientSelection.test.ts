@@ -7,7 +7,7 @@ const mockGetPatientMovementHistory = vi.fn();
 const mockListClinicalDocumentsByEpisode = vi.fn();
 
 vi.mock('@/services/patient/patientHistoryService', () => ({
-  getPatientMovementHistory: (...args: unknown[]) => mockGetPatientMovementHistory(...args),
+  getPatientMovementHistoryDetailed: (...args: unknown[]) => mockGetPatientMovementHistory(...args),
 }));
 
 vi.mock('@/services/repositories/ClinicalDocumentRepository', () => ({
@@ -40,7 +40,7 @@ const basePatient: MasterPatient = {
 
 describe('usePatientSelection', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('stores reconciled grouped episodes when history closes an open hospitalization', async () => {
@@ -69,7 +69,7 @@ describe('usePatientSelection', () => {
       ],
     };
 
-    mockGetPatientMovementHistory.mockResolvedValue(history);
+    mockGetPatientMovementHistory.mockResolvedValue({ history, source: 'server' });
 
     const { result } = renderHook(() => usePatientSelection());
 
@@ -121,7 +121,9 @@ describe('usePatientSelection', () => {
       ],
     };
 
-    mockGetPatientMovementHistory.mockReturnValue(historyPromise);
+    mockGetPatientMovementHistory.mockReturnValue(
+      historyPromise.then(history => ({ history, source: 'server' }))
+    );
 
     const { result } = renderHook(() => usePatientSelection());
 
@@ -177,5 +179,40 @@ describe('usePatientSelection', () => {
       status: 'draft',
       createdBy: 'Daniel',
     });
+  });
+  it('retries partial history instead of caching it as a complete lookup', async () => {
+    mockGetPatientMovementHistory
+      .mockResolvedValueOnce({ history: null, source: 'local' })
+      .mockResolvedValueOnce({ history: null, source: 'server' });
+    const { result } = renderHook(() => usePatientSelection());
+    await act(async () => {
+      await result.current.selectPatient(basePatient);
+    });
+    expect(result.current.selectedPatient?.historyWarning).toMatch(/Historial parcial/);
+    await act(async () => {
+      await result.current.selectPatient(basePatient);
+    });
+    expect(mockGetPatientMovementHistory).toHaveBeenCalledTimes(2);
+    expect(result.current.selectedPatient?.historyWarning).toBeNull();
+    await act(async () => {
+      await result.current.selectPatient(basePatient);
+    });
+    expect(mockGetPatientMovementHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it('exposes failed history reads and allows another selection to retry', async () => {
+    mockGetPatientMovementHistory
+      .mockRejectedValueOnce(new Error('read failure'))
+      .mockResolvedValueOnce({ history: null, source: 'server' });
+    const { result } = renderHook(() => usePatientSelection());
+    await act(async () => {
+      await result.current.selectPatient(basePatient);
+    });
+    expect(result.current.selectedPatient?.historyWarning).toMatch(/No se pudo cargar/);
+    await act(async () => {
+      await result.current.selectPatient(basePatient);
+    });
+    expect(mockGetPatientMovementHistory).toHaveBeenCalledTimes(2);
+    expect(result.current.selectedPatient?.historyWarning).toBeNull();
   });
 });
