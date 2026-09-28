@@ -229,6 +229,31 @@ service cloud.firestore {
     function canWriteClinicalDocument() {
       return isAdmin() || isDoctor() || isSpecialistClinicalDocumentDraftWrite();
     }
+    function clinicalDocumentAuthor(data) {
+      let audit = data.get('audit', {});
+      let author = audit is map ? audit.get('createdBy', {}) : {};
+      return author is map ? author : {};
+    }
+    function clinicalDocumentAuthorIdentity(author, field, legacyValue) {
+      let value = author.get(field, legacyValue);
+      return value is string && !value.matches('^\\s*$') ? value : legacyValue;
+    }
+    function preservesClinicalDocumentAuthority() {
+      let before = clinicalDocumentAuthor(resource.data);
+      let after = clinicalDocumentAuthor(request.resource.data);
+      return clinicalDocumentAuthorIdentity(before, 'uid', 'legacy-unknown') ==
+               clinicalDocumentAuthorIdentity(after, 'uid', 'legacy-unknown') &&
+             clinicalDocumentAuthorIdentity(before, 'email', 'legacy@unknown.local') ==
+               clinicalDocumentAuthorIdentity(after, 'email', 'legacy@unknown.local') &&
+             (resource.data.get('isActiveEpisodeDocument', true) != false ||
+               request.resource.data.get('isActiveEpisodeDocument', true) == false) &&
+             (resource.data.get('lockedReason', '') == '' ||
+               (request.resource.data.get('isLocked', false) == true &&
+                request.resource.data.get('lockedReason', '') == resource.data.lockedReason));
+    }
+    function canUpdateClinicalDocument() {
+      return isAdmin() || (canWriteClinicalDocument() && preservesClinicalDocumentAuthority());
+    }
     function canDeleteOwnActiveClinicalDocument() {
       return hasAnyEffectiveRole(['doctor_urgency', 'doctor_specialist']);
     }
@@ -581,7 +606,8 @@ service cloud.firestore {
       }
       match /clinicalDocuments/{documentId} {
         allow read: if canReadClinicalData();
-        allow create, update: if canWriteClinicalDocument();
+        allow create: if canWriteClinicalDocument();
+        allow update: if canUpdateClinicalDocument();
         allow delete: if canDeleteClinicalDocument();
       }
       match /clinicalAttachments/{attachmentId} {

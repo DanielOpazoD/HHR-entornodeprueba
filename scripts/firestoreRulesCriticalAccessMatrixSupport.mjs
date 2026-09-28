@@ -3,9 +3,9 @@ export const CRITICAL_FIRESTORE_ACCESS_MATRIX = [
     path: 'dailyRecords',
     matchPath: '/dailyRecords/{date}',
     read: 'canReadClinicalData()',
-    create: 'canEdit() && !isRayenClinicalWriteFenceActive(hospitalId) && !isSpecialtyDecisionFenceActive(hospitalId)',
-    update:
-      'canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId)',
+    create:
+      'canEdit() && !isRayenClinicalWriteFenceActive(hospitalId) && !isSpecialtyDecisionFenceActive(hospitalId)',
+    update: 'canUpdatePersistedDailyRecord() && preservesServerOwnedClinicalState(hospitalId)',
     delete: 'isAdmin()',
   },
   {
@@ -13,7 +13,7 @@ export const CRITICAL_FIRESTORE_ACCESS_MATRIX = [
     matchPath: '/clinicalDocuments/{documentId}',
     read: 'canReadClinicalData()',
     create: 'canWriteClinicalDocument()',
-    update: 'canWriteClinicalDocument()',
+    update: 'canUpdateClinicalDocument()',
     delete: 'canDeleteClinicalDocument()',
   },
   {

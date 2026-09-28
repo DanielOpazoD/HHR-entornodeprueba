@@ -34,7 +34,8 @@
       
       match /clinicalDocuments/{documentId} {
         allow read: if canReadClinicalData();
-        allow create, update: if canWriteClinicalDocument();
+        allow create: if canWriteClinicalDocument();
+        allow update: if canUpdateClinicalDocument();
         allow delete: if canDeleteClinicalDocument();
       }
 
