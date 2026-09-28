@@ -14,7 +14,7 @@
       "src/app-shell/runtime/AuthenticatedAppShell.tsx -> @/features/clinical-library/quick-action"
     ],
     "rayen-import": [
-      "src/features/census/components/CensusTable.tsx -> @/features/rayen-import/census-status",
+      "src/application/census/eloisaAdmissionInput.ts -> @/features/rayen-import/census-status",
       "src/features/census/components/StatisticalDischargeProvenanceBadge.tsx -> @/features/rayen-import/census-status",
       "src/features/census/components/patient-row/DevicesCell.tsx -> @/features/rayen-import/census-status",
       "src/features/census/components/patient-row/ScoresCell.tsx -> @/features/rayen-import/census-status",
