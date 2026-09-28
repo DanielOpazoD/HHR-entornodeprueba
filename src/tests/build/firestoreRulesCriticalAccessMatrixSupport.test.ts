@@ -17,7 +17,8 @@ describe('firestore rules critical access matrix support', () => {
 
       match /clinicalDocuments/{documentId} {
         allow read: if canReadClinicalData();
-        allow create, update: if canWriteClinicalDocument();
+        allow create: if canWriteClinicalDocument();
+        allow update: if canUpdateClinicalDocument();
         allow delete: if canDeleteClinicalDocument();
       }
 
@@ -40,7 +41,7 @@ describe('firestore rules critical access matrix support', () => {
         path: 'clinicalDocuments',
         read: 'canReadClinicalData()',
         create: 'canWriteClinicalDocument()',
-        update: 'canWriteClinicalDocument()',
+        update: 'canUpdateClinicalDocument()',
         delete: 'canDeleteClinicalDocument()',
       },
       {
