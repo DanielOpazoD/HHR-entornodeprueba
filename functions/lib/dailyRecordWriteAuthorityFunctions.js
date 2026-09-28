@@ -88,7 +88,7 @@ const previousIsoDay = date => {
 };
 const asSpecialtyHttpsError = error => {
   if (error instanceof SpecialtyDecisionError) {
-    return new functions.https.HttpsError(error.code, error.message);
+    return new functions.https.HttpsError(error.code, error.message, error.details);
   }
   return error;
 };
