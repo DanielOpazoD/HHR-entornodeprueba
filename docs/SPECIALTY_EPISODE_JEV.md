@@ -73,3 +73,11 @@ Comprueba readback de signos y scores, prioridad manual, auditorías únicas y c
 de una cuna ajena a la escritura. Usa datos sintéticos y Admin SDK sólo contra localhost;
 no acredita el transporte HTTPS, la extensión ni la autorización por reglas del cliente.
 Se ejecuta dentro de `npm run test:emulator:sync:ci`.
+
+## Rechazo sin intención explícita
+
+Las callables mantienen el estado `failed-precondition` y su mensaje anterior, y añaden
+`details.reason: specialty_explicit_intent_required`. La interfaz reconoce primero ese
+código estable; conserva el mensaje anterior como fallback para servidores todavía no
+actualizados. El dato no contiene información clínica ni cambia permisos o reintentos.
+La carga clínica conserva el código junto con sus diagnósticos de transacción.

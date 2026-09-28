@@ -6,10 +6,12 @@ vi.mock('firebase-functions/v1', () => ({
     onCall: (handler: (data: unknown, context: unknown) => unknown) => ({ run: handler }),
     HttpsError: class HttpsError extends Error {
       code: string;
+      details?: unknown;
 
-      constructor(code: string, message: string) {
+      constructor(code: string, message: string, details?: unknown) {
         super(message);
         this.code = code;
+        this.details = details;
       }
     },
   },

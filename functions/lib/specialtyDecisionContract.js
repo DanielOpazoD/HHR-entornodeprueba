@@ -17,10 +17,11 @@ const text = value => (typeof value === 'string' ? value.trim() : '');
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 class SpecialtyDecisionError extends Error {
-  constructor(code, message) {
+  constructor(code, message, reason) {
     super(message);
     this.name = 'SpecialtyDecisionError';
     this.code = code;
+    this.details = reason ? { reason } : undefined;
   }
 }
 
@@ -256,7 +257,8 @@ const protectSpecialtyDecisions = ({
       if (scalarProtected && text(patient.specialty) !== text(remote.specialty)) {
         throw new SpecialtyDecisionError(
           'failed-precondition',
-          'Specialty change requires explicit intent.'
+          'Specialty change requires explicit intent.',
+          'specialty_explicit_intent_required'
         );
       }
       if (scalarProtected) patient.specialty = remote.specialty;

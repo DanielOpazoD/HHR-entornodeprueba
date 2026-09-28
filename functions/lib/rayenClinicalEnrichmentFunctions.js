@@ -423,7 +423,7 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
     } catch (error) {
       const handledError =
         error instanceof SpecialtyDecisionError
-          ? new functions.https.HttpsError(error.code, error.message)
+          ? new functions.https.HttpsError(error.code, error.message, error.details)
           : error;
       if (context.auth) {
         await recordTelemetry({
@@ -442,11 +442,10 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
       }
       const failureDetails = buildPersistenceFailureDetails(requestSummary, transactionAttempts);
       if (handledError instanceof functions.https.HttpsError) {
-        throw new functions.https.HttpsError(
-          handledError.code,
-          handledError.message,
-          failureDetails
-        );
+        throw new functions.https.HttpsError(handledError.code, handledError.message, {
+          ...(error instanceof SpecialtyDecisionError ? error.details : {}),
+          ...failureDetails,
+        });
       }
 
       console.error(
