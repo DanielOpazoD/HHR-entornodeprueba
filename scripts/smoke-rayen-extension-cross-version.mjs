@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { chromium } from 'playwright';
+import { build } from 'esbuild';
 
 // #482 is the last released 0.48.33 tree. Pin the commit so the fixture cannot
 // silently change when a branch or tag moves.
@@ -71,42 +72,75 @@ const relayHealth = page =>
     return { runtime, ...Object.fromEntries(values) };
   });
 
-const clinicalBundle = (page, fecha) =>
+// Compile the actual HHR client; do not recreate its timeout/correlation behavior in the smoke.
+const clientBuild = await build({
+  stdin: {
+    contents: `
+      export { requestPatientClinicalBundle } from './src/features/rayen-import/bridge/patientClinicalBundleChannel';
+      export { rememberRayenExtensionCapabilities } from './src/features/rayen-import/bridge/extensionHealthBridge';
+    `,
+    resolveDir: ROOT,
+  },
+  bundle: true,
+  write: false,
+  platform: 'browser',
+  format: 'iife',
+  globalName: 'HhrUpgradeClinicalClient',
+});
+const clinicalBundle = (page, fecha, key) =>
   page.evaluate(
-    clinicalDay =>
-      new Promise((resolve, reject) => {
-        const reqId = `upgrade-clinical-${Date.now()}-${Math.random()}`;
-        const timeout = setTimeout(() => {
-          window.removeEventListener('message', onMessage);
-          reject(new Error('HHR did not receive the clinical bundle after version upgrade'));
-        }, 12_000);
-        const onMessage = event => {
-          if (
-            event.source !== window ||
-            event.origin !== window.location.origin ||
-            event.data?.type !== 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_RESULT' ||
-            event.data?.reqId !== reqId
-          )
-            return;
-          clearTimeout(timeout);
-          window.removeEventListener('message', onMessage);
-          resolve(event.data);
-        };
-        window.addEventListener('message', onMessage);
-        window.postMessage(
-          {
-            type: 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_REQUEST',
-            reqId,
-            encId: '141121',
-            fecha: clinicalDay,
-            acceptEntries: true,
-            lookbackDays: 7,
-          },
-          window.location.origin
-        );
-      }),
-    fecha
+    async ({ clinicalDay, readKey }) => {
+      window.__hhrUpgradeReads[readKey] = { status: 'pending' };
+      const result = await HhrUpgradeClinicalClient.requestPatientClinicalBundle(
+        '141121',
+        clinicalDay
+      );
+      window.__hhrUpgradeReads[readKey] = { status: 'settled', result };
+      return result;
+    },
+    { clinicalDay: fecha, readKey: key }
   );
+
+// Hold actual backend reads at fetch, leaving the packaged message/relay lifecycle untouched.
+// All three sections must reach this barrier before Chrome replaces the worker.
+const holdClinicalBackend = worker =>
+  worker.evaluate(() => {
+    const originalFetch = globalThis.fetch;
+    globalThis.__hhrUpgradeBackendReads = [];
+    let release;
+    const barrier = new Promise(resolve => {
+      release = resolve;
+    });
+    globalThis.__hhrReleaseUpgradeReads = release;
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      if (!url.startsWith('https://fichamedicoback.rayensalud.cl/'))
+        return originalFetch(input, init);
+      const section = [
+        '/invasiveDeviceEntry/',
+        '/getPatientEncounterHistoryReportServer/',
+        '/encounterFormEntry/',
+      ].find(segment => url.includes(segment));
+      if (!section) throw new Error('Unexpected synthetic clinical endpoint');
+      globalThis.__hhrUpgradeBackendReads.push(section);
+      await barrier;
+      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+  });
+const expectHeldRead = async worker => {
+  const deadline = Date.now() + 10_000;
+  let reads;
+  do {
+    reads = await worker.evaluate(() => globalThis.__hhrUpgradeBackendReads);
+    if (reads.length >= 3) break;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  } while (Date.now() < deadline);
+  assert.deepEqual(
+    reads.toSorted(),
+    ['/encounterFormEntry/', '/getPatientEncounterHistoryReportServer/', '/invasiveDeviceEntry/'],
+    'The read must reach every backend section exactly once before proceeding'
+  );
+};
 
 const temp = await mkdtemp(path.join(os.tmpdir(), 'hhr-extension-upgrade-'));
 const extensionPath = path.join(temp, 'extension');
@@ -208,6 +242,30 @@ try {
     )
   );
 
+  await hhr.addScriptTag({ content: clientBuild.outputFiles[0].text });
+  await hhr.evaluate(() => {
+    // This fixture mounts only the read client, without the application shell/health subscriber.
+    HhrUpgradeClinicalClient.rememberRayenExtensionCapabilities({
+      capabilities: ['patient-clinical-bundle'],
+    });
+    window.__hhrUpgradeReads = {};
+    window.__hhrUpgradeRequestIds = [];
+    window.addEventListener('message', event => {
+      if (
+        event.source === window &&
+        event.origin === location.origin &&
+        event.data?.type === 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_REQUEST'
+      ) {
+        window.__hhrUpgradeRequestIds.push(event.data.reqId);
+      }
+    });
+  });
+  await holdClinicalBackend(oldWorker);
+  const day = await oldWorker.evaluate(() => HhrClinicalDayRuntime.clinicalDayAt(new Date()));
+  const interruptedRead = clinicalBundle(hhr, day, 'interrupted');
+  await expectHeldRead(oldWorker);
+  assert.equal(await hhr.evaluate(() => window.__hhrUpgradeReads.interrupted.status), 'pending');
+
   // Keep the unpacked extension path (and therefore its Chrome identity) stable.
   // Only its package contents change before Chrome's actual reload control runs.
   await rm(extensionPath, { recursive: true, force: true });
@@ -216,6 +274,7 @@ try {
   await extensionsPage.goto('chrome://extensions/');
   const developerMode = extensionsPage.locator('extensions-manager extensions-toolbar #devMode');
   if ((await developerMode.getAttribute('aria-pressed')) !== 'true') await developerMode.click();
+  assert.equal(await hhr.evaluate(() => window.__hhrUpgradeReads.interrupted.status), 'pending');
   await extensionsPage.locator(`extensions-item#${extensionId} #dev-reload-button`).click();
 
   const status = await context.newPage();
@@ -287,41 +346,61 @@ try {
     .serviceWorkers()
     .find(worker => worker !== oldWorker && new URL(worker.url()).host === extensionId);
   assert.ok(newWorker, 'Chrome did not register a replacement worker');
-  await newWorker.evaluate(() => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = (input, init) => {
-      const url = String(input);
-      if (!url.startsWith('https://fichamedicoback.rayensalud.cl/')) {
-        return originalFetch(input, init);
-      }
-      if (
-        [
-          '/invasiveDeviceEntry/',
-          '/getPatientEncounterHistoryReportServer/',
-          '/encounterFormEntry/',
-        ].some(segment => url.includes(segment))
-      ) {
-        return Promise.resolve(
-          new Response('[]', {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          })
+  const interrupted = await interruptedRead;
+  assert.ok(interrupted, 'The interrupted request must not disappear as an unsupported capability');
+  for (const section of ['devices', 'history', 'forms']) {
+    assert.ok(interrupted[section]?.error, `${section} reported success for the interrupted read`);
+  }
+  assert.deepEqual(interrupted.devices.base64, '');
+  assert.deepEqual(interrupted.history.events, []);
+  assert.deepEqual(interrupted.forms.forms, []);
+
+  await holdClinicalBackend(newWorker);
+  const retryRead = clinicalBundle(hhr, day, 'retry');
+  await expectHeldRead(newWorker);
+  const ids = await hhr.evaluate(() => window.__hhrUpgradeRequestIds);
+  assert.equal(ids.length, 2, 'An explicit retry must send exactly one new request');
+  assert.notEqual(ids[0], ids[1]);
+  // A late response from the replaced read must not satisfy the new request.
+  await hhr.evaluate(
+    staleId =>
+      new Promise(resolve => {
+        const onStale = event => {
+          if (event.source !== window || event.data?.reqId !== staleId) return;
+          window.removeEventListener('message', onStale);
+          queueMicrotask(resolve);
+        };
+        window.addEventListener('message', onStale);
+        window.postMessage(
+          {
+            type: 'HHR_RAYEN_PATIENT_CLINICAL_BUNDLE_RESULT',
+            reqId: staleId,
+            error: 'Synthetic stale response from the replaced worker',
+          },
+          location.origin
         );
-      }
-      throw new Error('Unexpected synthetic clinical endpoint');
-    };
-  });
-  const day = await newWorker.evaluate(() => HhrClinicalDayRuntime.clinicalDayAt(new Date()));
-  const bundle = await clinicalBundle(hhr, day);
-  assert.equal(bundle.error, undefined);
+      }),
+    ids[0]
+  );
+  assert.equal(
+    await hhr.evaluate(() => window.__hhrUpgradeReads.retry.status),
+    'pending',
+    'A stale response settled the new read'
+  );
+  await newWorker.evaluate(() => globalThis.__hhrReleaseUpgradeReads());
+  const bundle = await retryRead;
   for (const section of ['devices', 'history', 'forms']) {
     assert.equal(bundle[section]?.error, undefined, `${section} did not survive the upgrade`);
   }
-  assert.ok(Array.isArray(bundle.devices?.entries));
-  assert.ok(Array.isArray(bundle.history?.events));
-  assert.ok(Array.isArray(bundle.forms?.forms));
+  assert.deepEqual(bundle.devices?.entries, []);
+  assert.deepEqual(bundle.history?.events, []);
+  assert.deepEqual(bundle.forms?.forms, []);
+  assert.deepEqual(
+    await hhr.evaluate(() => window.__hhrUpgradeReads.interrupted.result),
+    interrupted
+  );
   console.log(
-    `Cross-version extension smoke passed (${previousManifest.version} -> ${currentManifest.version}).`
+    `Cross-version extension smoke passed (${previousManifest.version} -> ${currentManifest.version}): interrupted read failed safely, stale response ignored, retry succeeded.`
   );
 } finally {
   await context?.close();
