@@ -103,7 +103,7 @@ const withRevalidatedClinicalRecord = (
   source: DailyRecord | ConfirmedRayenCensusHandoff,
   record: DailyRecord
 ): DailyRecord | ConfirmedRayenCensusHandoff =>
-  isConfirmedRayenCensusHandoff(source) ? { ...source, record } : record;
+  isConfirmedRayenCensusHandoff(source) ? { ...source, record } : source;
 
 /** Runs the best-effort per-patient clinical enrichment and persists aggregate run evidence. */
 export const useRayenClinicalFill = ({
@@ -275,6 +275,7 @@ export const useRayenClinicalFill = ({
                 diagnosticRunId: auditRunId,
                 signal: watchdog.signal,
                 allowedClinicalEpisodeIds,
+                pendingReads: retryRequest?.pendingReads,
                 ...createClinicalFillReaders(watchdog.signal),
                 extractDeviceItems: extractDeviceTextItems,
                 applyPatch: async (patch, target) => {
@@ -355,7 +356,11 @@ export const useRayenClinicalFill = ({
             freshRecord,
             allowedClinicalEpisodeIds,
             summary,
-            completionFailed
+            completionFailed,
+            confirmedHandoff?.safeClinicalEpisodeIds ??
+              collectClinicalFillCandidates(record).map(
+                candidate => candidate.patient.clinicalEpisodeId!
+              )
           );
         }
       );

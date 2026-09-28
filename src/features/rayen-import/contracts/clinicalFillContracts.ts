@@ -1,3 +1,4 @@
+import type { ClinicalReadSelection } from './clinicalReadSelection';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type { ClinicalIncrementalMetrics } from '../domain/clinicalIncrementalSync';
@@ -27,6 +28,8 @@ export interface ClinicalFillDeps {
   signal?: AbortSignal;
   /** Limits enrichment to structurally confirmed episodes from the accepted census revision. */
   allowedClinicalEpisodeIds?: readonly string[];
+  /** Proven missing reads from the same in-memory run; omitted after reload or uncertain failure. */
+  pendingReads?: ClinicalReadSelection;
   nurseCatalog?: string[];
   registerStaff?: <T extends RayenNursingActivity>(observations: T[]) => Promise<T[]>;
   tensCatalog?: string[];
