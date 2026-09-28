@@ -13,7 +13,54 @@ const contentBridgeSource = readFileSync(path.resolve('extension/content-hhr.js'
 const bridgeGenerationSource = readFileSync(path.resolve('extension/bridge-generation.js'), 'utf8');
 
 describe('CUDYR evidence contract', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('accepts CUDYR after a slow backend read instead of discarding it at 15 seconds', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'postMessage').mockImplementation(message => {
+      const request = message as { reqId: string };
+      setTimeout(
+        () =>
+          window.dispatchEvent(
+            new MessageEvent('message', {
+              source: window,
+              origin: window.location.origin,
+              data: {
+                type: RAYEN_CUDYR_CATEGORIES_RESULT_TYPE,
+                reqId: request.reqId,
+                items: [],
+                source: 'gestion_camas',
+                historyAvailable: true,
+              },
+            })
+          ),
+        44_000
+      );
+    });
+    const result = requestCudyrCategories();
+    await vi.advanceTimersByTimeAsync(44_000);
+    await expect(result).resolves.toMatchObject({
+      source: 'gestion_camas',
+      historyAvailable: true,
+      error: undefined,
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('still reports an unavailable source when the extension never answers', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'postMessage').mockImplementation(() => undefined);
+    const result = requestCudyrCategories();
+    await vi.runAllTimersAsync();
+    await expect(result).resolves.toMatchObject({
+      items: [],
+      error: expect.stringContaining('espera agotado'),
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
 
   it('preserves official-history provenance from the page bridge', async () => {
     vi.spyOn(window, 'postMessage').mockImplementation(message => {

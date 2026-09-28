@@ -62,45 +62,45 @@
         return { error: 'La sesión no informó un establecimiento verificable para consultar CUDYR.' };
       }
       const byEnc = new Map();
-      let successfulLists = 0;
-      for (const list of nursingWorklists) {
-        try {
-          const response = await fetchWithTimeout(
-            `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(info.facId)}`,
-            {
-              headers: { Authorization: info.token, Accept: 'application/json' },
-              credentials: 'omit',
-              cache: 'no-store',
-            }
-          );
-          if (!response.ok) continue;
-          successfulLists += 1;
-          const rows = await response.json();
-          for (const row of Array.isArray(rows) ? rows : []) {
-            if (!row || row.id == null) continue;
-            byEnc.set(String(row.id), {
-              encId: String(row.id),
-              crdValue: String(row.crdValue || '').trim(),
-              crdDateTime: String(row.crdDateTime || '').trim(),
-              author: '',
-              authorRole: '',
-              source: 'ficha_medico',
-              history: row.crdValue && row.crdDateTime ? [{
-                id: '',
-                category: String(row.crdValue || '').trim(),
-                recordedAt: String(row.crdDateTime || '').trim(),
-                author: '',
-                authorRole: '',
-                dependencyScore: null,
-                riskScore: null,
-                items: [],
-              }] : [],
-            });
+      // All three reads are independent. Keep their declared precedence when merging,
+      // without multiplying the per-request timeout by the number of lists.
+      const results = await Promise.allSettled(nursingWorklists.map(async list => {
+        const response = await fetchWithTimeout(
+          `${info.apiOrigin}/api/encounter/${list}/${encodeURIComponent(info.facId)}`,
+          {
+            headers: { Authorization: info.token, Accept: 'application/json' },
+            credentials: 'omit',
+            cache: 'no-store',
           }
-        } catch (_error) {}
-      }
-      if (successfulLists !== nursingWorklists.length) {
+        );
+        if (!response.ok) throw new Error('CUDYR worklist unavailable');
+        const rows = await response.json();
+        if (!Array.isArray(rows)) throw new Error('Invalid CUDYR worklist');
+        return rows;
+      }));
+      if (results.some(result => result.status === 'rejected')) {
         return { error: 'Eloísa no permitió verificar las tres listas CUDYR; los valores podrían estar incompletos.' };
+      }
+      for (const row of results.flatMap(result => result.value)) {
+        if (!row || row.id == null) continue;
+        byEnc.set(String(row.id), {
+          encId: String(row.id),
+          crdValue: String(row.crdValue || '').trim(),
+          crdDateTime: String(row.crdDateTime || '').trim(),
+          author: '',
+          authorRole: '',
+          source: 'ficha_medico',
+          history: row.crdValue && row.crdDateTime ? [{
+            id: '',
+            category: String(row.crdValue || '').trim(),
+            recordedAt: String(row.crdDateTime || '').trim(),
+            author: '',
+            authorRole: '',
+            dependencyScore: null,
+            riskScore: null,
+            items: [],
+          }] : [],
+        });
       }
       return { items: [...byEnc.values()] };
     };

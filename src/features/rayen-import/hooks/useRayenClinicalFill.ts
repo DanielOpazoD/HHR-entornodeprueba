@@ -286,7 +286,7 @@ export const useRayenClinicalFill = ({
                 fetchHistoryScales: requestHistoryScales,
                 fetchScalesForms: requestScalesReport,
                 fetchPatientClinicalBundle: requestPatientClinicalBundle,
-                fetchCudyrCategories: () => requestCudyrCategories(15000),
+                fetchCudyrCategories: () => requestCudyrCategories(),
                 applyPatch: async (patch, target) => {
                   await patchDailyRecord(patch, target, runPolicy);
                 },

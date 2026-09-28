@@ -37,6 +37,14 @@ HHR (localhost / testinghhr)                 Rayen (fichamedico)
 
 ## Lecturas clínicas y recuperación
 
+- CUDYR consulta las tres listas de respaldo en paralelo (máximo tres lecturas), con
+  precedencia estable. Una lista ilegible no cuenta como lista vacía válida. El historial
+  oficial de Gestión de Camas se conserva si falla el respaldo o sus metadatos opcionales.
+- HHR espera hasta 120 segundos la respuesta CUDYR, incluyendo renovación de sesión y
+  lecturas del backend de hasta 45 segundos; la sincronización no reduce ese plazo a 15
+  segundos. Una respuesta rápida continúa inmediatamente y un timeout real mantiene el
+  reintento disponible. Los resultados se asignan por la fecha/turno de registro en Rapa
+  Nui: una categoría antigua visible en Eloísa no prueba que exista para el censo elegido.
 - `patient-clinical-bundle-runtime.js` coordina dispositivos, historial de escalas y
   formularios; cada sección falla de forma independiente. No decide qué persistir en HHR.
 - El canal HHR negocia `acceptEntries: true` también en el paquete clínico. Para el día
