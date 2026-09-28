@@ -284,6 +284,7 @@ export const useRayenImport = (selectedCensusDate?: string) => {
     structuralPersistenceExecutionKeysRef,
     selectedDateRef,
     dailyRecord,
+    queryClient,
     isAdmin,
     ensureRun,
     failRun: failRunSerialized,

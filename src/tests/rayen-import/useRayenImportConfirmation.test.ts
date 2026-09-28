@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
@@ -138,6 +139,7 @@ const renderConfirmation = ({
       structuralPersistenceExecutionKeysRef,
       selectedDateRef: { current: record.date },
       dailyRecord: {} as never,
+      queryClient: new QueryClient(),
       isAdmin: false,
       ensureRun: vi.fn().mockReturnValue({ id: 'run-1' }),
       failRun,

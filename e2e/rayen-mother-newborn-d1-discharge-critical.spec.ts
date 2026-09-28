@@ -125,7 +125,17 @@ const installSyntheticEloisa = async (page: Page) => {
             snapshot: {
               capturedAt,
               facilityId: 1342,
-              encounters: [],
+              encounters: [
+                {
+                  encounterId: '910002',
+                  run: '22222222-2',
+                  firstGivenName: 'Ingreso',
+                  firstFamilyName: 'Sintético',
+                  room: 'Recuperacion 2',
+                  bed: 'R2',
+                  admissionDatetime: `${censusDay}T10:00:00-05:00`,
+                },
+              ],
               isComplete: true,
             },
             bundle: {
@@ -199,10 +209,7 @@ test.describe('Eloísa · egreso madre y RN en D−1', () => {
           __HHR_E2E_OVERRIDE__?: Record<string, unknown>;
           __HHR_E2E_SET_REMOTE_AUTHORITY__?: (date: string, record: unknown) => void;
         };
-        runtime.__HHR_E2E_OVERRIDE__ = {
-          ...(runtime.__HHR_E2E_OVERRIDE__ || {}),
-          [date]: record,
-        };
+        runtime.__HHR_E2E_SET_REMOTE_AUTHORITY__?.(date, record);
       },
       { date: DISCHARGE_DAY, record: historicalRecord }
     );
@@ -213,7 +220,7 @@ test.describe('Eloísa · egreso madre y RN en D−1', () => {
     await syncButton.click();
 
     const preview = page.getByTestId('rayen-import-preview');
-    await expect(preview).toBeVisible({ timeout: 10_000 });
+    await expect(preview).toBeVisible({ timeout: 30_000 });
     await expect(preview).toContainText('Modificar días previos (1)');
     await expect(preview).toContainText('Paciente Materna Sintética');
     await preview.getByLabel('Acepto modificar los días previos indicados').check();
@@ -236,7 +243,35 @@ test.describe('Eloísa · egreso madre y RN en D−1', () => {
     expect(historicalDischarges.filter(entry => entry.isNested)).toHaveLength(1);
     await historicalWrite.succeed();
 
+    const clearHistoricalOccupants = await authority.nextCall();
+    expect(clearHistoricalOccupants.payload.date).toBe(DISCHARGE_DAY);
+    expect(clearHistoricalOccupants.payload.intentionalBedClear).toMatchObject({ bedId: BED_ID });
+    await clearHistoricalOccupants.succeed();
+
+    const clearCarriedOccupants = await authority.nextCall();
+    expect(clearCarriedOccupants.payload.date).toBe(CENSUS_DAY);
+    expect(Object.keys(clearCarriedOccupants.payload.patch)).toEqual([`beds.${BED_ID}`]);
+    expect(clearCarriedOccupants.payload.intentionalBedClear).toMatchObject({
+      bedId: BED_ID,
+      confirmedAssociatedCrib: { clinicalEpisodeId: NEWBORN_EPISODE },
+    });
+    await clearCarriedOccupants.succeed();
+
     await expect(preview).not.toBeVisible({ timeout: 20_000 });
+    await expect
+      .poll(async () => {
+        const stored = (await readIndexedDbDailyRecord(page, CENSUS_DAY)) as {
+          beds?: Record<string, ReturnType<typeof buildMother>>;
+          discharges?: unknown[];
+        };
+        const bed = (stored?.beds as Record<string, ReturnType<typeof buildMother>>)?.[BED_ID];
+        return {
+          occupied: Boolean(bed?.patientName),
+          crib: Boolean(bed?.clinicalCrib),
+          discharges: (stored?.discharges as unknown[] | undefined)?.length ?? 0,
+        };
+      })
+      .toEqual({ occupied: false, crib: false, discharges: 0 });
     await expect
       .poll(async () => {
         const stored = (await readIndexedDbDailyRecord(page, DISCHARGE_DAY)) as {

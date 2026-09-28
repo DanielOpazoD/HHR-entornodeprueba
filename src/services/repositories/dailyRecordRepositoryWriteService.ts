@@ -148,6 +148,7 @@ const saveDetailedWithinLock = async (
   } catch (err) {
     if (
       err instanceof DataRegressionError &&
+      !options.rayenStructuralWriteGuard &&
       validatedRecord &&
       (await tryAutoMergeBlockedFullSaveRegression(command.date, validatedRecord, err, remoteState))
     ) {

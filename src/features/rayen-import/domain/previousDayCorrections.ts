@@ -141,7 +141,17 @@ export const computePreviousDayEdits = async (
         (records.get(day) as { medicalSignature?: unknown } | null | undefined)?.medicalSignature
       ),
     withinEditingWindow: day => canWritePreviousDay(day, isAdmin),
-    alreadyDischarged,
+    alreadyDischarged: (day, rut, encounterId) => {
+      if (!alreadyDischarged(day, rut, encounterId)) return false;
+      // A filed movement with an occupied copy is still a historical correction: leaving both
+      // violates census authority and blocks unrelated CUDYR batches for this day.
+      const active = Object.values(records.get(day)?.beds ?? {}).some(patient =>
+        encounterId
+          ? patient.clinicalEpisodeId === encounterId && Boolean(patient.patientName)
+          : normalizeRut(patient.rut) === normalizeRut(rut) && Boolean(patient.patientName)
+      );
+      return !active;
+    },
   });
   const admissionEdits = planPreviousDayAdmissionEdits(
     diff,

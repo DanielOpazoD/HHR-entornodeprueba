@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import type { ApplyResult } from '../domain/applyCensusImportDiff';
 import { applyCensusImportDiff } from '../domain/applyCensusImportDiff';
-import type { CensusImportDiff } from '../contracts/censusImportDiff';
+import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { RayenSyncRun } from '../domain/rayenSyncHistory';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
@@ -30,6 +30,7 @@ import { markDailyRecordRemoteConfirmed } from '@/hooks/controllers/dailyRecordF
 export interface ConfirmedRayenCensusApplyResult extends ApplyResult {
   confirmedHandoff: ConfirmedRayenCensusHandoff;
   structuralStage: StructuralStageResult;
+  deferredHistoricalDischarges?: readonly DischargeEntry[];
 }
 
 interface RayenCensusDiffApplicationInput {
@@ -80,6 +81,22 @@ export const useRayenCensusDiffApplication = ({
           actor: run.by,
           syncRunId: run.id,
         });
+        // A prior-day movement is filed only after this selected-day CAS wins. Keep its
+        // occupant until that movement is confirmed, otherwise the erasure guard restores it
+        // through auto-merge and prevents clinical enrichment for every other patient.
+        const deferredHistoricalDischarges = diff.discharges.filter(
+          entry =>
+            entry.correctedDay &&
+            entry.correctedDay < record.date &&
+            persistenceBase.beds[entry.bedId]?.patientName &&
+            !result.record.beds[entry.bedId]?.patientName &&
+            !result.skipped.some(
+              skipped => skipped.kind === 'discharge' && skipped.bedId === entry.bedId
+            )
+        );
+        for (const entry of deferredHistoricalDischarges) {
+          result.record.beds[entry.bedId] = persistenceBase.beds[entry.bedId];
+        }
         const stamped = applyRunToRecord(result.record, diff).record;
         const startedAt = Date.now();
         // applyCensusImportDiff stamps a new lastUpdated. CAS must keep the base record revision,
@@ -171,7 +188,19 @@ export const useRayenCensusDiffApplication = ({
           startedAt: run.startedAt,
           diff,
         });
-        const structuralStage = resolveStructuralStageResult(confirmedHandoff);
+        const deferredEpisodes = new Set(
+          deferredHistoricalDischarges.flatMap(entry => {
+            const patient = persistenceBase.beds[entry.bedId];
+            return [patient?.clinicalEpisodeId, patient?.clinicalCrib?.clinicalEpisodeId];
+          })
+        );
+        const clinicalHandoff = {
+          ...confirmedHandoff,
+          safeClinicalEpisodeIds: confirmedHandoff.safeClinicalEpisodeIds.filter(
+            id => !deferredEpisodes.has(id)
+          ),
+        };
+        const structuralStage = resolveStructuralStageResult(clinicalHandoff);
         recordRunPerformance(
           {
             stagesMs: { persistence: elapsedMilliseconds(startedAt) },
@@ -186,8 +215,9 @@ export const useRayenCensusDiffApplication = ({
         return {
           ...result,
           record: confirmedHandoff.record,
-          confirmedHandoff,
+          confirmedHandoff: clinicalHandoff,
           structuralStage,
+          ...(deferredHistoricalDischarges.length ? { deferredHistoricalDischarges } : {}),
         };
       }),
     [

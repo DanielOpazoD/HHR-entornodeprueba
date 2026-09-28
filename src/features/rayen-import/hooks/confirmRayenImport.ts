@@ -122,6 +122,7 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
   isAdmin,
   ensureRun,
   applyDiff,
+  finalizeHistoricalDischarges,
   getFreshRecord,
   replanDiff,
   clinicalDay,
@@ -140,6 +141,7 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
     diff: CensusImportDiff,
     clinicalDay?: string
   ) => Promise<TApplyResult>;
+  finalizeHistoricalDischarges?: (result: TApplyResult) => Promise<TApplyResult>;
   getFreshRecord: () => Promise<DailyRecord | null | undefined>;
   /** Rebuilds the structural plan against a fresh revision using the already captured evidence. */
   replanDiff: (record: DailyRecord) => Promise<CensusImportDiff>;
@@ -204,6 +206,9 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
           { actor: run.by, syncRunId: run.id }
         );
         historicalCorrectionsPending = correctionResult.durablyQueued > 0;
+        if (!historicalCorrectionsPending && finalizeHistoricalDischarges) {
+          appliedResult = await finalizeHistoricalDischarges(appliedResult);
+        }
         lastHistoricalConflict = undefined;
         break;
       } catch (error) {
@@ -221,6 +226,19 @@ export const applyConfirmedRayenImport = async <TApplyResult extends ApplyResult
           historicalCorrectionsPending: false,
         },
         lastHistoricalConflict
+      );
+    }
+  }
+
+  // Already-filed historical movements need no previous-day write or checkbox, but the
+  // reviewed carried occupant still needs removal from the selected census.
+  if (!applyPreviousDays && finalizeHistoricalDischarges) {
+    try {
+      appliedResult = await finalizeHistoricalDischarges(appliedResult);
+    } catch (error) {
+      throw new RayenHistoricalCorrectionAfterCommitError(
+        { ...appliedResult, appliedDiff: candidateDiff, historicalCorrectionsPending: false },
+        error
       );
     }
   }
