@@ -23,7 +23,10 @@ import type {
   ClinicalFillProgress,
   ClinicalFillSummary,
 } from './contracts/clinicalFillContracts';
-import { createClinicalFillPerformance } from './domain/clinicalFillPerformance';
+import {
+  createClinicalFillPerformance,
+  createClinicalFillSummary,
+} from './domain/clinicalFillPerformance';
 import { persistClinicalBatch } from './domain/clinicalBatchPersistence';
 import {
   confirmAuthoritativeHistoryResponse,
@@ -63,19 +66,7 @@ export const runClinicalFill = async (
   onProgress?: (progress: ClinicalFillProgress) => void
 ): Promise<ClinicalFillSummary> => {
   const eligible = collectClinicalFillCandidates(record, deps.allowedClinicalEpisodeIds);
-  const summary: ClinicalFillSummary = {
-    total: eligible.length,
-    patched: 0,
-    errors: [],
-    incremental: {
-      received: 0,
-      newFacts: 0,
-      duplicates: 0,
-      corrections: 0,
-      patientWrites: 0,
-      historySnapshots: 0,
-    },
-  };
+  const summary = createClinicalFillSummary(eligible.length);
   const needs = (encId: string, source: Parameters<typeof needsClinicalRead>[2]) =>
     needsClinicalRead(deps.pendingReads, encId, source);
   const cudyrEpisodeIds = eligible.flatMap(({ patient }) =>
@@ -93,39 +84,47 @@ export const runClinicalFill = async (
     summary.performance = performance.finish(summary.incremental!);
     return summary;
   }
-  // CUDYR preflight: capture Gestión de Camas once and learn if per-episode history exists.
+  // Start the shared capture now; independent patient reads may proceed while it is pending.
   const cudyrPreflight = cudyrEpisodeIds.length
-    ? await captureClinicalCudyrSource({
+    ? captureClinicalCudyrSource({
         fetch: deps.fetchCudyrCategories,
         trackRequest: performance.trackRequest,
         recordTimeout: performance.recordTimeout,
       })
-    : { source: { map: new Map(), historyAvailable: false }, unavailableError: undefined };
-  const cudyrSource = cudyrPreflight.source;
-  if (cudyrPreflight.unavailableError) summary.errors.push(cudyrPreflight.unavailableError);
+    : Promise.resolve({
+        source: { map: new Map(), historyAvailable: false },
+        unavailableError: undefined,
+      });
   const nursingObservations: NursingActivityObservation[] = [];
   const gate = () => createConcurrencyGate(READ_CONCURRENCY, deps.signal);
   const [withDeviceReadSlot, withHistoryReadSlot] = [gate(), gate()];
   const [withFormsReadSlot, withBundleReadSlot] = [gate(), gate()];
   // Reads are concurrent; writes are serialized to preserve the census revision contract.
-  const writes = createClinicalWriteCoordinator(summary.incremental!, performance.writeObserver);
+  const writes = createClinicalWriteCoordinator(
+    summary.incremental!,
+    performance.writeObserver,
+    deps.signal
+  );
   const persistenceStrategy = deps.persistenceStrategy ?? {
     disposition: 'immediate' as const,
     persist: async () => undefined,
   };
   const pendingBatch: ClinicalFillPatchOperation[] = [];
-  const cudyr = createClinicalCudyrCoordinator({
-    censusDate: fecha,
-    clinicalEpisodeIds: cudyrEpisodeIds,
-    source: cudyrSource,
-    applyBatch: deps.applyHistoricalCudyrBatch,
-    applySingle: deps.applyHistoricalCudyr,
-    enqueueWrite: operation => writes.enqueue(operation, { scope: 'historical' }),
-    onPersistenceEvidence: performance.recordPersistenceEvidence,
-    onRetries: performance.recordRetries,
-    onHistoricalPatch: performance.recordHistoricalPatch,
-    onAdministrativeOverridePreserved: performance.recordAdministrativeOverridePreserved,
-    onError: error => summary.errors.push(error),
+  const cudyr = cudyrPreflight.then(({ source, unavailableError }) => {
+    if (unavailableError) summary.errors.unshift(unavailableError);
+    return createClinicalCudyrCoordinator({
+      censusDate: fecha,
+      clinicalEpisodeIds: cudyrEpisodeIds,
+      source,
+      applyBatch: deps.applyHistoricalCudyrBatch,
+      applySingle: deps.applyHistoricalCudyr,
+      enqueueWrite: operation => writes.enqueue(operation, { scope: 'historical' }),
+      onPersistenceEvidence: performance.recordPersistenceEvidence,
+      onRetries: performance.recordRetries,
+      onHistoricalPatch: performance.recordHistoricalPatch,
+      onAdministrativeOverridePreserved: performance.recordAdministrativeOverridePreserved,
+      onError: error => summary.errors.push(error),
+    });
   });
   let done = 0;
   const report = () => void onProgress?.({ done: ++done, total: eligible.length });
@@ -303,7 +302,7 @@ export const runClinicalFill = async (
 
     try {
       const cudyrResult = needs(encId, 'cudyr')
-        ? await cudyr.apply(merged, encId, bedId)
+        ? await cudyr.then(coordinator => coordinator.apply(merged, encId, bedId))
         : { patient: merged, historicalChanged: false };
       merged = cudyrResult.patient;
       historicalCudyrPatched = cudyrResult.historicalChanged;
@@ -392,6 +391,7 @@ export const runClinicalFill = async (
     summary.staffingProposal = staffing.proposal;
     if (staffing.error) summary.errors.push(staffing.error);
   }
+  const cudyrSource = (await cudyrPreflight).source;
   const cudyrCacheHits = cudyrSource.historyAvailable ? Math.max(0, cudyrEpisodeIds.length - 1) : 0;
   summary.performance = performance.finish(summary.incremental!, cudyrCacheHits);
 

@@ -3,8 +3,25 @@ import type {
   ClinicalWritePerformanceObserver,
 } from './clinicalWriteCoordinator';
 import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
-import type { ClinicalPersistenceEvidence } from '../contracts/clinicalFillContracts';
+import type {
+  ClinicalFillSummary,
+  ClinicalPersistenceEvidence,
+} from '../contracts/clinicalFillContracts';
 import { elapsedMilliseconds, isRayenTimeoutMessage } from './rayenSyncPerformance';
+
+export const createClinicalFillSummary = (total: number): ClinicalFillSummary => ({
+  total,
+  patched: 0,
+  errors: [],
+  incremental: {
+    received: 0,
+    newFacts: 0,
+    duplicates: 0,
+    corrections: 0,
+    patientWrites: 0,
+    historySnapshots: 0,
+  },
+});
 
 /** Request-scoped aggregate collector. Its API accepts no patient or clinical values. */
 export const createClinicalFillPerformance = (now: () => number = Date.now) => {
