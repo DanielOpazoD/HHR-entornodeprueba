@@ -283,7 +283,7 @@ describe('runClinicalFill historical CUDYR batch', () => {
     });
   });
 
-  it('verifies the shared Gestión de Camas capture before starting patient clinical reads', async () => {
+  it('overlaps patient reads with the shared capture but awaits it before clinical writes', async () => {
     let releaseCudyr:
       | ((value: { items: []; source: 'gestion_camas'; historyAvailable: true }) => void)
       | undefined;
@@ -309,9 +309,10 @@ describe('runClinicalFill historical CUDYR batch', () => {
 
     const pending = runClinicalFill(singleRecord(), '2026-07-10', deps);
     await vi.waitFor(() => expect(fetchCudyrCategories).toHaveBeenCalledTimes(1));
-    expect(fetchDeviceReport).not.toHaveBeenCalled();
-    expect(fetchHistoryScales).not.toHaveBeenCalled();
-    expect(fetchScalesForms).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(fetchDeviceReport).toHaveBeenCalledTimes(1));
+    expect(fetchHistoryScales).toHaveBeenCalledTimes(1);
+    expect(fetchScalesForms).toHaveBeenCalledTimes(1);
+    expect(deps.applyPatch).not.toHaveBeenCalled();
 
     releaseCudyr?.({ items: [], source: 'gestion_camas', historyAvailable: true });
     await expect(pending).resolves.toMatchObject({ total: 1, errors: [] });

@@ -16,7 +16,8 @@ export interface ClinicalWritePerformanceObserver {
 
 export const createClinicalWriteCoordinator = (
   metrics: ClinicalWriteMetrics,
-  observer?: ClinicalWritePerformanceObserver
+  observer?: ClinicalWritePerformanceObserver,
+  signal?: AbortSignal
 ) => {
   let queue: Promise<void> = Promise.resolve();
   let historySnapshotCaptured = false;
@@ -26,6 +27,7 @@ export const createClinicalWriteCoordinator = (
   ): Promise<T> => {
     const queuedAt = observer?.now();
     const pending = queue.then(async () => {
+      signal?.throwIfAborted();
       if (queuedAt != null) observer?.onWait(observer.now() - queuedAt);
       const startedAt = observer?.now();
       try {

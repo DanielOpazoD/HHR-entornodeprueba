@@ -66,7 +66,7 @@ export interface ClinicalFillDeps {
     fecha: string,
     options: { censusDate?: string; lookbackDays?: number }
   ) => Promise<import('./patientClinicalBundle').RayenPatientClinicalBundle | null>;
-  /** One run-level capture; official history is required before clinical work starts. */
+  /** One shared capture, resolved before CUDYR enrichment and historical writes. */
   fetchCudyrCategories: () => Promise<RayenCudyrCategoriesResponse>;
   applyHistoricalCudyr?: (
     encId: string,

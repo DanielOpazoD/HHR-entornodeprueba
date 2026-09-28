@@ -43,7 +43,7 @@ const normalizeItems = (response: RayenCudyrCategoriesResponse): RayenCudyrCateg
 const unavailableMessage = (detail?: string): string =>
   `CUDYR no pudo consultarse en Gestión de Camas${detail ? `: ${detail}` : '.'}`;
 
-/** Captures and classifies the single official CUDYR source before patient reads begin. */
+/** Captures and classifies the single official CUDYR source independently of patient reads. */
 export const captureClinicalCudyrSource = async ({
   fetch,
   trackRequest,
