@@ -171,7 +171,15 @@ export const replanRayenStructure = async (
     }
     diff = appendConflicts(diff, previousCensusContinuityConflicts(previousRecord, record, diff));
   }
-  const planned = { ...diff, reportEgresos: previousDayPlan.reportEgresos };
+  const planned = {
+    ...diff,
+    reportEgresos: previousDayPlan.reportEgresos,
+    discharges: diff.discharges.map(entry => ({
+      ...entry,
+      historicalMovementRecorded:
+        previousDayPlan.recordedDischargeBedIds?.includes(entry.bedId) === true,
+    })),
+  };
   return previousDayPlan.edits.length > 0
     ? { ...planned, previousDayEdits: previousDayPlan.edits }
     : planned;

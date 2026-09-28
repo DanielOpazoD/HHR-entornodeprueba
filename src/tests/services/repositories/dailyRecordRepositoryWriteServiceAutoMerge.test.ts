@@ -5,7 +5,6 @@ import {
   buildPatient,
   buildRecord,
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
-
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
@@ -18,16 +17,13 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     })
   ),
 }));
-
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: vi.fn(),
 }));
-
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
   saveRecordToFirestore: vi.fn(),
   updateRecordPartial: vi.fn(),
 }));
-
 vi.mock('@/services/storage/sync', () => ({
   ackDailyRecordSyncTask: vi.fn().mockResolvedValue(true),
   isRetryableSyncError: vi.fn(),

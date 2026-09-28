@@ -6,6 +6,7 @@ import {
   buildRecord,
   buildPatient,
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
+import type { PatientData } from '@/types/domain/patient';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
 import { useRayenCensusDiffApplication } from '@/features/rayen-import/hooks/useRayenCensusDiffApplication';
@@ -17,7 +18,7 @@ import { computePreviousDayEdits } from '@/features/rayen-import/domain/previous
 import { resolveHistoricalCudyrBatchOperation } from '@/features/rayen-import/domain/historicalCudyrPatch';
 import { buildDischarge } from '@/features/rayen-import/domain/applyCensusImportDiff';
 
-const setup = async () => {
+const setup = async (emptyCrib = false) => {
   const date = '2026-09-27';
   const run = {
     id: 'synthetic-historical-run',
@@ -25,9 +26,10 @@ const setup = async () => {
     startedAt: '2026-09-28T03:00:00.000Z',
     by: 'Test',
   };
-  const departed = {
+  const departed: PatientData = {
     ...buildPatient('R3', 'Paciente histórico sintético'),
     clinicalEpisodeId: 'episode-departed',
+    ...(emptyCrib ? { clinicalCrib: { ...EMPTY_PATIENT, bedId: 'R3-crib' } } : {}),
   };
   const active = {
     ...buildPatient('R2', 'Paciente activo sintético'),
@@ -184,6 +186,64 @@ describe('historical discharge structural-to-clinical handoff', () => {
     expect(finished.confirmedHandoff.safeClinicalEpisodeIds).toEqual(['episode-active']);
   });
 
+  it.each([false, true])(
+    'clears a copied empty crib form without inventing a newborn discharge (historical form: %s)',
+    async historicalForm => {
+      const x = await setup(true);
+      x.history.beds.R3 = {
+        ...x.applied.record.beds.R3,
+        clinicalCrib: historicalForm ? { ...EMPTY_PATIENT, bedId: 'R3-crib' } : undefined,
+      };
+      const finished = await finalizeRayenHistoricalDischarges(
+        x.applied,
+        x.repository as never,
+        x.queryClient,
+        true
+      );
+      expect(x.patch).toHaveBeenCalledTimes(2);
+      expect(x.patch.mock.calls[1][2]).toMatchObject({
+        intentionalBedClear: { confirmedAssociatedCrib: { presenceOnly: true } },
+      });
+      expect(finished.record.beds.R3.patientName).toBe('');
+      expect(finished.record.beds.R3.clinicalCrib).toBeUndefined();
+      expect(x.history.discharges).toHaveLength(1);
+      expect(finished.record.discharges).toHaveLength(0);
+    }
+  );
+
+  it.each(['patientName', 'rut', 'clinicalEpisodeId'] as const)(
+    'preserves a real crib identified only by %s',
+    async field => {
+      const x = await setup(true);
+      x.applied.record.beds.R3.clinicalCrib![field] = 'synthetic-identity';
+      await expect(
+        finalizeRayenHistoricalDischarges(x.applied, x.repository as never, x.queryClient, true)
+      ).rejects.toThrow('cuna asociada');
+      expect(x.patch).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['transfers', 'cma'] as const)(
+    'respects an existing %s closing the same episode without inventing another alta',
+    async kind => {
+      const x = await setup(true);
+      const movement = x.history.discharges[0];
+      x.history[kind] = [movement] as never;
+      x.history.discharges = [];
+      x.history.beds.R3 = { ...x.applied.record.beds.R3 };
+      const finished = await finalizeRayenHistoricalDischarges(
+        x.applied,
+        x.repository as never,
+        x.queryClient,
+        true
+      );
+      expect(x.history[kind]).toEqual([movement]);
+      expect(x.history.discharges).toHaveLength(0);
+      expect(finished.record.discharges).toHaveLength(0);
+      expect(finished.record.beds.R3.patientName).toBe('');
+    }
+  );
+
   it('repairs a filed historical discharge before CUDYR for remaining patients', async () => {
     const x = await setup();
     x.history.beds = { ...x.applied.record.beds };
@@ -207,6 +267,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
       true
     );
     expect(plan.edits).toMatchObject([{ day: '2026-09-26', reason: 'discharge-day-correction' }]);
+    expect(plan.recordedDischargeBedIds).toEqual(['R3']);
     const finished = await finalizeRayenHistoricalDischarges(
       x.applied,
       x.repository as never,

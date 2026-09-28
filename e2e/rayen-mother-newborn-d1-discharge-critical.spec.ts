@@ -1,4 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { EMPTY_PATIENT } from '../src/constants/patient';
+import { buildDischarge } from '../src/features/rayen-import/domain/applyCensusImportDiff';
+import type { DailyRecord } from '../src/types/domain/dailyRecord';
+import type { PatientData } from '../src/types/domain/patient';
 import { resolveCurrentClinicalDay } from '../src/utils/clinicalDayAdmissionUtils';
 import { getPreviousDay } from '../src/utils/clinicalDayScheduleUtils';
 import {
@@ -65,7 +69,7 @@ const buildRecord = (date: string) => {
     bed.admissionDate = '';
   });
   beds[BED_ID] = { ...beds[BED_ID], ...buildMother() };
-  return { ...record, beds };
+  return { ...record, beds, discharges: (record.discharges ?? []) as DailyRecord['discharges'] };
 };
 
 const installSyntheticEloisa = async (page: Page) => {
@@ -179,109 +183,152 @@ const installSyntheticEloisa = async (page: Page) => {
 };
 
 test.describe('Eloísa · egreso madre y RN en D−1', () => {
-  test('persiste ambos episodios históricos tras la revisión explícita', async ({ page }) => {
-    test.setTimeout(90_000);
-    const currentRecord = buildRecord(CENSUS_DAY);
-    const historicalRecord = buildRecord(DISCHARGE_DAY);
-    const authority = await installDailyRecordAuthorityRoute(page, {
-      [CENSUS_DAY]: currentRecord,
-      [DISCHARGE_DAY]: historicalRecord,
-    });
-    await installSyntheticEloisa(page);
-    await bootstrapSeededRecord(page, {
-      role: 'admin',
-      date: CENSUS_DAY,
-      record: currentRecord,
-      useRuntimeOverride: true,
-      forceEditableRecord: true,
-      forceLocalOnlySync: false,
-      seedRemoteAuthority: true,
-      forceAuthorityCallable: true,
-    });
-    await page.goto(`/censo?date=${CENSUS_DAY}`);
-    await ensureAuthenticated(page);
-    await page.evaluate(
-      ({ date, record }) => {
-        const records = JSON.parse(localStorage.getItem('hanga_roa_hospital_data') || '{}');
-        records[date] = record;
-        localStorage.setItem('hanga_roa_hospital_data', JSON.stringify(records));
-        const runtime = window as Window & {
-          __HHR_E2E_OVERRIDE__?: Record<string, unknown>;
-          __HHR_E2E_SET_REMOTE_AUTHORITY__?: (date: string, record: unknown) => void;
-        };
-        runtime.__HHR_E2E_SET_REMOTE_AUTHORITY__?.(date, record);
-      },
-      { date: DISCHARGE_DAY, record: historicalRecord }
+  for (const alreadyFiled of [false, true]) {
+    test(
+      alreadyFiled
+        ? 'concilia alta ya registrada con cuna vacía sin duplicar egresos'
+        : 'persiste ambos episodios históricos tras la revisión explícita',
+      async ({ page }) => {
+        test.setTimeout(90_000);
+        const currentRecord = buildRecord(CENSUS_DAY);
+        const historicalRecord = buildRecord(DISCHARGE_DAY);
+        if (alreadyFiled) {
+          currentRecord.beds[BED_ID].clinicalCrib = { ...EMPTY_PATIENT, bedId: BED_ID };
+          delete historicalRecord.beds[BED_ID].clinicalCrib;
+          historicalRecord.discharges = [
+            buildDischarge(
+              historicalRecord.beds[BED_ID] as unknown as PatientData,
+              {
+                bedId: BED_ID,
+                rut: SHARED_RUN,
+                patientName: 'Paciente Materna Sintética',
+                encounterId: MOTHER_EPISODE,
+                kind: 'alta',
+                status: 'Vivo',
+                reason: 'administrative-discharge',
+                correctedDay: DISCHARGE_DAY,
+                correctedTime: '15:00',
+              },
+              historicalRecord as unknown as DailyRecord,
+              {
+                idFactory: () => 'already-filed-movement',
+                now: new Date(),
+                syncRunId: 'previous-run',
+              }
+            ),
+          ];
+        }
+        const authority = await installDailyRecordAuthorityRoute(page, {
+          [CENSUS_DAY]: currentRecord,
+          [DISCHARGE_DAY]: historicalRecord,
+        });
+        await installSyntheticEloisa(page);
+        await bootstrapSeededRecord(page, {
+          role: 'admin',
+          date: CENSUS_DAY,
+          record: currentRecord,
+          useRuntimeOverride: true,
+          forceEditableRecord: true,
+          forceLocalOnlySync: false,
+          seedRemoteAuthority: true,
+          forceAuthorityCallable: true,
+        });
+        await page.goto(`/censo?date=${CENSUS_DAY}`);
+        await ensureAuthenticated(page);
+        await page.evaluate(
+          ({ date, record }) => {
+            const records = JSON.parse(localStorage.getItem('hanga_roa_hospital_data') || '{}');
+            records[date] = record;
+            localStorage.setItem('hanga_roa_hospital_data', JSON.stringify(records));
+            const runtime = window as Window & {
+              __HHR_E2E_OVERRIDE__?: Record<string, unknown>;
+              __HHR_E2E_SET_REMOTE_AUTHORITY__?: (date: string, record: unknown) => void;
+            };
+            runtime.__HHR_E2E_SET_REMOTE_AUTHORITY__?.(date, record);
+          },
+          { date: DISCHARGE_DAY, record: historicalRecord }
+        );
+
+        await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
+        const syncButton = page.getByTestId('rayen-import-button');
+        await expect(syncButton).toBeEnabled({ timeout: 30_000 });
+        await syncButton.click();
+
+        const preview = page.getByTestId('rayen-import-preview');
+        await expect(preview).toBeVisible({ timeout: 30_000 });
+        if (alreadyFiled) await expect(preview.getByText(/ya registrado el/)).toBeVisible();
+        await expect(preview).toContainText('Modificar días previos (1)');
+        await expect(preview).toContainText('Paciente Materna Sintética');
+        await preview.getByLabel('Acepto modificar los días previos indicados').check();
+        await preview.getByRole('button', { name: 'Confirmar censo y días previos' }).click();
+
+        const currentWrite = await authority.nextCall();
+        expect(currentWrite.payload.date).toBe(CENSUS_DAY);
+        await currentWrite.succeed();
+
+        if (!alreadyFiled) {
+          const historicalWrite = await authority.nextCall();
+          expect(historicalWrite.payload.date).toBe(DISCHARGE_DAY);
+          const historicalDischarges = historicalWrite.payload.patch.discharges as Array<{
+            clinicalEpisodeId?: string;
+            isNested?: boolean;
+          }>;
+          expect(historicalDischarges.map(entry => entry.clinicalEpisodeId).sort()).toEqual([
+            MOTHER_EPISODE,
+            NEWBORN_EPISODE,
+          ]);
+          expect(historicalDischarges.filter(entry => entry.isNested)).toHaveLength(1);
+          await historicalWrite.succeed();
+        }
+
+        const clearHistoricalOccupants = await authority.nextCall();
+        expect(clearHistoricalOccupants.payload.date).toBe(DISCHARGE_DAY);
+        expect(clearHistoricalOccupants.payload.intentionalBedClear).toMatchObject({
+          bedId: BED_ID,
+        });
+        await clearHistoricalOccupants.succeed();
+
+        const clearCarriedOccupants = await authority.nextCall();
+        expect(clearCarriedOccupants.payload.date).toBe(CENSUS_DAY);
+        expect(Object.keys(clearCarriedOccupants.payload.patch)).toEqual([`beds.${BED_ID}`]);
+        expect(clearCarriedOccupants.payload.intentionalBedClear).toMatchObject({
+          bedId: BED_ID,
+          confirmedAssociatedCrib: alreadyFiled
+            ? { presenceOnly: true }
+            : { clinicalEpisodeId: NEWBORN_EPISODE },
+        });
+        await clearCarriedOccupants.succeed();
+
+        await expect(preview).not.toBeVisible({ timeout: 20_000 });
+        await expect
+          .poll(async () => {
+            const stored = (await readIndexedDbDailyRecord(page, CENSUS_DAY)) as {
+              beds?: Record<string, ReturnType<typeof buildMother>>;
+              discharges?: unknown[];
+            };
+            const bed = (stored?.beds as Record<string, ReturnType<typeof buildMother>>)?.[BED_ID];
+            return {
+              occupied: Boolean(bed?.patientName),
+              crib: Boolean(bed?.clinicalCrib),
+              discharges: (stored?.discharges as unknown[] | undefined)?.length ?? 0,
+            };
+          })
+          .toEqual({ occupied: false, crib: false, discharges: 0 });
+        await expect
+          .poll(async () => {
+            const stored = (await readIndexedDbDailyRecord(page, DISCHARGE_DAY)) as {
+              discharges?: Array<{ clinicalEpisodeId?: string; isNested?: boolean }>;
+            } | null;
+            return {
+              episodes: (stored?.discharges ?? []).map(entry => entry.clinicalEpisodeId).sort(),
+              nested: (stored?.discharges ?? []).filter(entry => entry.isNested).length,
+            };
+          })
+          .toEqual({
+            episodes: alreadyFiled ? [MOTHER_EPISODE] : [MOTHER_EPISODE, NEWBORN_EPISODE],
+            nested: alreadyFiled ? 0 : 1,
+          });
+      }
     );
-
-    await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
-    const syncButton = page.getByTestId('rayen-import-button');
-    await expect(syncButton).toBeEnabled({ timeout: 30_000 });
-    await syncButton.click();
-
-    const preview = page.getByTestId('rayen-import-preview');
-    await expect(preview).toBeVisible({ timeout: 30_000 });
-    await expect(preview).toContainText('Modificar días previos (1)');
-    await expect(preview).toContainText('Paciente Materna Sintética');
-    await preview.getByLabel('Acepto modificar los días previos indicados').check();
-    await preview.getByRole('button', { name: 'Confirmar censo y días previos' }).click();
-
-    const currentWrite = await authority.nextCall();
-    expect(currentWrite.payload.date).toBe(CENSUS_DAY);
-    await currentWrite.succeed();
-
-    const historicalWrite = await authority.nextCall();
-    expect(historicalWrite.payload.date).toBe(DISCHARGE_DAY);
-    const historicalDischarges = historicalWrite.payload.patch.discharges as Array<{
-      clinicalEpisodeId?: string;
-      isNested?: boolean;
-    }>;
-    expect(historicalDischarges.map(entry => entry.clinicalEpisodeId).sort()).toEqual([
-      MOTHER_EPISODE,
-      NEWBORN_EPISODE,
-    ]);
-    expect(historicalDischarges.filter(entry => entry.isNested)).toHaveLength(1);
-    await historicalWrite.succeed();
-
-    const clearHistoricalOccupants = await authority.nextCall();
-    expect(clearHistoricalOccupants.payload.date).toBe(DISCHARGE_DAY);
-    expect(clearHistoricalOccupants.payload.intentionalBedClear).toMatchObject({ bedId: BED_ID });
-    await clearHistoricalOccupants.succeed();
-
-    const clearCarriedOccupants = await authority.nextCall();
-    expect(clearCarriedOccupants.payload.date).toBe(CENSUS_DAY);
-    expect(Object.keys(clearCarriedOccupants.payload.patch)).toEqual([`beds.${BED_ID}`]);
-    expect(clearCarriedOccupants.payload.intentionalBedClear).toMatchObject({
-      bedId: BED_ID,
-      confirmedAssociatedCrib: { clinicalEpisodeId: NEWBORN_EPISODE },
-    });
-    await clearCarriedOccupants.succeed();
-
-    await expect(preview).not.toBeVisible({ timeout: 20_000 });
-    await expect
-      .poll(async () => {
-        const stored = (await readIndexedDbDailyRecord(page, CENSUS_DAY)) as {
-          beds?: Record<string, ReturnType<typeof buildMother>>;
-          discharges?: unknown[];
-        };
-        const bed = (stored?.beds as Record<string, ReturnType<typeof buildMother>>)?.[BED_ID];
-        return {
-          occupied: Boolean(bed?.patientName),
-          crib: Boolean(bed?.clinicalCrib),
-          discharges: (stored?.discharges as unknown[] | undefined)?.length ?? 0,
-        };
-      })
-      .toEqual({ occupied: false, crib: false, discharges: 0 });
-    await expect
-      .poll(async () => {
-        const stored = (await readIndexedDbDailyRecord(page, DISCHARGE_DAY)) as {
-          discharges?: Array<{ clinicalEpisodeId?: string; isNested?: boolean }>;
-        } | null;
-        return {
-          episodes: (stored?.discharges ?? []).map(entry => entry.clinicalEpisodeId).sort(),
-          nested: (stored?.discharges ?? []).filter(entry => entry.isNested).length,
-        };
-      })
-      .toEqual({ episodes: [MOTHER_EPISODE, NEWBORN_EPISODE], nested: 1 });
-  });
+  }
 });

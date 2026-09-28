@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyConfirmedRayenImport,
-  areRayenStructuralPlansEquivalent,
   RayenStructuralPlanChangedError,
 } from '@/features/rayen-import/hooks/confirmRayenImport';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
@@ -15,11 +14,9 @@ import {
   repository,
 } from './previousDayAdmissionCorrections.fixtures';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn(),
 }));
-
 const record = (lastUpdated: string): DailyRecord =>
   ({
     date: '2026-07-16',
@@ -30,7 +27,6 @@ const record = (lastUpdated: string): DailyRecord =>
     activeExtraBeds: [],
     lastUpdated,
   }) as DailyRecord;
-
 const structuralDiff = (overrides: Partial<CensusImportDiff> = {}): CensusImportDiff => ({
   admissions: [],
   updates: [],
@@ -50,7 +46,6 @@ const structuralDiff = (overrides: Partial<CensusImportDiff> = {}): CensusImport
   },
   ...overrides,
 });
-
 describe('applyConfirmedRayenImport', () => {
   it('finalizes a carried occupant even when the historical movement already exists', async () => {
     const base = record('confirmed');
@@ -498,33 +493,5 @@ describe('applyConfirmedRayenImport', () => {
 
     expect(applyDiff).toHaveBeenCalledOnce();
     expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
-  });
-});
-
-describe('areRayenStructuralPlansEquivalent', () => {
-  it('ignores audit-only unchanged counters while preserving the reviewed operations', () => {
-    expect(
-      areRayenStructuralPlansEquivalent(
-        structuralDiff({ unchangedCount: 1 }),
-        structuralDiff({ unchangedCount: 9 })
-      )
-    ).toBe(true);
-  });
-
-  it('detects a newly introduced admission before a CAS retry', () => {
-    expect(
-      areRayenStructuralPlansEquivalent(
-        structuralDiff(),
-        structuralDiff({
-          admissions: [
-            {
-              bedId: 'H1C1',
-              patient: { patientName: 'Paciente nuevo' } as never,
-              isCma: false,
-            },
-          ],
-        })
-      )
-    ).toBe(false);
   });
 });

@@ -13,8 +13,17 @@ import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecor
 import type { ConfirmedRayenCensusApplyResult } from './useRayenCensusDiffApplication';
 import { assertRayenCensusPersistenceConfirmed } from './rayenCensusPersistenceGuard';
 import { matchesDischargeSubject } from '../domain/dischargeSubjectIdentity';
+import { recordedOutcomeMatchesDischarge } from '../domain/censusDischargeHistory';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { DischargeEntry } from '../contracts/censusImportDiff';
+
+// Imported/copy-day records may contain an empty crib form. Only an identified
+// occupant requires independent discharge evidence; the clear command still binds
+// the exact empty form through its presence-only identity and version guard.
+const hasCribOccupant = (crib: PatientData | undefined): boolean =>
+  Boolean(
+    crib && [crib.patientName, crib.rut, crib.clinicalEpisodeId].some(value => value?.trim())
+  );
 
 const conflict = () => {
   const error = new Error(
@@ -25,23 +34,10 @@ const conflict = () => {
 };
 
 const hasConfirmedMovement = (record: DailyRecord, entry: DischargeEntry): boolean =>
-  (entry.kind === 'alta'
-    ? record.discharges
-    : entry.kind === 'traslado'
-      ? record.transfers
-      : record.cma
-  ).some(
-    movement =>
-      !movement.deletedAt &&
-      matchesDischargeSubject(
-        {
-          ...movement.originalData,
-          clinicalEpisodeId: movement.clinicalEpisodeId ?? movement.originalData?.clinicalEpisodeId,
-          rut: movement.rut,
-          patientName: movement.patientName,
-        } as PatientData,
-        entry
-      )
+  // A manually recorded transfer/CMA can already close this exact episode. Preserve
+  // that authoritative outcome, just as cross-day planning and deduplication do.
+  [...record.discharges, ...record.transfers, ...record.cma].some(movement =>
+    recordedOutcomeMatchesDischarge(movement, entry)
   );
 
 /** Finish only reviewed historical removals whose movement is now authoritative on its real day. */
@@ -66,7 +62,7 @@ export const finalizeRayenHistoricalDischarges = async (
       if (!original || !matchesDischargeSubject(original, entry)) throw conflict();
       // Clearing a parent also removes its crib. Require separately recorded evidence for that
       // exact newborn, rather than treating the parent's movement as permission to erase both.
-      if (original.clinicalCrib) {
+      if (original.clinicalCrib && hasCribOccupant(original.clinicalCrib)) {
         const cribEpisode = entry.associatedClinicalCrib?.clinicalEpisodeId;
         if (
           !cribEpisode ||
@@ -95,6 +91,7 @@ export const finalizeRayenHistoricalDischarges = async (
           const [bedId, patient] = occupied[0];
           if (
             patient.clinicalCrib &&
+            hasCribOccupant(patient.clinicalCrib) &&
             (!entry.associatedClinicalCrib?.clinicalEpisodeId ||
               patient.clinicalCrib.clinicalEpisodeId !==
                 entry.associatedClinicalCrib.clinicalEpisodeId ||

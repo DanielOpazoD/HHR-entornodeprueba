@@ -1,4 +1,6 @@
-import type { DailyRecord } from '../contracts/rayenDomainContracts';
+import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
+import type { DischargeEntry } from '../contracts/censusImportDiff';
+import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { extractTime } from '../mapping/rayenToPatientData';
 import { normalizePatientRut } from './censusPatientIdentityIndex';
@@ -18,6 +20,22 @@ type RecordedOutcome =
 /** Reads legacy episode provenance behind the single governed historical compatibility boundary. */
 export const recordedOutcomeEpisodeId = (movement: RecordedOutcome): string | undefined =>
   movement.clinicalEpisodeId ?? movement.originalData?.clinicalEpisodeId;
+
+/** Resolve legacy undo provenance only inside this historical compatibility boundary. */
+export const recordedOutcomeMatchesDischarge = (
+  movement: RecordedOutcome,
+  entry: DischargeEntry
+): boolean =>
+  !movement.deletedAt &&
+  matchesDischargeSubject(
+    {
+      ...movement.originalData,
+      clinicalEpisodeId: recordedOutcomeEpisodeId(movement),
+      rut: movement.rut,
+      patientName: movement.patientName,
+    } as PatientData,
+    entry
+  );
 
 /** Matches an episode already resolved in HHR by alta, traslado or CMA. */
 export const createRecordedOutcomeMatcher = (

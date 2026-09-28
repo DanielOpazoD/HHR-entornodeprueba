@@ -134,3 +134,10 @@ la contradicción entre un episodio cerrado y su antigua cama. Si D-1 ya está c
 la limpieza de D se ejecuta aunque no haya más escrituras históricas que confirmar.
 
 Prueba de regresión: `src/tests/rayen-import/rayenHistoricalDischargePersistence.test.ts`.
+
+Los formularios de cuna vacíos copiados entre días no constituyen un RN pendiente de alta.
+La conciliación exige evidencia independiente cuando la cuna tiene nombre, RUN o episodio;
+si sólo existe el formulario vacío, el comando conserva la guarda de presencia y revisión
+exacta. Una cuna que recibe identidad concurrentemente sigue bloqueando la retirada. La
+propuesta distingue un movimiento histórico ya registrado de una nueva alta: retirar la
+ocupación residual no añade otro egreso en ninguno de los días.

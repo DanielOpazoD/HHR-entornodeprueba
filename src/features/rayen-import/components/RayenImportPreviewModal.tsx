@@ -152,13 +152,11 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   blockingConflicts={blockingConflicts.length}
                   bedCollisions={bedCollisions.length}
                 />
-
                 <RayenAdmissionReview
                   admissions={diff.admissions}
                   cmaAdmissionResolutions={cmaAdmissionResolutions}
                   onCmaAdmissionResolutionsChange={setCmaAdmissionResolutions}
                 />
-
                 <Section title="Actualizaciones" count={presentedUpdates.length}>
                   {presentedUpdates.map(entry => (
                     <li key={updateEntryKey(entry)}>
@@ -186,12 +184,19 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                         {entry.status === 'Fallecido' && (
                           <span className="ml-1 text-red-600">(Fallecido)</span>
                         )}
-                        {previousDays.has(entry.correctedDay ?? '') && (
-                          <span className="ml-1 font-medium text-amber-700">
-                            → se grabará el {ddmmyyyy(entry.correctedDay)}
-                            {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no
-                            hoy
+                        {entry.historicalMovementRecorded ? (
+                          <span className="ml-1 font-medium text-teal-700">
+                            → ya registrado el {ddmmyyyy(entry.correctedDay)}; se retirará la copia
+                            de este censo sin agregar otro egreso
                           </span>
+                        ) : (
+                          previousDays.has(entry.correctedDay ?? '') && (
+                            <span className="ml-1 font-medium text-amber-700">
+                              → se grabará el {ddmmyyyy(entry.correctedDay)}
+                              {entry.correctedTime ? ` ${entry.correctedTime} (hora isla)` : ''}, no
+                              hoy
+                            </span>
+                          )
                         )}
                       </div>
                       {entry.verification && (
@@ -280,8 +285,9 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                     </h4>
                     <p className="mb-2 text-xs text-amber-700">
                       Los ingresos de madrugada pertenecen al turno noche anterior y los egresos
-                      conservan su día clínico oficial. Al confirmar se grabarán también en el día
-                      correspondiente de Rapa Nui.
+                      conservan su día clínico oficial. Se registrarán los movimientos pendientes y
+                      se retirarán las ocupaciones incompatibles con egresos ya registrados, sin
+                      duplicarlos.
                     </p>
                     <ul className="space-y-1 text-sm text-amber-900">
                       {previousDayEdits.map(edit => (
@@ -290,7 +296,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                           <span className="font-medium">
                             {edit.reason === 'admission-night-shift-correction'
                               ? 'Ingreso turno noche: '
-                              : 'Egreso: '}
+                              : 'Conciliar egreso: '}
                           </span>
                           {edit.patientNames.length > 0
                             ? edit.patientNames.join(', ')

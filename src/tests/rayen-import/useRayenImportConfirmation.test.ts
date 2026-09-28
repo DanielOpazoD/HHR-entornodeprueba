@@ -14,16 +14,13 @@ import type {
   ClinicalStageResult,
 } from '@/features/rayen-import/contracts/clinicalStageResult';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
-
 const mocks = vi.hoisted(() => ({
   applyConfirmedRayenImport: vi.fn(),
 }));
-
 vi.mock('@/features/rayen-import/hooks/confirmRayenImport', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/rayen-import/hooks/confirmRayenImport')>()),
   applyConfirmedRayenImport: mocks.applyConfirmedRayenImport,
 }));
-
 const diff = {
   admissions: [],
   updates: [],
@@ -42,7 +39,6 @@ const diff = {
     unchanged: 1,
   },
 } as CensusImportDiff;
-
 const record = {
   date: '2026-07-28',
   beds: {},
