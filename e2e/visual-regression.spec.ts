@@ -18,7 +18,7 @@ interface E2EBedRecord {
   daysHospitalized: number;
   insurance: string;
   biologicalSex: 'Femenino' | 'Masculino';
-  bedMode: 'Adulto';
+  bedMode: 'Cama';
   status: 'Estable';
 }
 
@@ -93,7 +93,7 @@ async function injectVRTData(page: Page) {
           daysHospitalized: i + 1,
           insurance: 'FONASA A',
           biologicalSex: i % 2 === 0 ? 'Femenino' : 'Masculino',
-          bedMode: 'Adulto',
+          bedMode: 'Cama',
           status: 'Estable',
         };
       });
