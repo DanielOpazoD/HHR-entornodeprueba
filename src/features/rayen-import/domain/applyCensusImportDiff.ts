@@ -15,7 +15,7 @@ import { applyRayenDischargeVerification } from './applyRayenDischargeVerificati
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
-import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
+import { applyReviewedPatientChanges } from './patientSyncPolicy';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
 export const isOccupied = (patient: PatientData | undefined): patient is PatientData =>
@@ -356,19 +356,7 @@ export const applyCensusImportDiff = (
       skipped.push({ kind: 'update', bedId: entry.bedId, reason: 'Sin paciente en la cama.' });
       continue;
     }
-    const merged = { ...existing } as unknown as Record<string, unknown>;
-    for (const change of entry.changes) {
-      // Re-check local authority at apply time too: the user may have selected a specialty after
-      // the preview was built but before confirming it.
-      if (change.field === 'specialty' && String(existing.specialty ?? '').trim()) continue;
-      if (
-        (change.field === 'treatingPhysicianId' || change.field === 'treatingPhysicianName') &&
-        isDismissedTreatingPhysician(existing, entry.patient)
-      )
-        continue;
-      merged[change.field] = change.to;
-    }
-    nextBeds[entry.bedId] = merged as unknown as PatientData;
+    nextBeds[entry.bedId] = applyReviewedPatientChanges(existing, entry.patient, entry.changes);
     applied.updates += 1;
   }
 

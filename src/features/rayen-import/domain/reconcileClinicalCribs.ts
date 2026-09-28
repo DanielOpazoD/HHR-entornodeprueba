@@ -2,7 +2,6 @@ import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { MappedPatient } from '../mapping/rayenToPatientData';
-import { Specialty } from '@/types/domain/patientClassification';
 import { diffSyncablePatientFields, mergeSyncablePatient } from './patientSyncPolicy';
 import {
   hasRegisteredClinicalCribRut,
@@ -43,16 +42,12 @@ const diffClinicalCribFields = (current: PatientData, incoming: PatientData) => 
   if (hasRegisteredClinicalCribRut(incoming) && current.identityStatus !== 'official') {
     changes.push({ field: 'identityStatus', from: current.identityStatus, to: 'official' });
   }
-  if (current.specialty !== Specialty.PEDIATRIA) {
-    changes.push({ field: 'specialty', from: current.specialty, to: Specialty.PEDIATRIA });
-  }
   return changes;
 };
 
 const mergeClinicalCrib = (current: PatientData, incoming: PatientData): PatientData => ({
   ...mergeSyncablePatient(current, incoming),
   ...(hasRegisteredClinicalCribRut(incoming) ? { identityStatus: 'official' as const } : {}),
-  specialty: Specialty.PEDIATRIA,
 });
 
 const indexCurrentClinicalCribs = (current: DailyRecord) => {

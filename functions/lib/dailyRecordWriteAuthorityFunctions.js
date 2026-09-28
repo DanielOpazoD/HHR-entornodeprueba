@@ -1445,17 +1445,28 @@ const createDailyRecordWriteAuthorityFunctions = ({
             now: new Date().toISOString(),
             guardScalarChanges: specialtyEpisodeEnabled(),
           });
-          const automaticSpecialtyDecisions =
-            specialtyEpisodeEnabled() && isCurrentRapaNuiDay(date)
-              ? applyPendingSpecialtyRules({
-                  remoteRecord: remoteData,
-                  candidate: recordForPersistence,
-                  policy: specialtyPolicySnapshot?.exists ? specialtyPolicySnapshot.data() : null,
-                  actorUid: context.auth?.uid,
-                  mutationId: syncContract?.mutationId,
-                  now: new Date().toISOString(),
-                })
-              : [];
+          const automaticSpecialtyDecisions = specialtyEpisodeEnabled()
+            ? applyPendingSpecialtyRules({
+                catalogEnabled: isCurrentRapaNuiDay(date),
+                eligibleBedIds:
+                  syncContract?.changedPaths?.length &&
+                  !syncContract.changedPaths.some(path => path === '*' || path === 'beds')
+                    ? [
+                        ...new Set(
+                          syncContract.changedPaths
+                            .filter(path => path.startsWith('beds.'))
+                            .map(path => path.split('.')[1])
+                        ),
+                      ]
+                    : undefined,
+                remoteRecord: remoteData,
+                candidate: recordForPersistence,
+                policy: specialtyPolicySnapshot?.exists ? specialtyPolicySnapshot.data() : null,
+                actorUid: context.auth?.uid,
+                mutationId: syncContract?.mutationId,
+                now: new Date().toISOString(),
+              })
+            : [];
           responseAuthority = assertClinicalAuthority(recordForPersistence);
           responseCoverage = collectClinicalEpisodeCoverage(recordForPersistence);
           if (responseAuthority.status !== 'ok') {
@@ -1825,8 +1836,9 @@ const createDailyRecordWriteAuthorityFunctions = ({
             );
           }
           const automaticSpecialtyDecisions =
-            specialtyEpisodeEnabled() && !specialtyIntent && isCurrentRapaNuiDay(date)
+            specialtyEpisodeEnabled() && !specialtyIntent
               ? applyPendingSpecialtyRules({
+                  catalogEnabled: isCurrentRapaNuiDay(date),
                   remoteRecord: remoteData,
                   candidate: patchedRecord,
                   policy: specialtyPolicySnapshot?.exists ? specialtyPolicySnapshot.data() : null,
