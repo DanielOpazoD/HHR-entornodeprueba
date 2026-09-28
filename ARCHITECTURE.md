@@ -13,6 +13,7 @@ flowchart TB
         UI["React Views<br/>(Census, Handoff, CUDYR)"]
         CTX["React Contexts<br/>(Auth, UI, DailyRecord)"]
         TQ["TanStack Query<br/>(Cache & Sync)"]
+        REPO["Repositorio y reconciliación"]
         IDB[("IndexedDB<br/>(Dexie.js)")]
     end
 
@@ -32,8 +33,9 @@ flowchart TB
     end
 
     UI --> CTX --> TQ
-    TQ <-->|Optimistic Updates| IDB
-    TQ <-->|Real-time Subscriptions| FS
+    TQ <--> REPO
+    REPO <--> IDB
+    REPO <--> FS
     UI --> AUTH
     UI --> STORAGE
     UI --> GMAIL
@@ -45,15 +47,17 @@ flowchart TB
 
 ## ✅ Enfoque de Estabilidad
 
-- **Offline-first:** IndexedDB como almacenamiento primario y Firestore como sync remoto.
+- **Continuidad local:** IndexedDB conserva caché y operaciones pendientes; la precedencia local/remota se resuelve en el repositorio, según el contrato del censo.
 - **Integridad clínica:** validación estricta con Zod + guardas de regresión.
-- **Concurrencia segura:** control optimista y updates parciales por celda (LWW).
+- **Concurrencia segura:** las escrituras clínicas respetan la revisión y autoridad del censo; una proyección optimista no equivale a una confirmación remota.
 - **Recuperación:** auto-repair de IndexedDB y fallback controlado.
 - **Auth por entorno:** popup como flujo principal, acceso directo solo cuando la configuración Firebase lo soporta y advertencias de arranque cuando faltan variables críticas.
 - **Observabilidad local:** métricas y logs guardados localmente para diagnóstico offline.
 - **Cola de sync:** cambios encolados con deduplicación y backoff.
 
-Para más detalle de flujos y decisiones, ver `docs/architecture.md`.
+El contrato vigente de lectura, escritura y reconciliación del censo está en
+[ADR Daily Record Runtime Path](docs/ADR_DAILY_RECORD_RUNTIME_PATH.md).
+Para más detalle de flujos y decisiones, ver [docs/architecture.md](docs/architecture.md).
 Para resumen ejecutivo y stack, ver este documento.
 La taxonomía canónica del repo vive en `docs/CODEBASE_CANON.md`.
 
@@ -72,19 +76,24 @@ La taxonomía canónica del repo vive en `docs/CODEBASE_CANON.md`.
 
 ## 📦 Stack Tecnológico
 
-| Capa                 | Tecnología                        | Versión         |
-| -------------------- | --------------------------------- | --------------- |
-| **UI**               | React                             | 19.2.1          |
-| **Language**         | TypeScript                        | 5.8.2           |
-| **Build**            | Vite                              | 6.2.0           |
-| **State Management** | TanStack Query                    | 5.90.12         |
-| **Styling**          | CSS Modules + utilidades Tailwind | -               |
-| **Database**         | Firestore                         | 12.6.0          |
-| **Local Storage**    | IndexedDB (Dexie.js)              | 4.2.1           |
-| **Auth**             | Firebase Auth                     | 12.6.0          |
-| **Validation**       | Zod                               | 3.25.76         |
-| **Testing**          | Vitest + Playwright               | 4.0.15 / 1.57.0 |
-| **Hosting**          | Netlify                           | -               |
+| Capa                          | Tecnología                |
+| ----------------------------- | ------------------------- |
+| UI                            | React                     |
+| Lenguaje                      | TypeScript                |
+| Build                         | Vite                      |
+| Caché y estado remoto         | TanStack Query            |
+| Estilos                       | CSS y utilidades Tailwind |
+| Base de datos y autenticación | Firestore y Firebase Auth |
+| Almacenamiento local          | IndexedDB (Dexie.js)      |
+| Validación                    | Zod                       |
+| Pruebas                       | Vitest y Playwright       |
+| Hosting                       | Netlify                   |
+
+Las versiones declaradas se mantienen en [package.json](package.json) y las resoluciones
+exactas en [package-lock.json](package-lock.json). Este resumen no duplica números de
+versión: una actualización de dependencias debe cambiar esas fuentes, sin exigir una
+segunda actualización manual de esta tabla. Las dependencias de Firebase Functions
+se resuelven por separado en [functions/package-lock.json](functions/package-lock.json).
 
 ---
 
@@ -122,123 +131,58 @@ src/
 ├── schemas/                    # Validación Zod (Seguridad en runtime)
 ├── types/                      # Definiciones de tipos del dominio
 ├── utils/                      # Helpers y utilidades técnicas
-└── tests/                      # Suite de tests automatizados (>1350)
+└── tests/                      # Pruebas unitarias y de integración
 ```
 
 ---
 
-## 🔄 Flujo de Datos
+## 🔄 Flujo del censo
 
 ```mermaid
-sequenceDiagram
-    participant U as Usuario
-    participant V as View
-    participant C as Context
-    participant TQ as TanStack Query
-    participant R as Repository
-    participant IDB as IndexedDB
-    participant FS as Firestore
-
-    U->>V: Acción (ej: Editar paciente)
-    V->>C: Dispatch action
-    C->>TQ: mutate()
-
-    Note over TQ: Optimistic Update
-    TQ->>IDB: Guardar local (inmediato)
-    TQ-->>V: UI actualizada
-
-    TQ->>R: Sync remoto
-    R->>FS: setDoc()
-    FS-->>R: Confirmación
-    R-->>TQ: onSettled()
-
-    alt Error de red
-        TQ->>TQ: Rollback
-        TQ-->>V: Restaurar estado previo
-    end
+flowchart TD
+    UI["UI, hooks y casos de uso"] --> R["Fachada del repositorio"]
+    R --> V["Validación, revisión y política del comando"]
+    V --> LOCAL["Persistencia local y outbox cuando el contrato lo permite"]
+    V --> REMOTE["Confirmación remota requerida por el comando"]
+    LOCAL --> SYNC["Sincronización y reintentos gobernados"]
+    SYNC --> FS[("Firestore")]
+    REMOTE --> FS
+    FS --> RECON["Reconciliación de autoridad y escrituras pendientes"]
+    LOCAL --> RECON
+    RECON --> CACHE["Caché y UI con resultado tipado"]
 ```
 
----
+El orden depende de la operación. El diagrama muestra responsabilidades, no una
+transacción universal: un guardado local pendiente y una escritura clínica
+confirmada remotamente son resultados distintos.
 
-## ⚡ Flujos Críticos (Resumen)
+| Operación                          | Regla relevante                                                                                                      | Fuente canónica                                                                            |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Lectura y suscripción              | Reconciliar local/remoto y distinguir ausencia confirmada de indisponibilidad transitoria.                           | [ADR del censo](docs/ADR_DAILY_RECORD_RUNTIME_PATH.md)                                     |
+| Guardado o patch                   | Preparar y validar el cambio; respetar la revisión esperada y las guardas del comando.                               | [Servicio de escritura](src/services/repositories/dailyRecordRepositoryWriteService.ts)    |
+| Cambio que exige autoridad clínica | Confirmar remotamente antes de tratar la operación como finalizada; un rechazo no se transforma en éxito local.      | [Persistencia remota](src/services/repositories/dailyRecordRemotePersistenceController.ts) |
+| Cambio local pendiente             | Mantener registro y outbox coherentes; reconciliar el acuse de confirmación antes de reemplazar la proyección local. | [ADR del censo](docs/ADR_DAILY_RECORD_RUNTIME_PATH.md)                                     |
 
-### Guardado completo (online/offline)
-
-```mermaid
-sequenceDiagram
-    participant UI
-    participant Hook
-    participant Repo
-    participant IDB
-    participant SyncQ
-    participant FS
-
-    UI->>Hook: save(record)
-    Hook->>Repo: save()
-    Repo->>IDB: saveRecord()
-    Repo->>SyncQ: queueSyncTask(save)
-    alt Online
-        SyncQ->>FS: saveToFirestore()
-        FS-->>SyncQ: ok
-    else Offline
-        SyncQ-->>Repo: scheduled retry
-    end
-```
-
-### Patch parcial (LWW)
-
-```mermaid
-sequenceDiagram
-    participant UI
-    participant Hook
-    participant Repo
-    participant IDB
-    participant SyncQ
-    participant FS
-
-    UI->>Hook: patch(path, value)
-    Hook->>Repo: updatePartial()
-    Repo->>IDB: applyPatchLocal()
-    Repo->>SyncQ: queueSyncTask(patch)
-    SyncQ->>FS: applyPatchRemote()
-```
-
-### Lectura (con migración suave)
-
-```mermaid
-sequenceDiagram
-    participant UI
-    participant Hook
-    participant Repo
-    participant IDB
-    participant FS
-
-    UI->>Hook: load(date)
-    Hook->>Repo: getForDate()
-    Repo->>IDB: readRecord()
-    alt No local
-        Repo->>FS: fetchRecord()
-    end
-    Repo-->>Hook: migrated + validated
-```
+Un error no implica siempre el mismo rollback: el resultado tipado declara si la
+operación quedó pendiente, bloqueada o confirmada y orienta la recuperación.
 
 ---
 
 ## 🧩 Contratos de Datos (Resumen)
 
-- **DailyRecord:** `date` ISO, `beds` fijo por catálogo, `activeExtraBeds` coherente, `patients` con `id` único.
-- **Patch parcial:** `path` en dot-notation, `value` serializable, `lastUpdated` para LWW.
+- **DailyRecord:** `date` ISO, pacientes por cama en `beds`, `activeExtraBeds` e identidad de episodio validados antes de persistir.
+- **Patch parcial:** rutas y valores serializables; revisión esperada y política del comando para resolver concurrencia.
 - **SyncTask:** `type`, `key`, `status`, `attempts`, `nextAttemptAt`.
 
 ---
 
 ## 🧭 Cómo leer esta arquitectura (para novatos)
 
-1. **Empieza por el flujo de datos**: mira “Flujo de Datos” y “Flujos Críticos” para entender qué pasa cuando el usuario guarda o edita.
+1. **Empieza por el flujo de datos**: mira “Flujo del censo” para entender qué pasa cuando el usuario guarda o edita.
 2. **Ubica la capa donde ocurre cada cosa**: UI/Views dispara acciones, Hooks coordinan, Repositories persisten, Storage escribe/lee.
 3. **Aprende los contratos de datos**: estos “acuerdos” evitan errores al mover datos entre capas.
 4. **Revisa estabilidad y seguridad**: mira “Enfoque de Estabilidad” y “Seguridad” para entender por qué el sistema no se cae y protege datos.
-5. **Si algo falla**: busca en “Observabilidad” y “Flujos Críticos” para ubicar el punto de diagnóstico.
+5. **Si algo falla**: consulta el ADR del censo y los runbooks para ubicar el punto de diagnóstico.
 
 ---
 
@@ -268,40 +212,20 @@ sequenceDiagram
 
 ## ✅ Checklist de Consistencia (ARCHITECTURE vs docs/architecture)
 
-## Línea Base de Calidad
+## Evidencia de calidad
 
-Snapshot regenerado el `2026-02-28`:
-
-- Archivos fuente: `979`
-- Líneas fuente: `95398`
-- Módulos sobredimensionados: `0`
-- Violaciones de deuda entre carpetas: `0`
-- Explicit `any` en source: `0`
+Los conteos de archivos, cobertura y deuda son datos generados, no una propiedad
+estable de la arquitectura. Consultar la ejecución de CI del SHA evaluado y sus
+artefactos según el [runbook de evidencia](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
+Un snapshot histórico en `reports/` no demuestra el estado del checkout actual.
 
 ## Notas de Operación
 
 - El acceso alternativo de Google no se ofrece automáticamente en `localhost` salvo habilitación explícita.
 - Cuando IndexedDB falla por bloqueo o backing store, la app intenta una auto-recuperación inicial y solo luego expone UI de aviso.
-- Archivos de test: `474`
-- Flake-risk test files: `0`
-
-Fuente de verdad:
-
-- [reports/quality-metrics.md](reports/quality-metrics.md)
-
-## Próximo Hotspot Recomendado
-
-Motivo:
-
-- el siguiente foco real está en servicios grandes y cohesionados parcialmente, no en módulos demo ya retirados.
-- los candidatos con mejor retorno actual son integraciones y autenticación, donde sigue habiendo mezcla de responsabilidades y superficie operativa alta.
-
-- **Principios**: offline-first, integridad clínica, concurrencia, recuperación.
-- **Capas**: UI → Contexts/Hooks → Repos → Storage.
-- **Flujos críticos**: save completo, patch parcial, lectura con migración suave.
-- **Contratos**: DailyRecord, Patch, SyncTask alineados.
-- **Observabilidad**: logs/health/pending sync reflejados en ambos documentos.
-- **Stack**: versiones en `ARCHITECTURE.md` coinciden con `package.json`.
+- **Capas**: UI y casos de uso → repositorios → almacenamiento, según los boundaries vigentes.
+- **Contratos**: lectura, escritura y reconciliación del censo definidos en su ADR.
+- **Stack**: versiones declaradas en `package.json` y resueltas en los lockfiles.
 
 ---
 
@@ -353,4 +277,4 @@ const fhirPatient = mapPatientToFhir(localPatient);
 
 ---
 
-_Última actualización: 08 de Febrero 2026_
+_Revisión del stack, flujo del censo y evidencia: 28 de septiembre de 2026._
