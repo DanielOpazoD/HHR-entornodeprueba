@@ -1,0 +1,43 @@
+name: Setup CI dependencies
+description: Reuse an exact, pristine npm installation with a clean-install fallback.
+inputs:
+  save-cache:
+    description: Save immediately after npm ci, before any checks can mutate dependencies.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      id: node
+      uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+        cache: npm
+
+    - name: Identify runner image
+      id: image
+      shell: bash
+      run: printf 'version=%s-%s\n' "${ImageOS:?}" "${ImageVersion:?}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore installed dependencies
+      id: dependencies
+      uses: actions/cache/restore@v6.1.0
+      continue-on-error: true
+      with:
+        path: node_modules
+        # No prefix fallback: native modules and install scripts must match exactly.
+        key: installed-v1-${{ steps.image.outputs.version }}-${{ runner.os }}-${{ runner.arch }}-${{ steps.node.outputs.node-version }}-${{ hashFiles('package.json', 'package-lock.json', '.npmrc', '.github/actions/setup-ci-dependencies/action.yml') }}
+
+    - name: Install dependencies on cache miss or failure
+      if: steps.dependencies.outputs.cache-hit != 'true' || steps.dependencies.outcome != 'success'
+      shell: bash
+      run: npm ci
+
+    # Save now, not in a post hook after tests/builds have modified node_modules.
+    - name: Save pristine installed dependencies
+      if: inputs.save-cache == 'true' && steps.dependencies.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6.1.0
+      continue-on-error: true
+      with:
+        path: node_modules
+        key: ${{ steps.dependencies.outputs.cache-primary-key }}
