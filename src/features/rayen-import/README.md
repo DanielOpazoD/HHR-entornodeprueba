@@ -180,7 +180,8 @@ clínicos en esa telemetría.
 ## Reglas clave
 
 - **Especialidad del episodio:** las actualizaciones de Eloísa conservan el valor de HHR,
-  incluso pendiente o dejado sin asignar manualmente, tanto en camas como en cunas.
+  incluso dejado sin asignar manualmente, tanto en camas como en cunas. Una cuna RN
+  pendiente recibe Pediatría por defecto en el servidor; una decisión posterior prevalece.
   El catálogo del tratante no autoriza un cambio durante la sincronización. Las decisiones
   manuales y las reglas del servidor mantienen su contrato de autoridad; los ingresos nuevos
   siguen pasando por esa validación. Una previsualización anterior tampoco debe reponer

@@ -3,10 +3,15 @@ const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { sanitizeLogValue } = require('./logging/redaction');
 const { evaluateDailyRecordClinicalAuthority } = require('./dailyRecordClinicalAuthorityPolicy');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
-const { protectSpecialtyDecisions, SpecialtyDecisionError } = require('./specialtyDecisionContract');
+const {
+  protectSpecialtyDecisions,
+  SpecialtyDecisionError,
+} = require('./specialtyDecisionContract');
 const { applyPendingSpecialtyRules, isCurrentRapaNuiDay } = require('./specialtyRules');
-const { assertTrustedSpecialtyAssignments, assertUnusedSpecialtyDecisionIds } =
-  require('./specialtyAuditAuthority');
+const {
+  assertTrustedSpecialtyAssignments,
+  assertUnusedSpecialtyDecisionIds,
+} = require('./specialtyAuditAuthority');
 const {
   assertRayenClinicalBatchAuthority,
   assertRayenClinicalRunAuthority,
@@ -250,8 +255,10 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
 
         assertHistoricalCudyrPayload(remoteData, payload);
         const policySnapshot = await transaction.get(policyRef);
-        const specialtyPolicySnapshot = process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled'
-          ? await transaction.get(specialtyPolicyRef) : null;
+        const specialtyPolicySnapshot =
+          process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled'
+            ? await transaction.get(specialtyPolicyRef)
+            : null;
         // A lost response may be retried after an administrator changes the policy. An exact
         // receipt proves that mutation already committed; only new/legacy-replay work must satisfy
         // the current authority fence.
@@ -294,17 +301,20 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           effectiveTargets,
           payload.fieldContractVersion
         );
-        await assertTrustedSpecialtyAssignments({ transaction, hospitalRef,
-          records: [remoteData] });
+        await assertTrustedSpecialtyAssignments({
+          transaction,
+          hospitalRef,
+          records: [remoteData],
+        });
         protectSpecialtyDecisions({
           remoteRecord: remoteData,
           candidate: nextRecord,
           guardScalarChanges: process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled',
         });
         const automaticSpecialtyDecisions =
-          process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled' &&
-          isCurrentRapaNuiDay(payload.date) && !payload.dryRun
+          process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled' && !payload.dryRun
             ? applyPendingSpecialtyRules({
+                catalogEnabled: isCurrentRapaNuiDay(payload.date),
                 remoteRecord: remoteData,
                 candidate: nextRecord,
                 policy: specialtyPolicySnapshot?.exists ? specialtyPolicySnapshot.data() : null,
@@ -312,9 +322,13 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
                 mutationId: payload.mutationId,
                 now: new Date().toISOString(),
                 eligibleBedIds: [...new Set(effectiveTargets.map(target => target.bedId))],
-              }) : [];
-        await assertUnusedSpecialtyDecisionIds({ transaction, docRef,
-          decisions: automaticSpecialtyDecisions });
+              })
+            : [];
+        await assertUnusedSpecialtyDecisionIds({
+          transaction,
+          docRef,
+          decisions: automaticSpecialtyDecisions,
+        });
         // Shadow runs after the established per-patient writes. Compare against that independently
         // persisted record; comparing with our own projection would certify the request tautologically.
         const parityRecord = payload.dryRun ? remoteData : nextRecord;
@@ -368,7 +382,10 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         }
         transaction.set(docRef, nextRecord);
         automaticSpecialtyDecisions.forEach(decision => {
-          transaction.set(docRef.collection('specialtyDecisions').doc(decision.decisionId), decision);
+          transaction.set(
+            docRef.collection('specialtyDecisions').doc(decision.decisionId),
+            decision
+          );
         });
         return { historySnapshotWritten };
       });
@@ -404,8 +421,10 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         transactionRetries: Math.max(0, transactionAttempts - 1),
       };
     } catch (error) {
-      const handledError = error instanceof SpecialtyDecisionError
-        ? new functions.https.HttpsError(error.code, error.message) : error;
+      const handledError =
+        error instanceof SpecialtyDecisionError
+          ? new functions.https.HttpsError(error.code, error.message)
+          : error;
       if (context.auth) {
         await recordTelemetry({
           firestore,
@@ -423,7 +442,11 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
       }
       const failureDetails = buildPersistenceFailureDetails(requestSummary, transactionAttempts);
       if (handledError instanceof functions.https.HttpsError) {
-        throw new functions.https.HttpsError(handledError.code, handledError.message, failureDetails);
+        throw new functions.https.HttpsError(
+          handledError.code,
+          handledError.message,
+          failureDetails
+        );
       }
 
       console.error(

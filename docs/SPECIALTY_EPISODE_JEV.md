@@ -52,3 +52,15 @@ El informe de referencia fijó un `main` anterior. Se tomó el `main` actualizad
 ## Validación y límite
 
 Las pruebas del repositorio cubren contrato puro, elección Jev simulada, autoridad callable, carreras con transacciones Firestore reales, reglas de seguridad, identidad, copia, cuna y regresión del repositorio. Se informan por separado al cerrar el PR los comandos efectivamente completados y sus resultados. No se afirma precisión clínica del modelo, caducidad real de sesión ni funcionamiento con datos asistenciales; esos puntos requieren validación posterior antes de cualquier activación.
+
+## Valor por defecto de cunas RN
+
+Con la autoridad de especialidad por episodio habilitada, una cuna clínica o cama en modo
+Cuna sin especialidad ni decisión previa recibe Pediatría en la misma transacción del censo.
+Este valor por defecto no depende del catálogo CIE-10 y puede aplicarse al sincronizar un día
+anterior. Las reglas por diagnóstico siguen limitadas al día vigente y a su política habilitada.
+La auditoría usa `source: rule`, `rule.id: default_newborn_pediatrics`, revisión 1 y
+`catalogRevision: 0` para distinguir el valor intrínseco de una revisión del catálogo.
+Una especialidad existente, una decisión manual posterior (incluso vacía) o una procedencia
+protegida nunca se reemplazan por este valor por defecto. No se modifica ningún censo fuera
+de la escritura autorizada ni se ejecuta una migración masiva.
