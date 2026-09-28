@@ -322,7 +322,8 @@
     "workbox-expiration": "^7.4.0",
     "workbox-precaching": "^7.4.0",
     "workbox-routing": "^7.4.0",
-    "workbox-strategies": "^7.4.0"
+    "workbox-strategies": "^7.4.0",
+    "yaml": "2.8.3"
   },
   "overrides": {
     "@xmldom/xmldom": "0.9.10",
