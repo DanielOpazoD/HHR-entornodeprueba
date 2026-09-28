@@ -64,3 +64,12 @@ La auditoría usa `source: rule`, `rule.id: default_newborn_pediatrics`, revisi�
 Una especialidad existente, una decisión manual posterior (incluso vacía) o una procedencia
 protegida nunca se reemplazan por este valor por defecto. No se modifica ningún censo fuera
 de la escritura autorizada ni se ejecuta una migración masiva.
+
+La suite `src/tests/emulator/newborn-specialty-sync.emulator.test.ts` recorre los handlers
+reales de guardado, decisión manual y carga clínica contra transacciones Firestore del
+emulador local. Cubre cuna asociada y cama en modo Cuna, decisión manual vacía u otra
+especialidad, un día histórico y reintento de la misma carga tras perder su respuesta.
+Comprueba readback de signos y scores, prioridad manual, auditorías únicas y conservación
+de una cuna ajena a la escritura. Usa datos sintéticos y Admin SDK sólo contra localhost;
+no acredita el transporte HTTPS, la extensión ni la autorización por reglas del cliente.
+Se ejecuta dentro de `npm run test:emulator:sync:ci`.
