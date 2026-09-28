@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { BEDS } from '@/constants/beds';
 import { createEmptyPatient } from '@/services/factories/patientFactory';

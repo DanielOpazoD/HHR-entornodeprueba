@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { resolveDischargeRowViewModel } from '@/features/census/controllers/dischargeRowViewController';

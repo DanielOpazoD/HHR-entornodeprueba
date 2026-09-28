@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
   RESET_DAY_CONFIRM_DIALOG,

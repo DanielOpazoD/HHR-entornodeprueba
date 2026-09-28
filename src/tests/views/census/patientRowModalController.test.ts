@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { resolvePatientRowDemographicsBinding } from '@/features/census/controllers/patientRowModalController';
 import { DataFactory } from '@/tests/factories/DataFactory';

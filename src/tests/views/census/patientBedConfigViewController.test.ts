@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { calculateHospitalizedDays } from '@/features/census/controllers/patientBedConfigViewController';
 

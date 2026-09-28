@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { formatCensusHeaderDate } from '@/features/census/controllers/censusDatePresentationController';
 

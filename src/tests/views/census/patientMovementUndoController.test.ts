@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { createEmptyPatient } from '@/services/factories/patientFactory';
 import { resolveUndoPatientMovement } from '@/features/census/controllers/patientMovementUndoController';

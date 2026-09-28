@@ -1,16 +1,24 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/services/contracts/dailyRecordServiceContracts';
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
 import {
-  historicalMonthRange, summarizeCurrentDiagnoses, summarizeHistoricalAssociations,
+  historicalMonthRange,
+  summarizeCurrentDiagnoses,
+  summarizeHistoricalAssociations,
 } from '@/features/census/components/specialty-round/specialtyRulesHistoryModel';
 
-const patient = (overrides: Partial<PatientData>): PatientData => ({
-  patientName: 'Paciente sintético', isBlocked: false, cie10Code: 'J18.9',
-  cie10Description: 'Neumonía', specialty: 'Med Interna', ...overrides,
-} as PatientData);
+const patient = (overrides: Partial<PatientData>): PatientData =>
+  ({
+    patientName: 'Paciente sintético',
+    isBlocked: false,
+    cie10Code: 'J18.9',
+    cie10Description: 'Neumonía',
+    specialty: 'Med Interna',
+    ...overrides,
+  }) as PatientData;
 const record = (date: string, beds: Record<string, PatientData>): DailyRecord =>
-  ({ date, beds } as DailyRecord);
+  ({ date, beds }) as DailyRecord;
 
 describe('specialty rule diagnosis sources', () => {
   it('groups current hospitalised mother and clinical crib diagnoses, excluding empty beds', () => {
@@ -28,8 +36,10 @@ describe('specialty rule diagnosis sources', () => {
   it('keeps conflicting historical pairings separate without exposing patient identity', () => {
     const result = summarizeHistoricalAssociations([
       record('2026-09-10', { R1: patient({ specialty: 'Med Interna' }) }),
-      record('2026-09-11', { R1: patient({ specialty: 'Pediatría' }),
-        R2: patient({ specialty: 'Med Interna' }) }),
+      record('2026-09-11', {
+        R1: patient({ specialty: 'Pediatría' }),
+        R2: patient({ specialty: 'Med Interna' }),
+      }),
     ]);
     expect(result).toEqual([
       { code: 'J18.9', specialty: 'Med Interna', observations: 2, lastDate: '2026-09-11' },
@@ -40,10 +50,12 @@ describe('specialty rule diagnosis sources', () => {
 
   it('reads at most one completed month and excludes the current clinical day', () => {
     expect(historicalMonthRange('2026-09', '2026-09-24')).toEqual({
-      start: '2026-09-01', end: '2026-09-23',
+      start: '2026-09-01',
+      end: '2026-09-23',
     });
     expect(historicalMonthRange('2026-08', '2026-09-24')).toEqual({
-      start: '2026-08-01', end: '2026-08-31',
+      start: '2026-08-01',
+      end: '2026-08-31',
     });
     expect(historicalMonthRange('2026-09', '2026-09-01')).toBeNull();
     expect(historicalMonthRange('2026-10', '2026-09-24')).toBeNull();

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { Trash2 } from 'lucide-react';
 import { resolvePatientActionMenuPanelModel } from '@/features/census/controllers/patientActionMenuPanelController';

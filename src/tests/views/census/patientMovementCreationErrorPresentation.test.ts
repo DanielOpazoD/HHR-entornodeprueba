@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { getMovementCreationWarningMessage } from '@/features/census/controllers/patientMovementCreationErrorPresentation';
 
