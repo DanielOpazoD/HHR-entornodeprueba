@@ -35,7 +35,11 @@ const LOCAL_CLINICAL_DOCUMENTS_STORAGE_KEY = 'hhr_clinical_documents_local_v1';
 
 type LocalClinicalDocumentsStore = Record<string, Record<string, ClinicalDocumentRecord>>;
 
-const localClinicalDocumentsMemoryStore: LocalClinicalDocumentsStore = {};
+let localClinicalDocumentsMemoryStore: LocalClinicalDocumentsStore = {};
+const pendingLocalClinicalDocumentWrites = new Map<
+  string,
+  Map<string, ClinicalDocumentRecord | null>
+>();
 const localClinicalDocumentSubscribers = new Map<
   string,
   Set<(documents: ClinicalDocumentRecord[]) => void>
@@ -70,34 +74,52 @@ const getBrowserStorage = (): Storage | null => {
 };
 
 const readLocalClinicalDocumentsStore = (): LocalClinicalDocumentsStore => {
-  const storage = getBrowserStorage();
-  if (!storage) {
-    return localClinicalDocumentsMemoryStore;
-  }
-
+  let store = localClinicalDocumentsMemoryStore;
   try {
-    const raw = storage.getItem(LOCAL_CLINICAL_DOCUMENTS_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as LocalClinicalDocumentsStore) : {};
+    const storage = getBrowserStorage();
+    if (storage) {
+      const raw = storage.getItem(LOCAL_CLINICAL_DOCUMENTS_STORAGE_KEY);
+      store = raw ? (JSON.parse(raw) as LocalClinicalDocumentsStore) : {};
+    }
   } catch {
-    return {};
+    // Retain the last readable snapshot when browser storage is inaccessible.
   }
+  const merged: LocalClinicalDocumentsStore = Object.create(null);
+  for (const [hospitalId, documents] of Object.entries(store)) {
+    merged[hospitalId] = Object.assign(Object.create(null), documents);
+  }
+  for (const [hospitalId, writes] of pendingLocalClinicalDocumentWrites) {
+    const documents: Record<string, ClinicalDocumentRecord> = Object.assign(
+      Object.create(null),
+      merged[hospitalId]
+    );
+    for (const [id, document] of writes) {
+      if (document) documents[id] = document;
+      else delete documents[id];
+    }
+    merged[hospitalId] = documents;
+  }
+  localClinicalDocumentsMemoryStore = merged;
+  return merged;
 };
 
-const writeLocalClinicalDocumentsStore = (store: LocalClinicalDocumentsStore): void => {
-  Object.keys(localClinicalDocumentsMemoryStore).forEach(key => {
-    delete localClinicalDocumentsMemoryStore[key];
-  });
-  Object.assign(localClinicalDocumentsMemoryStore, store);
-
+const writeLocalClinicalDocument = (
+  hospitalId: string,
+  documentId: string,
+  document: ClinicalDocumentRecord | null
+): void => {
+  const writes = pendingLocalClinicalDocumentWrites.get(hospitalId) ?? new Map();
+  writes.set(documentId, document);
+  pendingLocalClinicalDocumentWrites.set(hospitalId, writes);
+  // Overlay only this session's changes on the latest snapshot, preserving other tabs' records.
+  const store = readLocalClinicalDocumentsStore();
   const storage = getBrowserStorage();
-  if (!storage) {
-    return;
-  }
-
+  if (!storage) return;
   try {
     storage.setItem(LOCAL_CLINICAL_DOCUMENTS_STORAGE_KEY, JSON.stringify(store));
+    pendingLocalClinicalDocumentWrites.clear();
   } catch {
-    // Local-only persistence is best-effort; callers still receive the in-memory document.
+    // Keep edits and deletion tombstones until a later write successfully persists them.
   }
 };
 
@@ -128,16 +150,7 @@ const persistLocalClinicalDocument = (
   record: ClinicalDocumentRecord,
   hospitalId: string
 ): ClinicalDocumentRecord => {
-  const store = readLocalClinicalDocumentsStore();
-  const hospitalDocuments = store[hospitalId] || {};
-  const nextStore = {
-    ...store,
-    [hospitalId]: {
-      ...hospitalDocuments,
-      [record.id]: record,
-    },
-  };
-  writeLocalClinicalDocumentsStore(nextStore);
+  writeLocalClinicalDocument(hospitalId, record.id, record);
   notifyLocalClinicalDocumentSubscribers(record.episodeKey, hospitalId);
   return record;
 };
@@ -147,15 +160,13 @@ const deleteLocalClinicalDocument = (documentId: string, hospitalId: string): vo
   const hospitalDocuments = store[hospitalId] || {};
   const document = hospitalDocuments[documentId];
   if (!document) {
+    if (pendingLocalClinicalDocumentWrites.get(hospitalId)?.has(documentId)) {
+      writeLocalClinicalDocument(hospitalId, documentId, null);
+    }
     return;
   }
 
-  const nextHospitalDocuments = { ...hospitalDocuments };
-  delete nextHospitalDocuments[documentId];
-  writeLocalClinicalDocumentsStore({
-    ...store,
-    [hospitalId]: nextHospitalDocuments,
-  });
+  writeLocalClinicalDocument(hospitalId, documentId, null);
   notifyLocalClinicalDocumentSubscribers(document.episodeKey, hospitalId);
 };
 
@@ -203,11 +214,7 @@ export const ClinicalDocumentRepository = {
         where: [{ field: 'episodeKey', operator: '==', value: episodeKey }],
       }
     );
-    return sortDocuments(
-      documents
-        .map(document => validateReadRecord(document))
-        .filter((document): document is ClinicalDocumentRecord => Boolean(document))
-    );
+    return normalizeReadDocuments(documents);
   },
 
   async listByEpisodeKeys(
@@ -354,14 +361,7 @@ export const ClinicalDocumentRepository = {
     return firestoreDb.subscribeQuery<ClinicalDocumentRecord>(
       getClinicalDocumentsCollectionPath(hospitalId),
       { where: [{ field: 'episodeKey', operator: '==', value: episodeKey }] },
-      docs =>
-        callback(
-          sortDocuments(
-            docs
-              .map(document => validateReadRecord(document))
-              .filter((document): document is ClinicalDocumentRecord => Boolean(document))
-          )
-        )
+      docs => callback(normalizeReadDocuments(docs))
     );
   },
 
