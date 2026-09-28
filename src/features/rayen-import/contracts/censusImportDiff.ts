@@ -104,6 +104,8 @@ export interface DischargeEntry {
    */
   correctedDay?: string;
   correctedTime?: string;
+  /** Authoritative prior-day movement already exists; only occupancy reconciliation remains. */
+  historicalMovementRecorded?: boolean;
   /** Independent evidence for the three documents that participate in the discharge workflow. */
   verification?: DischargeVerification;
   /**

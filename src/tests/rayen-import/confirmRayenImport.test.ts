@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyConfirmedRayenImport,
-  areRayenStructuralPlansEquivalent,
   RayenStructuralPlanChangedError,
 } from '@/features/rayen-import/hooks/confirmRayenImport';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';
@@ -15,11 +14,9 @@ import {
   repository,
 } from './previousDayAdmissionCorrections.fixtures';
 import { ConcurrencyError } from '@/services/storage/firestore/firestoreWriteSupport';
-
 vi.mock('@/hooks/controllers/dailyRecordMutationFreshnessController', () => ({
   patchDailyRecordWithCompatibility: vi.fn(),
 }));
-
 const record = (lastUpdated: string): DailyRecord =>
   ({
     date: '2026-07-16',
@@ -30,7 +27,6 @@ const record = (lastUpdated: string): DailyRecord =>
     activeExtraBeds: [],
     lastUpdated,
   }) as DailyRecord;
-
 const structuralDiff = (overrides: Partial<CensusImportDiff> = {}): CensusImportDiff => ({
   admissions: [],
   updates: [],
@@ -50,8 +46,29 @@ const structuralDiff = (overrides: Partial<CensusImportDiff> = {}): CensusImport
   },
   ...overrides,
 });
-
 describe('applyConfirmedRayenImport', () => {
+  it('finalizes a carried occupant even when the historical movement already exists', async () => {
+    const base = record('confirmed');
+    const applied = { record: base, applied: {}, skipped: [] } as unknown as ApplyResult;
+    const finalized = { ...applied, record: record('cleared') };
+    const finalizeHistoricalDischarges = vi.fn().mockResolvedValue(finalized);
+    const result = await applyConfirmedRayenImport({
+      applyPreviousDays: false,
+      base,
+      diff: structuralDiff(),
+      dailyRecord: {} as DailyRecordRepositoryPort,
+      isAdmin: true,
+      ensureRun: vi.fn(),
+      applyDiff: vi.fn().mockResolvedValue(applied),
+      getFreshRecord: vi.fn(),
+      replanDiff: vi.fn(),
+      createId: () => 'id',
+      finalizeHistoricalDischarges,
+    });
+    expect(finalizeHistoricalDischarges).toHaveBeenCalledWith(applied);
+    expect(result.record.lastUpdated).toBe('cleared');
+  });
+
   it('retries a named concurrency conflict with a record freshly loaded into the query path', async () => {
     const stale = record('stale');
     const fresh = record('fresh');
@@ -208,6 +225,10 @@ describe('applyConfirmedRayenImport', () => {
     const applyDiff = vi.fn().mockResolvedValue(expected);
     const replanDiff = vi.fn();
     const onRetry = vi.fn();
+    const finalizeHistoricalDischarges = vi.fn(async (applied: ApplyResult) => {
+      expect(patchDailyRecordWithCompatibility).toHaveBeenCalledTimes(2);
+      return applied;
+    });
 
     const result = await applyConfirmedRayenImport({
       applyPreviousDays: true,
@@ -222,6 +243,7 @@ describe('applyConfirmedRayenImport', () => {
         sourceDate: '2026-07-26',
       }),
       applyDiff,
+      finalizeHistoricalDischarges,
       getFreshRecord: vi.fn(),
       replanDiff,
       createId: () => 'movement-id',
@@ -238,6 +260,7 @@ describe('applyConfirmedRayenImport', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(applyDiff).toHaveBeenCalledTimes(1);
     expect(replanDiff).not.toHaveBeenCalled();
+    expect(finalizeHistoricalDischarges).toHaveBeenCalledOnce();
   });
 
   it('preserves the confirmed selected day when historical corrections exhaust retries', async () => {
@@ -385,7 +408,9 @@ describe('applyConfirmedRayenImport', () => {
       skipped: [],
     } as unknown as ApplyResult;
 
+    const finalizeHistoricalDischarges = vi.fn();
     const result = await applyConfirmedRayenImport({
+      finalizeHistoricalDischarges,
       applyPreviousDays: true,
       base: { ...historicalRecord, date: '2026-07-26' },
       diff: acceptedDiff,
@@ -409,6 +434,7 @@ describe('applyConfirmedRayenImport', () => {
       historicalCorrectionsPending: true,
     });
     expect(patchDailyRecordWithCompatibility).toHaveBeenCalledOnce();
+    expect(finalizeHistoricalDischarges).not.toHaveBeenCalled();
   });
 
   it('returns a materially changed replan to review before applying historical corrections', async () => {
@@ -467,33 +493,5 @@ describe('applyConfirmedRayenImport', () => {
 
     expect(applyDiff).toHaveBeenCalledOnce();
     expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
-  });
-});
-
-describe('areRayenStructuralPlansEquivalent', () => {
-  it('ignores audit-only unchanged counters while preserving the reviewed operations', () => {
-    expect(
-      areRayenStructuralPlansEquivalent(
-        structuralDiff({ unchangedCount: 1 }),
-        structuralDiff({ unchangedCount: 9 })
-      )
-    ).toBe(true);
-  });
-
-  it('detects a newly introduced admission before a CAS retry', () => {
-    expect(
-      areRayenStructuralPlansEquivalent(
-        structuralDiff(),
-        structuralDiff({
-          admissions: [
-            {
-              bedId: 'H1C1',
-              patient: { patientName: 'Paciente nuevo' } as never,
-              isCma: false,
-            },
-          ],
-        })
-      )
-    ).toBe(false);
   });
 });

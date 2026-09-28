@@ -109,3 +109,35 @@ or concurrency rejections.
 - Real engine: `src/tests/emulator/atomic-write-guards.emulator.test.ts` runs against the Firestore
   emulator — two concurrent saves on the same base (one wins, one `ConcurrencyError`) and the
   in-transaction erasure backstop. Run via `npm run test:emulator:sync:ci`.
+
+### Egreso histórico arrastrado al copiar un censo
+
+Cuando un paciente copiado a D egresó oficialmente en D-1, el movimiento pertenece sólo a D-1.
+La persistencia estructural de D conserva temporalmente esa cama y excluye el episodio egresado
+(y su cuna asociada) del enriquecimiento clínico. Tras confirmar el movimiento en el registro
+histórico, `finalizeRayenHistoricalDischarges` libera la cama de D con el comando existente
+`intentionalBedClear`, ligado a la versión y al ocupante revisado. No crea un alta en D.
+
+Si el movimiento histórico está pendiente, falta o la cama/cuna cambió, conserva la cama y
+clasifica el seguimiento histórico como pendiente o necesitado de nueva captura; el censo
+confirmado permite continuar la información clínica de los otros episodios. El guard de
+regresión de un guardado estructural Rayen nunca debe encolar el plan rechazado mediante
+el auto-merge genérico. Una respuesta perdida después del vaciado se resuelve por lectura
+autoritativa, sin repetir el movimiento histórico ni borrar al siguiente ocupante.
+
+Si D-1 ya contiene el alta y conserva al mismo episodio en una cama, la propuesta sigue
+incluyendo D-1 como corrección que requiere revisión. Después de comprobar el movimiento,
+el finalizador libera primero esa ocupación histórica y luego la copia de D mediante dos
+comandos de cama independientes. Conserva las altas y cualquier nuevo ocupante; vuelve a
+comprobar firma, identidad y cuna. Así el lote CUDYR de los otros pacientes no se bloquea por
+la contradicción entre un episodio cerrado y su antigua cama. Si D-1 ya está conciliado,
+la limpieza de D se ejecuta aunque no haya más escrituras históricas que confirmar.
+
+Prueba de regresión: `src/tests/rayen-import/rayenHistoricalDischargePersistence.test.ts`.
+
+Los formularios de cuna vacíos copiados entre días no constituyen un RN pendiente de alta.
+La conciliación exige evidencia independiente cuando la cuna tiene nombre, RUN o episodio;
+si sólo existe el formulario vacío, el comando conserva la guarda de presencia y revisión
+exacta. Una cuna que recibe identidad concurrentemente sigue bloqueando la retirada. La
+propuesta distingue un movimiento histórico ya registrado de una nueva alta: retirar la
+ocupación residual no añade otro egreso en ninguno de los días.

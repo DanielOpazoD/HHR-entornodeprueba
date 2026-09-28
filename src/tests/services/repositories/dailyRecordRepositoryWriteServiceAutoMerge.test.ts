@@ -5,7 +5,6 @@ import {
   buildPatient,
   buildRecord,
 } from '@/tests/services/repositories/dailyRecordRepositoryWriteServiceFixtures';
-
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordForDate: vi.fn(),
   saveRecord: vi.fn(),
@@ -18,16 +17,13 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
     })
   ),
 }));
-
 vi.mock('@/services/storage/firestore/firestoreRecordQueries', () => ({
   getRecordFromFirestore: vi.fn(),
 }));
-
 vi.mock('@/services/storage/firestore/firestoreRecordWrites', () => ({
   saveRecordToFirestore: vi.fn(),
   updateRecordPartial: vi.fn(),
 }));
-
 vi.mock('@/services/storage/sync', () => ({
   ackDailyRecordSyncTask: vi.fn().mockResolvedValue(true),
   isRetryableSyncError: vi.fn(),
@@ -75,6 +71,7 @@ vi.mock('@/services/repositories/ports/repositoryAuditPort', () => ({
 
 import {
   save,
+  saveDetailed,
   updatePartial,
   updatePartialDetailed,
 } from '@/services/repositories/dailyRecordRepositoryWriteService';
@@ -96,6 +93,22 @@ describe('dailyRecordRepositoryWriteService concurrency auto-merge', () => {
       pendingTasks: 1,
       maxPendingTasks: 192,
     });
+  });
+
+  it('never queues a rejected Rayen structural plan through regression auto-merge', async () => {
+    const remote = buildRecord('2026-09-27');
+    remote.beds = { R1: buildPatient('R1', 'Paciente conservado') };
+    vi.mocked(getRecordFromFirestore).mockResolvedValue(remote);
+    vi.mocked(getRecordFromIndexedDB).mockResolvedValue(remote);
+    const result = await saveDetailed({ ...remote, beds: {} }, remote.lastUpdated, {
+      rayenStructuralWriteGuard: true,
+      requireConfirmedRecord: true,
+    });
+    expect(result.outcome).toBe('blocked');
+    expect(result.blockingError?.name).toBe('DataRegressionError');
+    expect(queueSyncTask).not.toHaveBeenCalled();
+    expect(saveRecordToFirestore).not.toHaveBeenCalled();
+    expect(logRepositoryConflictAutoMerged).not.toHaveBeenCalled();
   });
 
   it('auto-merges on concurrency conflict during full save and queues merged result', async () => {

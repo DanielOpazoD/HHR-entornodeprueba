@@ -82,8 +82,12 @@ const recordHasEgreso = (
   if (!record || (!norm && !encounterId)) return false;
   const episode = encounterId?.trim();
   const movements = [...record.discharges, ...record.transfers, ...record.cma];
-  return movements.some(movement =>
-    episode ? recordedOutcomeEpisodeId(movement) === episode : normalizeRut(movement.rut) === norm
+  return movements.some(
+    movement =>
+      !movement.deletedAt &&
+      (episode
+        ? recordedOutcomeEpisodeId(movement) === episode
+        : normalizeRut(movement.rut) === norm)
   );
 };
 
@@ -93,6 +97,7 @@ const recordHasEgreso = (
 export interface PreviousDayPlan {
   edits: PreviousDayEdit[];
   reportEgresos: ReportEgreso[];
+  recordedDischargeBedIds?: string[];
 }
 
 const previousDays = (diff: CensusImportDiff, censusDay: string): string[] => [
@@ -141,7 +146,17 @@ export const computePreviousDayEdits = async (
         (records.get(day) as { medicalSignature?: unknown } | null | undefined)?.medicalSignature
       ),
     withinEditingWindow: day => canWritePreviousDay(day, isAdmin),
-    alreadyDischarged,
+    alreadyDischarged: (day, rut, encounterId) => {
+      if (!alreadyDischarged(day, rut, encounterId)) return false;
+      // A filed movement with an occupied copy is still a historical correction: leaving both
+      // violates census authority and blocks unrelated CUDYR batches for this day.
+      const active = Object.values(records.get(day)?.beds ?? {}).some(patient =>
+        encounterId
+          ? patient.clinicalEpisodeId === encounterId && Boolean(patient.patientName)
+          : normalizeRut(patient.rut) === normalizeRut(rut) && Boolean(patient.patientName)
+      );
+      return !active;
+    },
   });
   const admissionEdits = planPreviousDayAdmissionEdits(
     diff,
@@ -165,7 +180,19 @@ export const computePreviousDayEdits = async (
       )
   );
 
-  return { edits, reportEgresos: cleanedReportEgresos };
+  const recordedDischargeBedIds = diff.discharges
+    .filter(
+      entry =>
+        entry.correctedDay &&
+        entry.correctedDay < censusDay &&
+        recordHasEgreso(records.get(entry.correctedDay), entry.rut, entry.encounterId)
+    )
+    .map(entry => entry.bedId);
+  return {
+    edits,
+    reportEgresos: cleanedReportEgresos,
+    ...(recordedDischargeBedIds.length ? { recordedDischargeBedIds } : {}),
+  };
 };
 
 export const fileCrossDayCorrections = async (

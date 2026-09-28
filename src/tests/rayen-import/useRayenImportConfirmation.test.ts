@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CensusImportDiff } from '@/features/rayen-import/contracts/censusImportDiff';
@@ -13,16 +14,13 @@ import type {
   ClinicalStageResult,
 } from '@/features/rayen-import/contracts/clinicalStageResult';
 import type { RayenSyncPerformanceDelta } from '@/types/domain/rayenSync';
-
 const mocks = vi.hoisted(() => ({
   applyConfirmedRayenImport: vi.fn(),
 }));
-
 vi.mock('@/features/rayen-import/hooks/confirmRayenImport', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/rayen-import/hooks/confirmRayenImport')>()),
   applyConfirmedRayenImport: mocks.applyConfirmedRayenImport,
 }));
-
 const diff = {
   admissions: [],
   updates: [],
@@ -41,7 +39,6 @@ const diff = {
     unchanged: 1,
   },
 } as CensusImportDiff;
-
 const record = {
   date: '2026-07-28',
   beds: {},
@@ -138,6 +135,7 @@ const renderConfirmation = ({
       structuralPersistenceExecutionKeysRef,
       selectedDateRef: { current: record.date },
       dailyRecord: {} as never,
+      queryClient: new QueryClient(),
       isAdmin: false,
       ensureRun: vi.fn().mockReturnValue({ id: 'run-1' }),
       failRun,

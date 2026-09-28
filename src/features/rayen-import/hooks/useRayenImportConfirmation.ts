@@ -1,4 +1,6 @@
 import { useCallback, type RefObject } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
+import { finalizeRayenHistoricalDischarges } from './finalizeRayenHistoricalDischarges';
 import type { useRepositories } from '@/services/RepositoryContext';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import { applyConfirmedRayenImport, isRayenStructuralPlanChangedError } from './confirmRayenImport';
@@ -49,6 +51,7 @@ interface UseRayenImportConfirmationInput {
   selectedDateRef: RefObject<string | undefined>;
   dailyRecord: ReturnType<typeof useRepositories>['dailyRecord'];
   isAdmin: boolean;
+  queryClient: QueryClient;
   ensureRun: SyncAudit['ensureRun'];
   failRun: SyncAudit['failRun'];
   recordRunPerformance: SyncAudit['recordRunPerformance'];
@@ -73,6 +76,7 @@ export const useRayenImportConfirmation = ({
   selectedDateRef,
   dailyRecord,
   isAdmin,
+  queryClient,
   ensureRun,
   failRun,
   recordRunPerformance,
@@ -263,6 +267,13 @@ export const useRayenImportConfirmation = ({
               isAdmin,
               ensureRun,
               applyDiff,
+              finalizeHistoricalDischarges: result =>
+                finalizeRayenHistoricalDischarges(
+                  result,
+                  dailyRecord,
+                  queryClient,
+                  applyPreviousDays
+                ),
               getFreshRecord: () => loadAuthoritativeStructuralRecord(base.date),
               replanDiff: async record =>
                 resolveBedOccupancyCollisions(
@@ -300,6 +311,7 @@ export const useRayenImportConfirmation = ({
       applyDiff,
       runClinicalStage,
       dailyRecord,
+      queryClient,
       isAdmin,
       ensureRun,
       executionRef,
