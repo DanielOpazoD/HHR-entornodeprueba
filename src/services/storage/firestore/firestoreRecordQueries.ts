@@ -180,13 +180,16 @@ export const getRecordFromFirestore = async (
   return result.record;
 };
 
-export const getAllRecordsFromFirestore = async (): Promise<Record<string, DailyRecord>> => {
+export const getAllRecordsFromFirestore = async (
+  options: { requireServer?: boolean } = {}
+): Promise<Record<string, DailyRecord>> => {
   try {
     const q = query(getRecordsCollection(), orderBy('date', 'desc'));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await (options.requireServer ? getDocsFromServer(q) : getDocs(q));
     return toFirestoreRecordMap(mapFirestoreRecords(querySnapshot, docToRecord));
   } catch (error) {
     logFirestoreQueryError('getAllRecords', error);
+    if (options.requireServer) throw error;
     return {};
   }
 };
