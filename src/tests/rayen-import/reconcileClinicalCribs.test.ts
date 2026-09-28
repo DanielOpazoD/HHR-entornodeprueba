@@ -327,7 +327,7 @@ describe('reconcileClinicalCribs', () => {
     expect(diff.summary.unchanged).toBe(2);
   });
 
-  it('backfills Pediatría on a previously synchronized clinical crib', () => {
+  it('does not backfill specialty on a previously synchronized clinical crib', () => {
     const mother = makeEncounter();
     const child = newborn();
     const diff = reconcileCensus(
@@ -336,13 +336,8 @@ describe('reconcileClinicalCribs', () => {
       { reference: REFERENCE }
     );
 
-    expect(diff.updates).toHaveLength(1);
-    expect(diff.updates[0].changes).toEqual([
-      expect.objectContaining({
-        field: 'clinicalCrib',
-        to: expect.objectContaining({ specialty: Specialty.PEDIATRIA }),
-      }),
-    ]);
+    expect(diff.updates).toHaveLength(0);
+    expect(diff.summary.unchanged).toBe(2);
   });
 
   it('promotes an unattached crib into the equivalent physical HHR bed', () => {

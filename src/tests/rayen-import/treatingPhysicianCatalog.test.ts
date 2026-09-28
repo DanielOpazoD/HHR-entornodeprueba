@@ -274,7 +274,7 @@ describe('treating physician catalog', () => {
     expect(changes.some(change => change.field === 'specialty')).toBe(false);
   });
 
-  it('fills an empty HHR specialty from the configured physician mapping', () => {
+  it('leaves an empty HHR specialty to server decisions despite the physician mapping', () => {
     const changes = diffSyncablePatientFields(
       patient({ specialty: '' }),
       patient({
@@ -284,8 +284,9 @@ describe('treating physician catalog', () => {
       })
     );
 
-    expect(changes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ field: 'specialty', to: 'Psiquiatría' })])
+    expect(changes.some(change => change.field === 'specialty')).toBe(false);
+    expect(changes).toContainEqual(
+      expect.objectContaining({ field: 'treatingPhysicianId', to: '7947' })
     );
   });
 

@@ -21,5 +21,10 @@ export const INITIAL_RAYEN_IMPORT_STATE: RayenImportState = {
   error: null,
 };
 
-export const getRayenImportErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+export const getRayenImportErrorMessage = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message === 'Specialty change requires explicit intent.') {
+    return 'No se pudo completar la sincronización porque se intentó modificar una especialidad protegida. Actualiza la aplicación y vuelve a capturar el censo. No necesitas asignar una especialidad para sincronizar.';
+  }
+  return message;
+};

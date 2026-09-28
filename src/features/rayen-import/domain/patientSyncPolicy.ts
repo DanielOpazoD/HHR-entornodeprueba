@@ -1,8 +1,9 @@
 import type { FieldChange } from '../contracts/censusImportDiff';
 import type { PatientData } from '../contracts/rayenDomainContracts';
+import { normalizeRut } from '@/utils/rutUtils';
 import { isDismissedTreatingPhysician } from '@/shared/census/treatingPhysicianDismissal';
 
-/** PatientData fields that the sync is allowed to source from Rayen. */
+/** Rayen-owned fields. Specialty (including a manual blank) belongs to HHR server decisions. */
 const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'patientName',
   'firstName',
@@ -19,7 +20,6 @@ const SYNCABLE_FIELDS: Array<keyof PatientData> = [
   'cie10Description',
   'treatingPhysicianId',
   'treatingPhysicianName',
-  'specialty',
   'isIsolated',
   'isolationType',
   'isolationMicroorganism',
@@ -43,10 +43,6 @@ export const diffSyncablePatientFields = (
     if (field === 'clinicalEpisodeId' && !incoming.clinicalEpisodeId) continue;
     // Missing bridge coding is not an instruction to erase locally curated CIE-10 data.
     if ((field === 'cie10Code' || field === 'cie10Description') && !incoming.cie10Code) continue;
-    // Specialty is locally curated in HHR. Rayen may fill an empty value for a new/legacy patient,
-    // but a physician change must never replace a specialty already selected by the user.
-    if (field === 'specialty' && (String(current.specialty ?? '').trim() || !incoming.specialty))
-      continue;
     // No Rayen assignment is not authoritative enough to erase a name-only physician selected
     // manually in HHR. Rayen-backed identities still follow the source when it removes them.
     if (
@@ -78,4 +74,52 @@ export const mergeSyncablePatient = (current: PatientData, incoming: PatientData
     (merged as unknown as Record<string, unknown>)[change.field] = change.to;
   }
   return merged;
+};
+
+/** Preserve the fresh decision when applying a whole-crib update from an older preview. */
+const preserveClinicalCribSpecialty = (
+  current: PatientData | undefined,
+  incoming: PatientData | undefined
+): PatientData | undefined => {
+  const sameCrib =
+    current &&
+    incoming &&
+    (current.clinicalEpisodeId
+      ? current.clinicalEpisodeId === incoming.clinicalEpisodeId
+      : Boolean(
+          normalizeRut(current.rut) &&
+          normalizeRut(current.rut) === normalizeRut(incoming.rut) &&
+          current.admissionDate &&
+          current.admissionDate === incoming.admissionDate &&
+          (current.admissionTime ?? '') === (incoming.admissionTime ?? '')
+        ));
+  return sameCrib
+    ? {
+        ...incoming,
+        specialty: current.specialty,
+        specialtyAssignment: current.specialtyAssignment,
+      }
+    : incoming;
+};
+
+/** Apply a reviewed diff without turning source suggestions into specialty decisions. */
+export const applyReviewedPatientChanges = (
+  current: PatientData,
+  incoming: PatientData,
+  changes: FieldChange[]
+): PatientData => {
+  const merged = { ...current } as unknown as Record<string, unknown>;
+  for (const change of changes) {
+    if (change.field === 'specialty' || change.field === 'specialtyAssignment') continue;
+    if (
+      (change.field === 'treatingPhysicianId' || change.field === 'treatingPhysicianName') &&
+      isDismissedTreatingPhysician(current, incoming)
+    )
+      continue;
+    merged[change.field] =
+      change.field === 'clinicalCrib'
+        ? preserveClinicalCribSpecialty(current.clinicalCrib, change.to as PatientData | undefined)
+        : change.to;
+  }
+  return merged as unknown as PatientData;
 };
