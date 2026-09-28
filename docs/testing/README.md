@@ -48,6 +48,12 @@ Superficie pública mínima recomendada para trabajo diario: [docs/DEVELOPER_COM
 | `npm run ci:merge-gate`                      | Ruta blocking ampliada previa a merge                                                                                     |
 | `npm run ci:release-gate`                    | Ruta completa con Firestore + E2E                                                                                         |
 
+`npm run test:clinical-replay` recorre el puente correlacionado, la reconciliación,
+el enriquecimiento y la auditoría persistida con datos sintéticos. Incluye CUDYR
+durante la madrugada en ambos offsets de Rapa Nui, recuperación de una fuente parcial
+y repetición sin duplicar hechos clínicos. No sustituye el E2E con emulador ni una
+comprobación real de la extensión en Chrome.
+
 ### Selección rápida antes del PR
 
 | Cambio                                                         | Validación local mínima                                          | Ruta automática del PR |
