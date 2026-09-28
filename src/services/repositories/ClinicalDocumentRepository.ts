@@ -214,11 +214,7 @@ export const ClinicalDocumentRepository = {
         where: [{ field: 'episodeKey', operator: '==', value: episodeKey }],
       }
     );
-    return sortDocuments(
-      documents
-        .map(document => validateReadRecord(document))
-        .filter((document): document is ClinicalDocumentRecord => Boolean(document))
-    );
+    return normalizeReadDocuments(documents);
   },
 
   async listByEpisodeKeys(
@@ -365,14 +361,7 @@ export const ClinicalDocumentRepository = {
     return firestoreDb.subscribeQuery<ClinicalDocumentRecord>(
       getClinicalDocumentsCollectionPath(hospitalId),
       { where: [{ field: 'episodeKey', operator: '==', value: episodeKey }] },
-      docs =>
-        callback(
-          sortDocuments(
-            docs
-              .map(document => validateReadRecord(document))
-              .filter((document): document is ClinicalDocumentRecord => Boolean(document))
-          )
-        )
+      docs => callback(normalizeReadDocuments(docs))
     );
   },
 
