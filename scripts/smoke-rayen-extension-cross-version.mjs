@@ -259,21 +259,19 @@ try {
     .locator('#hhr-clinical-operations-bar')
     .waitFor({ state: 'attached', timeout: 10_000 });
   // Relay recovery and Ficha UI replacement are separate asynchronous steps.
+  // Read one DOM snapshot: reinjection can replace the bar between browser calls.
   await ficha.waitForFunction(
-    version =>
-      document.getElementById('hhr-clinical-operations-bar')?.dataset.hhrUiBuildVersion === version,
+    version => {
+      const bars = document.querySelectorAll('#hhr-clinical-operations-bar');
+      const bar = bars[0];
+      return (
+        bars.length === 1 &&
+        bar.dataset.hhrUiBuildVersion === version &&
+        !bar.hasAttribute('data-upgrade-sentinel')
+      );
+    },
     currentManifest.version,
     { timeout: 15_000 }
-  );
-  assert.equal(await ficha.locator('#hhr-clinical-operations-bar').count(), 1);
-  assert.equal(
-    await ficha.locator('#hhr-clinical-operations-bar').getAttribute('data-upgrade-sentinel'),
-    null,
-    'The old Ficha operations bar survived the extension upgrade'
-  );
-  assert.equal(
-    await ficha.locator('#hhr-clinical-operations-bar').getAttribute('data-hhr-ui-build-version'),
-    currentManifest.version
   );
   await ficha.waitForFunction(() => !document.querySelector('#hhr-prescription-print-modal'));
   await ficha.locator('#hhr-clinical-operations-bar .hhr-ops-session').click();

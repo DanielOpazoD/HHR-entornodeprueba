@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { assertTelemetryAccess, parseWorkflow } from './workflowYamlTestSupport';
 
 import { collectCiArtifactContractIssues } from '../../../scripts/ciArtifactContractSupport.mjs';
 import { getGovernanceSnapshotSteps } from '../../../scripts/governanceSnapshotSupport.mjs';
@@ -191,12 +192,7 @@ describe('CI workflow governance', () => {
     expect(unitRiskJob).not.toContain('npm run report:ci-runtime-observed-profile');
     expect(telemetryJob).toContain('ci-runtime-telemetry:');
     expect(telemetryJob).toContain('name: ci-runtime-telemetry');
-    expect(telemetryJob).toContain(
-      'needs: [quality-static, unit-risk, clinical-sync-release-gate, rules-emulator, e2e-critical-emulator, build]'
-    );
-    expect(telemetryJob).toContain('actions: read');
-    expect(telemetryJob).toContain('contents: read');
-    expect(telemetryJob).toContain('persist-credentials: false');
+    assertTelemetryAccess(parseWorkflow(workflow).jobs['ci-runtime-telemetry']);
     expect(telemetryJob).toContain("CI_RUNTIME_COLLECTION_REQUIRED: '1'");
     expect(telemetryJob).toContain('GITHUB_TOKEN: ${{ github.token }}');
     expect(collectStep).toBeGreaterThanOrEqual(0);

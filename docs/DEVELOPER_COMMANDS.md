@@ -4,7 +4,7 @@ Este documento separa los comandos oficiales del repo de los scripts internos o 
 
 - si trabajas día a día en la app, usa primero los comandos oficiales;
 - si necesitas diagnóstico, auditoría o una validación puntual, entra a los scripts especializados;
-- no memorices los `140` scripts del `package.json`: usa este mapa.
+- consulta `package.json` para el inventario vigente; usa este mapa para elegir un gate.
 
 ## Comandos oficiales
 
@@ -27,16 +27,23 @@ Estos son los entrypoints recomendados para trabajo normal.
 
 ### Desarrollo diario
 
-1. `npm run dev`
-2. `npm run typecheck`
-3. `npm run lint`
-4. `npm run ci:inner-loop`
+1. `npm run dev` y pruebas focalizadas mientras editas.
+2. `npm run ci:inner-loop` al cerrar la iteración: ya incluye tipos, lint, calidad y pruebas críticas.
+
+Ejecuta `typecheck` o `lint` por separado sólo para diagnosticar esa etapa; no repitas
+los mismos controles sobre código sin cambios antes del gate que ya los contiene.
 
 ### Antes de merge
 
-1. `npm run ci:pre-merge`
-2. Si el cambio toca runtime clínico, storage, auth, bundle o boundaries críticos: `npm run ci:merge-gate`
-3. Si quieres aislar solo el riesgo del bundle productivo ya construido: `npm run ci:preview-gate`
+Elige el gate que corresponde al alcance según `SAFE_CHANGE_CHECKLIST.md`:
+
+- Cambio habitual: `npm run ci:pre-merge`.
+- Runtime clínico, storage, auth, bundle o boundaries críticos: `npm run ci:merge-gate`, que ya incluye `ci:pre-merge`.
+- Release o reglas persistentes: `npm run ci:release-gate`, que ya incluye `ci:merge-gate`.
+
+No encadenes estos gates completos. Para diagnosticar sólo el bundle productivo ya
+construido, usa `npm run ci:preview-gate`. Tras cambiar código, repite los controles
+afectados; el CI del SHA final debe aprobarse antes del merge.
 
 ### Antes de release o validación operativa fuerte
 
