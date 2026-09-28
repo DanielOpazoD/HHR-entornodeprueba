@@ -119,3 +119,6 @@ de producción. El plazo de fallo del cliente conserva la política real de HHR.
 
 La prueba ya forma parte del job `e2e-critical` de CI. Este PR no cambia el paquete,
 la versión ni los permisos de la extensión instalada.
+
+La recuperación del historial de movimientos y sus límites de lectura se verifican en
+[Historial de movimientos](patient-history.md).
