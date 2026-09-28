@@ -3,7 +3,6 @@ import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { SyncErrorCategory } from '@/services/storage/syncErrorCatalog';
-import type { SyncQueueLeaseClaim } from '@/services/storage/sync/syncQueuePorts';
 import type {
   CreateSyncQueueEngineOptions,
   SyncQueueEnqueueResult,
@@ -29,6 +28,7 @@ import {
 } from '@/services/storage/sync/syncTaskContractPolicy';
 import {
   clearSyncTaskRuntimeState,
+  buildTaskClaim,
   createSyncQueueAttemptId,
   createSyncQueueWorkerId,
   getSyncTaskKey,
@@ -68,17 +68,6 @@ export const createSyncQueueEngine = ({
 
   const countActiveTasks = async (ownerKey: string | null): Promise<number> =>
     countActiveSyncTasks(await store.listAll(ownerKey));
-
-  const buildTaskClaim = (task: SyncTask): SyncQueueLeaseClaim | null => {
-    if (!task.leaseOwner || !task.attemptId || !task.leaseUntil) {
-      return null;
-    }
-    return {
-      leaseOwner: task.leaseOwner,
-      leaseUntil: task.leaseUntil,
-      attemptId: task.attemptId,
-    };
-  };
 
   const updateClaimedTaskState = async (
     task: SyncTask,
@@ -354,6 +343,16 @@ export const createSyncQueueEngine = ({
               if (!task.id) continue;
 
               try {
+                const dispatchClaim = buildTaskClaim(task);
+                if (!dispatchClaim) continue;
+                const leaseUntil = Date.now() + SYNC_QUEUE_LEASE_MS;
+                // A slow preceding task can outlive the batch lease. Fence and renew
+                // atomically before dispatch, so another worker's task is never replayed.
+                if (!(await store.updateClaimed(task.id, { leaseUntil }, dispatchClaim))) {
+                  recordSyncQueueStaleClaimTelemetry(task, 'update');
+                  continue;
+                }
+                task.leaseUntil = leaseUntil;
                 await transport.run(task);
                 const claim = buildTaskClaim(task);
                 if (claim) {
