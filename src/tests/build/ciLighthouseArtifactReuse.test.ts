@@ -25,7 +25,7 @@ it('runs Lighthouse against the validated dist from the same workflow without re
   );
   expect(lighthouse!.body).not.toContain('npm run build');
   expect(lighthouse!.body).not.toContain('continue-on-error: true');
-  expect(lighthouse!.body).toContain('run: npm ci');
+  expect(lighthouse!.body).toContain('uses: ./.github/actions/setup-ci-dependencies');
   expect(lighthouse!.body).toContain('configPath: ./lighthouserc.json');
   expect(lighthouse!.body).toContain('uploadArtifacts: true');
 

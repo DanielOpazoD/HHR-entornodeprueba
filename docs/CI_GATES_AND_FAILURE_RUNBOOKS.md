@@ -413,3 +413,25 @@ of the same pull request within the same workflow. A newer revision cancels that
 PR's obsolete run; reviewers must inspect checks for the current head SHA.
 Push validations use a unique run ID, preserving every `main` and `develop` run
 (including pending runs). This does not change jobs, required checks, or test scope.
+
+### Reutilización acotada de dependencias instaladas
+
+`quality-static-base` guarda `node_modules` inmediatamente después de `npm ci`.
+`quality-static-governance-snapshots`, `build-budget` y `lighthouse-ci` reutilizan
+esa instalación mediante `.github/actions/setup-ci-dependencies`; sus dependencias
+entre jobs, pruebas y umbrales permanecen iguales. La clave exige imagen/revisión del runner, sistema,
+arquitectura, versión exacta de Node, manifiesto, lockfile, configuración npm y
+versión de la propia acción. No se aceptan coincidencias por prefijo.
+
+Si no hay coincidencia exacta o falla la restauración, se ejecuta `npm ci` con la
+caché habitual de descargas de npm. Un fallo de instalación sigue bloqueando CI;
+solo guardar/restaurar la caché es opcional. No se guardan datos clínicos,
+credenciales ni el resultado de tests/builds. El único lifecycle del proyecto
+es `prepare: husky`; las comprobaciones no dependen de hooks Git instalados.
+
+Motivo medido: en los runs `36484350746` y `36489067347`, la instalación en las
+etapas consecutivas consumía aproximadamente 55–66 segundos por etapa. Comparar
+los tiempos del paso `Setup CI dependencies` y del workflow completo, separando
+la primera instalación de las restauraciones; una reducción del paso no garantiza
+igual reducción global si otra rama pasa a dominar el tiempo. Reversión: reemplazar
+la acción por `setup-node` + `npm ci` en esos cuatro jobs y retirar su acción local.

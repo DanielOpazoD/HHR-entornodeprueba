@@ -174,14 +174,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
         with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+          save-cache: 'true'
 
       - name: Run ESLint (release-blocking)
         run: npm run lint -- --max-warnings 0
@@ -198,14 +194,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Download critical coverage artifact
         uses: actions/download-artifact@v7
@@ -355,7 +345,8 @@ jobs:
   quality-static:
     name: quality-static
     runs-on: ubuntu-latest
-    needs: [quality-static-governance-snapshots, quality-static-groups, quality-static-dependent-groups]
+    needs:
+      [quality-static-governance-snapshots, quality-static-groups, quality-static-dependent-groups]
 
     steps:
       - name: Quality static gates passed
@@ -598,14 +589,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Download release evidence runtime contract
         uses: actions/download-artifact@v7
@@ -795,14 +780,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       # Measure the exact bundle already validated by build-budget in this run.
       - name: Download validated production build
@@ -821,7 +800,15 @@ jobs:
   ci-runtime-telemetry:
     name: ci-runtime-telemetry
     runs-on: ubuntu-latest
-    needs: [quality-static, unit-risk, clinical-sync-release-gate, rules-emulator, e2e-critical-emulator, build]
+    needs:
+      [
+        quality-static,
+        unit-risk,
+        clinical-sync-release-gate,
+        rules-emulator,
+        e2e-critical-emulator,
+        build,
+      ]
     permissions:
       actions: read
       contents: read
