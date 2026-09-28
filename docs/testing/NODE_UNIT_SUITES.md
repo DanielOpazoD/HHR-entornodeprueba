@@ -36,3 +36,34 @@ Vitest's last-run environment accounting fell from 9.43 s (summed workers) to
 are directional, not a promised CI improvement. The architectural gain is removing
 four unnecessary DOM initializations while preserving all behavioral assertions.
 Measure the actual shard history before attributing a CI-wide speedup to this batch.
+
+## Census controller batch — 2026-09-28
+
+127 additional suites under `src/tests/views/census/` now use Node. These suites
+exercise pure controllers and models, with the same 595 tests and assertion names.
+No assertions, global setup, coverage thresholds or CI jobs were removed.
+
+Keep `sharedCensusBrowserRuntimeController`, `censusBrowserRuntimeAdapter` and
+`patientRowOrbitalQuickActionsController` in jsdom: their subjects include browser
+runtime behavior. Component and hook suites also retain their existing environment.
+
+Before adding the annotations, three paired runs used the same checkout, Node
+22.22.2, four workers and the same 127 paths. Run order alternated between pairs;
+other local validation commands were stopped. Every run passed all 595 tests.
+
+| Environment | Wall times                 | Median   |
+| ----------- | -------------------------- | -------- |
+| jsdom       | 19.263 / 17.979 / 19.522 s | 19.263 s |
+| Node        | 8.912 / 8.638 / 10.172 s   | 8.912 s  |
+
+The median for this subset fell by 53.7%. This is a local subset measurement,
+not a claim about total CI duration or application performance. CI still runs all
+critical coverage and release checks. Reassess the observed workflow history before
+changing shard allocation or claiming a CI-wide reduction.
+
+To repeat the comparison, take the test paths changed by this batch from its Git
+diff and run them on the parent revision with `vitest run <paths> --maxWorkers=4`,
+then with `--environment=node`, alternating three pairs. On the annotated revision,
+the per-file environment directives take precedence; a CLI `--environment=jsdom`
+alone does not restore the original comparison. Confirm all test identities and
+outcomes match, and run `npm run check:critical-coverage` after an environment change.

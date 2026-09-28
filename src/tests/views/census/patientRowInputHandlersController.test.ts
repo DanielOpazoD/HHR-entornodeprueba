@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { buildPatientRowInputCommands } from '@/features/census/controllers/patientRowInputHandlersController';
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { PatientData } from '@/types/domain/patient';
 import { derivePatientRowState } from '@/features/census/controllers/patientRowStateController';

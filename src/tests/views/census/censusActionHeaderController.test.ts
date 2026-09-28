@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveActionHeaderState } from '@/features/census/controllers/censusActionHeaderController';
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { resolveCensusMovementActionIconName } from '@/features/census/controllers/censusMovementActionIconController';
 

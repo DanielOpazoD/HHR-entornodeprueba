@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { resolveCmaSectionState } from '@/features/census/controllers/censusCmaSectionController';

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { injectPendingClinicalCribCreateRows } from '@/features/census/controllers/censusTableBodyController';
 import { BedType } from '@/features/census/contracts/censusBedContracts';

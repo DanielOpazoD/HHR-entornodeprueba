@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import { resolvePatientActionMenuBinding } from '@/features/census/controllers/patientActionMenuBindingController';
