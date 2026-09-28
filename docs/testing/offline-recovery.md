@@ -29,8 +29,9 @@ hizo fallar el escenario correspondiente. No forman parte del código publicado.
 ## Límites y cobertura relacionada
 
 - Reabrir IndexedDB no equivale a recargar una página ni reiniciar Chrome.
-- Un transporte simulado no demuestra idempotencia del servidor, seguridad de
-  Firestore ni recuperación de una escritura remota cuya respuesta se perdió.
+- Un transporte simulado no demuestra idempotencia del servidor ni seguridad de
+  Firestore. La secuencia de respuesta perdida se cubre por separado abajo, con
+  lecturas reales del emulador y una callable controlada.
 - Los contratos del caché PWA se verifican en `src/tests/build/pwaPrecachePolicy.test.ts`;
   la actualización de un service worker real requiere validación de navegador.
 - `src/tests/services/storage/localPersistenceService.test.ts` y
@@ -51,3 +52,37 @@ npx vitest run src/tests/integration/offlineQueueRecovery.test.ts
 
 Este cambio modifica pruebas y documentación; no altera el comportamiento clínico
 ni el almacenamiento de producción. Su reversión es revertir el PR.
+
+## Segundo PR: respuesta perdida y recuperación combinada
+
+`src/tests/emulator/sync-lost-ack-recovery.emulator.test.ts` conecta el motor y el
+adaptador IndexedDB reales con `createFirestoreSyncTransport` y Firestore Emulator.
+La callable es el punto de inyección: persiste un documento sintético en el emulador
+y rechaza la respuesta como `unavailable`. No se simulan las decisiones de la cola,
+la detección de mutaciones ya aplicadas ni el control de conflictos.
+
+| Secuencia                                                                      | Resultado exigido                                                                                                                               |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| El servidor conserva la mutación, se pierde la respuesta y se reabre IndexedDB | Se conserva el plazo y la identidad de la tarea; la lectura remota permite retirarla sin volver a publicar. El documento remoto queda idéntico. |
+| Otro escritor modifica el mismo campo antes del reintento                      | La tarea queda en `CONFLICT`, con su contenido local disponible; el reintento no publica ni sobrescribe el documento remoto más reciente.       |
+| El primer intento falla antes de guardar                                       | La ausencia del documento no se confunde con una confirmación: el motor publica al reintentar y sólo entonces retira la tarea.                  |
+
+Como controles negativos, desactivar temporalmente el reconocimiento de la mutación
+y el bloqueo de campos superpuestos hace fallar sus respectivos casos. Esas
+modificaciones no se incluyen en el PR.
+
+Límites: esta suite verifica la recuperación del cliente con persistencia remota
+real en el emulador, no la implementación transaccional de la callable ni un reinicio
+del navegador. El caso de otro escritor exige conservar el conflicto, no resolverlo
+automáticamente. Tampoco acredita la convergencia de la interfaz si el servidor
+normalizó el registro; ese contrato requiere sus propias pruebas de readback.
+
+Con el emulador activo:
+
+```sh
+RUN_FIRESTORE_EMULATOR_TESTS=1 npx vitest run -c vitest.emulator.config.ts src/tests/emulator/sync-lost-ack-recovery.emulator.test.ts
+```
+
+`npm run test:emulator:sync:ci` inicia un emulador y ejecuta las suites de sync y UI,
+incluida esta prueba. Para este cambio exclusivamente de tests/documentación se usa
+`ci:pre-merge` más ese gate de emulador; no se modifican reglas ni código de producción.
