@@ -296,13 +296,25 @@ Artifacts operativos publicados por CI:
 
 ## Baseline de Calidad
 
-`reports/` está en `.gitignore`. La regla del repo es regenerar los reportes desde el código en cada validación:
+`reports/` está en `.gitignore`, pero eso no elimina archivos que ya fueron versionados.
+Una copia incluida en Git puede ser un snapshot histórico: su presencia o un score verde
+no demuestran el estado actual. Revisar su fecha, `generatedFor`/`gitSha` y las entradas
+que declara antes de usarla como evidencia. La regla del repo es regenerar los reportes
+desde el código en cada validación:
 
 - En CI, `critical-coverage-report` genera `reports/critical-coverage.*` como artifact explícito. Luego `quality-static-governance-snapshots` lo descarga, corre `npm run report:governance-snapshots`, valida `npm run check:report-freshness:strict` y publica `reports/ci-governance-snapshot-profile.*`.
 - Tras un merge a `main`, el job `postmerge-evidence` corre `npm run postmerge:evidence` y publica `reports/postmerge-evidence.*` como artifact formal del merge commit. Esta evidencia no reemplaza los gates del PR: deja trazabilidad del estado ya integrado en `main`.
 - En local hay que regenerarlos antes de tratarlos como evidencia.
 
-Snapshots versionados explícitamente (excepción documentada al `.gitignore`, mantenidos a mano):
+Para evaluar un PR o un merge, usar los artefactos de la ejecución de CI que corresponde
+al SHA evaluado. `critical-coverage` contiene la cobertura medida; `confidence-and-readiness`
+incorpora la evidencia final del preview; `ci-runtime-observed-profile` conserva tiempos
+observados. El manifiesto `release-evidence-runtime` vincula la evidencia al build.
+Una ejecución pendiente o fallida no es una validación aprobada, y CI aprobado por sí
+solo no confirma el despliegue ni una sincronización real con Eloísa. El procedimiento
+canónico está en el [runbook de evidencia](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
+
+Ejemplos de snapshots versionados (excepción al `.gitignore`; verificar vigencia antes de citarlos):
 
 - [reports/architectural-hotspots.md](reports/architectural-hotspots.md)
 - [reports/legacy-bridge-governance.md](reports/legacy-bridge-governance.md)
