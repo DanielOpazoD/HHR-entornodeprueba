@@ -22,13 +22,7 @@ import {
 } from './useRayenFillStatus';
 import { selectHistoricalCudyrPersistence } from './historicalCudyrPersistenceSelection';
 import { toIsoReportDate } from './reportDateHelpers';
-import {
-  requestCudyrCategories,
-  requestDeviceReport,
-  requestHistoryScales,
-  requestPatientClinicalBundle,
-  requestScalesReport,
-} from '../bridge/rayenImportBridge';
+import { createClinicalFillReaders } from '../bridge/clinicalFillReaders';
 import type { NursingStaffingProposal } from '../contracts/nursingShiftInference';
 import { reconcileNursingShiftProposal } from '../domain/applyNursingShiftProposal';
 import { enqueueLatestRayenClinicalFill } from '../domain/rayenClinicalFillQueue';
@@ -281,12 +275,8 @@ export const useRayenClinicalFill = ({
                 diagnosticRunId: auditRunId,
                 signal: watchdog.signal,
                 allowedClinicalEpisodeIds,
-                fetchDeviceReport: requestDeviceReport,
+                ...createClinicalFillReaders(watchdog.signal),
                 extractDeviceItems: extractDeviceTextItems,
-                fetchHistoryScales: requestHistoryScales,
-                fetchScalesForms: requestScalesReport,
-                fetchPatientClinicalBundle: requestPatientClinicalBundle,
-                fetchCudyrCategories: () => requestCudyrCategories(),
                 applyPatch: async (patch, target) => {
                   await patchDailyRecord(patch, target, runPolicy);
                 },

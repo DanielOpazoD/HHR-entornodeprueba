@@ -14,6 +14,7 @@ export const requestViaBridgeChannel = <T>({
   timeoutMs,
   onTimeout,
   mapResult,
+  signal,
 }: {
   prefix: string;
   requestType: string;
@@ -22,8 +23,9 @@ export const requestViaBridgeChannel = <T>({
   timeoutMs: number;
   onTimeout: () => T;
   mapResult: (data: Record<string, unknown>) => T;
+  signal?: AbortSignal;
 }): Promise<T> =>
-  new Promise(resolve => {
+  new Promise((resolve, reject) => {
     const reqId = `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
     let settled = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -32,21 +34,45 @@ export const requestViaBridgeChannel = <T>({
       if (settled) return;
       settled = true;
       window.removeEventListener('message', onMessage);
+      signal?.removeEventListener('abort', onAbort);
       if (timeoutId) clearTimeout(timeoutId);
+    };
+
+    const finish = (read: () => T): void => {
+      if (settled) return;
+      cleanup();
+      try {
+        resolve(read());
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    const onAbort = (): void => {
+      if (settled) return;
+      cleanup();
+      reject(signal?.reason ?? new DOMException('Clinical read cancelled', 'AbortError'));
     };
 
     const onMessage = (event: MessageEvent): void => {
       if (event.source !== window || event.origin !== window.location.origin) return;
       const data = event.data as Record<string, unknown> | null;
-      if (!data || data.type !== resultType || data.reqId !== reqId) return;
-      cleanup();
-      resolve(mapResult(data));
+      if (!data || typeof data !== 'object' || data.type !== resultType || data.reqId !== reqId)
+        return;
+      finish(() => mapResult(data));
     };
 
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
     window.addEventListener('message', onMessage);
-    window.postMessage({ type: requestType, reqId, ...payload }, window.location.origin);
-    timeoutId = setTimeout(() => {
+    signal?.addEventListener('abort', onAbort, { once: true });
+    timeoutId = setTimeout(() => finish(onTimeout), timeoutMs);
+    try {
+      window.postMessage({ type: requestType, reqId, ...payload }, window.location.origin);
+    } catch (error) {
       cleanup();
-      resolve(onTimeout());
-    }, timeoutMs);
+      reject(error);
+    }
   });

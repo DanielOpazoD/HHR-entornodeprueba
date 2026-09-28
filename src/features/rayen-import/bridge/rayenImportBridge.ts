@@ -9,6 +9,7 @@
  */
 
 import { requestViaBridgeChannel } from './bridgeRequestChannel';
+import { CLINICAL_READ_TIMEOUT_MS, CUDYR_READ_TIMEOUT_MS } from '../contracts/clinicalReadPolicy';
 import {
   mapDeviceReportPayload,
   mapHistoryScalesPayload,
@@ -127,7 +128,8 @@ export const requestEgresoReport = (
 export const requestDeviceReport = (
   encId: string,
   fecha: string,
-  timeoutMs = 30000
+  timeoutMs = CLINICAL_READ_TIMEOUT_MS,
+  signal?: AbortSignal
 ): Promise<{
   entries?: RayenInvasiveDeviceEntry[];
   base64: string;
@@ -148,6 +150,7 @@ export const requestDeviceReport = (
     resultType: RAYEN_DEVICE_REPORT_RESULT_TYPE,
     payload: { encId, fecha, acceptEntries: true },
     timeoutMs,
+    signal,
     onTimeout: () => ({
       base64: '',
       error: 'Tiempo de espera agotado bajando el PDF de dispositivos.',
@@ -164,7 +167,8 @@ export const requestDeviceReport = (
  */
 export const requestScalesReport = (
   encId: string,
-  timeoutMs = 30000
+  timeoutMs = CLINICAL_READ_TIMEOUT_MS,
+  signal?: AbortSignal
 ): Promise<{ forms: unknown[]; error?: string }> => {
   if (typeof window === 'undefined' || !encId) {
     return Promise.resolve({ forms: [] });
@@ -175,6 +179,7 @@ export const requestScalesReport = (
     resultType: RAYEN_SCALES_REPORT_RESULT_TYPE,
     payload: { encId },
     timeoutMs,
+    signal,
     onTimeout: () => ({
       forms: [],
       error: 'Tiempo de espera agotado bajando las escalas de evaluación.',
@@ -196,7 +201,8 @@ export const requestHistoryScales = (
   encId: string,
   censusDate: string,
   optionsOrTimeout: { lookbackDays?: number } | number = {},
-  explicitTimeoutMs = 30000
+  explicitTimeoutMs = CLINICAL_READ_TIMEOUT_MS,
+  signal?: AbortSignal
 ): Promise<{
   events: HistoryScaleEvent[];
   nursingActivity: RayenNursingActivity[];
@@ -223,6 +229,7 @@ export const requestHistoryScales = (
     resultType: RAYEN_HISTORY_SCALES_RESULT_TYPE,
     payload: { encId, censusDate, lookbackDays: options.lookbackDays },
     timeoutMs,
+    signal,
     onTimeout: () => ({
       events: [],
       nursingActivity: [],
@@ -240,7 +247,8 @@ export const requestHistoryScales = (
 // CUDYR may renew the source session and then perform 45-second backend reads.
 // Keep the page deadline above that chain; the clinical-stage watchdog remains the ceiling.
 export const requestCudyrCategories = (
-  timeoutMs = 120_000
+  timeoutMs = CUDYR_READ_TIMEOUT_MS,
+  signal?: AbortSignal
 ): Promise<RayenCudyrCategoriesResponse> => {
   if (typeof window === 'undefined') {
     return Promise.resolve({ items: [] });
@@ -251,6 +259,7 @@ export const requestCudyrCategories = (
     resultType: RAYEN_CUDYR_CATEGORIES_RESULT_TYPE,
     payload: {},
     timeoutMs,
+    signal,
     onTimeout: () => ({ items: [], error: 'Tiempo de espera agotado leyendo CUDYR.' }),
     mapResult: data => ({
       items: Array.isArray(data.items) ? (data.items as RayenCudyrCategory[]) : [],
