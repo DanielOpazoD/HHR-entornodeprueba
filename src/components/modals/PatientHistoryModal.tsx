@@ -24,6 +24,8 @@ interface PatientHistoryModalProps {
   onClose: () => void;
   patientRut: string;
   patientName?: string;
+  admissionDate?: string;
+  throughDate?: string;
 }
 
 // Movement type styling
@@ -73,6 +75,8 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
   onClose,
   patientRut,
   patientName,
+  admissionDate,
+  throughDate,
 }) => {
   const [history, setHistory] = useState<PatientHistoryResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +85,13 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
   const [isPartial, setIsPartial] = useState(false);
   const [retry, setRetry] = useState(0);
 
+  const [fullHistoryContext, setFullHistoryContext] = useState<string | null>(null);
+  const contextKey = JSON.stringify([patientRut, admissionDate, throughDate]);
+  const showFullHistory = fullHistoryContext === contextKey;
+  const hasPeriod = Boolean(admissionDate && throughDate);
+
   useEffect(() => {
+    if (!isOpen) setFullHistoryContext(null);
     let active = true;
     if (isOpen && patientRut) {
       const loadData = async () => {
@@ -91,7 +101,11 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
         setIsPartial(false);
 
         try {
-          const result = await getPatientMovementHistoryDetailed(patientRut);
+          const result = await getPatientMovementHistoryDetailed(patientRut, {
+            ...(admissionDate && throughDate && !showFullHistory
+              ? { dateRange: { startDate: admissionDate, endDate: throughDate } }
+              : { forceFullRemoteHydration: true }),
+          });
           if (!active) return;
           setHistory(result.history);
           setIsPartial(result.source === 'local');
@@ -116,7 +130,7 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
     return () => {
       active = false;
     };
-  }, [isOpen, patientRut, retry]);
+  }, [isOpen, patientRut, retry, admissionDate, throughDate, showFullHistory]);
 
   return (
     <BaseModal
@@ -155,6 +169,23 @@ export const PatientHistoryModal: React.FC<PatientHistoryModalProps> = ({
             </div>
           )}
         </div>
+
+        {hasPeriod && (
+          <div className="flex items-center justify-between gap-3 text-xs text-slate-600">
+            <span>
+              {showFullHistory
+                ? 'Historial completo'
+                : `Período del censo: ${admissionDate} — ${throughDate}`}
+            </span>
+            <button
+              type="button"
+              onClick={() => setFullHistoryContext(showFullHistory ? null : contextKey)}
+              className="font-semibold text-blue-700 underline"
+            >
+              {showFullHistory ? 'Ver período del censo' : 'Ver historial completo'}
+            </button>
+          </div>
+        )}
 
         {!isLoading && (isPartial || error === 'Error al cargar el historial.') && (
           <div

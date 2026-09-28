@@ -26,6 +26,8 @@ interface PatientEpisodeTimelineProps {
   patient: MasterPatient;
   history: PatientHistoryResult | null;
   isLoadingHistory: boolean;
+  historyWarning?: string | null;
+  onRetryHistory?: () => void;
   timelineState: PatientEpisodeTimelineState;
   episodeDocuments: Record<string, EpisodeDocuments>;
   onLoadDocuments: (episodeKey: string) => void;
@@ -43,6 +45,8 @@ export const PatientEpisodeTimeline: React.FC<PatientEpisodeTimelineProps> = ({
   patient,
   history,
   isLoadingHistory,
+  historyWarning,
+  onRetryHistory,
   timelineState,
   episodeDocuments,
   onLoadDocuments,
@@ -68,6 +72,20 @@ export const PatientEpisodeTimeline: React.FC<PatientEpisodeTimelineProps> = ({
         <div className="flex items-center gap-2 py-4 text-sm text-slate-400 justify-center">
           <Loader2 size={16} className="animate-spin" />
           Cargando historial...
+        </div>
+      )}
+
+      {!isLoadingHistory && historyWarning && (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          <p>{historyWarning}</p>
+          {onRetryHistory && (
+            <button type="button" className="mt-2 font-semibold underline" onClick={onRetryHistory}>
+              Reintentar consulta
+            </button>
+          )}
         </div>
       )}
 

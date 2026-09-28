@@ -7,7 +7,10 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { MasterPatient } from '@/types/domain/patientMaster';
-import type { PatientHistoryResult } from '@/services/patient/patientHistoryService';
+import type {
+  PatientHistoryResult,
+  PatientHistoryReadResult,
+} from '@/services/patient/patientHistoryService';
 import type {
   SelectedPatientDetail,
   EpisodeDocuments,
@@ -72,7 +75,7 @@ export function usePatientSelection(): UsePatientSelectionReturn {
   const [selectedPatient, setSelectedPatient] = useState<SelectedPatientDetail | null>(null);
   const [episodeDocuments, setEpisodeDocuments] = useState<Record<string, EpisodeDocuments>>({});
   const historyCacheRef = useRef(new Map<string, PatientHistoryResult | null>());
-  const historyRequestRef = useRef(new Map<string, Promise<PatientHistoryResult | null>>());
+  const historyRequestRef = useRef(new Map<string, Promise<PatientHistoryReadResult>>());
 
   const selectPatient = useCallback(async (patient: MasterPatient) => {
     const cacheKey = buildPatientHistoryCacheKey(patient);
@@ -99,7 +102,7 @@ export function usePatientSelection(): UsePatientSelectionReturn {
       if (!historyRequest) {
         historyRequest = loadPatientHistory()
           .then(historyModule =>
-            historyModule.getPatientMovementHistory(patient.rut, {
+            historyModule.getPatientMovementHistoryDetailed(patient.rut, {
               forceFullRemoteHydration: true,
               hospitalizationHints: patient.hospitalizations ?? [],
               lastAdmission: patient.lastAdmission,
@@ -112,13 +115,17 @@ export function usePatientSelection(): UsePatientSelectionReturn {
         historyRequestRef.current.set(cacheKey, historyRequest);
       }
 
-      const history = await historyRequest;
-      historyCacheRef.current.set(cacheKey, history);
+      const { history, source } = await historyRequest;
+      if (source === 'server') historyCacheRef.current.set(cacheKey, history);
       setSelectedPatient(prev =>
         prev && prev.master.rut === patient.rut
           ? {
               ...prev,
               history,
+              historyWarning:
+                source === 'local'
+                  ? 'Historial parcial: no se pudo consultar el servidor. Se muestran los datos disponibles localmente.'
+                  : null,
               isLoadingHistory: false,
               timelineState: buildPatientEpisodeTimelineState(patient, history),
             }
@@ -131,6 +138,7 @@ export function usePatientSelection(): UsePatientSelectionReturn {
           ? {
               ...prev,
               isLoadingHistory: false,
+              historyWarning: 'No se pudo cargar el historial. Puedes reintentar la consulta.',
               timelineState: buildPatientEpisodeTimelineState(patient, null),
             }
           : prev

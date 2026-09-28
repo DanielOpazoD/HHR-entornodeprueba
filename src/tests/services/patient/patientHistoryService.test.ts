@@ -4,12 +4,14 @@ import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 
 const {
   getAllRecords,
+  getRecordsRange,
   getAllRecordsFromFirestore,
   getRecordsRangeFromFirestore,
   saveRecords,
   isFirestoreEnabled,
 } = vi.hoisted(() => ({
   getAllRecords: vi.fn(),
+  getRecordsRange: vi.fn(),
   getAllRecordsFromFirestore: vi.fn(),
   getRecordsRangeFromFirestore: vi.fn(),
   saveRecords: vi.fn(),
@@ -18,6 +20,7 @@ const {
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getAllRecords,
+  getRecordsRange,
   saveRecords,
 }));
 
@@ -353,8 +356,8 @@ describe('patientHistoryService', () => {
   });
 
   it('falls back to local records when the remote range lookup fails', async () => {
-    getAllRecords.mockResolvedValue({
-      '2026-04-07': buildRecord('2026-04-07', {
+    getRecordsRange.mockResolvedValue([
+      buildRecord('2026-04-07', {
         beds: {
           H1C1: {
             rut: '8.932.066-6',
@@ -364,7 +367,7 @@ describe('patientHistoryService', () => {
           } as never,
         },
       }),
-    });
+    ]);
     getRecordsRangeFromFirestore.mockRejectedValue(new Error('offline'));
 
     const history = await getPatientMovementHistory('8.932.066-6', {

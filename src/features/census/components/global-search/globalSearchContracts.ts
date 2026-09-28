@@ -40,6 +40,7 @@ export interface SelectedPatientDetail {
   master: MasterPatient;
   history: PatientHistoryResult | null;
   isLoadingHistory: boolean;
+  historyWarning?: string | null;
   timelineState: PatientEpisodeTimelineState;
 }
 

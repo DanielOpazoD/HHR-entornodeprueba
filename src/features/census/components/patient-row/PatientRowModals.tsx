@@ -150,6 +150,8 @@ export const PatientRowModals: React.FC<PatientRowModalsProps> = ({
             onClose={onCloseHistory}
             patientRut={historyPatientRut}
             patientName={historyPatientName}
+            admissionDate={data.admissionDate}
+            throughDate={currentDateString}
           />
         </Suspense>
       ) : null}
