@@ -26,7 +26,12 @@ export const mapDeviceReportPayload = (data: Record<string, unknown>): RayenDevi
   entries: Array.isArray(data.entries) ? (data.entries as RayenInvasiveDeviceEntry[]) : undefined,
   base64: typeof data.base64 === 'string' ? data.base64 : '',
   source: data.source === 'json' || data.source === 'pdf' ? data.source : undefined,
-  error: optionalString(data.error),
+  error:
+    optionalString(data.error) ||
+    (Array.isArray(data.entries) ||
+    (typeof data.base64 === 'string' && data.base64.trim().length > 0)
+      ? undefined
+      : 'La extensión no entregó evidencia válida de dispositivos.'),
 });
 
 export const mapHistoryScalesPayload = (
@@ -41,12 +46,21 @@ export const mapHistoryScalesPayload = (
     : undefined,
   coverageWindowStartIsoDay: optionalString(data.coverageWindowStartIsoDay),
   coverageWindowEndIsoDay: optionalString(data.coverageWindowEndIsoDay),
-  error: optionalString(data.error),
+  error:
+    optionalString(data.error) ||
+    (Array.isArray(data.events) &&
+    (data.nursingActivity === undefined || Array.isArray(data.nursingActivity))
+      ? undefined
+      : 'La extensión no entregó un historial clínico válido.'),
 });
 
 export const mapScalesFormsPayload = (data: Record<string, unknown>): RayenScalesFormsResult => ({
   forms: Array.isArray(data.forms) ? (data.forms as unknown[]) : [],
-  error: optionalString(data.error),
+  error:
+    optionalString(data.error) ||
+    (Array.isArray(data.forms)
+      ? undefined
+      : 'La extensión no entregó formularios clínicos válidos.'),
 });
 
 const section = (value: unknown, fallbackError: string): Record<string, unknown> =>

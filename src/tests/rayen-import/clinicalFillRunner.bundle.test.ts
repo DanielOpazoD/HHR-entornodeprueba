@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runClinicalFill, type ClinicalFillDeps } from '@/features/rayen-import';
 import type { RayenPatientClinicalBundle } from '@/features/rayen-import/contracts/patientClinicalBundle';
+import { mapHistoryScalesPayload } from '@/features/rayen-import/bridge/patientClinicalBundleChannel';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 const SCALE_EVENT = {
@@ -85,6 +86,23 @@ describe('runClinicalFill · paquete clínico por paciente', () => {
     expect(dependencies.fetchScalesForms).not.toHaveBeenCalled();
     expect(summary.performance?.counters.retries).toBe(1);
     expect(summary.errors.filter(e => e.source === 'scales')).toEqual([]);
+  });
+
+  it.each([true, false])('keeps malformed history retryable, recovery=%s', async recovered => {
+    const malformed = mapHistoryScalesPayload({});
+    const dependencies = deps({
+      fetchPatientClinicalBundle: vi.fn().mockResolvedValue(bundle({ history: malformed })),
+      fetchHistoryScales: vi
+        .fn()
+        .mockResolvedValue(recovered ? { events: [SCALE_EVENT], nursingActivity: [] } : malformed),
+    });
+    const summary = await runClinicalFill(record(), '2026-07-10', dependencies);
+    expect(dependencies.fetchHistoryScales).toHaveBeenCalledTimes(1);
+    expect(dependencies.fetchDeviceReport).not.toHaveBeenCalled();
+    expect(dependencies.fetchScalesForms).not.toHaveBeenCalled();
+    expect(summary.errors.filter(error => error.source === 'scales')).toHaveLength(
+      recovered ? 0 : 1
+    );
   });
 
   it('sin capability (bundle null) usa el camino legado de tres canales', async () => {

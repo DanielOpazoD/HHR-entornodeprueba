@@ -272,7 +272,9 @@ export const requestCudyrCategories = (
       historyAvailable:
         typeof data.historyAvailable === 'boolean' ? data.historyAvailable : undefined,
       warning: typeof data.warning === 'string' ? data.warning : undefined,
-      error: typeof data.error === 'string' ? data.error : undefined,
+      error:
+        (typeof data.error === 'string' && data.error) ||
+        (Array.isArray(data.items) ? undefined : 'La extensión no entregó una lista CUDYR válida.'),
     }),
   });
 };
