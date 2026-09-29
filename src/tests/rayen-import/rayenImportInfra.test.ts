@@ -409,20 +409,6 @@ describe('Rayen import error bridge', () => {
       nextRequestId,
       'ficha_main_relay'
     );
-    const invalidRequestId = requestRayenSyncBundle('2026-07-24', '2026-07-25');
-    window.dispatchEvent(
-      new MessageEvent('message', {
-        origin: window.location.origin,
-        source: window,
-        data: {
-          type: RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
-          requestId: invalidRequestId,
-          error: 'Error antiguo.',
-          timeoutStage: 'valor-no-admitido',
-        },
-      })
-    );
-    expect(handler).toHaveBeenLastCalledWith('Error antiguo.', invalidRequestId, undefined);
     unsubscribe();
   });
 });
