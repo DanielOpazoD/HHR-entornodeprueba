@@ -567,6 +567,19 @@ jobs:
         if: always()
         run: node scripts/report-e2e-operational-metrics.mjs reports/e2e/critical-playwright-report.json --enforce
 
+      - name: Upload flow performance evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: flow-performance-evidence
+          path: |
+            reports/e2e/flow-performance-budget.json
+            reports/e2e/flow-performance-budget-summary.json
+            reports/e2e/flow-performance-budget.md
+            reports/e2e/flow-performance-playwright-report.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
+
       - name: Upload E2E critical artifacts
         if: always()
         uses: actions/upload-artifact@v7
@@ -657,7 +670,7 @@ jobs:
   final-confidence-and-readiness:
     name: final-confidence-and-readiness
     runs-on: ubuntu-latest
-    needs: [quality-static-governance-snapshots, build]
+    needs: [quality-static-governance-snapshots, build, e2e-critical-emulator]
 
     steps:
       - name: Checkout code
@@ -693,6 +706,17 @@ jobs:
       - name: Validate downloaded preview bootstrap evidence
         run: npm run check:preview-bootstrap-evidence
 
+      - name: Download same-run flow performance evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: flow-performance-evidence
+          path: reports/e2e
+
+      - name: Validate downloaded flow performance evidence
+        run: |
+          node scripts/check-playwright-report-clean.mjs reports/e2e/flow-performance-playwright-report.json --label flow-performance
+          npm run check:flow-performance-budget
+
       - name: Regenerate confidence from final runtime evidence
         run: |
           npm run report:operational-health
@@ -714,6 +738,9 @@ jobs:
             reports/maintenance-debt-scorecard.*
             reports/operational-health.*
             reports/e2e/preview-bootstrap/ci-provenance.json
+            reports/e2e/flow-performance-budget.json
+            reports/e2e/flow-performance-budget-summary.json
+            reports/e2e/flow-performance-playwright-report.json
           retention-days: 30
 
   census-startup-performance:
@@ -924,7 +951,7 @@ jobs:
     name: postmerge-evidence
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build, ci-strict-summary]
+    needs: [build, ci-strict-summary, e2e-critical-emulator]
     permissions:
       actions: read
       contents: read
@@ -994,6 +1021,17 @@ jobs:
 
       - name: Verify built release evidence contract
         run: npm run check:release-evidence-contract:built
+
+      - name: Download same-run flow performance evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: flow-performance-evidence
+          path: reports/e2e
+
+      - name: Validate downloaded flow performance evidence
+        run: |
+          node scripts/check-playwright-report-clean.mjs reports/e2e/flow-performance-playwright-report.json --label flow-performance
+          npm run check:flow-performance-budget
 
       - name: Generate post-merge release evidence
         run: npm run postmerge:evidence
