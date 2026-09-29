@@ -17,6 +17,13 @@ Si la change toca reglas generadas o documentación operativa, correr además:
 
 ## Gates activos
 
+El runner `test:ci:unit:shard` sólo aprueba si el proceso de Vitest termina con
+código cero. Una señal o un error al iniciar el ejecutable produce fallo y un
+diagnóstico `Runner did not complete`; no acredita que las pruebas hayan terminado.
+`unitShardRunner.test.ts` ejecuta el runner real con procesos controlados para cubrir
+éxito, fallo, interrupción y ejecutable ausente. Revertir el cambio del runner restaura
+la política anterior; no modifica aplicación, datos clínicos ni umbrales de prueba.
+
 El job `critical-coverage-report` genera el artefacto una sola vez y ejecuta después
 `check-critical-coverage.mjs`, bloqueando el PR si alguna zona queda bajo su baseline.
 Los baselines son un ratchet del estado validado; no deben conservar valores ya

@@ -57,4 +57,7 @@ const result = spawnSync(npx, ['vitest', 'run', ...passthroughArgs, ...shard.fil
   env: { ...process.env, CI: process.env.CI || 'true' },
 });
 
-process.exit(result.status || 0);
+if (result.error || result.signal) {
+  console.error(`[unit-shard] Runner did not complete: ${result.error?.message || result.signal}`);
+}
+process.exit(result.status ?? 1);
