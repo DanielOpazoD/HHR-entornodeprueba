@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { docToRecord } from '@/services/storage/firestore/firestoreShared';
+import type { DailyRecord } from '@/types/domain/dailyRecord';
 import { buildClinicalPatientPatch } from '@/features/rayen-import/domain/clinicalPatientPatch';
 import type { PatientData } from '@/types/domain/patient';
 import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
@@ -58,5 +60,58 @@ describe('clinical field canonicalization', () => {
     expect(buildClinicalPatientPatch(patient, corrected, 'H1C2', false).patch).toHaveProperty(
       'beds.H1C2.vitalSigns'
     );
+  });
+  it('does not resend nullable vital fields after the authoritative Firestore hydration', () => {
+    const reading = vital('2', 80);
+    const source = {
+      date: '2026-07-10',
+      beds: {
+        H1C2: {
+          bedId: 'H1C2',
+          patientName: 'Paciente sintético',
+          devices: [],
+          vitalSigns: reading,
+          vitalSignsHistory: [reading],
+        },
+      },
+      discharges: [],
+      transfers: [],
+      cma: [],
+      lastUpdated: '',
+    } as unknown as DailyRecord;
+    const hydrated = docToRecord(JSON.parse(JSON.stringify(source)), source.date).beds.H1C2;
+    expect(hydrated.vitalSigns?.hgt).toBeUndefined();
+    const incoming = { ...hydrated, vitalSigns: reading, vitalSignsHistory: [reading] };
+    expect(buildClinicalPatientPatch(hydrated, incoming, 'H1C2', false).patch).toEqual({});
+
+    for (const heartRate of [0, null]) {
+      const corrected = { ...reading, heartRate };
+      expect(
+        Object.keys(
+          buildClinicalPatientPatch(
+            hydrated,
+            {
+              ...incoming,
+              vitalSigns: corrected,
+              vitalSignsHistory: [corrected],
+            },
+            'H1C2',
+            false
+          ).patch
+        )
+      ).toEqual(['beds.H1C2.vitalSigns', 'beds.H1C2.vitalSignsHistory']);
+    }
+    expect(
+      buildClinicalPatientPatch(
+        hydrated,
+        {
+          ...incoming,
+          vitalSigns: undefined,
+          vitalSignsHistory: [],
+        },
+        'H1C2',
+        false
+      ).clinicalFieldCount
+    ).toBe(2);
   });
 });

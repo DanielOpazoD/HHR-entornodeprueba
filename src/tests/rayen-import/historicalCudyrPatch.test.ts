@@ -104,4 +104,41 @@ describe('resolveHistoricalCudyrPatch', () => {
       }),
     });
   });
+  it('does not resend historical CUDYR when Firestore changes only nested key ordering', () => {
+    const incoming: ImportedCudyr = {
+      ...official,
+      items: [{ fieldId: '1', label: 'Ítem sintético', typeId: 1, value: '0' }],
+      history: [
+        {
+          category: 'C1',
+          recordedDate: official.recordedDate,
+          recordedAt: official.recordedAt!,
+          dependencyScore: 0,
+          riskScore: 2,
+        },
+      ],
+    };
+    const persisted: ImportedCudyr = {
+      ...incoming,
+      items: [{ value: '0', typeId: 1, label: 'Ítem sintético', fieldId: '1' }],
+      history: [
+        {
+          riskScore: 2,
+          dependencyScore: 0,
+          recordedAt: official.recordedAt!,
+          recordedDate: official.recordedDate,
+          category: 'C1',
+        },
+      ],
+    };
+    const record = recordWith(persisted);
+    expect(resolveHistoricalCudyrPatch(record, 'episode-1', incoming).patch).toBeNull();
+    expect(
+      resolveHistoricalCudyrBatchOperation(record, 'episode-1', incoming).operation
+    ).toBeNull();
+    const corrected = { ...incoming, history: [{ ...incoming.history![0], riskScore: 3 }] };
+    expect(
+      resolveHistoricalCudyrBatchOperation(record, 'episode-1', corrected).operation
+    ).not.toBeNull();
+  });
 });

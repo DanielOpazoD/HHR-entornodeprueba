@@ -1,3 +1,4 @@
+import type { PatientVitalSigns } from '@/types/domain/vitalSigns';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import { canonicalizeClinicalValue, clinicalValuesEqual } from './clinicalIncrementalSync';
 
@@ -41,6 +42,31 @@ const normalizeEvaluationScores = (value: unknown): unknown => {
   };
 };
 
+// Legacy hydration removes null leaves. Only the nullable measurement fields are equivalent
+// when absent: preserve timestamps, source identity, attribution, zeroes and empty strings.
+const NULLABLE_VITAL_FIELDS = [
+  'systolic',
+  'diastolic',
+  'heartRate',
+  'spo2',
+  'temperature',
+  'respiratoryRate',
+  'painEva',
+  'hgt',
+  'insulinUnits',
+  'insulinQuadrant',
+  'observations',
+] as const satisfies ReadonlyArray<keyof PatientVitalSigns>;
+
+const normalizeVitalForComparison = (value: unknown): unknown => {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return value;
+  const vital = value as Record<string, unknown>;
+  return {
+    ...vital,
+    ...Object.fromEntries(NULLABLE_VITAL_FIELDS.map(key => [key, vital[key] ?? null])),
+  };
+};
+
 const normalizeClinicalFieldValue = (
   field: CanonicalClinicalField,
   value: PatientData[CanonicalClinicalField]
@@ -49,7 +75,13 @@ const normalizeClinicalFieldValue = (
     return [...new Set(Array.isArray(value) ? value.map(String) : [])].sort();
   }
   if (field === 'deviceDetails') return value ?? {};
-  if (field === 'deviceInstanceHistory' || field === 'vitalSignsHistory') {
+  if (field === 'vitalSigns') return normalizeVitalForComparison(value);
+  if (field === 'vitalSignsHistory') {
+    return sortedByCanonicalValue(
+      (Array.isArray(value) ? value : []).map(normalizeVitalForComparison)
+    );
+  }
+  if (field === 'deviceInstanceHistory') {
     return sortedByCanonicalValue<unknown>(Array.isArray(value) ? [...value] : []);
   }
   if (field === 'evaluationScores') return normalizeEvaluationScores(value);
