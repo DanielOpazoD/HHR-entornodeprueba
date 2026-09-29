@@ -296,6 +296,10 @@ describe('rayen sync presentation', () => {
       failureReason: 'snapshot_timeout',
     };
 
+    expect(rayenFailureReasonLabel(event.failureReason)).toBe(
+      'Tiempo de espera al capturar Eloísa'
+    );
+
     expect(presentRayenSyncRecovery(event, 'offline')).toMatchObject({
       action: 'refresh',
       actionLabel: 'Comprobar nuevamente',
