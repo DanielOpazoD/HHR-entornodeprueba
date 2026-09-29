@@ -28,12 +28,29 @@ al paciente y a la fuente de dispositivos afectados.
 Ejecutar desde el checkout correspondiente, con su versión de Node y dependencias:
 
 ```sh
-npx vitest run src/tests/rayen-import/clinicalFillBundleFailureBudget.test.ts src/tests/rayen-import/clinicalFillRequestBudget.test.ts src/tests/rayen-import/clinicalFillRunner.bundle.test.ts src/tests/rayen-import/clinicalFillRunner.performance.test.ts src/tests/rayen-import/rayenSnapshotEvidenceClient.test.ts src/tests/rayen-import/rayenSyncTemporalContext.test.ts --maxWorkers=1
+npx vitest run src/tests/rayen-import/clinicalFillBundleFailureBudget.test.ts src/tests/rayen-import/clinicalFillRequestBudget.test.ts src/tests/rayen-import/clinicalFillRunner.bundle.test.ts src/tests/rayen-import/clinicalFillRunner.performance.test.ts src/tests/rayen-import/clinicalFillRunnerNoop.test.ts src/tests/rayen-import/rayenSnapshotEvidenceClient.test.ts src/tests/rayen-import/rayenSyncTemporalContext.test.ts --maxWorkers=1
 ```
 
 El conjunto existente comprueba además los intentos acotados de conexión, la caché
 de trazabilidad por ejecución y las fechas de consulta. La recuperación histórica
 opcional tiene sus propias pruebas: no debe ampliar silenciosamente el rango diario.
+
+## Repetición después de persistir e hidratar
+
+`clinicalFillRunnerNoop.test.ts` ejecuta el runner, aplica su parche y utiliza la
+preparación real del registro para persistencia. Después serializa y vuelve a leer
+ese estado antes de repetir las mismas fuentes sintéticas. Con la persistencia
+simulada, la primera pasada contabiliza una escritura de paciente
+y un snapshot de historia; la repetición produce cero escrituras y cero snapshots,
+sin llamar a `applyPatch`. Esto protege el caso de datos idénticos tras una recarga,
+además del presupuesto de peticiones anterior.
+
+La verificación del 28-09-2026 aprobó 64 pruebas en los siete archivos del comando
+anterior. No mostró una redundancia adicional que justifique introducir otra caché
+o cola. Esta evidencia no es una comparación de caché fría/caliente del navegador:
+no mide sesiones reales, red de Eloísa ni tiempos humanos de confirmación. Antes de
+proponer una optimización adicional, localizar el coste en una medición comparable
+y comprobar que la reducción conserva los resultados y los reintentos acotados.
 
 ## Comprobación real pendiente de navegador
 
