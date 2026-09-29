@@ -128,3 +128,13 @@ cambia concurrencia, caché, plazos ni criterios de censo completo. Para decidir
 una optimización, repetir varias capturas reales completas y localizar una fase
 dominante que se mantenga entre sesiones comparables; una captura fallida no
 produce estas cuatro fases.
+
+### Convergencia tras la hidratación de campos sin medición
+
+La [serie real de 0.48.39](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29_V39.md)
+detectó dos lotes redundantes: los nulls eliminados al hidratar signos vitales y
+el orden de claves de CUDYR se interpretaban como cambios. Las regresiones de
+`clinicalFieldCanonicalization.test.ts` usan `docToRecord` y comprueban también
+ceros, retiradas de medición y borrado de historial; `historicalCudyrPatch.test.ts`
+conserva la detección de correcciones y la autoridad administrativa. La corrección
+evita esos lotes sin añadir cachés ni debilitar las validaciones del servidor.

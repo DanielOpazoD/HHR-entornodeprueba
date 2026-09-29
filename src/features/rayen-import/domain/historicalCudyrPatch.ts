@@ -1,3 +1,4 @@
+import { clinicalValuesEqual } from './clinicalIncrementalSync';
 import type { ImportedCudyr } from '@/types/domain/evaluationScores';
 import type { DailyRecordPatch } from '@/types/domain/dailyRecordPatch';
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
@@ -46,8 +47,8 @@ const sameCudyr = (current: ImportedCudyr | undefined, cudyr: ImportedCudyr): bo
     current.dependencyScore === cudyr.dependencyScore &&
     current.riskScore === cudyr.riskScore &&
     current.source === cudyr.source &&
-    JSON.stringify(current.items ?? []) === JSON.stringify(cudyr.items ?? []) &&
-    JSON.stringify(current.history ?? []) === JSON.stringify(cudyr.history ?? [])
+    clinicalValuesEqual(current.items ?? [], cudyr.items ?? []) &&
+    clinicalValuesEqual(current.history ?? [], cudyr.history ?? [])
   );
 
 /**
