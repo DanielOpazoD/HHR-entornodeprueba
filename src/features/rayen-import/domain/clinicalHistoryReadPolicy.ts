@@ -17,7 +17,11 @@ export const confirmFullWindow = (
 ): string | undefined =>
   policy.fullValidationAt &&
   policy.lookbackDays !== undefined &&
-  Number(effectiveLookbackDays) >= policy.lookbackDays
+  typeof effectiveLookbackDays === 'number' &&
+  Number.isSafeInteger(effectiveLookbackDays) &&
+  effectiveLookbackDays > 0 &&
+  effectiveLookbackDays <= CLINICAL_MAX_HISTORY_LOOKBACK_DAYS &&
+  effectiveLookbackDays >= policy.lookbackDays
     ? policy.fullValidationAt
     : undefined;
 
@@ -105,8 +109,11 @@ export const resolveClinicalHistoryReadPolicy = (
     const timestampMs = timestamp ? Date.parse(timestamp) : Number.NaN;
     return (
       Number.isFinite(timestampMs) &&
-      Number.isFinite(coveredLookbackDays) &&
+      Number.isSafeInteger(coveredLookbackDays) &&
+      Number(coveredLookbackDays) <= CLINICAL_MAX_HISTORY_LOOKBACK_DAYS &&
       Number(coveredLookbackDays) >= requiredLookbackDays &&
+      // A clock correction must not postpone a baseline until a future checkpoint catches up.
+      nowMs >= timestampMs &&
       nowMs - timestampMs < intervalMs
     );
   };

@@ -70,3 +70,11 @@ La [medición del 29-09-2026](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29.md) aña
 repeticiones verificadas en `hhr-pruebas` con extensión 0.48.36 y readback del historial
 tras recarga. Sus totales fueron 17, 41 y 15 s; la demora aislada se concentra en la
 captura dual. No se atribuye a una fuente concreta ni justifica otra caché.
+
+### Revalidación del historial y correcciones de reloj
+
+Un checkpoint futuro no prueba frescura: tras atrasar el reloj, HHR vuelve a solicitar
+la ventana completa acotada. Los checkpoints recientes válidos conservan los plazos
+de 15 minutos/24 horas existentes. Sólo una ventana efectiva entera positiva y dentro
+del máximo de 180 días puede certificar cobertura. Las pruebas
+`clinicalHistoryReadPolicy.test.ts` cubren este contrato sin alterar fechas ni turnos clínicos.
