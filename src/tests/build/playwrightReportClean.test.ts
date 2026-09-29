@@ -53,7 +53,35 @@ describe('playwright report clean guardrail', () => {
     });
 
     expect(collectPlaywrightReportIssues(reportPath, { label: 'critical-e2e' })).toContain(
-      'critical-e2e did not record any executed or skipped tests.'
+      'critical-e2e did not record any executed tests.'
+    );
+  });
+  it('rejects a skipped-only report that never exercised the application', () => {
+    const reportPath = makeReport({ expected: 0, unexpected: 0, flaky: 0, skipped: 38 });
+    expect(collectPlaywrightReportIssues(reportPath)).toContain(
+      'playwright report did not record any executed tests.'
+    );
+  });
+
+  it('accepts executed evidence with explicitly skipped unrelated cases', () => {
+    const reportPath = makeReport({ expected: 12, unexpected: 0, flaky: 0, skipped: 2 });
+    expect(collectPlaywrightReportIssues(reportPath)).toEqual([]);
+  });
+
+  it.each([
+    ['expected', -1],
+    ['expected', 1.5],
+    ['expected', undefined],
+    ['unexpected', 'invalid'],
+    ['unexpected', '0'],
+    ['flaky', null],
+    ['flaky', -1],
+    ['skipped', -1],
+    ['interrupted', true],
+  ])('rejects malformed %s count (%s) instead of treating it as zero', (field, value) => {
+    const reportPath = makeReport({ expected: 12, unexpected: 0, flaky: 0, [field]: value });
+    expect(collectPlaywrightReportIssues(reportPath)).toContain(
+      `playwright report has an invalid ${field} count; expected a non-negative safe integer.`
     );
   });
 });
