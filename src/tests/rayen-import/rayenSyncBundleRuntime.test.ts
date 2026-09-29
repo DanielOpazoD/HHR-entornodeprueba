@@ -183,6 +183,25 @@ describe('Rayen synchronized source bundle', () => {
     });
   });
 
+  it('preserves a known Ficha timeout boundary while rejecting unknown markers', async () => {
+    await expect(
+      capture({
+        readSnapshot: vi.fn().mockResolvedValue({
+          error: 'Tiempo de espera agotado leyendo Rayen.',
+          timeoutStage: 'ficha_main_relay',
+        }),
+      })
+    ).resolves.toEqual({
+      error: 'Tiempo de espera agotado leyendo Rayen.',
+      timeoutStage: 'ficha_main_relay',
+    });
+    await expect(
+      capture({
+        readSnapshot: vi.fn().mockResolvedValue({ error: 'fallo', timeoutStage: 'bed-123' }),
+      })
+    ).resolves.toEqual({ error: 'fallo' });
+  });
+
   it('explains per-patient clinical read failures without applying partial data', async () => {
     await expect(
       capture({

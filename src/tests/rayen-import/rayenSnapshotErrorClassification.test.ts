@@ -12,6 +12,21 @@ const WRAP =
   'No se pudo leer Rayen. Recarga la pestaña de Ficha Médico (Cmd+R) para activar la extensión y reintenta. Detalle: ';
 
 describe('classifyRayenSnapshotError', () => {
+  it('uses a known timeout boundary without trusting the free-text detail', () => {
+    const main = classifyRayenSnapshotError('detalle con identificador 123', 'ficha_main_relay');
+    expect(main.reason).toBe('snapshot_timeout');
+    expect(main.message).toContain('El lector de Ficha Médico');
+    expect(main.message).not.toContain('123');
+
+    const tab = classifyRayenSnapshotError('texto no clasificado', 'ficha_tab_relay');
+    expect(tab.reason).toBe('snapshot_timeout');
+    expect(tab.message).toContain('pestaña de Ficha Médico');
+
+    expect(classifyRayenSnapshotError('Failed to fetch', 'origen_desconocido').reason).toBe(
+      'ficha_medico_stale'
+    );
+  });
+
   it('pestaña de Ficha Médico que ya no puede leer (caso vivo del 02-09): recargarla, conservando el detalle', () => {
     const classified = classifyRayenSnapshotError(`${WRAP}Failed to fetch`);
 

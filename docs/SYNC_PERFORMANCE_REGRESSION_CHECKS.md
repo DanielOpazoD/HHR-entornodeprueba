@@ -99,3 +99,13 @@ La [serie real con extensión 0.48.37](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29
 incluye nueve ejecuciones completas y una fallida en tres condiciones de recarga.
 Localiza demoras variables en Ficha Médico, lecturas y persistencia clínica, pero
 no prueba una operación local redundante ni una mejora causada por la recarga.
+
+### Límites de espera identificables (extensión 0.48.38)
+
+El error opcional `timeoutStage` distingue el plazo del relé de Ficha Médico en la
+pestaña (`ficha_main_relay`) del plazo del mensaje que el worker envió a esa pestaña
+(`ficha_tab_relay`). HHR acepta sólo esos códigos; una extensión antigua sigue la
+clasificación previa por mensaje. Cuando vence el plazo de HHR sin respuesta, se sabe
+que no llegó la captura, **no** qué componente interno la demoró. Tampoco se atribuye
+un timeout al servidor de Eloísa sin una respuesta o una medición de esa fuente.
+Estos códigos no contienen datos clínicos y no alteran la captura ni los plazos.

@@ -103,7 +103,24 @@ const unwrapTransportDetail = (raw: string): string => {
   return match ? raw.slice(raw.length - (normalized.length - match[0].length)).trim() : raw;
 };
 
-export const classifyRayenSnapshotError = (rawError: unknown): RayenSnapshotErrorClassification => {
+export const classifyRayenSnapshotError = (
+  rawError: unknown,
+  timeoutStage?: string
+): RayenSnapshotErrorClassification => {
+  if (timeoutStage === 'ficha_main_relay') {
+    return {
+      reason: 'snapshot_timeout',
+      message:
+        'El lector de Ficha Médico no terminó dentro del plazo. Revisa esa pestaña y vuelve a sincronizar.',
+    };
+  }
+  if (timeoutStage === 'ficha_tab_relay') {
+    return {
+      reason: 'snapshot_timeout',
+      message:
+        'La pestaña de Ficha Médico no respondió a la extensión dentro del plazo. Recárgala y vuelve a sincronizar.',
+    };
+  }
   const raw = typeof rawError === 'string' ? rawError.trim() : '';
   const detail = unwrapTransportDetail(raw);
   const detailNormalized = normalize(detail);

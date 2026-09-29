@@ -39,10 +39,11 @@
   };
   const hasReaders = (readHealth, readSnapshot, readReport) =>
     [readHealth, readSnapshot, readReport].every(reader => typeof reader === 'function');
+  const knownTimeoutStage = value => value === 'ficha_main_relay' || value === 'ficha_tab_relay';
   const validateReadResults = (snapshotResult, reportResult) => {
     const snapshot = snapshotResult && snapshotResult.snapshot;
     if (!snapshot) {
-      return { error: snapshotResult && snapshotResult.error || 'Ficha Médico no entregó el censo.' };
+      return { error: snapshotResult && snapshotResult.error || 'Ficha Médico no entregó el censo.', ...(knownTimeoutStage(snapshotResult?.timeoutStage) ? { timeoutStage: snapshotResult.timeoutStage } : {}) };
     }
     if (snapshot.isComplete !== true) {
       const coverage = snapshot.clinicalCoverage;
@@ -61,7 +62,6 @@
     }
     return { snapshot, report: reportResult };
   };
-
   const createBundleResult = ({
     snapshot,
     report,

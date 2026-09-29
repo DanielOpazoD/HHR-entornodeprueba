@@ -63,13 +63,11 @@
       return ready.length ? ready : candidates;
     };
 
-    // Some open tabs may be stale and lack the content script. Preserve the priority order and
-    // return the first successful response while retaining the last useful diagnostic.
     const sendToMatchingTab = async (urlMatch, message, noTabError, noAnswerError) => {
       const matchingTabs = await tabs.query({ url: urlMatch });
       if (!matchingTabs.length) return { error: noTabError };
       const ordered = await responsiveTabs(extensionHealth.orderTabs(matchingTabs));
-      let lastError = 'Sin respuesta de la pestaña.';
+      let lastError = 'Sin respuesta de la pestaña.', lastTimeoutStage;
       for (const tab of ordered) {
         try {
           const response = await withTimeout(
@@ -78,12 +76,16 @@
             'La pestaña de Ficha Médico no respondió dentro del tiempo esperado.'
           );
           if (response && !response.error) return response;
-          if (response && response.error) lastError = String(response.error);
+          if (response && response.error) {
+            lastError = String(response.error);
+            lastTimeoutStage = response.timeoutStage === 'ficha_main_relay' ? 'ficha_main_relay' : undefined;
+          }
         } catch (error) {
           lastError = String((error && error.message) || error);
+          lastTimeoutStage = error?.code === 'HHR_TIMEOUT' ? 'ficha_tab_relay' : undefined;
         }
       }
-      return { error: noAnswerError + ' Detalle: ' + lastError };
+      return { error: noAnswerError + ' Detalle: ' + lastError, ...(lastTimeoutStage ? { timeoutStage: lastTimeoutStage } : {}) };
     };
 
     const handleSnapshotRequest = () =>

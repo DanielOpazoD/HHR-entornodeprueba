@@ -169,7 +169,7 @@ type SnapshotHandler = (
   bundle: RayenSyncBundle,
   requestId: string
 ) => void;
-type ImportErrorHandler = (error: string, requestId: string) => void;
+type ImportErrorHandler = (error: string, requestId: string, timeoutStage?: string) => void;
 
 const handlers = new Set<SnapshotHandler>();
 const errorHandlers = new Set<ImportErrorHandler>();
@@ -211,7 +211,12 @@ const onWindowMessage = (event: MessageEvent): void => {
     const requestId = typeof event.data.requestId === 'string' ? event.data.requestId : '';
     if (!requestId || requestId !== activeSyncRequestId) return;
     activeSyncRequestId = null;
-    errorHandlers.forEach(handler => handler(event.data.error, requestId));
+    const timeoutStage =
+      event.data.timeoutStage === 'ficha_main_relay' ||
+      event.data.timeoutStage === 'ficha_tab_relay'
+        ? event.data.timeoutStage
+        : undefined;
+    errorHandlers.forEach(handler => handler(event.data.error, requestId, timeoutStage));
     return;
   }
   if (!isRayenImportMessage(event.data)) return;
