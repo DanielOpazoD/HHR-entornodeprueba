@@ -54,6 +54,20 @@ artefacto antes de regenerar los informes de main.
 Una evidencia ausente o inválida bloquea esa etapa; un incumplimiento de objetivos conserva su
 estado degradado y no se convierte en aprobado para mejorar la nota.
 
+### Entorno de E2E crítico
+
+El build previo y el servidor de `playwright.emulator-critical.config.ts` usan
+`scripts/config/criticalE2EEnvironment.mjs`: configuración Firebase demo, emulador Firestore
+loopback y sin credenciales o flags `VITE_*` heredados. En modo E2E Vite no carga archivos
+dotenv personales. El servidor de prueba siempre es propio; un puerto ocupado falla en lugar
+de reutilizar una aplicación cuya versión o configuración se desconoce.
+
+Usar `npm run test:e2e:critical:ci` o `npm run test:e2e:flow-performance:gate` sin vaciar
+manualmente el cliente Google. Se conserva `FIRESTORE_EMULATOR_HOST` local para el puerto
+dinámico del runner. La lectura autenticada admite también `FIREBASE_AUTH_EMULATOR_HOST`,
+validado como loopback y convertido a URL para el frontend. Esto aísla la configuración frontend de estas suites; no sustituye las
+intercepciones de fuentes externas ni los guards de los emuladores.
+
 ### `ci:inner-loop`
 
 Usar cuando el cambio todavía está en iteración local.

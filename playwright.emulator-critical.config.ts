@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { buildCriticalE2EEnvironment } from './scripts/config/criticalE2EEnvironment.mjs';
 
 import { TEST_DEVICE_TIME_ZONE, pinTestTimeZone } from './scripts/config/testTimeZone';
 
@@ -50,20 +51,7 @@ const reporter = jsonReporterOutput
       ]
     : 'html';
 
-const baseEnv = {
-  VITE_E2E_MODE: 'true',
-  E2E_FIXED_DATE: process.env.E2E_FIXED_DATE,
-  VITE_FIREBASE_API_KEY: process.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
-  VITE_FIREBASE_AUTH_DOMAIN: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo-hhr.firebaseapp.com',
-  VITE_FIREBASE_PROJECT_ID: process.env.VITE_FIREBASE_PROJECT_ID || 'demo-hhr-e2e',
-  VITE_FIREBASE_STORAGE_BUCKET:
-    process.env.VITE_FIREBASE_STORAGE_BUCKET || 'demo-hhr-e2e.firebasestorage.app',
-  VITE_FIREBASE_MESSAGING_SENDER_ID: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1234567890',
-  VITE_FIREBASE_APP_ID: process.env.VITE_FIREBASE_APP_ID || '1:1234567890:web:abcdef123456',
-  VITE_FIRESTORE_EMULATOR_HOST: process.env.VITE_FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080',
-  VITE_AUTH_EMULATOR_HOST: process.env.VITE_AUTH_EMULATOR_HOST || '',
-  VITE_SYSLAB_ENABLE_DIRECT_LOCAL: process.env.VITE_SYSLAB_ENABLE_DIRECT_LOCAL || 'true',
-};
+const baseEnv = buildCriticalE2EEnvironment();
 
 export default defineConfig({
   testDir: './e2e',
@@ -115,7 +103,7 @@ export default defineConfig({
   webServer: {
     command: webServerCommand,
     url: webServerOrigin,
-    reuseExistingServer: !process.env.CI && process.env.PLAYWRIGHT_FORCE_FRESH_SERVER !== '1',
+    reuseExistingServer: false,
     env: baseEnv,
     // Preview mode needs extra headroom for the vite build step before
     // the server starts accepting connections.
