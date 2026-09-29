@@ -1,11 +1,87 @@
+import { DataFactory } from '@/tests/factories/DataFactory';
+import { buildUpdatePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { describe, expect, it } from 'vitest';
 import {
   getClearClinicalDataPatches,
+  isDifferentPatientIdentity,
+  shouldResetClinicalEpisodeOwnership,
   hasDisplayablePatientName,
   shouldAnchorFirstSeenDate,
 } from '@/hooks/controllers/bedManagementPatientIdentityPatchController';
 
 describe('bedManagementPatientIdentityPatchController', () => {
+  it.each([
+    ['12345678-5', '12.345.678-5', 'RUT', false],
+    ['12.345.678-5', '22.222.222-2', 'RUT', true],
+    ['12-34', '1234', 'Pasaporte', true],
+  ] as const)(
+    'preserves the clinical-clear policy through the real patch builder (%s -> %s)',
+    (currentRut, nextRut, documentType, replaced) => {
+      const record = DataFactory.createMockDailyRecord('2026-02-20');
+      record.beds.R1 = DataFactory.createMockPatient('R1', {
+        patientName: 'Original Name',
+        rut: currentRut,
+        documentType,
+        clinicalEpisodeId: 'existing-episode',
+        pathology: 'Existing diagnosis',
+      });
+      const patch = buildUpdatePatientPatches(record, 'R1', {
+        patientName: 'Corrected Name',
+        rut: nextRut,
+        documentType,
+      });
+      expect(patch['beds.R1.rut']).toBe(nextRut);
+      if (replaced) {
+        expect(patch['beds.R1.pathology']).toBe('');
+        expect(Object.keys(patch)).toContain('beds.R1.clinicalEpisodeId');
+      } else {
+        for (const field of ['pathology', 'specialty', 'clinicalEpisodeId', 'devices', 'cudyr']) {
+          expect(Object.keys(patch)).not.toContain('beds.R1.' + field);
+        }
+      }
+    }
+  );
+
+  it.each([
+    ['12345678-5', '12.345.678-5', false],
+    ['12.345.678-5', '123456785', false],
+    ['12345678-k', '12.345.678-K', false],
+    ['12.345.678-5', '22.222.222-2', true],
+    ['12.345.678-5', '', true],
+    ['', '12.345.678-5', true],
+    ['', '', true],
+  ])(
+    'compares RUT identity %s -> %s without treating formatting as replacement',
+    (currentRut, nextRut, replaced) => {
+      const input = {
+        currentClinicalEpisodeId: 'existing-episode',
+        currentPatientName: 'Original Name',
+        nextPatientName: 'Corrected Name',
+        currentRut,
+        nextRut,
+      };
+      expect(isDifferentPatientIdentity(input)).toBe(replaced);
+      expect(shouldResetClinicalEpisodeOwnership(input)).toBe(replaced);
+    }
+  );
+
+  it.each([
+    ['AB12CD', 'AB12EF'],
+    ['12-34', '1234'],
+  ])('does not collapse distinct passport identifiers %s and %s', (currentRut, nextRut) => {
+    const input = {
+      currentClinicalEpisodeId: 'passport-episode',
+      currentPatientName: 'Same Name',
+      nextPatientName: 'Same Name',
+      currentRut,
+      nextRut,
+      currentDocumentType: 'Pasaporte' as const,
+      nextDocumentType: 'Pasaporte' as const,
+    };
+    expect(isDifferentPatientIdentity(input)).toBe(true);
+    expect(shouldResetClinicalEpisodeOwnership(input)).toBe(true);
+  });
+
   it('builds the clinical reset patch used when patient identity changes', () => {
     expect(getClearClinicalDataPatches('R1')).toEqual({
       'beds.R1.specialty': '',

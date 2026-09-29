@@ -1,8 +1,21 @@
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
+import { normalizeRut } from '@/utils/rutUtils';
 
 const hasMeaningfulIdentityValue = (value?: string): boolean => Boolean(value?.trim());
 
 const normalizeIdentityValue = (value?: string): string => String(value || '').trim();
+
+// Formatting a RUT must not start a new episode. Passport identifiers retain their
+// exact trimmed form; stripping non-numeric characters would merge distinct IDs.
+const normalizeDocumentIdentity = (
+  value?: string,
+  documentType?: PatientData['documentType']
+): string => {
+  const trimmed = normalizeIdentityValue(value);
+  return documentType !== 'Pasaporte' && /^\d[\d.\s-]*[\dkK]$/.test(trimmed)
+    ? normalizeRut(trimmed)
+    : trimmed;
+};
 
 export const hasDisplayablePatientName = (
   patient: Pick<PatientData, 'patientName'> | null | undefined
@@ -35,19 +48,26 @@ export const shouldResetClinicalEpisodeOwnership = ({
   currentRut,
   nextPatientName,
   nextRut,
+  currentDocumentType,
+  nextDocumentType,
 }: {
   currentClinicalEpisodeId?: string;
   currentPatientName?: string;
   currentRut?: string;
   nextPatientName?: string;
   nextRut?: string;
+  currentDocumentType?: PatientData['documentType'];
+  nextDocumentType?: PatientData['documentType'];
 }): boolean => {
   if (!normalizeIdentityValue(currentClinicalEpisodeId)) {
     return false;
   }
 
-  const normalizedCurrentRut = normalizeIdentityValue(currentRut);
-  const normalizedNextRut = normalizeIdentityValue(nextRut);
+  const normalizedCurrentRut = normalizeDocumentIdentity(currentRut, currentDocumentType);
+  const normalizedNextRut = normalizeDocumentIdentity(
+    nextRut,
+    nextDocumentType ?? currentDocumentType
+  );
   if ((normalizedCurrentRut || normalizedNextRut) && normalizedCurrentRut !== normalizedNextRut) {
     return true;
   }
@@ -75,14 +95,21 @@ export const isDifferentPatientIdentity = ({
   currentRut,
   nextPatientName,
   nextRut,
+  currentDocumentType,
+  nextDocumentType,
 }: {
   currentPatientName?: string;
   currentRut?: string;
   nextPatientName?: string;
   nextRut?: string;
+  currentDocumentType?: PatientData['documentType'];
+  nextDocumentType?: PatientData['documentType'];
 }): boolean => {
-  const normalizedCurrentRut = normalizeIdentityValue(currentRut);
-  const normalizedNextRut = normalizeIdentityValue(nextRut);
+  const normalizedCurrentRut = normalizeDocumentIdentity(currentRut, currentDocumentType);
+  const normalizedNextRut = normalizeDocumentIdentity(
+    nextRut,
+    nextDocumentType ?? currentDocumentType
+  );
   if (normalizedCurrentRut && normalizedNextRut) {
     return normalizedCurrentRut !== normalizedNextRut;
   }

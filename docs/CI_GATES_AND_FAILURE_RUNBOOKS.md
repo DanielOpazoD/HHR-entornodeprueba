@@ -68,6 +68,24 @@ dinámico del runner. La lectura autenticada admite también `FIREBASE_AUTH_EMUL
 validado como loopback y convertido a URL para el frontend. Esto aísla la configuración frontend de estas suites; no sustituye las
 intercepciones de fuentes externas ni los guards de los emuladores.
 
+### Evidencia de persistencia en navegador
+
+`census-persistence-reload.spec.ts` y `legacy-firebase-compat.spec.ts` verifican la
+petición producida al guardar desde la UI, reciben una respuesta de la autoridad
+controlada y esperan que la aplicación actualice el espejo local antes de recargar.
+No deben escribir los valores esperados en localStorage o IndexedDB después de la
+acción que intentan validar. Una corrección de nombre o de formato del mismo RUT
+debe conservar el episodio y el diagnóstico; el reemplazo real mantiene la limpieza
+clínica y los pasaportes conservan su comparación sin eliminar letras o separadores.
+
+La ruta controlada modela el servidor para probar el cliente. No acredita por sí sola
+transacciones reales, concurrencia de Functions ni persistencia remota: esas garantías
+corresponden a las pruebas de emulador y autoridad clínica. Las pruebas que inyectan
+snapshots externos prueban reconciliación de lecturas, no dos escritores reales.
+El rechazo, retry acotado y rollback de cama/cuna ya se cubren en
+`bed-crib-lifecycle-critical.spec.ts`; la recuperación de cola tras recarga, en
+`night-admission-sync-recovery-critical.spec.ts`.
+
 ### `ci:inner-loop`
 
 Usar cuando el cambio todavía está en iteración local.

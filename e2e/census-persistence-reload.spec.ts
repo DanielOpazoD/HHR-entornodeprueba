@@ -5,7 +5,8 @@ import {
   ensureAuthenticated,
 } from './fixtures/auth';
 import { expectClinicalDiagnosis, updateClinicalDiagnosis } from './fixtures/clinicalBlockEditor';
-import { seedPersistedBedFields, waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
 
 const PERSISTENCE_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
 
@@ -20,16 +21,24 @@ test.describe('Census persistence and reload', () => {
     beds.R1 = {
       ...beds.R1,
       patientName: 'INITIAL PATIENT',
+      // A stable identity makes this a demographic correction, not a patient replacement.
+      rut: '12345678-5',
+      clinicalEpisodeId: 'e2e-persistence-episode',
       pathology: 'INITIAL DX',
       status: 'Estable',
       age: '39',
       admissionDate: PERSISTENCE_DATE,
     };
 
+    const record = { ...baseRecord, beds };
+    const authority = await installDailyRecordAuthorityRoute(page, record);
     await bootstrapSeededRecord(page, {
       role: 'editor',
+      forceLocalOnlySync: false,
+      seedRemoteAuthority: true,
+      forceAuthorityCallable: true,
       date: PERSISTENCE_DATE,
-      record: { ...baseRecord, beds },
+      record,
       useRuntimeOverride: true,
     });
 
@@ -47,24 +56,32 @@ test.describe('Census persistence and reload', () => {
     await demographicsDialog.getByPlaceholder('Apellido paterno').fill('Patient');
     await demographicsDialog.getByRole('button', { name: /Guardar Cambios/i }).click();
     await expect(demographicsDialog).toBeHidden();
+    const demographicsSave = await authority.nextCall();
+    expect(demographicsSave.payload.date).toBe(PERSISTENCE_DATE);
+    expect(demographicsSave.payload.patch).toMatchObject({
+      'beds.R1.patientName': 'Updated Patient',
+    });
+    await demographicsSave.succeed();
+    await waitForPersistedBedFields({
+      page,
+      date: PERSISTENCE_DATE,
+      bedId: 'R1',
+      expected: {
+        patientName: 'Updated Patient',
+        pathology: 'INITIAL DX',
+        clinicalEpisodeId: 'e2e-persistence-episode',
+      },
+    });
 
     const patientNameInput = row.locator('input[name="patientName"]').first();
     await expect(patientNameInput).toHaveValue('Updated Patient');
     await updateClinicalDiagnosis(page, row, 'R1', 'UPDATED DX');
+    const diagnosisSave = await authority.nextCall();
+    expect(diagnosisSave.payload.date).toBe(PERSISTENCE_DATE);
+    expect(diagnosisSave.payload.patch).toMatchObject({ 'beds.R1.pathology': 'UPDATED DX' });
+    await diagnosisSave.succeed();
 
     await expectClinicalDiagnosis(row, 'UPDATED DX');
-    await seedPersistedBedFields({
-      page,
-      date: PERSISTENCE_DATE,
-      bedId: 'R1',
-      fields: {
-        patientName: 'Updated Patient',
-        firstName: 'Updated',
-        lastName: 'Patient',
-        secondLastName: '',
-        pathology: 'UPDATED DX',
-      },
-    });
     await waitForPersistedBedFields({
       page,
       date: PERSISTENCE_DATE,
