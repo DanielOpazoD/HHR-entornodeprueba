@@ -65,3 +65,8 @@ La primera línea base leída del historial real, con cinco ejecuciones comparab
 [SYNC_REAL_PERFORMANCE_BASELINE_2026-09-23.md](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-23.md).
 La repetición de 0.48.32 y el readback posterior aún están pendientes; esta evidencia
 no autoriza a fijar un presupuesto temporal bloqueante ni a declarar una regresión.
+
+La [medición del 29-09-2026](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29.md) añade tres
+repeticiones verificadas en `hhr-pruebas` con extensión 0.48.36 y readback del historial
+tras recarga. Sus totales fueron 17, 41 y 15 s; la demora aislada se concentra en la
+captura dual. No se atribuye a una fuente concreta ni justifica otra caché.
