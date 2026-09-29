@@ -4,6 +4,10 @@ import type { RayenSyncPerformance } from '@/types/domain/rayenSync';
 const STAGE_LABELS: Array<[keyof RayenSyncPerformance['stagesMs'], string]> = [
   ['preflight', 'Preflight'],
   ['dualCapture', 'Captura dual'],
+  ['captureHealthBefore', 'Conexión previa incluida'],
+  ['captureFichaMedico', 'Ficha Médico incluida'],
+  ['captureGestionCamas', 'Gestión de Camas incluida'],
+  ['captureHealthAfter', 'Conexión posterior incluida'],
   ['reconciliation', 'Reconciliación total'],
   ['historicalEvidence', 'Evidencia histórica incluida'],
   ['reviewWait', 'Revisión humana'],
@@ -49,6 +53,13 @@ export const RayenSyncTechnicalMetricsPanel: React.FC<{
         <summary className="cursor-pointer font-bold text-slate-700">Detalle técnico</summary>
       )}
       <div className="mt-2 space-y-2" role="group" aria-label="Telemetría técnica agregada">
+        {(performance.stagesMs.captureFichaMedico != null ||
+          performance.stagesMs.captureGestionCamas != null) && (
+          <p>
+            Las fuentes se leen en paralelo; sus tiempos están incluidos en la captura dual y no se
+            suman.
+          </p>
+        )}
         {stages.length > 0 && (
           <dl className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3">
             {stages.map(stage => (

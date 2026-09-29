@@ -1,4 +1,4 @@
-import type { RayenCensusSnapshot } from '../contracts/rayenSnapshot';
+import type { RayenCensusSnapshot, RayenCaptureTimings } from '../contracts/rayenSnapshot';
 import type {
   RayenSyncPerformanceDelta,
   RayenTreatingPhysicianSourceQuality,
@@ -25,10 +25,24 @@ export const summarizeTreatingPhysicianSourceQuality = (
 export const buildRayenCapturePerformance = (
   source: RayenCensusSnapshot,
   planned: RayenCensusSnapshot,
-  dualCaptureMs: number
-): RayenSyncPerformanceDelta => ({
-  stagesMs: { dualCapture: dualCaptureMs },
-  sourceQuality: {
-    treatingPhysicians: summarizeTreatingPhysicianSourceQuality(source, planned),
-  },
-});
+  dualCaptureMs: number,
+  captureTimings?: RayenCaptureTimings
+): RayenSyncPerformanceDelta => {
+  const stagesMs: RayenSyncPerformanceDelta['stagesMs'] = { dualCapture: dualCaptureMs };
+  // Diagnostics are optional. Discard invalid/unknown values without blocking clinical evidence.
+  for (const key of [
+    'captureHealthBefore',
+    'captureFichaMedico',
+    'captureGestionCamas',
+    'captureHealthAfter',
+  ] as const) {
+    const duration = captureTimings?.[key];
+    if (typeof duration === 'number' && Number.isSafeInteger(duration) && duration >= 0) {
+      stagesMs[key] = duration;
+    }
+  }
+  return {
+    stagesMs,
+    sourceQuality: { treatingPhysicians: summarizeTreatingPhysicianSourceQuality(source, planned) },
+  };
+};

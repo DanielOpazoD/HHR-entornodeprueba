@@ -11,6 +11,10 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
           stagesMs: {
             preflight: 120,
             dualCapture: 1_500,
+            captureHealthBefore: 30,
+            captureFichaMedico: 120,
+            captureGestionCamas: 450,
+            captureHealthAfter: 20,
             reconciliation: 2_000,
             historicalEvidence: 700,
             reviewWait: 45_000,
@@ -53,6 +57,15 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     expect(screen.getByRole('group', { name: 'Telemetría técnica agregada' })).toBeVisible();
     expect(panel).toHaveTextContent('Preflight');
     expect(panel).toHaveTextContent('Captura dual');
+    for (const label of [
+      'Conexión previa incluida',
+      'Ficha Médico incluida',
+      'Gestión de Camas incluida',
+      'Conexión posterior incluida',
+    ]) {
+      expect(panel).toHaveTextContent(label);
+    }
+    expect(panel).toHaveTextContent('Las fuentes se leen en paralelo');
     expect(panel).toHaveTextContent('Evidencia histórica incluida');
     expect(panel).toHaveTextContent('Revisión humana');
     expect(panel).toHaveTextContent('Guardado estructural');
@@ -78,6 +91,19 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     expect(panel).toHaveTextContent(
       'no contiene pacientes, camas, episodios, nombres profesionales'
     );
+  });
+
+  it('explains overlap when only Gestión de Camas timing is available', () => {
+    render(
+      <RayenSyncTechnicalMetricsPanel
+        performance={{
+          stagesMs: { dualCapture: 1000, captureGestionCamas: 700 },
+          counters: { requests: 0, cacheHits: 0, patches: 0, retries: 0, timeouts: 0 },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByText('Detalle técnico'));
+    expect(screen.getByText(/Las fuentes se leen en paralelo/)).toBeVisible();
   });
 
   it('renders nothing for legacy events without technical telemetry', () => {

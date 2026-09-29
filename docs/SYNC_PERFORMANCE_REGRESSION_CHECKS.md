@@ -78,3 +78,19 @@ la ventana completa acotada. Los checkpoints recientes válidos conservan los pl
 de 15 minutos/24 horas existentes. Sólo una ventana efectiva entera positiva y dentro
 del máximo de 180 días puede certificar cobertura. Las pruebas
 `clinicalHistoryReadPolicy.test.ts` cubren este contrato sin alterar fechas ni turnos clínicos.
+
+### Atribución de la captura dual (extensión 0.48.37)
+
+La medición de septiembre encontró una captura dual de 29,3 s sin poder atribuirla
+a una fuente. La extensión añade cuatro duraciones con reloj monotónico: conexión
+previa, Ficha Médico, Gestión de Camas y conexión posterior. HHR conserva solamente
+los enteros no negativos conocidos, sin identificadores ni valores clínicos, y los
+presenta en el detalle técnico del historial. Las fuentes siguen en paralelo: sus
+duraciones están incluidas en el total y no deben sumarse a la captura dual.
+
+La aplicación acepta extensiones anteriores sin estas métricas; su ausencia no es
+un tiempo cero. Se conservan las comprobaciones de sesión, establecimiento, desfase
+y día clínico. Esta instrumentación diagnostica capturas exitosas, no demuestra una
+mejora de velocidad ni persiste duraciones de capturas fallidas. Repetir el escenario
+de tres sincronizaciones sin cambios cuando las sesiones estén disponibles y decidir
+la próxima optimización por la fuente que concentre la demora.
