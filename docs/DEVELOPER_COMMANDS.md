@@ -35,6 +35,14 @@ los mismos controles sobre código sin cambios antes del gate que ya los contien
 
 ### Antes de merge
 
+Si el equipo tiene poca memoria disponible, `npm run test:ci:unit -- --maxWorkers=4`
+limita la concurrencia usando la opción existente de Vitest. Conserva la selección
+de pruebas y los timeouts; no reemplaza los demás controles del gate. En la
+[medición local del 29-09-2026](./LOCAL_TEST_RESOURCE_BASELINE_2026-09-29.md)
+redujo la memoria del grupo medido, pero tardó más. Usar pruebas focalizadas durante
+edición y evitar ejecutar gates duplicados simultáneamente. CI y el modo habitual
+conservan su configuración; no extrapolar el resultado a toda la suite.
+
 Elige el gate que corresponde al alcance según `SAFE_CHANGE_CHECKLIST.md`:
 
 - Cambio habitual: `npm run ci:pre-merge`.
