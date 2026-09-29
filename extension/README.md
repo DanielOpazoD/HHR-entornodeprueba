@@ -419,3 +419,22 @@ la recuperación falla cerrado y exige documentos nuevos.
   clínico todavía activo como el nuevo día calendario creado manualmente en HHR.
 - La captura sigue invalidándose si cruza la medianoche o el relevo de enfermería, para no mezclar
   evidencia perteneciente a dos contextos temporales.
+
+### Descargar desde HHR (instalación manual)
+
+La barra Eloísa ofrece el ZIP de la extensión incluida en esa publicación de HHR,
+con la versión detectada y la disponible. El aviso ámbar no bloquea una extensión
+antigua compatible; las protecciones de compatibilidad siguen vigentes. Descargar
+no actualiza Chrome: reemplazar el contenido de la carpeta instalada, recargar la
+extensión en `chrome://extensions` y recargar HHR/Eloísa. Esperar a que termine una
+sincronización activa. El aviso sólo desaparece cuando el reporte detecta la nueva versión.
+
+Vite sirve el mismo paquete en desarrollo y lo emite en `dist/downloads/` al ejecutar
+`npm run build`, por lo que Netlify lo publica como archivo estático del mismo origen.
+La versión procede del manifest y el nombre incluye un hash del ZIP. No requiere backend,
+permisos adicionales ni compresión en el navegador; no se precarga en el service worker.
+El empaquetado incluye código raíz y recursos explícitos del manifest, excluyendo HAR,
+archivos locales y documentación. El release gate valida sus dependencias.
+`fflate` 0.8.2 se declara como dependencia de desarrollo (ya era transitiva): sólo comprime
+al generar el artefacto. Responsable: mantenimiento HHR. Riesgo: distribución incompleta;
+control: prueba de ZIP, release gate y descarga en dev/build. Rollback: revertir este PR.

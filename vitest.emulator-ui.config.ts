@@ -1,3 +1,4 @@
+import { extensionDownloadPlugin } from './scripts/config/extensionDownloadPlugin';
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
 import path from 'node:path';
@@ -10,6 +11,7 @@ pinTestTimeZone();
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  plugins: [extensionDownloadPlugin(dirname)],
   resolve: {
     alias: {
       '@': path.resolve(dirname, 'src'),

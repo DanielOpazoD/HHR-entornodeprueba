@@ -1,3 +1,4 @@
+import { extensionDownloadPlugin } from './scripts/config/extensionDownloadPlugin';
 /// <reference types="vitest" />
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,7 +33,7 @@ const criticalCoverageInclude = [
 ];
 
 export default defineConfig({
-  plugins: [minsalSharedInteropPlugin(dirname), react()],
+  plugins: [extensionDownloadPlugin(dirname), minsalSharedInteropPlugin(dirname), react()],
   resolve: {
     alias: {
       '@/services/exporters/excelJsModuleLoader': path.resolve(

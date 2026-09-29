@@ -1,3 +1,4 @@
+import { extensionDownloadPlugin } from './scripts/config/extensionDownloadPlugin';
 import fs from 'node:fs';
 import path from 'path';
 import { execFileSync } from 'node:child_process';
@@ -175,6 +176,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
+      extensionDownloadPlugin(__dirname),
       versionRuntimePlugin(buildVersionInfo),
       releaseEvidenceRuntimePlugin(),
       excelJsRuntimeAssetPlugin(),
@@ -198,6 +200,7 @@ export default defineConfig(({ mode }) => {
           // precache. They remain available as normal on-demand assets, while
           // first-run PWA install stays focused on app shell/critical runtime.
           globIgnores: [
+            '**/downloads/**',
             '**/docs/**',
             '**/templates/**',
             '**/images/forms/**',
