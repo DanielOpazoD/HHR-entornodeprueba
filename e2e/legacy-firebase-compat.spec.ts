@@ -1,15 +1,21 @@
 import { test, expect } from '@playwright/test';
 import { bootstrapSeededRecord, buildLegacyE2ERecord, ensureAuthenticated } from './fixtures/auth';
-import { seedPersistedBedFields, waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { installDailyRecordAuthorityRoute } from './fixtures/dailyRecordAuthorityRoute';
 
 const LEGACY_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
 
 test.describe('Legacy Firebase compatibility', () => {
   test('opens a legacy record, normalizes it, and keeps the day editable', async ({ page }) => {
+    const record = buildLegacyE2ERecord(LEGACY_DATE);
+    const authority = await installDailyRecordAuthorityRoute(page, record);
     await bootstrapSeededRecord(page, {
       role: 'editor',
+      forceLocalOnlySync: false,
+      seedRemoteAuthority: true,
+      forceAuthorityCallable: true,
       date: LEGACY_DATE,
-      record: buildLegacyE2ERecord(LEGACY_DATE),
+      record,
       useRuntimeOverride: false,
     });
 
@@ -44,19 +50,14 @@ test.describe('Legacy Firebase compatibility', () => {
     await expect(secondLastNameInput).toHaveValue('Normalized');
     await demographicsDialog.getByRole('button', { name: /Guardar Cambios/i }).click();
     await expect(demographicsDialog).toBeHidden();
+    const demographicsSave = await authority.nextCall();
+    expect(demographicsSave.payload.date).toBe(LEGACY_DATE);
+    expect(demographicsSave.payload.patch).toMatchObject({
+      'beds.R1.patientName': 'Legacy Patient Normalized',
+    });
+    await demographicsSave.succeed();
 
     await expect(patientNameInput).toHaveValue('Legacy Patient Normalized');
-    await seedPersistedBedFields({
-      page,
-      date: LEGACY_DATE,
-      bedId: 'R1',
-      fields: {
-        patientName: 'Legacy Patient Normalized',
-        firstName: 'Legacy',
-        lastName: 'Patient',
-        secondLastName: 'Normalized',
-      },
-    });
     await waitForPersistedBedFields({
       page,
       date: LEGACY_DATE,
@@ -66,6 +67,7 @@ test.describe('Legacy Firebase compatibility', () => {
         firstName: 'Legacy',
         lastName: 'Patient',
         secondLastName: 'Normalized',
+        pathology: 'LEGACY DX',
       },
     });
 

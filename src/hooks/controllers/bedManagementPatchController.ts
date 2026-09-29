@@ -118,28 +118,27 @@ const buildPatientFieldPatches = ({
   );
   // A replacement form may resend the old specialty. Only a different value
   // is evidence of a new explicit choice while the pilot is disabled.
-  const selectedSpecialty = !isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT') &&
-    typeof updates.specialty === 'string' && updates.specialty !== currentPatient.specialty
-      ? updates.specialty : null;
-  const resetsClinicalEpisodeOwnership = shouldResetClinicalEpisodeOwnership({
+  const selectedSpecialty =
+    !isFeatureEnabled('SPECIALTY_EPISODE_ASSIGNMENT') &&
+    typeof updates.specialty === 'string' &&
+    updates.specialty !== currentPatient.specialty
+      ? updates.specialty
+      : null;
+  const identityChange = {
     currentClinicalEpisodeId: currentPatient.clinicalEpisodeId,
     currentPatientName: currentPatient.patientName,
     currentRut: currentPatient.rut,
     nextPatientName,
     nextRut,
-  });
+    currentDocumentType: currentPatient.documentType,
+    nextDocumentType: updates.documentType ?? currentPatient.documentType,
+  };
+  const resetsClinicalEpisodeOwnership = shouldResetClinicalEpisodeOwnership(identityChange);
 
   // La limpieza clínica de la cama es para un REEMPLAZO de persona, no para
   // corregir el nombre del mismo paciente (mismo RUT): el heurístico anterior
   // borraba el diagnóstico y volvía mixto el guardado demográfico.
-  const identityReplaced =
-    hasIdentityChange &&
-    isDifferentPatientIdentity({
-      currentPatientName: currentPatient.patientName,
-      currentRut: currentPatient.rut,
-      nextPatientName,
-      nextRut,
-    });
+  const identityReplaced = hasIdentityChange && isDifferentPatientIdentity(identityChange);
   if (identityReplaced && hadPatientIdentity) {
     Object.assign(patches, getClearClinicalDataPatches(bedId));
     if (selectedSpecialty !== null) patches[`beds.${bedId}.specialty`] = selectedSpecialty;
