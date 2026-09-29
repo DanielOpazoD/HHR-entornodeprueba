@@ -9,6 +9,7 @@ const isolationNormalizationSource = extensionSource('fichamedico-isolation-norm
 const diagnosisCodingSource = extensionSource('fichamedico-diagnosis-coding.js');
 const normalizationSource = extensionSource('fichamedico-normalization.js');
 const resilienceSource = extensionSource('fichamedico-read-resilience.js');
+const censusSource = extensionSource('fichamedico-census-runtime.js');
 const AUTH_HEADER_FIXTURE = ['HSP', 'fixture'].join(' ');
 const RUNTIME_GENERATION_FIXTURE = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const MAIN_WORLD_GENERATION_KEY = '__hhrExtensionRuntimeGenerationV1__';
@@ -153,6 +154,7 @@ export const createHarness = async (
   vm.runInContext(diagnosisCodingSource, context, { filename: 'fichamedico-diagnosis-coding.js' });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
+  vm.runInContext(censusSource, context, { filename: 'fichamedico-census-runtime.js' });
   vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });
   vm.runInContext(extensionSource('connection-relay-recovery.js'), context, {
     filename: 'connection-relay-recovery.js',

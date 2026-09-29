@@ -1,4 +1,3 @@
-/** Approved relay scripts and manifest entries for bounded reinjection. */
 (function (root) {
   'use strict';
   const RELAYS = Object.freeze({
@@ -32,6 +31,7 @@
         'fichamedico-diagnosis-coding.js',
         'fichamedico-normalization.js',
         'fichamedico-read-resilience.js',
+        'fichamedico-census-runtime.js',
         'bridge-generation-main.js',
         'connection-relay-recovery.js',
         'inject-fichamedico.js',

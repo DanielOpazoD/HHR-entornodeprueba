@@ -138,6 +138,10 @@ export interface RayenCensusSnapshot {
 export interface RayenCaptureTimings {
   captureHealthBefore?: number;
   captureFichaMedico?: number;
+  fichaContext?: number;
+  fichaListsAndCatalog?: number;
+  fichaPatientReads?: number;
+  fichaDiagnosisCoding?: number;
   captureGestionCamas?: number;
   captureHealthAfter?: number;
 }

@@ -40,6 +40,7 @@ const resilienceSource = readFileSync(
   path.resolve('extension/fichamedico-read-resilience.js'),
   'utf8'
 );
+const censusSource = readFileSync(path.resolve('extension/fichamedico-census-runtime.js'), 'utf8');
 const AUTH_HEADER_FIXTURE = ['HSP', 'fixture'].join(' ');
 const LIST_PATH = '/encounter/list/filter';
 const RUNTIME_GENERATION_FIXTURE = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
@@ -57,6 +58,7 @@ type PostedMessage = {
     encounters?: Array<Record<string, unknown>>;
     isComplete?: boolean;
     clinicalCoverage?: Record<string, number>;
+    capturePhasesMs?: Record<string, number>;
   };
 };
 
@@ -158,6 +160,7 @@ const createHarness = async (apiResolver: (url: string) => unknown) => {
   vm.runInContext(diagnosisCodingSource, context, { filename: 'fichamedico-diagnosis-coding.js' });
   vm.runInContext(normalizationSource, context, { filename: 'fichamedico-normalization.js' });
   vm.runInContext(resilienceSource, context, { filename: 'fichamedico-read-resilience.js' });
+  vm.runInContext(censusSource, context, { filename: 'fichamedico-census-runtime.js' });
   vm.runInContext(bridgeGenerationSource, context, { filename: 'bridge-generation-main.js' });
   vm.runInContext(connectionRecoverySource, context, {
     filename: 'connection-relay-recovery.js',
@@ -277,6 +280,12 @@ describe('Ficha Médico · lectura ante fallo de red', () => {
     expect(response?.snapshot).toMatchObject({
       isComplete: true,
       clinicalCoverage: { total: 1, completed: 1, errors: 0 },
+      capturePhasesMs: {
+        fichaContext: expect.any(Number),
+        fichaListsAndCatalog: expect.any(Number),
+        fichaPatientReads: expect.any(Number),
+        fichaDiagnosisCoding: expect.any(Number),
+      },
     });
     expect(requested.some(url => url.includes('stale=1'))).toBe(true);
     expect(requested.some(url => !url.includes('stale=1') && url.includes('filterType=3'))).toBe(

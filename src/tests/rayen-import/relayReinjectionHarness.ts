@@ -57,6 +57,7 @@ export const MANIFEST = {
         'fichamedico-diagnosis-coding.js',
         'fichamedico-normalization.js',
         'fichamedico-read-resilience.js',
+        'fichamedico-census-runtime.js',
         'bridge-generation-main.js',
         'connection-relay-recovery.js',
         'inject-fichamedico.js',

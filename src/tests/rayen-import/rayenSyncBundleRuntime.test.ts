@@ -84,6 +84,32 @@ describe('Rayen synchronized source bundle', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('moves only valid aggregate Ficha timings to the bundle, leaving the clinical snapshot clean', async () => {
+    const result = await capture({
+      readSnapshot: () =>
+        Promise.resolve({
+          snapshot,
+          capturePhasesMs: {
+            fichaContext: 4,
+            fichaListsAndCatalog: 10,
+            fichaPatientReads: 72,
+            fichaDiagnosisCoding: 3,
+            patientName: 'never-persist',
+            fichaUnknown: 100,
+          },
+        }),
+    });
+    expect(result.ok).toBe(true);
+    expect(result.snapshot).not.toHaveProperty('capturePhasesMs');
+    expect(result.bundle.captureTimingsMs).toMatchObject({
+      fichaContext: 4,
+      fichaListsAndCatalog: 10,
+      fichaPatientReads: 72,
+      fichaDiagnosisCoding: 3,
+    });
+    expect(JSON.stringify(result.bundle)).not.toContain('never-persist');
+  });
+
   it('captures both ready sources and returns one temporal evidence bundle', async () => {
     await expect(capture()).resolves.toMatchObject({
       ok: true,

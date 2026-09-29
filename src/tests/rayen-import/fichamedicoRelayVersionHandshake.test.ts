@@ -227,6 +227,20 @@ describe('relay de Ficha Médico · versión del inject', () => {
     await expect(read).resolves.toEqual({ snapshot: { encounters: [] } });
   });
 
+  it('separa las fases agregadas antes de entregar el snapshot clínico al worker', async () => {
+    const relay = createRelay(manifest.version);
+    const read = relay.send({ type: 'RAYEN_READ' });
+    await flush();
+    relay.answerFromInject({
+      injectVersion: manifest.version,
+      snapshot: { encounters: [], capturePhasesMs: { fichaPatientReads: 72 } },
+    });
+    await expect(read).resolves.toEqual({
+      snapshot: { encounters: [] },
+      capturePhasesMs: { fichaPatientReads: 72 },
+    });
+  });
+
   it('rechaza una respuesta de la misma versión que conserva una generación anterior', async () => {
     const oldGeneration = 'ffffffff-1111-4222-8333-444444444444';
     const relay = createRelay(manifest.version);

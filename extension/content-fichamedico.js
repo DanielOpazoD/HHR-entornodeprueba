@@ -69,9 +69,9 @@
         if (!d || d.type !== 'RAYEN_EXT_READ_RESULT' || d.reqId !== reqId) return;
         cleanup();
         if (staleReader(d, runtimeGeneration)) return resolve({ error: STALE_READER_MESSAGE });
-        resolve(d.error ? { error: d.error } : { snapshot: d.snapshot });
+        const { capturePhasesMs, ...snapshot } = d.snapshot || {};
+        resolve(d.error ? { error: d.error } : { snapshot: d.snapshot ? snapshot : undefined, capturePhasesMs });
       };
-
       const cleanup = () => {
         if (settled) return;
         settled = true;

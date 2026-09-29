@@ -19,7 +19,6 @@
       if (Number.isSafeInteger(elapsed)) timings[stage] = elapsed;
     }
   };
-
   const timestamp = value => {
     const parsed = Date.parse(String(value || ''));
     return Number.isFinite(parsed) ? parsed : null;
@@ -60,7 +59,7 @@
           'Gestión de Camas no entregó el informe de egresos.',
       };
     }
-    return { snapshot, report: reportResult };
+    return { snapshot, report: reportResult, capturePhasesMs: snapshotResult.capturePhasesMs };
   };
   const createBundleResult = ({
     snapshot,
@@ -71,6 +70,7 @@
     dateEnd,
     idFactory,
     captureTimingsMs,
+    capturePhasesMs,
   }) => {
     const snapshotFacility = Number(snapshot.facilityId);
     const reportFacility = Number(report.facilityId);
@@ -85,6 +85,10 @@
     const sourceSkewMs = Math.abs(fichaCapturedAt - gestionCapturedAt);
     if (sourceSkewMs > MAX_SOURCE_SKEW_MS) {
       return { error: 'Las fuentes fueron capturadas con demasiado desfase; vuelve a sincronizar.' };
+    }
+    for (const key of ['fichaContext', 'fichaListsAndCatalog', 'fichaPatientReads', 'fichaDiagnosisCoding']) {
+      const duration = capturePhasesMs?.[key];
+      if (Number.isSafeInteger(duration) && duration >= 0) captureTimingsMs[key] = duration;
     }
     return {
       ok: true,
@@ -104,7 +108,6 @@
       },
     };
   };
-
   const capture = async ({
     dateStart,
     dateEnd,
@@ -122,7 +125,6 @@
     if (!hasReaders(readHealth, readSnapshot, readReport)) {
       return { error: 'La captura sincronizada no pudo inicializarse.' };
     }
-
     if (!root.HhrCensusSyncHorizonRuntime?.isSupportedTargetDay(dateStart, started)) {
       return { error: 'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.' };
     }
@@ -133,14 +135,12 @@
       if (!bothSourcesReady(before)) {
         return { error: sourceFailureMessage(before) };
       }
-
       const [snapshotResult, reportResult] = await Promise.all([
         measuredRead('captureFichaMedico', readSnapshot),
         measuredRead('captureGestionCamas', () => readReport({ dateStart, dateEnd })),
       ]);
       const readResult = validateReadResults(snapshotResult, reportResult);
       if (readResult.error) return readResult;
-
       const after = await measuredRead('captureHealthAfter', readHealth);
       if (!bothSourcesReady(after)) {
         return { error: 'Una fuente se desconectó durante la captura. ' + sourceFailureMessage(after) };
@@ -151,7 +151,6 @@
         completed
       );
       if (temporalError) return { error: temporalError };
-
       return createBundleResult({
         ...readResult,
         startedAt,
