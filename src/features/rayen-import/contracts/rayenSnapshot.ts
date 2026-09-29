@@ -134,6 +134,14 @@ export interface RayenCensusSnapshot {
   isComplete?: boolean;
 }
 
+/** Optional aggregate diagnostics; durations overlap and contain no clinical values. */
+export interface RayenCaptureTimings {
+  captureHealthBefore?: number;
+  captureFichaMedico?: number;
+  captureGestionCamas?: number;
+  captureHealthAfter?: number;
+}
+
 /**
  * Evidence that Ficha Medico and Gestion de Camas were captured as one guarded synchronization.
  * The extension only emits this bundle after both sources pass readiness checks before and after
@@ -149,5 +157,6 @@ export interface RayenSyncBundle {
   fichaMedicoCapturedAt: string;
   gestionCamasCapturedAt: string;
   sourceSkewMs: number;
+  captureTimingsMs?: RayenCaptureTimings;
   egresoRows: import('./egresoReport').EgresoReportRow[];
 }

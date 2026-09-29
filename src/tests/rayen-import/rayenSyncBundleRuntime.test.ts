@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MAX_HISTORICAL_CENSUS_LOOKBACK_DAYS } from '@/features/rayen-import/domain/historicalCensusSync';
 
 import '../../../extension/clinical-day-runtime.js';
@@ -49,6 +49,41 @@ const capture = (overrides: Record<string, unknown> = {}) => {
 };
 
 describe('Rayen synchronized source bundle', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('measures source durations independently without serializing the concurrent reads', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const delay = <T>(ms: number, result: T) =>
+      new Promise<T>(resolve => setTimeout(() => resolve(result), ms));
+    const starts: number[] = [];
+    let healthCalls = 0;
+    const pending = capture({
+      readHealth: () => delay(healthCalls++ === 0 ? 30 : 20, readyHealth),
+      readSnapshot: () => {
+        starts.push(performance.now());
+        return delay(120, { snapshot });
+      },
+      readReport: () => {
+        starts.push(performance.now());
+        return delay(450, report);
+      },
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(starts).toEqual([30, 30]);
+    await expect(pending).resolves.toMatchObject({
+      ok: true,
+      bundle: {
+        captureTimingsMs: {
+          captureHealthBefore: 30,
+          captureFichaMedico: 120,
+          captureGestionCamas: 450,
+          captureHealthAfter: 20,
+        },
+      },
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('captures both ready sources and returns one temporal evidence bundle', async () => {
     await expect(capture()).resolves.toMatchObject({
       ok: true,

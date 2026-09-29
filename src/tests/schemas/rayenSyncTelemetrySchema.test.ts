@@ -52,6 +52,10 @@ describe('Eloísa sync telemetry schema', () => {
             stagesMs: {
               preflight: 120,
               dualCapture: 900,
+              captureHealthBefore: 30,
+              captureFichaMedico: 120,
+              captureGestionCamas: 450,
+              captureHealthAfter: 20,
               reviewWait: 45_000,
               structuralPersistence: 2_100,
               clinicalReads: 2_500,
@@ -128,6 +132,10 @@ describe('Eloísa sync telemetry schema', () => {
       stagesMs: {
         preflight: 120,
         dualCapture: 900,
+        captureHealthBefore: 30,
+        captureFichaMedico: 120,
+        captureGestionCamas: 450,
+        captureHealthAfter: 20,
         reviewWait: 45_000,
         structuralPersistence: 2_100,
         clinicalReads: 2_500,

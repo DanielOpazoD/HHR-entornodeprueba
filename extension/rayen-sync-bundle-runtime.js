@@ -5,18 +5,19 @@
   const MAX_HISTORICAL_LOOKBACK_DAYS =
     root.HhrCensusSyncHorizonRuntime?.MAX_HISTORICAL_LOOKBACK_DAYS;
   const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-  const bothSourcesReady = health => Boolean(
-    health &&
-      health.fichaMedico && health.fichaMedico.status === 'ready' &&
-      health.gestionCamas && health.gestionCamas.status === 'ready'
-  );
-  const sourceFailureMessage = health => {
-    if (!health || !health.fichaMedico || health.fichaMedico.status !== 'ready') {
-      return health && health.fichaMedico && health.fichaMedico.message ||
-        'Ficha Médico no está conectada.';
+  const bothSourcesReady = health =>
+    health?.fichaMedico?.status === 'ready' && health?.gestionCamas?.status === 'ready';
+  const sourceFailureMessage = health => health?.fichaMedico?.status !== 'ready'
+    ? health?.fichaMedico?.message || 'Ficha Médico no está conectada.'
+    : health?.gestionCamas?.message || 'Gestión de Camas no está conectada.';
+  const createMeasuredRead = (timings, clock = () => root.performance.now()) => async (stage, read) => {
+    const started = clock();
+    try {
+      return await read();
+    } finally {
+      const elapsed = Math.max(0, Math.round(clock() - started));
+      if (Number.isSafeInteger(elapsed)) timings[stage] = elapsed;
     }
-    return health.gestionCamas && health.gestionCamas.message ||
-      'Gestión de Camas no está conectada.';
   };
 
   const timestamp = value => {
@@ -69,14 +70,11 @@
     dateStart,
     dateEnd,
     idFactory,
+    captureTimingsMs,
   }) => {
     const snapshotFacility = Number(snapshot.facilityId);
     const reportFacility = Number(report.facilityId);
-    if (
-      !Number.isInteger(snapshotFacility) ||
-      !Number.isInteger(reportFacility) ||
-      snapshotFacility !== reportFacility
-    ) {
+    if (!Number.isInteger(snapshotFacility) || snapshotFacility !== reportFacility) {
       return { error: 'Ficha Médico y Gestión de Camas no corresponden al mismo establecimiento.' };
     }
     const fichaCapturedAt = timestamp(snapshot.capturedAt);
@@ -101,6 +99,7 @@
         fichaMedicoCapturedAt: snapshot.capturedAt,
         gestionCamasCapturedAt: report.capturedAt,
         sourceSkewMs,
+        captureTimingsMs,
         egresoRows: report.rows,
       },
     };
@@ -114,6 +113,7 @@
     readReport,
     now = () => new Date(),
     idFactory = () => crypto.randomUUID(),
+    monotonicNow,
   }) => {
     const started = now(), startedAt = started.toISOString();
     if (!isValidRange(dateStart, dateEnd, started)) {
@@ -126,24 +126,24 @@
     if (!root.HhrCensusSyncHorizonRuntime?.isSupportedTargetDay(dateStart, started)) {
       return { error: 'La reconstrucción automática admite el censo vigente y hasta siete días clínicos anteriores.' };
     }
+    const captureTimingsMs = {};
+    const measuredRead = createMeasuredRead(captureTimingsMs, monotonicNow);
     try {
-      const before = await readHealth();
+      const before = await measuredRead('captureHealthBefore', readHealth);
       if (!bothSourcesReady(before)) {
         return { error: sourceFailureMessage(before) };
       }
 
       const [snapshotResult, reportResult] = await Promise.all([
-        readSnapshot(),
-        readReport({ dateStart, dateEnd }),
+        measuredRead('captureFichaMedico', readSnapshot),
+        measuredRead('captureGestionCamas', () => readReport({ dateStart, dateEnd })),
       ]);
       const readResult = validateReadResults(snapshotResult, reportResult);
       if (readResult.error) return readResult;
 
-      const after = await readHealth();
+      const after = await measuredRead('captureHealthAfter', readHealth);
       if (!bothSourcesReady(after)) {
-        return {
-          error: 'Una fuente se desconectó durante la captura. ' + sourceFailureMessage(after),
-        };
+        return { error: 'Una fuente se desconectó durante la captura. ' + sourceFailureMessage(after) };
       }
       const completed = now();
       const temporalError = root.HhrCensusSyncHorizonRuntime?.validateCaptureBoundary(
@@ -159,6 +159,7 @@
         dateStart,
         dateEnd,
         idFactory,
+        captureTimingsMs,
       });
     } catch (error) {
       return {

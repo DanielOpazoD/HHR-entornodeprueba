@@ -99,7 +99,8 @@ export const useRayenSnapshotPreview = ({
         buildRayenCapturePerformance(
           snapshot,
           planningSnapshot,
-          elapsedMilliseconds(Date.parse(run.startedAt))
+          elapsedMilliseconds(Date.parse(run.startedAt)),
+          bundle.captureTimingsMs
         ),
         run.id
       );

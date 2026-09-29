@@ -11,6 +11,10 @@ export const RayenSyncPerformanceSchema = z.object({
   stagesMs: z.object({
     preflight: nullableOptional(z.number().int().nonnegative()),
     dualCapture: nullableOptional(z.number().int().nonnegative()),
+    captureHealthBefore: nullableOptional(z.number().int().nonnegative()),
+    captureFichaMedico: nullableOptional(z.number().int().nonnegative()),
+    captureGestionCamas: nullableOptional(z.number().int().nonnegative()),
+    captureHealthAfter: nullableOptional(z.number().int().nonnegative()),
     reconciliation: nullableOptional(z.number().int().nonnegative()),
     historicalEvidence: nullableOptional(z.number().int().nonnegative()),
     reviewWait: nullableOptional(z.number().int().nonnegative()),

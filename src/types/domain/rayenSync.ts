@@ -226,6 +226,10 @@ export interface RayenSyncPerformance {
   stagesMs: Partial<{
     preflight: number;
     dualCapture: number;
+    captureHealthBefore: number;
+    captureFichaMedico: number;
+    captureGestionCamas: number;
+    captureHealthAfter: number;
     reconciliation: number;
     historicalEvidence: number;
     reviewWait: number;
