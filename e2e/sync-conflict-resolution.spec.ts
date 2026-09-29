@@ -5,7 +5,7 @@ import {
   ensureAuthenticated,
 } from './fixtures/auth';
 import { expectClinicalDiagnosis, expectClinicalStatus } from './fixtures/clinicalBlockEditor';
-import { seedPersistedBedFields, waitForPersistedBedFields } from './fixtures/censusPersistence';
+import { waitForPersistedBedFields } from './fixtures/censusPersistence';
 
 const CONFLICT_DATE = process.env.E2E_FIXED_DATE ?? new Date().toISOString().slice(0, 10);
 const REMOTE_OVERRIDE_SHADOW_KEY = 'hhr_e2e_remote_override_shadow';
@@ -78,6 +78,8 @@ test.describe('Sync conflict resolution', () => {
     beds.R1 = {
       ...beds.R1,
       patientName: 'CONFLICT BASELINE',
+      rut: '12345678-5',
+      clinicalEpisodeId: 'synthetic-conflict-r1',
       pathology: 'BASE DX',
       status: 'Estable',
       admissionDate: CONFLICT_DATE,
@@ -107,17 +109,6 @@ test.describe('Sync conflict resolution', () => {
     await expect(demographicsDialog).toBeHidden();
 
     await expect(patientNameInput).toHaveValue('Local Draft');
-    await seedPersistedBedFields({
-      page,
-      date: CONFLICT_DATE,
-      bedId: 'R1',
-      fields: {
-        patientName: 'Local Draft',
-        firstName: 'Local',
-        lastName: 'Draft',
-        secondLastName: '',
-      },
-    });
     await waitForPersistedBedFields({
       page,
       date: CONFLICT_DATE,

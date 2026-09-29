@@ -477,3 +477,22 @@ los tiempos del paso `Setup CI dependencies` y del workflow completo, separando
 la primera instalación de las restauraciones; una reducción del paso no garantiza
 igual reducción global si otra rama pasa a dominar el tiempo. Reversión: reemplazar
 la acción por `setup-node` + `npm ci` en esos cuatro jobs y retirar su acción local.
+
+### Evidencia de reconexión y conflictos (2026-09-29)
+
+`multiuser-offline-conflict.spec.ts` prepara sólo el estado inicial en IndexedDB.
+Después comprueba que la edición visible sin red conserva la base persistida hasta
+reconectar; la mutación pausada debe entonces guardar por el camino de la aplicación.
+El segundo contexto edita desde la UI, se inspecciona su petición callable y se acepta
+con `dailyRecordAuthorityRoute`. El snapshot que recibe el primer contexto procede
+del guardado aceptado del segundo, no de valores esperados escritos por el test.
+`sync-conflict-resolution.spec.ts` tampoco rellena el almacenamiento después de editar.
+
+Estas pruebas usan autoridad remota controlada y una recarga con snapshot explícito:
+no prueban reproducción automática de una cola offline, entrega entre navegadores
+por Firestore ni resolución CAS de dos escritores reales. La concurrencia real se
+verifica separadamente en `sync-concurrency.emulator.test.ts` (versiones, hidratación,
+movimientos sin duplicación y retiro de dispositivos) y
+`specialty-clinical-concurrency.emulator.test.ts` (autoridad clínica, decisiones
+manuales de especialidad y cambios de cama/cuna). No declarar una edición en memoria
+como guardado durable, ni sembrar el resultado para ocultar una mutación pausada.
