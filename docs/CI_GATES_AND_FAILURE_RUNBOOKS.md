@@ -496,3 +496,19 @@ movimientos sin duplicación y retiro de dispositivos) y
 `specialty-clinical-concurrency.emulator.test.ts` (autoridad clínica, decisiones
 manuales de especialidad y cambios de cama/cuna). No declarar una edición en memoria
 como guardado durable, ni sembrar el resultado para ocultar una mutación pausada.
+
+### Integridad de los reportes Playwright
+
+`check-playwright-report-clean.mjs` exige contadores enteros no negativos y al menos
+una prueba ejecutada: un informe con sólo pruebas omitidas no acredita el flujo.
+Los contadores `expected`, `unexpected` y `flaky` son obligatorios; `interrupted` y
+`skipped` pueden faltar por compatibilidad con los reportes existentes. Un resultado
+recuperado mediante retry sigue bloqueando por `flaky`, igual que antes.
+
+El indicador estático `flakeRiskFiles` de `quality-metrics` detecta patrones de reloj,
+aleatoriedad y temporizadores sin controles reconocidos. No equivale al número de
+pruebas que fallaron intermitentemente en una ejecución: ese resultado se consulta en
+los reportes de test. No reducir umbrales ni añadir marcas `@flake-safe` sólo para
+mejorar el score. Se retiró `seedPersistedBedFields`, sin consumidores después de
+corregir los E2E de reconexión; las pruebas deben preparar su estado inicial y luego
+observar el guardado de la aplicación.

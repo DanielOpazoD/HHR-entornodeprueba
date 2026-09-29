@@ -3,12 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const toCount = (value) => {
-  const count = Number(value ?? 0);
-  return Number.isFinite(count) ? count : 0;
-};
-
-const readJson = (reportPath) => {
+const readJson = reportPath => {
   try {
     return JSON.parse(fs.readFileSync(reportPath, 'utf8'));
   } catch (error) {
@@ -38,32 +33,39 @@ export const collectPlaywrightReportIssues = (
     return [`${label} report is missing Playwright stats.`];
   }
 
-  const expected = toCount(stats.expected);
-  const unexpected = toCount(stats.unexpected);
-  const flaky = toCount(stats.flaky);
-  const interrupted = toCount(stats.interrupted);
-  const skipped = toCount(stats.skipped);
+  // Playwright emits numeric counters. Invalid evidence must never become a clean zero.
+  for (const field of ['expected', 'unexpected', 'flaky', 'interrupted', 'skipped']) {
+    const value = stats[field];
+    if (value === undefined && (field === 'interrupted' || field === 'skipped')) continue;
+    if (!Number.isSafeInteger(value) || value < 0) {
+      issues.push(`${label} has an invalid ${field} count; expected a non-negative safe integer.`);
+    }
+  }
+  if (issues.length > 0) return issues;
+  const { expected, unexpected, flaky, interrupted = 0 } = stats;
 
   if (unexpected > 0) {
     issues.push(`${label} has ${unexpected} unexpected failure(s).`);
   }
 
   if (flaky > 0) {
-    issues.push(`${label} has ${flaky} flaky test(s); release evidence must be stable without retries.`);
+    issues.push(
+      `${label} has ${flaky} flaky test(s); release evidence must be stable without retries.`
+    );
   }
 
   if (interrupted > 0) {
     issues.push(`${label} has ${interrupted} interrupted test(s); release evidence is incomplete.`);
   }
 
-  if (requireAnyRecordedTest && expected + unexpected + flaky + interrupted + skipped === 0) {
-    issues.push(`${label} did not record any executed or skipped tests.`);
+  if (requireAnyRecordedTest && expected + unexpected + flaky + interrupted === 0) {
+    issues.push(`${label} did not record any executed tests.`);
   }
 
   return issues;
 };
 
-const parseArgs = (argv) => {
+const parseArgs = argv => {
   const args = [...argv];
   const reportPath = args.shift() ?? 'reports/e2e/playwright-report.json';
   const labelIndex = args.indexOf('--label');
@@ -71,7 +73,8 @@ const parseArgs = (argv) => {
   return { reportPath, label };
 };
 
-const isMainModule = () => process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const isMainModule = () =>
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMainModule()) {
   const { reportPath, label } = parseArgs(process.argv.slice(2));
