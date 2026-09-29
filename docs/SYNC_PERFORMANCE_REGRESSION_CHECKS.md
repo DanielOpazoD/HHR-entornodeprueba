@@ -94,3 +94,8 @@ y día clínico. Esta instrumentación diagnostica capturas exitosas, no demuest
 mejora de velocidad ni persiste duraciones de capturas fallidas. Repetir el escenario
 de tres sincronizaciones sin cambios cuando las sesiones estén disponibles y decidir
 la próxima optimización por la fuente que concentre la demora.
+
+La [serie real con extensión 0.48.37](SYNC_REAL_PERFORMANCE_BASELINE_2026-09-29_V37.md)
+incluye nueve ejecuciones completas y una fallida en tres condiciones de recarga.
+Localiza demoras variables en Ficha Médico, lecturas y persistencia clínica, pero
+no prueba una operación local redundante ni una mejora causada por la recarga.

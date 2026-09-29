@@ -100,7 +100,7 @@ export const rayenFailureReasonLabel = (reason?: RayenSyncFailureReason): string
   if (reason === 'ficha_medico_unavailable') return 'Ficha Médico no disponible';
   if (reason === 'ficha_medico_stale') return 'Ficha Médico inactiva: recargar la pestaña';
   if (reason === 'gestion_camas_unavailable') return 'Gestión de Camas no disponible';
-  if (reason === 'snapshot_timeout') return 'Sin respuesta de la extensión';
+  if (reason === 'snapshot_timeout') return 'Tiempo de espera al capturar Eloísa';
   if (reason === 'snapshot_error') return 'No se pudo leer Eloísa';
   if (reason === 'apply_unauthorized') return 'Sesión sin permisos para guardar';
   if (reason === 'apply_conflict') return 'El censo cambió durante el guardado';
