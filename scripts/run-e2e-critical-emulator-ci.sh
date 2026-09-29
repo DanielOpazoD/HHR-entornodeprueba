@@ -17,4 +17,4 @@ export E2E_CRITICAL_PLAYWRIGHT_JSON_OUTPUT="$critical_report"
 export E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT="$performance_report"
 
 run_firestore_emulator_exec \
-  "npm run build && PLAYWRIGHT_JSON_OUTPUT=\"\$E2E_CRITICAL_PLAYWRIGHT_JSON_OUTPUT\" npm run test:e2e:critical && node scripts/check-playwright-report-clean.mjs \"\$E2E_CRITICAL_PLAYWRIGHT_JSON_OUTPUT\" --label critical-e2e && PLAYWRIGHT_JSON_OUTPUT=\"\$E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT\" npm run test:e2e:flow-performance:built && npm run check:flow-performance-budget"
+  "node scripts/config/criticalE2EEnvironment.mjs npm run build && PLAYWRIGHT_JSON_OUTPUT=\"\$E2E_CRITICAL_PLAYWRIGHT_JSON_OUTPUT\" npm run test:e2e:critical && node scripts/check-playwright-report-clean.mjs \"\$E2E_CRITICAL_PLAYWRIGHT_JSON_OUTPUT\" --label critical-e2e && PLAYWRIGHT_JSON_OUTPUT=\"\$E2E_FLOW_PLAYWRIGHT_JSON_OUTPUT\" npm run test:e2e:flow-performance:built && npm run check:flow-performance-budget"

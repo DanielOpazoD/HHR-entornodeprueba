@@ -143,6 +143,8 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
+    // E2E supplies an explicit demo environment; personal dotenv files must not enter its bundle.
+    envDir: process.env.VITE_E2E_MODE === 'true' ? false : undefined,
     server: {
       port: 3000,
       host: '0.0.0.0',
