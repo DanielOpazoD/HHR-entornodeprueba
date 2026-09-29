@@ -1,3 +1,4 @@
+import { extensionDownloadPlugin } from './scripts/config/extensionDownloadPlugin';
 /// <reference types="vitest" />
 import fs from 'node:fs';
 import { defineConfig } from 'vitest/config';
@@ -20,7 +21,7 @@ const unitCoverageThresholdsPath = path.join(
 const unitCoverageThresholds = JSON.parse(fs.readFileSync(unitCoverageThresholdsPath, 'utf8'));
 
 export default defineConfig({
-  plugins: [minsalSharedInteropPlugin(dirname), react()],
+  plugins: [extensionDownloadPlugin(dirname), minsalSharedInteropPlugin(dirname), react()],
   resolve: {
     alias: {
       '@/services/exporters/excelJsModuleLoader': path.resolve(

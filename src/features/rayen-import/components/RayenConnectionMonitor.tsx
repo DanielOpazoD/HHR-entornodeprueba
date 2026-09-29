@@ -1,3 +1,4 @@
+import { RayenExtensionDownload } from './RayenExtensionDownload';
 import React from 'react';
 import { normalizeHealthExpiry } from '../bridge/sourceHealthExpiry';
 import { ExternalLink, RefreshCw, Wrench } from 'lucide-react';
@@ -380,6 +381,11 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
           </div>
         )}
       </div>
+      <RayenExtensionDownload
+        installedVersion={report?.version}
+        incompatible={connection === 'incompatible'}
+        working={working}
+      />
     </div>
   );
 };
