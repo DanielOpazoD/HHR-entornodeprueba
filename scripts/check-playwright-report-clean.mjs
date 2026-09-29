@@ -24,8 +24,21 @@ export const collectPlaywrightReportIssues = (
   }
 
   const report = readJson(reportPath);
+  if (!report || typeof report !== 'object' || Array.isArray(report)) {
+    return [`${label} must be a JSON object.`];
+  }
   if (report.__readError) {
     return [`${label} report could not be parsed: ${report.__readError}`];
+  }
+
+  if (report.errors !== undefined) {
+    if (!Array.isArray(report.errors)) {
+      issues.push(`${label} has an invalid global errors list.`);
+    } else if (report.errors.length > 0) {
+      issues.push(
+        `${label} has ${report.errors.length} global error(s); release evidence is incomplete.`
+      );
+    }
   }
 
   const stats = report.stats;
@@ -88,5 +101,7 @@ if (isMainModule()) {
     process.exit(1);
   }
 
-  console.log(`${label} report is clean: no unexpected, flaky, or interrupted outcomes.`);
+  console.log(
+    `${label} report is clean: no global errors, unexpected, flaky, or interrupted outcomes.`
+  );
 }
