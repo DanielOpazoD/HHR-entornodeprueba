@@ -68,22 +68,26 @@ export const createClinicalEnrichmentPersistenceStrategy = ({
       // a metadata checkpoint that bumped the authority version after this record was handed
       // over. Sending that stale version guaranteed one rejected callable plus a full retry
       // (observed as ~19% "errors" in telemetry). Re-read once, cheaply, and rebase upfront.
-      let baseRecord = record;
-      let baseOperations = operations;
+      let currentRecord: DailyRecord | undefined;
       try {
-        const currentRecord = await refreshRecord();
-        if (!sameAuthorityVersion(currentRecord, record)) {
-          baseOperations = rebuildOperations({ baseRecord: record, currentRecord, operations });
-          baseRecord = currentRecord;
-          reportRayenSyncWarning('clinical_batch_base_rebased', {
-            runId,
-            patientCount: baseOperations.length,
-          });
-        }
+        currentRecord = await refreshRecord();
       } catch (error) {
         reportRayenSyncWarning('clinical_batch_base_refresh_failed', {
           runId,
           errorKind: classifyRayenSyncError(error),
+        });
+      }
+      // Only an unavailable read may fall back to the original, server-guarded version.
+      // A successful read can reveal a conflicting field or removed episode: propagate that
+      // rejection so the runner leaves the data pending without sending a known stale batch.
+      let baseRecord = record;
+      let baseOperations = operations;
+      if (currentRecord && !sameAuthorityVersion(currentRecord, record)) {
+        baseOperations = rebuildOperations({ baseRecord: record, currentRecord, operations });
+        baseRecord = currentRecord;
+        reportRayenSyncWarning('clinical_batch_base_rebased', {
+          runId,
+          patientCount: baseOperations.length,
         });
       }
       return applyBatch({

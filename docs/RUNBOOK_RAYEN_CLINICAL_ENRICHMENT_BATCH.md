@@ -168,6 +168,13 @@ no puede introducir esos campos desde el navegador.
 - Un conflicto de versión reconstruye desde el censo vigente cualquier valor canónico derivado del
   registro (incluido CUDYR histórico) antes del único reintento; nunca reutiliza un objeto de scores
   obsoleto que pueda borrar una escala concurrente.
+- Antes del primer envío, la relectura puede reconstruir el lote contra la versión vigente. Si
+  encuentra un campo concurrente diferente o un episodio ausente, el cliente deja el lote pendiente
+  sin invocar el callable ni el escritor individual. Sólo un fallo de la lectura permite enviar la
+  base original, protegida por las validaciones del servidor y el único reintento por versión.
+  La prueba de composición `clinicalEnrichmentPersistenceStrategy.recovery.test.ts` cubre estos
+  caminos con los módulos reales del cliente y E/S sustituida; no acredita transporte ni persistencia
+  remota. También comprueba el movimiento por episodio, valores ya confirmados y respuesta perdida.
 - Ningún dato demográfico o valor clínico en telemetría.
 - Los desacuerdos de `shadow` registran solo conteos agregados por sección (dispositivos, escalas,
   signos vitales y checkpoint), nunca nombres de campos internos, camas ni identificadores clínicos.
