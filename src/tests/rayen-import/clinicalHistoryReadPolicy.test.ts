@@ -81,6 +81,46 @@ describe('resolveClinicalHistoryReadPolicy', () => {
     ).toEqual({});
   });
 
+  it.each(['validation', 'attempt'])(
+    'does not trust a future %s checkpoint after a clock correction',
+    kind => {
+      const future = checkpoint();
+      future.sources.scales =
+        kind === 'validation'
+          ? {
+              facts: [],
+              lastFullValidationAt: '2026-07-30T12:00:00.000Z',
+              lastFullValidationLookbackDays: 14,
+            }
+          : {
+              facts: [],
+              lastFullValidationAttemptAt: '2026-07-30T12:00:00.000Z',
+              lastFullValidationAttemptLookbackDays: 14,
+            };
+      expect(resolveClinicalHistoryReadPolicy(future, '2026-07-29', now)).toMatchObject({
+        lookbackDays: 14,
+        fullValidationAttemptAt: now.toISOString(),
+      });
+    }
+  );
+
+  it.each([Infinity, NaN, 14.5, -1, '14', true, undefined, 181])(
+    'does not certify a malformed effective window (%s)',
+    window => {
+      expect(
+        confirmFullWindow({ lookbackDays: 14, fullValidationAt: now.toISOString() }, window)
+      ).toBeUndefined();
+      expect(
+        confirmAuthoritativeHistoryWindow(
+          { lookbackDays: 14, fullValidationAt: now.toISOString() },
+          window,
+          '2026-07-16',
+          '2026-07-27'
+        )
+      ).toBeUndefined();
+    }
+  );
+
   it('revalidates when the latest full-window attempt is stale', () => {
     expect(
       resolveClinicalHistoryReadPolicy(
