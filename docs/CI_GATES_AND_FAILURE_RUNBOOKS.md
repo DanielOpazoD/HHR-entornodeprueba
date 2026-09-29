@@ -505,6 +505,13 @@ Los contadores `expected`, `unexpected` y `flaky` son obligatorios; `interrupted
 `skipped` pueden faltar por compatibilidad con los reportes existentes. Un resultado
 recuperado mediante retry sigue bloqueando por `flaky`, igual que antes.
 
+También se rechaza cualquier error global del reporte, incluso si todas las pruebas
+registradas aprobaron: un fallo de `globalTeardown` aparece en `errors` sin aumentar
+`unexpected`. Una raíz JSON inválida o un `errors` presente que no sea array tampoco
+acredita una ejecución limpia. Se conserva compatibilidad con reportes anteriores
+que omiten `errors`; una lista vacía es evidencia válida. El gate resume el número de
+errores sin copiar sus mensajes o posibles datos sensibles al diagnóstico.
+
 El indicador estático `flakeRiskFiles` de `quality-metrics` detecta patrones de reloj,
 aleatoriedad y temporizadores sin controles reconocidos. No equivale al número de
 pruebas que fallaron intermitentemente en una ejecución: ese resultado se consulta en
