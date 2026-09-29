@@ -109,3 +109,22 @@ clasificación previa por mensaje. Cuando vence el plazo de HHR sin respuesta, s
 que no llegó la captura, **no** qué componente interno la demoró. Tampoco se atribuye
 un timeout al servidor de Eloísa sin una respuesta o una medición de esa fuente.
 Estos códigos no contienen datos clínicos y no alteran la captura ni los plazos.
+
+### Fases agregadas de Ficha Médico (extensión 0.48.39)
+
+El lector MAIN separa cuatro duraciones de pared: verificación del contexto,
+listas de censo y catálogo de médicos, lecturas y normalización por paciente,
+y codificación diagnóstica. El catálogo comienza en paralelo con las listas,
+por lo que la segunda fase mide hasta que ambos están disponibles. Las cuatro
+fases son subconjuntos del tiempo total de Ficha Médico; la diferencia restante
+incluye los relés y el enriquecimiento de cunas. No se suman al tiempo total de
+sincronización ni se interpretan como latencia exclusiva del servidor.
+
+La extensión extrae las fases del snapshot antes de entregarlo a HHR y acepta
+únicamente cuatro enteros no negativos conocidos en el bundle técnico. No se
+registran rutas, episodios, pacientes ni respuestas clínicas en estas métricas.
+Las versiones anteriores siguen funcionando sin ellas. La instrumentación no
+cambia concurrencia, caché, plazos ni criterios de censo completo. Para decidir
+una optimización, repetir varias capturas reales completas y localizar una fase
+dominante que se mantenga entre sesiones comparables; una captura fallida no
+produce estas cuatro fases.

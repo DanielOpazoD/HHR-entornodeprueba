@@ -33,6 +33,10 @@ export const buildRayenCapturePerformance = (
   for (const key of [
     'captureHealthBefore',
     'captureFichaMedico',
+    'fichaContext',
+    'fichaListsAndCatalog',
+    'fichaPatientReads',
+    'fichaDiagnosisCoding',
     'captureGestionCamas',
     'captureHealthAfter',
   ] as const) {

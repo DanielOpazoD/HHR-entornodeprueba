@@ -13,6 +13,10 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
             dualCapture: 1_500,
             captureHealthBefore: 30,
             captureFichaMedico: 120,
+            fichaContext: 4,
+            fichaListsAndCatalog: 10,
+            fichaPatientReads: 72,
+            fichaDiagnosisCoding: 3,
             captureGestionCamas: 450,
             captureHealthAfter: 20,
             reconciliation: 2_000,
@@ -57,6 +61,7 @@ describe('RayenSyncTechnicalMetricsPanel', () => {
     expect(screen.getByRole('group', { name: 'Telemetría técnica agregada' })).toBeVisible();
     expect(panel).toHaveTextContent('Preflight');
     expect(panel).toHaveTextContent('Captura dual');
+    expect(panel).toHaveTextContent('Ficha: lecturas por paciente');
     for (const label of [
       'Conexión previa incluida',
       'Ficha Médico incluida',

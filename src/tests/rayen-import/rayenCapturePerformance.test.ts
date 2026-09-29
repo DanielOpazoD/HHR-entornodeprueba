@@ -19,6 +19,10 @@ describe('source capture performance projection', () => {
     const timings = {
       captureHealthBefore: 0,
       captureFichaMedico: 120,
+      fichaContext: 4,
+      fichaListsAndCatalog: 10,
+      fichaPatientReads: 72,
+      fichaDiagnosisCoding: 3,
       captureGestionCamas: 450,
       captureHealthAfter: 20,
       patientName: 'synthetic-do-not-store',
@@ -27,6 +31,10 @@ describe('source capture performance projection', () => {
       dualCapture: 500,
       captureHealthBefore: 0,
       captureFichaMedico: 120,
+      fichaContext: 4,
+      fichaListsAndCatalog: 10,
+      fichaPatientReads: 72,
+      fichaDiagnosisCoding: 3,
       captureGestionCamas: 450,
       captureHealthAfter: 20,
     });
