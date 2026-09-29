@@ -33,6 +33,29 @@ describe('critical E2E environment', () => {
     expect(env.VITE_FIRESTORE_EMULATOR_HOST).toBe('127.0.0.1:8080');
   });
 
+  it('supports the runner-owned Auth emulator and ignores frontend overrides', () => {
+    expect(
+      buildCriticalE2EEnvironment({
+        FIREBASE_AUTH_EMULATOR_HOST: 'localhost:19099',
+        VITE_AUTH_EMULATOR_HOST: 'http://localhost:19999',
+      }).VITE_AUTH_EMULATOR_HOST
+    ).toBe('http://localhost:19099');
+    expect(
+      buildCriticalE2EEnvironment({
+        VITE_AUTH_EMULATOR_HOST: 'http://localhost:19999',
+      }).VITE_AUTH_EMULATOR_HOST
+    ).toBe('');
+  });
+
+  it.each(['example.invalid:19099', '127.0.0.1:0', 'localhost:65536', 'http://localhost:19099'])(
+    'rejects an invalid runner-owned Auth endpoint: %s',
+    host => {
+      expect(() => buildCriticalE2EEnvironment({ FIREBASE_AUTH_EMULATOR_HOST: host })).toThrow(
+        'loopback'
+      );
+    }
+  );
+
   it.each(['example.invalid:8080', '127.0.0.1:0', 'localhost:65536', 'https://localhost:8080'])(
     'rejects a non-local or invalid emulator endpoint: %s',
     host => {

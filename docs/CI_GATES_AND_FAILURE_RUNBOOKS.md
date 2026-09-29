@@ -64,7 +64,8 @@ de reutilizar una aplicación cuya versión o configuración se desconoce.
 
 Usar `npm run test:e2e:critical:ci` o `npm run test:e2e:flow-performance:gate` sin vaciar
 manualmente el cliente Google. Se conserva `FIRESTORE_EMULATOR_HOST` local para el puerto
-dinámico del runner. Esto aísla la configuración frontend de estas suites; no sustituye las
+dinámico del runner. La lectura autenticada admite también `FIREBASE_AUTH_EMULATOR_HOST`,
+validado como loopback y convertido a URL para el frontend. Esto aísla la configuración frontend de estas suites; no sustituye las
 intercepciones de fuentes externas ni los guards de los emuladores.
 
 ### `ci:inner-loop`

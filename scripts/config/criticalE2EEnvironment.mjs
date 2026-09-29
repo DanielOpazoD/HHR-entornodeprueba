@@ -8,9 +8,12 @@ import { pathToFileURL } from 'node:url';
  */
 export const buildCriticalE2EEnvironment = (parent = process.env) => {
   const host = parent.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-  const match = /^(127\.0\.0\.1|localhost):(\d+)$/.exec(host);
-  if (!match || Number(match[2]) < 1 || Number(match[2]) > 65535) {
-    throw new Error('Critical E2E requires a loopback Firestore emulator with a valid port.');
+  const authHost = parent.FIREBASE_AUTH_EMULATOR_HOST;
+  for (const endpoint of [host, ...(authHost ? [authHost] : [])]) {
+    const match = /^(127\.0\.0\.1|localhost):(\d+)$/.exec(endpoint);
+    if (!match || Number(match[2]) < 1 || Number(match[2]) > 65535) {
+      throw new Error('Critical E2E requires loopback emulator endpoints with valid ports.');
+    }
   }
   // Blank inherited frontend values even when Playwright merges this map with process.env.
   // Toolchain variables remain available to the child command.
@@ -27,7 +30,7 @@ export const buildCriticalE2EEnvironment = (parent = process.env) => {
     VITE_FIREBASE_MESSAGING_SENDER_ID: '1234567890',
     VITE_FIREBASE_APP_ID: '1:1234567890:web:abcdef123456',
     VITE_FIRESTORE_EMULATOR_HOST: host,
-    VITE_AUTH_EMULATOR_HOST: '',
+    VITE_AUTH_EMULATOR_HOST: authHost ? `http://${authHost}` : '',
     VITE_GOOGLE_SIGN_IN_CLIENT_ID: '',
     VITE_SYSLAB_ENABLE_DIRECT_LOCAL: 'true',
   };
