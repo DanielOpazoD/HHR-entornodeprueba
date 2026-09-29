@@ -375,3 +375,13 @@ Adjuntar en el ticket:
 - Usuario/email, fecha/hora, hospital.
 - Captura dashboard (métricas de sync).
 - Error de consola completo.
+
+### Fuente vacía versus respuesta inválida
+
+En los canales clínicos de Eloísa, una colección explícita vacía es evidencia válida
+de ausencia; una propiedad ausente o de tipo incorrecto no lo es. Dispositivos admite
+también un PDF no vacío para compatibilidad. Un mensaje inválido conserva el error de
+la fuente o genera uno localizado; el reintento existente se limita a esa sección.
+Los canales individuales y el paquete clínico comparten los mismos normalizadores.
+CUDYR aplica el mismo criterio a `items`. No convertir una respuesta inválida en una
+lectura completada ni usarla para retirar información.
