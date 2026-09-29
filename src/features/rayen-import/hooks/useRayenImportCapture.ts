@@ -105,7 +105,7 @@ export const useRayenImportCapture = ({
 
   useEffect(
     () =>
-      rayenImportBridge.subscribeToRayenImportErrors((error, requestId) => {
+      rayenImportBridge.subscribeToRayenImportErrors((error, requestId, timeoutStage) => {
         const runId = syncRequestController.getRunId(requestId);
         if (!runId) return;
         const selectedDate = preparedSyncContextRef.current?.selectedDate;
@@ -127,7 +127,7 @@ export const useRayenImportCapture = ({
         // puede leer, Gestión de Camas, timeout); antes se descartaba y todo
         // era un «snapshot_error» con un genérico. La causa persistida es una
         // categoría; el texto crudo solo se muestra.
-        const classified = classifyRayenSnapshotError(error);
+        const classified = classifyRayenSnapshotError(error, timeoutStage);
         void failRun(classified.reason, runId);
         setState(previous => ({
           ...previous,
@@ -355,7 +355,7 @@ export const useRayenImportCapture = ({
                     ...previous,
                     isSyncing: false,
                     error:
-                      'No se recibió respuesta de la extensión Rayen. Verifica que Ficha Médico y Gestión de Camas estén abiertas y conectadas.',
+                      'No se recibió la captura de Eloísa dentro del plazo. Verifica que ambas fuentes sigan conectadas y vuelve a intentarlo.',
                   }
                 : previous
             );

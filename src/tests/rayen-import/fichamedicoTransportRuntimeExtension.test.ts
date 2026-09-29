@@ -96,6 +96,7 @@ const createRuntime = (
 describe('Ficha Médico transport runtime', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    withTimeout.mockImplementation(async promise => promise);
   });
 
   it('fails closed when a required dependency or timeout is missing', () => {
@@ -291,6 +292,30 @@ describe('Ficha Médico transport runtime', () => {
     await expect(runtime.handleSnapshotRequest()).resolves.toEqual({
       error:
         'No se pudo leer Rayen. Recarga la pestaña de Ficha Médico (Cmd+R) para activar la extensión y reintenta. Detalle: relay no autenticado',
+    });
+  });
+
+  it('passes a MAIN relay timeout and marks only its own tagged tab deadline', async () => {
+    const chrome = makeChrome();
+    chrome.tabs.query.mockResolvedValue([{ id: 7 }]);
+    chrome.tabs.sendMessage.mockImplementation(async (_tabId, message) =>
+      message.type === 'RAYEN_EXTENSION_HEALTH_PING'
+        ? { ready: true }
+        : { error: 'Tiempo de espera agotado leyendo Rayen.', timeoutStage: 'ficha_main_relay' }
+    );
+    const { runtime } = createRuntime(chrome);
+    await expect(runtime.handleSnapshotRequest()).resolves.toMatchObject({
+      timeoutStage: 'ficha_main_relay',
+    });
+
+    withTimeout.mockImplementation(async (promise, _timeout, message) => {
+      if (message.includes('Ficha Médico')) {
+        throw Object.assign(new Error(message), { code: 'HHR_TIMEOUT' });
+      }
+      return promise;
+    });
+    await expect(runtime.handleSnapshotRequest()).resolves.toMatchObject({
+      timeoutStage: 'ficha_tab_relay',
     });
   });
 

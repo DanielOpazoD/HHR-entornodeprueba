@@ -386,7 +386,29 @@ describe('Rayen import error bridge', () => {
       })
     );
 
-    expect(handler).toHaveBeenCalledWith('No hay una pestaña de Ficha Médico abierta.', requestId);
+    expect(handler).toHaveBeenCalledWith(
+      'No hay una pestaña de Ficha Médico abierta.',
+      requestId,
+      undefined
+    );
+    const nextRequestId = requestRayenSyncBundle('2026-07-24', '2026-07-25');
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source: window,
+        data: {
+          type: RAYEN_IMPORT_ERROR_MESSAGE_TYPE,
+          requestId: nextRequestId,
+          error: 'Tiempo de espera agotado.',
+          timeoutStage: 'ficha_main_relay',
+        },
+      })
+    );
+    expect(handler).toHaveBeenLastCalledWith(
+      'Tiempo de espera agotado.',
+      nextRequestId,
+      'ficha_main_relay'
+    );
     unsubscribe();
   });
 });

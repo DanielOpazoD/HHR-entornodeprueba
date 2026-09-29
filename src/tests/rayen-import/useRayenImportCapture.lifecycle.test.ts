@@ -145,17 +145,21 @@ describe('useRayenImportCapture lifecycle guards', () => {
       })
     );
     const [onError] = bridge.subscribeErrors.mock.calls[0] as unknown as [
-      (error: string, requestId: string) => void,
+      (error: string, requestId: string, timeoutStage?: string) => void,
     ];
-    act(() => onError('capture failed', 'request-1'));
+    act(() => onError('capture failed', 'request-1', 'ficha_main_relay'));
     expect(clearSyncTimeout).toHaveBeenCalledOnce();
     expect(preparedSyncContextRef.current).toBeNull();
-    expect(failRun).toHaveBeenCalledWith('snapshot_error', 'run-1');
+    expect(failRun).toHaveBeenCalledWith('snapshot_timeout', 'run-1');
     const stateUpdater = setState.mock.calls[0]?.[0] as (
       state: typeof INITIAL_RAYEN_IMPORT_STATE
     ) => typeof INITIAL_RAYEN_IMPORT_STATE;
     expect(stateUpdater(INITIAL_RAYEN_IMPORT_STATE)).toEqual(
-      expect.objectContaining({ isBusy: false, isSyncing: false, error: expect.any(String) })
+      expect.objectContaining({
+        isBusy: false,
+        isSyncing: false,
+        error: expect.stringContaining('lector de Ficha Médico'),
+      })
     );
   });
 

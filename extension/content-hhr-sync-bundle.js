@@ -40,7 +40,7 @@
         post({
           type: 'HHR_RAYEN_IMPORT_ERROR',
           requestId: data.requestId,
-          error: response?.error || 'No se pudieron capturar ambas fuentes de Eloísa.',
+          error: response?.error || 'No se pudieron capturar ambas fuentes de Eloísa.', timeoutStage: response?.timeoutStage,
         });
       })
       .catch(error => post({

@@ -87,7 +87,7 @@
       setTimeout(() => {
         if (settled) return;
         cleanup();
-        resolve({ error: 'Tiempo de espera agotado leyendo Rayen.' });
+        resolve({ error: 'Tiempo de espera agotado leyendo Rayen.', timeoutStage: 'ficha_main_relay' });
       }, READ_TIMEOUT_MS);
     });
   };

@@ -142,7 +142,7 @@ runtimeGenerationRuntime.start();
 const getRuntimeContext = () => runtimeGenerationRuntime.getContext(chrome.runtime.getManifest().version);
 
 const withTimeout = (promise, timeoutMs, message) => new Promise((resolve, reject) => {
-  const timeout = setTimeout(() => reject(new Error(message)), timeoutMs);
+  const timeout = setTimeout(() => reject(Object.assign(new Error(message), { code: 'HHR_TIMEOUT' })), timeoutMs);
   Promise.resolve(promise).then(
     value => {
       clearTimeout(timeout);
