@@ -222,6 +222,14 @@ const censusElement = (date = CLINICAL_TODAY) => (
 );
 const renderCensus = (date = CLINICAL_TODAY) => render(censusElement(date));
 
+const waitForRayenToolbar = async () => {
+  // Await the same module used by React.lazy, not a wall-clock timeout for its chunk.
+  await act(async () => {
+    await import('@/features/rayen-import');
+  });
+  return screen.findByTestId('rayen-operations-bar');
+};
+
 describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -258,12 +266,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
       fireEvent.click(bootstrapButton);
     });
 
-    // The empty branch is gone and the real toolbar took over. The toolbar is
-    // React.lazy + Suspense, so this assertion has to outwait the dynamic chunk
-    // instead of the 1s default, which loses under a parallel shard run.
-    await waitFor(() => expect(screen.getByTestId('rayen-operations-bar')).toBeInTheDocument(), {
-      timeout: 20000,
-    });
+    await waitForRayenToolbar();
     expect(world.createDayCalls).toEqual([[false]]);
     expect(screen.queryByTestId('create-from-rayen-btn')).not.toBeInTheDocument();
 
@@ -289,6 +292,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     // The mock record store is mutable; render again to represent the real context update.
     view.rerender(censusElement());
     await waitFor(() => expect(screen.getByTestId('census-table')).toBeInTheDocument());
+    await waitForRayenToolbar();
     expect(world.createDayCalls).toEqual([
       [true, '2026-09-09', { forceCopyScheduleOverride: true }],
     ]);
@@ -310,6 +314,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
       fireEvent.click(bootstrapButton);
     });
 
+    await waitForRayenToolbar();
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1), { timeout: 10000 });
     expect(world.createDayCalls).toEqual([[false]]);
     expect(mocks.triggerImport).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
@@ -359,6 +364,7 @@ describe('Crear desde Eloísa · costura CensusView → RayenImportButton', () =
     await act(async () => {
       fireEvent.click(bootstrapButton);
     });
+    await waitForRayenToolbar();
     await waitFor(() => expect(mocks.triggerImport).toHaveBeenCalledTimes(1));
 
     // A blocked attempt leaves no run behind, so CensusView must still hold the request. When the
