@@ -44,6 +44,16 @@ Esta clasificación reduce el tiempo de feedback del PR. No cambia la selección
 usar el comando más pequeño que cubra el riesgo durante la iteración y ampliar a
 `ci:pre-merge`, `ci:merge-gate` o `ci:release-gate` según el impacto.
 
+### Evidencia final de rendimiento
+
+`final-confidence-and-readiness` espera a `e2e-critical-emulator` y descarga su artefacto
+`flow-performance-evidence` de la misma ejecución, sin seleccionar otra rama ni un run anterior.
+Valida el reporte Playwright (sin fallos, interrupciones ni recuperaciones por reintento) y los presupuestos
+antes de regenerar salud operativa, confianza y readiness. Publica también las mediciones fuente. `postmerge-evidence` reutiliza y valida el mismo
+artefacto antes de regenerar los informes de main.
+Una evidencia ausente o inválida bloquea esa etapa; un incumplimiento de objetivos conserva su
+estado degradado y no se convierte en aprobado para mejorar la nota.
+
 ### `ci:inner-loop`
 
 Usar cuando el cambio todavía está en iteración local.

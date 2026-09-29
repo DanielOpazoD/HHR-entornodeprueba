@@ -272,7 +272,7 @@ describe('CI workflow governance', () => {
     expect(postmergeJob).toContain(
       "if: github.event_name == 'push' && github.ref == 'refs/heads/main'"
     );
-    expect(postmergeJob).toContain('needs: [build, ci-strict-summary]');
+    expect(postmergeJob).toContain('needs: [build, ci-strict-summary, e2e-critical-emulator]');
     expect(postmergeJob).toContain('actions: read');
     expect(postmergeJob).toContain('uses: actions/download-artifact@v7');
     expect(artifactContractStep).toBeGreaterThanOrEqual(0);
