@@ -126,10 +126,6 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
     <div className="space-y-2">
       <div className="rounded-lg border border-teal-100 bg-teal-50 p-2.5">
         <p className="text-xs font-semibold text-teal-900">Antecedentes de Eloísa</p>
-        <p className="mt-1 text-[11px] text-teal-800">
-          Atenciones ambulatorias y secundarias por períodos. Puedes cargar períodos anteriores para
-          consultar el historial disponible.
-        </p>
       </div>
       {!result ? (
         <p className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500">
