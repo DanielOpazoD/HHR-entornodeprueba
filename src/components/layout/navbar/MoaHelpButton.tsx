@@ -1,0 +1,90 @@
+import React, { useId, useRef } from 'react';
+import { CircleHelp, X } from 'lucide-react';
+import { useDropdownMenu } from '@/hooks/useDropdownMenu';
+
+/** B1: static local help only. No patient context, storage, AI, or clinical actions. */
+export const MoaHelpButton: React.FC = () => {
+  const { isOpen, menuRef, toggle, close } = useDropdownMenu();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  const titleId = useId();
+
+  const closeAndRestoreFocus = () => {
+    close();
+    triggerRef.current?.focus();
+  };
+
+  return (
+    <div
+      ref={menuRef}
+      className="relative shrink-0 print:hidden"
+      onKeyDown={event => {
+        if (event.key === 'Escape' && isOpen) {
+          event.stopPropagation();
+          closeAndRestoreFocus();
+        }
+      }}
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) close();
+      }}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={toggle}
+        aria-label="Ayuda de Moa"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? panelId : undefined}
+        title="Ayuda de Moa"
+        className="flex h-8 min-w-8 items-center justify-center gap-1.5 rounded-lg border border-white/20 px-2 text-white/90 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        <CircleHelp size={16} aria-hidden="true" />
+        <span className="hidden md:inline text-[13px] font-medium">Moa</span>
+      </button>
+      {isOpen && (
+        <section
+          id={panelId}
+          aria-labelledby={titleId}
+          className="fixed inset-x-3 top-[56px] z-50 mt-2 max-h-[calc(100vh-80px)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-slate-700 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:w-80"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 id={titleId} className="text-base font-semibold text-slate-900">
+                Moa · Ayuda de HHR
+              </h2>
+              <p className="mt-1 text-xs text-slate-600">Guía local, sin IA clínica.</p>
+            </div>
+            <button
+              type="button"
+              onClick={closeAndRestoreFocus}
+              aria-label="Cerrar ayuda de Moa"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-700"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
+          <dl className="mt-4 space-y-3 text-sm leading-relaxed">
+            <div>
+              <dt className="font-semibold text-slate-900">Ubicación y fecha</dt>
+              <dd>Antes de editar, comprueba el módulo y la fecha del registro seleccionado.</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-slate-900">Herramientas</dt>
+              <dd>Usa las opciones del módulo. Los accesos disponibles dependen de tu perfil.</dd>
+            </div>
+            <div>
+              <dt className="font-semibold text-slate-900">Guardado y conexión</dt>
+              <dd>
+                Revisa los indicadores del programa. Tener conexión no confirma el guardado remoto.
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-4 border-t border-slate-200 pt-3 text-xs leading-relaxed text-slate-600">
+            Esta ayuda no consulta pacientes ni modifica registros. Las funciones habituales siguen
+            disponibles fuera de Moa.
+          </p>
+        </section>
+      )}
+    </div>
+  );
+};
