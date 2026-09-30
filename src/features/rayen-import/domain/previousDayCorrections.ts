@@ -15,7 +15,8 @@ import {
   buildHistoricalAdmissionDiagnosisPatch,
 } from './historicalAdmissionPatch';
 import { applyCrossDayDiff, type CrossDayEntry } from './applyCrossDayDiff';
-import { isOccupied, reportEgresoEntry, reportEgresoPatient } from './applyCensusImportDiff';
+import { isOccupied } from './applyCensusImportDiff';
+import { reportEgresoEntry, reportEgresoPatient } from '../mapping/reportEgresoMapping';
 import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 import { patchDailyRecordWithCompatibility } from '@/hooks/controllers/dailyRecordMutationFreshnessController';
 import type { DailyRecordRepositoryPort } from '@/application/ports/dailyRecordPort';

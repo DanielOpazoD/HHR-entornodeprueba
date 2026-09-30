@@ -19,6 +19,7 @@ import { RayenImportSummaryChips } from './RayenImportSummaryChips';
 import { reservedRayenTargetBedIds } from './rayenImportPreviewState';
 import { RayenAdmissionReview } from './RayenAdmissionReview';
 import { areCmaAdmissionsResolved } from '../domain/cmaAdmissionReview';
+import { ClinicalCribDischargeRepairReview } from './ClinicalCribDischargeRepairReview';
 import { RayenReportEgresoStamp } from './RayenReportEgresoStamp';
 export interface RayenImportPreviewModalProps {
   isOpen: boolean;
@@ -54,8 +55,6 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
   onConfirm,
   onCancel,
 }) => {
-  // Mostrar también las correcciones históricas bloqueadas; sólo las aplicables
-  // habilitan la confirmación. Así el motivo del bloqueo sigue siendo visible.
   const previousDayEdits = diff?.previousDayEdits ?? [];
   const needsPreviousDayAck = previousDayEdits.length > 0;
   const hasActionablePreviousDayEdit = previousDayEdits.some(
@@ -72,7 +71,8 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
       diff.summary.moves +
       diff.summary.discharges +
       diff.pendingAdministrativeDischarges.length +
-      (diff.reportEgresos?.length ?? 0) >
+      (diff.reportEgresos?.length ?? 0) +
+      (diff.clinicalCribDischargeRepairs?.length ?? 0) >
       0 ||
       (diff.bedOccupancyCollisions?.length ?? 0) > 0 ||
       hasActionablePreviousDayEdit);
@@ -278,6 +278,7 @@ export const RayenImportPreviewModal: React.FC<RayenImportPreviewModalProps> = (
                   ))}
                 </Section>
 
+                <ClinicalCribDischargeRepairReview repairs={diff.clinicalCribDischargeRepairs} />
                 {needsPreviousDayAck && (
                   <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
                     <h4 className="mb-1 text-sm font-semibold text-amber-800">

@@ -15,4 +15,5 @@ export const isDischargedEncounter = (encounter: RayenEncounter): boolean =>
 export const requiresReview = (diff: CensusImportDiff): boolean =>
   diff.conflicts.length > 0 ||
   diff.pendingAdministrativeDischarges.length > 0 ||
-  (diff.reportEgresos?.length ?? 0) > 0;
+  (diff.reportEgresos?.length ?? 0) > 0 ||
+  (diff.clinicalCribDischargeRepairs?.length ?? 0) > 0;

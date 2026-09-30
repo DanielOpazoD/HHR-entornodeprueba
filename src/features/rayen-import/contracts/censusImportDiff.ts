@@ -7,10 +7,17 @@
  */
 
 import type { PatientData } from './rayenDomainContracts';
+import type { DischargeData } from '@/types/domain/movements';
 import type { RayenEncounter } from './rayenSnapshot';
 import type { DischargeKind } from '../mapping/dischargeMapping';
 import type { ReportEgreso } from './egresoReport';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
+
+/** Exact selected-day movements reviewed before retiring a malformed imported RN copy. */
+export interface ClinicalCribDischargeRepair {
+  kept: DischargeData;
+  duplicate: DischargeData;
+}
 
 export type DischargeVerificationState = 'confirmed' | 'not-detected' | 'unknown';
 
@@ -277,6 +284,8 @@ export interface CensusImportDiff {
    * once the report has been consulted (see `applyEgresoReport`).
    */
   reportEgresos?: ReportEgreso[];
+  /** Reviewed corrections of existing duplicates; never represents a new statistical discharge. */
+  clinicalCribDischargeRepairs?: ClinicalCribDischargeRepair[];
   /**
    * Previous days this sync would modify — a discharge whose official island egreso day is earlier
    * than the census day. Surfaced in the preview behind an explicit "modify previous days" confirm;
