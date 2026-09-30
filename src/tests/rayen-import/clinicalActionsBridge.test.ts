@@ -110,4 +110,29 @@ describe('clinical action message lifetime', () => {
     expect((await requestClinicalAction('123', 'prescription')).ok).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
   });
+  it.each([null, false, 0, { reason: {}, history: '', professional: '' }])(
+    'reporta fallo para un detalle inválido %j',
+    async detail => {
+      const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
+      const pending = requestClinicalAction('123', 'detail', 'Primaria:8');
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window,
+          origin: window.location.origin,
+          data: {
+            type: 'HHR_RAYEN_CLINICAL_ACTION_RESULT',
+            reqId: post.mock.calls[0][0].reqId,
+            ok: true,
+            detail,
+          },
+        })
+      );
+      expect(await pending).toMatchObject({
+        ok: false,
+        detail: undefined,
+        error: expect.stringContaining('formato inválido'),
+      });
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  );
 });

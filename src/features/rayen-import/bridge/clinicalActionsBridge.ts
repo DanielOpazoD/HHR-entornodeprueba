@@ -1,3 +1,9 @@
+import {
+  decodeClinicalAntecedentDetail,
+  type ClinicalAntecedentDetail,
+} from './clinicalAntecedentDetail';
+export type { ClinicalAntecedentDetail } from './clinicalAntecedentDetail';
+
 export interface ClinicalAntecedentEntry {
   id: string;
   source: string;
@@ -6,12 +12,6 @@ export interface ClinicalAntecedentEntry {
   facility: string;
   type: string;
   windowEnd?: string;
-}
-export interface ClinicalAntecedentDetail {
-  reason: string;
-  history: string;
-  professional: string;
-  attachments: Array<{ id: string; label: string }>;
 }
 export interface ClinicalActionResult {
   ok: boolean;
@@ -77,26 +77,17 @@ export const requestClinicalAction = (
             ? row.windowEnd
             : undefined,
       }));
-      const validAttachments =
-        data.detail?.attachments === undefined ||
-        (Array.isArray(data.detail.attachments) &&
-          data.detail.attachments.every(
-            (value: unknown) =>
-              Boolean(value) &&
-              typeof value === 'object' &&
-              typeof (value as Record<string, unknown>).id === 'string' &&
-              typeof (value as Record<string, unknown>).label === 'string'
-          ));
-      const detail =
-        data.detail &&
-        ['reason', 'history', 'professional'].every(key => typeof data.detail[key] === 'string') &&
-        validAttachments
-          ? { ...data.detail, attachments: data.detail.attachments ?? [] }
-          : undefined;
+      const detail = decodeClinicalAntecedentDetail(data.detail);
+      const invalidDetail = data.detail !== undefined && !detail;
       finish({
-        ok: data.ok === true,
+        ok: data.ok === true && !invalidDetail,
         opened: data.opened === true,
-        error: typeof data.error === 'string' ? data.error : undefined,
+        error:
+          typeof data.error === 'string'
+            ? data.error
+            : invalidDetail
+              ? 'El detalle clínico tiene un formato inválido. Actualiza la extensión y reintenta.'
+              : undefined,
         entries: safeEntries,
         detail,
         warnings: Array.isArray(data.warnings)

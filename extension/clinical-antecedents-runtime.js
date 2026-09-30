@@ -107,9 +107,9 @@
         ParametroBase: base,
       };
       const sources = await Promise.allSettled(
-        ['Primaria', 'Secundaria'].map(async (source, index) => {
+        ['Primaria', 'Secundaria'].map(async source => {
           const data = await externalJson(`/api/ObtenerResumenHistorialClinico${source}`,
-            'ParametroFUC', params);
+            'ParametroFUC', params, source === 'Secundaria' ? 45000 : 15000);
           const result = data?.ObtenerResumenHistorialClinicoResult;
           if (
             !result ||
@@ -168,7 +168,7 @@
         }
         if (!['list', 'detail', 'attachment'].includes(operation))
           throw new Error('La consulta de antecedentes no es válida.');
-        const history = await detailSupport.cachedHistoryFor(historyFor, encId, sender, beforeDate);
+        const history = await detailSupport.cachedHistoryFor(historyFor, encId, sender, beforeDate, operation === 'list');
         if (operation === 'list')
           return {
             ok: true,

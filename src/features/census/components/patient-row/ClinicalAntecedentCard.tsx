@@ -6,6 +6,7 @@ import {
   type ClinicalAntecedentEntry,
 } from '@/features/rayen-import';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
+import { ClinicalAntecedentContent } from './ClinicalAntecedentContent';
 
 export const ClinicalAntecedentCard = ({
   entry,
@@ -53,13 +54,27 @@ export const ClinicalAntecedentCard = ({
   };
 
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-2.5">
-      <p className="text-[10px] text-slate-500">
-        {formatClinicalAntecedentDate(entry.date)} · {entry.type || entry.source} · {entry.facility}
-      </p>
-      <h4 className="mt-0.5 text-xs font-semibold text-slate-800">
-        {entry.diagnosis || 'Atención sin diagnóstico informado'}
-      </h4>
+    <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
+        <time className="font-semibold tabular-nums text-slate-700">
+          {formatClinicalAntecedentDate(entry.date)}
+        </time>
+        <span
+          className={`rounded px-1.5 py-0.5 font-medium ${result?.detail?.careType === 'emergency' ? 'bg-orange-50 text-orange-800' : 'bg-teal-50 text-teal-800'}`}
+        >
+          {result?.detail?.careType === 'emergency'
+            ? 'Urgencia (UEA)'
+            : result?.detail?.careType === 'outpatient'
+              ? 'Atención ambulatoria (APS)'
+              : entry.type || entry.source}
+        </span>
+      </div>
+      {entry.facility && <p className="mt-1 text-[10px] text-slate-500">{entry.facility}</p>}
+      {!result?.detail?.diagnoses?.length && (
+        <h4 className="mt-0.5 text-xs font-semibold text-slate-800">
+          {entry.diagnosis || 'Atención sin diagnóstico informado'}
+        </h4>
+      )}
       {entry.source === 'Primaria' && !detailRequested && (
         <button
           type="button"
@@ -89,9 +104,7 @@ export const ClinicalAntecedentCard = ({
             </div>
           ) : result.detail ? (
             <>
-              <p className="font-semibold">{result.detail.professional}</p>
-              <p className="mt-1">{result.detail.reason}</p>
-              <p className="mt-1">{result.detail.history}</p>
+              <ClinicalAntecedentContent detail={result.detail} entry={entry} />
               {!!result.detail.attachments.length && (
                 <div className="mt-2 border-t border-slate-100 pt-2">
                   <p className="font-semibold text-slate-700">Archivos adjuntos</p>
