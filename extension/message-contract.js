@@ -93,7 +93,7 @@
       lookbackDays: 'number?',
       acceptEntries: 'boolean?',
     },
-    [types.CLINICAL_PANEL_REQUEST]: { encId: 'id' }, [types.CLINICAL_ANTECEDENTS_REQUEST]: { encId: 'id', operation: 'string', entryId: 'string?' },
+    [types.CLINICAL_PANEL_REQUEST]: { encId: 'id' }, [types.CLINICAL_ANTECEDENTS_REQUEST]: { encId: 'id', operation: 'string', entryId: 'string?', beforeDate: 'string?' },
     [types.LAB_SEARCH_REQUEST]: { rutBody: 'rut-body', rutDisplay: 'string?' },
     [types.SYSLAB_LOGIN_REQUEST]: { username: 'string', password: 'string' },
     [types.LAB_DETAILS_REQUEST]: { batchId: 'string', examIds: 'array' },

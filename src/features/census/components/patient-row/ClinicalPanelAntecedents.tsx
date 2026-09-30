@@ -1,113 +1,45 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, Paperclip } from 'lucide-react';
-import {
-  requestClinicalAction,
-  type ClinicalActionResult,
-  type ClinicalAntecedentEntry,
-} from '@/features/rayen-import';
+import { Loader2 } from 'lucide-react';
+import { requestClinicalAction, type ClinicalActionResult } from '@/features/rayen-import';
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
+import { ClinicalAntecedentCard } from './ClinicalAntecedentCard';
+import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
 const sameResult = (left: ClinicalActionResult | null, right: ClinicalActionResult): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
+type OlderPage = { requestedEnd: string; data: ClinicalActionResult };
 
-const AntecedentCard: React.FC<{ entry: ClinicalAntecedentEntry; episode: string }> = ({
-  entry,
-  episode,
-}) => {
-  const [result, setResult] = useState<ClinicalActionResult | null>(null);
-  const [detailAttempt, setDetailAttempt] = useState(0);
-  const [attachmentError, setAttachmentError] = useState('');
-  useEffect(() => {
-    if (entry.source !== 'Primaria') return;
-    const controller = new AbortController();
-    void requestClinicalAction(
-      episode,
-      'detail',
-      `${entry.source}:${entry.id}`,
-      controller.signal
-    ).then(value => {
-      if (!controller.signal.aborted) setResult(value);
-    });
-    return () => controller.abort();
-  }, [episode, entry.source, entry.id, detailAttempt]);
-  const openAttachment = async (attachmentId: string): Promise<void> => {
-    setAttachmentError('');
-    const value = await requestClinicalAction(
-      episode,
-      'attachment',
-      `${entry.source}:${entry.id}:${attachmentId}`
-    );
-    if (!value.opened) setAttachmentError(value.error || 'No se pudo abrir el adjunto.');
-  };
-  return (
-    <article className="rounded-lg border border-slate-200 bg-white p-2.5">
-      <p className="text-[10px] text-slate-500">
-        {entry.date} · {entry.type || entry.source} · {entry.facility}
-      </p>
-      <h4 className="mt-0.5 text-xs font-semibold text-slate-800">
-        {entry.diagnosis || 'Atención sin diagnóstico informado'}
-      </h4>
-      {entry.source === 'Primaria' && (
-        <div className="mt-2 whitespace-pre-wrap border-t border-slate-100 pt-2 text-xs leading-relaxed text-slate-600">
-          {!result ? (
-            <p>Cargando atención…</p>
-          ) : result.error ? (
-            <div className="flex items-center justify-between gap-2" role="alert">
-              <span>{result.error}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setResult(null);
-                  setDetailAttempt(value => value + 1);
-                }}
-                className="shrink-0 font-semibold text-teal-700"
-              >
-                Reintentar
-              </button>
-            </div>
-          ) : result.detail ? (
-            <>
-              <p className="font-semibold">{result.detail.professional}</p>
-              <p className="mt-1">{result.detail.reason}</p>
-              <p className="mt-1">{result.detail.history}</p>
-              {!!result.detail.attachments.length && (
-                <div className="mt-2 border-t border-slate-100 pt-2">
-                  <p className="font-semibold text-slate-700">Archivos adjuntos</p>
-                  {result.detail.attachments.map(attachment => (
-                    <div key={attachment.id} className="mt-2">
-                      <p className="text-[11px] text-slate-600">{attachment.label}</p>
-                      <button
-                        type="button"
-                        onClick={() => void openAttachment(attachment.id)}
-                        className="mt-1 flex items-center gap-1 font-semibold text-teal-700 underline-offset-2 hover:underline"
-                      >
-                        <Paperclip size={12} /> Descargar adjunto
-                      </button>
-                    </div>
-                  ))}
-                  {attachmentError && (
-                    <p role="alert" className="mt-2 text-amber-800">
-                      {attachmentError}
-                    </p>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <p>Sin detalle disponible.</p>
-          )}
-        </div>
-      )}
-    </article>
-  );
-};
+const mergePartialResult = (
+  current: ClinicalActionResult | null,
+  value: ClinicalActionResult
+): ClinicalActionResult =>
+  value.ok && value.unavailableSources?.length && current?.ok
+    ? {
+        ...value,
+        entries: [
+          ...new Map(
+            [
+              ...(current.entries ?? []).filter(entry =>
+                value.unavailableSources?.includes(entry.source as 'Primaria' | 'Secundaria')
+              ),
+              ...(value.entries ?? []),
+            ].map(entry => [`${entry.source}:${entry.id}`, entry])
+          ).values(),
+        ],
+      }
+    : value;
 
-export const ClinicalPanelAntecedents: React.FC<{ clinicalEpisodeId: string }> = ({
+const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }> = ({
   clinicalEpisodeId,
 }) => {
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<ClinicalActionResult | null>(null);
+  const [olderPages, setOlderPages] = useState<OlderPage[]>([]);
+  const [olderLoading, setOlderLoading] = useState(false);
+  const [olderError, setOlderError] = useState('');
   const [refreshError, setRefreshError] = useState('');
   const hasSuccessfulResult = useRef(false);
+  const olderRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => olderRequest.current?.abort(), []);
   useEffect(() => {
     const controller = new AbortController();
     let refreshing = false;
@@ -126,24 +58,7 @@ export const ClinicalPanelAntecedents: React.FC<{ clinicalEpisodeId: string }> =
             setRefreshError('');
           }
           setResult(current => {
-            const next =
-              value.ok && value.unavailableSources?.length && current?.ok
-                ? {
-                    ...value,
-                    entries: [
-                      ...new Map(
-                        [
-                          ...(current.entries ?? []).filter(entry =>
-                            value.unavailableSources?.includes(
-                              entry.source as 'Primaria' | 'Secundaria'
-                            )
-                          ),
-                          ...(value.entries ?? []),
-                        ].map(entry => [`${entry.source}:${entry.id}`, entry])
-                      ).values(),
-                    ],
-                  }
-                : value;
+            const next = mergePartialResult(current, value);
             return sameResult(current, next) ? current : next;
           });
         })
@@ -160,13 +75,57 @@ export const ClinicalPanelAntecedents: React.FC<{ clinicalEpisodeId: string }> =
       controller.abort();
     };
   }, [clinicalEpisodeId, attempt]);
+  const lastOlderPage = olderPages.at(-1);
+  const nextBeforeDate = lastOlderPage
+    ? lastOlderPage.data.warnings?.length
+      ? lastOlderPage.requestedEnd
+      : lastOlderPage.data.nextBeforeDate
+    : result?.nextBeforeDate;
+  const loadOlder = async (): Promise<void> => {
+    if (!nextBeforeDate || olderLoading) return;
+    const controller = new AbortController();
+    olderRequest.current = controller;
+    setOlderLoading(true);
+    setOlderError('');
+    try {
+      const value = await requestClinicalAction(
+        clinicalEpisodeId,
+        'list',
+        undefined,
+        controller.signal,
+        nextBeforeDate
+      );
+      if (controller.signal.aborted) return;
+      if (!value.ok) {
+        setOlderError(value.error || 'No se pudo consultar el período anterior.');
+        return;
+      }
+      setOlderPages(pages => {
+        const existing = pages.findIndex(page => page.requestedEnd === nextBeforeDate);
+        const next = {
+          requestedEnd: nextBeforeDate,
+          data: mergePartialResult(existing < 0 ? null : pages[existing].data, value),
+        };
+        return existing < 0
+          ? [...pages, next]
+          : pages.map((page, index) => (index === existing ? next : page));
+      });
+    } finally {
+      if (!controller.signal.aborted) setOlderLoading(false);
+    }
+  };
+  const currentKeys = new Set((result?.entries ?? []).map(entry => `${entry.source}:${entry.id}`));
+  const entries = [
+    ...(result?.entries ?? []),
+    ...olderPages.flatMap(page => page.data.entries ?? []),
+  ].filter(
+    (entry, index, all) =>
+      all.findIndex(other => other.source === entry.source && other.id === entry.id) === index
+  );
   return (
     <div className="space-y-2">
       <div className="rounded-lg border border-teal-100 bg-teal-50 p-2.5">
         <p className="text-xs font-semibold text-teal-900">Antecedentes de Eloísa</p>
-        <p className="mt-1 text-[11px] text-teal-800">
-          Atenciones ambulatorias y secundarias de los últimos 35 meses.
-        </p>
       </div>
       {!result ? (
         <p className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500">
@@ -197,6 +156,17 @@ export const ClinicalPanelAntecedents: React.FC<{ clinicalEpisodeId: string }> =
               {warning}
             </p>
           ))}
+          {olderPages.flatMap(page =>
+            (page.data.warnings ?? []).map(warning => (
+              <p
+                key={`${page.requestedEnd}:${warning}`}
+                role="status"
+                className="rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800"
+              >
+                Período hasta {formatClinicalAntecedentDate(page.requestedEnd)}: {warning}
+              </p>
+            ))
+          )}
           {!!result.warnings?.length && (
             <button
               type="button"
@@ -206,20 +176,49 @@ export const ClinicalPanelAntecedents: React.FC<{ clinicalEpisodeId: string }> =
               Reintentar antecedentes
             </button>
           )}
-          {!result.entries?.length && !result.warnings?.length && (
+          {!entries.length && !result.warnings?.length && (
             <p className="py-8 text-center text-xs text-slate-500">
-              No se encontraron atenciones en el período consultado.
+              No se encontraron atenciones en los períodos consultados.
             </p>
           )}
-          {result.entries?.map(entry => (
-            <AntecedentCard
+          {entries.map(entry => (
+            <ClinicalAntecedentCard
               key={`${entry.source}:${entry.id}`}
               entry={entry}
               episode={clinicalEpisodeId}
+              autoLoadDetail={currentKeys.has(`${entry.source}:${entry.id}`)}
             />
           ))}
+          {olderError && (
+            <p role="alert" className="text-xs text-amber-800">
+              {olderError}
+            </p>
+          )}
+          {nextBeforeDate && (
+            <button
+              type="button"
+              disabled={olderLoading}
+              onClick={() => void loadOlder()}
+              className="rounded-md border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-700 disabled:opacity-60"
+            >
+              {olderLoading
+                ? 'Consultando período anterior…'
+                : lastOlderPage?.data.warnings?.length
+                  ? 'Reintentar período anterior'
+                  : 'Cargar período anterior'}
+            </button>
+          )}
         </>
       )}
     </div>
   );
 };
+
+export const ClinicalPanelAntecedents: React.FC<{ clinicalEpisodeId: string }> = ({
+  clinicalEpisodeId,
+}) => (
+  <ClinicalPanelAntecedentsForEpisode
+    key={clinicalEpisodeId}
+    clinicalEpisodeId={clinicalEpisodeId}
+  />
+);

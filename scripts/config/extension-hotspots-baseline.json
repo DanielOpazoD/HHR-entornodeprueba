@@ -38,6 +38,10 @@
       "maxLines": 223,
       "hotspots": {}
     },
+    "clinical-antecedents-window.js": {
+      "maxLines": 40,
+      "hotspots": {}
+    },
     "clinical-batch-print-runtime.js": {
       "maxLines": 453,
       "hotspots": {

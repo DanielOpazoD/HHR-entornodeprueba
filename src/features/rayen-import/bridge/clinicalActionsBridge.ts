@@ -5,6 +5,7 @@ export interface ClinicalAntecedentEntry {
   diagnosis: string;
   facility: string;
   type: string;
+  windowEnd?: string;
 }
 export interface ClinicalAntecedentDetail {
   reason: string;
@@ -19,6 +20,9 @@ export interface ClinicalActionResult {
   entries?: ClinicalAntecedentEntry[];
   warnings?: string[];
   unavailableSources?: Array<'Primaria' | 'Secundaria'>;
+  windowStart?: string;
+  windowEnd?: string;
+  nextBeforeDate?: string | null;
   detail?: ClinicalAntecedentDetail;
 }
 
@@ -26,7 +30,8 @@ export const requestClinicalAction = (
   encId: string,
   operation: 'prescription' | 'list' | 'detail' | 'attachment' | 'urgency',
   entryId?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  beforeDate?: string
 ): Promise<ClinicalActionResult> =>
   new Promise(resolve => {
     if (!/^\d+$/.test(encId) || signal?.aborted) {
@@ -65,6 +70,13 @@ export const requestClinicalAction = (
               )
           )
         : undefined;
+      const safeEntries = entries?.map((row: ClinicalAntecedentEntry) => ({
+        ...row,
+        windowEnd:
+          typeof row.windowEnd === 'string' && /^\d{8}$/.test(row.windowEnd)
+            ? row.windowEnd
+            : undefined,
+      }));
       const validAttachments =
         data.detail?.attachments === undefined ||
         (Array.isArray(data.detail.attachments) &&
@@ -85,7 +97,7 @@ export const requestClinicalAction = (
         ok: data.ok === true,
         opened: data.opened === true,
         error: typeof data.error === 'string' ? data.error : undefined,
-        entries,
+        entries: safeEntries,
         detail,
         warnings: Array.isArray(data.warnings)
           ? data.warnings.filter((value: unknown) => typeof value === 'string')
@@ -96,6 +108,19 @@ export const requestClinicalAction = (
                 value === 'Primaria' || value === 'Secundaria'
             )
           : undefined,
+        windowStart:
+          typeof data.windowStart === 'string' && /^\d{8}$/.test(data.windowStart)
+            ? data.windowStart
+            : undefined,
+        windowEnd:
+          typeof data.windowEnd === 'string' && /^\d{8}$/.test(data.windowEnd)
+            ? data.windowEnd
+            : undefined,
+        nextBeforeDate:
+          data.nextBeforeDate === null ||
+          (typeof data.nextBeforeDate === 'string' && /^\d{8}$/.test(data.nextBeforeDate))
+            ? data.nextBeforeDate
+            : undefined,
       });
     };
     window.addEventListener('message', onMessage);
@@ -110,7 +135,7 @@ export const requestClinicalAction = (
     );
     try {
       window.postMessage(
-        { type: 'HHR_RAYEN_CLINICAL_ACTION_REQUEST', reqId, encId, operation, entryId },
+        { type: 'HHR_RAYEN_CLINICAL_ACTION_REQUEST', reqId, encId, operation, entryId, beforeDate },
         window.location.origin
       );
     } catch {

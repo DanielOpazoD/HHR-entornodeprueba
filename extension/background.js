@@ -21,7 +21,7 @@ importScripts(
   'relay-reinjection-manifest.js', 'relay-reinjection-health.js', 'relay-reinjection-operations.js', 'relay-reinjection-session.js', 'relay-reinjection-tab-events.js', 'relay-reinjection-runtime.js',
   'clinical-panel-fetch.js',
   'clinical-panel-runtime.js',
-  'clinical-antecedents-attachment.js', 'clinical-antecedents-detail.js',
+  'clinical-antecedents-attachment.js', 'clinical-antecedents-detail.js', 'clinical-antecedents-window.js',
   'clinical-antecedents-runtime.js',
   'clinical-write-recovery-policy.js', 'clinical-write-runtime.js',
   'clinical-handoff-runtime.js',
