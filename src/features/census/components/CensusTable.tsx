@@ -29,6 +29,7 @@ import {
   type EloisaManualPatientPayload,
 } from '@/features/rayen-manual-import';
 import { buildEloisaAdmissionInput } from '@/application/census/eloisaAdmissionInput';
+import { useCensusBedDeepLinkFocus } from '@/features/census/hooks/useCensusBedDeepLinkFocus';
 const censusTableAdmitLogger = createScopedLogger('CensusTableAdmit');
 export type { DiagnosisMode } from '@/features/census/types/censusTableTypes';
 const LazyDemographicsModal = lazy(() =>
@@ -78,7 +79,14 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   }, [currentDateString, canObserveTable]);
   const beds = useDailyRecordBeds();
   const admitPatient = useAdmitPatient();
-  const { error: notifyError, success: notifySuccess } = useNotification();
+  const { error: notifyError, success: notifySuccess, info: notifyInfo } = useNotification();
+  const reportMissingBed = useCallback(
+    (bedId: string) => {
+      notifyInfo('Cama no visible', `La cama ${bedId} no tiene una fila visible en este censo.`);
+    },
+    [notifyInfo]
+  );
+  useCensusBedDeepLinkFocus(tableRootRef, currentDateString, canObserveTable, reportMissingBed);
 
   const handleMoveToBed = useCallback(
     (sourceBedId: string, targetBedId: string) => {

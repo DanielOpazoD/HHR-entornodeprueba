@@ -42,6 +42,7 @@ export const EmptyBedRow: React.FC<EmptyBedRowProps> = ({
         isDragOver ? 'bg-medical-50 ring-2 ring-inset ring-medical-300 ring-dashed' : ''
       } ${isPendingClear ? 'bg-amber-50/60' : ''}`}
       aria-busy={isPendingClear}
+      data-bed-id={bed.id}
       data-clear-pending={isPendingClear || undefined}
       onDragOver={onDragOver}
       onDragEnter={onDragEnter}

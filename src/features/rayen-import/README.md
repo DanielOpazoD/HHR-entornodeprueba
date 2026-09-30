@@ -268,3 +268,19 @@ clínicos en esa telemetría.
 ## Referencia funcional
 
 - `Eloisa Hospitalizados/PLAN-SINCRONIZACION.md` (mapeo campo-a-campo, camas §2.2–2.4, flujos §4).
+
+## Navegación y soporte de incidencias
+
+El historial ofrece enlaces de lectura al censo y la cama de una incidencia. Usa `sourceDate`
+del evento, o el día propietario del historial para eventos antiguos; nunca la hora del equipo.
+Los enlaces actuales incluyen `focusBed`; no ejecutan admisiones, sincronizaciones ni cambios
+clínicos. Fechas inválidas y camas desconocidas no generan enlaces.
+
+Un fallo de archivo CUDYR apunta a D−1, sin cama: la cama registrada pertenece a D y un traslado
+puede haber cambiado la ubicación histórica. Las correcciones históricas sin destino preciso
+conservan su explicación, sin inferir una fila.
+
+Cada incidencia ofrece un código copiable `HHR-SYNC-1/<fuente>/<causa>` para compartir con soporte
+o una IA. Copiar entrega sólo categorías del contrato existente; excluye fecha, cama, operador,
+identificadores de ejecución/paciente y valores clínicos. El código clasifica la incidencia y no
+prueba por sí mismo su causa raíz. Si el portapapeles está bloqueado, queda seleccionable.

@@ -12,6 +12,8 @@ import {
 } from './rayenSyncPresentation';
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
 import { RayenSyncClinicalSection, RayenSyncStaffingSection } from './RayenSyncHistorySections';
+import { RayenSyncIssueActions } from './RayenSyncIssueActions';
+import { rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
 
 interface RayenSyncHistoryModalProps {
   isOpen: boolean;
@@ -149,7 +151,11 @@ const QuietHistoryGroup: React.FC<{ events: RayenSyncEvent[] }> = ({ events }) =
   );
 };
 
-const HistoryEvent: React.FC<{ event: RayenSyncEvent; latest: boolean }> = ({ event, latest }) => {
+const HistoryEvent: React.FC<{
+  event: RayenSyncEvent;
+  latest: boolean;
+  targetDate?: string | null;
+}> = ({ event, latest, targetDate }) => {
   const status = statusPresentation(event);
   const outcome = presentRayenSyncOutcome(event);
   const duration = formatRayenSyncDuration(event.startedAt, event.completedAt);
@@ -194,7 +200,18 @@ const HistoryEvent: React.FC<{ event: RayenSyncEvent; latest: boolean }> = ({ ev
       </div>
 
       {duration && <p className="mt-1 text-xs tabular-nums text-slate-500">Duración {duration}</p>}
-      <RayenSyncClinicalSection event={event} />
+      {(event.status === 'failed' ||
+        (event.status === 'partial' &&
+          !event.coverage?.issues?.length &&
+          !event.structuralReview?.issues?.length)) && (
+        <RayenSyncIssueActions
+          code={rayenSyncTechnicalCode(
+            'run',
+            event.status === 'failed' ? (event.failureReason ?? 'unspecified') : 'partial'
+          )}
+        />
+      )}
+      <RayenSyncClinicalSection event={event} targetDate={targetDate} />
       <RayenSyncStaffingSection event={event} />
     </li>
   );
@@ -247,7 +264,12 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
             item.kind === 'quiet' ? (
               <QuietHistoryGroup key={`quiet-${item.events[0].id}`} events={item.events} />
             ) : (
-              <HistoryEvent key={item.event.id} event={item.event} latest={index === 0} />
+              <HistoryEvent
+                key={item.event.id}
+                event={item.event}
+                latest={index === 0}
+                targetDate={targetDate}
+              />
             )
           )}
         </ol>

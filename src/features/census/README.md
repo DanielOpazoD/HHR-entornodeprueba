@@ -228,3 +228,9 @@ botón IEEH
 
 - [docs/QUALITY_GUARDRAILS.md](../../../docs/QUALITY_GUARDRAILS.md)
 - [docs/SAFE_CHANGE_CHECKLIST.md](../../../docs/SAFE_CHANGE_CHECKLIST.md)
+
+Los enlaces de incidencias pueden abrir `/census?date=YYYY-MM-DD&focusBed=<cama>`.
+Una vez cargada la tabla del día solicitado, se enfoca y centra la fila (ocupada o vacía)
+con un contorno, sin activar sus acciones ni colorear toda la fila. El parámetro `focusBed`
+se consume para no repetir el desplazamiento. Si una cama conocida no tiene fila visible,
+se informa sin enfocar otra cama ni modificar el censo.

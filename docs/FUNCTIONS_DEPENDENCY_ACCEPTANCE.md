@@ -84,3 +84,25 @@ Esta deuda se puede cerrar cuando ocurra al menos una de estas dos condiciones:
 
 1. root app y `functions` quedan sin hallazgos productivos residuales sin introducir upgrades inseguros;
 2. el stack serverless migra a versiones nuevas validadas y los hallazgos residuales dejan de existir.
+
+## Parche de seguridad: `brace-expansion` (30-09-2026)
+
+- Owner: mantenimiento HHR (Daniel Opazo).
+- Reason: la auditoría blocking encontró agotamiento de pila en `brace-expansion`,
+  propagado a `minimatch` y `glob` (GHSA-6j4f-fj2g-mc7p y GHSA-qhr7-859c-m2p7).
+  También se evita el rango de consumo cuadrático de CPU de GHSA-q2hr-2g5m-vwhr.
+- TargetVersion: root conserva cada major existente con parches `1.1.21`, `2.1.7`
+  y `5.0.12`; functions usa `2.1.7` en su override ya existente.
+- RiskLevel: bajo; no se cambian dependencias directas, APIs ni reglas clínicas.
+  El hallazgo prueba una dependencia vulnerable; no prueba explotación en HHR.
+- RollbackPlan: revertir este PR completo, incluidos ambos manifests y lockfiles.
+  Eso reabre la vulnerabilidad y debe bloquear nuevos merges hasta remediarla.
+- VerificationGate: `npm run check:dependency-vulnerabilities` en ambos árboles,
+  `npm run ci:merge-gate` y el control remoto de functions. Los umbrales de seguridad
+  permanecen intactos. Cierre: cero high/critical y controles de compatibilidad verdes.
+- Clasificación: `dependency_upgrade` de una dependencia transitiva utilizada por
+  tooling y functions; se conservan las protecciones de los runtimes consumidores.
+
+Los conteos de moderate/low cambian con los advisories del registro. El informe
+`reports/security/dependency-audit.md` generado en cada ejecución es la evidencia
+actual; los conteos históricos de esta página no sustituyen esa auditoría.

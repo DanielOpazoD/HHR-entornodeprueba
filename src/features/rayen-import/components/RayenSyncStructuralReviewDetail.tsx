@@ -4,13 +4,17 @@ import {
   presentRayenDeferredHistoricalAdmissionNote,
   presentRayenStructuralReviewDetails,
 } from './rayenSyncPresentation';
+import { RayenSyncIssueActions } from './RayenSyncIssueActions';
+import { rayenStructuralIssueHasCurrentBed, rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
 
 interface RayenSyncStructuralReviewDetailProps {
   review?: RayenSyncStructuralReviewEvidence;
+  censusDate?: string | null;
 }
 
 export const RayenSyncStructuralReviewDetail: React.FC<RayenSyncStructuralReviewDetailProps> = ({
   review,
+  censusDate,
 }) => {
   const details = presentRayenStructuralReviewDetails(review);
   const deferredHistoricalAdmissionNote = presentRayenDeferredHistoricalAdmissionNote(review);
@@ -32,7 +36,20 @@ export const RayenSyncStructuralReviewDetail: React.FC<RayenSyncStructuralReview
           )}
           <ul className="mt-1 space-y-1">
             {details.map((detail, index) => (
-              <li key={`${detail}-${index}`}>{detail}</li>
+              <li key={`${detail}-${index}`} className="py-1">
+                <p>{detail}</p>
+                {review?.issues?.[index] && (
+                  <RayenSyncIssueActions
+                    code={rayenSyncTechnicalCode('census', review.issues[index].reason)}
+                    date={
+                      rayenStructuralIssueHasCurrentBed(review.issues[index].reason)
+                        ? censusDate
+                        : null
+                    }
+                    bedId={review.issues[index].bedId}
+                  />
+                )}
+              </li>
             ))}
           </ul>
         </div>
