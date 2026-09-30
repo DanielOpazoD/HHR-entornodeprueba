@@ -320,7 +320,7 @@ test.describe('Production Preview Bootstrap', () => {
       await expect(utilityPanel).toBeHidden();
       await expect(utility).toBeFocused();
 
-      const help = topBar.getByRole('button', { name: 'Ayuda de Moa' });
+      const help = topBar.getByRole('button', { name: 'Ayuda de Moa', exact: true });
       await expect(help).toBeInViewport({ ratio: 1 });
       await utility.click();
       await help.click();
@@ -367,7 +367,7 @@ test.describe('Production Preview Bootstrap', () => {
     await seedPersistedSessionAndRecord(page);
     await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
     await expectSeededPatientVisible(page);
-    const help = page.getByRole('button', { name: 'Ayuda de Moa' });
+    const help = page.getByRole('button', { name: 'Ayuda de Moa', exact: true });
     await help.click();
     const panel = page.getByRole('region', { name: 'Moa · Ayuda de HHR' });
     await expect(panel).toBeInViewport({ ratio: 1 });
