@@ -2,6 +2,7 @@ import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts
 import type { DischargeEntry } from '../contracts/censusImportDiff';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
+import type { ReportEgreso } from '../contracts/egresoReport';
 import { extractTime } from '../mapping/rayenToPatientData';
 import { normalizePatientRut } from './censusPatientIdentityIndex';
 
@@ -91,4 +92,36 @@ export const createDischargedEncounterMatcher = (
       admissionDay: encounter.admissionDatetime?.slice(0, 10),
       admissionTime: extractTime(encounter.admissionDatetime),
     });
+};
+
+/** Check the current accumulated movements, including outcomes created earlier in this import. */
+export const hasRecordedReportOutcome = (current: DailyRecord, report: ReportEgreso): boolean =>
+  createRecordedOutcomeMatcher(current)({
+    clinicalEpisodeId: report.encounterId,
+    rut: report.run,
+    admissionDay: report.admissionDay,
+    admissionTime: report.admissionTime,
+  });
+
+/** A reported or already resolved crib episode must not be inferred again from its mother's alta. */
+export const hasIndependentClinicalCribOutcome = (
+  current: DailyRecord,
+  reports: readonly ReportEgreso[] | undefined,
+  crib: PatientData | undefined
+): boolean => {
+  if (!crib?.clinicalEpisodeId) return false;
+  return Boolean(
+    reports?.some(
+      report =>
+        report.fromClinicalCrib === true &&
+        (!report.correctedDay || report.correctedDay === current.date.slice(0, 10)) &&
+        report.encounterId === crib.clinicalEpisodeId
+    ) ||
+    createRecordedOutcomeMatcher(current)({
+      clinicalEpisodeId: crib.clinicalEpisodeId,
+      rut: crib.rut,
+      admissionDay: crib.admissionDate,
+      admissionTime: crib.admissionTime,
+    })
+  );
 };

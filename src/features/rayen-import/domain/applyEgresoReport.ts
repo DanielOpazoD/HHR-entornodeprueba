@@ -342,7 +342,11 @@ export const applyEgresoReport = (
       reportEgresos.push(reportEgresoFromRow(row));
     }
   }
-  const finalDischarges = finalizeDischargePlan(checkedDiff, discharges, record);
+  const finalDischarges = finalizeDischargePlan(
+    { ...checkedDiff, reportEgresos },
+    discharges,
+    record
+  );
   const releasedBeds = resolveReleasedBedPlacements(
     admissions,
     moves,

@@ -6,15 +6,20 @@ import { BEDS, OCCUPANCY_ONLY_EXTRA_BED_IDS } from '@/constants/beds';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { DischargeData, TransferData, CMAData } from '@/types/domain/movements';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
-import type { ReportEgreso } from '../contracts/egresoReport';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
+import { reportEgresoEntry, reportEgresoPatient } from '../mapping/reportEgresoMapping';
 import { normalizeRut } from '@/utils/rutUtils';
 import * as collisionApply from './applyBedOccupancyCollisionResolutions';
 import { buildRayenMovementProvenance } from './rayenMovementProvenance';
 import { applyRayenDischargeVerification } from './applyRayenDischargeVerification';
 import type { RayenBedCollisionResolutionReceipt } from '@/types/domain/rayenBedCollision';
 import { matchesDischargeSubject } from './dischargeSubjectIdentity';
+import {
+  hasIndependentClinicalCribOutcome,
+  hasRecordedReportOutcome,
+} from './censusDischargeHistory';
 import { filterRecordedOutcomeActions } from './filterRecordedOutcomeActions';
+import { applyClinicalCribDischargeRepairs } from './clinicalCribDischargeRepairs';
 import { applyReviewedPatientChanges } from './patientSyncPolicy';
 const BED_NAME = new Map(BEDS.map(bed => [bed.id, bed.name]));
 const BED_TYPE = new Map<string, string>(BEDS.map(bed => [bed.id, bed.type]));
@@ -172,37 +177,6 @@ export const buildCma = (
 const reportEgresoTime = (fechaEgreso: string): string =>
   parseStatisticalEgresoStamp(fechaEgreso)?.hhmm ?? '';
 
-// A report egreso HHR never synced has no bed here — synthesize the minimal patient the movement
-// builders read, so the day's altas census can log it from the report's data.
-export const reportEgresoPatient = (egreso: ReportEgreso): PatientData =>
-  ({
-    patientName: egreso.patientName,
-    rut: egreso.run,
-    pathology: egreso.diagnostico ?? '',
-    specialty: egreso.servicio ?? '',
-    age: egreso.edad ?? undefined,
-    clinicalEpisodeId: egreso.encounterId,
-    admissionDate: egreso.admissionDay ?? '',
-    admissionTime: egreso.admissionTime ?? '',
-  }) as unknown as PatientData;
-
-/**
- * Adapts a report-only egreso for the movement builders. It is intentionally used only when the
- * patient never occupied a bed in this HHR census (or when filing its historical movement); it does
- * not enter the bed-vacating discharge loop, whose entries carry a previewed occupant fingerprint.
- */
-export const reportEgresoEntry = (egreso: ReportEgreso): DischargeEntry => ({
-  bedId: egreso.bedLabel,
-  rut: egreso.run,
-  patientName: egreso.patientName,
-  encounterId: egreso.encounterId,
-  kind: egreso.kind,
-  status: egreso.status,
-  reason: 'administrative-discharge',
-  correctedDay: egreso.correctedDay,
-  correctedTime: egreso.correctedTime,
-});
-
 const dischargeIdentityMismatchReason = (patient: PatientData, entry: DischargeEntry): string => {
   const expected = entry.expectedOccupant;
   if (!expected || expected.clinicalEpisodeId) {
@@ -229,10 +203,16 @@ export const applyCensusImportDiff = (
     syncRunId: context.syncRunId,
   };
   const nextBeds: Record<string, PatientData> = { ...current.beds };
-  const discharges: DischargeData[] = [...current.discharges];
+  const repairs = applyClinicalCribDischargeRepairs(
+    current,
+    diff.clinicalCribDischargeRepairs,
+    ctx.now,
+    ctx.actor
+  );
+  const discharges: DischargeData[] = [...repairs.discharges];
   const transfers: TransferData[] = [...current.transfers];
   const cma: CMAData[] = [...current.cma];
-  const skipped: SkippedOp[] = [];
+  const skipped: SkippedOp[] = repairs.skipped.map(entry => ({ ...entry, kind: 'discharge' }));
   const applied = { admissions: 0, updates: 0, moves: 0, discharges: 0 };
   const effectiveDiff = filterRecordedOutcomeActions(current, diff);
   const collisionResult = collisionApply.applyBedOccupancyCollisionResolutions({
@@ -287,12 +267,21 @@ export const applyCensusImportDiff = (
     if (entry.kind === 'cma') cma.push(buildCma(subject, entry, ctx));
     else if (entry.kind === 'traslado') transfers.push(buildTransfer(subject, entry, current, ctx));
     else {
-      const associatedCrib = matchesAssociatedCrib(subject, entry)
-        ? subject.clinicalCrib
-        : undefined;
+      const independentCribDeparture = hasIndependentClinicalCribOutcome(
+        { ...current, discharges, transfers, cma },
+        effectiveDiff.reportEgresos,
+        subject.clinicalCrib
+      );
+      const associatedCrib =
+        !independentCribDeparture && matchesAssociatedCrib(subject, entry)
+          ? subject.clinicalCrib
+          : undefined;
       // The newborn gets its own reversible movement. Keeping it in the mother's originalData too
       // would make either undo order fail because both rows would try to restore the same crib.
-      const principalSnapshot = associatedCrib ? { ...subject, clinicalCrib: undefined } : subject;
+      const principalSnapshot =
+        associatedCrib || independentCribDeparture
+          ? { ...subject, clinicalCrib: undefined }
+          : subject;
       discharges.push(buildDischarge(principalSnapshot, entry, current, ctx));
       if (associatedCrib) {
         discharges.push(buildDischarge(associatedCrib, entry, current, ctx, true));
@@ -301,17 +290,30 @@ export const applyCensusImportDiff = (
     applied.discharges += 1;
   }
 
-  // 1b) Report egresos HHR never synced (unknown RUN): there is no bed to vacate — just append
-  //     the movement record so the day's altas census logs them (already reviewed in the
-  //     preview). The patient is synthesized from the report row; time comes from the report.
+  // 1b) Independently reported outcomes, including an attached RN with its own official report.
+  //     Reuse an exact known episode when available; otherwise synthesize the report-only patient.
   for (const egreso of effectiveDiff.reportEgresos ?? []) {
     // With the report fetched for [D, D+1] (the source files late egresos a day ahead), the list also
     // carries egresos of a DIFFERENT island day. Only log here those whose corrected island day IS
     // this census day; earlier ones are filed on their real day by the cross-day writer, and later
     // ones belong to a future sync.
     if (egreso.correctedDay && egreso.correctedDay !== isoDayOf(current.date)) continue;
-    const patient = reportEgresoPatient(egreso);
-    const entry = reportEgresoEntry(egreso);
+    // Check the growing outcome arrays, not just the pre-sync record: another path in this
+    // same application may already have written this exact episode.
+    if (hasRecordedReportOutcome({ ...current, discharges, transfers, cma }, egreso)) continue;
+    const currentCrib =
+      egreso.fromClinicalCrib && egreso.encounterId
+        ? Object.entries(current.beds).find(
+            ([, principal]) => principal.clinicalCrib?.clinicalEpisodeId === egreso.encounterId
+          )
+        : undefined;
+    // Preserve the known newborn's admission and reversible snapshot instead of synthesizing
+    // a second sparse report row with a source-formatted bed label.
+    const patient = currentCrib?.[1].clinicalCrib ?? reportEgresoPatient(egreso);
+    const entry = {
+      ...reportEgresoEntry(egreso),
+      ...(currentCrib ? { bedId: currentCrib[0] } : {}),
+    };
     const time = egreso.correctedTime || reportEgresoTime(egreso.fechaEgreso) || hhmm(ctx.now);
     if (egreso.kind === 'traslado') {
       transfers.push({ ...buildTransfer(patient, entry, current, ctx), time });
@@ -319,7 +321,11 @@ export const applyCensusImportDiff = (
       cma.push({ ...buildCma(patient, entry, ctx), dischargeTime: time });
     } else {
       const nested = egreso.fromClinicalCrib === true;
-      discharges.push({ ...buildDischarge(patient, entry, current, ctx, nested), time });
+      discharges.push({
+        ...buildDischarge(patient, entry, current, ctx, nested),
+        diagnosis: egreso.diagnostico?.trim() || patient.pathology,
+        time,
+      });
     }
     applied.discharges += 1;
   }

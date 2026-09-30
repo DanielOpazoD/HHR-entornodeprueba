@@ -141,3 +141,28 @@ si sólo existe el formulario vacío, el comando conserva la guarda de presencia
 exacta. Una cuna que recibe identidad concurrentemente sigue bloqueando la retirada. La
 propuesta distingue un movimiento histórico ya registrado de una nueva alta: retirar la
 ocupación residual no añade otro egreso en ninguno de los días.
+
+### Egreso único del RN asociado
+
+Si el reporte hospitalario identifica el episodio exacto del RN, su movimiento propio prevalece
+sobre la inferencia de alta asociada al egreso de la madre. La aplicación comprueba tanto los
+movimientos ya guardados como los creados en la misma corrida, también si el RN se egresó
+mientras la vista previa estaba abierta. Nunca deduplica sólo por nombre o RUN compartido.
+Conserva cama canónica, ingreso, hora oficial y snapshot del RN para deshacer el movimiento;
+la madre no conserva otra copia del RN en su snapshot. El RN asociado sigue con `isNested`
+y no suma otro egreso estadístico. Un diagnóstico vacío del reporte conserva el conocido.
+Los reportes de otro día no suprimen el snapshot reversible de este día.
+
+Para duplicados existentes del día seleccionado, la vista previa propone conservar el egreso
+RN canónico con ingreso y snapshot completo y archivar sólo la copia mínima con cama
+`Cuna ...`, del mismo episodio, RUN, hora, estado y diagnóstico compatible. Exige origen
+Gestión de Camas y movimientos asociados, nunca deduplica altas estadísticas independientes,
+manuales, datos IEEH, snapshots enriquecidos ni identidades ambiguas. Se aplica únicamente al
+confirmar; conserva la copia íntegra como tombstone con operador, fecha y referencia al egreso
+conservado. Un cambio concurrente exige nueva revisión. No cambia otros días ni suma egresos.
+Sin operador identificado la corrección se omite y permanece pendiente.
+Los tombstones existentes evitan que una fusión con otra pestaña resucite la copia.
+
+Regresiones: `newbornDischargeIdempotency.test.ts`, `newbornDischargeReportPrecedence.test.ts`,
+`clinicalCribDischargeRepairs.test.ts`, `RayenImportPreviewModal.newbornRepair.test.tsx` y
+`dischargePlanInvariants.test.ts` bajo `src/tests/rayen-import/`.
