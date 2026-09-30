@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import { expect, it } from 'vitest';
 import { renderPreviewSummary } from '../../../scripts/report-preview-summary.mjs';
 
-it('runs census, library and clinical-panel preview smoke together against the existing build', () => {
+it('runs census, library, clinical-panel and sync-navigation preview smoke together against the existing build', () => {
   const scripts = JSON.parse(fs.readFileSync('package.json', 'utf8')).scripts;
 
   expect(scripts['ci:preview-smoke:built']).toBe(
-    'PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-panel-reading-smoke.spec.ts --project=chromium'
+    'PLAYWRIGHT_SKIP_PREVIEW_BUILD=1 playwright test -c playwright.preview.config.ts e2e/census-preview-bootstrap.spec.ts e2e/clinical-library-smoke.spec.ts e2e/clinical-panel-reading-smoke.spec.ts e2e/census-sync-history-navigation.spec.ts --project=chromium'
   );
   expect(scripts['ci:preview-gate'].split(' && ')).toEqual([
     'npm run check:bundle-budget',
