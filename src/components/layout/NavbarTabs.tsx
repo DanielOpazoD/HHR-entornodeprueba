@@ -28,14 +28,14 @@ const NavTab: React.FC<NavTabProps> = ({ label, icon: Icon, isActive, onClick, t
     aria-label={label}
     title={label}
     className={clsx(
-      'flex shrink-0 items-center gap-2 whitespace-nowrap px-2 sm:px-4 py-1.5 transition-all duration-200 text-[13px] tracking-tight rounded-lg ring-1 ring-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none',
+      'flex shrink-0 items-center gap-2 whitespace-nowrap px-2 lg:px-4 py-1.5 transition-all duration-200 text-[13px] tracking-tight rounded-lg ring-1 ring-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none',
       isActive
         ? 'text-white font-semibold bg-white/[0.16] ring-white/18 underline underline-offset-4 decoration-2'
         : 'text-white/85 hover:text-white hover:bg-white/[0.08] hover:ring-white/12 font-medium'
     )}
   >
     <Icon size={15} aria-hidden="true" />
-    <span className="hidden sm:inline">{label}</span>
+    <span className="hidden lg:inline">{label}</span>
   </button>
 );
 
