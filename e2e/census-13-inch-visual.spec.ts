@@ -247,3 +247,56 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     animations: 'disabled',
   });
 });
+
+test('keeps the census and movement sections complete in the printable view', async ({ page }) => {
+  await seedCensus(page);
+  await page.goto(`/?date=${DATE}`);
+  await expect(page.locator('.census-movement-section')).toHaveCount(3);
+  await page.emulateMedia({ media: 'print' });
+
+  await expect(page.getByText(/Censo diario de servicios hospitalizados/i)).toBeVisible();
+  await expect(page.locator('.census-toolbar')).toBeHidden();
+  for (const section of await page.locator('.census-movement-section').all()) {
+    await expect(section).toBeVisible();
+    expect(await section.evaluate(element => getComputedStyle(element).overflowX)).toBe('visible');
+  }
+  const printableTable = page.locator('.census-table-scroll');
+  expect(await printableTable.evaluate(element => getComputedStyle(element).overflowX)).toBe(
+    'visible'
+  );
+  expect(
+    await page
+      .locator('[data-testid="patient-row"][data-bed-id="R1"] .census-diagnosis-cell .line-clamp-2')
+      .evaluate(element => getComputedStyle(element).webkitLineClamp)
+  ).not.toBe('2');
+
+  await page.screenshot({
+    path: test.info().outputPath('census-print-layout.png'),
+    fullPage: true,
+    animations: 'disabled',
+  });
+  const pdf = await page.pdf({
+    path: test.info().outputPath('census-print-layout.pdf'),
+    format: 'A4',
+    printBackground: true,
+  });
+  expect(pdf.byteLength).toBeGreaterThan(10_000);
+
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const document = await getDocument({ data: new Uint8Array(pdf), useSystemFonts: true }).promise;
+  const pages: string[] = [];
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const printedPage = await document.getPage(pageNumber);
+    const content = await printedPage.getTextContent();
+    pages.push(content.items.map(item => ('str' in item ? item.str : '')).join(' '));
+  }
+  for (const [heading, emptyMessage] of [
+    ['Altas', 'No hay altas registradas para este día.'],
+    ['Traslados', 'No hay traslados registrados para hoy.'],
+    ['Hospitalización Diurna', 'No hay registros de Hospitalización Diurna para hoy.'],
+  ]) {
+    const headingPage = pages.findIndex(content => content.includes(heading));
+    expect(headingPage).toBeGreaterThanOrEqual(0);
+    expect(pages[headingPage]).toContain(emptyMessage);
+  }
+});

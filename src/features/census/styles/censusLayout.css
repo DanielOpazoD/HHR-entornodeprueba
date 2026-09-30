@@ -185,8 +185,40 @@
 }
 
 @media print {
+  .census-toolbar {
+    display: none !important;
+  }
+
   .census-table-scroll {
     overflow: visible;
+  }
+
+  .census-movement-section,
+  .census-movement-table-scroll {
+    overflow: visible !important;
+  }
+
+  .census-movement-section {
+    break-inside: auto;
+  }
+
+  .census-movement-heading,
+  .census-movement-section tr {
+    break-inside: avoid;
+  }
+
+  .census-movement-heading {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .census-movement-heading + div {
+    break-before: avoid;
+    page-break-before: avoid;
+  }
+
+  .census-movement-section thead {
+    display: table-header-group;
   }
 
   .census-table-scroll > table {
