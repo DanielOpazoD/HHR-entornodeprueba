@@ -385,9 +385,14 @@ actual no está autorizado; la extensión no intenta eludir esa autorización.
 
 ## Pendiente / a confirmar con datos reales
 
-- Antecedentes (v0.48.19): el panel HHR consulta HCC de forma efímera, resuelve la identidad
-  desde el episodio y muestra atenciones de los últimos 35 meses, como el visor oficial
-  (tres años completos provocan el rechazo HCC 20 por límite de 36 meses). El detalle ambulatorio se
+- Antecedentes (v0.48.40): el panel HHR consulta HCC de forma efímera y resuelve la identidad
+  desde el episodio. La primera consulta cubre 35 meses; «Cargar período anterior» permite
+  recorrer ventanas contiguas de hasta 35 meses hacia atrás (hasta 1900), sin enviar una
+  solicitud de tres años completos que provoque el rechazo HCC 20. Cada período se solicita
+  a demanda para no multiplicar lecturas clínicas; el detalle de períodos antiguos se abre
+  al pulsarlo. La fuente secundaria espera hasta 15 segundos, igual que la ambulatoria, y
+  una respuesta parcial indica qué falta y permite reintentar sin borrar la otra fuente.
+  El detalle ambulatorio se
   valida contra el listado del mismo paciente. Las evoluciones ambulatorias parten desplegadas,
   sobreviven al cambio de pestaña y sólo las atenciones nuevas se completan en segundo plano. Los
   adjuntos combinan el contenedor, `PathAzure` y la firma dentro de la extensión, sin entregar la

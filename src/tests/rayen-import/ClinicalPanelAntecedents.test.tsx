@@ -17,7 +17,8 @@ describe('ClinicalPanelAntecedents', () => {
               {
                 id: '8',
                 source: 'Primaria',
-                date: '20260908',
+                date: '20260926 15:53',
+                windowEnd: '20260926',
                 diagnosis: 'Diagnóstico sintético',
                 facility: 'Hospital de prueba',
                 type: 'Consulta ambulatoria',
@@ -42,6 +43,7 @@ describe('ClinicalPanelAntecedents', () => {
   it('mantiene la evolución visible, no repite el diagnóstico y ofrece el adjunto', async () => {
     const view = render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
     expect(await screen.findByText('Evolución sintética')).toBeInTheDocument();
+    expect(screen.getByText(/26-09-2026 15:53/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ocultar atención' })).not.toBeInTheDocument();
     expect(screen.getAllByText('Diagnóstico sintético')).toHaveLength(1);
     expect(screen.queryByText('Consultar atenciones de urgencia')).not.toBeInTheDocument();
@@ -50,11 +52,175 @@ describe('ClinicalPanelAntecedents', () => {
       expect(requestClinicalAction).toHaveBeenCalledWith('12', 'attachment', 'Primaria:8:0')
     );
     expect(requestClinicalAction.mock.calls.filter(call => call[1] === 'detail')).toHaveLength(1);
+    expect(requestClinicalAction).toHaveBeenCalledWith(
+      '12',
+      'detail',
+      'Primaria:8',
+      expect.any(AbortSignal)
+    );
     view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
     expect(screen.queryByText('Consultando antecedentes…')).not.toBeInTheDocument();
     expect(screen.getByText('Evolución sintética')).toBeInTheDocument();
     expect(requestClinicalAction.mock.calls.filter(call => call[1] === 'list')).toHaveLength(1);
     expect(requestClinicalAction.mock.calls.filter(call => call[1] === 'detail')).toHaveLength(1);
+  });
+
+  it('permite consultar años anteriores y carga sus detalles sólo al solicitarlos', async () => {
+    requestClinicalAction.mockImplementation(
+      async (
+        _episode: string,
+        operation: string,
+        _entryId?: string,
+        _signal?: AbortSignal,
+        beforeDate?: string
+      ) => {
+        if (operation === 'list' && beforeDate === '20231007')
+          return {
+            ok: true,
+            entries: [
+              {
+                id: '99',
+                source: 'Primaria',
+                date: '20200115 10:30',
+                windowEnd: beforeDate,
+                facility: 'Hospital',
+                diagnosis: 'Antecedente antiguo',
+                type: 'Consulta',
+              },
+            ],
+            warnings: [],
+            nextBeforeDate: null,
+          };
+        if (operation === 'list')
+          return { ok: true, entries: [], warnings: [], nextBeforeDate: '20231007' };
+        return {
+          ok: true,
+          detail: { reason: '', history: 'Detalle antiguo', professional: '', attachments: [] },
+        };
+      }
+    );
+    render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cargar período anterior' }));
+    expect(await screen.findByText('Antecedente antiguo')).toBeInTheDocument();
+    expect(screen.getByText(/15-01-2020 10:30/)).toBeInTheDocument();
+    expect(requestClinicalAction.mock.calls.filter(call => call[1] === 'detail')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de la atención' }));
+    expect(await screen.findByText('Detalle antiguo')).toBeInTheDocument();
+    expect(requestClinicalAction).toHaveBeenCalledWith(
+      '12',
+      'detail',
+      'Primaria:99',
+      expect.any(AbortSignal),
+      '20231007'
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Cargar período anterior' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('reintenta un período parcial y conserva los datos ya obtenidos de la otra fuente', async () => {
+    let olderCalls = 0;
+    requestClinicalAction.mockImplementation(
+      async (
+        _episode: string,
+        operation: string,
+        _entryId?: string,
+        _signal?: AbortSignal,
+        beforeDate?: string
+      ) => {
+        if (operation === 'list' && beforeDate === '20231007') {
+          olderCalls += 1;
+          return olderCalls === 1
+            ? {
+                ok: true,
+                entries: [
+                  {
+                    id: '99',
+                    source: 'Primaria',
+                    date: '20200115',
+                    facility: 'Hospital',
+                    diagnosis: 'Primaria antigua',
+                    type: '',
+                  },
+                ],
+                warnings: ['Secundaria no disponible'],
+                unavailableSources: ['Secundaria'],
+                nextBeforeDate: '20201106',
+              }
+            : {
+                ok: true,
+                entries: [
+                  {
+                    id: '88',
+                    source: 'Secundaria',
+                    date: '20200116',
+                    facility: 'Hospital',
+                    diagnosis: 'Secundaria recuperada',
+                    type: '',
+                  },
+                ],
+                warnings: ['Primaria no disponible'],
+                unavailableSources: ['Primaria'],
+                nextBeforeDate: '20201106',
+              };
+        }
+        if (operation === 'list')
+          return { ok: true, entries: [], warnings: [], nextBeforeDate: '20231007' };
+        return { ok: true, detail: { reason: '', history: '', professional: '', attachments: [] } };
+      }
+    );
+    render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cargar período anterior' }));
+    expect(await screen.findByText('Primaria antigua')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar período anterior' }));
+    expect(await screen.findByText('Secundaria recuperada')).toBeInTheDocument();
+    expect(screen.getByText('Primaria antigua')).toBeInTheDocument();
+    expect(olderCalls).toBe(2);
+  });
+
+  it('descarta períodos del episodio anterior al cambiar de paciente', async () => {
+    requestClinicalAction.mockImplementation(
+      async (
+        episode: string,
+        operation: string,
+        _entryId?: string,
+        _signal?: AbortSignal,
+        beforeDate?: string
+      ) => {
+        if (operation !== 'list') return { ok: true };
+        if (episode === '13') return { ok: true, entries: [], warnings: [] };
+        if (beforeDate)
+          return {
+            ok: true,
+            entries: [
+              {
+                id: '99',
+                source: 'Secundaria',
+                date: '20200115',
+                facility: 'Hospital',
+                diagnosis: 'Historia del episodio anterior',
+                type: '',
+              },
+            ],
+            warnings: [],
+            nextBeforeDate: null,
+          };
+        return { ok: true, entries: [], warnings: [], nextBeforeDate: '20231007' };
+      }
+    );
+    const view = render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cargar período anterior' }));
+    expect(await screen.findByText('Historia del episodio anterior')).toBeInTheDocument();
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="13" />);
+    expect(screen.queryByText('Historia del episodio anterior')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(requestClinicalAction).toHaveBeenCalledWith(
+        '13',
+        'list',
+        undefined,
+        expect.any(AbortSignal)
+      )
+    );
   });
 
   it('permite reintentar el detalle después de un fallo transitorio', async () => {

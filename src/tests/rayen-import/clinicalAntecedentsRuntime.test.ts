@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import '../../../extension/clinical-antecedents-attachment.js';
 import '../../../extension/clinical-antecedents-detail.js';
+import '../../../extension/clinical-antecedents-window.js';
 import '../../../extension/clinical-antecedents-runtime.js';
 
 type Result = {
@@ -12,6 +13,9 @@ type Result = {
   warnings?: string[];
   unavailableSources?: string[];
   detail?: unknown;
+  windowStart?: string;
+  windowEnd?: string;
+  nextBeforeDate?: string | null;
 };
 type Dependencies = {
   now?: () => Date;
@@ -29,6 +33,7 @@ const runtime = (
           encId: string;
           operation: string;
           entryId?: string;
+          beforeDate?: string;
         }) => Promise<Result>;
       };
     };
@@ -146,15 +151,67 @@ describe('clinical antecedents runtime', () => {
     ['2026-01-31T18:00:00Z', '20230228', '20260131'],
     ['2027-01-31T18:00:00Z', '20240229', '20270131'],
     ['2026-09-09T02:00:00Z', '20231008', '20260908'],
-  ])('respeta 35 meses y el día local de Isla de Pascua: %s', async (instant, start, end) => {
-    const h = createHarness(instant);
-    await h.api.handleRequest({ encId: '12', operation: 'list' });
-    const requests = h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'));
-    expect(requests).toHaveLength(2);
-    for (const [url] of requests) {
-      const params = JSON.parse(new URL(url).searchParams.get('ParametroFUC')!);
-      expect(params).toMatchObject({ FechaInicio: start, FechaTermino: end });
+  ])(
+    'respeta ventanas de 35 meses y el día local de Isla de Pascua: %s',
+    async (instant, start, end) => {
+      const h = createHarness(instant);
+      await h.api.handleRequest({ encId: '12', operation: 'list' });
+      const requests = h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'));
+      expect(requests).toHaveLength(2);
+      for (const [url] of requests) {
+        const params = JSON.parse(new URL(url).searchParams.get('ParametroFUC')!);
+        expect(params).toMatchObject({ FechaInicio: start, FechaTermino: end });
+      }
     }
+  );
+  it('permite consultar ventanas anteriores sin huecos ni peticiones de más de 35 meses', async () => {
+    const h = createHarness();
+    const first = await h.api.handleRequest({ encId: '12', operation: 'list' });
+    expect(first).toMatchObject({ windowStart: '20231008', windowEnd: '20260908' });
+    expect(first.nextBeforeDate).toBe('20231007');
+    const older = await h.api.handleRequest({
+      encId: '12',
+      operation: 'list',
+      beforeDate: first.nextBeforeDate!,
+    });
+    expect(older).toMatchObject({ windowStart: '20201107', windowEnd: '20231007' });
+    expect(older.nextBeforeDate).toBe('20201106');
+    const requests = h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'));
+    expect(requests).toHaveLength(4);
+    const olderParams = JSON.parse(new URL(requests[2][0]).searchParams.get('ParametroFUC')!);
+    expect(olderParams).toMatchObject({ FechaInicio: '20201107', FechaTermino: '20231007' });
+    expect(older.entries).toMatchObject([{ windowEnd: '20231007' }]);
+    const detail = await h.api.handleRequest({
+      encId: '12',
+      operation: 'detail',
+      entryId: 'Primaria:8',
+      beforeDate: older.windowEnd,
+    });
+    expect(detail.ok).toBe(true);
+    expect(h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'))).toHaveLength(
+      4
+    );
+  });
+  it('rechaza un cursor inválido antes de acceder a la ficha o al visor', async () => {
+    const h = createHarness();
+    const result = await h.api.handleRequest({
+      encId: '12',
+      operation: 'list',
+      beforeDate: '20990101',
+    });
+    expect(result.ok).toBe(false);
+    expect(h.getContext).not.toHaveBeenCalled();
+    expect(h.fetchImpl).not.toHaveBeenCalled();
+  });
+  it('termina la paginación histórica en el límite inferior sin repetir ventanas', async () => {
+    const h = createHarness();
+    const result = await h.api.handleRequest({
+      encId: '12',
+      operation: 'list',
+      beforeDate: '19000101',
+    });
+    expect(result).toMatchObject({ ok: true, windowStart: '19000101', windowEnd: '19000101' });
+    expect(result.nextBeforeDate).toBeNull();
   });
   it('normaliza una sola atención y una fuente sin atenciones sin filtrar URLs ni credenciales', async () => {
     const h = createHarness();
@@ -177,9 +234,30 @@ describe('clinical antecedents runtime', () => {
     expect(result.ok).toBe(true);
     expect(result.entries).toHaveLength(1);
     expect(result.warnings).toEqual([
-      'Antecedentes ambulatorios cargados. La fuente secundaria sigue pendiente; se reintentará en segundo plano.',
+      'Se muestran los antecedentes ambulatorios, pero la fuente secundaria no respondió. Reintenta para completar la información.',
     ]);
     expect(result.unavailableSources).toEqual(['Secundaria']);
+    await h.api.handleRequest({ encId: '12', operation: 'list' });
+    expect(h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'))).toHaveLength(
+      4
+    );
+  });
+  it('espera una respuesta secundaria válida que tarda más de 1,5 segundos', async () => {
+    vi.useFakeTimers();
+    try {
+      const h = createHarness();
+      const original = h.fetchImpl.getMockImplementation()!;
+      h.fetchImpl.mockImplementation((url, options) =>
+        url.includes('Secundaria')
+          ? new Promise(resolve => setTimeout(() => resolve(original(url, options)), 1600))
+          : original(url, options)
+      );
+      const pending = h.api.handleRequest({ encId: '12', operation: 'list' });
+      await vi.advanceTimersByTimeAsync(1601);
+      expect((await pending).warnings).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it('rechaza el detalle que no pertenece al historial del episodio', async () => {
     const h = createHarness();

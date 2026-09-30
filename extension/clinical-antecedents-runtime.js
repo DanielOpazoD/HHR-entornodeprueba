@@ -45,7 +45,9 @@
         throw new Error('No se pudo verificar la identidad del paciente en Antecedentes.');
       return { context, patient };
     };
-    const historyFor = async (encId, sender) => {
+    const historyFor = async (encId, sender, beforeDate) => {
+      const end = now();
+      const window = root.HhrClinicalAntecedentsWindow.create(end, beforeDate);
       const { context, patient } = await contextFor(encId, sender);
       const universal = list(patient.patientIdentifier).find(
         row => Number(row.peridentId) === 7 && !row.deleted
@@ -78,26 +80,7 @@
       const token = await externalJson('/api/ObtenerToken', 'Parametro', { TokenAcceso: parts[4] });
       if (!token?.ObtenerTokenSesionResult?.TokenSesion)
         throw new Error('La sesión del visor de antecedentes venció.');
-      // Captured official calls use this exchange as validation, then send ParametroFUC only.
-      const end = now();
-      const date = value =>
-        new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'Pacific/Easter',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        })
-          .format(value)
-          .replace(/-/g, '');
-      // Match the official viewer's 35-month window; 3 full years trigger HCC code 20.
-      const endDate = date(end);
-      const year = Number(endDate.slice(0, 4)),
-        month = Number(endDate.slice(4, 6));
-      const start = new Date(Date.UTC(year, month - 1 - 35, 1, 12));
-      const lastDay = new Date(
-        Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)
-      ).getUTCDate();
-      start.setUTCDate(Math.min(Number(endDate.slice(6, 8)), lastDay));
+      // The viewer accepts bounded windows, including older ones requested on demand.
       const time = new Intl.DateTimeFormat('en-GB', {
         timeZone: 'Pacific/Easter',
         hour: '2-digit',
@@ -106,15 +89,15 @@
       }).format(end);
       const base = {
         CodigoEstablecimientoConsulta: '99-991',
-        FechaHoraMensaje: `${date(end)} ${time}`,
+        FechaHoraMensaje: `${root.HhrClinicalAntecedentsWindow.localDay(end)} ${time}`,
         IdSitioSoftware: '1',
         IdSoftwareInforma: '1',
         TipoMensaje: '1',
         VersionSoftwareInforma: '1',
       };
       const params = {
-        FechaInicio: date(start),
-        FechaTermino: endDate,
+        FechaInicio: window.startDate,
+        FechaTermino: window.endDate,
         IdRyF: id,
         IdentificacionPaciente: {
           OtraIdentificacion: '1',
@@ -126,7 +109,7 @@
       const sources = await Promise.allSettled(
         ['Primaria', 'Secundaria'].map(async (source, index) => {
           const data = await externalJson(`/api/ObtenerResumenHistorialClinico${source}`,
-            'ParametroFUC', params, index === 1 ? 1500 : 15000);
+            'ParametroFUC', params);
           const result = data?.ObtenerResumenHistorialClinicoResult;
           if (
             !result ||
@@ -145,6 +128,7 @@
                 id: String(item.IdAtencion ?? row.IdentificadorAtencion ?? ''),
                 source,
                 date: text(item.FechaHoraInicio || row.FechaHoraAtencion),
+                windowEnd: window.endDate,
                 diagnosis: text(row.DiagnosticoPrincipal),
                 facility: text(row.EstablecimientoAtencion),
                 type: text(row.TipoAtencion),
@@ -156,6 +140,7 @@
       return {
         base,
         patientRun,
+        ...window,
         rows: sources.flatMap(source => (source.status === 'fulfilled' ? source.value : [])),
         warnings: sources.flatMap((source, i) =>
           source.status === 'rejected' ? [detailSupport.sourceWarning(source, i)] : []
@@ -165,7 +150,7 @@
         ),
       };
     };
-    const handleRequest = async ({ encId, operation, entryId, sender }) => {
+    const handleRequest = async ({ encId, operation, entryId, beforeDate, sender }) => {
       try {
         if (operation === 'urgency') {
           const { context, patient } = await contextFor(encId, sender);
@@ -183,13 +168,16 @@
         }
         if (!['list', 'detail', 'attachment'].includes(operation))
           throw new Error('La consulta de antecedentes no es válida.');
-        const history = await detailSupport.cachedHistoryFor(historyFor, encId, sender);
+        const history = await detailSupport.cachedHistoryFor(historyFor, encId, sender, beforeDate);
         if (operation === 'list')
           return {
             ok: true,
             entries: history.rows,
             warnings: history.warnings,
             unavailableSources: history.unavailableSources,
+            windowStart: history.startDate,
+            windowEnd: history.endDate,
+            nextBeforeDate: history.nextBeforeDate,
           };
         const [source, id, attachmentId] = String(entryId || '').split(':');
         const selected = history.rows.find(row => row.source === source && row.id === id);

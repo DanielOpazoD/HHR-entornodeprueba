@@ -67,6 +67,42 @@ describe('clinical action message lifetime', () => {
       detail: { history: 'Evolución', attachments: [] },
     });
   });
+  it('transporta el cursor de historia antigua y sólo acepta metadatos de fecha válidos', async () => {
+    const post = vi.spyOn(window, 'postMessage').mockImplementation(() => {});
+    const pending = requestClinicalAction('123', 'list', undefined, undefined, '20231007');
+    const message = post.mock.calls[0][0];
+    expect(message.beforeDate).toBe('20231007');
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        source: window,
+        origin: window.location.origin,
+        data: {
+          type: 'HHR_RAYEN_CLINICAL_ACTION_RESULT',
+          reqId: message.reqId,
+          ok: true,
+          entries: [
+            {
+              id: '8',
+              source: 'Primaria',
+              date: '20200115',
+              diagnosis: '',
+              facility: '',
+              type: '',
+              windowEnd: '20231007',
+            },
+          ],
+          windowStart: '20201107',
+          windowEnd: '20231007',
+          nextBeforeDate: '20201106',
+        },
+      })
+    );
+    expect(await pending).toMatchObject({
+      entries: [{ windowEnd: '20231007' }],
+      windowStart: '20201107',
+      nextBeforeDate: '20201106',
+    });
+  });
   it('no deja listeners cuando el envío falla', async () => {
     vi.spyOn(window, 'postMessage').mockImplementation(() => {
       throw new Error('Send failed');

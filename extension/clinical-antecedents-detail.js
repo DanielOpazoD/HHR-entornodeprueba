@@ -23,12 +23,12 @@
       }, 30000);
       return entry;
     };
-    const cachedHistoryFor = async (historyFor, encId, sender) => {
+    const cachedHistoryFor = async (historyFor, encId, sender, beforeDate) => {
       const authorizationKey = await getAuthorizationKey(sender);
-      const key = `${authorizationKey}:${encId}`;
+      const key = `${authorizationKey}:${encId}:${beforeDate || 'latest'}`;
       const cached = recentHistory.get(key);
       if (cached?.expiresAt > Date.now()) return await cached.value;
-      const pending = historyFor(encId, sender).then(async value => {
+      const pending = historyFor(encId, sender, beforeDate).then(async value => {
         const currentAuthorizationKey = await getAuthorizationKey(sender);
         if (currentAuthorizationKey !== authorizationKey)
           throw new Error('La sesión clínica cambió durante la consulta de antecedentes.');
@@ -88,7 +88,7 @@
       attachments: attachmentSupport.summaries(detail),
     });
     const sourceWarning = (source, index) => index === 1 && source.reason?.name === 'AbortError'
-      ? 'Antecedentes ambulatorios cargados. La fuente secundaria sigue pendiente; se reintentará en segundo plano.'
+      ? 'Se muestran los antecedentes ambulatorios, pero la fuente secundaria no respondió. Reintenta para completar la información.'
       : `No se pudo consultar la fuente ${index === 0 ? 'ambulatoria' : 'secundaria'}. ${
         source.reason?.name === 'AbortError'
           ? 'El visor tardó demasiado en responder.'
