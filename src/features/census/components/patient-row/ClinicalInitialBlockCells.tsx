@@ -65,25 +65,26 @@ const ClinicalInitialBlockCellButton: React.FC<ClinicalInitialBlockCellButtonPro
   <ClinicalInitialBlockEditor
     data={data}
     disabled={readOnly}
-    triggerAriaLabel={`Editar ${label}`}
-    triggerTitle={`Editar ${label}`}
+    triggerAriaLabel={`${readOnly ? 'Ver' : 'Editar'} ${label}`}
+    triggerTitle={`${readOnly ? 'Ver' : 'Editar'} ${label}`}
     triggerClassName={triggerClassName || clinicalBlockButtonClassName}
     triggerContent={
       <>
         <span
           className={clsx(
-            // Dos líneas antes de recortar: el texto completo sigue disponible en el DOM y en el
-            // tooltip, y el editor del bloque inicial conserva el valor íntegro.
+            // Two readable lines on screen; activating the cell opens the full value.
             'break-words leading-snug line-clamp-2',
             contentClassName || (value ? 'text-slate-800' : 'text-slate-400 italic')
           )}
-          title={value || undefined}
         >
           {value || placeholder}
         </span>
         {contentSuffix}
       </>
     }
+    viewOnly={readOnly}
+    viewOnlyLabel={label.charAt(0).toUpperCase() + label.slice(1)}
+    viewOnlyValue={value}
     onChange={onChange}
     onMultipleUpdate={onMultipleUpdate}
   />

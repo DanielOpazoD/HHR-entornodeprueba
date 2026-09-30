@@ -199,4 +199,14 @@
     width: var(--census-column-share) !important;
     max-width: none !important;
   }
+
+  .census-diagnosis-cell .line-clamp-2 {
+    display: block;
+    -webkit-line-clamp: unset;
+  }
+
+  .census-table-scroll > table > tbody > tr,
+  .census-movement-section tr {
+    break-inside: avoid;
+  }
 }

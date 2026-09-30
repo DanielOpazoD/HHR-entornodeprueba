@@ -56,6 +56,52 @@ const renderEditor = (
 };
 
 describe('ClinicalInitialBlockEditor treating physician', () => {
+  it('lets a read-only census cell disclose a full diagnosis without edit controls', () => {
+    const diagnosis = 'Diagnóstico sintético que ocupa más de dos líneas en el censo';
+    mockedStaffContext.value = contextValue([]);
+    const onMultipleUpdate = vi.fn();
+    render(
+      <ClinicalInitialBlockEditor
+        data={{ ...EMPTY_PATIENT, bedId: 'H1C1', pathology: diagnosis }}
+        disabled
+        viewOnly
+        triggerAriaLabel="Ver diagnóstico completo"
+        onChange={() => vi.fn()}
+        onMultipleUpdate={onMultipleUpdate}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver diagnóstico completo' }));
+    expect(screen.getByRole('region', { name: 'Diagnóstico' })).toHaveTextContent(diagnosis);
+    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('region', { name: 'Diagnóstico' })).not.toBeInTheDocument();
+    expect(onMultipleUpdate).not.toHaveBeenCalled();
+  });
+
+  it('uses the requested field label and value in a read-only disclosure', () => {
+    mockedStaffContext.value = contextValue([]);
+    render(
+      <ClinicalInitialBlockEditor
+        data={{ ...EMPTY_PATIENT, bedId: 'H1C1', pathology: 'Otro diagnóstico' }}
+        disabled
+        viewOnly
+        viewOnlyLabel="Especialidad"
+        viewOnlyValue="Cirugía"
+        triggerAriaLabel="Ver especialidad completa"
+        onChange={() => vi.fn()}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Ver especialidad completa' });
+    expect(trigger).toHaveAttribute('title', 'Ver especialidad');
+    fireEvent.click(trigger);
+    expect(screen.getByRole('region', { name: 'Especialidad' })).toHaveTextContent('Cirugía');
+    expect(screen.getByRole('region', { name: 'Especialidad' })).not.toHaveTextContent(
+      'Otro diagnóstico'
+    );
+  });
+
   it('keeps the old dismissal when another physician is selected', () => {
     const onMultipleUpdate = renderEditor(
       [{ name: 'Médico B', phone: '', specialty: 'Cirugía', rayenPractitionerId: 'physician-b' }],

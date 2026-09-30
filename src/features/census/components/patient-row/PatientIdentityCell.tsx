@@ -158,7 +158,12 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
 
   return (
     <td className="census-identity-cell py-1 px-1 border-r border-slate-200 align-middle">
-      <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-0.5">
+      <div
+        className={clsx(
+          'relative grid min-w-0 items-center gap-x-0.5',
+          isEmpty ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_84px]'
+        )}
+      >
         {isSubRow && (
           <div className="absolute left-[-15px] top-2 text-slate-300">
             <ArrowRight size={14} />
@@ -346,7 +351,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           </div>
         )}
         {!isEmpty && (
-          <span className="col-start-2 row-span-2 row-start-1 inline-flex shrink-0 items-center gap-0">
+          <span className="census-identity-actions col-start-2 row-span-2 row-start-1 inline-flex w-[84px] shrink-0 items-center justify-end whitespace-nowrap">
             <ClinicalPanelTrigger
               bedId={data.bedId}
               triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
