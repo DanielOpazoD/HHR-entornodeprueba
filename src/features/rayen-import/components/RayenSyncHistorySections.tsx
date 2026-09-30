@@ -8,6 +8,8 @@ import {
 import { StaffingBoundaryExclusions } from './StaffingBoundaryExclusions';
 import { RayenSyncTechnicalMetricsPanel } from './RayenSyncTechnicalMetricsPanel';
 import { RayenSyncStructuralReviewDetail } from './RayenSyncStructuralReviewDetail';
+import { RayenSyncIssueActions } from './RayenSyncIssueActions';
+import { rayenClinicalIssueTarget, rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
 
 const sourceLabel = (event: RayenSyncEvent): string | null => {
   const source = event.source;
@@ -69,7 +71,11 @@ const TechnicalMetadata: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
   );
 };
 
-export const RayenSyncClinicalSection: React.FC<{ event: RayenSyncEvent }> = ({ event }) => {
+export const RayenSyncClinicalSection: React.FC<{
+  event: RayenSyncEvent;
+  targetDate?: string | null;
+}> = ({ event, targetDate }) => {
+  const censusDate = event.sourceDate ?? targetDate;
   const coverage = presentRayenCoverage(
     event.coverage,
     event.status !== 'failed',
@@ -91,7 +97,7 @@ export const RayenSyncClinicalSection: React.FC<{ event: RayenSyncEvent }> = ({ 
           Cobertura clínica: {coverage.label}
         </span>
       </div>
-      <RayenSyncStructuralReviewDetail review={event.structuralReview} />
+      <RayenSyncStructuralReviewDetail review={event.structuralReview} censusDate={censusDate} />
       {event.coverage &&
         (event.coverage.errors > 0 ||
           event.coverage.sourceErrors > 0 ||
@@ -100,11 +106,19 @@ export const RayenSyncClinicalSection: React.FC<{ event: RayenSyncEvent }> = ({ 
             <p className="font-bold">Qué quedó pendiente en la información clínica</p>
             {event.coverage.issues?.length ? (
               <ul className="mt-1 space-y-1">
-                {event.coverage.issues.map(issue => (
-                  <li key={`${issue.bedId}-${issue.source}-${issue.reason}`}>
-                    {presentRayenCoverageIssue(issue)}
-                  </li>
-                ))}
+                {event.coverage.issues.map(issue => {
+                  const target = rayenClinicalIssueTarget(issue, censusDate);
+                  return (
+                    <li key={`${issue.bedId}-${issue.source}-${issue.reason}`} className="py-1">
+                      <p>{presentRayenCoverageIssue(issue)}</p>
+                      <RayenSyncIssueActions
+                        code={rayenSyncTechnicalCode(issue.source, issue.reason)}
+                        date={target?.date}
+                        bedId={target?.bedId}
+                      />
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="mt-1">{presentRayenLegacyCoverageGap(event.coverage)}</p>
