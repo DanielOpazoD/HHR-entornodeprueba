@@ -136,6 +136,24 @@ clínicos en esa telemetría.
 - **El registro producido pasa el Zod del propio HHR** y preserva `dateTimestamp` (test
   `producedRecordValidity.test.ts`), así el `save` no es rechazado por validación ni por reglas Firestore.
 
+### Reparación revisada de altas RN antiguas
+
+La sincronización evita generar dos movimientos para el mismo episodio RN. Si un censo ya
+contiene el defecto antiguo (una alta completa en la cama principal y una copia mínima con
+prefijo `Cuna`), propone archivarla en **Corregir egresos RN duplicados**. No modifica datos al
+planificar ni oculta filas en la tabla: exige confirmar el diff, identificar al operador y
+revalidar ambas filas antes de guardar su tombstone. Conserva íntegros la madre, el movimiento
+RN completo y los snapshots para deshacer; el RN sigue excluido del conteo estadístico.
+
+La copia mínima puede haber pasado por el esquema de persistencia: sus campos adicionales
+solo se aceptan si coinciden exactamente con los defaults y nombres derivados por ese esquema.
+Cualquier dispositivo, nota, identidad corregida o campo desconocido la deja fuera de la reparación.
+Se exige el mismo episodio exacto, día, cama, RUN, estado y diagnóstico compatible, sin IEEH en
+la copia ni candidatos ambiguos. Si las horas difieren (el flujo antiguo usaba la hora materna
+para el alta asociada y la propia del RN para el informe), además se exige el mismo `syncRunId`
+no vacío y la misma marca válida de clasificación. La revisión muestra ambas horas y conserva
+la del registro completo; no aplica tolerancias de minutos ni inventa una hora corregida.
+
 ## Estructura
 
 | Path                                            | Rol                                                                        |

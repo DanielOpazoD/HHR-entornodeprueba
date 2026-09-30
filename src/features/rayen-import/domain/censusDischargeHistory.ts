@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import { BEDS } from '@/constants/beds';
+import { PatientDataSchema } from '@/schemas/zod/patient';
 import { getActiveDischarges } from '@/application/census/movementTombstonePolicy';
 import { normalizeRut } from '@/utils/rutUtils';
 import type { DischargeData } from '@/types/domain/movements';
@@ -153,12 +155,41 @@ const isImportedCribDeparture = (row: DischargeData, date: string): boolean =>
 const isCanonicalDeparture = (row: DischargeData): boolean =>
   bedIds.has(row.bedId) &&
   Boolean(row.admissionDate && row.originalData?.admissionDate === row.admissionDate);
+// Repository parsing adds defaults and derives name parts even to report-only snapshots.
+// Compare those extra fields against the actual schema, never against arbitrary empty values:
+// devices, notes, manual identity corrections and unknown fields still prevent a repair.
+const hasOnlyReportSnapshotData = (snapshot: PatientData | undefined): boolean => {
+  if (!snapshot) return false;
+  const entries = Object.entries(snapshot);
+  const minimal = Object.fromEntries(entries.filter(([key]) => sparseSnapshotFields.has(key)));
+  const normalized = PatientDataSchema.safeParse(minimal);
+  if (!normalized.success) return false;
+  const defaults = new Map(Object.entries(normalized.data));
+  return entries.every(
+    ([key, value]) =>
+      sparseSnapshotFields.has(key) ||
+      (defaults.has(key) && JSON.stringify(value) === JSON.stringify(defaults.get(key)))
+  );
+};
+const importClassificationTimestampSchema = z.string().datetime({ offset: true });
+const isSameImportBatch = (left: DischargeData, right: DischargeData): boolean => {
+  const a = left.movementProvenance;
+  const b = right.movementProvenance;
+  return Boolean(
+    a?.source === 'gestion_camas' &&
+    b?.source === 'gestion_camas' &&
+    a.syncRunId.trim() &&
+    a.syncRunId === b.syncRunId &&
+    importClassificationTimestampSchema.safeParse(a.classifiedAt).success &&
+    a.classifiedAt === b.classifiedAt
+  );
+};
 const isMalformedReportCopy = (row: DischargeData): boolean =>
   /^cuna\s+/i.test(row.bedId) &&
   !row.admissionDate &&
   !row.originalData?.admissionDate &&
   !row.ieehData &&
-  Object.keys(row.originalData ?? {}).every(key => sparseSnapshotFields.has(key));
+  hasOnlyReportSnapshotData(row.originalData);
 
 /** Only the known two-path import defect; ambiguous identities or enriched rows are not repaired. */
 export const planClinicalCribDischargeRepairs = (
@@ -175,7 +206,9 @@ export const planClinicalCribDischargeRepairs = (
         isCanonicalDeparture(row) &&
         row.clinicalEpisodeId === duplicate.clinicalEpisodeId &&
         row.bedId === parentBedId &&
-        row.time === duplicate.time &&
+        // The associated row used the mother's time; the report copy used the RN's own time.
+        // Different times require proof of the same import, never a fuzzy minute tolerance.
+        (row.time === duplicate.time || isSameImportBatch(row, duplicate)) &&
         row.status === duplicate.status &&
         normalizeRut(row.rut) === normalizeRut(duplicate.rut) &&
         (!duplicate.diagnosis?.trim() || duplicate.diagnosis.trim() === row.diagnosis?.trim())
