@@ -160,6 +160,8 @@ Gestión de Camas y movimientos asociados, nunca deduplica altas estadísticas i
 manuales, datos IEEH, snapshots enriquecidos ni identidades ambiguas. Se aplica únicamente al
 confirmar; conserva la copia íntegra como tombstone con operador, fecha y referencia al egreso
 conservado. Un cambio concurrente exige nueva revisión. No cambia otros días ni suma egresos.
+La elegibilidad histórica lee los snapshots únicamente en `censusDischargeHistory`, la frontera
+gobernada existente; el aplicador recibe la propuesta sin interpretar esos datos clínicos.
 Sin operador identificado la corrección se omite y permanece pendiente.
 Los tombstones existentes evitan que una fusión con otra pestaña resucite la copia.
 
