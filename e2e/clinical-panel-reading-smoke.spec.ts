@@ -21,7 +21,7 @@ const seedClinicalPanel = async (page: Page) => {
         bedMode: 'Cama',
         patientName: PATIENT,
         rut: '12345678-5',
-        clinicalEpisodeId: 'preview-episode',
+        clinicalEpisodeId: '123',
         pathology: 'DIAGNÓSTICO PREVIEW',
         age: '44',
         admissionDate: '2026-03-29',
@@ -32,7 +32,7 @@ const seedClinicalPanel = async (page: Page) => {
   // Invalid fixtures enter salvage normalization, replacing the episode while the panel opens.
   expect(
     PatientDataSchema.parse((record.beds as Record<string, unknown>).R1).clinicalEpisodeId
-  ).toBe('preview-episode');
+  ).toBe('123');
 
   await page.addInitScript(
     ({
@@ -54,7 +54,72 @@ const seedClinicalPanel = async (page: Page) => {
       localStorage.setItem('hanga_roa_hospital_data', JSON.stringify({ [date]: seededRecord }));
 
       window.addEventListener('message', event => {
-        const request = event.data as { type?: string; reqId?: string };
+        const request = event.data as {
+          type?: string;
+          reqId?: string;
+          operation?: string;
+          entryId?: string;
+        };
+        if (request.type === 'HHR_RAYEN_CLINICAL_ACTION_REQUEST' && request.reqId) {
+          const emergency = request.entryId === 'Primaria:9';
+          window.postMessage(
+            {
+              type: 'HHR_RAYEN_CLINICAL_ACTION_RESULT',
+              reqId: request.reqId,
+              ok: true,
+              ...(request.operation === 'list'
+                ? {
+                    entries: ['8', '9'].map(id => ({
+                      id,
+                      source: 'Primaria',
+                      date: '20260929 10:30',
+                      diagnosis: 'Diagnóstico sintético',
+                      facility: 'Centro de prueba',
+                      type: 'Consulta ambulatoria (APS)',
+                    })),
+                    warnings: [],
+                    nextBeforeDate: null,
+                  }
+                : {
+                    detail: {
+                      reason: 'Motivo sintético',
+                      history: 'Enfermedad sintética',
+                      professional: 'Profesional de prueba',
+                      patientName: 'PACIENTE LECTURA PREVIEW',
+                      careType: emergency ? 'emergency' : 'outpatient',
+                      diagnoses: ['Diagnóstico sintético', 'Segundo diagnóstico sintético'],
+                      indications: ['Indicación sintética'],
+                      attachments: [],
+                      physicalExams: emergency
+                        ? [
+                            {
+                              name: 'Examen Fisico Urgencia',
+                              fields: [
+                                { label: 'Observación', value: 'Examen sintético de urgencia' },
+                              ],
+                            },
+                          ]
+                        : [],
+                      prescriptions: emergency
+                        ? []
+                        : [
+                            {
+                              id: '123',
+                              date: '20260929 10:30',
+                              status: 'Registrada',
+                              type: 'General',
+                              items: [
+                                'Medicación sintética: 1 comprimido cada 24 horas por 30 días.',
+                              ],
+                            },
+                          ],
+                    },
+                  }),
+            },
+            window.location.origin
+          );
+          return;
+        }
         if (request.type !== 'HHR_RAYEN_CLINICAL_PANEL_REQUEST' || !request.reqId) return;
         window.postMessage(
           {
@@ -200,4 +265,35 @@ test.describe('failed clinical panel chunks', () => {
       }
     });
   }
+});
+
+test('distingue APS y UEA y descarga una copia PDF accesible de la receta fuente', async ({
+  page,
+}) => {
+  await seedClinicalPanel(page);
+  await page.goto(`/?date=${DATE}`);
+  await page.getByTestId('clinical-panel-trigger-R1').click();
+  const drawer = page.getByTestId('clinical-panel-drawer-R1');
+  await drawer.getByRole('button', { name: 'Antecedentes' }).click();
+  const outpatient = drawer.locator('article').filter({ hasText: 'Atención ambulatoria (APS)' });
+  const emergency = drawer.locator('article').filter({ hasText: 'Urgencia (UEA)' });
+  await expect(outpatient).toContainText('Motivo sintético');
+  await expect(outpatient).toContainText('Enfermedad sintética');
+  await expect(outpatient).toContainText('Segundo diagnóstico sintético');
+  await expect(outpatient).toContainText('Indicación sintética');
+  await expect(emergency).toContainText('Examen sintético de urgencia');
+  await expect(emergency.getByRole('heading', { name: 'Prescripciones' })).toHaveCount(0);
+  const button = outpatient.getByRole('button', { name: 'Descargar copia PDF de receta 123' });
+  await button.focus();
+  const downloaded = page.waitForEvent('download');
+  await page.keyboard.press('Enter');
+  const pdf = await downloaded;
+  expect(pdf.suggestedFilename()).toBe('receta-antecedente-123.pdf');
+  await pdf.saveAs(test.info().outputPath('receta-sintetica.pdf'));
+  await expect(button).toBeEnabled();
+  await page.screenshot({ path: test.info().outputPath('antecedentes-aps-uea-desktop.png') });
+  await page.setViewportSize({ width: 375, height: 812 });
+  const content = drawer.getByTestId('clinical-panel-content');
+  expect(await content.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath('antecedentes-aps-uea-mobile.png') });
 });

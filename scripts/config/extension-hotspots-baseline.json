@@ -3,7 +3,11 @@
   "schemaVersion": 1,
   "extensionRoot": "extension",
   "complexityThreshold": 15,
-  "vendorFiles": ["jspdf.umd.min.js", "pdf-lib.min.js", "xlsx.full.min.js"],
+  "vendorFiles": [
+    "jspdf.umd.min.js",
+    "pdf-lib.min.js",
+    "xlsx.full.min.js"
+  ],
   "files": {
     "background.js": {
       "maxLines": 1477,
@@ -699,6 +703,14 @@
     },
     "relay-reinjection-session.js": {
       "maxLines": 47,
+      "hotspots": {}
+    },
+    "clinical-antecedents-fields.js": {
+      "maxLines": 45,
+      "hotspots": {}
+    },
+    "clinical-antecedents-cache.js": {
+      "maxLines": 27,
       "hotspots": {}
     }
   }

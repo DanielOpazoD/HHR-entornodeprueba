@@ -443,3 +443,42 @@ archivos locales y documentación. El release gate valida sus dependencias.
 `fflate` 0.8.2 se declara como dependencia de desarrollo (ya era transitiva): sólo comprime
 al generar el artefacto. Responsable: mantenimiento HHR. Riesgo: distribución incompleta;
 control: prueba de ZIP, release gate y descarga en dev/build. Rollback: revertir este PR.
+
+### Antecedentes APS y UEA (v0.48.42)
+
+HCC puede rotular ambas atenciones como APS. Tras verificar episodio, RUT y sesión, el
+lector clasifica como UEA únicamente un formulario `Examen Fisico Urgencia` o
+`Examen Físico Segmentario Urgencia` (normalizando acentos y espacios). El texto libre
+no clasifica el episodio. Se conservan los formularios distintos aunque tengan igual nombre.
+
+La proyección efímera muestra motivo, enfermedad actual, todos los diagnósticos e
+indicaciones. UEA añade los exámenes físicos; APS añade las recetas y sus descripciones
+completas, agrupadas por número. No se exportan actividades ni otros formularios, y las
+URLs firmadas de adjuntos permanecen en la extensión. No hay escrituras en Eloísa ni HHR.
+
+La descarga con icono genera una **copia PDF de las prescripciones registradas**, con
+paciente verificado, profesional, fecha, centro y número de receta. No afirma ser el
+PDF original firmado del visor; no modifica dosis ni crea una indicación nueva. El
+runtime PDF se carga sólo al solicitarlo. Cerrar el panel cancela una descarga pendiente.
+
+Las versiones anteriores siguen mostrando su detalle básico; actualizar manualmente
+la extensión a 0.48.42 permite ver los campos nuevos. El ZIP se genera desde los mismos
+archivos para localhost, preview y Netlify; no requiere permisos de host adicionales.
+Validación: fixtures ficticios para singleton/listas/0, clasificación, contrato del bridge,
+identidad/sesión, copia PDF multipágina y prueba de navegador APS/UEA con descarga por teclado.
+
+La espera de la fuente secundaria es de 45 segundos: una respuesta válida observada
+superó los 33 segundos. Primaria y detalles mantienen 15 segundos. Un fallo real o
+vencimiento sigue notificando cobertura parcial; no se interpreta como ausencia de
+antecedentes. El estado parcial ocupa una tarjeta discreta con el motivo desplegable
+y reintento explícito. Se eliminan sólo exámenes con igual nombre normalizado e igual
+conjunto de etiquetas/valores; distintas fechas o mediciones permanecen visibles.
+
+La caché breve empieza sus 30 segundos de vigencia **al terminar la lectura**, no
+al iniciarla. Una respuesta secundaria lenta no expira mientras todavía está en vuelo,
+y los detalles posteriores reutilizan el mismo historial validado en vez de volver a
+pedirlo inmediatamente. Los fallos y cambios de autorización conservan su invalidación.
+Los detalles pueden reutilizar durante esos 30 segundos un listado parcial ya
+verificado: no vuelven a bloquearse por la fuente que falló. Un reintento explícito
+del listado vuelve a consultar las fuentes pendientes, manteniendo la información
+previa visible. Las lecturas simultáneas continúan compartiendo la solicitud en vuelo.

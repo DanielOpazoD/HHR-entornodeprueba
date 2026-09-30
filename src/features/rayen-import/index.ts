@@ -264,3 +264,8 @@ export { RayenImportButton } from './components/RayenImportButton';
 export { RayenImportModeSetting } from './components/RayenImportModeSetting';
 export { RayenImportPreviewModal } from './components/RayenImportPreviewModal';
 export type { RayenImportPreviewModalProps } from './components/RayenImportPreviewModal';
+
+export type {
+  ClinicalAntecedentDetail,
+  ClinicalAntecedentPrescription,
+} from './bridge/clinicalAntecedentDetail';

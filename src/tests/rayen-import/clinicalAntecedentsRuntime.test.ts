@@ -1,142 +1,12 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import '../../../extension/clinical-antecedents-attachment.js';
-import '../../../extension/clinical-antecedents-detail.js';
-import '../../../extension/clinical-antecedents-window.js';
-import '../../../extension/clinical-antecedents-runtime.js';
-
-type Result = {
-  ok: boolean;
-  error?: string;
-  entries?: unknown[];
-  warnings?: string[];
-  unavailableSources?: string[];
-  detail?: unknown;
-  windowStart?: string;
-  windowEnd?: string;
-  nextBeforeDate?: string | null;
-};
-type Dependencies = {
-  now?: () => Date;
-  getContext: (...args: unknown[]) => Promise<unknown>;
-  readJson: (input: { path: string }) => Promise<unknown>;
-  fetchImpl: (url: string, options?: { headers?: Record<string, string> }) => Promise<unknown>;
-  openTab: (input: { url: string }) => Promise<unknown>;
-  getAuthorizationKey: () => Promise<string>;
-};
-const runtime = (
-  globalThis as typeof globalThis & {
-    HhrClinicalAntecedents: {
-      create: (deps: Dependencies) => {
-        handleRequest: (input: {
-          encId: string;
-          operation: string;
-          entryId?: string;
-          beforeDate?: string;
-        }) => Promise<Result>;
-      };
-    };
-  }
-).HhrClinicalAntecedents;
-const patientRun = '111111111';
-const attachmentId = btoa(encodeURIComponent('2\0document.pdf'))
-  .replace(/\+/g, '-')
-  .replace(/\//g, '_')
-  .replace(/=+$/, '');
-const visorUrl = `https://visor.saludenred.cl/#/${btoa(patientRun)}/${btoa('1')}/${btoa('77')}/fixture-access`;
-const createHarness = (
-  instant = '2026-09-08T18:00:00Z',
-  documentUri = 'https://gestordocumentalrayen.blob.core.windows.net/fixture'
-) => {
-  const getContext = vi.fn(async () => ({ patientId: '42', info: {} }));
-  const readJson = vi.fn(
-    async ({ path }: { path: string }): Promise<{ data: unknown }> => ({
-      data:
-        path === '/api/visorHCC'
-          ? { respuestaObtenerURLVisorHCC: { url: visorUrl } }
-          : path === '/api/viau'
-            ? { url: 'https://viau.ssmso.cl/visor/?access_token=fixture' }
-            : {
-                id: '42',
-                preferredIdentifierCode: patientRun,
-                prefferedPeridentId: 2,
-                patientIdentifier: [{ peridentId: 7, identifierCode: '77', deleted: false }],
-              },
-    })
-  );
-  const fetchImpl = vi.fn(async (url: string, options?: { headers?: Record<string, string> }) => ({
-    ok: true,
-    json: async () => {
-      if (!options?.headers?.Accept?.includes('application/json'))
-        throw new SyntaxError('Unexpected token <');
-      if (url.includes('ObtenerToken'))
-        return { ObtenerTokenSesionResult: { TokenSesion: 'fixture-session' } };
-      if (url.includes('Detalle'))
-        return {
-          ObtenerDetalleHistorialClinicoResult: {
-            RespuestaBase: { Estatus: 0 },
-            DetalleHistorial: {
-              IdAtencion: 8,
-              Paciente: { Rut: patientRun },
-              Anamnesis: {
-                HistoriaEnfermedadAnamnesis: 'Historia sintética',
-                MotivoConsultaAnamnesis: 'Control',
-              },
-              DiagnosticosAtencion: {
-                DetalleHistorialAtencionesDiagnosticoAtencion: {
-                  DescripcionDiagnostico: 'Diagnóstico que no debe repetirse',
-                },
-              },
-              Documentos: {
-                Documento: {
-                  Cgd_Id: 2,
-                  NombreArchivo: 'Informe sintético.pdf',
-                  PathAzure: 'document.pdf',
-                },
-                Uri: documentUri,
-                Sas: 'sv=fixture&sr=c&sp=r&se=2099-01-01&sig=temporary-secret',
-              },
-            },
-          },
-        };
-      return {
-        ObtenerResumenHistorialClinicoResult: {
-          RespuestaBase: { Estatus: 0 },
-          Paciente: { IdentificacionPaciente: { Run: patientRun } },
-          ResumenHistorial: url.includes('Secundaria')
-            ? 0
-            : {
-                TypeResumenHistorial: {
-                  IdentificadorAtencion: 8,
-                  TipoAtencion: 'Ambulatoria',
-                  HistorialResumido: {
-                    ResumenHistorialAtenciones: { IdAtencion: 8, FechaHoraInicio: '2026-09-08' },
-                  },
-                },
-              },
-        },
-      };
-    },
-  }));
-  const openTab = vi.fn(async (_input: { url: string }) => ({}));
-  const getAuthorizationKey = vi.fn(async () => 'tab:session-fixture');
-  return {
-    getContext,
-    readJson,
-    fetchImpl,
-    openTab,
-    getAuthorizationKey,
-    api: runtime.create({
-      getContext,
-      readJson,
-      fetchImpl,
-      openTab,
-      getAuthorizationKey,
-      now: () => new Date(instant),
-    }),
-  };
-};
+import {
+  createHarness,
+  patientRun,
+  attachmentId,
+  visorUrl,
+} from './clinicalAntecedentsRuntime.fixture';
 
 describe('clinical antecedents runtime', () => {
   it('compone una sola instancia persistente en el service worker', () => {
@@ -234,30 +104,119 @@ describe('clinical antecedents runtime', () => {
     expect(result.ok).toBe(true);
     expect(result.entries).toHaveLength(1);
     expect(result.warnings).toEqual([
-      'Se muestran los antecedentes ambulatorios, pero la fuente secundaria no respondió. Reintenta para completar la información.',
+      'El historial de atención secundaria no respondió dentro de 45 segundos. Los antecedentes cargados siguen disponibles.',
     ]);
     expect(result.unavailableSources).toEqual(['Secundaria']);
+    const detail = await h.api.handleRequest({
+      encId: '12',
+      operation: 'detail',
+      entryId: 'Primaria:8',
+    });
+    expect(detail.ok).toBe(true);
+    expect(h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'))).toHaveLength(
+      2
+    );
     await h.api.handleRequest({ encId: '12', operation: 'list' });
     expect(h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'))).toHaveLength(
       4
     );
   });
-  it('espera una respuesta secundaria válida que tarda más de 1,5 segundos', async () => {
+  it('espera la respuesta secundaria válida de 33 segundos observada sin alertar ni repetirla', async () => {
     vi.useFakeTimers();
     try {
       const h = createHarness();
       const original = h.fetchImpl.getMockImplementation()!;
       h.fetchImpl.mockImplementation((url, options) =>
         url.includes('Secundaria')
-          ? new Promise(resolve => setTimeout(() => resolve(original(url, options)), 1600))
+          ? new Promise((resolve, reject) =>
+              setTimeout(() => {
+                if ((options as RequestInit | undefined)?.signal?.aborted)
+                  reject(Object.assign(new Error('timeout'), { name: 'AbortError' }));
+                else resolve(original(url, options));
+              }, 33000)
+            )
           : original(url, options)
       );
       const pending = h.api.handleRequest({ encId: '12', operation: 'list' });
-      await vi.advanceTimersByTimeAsync(1601);
+      await vi.advanceTimersByTimeAsync(33001);
       expect((await pending).warnings).toEqual([]);
+      await h.api.handleRequest({ encId: '12', operation: 'list' });
+      expect(
+        h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'))
+      ).toHaveLength(2);
     } finally {
       vi.useRealTimers();
     }
+  });
+  it('comparte reintentos simultáneos y sirve el detalle verificado durante una lectura secundaria lenta', async () => {
+    vi.useFakeTimers();
+    try {
+      const h = createHarness();
+      const original = h.fetchImpl.getMockImplementation()!;
+      h.fetchImpl.mockImplementation((url, options) =>
+        url.includes('Secundaria')
+          ? Promise.reject(Object.assign(new Error('timeout'), { name: 'AbortError' }))
+          : original(url, options)
+      );
+      expect((await h.api.handleRequest({ encId: '12', operation: 'list' })).warnings).toHaveLength(
+        1
+      );
+      h.fetchImpl.mockImplementation((url, options) =>
+        url.includes('Secundaria')
+          ? new Promise(resolve => setTimeout(() => resolve(original(url, options)), 33000))
+          : original(url, options)
+      );
+      const first = h.api.handleRequest({ encId: '12', operation: 'list' });
+      const second = h.api.handleRequest({ encId: '12', operation: 'list' });
+      const detail = await h.api.handleRequest({
+        encId: '12',
+        operation: 'detail',
+        entryId: 'Primaria:8',
+      });
+      expect(detail.ok).toBe(true);
+      expect(
+        h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'))
+      ).toHaveLength(4);
+      await vi.advanceTimersByTimeAsync(33001);
+      expect((await first).warnings).toEqual([]);
+      expect((await second).warnings).toEqual([]);
+      expect(
+        h.fetchImpl.mock.calls.filter(([url]) => url.includes('ResumenHistorial'))
+      ).toHaveLength(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('conserva una fuente verificada cuando fallan fuentes alternadas y reemplaza una fuente vacía válida', async () => {
+    const h = createHarness();
+    const original = h.fetchImpl.getMockImplementation()!;
+    h.fetchImpl.mockImplementation((url, options) =>
+      url.includes('Secundaria') ? Promise.reject(new Error('offline')) : original(url, options)
+    );
+    expect((await h.api.handleRequest({ encId: '12', operation: 'list' })).entries).toHaveLength(1);
+    h.fetchImpl.mockImplementation((url, options) =>
+      url.includes('ResumenHistorialClinicoPrimaria')
+        ? Promise.reject(new Error('offline'))
+        : original(url, options)
+    );
+    const retry = await h.api.handleRequest({ encId: '12', operation: 'list' });
+    expect(retry.unavailableSources).toEqual(['Primaria']);
+    expect(retry.entries).toHaveLength(1);
+    expect(
+      (await h.api.handleRequest({ encId: '12', operation: 'detail', entryId: 'Primaria:8' })).ok
+    ).toBe(true);
+    h.fetchImpl.mockImplementation((url, options) =>
+      original(
+        url.replace('ResumenHistorialClinicoPrimaria', 'ResumenHistorialClinicoSecundaria'),
+        options
+      )
+    );
+    const complete = await h.api.handleRequest({ encId: '12', operation: 'list' });
+    expect(complete.warnings).toEqual([]);
+    expect(complete.entries).toEqual([]);
+    expect(
+      (await h.api.handleRequest({ encId: '12', operation: 'detail', entryId: 'Primaria:8' })).ok
+    ).toBe(false);
   });
   it('rechaza el detalle que no pertenece al historial del episodio', async () => {
     const h = createHarness();
@@ -333,9 +292,7 @@ describe('clinical antecedents runtime', () => {
       history: 'Historia sintética',
       attachments: [{ id: attachmentId, label: 'Informe sintético.pdf' }],
     });
-    expect(JSON.stringify(result.detail)).not.toMatch(
-      /Diagnóstico que no debe|blob|temporary-secret/
-    );
+    expect(JSON.stringify(result.detail)).not.toMatch(/blob|temporary-secret/);
   });
   it('abre internamente un adjunto validado sin devolver su URL firmada a HHR', async () => {
     const h = createHarness();

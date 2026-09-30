@@ -124,8 +124,10 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
   );
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border border-teal-100 bg-teal-50 p-2.5">
-        <p className="text-xs font-semibold text-teal-900">Antecedentes de Eloísa</p>
+      <div className="px-1 py-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          Antecedentes de Eloísa
+        </p>
       </div>
       {!result ? (
         <p className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500">
@@ -147,15 +149,30 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
               {refreshError} Se conserva la última información cargada.
             </p>
           )}
-          {result.warnings?.map(warning => (
-            <p
-              key={warning}
-              role="status"
-              className="rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-800"
-            >
-              {warning}
-            </p>
-          ))}
+          {!!result.warnings?.length && (
+            <aside className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[11px] text-slate-600">
+              <p role="status" className="font-medium">
+                Historial parcial · Los antecedentes cargados siguen disponibles.
+              </p>
+              <details className="mt-1">
+                <summary className="cursor-pointer text-slate-500">
+                  Ver estado de las fuentes
+                </summary>
+                {result.warnings.map(warning => (
+                  <p key={warning} className="mt-1">
+                    {warning}
+                  </p>
+                ))}
+              </details>
+              <button
+                type="button"
+                onClick={() => setAttempt(value => value + 1)}
+                className="mt-2 font-semibold text-teal-700"
+              >
+                Reintentar antecedentes
+              </button>
+            </aside>
+          )}
           {olderPages.flatMap(page =>
             (page.data.warnings ?? []).map(warning => (
               <p
@@ -166,15 +183,6 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
                 Período hasta {formatClinicalAntecedentDate(page.requestedEnd)}: {warning}
               </p>
             ))
-          )}
-          {!!result.warnings?.length && (
-            <button
-              type="button"
-              onClick={() => setAttempt(value => value + 1)}
-              className="text-xs font-semibold text-teal-700"
-            >
-              Reintentar antecedentes
-            </button>
           )}
           {!entries.length && !result.warnings?.length && (
             <p className="py-8 text-center text-xs text-slate-500">
