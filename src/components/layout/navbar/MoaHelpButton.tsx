@@ -1,32 +1,34 @@
-import React, { useId, useRef } from 'react';
+import React, { useId } from 'react';
 import { CircleHelp, X } from 'lucide-react';
-import { useDropdownMenu } from '@/hooks/useDropdownMenu';
+import type { ModuleType } from '@/constants/navigationConfig';
+import { useNavbarDisclosure } from './useNavbarDisclosure';
+import { getMoaHelpContext } from './moaHelpContent';
 
-/** B1: static local help only. No patient context, storage, AI, or clinical actions. */
-export const MoaHelpButton: React.FC = () => {
-  const { isOpen, menuRef, toggle, close } = useDropdownMenu();
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelId = useId();
+interface MoaHelpButtonProps {
+  currentModule?: ModuleType;
+}
+
+/** B1: local help only. No patient context, storage, AI, or clinical actions. */
+export const MoaHelpButton: React.FC<MoaHelpButtonProps> = ({ currentModule }) => {
+  const {
+    isOpen,
+    menuRef,
+    triggerRef,
+    panelId,
+    toggle,
+    closeAndRestoreFocus,
+    onKeyDown,
+    onBlur,
+  } = useNavbarDisclosure(currentModule);
   const titleId = useId();
-
-  const closeAndRestoreFocus = () => {
-    close();
-    triggerRef.current?.focus();
-  };
+  const context = getMoaHelpContext(currentModule);
 
   return (
     <div
       ref={menuRef}
-      className="relative shrink-0 print:hidden"
-      onKeyDown={event => {
-        if (event.key === 'Escape' && isOpen) {
-          event.stopPropagation();
-          closeAndRestoreFocus();
-        }
-      }}
-      onBlur={event => {
-        if (!event.currentTarget.contains(event.relatedTarget)) close();
-      }}
+      className="shrink-0 print:hidden sm:relative"
+      onKeyDown={onKeyDown}
+      onBlur={onBlur}
     >
       <button
         ref={triggerRef}
@@ -45,7 +47,8 @@ export const MoaHelpButton: React.FC = () => {
         <section
           id={panelId}
           aria-labelledby={titleId}
-          className="fixed inset-x-3 top-[56px] z-50 mt-2 max-h-[calc(100vh-80px)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-slate-700 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:w-80"
+          tabIndex={-1}
+          className="absolute inset-x-3 top-full z-50 mt-2 max-h-[calc(100vh-80px)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-slate-700 shadow-xl sm:inset-x-auto sm:right-0 sm:w-80"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -62,6 +65,11 @@ export const MoaHelpButton: React.FC = () => {
             >
               <X size={16} aria-hidden="true" />
             </button>
+          </div>
+          <div className="mt-4 rounded-lg border border-sky-100 bg-sky-50 p-3">
+            <p className="text-xs font-medium text-slate-600">En esta pantalla</p>
+            <h3 className="mt-1 text-sm font-semibold text-slate-900">{context.title}</h3>
+            <p className="mt-1 text-sm leading-relaxed">{context.description}</p>
           </div>
           <dl className="mt-4 space-y-3 text-sm leading-relaxed">
             <div>

@@ -143,7 +143,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Status Indicators & User Menu */}
         <div className="flex shrink-0 items-center gap-2 sm:gap-4 py-2 ml-auto">
           {runtimeIndicatorSlot}
-          {!hideRuntimeIndicators && <MoaHelpButton />}
+          {!hideRuntimeIndicators && (
+            <MoaHelpButton
+              key={`${currentUser?.uid ?? 'anonymous'}:${role ?? 'unknown'}`}
+              currentModule={currentModule}
+            />
+          )}
 
           {userEmail && onLogout && (
             <UserMenu

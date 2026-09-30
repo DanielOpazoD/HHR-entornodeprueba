@@ -3,12 +3,12 @@
  * Clinical modules shown as tabs, utility modules in dropdown.
  */
 
-import React, { useId, useRef } from 'react';
+import React from 'react';
 import { LayoutGrid, LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { ModuleType, NavItemConfig } from '@/constants/navigationConfig';
 import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
-import { useDropdownMenu } from '@/hooks/useDropdownMenu';
+import { useNavbarDisclosure } from './navbar/useNavbarDisclosure';
 import { resolveIsNavbarItemActive } from '@/components/layout/navbar/navbarTabsController';
 
 interface NavTabProps {
@@ -28,14 +28,14 @@ const NavTab: React.FC<NavTabProps> = ({ label, icon: Icon, isActive, onClick, t
     aria-label={label}
     title={label}
     className={clsx(
-      'flex shrink-0 items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-1.5 transition-all duration-200 text-[13px] tracking-tight rounded-lg ring-1 ring-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none',
+      'flex shrink-0 items-center gap-2 whitespace-nowrap px-2 sm:px-4 py-1.5 transition-all duration-200 text-[13px] tracking-tight rounded-lg ring-1 ring-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none',
       isActive
         ? 'text-white font-semibold bg-white/[0.16] ring-white/18 underline underline-offset-4 decoration-2'
         : 'text-white/85 hover:text-white hover:bg-white/[0.08] hover:ring-white/12 font-medium'
     )}
   >
     <Icon size={15} aria-hidden="true" />
-    <span>{label}</span>
+    <span className="hidden sm:inline">{label}</span>
   </button>
 );
 
@@ -90,9 +90,17 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
   censusViewMode,
   setCensusViewMode,
 }) => {
-  const { isOpen: isUtilityMenuOpen, menuRef, toggle, close } = useDropdownMenu();
-  const utilityTriggerRef = useRef<HTMLButtonElement>(null);
-  const utilityPanelId = useId();
+  const {
+    isOpen: isUtilityMenuOpen,
+    menuRef,
+    triggerRef: utilityTriggerRef,
+    panelId: utilityPanelId,
+    toggle,
+    close,
+    closeAndRestoreFocus,
+    onKeyDown,
+    onBlur,
+  } = useNavbarDisclosure(`${currentModule}:${censusViewMode}:${visibleModules.join(',')}`);
 
   const { clinicalTabs, utilityItems, isUtilityActive } = useNavbarNavigation(
     currentModule,
@@ -134,18 +142,10 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
       {/* Utility Modules Dropdown - Subtle icon */}
       {utilityItems.length > 0 && (
         <div
-          className="relative ml-1 shrink-0"
+          className="ml-1 shrink-0 sm:relative"
           ref={menuRef}
-          onKeyDown={event => {
-            if (event.key === 'Escape' && isUtilityMenuOpen) {
-              event.stopPropagation();
-              close();
-              utilityTriggerRef.current?.focus();
-            }
-          }}
-          onBlur={event => {
-            if (!event.currentTarget.contains(event.relatedTarget)) close();
-          }}
+          onKeyDown={onKeyDown}
+          onBlur={onBlur}
         >
           <button
             type="button"
@@ -171,8 +171,11 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
           {isUtilityMenuOpen && (
             <div
               id={utilityPanelId}
+              role="group"
+              aria-label="Módulos adicionales"
+              tabIndex={-1}
               data-testid="navbar-utility-menu"
-              className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl ring-1 ring-black/[0.04] border border-slate-100 max-h-[calc(100vh-80px)] overflow-y-auto z-50"
+              className="absolute inset-x-3 top-full mt-2 bg-white rounded-xl shadow-xl ring-1 ring-black/[0.04] border border-slate-100 max-h-[calc(100vh-80px)] overflow-y-auto z-50 sm:inset-x-auto sm:right-0 sm:w-56"
             >
               <div className="py-1">
                 {utilityItems.map(item => (
@@ -186,7 +189,10 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
                       censusViewMode,
                       itemCensusMode: item.censusMode,
                     })}
-                    onClick={() => handleItemClick(item)}
+                    onClick={() => {
+                      handleItemClick(item);
+                      closeAndRestoreFocus();
+                    }}
                   />
                 ))}
               </div>

@@ -84,4 +84,42 @@ describe('MoaHelpButton', () => {
     expect(triggers[0]).toHaveAttribute('aria-controls', panels[0].id);
     expect(triggers[1]).toHaveAttribute('aria-controls', panels[1].id);
   });
+
+  it('keeps readable content open when blur has no next focus target', () => {
+    render(<MoaHelpButton />);
+    const trigger = openHelp();
+    fireEvent.blur(trigger, { relatedTarget: null });
+    expect(screen.getByRole('region')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['CENSUS', 'Censo diario'],
+    ['NURSING_HANDOFF', 'Entrega de enfermería'],
+    ['MEDICAL_HANDOFF', 'Entrega médica'],
+    ['CUDYR', 'Categorización CUDYR'],
+  ] as const)('offers local guidance for %s without a patient context', (module, title) => {
+    render(<MoaHelpButton currentModule={module} />);
+    openHelp();
+    expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+    expect(screen.getByText('Guía local, sin IA clínica.')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('closes old guidance when the module changes, then shows the new context', () => {
+    const { rerender } = render(<MoaHelpButton currentModule="CENSUS" />);
+    openHelp();
+    rerender(<MoaHelpButton currentModule="MEDICAL_HANDOFF" />);
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
+    openHelp();
+    expect(screen.getByRole('heading', { name: 'Entrega médica' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Censo diario' })).not.toBeInTheDocument();
+  });
+
+  it('uses general guidance for modules without a dedicated guide', () => {
+    render(<MoaHelpButton currentModule="ANALYTICS" />);
+    openHelp();
+    expect(screen.getByRole('heading', { name: 'Herramientas de HHR' })).toBeInTheDocument();
+  });
 });

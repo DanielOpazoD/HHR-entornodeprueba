@@ -64,5 +64,35 @@ describe('Navbar B1 disclosure and selection', () => {
     expect(props.onModuleChange).toHaveBeenCalledWith('ANALYTICS');
     expect(props.setCensusViewMode).not.toHaveBeenCalled();
     expect(screen.queryByTestId('navbar-utility-menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Abrir módulos utilitarios' })).toHaveFocus();
+  });
+
+  it('closes an old disclosure when the external module changes', () => {
+    const { rerender } = render(<NavbarTabs {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir módulos utilitarios' }));
+    rerender(<NavbarTabs {...props} currentModule="ANALYTICS" />);
+    expect(screen.queryByTestId('navbar-utility-menu')).not.toBeInTheDocument();
+  });
+
+  it('does not reopen a stale menu after authorized modules disappear and return', () => {
+    const { rerender } = render(<NavbarTabs {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir módulos utilitarios' }));
+    rerender(<NavbarTabs {...props} visibleModules={['CENSUS']} />);
+    expect(screen.queryByTestId('navbar-utility-menu')).not.toBeInTheDocument();
+    rerender(<NavbarTabs {...props} />);
+    expect(screen.queryByTestId('navbar-utility-menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Abrir módulos utilitarios' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('does not steal focus from a directly selected clinical tab', () => {
+    render(<NavbarTabs {...props} />);
+    const nursing = screen.getByRole('button', { name: 'Entrega Turno Enfermería' });
+    nursing.focus();
+    fireEvent.click(nursing);
+    expect(nursing).toHaveFocus();
+    expect(props.onModuleChange).toHaveBeenCalledWith('NURSING_HANDOFF');
   });
 });
