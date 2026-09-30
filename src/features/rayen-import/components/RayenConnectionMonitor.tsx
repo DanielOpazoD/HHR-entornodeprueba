@@ -1,4 +1,5 @@
 import { RayenExtensionDownload } from './RayenExtensionDownload';
+import { RayenCompatibleReaderNotice } from './RayenCompatibleReaderNotice';
 import React from 'react';
 import { normalizeHealthExpiry } from '../bridge/sourceHealthExpiry';
 import { ExternalLink, RefreshCw, Wrench } from 'lucide-react';
@@ -333,6 +334,7 @@ export const RayenConnectionMonitor: React.FC<RayenConnectionMonitorProps> = ({
                 detail={gestionDetailParts.length > 0 ? gestionDetailParts.join(' · ') : null}
               />
             </div>
+            <RayenCompatibleReaderNotice report={report} connection={connection} />
             {actionError && (
               <p className="mt-2 text-[11px] leading-snug text-amber-700" role="alert">
                 {actionError}

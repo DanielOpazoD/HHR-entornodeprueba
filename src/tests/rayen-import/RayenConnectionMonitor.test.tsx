@@ -123,8 +123,44 @@ describe('RayenConnectionMonitor', () => {
     expect(screen.getByText('Daniel Opazo · Médico · vence en ~23 h')).toBeVisible();
     expect(screen.getByText(/vence en ~30 min · verificada hace 3 min/)).toBeVisible();
     expect(screen.getByText(/v0\.48\.3 · estado hace 45 s/)).toBeVisible();
+    expect(screen.queryByTestId('rayen-compatible-reader-version-notice')).not.toBeInTheDocument();
     // Con todo verde no corresponde ofrecer la conexión de Gestión de Camas.
     expect(screen.queryByTestId('rayen-monitor-connect-gc')).not.toBeInTheDocument();
+  });
+
+  it('avisa de un lector compatible de otra versión sin bloquear la sincronización', () => {
+    const extension = baseExtension({
+      report: {
+        ...baseExtension().report!,
+        version: '0.48.39',
+        fichaMedico: {
+          ...baseExtension().report!.fichaMedico,
+          bridgeVersion: '0.48.38',
+        },
+        gestionCamas: {
+          ...baseExtension().report!.gestionCamas,
+          bridgeVersion: '0.48.39',
+        },
+      },
+    });
+    const monitor = renderMonitor(extension);
+
+    expect(screen.getByText('Conectada')).toBeVisible();
+    expect(extension.canSync).toBe(true);
+    expect(screen.getByTestId('rayen-compatible-reader-version-notice')).toHaveTextContent(
+      'Ficha Médico conserva un lector de otra versión (extensión v0.48.39)'
+    );
+    expect(screen.queryByTestId('rayen-monitor-repair')).not.toBeInTheDocument();
+
+    monitor.rerenderMonitor(
+      baseExtension({
+        report: {
+          ...extension.report!,
+          fichaMedico: { ...extension.report!.fichaMedico, bridgeVersion: '0.48.39' },
+        },
+      })
+    );
+    expect(screen.queryByTestId('rayen-compatible-reader-version-notice')).not.toBeInTheDocument();
   });
 
   it('con GC caída ofrece abrir la ventana oficial y reporta un fallo de apertura', async () => {
