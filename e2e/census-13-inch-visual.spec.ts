@@ -281,4 +281,22 @@ test('keeps the census and movement sections complete in the printable view', as
     printBackground: true,
   });
   expect(pdf.byteLength).toBeGreaterThan(10_000);
+
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const document = await getDocument({ data: new Uint8Array(pdf), useSystemFonts: true }).promise;
+  const pages: string[] = [];
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const printedPage = await document.getPage(pageNumber);
+    const content = await printedPage.getTextContent();
+    pages.push(content.items.map(item => ('str' in item ? item.str : '')).join(' '));
+  }
+  for (const [heading, emptyMessage] of [
+    ['Altas', 'No hay altas registradas para este día.'],
+    ['Traslados', 'No hay traslados registrados para hoy.'],
+    ['Hospitalización Diurna', 'No hay registros de Hospitalización Diurna para hoy.'],
+  ]) {
+    const headingPage = pages.findIndex(content => content.includes(heading));
+    expect(headingPage).toBeGreaterThanOrEqual(0);
+    expect(pages[headingPage]).toContain(emptyMessage);
+  }
 });

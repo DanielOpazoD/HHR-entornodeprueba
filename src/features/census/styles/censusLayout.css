@@ -207,6 +207,16 @@
     break-inside: avoid;
   }
 
+  .census-movement-heading {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .census-movement-heading + div {
+    break-before: avoid;
+    page-break-before: avoid;
+  }
+
   .census-movement-section thead {
     display: table-header-group;
   }
