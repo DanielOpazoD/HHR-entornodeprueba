@@ -18,6 +18,7 @@ import {
 import { mergeMovementArrayById } from '@/services/repositories/conflictResolutionMovementMergePolicy';
 import type { DischargeData } from '@/types/domain/movements';
 import { repairRecord } from './clinicalCribDischargeRepairs.fixtures';
+import { DischargeDataSchema } from '@/schemas/zod/movements';
 const now = new Date('2026-09-30T18:30:00Z');
 const plan = (record = repairRecord()) =>
   planRayenCensusImport({
@@ -79,10 +80,102 @@ describe('reviewed current-day malformed newborn discharge repair', () => {
     }
   });
 
+  it.each(['11:21', '11:20'])(
+    'repairs persisted report copies with time %s from the same import',
+    time => {
+      const record = repairRecord();
+      record.discharges[1].time = time;
+      record.discharges = record.discharges.map(
+        row => JSON.parse(JSON.stringify(DischargeDataSchema.parse(row))) as DischargeData
+      );
+      const original = structuredClone(record);
+      const diff = plan(record);
+      expect(diff.clinicalCribDischargeRepairs).toHaveLength(1);
+      const result = applyCensusImportDiff(record, diff, {
+        now,
+        actor: 'Synthetic operator',
+        syncRunId: 'repair-sync',
+        idFactory: () => {
+          throw new Error('repair must not create movements');
+        },
+      });
+      expect(record).toEqual(original);
+      expect(result.record.discharges[0]).toEqual(original.discharges[0]);
+      expect(result.record.discharges[2]).toEqual(original.discharges[2]);
+      expect(result.record.discharges[1].originalData).toEqual(original.discharges[1].originalData);
+      expect(result.record.discharges[1].deletedAt).toBe(now.toISOString());
+      expect(getActiveDischarges(result.record.discharges)).toHaveLength(2);
+      expect(getStatisticalDischarges(result.record.discharges)).toHaveLength(1);
+      const readback = {
+        ...result.record,
+        discharges: result.record.discharges.map(row =>
+          DischargeDataSchema.parse(JSON.parse(JSON.stringify(row)))
+        ),
+      };
+      expect(getActiveDischarges(readback.discharges)).toHaveLength(2);
+      expect(plan(readback).clinicalCribDischargeRepairs).toEqual([]);
+    }
+  );
+
+  it.each(['different-run', 'different-classification', 'empty-run', 'invalid-classification'])(
+    'preserves differing times without matching import evidence (%s)',
+    variant => {
+      const record = repairRecord();
+      const duplicate = record.discharges[1];
+      duplicate.time = '11:20';
+      const provenance = duplicate.movementProvenance!;
+      if (provenance.source !== 'gestion_camas')
+        throw new Error('fixture requires import provenance');
+      if (variant === 'different-run') provenance.syncRunId = 'other-sync';
+      if (variant === 'empty-run') provenance.syncRunId = '  ';
+      if (variant === 'different-classification') provenance.classifiedAt = '2026-09-30T18:01:00Z';
+      if (variant === 'invalid-classification') {
+        provenance.classifiedAt = 'invalid';
+        record.discharges[0].movementProvenance!.classifiedAt = 'invalid';
+      }
+      expect(planClinicalCribDischargeRepairs(record)).toEqual([]);
+    }
+  );
+
+  it.each(['2026-02-30T18:00:00Z', '2026-09-30', '0', '2026-09-30T25:00:00Z'])(
+    'rejects invalid classification timestamps even if both rows match (%s)',
+    classifiedAt => {
+      const record = repairRecord();
+      record.discharges[1].time = '11:20';
+      for (const row of record.discharges) row.movementProvenance!.classifiedAt = classifiedAt;
+      expect(planClinicalCribDischargeRepairs(record)).toEqual([]);
+    }
+  );
+
+  it.each([
+    ['devices', ['VVP#1']],
+    ['clinicalEvents', [{ id: 'event', name: 'Protected' }]],
+    ['isUPC', true],
+    ['diagnosisComments', 'Protected'],
+    ['unrecognizedField', 'Protected'],
+    ['firstName', 'Manual identity'],
+  ])('preserves enriched persisted snapshots (%s)', (field, value) => {
+    const record = repairRecord();
+    record.discharges = record.discharges.map(
+      row => JSON.parse(JSON.stringify(DischargeDataSchema.parse(row))) as DischargeData
+    );
+    record.discharges[1].originalData = {
+      ...record.discharges[1].originalData!,
+      [field]: value,
+    };
+    expect(planClinicalCribDischargeRepairs(record)).toEqual([]);
+  });
+
+  it('preserves both rows when the complete movement has an invalid time', () => {
+    const record = repairRecord();
+    record.discharges[0].time = '99:99';
+    expect(planClinicalCribDischargeRepairs(record)).toEqual([]);
+  });
+
   it.each([
     ['different episode', { clinicalEpisodeId: 'other-episode' }],
     ['missing episode', { clinicalEpisodeId: undefined }],
-    ['different time', { time: '11:22' }],
+
     ['invalid time', { time: '99:99' }],
     ['different day', { movementDate: '2026-09-29' }],
     ['different status', { status: 'Fallecido' }],
