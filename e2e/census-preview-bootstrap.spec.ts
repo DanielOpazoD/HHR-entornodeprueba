@@ -371,10 +371,34 @@ test.describe('Production Preview Bootstrap', () => {
     await help.click();
     const panel = page.getByRole('region', { name: 'Moa · Ayuda de HHR' });
     await expect(panel).toBeInViewport({ ratio: 1 });
+    const closeButton = panel.getByRole('button', { name: 'Cerrar ayuda de Moa' });
+    const initialCloseBounds = await closeButton.boundingBox();
     await panel.evaluate(element => {
       element.scrollTop = element.scrollHeight;
     });
+    await expect.poll(() => panel.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
     await expect(panel.getByText(/Esta ayuda no consulta pacientes/)).toBeInViewport({ ratio: 1 });
+    // The close control must remain visible before Playwright can scroll it into view.
+    await expect(closeButton).toBeInViewport({ ratio: 1 });
+    const scrolledCloseBounds = await closeButton.boundingBox();
+    expect(scrolledCloseBounds!.y).toBeCloseTo(initialCloseBounds!.y, 0);
+    expect(
+      await closeButton.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return element.contains(
+          document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+        );
+      })
+    ).toBe(true);
+    await test.info().attach('moa-help-short-scroll', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+    await closeButton.click();
+    await expect(panel).toBeHidden();
+    await expect(help).toBeFocused();
+    await help.click();
+    await expect(panel).toBeVisible();
     await page.emulateMedia({ media: 'print' });
     await expect(panel).toBeHidden();
     await page.emulateMedia({ media: 'screen' });
