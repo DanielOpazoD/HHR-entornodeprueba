@@ -40,7 +40,6 @@ export const CMASection: React.FC = () => {
       icon={<Scissors size={18} />}
       iconClassName="bg-medical-50 text-medical-600"
       headers={CMA_TABLE_HEADERS}
-      rootClassName="print:break-inside-avoid"
       tableClassName="w-full text-sm text-left"
       bodyClassName="divide-y divide-slate-100"
       getItemKey={item => item.id}

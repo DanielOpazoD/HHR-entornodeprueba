@@ -247,3 +247,38 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     animations: 'disabled',
   });
 });
+
+test('keeps the census and movement sections complete in the printable view', async ({ page }) => {
+  await seedCensus(page);
+  await page.goto(`/?date=${DATE}`);
+  await expect(page.locator('.census-movement-section')).toHaveCount(3);
+  await page.emulateMedia({ media: 'print' });
+
+  await expect(page.getByText(/Censo diario de servicios hospitalizados/i)).toBeVisible();
+  await expect(page.locator('.census-toolbar')).toBeHidden();
+  for (const section of await page.locator('.census-movement-section').all()) {
+    await expect(section).toBeVisible();
+    expect(await section.evaluate(element => getComputedStyle(element).overflowX)).toBe('visible');
+  }
+  const printableTable = page.locator('.census-table-scroll');
+  expect(await printableTable.evaluate(element => getComputedStyle(element).overflowX)).toBe(
+    'visible'
+  );
+  expect(
+    await page
+      .locator('[data-testid="patient-row"][data-bed-id="R1"] .census-diagnosis-cell .line-clamp-2')
+      .evaluate(element => getComputedStyle(element).webkitLineClamp)
+  ).not.toBe('2');
+
+  await page.screenshot({
+    path: test.info().outputPath('census-print-layout.png'),
+    fullPage: true,
+    animations: 'disabled',
+  });
+  const pdf = await page.pdf({
+    path: test.info().outputPath('census-print-layout.pdf'),
+    format: 'A4',
+    printBackground: true,
+  });
+  expect(pdf.byteLength).toBeGreaterThan(10_000);
+});

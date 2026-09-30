@@ -31,13 +31,13 @@ export const CensusMovementSectionLayout: React.FC<CensusMovementSectionLayoutPr
 }) => (
   <div
     className={clsx(
-      'census-movement-section mt-4 rounded-xl border border-slate-200/80 bg-white animate-fade-in print:p-2 print:border-t-2 print:border-slate-800 print:shadow-none',
+      'census-movement-section mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white animate-fade-in print:overflow-visible print:shadow-none',
       rootClassName
     )}
   >
-    <div className="px-3 py-2 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
+    <div className="census-movement-heading flex min-h-9 items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-1.5">
       <div className="flex items-center gap-2">
-        <div className={clsx('p-1.5 rounded-md', iconClassName)}>{icon}</div>
+        <div className={clsx('rounded-md p-1', iconClassName)}>{icon}</div>
         <div>
           <h2 className="text-sm font-semibold text-slate-800 leading-tight">{title}</h2>
           {subtitle ? (
@@ -49,16 +49,16 @@ export const CensusMovementSectionLayout: React.FC<CensusMovementSectionLayoutPr
       </div>
     </div>
 
-    <div className="p-2">
+    <div>
       {isEmpty ? (
-        <p className="text-slate-500 text-xs text-center py-3">{emptyMessage}</p>
+        <p className="py-2.5 text-center text-xs text-slate-500">{emptyMessage}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="census-movement-table-scroll overflow-x-auto">
           <table className={clsx('w-full text-left text-sm print:text-xs', tableClassName)}>
-            <thead className="bg-slate-50/50 text-slate-500 font-semibold border-b border-slate-200 uppercase text-[10px] tracking-[0.04em]">
+            <thead className="border-b border-slate-200 bg-slate-50/50 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-500">
               <tr>
                 {headers.map(header => (
-                  <th key={header.label} className={clsx('px-2 py-2', header.className)}>
+                  <th key={header.label} className={clsx('px-3 py-2', header.className)}>
                     {header.label}
                   </th>
                 ))}
