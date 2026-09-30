@@ -12,13 +12,14 @@ describe('DeviceBadge layout', () => {
       />
     );
     expect(screen.getByText('VVP')).toBeInTheDocument();
-    expect(screen.getByTitle('FI: 02-09-2026')).toBeInTheDocument();
+    expect(screen.getByTitle('VVP#1 · 3 días · FI: 02-09-2026')).toBeInTheDocument();
     expect(container.querySelector('.absolute')).toBeNull();
   });
 
-  it('does not invent an installation date when it is missing', () => {
+  it('keeps the full device name and reports unknown age without inventing a date', () => {
     const { container } = render(<DeviceBadge device="VVP#2" />);
     expect(screen.getByText('VVP#2')).toBeInTheDocument();
-    expect(container.querySelector('[title]')).toBeNull();
+    expect(screen.getByTitle('VVP#2 · antigüedad sin registrar')).toBeInTheDocument();
+    expect(container.querySelector('[title]')).toHaveAttribute('tabindex', '0');
   });
 });

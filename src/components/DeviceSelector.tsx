@@ -283,7 +283,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
 
   if (disabled) {
     return (
-      <div className="flex flex-wrap gap-1 min-h-[26px] items-center justify-start p-1 rounded border border-transparent">
+      <div className="flex min-h-[26px] flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5">
         {normalizedDevices.length === 0 && <span className="text-slate-300 text-xs">-</span>}
         {normalizedDevices.map(dev => (
           <DeviceBadge
@@ -301,7 +301,7 @@ export const DeviceSelector: React.FC<DeviceSelectorProps> = ({
     <>
       <div
         ref={anchorRef}
-        className="flex flex-wrap gap-1 min-h-[26px] cursor-pointer items-center justify-start p-1 rounded hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-colors relative"
+        className="relative flex min-h-[26px] cursor-pointer flex-wrap items-center justify-start gap-0.5 rounded border border-transparent p-0.5 transition-colors hover:border-slate-200 hover:bg-slate-50"
         onClick={() => {
           if (!showMenu) {
             updateMenuPosition();

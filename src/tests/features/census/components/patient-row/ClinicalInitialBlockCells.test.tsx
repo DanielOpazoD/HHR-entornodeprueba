@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ClinicalInitialBlockCells } from '@/features/census/components/patient-row/ClinicalInitialBlockCells';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -57,6 +57,8 @@ describe('ClinicalInitialBlockCells', () => {
     const diagnosis = screen.getByText(longDiagnosis);
     expect(diagnosis).toHaveClass('line-clamp-2');
     expect(diagnosis).not.toHaveClass('truncate');
-    expect(diagnosis).toHaveAttribute('title', longDiagnosis);
+    expect(diagnosis).not.toHaveAttribute('title');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar diagnóstico' }));
+    expect(screen.getByTestId('clinical-block-pathology-R1')).toHaveValue(longDiagnosis);
   });
 });

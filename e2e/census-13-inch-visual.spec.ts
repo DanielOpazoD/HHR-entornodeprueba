@@ -24,7 +24,7 @@ const seedCensus = async (page: Page) => {
         admissionDate: '2026-03-29',
         pathology:
           'Diagnóstico clínico sintético de descripción extensa para comprobar el ajuste de columnas',
-        devices: ['VVP'],
+        devices: ['VVP', 'VVP#2', 'Sonda Nasogástrica'],
         vitalSigns: {
           recordedDate: DATE,
           recordedAt: `${DATE} 12:00`,
@@ -91,6 +91,8 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     const deviceCell = row.locator('td').nth(6);
     const identityCell = row.locator('.census-identity-cell');
     const diagnosisCell = row.locator('.census-diagnosis-cell');
+    const diagnosisText = diagnosisCell.getByText(/Diagnóstico clínico sintético/);
+    const identityActions = identityCell.locator('.census-identity-actions');
 
     await expect(name).toBeVisible();
     await expect(vitals).toContainText('PA');
@@ -106,6 +108,15 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
     expect(vitalBounds).not.toBeNull();
     expect(deviceBounds).not.toBeNull();
     expect(nameBounds!.height).toBeLessThanOrEqual(33);
+    const actionsBounds = await identityActions.boundingBox();
+    expect(actionsBounds!.width).toBe(84);
+    expect(actionsBounds!.x).toBeGreaterThanOrEqual(nameBounds!.x + nameBounds!.width - 1);
+    expect(actionsBounds!.y).toBeLessThan(nameBounds!.y + nameBounds!.height);
+    expect(await diagnosisText.evaluate(element => getComputedStyle(element).webkitLineClamp)).toBe(
+      '2'
+    );
+    await expect(deviceCell.getByText('SNG')).toBeVisible();
+    await expect(deviceCell.getByTitle(/Sonda nasogástrica/)).toBeVisible();
     expect(vitalBounds!.x + vitalBounds!.width).toBeLessThanOrEqual(deviceBounds!.x + 1);
     if (zoom === '100') {
       expect(diagnosisBounds!.width).toBeGreaterThanOrEqual(identityBounds!.width * 0.7);
@@ -183,6 +194,14 @@ test('keeps long identity, vital grid, devices and open clinical panels legible 
         : test.info().outputPath(`census-air-${zoom}.png`),
       animations: 'disabled',
     });
+
+    await diagnosisCell.getByRole('button', { name: 'Editar diagnóstico' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('clinical-block-editor-R1')).toBeVisible();
+    await expect(page.getByTestId('clinical-block-pathology-R1')).toHaveValue(
+      'Diagnóstico clínico sintético de descripción extensa para comprobar el ajuste de columnas'
+    );
+    await page.keyboard.press('Escape');
 
     await deviceCell.locator('div.cursor-pointer').first().click();
     const deviceMenu = page.getByText('Vías Venosas (VVP)');

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { Check, SquarePen, X } from 'lucide-react';
@@ -22,7 +22,6 @@ import {
   dismissTreatingPhysician,
   isDismissedTreatingPhysician,
 } from '@/shared/census/treatingPhysicianDismissal';
-
 // The clinical status was decoupled from this editor (rediseño 2026): it now lives in its own
 // column as a colored dot (StatusSelect). This editor only edits diagnosis + specialty.
 interface ClinicalInitialBlockDraft {
@@ -32,10 +31,12 @@ interface ClinicalInitialBlockDraft {
   specialtySelection: string;
   specialtyOther: string;
 }
-
 interface ClinicalInitialBlockEditorProps {
   data: PatientData;
   disabled?: boolean;
+  viewOnly?: boolean;
+  viewOnlyLabel?: string;
+  viewOnlyValue?: string;
   alignRightClassName?: string;
   triggerAriaLabel?: string;
   triggerClassName?: string;
@@ -44,10 +45,8 @@ interface ClinicalInitialBlockEditorProps {
   onChange: DebouncedTextHandler;
   onMultipleUpdate?: (fields: PatientRowPatientPatch) => void;
 }
-
 const isKnownSpecialtyOption = (specialty: string): boolean =>
   specialty === '' || SPECIALTY_OPTIONS.includes(specialty as (typeof SPECIALTY_OPTIONS)[number]);
-
 const buildClinicalInitialBlockDraft = (
   data: PatientData,
   professionalsCatalog: ReturnType<typeof useStaffContext>['professionalsCatalog']
@@ -77,7 +76,6 @@ const buildClinicalInitialBlockDraft = (
     specialtyOther: isKnownSpecialty ? '' : specialty,
   };
 };
-
 const buildClinicalInitialBlockPatch = (
   draft: ClinicalInitialBlockDraft,
   professionalsCatalog: ReturnType<typeof useStaffContext>['professionalsCatalog'],
@@ -95,7 +93,6 @@ const buildClinicalInitialBlockPatch = (
   const keepsStoredIdentity =
     Boolean(draft.treatingPhysicianKey) ||
     (!draft.physicianTouched && isDismissedTreatingPhysician(data, data));
-
   const physicianId = selectedProfessional
     ? selectedProfessional.rayenPractitionerId
     : draft.treatingPhysicianKey.startsWith('rayen:')
@@ -130,15 +127,17 @@ const buildClinicalInitialBlockPatch = (
       : draft.specialtySelection) as PatientData['specialty'],
   };
 };
-
 export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProps> = ({
   data,
   disabled = false,
+  viewOnly = false,
+  viewOnlyLabel = 'Diagnóstico',
+  viewOnlyValue,
   alignRightClassName = 'right-1',
   triggerAriaLabel = 'Editar bloque clínico',
   triggerClassName,
   triggerContent,
-  triggerTitle = 'Editar bloque clínico',
+  triggerTitle = 'Abrir bloque clínico',
   onChange,
   onMultipleUpdate,
 }) => {
@@ -150,10 +149,17 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
   const [draft, setDraft] = useState<ClinicalInitialBlockDraft>(() =>
     buildClinicalInitialBlockDraft(data, professionalsCatalog)
   );
-
   const closeEditor = useCallback(() => {
     setIsOpen(false);
-  }, []);
+    if (viewOnly && popoverRef.current?.contains(document.activeElement)) {
+      triggerRef.current?.focus();
+    }
+  }, [viewOnly]);
+  useEffect(() => {
+    if (isOpen && viewOnly) {
+      popoverRef.current?.querySelector('button')?.focus();
+    }
+  }, [isOpen, viewOnly]);
 
   const resolvePosition = useCallback(() => {
     const anchorRect = triggerRef.current?.getBoundingClientRect();
@@ -211,20 +217,20 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
           clsx(
             'absolute top-1/2 -translate-y-1/2 rounded-md border border-slate-200 bg-white p-1 text-slate-500 shadow-sm transition-colors',
             'hover:border-medical-300 hover:text-medical-700 focus:outline-none focus:ring-2 focus:ring-medical-500/20',
-            disabled && 'cursor-not-allowed opacity-50',
+            disabled && !viewOnly && 'cursor-not-allowed opacity-50',
             alignRightClassName
           )
         }
-        title={triggerTitle}
+        title={viewOnly ? `Ver ${viewOnlyLabel.toLowerCase()}` : triggerTitle}
         aria-label={triggerAriaLabel}
         onClick={event => {
           event.preventDefault();
           event.stopPropagation();
-          if (!disabled) {
+          if (!disabled || viewOnly) {
             openEditor();
           }
         }}
-        disabled={disabled}
+        disabled={disabled && !viewOnly}
       >
         {triggerContent || <SquarePen size={12} />}
       </button>
@@ -262,114 +268,124 @@ export const ClinicalInitialBlockEditor: React.FC<ClinicalInitialBlockEditorProp
               <X size={13} />
             </button>
 
-            <div className="space-y-2 p-3 pt-4">
-              <TreatingPhysicianSelect
-                bedId={data.bedId}
-                currentPhysicianName={data.treatingPhysicianName}
-                professionals={professionalsCatalog}
-                value={draft.treatingPhysicianKey}
-                onChange={(key, professional) => {
-                  const configuredSpecialty = professionalSpecialtyToPatientSpecialty(
-                    professional?.specialty
-                  );
-                  setDraft(current => ({
-                    ...current,
-                    treatingPhysicianKey: key,
-                    physicianTouched: true,
-                    ...(configuredSpecialty
-                      ? {
-                          specialtySelection: isKnownSpecialtyOption(configuredSpecialty)
-                            ? configuredSpecialty
-                            : 'Otro',
-                          specialtyOther: isKnownSpecialtyOption(configuredSpecialty)
-                            ? ''
-                            : configuredSpecialty,
-                        }
-                      : {}),
-                  }));
-                }}
-              />
-
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold text-slate-600">
-                  Diagnóstico
-                </span>
-                <input
-                  id={`clinical-block-pathology-${data.bedId}`}
-                  name={`clinical-block-pathology-${data.bedId}`}
-                  data-testid={`clinical-block-pathology-${data.bedId}`}
-                  className="h-8 w-full rounded border border-slate-200 px-2 text-[13px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
-                  value={draft.pathology}
-                  onChange={event =>
-                    setDraft(current => ({ ...current, pathology: event.target.value }))
-                  }
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold text-slate-600">
-                  Especialidad
-                </span>
-                <select
-                  id={`clinical-block-specialty-${data.bedId}`}
-                  name={`clinical-block-specialty-${data.bedId}`}
-                  data-testid={`clinical-block-specialty-${data.bedId}`}
-                  className="h-8 w-full rounded border border-slate-200 px-2 text-[12px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
-                  value={draft.specialtySelection}
-                  onChange={event =>
+            {viewOnly && (
+              <div className="space-y-2 p-3 pt-5" role="region" aria-label={viewOnlyLabel}>
+                <p className="text-[11px] font-semibold text-slate-600">{viewOnlyLabel}</p>
+                <p className="whitespace-pre-wrap break-words text-[13px] text-slate-800">
+                  {(viewOnlyValue ?? data.pathology) || 'Sin información registrada'}
+                </p>
+              </div>
+            )}
+            {!viewOnly && (
+              <div className="space-y-2 p-3 pt-4">
+                <TreatingPhysicianSelect
+                  bedId={data.bedId}
+                  currentPhysicianName={data.treatingPhysicianName}
+                  professionals={professionalsCatalog}
+                  value={draft.treatingPhysicianKey}
+                  onChange={(key, professional) => {
+                    const configuredSpecialty = professionalSpecialtyToPatientSpecialty(
+                      professional?.specialty
+                    );
                     setDraft(current => ({
                       ...current,
-                      specialtySelection: event.target.value,
-                      specialtyOther: event.target.value === 'Otro' ? current.specialtyOther : '',
-                    }))
-                  }
-                >
-                  <option value="">-- Esp --</option>
-                  {SPECIALTY_OPTIONS.map(option => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                      treatingPhysicianKey: key,
+                      physicianTouched: true,
+                      ...(configuredSpecialty
+                        ? {
+                            specialtySelection: isKnownSpecialtyOption(configuredSpecialty)
+                              ? configuredSpecialty
+                              : 'Otro',
+                            specialtyOther: isKnownSpecialtyOption(configuredSpecialty)
+                              ? ''
+                              : configuredSpecialty,
+                          }
+                        : {}),
+                    }));
+                  }}
+                />
 
-              {draft.specialtySelection === 'Otro' && (
                 <label className="block">
                   <span className="mb-1 block text-[11px] font-semibold text-slate-600">
-                    Describir especialidad
+                    Diagnóstico
                   </span>
                   <input
-                    id={`clinical-block-specialty-other-${data.bedId}`}
-                    name={`clinical-block-specialty-other-${data.bedId}`}
-                    data-testid={`clinical-block-specialty-other-${data.bedId}`}
+                    id={`clinical-block-pathology-${data.bedId}`}
+                    name={`clinical-block-pathology-${data.bedId}`}
+                    data-testid={`clinical-block-pathology-${data.bedId}`}
                     className="h-8 w-full rounded border border-slate-200 px-2 text-[13px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
-                    value={draft.specialtyOther}
+                    value={draft.pathology}
                     onChange={event =>
-                      setDraft(current => ({ ...current, specialtyOther: event.target.value }))
+                      setDraft(current => ({ ...current, pathology: event.target.value }))
                     }
                   />
                 </label>
-              )}
 
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  className="rounded border border-slate-200 px-2 py-1 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
-                  onClick={closeEditor}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  data-testid={`clinical-block-save-${data.bedId}`}
-                  className="inline-flex items-center gap-1 rounded border border-medical-600 bg-medical-600 px-2 py-1 text-[12px] font-semibold text-white hover:bg-medical-700"
-                  onClick={saveDraft}
-                >
-                  <Check size={13} />
-                  Guardar
-                </button>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold text-slate-600">
+                    Especialidad
+                  </span>
+                  <select
+                    id={`clinical-block-specialty-${data.bedId}`}
+                    name={`clinical-block-specialty-${data.bedId}`}
+                    data-testid={`clinical-block-specialty-${data.bedId}`}
+                    className="h-8 w-full rounded border border-slate-200 px-2 text-[12px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
+                    value={draft.specialtySelection}
+                    onChange={event =>
+                      setDraft(current => ({
+                        ...current,
+                        specialtySelection: event.target.value,
+                        specialtyOther: event.target.value === 'Otro' ? current.specialtyOther : '',
+                      }))
+                    }
+                  >
+                    <option value="">-- Esp --</option>
+                    {SPECIALTY_OPTIONS.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {draft.specialtySelection === 'Otro' && (
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-slate-600">
+                      Describir especialidad
+                    </span>
+                    <input
+                      id={`clinical-block-specialty-other-${data.bedId}`}
+                      name={`clinical-block-specialty-other-${data.bedId}`}
+                      data-testid={`clinical-block-specialty-other-${data.bedId}`}
+                      className="h-8 w-full rounded border border-slate-200 px-2 text-[13px] focus:border-medical-500 focus:outline-none focus:ring-2 focus:ring-medical-500/20"
+                      value={draft.specialtyOther}
+                      onChange={event =>
+                        setDraft(current => ({ ...current, specialtyOther: event.target.value }))
+                      }
+                    />
+                  </label>
+                )}
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    className="rounded border border-slate-200 px-2 py-1 text-[12px] font-semibold text-slate-600 hover:bg-slate-50"
+                    onClick={closeEditor}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    data-testid={`clinical-block-save-${data.bedId}`}
+                    className="inline-flex items-center gap-1 rounded border border-medical-600 bg-medical-600 px-2 py-1 text-[12px] font-semibold text-white hover:bg-medical-700"
+                    onClick={saveDraft}
+                  >
+                    <Check size={13} />
+                    Guardar
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>,
           document.body
         )}
