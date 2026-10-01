@@ -78,6 +78,80 @@ describe('useAuthState cross-tab logout', () => {
     });
   });
 
+  it('does not readmit the initial observer echo, but still admits later permission changes', async () => {
+    const session = {
+      status: 'authorized' as const,
+      user: { uid: 'current', email: 'test@hhr.cl', role: 'editor' as const, displayName: 'Test' },
+    };
+    vi.mocked(authUseCases.executeResolvedCurrentAuthSessionState).mockResolvedValue({
+      status: 'success',
+      data: session,
+      issues: [],
+    });
+    vi.mocked(reconcileAuthorizedSessionOwner).mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAuthState());
+    await waitFor(() => expect(result.current.authorizedUser?.uid).toBe('current'));
+    let finish!: () => void;
+    vi.mocked(reconcileAuthorizedSessionOwner).mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    const emit = vi.mocked(authSession.onAuthSessionStateChange).mock.calls.at(-1)![0];
+    await act(async () => {
+      await emit({ ...session, user: { ...session.user } });
+    });
+    expect(result.current.sessionState.status).toBe('authorized');
+    expect(result.current.authLoading).toBe(false);
+    expect(reconcileAuthorizedSessionOwner).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await emit({ ...session, user: { ...session.user, role: 'viewer' } });
+    });
+    expect(result.current.authorizedUser).toBeNull();
+    expect(reconcileAuthorizedSessionOwner).toHaveBeenCalledTimes(2);
+    await act(async () => finish());
+    expect(result.current.role).toBe('viewer');
+    await act(async () => {
+      await emit({ status: 'unauthorized', user: null, reason: 'Removed' });
+    });
+    expect(result.current.authorizedUser).toBeNull();
+  });
+
+  it('keeps owner admission pending when the initial observer echoes it, and logout wins', async () => {
+    const session = {
+      status: 'authorized' as const,
+      user: { uid: 'current', email: 'test@hhr.cl', role: 'editor' as const, displayName: 'Test' },
+    };
+    vi.mocked(authUseCases.executeResolvedCurrentAuthSessionState).mockResolvedValue({
+      status: 'success',
+      data: session,
+      issues: [],
+    });
+    let finish!: () => void;
+    vi.mocked(reconcileAuthorizedSessionOwner).mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    const { result } = renderHook(() => useAuthState());
+    await waitFor(() => expect(authSession.onAuthSessionStateChange).toHaveBeenCalled());
+    const emit = vi.mocked(authSession.onAuthSessionStateChange).mock.calls.at(-1)![0];
+    await act(async () => {
+      await emit({ ...session, user: { ...session.user } });
+    });
+    expect(result.current.authorizedUser).toBeNull();
+    expect(result.current.authLoading).toBe(true);
+    expect(reconcileAuthorizedSessionOwner).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await result.current.handleLogout();
+      finish();
+    });
+    expect(result.current.authorizedUser).toBeNull();
+    expect(result.current.sessionState.status).toBe('unauthenticated');
+  });
+
   it('does not expose an authorized user until storage admission completes', async () => {
     let admit!: () => void;
     vi.mocked(reconcileAuthorizedSessionOwner).mockImplementationOnce(

@@ -435,6 +435,17 @@ El reporte `reports/security/dependency-audit.md` debe conservar comandos de rep
 3. si falla handoff, confirmar que la restricción de edición por día actual no se haya roto
 4. si falla clinical-documents, revisar permisos de `draft` en frontend y Firestore Rules
 
+### Parpadeo del censo al ingresar o recargar
+
+- Distinguir una navegación nueva de un remontaje React: medir identidad de la
+  cabecera y transiciones de auth, sin registrar contenido clínico.
+- Revisar el eco del primer observer frente a la sesión ya resuelta y cualquier
+  provider diferido que cambie la ascendencia del chrome.
+- Ejecutar `AppContent.entrypoint.test.tsx` y `useAuthState.crossTabLogout.test.ts`;
+  confirmar que un cambio de permisos sigue readmitiendo y que logout invalida
+  admisiones pendientes. No suprimir eventos posteriores para esconder el síntoma.
+- Reproducir Google y F5 en el entorno verificado; retirar instrumentación temporal.
+
 ### Falla de login / Gestión de Roles
 
 1. revisar primero [docs/AUTH_ACCESS_MODEL.md](./AUTH_ACCESS_MODEL.md)

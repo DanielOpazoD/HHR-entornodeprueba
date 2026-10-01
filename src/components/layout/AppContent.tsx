@@ -12,6 +12,12 @@ import {
 } from '@/components/layout/app-content/reminderCenterProviderLoader';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import {
+  ReminderCenterContext,
+  unavailableReminderCenterValue,
+  useReminderCenter,
+  type ReminderCenterContextValue,
+} from '@/context/reminderCenterContextContract';
 
 const AppContentOverlays = lazyWithRetry(() =>
   import('@/components/layout/app-content/AppContentOverlays').then(module => ({
@@ -26,26 +32,48 @@ interface AppContentProps {
   renderCensusTrailingActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
 }
 
+// Publish the deferred runtime through a provider that is present from the first
+// render. Inserting the loaded provider around the chrome remounts the census.
+const ReminderCenterValueBridge = ({
+  onChange,
+}: {
+  onChange: (value: ReminderCenterContextValue) => void;
+}) => {
+  const value = useReminderCenter();
+  React.useEffect(() => onChange(value), [value, onChange]);
+  return null;
+};
+
 const DeferredReminderCenterProvider: ReminderCenterProviderComponent = ({ children }) => {
   const [Provider, setProvider] = React.useState<ReminderCenterProviderComponent | null>(null);
 
+  const [value, setValue] = React.useState(unavailableReminderCenterValue);
+
   React.useEffect(() => {
     let mounted = true;
-    void loadReminderCenterProvider().then(provider => {
-      if (mounted) {
-        setProvider(() => provider);
-      }
-    });
+    void loadReminderCenterProvider()
+      .then(provider => {
+        if (mounted) setProvider(() => provider);
+      })
+      .catch(() => {
+        // Optional reminders must not interrupt the authenticated clinical shell.
+        if (mounted) setValue({ ...unavailableReminderCenterValue, loading: false });
+      });
     return () => {
       mounted = false;
     };
   }, []);
 
-  if (!Provider) {
-    return <>{children}</>;
-  }
-
-  return <Provider>{children}</Provider>;
+  return (
+    <ReminderCenterContext.Provider value={value}>
+      {Provider ? (
+        <Provider>
+          <ReminderCenterValueBridge onChange={setValue} />
+        </Provider>
+      ) : null}
+      {children}
+    </ReminderCenterContext.Provider>
+  );
 };
 
 export const AppContent: React.FC<AppContentProps> = ({
