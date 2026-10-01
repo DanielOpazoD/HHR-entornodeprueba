@@ -33,3 +33,14 @@ Para cambios en inicio de sesión o recarga autenticada, verificar que el eco in
 del observer no readmita una sesión idéntica, sin saltar la admisión pendiente,
 los cambios de permisos ni el cierre de sesión. Los providers diferidos no deben
 remontar la interfaz clínica ni borrar estado de controles al completar su carga.
+
+Para exportaciones y respaldos, el vencimiento de la espera de guardado no equivale
+a un censo listo. Probar el guardado pendiente, el fallo de guardado y el cambio de
+día durante la espera o la confirmación; ninguno debe generar archivos, abrir la
+impresión ni marcar un respaldo como archivado. Una copia local válida no exige
+confirmación remota. Un getter que devuelve `null` no autoriza reutilizar un registro
+anterior. La impresión del DOM vuelve a comprobar el día justo antes de abrirse.
+
+El Excel mensual conserva su rango explícito hasta el día elegido y puede incluir
+días anteriores aunque ese día esté vacío. Este permiso no aplica a exportaciones
+o respaldos diarios y no evita comprobar guardado, fallo y cambio de fecha.
