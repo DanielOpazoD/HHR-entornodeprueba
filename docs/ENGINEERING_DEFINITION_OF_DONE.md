@@ -44,3 +44,10 @@ anterior. La impresión del DOM vuelve a comprobar el día justo antes de abrirs
 El Excel mensual conserva su rango explícito hasta el día elegido y puede incluir
 días anteriores aunque ese día esté vacío. Este permiso no aplica a exportaciones
 o respaldos diarios y no evita comprobar guardado, fallo y cambio de fecha.
+
+Los detalles de signos y scores se cargan al activarlos, manteniendo el resumen
+del censo disponible. Verificar apertura, cierre durante la carga, respuesta tardía
+y fallo del módulo sin remontar el censo ni recargar una edición. Las lecturas,
+rangos clínicos e historiales conservan sus contratos. Medir la unión de chunks
+estáticos del shell y del censo con la misma configuración: mover código entre
+archivos sin reducir esa unión no acredita una mejora del arranque.

@@ -7,11 +7,11 @@
  * Ficha Médico is the source of truth (ownership `remoteCanonical`).
  */
 
-import React, { useState } from 'react';
+import React, { lazy, useState } from 'react';
 import { Bandage, ClipboardList, Footprints } from 'lucide-react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { ScoresDetailModal } from './ScoresDetailModal';
+import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
 import { ScaleChip } from './ScaleChip';
 import { CellSyncIndicator } from './CellSyncIndicator';
 import { buildScoresCellModel } from '@/features/census/controllers/evaluationScoresCellController';
@@ -19,6 +19,10 @@ import { useRayenFillStatus } from '@/features/rayen-import/census-status';
 import { isCudyrPatientEligible } from '@/domain/cudyr/cudyrEligibility';
 import { isCudyrScoreComplete } from '@/domain/cudyr/cudyrCompletion';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
+
+const ScoresDetailModal = lazy(() =>
+  import('./ScoresDetailModal').then(module => ({ default: module.ScoresDetailModal }))
+);
 
 interface ScoresCellProps extends BaseCellProps {
   currentDateString: string;
@@ -174,13 +178,18 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
       )}
 
       {isDetailOpen && (
-        <ScoresDetailModal
-          patientName={data.patientName}
-          admissionDate={data.admissionDate}
-          importedCudyr={data.evaluationScores?.cudyr}
-          model={model}
+        <ClinicalDetailLoadBoundary
+          title={`Escalas de enfermería — ${data.patientName}`}
           onClose={() => setIsDetailOpen(false)}
-        />
+        >
+          <ScoresDetailModal
+            patientName={data.patientName}
+            admissionDate={data.admissionDate}
+            importedCudyr={data.evaluationScores?.cudyr}
+            model={model}
+            onClose={() => setIsDetailOpen(false)}
+          />
+        </ClinicalDetailLoadBoundary>
       )}
     </td>
   );

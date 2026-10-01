@@ -4,10 +4,10 @@
  * modal (FR, EVA, observations). Read-only: Ficha Médico is the source of truth.
  */
 
-import React, { useState } from 'react';
+import React, { lazy, useState } from 'react';
 import type { BaseCellProps } from './inputCellTypes';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { VitalsDetailModal } from './VitalsDetailModal';
+import { ClinicalDetailLoadBoundary } from './ClinicalDetailLoadBoundary';
 import { CellSyncIndicator } from './CellSyncIndicator';
 import {
   buildVitalSignsView,
@@ -16,6 +16,10 @@ import {
 } from '@/features/census/controllers/vitalSignsView';
 import { resolveVitalSignsProfile } from '@/utils/vitalSignsProfileResolver';
 import { useRayenFillStatus } from '@/features/rayen-import/census-status';
+
+const VitalsDetailModal = lazy(() =>
+  import('./VitalsDetailModal').then(module => ({ default: module.VitalsDetailModal }))
+);
 
 /** The four readings surfaced inline in the census cell (the rest live in the modal). */
 const CELL_READINGS: ReadonlyArray<{ key: VitalReadingView['key']; label: string }> = [
@@ -108,21 +112,26 @@ export const VitalsCell: React.FC<BaseCellProps> = ({
       )}
 
       {isDetailOpen && vitals && (
-        <VitalsDetailModal
-          patientName={data.patientName}
-          vitals={vitals}
-          history={
-            data.vitalSignsHistory?.length
-              ? data.vitalSignsHistory
-              : data.vitalSigns
-                ? [data.vitalSigns]
-                : []
-          }
-          age={data.age}
-          birthDate={data.birthDate}
-          profile={vitalProfile}
+        <ClinicalDetailLoadBoundary
+          title={`Signos vitales — ${data.patientName}`}
           onClose={() => setIsDetailOpen(false)}
-        />
+        >
+          <VitalsDetailModal
+            patientName={data.patientName}
+            vitals={vitals}
+            history={
+              data.vitalSignsHistory?.length
+                ? data.vitalSignsHistory
+                : data.vitalSigns
+                  ? [data.vitalSigns]
+                  : []
+            }
+            age={data.age}
+            birthDate={data.birthDate}
+            profile={vitalProfile}
+            onClose={() => setIsDetailOpen(false)}
+          />
+        </ClinicalDetailLoadBoundary>
       )}
     </td>
   );
