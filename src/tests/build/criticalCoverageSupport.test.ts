@@ -1,9 +1,16 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getCriticalCoverageTestTargets } from '../../../scripts/criticalCoverageSupport.mjs';
+import {
+  buildCriticalCoverageReport,
+  getCriticalCoverageTestTargets,
+} from '../../../scripts/criticalCoverageSupport.mjs';
+
+vi.mock('../../../scripts/gitReportState.mjs', () => ({
+  getGitReportState: () => ({ gitSha: 'synthetic', gitDirty: false }),
+}));
 
 const temporaryRoots: string[] = [];
 
@@ -63,5 +70,72 @@ describe('critical coverage test targets', () => {
     });
 
     expect(getCriticalCoverageTestTargets(root)).toEqual(['src/tests/shared.test.ts']);
+  });
+});
+
+const writeFixtureFile = (root: string, relative: string) => {
+  const file = path.join(root, relative);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, 'export {};');
+};
+
+describe('critical structural test ownership', () => {
+  it('cannot satisfy a zone minimum with unrelated application tests', () => {
+    const tests = [
+      'src/tests/owner/a.test.ts',
+      'src/tests/owner/b.test.ts',
+      'src/tests/owner/c.test.ts',
+      'src/tests/owner/d.test.ts',
+    ];
+    const root = createConfigRoot({
+      'src/owner': { tests, minTestFileCount: 4, minTestToSourceRatio: 1 },
+    });
+    writeFixtureFile(root, 'src/owner/index.ts');
+    for (const file of tests.slice(0, 3)) writeFixtureFile(root, file);
+    for (let index = 0; index < 20; index += 1)
+      writeFixtureFile(root, `src/tests/unrelated/${index}.test.ts`);
+    const before = buildCriticalCoverageReport(root).criticalZones[0];
+    expect(before.testFileCount).toBe(3);
+    expect(before.structuralGate.passed).toBe(false);
+    expect(before.structuralGate.failures).toContain('Test files 3 < required minimum 4.');
+    writeFixtureFile(root, tests[3]);
+    const after = buildCriticalCoverageReport(root).criticalZones[0];
+    expect(after.testFileCount).toBe(4);
+    expect(after.structuralGate.passed).toBe(true);
+  });
+
+  it('deduplicates overlapping directories and file selectors and ignores missing/non-test files', () => {
+    const root = createConfigRoot({
+      'src/owner': {
+        tests: [
+          'src/tests/owner',
+          'src/tests/owner/a.test.ts',
+          'src/tests/owner',
+          'src/tests/missing.test.ts',
+          'src/tests/helper.ts',
+        ],
+        minTestFileCount: 2,
+        minTestToSourceRatio: 1,
+      },
+    });
+    writeFixtureFile(root, 'src/owner/index.ts');
+    writeFixtureFile(root, 'src/tests/owner/a.test.ts');
+    writeFixtureFile(root, 'src/tests/helper.ts');
+    const zone = buildCriticalCoverageReport(root).criticalZones[0];
+    expect(zone.testFileCount).toBe(1);
+    expect(zone.structuralGate.passed).toBe(false);
+  });
+
+  it('preserves counting within an existing directory selector', () => {
+    const root = createConfigRoot({
+      'src/owner': { tests: 'src/tests/owner', minTestFileCount: 2, minTestToSourceRatio: 1 },
+    });
+    writeFixtureFile(root, 'src/owner/index.ts');
+    writeFixtureFile(root, 'src/tests/owner/a.test.ts');
+    writeFixtureFile(root, 'src/tests/owner/nested/b.spec.tsx');
+    writeFixtureFile(root, 'src/tests/outside/c.test.ts');
+    const zone = buildCriticalCoverageReport(root).criticalZones[0];
+    expect(zone.testFileCount).toBe(2);
+    expect(zone.structuralGate.passed).toBe(true);
   });
 });

@@ -125,3 +125,16 @@ y Functions para corregir GHSA-m9gg-hp2v-232j. El audit de ambas instalaciones
 conserva bloqueo en severidades high/critical; no se añade una excepción. El SDK
 web Firebase permanece en 12.14.0. Motivo, riesgo, rollback y controles figuran en
 [Safe Change Checklist](./SAFE_CHANGE_CHECKLIST.md#parche-transitivo-grpc-2026-10-01).
+
+### Conteo estructural de pruebas por zona (2026-10-01)
+
+Exportación y UPC declaran cuatro archivos de tests relacionados con sus fuentes
+en lugar de contabilizar todo `src/tests`. La lista estructural puede combinar
+archivos y directorios; se deduplica por ruta y no cuenta selectores inexistentes
+ni helpers. Los `coverageTests` continúan delimitando la ejecución instrumentada,
+independientemente del conteo estructural. Se conservan mínimos, ratios y baselines.
+
+La regresión del runner demuestra que veinte tests ajenos no compensan la pérdida
+de uno de los cuatro tests de la zona. `AppContent.test.tsx` ejecuta el runtime de
+exportación a través del shell; `upcEvaluationPolicy.test.ts` ejecuta la política
+UPC y los parches de movimientos, completando las listas de propiedad existentes.
