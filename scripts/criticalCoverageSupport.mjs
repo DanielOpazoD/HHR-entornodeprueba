@@ -54,14 +54,14 @@ const readThresholds = root => {
 
 const normalizeSourceEntries = (zoneKey, config) => {
   const configuredSources = Array.isArray(config.sources) ? config.sources : [zoneKey];
-  return [...new Set(configuredSources.filter(source => typeof source === 'string' && source.trim()))];
+  return [
+    ...new Set(configuredSources.filter(source => typeof source === 'string' && source.trim())),
+  ];
 };
 
 const normalizeTestEntries = value => {
   const configuredTests = Array.isArray(value) ? value : [value];
-  return [
-    ...new Set(configuredTests.filter(test => typeof test === 'string' && test.trim())),
-  ];
+  return [...new Set(configuredTests.filter(test => typeof test === 'string' && test.trim()))];
 };
 
 const readCoverageMap = root => {
@@ -94,13 +94,23 @@ const listSourceFiles = (root, sourceEntries) => {
     }
   }
 
-  return [...new Set(discovered.filter(isSourceFile).map(filePath => toRelativePosix(root, filePath)))].sort(
-    (left, right) => left.localeCompare(right)
-  );
+  return [
+    ...new Set(discovered.filter(isSourceFile).map(filePath => toRelativePosix(root, filePath))),
+  ].sort((left, right) => left.localeCompare(right));
 };
 
-const countTestFiles = (root, testRoot) =>
-  walkFiles(path.join(root, testRoot)).filter(filePath => TEST_FILE_PATTERN.test(filePath)).length;
+const countTestFiles = (root, testTargets) => {
+  const files = new Set();
+  for (const target of normalizeTestEntries(testTargets)) {
+    const absolute = path.join(root, target);
+    if (!fs.existsSync(absolute)) continue;
+    const candidates = fs.statSync(absolute).isDirectory() ? walkFiles(absolute) : [absolute];
+    for (const file of candidates) {
+      if (TEST_FILE_PATTERN.test(file)) files.add(file);
+    }
+  }
+  return files.size;
+};
 
 const createEmptyMetricSummary = () => ({
   total: 0,
@@ -174,9 +184,7 @@ const evaluateStructuralGate = zone => ({
   failures: [
     ...(zone.sourceFileCount === 0 ? ['No source files were discovered for the zone.'] : []),
     ...(zone.testFileCount < zone.minTestFileCount
-      ? [
-          `Test files ${zone.testFileCount} < required minimum ${zone.minTestFileCount}.`,
-        ]
+      ? [`Test files ${zone.testFileCount} < required minimum ${zone.minTestFileCount}.`]
       : []),
     ...(zone.testToSourceRatio < zone.minTestToSourceRatio
       ? [
@@ -199,7 +207,9 @@ const evaluateCoverageGate = zone => {
   }
 
   if (zone.coverage.missingFiles.length > 0) {
-    failures.push(`${zone.coverage.missingFiles.length} source files are missing from coverage data.`);
+    failures.push(
+      `${zone.coverage.missingFiles.length} source files are missing from coverage data.`
+    );
   }
 
   return {
