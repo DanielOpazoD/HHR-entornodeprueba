@@ -604,3 +604,18 @@ Regresiones: `useAppContentRuntime.test.tsx`, `useExportManager.test.ts` y
 comprobación; el hook cubre PDF, Excel, impresión y respaldo confirmado. Aplicar
 `ci:merge-gate` y el pack blocking de `test:release-confidence`, reutilizando sólo
 controles ya aprobados sobre el mismo código y configuración.
+
+## Detalle de signos o scores no disponible
+
+El censo mantiene sus valores aunque falle la carga del módulo de detalle.
+El cuadro informa el fallo y permite cerrarlo; no recarga automáticamente una
+edición activa ni inventa resultados. Recargar la aplicación cuando sea seguro
+si un despliegue dejó un módulo anterior no disponible. Los chunks de detalle
+siguen incluidos en el precache de producción para conservar su uso sin conexión.
+
+`ClinicalDetailLoading.test.tsx` comprueba importación bajo demanda, cancelación,
+respuesta tardía y aislamiento del fallo. Las pruebas de `VitalsCell` y
+`ScoresCell` verifican el contenido clínico tras la carga. La medición de Rollup
+del 01-10-2026 redujo el chunk del censo de 330.905 a 318.340 bytes y su unión
+estática con el shell de 2.238.015 a 2.225.451 bytes (misma configuración local).
+Es una reducción de JavaScript inicial, no una medición de latencia de usuarios.

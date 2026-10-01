@@ -40,7 +40,7 @@ describe('ScoresCell', () => {
     expect(status).not.toHaveClass('border-amber-200', 'bg-amber-50', 'text-amber-700');
   });
 
-  it('shows Eloísa risk wording without changing the local Braden cadence', () => {
+  it('shows Eloísa risk wording without changing the local Braden cadence', async () => {
     render(
       <table>
         <tbody>
@@ -69,7 +69,7 @@ describe('ScoresCell', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de escalas de enfermería' }));
 
-    expect(screen.getByText('Riesgo alto')).toBeInTheDocument();
+    expect(await screen.findByText('Riesgo alto')).toBeInTheDocument();
     expect(screen.getByText('Faltan 2 días para repetir la escala')).toBeInTheDocument();
     expect(screen.getByText(/Cada 3 días/)).toBeInTheDocument();
   });
