@@ -38,6 +38,18 @@ Si la change toca reglas generadas o documentación operativa, correr además:
 
 ## Gates activos
 
+Los fixtures de autenticación E2E esperan una superficie visible de login o el
+`main` autenticado después de `domcontentloaded`. No esperan `networkidle`:
+las conexiones de Firestore pueden seguir abiertas con la aplicación lista.
+La ausencia de ambas superficies falla; ver el shell no acredita haber cargado
+el censo. Cada escenario conserva sus assertions de registro, permisos y
+persistencia. Owner: test infrastructure. Para rollback, revertir sólo este
+cambio de fixtures; no cambiar timeouts, retries ni el pack crítico. Comparar
+los 38 escenarios existentes; el pack añade dos regresiones de superficies
+ocultas/visibles. Declarar fallos/reintentos además del tiempo total.
+
+Referencia: [esperas de Playwright](https://playwright.dev/docs/api/class-page#page-wait-for-load-state).
+
 El runner `test:ci:unit:shard` sólo aprueba si el proceso de Vitest termina con
 código cero. Una señal o un error al iniciar el ejecutable produce fallo y un
 diagnóstico `Runner did not complete`; no acredita que las pruebas hayan terminado.

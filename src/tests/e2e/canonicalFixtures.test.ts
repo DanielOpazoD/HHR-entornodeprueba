@@ -15,12 +15,17 @@ describe('E2E census fixtures use the runtime record contract', () => {
   });
 
   it.each([false, true])('validates the injected context with populated=%s', async populate => {
+    const surface = { waitFor: vi.fn().mockResolvedValue(undefined) };
     const page = {
       addInitScript: vi.fn(),
       goto: vi.fn(),
       reload: vi.fn(),
       waitForLoadState: vi.fn().mockResolvedValue(undefined),
-      getByTestId: () => ({ isVisible: vi.fn().mockResolvedValue(false) }),
+      getByTestId: () => ({
+        isVisible: vi.fn().mockResolvedValue(false),
+        or: () => ({ filter: () => ({ first: () => surface }) }),
+      }),
+      getByRole: vi.fn(),
       evaluate: async (callback: (args: unknown) => void, args: unknown) => callback(args),
     } as unknown as Page;
     await setupE2EContext(page, 'editor', populate, date);
