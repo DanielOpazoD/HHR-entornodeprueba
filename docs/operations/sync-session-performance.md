@@ -158,12 +158,16 @@ en el [checklist de cambios](../SAFE_CHANGE_CHECKLIST.md#parche-transitivo-grpc-
 No se ha demostrado explotación en HHR. Esta decisión separa un parche de seguridad
 acotado de una actualización general del runtime cliente que no pasó sus controles.
 
-El gate ampliado de evidencia de release señala además 27 archivos de tests con
-relojes reales o esperas de turno. Es una brecha anterior al parche transitivo;
-los tests y el detector no se modifican. No se declara ese gate aprobado ni se
-silencian sus señales. Revisar por separado determinismo de fixtures y esperas;
-los controles exigidos para el parche siguen siendo audit, merge gate y CI del
-head final, ampliados con el pack de confianza de transporte.
+Al evaluar el parche transitivo, el gate ampliado señaló 27 archivos de tests
+con relojes reales o esperas de turno. Esa observación es histórica: los
+[PR #599](https://github.com/DanielOpazoD/HHR-entornodeprueba/pull/599),
+[#600](https://github.com/DanielOpazoD/HHR-entornodeprueba/pull/600) y
+[#601](https://github.com/DanielOpazoD/HHR-entornodeprueba/pull/601) corrigieron
+fixtures y su cobertura. El artefacto de confianza del
+[CI del PR #611](https://github.com/DanielOpazoD/HHR-entornodeprueba/actions/runs/36918537236)
+informa `flakeRisk=0`, sin tests omitidos ni en cuarentena. Ese resultado del
+detector no prueba ausencia de flakiness en todos los entornos; se conservan
+fallos locales y límites de rendimiento como evidencia independiente.
 
 ### Desglose de transacción clínica
 
@@ -273,3 +277,70 @@ separadas y cargas comparables; no se consideran resueltos.
 `rayenClinicalEnrichmentBatchClient.test.ts` protege la selección regional,
 el timeout y el paso de payload/respuesta, y demuestra una sola invocación sin
 fallback ante timeout, rechazo de permisos, conflicto o fallo de inicialización.
+
+## Cobertura reciente y decisión de la siguiente optimización (2026-10-01)
+
+Una consulta administrativa **solo de lectura**, limitada a las 150 entradas
+más recientes en `hhr-pruebas`, encontró 124 llamadas de aplicación clínica.
+69 tenían al menos una fase válida y 55 no aportaban fases válidas. No se
+consideran 69 trazas completas: cada métrica debe contar sus propias muestras.
+El límite describe esta consulta, no toda la actividad histórica.
+
+El mayor grupo con instrumentación reunía 47 llamadas de alcance actual,
+resultado exitoso, modo `enforced`, un destino, tres campos y un intento.
+La telemetría consultada no permite separar región ni escritura nueva frente
+a replay por recibo. El grupo puede incluir el experimento regional anterior;
+por eso no se publica una mediana o P95 nuevos ni se atribuye su cola a una fase.
+Solo se conservaron estos conteos y categorías, sin payloads, identidades,
+fechas de pacientes ni HAR.
+
+**Decisión:** no introducir otra optimización de runtime en este bloque.
+Reutilizar el resumen de sesiones y las fases existentes para reunir evidencia
+comparable. Este PR no añade instrumentación. No introducir caché de autorización,
+instancias mínimas, concurrencia, índices ni cambios de timeout mientras no exista
+una causa reproducible. La selección regional y sus guardas ya están cubiertas.
+
+Para observaciones nuevas, la petición callable en Chrome permite verificar la
+región en su URL. Su respuesta existente aporta `authorityStatus`,
+`patientWrites` e `historySnapshots`: separar `idempotent` de escrituras efectivas
+con esos contadores, sin exportar la petición ni su payload. Un resultado
+idempotente no prueba por sí solo que fuera replay de un recibo exacto; si ese
+camino no se conoce, conservarlo como desconocido y excluirlo de esa comparación.
+No reconstruir esas dimensiones en trazas antiguas que carecen de ellas.
+
+Si la captura acotada no permite observar una dimensión necesaria, el siguiente
+PR puede añadir únicamente categorías y números agregados que la identifiquen,
+con tests de privacidad y cobertura de muestras ausentes. Esa instrumentación
+requiere revisión propia antes de medir; no justifica un recolector general ni
+una optimización del runtime mientras las cohortes sigan incompletas.
+
+### Próxima comparación que permite decidir un cambio
+
+1. Mantener separados versión, región observada, resultado, alcance
+   actual/histórico, carga de destinos y campos, e intentos. Separar escritura
+   nueva de replay por recibo; un dato desconocido sigue desconocido.
+2. Informar cobertura y omisiones de cada fase, conservar respuestas lentas y
+   distinguir sesiones de llamadas. No mezclar muestras para alcanzar 20:
+   P95 requiere al menos 20 observaciones válidas de la misma métrica/cohorte.
+3. Repetir en varias sesiones equivalentes. Identificar una fase dominante y
+   una operación corregible; el tiempo externo al callback no identifica por
+   sí solo commit, red o arranque en frío.
+4. Modificar únicamente esa operación y comparar antes/después con carga y
+   condiciones equivalentes. Conservar recibos exactos, Auth, revisión/episodio,
+   auditoría, paridad, atomicidad y confirmación humana. Si falta evidencia o
+   no hay beneficio reproducible, conservar el comportamiento existente.
+
+### Separar diagnósticos sintéticos de sesiones clínicas
+
+En el PR #611, el test Node/fake-indexeddb de una cola de 120 registros excedió
+localmente su límite de 8.000 ms: 8.395 ms y 8.503,8 ms. El mismo código de cola
+no cambió. En el CI final aprobado, el archivo con sus dos tests completó
+1.840 ms. Son alcances distintos: no se deduce que la diferencia esté resuelta
+ni que exista un cuello de botella en el IndexedDB real de Chrome.
+
+La prueba local de flujo tuvo primero un crash de página antes de medir. Una
+repetición con el mismo build pasó todos los límites exigidos; el censo llegó
+a 1.994,4 ms frente al máximo de 2.000 ms, todavía sobre la meta de 1.500 ms.
+Se conservaron ambas ejecuciones y no se modificaron umbrales. Estos resultados
+justifican investigar estabilidad del entorno y arranque si se reproducen;
+no se combinan con las cohortes de persistencia ni acreditan una mejora global.
