@@ -7,15 +7,101 @@ import {
   makePayload,
 } from './rayenClinicalEnrichmentFunctions.test-support';
 
-const createApi = (admin: ReturnType<typeof createClinicalAdminMock>) =>
+const createApi = (
+  admin: ReturnType<typeof createClinicalAdminMock>,
+  overrides: { monotonicNow?: () => number; resolveRoleForEmail?: () => Promise<string> } = {}
+) =>
   createRayenClinicalEnrichmentFunctions({
     firestore: admin.firestore(),
     Timestamp: admin.firestore.Timestamp,
     resolveRoleForEmail: vi.fn().mockResolvedValue('nurse_hospital'),
+    ...overrides,
   });
 
 describe('Rayen clinical enrichment telemetry', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it.each([false, true])(
+    'measures awaited telemetry separately (transaction failure: %s)',
+    async fails => {
+      const admin = createClinicalAdminMock();
+      let clock = 100;
+      const originalTransaction = admin.runTransaction.getMockImplementation()!;
+      admin.runTransaction.mockImplementation(async callback => {
+        const result = await originalTransaction(callback);
+        clock += 31;
+        if (fails) throw new Error('transaction failed');
+        return result;
+      });
+      admin.telemetryAdd.mockImplementation(async () => {
+        clock += 59;
+        return { id: 'telemetry-1' };
+      });
+      const api = createApi(admin, {
+        monotonicNow: () => clock,
+        resolveRoleForEmail: async () => {
+          clock += 7;
+          return 'nurse_hospital';
+        },
+      });
+      const expected = { authorizationMs: 7, transactionMs: 31, telemetryMs: 59, handlerMs: 97 };
+      const call = api.applyRayenClinicalEnrichmentBatch.run(makePayload(), makeContext());
+      if (fails) {
+        await expect(call).rejects.toMatchObject({ details: { serverTimingsMs: expected } });
+      } else {
+        await expect(call).resolves.toMatchObject({ serverTimingsMs: expected });
+      }
+      const telemetry = admin.telemetryAdd.mock.calls[0]?.[0];
+      expect(telemetry.context.serverTimingsMs).toEqual({ authorizationMs: 7, transactionMs: 31 });
+      expect(telemetry.context.serverTimingsMs).not.toHaveProperty('telemetryMs');
+    }
+  );
+
+  it('does not attribute preparation failures to the completed authorization phase', async () => {
+    const admin = createClinicalAdminMock();
+    let clock = 0;
+    admin.firestore().collection.mockImplementationOnce(() => {
+      clock += 13;
+      throw new Error('synthetic reference preparation failure');
+    });
+    const api = createApi(admin, {
+      monotonicNow: () => clock,
+      resolveRoleForEmail: async () => {
+        clock += 7;
+        return 'nurse_hospital';
+      },
+    });
+    await expect(
+      api.applyRayenClinicalEnrichmentBatch.run(makePayload(), makeContext())
+    ).rejects.toMatchObject({
+      details: { serverTimingsMs: { authorizationMs: 7, telemetryMs: 0, handlerMs: 20 } },
+    });
+    expect(admin.runTransaction).not.toHaveBeenCalled();
+    expect(admin.telemetryAdd.mock.calls[0]?.[0].context.serverTimingsMs).toEqual({
+      authorizationMs: 7,
+    });
+  });
+
+  it('reports only measured phases when authorization fails', async () => {
+    const admin = createClinicalAdminMock();
+    let clock = 0;
+    const api = createApi(admin, {
+      monotonicNow: () => clock,
+      resolveRoleForEmail: async () => {
+        clock += 5;
+        return 'viewer';
+      },
+    });
+    await expect(
+      api.applyRayenClinicalEnrichmentBatch.run(makePayload(), makeContext())
+    ).rejects.toMatchObject({
+      details: { serverTimingsMs: { authorizationMs: 5, telemetryMs: 0, handlerMs: 5 } },
+    });
+    expect(admin.runTransaction).not.toHaveBeenCalled();
+    expect(admin.telemetryAdd.mock.calls[0]?.[0].context.serverTimingsMs).not.toHaveProperty(
+      'transactionMs'
+    );
+  });
 
   it('records matched shadow parity without clinical identifiers', async () => {
     const remote = makeClinicalRecord();

@@ -77,3 +77,30 @@ humana. Este informe ofrece el instrumento mínimo para continuar esa medición.
 inválidas/ausentes, solapamiento y tamaño mínimo para percentiles.
 `RayenSyncSessionReportButton.test.tsx` cubre copiar, fallo y reintento a través del
 runtime existente. Los controles de historial continúan pasando.
+
+## Atribuir la duración de la autoridad clínica
+
+La callable clínica devuelve opcionalmente `serverTimingsMs` (también en detalles
+numéricos de errores): `authorizationMs`, `transactionMs`, `telemetryMs` y
+`handlerMs`. Son intervalos medidos con reloj monotónico en el servidor. Una fase
+no iniciada se omite; los clientes siguen funcionando si una versión anterior
+no devuelve estas métricas. No se amplía el timeout ni se cambia el orden de
+escritura o el contrato de autoridad.
+
+La telemetría administrativa existente contiene autorización y transacción antes
+de su propia escritura. Su `durationMs` conserva ese alcance anterior a la
+telemetría. La respuesta incluye la espera de esa escritura y el total del
+handler; no se hace una segunda escritura para medir la primera. El total también
+incluye preparación y procesamiento entre fases: no sumar el total a las fases.
+
+Comparar respuestas de varias sesiones de la misma versión, alcance, actividad
+y cantidad de campos. El tiempo HTTP menos el tiempo del handler no prueba
+latencia de red ni un arranque en frío: incluye etapas fuera del handler. Una
+respuesta perdida no aporta mediciones del intento perdido. Estas métricas son
+para diagnóstico, no modifican la decisión de éxito, paridad o reintento.
+
+Las fases se consultan en la respuesta callable de Chrome y en el contexto de
+la telemetría administrativa disponible. El resumen compartible de sesiones
+mantiene su allowlist actual; no exporta respuestas, hashes de correlación ni
+payloads. Para comparar fases, extraer localmente solo esos cuatro números y la
+carga agregada. Nunca compartir un HAR autenticado o datos clínicos.
