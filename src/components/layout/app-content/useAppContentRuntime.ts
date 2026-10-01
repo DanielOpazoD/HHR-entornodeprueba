@@ -5,6 +5,10 @@ import { useCensusContext } from '@/context/CensusContext';
 import { useAuth } from '@/context/AuthContext';
 import { useNotification } from '@/context/UIContext';
 import { useExportManager, type UseExportManagerReturn } from '@/hooks/useExportManager';
+import {
+  prepareRecordExport,
+  waitForExportReadiness,
+} from '@/hooks/controllers/exportReadinessController';
 import { createScopedLogger } from '@/services/utils/loggerScope';
 import type { UseUIStateReturn } from '@/hooks/useUIState';
 import {
@@ -95,11 +99,14 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
     nurseSignature,
   } = useCensusContext();
   const auth = useAuth();
-  const { error: notifyError, info: notifyInfo } = useNotification();
+  const { error: notifyError, info: notifyInfo, warning } = useNotification();
   const { record, syncStatus, lastSyncTime } = dailyRecordHook;
   const syncStatusRef = React.useRef(syncStatus);
   const recordRef = React.useRef(record);
-  const { currentDateString: _currentDateString } = dateNav;
+  const selectedDateRef = React.useRef(dateNav.currentDateString);
+  React.useEffect(() => {
+    selectedDateRef.current = dateNav.currentDateString;
+  }, [dateNav.currentDateString]);
 
   React.useEffect(() => {
     syncStatusRef.current = syncStatus;
@@ -124,26 +131,17 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
       activeElement.blur();
     }
 
-    const startedAt = Date.now();
-    let observedSaving = syncStatusRef.current === 'saving';
-
-    while (Date.now() - startedAt < 2500) {
-      const currentStatus = syncStatusRef.current;
-      if (currentStatus === 'saving') {
-        observedSaving = true;
-      }
-
-      if (observedSaving && currentStatus !== 'saving') {
-        break;
-      }
-
-      if (!observedSaving && currentStatus !== 'saving' && Date.now() - startedAt > 150) {
-        break;
-      }
-
-      await wait(50);
-    }
-  }, []);
+    return waitForExportReadiness({
+      expectedDate: dateNav.currentDateString,
+      readState: () => ({
+        selectedDate: selectedDateRef.current,
+        recordDate: recordRef.current?.date,
+        syncStatus: syncStatusRef.current,
+      }),
+      now: Date.now,
+      wait,
+    });
+  }, [dateNav.currentDateString]);
 
   const exportManager = useExportManager(
     React.useMemo(
@@ -157,7 +155,14 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
   );
 
   const handleExportExcel = React.useCallback(async () => {
-    await flushBeforeExport();
+    const prepared = await prepareRecordExport({
+      expectedDate: dateNav.currentDateString,
+      flushBeforeExport,
+      readRecord: () => recordRef.current,
+      warning,
+      allowEmptyRecord: true,
+    });
+    if (!prepared) return;
     const generateCensusMasterExcel = await loadCensusMasterExcelExporter();
     const result = await generateCensusMasterExcel(...resolveExcelExportDateArgs(dateNav));
     if (result.outcome === 'no_data') {
@@ -173,9 +178,11 @@ export const useAppContentRuntime = ({ ui }: UseAppContentRuntimeParams): AppCon
     dateNav.selectedDay,
     dateNav.selectedMonth,
     dateNav.selectedYear,
+    dateNav.currentDateString,
     flushBeforeExport,
     notifyError,
     notifyInfo,
+    warning,
   ]);
 
   return React.useMemo(

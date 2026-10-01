@@ -1,10 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useLayoutEffect, useRef } from 'react';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { recordOperationalOutcome } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { useBackupArchiveStatus } from '@/hooks/useBackupArchiveStatus';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
 import type { BackupHandoffPdfOutput } from '@/application/backup-export/backupExportArchiveContracts';
+import {
+  prepareRecordExport,
+  type ExportReadiness,
+} from '@/hooks/controllers/exportReadinessController';
 
 const loadBackupArchiveUseCases = () =>
   import('@/application/backup-export/backupExportArchiveUseCases');
@@ -33,7 +37,7 @@ interface UseExportManagerProps {
   currentModule: string;
   selectedShift: 'day' | 'night';
   canVerifyArchiveStatus?: boolean;
-  flushBeforeExport?: () => Promise<void>;
+  flushBeforeExport?: () => Promise<ExportReadiness>;
   getStableRecordForExport?: () => DailyRecord | null;
 }
 
@@ -77,6 +81,13 @@ export const useExportManager = ({
 }: UseExportManagerProps): UseExportManagerReturn => {
   const { success, error: notifyError, warning } = useNotification();
   const { confirm } = useConfirmDialog();
+  const currentRecordRef = useRef({ date: currentDateString, record });
+  useLayoutEffect(() => {
+    currentRecordRef.current = { date: currentDateString, record };
+    return () => {
+      currentRecordRef.current = { date: '', record: null };
+    };
+  }, [currentDateString, record]);
 
   const [isBackingUp, setIsBackingUp] = useState(false);
   const { isArchived, setIsArchived } = useBackupArchiveStatus({
@@ -87,10 +98,23 @@ export const useExportManager = ({
     warning,
     error: notifyError,
   });
+  const prepare = useCallback(
+    () =>
+      prepareRecordExport({
+        expectedDate: currentDateString,
+        flushBeforeExport,
+        readRecord: () =>
+          getStableRecordForExport ? getStableRecordForExport() : currentRecordRef.current.record,
+        readDate: () => currentRecordRef.current.date,
+        warning,
+      }),
+    [currentDateString, flushBeforeExport, getStableRecordForExport, warning]
+  );
 
   const handleExportPDF = useCallback(async () => {
-    await flushBeforeExport?.();
-    const exportRecord = getStableRecordForExport?.() ?? record;
+    const prepared = await prepare();
+    if (!prepared?.record) return;
+    const exportRecord = prepared.record;
     const { executeExportHandoffPdf } = await loadBackupArchiveUseCases();
 
     const outcome = await executeExportHandoffPdf({
@@ -116,30 +140,22 @@ export const useExportManager = ({
       fallbackErrorMessage: 'Error al abrir la impresión. Por favor intente nuevamente.',
     });
     dispatchExportManagerNotice(notice, { success, warning, error: notifyError });
-  }, [
-    currentModule,
-    flushBeforeExport,
-    getStableRecordForExport,
-    notifyError,
-    record,
-    selectedShift,
-    success,
-    warning,
-  ]);
+  }, [currentModule, prepare, notifyError, selectedShift, success, warning]);
 
   const handlePrintWithBrowserOptions = useCallback(async () => {
-    await flushBeforeExport?.();
-
+    const prepared = await prepare();
+    if (!prepared?.record) return;
     window.setTimeout(() => {
-      window.print();
+      if (prepared.canPrint()) window.print();
     }, 100);
-  }, [flushBeforeExport]);
+  }, [prepare]);
 
   const handleBackupExcel = useCallback(async () => {
     setIsBackingUp(true);
     try {
-      await flushBeforeExport?.();
-      const exportRecord = getStableRecordForExport?.() ?? record;
+      const prepared = await prepare();
+      if (!prepared?.record) return;
+      const exportRecord = prepared.record;
       const { executeBackupCensusExcel } = await loadBackupArchiveUseCases();
       const outcome = await executeBackupCensusExcel({
         selectedYear,
@@ -170,8 +186,7 @@ export const useExportManager = ({
     }
   }, [
     currentDateString,
-    flushBeforeExport,
-    getStableRecordForExport,
+    prepare,
     setIsArchived,
     selectedDay,
     selectedMonth,
@@ -179,12 +194,11 @@ export const useExportManager = ({
     success,
     warning,
     notifyError,
-    record,
   ]);
 
   const handleBackupHandoff = useCallback(
     async (skipConfirmation = false) => {
-      const exportRecord = getStableRecordForExport?.() ?? record;
+      const exportRecord = getStableRecordForExport ? getStableRecordForExport() : record;
       if (!exportRecord) return;
 
       if (!skipConfirmation) {
@@ -202,8 +216,9 @@ export const useExportManager = ({
 
       setIsBackingUp(true);
       try {
-        await flushBeforeExport?.();
-        const stableRecord = getStableRecordForExport?.() ?? exportRecord;
+        const prepared = await prepare();
+        if (!prepared?.record) return;
+        const stableRecord = prepared.record;
         const { executeBackupHandoffPdf } = await loadBackupArchiveUseCases();
         const outcome = await executeBackupHandoffPdf({
           record: stableRecord,
@@ -230,7 +245,7 @@ export const useExportManager = ({
     },
     [
       confirm,
-      flushBeforeExport,
+      prepare,
       getStableRecordForExport,
       isArchived,
       notifyError,

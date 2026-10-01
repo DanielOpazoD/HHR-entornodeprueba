@@ -104,6 +104,7 @@ describe('useExportManager', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     window.requestIdleCallback = originalRequestIdleCallback;
     window.cancelIdleCallback = originalCancelIdleCallback;
   });
@@ -124,7 +125,7 @@ describe('useExportManager', () => {
   it('opens browser print after flushing local handoff state for configurable Chrome print options', async () => {
     vi.useFakeTimers();
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
-    const flushBeforeExport = vi.fn().mockResolvedValue(undefined);
+    const flushBeforeExport = vi.fn().mockResolvedValue({ status: 'ready', check: () => null });
     const { result } = renderHook(() =>
       useExportManager({
         ...defaultProps,
@@ -150,8 +151,8 @@ describe('useExportManager', () => {
   });
 
   it('exports nursing handoff PDFs in print-preview mode', async () => {
-    const flushBeforeExport = vi.fn().mockResolvedValue(undefined);
-    const exportedRecord = { ...mockRecord, date: '2024-12-29' } as DailyRecord;
+    const flushBeforeExport = vi.fn().mockResolvedValue({ status: 'ready', check: () => null });
+    const exportedRecord = { ...mockRecord, nursesDayShift: ['Updated Nurse'] } as DailyRecord;
     const getStableRecordForExport = vi.fn().mockReturnValue(exportedRecord);
     const { result } = renderHook(() =>
       useExportManager({
@@ -266,8 +267,8 @@ describe('useExportManager', () => {
   });
 
   it('backs up census excel from the resolved stable snapshot', async () => {
-    const flushBeforeExport = vi.fn().mockResolvedValue(undefined);
-    const exportedRecord = { ...mockRecord, date: '2024-12-30' } as DailyRecord;
+    const flushBeforeExport = vi.fn().mockResolvedValue({ status: 'ready', check: () => null });
+    const exportedRecord = { ...mockRecord, nursesNightShift: ['Updated Nurse'] } as DailyRecord;
     const getStableRecordForExport = vi.fn().mockReturnValue(exportedRecord);
     const { result } = renderHook(() =>
       useExportManager({

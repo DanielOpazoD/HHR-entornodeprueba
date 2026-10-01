@@ -589,3 +589,18 @@ El desglose numérico `transactionTimingsMs` está descrito en
 intentos fallidos y exitosos; el tiempo externo al callback incluye trabajo del SDK
 y no acredita una demora de commit aislada. Verificar lectura fallida, replay exacto,
 auditoría y retry con reloj monotónico inyectado antes de usar las cifras.
+
+## Exportación detenida antes de generar el archivo
+
+La espera conserva su límite de 2,5 s y devuelve un resultado explícito. Si el
+censo sigue guardándose, falló el guardado o cambió el día, la acción termina con
+un aviso recuperable; repetirla cuando el estado esté resuelto. No aumentar el
+límite ni exportar el registro anterior para ocultar el incidente. Esta barrera
+coordina mutaciones locales y no certifica que la copia remota esté actualizada;
+los controles de Storage y sus resultados parciales conservan sus contratos.
+
+Regresiones: `useAppContentRuntime.test.tsx`, `useExportManager.test.ts` y
+`exportReadinessController.test.ts`. El controlador cubre la espera y la segunda
+comprobación; el hook cubre PDF, Excel, impresión y respaldo confirmado. Aplicar
+`ci:merge-gate` y el pack blocking de `test:release-confidence`, reutilizando sólo
+controles ya aprobados sobre el mismo código y configuración.
