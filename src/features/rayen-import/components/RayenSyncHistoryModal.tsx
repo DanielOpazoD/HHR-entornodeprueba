@@ -12,6 +12,7 @@ import {
 } from './rayenSyncPresentation';
 import { RayenSyncRecoveryNotice } from './RayenSyncRecoveryNotice';
 import { RayenSyncClinicalSection, RayenSyncStaffingSection } from './RayenSyncHistorySections';
+import { RayenSyncSessionReportButton } from './RayenSyncSessionReportButton';
 import { RayenSyncIssueActions } from './RayenSyncIssueActions';
 import { rayenSyncTechnicalCode } from './rayenSyncIssueSupport';
 
@@ -245,6 +246,7 @@ export const RayenSyncHistoryModal: React.FC<RayenSyncHistoryModalProps> = ({
         busy={recoveryBusy}
         onAction={onRecoveryAction}
       />
+      {history.length > 0 && <RayenSyncSessionReportButton history={history} />}
       {history.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
           <History className="mx-auto text-slate-300" size={24} aria-hidden="true" />
