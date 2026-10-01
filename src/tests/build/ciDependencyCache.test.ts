@@ -1,11 +1,7 @@
 import fs from 'node:fs';
 import { expect, it } from 'vitest';
 import { parse } from 'yaml';
-import {
-  collectTransitiveNeeds,
-  parseWorkflowJobs,
-} from '../../../scripts/ciArtifactContractSupport.mjs';
-import { parseWorkflow } from './workflowYamlTestSupport';
+import { jobNeeds, parseWorkflow } from './workflowYamlTestSupport';
 
 const workflow = fs.readFileSync('.github/workflows/ci-cd.yml', 'utf8');
 const actionPath = '.github/actions/setup-ci-dependencies/action.yml';
@@ -66,28 +62,82 @@ it('publishes only the pristine installation, before the calling job runs checks
   expect(steps.indexOf(save)).toBeGreaterThan(steps.findIndex(step => step.run === 'npm ci'));
 });
 
-it('reuses dependencies only after the existing producer, without changing gate dependencies', () => {
+it('reuses exact dependencies across compatible jobs with only one pristine-cache writer', () => {
   const { jobs } = parseWorkflow(workflow);
   const reusable = Object.entries(jobs).filter(([, job]) =>
     job.steps.some(step => step.uses === './.github/actions/setup-ci-dependencies')
   );
   expect(reusable.map(([name]) => name).sort()).toEqual([
     'build',
+    'census-startup-performance',
+    'clinical-sync-release-gate',
+    'critical-coverage-report',
+    'docs-scope-gate',
+    'e2e-critical-emulator',
+    'final-confidence-and-readiness',
     'lighthouse-ci',
+    'postmerge-evidence',
     'quality-static-base',
+    'quality-static-dependent-groups',
     'quality-static-governance-snapshots',
+    'quality-static-groups',
+    'rules-emulator',
+    'unit-risk-shards',
   ]);
-  const graph = parseWorkflowJobs(workflow);
-  for (const [name, job] of reusable) {
-    const setup = job.steps.find(step => step.uses === './.github/actions/setup-ci-dependencies')!;
-    if (name === 'quality-static-base') {
-      expect(setup.with?.['save-cache']).toBe('true');
-    } else {
-      expect(setup.with?.['save-cache']).not.toBe('true');
-      expect(collectTransitiveNeeds(graph, name)).toContain('quality-static-base');
-    }
-    expect(job.steps.indexOf(setup)).toBeLessThan(
-      job.steps.findIndex(step => step.run || step.uses?.startsWith('treosh/lighthouse-ci-action@'))
+  const writers = reusable.filter(([, job]) =>
+    job.steps.some(step => step.with?.['save-cache'] === 'true')
+  );
+  expect(writers.map(([name]) => name)).toEqual(['quality-static-base']);
+  for (const [, job] of reusable) {
+    const setupIndex = job.steps.findIndex(
+      step => step.uses === './.github/actions/setup-ci-dependencies'
     );
+    const checkoutIndex = job.steps.findIndex(step => step.uses?.startsWith('actions/checkout@'));
+    const firstCommandIndex = job.steps.findIndex(
+      step =>
+        /\b(?:npm|npx)\b/.test(step.run ?? '') ||
+        step.uses?.startsWith('treosh/lighthouse-ci-action@')
+    );
+    expect(checkoutIndex).toBeGreaterThanOrEqual(0);
+    expect(setupIndex).toBeGreaterThan(checkoutIndex);
+    expect(firstCommandIndex).toBeGreaterThan(setupIndex);
+    expect(job.steps.some(step => step.run === 'npm ci')).toBe(false);
   }
+});
+
+it('preserves docs-only conditions and parallel cold-miss fallbacks without a producer barrier', () => {
+  const { jobs } = parseWorkflow(workflow);
+  const docsSetup = jobs['docs-scope-gate'].steps.find(
+    step => step.uses === './.github/actions/setup-ci-dependencies'
+  );
+  expect(docsSetup?.if).toBe("needs.ci-scope.outputs.scope == 'docs-only'");
+  const independent = [
+    'docs-scope-gate',
+    'critical-coverage-report',
+    'quality-static-groups',
+    'clinical-sync-release-gate',
+    'unit-risk-shards',
+    'rules-emulator',
+    'e2e-critical-emulator',
+    'census-startup-performance',
+  ];
+  for (const name of independent) {
+    expect(jobNeeds(jobs[name])).toEqual(['ci-scope']);
+  }
+  // Dedicated roots/toolchains must retain their own clean install contracts.
+  const functions = jobs['functions-scope-gate'].steps;
+  expect(functions.some(step => step.uses === './.github/actions/setup-ci-dependencies')).toBe(
+    false
+  );
+  expect(functions.find(step => step.uses?.startsWith('actions/setup-node@'))?.with).toMatchObject({
+    'node-version': '22',
+    'cache-dependency-path': 'package-lock.json\nfunctions/package-lock.json\n',
+  });
+  expect(functions.some(step => step.run === 'npm ci')).toBe(true);
+  expect(functions.some(step => step.run === 'npm ci --prefix functions')).toBe(true);
+  const apiDocs = jobs.docs.steps;
+  expect(
+    apiDocs.find(step => step.uses?.startsWith('actions/setup-node@'))?.with?.['node-version']
+  ).toBe('20');
+  expect(apiDocs.some(step => step.run === 'npm ci')).toBe(true);
 });

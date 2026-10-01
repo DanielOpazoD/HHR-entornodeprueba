@@ -65,3 +65,10 @@ del padre; una identidad estable aislada no demuestra que se omita el subárbol.
 Probar cambios de fecha, ausencia de registro, dotación, movimientos, tombstones
 y permisos. Conservar las revisiones del registro en los consumidores que las
 necesitan para escribir. Un conteo de renders no acredita una mejora de INP.
+
+Al ampliar la reutilización de dependencias en CI, demostrar que la clave es exacta,
+que un miss o fallo conserva `npm ci` y que no aparecen nuevos escritores de caché.
+Comparar el YAML estructuralmente para conservar todos los gates, condiciones,
+permisos, matrices y presupuestos. Ejecutar los contratos de scheduling/caché y
+el CI completo del head final; informar los hits y tiempos observados sin atribuir
+el ahorro de un paso a todo el pipeline ni al rendimiento de la aplicación.

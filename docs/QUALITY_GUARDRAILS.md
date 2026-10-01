@@ -138,3 +138,16 @@ La regresión del runner demuestra que veinte tests ajenos no compensan la pérd
 de uno de los cuatro tests de la zona. `AppContent.test.tsx` ejecuta el runtime de
 exportación a través del shell; `upcEvaluationPolicy.test.ts` ejecuta la política
 UPC y los parches de movimientos, completando las listas de propiedad existentes.
+
+## Reutilización exacta de dependencias en CI
+
+`ciDependencyCache.test.ts` protege la clave exacta, el fallback de instalación,
+el único escritor prístino y las condiciones docs-only. Los contratos de
+scheduling, artefactos y confianza final siguen verificando el grafo de gates.
+Ampliar consumidores no autoriza quitar tests, cambiar matrices o presupuestos,
+ni añadir esperas al productor. Los jobs con otra raíz o versión de Node conservan
+su instalación independiente.
+
+Comparar hits/misses y duración del paso de dependencias en jobs equivalentes.
+La referencia observó instalaciones de 34–61 s y restauraciones de 13–21 s;
+son observaciones de una ejecución, no una reducción garantizada del pipeline.

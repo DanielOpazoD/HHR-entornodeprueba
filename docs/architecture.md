@@ -246,3 +246,17 @@ la UI no importa el servicio concreto.
 4. Integrar en componente presentacional.
 5. Agregar test unitario del controller + test de integración mínimo.
 6. Ejecutar `typecheck`, `check:quality`, `test`.
+
+## Dependencias de CI reutilizadas sin cambiar el grafo
+
+Los jobs compatibles Node 22 de la raíz usan la acción existente
+`.github/actions/setup-ci-dependencies`. La clave exacta incluye imagen del runner,
+OS, arquitectura, versión efectiva de Node, manifiesto, lockfile, `.npmrc` y la
+acción. No hay restauración por prefijo. Un miss o fallo de caché ejecuta `npm ci`;
+un fallo de instalación sigue bloqueando el job.
+
+Solo `quality-static-base` publica la instalación prístina, antes de los checks.
+Los demás jobs leen la caché sin esperar un productor nuevo: las dependencias,
+condiciones y matrices del workflow se conservan. Functions mantiene sus dos
+lockfiles e instalaciones; la documentación API mantiene Node 20. No se comparten
+emuladores ni builds de escenarios diferentes.

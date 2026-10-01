@@ -72,16 +72,9 @@ jobs:
         if: needs.ci-scope.outputs.scope == 'docs-only'
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
+      - name: Setup CI dependencies
         if: needs.ci-scope.outputs.scope == 'docs-only'
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        if: needs.ci-scope.outputs.scope == 'docs-only'
-        run: npm ci
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Validate documentation contracts
         if: needs.ci-scope.outputs.scope == 'docs-only'
@@ -144,14 +137,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Generate and enforce critical coverage artifact
         run: npm run report:critical-coverage && node scripts/check-critical-coverage.mjs
@@ -282,14 +269,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Run quality static group
         run: npm run check:quality:group -- ${{ matrix.group }}
@@ -315,14 +296,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Download governance snapshots
         if: matrix.group == 'governance'
@@ -364,14 +339,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Run clinical sync simulator
         run: npm run test:clinical-sync-simulator
@@ -409,14 +378,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Run unit shard
         run: npm run test:ci:unit:shard -- ${{ matrix.shard }}/4
@@ -480,20 +443,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Setup Java (Firestore emulator)
         uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Run Firestore rules tests with emulator
         run: npm run test:rules:ci
@@ -517,20 +474,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Setup Java (Firestore emulator)
         uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Install Playwright browser for critical E2E gate
         run: npx playwright install --with-deps chromium
@@ -676,14 +627,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Download governance snapshots
         uses: actions/download-artifact@v7
@@ -758,13 +703,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Validate measurement report contracts
@@ -960,14 +900,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup CI dependencies
+        uses: ./.github/actions/setup-ci-dependencies
 
       - name: Validate CI artifact contract
         run: npm run check:ci-artifact-contracts
