@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { CMASection } from '@/features/census/components/CMASection';
-import { useDailyRecordData, useDailyRecordMovements } from '@/context/DailyRecordContext';
+import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import {
   useDailyRecordBedActions,
   useDailyRecordMovementActions,
@@ -11,7 +11,7 @@ import { useConfirmDialog, useNotification } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordData: vi.fn(),
+  useDailyRecordStaff: vi.fn(),
   useDailyRecordMovements: vi.fn(),
 }));
 
@@ -29,7 +29,7 @@ describe('CMASection', () => {
   type MovementActionsValue = ReturnType<typeof useDailyRecordMovementActions>;
   type BedActionsValue = ReturnType<typeof useDailyRecordBedActions>;
   type MovementsValue = ReturnType<typeof useDailyRecordMovements>;
-  type DataValue = ReturnType<typeof useDailyRecordData>;
+  type DataValue = ReturnType<typeof useDailyRecordStaff>;
   type ConfirmDialogValue = ReturnType<typeof useConfirmDialog>;
   type NotificationValue = ReturnType<typeof useNotification>;
 
@@ -69,8 +69,8 @@ describe('CMASection', () => {
       transfers: [],
       cma: [],
     } as unknown as MovementsValue);
-    vi.mocked(useDailyRecordData).mockReturnValue({
-      record: { date: '2024-12-11' },
+    vi.mocked(useDailyRecordStaff).mockReturnValue({
+      date: '2024-12-11',
     } as unknown as DataValue);
 
     vi.mocked(useConfirmDialog).mockReturnValue({ confirm } as unknown as ConfirmDialogValue);

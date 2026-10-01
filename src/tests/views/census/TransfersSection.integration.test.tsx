@@ -4,12 +4,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UIProvider } from '@/context/UIContext';
 import { TransfersSection } from '@/features/census/components/TransfersSection';
 import { DataFactory } from '@/tests/factories/DataFactory';
-import { useDailyRecordData, useDailyRecordMovements } from '@/context/DailyRecordContext';
+import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
 import { useDailyRecordMovementActions } from '@/context/useDailyRecordScopedActions';
 import { useCensusActionCommands } from '@/features/census/context/censusActionContexts';
 
 vi.mock('@/context/DailyRecordContext', () => ({
-  useDailyRecordData: vi.fn(),
+  useDailyRecordStaff: vi.fn(),
   useDailyRecordMovements: vi.fn(),
 }));
 
@@ -38,9 +38,9 @@ describe('TransfersSection integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useDailyRecordData).mockReturnValue(
-      asHookValue<ReturnType<typeof useDailyRecordData>>({
-        record: DataFactory.createMockDailyRecord('2026-02-14'),
+    vi.mocked(useDailyRecordStaff).mockReturnValue(
+      asHookValue<ReturnType<typeof useDailyRecordStaff>>({
+        date: '2026-02-14',
       })
     );
     vi.mocked(useDailyRecordMovementActions).mockReturnValue(

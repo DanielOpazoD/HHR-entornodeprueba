@@ -1,4 +1,4 @@
-import { useDailyRecordData, useDailyRecordMovements } from '@/context/DailyRecordContext';
+import { useDailyRecordStaff, useDailyRecordMovements } from '@/context/DailyRecordContext';
 
 type DailyMovements = NonNullable<ReturnType<typeof useDailyRecordMovements>>;
 
@@ -10,11 +10,11 @@ interface UseCensusMovementDataResult {
 }
 
 export const useCensusMovementData = (): UseCensusMovementDataResult => {
-  const { record } = useDailyRecordData();
+  const staff = useDailyRecordStaff();
   const movements = useDailyRecordMovements();
 
   return {
-    recordDate: record?.date || '',
+    recordDate: staff?.date || '',
     discharges: movements?.discharges,
     transfers: movements?.transfers,
     cma: movements?.cma,

@@ -646,3 +646,20 @@ Regresiones: `patientHistoryPages`, `firestoreRecordQueries` y
 `usePatientSelectionCancellation`, además de paridad de historia, RN y rangos.
 Verificar cierre/desmontaje, versiones del mismo RUT, empate de fechas, fallo de
 una página y respuesta tardía. Aplicar merge gate y controles blocking de release.
+
+# Censo: aislamiento de renders de dotación y movimientos
+
+`DailyRecordFragmentRendering` usa el proveedor real: veinte ediciones inmutables
+de camas y revisión mantenían 21 renders de dotación/movimientos; ahora conservan
+uno mientras camas y datos completos publican las 21 revisiones. Las dependencias
+son los campos ya existentes, sin comparadores profundos ni otro almacén.
+`CensusRegisterRendering` añade JSX nuevo del padre y comprueba el subárbol real de
+registros (presentación pesada sustituida): también pasa de 21 a un render por
+sección. Fecha, movimientos, permisos, modal y callback vigente siguen propagándose.
+
+Ante datos visuales obsoletos, ejecutar ambas regresiones y los tests de Altas,
+Traslados y Hospitalización Diurna; verificar que la escritura reemplaza las
+colecciones inmutablemente y que no se eliminó una dependencia relevante.
+El encabezado conserva su registro completo para el portal de entrega de turno;
+las revisiones usadas por las acciones clínicas no se suprimen. Esta evidencia
+reduce trabajo repetido; no es una medición comparativa de tiempo o INP de usuario.
