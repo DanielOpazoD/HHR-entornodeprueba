@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createAdminMock,
   createDailyRecordWriteAuthorityFunctions,
@@ -23,6 +23,13 @@ const currentRapaNuiDate = () => {
   const calendar = Object.fromEntries(parts.map(part => [part.type, part.value]));
   return `${calendar.year}-${calendar.month}-${calendar.day}`;
 };
+
+// Freeze only Date: the callable guards and fixtures must share the same instant.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-05-13T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('specialty decision through the real clinical authority callable', () => {
   afterEach(() => {

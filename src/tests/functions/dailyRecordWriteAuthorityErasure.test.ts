@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createAdminMock,
   createDailyRecordWriteAuthorityFunctions,
@@ -38,6 +38,13 @@ const makeIntentionalBedClear = (
     },
   };
 };
+
+// Freeze only Date: the callable guards and fixtures must share the same instant.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-05-13T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('dailyRecordWriteAuthorityFunctions erasure guard', () => {
   beforeEach(() => {

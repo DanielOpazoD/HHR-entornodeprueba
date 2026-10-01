@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const { createSpecialtyJevFunctions } = require('../../../functions/lib/specialtyJevFunctions.js');
@@ -58,11 +58,15 @@ const harness = () => {
   const firestore = {
     collection: () => ({
       doc: () => ({
-        collection: (name: string) => ({ doc: (id: string) => ({
-          key: `${name}/${id}`,
-          get: async () => ({ exists: docs.has(`${name}/${id}`),
-            data: () => docs.get(`${name}/${id}`) }),
-        }) }),
+        collection: (name: string) => ({
+          doc: (id: string) => ({
+            key: `${name}/${id}`,
+            get: async () => ({
+              exists: docs.has(`${name}/${id}`),
+              data: () => docs.get(`${name}/${id}`),
+            }),
+          }),
+        }),
       }),
     }),
     runTransaction: async (callback: (transaction: object) => Promise<unknown>) =>
@@ -94,6 +98,13 @@ const harness = () => {
   return { docs, callable, context, input, date };
 };
 
+// Freeze only Date: the callable guards and fixtures must share the same instant.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-05-13T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
+
 describe('consultative Jev callable with synthetic provider responses', () => {
   afterEach(() => {
     delete process.env.HHR_SPECIALTY_EPISODE_ASSIGNMENT;
@@ -118,17 +129,39 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const read = () => callable.run({ action: 'read_policy' }, context);
-    await expect(read()).resolves.toEqual({ revision: 1, autoEnabled: false,
-      memoryEnabled: false, aiMode: 'consultative', rules: [], memory: [] });
-    docs.set('specialtyPolicies/active', { ...policy,
-      memory: [{ id: 'memory_J18_9', kind: 'assign', cie10Code: 'J18.9',
-        specialty: 'Med Interna', scope: 'all', revision: 1 }] });
+    await expect(read()).resolves.toEqual({
+      revision: 1,
+      autoEnabled: false,
+      memoryEnabled: false,
+      aiMode: 'consultative',
+      rules: [],
+      memory: [],
+    });
+    docs.set('specialtyPolicies/active', {
+      ...policy,
+      memory: [
+        {
+          id: 'memory_J18_9',
+          kind: 'assign',
+          cie10Code: 'J18.9',
+          specialty: 'Med Interna',
+          scope: 'all',
+          revision: 1,
+        },
+      ],
+    });
     await expect(read()).resolves.toMatchObject({
       memory: [{ cie10Code: 'J18.9', specialty: 'Med Interna' }],
     });
     docs.delete('specialtyPolicies/active');
-    await expect(read()).resolves.toEqual({ revision: 0, autoEnabled: false,
-      memoryEnabled: false, aiMode: 'off', rules: [], memory: [] });
+    await expect(read()).resolves.toEqual({
+      revision: 0,
+      autoEnabled: false,
+      memoryEnabled: false,
+      aiMode: 'off',
+      rules: [],
+      memory: [],
+    });
     await expect(callable.run({ action: 'read_policy' }, { auth: null })).rejects.toThrow();
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -140,8 +173,9 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     const { callable, input, context, docs } = harness();
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    await expect(callable.run({ ...input, expectedCanonicalLabel: 'Otra etiqueta' }, context))
-      .rejects.toThrow(/catalog changed/i);
+    await expect(
+      callable.run({ ...input, expectedCanonicalLabel: 'Otra etiqueta' }, context)
+    ).rejects.toThrow(/catalog changed/i);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(docs.has('specialtyAiRequests/synthetic-request-001')).toBe(false);
   });
@@ -155,11 +189,14 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     (record.beds as Record<string, Record<string, unknown>>).R1.cie10Code = 'F23';
     (record.beds as Record<string, Record<string, unknown>>).R1.cie10Description =
       'Dato clínico privado NO DEBE SALIR';
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, body: null,
-      text: async () => JSON.stringify(result) });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, body: null, text: async () => JSON.stringify(result) });
     vi.stubGlobal('fetch', fetchMock);
-    await callable.run({ ...input, expectedCode: 'F23',
-      expectedCanonicalLabel: 'CIE-10 F23' }, context);
+    await callable.run(
+      { ...input, expectedCode: 'F23', expectedCanonicalLabel: 'CIE-10 F23' },
+      context
+    );
     const requestBody = fetchMock.mock.calls[0][1].body as string;
     expect(requestBody).toContain('CIE-10 F23');
     expect(requestBody).not.toContain('NO DEBE SALIR');
@@ -170,9 +207,13 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
     process.env.TYPESAFE_API_KEY = 'test';
     const { callable, input, context, docs } = harness();
-    docs.set('specialtyPolicies/active', { ...policy, autoEnabled: true,
-      rules: [{ id: 'review_j18_9', kind: 'review', cie10Code: 'J18.9',
-        scope: 'all', revision: 1 }] });
+    docs.set('specialtyPolicies/active', {
+      ...policy,
+      autoEnabled: true,
+      rules: [
+        { id: 'review_j18_9', kind: 'review', cie10Code: 'J18.9', scope: 'all', revision: 1 },
+      ],
+    });
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     await expect(callable.run(input, context)).rejects.toThrow(/rule requires/i);
@@ -292,15 +333,19 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     process.env.HHR_JEV_CLINICAL_APPROVED = 'enabled';
     process.env.TYPESAFE_API_KEY = 'test';
     const { callable, input, context, docs } = harness();
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
-      const key = 'specialtyAiRequests/synthetic-request-001';
-      docs.set(key, { ...docs.get(key), expiresAt: new Date(Date.now() - 1000).toISOString() });
-      return { ok: true, body: null, text: async () => JSON.stringify(result) };
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async () => {
+        const key = 'specialtyAiRequests/synthetic-request-001';
+        docs.set(key, { ...docs.get(key), expiresAt: new Date(Date.now() - 1000).toISOString() });
+        return { ok: true, body: null, text: async () => JSON.stringify(result) };
+      })
+    );
 
     expect(await callable.run(input, context)).toEqual({ status: 'failed' });
     expect(docs.get('specialtyAiRequests/synthetic-request-001')).toMatchObject({
-      status: 'failed', errorCode: 'JEV_EXPIRED',
+      status: 'failed',
+      errorCode: 'JEV_EXPIRED',
     });
     expect(docs.get('specialtyAiRequests/synthetic-request-001')?.result).toBeUndefined();
   });
@@ -311,14 +356,21 @@ describe('consultative Jev callable with synthetic provider responses', () => {
     process.env.TYPESAFE_API_KEY = 'test';
     const { callable, input, context, docs } = harness();
     const fetchMock = vi.fn().mockResolvedValue({
-      ok: true, body: null, text: async () => JSON.stringify(result),
+      ok: true,
+      body: null,
+      text: async () => JSON.stringify(result),
     });
     vi.stubGlobal('fetch', fetchMock);
     await callable.run(input, context);
     const key = 'specialtyAiRequests/synthetic-request-001';
-    docs.set(key, { ...docs.get(key), status: 'pending', result: undefined, attempt: 1,
+    docs.set(key, {
+      ...docs.get(key),
+      status: 'pending',
+      result: undefined,
+      attempt: 1,
       deadlineAt: new Date(Date.now() - 1000).toISOString(),
-      expiresAt: new Date(Date.now() + 10_000).toISOString() });
+      expiresAt: new Date(Date.now() + 10_000).toISOString(),
+    });
 
     expect(await callable.run(input, context)).toEqual({ status: 'unavailable' });
     expect(fetchMock).toHaveBeenCalledOnce();
