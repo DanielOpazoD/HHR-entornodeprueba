@@ -385,7 +385,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
         ...x.history.discharges,
         buildDischarge(child, { ...entry, encounterId: 'newborn' }, x.history, {
           idFactory: () => 'newborn-movement',
-          now: new Date(),
+          now: new Date('2026-09-24T12:00:00.000Z'),
           syncRunId: 'test',
         }),
       ],

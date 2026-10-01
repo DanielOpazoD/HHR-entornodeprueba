@@ -234,13 +234,14 @@ describe('HHR Syslab content bridge', () => {
       data: { type: 'HHR_RAYEN_SYSLAB_STATUS_REQUEST', reqId: 'status-1' },
     });
 
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reqId: 'status-1',
-        error: expect.stringContaining('La extensión se actualizó'),
-      }),
-      'http://localhost:3000'
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reqId: 'status-1',
+          error: expect.stringContaining('La extensión se actualizó'),
+        }),
+        'http://localhost:3000'
+      )
     );
   });
 });

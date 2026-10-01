@@ -208,14 +208,15 @@ describe('HHR statistical-discharge content bridge', () => {
       },
     });
 
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reqId: 'egreso-invalidated',
-        ok: false,
-        error: 'Extension context invalidated.',
-      }),
-      'http://localhost:3000'
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reqId: 'egreso-invalidated',
+          ok: false,
+          error: 'Extension context invalidated.',
+        }),
+        'http://localhost:3000'
+      )
     );
   });
 });

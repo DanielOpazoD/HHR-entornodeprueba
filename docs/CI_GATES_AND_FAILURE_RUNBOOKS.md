@@ -535,3 +535,16 @@ comparten un instante estable. Los escenarios fuera de la ventana de edición
 avanzan explícitamente la fecha antes de invocar el handler; los vencimientos de
 consulta Jev siguen verificando aceptación, rechazo y recuperación. Cada test
 restaura el reloj, sin marcas `@flake-safe` ni cambios en los umbrales del gate.
+### Esperas observables de tests (2026-10-01)
+
+En relés MV3, entregar respuestas sólo después de observar la solicitud emitida
+y esperar el mensaje o callback terminal exacto. La reinyección verifica además
+el anuncio de inicialización antes de limpiar la lista de mensajes. En aislamiento
+de sesiones, mantener una promesa de limpieza/cierre retenida y una señal explícita
+de inicio; las dos ventanas deben alcanzar el Web Lock antes de liberarla.
+
+Las pruebas de QueryClient fijan el reloj antes de crear la caché y lo avanzan según
+el escenario; IndexedDB mantiene sus temporizadores nativos. Los fixtures de código
+manual deben tener ingreso anterior a captura también en el caso expirado. El
+helper de login ya controla timers: su reloj inicial y el lock del test son ahora
+explícitos. No se cambia el detector de flake-risk ni se añaden exenciones.
