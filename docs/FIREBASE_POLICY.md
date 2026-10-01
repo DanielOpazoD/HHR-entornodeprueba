@@ -1,5 +1,28 @@
 # 🔥 Política de Entornos Firebase
 
+## Upgrade acotado del SDK web (2026-10-01)
+
+- **Owner:** plataforma Firebase/Auth de HHR.
+- **Reason:** adoptar las correcciones oficiales de persistencia Auth de 12.19.0
+  (reconexión de IndexedDB tras `pagehide`, fallback cuando falla la inicialización
+  y errores de almacenamiento con código Firebase). HHR usa popup Google y
+  persistencia del navegador; el beneficio es preventivo, sin atribuir al SDK las
+  demoras observadas de sincronización.
+- **TargetVersion:** `firebase` 12.19.0, dentro de la misma versión mayor; confirmar
+  la versión efectiva del lockfile y de `npm ls firebase`.
+- **RiskLevel:** medio: actualización del runtime cliente de Auth y Firestore.
+- **RollbackPlan:** revertir el commit del upgrade (manifest y lockfile), ejecutar
+  `npm ci` y los mismos controles. No borrar IndexedDB ni colas pendientes como
+  parte del rollback.
+- **VerificationGate:** `ci:release-gate`, `test:release-confidence`, revisión
+  independiente y CI del head definitivo; comprobar recarga autenticada en
+  localhost con `hhr-pruebas`. Revisar el scorecard y los presupuestos vigentes.
+
+Referencia: [notas oficiales del SDK JavaScript, 12.19.0](https://firebase.google.com/support/release-notes/js#version_12190_-_september_9_2026).
+El upgrade no modifica reglas, Functions, rol obligatorio, confirmaciones clínicas
+ni la política de destinos de abajo. Un fallback a memoria mantiene una sesión
+solo mientras esa página permanezca abierta; no garantiza persistencia entre visitas.
+
 ## ⚠️ DECLARACIÓN DE PRINCIPIOS
 
 Este proyecto (**HHR-entornoprueba**) es un **entorno beta/staging** que opera bajo las siguientes reglas estrictas:

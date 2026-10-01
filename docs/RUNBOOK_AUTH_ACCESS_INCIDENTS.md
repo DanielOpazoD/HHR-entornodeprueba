@@ -1,5 +1,20 @@
 # Runbook Auth Access Incidents
 
+## Errores de persistencia con el SDK web
+
+Desde el upgrade a Firebase 12.19.0, las excepciones de almacenamiento durante
+actualizaciones del usuario pueden llegar como `auth/internal-error`, con la
+excepción original en `customData.originalError`. No interpretar ese código por
+sí solo como una revocación de rol: contrastar bootstrap, acceso al almacenamiento
+y la verificación canónica de rol antes de concluir.
+
+Las correcciones del SDK permiten reconectar persistencia tras `pagehide` y
+resolver la inicialización con fallback a memoria cuando el almacenamiento no está
+disponible. El fallback no asegura que la sesión sobreviva una recarga; HHR conserva
+sus propios controles de acceso y recuperación. No exportar objetos de error
+completos: pueden contener URL y contexto de proveedores. Usar las categorías
+sanitizadas actuales y consultar localmente el error original si hace falta.
+
 ## Objetivo
 
 ### Limpieza de sesión pendiente
