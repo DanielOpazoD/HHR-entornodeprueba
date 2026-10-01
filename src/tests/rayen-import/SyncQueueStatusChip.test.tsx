@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncQueueStatusChip } from '@/features/rayen-import/components/SyncQueueStatusChip';
 
 const mocks = vi.hoisted(() => ({
@@ -20,6 +20,8 @@ vi.mock('@/services/storage/sync', () => ({
 
 describe('SyncQueueStatusChip', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-07T15:00:00.000Z'));
     vi.clearAllMocks();
     mocks.useSyncQueueMonitor.mockReturnValue({
       stats: {
@@ -45,6 +47,8 @@ describe('SyncQueueStatusChip', () => {
       hasQueueIssues: true,
     });
   });
+
+  afterEach(() => vi.useRealTimers());
 
   it('explica que la tarea puede estar atascada y muestra trazabilidad temporal', () => {
     render(<SyncQueueStatusChip open onOpenChange={vi.fn()} />);
@@ -93,6 +97,19 @@ describe('SyncQueueStatusChip', () => {
     });
     rerender(<SyncQueueStatusChip open onOpenChange={vi.fn()} />);
     expect(screen.queryByText(/Censo/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [5 * 60_000 - 1, 'Espera normal'],
+    [5 * 60_000, 'Posible atasco'],
+  ])('uses the controlled clock at the stalled boundary (%i ms)', (age, label) => {
+    const current = mocks.useSyncQueueMonitor();
+    mocks.useSyncQueueMonitor.mockReturnValue({
+      ...current,
+      operations: [{ ...current.operations[0], timestamp: Date.now() - age }],
+    });
+    render(<SyncQueueStatusChip open onOpenChange={vi.fn()} />);
+    expect(screen.getByText(/Censo 2026-09-07/)).toHaveTextContent(label);
   });
 
   it('comprueba la cola explícitamente sin eliminar la tarea', async () => {
