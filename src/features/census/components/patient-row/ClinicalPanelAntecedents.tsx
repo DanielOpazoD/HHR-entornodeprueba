@@ -4,6 +4,10 @@ import { requestClinicalAction, type ClinicalActionResult } from '@/features/ray
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
 import { ClinicalAntecedentCard } from './ClinicalAntecedentCard';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
+import {
+  clinicalAntecedentEntryKey,
+  uniqueClinicalAntecedentEntries,
+} from './clinicalAntecedentEntries';
 const sameResult = (left: ClinicalActionResult | null, right: ClinicalActionResult): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
 type OlderPage = { requestedEnd: string; data: ClinicalActionResult };
@@ -22,7 +26,7 @@ const mergePartialResult = (
                 value.unavailableSources?.includes(entry.source as 'Primaria' | 'Secundaria')
               ),
               ...(value.entries ?? []),
-            ].map(entry => [`${entry.source}:${entry.id}`, entry])
+            ].map(entry => [clinicalAntecedentEntryKey(entry), entry])
           ).values(),
         ],
       }
@@ -114,14 +118,11 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
       if (!controller.signal.aborted) setOlderLoading(false);
     }
   };
-  const currentKeys = new Set((result?.entries ?? []).map(entry => `${entry.source}:${entry.id}`));
-  const entries = [
+  const currentKeys = new Set((result?.entries ?? []).map(clinicalAntecedentEntryKey));
+  const entries = uniqueClinicalAntecedentEntries([
     ...(result?.entries ?? []),
     ...olderPages.flatMap(page => page.data.entries ?? []),
-  ].filter(
-    (entry, index, all) =>
-      all.findIndex(other => other.source === entry.source && other.id === entry.id) === index
-  );
+  ]);
   return (
     <div className="space-y-2">
       <div className="px-1 py-1.5">
@@ -191,10 +192,10 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
           )}
           {entries.map(entry => (
             <ClinicalAntecedentCard
-              key={`${entry.source}:${entry.id}`}
+              key={clinicalAntecedentEntryKey(entry)}
               entry={entry}
               episode={clinicalEpisodeId}
-              autoLoadDetail={currentKeys.has(`${entry.source}:${entry.id}`)}
+              autoLoadDetail={currentKeys.has(clinicalAntecedentEntryKey(entry))}
             />
           ))}
           {olderError && (
