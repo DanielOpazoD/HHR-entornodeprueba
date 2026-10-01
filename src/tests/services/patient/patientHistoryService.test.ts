@@ -25,6 +25,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
 }));
 
 vi.mock('@/services/storage/firestore', () => ({
+  getRecordPagesFromFirestore: async function* () {
+    yield Object.values(await getAllRecordsFromFirestore({ requireServer: true }));
+  },
   getAllRecordsFromFirestore,
   getRecordsRangeFromFirestore,
 }));

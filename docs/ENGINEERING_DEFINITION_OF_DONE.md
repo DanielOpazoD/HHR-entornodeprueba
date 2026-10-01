@@ -51,3 +51,11 @@ y fallo del módulo sin remontar el censo ni recargar una edición. Las lecturas
 rangos clínicos e historiales conservan sus contratos. Medir la unión de chunks
 estáticos del shell y del censo con la misma configuración: mover código entre
 archivos sin reducir esa unión no acredita una mejora del arranque.
+
+El historial completo debe recorrer todas las páginas sin inventar episodios
+a partir de un prefijo. Mantener identidad de RN, movimientos borrados y
+continuidad entre páginas; diferenciar servidor completo de fallback local.
+Probar cancelación, progreso y resultados tardíos contra la selección vigente,
+y no persistir una lectura parcial en la caché de historias completas. Una
+proyección reducida no autoriza eliminar datos de los censos editables ni acredita
+menor uso de memoria del SDK. Documentar los límites de consistencia y latencia.

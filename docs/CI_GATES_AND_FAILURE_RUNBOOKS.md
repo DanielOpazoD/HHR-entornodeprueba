@@ -619,3 +619,30 @@ respuesta tardía y aislamiento del fallo. Las pruebas de `VitalsCell` y
 del 01-10-2026 redujo el chunk del censo de 330.905 a 318.340 bytes y su unión
 estática con el shell de 2.238.015 a 2.225.451 bytes (misma configuración local).
 Es una reducción de JavaScript inicial, no una medición de latencia de usuarios.
+
+## Historial de movimientos: lectura completa y cancelación
+
+La búsqueda global consulta todo el historial remoto con páginas de 20 censos,
+orden descendente por `date` y cursor del último documento, incluido su desempate
+por ID. No usa offsets ni limita la antigüedad. El contador indica censos revisados;
+la cronología derivada se publica sólo al terminar todas las páginas. Mientras
+se lee, permanece disponible la cronología del maestro de pacientes.
+
+Volver a resultados, cerrar el cuadro, cambiar paciente o versión de su maestro
+cancela el avance. Firestore no cancela la solicitud ya en vuelo; su respuesta
+se descarta y no se inicia otra página. Un fallo posterior descarta el prefijo
+remoto y muestra el historial local como parcial, sin cachearlo como completo.
+La búsqueda no escribe en la caché editable del censo. Los snapshots retenidos
+para armar movimientos excluyen notas, signos y documentos clínicos.
+
+Diagnóstico de sólo lectura del 01-10-2026 en `hhr-pruebas`: 305 documentos
+representaron 31.225.956 bytes serializados; una página de 20, 5.327.028 bytes.
+Estas cifras justifican limitar el trabajo abandonado; no demuestran menor tiempo
+de completar toda la historia. Varias consultas añaden viajes de red y no forman
+un snapshot atómico entre páginas. No usar esta vista de lectura para autorizar
+escrituras. Cursor documentado por [Firebase](https://firebase.google.com/docs/firestore/query-data/query-cursors).
+
+Regresiones: `patientHistoryPages`, `firestoreRecordQueries` y
+`usePatientSelectionCancellation`, además de paridad de historia, RN y rangos.
+Verificar cierre/desmontaje, versiones del mismo RUT, empate de fechas, fallo de
+una página y respuesta tardía. Aplicar merge gate y controles blocking de release.

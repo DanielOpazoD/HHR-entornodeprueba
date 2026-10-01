@@ -10,6 +10,9 @@ vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
   getRecordsRange: rangeLocal,
 }));
 vi.mock('@/services/storage/firestore', () => ({
+  getRecordPagesFromFirestore: async function* () {
+    yield Object.values(await allRemote({ requireServer: true }));
+  },
   getAllRecordsFromFirestore: allRemote,
   getRecordsRangeFromFirestore: rangeRemote,
 }));
