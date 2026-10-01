@@ -136,6 +136,13 @@ describe('specialty reason across server and client boundaries', () => {
       transactionAttempts: 0,
       transactionRetries: 0,
       serverTimingsMs: { authorizationMs: 0, transactionMs: 0, telemetryMs: 0, handlerMs: 0 },
+      transactionTimingsMs: {
+        callbackMs: 0,
+        documentReadMs: 0,
+        specialtyAuditMs: 0,
+        otherCallbackMs: 0,
+        outsideCallbackMs: 0,
+      },
     });
     expect(error.details).not.toHaveProperty('internalOnly');
   });

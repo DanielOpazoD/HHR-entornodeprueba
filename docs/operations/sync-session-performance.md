@@ -164,3 +164,27 @@ los tests y el detector no se modifican. No se declara ese gate aprobado ni se
 silencian sus señales. Revisar por separado determinismo de fixtures y esperas;
 los controles exigidos para el parche siguen siendo audit, merge gate y CI del
 head final, ampliados con el pack de confianza de transporte.
+
+### Desglose de transacción clínica
+
+La respuesta y la telemetría existente incluyen opcionalmente
+`transactionTimingsMs`, agregado numérico de **todos** los intentos de Firestore:
+
+- `callbackMs`: tiempo acumulado dentro de los callbacks, incluso los fallidos.
+- `documentReadMs`: lecturas directas de registro, autoridad, políticas e historial.
+- `specialtyAuditMs`: comprobaciones de procedencia y de IDs, cada grupo con sus
+  lecturas paralelas existentes. No sumar este valor otra vez a las lecturas directas.
+- `otherCallbackMs`: resto del callback (guardas, proyección, serialización y
+  preparación de escrituras); no representa solamente CPU.
+- `outsideCallbackMs`: resto de `transactionMs`, que puede incluir commit del SDK,
+  backoff, transporte y planificación; no atribuirlo íntegramente al commit.
+
+Los valores se redondean a milisegundos al finalizar. No se añaden lecturas,
+colecciones, escrituras ni tareas en segundo plano. Se conserva la transacción
+atómica y el replay por recibo. Si la transacción no empezó, el desglose se omite.
+
+La siguiente optimización exige sesiones comparables y una etapa dominante:
+si predominan lecturas o auditoría, revisar exclusivamente su trabajo y dependencias;
+si predomina el resto externo, estudiar transporte/SDK antes de tocar la lógica
+clínica. Las mediciones anteriores de 9,5–10,9 s no permiten identificar por sí solas
+la causa interna. No modificar paralelismo, guardas o retries sólo por esos totales.

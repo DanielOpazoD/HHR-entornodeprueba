@@ -535,6 +535,7 @@ comparten un instante estable. Los escenarios fuera de la ventana de edición
 avanzan explícitamente la fecha antes de invocar el handler; los vencimientos de
 consulta Jev siguen verificando aceptación, rechazo y recuperación. Cada test
 restaura el reloj, sin marcas `@flake-safe` ni cambios en los umbrales del gate.
+
 ### Esperas observables de tests (2026-10-01)
 
 En relés MV3, entregar respuestas sólo después de observar la solicitud emitida
@@ -548,3 +549,11 @@ el escenario; IndexedDB mantiene sus temporizadores nativos. Los fixtures de có
 manual deben tener ingreso anterior a captura también en el caso expirado. El
 helper de login ya controla timers: su reloj inicial y el lock del test son ahora
 explícitos. No se cambia el detector de flake-risk ni se añaden exenciones.
+
+### Atribución interna de transacciones clínicas
+
+El desglose numérico `transactionTimingsMs` está descrito en
+[el protocolo de medición](./operations/sync-session-performance.md). Se acumulan
+intentos fallidos y exitosos; el tiempo externo al callback incluye trabajo del SDK
+y no acredita una demora de commit aislada. Verificar lectura fallida, replay exacto,
+auditoría y retry con reloj monotónico inyectado antes de usar las cifras.
