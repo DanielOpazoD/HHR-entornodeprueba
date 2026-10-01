@@ -11,3 +11,10 @@ Una change queda lista solo si cumple todo lo siguiente:
 7. Si toca un subsistema crítico, mantiene actualizado `scripts/config/technical-ownership-map.json` con owner, gate y runbook vigentes.
 8. Si la change entra en una categoría gobernada, sigue `scripts/config/sustainable-change-policy.json` y deja evidencia del gate o artefacto requerido.
 9. Si incluye lógica de app, assets estáticos o snapshots de `reports/`, separa esos concerns en commits distintos cuando no dependan del mismo fix.
+
+Para instrumentación de transacciones clínicas, demostrar que los callbacks
+fallidos y reintentados se cuentan sin duplicar etapas, que la telemetría no incorpora
+campos ni identificadores clínicos y que el replay exacto mantiene sus escrituras
+idempotentes. Los tiempos internos orientan una optimización posterior; no prueban
+por sí solos una mejora de velocidad. Conservar orden de lecturas, autoridad y
+atomicidad, y ejecutar el pack de confianza de release para cambios del handler.

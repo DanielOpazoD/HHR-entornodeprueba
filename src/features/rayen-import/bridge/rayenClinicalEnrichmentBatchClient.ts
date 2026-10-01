@@ -67,6 +67,14 @@ export interface RayenClinicalEnrichmentBatchResponse {
     telemetryMs?: number;
     handlerMs?: number;
   };
+  /** Aggregate across transaction attempts. No clinical fields or document identifiers. */
+  transactionTimingsMs?: {
+    callbackMs: number;
+    documentReadMs: number;
+    specialtyAuditMs: number;
+    otherCallbackMs: number;
+    outsideCallbackMs: number;
+  };
 }
 
 export const callRayenClinicalEnrichmentBatch = async (
