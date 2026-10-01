@@ -52,3 +52,27 @@ tratar un resultado anterior a una modificación como evidencia del nuevo códig
 20. Si la change toca auth runtime, revisar [docs/ADR_AUTH_RUNTIME_RECOVERY.md](./ADR_AUTH_RUNTIME_RECOVERY.md).
 21. Si la change toca documentos clínicos, revisar [docs/ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md](./ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md).
 22. Si la change toca handoff, revisar [docs/ADR_HANDOFF_RUNTIME_SURFACES.md](./ADR_HANDOFF_RUNTIME_SURFACES.md).
+
+### Parche transitivo gRPC (2026-10-01)
+
+- **Owner:** plataforma Firebase/Functions HHR.
+- **Reason:** corregir GHSA-m9gg-hp2v-232j actualizando el override existente en
+  ambos paquetes; no se ha demostrado explotación en HHR.
+- **TargetVersion:** `@grpc/grpc-js` 1.14.5 en los dos manifests y lockfiles.
+- **RiskLevel:** bajo/medio: parche de transporte Node utilizado por Admin/Google;
+  se conserva Firebase web 12.14.0 y el resto del grafo.
+- **RollbackPlan:** revertir este commit y ejecutar `npm ci` en raíz y Functions;
+  la versión anterior volvería a estar señalada por el audit. No borrar datos ni colas.
+- **VerificationGate:** categoría `dependency_upgrade`: audit de ambos paquetes,
+  `ci:merge-gate`, revisión independiente y CI del head final; ampliar con
+  `test:release-confidence` para validar el transporte de la autoridad.
+
+Referencia: [aviso gRPC](https://github.com/advisories/GHSA-m9gg-hp2v-232j).
+
+El gate ampliado `check:release-evidence` sigue señalando 27 archivos de tests con
+relojes reales o esperas de turno. Esa señal es anterior al parche: no cambia ningún
+archivo de tests ni su detector. No se declara aprobado ese gate, no se añaden
+marcas `@flake-safe` ni excepciones para silenciarlo. Su revisión corresponde a un
+bloque propio de determinismo de fixtures y control de esperas. Este parche
+transitivo no actualiza el SDK Firebase web ni su bootstrap; conserva los controles
+exigidos por `dependency_upgrade` sin modificar la política de clasificación.
