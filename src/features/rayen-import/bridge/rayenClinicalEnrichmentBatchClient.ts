@@ -80,7 +80,7 @@ export interface RayenClinicalEnrichmentBatchResponse {
 export const callRayenClinicalEnrichmentBatch = async (
   payload: RayenClinicalEnrichmentBatchPayload
 ): Promise<RayenClinicalEnrichmentBatchResponse> => {
-  const functions = await defaultFunctionsRuntime.getFunctions();
+  const functions = await defaultFunctionsRuntime.getRegionalFunctions('southamerica-east1');
   const callable = httpsCallable<
     RayenClinicalEnrichmentBatchPayload,
     RayenClinicalEnrichmentBatchResponse

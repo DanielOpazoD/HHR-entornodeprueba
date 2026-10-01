@@ -14,6 +14,10 @@ env:
 # `FIREBASE_SERVICE_ACCOUNT_HHR` — full JSON of a Google Cloud service account
 # with at least these IAM roles on `hhr-pruebas`:
 #   - Cloud Functions Developer (roles/cloudfunctions.developer)
+#     This cannot set invocation IAM for a newly created regional endpoint.
+#     Bootstrap its invoker binding separately with an authorized administrator;
+#     existing endpoint updates do not require broadening this deployer's roles.
+#     An ACTIVE function listing alone does not prove that clients can invoke it.
 #   - Service Account User      (roles/iam.serviceAccountUser)
 #   - Secret Manager Viewer (roles/secretmanager.viewer) on the
 #     TYPESAFE_API_KEY secret only, for deployment metadata access.

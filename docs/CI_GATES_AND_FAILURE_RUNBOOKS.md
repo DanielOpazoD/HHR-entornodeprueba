@@ -6,6 +6,21 @@ anteriores. No cambiar el enrutamiento del cliente hasta verificar el despliegue
 del head mergeado. Ejecutar merge gate y release confidence para el cambio del
 handler; conservar memoria, timeout, autoridad, recibos y transacción.
 
+`ACTIVE` y la presencia en `functions:list` no prueban invocabilidad. Si el primer
+deploy regional falla en `setIamPolicy`, mantener el cliente anterior y revisar
+el binding de invocación del recurso nuevo. En `hhr-pruebas`, el endpoint anterior
+usa `roles/cloudfunctions.invoker` para `allUsers`; replicar ese binding requiere
+autorización puntual, preservando los demás bindings y su `etag`. No conceder
+Cloud Functions Admin al deployer para resolver este incidente. Comprobar después
+una llamada autenticada idempotente y el rechazo `UNAUTHENTICATED` de una petición
+sintética válida sin sesión. La validación de payload antecede a Auth: un 400
+`INVALID_ARGUMENT` no acredita ese rechazo de autenticación.
+
+El cliente clínico usa el runtime regional existente con el timeout de 20 s.
+No implementar fallback a otra región tras una respuesta ambigua: los reintentos
+clínicos conservan su política y recibos existentes. Para rollback, revertir solo
+el enrutamiento del cliente; el endpoint de Estados Unidos sigue disponible.
+
 ## Objetivo
 
 Definir una ruta corta para desarrollo diario y una ruta blocking para merge/release sin duplicar checks caros.
