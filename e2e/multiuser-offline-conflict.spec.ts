@@ -49,6 +49,31 @@ const openSeededCensus = async (page: Page, remoteWriter = false) => {
     forceAuthorityCallable: remoteWriter,
   });
 
+  // The auth surface can mount before Dexie creates its schema. Do not open a
+  // missing database here: that would create an empty schema ahead of the app.
+  await expect
+    .poll(
+      async () => {
+        return page.evaluate(async () => {
+          if (!(await indexedDB.databases()).some(database => database.name === 'HangaRoaDB')) {
+            return false;
+          }
+          const request = indexedDB.open('HangaRoaDB');
+          const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          try {
+            return db.objectStoreNames.contains('dailyRecords');
+          } finally {
+            db.close();
+          }
+        });
+      },
+      { timeout: 20_000 }
+    )
+    .toBe(true);
+
   // Seed only the initial database state. No expected edit is written by the test.
   await page.evaluate(async initialRecord => {
     const request = indexedDB.open('HangaRoaDB');

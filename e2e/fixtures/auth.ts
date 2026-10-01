@@ -49,7 +49,7 @@ interface BootstrapSeededRecordOptions {
 export const waitForAuthSurface = async (page: Page) => {
   await page
     .getByTestId('login-google-button')
-    .or(page.getByRole('main'))
+    .or(page.getByTestId('authenticated-user-menu-button'))
     .filter({ visible: true })
     .first()
     .waitFor({ state: 'visible', timeout: 15000 });

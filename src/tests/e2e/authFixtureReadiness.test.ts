@@ -4,7 +4,7 @@ import { bootstrapSeededRecord, setupE2EContext } from '../../../e2e/fixtures/au
 
 const fixturePage = () => {
   const surface = { waitFor: vi.fn().mockResolvedValue(undefined) };
-  const main = {};
+  const census = {};
   const filter = vi.fn().mockReturnValue({ first: () => surface });
   const login = {
     isVisible: vi.fn().mockResolvedValue(false),
@@ -18,10 +18,12 @@ const fixturePage = () => {
     waitForLoadState: vi.fn().mockImplementation(async state => {
       if (state === 'networkidle') throw new Error('Firestore connection is still open');
     }),
-    getByTestId: vi.fn().mockReturnValue(login),
-    getByRole: vi.fn().mockReturnValue(main),
+    getByTestId: vi
+      .fn()
+      .mockImplementation(id => (id === 'authenticated-user-menu-button' ? census : login)),
+    getByRole: vi.fn(),
   };
-  return { page: page as unknown as Page, surface, main, login, filter };
+  return { page: page as unknown as Page, surface, census, login, filter };
 };
 
 describe.each([
@@ -29,10 +31,10 @@ describe.each([
   ['seeded record', (page: Page) => bootstrapSeededRecord(page, { record: {} })],
 ] as const)('%s fixture readiness', (_name, bootstrap) => {
   it('requires a visible login or authenticated surface without waiting for network silence', async () => {
-    const { page, surface, main, login, filter } = fixturePage();
+    const { page, surface, census, login, filter } = fixturePage();
     await bootstrap(page);
-    expect(page.getByRole).toHaveBeenCalledWith('main');
-    expect(login.or).toHaveBeenCalledWith(main);
+    expect(page.getByTestId).toHaveBeenCalledWith('authenticated-user-menu-button');
+    expect(login.or).toHaveBeenCalledWith(census);
     expect(filter).toHaveBeenCalledWith({ visible: true });
     expect(surface.waitFor).toHaveBeenCalledWith({ state: 'visible', timeout: 15000 });
     expect(page.waitForLoadState).not.toHaveBeenCalledWith('networkidle', expect.anything());
