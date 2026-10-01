@@ -118,6 +118,69 @@ describe('ClinicalPanelAntecedents', () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each([
+    ['Primaria', '8', 'Secundaria', '8'],
+    ['Primaria:8', '99', 'Primaria', '8:99'],
+  ])(
+    'conserva la atención actual (%s/%s) al solaparse con un período anterior y distingue la fuente',
+    async (source, id, otherSource, otherId) => {
+      const current = {
+        id,
+        source,
+        date: '20260930 10:00',
+        diagnosis: 'Atención actual',
+        facility: 'Hospital',
+        type: 'Consulta',
+      };
+      requestClinicalAction.mockImplementation(
+        async (
+          _episode: string,
+          operation: string,
+          _entryId?: string,
+          _signal?: AbortSignal,
+          beforeDate?: string
+        ) => {
+          if (operation === 'list')
+            return {
+              ok: true,
+              warnings: [],
+              entries: beforeDate
+                ? [
+                    { ...current, diagnosis: 'Copia antigua' },
+                    {
+                      ...current,
+                      source: otherSource,
+                      id: otherId,
+                      diagnosis: 'Atención de otra fuente',
+                    },
+                  ]
+                : [current],
+              nextBeforeDate: beforeDate ? null : '20231007',
+            };
+          return {
+            ok: true,
+            detail: { reason: '', history: 'Detalle sintético', professional: '', attachments: [] },
+          };
+        }
+      );
+      render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+      expect(await screen.findByText('Atención actual')).toBeInTheDocument();
+      if (source === 'Primaria') await screen.findByText('Detalle sintético');
+      fireEvent.click(screen.getByRole('button', { name: 'Cargar período anterior' }));
+      expect(await screen.findByText('Atención de otra fuente')).toBeInTheDocument();
+      expect(screen.getAllByText('Atención actual')).toHaveLength(1);
+      expect(screen.queryByText('Copia antigua')).not.toBeInTheDocument();
+      expect(requestClinicalAction.mock.calls.filter(call => call[1] === 'detail')).toHaveLength(
+        source === 'Primaria' ? 1 : 0
+      );
+      if (otherSource === 'Primaria') {
+        expect(
+          screen.getByRole('button', { name: 'Ver detalle de la atención' })
+        ).toBeInTheDocument();
+      }
+    }
+  );
+
   it('reintenta un período parcial y conserva los datos ya obtenidos de la otra fuente', async () => {
     let olderCalls = 0;
     requestClinicalAction.mockImplementation(
