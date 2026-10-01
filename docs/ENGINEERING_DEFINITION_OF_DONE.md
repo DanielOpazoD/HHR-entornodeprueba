@@ -28,3 +28,8 @@ sin sesión, conservar el timeout y no duplicar solicitudes ante errores. Separa
 replays de recibos de escrituras nuevas al medir rendimiento; conservar las muestras
 lentas y declarar el tamaño y alcance del experimento. Una mejor mediana no acredita
 mejorar la cola de latencia ni el tiempo de la sincronización completa.
+
+Para cambios en inicio de sesión o recarga autenticada, verificar que el eco inicial
+del observer no readmita una sesión idéntica, sin saltar la admisión pendiente,
+los cambios de permisos ni el cierre de sesión. Los providers diferidos no deben
+remontar la interfaz clínica ni borrar estado de controles al completar su carga.

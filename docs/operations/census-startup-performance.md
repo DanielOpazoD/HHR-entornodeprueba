@@ -207,3 +207,27 @@ Cuando la tabla no llega a estar poblada, el banco adjunta un estado estructural
 sesión de una compilación lenta. Se conservan captura y traza solo en fallo; el fixture es
 sintético, sin pacientes ni credenciales reales. El tiempo máximo del job de CI es un techo,
 no una expectativa.
+
+## Continuidad al ingresar y recargar (1 octubre 2026)
+
+En Chrome local con sesión real en `hhr-pruebas`, una recarga reproducía tres
+montajes DOM distintos de la cabecera del censo: el primer render, una readmisión
+de la sesión restaurada y la inserción tardía del proveedor de recordatorios.
+El HAR asociado mostraba una sola navegación; no era una segunda descarga del
+documento. La instrumentación temporal midió identidad de nodos y estados de
+auth, sin contenidos clínicos, y se retiró antes del commit.
+
+La resolución directa de auth y el primer evento del observer pueden representar
+la misma sesión. Se omite solamente ese primer eco autorizado si coinciden UID,
+perfil, rol y especialidades. La admisión original sigue esperando el almacenamiento;
+no se omiten cambios de permisos, identidad, eventos posteriores ni revocaciones.
+El contexto ligero de recordatorios permanece montado desde el primer render y
+recibe el valor del runtime diferido sin envolver de nuevo la interfaz clínica.
+Si ese chunk opcional falla, el censo permanece utilizable.
+
+La comprobación local posterior observó un solo montaje de la cabecera. Esto
+acredita continuidad de la interfaz en el recorrido probado, no un porcentaje de
+mejora de latencia ni un resultado equivalente en cada navegador o despliegue.
+Las regresiones automatizadas comprueban identidad DOM, conservación de un
+borrador, actualización de recordatorios, fallo del chunk y las barreras de
+admisión/cierre de sesión.
