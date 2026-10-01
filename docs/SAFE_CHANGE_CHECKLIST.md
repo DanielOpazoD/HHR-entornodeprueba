@@ -76,3 +76,22 @@ marcas `@flake-safe` ni excepciones para silenciarlo. Su revisión corresponde a
 bloque propio de determinismo de fixtures y control de esperas. Este parche
 transitivo no actualiza el SDK Firebase web ni su bootstrap; conserva los controles
 exigidos por `dependency_upgrade` sin modificar la política de clasificación.
+
+### Parche del tooling FTP de CI (2026-10-01)
+
+- **Owner:** infraestructura de tests/CI HHR.
+- **Reason:** GHSA-c475-qrg2-pj4r bloquea el audit del tooling Firebase; no se ha
+  demostrado explotación en HHR.
+- **TargetVersion:** override existente de `basic-ftp` a 6.2.1; sólo manifest y
+  lockfile raíz. No cambia Firebase web, Functions ni la política de audit.
+- **RiskLevel:** medio: el salto 5 a 6 rechaza hosts de transferencia FTP distintos
+  por defecto. `get-uri` conserva las APIs usadas (`Client`, `access`, `list`,
+  `lastMod`, `downloadTo`, `close`); no habilitar `allowSeparateTransferHost`.
+- **RollbackPlan:** revertir este PR y ejecutar `npm ci`; el audit volvería a
+  bloquear la versión vulnerable. No borrar datos ni colas.
+- **VerificationGate:** categoría `dependency_upgrade`: audit de raíz y Functions,
+  carga del consumidor `get-uri`, emulador/autoridad sintética, revisión independiente
+  y CI completo del head final con sus umbrales intactos.
+
+Referencias: [aviso FTP](https://github.com/advisories/GHSA-c475-qrg2-pj4r),
+[cambio de seguridad en 6.0](https://github.com/patrickjuchli/basic-ftp/releases/tag/v6.0.0).
