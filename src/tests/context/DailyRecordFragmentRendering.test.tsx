@@ -28,23 +28,23 @@ const mountProbe = () => {
     beds: vi.fn(),
     data: vi.fn(),
   };
-  const Staff = memo(() => {
+  const Staff = memo(function Staff() {
     counts.staff(useDailyRecordStaff());
     return null;
   });
-  const Movements = memo(() => {
+  const Movements = memo(function Movements() {
     counts.movements(useDailyRecordMovements());
     return null;
   });
-  const Census = memo(() => {
+  const Census = memo(function Census() {
     counts.census(useCensusMovementData());
     return null;
   });
-  const Beds = memo(() => {
+  const Beds = memo(function Beds() {
     counts.beds(useDailyRecordBeds());
     return null;
   });
-  const Data = memo(() => {
+  const Data = memo(function Data() {
     counts.data(useDailyRecordData());
     return null;
   });
