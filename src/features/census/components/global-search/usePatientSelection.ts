@@ -115,17 +115,20 @@ export function usePatientSelection(): UsePatientSelectionReturn {
       return;
     }
 
+    const pendingHistoryRequest = historyRequestRef.current.get(cacheKey);
     setSelectedPatient(prev => ({
       master: patient,
       history: null,
       isLoadingHistory: true,
       historyRecordsRead:
-        prev && buildPatientHistoryCacheKey(prev.master) === cacheKey ? prev.historyRecordsRead : 0,
+        pendingHistoryRequest && prev && buildPatientHistoryCacheKey(prev.master) === cacheKey
+          ? prev.historyRecordsRead
+          : 0,
       timelineState: buildPatientEpisodeTimelineState(patient, null),
     }));
 
     try {
-      let historyRequest = historyRequestRef.current.get(cacheKey);
+      let historyRequest = pendingHistoryRequest;
       if (!historyRequest) {
         const controller = new AbortController();
         const promise = loadPatientHistory()

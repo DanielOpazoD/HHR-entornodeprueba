@@ -107,6 +107,37 @@ describe('patient history selection cancellation', () => {
     await waitFor(() => expect(read).toHaveBeenCalledTimes(3));
   });
 
+  it('resets discarded progress on retry but retains progress for an in-flight lookup', async () => {
+    let finish!: (value: { history: null; source: 'local' }) => void;
+    read.mockReturnValueOnce(
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    const { result } = renderHook(() => usePatientSelection());
+    act(() => {
+      void result.current.selectPatient(patient);
+    });
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    act(() => read.mock.calls[0][1].onProgress(60));
+    await act(async () => {
+      finish({ history: null, source: 'local' });
+    });
+    expect(result.current.selectedPatient?.historyWarning).toContain('parcial');
+    read.mockReturnValue(new Promise(() => {}));
+    act(() => {
+      void result.current.selectPatient(patient);
+    });
+    expect(result.current.selectedPatient?.historyRecordsRead).toBe(0);
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    act(() => read.mock.calls[1][1].onProgress(20));
+    act(() => {
+      void result.current.selectPatient(patient);
+    });
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(result.current.selectedPatient?.historyRecordsRead).toBe(20);
+  });
+
   it('retains same-patient deduplication after a reset while the old request finishes late', async () => {
     const completions: Array<(value: { history: null; source: 'server' }) => void> = [];
     read.mockImplementation(
