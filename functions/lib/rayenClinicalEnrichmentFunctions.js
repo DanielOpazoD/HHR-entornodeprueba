@@ -1,4 +1,6 @@
 const functions = require('firebase-functions/v1');
+// Retain the original endpoint for already-loaded clients during the regional rollout.
+const clinicalFunctions = functions.region('us-central1', 'southamerica-east1');
 const { performance } = require('node:perf_hooks');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { sanitizeLogValue } = require('./logging/redaction');
@@ -194,7 +196,7 @@ const createRayenClinicalEnrichmentFunctions = ({
   resolveRoleForEmail,
   monotonicNow = () => performance.now(),
 }) => ({
-  applyRayenClinicalEnrichmentBatch: functions.https.onCall(async (data, context) => {
+  applyRayenClinicalEnrichmentBatch: clinicalFunctions.https.onCall(async (data, context) => {
     const startedAt = Date.now();
     const handlerStartedAt = monotonicNow();
     const elapsed = start => Math.max(0, Math.round(monotonicNow() - start));

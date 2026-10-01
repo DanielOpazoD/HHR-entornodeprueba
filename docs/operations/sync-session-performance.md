@@ -188,3 +188,39 @@ si predominan lecturas o auditoría, revisar exclusivamente su trabajo y depende
 si predomina el resto externo, estudiar transporte/SDK antes de tocar la lógica
 clínica. Las mediciones anteriores de 9,5–10,9 s no permiten identificar por sí solas
 la causa interna. No modificar paralelismo, guardas o retries sólo por esos totales.
+
+## Rollout regional medido (2026-10-01)
+
+Se verificó por CLI el proyecto de prueba: Firestore usa `southamerica-west1`
+(Santiago), mientras `applyRayenClinicalEnrichmentBatch` estaba desplegada en
+`us-central1`, primera generación, Node 22, 256 MB, timeout 60 s. La autoridad
+principal usa `southamerica-east1`. No se modifican memoria ni timeouts. El cliente
+Admin ya se reutiliza por instancia; esa optimización está cubierta.
+
+Firebase documenta que Santiago solo admite segunda generación y que las
+Functions deben estar cerca de los servicios que usan. Se prepara São Paulo
+para conservar primera generación, sin migrar la base ni la generación:
+[ubicaciones oficiales](https://firebase.google.com/docs/functions/locations).
+El endpoint anterior permanece desplegado para clientes ya cargados. El cambio
+del cliente requiere primero verificar el despliegue automático de ambas regiones.
+
+Dos sincronizaciones previas al rollout, con extensión 0.48.42 y el mismo censo
+en `hhr-pruebas`, produjeron las siguientes llamadas exitosas:
+
+| Carga               | Resultado   |    HTTP | Autorización | Transacción | Lecturas directas | Fuera del callback |
+| ------------------- | ----------- | ------: | -----------: | ----------: | ----------------: | -----------------: |
+| 1 destino, 1 campo  | idempotente | 3782 ms |      1088 ms |     1731 ms |           1535 ms |             184 ms |
+| 1 destino, 3 campos | escritura   | 9481 ms |       199 ms |     8520 ms |           1180 ms |            6296 ms |
+
+Ambas conservaron paridad `matched` y un intento de transacción. Son cargas
+distintas: no constituyen una comparación controlada ni prueban una ganancia
+regional. Una repetición diagnóstica del payload anterior fue rechazada por las
+guardas vigentes y queda excluida de la comparación de éxito; no se cambian las
+guardas para permitir reutilizar requests obsoletos. No se exportan payloads.
+
+La siguiente etapa compara regiones desplegadas con el mismo batch válido y
+convergente, usando recibos exactos cuando existen, y sesiones reales separadas
+por carga/resultado. Una repetición de recibo solo mide ese camino: no acredita
+la velocidad de una escritura nueva. Mantener las protecciones y verificar la
+convergencia antes de enrutar el cliente a la región nueva. No añadir caché de
+roles, más escrituras paralelas o instancias mínimas por esta evidencia.

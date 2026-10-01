@@ -2,6 +2,14 @@ import { createRequire } from 'node:module';
 import { vi } from 'vitest';
 
 vi.mock('firebase-functions/v1', () => ({
+  region: (...regions: string[]) => ({
+    https: {
+      onCall: (handler: (data: unknown, context: unknown) => unknown) => ({
+        run: handler,
+        regions,
+      }),
+    },
+  }),
   https: {
     onCall: (handler: (data: unknown, context: unknown) => unknown) => ({ run: handler }),
     HttpsError: class HttpsError extends Error {
