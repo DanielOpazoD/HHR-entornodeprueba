@@ -41,6 +41,7 @@ export interface SelectedPatientDetail {
   history: PatientHistoryResult | null;
   isLoadingHistory: boolean;
   historyWarning?: string | null;
+  historyRecordsRead?: number;
   timelineState: PatientEpisodeTimelineState;
 }
 

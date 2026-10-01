@@ -10,7 +10,10 @@ import {
   onSnapshot,
   orderBy,
   query,
+  startAfter,
   where,
+  type QueryDocumentSnapshot,
+  type QueryConstraint,
 } from 'firebase/firestore';
 import { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import { COLLECTIONS, getActiveHospitalId } from '@/constants/firestorePaths';
@@ -193,6 +196,31 @@ export const getAllRecordsFromFirestore = async (
     return {};
   }
 };
+
+/** Complete server traversal in bounded batches; cancellation stops future batches. */
+export async function* getRecordPagesFromFirestore(
+  signal?: AbortSignal
+): AsyncGenerator<DailyRecord[]> {
+  const pageSize = 20;
+  let cursor: QueryDocumentSnapshot | undefined;
+  try {
+    const collectionRef = getRecordsCollection();
+    while (true) {
+      signal?.throwIfAborted();
+      const constraints: QueryConstraint[] = [orderBy('date', 'desc'), limitTo(pageSize)];
+      if (cursor) constraints.push(startAfter(cursor));
+      const snapshot = await getDocsFromServer(query(collectionRef, ...constraints));
+      signal?.throwIfAborted();
+      yield mapFirestoreRecords(snapshot, docToRecord);
+      signal?.throwIfAborted();
+      if (snapshot.size < pageSize) return;
+      cursor = snapshot.docs[snapshot.docs.length - 1];
+    }
+  } catch (error) {
+    if (!signal?.aborted) logFirestoreQueryError('getRecordPages', error);
+    throw error;
+  }
+}
 
 export const getRecordsRangeFromFirestore = async (
   startDate: string,

@@ -30,6 +30,7 @@ export type { FirestoreReadyRuntimePort } from '@/services/storage/firestore/fir
 export {
   getAvailableDatesFromFirestore,
   getAllRecordsFromFirestore,
+  getRecordPagesFromFirestore,
   getMonthRecordsFromFirestore,
   getRecordFromFirestore,
   getRecordFromFirestoreDetailed,

@@ -5,23 +5,14 @@
  * Searches by RUT to find all beds, discharges, and transfers.
  */
 
-import type { DailyRecordPatientHistoryState } from '@/services/contracts/dailyRecordServiceContracts';
 import {
-  getAllRecords,
-  getRecordsRange,
-} from '@/services/storage/indexeddb/indexedDbRecordService';
-import {
-  getAllRecordsFromFirestore,
-  getRecordsRangeFromFirestore,
-} from '@/services/storage/firestore';
-import { isFirestoreEnabled } from '@/services/repositories/repositoryConfig';
-import type { HospitalizationEvent } from '@/types/domain/patientMaster';
+  loadPatientHistoryRecords,
+  type PatientHistoryRecord,
+  type PatientHistoryLoadOptions,
+} from './patientHistoryRecordLoader';
+export type { PatientHistoryLoadOptions } from './patientHistoryRecordLoader';
 import { BEDS } from '@/constants/beds';
-import { getTodayISO } from '@/utils/dateCoreUtils';
-import {
-  getActiveDischarges,
-  getActiveTransfers,
-} from '@/application/census/movementTombstonePolicy';
+import { getActiveMovements } from '@/application/census/movementTombstonePolicy';
 
 // ============================================================================
 // Types
@@ -46,14 +37,6 @@ export interface PatientHistoryResult {
   totalDays: number;
   firstSeen: string;
   lastSeen: string;
-}
-
-export interface PatientHistoryLoadOptions {
-  dateRange?: { startDate: string; endDate: string };
-  hospitalizationHints?: HospitalizationEvent[];
-  lastAdmission?: string;
-  lastDischarge?: string;
-  forceFullRemoteHydration?: boolean;
 }
 
 // ============================================================================
@@ -87,97 +70,10 @@ function normalizeRut(rut: string): string {
     .replace(/^0+/, '');
 }
 
-const resolveLatestAdmissionDateHint = (options?: PatientHistoryLoadOptions): string | null => {
-  const admissionHint = (options?.hospitalizationHints ?? [])
-    .filter(event => event.type === 'Ingreso')
-    .map(event => event.date)
-    .sort()
-    .at(-1);
-
-  return admissionHint || options?.lastAdmission || null;
-};
-
-const resolveLatestCloseDateHint = (options?: PatientHistoryLoadOptions): string | null => {
-  const closeHint = (options?.hospitalizationHints ?? [])
-    .filter(
-      event =>
-        event.type === 'Egreso' || event.type === 'Traslado' || event.type === 'Fallecimiento'
-    )
-    .map(event => event.date)
-    .sort()
-    .at(-1);
-
-  return closeHint || options?.lastDischarge || null;
-};
-
-const resolveRemoteHistoryRange = (
-  options?: PatientHistoryLoadOptions
-): { startDate: string; endDate: string } | null => {
-  const startDate = resolveLatestAdmissionDateHint(options);
-  if (!startDate) {
-    return null;
-  }
-
-  const latestKnownCloseDate = [resolveLatestCloseDateHint(options)]
-    .filter((value): value is string => Boolean(value))
-    .sort()
-    .at(-1);
-  const today = getTodayISO();
-  const endDate =
-    latestKnownCloseDate && latestKnownCloseDate >= startDate ? latestKnownCloseDate : today;
-
-  return {
-    startDate,
-    endDate: endDate >= startDate ? endDate : startDate,
-  };
-};
-
 export interface PatientHistoryReadResult {
   history: PatientHistoryResult | null;
   source: 'server' | 'local' | 'local-only';
 }
-
-const loadPatientHistoryRecords = async (options?: PatientHistoryLoadOptions) => {
-  const remoteRange = options?.forceFullRemoteHydration
-    ? null
-    : (options?.dateRange ?? resolveRemoteHistoryRange(options));
-  if (remoteRange) {
-    const validDay = (day: string) => {
-      const date = new Date(`${day}T12:00:00Z`);
-      return (
-        /^\d{4}-\d{2}-\d{2}$/.test(day) &&
-        Number.isFinite(date.getTime()) &&
-        date.toISOString().slice(0, 10) === day
-      );
-    };
-    if (
-      !validDay(remoteRange.startDate) ||
-      !validDay(remoteRange.endDate) ||
-      remoteRange.startDate > remoteRange.endDate
-    ) {
-      throw new Error('Invalid history date range');
-    }
-  }
-  const remoteEnabled = isFirestoreEnabled();
-  if (remoteEnabled) {
-    try {
-      const records = remoteRange
-        ? await getRecordsRangeFromFirestore(remoteRange.startDate, remoteRange.endDate, {
-            requireServer: true,
-          })
-        : Object.values(await getAllRecordsFromFirestore({ requireServer: true }));
-      // Successful server reads are authoritative, including removed/absent days.
-      // A history lookup must not overwrite the editable census cache.
-      return { records, source: 'server' as const };
-    } catch {
-      // Local data remains useful, but must never be presented as a complete server read.
-    }
-  }
-  const records = remoteRange
-    ? await getRecordsRange(remoteRange.startDate, remoteRange.endDate)
-    : Object.values(await getAllRecords());
-  return { records, source: remoteEnabled ? ('local' as const) : ('local-only' as const) };
-};
 
 export async function getPatientMovementHistoryDetailed(
   rut: string,
@@ -209,7 +105,7 @@ export async function getPatientMovementHistory(
 
 function collectPatientMovementHistory(
   rut: string,
-  records: DailyRecordPatientHistoryState[]
+  records: PatientHistoryRecord[]
 ): PatientHistoryResult | null {
   const normalizedRut = normalizeRut(rut);
   const allRecords = Object.fromEntries(records.map(record => [record.date, record]));
@@ -225,7 +121,7 @@ function collectPatientMovementHistory(
 
   // We process records to find movements and the latest admission date
   for (const date of sortedDates) {
-    const record: DailyRecordPatientHistoryState = allRecords[date];
+    const record: PatientHistoryRecord = allRecords[date];
 
     // 1. Check active beds
     for (const bedId of Object.keys(record.beds)) {
@@ -307,7 +203,7 @@ function collectPatientMovementHistory(
     }
 
     // 2. Check discharges/transfers (these end a session)
-    for (const discharge of getActiveDischarges(record.discharges)) {
+    for (const discharge of getActiveMovements(record.discharges)) {
       if (normalizeRut(discharge.rut) === normalizedRut) {
         lastSeenDate = date;
         movements.push({
@@ -324,7 +220,7 @@ function collectPatientMovementHistory(
       }
     }
 
-    for (const transfer of getActiveTransfers(record.transfers)) {
+    for (const transfer of getActiveMovements(record.transfers)) {
       if (normalizeRut(transfer.rut) === normalizedRut) {
         lastSeenDate = date;
         movements.push({
