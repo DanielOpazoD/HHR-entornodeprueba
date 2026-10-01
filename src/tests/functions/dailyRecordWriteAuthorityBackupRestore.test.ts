@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 import {
   createAdminMock,
@@ -59,6 +59,13 @@ const runSave = async ({
   const persisted = mock.set.mock.calls.at(-1)?.[1] as { beds: Record<string, unknown> };
   return persisted.beds.R1 as Record<string, unknown>;
 };
+
+// Freeze only Date: the callable guards and fixtures must share the same instant.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-05-13T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('backup restore through the clinical authority fence', () => {
   it('exposes a single origin literal shared with the client contract', () => {

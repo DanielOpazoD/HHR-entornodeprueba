@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 import {
   createAdminMock,
@@ -13,6 +13,13 @@ const {
   RAYEN_CLINICAL_FIELDS,
   preserveRayenClinicalFields,
 } = require('../../../functions/lib/dailyRecordClinicalFieldPreservation.js');
+
+// Freeze only Date: the callable guards and fixtures must share the same instant.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-05-13T12:00:00.000Z'));
+});
+afterEach(() => vi.useRealTimers());
 
 describe('daily-record authoritative clinical field fence', () => {
   it('keeps the client ownership contract aligned with the server fence', () => {
@@ -355,6 +362,7 @@ describe('daily-record authoritative clinical field fence', () => {
   });
 
   it('rejects nurse structural edits to a legacy record outside the derived calendar window', async () => {
+    vi.setSystemTime(new Date('2026-05-16T12:00:00.000Z'));
     const remote = {
       ...makeRecord(),
       date: '2026-05-13',

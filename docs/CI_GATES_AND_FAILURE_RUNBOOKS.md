@@ -526,3 +526,12 @@ los reportes de test. No reducir umbrales ni añadir marcas `@flake-safe` sólo 
 mejorar el score. Se retiró `seedPersistedBedFields`, sin consumidores después de
 corregir los E2E de reconexión; las pruebas deben preparar su estado inicial y luego
 observar el guardado de la aplicación.
+
+### Reloj de fixtures de autoridad (2026-10-01)
+
+Los tests de autoridad estructural y de especialidad fijan únicamente `Date`, no
+los temporizadores ni la E/S. La fecha del fixture y las guardas reales del callable
+comparten un instante estable. Los escenarios fuera de la ventana de edición
+avanzan explícitamente la fecha antes de invocar el handler; los vencimientos de
+consulta Jev siguen verificando aceptación, rechazo y recuperación. Cada test
+restaura el reloj, sin marcas `@flake-safe` ni cambios en los umbrales del gate.
