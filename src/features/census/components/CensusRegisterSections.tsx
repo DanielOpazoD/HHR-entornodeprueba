@@ -64,22 +64,24 @@ const CensusMovementRegisterSections: React.FC = () => {
   );
 };
 
-export const CensusRegisterSections: React.FC<CensusRegisterSectionsProps> = ({
+export const CensusRegisterSections = React.memo(function CensusRegisterSections({
   readOnly,
   showBedManagerModal,
   onCloseBedManagerModal,
   accessProfile,
-}) => (
-  <>
-    {!isSpecialistCensusAccessProfile(accessProfile) && <CensusMovementRegisterSections />}
+}: CensusRegisterSectionsProps) {
+  return (
+    <>
+      {!isSpecialistCensusAccessProfile(accessProfile) && <CensusMovementRegisterSections />}
 
-    {!readOnly && !isSpecialistCensusAccessProfile(accessProfile) && (
-      <Suspense fallback={null}>
-        <LazyCensusModals
-          showBedManagerModal={showBedManagerModal}
-          onCloseBedManagerModal={onCloseBedManagerModal}
-        />
-      </Suspense>
-    )}
-  </>
-);
+      {!readOnly && !isSpecialistCensusAccessProfile(accessProfile) && (
+        <Suspense fallback={null}>
+          <LazyCensusModals
+            showBedManagerModal={showBedManagerModal}
+            onCloseBedManagerModal={onCloseBedManagerModal}
+          />
+        </Suspense>
+      )}
+    </>
+  );
+});

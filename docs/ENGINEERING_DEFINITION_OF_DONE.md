@@ -59,3 +59,9 @@ Probar cancelación, progreso y resultados tardíos contra la selección vigente
 y no persistir una lectura parcial en la caché de historias completas. Una
 proyección reducida no autoriza eliminar datos de los censos editables ni acredita
 menor uso de memoria del SDK. Documentar los límites de consistencia y latencia.
+
+Para cambios de renderizado del censo, medir con el proveedor real y con JSX nuevo
+del padre; una identidad estable aislada no demuestra que se omita el subárbol.
+Probar cambios de fecha, ausencia de registro, dotación, movimientos, tombstones
+y permisos. Conservar las revisiones del registro en los consumidores que las
+necesitan para escribir. Un conteo de renders no acredita una mejora de INP.
