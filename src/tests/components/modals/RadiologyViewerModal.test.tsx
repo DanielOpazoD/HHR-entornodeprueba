@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mmradMocks = vi.hoisted(() => ({
@@ -50,16 +50,16 @@ describe('RadiologyViewerModal', () => {
   });
 
   it('keeps the existing global viewer in manual-search mode by default', async () => {
-    render(
-      <RadiologyViewerModal
-        isOpen
-        onClose={vi.fn()}
-        patients={[patient]}
-        initialPatientRut={patient.rut}
-      />
-    );
-
-    await new Promise(resolve => window.setTimeout(resolve, 0));
+    await act(async () => {
+      render(
+        <RadiologyViewerModal
+          isOpen
+          onClose={vi.fn()}
+          patients={[patient]}
+          initialPatientRut={patient.rut}
+        />
+      );
+    });
     expect(mmradMocks.search).not.toHaveBeenCalled();
   });
 });

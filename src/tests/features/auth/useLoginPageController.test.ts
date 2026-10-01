@@ -104,7 +104,7 @@ describe('useLoginPageController', () => {
   it('does not open another Google flow while a different HHR tab owns the login lock', async () => {
     window.localStorage.setItem(
       'hhr_google_login_lock_v1',
-      JSON.stringify({ owner: 'other-tab', timestamp: Date.now() })
+      JSON.stringify({ owner: 'other-tab', timestamp: Date.parse('2026-09-30T12:00:00.000Z') })
     );
     const { result } = renderHook(() => useLoginPageController(vi.fn()));
 

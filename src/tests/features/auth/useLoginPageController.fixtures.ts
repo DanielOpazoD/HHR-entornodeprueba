@@ -86,6 +86,7 @@ export const setupLoginPageControllerTests = () => {
     mockReceiveAuthPerfCredential.mockReset().mockReturnValue('credential-attempt');
     mockRecordAuthPerfEvent.mockReset();
     vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-30T12:00:00.000Z'));
     window.localStorage.clear();
     window.sessionStorage.clear();
     mockIsPopupRecoverableAuthError.mockReturnValue(false);

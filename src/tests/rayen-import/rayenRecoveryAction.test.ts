@@ -13,7 +13,7 @@ const report = (
 ): RayenExtensionHealthReport => ({
   version: '0.48.12',
   protocolVersion: RAYEN_EXTENSION_PROTOCOL_VERSION,
-  checkedAt: new Date().toISOString(),
+  checkedAt: '2026-09-30T12:00:00.000Z',
   capabilities,
   fichaMedico: ficha,
   gestionCamas: camas,

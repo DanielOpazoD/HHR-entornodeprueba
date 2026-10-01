@@ -308,14 +308,15 @@ describe('content-hhr · relé de conexión de Gestión de Camas', () => {
       origin: windowObject.location.origin,
       data: { type: 'HHR_RAYEN_CONNECTION_REPAIR_REQUEST', reqId: 'repair-sync-error' },
     });
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        reqId: 'repair-sync-error',
-        ok: false,
-        error: 'Error: Extension context invalidated',
-      }),
-      'http://localhost:3001'
+    await vi.waitFor(() =>
+      expect(postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reqId: 'repair-sync-error',
+          ok: false,
+          error: 'Error: Extension context invalidated',
+        }),
+        'http://localhost:3001'
+      )
     );
   });
 
