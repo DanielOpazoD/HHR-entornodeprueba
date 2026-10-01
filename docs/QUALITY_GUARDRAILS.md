@@ -117,3 +117,11 @@ Solo cuando se cumplan las dos condiciones:
 2. la excepción queda anotada en backlog con límite, motivo y owner claros.
 
 Si no se cumplen ambas, el archivo debe reducirse en la misma change.
+
+## Parche gRPC validado en octubre de 2026
+
+Los overrides existentes de `@grpc/grpc-js` se actualizan juntos a 1.14.5 en raíz
+y Functions para corregir GHSA-m9gg-hp2v-232j. El audit de ambas instalaciones
+conserva bloqueo en severidades high/critical; no se añade una excepción. El SDK
+web Firebase permanece en 12.14.0. Motivo, riesgo, rollback y controles figuran en
+[Safe Change Checklist](./SAFE_CHANGE_CHECKLIST.md#parche-transitivo-grpc-2026-10-01).

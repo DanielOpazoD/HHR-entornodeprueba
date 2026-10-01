@@ -52,3 +52,18 @@ tratar un resultado anterior a una modificación como evidencia del nuevo códig
 20. Si la change toca auth runtime, revisar [docs/ADR_AUTH_RUNTIME_RECOVERY.md](./ADR_AUTH_RUNTIME_RECOVERY.md).
 21. Si la change toca documentos clínicos, revisar [docs/ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md](./ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md).
 22. Si la change toca handoff, revisar [docs/ADR_HANDOFF_RUNTIME_SURFACES.md](./ADR_HANDOFF_RUNTIME_SURFACES.md).
+
+### Parche transitivo gRPC (2026-10-01)
+
+- **Owner:** plataforma Firebase/Functions HHR.
+- **Reason:** corregir GHSA-m9gg-hp2v-232j actualizando el override existente en
+  ambos paquetes; no se ha demostrado explotación en HHR.
+- **TargetVersion:** `@grpc/grpc-js` 1.14.5 en los dos manifests y lockfiles.
+- **RiskLevel:** bajo/medio: parche de transporte Node utilizado por Admin/Google;
+  se conserva Firebase web 12.14.0 y el resto del grafo.
+- **RollbackPlan:** revertir este commit y ejecutar `npm ci` en raíz y Functions;
+  la versión anterior volvería a estar señalada por el audit. No borrar datos ni colas.
+- **VerificationGate:** audit de ambos paquetes, `ci:release-gate`,
+  `test:release-confidence`, revisión independiente y CI del head final.
+
+Referencia: [aviso gRPC](https://github.com/advisories/GHSA-m9gg-hp2v-232j).
