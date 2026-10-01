@@ -1,5 +1,11 @@
 # CI Gates and Failure Runbooks
 
+Para el rollout regional de `applyRayenClinicalEnrichmentBatch`, el deploy debe
+verificar `southamerica-east1` y `us-central1`: la segunda conserva los clientes
+anteriores. No cambiar el enrutamiento del cliente hasta verificar el despliegue
+del head mergeado. Ejecutar merge gate y release confidence para el cambio del
+handler; conservar memoria, timeout, autoridad, recibos y transacción.
+
 ## Objetivo
 
 Definir una ruta corta para desarrollo diario y una ruta blocking para merge/release sin duplicar checks caros.

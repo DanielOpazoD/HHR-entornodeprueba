@@ -18,3 +18,7 @@ campos ni identificadores clínicos y que el replay exacto mantiene sus escritur
 idempotentes. Los tiempos internos orientan una optimización posterior; no prueban
 por sí solos una mejora de velocidad. Conservar orden de lecturas, autoridad y
 atomicidad, y ejecutar el pack de confianza de release para cambios del handler.
+
+El rollout regional clínico conserva el endpoint anterior mientras existan clientes
+que lo usen. Verificar ambas regiones desplegadas antes de cambiar el cliente;
+no confundir una región declarada con un despliegue disponible ni con una mejora medida.

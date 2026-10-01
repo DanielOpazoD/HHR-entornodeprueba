@@ -205,6 +205,8 @@ jobs:
           # ninguna otra: esta es la evidencia de que el borrado surtió efecto.
           node scripts/check-firebase-function-regions.mjs \
             "$RUNNER_TEMP/firebase/functions-list.json" \
+            applyRayenClinicalEnrichmentBatch@southamerica-east1 \
+            applyRayenClinicalEnrichmentBatch@us-central1 \
             saveDailyRecordWithClinicalAuthority@southamerica-east1 \
             patchDailyRecordWithClinicalAuthority@southamerica-east1 \
             '!saveDailyRecordWithClinicalAuthority@us-central1' \
