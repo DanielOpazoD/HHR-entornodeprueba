@@ -224,3 +224,52 @@ por carga/resultado. Una repetición de recibo solo mide ese camino: no acredita
 la velocidad de una escritura nueva. Mantener las protecciones y verificar la
 convergencia antes de enrutar el cliente a la región nueva. No añadir caché de
 roles, más escrituras paralelas o instancias mínimas por esta evidencia.
+
+## Comparación regional controlada y cambio del cliente (2026-10-01)
+
+El handler de la revisión `694cb5e49c766643d4ede95e0c7716b0072eb593` se desplegó
+sin modificar su cuerpo en ambas regiones, con primera generación, Node 22,
+256 MB y timeout de servidor de 60 s. El primer deploy automático falló al
+configurar el invoker del endpoint nuevo. Con autorización puntual se replicó
+solo su binding de invocación del endpoint anterior; no se ampliaron roles del
+workflow. Ambos endpoints aceptaron el mismo recibo autenticado y rechazaron
+una petición sintética válida sin sesión con HTTP 401 / `UNAUTHENTICATED`.
+
+Se ejecutaron 20 pares secuenciales alternando el orden de las regiones en Chrome,
+sobre el mismo recibo confirmado, con un destino y tres campos. Las 40 llamadas
+fueron idempotentes, con paridad matched, un intento de transacción, cero reintentos
+y cero escrituras de pacientes o snapshots de historial. Sí se conserva la
+telemetría administrativa habitual. No se excluyeron las respuestas lentas.
+
+| Medición HTTP                     | us-central1 | southamerica-east1 |
+| --------------------------------- | ----------: | -----------------: |
+| Observaciones                     |          20 |                 20 |
+| Mediana                           |  1.547,5 ms |         1.212,5 ms |
+| Promedio                          |    1.966 ms |           1.730 ms |
+| P95 observado (rango más próximo) |    3.069 ms |           6.451 ms |
+| Máximo                            |    7.467 ms |           6.724 ms |
+
+Sudamérica fue más rápida en 15 de los 20 pares: la mediana HTTP bajó 21,6 %,
+la mediana de transacción de 815,5 a 658 ms y la de autorización de 141,5 a
+80,5 ms. Sin embargo, su P95 observado fue peor: dos picos de autorización
+superaron 3,4 s. No se etiquetan como arranques en frío porque no hay evidencia
+que lo acredite. La muestra procede de una sesión y llamadas consecutivas;
+no representa el P95 del uso real ni una reducción equivalente del censo entero.
+
+La primera sincronización real con el cliente regional completó siete destinos
+y ocho campos: una escritura de paciente y un snapshot, paridad matched,
+sin reintentos, HTTP 5.043 ms, handler 4.856 ms, autorización 85 ms y transacción
+4.679 ms (lecturas 468 ms, fuera del callback 3.014 ms). Su carga difiere de
+las sesiones anteriores: no se calcula una mejora porcentual entre ellas.
+
+**Decisión:** usar el runtime regional ya existente para el batch clínico,
+conservando su timeout de cliente de 20 s y propagación de errores. El endpoint
+anterior sigue atendiendo clientes abiertos y permite revertir solo el cliente.
+No añadir fallback entre regiones, caché de roles, minInstances, concurrencia
+clínica ni cambios de índices a partir de este experimento. La cola de latencia
+y el tiempo fuera del callback quedan como investigación posterior con sesiones
+separadas y cargas comparables; no se consideran resueltos.
+
+`rayenClinicalEnrichmentBatchClient.test.ts` protege la selección regional,
+el timeout y el paso de payload/respuesta, y demuestra una sola invocación sin
+fallback ante timeout, rechazo de permisos, conflicto o fallo de inicialización.

@@ -22,3 +22,9 @@ atomicidad, y ejecutar el pack de confianza de release para cambios del handler.
 El rollout regional clínico conserva el endpoint anterior mientras existan clientes
 que lo usen. Verificar ambas regiones desplegadas antes de cambiar el cliente;
 no confundir una región declarada con un despliegue disponible ni con una mejora medida.
+
+Un cambio del cliente regional requiere demostrar invocación autenticada y rechazo
+sin sesión, conservar el timeout y no duplicar solicitudes ante errores. Separar
+replays de recibos de escrituras nuevas al medir rendimiento; conservar las muestras
+lentas y declarar el tamaño y alcance del experimento. Una mejor mediana no acredita
+mejorar la cola de latencia ni el tiempo de la sincronización completa.
