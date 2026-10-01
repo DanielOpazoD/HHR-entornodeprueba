@@ -12,6 +12,20 @@ import {
 import { applyClinicalEnrichmentBatch } from '@/features/rayen-import/hooks/applyClinicalEnrichmentBatch';
 import type { RayenClinicalEnrichmentBatchPayload } from '@/features/rayen-import/bridge/rayenClinicalEnrichmentBatchClient';
 
+// The browser bootstrap is outside this in-process transport test. Fail closed if
+// an uninjected path tries to use a configured client instead of the local admin SDK.
+vi.mock('@/firebaseConfig', () => ({
+  firebaseReady: Promise.resolve(),
+  firestoreReady: Promise.resolve(),
+  auth: null,
+  get db() {
+    throw new Error('Browser Firestore is not available in this local emulator test.');
+  },
+  getFunctionsInstance: () => {
+    throw new Error('Clinical transport must use the injected production handler.');
+  },
+}));
+
 const require = createRequire(import.meta.url);
 const {
   createRayenClinicalEnrichmentFunctions,
