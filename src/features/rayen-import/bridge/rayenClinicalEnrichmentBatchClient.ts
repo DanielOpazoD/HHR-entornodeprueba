@@ -60,6 +60,13 @@ export interface RayenClinicalEnrichmentBatchResponse {
   targetScope?: 'current' | 'historical';
   transactionAttempts?: number;
   transactionRetries?: number;
+  /** Optional numeric server phases. Older deployed callables omit these measurements. */
+  serverTimingsMs?: {
+    authorizationMs?: number;
+    transactionMs?: number;
+    telemetryMs?: number;
+    handlerMs?: number;
+  };
 }
 
 export const callRayenClinicalEnrichmentBatch = async (

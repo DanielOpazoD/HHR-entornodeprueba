@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { performance } = require('node:perf_hooks');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { sanitizeLogValue } = require('./logging/redaction');
 const { evaluateDailyRecordClinicalAuthority } = require('./dailyRecordClinicalAuthorityPolicy');
@@ -146,6 +147,7 @@ const recordTelemetry = async ({
   revision,
   policyRevision,
   transactionAttempts,
+  serverTimingsMs,
   error,
 }) => {
   try {
@@ -165,6 +167,7 @@ const recordTelemetry = async ({
         timestamp: new Date().toISOString(),
         context: {
           ...requestSummary,
+          serverTimingsMs,
           authorityStatus,
           resultParity,
           parityContractVersion: PARITY_CONTRACT_VERSION,
@@ -183,9 +186,19 @@ const recordTelemetry = async ({
   }
 };
 
-const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveRoleForEmail }) => ({
+const createRayenClinicalEnrichmentFunctions = ({
+  firestore,
+  Timestamp,
+  resolveRoleForEmail,
+  monotonicNow = () => performance.now(),
+}) => ({
   applyRayenClinicalEnrichmentBatch: functions.https.onCall(async (data, context) => {
     const startedAt = Date.now();
+    const handlerStartedAt = monotonicNow();
+    const elapsed = start => Math.max(0, Math.round(monotonicNow() - start));
+    const serverTimingsMs = {};
+    let phaseStartedAt = handlerStartedAt;
+    let phase = 'authorizationMs';
     let requestSummary = summarizeRequest(data);
     let authorityStatus = 'ok';
     let resultParity = 'unavailable';
@@ -200,6 +213,8 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         context,
         resolveRoleForEmail,
       });
+      serverTimingsMs.authorizationMs = elapsed(phaseStartedAt);
+      phase = null;
       requestSummary = summarizePayload(payload);
       const batchDigest = digestValue({
         date: payload.date,
@@ -213,6 +228,8 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
       const specialtyPolicyRef = hospitalRef.collection('specialtyPolicies').doc('active');
       const docRef = hospitalRef.collection('dailyRecords').doc(payload.date);
       const authorityRef = hospitalRef.collection('dailyRecords').doc(payload.authorityDate);
+      phase = 'transactionMs';
+      phaseStartedAt = monotonicNow();
       const transactionOutcome = await firestore.runTransaction(async transaction => {
         transactionAttempts += 1;
         const snapshot = await transaction.get(docRef);
@@ -390,11 +407,15 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         return { historySnapshotWritten };
       });
 
+      serverTimingsMs.transactionMs = elapsed(phaseStartedAt);
+      phase = 'telemetryMs';
+      phaseStartedAt = monotonicNow();
       await recordTelemetry({
         firestore,
         requestSummary,
         startedAt,
         status: 'success',
+        serverTimingsMs: { ...serverTimingsMs },
         authorityStatus,
         resultParity,
         parityDiagnostics,
@@ -402,8 +423,11 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         policyRevision,
         transactionAttempts,
       });
+      serverTimingsMs.telemetryMs = elapsed(phaseStartedAt);
+      serverTimingsMs.handlerMs = elapsed(handlerStartedAt);
       return {
         success: true,
+        serverTimingsMs,
         date: payload.date,
         mode: payload.mode,
         authorityStatus,
@@ -421,16 +445,19 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
         transactionRetries: Math.max(0, transactionAttempts - 1),
       };
     } catch (error) {
+      if (phase) serverTimingsMs[phase] = elapsed(phaseStartedAt);
       const handledError =
         error instanceof SpecialtyDecisionError
           ? new functions.https.HttpsError(error.code, error.message, error.details)
           : error;
       if (context.auth) {
+        phaseStartedAt = monotonicNow();
         await recordTelemetry({
           firestore,
           requestSummary,
           startedAt,
           status: 'failure',
+          serverTimingsMs: { ...serverTimingsMs },
           authorityStatus: 'blocked',
           resultParity,
           parityDiagnostics,
@@ -439,8 +466,13 @@ const createRayenClinicalEnrichmentFunctions = ({ firestore, Timestamp, resolveR
           transactionAttempts,
           error: handledError,
         });
+        serverTimingsMs.telemetryMs = elapsed(phaseStartedAt);
       }
-      const failureDetails = buildPersistenceFailureDetails(requestSummary, transactionAttempts);
+      serverTimingsMs.handlerMs = elapsed(handlerStartedAt);
+      const failureDetails = {
+        ...buildPersistenceFailureDetails(requestSummary, transactionAttempts),
+        serverTimingsMs,
+      };
       if (handledError instanceof functions.https.HttpsError) {
         throw new functions.https.HttpsError(handledError.code, handledError.message, {
           ...(error instanceof SpecialtyDecisionError ? error.details : {}),
