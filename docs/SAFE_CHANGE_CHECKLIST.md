@@ -63,7 +63,16 @@ tratar un resultado anterior a una modificación como evidencia del nuevo códig
   se conserva Firebase web 12.14.0 y el resto del grafo.
 - **RollbackPlan:** revertir este commit y ejecutar `npm ci` en raíz y Functions;
   la versión anterior volvería a estar señalada por el audit. No borrar datos ni colas.
-- **VerificationGate:** audit de ambos paquetes, `ci:release-gate`,
-  `test:release-confidence`, revisión independiente y CI del head final.
+- **VerificationGate:** categoría `dependency_upgrade`: audit de ambos paquetes,
+  `ci:merge-gate`, revisión independiente y CI del head final; ampliar con
+  `test:release-confidence` para validar el transporte de la autoridad.
 
 Referencia: [aviso gRPC](https://github.com/advisories/GHSA-m9gg-hp2v-232j).
+
+El gate ampliado `check:release-evidence` sigue señalando 27 archivos de tests con
+relojes reales o esperas de turno. Esa señal es anterior al parche: no cambia ningún
+archivo de tests ni su detector. No se declara aprobado ese gate, no se añaden
+marcas `@flake-safe` ni excepciones para silenciarlo. Su revisión corresponde a un
+bloque propio de determinismo de fixtures y control de esperas. Este parche
+transitivo no actualiza el SDK Firebase web ni su bootstrap; conserva los controles
+exigidos por `dependency_upgrade` sin modificar la política de clasificación.
