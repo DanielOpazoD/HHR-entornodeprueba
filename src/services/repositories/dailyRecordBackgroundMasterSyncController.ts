@@ -1,7 +1,7 @@
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 import type { HospitalizationEvent } from '@/types/domain/patientMaster';
 import { PatientMasterRepository } from '@/services/repositories/PatientMasterRepository';
-import { collectDailyRecordPatientsForMasterSync } from '@/services/repositories/dailyRecordDomainServices';
+import { collectDailyRecordPatientsForMasterSync } from '@/services/repositories/dailyRecordClinicalDomainService';
 import {
   buildAdmissionHospitalizationSyncPlan,
   buildDischargeHospitalizationSyncPlan,

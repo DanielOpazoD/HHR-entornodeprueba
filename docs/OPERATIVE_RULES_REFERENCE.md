@@ -90,7 +90,8 @@ Referencias:
 
 Referencias:
 
-- `src/services/repositories/dailyRecordWriteSupport.ts`
+- `src/services/repositories/dailyRecordPatchPersistenceController.ts`
+- `src/services/repositories/dailyRecordPersistencePreparation.ts`
 - `src/services/repositories/dailyRecordWriteRecoveryController.ts`
 - `src/services/repositories/dailyRecordMasterSyncController.ts`
 - `src/application/census-email/censusRecipientListUseCases.ts`
