@@ -766,3 +766,19 @@ Owner: infraestructura de tests/CI HHR. Los reportes del repositorio deben conse
 sus bytes antes/después de esta cohorte. No regenerar artefactos versionados como
 efecto lateral de un test. Rollback: revertir el PR y restaurar sólo reportes
 generados por la propia ejecución; no descartar modificaciones ajenas.
+
+### PDF: probar el servicio, no copias de su algoritmo (2026-10-02)
+
+Los siete casos de `pdfStorageService` ejecutan ahora `createPdfStorageService`,
+`listFilesInMonth` y `listFilesInMonthWithReport` reales. Se sustituyen objetos
+literales de tipo, regex copiados y concatenación local de rutas por comprobaciones
+de ruta para ambos turnos, parsing del formato actual y legacy, URL/metadatos,
+fallback de timestamp y reporte de nombre no reconocido sin perder archivos válidos.
+
+Firebase Storage se simula y el runtime ya existente se inyecta explícitamente;
+no se llama a servicios remotos ni se exportan helpers privados para facilitar el
+test. Los timers de consulta se simulan y limpian por caso. Se retira el mock de
+una ruta inexistente a Firebase. `pdfStorageRuntime` conserva su cobertura de
+permisos, fechas inválidas y fallos de consulta/mutación sin modificar el pack crítico.
+Owner: infraestructura de tests/backup HHR. Rollback: revertir el PR; no reemplazar
+una regresión del servicio por volver a comprobar una copia del algoritmo.
