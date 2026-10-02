@@ -715,3 +715,22 @@ al test del dominio, separadas de los casos con checklist. No se cambia código
 clínico, exclusiones, cobertura exigida ni selección de packs. Rollback: revertir
 el PR; para nuevas retiradas, comparar fixtures/hooks/entradas/aserciones y ejecutar
 los casos conservados, además de los controles del head definitivo.
+
+### Setup DOM sólo para suites con document (2026-10-01)
+
+El setup compartido carga React Testing Library, matchers DOM y su cleanup sólo
+cuando el entorno ofrece `document`. IndexedDB simulado, storage y los mocks de
+Firebase/auth permanecen disponibles en Node y jsdom; no cambia configuración de
+Vitest, aislamiento, concurrencia ni selección de tests.
+El adaptador oficial de jest-dom para Vitest registra los matchers y sus tipos;
+las aserciones de `z-index` comparan texto CSS conservando sus valores originales.
+
+Medición local: Node 22.22.2, 20 suites Node, las mismas 96 pruebas, dos workers,
+seis procesos nuevos alternados antes/después (A-B-B-A-A-B). Medianas: 50,8 s
+antes y 26,6 s después; rangos 28,3–53,0 s y 19,4–27,3 s. La carga del equipo
+varía: el ahorro corresponde a esta cohorte, no al CI completo. Los tests de UI,
+auth, persistencia y limpieza deben seguir pasando antes del cierre.
+Owner: infraestructura de tests HHR. Rollback: revertir el PR para restaurar
+imports DOM incondicionales; no reducir el pack para conservar una cifra de tiempo.
+Referencias: [setupFiles de Vitest](https://vitest.dev/config/setupfiles) y
+[cleanup de React Testing Library](https://testing-library.com/docs/react-testing-library/api/#cleanup).
