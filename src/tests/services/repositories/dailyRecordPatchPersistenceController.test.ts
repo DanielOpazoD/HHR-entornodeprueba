@@ -33,11 +33,14 @@ vi.mock('@/utils/recordInvariants', () => ({
   normalizeDailyRecordInvariants: normalizeDailyRecordInvariantsMock,
 }));
 
-vi.mock('@/services/repositories/dailyRecordDomainServices', () => ({
-  ensureDailyRecordDateTimestamp: ensureDailyRecordDateTimestampMock,
+vi.mock('@/services/repositories/dailyRecordClinicalDomainService', () => ({
   isSpecialistScopedDailyRecordPatch: isSpecialistScopedDailyRecordPatchMock,
-  touchDailyRecordLastUpdated: touchDailyRecordLastUpdatedMock,
   addClinicalFhirPatchesForTouchedBeds: addClinicalFhirPatchesForTouchedBedsMock,
+}));
+
+vi.mock('@/services/repositories/dailyRecordMetadataDomainService', () => ({
+  ensureDailyRecordDateTimestamp: ensureDailyRecordDateTimestampMock,
+  touchDailyRecordLastUpdated: touchDailyRecordLastUpdatedMock,
 }));
 
 vi.mock('@/services/repositories/helpers/validationHelper', () => ({

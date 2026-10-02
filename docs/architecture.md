@@ -15,6 +15,9 @@ Las escrituras clínicas tienen controles propios que sí deben conservarse:
 [facades de adopción](ADR_CANONICAL_WRITE_ADOPTION_FACADES.md).
 
 - Eliminar wrappers sin comportamiento y código sin consumidores comprobados.
+  La preparación de escrituras importa sus reglas clínicas y metadatos desde los
+  módulos dueños; `dailyRecordDomainServices` y `dailyRecordWriteSupport` fueron
+  retirados. No recrear esos agregadores internos.
 - Unificar reglas repetidas en su dueño; evitar utilidades transversales de un solo uso.
 - Separar efectos de decisiones cuando permita verificar un comportamiento real.
 - Mantener entrypoints públicos acotados. Dentro de una feature, usar sus módulos

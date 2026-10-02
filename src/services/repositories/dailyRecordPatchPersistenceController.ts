@@ -7,10 +7,12 @@ import { applyPatches } from '@/utils/patchUtils';
 import { logError } from '@/services/utils/errorService';
 import {
   addClinicalFhirPatchesForTouchedBeds,
-  ensureDailyRecordDateTimestamp,
   isSpecialistScopedDailyRecordPatch,
+} from '@/services/repositories/dailyRecordClinicalDomainService';
+import {
+  ensureDailyRecordDateTimestamp,
   touchDailyRecordLastUpdated,
-} from '@/services/repositories/dailyRecordDomainServices';
+} from '@/services/repositories/dailyRecordMetadataDomainService';
 import { assertAdmissionDatePersistencePolicy } from '@/services/repositories/dailyRecordAdmissionDateWritePolicy';
 import { buildInvariantRepairReviewContext } from '@/services/repositories/invariantRepairReviewContext';
 import { buildDailyRecordClinicalEpisodeIdPatches } from '@/application/patient-flow/clinicalEpisodeIdPolicy';
