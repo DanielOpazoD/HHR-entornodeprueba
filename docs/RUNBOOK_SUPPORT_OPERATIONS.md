@@ -160,6 +160,7 @@ Criterio de cierre:
   - Usar este modo solo mientras se diagnostica; no dejarlo persistido para operación normal.
 - Reporte operativo E2E en CI:
   - Se genera `reports/e2e/critical-operational-metrics.json` y `reports/e2e/critical-operational-summary.md`.
+  - `durationMs` suma los intentos; `wallDurationMs` mide el tiempo total de Playwright. No son intercambiables cuando hay paralelismo. `slowestTests` (máximo 10) y `files` localizan el coste sin cambiar umbrales.
   - Revisar `flaky`, `retriesUsed` y `durationMs` antes de aprobar release si hubo incidentes de estabilidad.
   - Umbrales operativos definidos en `scripts/config/e2e-operational-thresholds.json`.
   - El gate operativo con `--enforce` bloquea evidencia ausente, inválida, vacía o no limpia y `maxFlaky`; duración y reintentos siguen como advertencia operativa. Los informes JSON y Markdown se conservan incluso ante un fallo.

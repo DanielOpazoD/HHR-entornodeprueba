@@ -12,8 +12,7 @@ const defaultInput = process.env.PLAYWRIGHT_JSON_OUTPUT || 'reports/e2e/playwrig
 const inputPath = positional[0] || defaultInput;
 const outputJsonPath = positional[1] || 'reports/e2e/critical-operational-metrics.json';
 const outputMarkdownPath = positional[2] || 'reports/e2e/critical-operational-summary.md';
-const historyDirPath =
-  positional[3] || process.env.E2E_HISTORY_DIR || 'reports/e2e/history';
+const historyDirPath = positional[3] || process.env.E2E_HISTORY_DIR || 'reports/e2e/history';
 const thresholdsPath =
   process.env.E2E_THRESHOLDS_CONFIG || 'scripts/config/e2e-operational-thresholds.json';
 const baselinePath = process.env.E2E_BASELINE_METRICS_PATH || '';
@@ -89,7 +88,12 @@ const collectTests = (suite, acc) => {
   for (const spec of specs) {
     const tests = Array.isArray(spec.tests) ? spec.tests : [];
     for (const test of tests) {
-      acc.push(test);
+      acc.push({
+        test,
+        file: spec.file || suite.file || 'unknown',
+        title: spec.title || '',
+        line: spec.line ?? null,
+      });
     }
   }
 
@@ -152,9 +156,7 @@ const evaluateThresholds = metrics => {
   }
 
   if (metrics.flaky > thresholds.maxFlaky) {
-    violations.push(
-      `Flaky tests ${metrics.flaky} exceed maxFlaky ${thresholds.maxFlaky}.`
-    );
+    violations.push(`Flaky tests ${metrics.flaky} exceed maxFlaky ${thresholds.maxFlaky}.`);
   }
 
   if (metrics.retriesUsed > thresholds.maxRetriesUsed) {
@@ -170,7 +172,8 @@ const evaluateThresholds = metrics => {
   }
 
   if (metrics.baseline && metrics.baseline.durationMs > 0) {
-    const deltaPct = ((metrics.durationMs - metrics.baseline.durationMs) / metrics.baseline.durationMs) * 100;
+    const deltaPct =
+      ((metrics.durationMs - metrics.baseline.durationMs) / metrics.baseline.durationMs) * 100;
     metrics.durationRegressionPct = Number(deltaPct.toFixed(2));
     if (deltaPct > thresholds.maxDurationRegressionPct) {
       warnings.push(
@@ -210,7 +213,8 @@ const writeOutputs = metrics => {
     `- Attempts (incl. retries): ${metrics.totalAttempts}`,
     `- Flaky tests: ${metrics.flaky}`,
     `- Retries used: ${metrics.retriesUsed}`,
-    `- Duration: ${toSeconds(metrics.durationMs)} s`,
+    `- Duration (sum of test attempts): ${toSeconds(metrics.durationMs)} s`,
+    `- Playwright wall duration: ${metrics.wallDurationMs === null || metrics.wallDurationMs === undefined ? 'unavailable' : `${toSeconds(metrics.wallDurationMs)} s`}`,
     '',
     '## Thresholds',
     '',
@@ -251,6 +255,39 @@ const writeOutputs = metrics => {
     lines.push(
       `| ${project} | ${info.tests} | ${info.flaky} | ${info.retriesUsed} | ${toSeconds(info.durationMs)} |`
     );
+  }
+
+  if (metrics.slowestTests?.length) {
+    lines.push(
+      '',
+      '## Slowest tests (all attempts)',
+      '',
+      '| File | Test | Project | Attempts | Duration (s) |',
+      '| --- | --- | --- | ---: | ---: |'
+    );
+    const cell = value =>
+      String(value)
+        .replace(/[\r\n]/g, ' ')
+        .replace(/\|/g, '\\|');
+    for (const test of metrics.slowestTests) {
+      lines.push(
+        `| ${cell(test.file)}:${test.line ?? '?'} | ${cell(test.title)} | ${cell(test.project)} | ${test.attempts} | ${toSeconds(test.durationMs)} |`
+      );
+    }
+    lines.push(
+      '',
+      '## File costs (all attempts)',
+      '',
+      '| File | Tests | Attempts | Duration (s) |',
+      '| --- | ---: | ---: | ---: |'
+    );
+    for (const [file, cost] of Object.entries(metrics.files).sort(
+      (a, b) => b[1].durationMs - a[1].durationMs || a[0].localeCompare(b[0])
+    )) {
+      lines.push(
+        `| ${cell(file)} | ${cost.tests} | ${cost.attempts} | ${toSeconds(cost.durationMs)} |`
+      );
+    }
   }
 
   if (metrics.violations.length > 0) {
@@ -308,6 +345,12 @@ const metrics = {
   source: inputPath,
   reportFound: true,
   totalTests: testEntries.length,
+  wallDurationMs:
+    Number.isFinite(payload?.stats?.duration) && payload.stats.duration >= 0
+      ? payload.stats.duration
+      : null,
+  slowestTests: [],
+  files: Object.create(null),
   totalAttempts: 0,
   passed: 0,
   failed: 0,
@@ -325,7 +368,7 @@ const metrics = {
   warnings: [],
 };
 
-for (const test of testEntries) {
+for (const { test, file, title, line } of testEntries) {
   const results = Array.isArray(test?.results) ? test.results : [];
   const attempts = Math.max(1, results.length);
   const statuses = results.map(result => normalizeStatus(result?.status));
@@ -354,6 +397,12 @@ for (const test of testEntries) {
 
   const durationMs = results.reduce((sum, result) => sum + Number(result?.duration || 0), 0);
 
+  metrics.slowestTests.push({ file, title, line, project: projectName, attempts, durationMs });
+  metrics.files[file] ||= { tests: 0, attempts: 0, durationMs: 0 };
+  metrics.files[file].tests += 1;
+  metrics.files[file].attempts += attempts;
+  metrics.files[file].durationMs += durationMs;
+
   metrics.totalAttempts += attempts;
   metrics.retriesUsed += retriesUsed;
   metrics.durationMs += durationMs;
@@ -372,6 +421,15 @@ for (const test of testEntries) {
   else if (finalStatus === 'interrupted') metrics.interrupted += 1;
   else if (finalStatus === 'skipped') metrics.skipped += 1;
 }
+
+metrics.slowestTests.sort(
+  (a, b) =>
+    b.durationMs - a.durationMs ||
+    a.file.localeCompare(b.file) ||
+    a.title.localeCompare(b.title) ||
+    a.project.localeCompare(b.project)
+);
+metrics.slowestTests = metrics.slowestTests.slice(0, 10);
 
 const explicitBaseline = readJsonSafe(baselinePath);
 if (explicitBaseline && explicitBaseline.reportFound) {
