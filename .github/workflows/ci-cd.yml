@@ -185,7 +185,7 @@ jobs:
         uses: ./.github/actions/setup-ci-dependencies
 
       - name: Download critical coverage artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: critical-coverage
           path: reports
@@ -301,7 +301,7 @@ jobs:
 
       - name: Download governance snapshots
         if: matrix.group == 'governance'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: quality-static-governance-snapshots
           path: reports
@@ -557,7 +557,7 @@ jobs:
         uses: ./.github/actions/setup-ci-dependencies
 
       - name: Download release evidence runtime contract
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: release-evidence-runtime
           path: reports/release-evidence-runtime
@@ -631,19 +631,19 @@ jobs:
         uses: ./.github/actions/setup-ci-dependencies
 
       - name: Download governance snapshots
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: quality-static-governance-snapshots
           path: reports
 
       - name: Download preview bootstrap artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: preview-bootstrap-artifacts
           path: reports/e2e/preview-bootstrap
 
       - name: Download production build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
@@ -652,7 +652,7 @@ jobs:
         run: npm run check:preview-bootstrap-evidence
 
       - name: Download same-run flow performance evidence
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: flow-performance-evidence
           path: reports/e2e
@@ -752,7 +752,7 @@ jobs:
 
       # Measure the exact bundle already validated by build-budget in this run.
       - name: Download validated production build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
@@ -927,25 +927,25 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
 
       - name: Download preview bootstrap artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: preview-bootstrap-artifacts
           path: reports/e2e/preview-bootstrap
 
       - name: Download critical coverage artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: critical-coverage
           path: reports
 
       - name: Download release evidence runtime contract
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: release-evidence-runtime
           path: reports/release-evidence-runtime
@@ -957,7 +957,7 @@ jobs:
         run: npm run check:release-evidence-contract:built
 
       - name: Download same-run flow performance evidence
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: flow-performance-evidence
           path: reports/e2e
