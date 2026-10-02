@@ -1,6 +1,6 @@
 # Documentation Map
 
-Última actualización: 2026-09-26
+Última actualización: 2026-10-02
 
 > Índice único del repositorio. Si un documento nuevo no aparece aquí, o queda
 > sin categoría, debe añadirse en el mismo PR que lo crea. `check:docs-drift`
@@ -10,11 +10,13 @@
 ## Lectura recomendada
 
 1. [README.md](../README.md)
-2. [docs/RUNBOOK_INDEX.md](RUNBOOK_INDEX.md)
-3. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
-4. [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md)
-5. [PROJECT_STATUS.md](../PROJECT_STATUS.md)
-6. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
+2. [Arquitectura y flujos vigentes](architecture.md)
+3. [Cómo contribuir y validar](../CONTRIBUTING.md)
+4. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
+5. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
+6. [docs/RUNBOOK_INDEX.md](RUNBOOK_INDEX.md)
+7. [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md)
+8. [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 
 ## Módulos canónicos por área
 
@@ -31,7 +33,9 @@
 Documentos que gobiernan decisiones activas y estructura actual del repo.
 
 - [README.md](../README.md)
-- [ARCHITECTURE.md](../ARCHITECTURE.md)
+- [ARCHITECTURE.md](../ARCHITECTURE.md) — punto de entrada a la guía canónica
+- [docs/architecture.md](architecture.md) — flujos, autoridad y límites vigentes
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — entorno, selección de pruebas y publicación
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 - [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
 - [docs/GLOSSARY.md](GLOSSARY.md) — vocabulario canónico del dominio (paciente/cama/alta/traslado/CUDYR/CMA/MINSAL…)

@@ -1,419 +1,100 @@
-# Guía de Contribución
+# Contribuir a HHR
 
-¡Gracias por tu interés en contribuir al Sistema de Gestión del Hospital Hanga Roa!
+Antes de crear una capa, módulo o dependencia, comprobar si el problema se resuelve
+eliminando, unificando o simplificando una implementación existente. El objetivo es
+preservar el comportamiento con menos caminos y responsabilidades explícitas.
 
-## 📋 Tabla de Contenidos
+## Preparar el entorno
 
-- [Código de Conducta](#código-de-conducta)
-- [Configuración del Entorno](#configuración-del-entorno)
-- [Workflow de Desarrollo](#workflow-de-desarrollo)
-- [Estándares de Código](#estándares-de-código)
-- [Testing](#testing)
-- [Convenciones de Commits](#convenciones-de-commits)
-- [Pull Requests](#pull-requests)
+El runtime declarado en `package.json` es Node **22.x**. Usar el lockfile vigente:
 
----
-
-## Código de Conducta
-
-- Respeta a todos los colaboradores
-- Mantén un ambiente profesional
-- Protege la privacidad de los datos de pacientes
-- No compartas credenciales ni datos sensibles
-
----
-
-## Configuración del Entorno
-
-### Requisitos
-
-- Node.js 20.x+
-- npm 9.x+
-- Git
-- VS Code (recomendado)
-
-### Setup Inicial
-
-```bash
-# 1. Fork y clonar
-git clone https://github.com/TU_USUARIO/hospital-hanga-roa.git
-cd hospital-hanga-roa
-
-# 2. Instalar dependencias
-npm install
-
-# 3. Crear rama de desarrollo
-git checkout -b feature/tu-funcionalidad
-
-# 4. Configurar entorno
-cp .env.example .env
-# Editar .env con tus credenciales
-
-# 5. Iniciar desarrollo
+```sh
+git clone https://github.com/DanielOpazoD/HHR-entornodeprueba.git
+cd HHR-entornodeprueba
+npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-### Extensiones de VS Code Recomendadas
+Completar el entorno local autorizado según `.env.example`; no copiar valores a
+commits, logs ni PR. Confirmar proyecto Firebase y destino antes de una prueba que
+escriba datos. Un servidor localhost no implica una base de pruebas.
 
-- ESLint
-- Prettier
-- TypeScript
-- Tailwind CSS IntelliSense
-- GitLens
+No incorporar datos reales de pacientes en commits, fixtures, logs, capturas,
+issues ni evidencia de PR. Usar datos sintéticos en tests y muestras compartidas;
+los archivos clínicos/HAR autorizados para diagnóstico permanecen privados y fuera
+del repositorio. No compartir credenciales ni otros datos sensibles.
 
----
+Si la instalación falla, corregir el error y repetir `npm ci`. No eliminar el
+lockfile ni actualizar todo el grafo para intentar reparar un fallo local.
+Functions tiene su propio manifest y lockfile en `functions/`; tratarlo por separado.
 
-## Workflow de Desarrollo
+## Elegir dónde cambiar
 
-### 1. Crear una Rama Nueva
+Consultar [arquitectura](docs/architecture.md) y
+[Codebase Canon](docs/CODEBASE_CANON.md), luego el README del módulo afectado.
 
-```bash
-# Para nueva funcionalidad
-git checkout -b feature/nombre-funcionalidad
+- Preferir el dueño y camino existentes. Un wrapper sin validación, coordinación o
+  contrato propio no justifica otro módulo.
+- Una lógica usada por una sola feature permanece en ella. Promoverla a `shared`
+  sólo cuando exista reutilización real y semántica común.
+- Consumidores externos usan la API pública de la feature. Los adapters de servicios
+  concretos pertenecen al límite permitido, sin abrir imports de storage desde UI.
+- Preservar APIs públicas y lectores históricos. Código aparentemente antiguo puede
+  proteger datos, permisos o sesiones todavía válidos.
+- Memoizar sólo cuando la identidad o el coste importe a un consumidor demostrado.
+  No usar `useCallback` o `useMemo` como requisito universal.
 
-# Para bug fix
-git checkout -b fix/descripcion-bug
+## Iterar y probar comportamiento
 
-# Para documentación
-git checkout -b docs/descripcion
+```sh
+git switch -c codex/descripcion-del-cambio
+npx vitest run src/tests/ruta/suite.test.ts
+npm run check:quality:group -- boundaries
 ```
 
-### 2. Desarrollar
+Elegir el grupo de calidad correspondiente: `boundaries`, `governance`, `security`,
+`size`, `tests` o `reports`. `npx vitest run <ruta>` ejecuta una suite;
+`npm test` ejecuta unitarios, reglas y sincronización con emulador. Sus argumentos
+no son intercambiables.
 
-```bash
-# Hacer cambios
-# Testear localmente
-npm test
+Antes de añadir tests, revisar los existentes. Conservar casos que distingan
+resultados clínicos, autoridad, concurrencia, fallos y compatibilidad. Fusionar
+setup compartido sin compartir estado mutable entre casos. Retirar sólo pruebas
+cuyo comportamiento haya desaparecido o esté cubierto de forma equivalente;
+no medir calidad por cantidad de casos ni por un porcentaje inventado para esta guía.
 
-# Verificar tipos
-npx tsc --noEmit
+Probar el efecto observable, no que el código llame a otro wrapper. Evitar mocks
+por encima del comportamiento que se intenta verificar. Una prueba con loader
+mockeado no acredita recuperación de módulos en un navegador real.
 
-# Probar build
-npm run build
+## Cerrar y publicar
+
+La política y los comandos de cierre viven en
+[Safe Change Checklist](docs/SAFE_CHANGE_CHECKLIST.md),
+[Definition of Done](docs/ENGINEERING_DEFINITION_OF_DONE.md) y
+[CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md).
+Clasificar el cambio y ejecutar el gate correspondiente; las pruebas focalizadas
+no lo sustituyen. `ci:pre-merge` contiene tipos, lint, calidad y unitarios;
+`ci:merge-gate` añade cobertura crítica, funciones, build y preview. No repetir
+sus componentes sobre el mismo diff salvo fallo o nueva incertidumbre.
+
+```sh
+npm run ci:merge-gate
+git diff --check
+git add ruta/del/archivo
+git commit -m "refactor(area): simplificación concreta"
+git push -u origin codex/descripcion-del-cambio
 ```
 
-### 3. Commit y Push
-
-```bash
-git add .
-git commit -m "feat: descripción del cambio"
-git push origin feature/nombre-funcionalidad
-```
-
-### 4. Abrir Pull Request
-
-- Ve a GitHub
-- Abre Pull Request hacia `main`
-- Describe tus cambios
-- Espera review
-
----
-
-## Estándares de Código
-
-### TypeScript
-
-```typescript
-// ✅ BUENO: Tipos explícitos
-function calculateOccupancy(beds: PatientData[]): number {
-  return beds.filter(b => b.patientName).length;
-}
-
-//❌ MALO: Sin tipos
-function calculateOccupancy(beds) {
-  return beds.filter(b => b.patientName).length;
-}
-```
-
-### React
-
-```typescript
-// ✅ BUENO: Functional components con tipos
-interface Props {
-  patientName: string;
-  onSave: () => void;
-}
-
-export const PatientCard: React.FC<Props> = ({ patientName, onSave }) => {
-  return <div>{patientName}</div>;
-};
-
-// ❌ MALO: Sin tipos
-export const PatientCard = ({ patientName, onSave }) => {
-  return <div>{patientName}</div>;
-};
-```
-
-### Hooks
-
-```typescript
-// ✅ BUENO: useCallback para funciones
-const handleSave = useCallback(() => {
-  savePatient(data);
-}, [data]);
-
-// ❌ MALO: Recrear función en cada render
-const handleSave = () => {
-  savePatient(data);
-};
-```
-
-### Naming Conventions
-
-| Tipo | Convención | Ejemplo |
-|------|-----------|---------|
-| **Componentes** | PascalCase | `PatientRow.tsx` |
-| **Hooks** | camelCase con `use` | `useDailyRecord.ts` |
-| **Funciones** | camelCase | `calculateStats()` |
-| **Constantes** | UPPER_SNAKE_CASE | `MAX_BEDS` |
-| **Interfaces** | PascalCase | `PatientData` |
-| **Types** | PascalCase | `ModuleType` |
-
-### Estructura de Archivos
-
-```typescript
-// 1. Imports (ordenados)
-import React from 'react';
-import { useState } from 'react';
-import { PatientData } from '../types';
-import { calculateStats } from '../services';
-
-// 2. Types/Interfaces
-interface Props {
-  //...
-}
-
-// 3. Componente
-export const MyComponent: React.FC<Props> = (props) => {
-  // 4. Hooks
-  const [state, setState] = useState();
-  
-  // 5. Handlers
-  const handleClick = () => {};
-  
-  // 6. Render
-  return <div />;
-};
-```
-
----
-
-## Testing
-
-### Escribir Tests
-
-```typescript
-// tests/myFunction.test.ts
-import { describe, it, expect } from 'vitest';
-import { myFunction } from '../services/myFunction';
-
-describe('myFunction', () => {
-  it('should return correct value', () => {
-    expect(myFunction(input)).toBe(expected);
-  });
-  
-  it('should handle edge case', () => {
-    expect(myFunction(edgeCase)).toBe(expectedEdge);
-  });
-});
-```
-
-### Ejecutar Tests
-
-```bash
-# Todos los tests
-npm test
-
-# Un archivo específico
-npm test -- tests/myFunction.test.ts
-
-# Con coverage
-npm test -- --coverage
-
-# En modo watch
-npm test -- --watch
-```
-
-### Cobertura Mínima
-
-- **Nuevas funciones críticas**: 80%+
-- **Helpers/utils**: 70%+
-- **Componentes UI**: 50%+
-
----
-
-## Convenciones de Commits
-
-Usa [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-tipo(scope): descripción
-
-[cuerpo opcional]
-
-[footer opcional]
-```
-
-### Tipos Permitidos
-
-| Tipo | Descripción | Ejemplo |
-|------|-------------|---------|
-| `feat` | Nueva funcionalidad | `feat: add patient transfer module` |
-| `fix` | Bug fix | `fix: correct bed count calculation` |
-| `docs` | Documentación | `docs: update README with setup steps` |
-| `style` | Formato (no afecta lógica) | `style: format patient row component` |
-| `refactor` | Refactorización | `refactor: extract validation to separate file` |
-| `test` | Tests | `test: add unit tests for permissions` |
-| `chore` | Tareas de mantenimiento | `chore: update dependencies` |
-
-### Ejemplos
-
-```bash
-# Bueno
-git commit -m "feat: add discharge summary export"
-git commit -m "fix: resolve infinite loop in sync"
-git commit -m "docs: add JSDoc to calculateStats"
-
-# Malo
-git commit -m "changes"
-git commit -m "fixed stuff"
-git commit -m "wip"
-```
-
----
-
-## Pull Requests
-
-### Checklist Pre-PR
-
-- [ ] Código compila sin errores (`npx tsc --noEmit`)
-- [ ] Tests pasan (`npm test`)
-- [ ] Build exitoso (`npm run build`)
-- [ ] No hay console.logs innecesarios
-- [ ] Documentación actualizada (si aplica)
-- [ ] Commits descriptivos
-
-### Descripción de PR
-
-```markdown
-## Descripción
-Breve descripción del cambio.
-
-## Tipo de cambio
-- [ ] Nueva funcionalidad
-- [ ] Bug fix
-- [ ] Breaking change
-- [ ] Documentación
-
-## Testing
-- Describe cómo se probó
-- Tests agregados/modificados
-
-## Screenshots (si aplica)
-![descripción](url)
-
-## Checklist
-- [ ] Tests pasan
-- [ ] Código revisado
-- [ ] Documentación actualizada
-```
-
-### Proceso de Review
-
-1. **Automático**: GitHub Actions ejecuta tests
-2. **Manual**: Reviewer revisa código
-3. **Cambios**: Si se solicitan, hacer commits adicionales
-4. **Aprobación**: Reviewer aprueba
-5. **Merge**: Admin hace merge a main
-6. **Deploy**: Automático a Netlify
-
----
-
-## Arquitectura y Patrones
-
-### Separación de Responsabilidades
-
-```
-View (UI) → Hook (Logic) → Service (Data) → Firebase
-```
-
-- **Views**: Solo renderizado, sin lógica de negocio
-- **Hooks**: Orquestación, estado, lógica
-- **Services**: Acceso a datos, cálculos
-
-### Custom Hooks
-
-```typescript
-// hooks/useMyFeature.ts
-export const useMyFeature = () => {
-  const [state, setState] = useState();
-  
-  const doSomething = useCallback(() => {
-    // lógica
-  }, []);
-  
-  return { state, doSomething };
-};
-```
-
-### Context para Estado Global
-
-```typescript
-// Solo para estado que necesita compartirse globalmente
-const MyContext = createContext<ContextType | null>(null);
-
-export const MyProvider: React.FC = ({ children }) => {
-  const value = { /* ... */ };
-  return <MyContext.Provider value={value}>{children}</MyContext.Provider>;
-};
-```
-
----
-
-## Troubleshooting
-
-### Error: "Cannot find module"
-
-```bash
-# Reinstalar dependencias
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### Error: TypeScript
-
-```bash
-# Verificar tipos
-npx tsc --noEmit
-
-# Ver errores específicos
-npx tsc --noEmit | grep "error TS"
-```
-
-### Tests Fallan
-
-```bash
-# Limpiar caché
-npm test -- --clearCache
-
-# Correr un test específico en modo watch
-npm test -- tests/failing.test.ts --watch
-```
-
----
-
-## Recursos
-
-- [Documentación React](https://react.dev)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-- [Vitest Docs](https://vitest.dev)
-- [Firebase Docs](https://firebase.google.com/docs)
-
----
-
-## Contacto
-
-**Mantenedor**: Dr. Daniel Opazo  
-**Email**: daniel.opazo@hospitalhangaroa.cl
-
-Para preguntas sobre contribuciones, abre un Issue en GitHub.
+El hook de commit comprueba tipos, secretos y archivos staged; no saltarlo.
+Para cambios críticos, aplicar también los controles adicionales de su categoría.
+
+El PR debe explicar problema, comportamiento resultante, alcance, evidencia,
+riesgos y reversión. Revisar el diff final de forma independiente. Antes del merge,
+verificar el SHA exacto, CI, conflictos y observaciones accionables. Una CI pendiente
+no está aprobada. Tras el merge, comprobar `main` y su evidencia posterior.
+
+Actualizar el documento dueño de la decisión y sus enlaces. No duplicar una nueva
+versión del mismo contrato en varias guías. Git conserva el código y documentación
+retirados; no crear otro archivo histórico sólo para conservarlos.
