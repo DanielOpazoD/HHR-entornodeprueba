@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,6 +6,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { getEvidenceReportDependencyFiles } from '../../../scripts/evidenceDependencyGraph.mjs';
 import { buildDependencyFingerprint } from '../../../scripts/evidenceProvenanceSupport.mjs';
+
+import { buildCriticalCoverageReport } from '../../../scripts/criticalCoverageSupport.mjs';
+import { buildClinicalReleaseValidationReport } from '../../../scripts/clinicalReleaseValidationSupport.mjs';
+import { buildClinicalReleaseSignoffReport } from '../../../scripts/clinicalReleaseSignoffSupport.mjs';
+import { buildReleaseConfidenceMatrixReport } from '../../../scripts/releaseConfidenceMatrixSupport.mjs';
 
 const scriptPath = path.join(process.cwd(), 'scripts/check-report-freshness.mjs');
 const tempRoots: string[] = [];
@@ -132,6 +137,79 @@ afterEach(() => {
 });
 
 describe('report freshness guardrail', () => {
+  it.each([
+    ['critical-coverage', buildCriticalCoverageReport],
+    ['clinical-release-validation', buildClinicalReleaseValidationReport],
+    ['clinical-release-signoff', buildClinicalReleaseSignoffReport],
+    ['release-confidence-matrix', buildReleaseConfidenceMatrixReport],
+  ] as const)('receives verifiable provenance from the %s producer', (reportId, buildReport) => {
+    const root = process.cwd();
+    const report = buildReport(root);
+    expect(report.generatedFor).toMatchObject({
+      reportId,
+      gitSha: report.gitSha,
+      gitDirty: report.gitDirty,
+      dependencyFingerprint: buildDependencyFingerprint({
+        root,
+        dependencyFiles: getEvidenceReportDependencyFiles(reportId),
+      }),
+    });
+    expect(report.generatedFor.treeHash).toMatch(/^[a-f0-9]{40}$/);
+  });
+
+  it('accepts unchanged current-commit report inputs in strict mode', () => {
+    const { root } = makeGitRepoWithLinearCommit();
+    const head = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
+    writeReports(root, head, { includeGeneratedFor: true });
+    expect(() => run(root, 'node', [scriptPath, '--strict'])).not.toThrow();
+  });
+
+  it.each([undefined, {}, { value: '' }, ''])(
+    'rejects a current-commit report without a usable fingerprint (%j)',
+    dependencyFingerprint => {
+      const { root } = makeGitRepoWithLinearCommit();
+      const head = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
+      writeReports(root, head, {
+        includeGeneratedFor: true,
+        generatedForOverrides: { 'maintenance-debt-scorecard': { dependencyFingerprint } },
+      });
+      expect(() =>
+        run(root, 'node', [scriptPath, '--strict', '--only', 'maintenance-debt-scorecard'])
+      ).toThrow(
+        /maintenance-debt-scorecard\.json was generated for commit .* without dependency fingerprint/
+      );
+    }
+  );
+
+  it.each(['replace', 'remove'] as const)(
+    'rejects a current-commit maintenance report after input %s, independent of mtime',
+    change => {
+      const { root } = makeGitRepoWithLinearCommit();
+      const head = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
+      writeReports(root, head, { includeGeneratedFor: true });
+      const input = path.join(root, 'reports/quality-metrics.json');
+      const before = fs.statSync(input);
+      if (change === 'remove') {
+        fs.unlinkSync(input);
+      } else {
+        const value = JSON.parse(fs.readFileSync(input, 'utf8'));
+        value.tests = { flakeRiskFiles: 7 };
+        fs.writeFileSync(input, JSON.stringify(value));
+        fs.utimesSync(input, before.atime, before.mtime);
+      }
+
+      const args = [scriptPath, '--only', 'maintenance-debt-scorecard'];
+      expect(() => run(root, 'node', [...args, '--strict'])).toThrow(
+        /maintenance-debt-scorecard\.json is stale by real dependency fingerprint/
+      );
+      // Local advisory still succeeds, but never silently labels stale inputs OK.
+      const advisory = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' });
+      expect(advisory.status).toBe(0);
+      expect(advisory.stderr).toContain('stale by real dependency fingerprint');
+      expect(advisory.stdout).not.toContain('[report-freshness] OK');
+    }
+  );
+
   it('accepts reports generated for a direct merge parent', () => {
     const { root, featureSha } = makeGitRepoWithMergeCommit();
     writeReports(root, featureSha);
@@ -223,7 +301,7 @@ describe('report freshness guardrail', () => {
   it('accepts parent reports when HEAD only commits governed evidence artifacts', () => {
     const { root } = makeGitRepoWithLinearCommit();
     const parentSha = run(root, 'git', ['rev-parse', '--short', 'HEAD']);
-    writeReports(root, parentSha);
+    writeReports(root, parentSha, { includeGeneratedFor: true });
     run(root, 'git', ['add', '-f', 'reports']);
     run(root, 'git', ['commit', '-m', 'refresh evidence reports']);
 
