@@ -116,3 +116,16 @@ Referencias: [aviso FTP](https://github.com/advisories/GHSA-c475-qrg2-pj4r),
 Referencia: [aviso node-forge](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
 El aviso no publica un parche; Admin 14 elimina esa dependencia. Los permisos IAM
 y el despliegue no forman parte de esta alineación del tooling local/CI.
+
+### Retiro de dependencias de desarrollo sin consumidores
+
+- **Owner:** tooling frontend HHR.
+- **Reason:** retirar `autoprefixer` (fuera del pipeline Vite/Tailwind actual) y
+  `@types/jspdf` (tipos antiguos redundantes; jsPDF ya declara sus tipos propios).
+  `deno.lock` no corresponde a un runtime/comando vigente; los lockfiles npm de
+  raíz y Functions siguen siendo las fuentes de instalación.
+- **TargetVersion:** eliminación de esas dos declaraciones; sin upgrades del resto.
+- **RiskLevel:** bajo: no cambian SDK, código runtime, peers ni overrides de seguridad.
+- **RollbackPlan:** revertir el PR y ejecutar `npm ci`; no modificar datos ni colas.
+- **VerificationGate:** tipos, lint, audit, exportación PDF, comparación del grafo
+  retenido y CSS, build/preview, revisión independiente y CI del head final.
