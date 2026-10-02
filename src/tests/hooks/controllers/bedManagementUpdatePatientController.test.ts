@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import { buildUpdatePatientActionPatch } from '@/hooks/controllers/bedManagementUpdatePatientController';

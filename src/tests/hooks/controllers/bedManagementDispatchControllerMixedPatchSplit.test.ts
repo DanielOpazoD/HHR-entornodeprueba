@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { executeBedManagementAction } from '@/hooks/controllers/bedManagementDispatchController';
 import type {
