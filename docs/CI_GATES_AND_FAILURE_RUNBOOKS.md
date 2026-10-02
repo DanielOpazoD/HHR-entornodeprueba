@@ -801,3 +801,13 @@ Los mocks de IndexedDB, loader remoto y suscripción recuperan un estado indepen
 antes de cada test, incluidos los casos de unsubscribe con una lectura pendiente.
 Conserva las 11 comprobaciones de consistencia, cache-only y protección tras cierre.
 Owner: infraestructura de tests/repositorios HHR. Rollback: revertir el PR.
+
+### Syslab: recursos de cada caso bajo control (2026-10-02)
+
+Toda la suite del transporte offscreen usa timers simulados por caso, también en
+éxito, cancelación, navegación, límite de pendientes y error de postMessage.
+Cada relay creado pertenece al caso y se dispone aun cuando falle una aserción.
+Se comprueba que no queden timers; el timeout respeta su límite exacto de 250 ms
+y una respuesta posterior no reenvía operaciones ni recupera trabajo vencido.
+Se preservan los nueve escenarios y los filtros de origen, ventana y reqId.
+Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
