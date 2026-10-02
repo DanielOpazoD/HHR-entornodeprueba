@@ -68,16 +68,16 @@ Referencias:
 
 ## Reducer de camas
 
-- `useBedManagementReducer` debe seguir siendo un patch reducer: builders puros para mutaciones repetidas y un switch orquestador corto, en vez de recomponer patches inline por cada acción.
+- `bedManagementReducer` debe seguir siendo un patch reducer: builders puros para mutaciones repetidas y un switch orquestador corto, en vez de recomponer patches inline por cada acción.
 - Las reglas sensibles como `firstSeenDate`, limpieza clínica al cambiar identidad, UPC y toggles de bloque/cama extra/tipo deben quedar protegidas con tests directos del reducer.
 
 ## Handoff médico
 
-- `HandoffRowCells` debe delegar al controller el estado visible de observaciones médicas, incluyendo drafts pendientes y criterios de poda, para que el JSX no reintroduzca lógica de continuidad o vacíos operativos.
+- `HandoffMedicalObservationsCell` debe delegar al controller el estado visible de observaciones médicas, incluyendo drafts pendientes y criterios de poda, para que el JSX no reintroduzca lógica de continuidad o vacíos operativos.
 
 Referencias:
 
-- `src/features/handoff/components/HandoffRowCells.tsx`
+- `src/features/handoff/components/HandoffMedicalObservationsCell.tsx`
 - `src/features/handoff/controllers/handoffRowCellsController.ts`
 
 ## Listas globales de correo del censo
