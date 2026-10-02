@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { execFileSync, spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { buildCriticalE2EEnvironment } from '../../../scripts/config/criticalE2EEnvironment.mjs';
