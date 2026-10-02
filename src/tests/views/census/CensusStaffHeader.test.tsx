@@ -74,7 +74,7 @@ vi.mock('@/components/layout/SummaryCard', () => ({
 
 // Rayen census-import control mounts a hook that needs TanStack Query + repository
 // providers. It is stubbed so this header test stays focused on staff read-model wiring.
-vi.mock('@/features/rayen-import', () => ({
+vi.mock('@/features/rayen-import/RayenImportButton', () => ({
   RayenImportButton: () => <div data-testid="rayen-operations-bar" />,
 }));
 

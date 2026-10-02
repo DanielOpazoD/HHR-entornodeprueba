@@ -72,7 +72,8 @@ Reglas específicas adicionales:
   guardrail específico de esta familia empezó por `auth` y `clinical-documents`
   (`npm run check:auth-feature-boundary`, `npm run check:clinical-documents-feature-boundary`).
 - Las superficies acotadas de Rayen están declaradas por consumidor en el guardrail de API pública:
-  `census-status` para ayudantes de las filas y `clinical-panel` para lectura y navegación del
+  `census-status` para ayudantes de las filas, `configuration` para el selector de política y
+  `RayenImportButton` para la UI de sincronización bajo demanda y `clinical-panel` para lectura y navegación del
   paciente. El panel usa los mismos bridges y parsers sin depender del barril de reconciliación,
   importación o confirmación del censo; `index.ts` mantiene su API compatible para esos flujos.
 - El router/lazy loading también debe consumir features por entrypoint público; `LazyViews.ts`

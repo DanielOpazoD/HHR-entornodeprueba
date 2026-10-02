@@ -22,7 +22,6 @@ import { RayenEncounterButton } from './RayenEncounterButton';
 import { PatientDocumentManagerButton } from './PatientDocumentManagerButton';
 import { useClinicalPanelSnapshot } from './useClinicalPanelSnapshot';
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
-import { ClinicalPanelAntecedents } from './ClinicalPanelAntecedents';
 import { ClinicalPanelPrescriptionButton } from './ClinicalPanelPrescriptionButton';
 import { ClinicalPanelProfessionTabs } from './ClinicalPanelProfessionTabs';
 import { ClinicalPanelLoadingContent } from './ClinicalPanelLoadingContent';
@@ -30,6 +29,12 @@ import { ClinicalPanelLoadingContent } from './ClinicalPanelLoadingContent';
 const PatientDocumentManagerDialog = React.lazy(() =>
   import('./PatientDocumentManagerDialog').then(module => ({
     default: module.PatientDocumentManagerDialog,
+  }))
+);
+
+const ClinicalPanelAntecedents = React.lazy(() =>
+  import('./ClinicalPanelAntecedents').then(module => ({
+    default: module.ClinicalPanelAntecedents,
   }))
 );
 
@@ -292,10 +297,18 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
 
           {(tab === 'antecedents' || antecedentsEpisode === clinicalEpisodeId) && (
             <div className={tab === 'antecedents' ? '' : 'hidden'}>
-              <ClinicalPanelAntecedents
-                key={clinicalEpisodeId}
-                clinicalEpisodeId={clinicalEpisodeId}
-              />
+              <React.Suspense
+                fallback={
+                  <p role="status" className="py-8 text-center text-xs text-slate-500">
+                    Cargando antecedentes…
+                  </p>
+                }
+              >
+                <ClinicalPanelAntecedents
+                  key={clinicalEpisodeId}
+                  clinicalEpisodeId={clinicalEpisodeId}
+                />
+              </React.Suspense>
             </div>
           )}
           {state.phase === 'ready' && tab === 'evolutions' && (

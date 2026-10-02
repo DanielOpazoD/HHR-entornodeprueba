@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   request: vi.fn(),
+  clinicalAction: vi.fn(),
   downloadHospitalizationDocument: vi.fn(),
   navigate: vi.fn(),
   openDocument: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => {
   return {
     ...actual,
     requestClinicalPanel: (...args: unknown[]) => mocks.request(...args),
+    requestClinicalAction: (...args: unknown[]) => mocks.clinicalAction(...args),
     requestRayenHospitalizationDocument: (...args: unknown[]) =>
       mocks.downloadHospitalizationDocument(...args),
     requestRayenEncounterNavigation: (...args: unknown[]) => mocks.navigate(...args),
@@ -142,6 +144,8 @@ describe('ClinicalPanelDrawer', () => {
   beforeEach(() => {
     mocks.request.mockReset();
     mocks.request.mockResolvedValue(panelResult);
+    mocks.clinicalAction.mockReset();
+    mocks.clinicalAction.mockResolvedValue({ ok: true, entries: [] });
     mocks.downloadHospitalizationDocument.mockReset();
     mocks.downloadHospitalizationDocument.mockResolvedValue({ ok: true, opened: true });
     mocks.navigate.mockReset();
@@ -150,6 +154,28 @@ describe('ClinicalPanelDrawer', () => {
     mocks.openDocument.mockResolvedValue({ ok: true, opened: true });
     mocks.success.mockReset();
     mocks.error.mockReset();
+  });
+
+  it('loads antecedents only when requested, keeps them across tabs and cancels on close', async () => {
+    const view = renderDrawer('R1');
+    await screen.findByText('Evolución médica estable.');
+    expect(mocks.clinicalAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Antecedentes' }));
+    await screen.findByText('Antecedentes de Eloísa');
+    await waitFor(() => expect(mocks.clinicalAction).toHaveBeenCalledTimes(1));
+    expect(mocks.clinicalAction).toHaveBeenCalledWith(
+      '141121',
+      'list',
+      undefined,
+      expect.any(AbortSignal)
+    );
+    const signal = mocks.clinicalAction.mock.calls[0][3] as AbortSignal;
+    fireEvent.click(screen.getByRole('button', { name: /Evoluciones/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Antecedentes' }));
+    expect(mocks.clinicalAction).toHaveBeenCalledTimes(1);
+    expect(signal.aborted).toBe(false);
+    view.unmount();
+    expect(signal.aborted).toBe(true);
   });
 
   it('isolates reading from a draggable census row without cancelling native text selection', async () => {

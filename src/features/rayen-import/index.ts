@@ -2,7 +2,7 @@
  * Public API of the `rayen-import` feature.
  *
  * External code uses this API or a governed narrow surface (`census-status`,
- * `clinical-panel`); internal implementation subpaths are not public APIs.
+ * `clinical-panel`, `configuration`, `RayenImportButton`); internal implementation subpaths are not public APIs.
  */
 
 export type {

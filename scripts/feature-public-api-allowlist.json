@@ -31,7 +31,9 @@
       "src/features/census/components/patient-row/PatientDocumentManagerDialog.tsx -> @/features/rayen-import/clinical-panel",
       "src/features/census/components/patient-row/RayenEncounterButton.tsx -> @/features/rayen-import/clinical-panel",
       "src/features/census/components/patient-row/clinicalAntecedentEntries.ts -> @/features/rayen-import/clinical-panel",
-      "src/features/census/components/patient-row/useClinicalPanelSnapshot.ts -> @/features/rayen-import/clinical-panel"
+      "src/features/census/components/patient-row/useClinicalPanelSnapshot.ts -> @/features/rayen-import/clinical-panel",
+      "src/features/admin/components/ConfigurationView.tsx -> @/features/rayen-import/configuration",
+      "src/features/census/components/CensusStaffHeader.tsx -> @/features/rayen-import/RayenImportButton"
     ]
   }
 }

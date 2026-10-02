@@ -19,7 +19,9 @@ import type { DetailedStaffingRole } from '@/types/domain/dailyRecordStaffingDet
 // The Rayen import machinery is only needed once the operator uses it, so the census
 // table no longer downloads it just to render the toolbar.
 const RayenImportButton = lazy(() =>
-  import('@/features/rayen-import').then(module => ({ default: module.RayenImportButton }))
+  import('@/features/rayen-import/RayenImportButton').then(module => ({
+    default: module.RayenImportButton,
+  }))
 );
 const SpecialtyRoundEntry = lazy(() =>
   import('./specialty-round/SpecialtyRoundEntry').then(module => ({

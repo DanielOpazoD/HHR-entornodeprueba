@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '@/context/AuthContext';
-import { RayenImportModeSetting } from '@/features/rayen-import';
+import { RayenImportModeSetting } from '@/features/rayen-import/configuration';
 import { useTableConfig } from '@/context/TableConfigContext';
 import { useUISettings } from '@/context/UISettingsContext';
 import { useConfirmDialog, useNotification } from '@/context/UIContext';
