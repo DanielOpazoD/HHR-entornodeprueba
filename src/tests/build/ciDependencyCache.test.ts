@@ -73,6 +73,7 @@ it('reuses exact dependencies across compatible jobs with only one pristine-cach
     'census-startup-performance',
     'clinical-sync-release-gate',
     'critical-coverage-report',
+    'docs',
     'docs-scope-gate',
     'e2e-critical-emulator',
     'final-confidence-and-readiness',
@@ -113,6 +114,7 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
   );
   expect(docsSetup?.if).toBe("needs.ci-scope.outputs.scope == 'docs-only'");
   const independent = [
+    'docs',
     'docs-scope-gate',
     'critical-coverage-report',
     'quality-static-groups',
@@ -136,9 +138,19 @@ it('preserves docs-only conditions and parallel cold-miss fallbacks without a pr
   });
   expect(functions.some(step => step.run === 'npm ci')).toBe(true);
   expect(functions.some(step => step.run === 'npm ci --prefix functions')).toBe(true);
-  const apiDocs = jobs.docs.steps;
-  expect(
-    apiDocs.find(step => step.uses?.startsWith('actions/setup-node@'))?.with?.['node-version']
-  ).toBe('20');
-  expect(apiDocs.some(step => step.run === 'npm ci')).toBe(true);
+  const apiDocs = jobs.docs;
+  expect(steps.find(step => step.id === 'node')?.with?.['node-version']).toBe('22');
+  expect(apiDocs.name).toBe('API Documentation');
+  expect(apiDocs.if).toBe("needs.ci-scope.outputs.scope == 'full'");
+  expect(apiDocs.permissions).toEqual({ contents: 'read' });
+  expect(apiDocs.steps.find(step => step.name === 'Generate API Documentation')?.run).toBe(
+    'npm run docs:generate'
+  );
+  const upload = apiDocs.steps.find(step => step.name === 'Upload documentation artifact');
+  expect(upload?.if).toBe("github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'");
+  expect(upload?.with).toEqual({
+    name: 'api-documentation',
+    path: './docs/api',
+    'retention-days': 7,
+  });
 });

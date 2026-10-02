@@ -525,6 +525,13 @@ entre jobs, pruebas y umbrales permanecen iguales. La clave exige imagen/revisi�
 arquitectura, versión exacta de Node, manifiesto, lockfile, configuración npm y
 versión de la propia acción. No se aceptan coincidencias por prefijo.
 
+`API Documentation` usa la misma acción bajo Node 22, como exige el manifest
+raíz; Node 20 emitía `EBADENGINE`. Conserva su scope `full`, permisos de lectura,
+generación TypeDoc y publicación de artefactos. Es otro consumidor, no un escritor
+ni un job dependiente del productor. Referencia CI 36931460428: instalación 64 s,
+generación 29 s; informar hit/miss y tiempo final sin prometer ahorro global.
+Owner: CI documentation tooling. Rollback: revertir el cambio del job.
+
 Si no hay coincidencia exacta o falla la restauración, se ejecuta `npm ci` con la
 caché habitual de descargas de npm. Un fallo de instalación sigue bloqueando CI;
 solo guardar/restaurar la caché es opcional. No se guardan datos clínicos,
