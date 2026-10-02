@@ -18,7 +18,7 @@ interface EmptyBedRowProps {
   onDrop?: (e: DragEvent) => void;
 }
 
-export const EmptyBedRow: React.FC<EmptyBedRowProps> = ({
+const EmptyBedRowComponent: React.FC<EmptyBedRowProps> = ({
   bed,
   columns,
   visibleColumnCount,
@@ -90,3 +90,5 @@ export const EmptyBedRow: React.FC<EmptyBedRowProps> = ({
     </tr>
   );
 };
+
+export const EmptyBedRow = React.memo(EmptyBedRowComponent);

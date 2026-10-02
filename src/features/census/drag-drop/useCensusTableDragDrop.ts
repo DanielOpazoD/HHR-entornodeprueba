@@ -52,22 +52,27 @@ export function useCensusTableDragDrop(
 
   // ---- Empty bed handlers ----
 
-  const onDragOver = useCallback(
-    (_bedId: string) => (e: DragEvent) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    },
-    []
-  );
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+  const onDragOver = useCallback((_bedId: string) => handleDragOver, [handleDragOver]);
 
-  const onDragEnter = useCallback(
-    (bedId: string) => (e: DragEvent) => {
-      e.preventDefault();
-      dragCounterRef.current++;
-      setDragOverBedId(bedId);
-    },
-    []
-  );
+  const onDragEnter = useMemo(() => {
+    const handlers = new Map<string, (event: DragEvent) => void>();
+    return (bedId: string) => {
+      let handler = handlers.get(bedId);
+      if (!handler) {
+        handler = (e: DragEvent) => {
+          e.preventDefault();
+          dragCounterRef.current++;
+          setDragOverBedId(bedId);
+        };
+        handlers.set(bedId, handler);
+      }
+      return handler;
+    };
+  }, []);
 
   const onDragLeave = useCallback(() => {
     dragCounterRef.current--;
@@ -77,21 +82,26 @@ export function useCensusTableDragDrop(
     }
   }, []);
 
-  const onDrop = useCallback(
-    (targetBedId: string) => (e: DragEvent) => {
-      e.preventDefault();
-      const sourceBedId = e.dataTransfer.getData(DRAG_DATA_FORMAT);
-      setDragSourceBedId(null);
-      setDragOverBedId(null);
-      dragCounterRef.current = 0;
-
-      const move = buildPendingBedMove(sourceBedId, targetBedId, bedsRecord);
-      if (move) {
-        setPendingMove(move);
+  const onDrop = useMemo(() => {
+    // Rebuild when occupants change: a cached drop handler must read the current census.
+    const handlers = new Map<string, (event: DragEvent) => void>();
+    return (targetBedId: string) => {
+      let handler = handlers.get(targetBedId);
+      if (!handler) {
+        handler = (e: DragEvent) => {
+          e.preventDefault();
+          const sourceBedId = e.dataTransfer.getData(DRAG_DATA_FORMAT);
+          setDragSourceBedId(null);
+          setDragOverBedId(null);
+          dragCounterRef.current = 0;
+          const move = buildPendingBedMove(sourceBedId, targetBedId, bedsRecord);
+          if (move) setPendingMove(move);
+        };
+        handlers.set(targetBedId, handler);
       }
-    },
-    [bedsRecord]
-  );
+      return handler;
+    };
+  }, [bedsRecord]);
 
   // ---- Confirmation handlers ----
 
