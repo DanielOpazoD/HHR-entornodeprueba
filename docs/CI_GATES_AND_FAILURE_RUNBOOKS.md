@@ -894,3 +894,8 @@ No se modifica el comportamiento clínico ni la persistencia de los traslados.
 Cinco suites críticas de historial de pacientes declaran Node. Conservan
 paginación, rangos, disponibilidad de lectura e historia UPC, sin modificar
 consultas ni registros clínicos.
+
+Doce suites críticas de políticas de persistencia/sincronización declaran Node.
+Conservan autoridad de escritura, reparación heredada, intención de patch,
+contratos de tareas, presupuestos operacionales y recuperación IndexedDB.
+Los tests de integración que necesitan el navegador mantienen jsdom.
