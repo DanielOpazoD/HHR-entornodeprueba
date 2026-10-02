@@ -886,3 +886,7 @@ Rollback: revertir las anotaciones del PR afectado. Owner: tests críticos/HHR.
 Quince suites críticas de contratos y controladores de respaldos declaran Node.
 Conservan errores, disponibilidad, listados, resultados, PDF storage y backfill.
 Los tests de generación de PDF y cargas con contrato de navegador mantienen jsdom.
+
+Seis suites críticas de servicios y controladores de traslados declaran Node.
+Conservan consultas, mutaciones, estado y suscripciones, incluyendo errores.
+No se modifica el comportamiento clínico ni la persistencia de los traslados.
