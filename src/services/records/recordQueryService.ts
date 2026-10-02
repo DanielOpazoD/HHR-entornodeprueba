@@ -6,7 +6,6 @@ import {
   getRecordsRange,
   saveRecords as saveManyToIndexedDB,
 } from '@/services/storage/indexeddb/indexedDbRecordService';
-import { getRecordsRangeFromFirestore } from '@/services/storage/firestore';
 
 export const fetchRecordsForMonth = async (year: number, month: number): Promise<DailyRecord[]> => {
   return getRecordsForMonth(year, month);
@@ -41,6 +40,9 @@ export const fetchRecordsRangeSorted = async (
 };
 
 export const syncRecordsRange = async (start: string, end: string): Promise<DailyRecord[]> => {
+  // Local month/history reads must not initialize remote storage or write services.
+  const { getRecordsRangeFromFirestore } =
+    await import('@/services/storage/firestore/firestoreRecordQueries');
   const remoteRecords = await getRecordsRangeFromFirestore(start, end);
   if (remoteRecords.length === 0) return [];
 
