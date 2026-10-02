@@ -58,6 +58,38 @@ describe('census startup payload', () => {
     );
   });
 
+  it('keeps patient-panel reads independent of census import through the governed API', () => {
+    const consumers = [
+      'ClinicalAntecedentCard.tsx',
+      'ClinicalAntecedentContent.tsx',
+      'ClinicalPanelAntecedents.tsx',
+      'ClinicalPanelDrawer.tsx',
+      'ClinicalPanelHistoryPrintButton.tsx',
+      'ClinicalPanelPrescriptionButton.tsx',
+      'ClinicalPanelProfessionTabs.tsx',
+      'ClinicalPanelSections.tsx',
+      'PatientDocumentManagerDialog.tsx',
+      'RayenEncounterButton.tsx',
+      'clinicalAntecedentEntries.ts',
+      'useClinicalPanelSnapshot.ts',
+    ].map(file => `${rowDir}/${file}`);
+    const publicApi = JSON.parse(read('scripts/feature-public-api-allowlist.json'));
+    const dependencies = JSON.parse(read('scripts/feature-dependency-allowlist.json'));
+    for (const file of consumers) {
+      expect(read(file)).toContain('@/features/rayen-import/clinical-panel');
+      expect(read(file)).not.toMatch(/from '@\/features\/rayen-import'/);
+      expect(publicApi.exceptionsByFeature['rayen-import']).toContain(
+        `${file} -> @/features/rayen-import/clinical-panel`
+      );
+      expect(dependencies.violations).toContain(
+        `feature-must-use-public-api|${file}|@/features/rayen-import/clinical-panel|rayen-import`
+      );
+    }
+    expect(read('src/features/rayen-import/clinical-panel.ts')).not.toMatch(
+      /from '\.\/index'|from '\.'/
+    );
+  });
+
   it('does not pretend the CIE-10 search or the Rayen import work offline', () => {
     const budget = JSON.parse(read('scripts/config/bundle-budget.json'));
     // The catalogue itself is already outside precache; caching only its wrapper

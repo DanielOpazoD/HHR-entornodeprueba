@@ -4,7 +4,7 @@ const { requestClinicalAction, download } = vi.hoisted(() => ({
   requestClinicalAction: vi.fn(),
   download: vi.fn(),
 }));
-vi.mock('@/features/rayen-import', () => ({ requestClinicalAction }));
+vi.mock('@/features/rayen-import/clinical-panel', () => ({ requestClinicalAction }));
 vi.mock('@/services/pdf/antecedentPrescriptionPdf', () => ({
   downloadAntecedentPrescriptionCopy: download,
 }));

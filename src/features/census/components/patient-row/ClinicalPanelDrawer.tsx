@@ -13,7 +13,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight, FileDown, RefreshCw } from 'lucide-react';
-import { type EvolutionProfession } from '@/features/rayen-import';
+import { type EvolutionProfession } from '@/features/rayen-import/clinical-panel';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
 import { ClinicalPanelHistoryPrintButton } from './ClinicalPanelHistoryPrintButton';
@@ -285,9 +285,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           data-testid="clinical-panel-content"
           className="min-h-0 flex-1 cursor-text select-text space-y-2 overflow-y-auto overscroll-contain break-words bg-white p-3"
         >
-          {state.phase === 'loading' && tab !== 'antecedents' && (
-            <ClinicalPanelLoadingContent />
-          )}
+          {state.phase === 'loading' && tab !== 'antecedents' && <ClinicalPanelLoadingContent />}
           {state.phase === 'error' && tab !== 'antecedents' && (
             <ClinicalPanelUnavailable message={state.message} onRetry={reload} />
           )}

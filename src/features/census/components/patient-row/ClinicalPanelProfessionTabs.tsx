@@ -1,6 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
-import type { EvolutionProfession } from '@/features/rayen-import';
+import type { EvolutionProfession } from '@/features/rayen-import/clinical-panel';
 
 export const ClinicalPanelProfessionTabs: React.FC<{
   selected: EvolutionProfession;

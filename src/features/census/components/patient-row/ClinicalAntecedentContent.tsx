@@ -4,7 +4,7 @@ import type {
   ClinicalAntecedentDetail,
   ClinicalAntecedentEntry,
   ClinicalAntecedentPrescription,
-} from '@/features/rayen-import';
+} from '@/features/rayen-import/clinical-panel';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';
 
 const PrescriptionCopy = ({

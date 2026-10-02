@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { useNotification } from '@/context/UIContext';
-import { requestPatientDocumentOpen, type RayenPatientDocument } from '@/features/rayen-import';
+import {
+  requestPatientDocumentOpen,
+  type RayenPatientDocument,
+} from '@/features/rayen-import/clinical-panel';
 
 interface PatientDocumentManagerDialogProps {
   patientName: string;

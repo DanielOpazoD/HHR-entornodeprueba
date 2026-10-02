@@ -71,6 +71,10 @@ Reglas específicas adicionales:
   preferir imports relativos para distinguir implementación interna de API pública. El primer
   guardrail específico de esta familia empezó por `auth` y `clinical-documents`
   (`npm run check:auth-feature-boundary`, `npm run check:clinical-documents-feature-boundary`).
+- Las superficies acotadas de Rayen están declaradas por consumidor en el guardrail de API pública:
+  `census-status` para ayudantes de las filas y `clinical-panel` para lectura y navegación del
+  paciente. El panel usa los mismos bridges y parsers sin depender del barril de reconciliación,
+  importación o confirmación del censo; `index.ts` mantiene su API compatible para esos flujos.
 - El router/lazy loading también debe consumir features por entrypoint público; `LazyViews.ts`
   no debe volver a importar `components/...` directos cuando la feature ya expone `index.ts`
   o `public.ts`.

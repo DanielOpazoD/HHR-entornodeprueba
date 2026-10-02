@@ -10,8 +10,8 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock('@/features/rayen-import', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/features/rayen-import')>();
+vi.mock('@/features/rayen-import/clinical-panel', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/features/rayen-import/clinical-panel')>();
   return {
     ...actual,
     requestClinicalPanel: (...args: unknown[]) => mocks.request(...args),

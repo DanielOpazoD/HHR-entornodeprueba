@@ -19,7 +19,19 @@
       "src/features/census/components/patient-row/DevicesCell.tsx -> @/features/rayen-import/census-status",
       "src/features/census/components/patient-row/ScoresCell.tsx -> @/features/rayen-import/census-status",
       "src/features/census/components/patient-row/VitalsCell.tsx -> @/features/rayen-import/census-status",
-      "src/features/census/components/usePatientHospitalizationReports.ts -> @/features/rayen-import/census-status"
+      "src/features/census/components/usePatientHospitalizationReports.ts -> @/features/rayen-import/census-status",
+      "src/features/census/components/patient-row/ClinicalAntecedentCard.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/ClinicalAntecedentContent.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/ClinicalPanelAntecedents.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/ClinicalPanelDrawer.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/ClinicalPanelHistoryPrintButton.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/ClinicalPanelPrescriptionButton.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/ClinicalPanelProfessionTabs.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/ClinicalPanelSections.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/PatientDocumentManagerDialog.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/RayenEncounterButton.tsx -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/clinicalAntecedentEntries.ts -> @/features/rayen-import/clinical-panel",
+      "src/features/census/components/patient-row/useClinicalPanelSnapshot.ts -> @/features/rayen-import/clinical-panel"
     ]
   }
 }
