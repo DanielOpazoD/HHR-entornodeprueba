@@ -270,3 +270,5 @@ lockfiles e instalaciones; la documentación API mantiene Node 20. No se compart
 emuladores ni builds de escenarios diferentes.
 
 El calendario conserva una suscripción a cambios del almacén local por año/mes activo y QueryClient. Renders del mismo mes no deben desmontarla; cambiar mes, deshabilitar el hook o desmontarlo sí actualiza o elimina el listener. La clave de consulta mantiene la fábrica canónica y la política de invalidación existente.
+
+`StaffProvider` publica el mismo valor de contexto mientras catálogos, identidades, uso, carga, acciones y estado de los gestores no cambien. Los wrappers de las mutaciones no forman parte de esa identidad; sus funciones `mutate` sí. Los cambios reales siguen notificándose a todos los consumidores, conservando normalización y comandos existentes, sin un store ni una caché adicional.
