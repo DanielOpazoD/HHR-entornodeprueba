@@ -54,6 +54,9 @@
 
     <!-- Google Identity Services (GSI) -->
     <!-- Firebase Auth popups handle their own communication, GSI is redundant and can conflict -->
+    <!-- Preload toolbar fonts so labels retain their width during refresh bootstrap. -->
+    <link rel="preload" href="/node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 
 <body class="text-slate-900" style="background: transparent;">

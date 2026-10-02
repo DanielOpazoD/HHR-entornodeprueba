@@ -1,8 +1,7 @@
+import { SaveButton } from '../DateStripButtonControls';
 import React from 'react';
-import { FileSpreadsheet, Loader2, Save, CheckCircle } from 'lucide-react';
-import clsx from 'clsx';
+import { FileSpreadsheet, Save } from 'lucide-react';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
-import { resolveSaveButtonUiState } from './dateStripActionStateController';
 import { DateStripDropdownPanel } from './DateStripDropdownPanel';
 import { DateStripActionItem } from './DateStripActionItem';
 import type { SaveDropdownProps } from './types';
@@ -30,30 +29,9 @@ export const SaveDropdown: React.FC<SaveDropdownProps> = ({
     return null;
   }
 
-  const uiState = resolveSaveButtonUiState({
-    isArchived,
-    isBackingUp,
-    variant: 'census',
-  });
-
   return (
     <div className="relative" ref={menuRef}>
-      <button
-        onClick={toggle}
-        disabled={isBackingUp}
-        className={clsx(
-          'btn h-[30px] !px-0 !py-0 text-[10px] flex items-center justify-center transition-all',
-          uiState.buttonClassName,
-          uiState.widthClassName
-        )}
-        title="Opciones de guardado"
-        aria-label={uiState.label}
-        data-save-status={isBackingUp ? 'loading' : isArchived ? 'archived' : 'idle'}
-      >
-        {uiState.iconKind === 'loading' && <Loader2 size={13} className="animate-spin" />}
-        {uiState.iconKind === 'archived' && <CheckCircle size={13} />}
-        {uiState.iconKind === 'default' && <Save size={13} />}
-      </button>
+      <SaveButton onClick={toggle} isBackingUp={isBackingUp} isArchived={isArchived} />
 
       {isOpen && (
         <DateStripDropdownPanel title="Opciones de Guardado" widthClassName="w-52">

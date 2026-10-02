@@ -4,7 +4,8 @@ import { History } from 'lucide-react';
 export type ClinicalConflictCenterButtonVariant = 'default' | 'operations' | 'quick-action';
 
 interface ClinicalConflictCenterButtonProps {
-  onClick: () => void;
+  onClick?: () => void;
+  disabled?: boolean;
   scopeLabel: string;
   snapshotCount: number;
   requiresAttention: boolean;
@@ -17,6 +18,7 @@ interface ClinicalConflictCenterButtonProps {
 
 export function ClinicalConflictCenterButton({
   onClick,
+  disabled,
   scopeLabel,
   snapshotCount,
   requiresAttention,
@@ -29,6 +31,7 @@ export function ClinicalConflictCenterButton({
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
       title={`Centro de conflictos clínicos · ${scopeLabel}`}
       aria-label={`Centro de conflictos clínicos de ${scopeLabel}${requiresAttention ? ' · revisión requerida' : ''}`}

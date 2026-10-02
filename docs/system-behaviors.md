@@ -190,6 +190,8 @@ Usuarios con "passport" pueden trabajar sin conexión a internet.
 ### Límites deliberados
 
 - Se restaura navegación funcional mínima, no modales efímeros ni estado interno transitorio.
+- Las preferencias visuales se aplican antes del primer pintado del bootstrap. La barra de fechas comparte la presentación de los controles con sus menús diferidos y, durante el bootstrap, los mantiene inactivos hasta disponer del runtime. En censo conserva Documentos, Más opciones y el espacio de conflictos para administración; no muestra un buscador provisional.
+- La tarjeta de Eloísa conserva las acciones Historial, Dotación, Sincronizar y descarga durante la carga del módulo, deshabilitadas y sin afirmar conectividad. Especialidades conserva su botón mientras se carga su módulo, respetando el feature flag.
 - La URL actúa como contrato mínimo de restauración usando `module` y `date`.
 
 ### Archivos Relacionados

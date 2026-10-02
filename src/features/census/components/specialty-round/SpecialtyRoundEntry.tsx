@@ -1,5 +1,6 @@
+import { SPECIALTY_TRIGGER_CLASS, SpecialtyRoundTriggerLabel } from './SpecialtyRoundTrigger';
 import { lazy, Suspense, useMemo, useState } from 'react';
-import { ChevronDown, ListChecks, Sparkles } from 'lucide-react';
+import { ListChecks, Sparkles } from 'lucide-react';
 import { useDailyRecordBeds } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
@@ -39,13 +40,8 @@ export const SpecialtyRoundEntry = ({ date, disabled }: { date: string; disabled
         data-overlay-open={menuOpen ? '' : undefined}
         onToggle={event => setMenuOpen(event.currentTarget.open)}
       >
-        <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 [&::-webkit-details-marker]:hidden">
-          <ListChecks size={14} aria-hidden="true" /> Especialidades
-          <ChevronDown
-            size={13}
-            className="transition-transform group-open:rotate-180"
-            aria-hidden="true"
-          />
+        <summary className={SPECIALTY_TRIGGER_CLASS}>
+          <SpecialtyRoundTriggerLabel />
         </summary>
         <div className="absolute right-0 z-50 mt-1 min-w-56 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
           {isAdmin && (

@@ -1,3 +1,4 @@
+import { checkCensusToolbarRefresh } from './fixtures/censusToolbarRefresh';
 import { test, expect, type Page } from '@playwright/test';
 import { buildCanonicalE2ERecord, MOCK_USERS } from './fixtures/auth';
 import {
@@ -207,6 +208,22 @@ const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRu
 
 test.describe('Production Preview Bootstrap', () => {
   test.describe.configure({ timeout: 60_000 });
+
+  for (const width of [768, 1440]) {
+    test(`preserves toolbar controls and geometry during refresh at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await seedPersistedSessionAndRecord(page);
+      await page.addInitScript(() => {
+        localStorage.setItem(
+          'hhr_feature_flags',
+          JSON.stringify({ SPECIALTY_JEV_CONSULTATION: true })
+        );
+      });
+      await checkCensusToolbarRefresh(page, PREVIEW_BOOTSTRAP_DATE);
+    });
+  }
 
   test('keeps quiet fields, hover admission, floating menus and the header usable', async ({
     page,
