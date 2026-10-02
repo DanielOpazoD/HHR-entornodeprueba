@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { findTestModifiers } from './testGovernanceSupport.mjs';
 
 const projectRoot = process.cwd();
 const testsRoot = path.join(projectRoot, 'src', 'tests');
@@ -8,8 +9,6 @@ const allowlistPath = path.join(projectRoot, 'scripts', 'test-governance-allowli
 
 const allowedSkipFiles = new Set(['src/tests/security/firestore-rules.test.ts']);
 const testFilePattern = /\.(test|spec)\.(ts|tsx|js|jsx)$/;
-const skipPattern = /\b(?:it|test|describe)\.skip\s*\(/g;
-const onlyPattern = /\b(?:it|test|describe)\.only\s*\(/g;
 const MEGATEST_LINE_LIMIT = 500;
 
 const loadMegatestAllowlist = () => {
@@ -25,8 +24,7 @@ const allowedMegatestFiles = loadMegatestAllowlist();
 
 const violations = [];
 
-const toPosixRelative = filePath =>
-  path.relative(projectRoot, filePath).split(path.sep).join('/');
+const toPosixRelative = filePath => path.relative(projectRoot, filePath).split(path.sep).join('/');
 
 const walk = dir => {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -53,32 +51,11 @@ const walk = dir => {
       });
     }
 
-    const lineIndexes = content.split('\n');
-    lineIndexes.forEach((line, index) => {
-      const hasSkip = skipPattern.test(line);
-      skipPattern.lastIndex = 0;
-
-      const hasOnly = onlyPattern.test(line);
-      onlyPattern.lastIndex = 0;
-
-      if (hasOnly) {
-        violations.push({
-          relative,
-          line: index + 1,
-          rule: 'only',
-          source: line.trim(),
-        });
-      }
-
-      if (hasSkip && !allowedSkipFiles.has(relative)) {
-        violations.push({
-          relative,
-          line: index + 1,
-          rule: 'skip',
-          source: line.trim(),
-        });
-      }
-    });
+    const lines = content.split('\n');
+    for (const modifier of findTestModifiers(relative, content)) {
+      if (modifier.rule === 'skip' && allowedSkipFiles.has(relative)) continue;
+      violations.push({ relative, ...modifier, source: lines[modifier.line - 1].trim() });
+    }
   }
 };
 
