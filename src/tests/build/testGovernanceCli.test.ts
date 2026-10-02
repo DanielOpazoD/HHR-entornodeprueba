@@ -93,6 +93,41 @@ describe('test governance CLI', () => {
     expect(second.stderr).not.toContain('[megatest]');
   });
 
+  it('reports executable modifiers consistently without counting fixture text', () => {
+    const configs = [
+      'release-confidence-matrix',
+      'release-confidence-pack',
+      'critical-smoke-pack',
+      'flow-performance-budgets',
+      'critical-coverage-thresholds',
+      'technical-ownership-map',
+    ];
+    const root = fixture({
+      'package.json': JSON.stringify({ scripts: {} }),
+      ...Object.fromEntries(configs.map(name => [`scripts/config/${name}.json`, '{}'])),
+      'src/tests/report.test.ts': `
+        const example = "it.only('fixture')";
+        // test.skip('fixture');
+        it.only.each([1])('case', () => {});
+        test.concurrent.skip('case', () => {});
+      `,
+    });
+    const result = spawnSync(
+      process.execPath,
+      [path.resolve('scripts/report-quality-metrics.mjs')],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      }
+    );
+    expect(result.status, result.stderr).toBe(0);
+    const report = JSON.parse(
+      fs.readFileSync(path.join(root, 'reports/quality-metrics.json'), 'utf8')
+    );
+    expect(report.tests.onlyMarkers).toBe(1);
+    expect(report.tests.skippedMarkers).toBe(1);
+  });
+
   it('retains the existing behavior when a workspace has no test tree', () => {
     const result = run(fixture({}));
     expect(result.status).toBe(0);

@@ -868,3 +868,6 @@ La CLI se prueba en directorios temporales propios con declaraciones prohibidas,
 texto inocuo, la excepción de skip de reglas Firestore y el límite intacto de
 500 líneas. Owner: infraestructura de tests/CI HHR. Rollback: revertir el PR del
 detector; no crear allowlists nuevas para hacer pasar un test exclusivo u omitido.
+
+El gate y el reporte de métricas comparten el mismo detector. Así los ejemplos
+de fixtures no degradan el scorecard y las cadenas prohibidas sí se contabilizan.
