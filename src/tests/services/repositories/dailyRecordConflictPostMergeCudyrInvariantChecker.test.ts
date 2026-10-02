@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest';
 import { evaluateDailyRecordConflictPostMergeInvariants } from '@/services/repositories/dailyRecordConflictPostMergeInvariantChecker';
 import { CUDYR_SCORE_FIELDS } from '@/domain/cudyr/cudyrCompletion';

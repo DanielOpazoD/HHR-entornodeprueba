@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest';
 import { resolveDailyRecordConflict } from '@/services/repositories/conflictResolutionMatrix';
 import { normalizeMovementBedConsistency } from '@/services/repositories/clinicalMovementBedConsistencyPolicy';

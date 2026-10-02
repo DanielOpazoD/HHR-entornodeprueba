@@ -844,3 +844,8 @@ carryover y visibilidad por especialidad; no se cambia ninguna regla clínica.
 Las diez suites de esquemas y validación declaran Node: parsing de pacientes,
 movimientos, entrega, heridas y telemetría Rayen. Conservan rechazo de entradas
 inválidas, normalización legacy y reportes de reparación; los esquemas no cambian.
+
+Veinte suites de contratos y políticas del repositorio declaran Node. Conservan
+autoridad clínica, conflictos de campos/movimientos, CUDYR, fechas de ingreso,
+intención explícita de patch, compatibilidad y preparación de persistencia.
+No migrar junto a ellas las pruebas de integración que sí ejercen APIs de navegador.
