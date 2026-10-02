@@ -43,18 +43,11 @@ type FirestoreRecordQueriesModule =
 type DailyRecordRemoteLoaderModule =
   typeof import('@/services/repositories/dailyRecordRemoteLoader');
 
-let firestoreRecordQueriesPromise: Promise<FirestoreRecordQueriesModule> | null = null;
-let dailyRecordRemoteLoaderPromise: Promise<DailyRecordRemoteLoaderModule> | null = null;
+const loadFirestoreRecordQueries = (): Promise<FirestoreRecordQueriesModule> =>
+  import('@/services/storage/firestore/firestoreRecordQueries');
 
-const loadFirestoreRecordQueries = async (): Promise<FirestoreRecordQueriesModule> => {
-  firestoreRecordQueriesPromise ??= import('@/services/storage/firestore/firestoreRecordQueries');
-  return firestoreRecordQueriesPromise;
-};
-
-const loadDailyRecordRemoteLoader = async (): Promise<DailyRecordRemoteLoaderModule> => {
-  dailyRecordRemoteLoaderPromise ??= import('@/services/repositories/dailyRecordRemoteLoader');
-  return dailyRecordRemoteLoaderPromise;
-};
+const loadDailyRecordRemoteLoader = (): Promise<DailyRecordRemoteLoaderModule> =>
+  import('@/services/repositories/dailyRecordRemoteLoader');
 
 const isRepositoryDebugEnabled = () =>
   import.meta.env.DEV &&

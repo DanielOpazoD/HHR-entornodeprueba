@@ -112,4 +112,12 @@ describe('dailyRecordPort lazy facade', () => {
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
+
+  it('does not attach a lazy subscription canceled before loading finishes', async () => {
+    const stop = defaultDailyRecordRepositoryPort.subscribe('2026-04-10', vi.fn());
+    stop();
+    // Both operations load the same module; awaiting the second flushes the first callback.
+    await defaultDailyRecordRepositoryPort.syncWithFirestoreDetailed('2026-04-10');
+    expect(syncService.subscribe).not.toHaveBeenCalled();
+  });
 });

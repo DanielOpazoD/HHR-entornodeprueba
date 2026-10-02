@@ -25,28 +25,21 @@ type DailyRecordSyncService =
 type DailyRecordFacadeSupportService =
   typeof import('@/services/repositories/dailyRecordRepositoryFacadeSupport');
 
-let readServicePromise: Promise<DailyRecordReadService> | null = null;
-let initializationServicePromise: Promise<DailyRecordInitializationService> | null = null;
-let writeServicePromise: Promise<DailyRecordWriteService> | null = null;
-let syncServicePromise: Promise<DailyRecordSyncService> | null = null;
-let facadeSupportServicePromise: Promise<DailyRecordFacadeSupportService> | null = null;
-
+// Let the module loader reuse successful imports; do not retain a rejected load here.
 const loadDailyRecordReadService = (): Promise<DailyRecordReadService> =>
-  (readServicePromise ??= import('@/services/repositories/dailyRecordRepositoryReadService'));
+  import('@/services/repositories/dailyRecordRepositoryReadService');
 
 const loadDailyRecordInitializationService = (): Promise<DailyRecordInitializationService> =>
-  (initializationServicePromise ??=
-    import('@/services/repositories/dailyRecordRepositoryInitializationService'));
+  import('@/services/repositories/dailyRecordRepositoryInitializationService');
 
 const loadDailyRecordWriteService = (): Promise<DailyRecordWriteService> =>
-  (writeServicePromise ??= import('@/services/repositories/dailyRecordRepositoryWriteService'));
+  import('@/services/repositories/dailyRecordRepositoryWriteService');
 
 const loadDailyRecordSyncService = (): Promise<DailyRecordSyncService> =>
-  (syncServicePromise ??= import('@/services/repositories/dailyRecordRepositorySyncService'));
+  import('@/services/repositories/dailyRecordRepositorySyncService');
 
 const loadDailyRecordFacadeSupportService = (): Promise<DailyRecordFacadeSupportService> =>
-  (facadeSupportServicePromise ??=
-    import('@/services/repositories/dailyRecordRepositoryFacadeSupport'));
+  import('@/services/repositories/dailyRecordRepositoryFacadeSupport');
 
 const withReadService = <T>(
   operation: (service: DailyRecordReadService) => Promise<T> | T

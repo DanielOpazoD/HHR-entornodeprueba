@@ -71,3 +71,15 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
   - `src/tests/hooks/controllers/dailyRecordQueryController.test.ts`
   - `src/tests/hooks/useDailyRecordSyncQuery.test.tsx`
   - relevant census empty-state tests
+
+## Lazy repository module loading
+
+The daily-record port and read service delegate module caching to `import()`. They
+must not keep a rejected module-load promise: a later explicit operation must be
+able to ask the underlying loader again when that loader can recover. Successful
+module evaluation is still reused by the runtime. This does not cache data or
+replay a failed read/write automatically, and preserves lazy subscription cancellation.
+
+Recovery tests keep the same port/read-service instance across a controlled load
+failure and recovery. Evaluation failures retained by the browser may still need
+a page reload; this rule removes the additional rejection cache owned by HHR.
