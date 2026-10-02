@@ -91,8 +91,13 @@ todas las muestras. Si output existe se falla, no se reutiliza ni borra automát
 Scripts integrados: `npm run test:e2e:census-performance` y `npm run test:census-performance-report`.
 
 El banco complementario `npm run test:e2e:census-interactions` usa el mismo servidor aislado
-con un registro sintético. Mide cinco aperturas del editor de diagnóstico y del panel clínico;
-`test-results/census-interactions/summary.json` conserva únicamente tiempos y nombres de acción.
+con un censo sintético de 18 camas regulares ocupadas, una cama extra activa y dos cunas clínicas.
+Verifica los 21 pacientes renderizados antes de cada muestra, incluyendo filas con y sin signos
+vitales y dispositivos. Mide cinco aperturas del editor de diagnóstico y del panel clínico;
+`test-results/census-interactions/summary.json` conserva tiempos, nombres de acción y recuentos
+de la cohorte. La etiqueta `isolated-synthetic-full-census-v1` distingue esta medición del banco
+anterior de un paciente: sus tiempos no se mezclan. El banco de arranque y sus presupuestos
+permanecen independientes y conservan su fixture y tamaño de muestra.
 El resultado es una señal de comparación, no un presupuesto de aprobación: cinco muestras no
 justifican un umbral estadístico y el doble `requestAnimationFrame` indica oportunidad de pintado,
 no presentación física de píxeles. CI lo adjunta al artefacto de performance de producción.
