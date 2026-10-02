@@ -30,7 +30,7 @@ const writeService = {
   saveDetailed: vi.fn(),
 };
 
-const facadeSupportService = {
+const deletionService = {
   deleteDailyRecordAcrossStores: vi.fn(),
 };
 
@@ -46,7 +46,7 @@ vi.mock(
   () => initializationService
 );
 vi.mock('@/services/repositories/dailyRecordRepositoryWriteService', () => writeService);
-vi.mock('@/services/repositories/dailyRecordRepositoryFacadeSupport', () => facadeSupportService);
+vi.mock('@/services/repositories/dailyRecordDeletionService', () => deletionService);
 vi.mock('@/services/repositories/dailyRecordRepositorySyncService', () => syncService);
 
 describe('dailyRecordPort lazy facade', () => {
@@ -59,7 +59,7 @@ describe('dailyRecordPort lazy facade', () => {
     readService.getMonthRecords.mockResolvedValue([{ id: 'month-record' }]);
     writeService.updatePartialDetailed.mockResolvedValue({ outcome: 'saved' });
     writeService.saveDetailed.mockResolvedValue({ outcome: 'saved' });
-    facadeSupportService.deleteDailyRecordAcrossStores.mockResolvedValue(undefined);
+    deletionService.deleteDailyRecordAcrossStores.mockResolvedValue(undefined);
 
     await defaultDailyRecordReadPort.getForDate('2026-04-10');
     await defaultDailyRecordReadPort.getAuthoritativeForDate('2026-04-10');
@@ -96,7 +96,7 @@ describe('dailyRecordPort lazy facade', () => {
     expect(writeService.updatePartialDetailed).toHaveBeenCalledWith('2026-04-11', {
       patientName: 'Beto',
     });
-    expect(facadeSupportService.deleteDailyRecordAcrossStores).toHaveBeenCalledWith('2026-04-10');
+    expect(deletionService.deleteDailyRecordAcrossStores).toHaveBeenCalledWith('2026-04-10');
   });
 
   it('attaches and tears down the lazy sync subscription once the module resolves', async () => {
