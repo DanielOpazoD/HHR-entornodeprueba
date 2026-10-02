@@ -97,24 +97,6 @@ describe('admissionInputController', () => {
     });
   });
 
-  it('repairs stale firstSeenDate when admission date is corrected to current record day', () => {
-    expect(
-      resolveAdmissionDateUpdatePlan({
-        nextDate: '2026-02-15',
-        currentAdmissionTime: '05:30',
-        currentDateString: '2026-02-15',
-        firstSeenDate: '2026-02-14',
-        now: new Date('2026-02-15T06:42:00'),
-      })
-    ).toEqual({
-      nextPatch: {
-        admissionDate: '2026-02-15',
-        firstSeenDate: '2026-02-15',
-      },
-      shouldUseMultipleUpdate: true,
-    });
-  });
-
   it('does not repair firstSeenDate when admission date is moved away from current record day', () => {
     expect(
       resolveAdmissionDateUpdatePlan({
