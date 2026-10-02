@@ -1,14 +1,20 @@
-/**
- * Tests for pdfStorageService
- * Tests parsing and path generation functions
- */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  getDownloadURL,
+  getMetadata,
+  listAll,
+  ref,
+  type FirebaseStorage,
+  type FullMetadata,
+  type StorageReference,
+} from 'firebase/storage';
+import {
+  createPdfStorageService,
+  listFilesInMonth,
+  listFilesInMonthWithReport,
+} from '@/services/backup/pdfStorageService';
+import type { BackupStorageRuntime } from '@/services/firebase-runtime/backupRuntime';
 
-import { describe, it, expect, vi } from 'vitest';
-
-// We need to test the internal functions, so we'll import the module
-// and test the exported functions that depend on them
-
-// Mock Firebase modules before importing the service
 vi.mock('firebase/storage', () => ({
   ref: vi.fn(),
   uploadBytes: vi.fn(),
@@ -18,99 +24,117 @@ vi.mock('firebase/storage', () => ({
   getMetadata: vi.fn(),
 }));
 
-vi.mock('../../firebaseConfig', () => ({
-  storage: {},
-  getStorageInstance: vi.fn().mockResolvedValue({}),
-  auth: { currentUser: { email: 'test@test.com' } },
-  firebaseReady: Promise.resolve(),
-}));
+const storage = {} as FirebaseStorage;
+const runtime: BackupStorageRuntime = {
+  ready: Promise.resolve(),
+  getStorage: vi.fn(async () => storage),
+  auth: { currentUser: null } as BackupStorageRuntime['auth'],
+};
+const downloadUrl = 'https://storage.example.invalid/synthetic.pdf';
+const uploadedAt = '2026-01-03T10:00:00Z';
+const metadata: FullMetadata = {
+  bucket: 'synthetic-bucket',
+  fullPath: 'synthetic.pdf',
+  generation: '1',
+  metageneration: '1',
+  name: 'synthetic.pdf',
+  size: 150000,
+  timeCreated: '2026-01-03T09:00:00Z',
+  updated: uploadedAt,
+  downloadTokens: undefined,
+};
+const storedReference = (name: string) =>
+  ({
+    name,
+    fullPath: `entregas-enfermeria/2026/01/${name}`,
+  }) as StorageReference;
 
-// Import after mocks are set up
-import { StoredPdfFile } from '@/services/backup/pdfStorageService';
+describe('pdfStorageService file contracts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.mocked(ref).mockImplementation((_storage, fullPath) => ({ fullPath }) as StorageReference);
+    vi.mocked(getDownloadURL).mockResolvedValue(downloadUrl);
+    vi.mocked(getMetadata).mockImplementation(async item => ({
+      ...metadata,
+      name: item.name,
+      fullPath: item.fullPath,
+      customMetadata: { uploadedAt },
+    }));
+    vi.mocked(listAll).mockResolvedValue({ items: [], prefixes: [] });
+  });
 
-describe('pdfStorageService', () => {
-  describe('StoredPdfFile type', () => {
-    it('has correct structure for day shift', () => {
-      const file: StoredPdfFile = {
-        name: '03-01-2026 - Turno Largo.pdf',
-        fullPath: 'entregas-enfermeria/2026/01/03-01-2026 - Turno Largo.pdf',
-        downloadUrl: 'https://example.com/file.pdf',
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ['day', 'Largo'],
+    ['night', 'Noche'],
+  ] as const)('uses the real path generator for the %s shift', async (shift, label) => {
+    const service = createPdfStorageService(runtime);
+
+    await expect(service.getPdfUrl('2026-01-03', shift)).resolves.toBe(downloadUrl);
+
+    const fullPath = `entregas-enfermeria/2026/01/03-01-2026 - Turno ${label}.pdf`;
+    expect(ref).toHaveBeenCalledExactlyOnceWith(storage, fullPath);
+    expect(getDownloadURL).toHaveBeenCalledExactlyOnceWith({ fullPath });
+  });
+
+  it.each([
+    ['03-01-2026 - Turno Largo.pdf', 'day'],
+    ['03-01-2026 - Turno Noche.pdf', 'night'],
+    ['2026-01-03_turno-largo.pdf', 'day'],
+    ['2026-01-03_turno-noche.pdf', 'night'],
+  ] as const)('parses %s through the public listing API', async (name, shiftType) => {
+    const item = storedReference(name);
+    vi.mocked(listAll).mockResolvedValue({ items: [item], prefixes: [] });
+
+    await expect(listFilesInMonth('2026', '01', runtime)).resolves.toEqual([
+      {
+        name,
+        fullPath: item.fullPath,
+        downloadUrl,
+        date: '2026-01-03',
+        shiftType,
+        createdAt: uploadedAt,
+        size: 150000,
+      },
+    ]);
+    expect(ref).toHaveBeenCalledExactlyOnceWith(storage, 'entregas-enfermeria/2026/01');
+    expect(listAll).toHaveBeenCalledExactlyOnceWith({ fullPath: 'entregas-enfermeria/2026/01' });
+    expect(getMetadata).toHaveBeenCalledExactlyOnceWith(item);
+    expect(getDownloadURL).toHaveBeenCalledExactlyOnceWith(item);
+  });
+
+  it('keeps valid files, reports unparsed names and falls back to the storage timestamp', async () => {
+    const valid = storedReference('03-01-2026 - Turno Largo.pdf');
+    vi.mocked(listAll).mockResolvedValue({
+      items: [storedReference('unrecognized.pdf'), valid],
+      prefixes: [],
+    });
+    vi.mocked(getMetadata).mockImplementation(async item => ({
+      ...metadata,
+      name: item.name,
+      fullPath: item.fullPath,
+      size: 42,
+      timeCreated: uploadedAt,
+    }));
+
+    const result = await listFilesInMonthWithReport('2026', '01', runtime);
+
+    expect(result.files).toEqual([
+      {
+        name: valid.name,
+        fullPath: valid.fullPath,
+        downloadUrl,
         date: '2026-01-03',
         shiftType: 'day',
-        createdAt: '2026-01-03T10:00:00Z',
-        size: 150000,
-      };
-
-      expect(file.shiftType).toBe('day');
-      expect(file.date).toBe('2026-01-03');
-    });
-
-    it('has correct structure for night shift', () => {
-      const file: StoredPdfFile = {
-        name: '03-01-2026 - Turno Noche.pdf',
-        fullPath: 'entregas-enfermeria/2026/01/03-01-2026 - Turno Noche.pdf',
-        downloadUrl: 'https://example.com/file.pdf',
-        date: '2026-01-03',
-        shiftType: 'night',
-        createdAt: '2026-01-03T22:00:00Z',
-        size: 145000,
-      };
-
-      expect(file.shiftType).toBe('night');
-    });
-  });
-
-  describe('File naming conventions', () => {
-    it('new format matches DD-MM-YYYY - Turno Largo.pdf', () => {
-      const newFormatRegex = /(\d{2})-(\d{2})-(\d{4}) - Turno (Largo|Noche)\.pdf$/;
-
-      expect('03-01-2026 - Turno Largo.pdf').toMatch(newFormatRegex);
-      expect('03-01-2026 - Turno Noche.pdf').toMatch(newFormatRegex);
-      expect('15-12-2025 - Turno Largo.pdf').toMatch(newFormatRegex);
-    });
-
-    it('old format matches YYYY-MM-DD_turno-largo.pdf', () => {
-      const oldFormatRegex = /(\d{4}-\d{2}-\d{2})_(turno-largo|turno-noche)\.pdf$/;
-
-      expect('2026-01-03_turno-largo.pdf').toMatch(oldFormatRegex);
-      expect('2026-01-03_turno-noche.pdf').toMatch(oldFormatRegex);
-    });
-
-    it('can extract date from new format filename', () => {
-      const filename = '03-01-2026 - Turno Largo.pdf';
-      const match = filename.match(/(\d{2})-(\d{2})-(\d{4}) - Turno (Largo|Noche)\.pdf$/);
-
-      expect(match).not.toBeNull();
-      if (match) {
-        const date = `${match[3]}-${match[2]}-${match[1]}`; // YYYY-MM-DD
-        expect(date).toBe('2026-01-03');
-        expect(match[4]).toBe('Largo');
-      }
-    });
-
-    it('can extract date from old format filename', () => {
-      const filename = '2026-01-03_turno-largo.pdf';
-      const match = filename.match(/(\d{4}-\d{2}-\d{2})_(turno-largo|turno-noche)\.pdf$/);
-
-      expect(match).not.toBeNull();
-      if (match) {
-        expect(match[1]).toBe('2026-01-03');
-        expect(match[2]).toBe('turno-largo');
-      }
-    });
-  });
-
-  describe('Path generation', () => {
-    it('generates correct folder structure', () => {
-      const date = '2026-01-03';
-      const [year, month, day] = date.split('-');
-
-      expect(year).toBe('2026');
-      expect(month).toBe('01');
-      expect(day).toBe('03');
-
-      const expectedPath = `entregas-enfermeria/${year}/${month}/${day}-${month}-${year} - Turno Largo.pdf`;
-      expect(expectedPath).toBe('entregas-enfermeria/2026/01/03-01-2026 - Turno Largo.pdf');
-    });
+        createdAt: uploadedAt,
+        size: 42,
+      },
+    ]);
+    expect(result.report).toMatchObject({ skippedUnparsed: 1, timedOut: false });
   });
 });
