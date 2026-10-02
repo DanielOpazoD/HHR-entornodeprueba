@@ -2,11 +2,9 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { UnifiedBedRow } from '@/features/census/types/censusTableTypes';
 import {
-  buildActiveClinicalDocumentEpisodeKeys,
   projectClinicalDocumentPresence,
   buildBedEpisodeBindings,
-  buildClinicalDocumentPresenceByBed,
-  buildClinicalDocumentPresenceInfoByBed,
+  buildClinicalDocumentPresenceProjection,
   type ClinicalDocumentPresenceInfo,
 } from '@/features/census/controllers/clinicalDocumentPresenceController';
 import { resolveApplicationOutcomeMessage } from '@/shared/contracts/applicationOutcomeMessage';
@@ -77,11 +75,6 @@ export const useClinicalDocumentPresenceByBed = ({
       return { byBedId: {}, infoByBedId: {} };
     }
 
-    const activeEpisodeKeys = buildActiveClinicalDocumentEpisodeKeys(query.data);
-
-    return {
-      byBedId: buildClinicalDocumentPresenceByBed(bindings, activeEpisodeKeys, query.data),
-      infoByBedId: buildClinicalDocumentPresenceInfoByBed(bindings, query.data),
-    };
+    return buildClinicalDocumentPresenceProjection(bindings, query.data);
   }, [bindings, enabled, query.data]);
 };
