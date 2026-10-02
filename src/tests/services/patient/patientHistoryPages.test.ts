@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataFactory } from '@/tests/factories/DataFactory';
 const mocks = vi.hoisted(() => ({ pages: vi.fn(), local: vi.fn() }));

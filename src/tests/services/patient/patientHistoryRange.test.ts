@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const { allLocal, rangeLocal, allRemote, rangeRemote } = vi.hoisted(() => ({
   allLocal: vi.fn(),
