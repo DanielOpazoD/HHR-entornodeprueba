@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
 vi.mock('@/services/storage/indexeddb/indexedDbRecordService', () => ({
@@ -39,8 +39,16 @@ import {
 import { subscribeToRecord } from '@/services/storage/firestore/firestoreRecordQueries';
 
 describe('dailyRecordRepositorySyncService', () => {
+  const subscriptions: Array<() => void> = [];
+
+  afterEach(() => {
+    for (const stop of subscriptions.splice(0)) stop();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getRecordFromIndexedDB).mockReset().mockResolvedValue(null);
+    vi.mocked(loadRemoteRecordWithFallback).mockReset();
+    vi.mocked(subscribeToRecord).mockReset();
   });
 
   it('returns clean outcome when remote record is resolved', async () => {
@@ -164,9 +172,11 @@ describe('dailyRecordRepositorySyncService', () => {
     });
 
     const callback = vi.fn();
-    subscribeDetailed('2026-03-03', callback);
-
-    await new Promise(resolve => setTimeout(resolve, 0));
+    const delivered = new Promise<void>(resolve =>
+      callback.mockImplementationOnce(() => resolve())
+    );
+    subscriptions.push(subscribeDetailed('2026-03-03', callback));
+    await delivered;
 
     expect(callback).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -255,10 +265,11 @@ describe('dailyRecordRepositorySyncService', () => {
     });
 
     const callback = vi.fn();
-    subscribe('2026-03-03', callback);
-
-    await Promise.resolve();
-    await Promise.resolve();
+    const delivered = new Promise<void>(resolve =>
+      callback.mockImplementationOnce(() => resolve())
+    );
+    subscriptions.push(subscribe('2026-03-03', callback));
+    await delivered;
 
     expect(callback).toHaveBeenCalledWith(localRecord, false);
   });
@@ -277,10 +288,11 @@ describe('dailyRecordRepositorySyncService', () => {
     });
 
     const callback = vi.fn();
-    subscribeDetailed('2026-03-03', callback);
-
-    await Promise.resolve();
-    await Promise.resolve();
+    const delivered = new Promise<void>(resolve =>
+      callback.mockImplementationOnce(() => resolve())
+    );
+    subscriptions.push(subscribeDetailed('2026-03-03', callback));
+    await delivered;
 
     expect(callback).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -301,10 +313,11 @@ describe('dailyRecordRepositorySyncService', () => {
     });
 
     const callback = vi.fn();
-    subscribeDetailed('2026-03-03', callback);
-
-    await Promise.resolve();
-    await Promise.resolve();
+    const delivered = new Promise<void>(resolve =>
+      callback.mockImplementationOnce(() => resolve())
+    );
+    subscriptions.push(subscribeDetailed('2026-03-03', callback));
+    await delivered;
 
     expect(callback).toHaveBeenCalledWith(
       expect.objectContaining({

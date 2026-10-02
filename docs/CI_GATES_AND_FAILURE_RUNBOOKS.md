@@ -791,3 +791,13 @@ no vence antes de 4000 ms y descarta la respuesta tardía. No se duerme 4,5 segu
 reales ni se amplía el timeout de Vitest. Los deadlines inertes que el relay deja
 tras responder se eliminan al terminar cada caso; no se cambia la extensión.
 Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
+
+### Suscripciones del repositorio con entrega explícita (2026-10-02)
+
+Los casos de realtime en `dailyRecordRepositorySyncService` esperan la entrega del
+callback real mediante una promesa del fixture; no dependen de dormir un turno ni
+de adivinar el número de microtareas. Cada suscripción se cierra al terminar el caso.
+Los mocks de IndexedDB, loader remoto y suscripción recuperan un estado independiente
+antes de cada test, incluidos los casos de unsubscribe con una lectura pendiente.
+Conserva las 11 comprobaciones de consistencia, cache-only y protección tras cierre.
+Owner: infraestructura de tests/repositorios HHR. Rollback: revertir el PR.
