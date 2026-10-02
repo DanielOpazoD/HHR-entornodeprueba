@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteObject } from 'firebase/storage';
 
