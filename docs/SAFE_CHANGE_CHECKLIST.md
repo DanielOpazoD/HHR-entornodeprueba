@@ -95,3 +95,24 @@ exigidos por `dependency_upgrade` sin modificar la política de clasificación.
 
 Referencias: [aviso FTP](https://github.com/advisories/GHSA-c475-qrg2-pj4r),
 [cambio de seguridad en 6.0](https://github.com/patrickjuchli/basic-ftp/releases/tag/v6.0.0).
+
+### Alineación del SDK Admin de tooling raíz (2026-10-02)
+
+- **Owner:** plataforma Firebase/Functions y emuladores HHR.
+- **Reason:** los scripts y emuladores importan Admin directamente, pero la raíz
+  lo recibía como peer de Functions 7.2.5. Admin 13.9 incorporaba `node-forge`
+  1.4.0, señalado por GHSA-86w9-cpqp-85rv; no se ha demostrado explotación en HHR.
+- **TargetVersion:** declarar Admin 14.4.0 y Functions 7.4.0 como dev dependencies
+  explícitas de raíz, alineadas con las versiones ya usadas en `functions/`.
+  Functions 7.4 admite Admin 13 y 14; actualizar sólo Functions no garantiza el retiro.
+- **RiskLevel:** medio: cambia el SDK de tooling y sus tipos/transitivos. Firebase web,
+  el paquete Functions desplegable, APIs clínicas y reglas permanecen intactos.
+- **RollbackPlan:** revertir manifest/lock raíz y ejecutar `npm ci`; reaparece la
+  cadena vulnerable. No borrar datos, colas ni aplicar un override criptográfico.
+- **VerificationGate:** `dependency_upgrade`: instalación limpia, audit en ambos
+  paquetes, tipos/lint y `ci:merge-gate`, suites Functions, emuladores sintéticos
+  de autoridad, revisión independiente y CI del head final.
+
+Referencia: [aviso node-forge](https://github.com/advisories/GHSA-86w9-cpqp-85rv).
+El aviso no publica un parche; Admin 14 elimina esa dependencia. Los permisos IAM
+y el despliegue no forman parte de esta alineación del tooling local/CI.
