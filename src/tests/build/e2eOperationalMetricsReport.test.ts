@@ -174,6 +174,52 @@ describe('E2E operational metrics report', () => {
     }
   );
 
+  it('separates wall time from attempt sums and ranks bounded test and file costs', () => {
+    const root = makeRoot();
+    const input = path.join(root, 'report.json');
+    writeReport(
+      input,
+      Array.from({ length: 12 }, () => ['passed'])
+    );
+    const report = JSON.parse(fs.readFileSync(input, 'utf8'));
+    report.stats.duration = 800;
+    for (const [index, spec] of report.suites[0].specs.entries()) {
+      spec.file = index < 6 ? 'a.spec.ts' : 'b.spec.ts';
+      spec.line = index + 1;
+      spec.tests[0].results[0].duration = index * 100;
+    }
+    report.suites[0].specs[11].title = 'slow | test\nlabel';
+    fs.writeFileSync(input, JSON.stringify(report));
+    const { result, metrics, summary } = runMetrics(root, input);
+    expect(result.status).toBe(0);
+    expect(metrics.durationMs).toBe(6600);
+    expect(metrics.wallDurationMs).toBe(800);
+    expect(metrics.slowestTests).toHaveLength(10);
+    expect((metrics.slowestTests as object[])[0]).toMatchObject({
+      file: 'b.spec.ts',
+      line: 12,
+      project: 'chromium',
+      attempts: 1,
+      durationMs: 1100,
+    });
+    expect(metrics.files).toEqual({
+      'a.spec.ts': { tests: 6, attempts: 6, durationMs: 1500 },
+      'b.spec.ts': { tests: 6, attempts: 6, durationMs: 5100 },
+    });
+    expect(summary).toContain('slow \\| test label');
+    expect(summary).toContain('Playwright wall duration: 0.8 s');
+    expect(summary).toContain('sum of test attempts): 6.6 s');
+  });
+
+  it('does not invent a wall duration when the reporter did not provide one', () => {
+    const root = makeRoot();
+    const input = path.join(root, 'report.json');
+    writeReport(input, [['passed']]);
+    const { metrics, summary } = runMetrics(root, input);
+    expect(metrics.wallDurationMs).toBeNull();
+    expect(summary).toContain('Playwright wall duration: unavailable');
+  });
+
   it.each(['missing', 'invalid-json', 'null', 'empty', 'empty-suites', 'global-error'])(
     'fails enforcement but preserves diagnostic artifacts for %s evidence',
     kind => {
