@@ -871,3 +871,14 @@ detector; no crear allowlists nuevas para hacer pasar un test exclusivo u omitid
 
 El gate y el reporte de métricas comparten el mismo detector. Así los ejemplos
 de fixtures no degradan el scorecard y las cadenas prohibidas sí se contabilizan.
+
+Ocho suites críticas de políticas/controladores de autenticación declaran Node.
+Conservan permisos, sesión, redirects, configuración y headers. Los tests de lock,
+online y ciclo de vida del navegador mantienen jsdom.
+
+La medición local de las cinco cohortes críticas (46 suites, 251 casos), en cuatro
+procesos BAAB con la configuración crítica intacta, pasó de mediana 15,07 s a
+8,04 s (46,7 % menos). Los puntos cubiertos de 481 archivos de fuente fueron
+idénticos, sin pérdidas ni ganancias. No es una medida del CI completo.
+No cambian código de producción, workers, aislamiento, plazos ni umbrales.
+Rollback: revertir las anotaciones del PR afectado. Owner: tests críticos/HHR.
