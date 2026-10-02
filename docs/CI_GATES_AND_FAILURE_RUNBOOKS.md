@@ -734,3 +734,19 @@ Owner: infraestructura de tests HHR. Rollback: revertir el PR para restaurar
 imports DOM incondicionales; no reducir el pack para conservar una cifra de tiempo.
 Referencias: [setupFiles de Vitest](https://vitest.dev/config/setupfiles) y
 [cleanup de React Testing Library](https://testing-library.com/docs/react-testing-library/api/#cleanup).
+
+### Canal entre pestañas: comprobar mensajes y cleanup reales (2026-10-02)
+
+`authBroadcastChannel` utiliza una instancia simulada por caso y un módulo recién
+cargado; nunca abre un BroadcastChannel nativo durante estas pruebas. Comprueba
+los payloads de actividad/logout/sync, la generación admitida, la reutilización
+del canal, el filtrado de mensajes entregados por la propia pestaña y la retirada
+del listener exacto sin desuscribir otros consumidores. Se mantiene degradación
+ante API ausente o constructor fallido. El descriptor global original se restaura
+sin retirar fixtures compartidos de storage/auth.
+
+Owner: infraestructura de tests/auth HHR. Estos casos reemplazan comprobaciones
+vacías o que sólo comprobaban no lanzar errores; no cambian el protocolo real.
+Validar también `useAuthState.crossTabLogout` y `sessionActivityMonitor`.
+Rollback: revertir el PR; no convertir de nuevo payloads o limpieza en aserciones
+constantes para silenciar una regresión.
