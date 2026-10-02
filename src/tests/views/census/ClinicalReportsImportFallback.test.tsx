@@ -56,7 +56,7 @@ describe('deferred hospitalization reports', () => {
     const loadingModal = screen.getByTestId('reports-module-loading');
     expect(loadingModal).toHaveTextContent('Paciente de prueba');
     expect(loadingModal.querySelector('[aria-busy="true"]')).toBeInTheDocument();
-    expect(loadingModal.parentElement).toHaveStyle({ zIndex: 10000 });
+    expect(loadingModal.parentElement).toHaveStyle({ zIndex: '10000' });
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByTestId('reports-module-loading')).not.toBeInTheDocument();

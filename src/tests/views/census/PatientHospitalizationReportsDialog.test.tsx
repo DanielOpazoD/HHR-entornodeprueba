@@ -62,7 +62,7 @@ describe('PatientHospitalizationReportsDialog', () => {
 
     const reports = screen.getByTestId('patient-hospitalization-reports-dialog');
     expect(reports.closest<HTMLElement>('.fixed.inset-0')).toHaveStyle({
-      zIndex: LAYER_Z_INDEX.modal,
+      zIndex: String(LAYER_Z_INDEX.modal),
     });
     expect(LAYER_Z_INDEX.modal).toBeGreaterThan(LAYER_Z_INDEX.drawer);
   });
