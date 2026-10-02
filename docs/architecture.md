@@ -76,6 +76,9 @@ Reglas específicas adicionales:
   `RayenImportButton` para la UI de sincronización bajo demanda y `clinical-panel` para lectura y navegación del
   paciente. El panel usa los mismos bridges y parsers sin depender del barril de reconciliación,
   importación o confirmación del censo; `index.ts` mantiene su API compatible para esos flujos.
+- `recordQueryService` mantiene las consultas de calendario e historial local sin imports de
+  Firestore. La sincronización explícita por rango carga `firestoreRecordQueries` bajo demanda
+  y conserva la lectura remota y su persistencia local; no añade caché de datos ni reintentos.
 - El router/lazy loading también debe consumir features por entrypoint público; `LazyViews.ts`
   no debe volver a importar `components/...` directos cuando la feature ya expone `index.ts`
   o `public.ts`.
