@@ -750,3 +750,19 @@ vacías o que sólo comprobaban no lanzar errores; no cambian el protocolo real.
 Validar también `useAuthState.crossTabLogout` y `sessionActivityMonitor`.
 Rollback: revertir el PR; no convertir de nuevo payloads o limpieza en aserciones
 constantes para silenciar una regresión.
+
+### Telemetría CLI sin modificar reportes versionados (2026-10-02)
+
+`ciRuntimeTelemetryScripts` ejecuta el script real con una ruta absoluta y un
+`cwd` temporal distinto por entrada. No cambia el directorio global del proceso
+de Vitest ni copia algoritmos del CLI. El perfil estimado versionado se copia como
+fixture de entrada y se comprueba la comparación estimado/observado real.
+Los JSON/Markdown generados se leen dentro
+del workspace y se eliminan al terminar el caso, incluidos los fallos de parsing.
+Se preservan las comprobaciones de errores accionables y metadatos del colector;
+un caso adicional comprueba que otra ejecución no sobrescribe el primer reporte.
+
+Owner: infraestructura de tests/CI HHR. Los reportes del repositorio deben conservar
+sus bytes antes/después de esta cohorte. No regenerar artefactos versionados como
+efecto lateral de un test. Rollback: revertir el PR y restaurar sólo reportes
+generados por la propia ejecución; no descartar modificaciones ajenas.

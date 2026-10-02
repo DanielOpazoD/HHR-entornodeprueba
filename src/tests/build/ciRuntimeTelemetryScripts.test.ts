@@ -1,34 +1,37 @@
 // @vitest-environment node
 import { execFileSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-const tempFiles: string[] = [];
+const workspaces: string[] = [];
+const reportScript = path.resolve('scripts/report-ci-runtime-observed-profile.mjs');
 
 const writeTempInput = (content: string) => {
-  const filePath = path.join(os.tmpdir(), `ci-runtime-observed-${randomUUID()}.json`);
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'hhr-ci-runtime-test-'));
+  workspaces.push(workspace);
+  const reportDirectory = path.join(workspace, 'reports');
+  fs.mkdirSync(reportDirectory);
+  fs.copyFileSync(
+    path.resolve('reports/unit-shard-runtime-profile.json'),
+    path.join(reportDirectory, 'unit-shard-runtime-profile.json')
+  );
+  const filePath = path.join(workspace, 'ci-runtime-observed-input.json');
   fs.writeFileSync(filePath, content, 'utf8');
-  tempFiles.push(filePath);
   return filePath;
 };
 
 const runReportScript = (inputPath: string) =>
-  execFileSync(
-    process.execPath,
-    ['scripts/report-ci-runtime-observed-profile.mjs', '--input', inputPath],
-    {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-      stdio: 'pipe',
-    }
-  );
+  execFileSync(process.execPath, [reportScript, '--input', inputPath], {
+    cwd: path.dirname(inputPath),
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
 
 afterEach(() => {
-  for (const filePath of tempFiles.splice(0)) {
-    fs.rmSync(filePath, { force: true });
+  for (const workspace of workspaces.splice(0)) {
+    fs.rmSync(workspace, { recursive: true, force: true });
   }
 });
 
@@ -93,7 +96,13 @@ describe('CI runtime telemetry scripts', () => {
 
     runReportScript(inputPath);
 
-    const report = JSON.parse(fs.readFileSync('reports/ci-runtime-observed-profile.json', 'utf8'));
+    const reportDirectory = path.join(path.dirname(inputPath), 'reports');
+    const report = JSON.parse(
+      fs.readFileSync(path.join(reportDirectory, 'ci-runtime-observed-profile.json'), 'utf8')
+    );
+    expect(
+      fs.readFileSync(path.join(reportDirectory, 'ci-runtime-observed-profile.md'), 'utf8')
+    ).toContain('CI Runtime Observed Profile');
     expect(report.source).toMatchObject({
       inputPath,
       provider: 'github-actions',
@@ -102,5 +111,31 @@ describe('CI runtime telemetry scripts', () => {
       status: 'collected',
     });
     expect(report.comparison.summary.observedTotalDurationMs).toBeGreaterThan(0);
+    expect(report.comparison.summary.estimatedTotalDurationMs).toBeGreaterThan(0);
+    expect(report.comparison.shards).toHaveLength(4);
+    expect(
+      fs.readFileSync(path.join(reportDirectory, 'ci-runtime-observed-profile.md'), 'utf8')
+    ).toContain('- Estimated total:');
+  });
+
+  it('keeps reports from separate invocations in their own workspaces', () => {
+    const firstInput = writeTempInput(JSON.stringify({ source: { runId: 'first' }, jobs: [] }));
+    const secondInput = writeTempInput(JSON.stringify({ source: { runId: 'second' }, jobs: [] }));
+    runReportScript(firstInput);
+    const firstOutput = path.join(
+      path.dirname(firstInput),
+      'reports/ci-runtime-observed-profile.json'
+    );
+    const originalReport = fs.readFileSync(firstOutput, 'utf8');
+    runReportScript(secondInput);
+    const secondOutput = path.join(
+      path.dirname(secondInput),
+      'reports/ci-runtime-observed-profile.json'
+    );
+
+    expect(path.dirname(firstInput)).not.toBe(path.dirname(secondInput));
+    expect(fs.readFileSync(firstOutput, 'utf8')).toBe(originalReport);
+    expect(JSON.parse(originalReport).source.runId).toBe('first');
+    expect(JSON.parse(fs.readFileSync(secondOutput, 'utf8')).source.runId).toBe('second');
   });
 });
