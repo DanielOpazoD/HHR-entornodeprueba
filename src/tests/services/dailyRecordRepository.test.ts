@@ -8,7 +8,7 @@ import { getForDate } from '@/services/repositories/dailyRecordRepositoryReadSer
 import { initializeDay } from '@/services/repositories/dailyRecordRepositoryInitializationService';
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { syncWithFirestore } from '@/services/repositories/dailyRecordRepositorySyncService';
-import { deleteDailyRecordAcrossStores as deleteDay } from '@/services/repositories/dailyRecordRepositoryFacadeSupport';
+import { deleteDailyRecordAcrossStores as deleteDay } from '@/services/repositories/dailyRecordDeletionService';
 import { runExclusiveDailyRecordWrite } from '@/services/repositories/dailyRecordWriteCoordinator';
 import { setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { ensureMonthIntegrity } from '@/services/repositories/monthIntegrity';

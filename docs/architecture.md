@@ -82,6 +82,10 @@ Reglas específicas adicionales:
 - El router/lazy loading también debe consumir features por entrypoint público; `LazyViews.ts`
   no debe volver a importar `components/...` directos cuando la feature ya expone `index.ts`
   o `public.ts`.
+- La eliminación de un día entra por el port existente y `dailyRecordDeletionService.ts`.
+  El servicio conserva exclusión de escritura, protección del outbox, validación de fecha,
+  fallo explícito si IndexedDB no confirma y posterior traslado remoto a papelera.
+  Los constructores de comandos viven en `contracts/*`; no añadir wrappers sin lógica.
 - `src/application/ports/*` es el boundary permitido para adapters por defecto a servicios concretos.
 - El guardrail automático correspondiente es `npm run check:application-port-boundary`.
 

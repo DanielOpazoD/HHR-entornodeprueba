@@ -11,7 +11,7 @@ import {
   initializeDay,
   initializeDayDetailed,
 } from '@/services/repositories/dailyRecordRepositoryInitializationService';
-import { deleteDailyRecordAcrossStores as deleteDay } from '@/services/repositories/dailyRecordRepositoryFacadeSupport';
+import { deleteDailyRecordAcrossStores as deleteDay } from '@/services/repositories/dailyRecordDeletionService';
 import { isFirestoreEnabled, setFirestoreEnabled } from '@/services/repositories/repositoryConfig';
 import { save, updatePartial } from '@/services/repositories/dailyRecordRepositoryWriteService';
 import { syncWithFirestore } from '@/services/repositories/dailyRecordRepositorySyncService';
