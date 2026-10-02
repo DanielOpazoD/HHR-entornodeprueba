@@ -840,3 +840,7 @@ DOM para hacerla pasar en Node.
 Las ocho suites de escalas clínicas (Braden/CUDYR), UPC y entrega de turno
 también declaran Node. Preservan estados legacy, criterios, auditoría histórica,
 carryover y visibilidad por especialidad; no se cambia ninguna regla clínica.
+
+Las diez suites de esquemas y validación declaran Node: parsing de pacientes,
+movimientos, entrega, heridas y telemetría Rayen. Conservan rechazo de entradas
+inválidas, normalización legacy y reportes de reparación; los esquemas no cambian.
