@@ -103,18 +103,6 @@ const recordMatchesPatientRut = (
   return !documentRut || documentRut === currentPatientRut;
 };
 
-const recordMatchesBinding = (
-  record: ClinicalDocumentPresenceRecord,
-  binding: BedEpisodeBinding
-): boolean => {
-  if (record.status === 'archived') {
-    return false;
-  }
-
-  const episodeKeys = binding.episodeKeys?.length ? binding.episodeKeys : [binding.episodeKey];
-  return episodeKeys.includes(record.episodeKey) && recordMatchesPatientRut(record, binding);
-};
-
 // ---------------------------------------------------------------------------
 // Active episode keys (boolean presence)
 // ---------------------------------------------------------------------------
@@ -139,16 +127,13 @@ export const buildClinicalDocumentPresenceByBed = (
   activeEpisodeKeys: Set<string>,
   records?: ClinicalDocumentPresenceRecord[]
 ): Record<string, boolean> => {
+  if (records) return buildClinicalDocumentPresenceProjection(bindings, records).byBedId;
   const result: Record<string, boolean> = {};
   bindings.forEach(b => {
-    if (records) {
-      result[b.bedId] = records.some(record => recordMatchesBinding(record, b));
-      return;
-    }
-
     const episodeKeys = b.episodeKeys?.length ? b.episodeKeys : [b.episodeKey];
     result[b.bedId] = episodeKeys.some(episodeKey => activeEpisodeKeys.has(episodeKey));
   });
+
   return result;
 };
 
@@ -164,18 +149,40 @@ export const buildClinicalDocumentPresenceInfoByBed = (
   bindings: BedEpisodeBinding[],
   records: ClinicalDocumentPresenceRecord[] | undefined
 ): Record<string, ClinicalDocumentPresenceInfo> => {
-  const result: Record<string, ClinicalDocumentPresenceInfo> = {};
+  return buildClinicalDocumentPresenceProjection(bindings, records).infoByBedId;
+};
 
-  bindings.forEach(b => {
-    const matchingRecords = (records || []).filter(record => recordMatchesBinding(record, b));
-    const totalCount = matchingRecords.length;
-    const draftCount = matchingRecords.filter(record => record.status === 'draft').length;
-    result[b.bedId] = {
-      present: totalCount > 0,
-      totalCount,
-      draftCount,
-    };
-  });
-
-  return result;
+/** One request-local index serves both badges; no persistent clinical cache. */
+export const buildClinicalDocumentPresenceProjection = (
+  bindings: BedEpisodeBinding[],
+  records: ClinicalDocumentPresenceRecord[] | undefined
+): {
+  byBedId: Record<string, boolean>;
+  infoByBedId: Record<string, ClinicalDocumentPresenceInfo>;
+} => {
+  const byEpisode = new Map<string, ClinicalDocumentPresenceRecord[]>();
+  for (const record of records || []) {
+    if (record.status === 'archived') continue;
+    const entries = byEpisode.get(record.episodeKey);
+    if (entries) entries.push(record);
+    else byEpisode.set(record.episodeKey, [record]);
+  }
+  const byBedId: Record<string, boolean> = {};
+  const infoByBedId: Record<string, ClinicalDocumentPresenceInfo> = {};
+  for (const binding of bindings) {
+    let totalCount = 0;
+    let draftCount = 0;
+    // Repeated aliases must not count the same source record twice.
+    const keys = new Set(binding.episodeKeys?.length ? binding.episodeKeys : [binding.episodeKey]);
+    for (const key of keys) {
+      for (const record of byEpisode.get(key) || []) {
+        if (!recordMatchesPatientRut(record, binding)) continue;
+        totalCount++;
+        if (record.status === 'draft') draftCount++;
+      }
+    }
+    byBedId[binding.bedId] = totalCount > 0;
+    infoByBedId[binding.bedId] = { present: totalCount > 0, totalCount, draftCount };
+  }
+  return { byBedId, infoByBedId };
 };
