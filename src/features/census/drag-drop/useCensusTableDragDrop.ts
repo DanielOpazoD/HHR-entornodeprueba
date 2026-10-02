@@ -30,6 +30,12 @@ export function useCensusTableDragDrop(
   const dragCounterRef = useRef(0);
   const dragStartHandlersRef = useRef(new Map<string, (event: DragEvent) => void>());
 
+  const dragEnterHandlersRef = useRef(new Map<string, (event: DragEvent) => void>());
+  const dropHandlersRef = useRef({
+    beds: bedsRecord,
+    handlers: new Map<string, (event: DragEvent) => void>(),
+  });
+
   // ---- Patient row handlers ----
 
   const onDragStart = useCallback((bedId: string) => {
@@ -58,20 +64,16 @@ export function useCensusTableDragDrop(
   }, []);
   const onDragOver = useCallback((_bedId: string) => handleDragOver, [handleDragOver]);
 
-  const onDragEnter = useMemo(() => {
-    const handlers = new Map<string, (event: DragEvent) => void>();
-    return (bedId: string) => {
-      let handler = handlers.get(bedId);
-      if (!handler) {
-        handler = (e: DragEvent) => {
-          e.preventDefault();
-          dragCounterRef.current++;
-          setDragOverBedId(bedId);
-        };
-        handlers.set(bedId, handler);
-      }
-      return handler;
+  const onDragEnter = useCallback((bedId: string) => {
+    const cached = dragEnterHandlersRef.current.get(bedId);
+    if (cached) return cached;
+    const handler = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounterRef.current++;
+      setDragOverBedId(bedId);
     };
+    dragEnterHandlersRef.current.set(bedId, handler);
+    return handler;
   }, []);
 
   const onDragLeave = useCallback(() => {
@@ -82,26 +84,29 @@ export function useCensusTableDragDrop(
     }
   }, []);
 
-  const onDrop = useMemo(() => {
-    // Rebuild when occupants change: a cached drop handler must read the current census.
-    const handlers = new Map<string, (event: DragEvent) => void>();
-    return (targetBedId: string) => {
-      let handler = handlers.get(targetBedId);
-      if (!handler) {
-        handler = (e: DragEvent) => {
-          e.preventDefault();
-          const sourceBedId = e.dataTransfer.getData(DRAG_DATA_FORMAT);
-          setDragSourceBedId(null);
-          setDragOverBedId(null);
-          dragCounterRef.current = 0;
-          const move = buildPendingBedMove(sourceBedId, targetBedId, bedsRecord);
-          if (move) setPendingMove(move);
-        };
-        handlers.set(targetBedId, handler);
+  const onDrop = useCallback(
+    (targetBedId: string) => {
+      // Like the source handlers, mutable handler caches belong to the hook's refs.
+      // An occupant change invalidates each target entry before it can be reused.
+      if (dropHandlersRef.current.beds !== bedsRecord) {
+        dropHandlersRef.current = { beds: bedsRecord, handlers: new Map() };
       }
+      const cached = dropHandlersRef.current.handlers.get(targetBedId);
+      if (cached) return cached;
+      const handler = (e: DragEvent) => {
+        e.preventDefault();
+        const sourceBedId = e.dataTransfer.getData(DRAG_DATA_FORMAT);
+        setDragSourceBedId(null);
+        setDragOverBedId(null);
+        dragCounterRef.current = 0;
+        const move = buildPendingBedMove(sourceBedId, targetBedId, bedsRecord);
+        if (move) setPendingMove(move);
+      };
+      dropHandlersRef.current.handlers.set(targetBedId, handler);
       return handler;
-    };
-  }, [bedsRecord]);
+    },
+    [bedsRecord]
+  );
 
   // ---- Confirmation handlers ----
 
