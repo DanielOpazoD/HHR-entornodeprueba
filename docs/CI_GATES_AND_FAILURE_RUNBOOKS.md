@@ -890,3 +890,7 @@ Los tests de generación de PDF y cargas con contrato de navegador mantienen jsd
 Seis suites críticas de servicios y controladores de traslados declaran Node.
 Conservan consultas, mutaciones, estado y suscripciones, incluyendo errores.
 No se modifica el comportamiento clínico ni la persistencia de los traslados.
+
+Cinco suites críticas de historial de pacientes declaran Node. Conservan
+paginación, rangos, disponibilidad de lectura e historia UPC, sin modificar
+consultas ni registros clínicos.
