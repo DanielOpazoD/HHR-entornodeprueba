@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,6 +21,15 @@ const writeReport = (
   fs.writeFileSync(
     reportPath,
     JSON.stringify({
+      stats: {
+        expected: tests.filter(statuses => statuses.length === 1 && statuses[0] === 'passed')
+          .length,
+        unexpected: tests.filter(statuses =>
+          ['failed', 'timedOut', 'interrupted'].includes(statuses.at(-1)!)
+        ).length,
+        flaky: tests.filter(statuses => statuses.length > 1 && statuses.at(-1) === 'passed').length,
+        skipped: tests.filter(statuses => statuses.at(-1) === 'skipped').length,
+      },
       suites: [
         {
           specs: tests.map((statuses, index) => ({
@@ -119,6 +130,45 @@ describe('E2E operational metrics report', () => {
     expect(summary).toContain('- Status: PASS');
     expect(stepSummary.match(/# E2E Operational Metrics/g)).toHaveLength(1);
   });
+
+  it.each(['missing', 'invalid-json', 'null', 'empty', 'empty-suites', 'global-error'])(
+    'fails enforcement but preserves diagnostic artifacts for %s evidence',
+    kind => {
+      const root = makeRoot();
+      const input = path.join(root, 'report.json');
+      if (kind === 'invalid-json') fs.writeFileSync(input, '{');
+      else if (kind === 'null') fs.writeFileSync(input, 'null');
+      else if (kind === 'empty') fs.writeFileSync(input, '{}');
+      else if (kind === 'empty-suites') writeReport(input, []);
+      else if (kind === 'global-error') {
+        writeReport(input, [['passed']]);
+        const report = JSON.parse(fs.readFileSync(input, 'utf8'));
+        report.errors = [{ message: 'Synthetic worker crash' }];
+        fs.writeFileSync(input, JSON.stringify(report));
+      }
+      const { result, metrics, summary, stepSummary } = runMetrics(root, input);
+      expect(result.status).toBe(1);
+      expect(metrics.status).toBe('fail');
+      expect(metrics.violations).not.toHaveLength(0);
+      expect(summary).toContain('- Status: FAIL');
+      expect(stepSummary).toContain('- Status: FAIL');
+    }
+  );
+
+  it.each(['failed', 'timedOut', 'interrupted'] as const)(
+    'fails on a terminal %s test even if stats claim a pass',
+    status => {
+      const root = makeRoot();
+      const input = path.join(root, 'report.json');
+      writeReport(input, [[status]]);
+      const report = JSON.parse(fs.readFileSync(input, 'utf8'));
+      report.stats = { expected: 1, unexpected: 0, flaky: 0 };
+      fs.writeFileSync(input, JSON.stringify(report));
+      const { result, metrics } = runMetrics(root, input);
+      expect(result.status).toBe(1);
+      expect(metrics.status).toBe('fail');
+    }
+  );
 
   it('compares against earlier history before adding the current execution once', () => {
     const root = makeRoot();

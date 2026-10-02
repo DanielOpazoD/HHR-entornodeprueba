@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { collectPlaywrightReportIssues } from './check-playwright-report-clean.mjs';
 
 const args = process.argv.slice(2);
 const enforce = args.includes('--enforce');
@@ -47,6 +48,7 @@ const thresholds = {
 };
 
 const nowIso = new Date().toISOString();
+const evidenceIssues = collectPlaywrightReportIssues(inputPath, { label: 'critical E2E' });
 
 const emptyMetrics = {
   generatedAt: nowIso,
@@ -130,16 +132,23 @@ const computeBaselineFromHistory = historyDir => {
 };
 
 const evaluateThresholds = metrics => {
-  const violations = [];
+  const violations = [...evidenceIssues];
   const warnings = [...metrics.warnings];
 
   if (!metrics.reportFound) {
     return {
       ...metrics,
-      status: 'warn',
+      status: violations.length > 0 ? 'fail' : 'warn',
       violations,
       warnings,
     };
+  }
+
+  if (metrics.totalTests === 0) {
+    violations.push('Critical E2E report has no test entries.');
+  }
+  if (metrics.failed + metrics.timedOut + metrics.interrupted > 0) {
+    violations.push('Critical E2E report contains failed, timed out, or interrupted tests.');
   }
 
   if (metrics.flaky > thresholds.maxFlaky) {
@@ -271,7 +280,7 @@ if (!fs.existsSync(inputPath)) {
   const finalMetrics = evaluateThresholds(emptyMetrics);
   writeOutputs(finalMetrics);
   console.warn('[e2e-metrics] Playwright JSON report not found. Wrote empty metrics artifact.');
-  process.exit(0);
+  process.exit(enforce && finalMetrics.status === 'fail' ? 1 : 0);
 }
 
 let payload;
@@ -285,7 +294,7 @@ try {
   });
   writeOutputs(metrics);
   console.warn('[e2e-metrics] Invalid report JSON. Wrote empty metrics artifact.');
-  process.exit(0);
+  process.exit(enforce && metrics.status === 'fail' ? 1 : 0);
 }
 
 const testEntries = [];
