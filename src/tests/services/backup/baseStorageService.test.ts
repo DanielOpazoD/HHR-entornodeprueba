@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 /**
  * Tests for baseStorageService
  * Tests shared utilities and constants

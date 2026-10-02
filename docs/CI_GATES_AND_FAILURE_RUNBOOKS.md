@@ -882,3 +882,7 @@ procesos BAAB con la configuración crítica intacta, pasó de mediana 15,07 s a
 idénticos, sin pérdidas ni ganancias. No es una medida del CI completo.
 No cambian código de producción, workers, aislamiento, plazos ni umbrales.
 Rollback: revertir las anotaciones del PR afectado. Owner: tests críticos/HHR.
+
+Quince suites críticas de contratos y controladores de respaldos declaran Node.
+Conservan errores, disponibilidad, listados, resultados, PDF storage y backfill.
+Los tests de generación de PDF y cargas con contrato de navegador mantienen jsdom.
