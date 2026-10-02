@@ -93,7 +93,7 @@ const openSeededCensus = async (page: Page, remoteWriter = false) => {
       db.close();
     }
   }, record);
-  await page.goto(`/census?date=${MULTIUSER_DATE}`);
+  // Authenticate the existing bootstrap page before the single final census navigation.
   await ensureAuthenticated(page);
   await page.goto(`/census?date=${MULTIUSER_DATE}`);
   await expect(page.getByTestId('census-table')).toBeVisible({ timeout: 20_000 });
@@ -163,8 +163,12 @@ test.describe('Offline local persistence and controlled remote-authority reload'
       const userAPage = await userAContext.newPage();
       const userBPage = await userBContext.newPage();
 
-      await openSeededCensus(userAPage);
-      const userBAuthority = (await openSeededCensus(userBPage, true))!;
+      // Each client owns its browser storage and authority route; only setup runs concurrently.
+      const [, userBAuthority] = await Promise.all([
+        openSeededCensus(userAPage),
+        openSeededCensus(userBPage, true),
+      ]);
+      expect(userBAuthority).not.toBeNull();
 
       const userARow = getRow(userAPage, 'R1');
 
@@ -197,7 +201,7 @@ test.describe('Offline local persistence and controlled remote-authority reload'
       });
 
       await updateClinicalDiagnosis(userBPage, getRow(userBPage, 'R1'), 'R1', 'REMOTE USER B DX');
-      const remoteSave = await userBAuthority.nextCall();
+      const remoteSave = await userBAuthority!.nextCall();
       expect(remoteSave.payload.patch).toMatchObject({ 'beds.R1.pathology': 'REMOTE USER B DX' });
       await remoteSave.succeed();
       await waitForPersistedBedFields({
@@ -235,8 +239,12 @@ test.describe('Offline local persistence and controlled remote-authority reload'
       const userAPage = await userAContext.newPage();
       const userBPage = await userBContext.newPage();
 
-      await openSeededCensus(userAPage);
-      const userBAuthority = (await openSeededCensus(userBPage, true))!;
+      // Each client owns its browser storage and authority route; only setup runs concurrently.
+      const [, userBAuthority] = await Promise.all([
+        openSeededCensus(userAPage),
+        openSeededCensus(userBPage, true),
+      ]);
+      expect(userBAuthority).not.toBeNull();
 
       const userAR1 = getRow(userAPage, 'R1');
 
@@ -269,7 +277,7 @@ test.describe('Offline local persistence and controlled remote-authority reload'
         'R2',
         'USER B NON CONFLICT DX'
       );
-      const remoteSave = await userBAuthority.nextCall();
+      const remoteSave = await userBAuthority!.nextCall();
       expect(remoteSave.payload.patch).toMatchObject({
         'beds.R2.pathology': 'USER B NON CONFLICT DX',
       });

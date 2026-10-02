@@ -44,3 +44,18 @@ perfiles por archivo junto con varias ejecuciones comparables antes de ajustar.
 Este PR no promete acelerar la aplicación ni una reducción demostrada del tiempo
 CI. Mejora el criterio de finalización y la reproducibilidad de pruebas que
 protegen cancelaciones, aislamiento y escrituras pendientes.
+
+## Preparación E2E multiusuario sin recargas redundantes
+
+Los dos escenarios de `multiuser-offline-conflict.spec.ts` preparan sus clientes
+con contextos, almacenamiento y rutas de autoridad separados. La autenticación
+se completa en la página de bootstrap antes de una única navegación final al
+censo; sólo esa preparación se ejecuta en paralelo. Las acciones de edición,
+reconexión y aceptación remota siguen en su orden original.
+
+En una comparación local alternada antes/después/después/antes, con un worker,
+sin reintentos y ambos escenarios aprobados en cada ejecución, la mediana total
+fue 29,49 s frente a 26,16 s (11,3 % menos). La referencia inicial adicional fue
+23,50 s: hay variabilidad local y esta medición no demuestra una mejora de toda
+la CI ni del rendimiento de la aplicación. Se eliminan cuatro navegaciones
+redundantes por ejecución del archivo sin retirar aserciones ni escenarios.
