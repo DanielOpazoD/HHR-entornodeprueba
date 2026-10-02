@@ -821,3 +821,18 @@ su timer y no vuelve a estar listo si llega tarde el contexto. También rechaza 
 versión distinta o una generación ausente. El teardown comprueba cero timers.
 Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
 No cambia el paquete de extensión ni sus plazos de respuesta.
+
+### Entornos explícitos para lógica pura (2026-10-02)
+
+Las suites de utilidades clínicas (12 archivos: fechas, RUT, permisos, cadenas,
+clonado, patches e integridad) usan Node mediante la anotación de cada archivo.
+Conservan sus casos, aserciones, mocks y reloj clínico; no requieren DOM ni renderizado.
+Las suites de descargas CSV y hooks optimistas conservan jsdom porque sí usan DOM.
+
+La comparación local de 50 suites candidatas, en cuatro procesos BAAB con cuatro
+workers, conservó los mismos 438 casos y resultados: mediana de 5,12 s en jsdom
+y 1,83 s en Node (64,4 % menos). Es una medida de esa cohorte local, no del CI
+completo ni del tiempo de la aplicación. No cambian cobertura, aislamiento,
+workers, plazos ni umbrales. Owner: infraestructura de tests/HHR.
+Rollback: revertir la anotación del PR afectado; no adaptar una prueba que necesita
+DOM para hacerla pasar en Node.
