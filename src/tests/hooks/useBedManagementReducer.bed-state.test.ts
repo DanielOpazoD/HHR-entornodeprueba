@@ -5,6 +5,9 @@ import { DataFactory } from '@/tests/factories/DataFactory';
 import { BedType } from '@/types/domain/beds';
 
 describe('bedManagementReducer bed state controls', () => {
+  it('does not produce a patch without a current daily record', () => {
+    expect(bedManagementReducer(null, { type: 'CLEAR_ALL_BEDS' })).toBeNull();
+  });
   it('creates a provisional clinical crib using the mother label fallback', () => {
     const record = DataFactory.createMockDailyRecord('2026-04-12');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
