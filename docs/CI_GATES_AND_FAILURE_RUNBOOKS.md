@@ -849,3 +849,22 @@ Veinte suites de contratos y políticas del repositorio declaran Node. Conservan
 autoridad clínica, conflictos de campos/movimientos, CUDYR, fechas de ingreso,
 intención explícita de patch, compatibilidad y preparación de persistencia.
 No migrar junto a ellas las pruebas de integración que sí ejercen APIs de navegador.
+
+### Declaraciones de test exclusivas u omitidas (2026-10-02)
+
+El control de gobernanza conserva la política existente basada en los nombres
+`it`, `test` y `describe`, y analiza sus llamadas estáticas con el parser de
+TypeScript ya instalado. Detecta `only`/`skip` en cadenas `each`/`concurrent`,
+acceso por clave literal y wrappers de expresiones TypeScript. Los comentarios y
+strings de fixtures no cuentan como declaraciones ejecutables.
+
+No resuelve símbolos: un método local con esos nombres conserva el tratamiento
+conservador previo. Imports renombrados y claves dinámicas requieren revisión de
+código; no se presenta este detector como análisis completo de JavaScript.
+La resolución de aliases queda fuera de este PR: no hay uso demostrado que
+justifique construir una política de bindings propia.
+
+La CLI se prueba en directorios temporales propios con declaraciones prohibidas,
+texto inocuo, la excepción de skip de reglas Firestore y el límite intacto de
+500 líneas. Owner: infraestructura de tests/CI HHR. Rollback: revertir el PR del
+detector; no crear allowlists nuevas para hacer pasar un test exclusivo u omitido.
