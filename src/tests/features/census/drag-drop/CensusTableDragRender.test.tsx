@@ -95,3 +95,48 @@ it('keeps an unchanged patient row memoized while an empty bed receives drag hov
 
   expect(patientRowRender).toHaveBeenCalledTimes(1);
 });
+
+it('rerenders only the bed whose document indicator changes in a populated census', () => {
+  patientRowRender.mockClear();
+  const fullRows = Array.from({ length: 20 }, (_, index) => {
+    const bed = { ...occupiedBed, id: `BED${index}`, name: `BED${index}` };
+    return {
+      kind: 'occupied' as const,
+      id: bed.id,
+      bed,
+      data: DataFactory.createMockPatient(bed.id),
+      isSubRow: false,
+    };
+  });
+  const props = {
+    unifiedRows: fullRows,
+    currentDateString: '2026-02-20',
+    readOnly: false,
+    diagnosisMode: 'free' as const,
+    columns,
+    visibleColumnCount: 9,
+    bedTypes,
+    role: 'admin' as const,
+    onAction,
+    onActivateEmptyBed,
+  };
+  const table = (presence: Record<string, boolean>, recordLastUpdated?: string) => (
+    <table>
+      <CensusTableBody
+        {...props}
+        clinicalDocumentPresenceByBedId={presence}
+        recordLastUpdated={recordLastUpdated}
+      />
+    </table>
+  );
+  const { rerender } = render(table({}));
+  expect(patientRowRender).toHaveBeenCalledTimes(20);
+  rerender(table({ BED0: true }));
+  expect(patientRowRender).toHaveBeenCalledTimes(21);
+  expect(patientRowRender).toHaveBeenLastCalledWith('BED0');
+  rerender(table({ BED0: true }));
+  expect(patientRowRender).toHaveBeenCalledTimes(21);
+  // A new authoritative revision must still reach every row's guarded commands.
+  rerender(table({ BED0: true }, '2026-02-20T12:00:00Z'));
+  expect(patientRowRender).toHaveBeenCalledTimes(41);
+});
