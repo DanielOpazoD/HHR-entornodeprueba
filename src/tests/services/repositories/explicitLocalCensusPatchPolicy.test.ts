@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest';
 import {
   EXPLICIT_LOCAL_CENSUS_PATCH_FIELDS,

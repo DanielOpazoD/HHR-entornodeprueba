@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest';
 import {
   DAILY_RECORD_DELETE_OUTBOX_POLICY,
