@@ -151,3 +151,8 @@ su instalación independiente.
 Comparar hits/misses y duración del paso de dependencias en jobs equivalentes.
 La referencia observó instalaciones de 34–61 s y restauraciones de 13–21 s;
 son observaciones de una ejecución, no una reducción garantizada del pipeline.
+
+`API Documentation` comparte el runtime Node 22 y la instalación exacta raíz.
+Sus contratos de caché verifican también nombre, scope, permisos, generación y
+publicación del artefacto. Functions conserva sus instalaciones independientes.
+No añadir un escritor de caché ni una barrera hacia `quality-static-base`.
