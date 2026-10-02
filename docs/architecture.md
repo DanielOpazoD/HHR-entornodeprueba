@@ -268,3 +268,5 @@ Los demás jobs leen la caché sin esperar un productor nuevo: las dependencias,
 condiciones y matrices del workflow se conservan. Functions mantiene sus dos
 lockfiles e instalaciones; la documentación API mantiene Node 20. No se comparten
 emuladores ni builds de escenarios diferentes.
+
+El calendario conserva una suscripción a cambios del almacén local por año/mes activo y QueryClient. Renders del mismo mes no deben desmontarla; cambiar mes, deshabilitar el hook o desmontarlo sí actualiza o elimina el listener. La clave de consulta mantiene la fábrica canónica y la política de invalidación existente.
