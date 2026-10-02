@@ -36,10 +36,10 @@ const writeReport = (
             title: `test-${index + 1}`,
             tests: [
               {
+                projectName: 'chromium',
                 results: statuses.map((status, attempt) => ({
                   status,
                   duration: 100 + attempt,
-                  projectName: 'chromium',
                 })),
               },
             ],
@@ -130,6 +130,49 @@ describe('E2E operational metrics report', () => {
     expect(summary).toContain('- Status: PASS');
     expect(stepSummary.match(/# E2E Operational Metrics/g)).toHaveLength(1);
   });
+
+  it('attributes real Playwright test-level projects, retries and durations through nested suites', () => {
+    const root = makeRoot();
+    const input = path.join(root, 'report.json');
+    writeReport(input, [['passed'], ['failed', 'passed'], ['passed'], ['passed']]);
+    const report = JSON.parse(fs.readFileSync(input, 'utf8'));
+    const specs = report.suites[0].specs;
+    specs[1].tests[0].projectName = 'firefox';
+    delete specs[2].tests[0].projectName;
+    specs[2].tests[0].projectId = 'webkit';
+    delete specs[3].tests[0].projectName;
+    // Results carry no project metadata in Playwright's real JSON reporter.
+    report.suites = [{ suites: [{ specs }] }];
+    fs.writeFileSync(input, JSON.stringify(report));
+    const { result, metrics, summary } = runMetrics(root, input);
+    expect(result.status).toBe(1);
+    expect(metrics.projects).toEqual({
+      chromium: { tests: 1, flaky: 0, retriesUsed: 0, durationMs: 100 },
+      firefox: { tests: 1, flaky: 1, retriesUsed: 1, durationMs: 201 },
+      webkit: { tests: 1, flaky: 0, retriesUsed: 0, durationMs: 100 },
+      unknown: { tests: 1, flaky: 0, retriesUsed: 0, durationMs: 100 },
+    });
+    expect(summary).toContain('| firefox | 1 | 1 | 1 | 0.2 |');
+    expect(metrics.totalTests).toBe(4);
+    expect(metrics.durationMs).toBe(501);
+  });
+
+  it.each(['constructor', 'toString', '__proto__'])(
+    'keeps a valid project named %s as an own metrics bucket',
+    projectName => {
+      const root = makeRoot();
+      const input = path.join(root, 'report.json');
+      writeReport(input, [['passed']]);
+      const report = JSON.parse(fs.readFileSync(input, 'utf8'));
+      report.suites[0].specs[0].tests[0].projectName = projectName;
+      fs.writeFileSync(input, JSON.stringify(report));
+      const { result, metrics } = runMetrics(root, input);
+      expect(result.status).toBe(0);
+      expect(Object.entries(metrics.projects as object)).toEqual([
+        [projectName, { tests: 1, flaky: 0, retriesUsed: 0, durationMs: 100 }],
+      ]);
+    }
+  );
 
   it.each(['missing', 'invalid-json', 'null', 'empty', 'empty-suites', 'global-error'])(
     'fails enforcement but preserves diagnostic artifacts for %s evidence',

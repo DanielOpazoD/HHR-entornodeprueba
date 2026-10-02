@@ -64,7 +64,7 @@ const emptyMetrics = {
   flaky: 0,
   retriesUsed: 0,
   durationMs: 0,
-  projects: {},
+  projects: Object.create(null),
   thresholds,
   baseline: null,
   status: 'warn',
@@ -317,7 +317,7 @@ const metrics = {
   flaky: 0,
   retriesUsed: 0,
   durationMs: 0,
-  projects: {},
+  projects: Object.create(null),
   thresholds,
   baseline: null,
   status: 'pass',
@@ -339,7 +339,8 @@ for (const test of testEntries) {
   const isFlaky = finalStatus === 'passed' && hasFailureAttempt;
 
   const projectName =
-    results.find(result => typeof result?.projectName === 'string')?.projectName ||
+    (typeof test?.projectName === 'string' && test.projectName) ||
+    (typeof test?.projectId === 'string' && test.projectId) ||
     'unknown';
 
   if (!metrics.projects[projectName]) {
