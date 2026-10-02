@@ -69,6 +69,11 @@ export const CensusTableBody: React.FC<
     return map;
   }, [projectedRows, currentDateString, clinicalDocumentPresenceByBedId, dischargedRuts]);
 
+  const emptyBedActivationHandlers = React.useMemo(
+    () => new Map(projectedRows.map(row => [row.bed.id, () => onActivateEmptyBed(row.bed.id)])),
+    [projectedRows, onActivateEmptyBed]
+  );
+
   return (
     <tbody>
       {projectedRows.map(row => {
@@ -100,7 +105,7 @@ export const CensusTableBody: React.FC<
               visibleColumnCount={visibleColumnCount}
               readOnly={readOnly || isPendingBedClear}
               isPendingClear={isPendingBedClear}
-              onClick={() => onActivateEmptyBed(row.bed.id)}
+              onClick={emptyBedActivationHandlers.get(row.bed.id)!}
               isDragOver={!isPendingBedClear && dragDrop?.state.dragOverBedId === row.bed.id}
               onDragOver={
                 isPendingBedClear ? undefined : dragDrop?.emptyBedHandlers.onDragOver(row.bed.id)

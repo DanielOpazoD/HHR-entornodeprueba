@@ -30,6 +30,12 @@ export function useCensusTableDragDrop(
   const dragCounterRef = useRef(0);
   const dragStartHandlersRef = useRef(new Map<string, (event: DragEvent) => void>());
 
+  const dragEnterHandlersRef = useRef(new Map<string, (event: DragEvent) => void>());
+  const dropHandlersRef = useRef({
+    beds: bedsRecord,
+    handlers: new Map<string, (event: DragEvent) => void>(),
+  });
+
   // ---- Patient row handlers ----
 
   const onDragStart = useCallback((bedId: string) => {
@@ -52,22 +58,23 @@ export function useCensusTableDragDrop(
 
   // ---- Empty bed handlers ----
 
-  const onDragOver = useCallback(
-    (_bedId: string) => (e: DragEvent) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    },
-    []
-  );
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+  const onDragOver = useCallback((_bedId: string) => handleDragOver, [handleDragOver]);
 
-  const onDragEnter = useCallback(
-    (bedId: string) => (e: DragEvent) => {
+  const onDragEnter = useCallback((bedId: string) => {
+    const cached = dragEnterHandlersRef.current.get(bedId);
+    if (cached) return cached;
+    const handler = (e: DragEvent) => {
       e.preventDefault();
       dragCounterRef.current++;
       setDragOverBedId(bedId);
-    },
-    []
-  );
+    };
+    dragEnterHandlersRef.current.set(bedId, handler);
+    return handler;
+  }, []);
 
   const onDragLeave = useCallback(() => {
     dragCounterRef.current--;
@@ -78,17 +85,25 @@ export function useCensusTableDragDrop(
   }, []);
 
   const onDrop = useCallback(
-    (targetBedId: string) => (e: DragEvent) => {
-      e.preventDefault();
-      const sourceBedId = e.dataTransfer.getData(DRAG_DATA_FORMAT);
-      setDragSourceBedId(null);
-      setDragOverBedId(null);
-      dragCounterRef.current = 0;
-
-      const move = buildPendingBedMove(sourceBedId, targetBedId, bedsRecord);
-      if (move) {
-        setPendingMove(move);
+    (targetBedId: string) => {
+      // Like the source handlers, mutable handler caches belong to the hook's refs.
+      // An occupant change invalidates each target entry before it can be reused.
+      if (dropHandlersRef.current.beds !== bedsRecord) {
+        dropHandlersRef.current = { beds: bedsRecord, handlers: new Map() };
       }
+      const cached = dropHandlersRef.current.handlers.get(targetBedId);
+      if (cached) return cached;
+      const handler = (e: DragEvent) => {
+        e.preventDefault();
+        const sourceBedId = e.dataTransfer.getData(DRAG_DATA_FORMAT);
+        setDragSourceBedId(null);
+        setDragOverBedId(null);
+        dragCounterRef.current = 0;
+        const move = buildPendingBedMove(sourceBedId, targetBedId, bedsRecord);
+        if (move) setPendingMove(move);
+      };
+      dropHandlersRef.current.handlers.set(targetBedId, handler);
+      return handler;
     },
     [bedsRecord]
   );

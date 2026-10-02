@@ -31,3 +31,37 @@ describe('useCensusTableDragDrop patient handlers', () => {
     expect(result.current.state.dragSourceBedId).toBe('R1');
   });
 });
+
+it('refreshes drop data when occupants change and moves only after confirmation', () => {
+  const move = vi.fn();
+  const { result, rerender } = renderHook(
+    ({ name }) =>
+      useCensusTableDragDrop(move, { R1: { patientName: name }, R2: { patientName: '' } }),
+    { initialProps: { name: 'Anterior' } }
+  );
+  const enter = result.current.emptyBedHandlers.onDragEnter('R2');
+  const over = result.current.emptyBedHandlers.onDragOver('R2');
+  const oldDrop = result.current.emptyBedHandlers.onDrop('R2');
+  act(() => enter({ preventDefault: vi.fn() } as unknown as DragEvent));
+  expect(result.current.emptyBedHandlers.onDragEnter('R2')).toBe(enter);
+  expect(result.current.emptyBedHandlers.onDragOver('R2')).toBe(over);
+  rerender({ name: 'Actual' });
+  expect(result.current.emptyBedHandlers.onDrop('R2')).not.toBe(oldDrop);
+  const event = {
+    preventDefault: vi.fn(),
+    dataTransfer: { getData: () => 'R1' },
+  } as unknown as DragEvent;
+  act(() => result.current.emptyBedHandlers.onDrop('R2')(event));
+  expect(result.current.state.pendingMove).toEqual({
+    sourceBedId: 'R1',
+    targetBedId: 'R2',
+    patientName: 'Actual',
+  });
+  expect(move).not.toHaveBeenCalled();
+  act(() => result.current.confirmationHandlers.onCancel());
+  expect(move).not.toHaveBeenCalled();
+  expect(result.current.state.pendingMove).toBeNull();
+  act(() => result.current.emptyBedHandlers.onDrop('R2')(event));
+  act(() => result.current.confirmationHandlers.onConfirm());
+  expect(move).toHaveBeenCalledExactlyOnceWith('R1', 'R2');
+});
