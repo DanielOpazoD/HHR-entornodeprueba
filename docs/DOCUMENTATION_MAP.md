@@ -15,7 +15,7 @@
 4. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
 5. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
 6. [docs/RUNBOOK_INDEX.md](RUNBOOK_INDEX.md)
-7. [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md)
+7. [Cadencia de mantenimiento](FOUNDATION_MAINTENANCE_CADENCE.md)
 8. [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 
 ## Módulos canónicos por área
@@ -40,7 +40,6 @@ Documentos que gobiernan decisiones activas y estructura actual del repo.
 - [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
 - [docs/GLOSSARY.md](GLOSSARY.md) — vocabulario canónico del dominio (paciente/cama/alta/traslado/CUDYR/CMA/MINSAL…)
 - [docs/TODO_TRIAGE_PROCESS.md](TODO_TRIAGE_PROCESS.md) — playbook para mantener cero markers `TODO`/`FIXME` en código
-- [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md)
 - [docs/QUALITY_GUARDRAILS.md](QUALITY_GUARDRAILS.md)
 - [docs/SAFE_CHANGE_CHECKLIST.md](SAFE_CHANGE_CHECKLIST.md)
 - [docs/CLINICAL_MUTATION_AUDIT_POLICY.md](CLINICAL_MUTATION_AUDIT_POLICY.md) — postura de auditoría declarada por `AuditAction` (gate `check:clinical-mutation-audit-policy`)
@@ -97,6 +96,8 @@ actualizar el `Estado` y apuntar al ADR reemplazante.
 
 ### Operativa
 
+- [Cadencia de mantenimiento](FOUNDATION_MAINTENANCE_CADENCE.md)
+
 Documentos que ayudan a ejecutar trabajo, validar cambios o entender un área concreta.
 
 - `docs/testing/*`
@@ -120,13 +121,15 @@ Documentos útiles para contexto, pero no fuente primaria de reglas activas.
 - `docs/superpowers/plans/*.md`
 - `docs/superpowers/specs/*.md`
 - `docs/FOUNDATION_IMPROVEMENT_PLAN.md`
-- `docs/FOUNDATION_CONTINUATION_TRACKER.md`
+- [docs/FOUNDATION_TRACKER.md](FOUNDATION_TRACKER.md) — cierre histórico B01–B26
+- [docs/FOUNDATION_CONTINUATION_TRACKER.md](FOUNDATION_CONTINUATION_TRACKER.md) — ciclos cerrados
 - `docs/MAINTENANCE_ITERATION_LOG.md`
 
 ### Generada
 
 Artefactos producidos por tooling o reportes automáticos. Son útiles para consulta, pero no son la fuente primaria de diseño.
 
+- `docs/dependency-debt.md` — snapshot generado; verificar su fecha y regenerar antes de evaluar
 - `docs/api/**`
 - `reports/**/*.md`
 - `reports/**/*.json`
