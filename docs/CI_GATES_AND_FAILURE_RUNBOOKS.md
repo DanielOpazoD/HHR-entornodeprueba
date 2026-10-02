@@ -811,3 +811,13 @@ Se comprueba que no queden timers; el timeout respeta su límite exacto de 250 m
 y una respuesta posterior no reenvía operaciones ni recupera trabajo vencido.
 Se preservan los nueve escenarios y los filtros de origen, ventana y reqId.
 Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
+
+### Popup: worker silencioso y respuestas tardías (2026-10-02)
+
+La suite ejecuta el script real del estado del worker con reloj simulado por caso.
+Conserva versión del manifest y respuestas de éxito, rechazo y excepción síncrona.
+Añade un worker sin respuesta: sigue pendiente a 4999 ms, falla a 5000 ms, limpia
+su timer y no vuelve a estar listo si llega tarde el contexto. También rechaza una
+versión distinta o una generación ausente. El teardown comprueba cero timers.
+Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
+No cambia el paquete de extensión ni sus plazos de respuesta.
