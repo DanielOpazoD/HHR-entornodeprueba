@@ -836,3 +836,7 @@ completo ni del tiempo de la aplicación. No cambian cobertura, aislamiento,
 workers, plazos ni umbrales. Owner: infraestructura de tests/HHR.
 Rollback: revertir la anotación del PR afectado; no adaptar una prueba que necesita
 DOM para hacerla pasar en Node.
+
+Las ocho suites de escalas clínicas (Braden/CUDYR), UPC y entrega de turno
+también declaran Node. Preservan estados legacy, criterios, auditoría histórica,
+carryover y visibilidad por especialidad; no se cambia ninguna regla clínica.
