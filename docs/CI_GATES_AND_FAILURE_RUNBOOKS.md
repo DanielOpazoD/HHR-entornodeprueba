@@ -38,6 +38,18 @@ Si la change toca reglas generadas o documentación operativa, correr además:
 
 ## Gates activos
 
+Los fixtures de autenticación E2E esperan una superficie visible de login o el
+menú `authenticated-user-menu-button` después de `domcontentloaded`. No esperan `networkidle`:
+las conexiones de Firestore pueden seguir abiertas con la aplicación lista.
+La ausencia de ambas superficies falla; ver el shell no acredita haber cargado
+el censo. Cada escenario conserva sus assertions de registro, permisos y
+persistencia. Owner: test infrastructure. Para rollback, revertir sólo este
+cambio de fixtures; no cambiar timeouts, retries ni el pack crítico. Comparar
+los 38 escenarios existentes; el pack añade tres regresiones de superficies
+ocultas/visibles y shell previo al menú autenticado. Declarar fallos/reintentos además del tiempo total.
+
+Referencia: [esperas de Playwright](https://playwright.dev/docs/api/class-page#page-wait-for-load-state).
+
 El runner `test:ci:unit:shard` sólo aprueba si el proceso de Vitest termina con
 código cero. Una señal o un error al iniciar el ejecutable produce fallo y un
 diagnóstico `Runner did not complete`; no acredita que las pruebas hayan terminado.
@@ -663,3 +675,8 @@ colecciones inmutablemente y que no se eliminó una dependencia relevante.
 El encabezado conserva su registro completo para el portal de entrega de turno;
 las revisiones usadas por las acciones clínicas no se suprimen. Esta evidencia
 reduce trabajo repetido; no es una medición comparativa de tiempo o INP de usuario.
+
+La fixture multiusuario espera explícitamente a que la aplicación cree el almacén
+`dailyRecords` antes de sembrar su estado inicial. La visibilidad de auth no prueba
+readiness de IndexedDB; abrir una base inexistente desde el test crea un esquema
+vacío y compite con Dexie. No se escriben ediciones esperadas desde la fixture.
