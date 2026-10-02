@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // El inject de mundo principal (inject-fichamedico.js) NO se reinyecta al recargar la
 // extensión: una pestaña ya abierta conserva el lector anterior. Cada respuesta incluye
@@ -113,7 +113,18 @@ const createRelay = (installedVersion: string) => {
   };
 };
 
-const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+const flush = () => vi.advanceTimersByTimeAsync(0);
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  // The real relay leaves inert deadline callbacks after successful replies.
+  // Clear only this case's timers; timeout behavior is asserted explicitly below.
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});
 
 describe('relay de Ficha Médico · versión del inject', () => {
   it('reinyecta el probe MAIN cuando no llega ningún pong', async () => {
@@ -121,8 +132,14 @@ describe('relay de Ficha Médico · versión del inject', () => {
     const ping = relay.send({ type: 'RAYEN_EXTENSION_MAIN_PING' });
     await flush();
     expect(relay.requests.at(-1)?.type).toBe('RAYEN_FM_BRIDGE_PING');
+    const respond = vi.fn();
+    void ping.then(respond);
+    await vi.advanceTimersByTimeAsync(4_499);
+    expect(respond).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
     await expect(ping).resolves.toMatchObject({ mainReady: false, reason: 'missing_probe' });
-  }, 6_000);
+    expect(respond).toHaveBeenCalledTimes(1);
+  });
 
   it('no confunde un pong con error con la ausencia del probe', async () => {
     const relay = createRelay(manifest.version);
@@ -341,16 +358,19 @@ describe('relay de Ficha Médico · versión del inject', () => {
   });
 
   it('un tiempo de espera agotado no se confunde con un lector obsoleto', async () => {
-    vi.useFakeTimers();
-    try {
-      const relay = createRelay('0.48.8');
-      const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
-      await vi.advanceTimersByTimeAsync(4_100);
-      const health = await ping;
-      expect(health.ready).toBe(false);
-      expect(health.message).not.toContain('versión anterior');
-    } finally {
-      vi.useRealTimers();
-    }
+    const relay = createRelay('0.48.8');
+    const ping = relay.send({ type: 'RAYEN_EXTENSION_HEALTH_PING' });
+    await flush();
+    const respond = vi.fn();
+    void ping.then(respond);
+    await vi.advanceTimersByTimeAsync(3_999);
+    expect(respond).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    const health = await ping;
+    expect(health.ready).toBe(false);
+    expect(health.message).not.toContain('versión anterior');
+    relay.answerFromInject({ injectVersion: '0.48.8', ready: true });
+    await flush();
+    expect(respond).toHaveBeenCalledTimes(1);
   });
 });
