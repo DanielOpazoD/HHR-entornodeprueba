@@ -1,3 +1,4 @@
+// @vitest-environment node
 import fs from 'node:fs';
 import { expect, it } from 'vitest';
 import { renderPreviewSummary } from '../../../scripts/report-preview-summary.mjs';

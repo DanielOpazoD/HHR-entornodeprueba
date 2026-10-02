@@ -50,6 +50,15 @@ ocultas/visibles y shell previo al menú autenticado. Declarar fallos/reintentos
 
 Referencia: [esperas de Playwright](https://playwright.dev/docs/api/class-page#page-wait-for-load-state).
 
+Las 21 suites de contratos de CI en `src/tests/build` auditadas sin uso de DOM
+declaran `@vitest-environment node` por archivo; las pruebas de UI conservan jsdom
+y el setup global sigue igual. No ampliar la lista por nombre sin revisar sus
+imports y comportamiento. Seis ejecuciones locales alternadas (dos workers,
+99 tests por ejecución) dieron medianas de 29.339 s en jsdom y 12.124 s en Node;
+la carga del equipo varió. Es evidencia de esta cohorte, no del pipeline completo.
+Owner: test infrastructure. Rollback: retirar esas anotaciones; conservar workers,
+aislamiento, tests y presupuestos. [Entornos de Vitest](https://vitest.dev/config/environment).
+
 El runner `test:ci:unit:shard` sólo aprueba si el proceso de Vitest termina con
 código cero. Una señal o un error al iniciar el ejecutable produce fallo y un
 diagnóstico `Runner did not complete`; no acredita que las pruebas hayan terminado.
