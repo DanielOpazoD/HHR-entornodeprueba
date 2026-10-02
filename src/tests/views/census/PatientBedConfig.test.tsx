@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { BEDS } from '@/constants/beds';
 import { PatientBedConfig } from '@/features/census/components/patient-row/PatientBedConfig';
@@ -7,6 +7,19 @@ import {
   NURSING_DISCHARGE_DESCRIPTION,
 } from '@/features/census/components/patient-row/RayenDischargeBadges';
 import { DataFactory } from '@/tests/factories/DataFactory';
+
+const reportMocks = vi.hoisted(() => ({
+  download: vi.fn(async () => ({ ok: true })),
+  success: vi.fn(),
+  error: vi.fn(),
+}));
+vi.mock('@/features/rayen-import/census-status', () => ({
+  requestRayenHospitalizationDocument: reportMocks.download,
+  requestRayenHospitalizationEpisodes: vi.fn(),
+}));
+vi.mock('@/context/UIContext', () => ({
+  useNotification: () => ({ success: reportMocks.success, error: reportMocks.error }),
+}));
 
 describe('PatientBedConfig', () => {
   it('places the isolation badge in the bed column below hospitalization days', () => {
@@ -148,7 +161,7 @@ describe('PatientBedConfig', () => {
     );
 
     expect(screen.getByLabelText(new RegExp(MEDICAL_DISCHARGE_DESCRIPTION))).toBeInTheDocument();
-    expect(screen.queryByLabelText(NURSING_DISCHARGE_DESCRIPTION)).toBeNull();
+    expect(screen.queryByLabelText(new RegExp(NURSING_DISCHARGE_DESCRIPTION))).toBeNull();
   });
 
   it('marks the bed when Eloísa already registered the nursing discharge', () => {
@@ -182,11 +195,11 @@ describe('PatientBedConfig', () => {
       </table>
     );
 
-    expect(screen.getByLabelText(NURSING_DISCHARGE_DESCRIPTION)).toBeInTheDocument();
+    expect(screen.getByLabelText(new RegExp(NURSING_DISCHARGE_DESCRIPTION))).toBeInTheDocument();
     expect(screen.queryByLabelText(new RegExp(MEDICAL_DISCHARGE_DESCRIPTION))).toBeNull();
   });
 
-  it('overlaps both discharge badges like stacked cards', () => {
+  it('downloads the specific epicrisis from either discharge badge with separate click targets', async () => {
     render(
       <table>
         <tbody>
@@ -218,14 +231,26 @@ describe('PatientBedConfig', () => {
       </table>
     );
 
-    const nursing = screen.getByLabelText(NURSING_DISCHARGE_DESCRIPTION);
-    const medical = screen.getByLabelText(MEDICAL_DISCHARGE_DESCRIPTION);
+    const nursing = screen.getByLabelText(new RegExp(NURSING_DISCHARGE_DESCRIPTION));
+    const medical = screen.getByLabelText(new RegExp(MEDICAL_DISCHARGE_DESCRIPTION));
     const container = screen.getByTestId('rayen-discharge-badges');
     // Orden pedido: primero el alta médica en verde, después la de enfermería.
     expect(container.firstElementChild).toBe(medical);
-    expect(medical).toHaveClass('z-0');
-    // La tarjeta de enfermería se superpone a la médica, como cartas encima una de otra.
-    expect(nursing).toHaveClass('-ml-1', 'z-10');
+    expect(nursing).not.toHaveClass('-ml-1');
+    expect(medical).toBeEnabled();
+    expect(nursing).toBeEnabled();
+    for (const [badge, documentType] of [
+      [medical, 'epicrisis'],
+      [nursing, 'nursing-epicrisis'],
+    ] as const) {
+      fireEvent.click(badge);
+      await waitFor(() =>
+        expect(reportMocks.download).toHaveBeenCalledWith(
+          expect.objectContaining({ clinicalEpisodeId: '8801', documentType })
+        )
+      );
+      await waitFor(() => expect(badge).toBeEnabled());
+    }
     expect(container).toContainElement(nursing);
     // Ambas altas usan el mismo ícono: el color es lo único que las distingue.
     expect(nursing.querySelector('svg')?.getAttribute('class')).toBe(

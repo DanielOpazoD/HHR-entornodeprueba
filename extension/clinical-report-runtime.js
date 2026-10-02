@@ -391,7 +391,7 @@
 
     const routeNursingMedicalEpicrisisRequest = request =>
       root.HhrEpicrisisDownloadRuntime.handleRequest({
-        ...request, fetchWithTimeout, getFichaFetchInfo, fetchOfficialPdf, downloadPdfBuffer,
+        ...request, fetchWithTimeout, getFichaFetchInfo, getClinicalReportContext, fetchOfficialPdf, downloadPdfBuffer,
         chrome: chromeApi, now, printFallback: handleNursingMedicalEpicrisisPrintRequest,
       });
 
