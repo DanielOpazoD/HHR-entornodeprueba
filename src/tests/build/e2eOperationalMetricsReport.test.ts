@@ -51,7 +51,7 @@ const writeReport = (
   );
 };
 
-const runMetrics = (root: string, inputPath: string) => {
+const runMetrics = (root: string, inputPath: string, baselinePath = '') => {
   const outputPath = path.join(root, 'critical-operational-metrics.json');
   const summaryPath = path.join(root, 'critical-operational-summary.md');
   const historyPath = path.join(root, 'history');
@@ -72,7 +72,7 @@ const runMetrics = (root: string, inputPath: string) => {
       env: {
         ...process.env,
         GITHUB_STEP_SUMMARY: stepSummaryPath,
-        E2E_BASELINE_METRICS_PATH: '',
+        E2E_BASELINE_METRICS_PATH: baselinePath,
       },
     }
   );
@@ -259,15 +259,110 @@ describe('E2E operational metrics report', () => {
     }
   );
 
+  it('ignores failed, invalid, legacy and different-cohort history before averaging', () => {
+    const root = makeRoot();
+    const input = path.join(root, 'report.json');
+    writeReport(input, [['passed']]);
+    const earlier = runMetrics(root, input);
+    const rejected = [
+      { status: 'fail' },
+      { failed: 1 },
+      { timedOut: 1 },
+      { interrupted: 1 },
+      { flaky: 1 },
+      { passed: 0 },
+      { durationMs: null },
+      { durationMs: -1 },
+      { totalTests: 2 },
+      { suiteFingerprint: 'other-suite' },
+      { suiteFingerprint: undefined },
+      { reportFound: false },
+    ];
+    for (const [index, override] of rejected.entries()) {
+      fs.writeFileSync(
+        path.join(root, 'history', `invalid-${index}.json`),
+        JSON.stringify({ ...earlier.metrics, durationMs: 50000, ...override })
+      );
+    }
+    const { result, metrics } = runMetrics(root, input);
+    expect(result.status).toBe(0);
+    expect(metrics.baseline).toMatchObject({ source: 'history(1)', durationMs: 100 });
+    expect(metrics.durationRegressionPct).toBe(0);
+  });
+
+  it('rejects an explicit different-project baseline and falls back to comparable history', () => {
+    const root = makeRoot();
+    const input = path.join(root, 'report.json');
+    writeReport(input, [['passed']]);
+    const earlier = runMetrics(root, input);
+    const report = JSON.parse(fs.readFileSync(input, 'utf8'));
+    report.suites[0].specs[0].tests[0].projectName = 'firefox';
+    fs.writeFileSync(input, JSON.stringify(report));
+    const explicit = path.join(root, 'baseline.json');
+    fs.writeFileSync(explicit, JSON.stringify(earlier.metrics));
+    const { metrics } = runMetrics(root, input, explicit);
+    expect(metrics.baseline).toBeNull();
+    expect(metrics.status).toBe('warn');
+    expect(metrics.warnings).toEqual([expect.stringContaining('different test cohort')]);
+  });
+
+  it.each([null, { results: {} }])(
+    'preserves failure artifacts for a structurally invalid test entry %j',
+    testEntry => {
+      const root = makeRoot();
+      const input = path.join(root, 'report.json');
+      fs.writeFileSync(input, JSON.stringify({ suites: [{ specs: [{ tests: [testEntry] }] }] }));
+      const { result, metrics, summary } = runMetrics(root, input);
+      expect(result.status).toBe(1);
+      expect(metrics.status).toBe('fail');
+      expect(summary).toContain('- Status: FAIL');
+    }
+  );
+
+  it('does not compare runs that skip different tests even with the same totals', () => {
+    const root = makeRoot();
+    const input = path.join(root, 'report.json');
+    writeReport(input, [['passed'], ['skipped']]);
+    const earlier = runMetrics(root, input);
+    expect(earlier.metrics.status).toBe('pass');
+    const report = JSON.parse(fs.readFileSync(input, 'utf8'));
+    report.suites[0].specs[0].tests[0].results[0].status = 'skipped';
+    report.suites[0].specs[1].tests[0].results[0].status = 'passed';
+    fs.writeFileSync(input, JSON.stringify(report));
+    const { result, metrics } = runMetrics(root, input);
+    expect(result.status).toBe(0);
+    expect(metrics.totalTests).toBe(earlier.metrics.totalTests);
+    expect(metrics.skipped).toBe(earlier.metrics.skipped);
+    expect(metrics.suiteFingerprint).not.toBe(earlier.metrics.suiteFingerprint);
+    expect(metrics.baseline).toBeNull();
+  });
+
+  it('accepts a complete explicit baseline for the same cohort regardless of report ordering', () => {
+    const root = makeRoot();
+    const input = path.join(root, 'report.json');
+    writeReport(input, [['passed'], ['passed']]);
+    const earlier = runMetrics(root, input);
+    const explicit = path.join(root, 'baseline.json');
+    fs.writeFileSync(explicit, JSON.stringify({ ...earlier.metrics, durationMs: 200 }));
+    const report = JSON.parse(fs.readFileSync(input, 'utf8'));
+    report.suites[0].specs.reverse();
+    fs.writeFileSync(input, JSON.stringify(report));
+    const { result, metrics } = runMetrics(root, input, explicit);
+    expect(result.status).toBe(0);
+    expect(metrics.baseline).toMatchObject({ source: explicit, durationMs: 200 });
+    expect(metrics.suiteFingerprint).toBe(earlier.metrics.suiteFingerprint);
+  });
+
   it('compares against earlier history before adding the current execution once', () => {
     const root = makeRoot();
     const criticalPath = path.join(root, 'critical-playwright-report.json');
     writeReport(criticalPath, [['passed'], ['passed']]);
-    fs.mkdirSync(path.join(root, 'history'));
+    const earlier = runMetrics(root, criticalPath);
     fs.writeFileSync(
-      path.join(root, 'history', 'previous.json'),
-      JSON.stringify({ reportFound: true, durationMs: 100, flaky: 0, retriesUsed: 0 })
+      path.join(root, 'history', earlier.history[0]),
+      JSON.stringify({ ...earlier.metrics, durationMs: 100 })
     );
+    fs.writeFileSync(path.join(root, 'step-summary.md'), '');
 
     const { result, metrics, history, stepSummary } = runMetrics(root, criticalPath);
 

@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { collectPlaywrightReportIssues } from './check-playwright-report-clean.mjs';
 
 const args = process.argv.slice(2);
@@ -81,15 +82,17 @@ const normalizeStatus = status => {
   return 'unknown';
 };
 
-const collectTests = (suite, acc) => {
+const collectTests = (suite, acc, parentTitles = []) => {
   if (!suite || typeof suite !== 'object') return;
 
+  const titlePath = [...parentTitles, suite.title || ''];
   const specs = Array.isArray(suite.specs) ? suite.specs : [];
   for (const spec of specs) {
     const tests = Array.isArray(spec.tests) ? spec.tests : [];
     for (const test of tests) {
       acc.push({
         test,
+        titlePath: [...titlePath, spec.title || ''],
         file: spec.file || suite.file || 'unknown',
         title: spec.title || '',
         line: spec.line ?? null,
@@ -99,11 +102,29 @@ const collectTests = (suite, acc) => {
 
   const nestedSuites = Array.isArray(suite.suites) ? suite.suites : [];
   for (const nested of nestedSuites) {
-    collectTests(nested, acc);
+    collectTests(nested, acc, titlePath);
   }
 };
 
-const computeBaselineFromHistory = historyDir => {
+const getProjectName = test =>
+  (typeof test?.projectName === 'string' && test.projectName) ||
+  (typeof test?.projectId === 'string' && test.projectId) ||
+  'unknown';
+
+const isComparableBaseline = (candidate, current) =>
+  candidate?.reportFound === true &&
+  ['pass', 'warn'].includes(candidate.status) &&
+  candidate.totalTests === current.totalTests &&
+  candidate.suiteFingerprint === current.suiteFingerprint &&
+  candidate.failed === 0 &&
+  candidate.timedOut === 0 &&
+  candidate.interrupted === 0 &&
+  candidate.flaky === 0 &&
+  candidate.passed + candidate.skipped === candidate.totalTests &&
+  Number.isFinite(candidate.durationMs) &&
+  candidate.durationMs > 0;
+
+const computeBaselineFromHistory = (historyDir, current) => {
   if (!fs.existsSync(historyDir)) return null;
 
   const historyFiles = fs
@@ -115,7 +136,7 @@ const computeBaselineFromHistory = historyDir => {
       payload: readJsonSafe(filePath),
       mtimeMs: fs.statSync(filePath).mtimeMs,
     }))
-    .filter(entry => entry.payload && entry.payload.reportFound)
+    .filter(entry => isComparableBaseline(entry.payload, current))
     .sort((a, b) => b.mtimeMs - a.mtimeMs)
     .slice(0, thresholds.historyWindow)
     .map(entry => entry.payload);
@@ -345,6 +366,23 @@ const metrics = {
   source: inputPath,
   reportFound: true,
   totalTests: testEntries.length,
+  suiteFingerprint: createHash('sha256')
+    .update(
+      JSON.stringify(
+        testEntries
+          .map(({ test, file, titlePath }) =>
+            JSON.stringify([
+              file,
+              titlePath,
+              getProjectName(test),
+              (Array.isArray(test?.results) ? test.results.at(-1)?.status : undefined) ||
+                test?.status,
+            ])
+          )
+          .sort()
+      )
+    )
+    .digest('hex'),
   wallDurationMs:
     Number.isFinite(payload?.stats?.duration) && payload.stats.duration >= 0
       ? payload.stats.duration
@@ -381,10 +419,7 @@ for (const { test, file, title, line } of testEntries) {
   const retriesUsed = Math.max(0, attempts - 1);
   const isFlaky = finalStatus === 'passed' && hasFailureAttempt;
 
-  const projectName =
-    (typeof test?.projectName === 'string' && test.projectName) ||
-    (typeof test?.projectId === 'string' && test.projectId) ||
-    'unknown';
+  const projectName = getProjectName(test);
 
   if (!metrics.projects[projectName]) {
     metrics.projects[projectName] = {
@@ -432,7 +467,7 @@ metrics.slowestTests.sort(
 metrics.slowestTests = metrics.slowestTests.slice(0, 10);
 
 const explicitBaseline = readJsonSafe(baselinePath);
-if (explicitBaseline && explicitBaseline.reportFound) {
+if (isComparableBaseline(explicitBaseline, metrics)) {
   metrics.baseline = {
     source: baselinePath,
     durationMs: Number(explicitBaseline.durationMs || 0),
@@ -440,7 +475,11 @@ if (explicitBaseline && explicitBaseline.reportFound) {
     retriesUsed: Number(explicitBaseline.retriesUsed || 0),
   };
 } else {
-  metrics.baseline = computeBaselineFromHistory(historyDirPath);
+  metrics.baseline = computeBaselineFromHistory(historyDirPath, metrics);
+  if (baselinePath)
+    metrics.warnings.push(
+      'Explicit E2E baseline is incomplete or covers a different test cohort; using comparable history only.'
+    );
 }
 
 const evaluatedMetrics = evaluateThresholds(metrics);

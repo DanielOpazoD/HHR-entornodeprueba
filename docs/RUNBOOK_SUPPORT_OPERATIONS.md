@@ -164,6 +164,7 @@ Criterio de cierre:
   - Revisar `flaky`, `retriesUsed` y `durationMs` antes de aprobar release si hubo incidentes de estabilidad.
   - Umbrales operativos definidos en `scripts/config/e2e-operational-thresholds.json`.
   - El gate operativo con `--enforce` bloquea evidencia ausente, inválida, vacía o no limpia y `maxFlaky`; duración y reintentos siguen como advertencia operativa. Los informes JSON y Markdown se conservan incluso ante un fallo.
+  - El baseline compara sólo ejecuciones completas, sin fallos ni flakiness y de la misma cohorte (archivo, ruta del título, proyecto y resultado final, incluyendo omisiones). Historial legacy sin `suiteFingerprint` se conserva pero no se usa para inferir regresiones; un baseline explícito incompatible genera una advertencia y usa únicamente historial comparable.
   - Artefacto en GitHub Actions: `e2e-critical-emulator-artifacts`.
 
 ## Evidencia Mínima para Escalar a Ingeniería
