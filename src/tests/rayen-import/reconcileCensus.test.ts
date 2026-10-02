@@ -382,18 +382,6 @@ describe('reconcileCensus', () => {
     expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
   });
 
-  it('flags a census patient absent from a COMPLETE snapshot as pending administrative discharge', () => {
-    const [bedId, patient] = seedBed(makeEncounter());
-    const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([], true), {
-      reference: REFERENCE,
-    });
-    expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingAdministrativeDischarges[0]).toMatchObject({
-      bedId,
-      signal: 'missing-from-ficha',
-    });
-  });
-
   it('NEVER infers a discharge from a partial snapshot (isComplete omitted/false)', () => {
     const [bedId, patient] = seedBed(makeEncounter());
     const diff = reconcileCensus(makeRecord({ [bedId]: patient }), snapshotOf([]), {

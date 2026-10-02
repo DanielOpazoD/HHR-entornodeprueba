@@ -696,3 +696,22 @@ La fixture multiusuario espera explícitamente a que la aplicación cree el alma
 `dailyRecords` antes de sembrar su estado inicial. La visibilidad de auth no prueba
 readiness de IndexedDB; abrir una base inexistente desde el test crea un esquema
 vacío y compite con Dexie. No se escriben ediciones esperadas desde la fixture.
+
+### Retirar duplicados sin perder escenarios (2026-10-01)
+
+Owner: infraestructura de tests HHR. Se conserva una prueba por cada contrato
+único; un nombre antiguo de archivo no demuestra que el comportamiento haya desaparecido.
+La cohorte de censo/handoff pasa de 75 a 71 tests al retirar cuatro cuerpos idénticos:
+
+| Caso retirado                                                 | Caso que conserva las mismas entradas y aserciones                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Handoff: URL en `medicalPatientHandoffViewController.test.ts` | `domain/handoff/view.test.ts`: scope y especialidad desde URL       |
+| `useCensusLogic`: fetch de fechas al montar                   | Comprobación del día previo: misma llamada a `useCensusPromptState` |
+| Admisión: reparación de `firstSeenDate` obsoleto              | Reparación de `firstSeenDate` con hora presente y fecha corregida   |
+| Rayen: paciente ausente del snapshot completo                 | No inferir un alta simple; conservar alta administrativa pendiente  |
+
+Las dos variantes útiles de handoff con clasificación UPC booleana se trasladan
+al test del dominio, separadas de los casos con checklist. No se cambia código
+clínico, exclusiones, cobertura exigida ni selección de packs. Rollback: revertir
+el PR; para nuevas retiradas, comparar fixtures/hooks/entradas/aserciones y ejecutar
+los casos conservados, además de los controles del head definitivo.

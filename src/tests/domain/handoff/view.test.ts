@@ -107,3 +107,66 @@ describe('handoff view domain', () => {
     ]);
   });
 });
+
+// Preserve the legacy boolean-only fixture separately from checklist-backed UPC cases.
+describe('handoff view with legacy boolean UPC classification', () => {
+  const BEDS: BedDefinition[] = [
+    { id: 'R1', name: '101', type: 'MEDIA', isCuna: false },
+    { id: 'R2', name: '102', type: 'MEDIA', isCuna: false },
+  ] as BedDefinition[];
+
+  const RECORD = {
+    date: '2026-03-03',
+    beds: {
+      R1: {
+        patientName: 'Paciente UPC',
+        specialty: Specialty.MEDICINA,
+        isUPC: true,
+      },
+      R2: {
+        patientName: 'Paciente Sala',
+        specialty: Specialty.CIRUGIA,
+        isUPC: false,
+      },
+    },
+  } as unknown as DailyRecord;
+
+  it('filters beds by medical scope and selected specialty', () => {
+    const upcBeds = filterBedsByMedicalScope(BEDS, RECORD, true, 'upc');
+    const noUpcBeds = filterBedsByMedicalScope(BEDS, RECORD, true, 'no-upc');
+    const surgeryBeds = filterBedsBySelectedMedicalSpecialty(BEDS, RECORD, true, Specialty.CIRUGIA);
+
+    expect(upcBeds.map(bed => bed.id)).toEqual(['R1']);
+    expect(noUpcBeds.map(bed => bed.id)).toEqual(['R2']);
+    expect(surgeryBeds.map(bed => bed.id)).toEqual(['R2']);
+  });
+
+  it('collects specialties, detects visible patients, and builds deep links', () => {
+    expect(collectMedicalSpecialties(BEDS, RECORD, true)).toEqual([
+      Specialty.MEDICINA,
+      Specialty.CIRUGIA,
+    ]);
+    expect(hasVisibleMedicalPatients(BEDS, RECORD, bedId => bedId === 'R2')).toBe(true);
+    expect(
+      buildMedicalSpecialtyLink(
+        'https://app.hospitalhangaroa.cl',
+        '/handoff',
+        '2026-03-03',
+        Specialty.CIRUGIA
+      )
+    ).toBe(
+      'https://app.hospitalhangaroa.cl/handoff?module=MEDICAL_HANDOFF&date=2026-03-03&specialty=Cirug%C3%ADa'
+    );
+    expect(
+      buildMedicalHandoffDeepLink(
+        'https://app.hospitalhangaroa.cl',
+        '/handoff',
+        '2026-03-03',
+        'upc',
+        Specialty.CIRUGIA
+      )
+    ).toBe(
+      'https://app.hospitalhangaroa.cl/handoff?module=MEDICAL_HANDOFF&date=2026-03-03&scope=upc&specialty=Cirug%C3%ADa'
+    );
+  });
+});
