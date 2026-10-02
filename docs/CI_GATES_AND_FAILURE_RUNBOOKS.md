@@ -782,3 +782,12 @@ una ruta inexistente a Firebase. `pdfStorageRuntime` conserva su cobertura de
 permisos, fechas inválidas y fallos de consulta/mutación sin modificar el pack crítico.
 Owner: infraestructura de tests/backup HHR. Rollback: revertir el PR; no reemplazar
 una regresión del servicio por volver a comprobar una copia del algoritmo.
+
+### Handshake Ficha Médico con reloj controlado (2026-10-02)
+
+Los casos de versión/generación conservan sus variantes y ejecutan el relay real
+en VM con timers de Vitest por caso. El probe no responde antes de 4500 ms; salud
+no vence antes de 4000 ms y descarta la respuesta tardía. No se duerme 4,5 segundos
+reales ni se amplía el timeout de Vitest. Los deadlines inertes que el relay deja
+tras responder se eliminan al terminar cada caso; no se cambia la extensión.
+Owner: infraestructura de tests/extensión HHR. Rollback: revertir el PR.
