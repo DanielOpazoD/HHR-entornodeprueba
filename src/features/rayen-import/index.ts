@@ -1,8 +1,8 @@
 /**
  * Public API of the `rayen-import` feature.
  *
- * External code must import from `@/features/rayen-import` only, never from
- * internal subpaths. Phase 1 exposes the preview/plan surface and its contracts.
+ * External code uses this API or a governed narrow surface (`census-status`,
+ * `clinical-panel`, `configuration`, `RayenImportButton`); internal implementation subpaths are not public APIs.
  */
 
 export type {

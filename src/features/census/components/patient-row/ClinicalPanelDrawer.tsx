@@ -13,7 +13,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight, FileDown, RefreshCw } from 'lucide-react';
-import { type EvolutionProfession } from '@/features/rayen-import';
+import { type EvolutionProfession } from '@/features/rayen-import/clinical-panel';
 import { LAYER_Z_INDEX } from '@/shared/ui/layering';
 import { CareDayCard, EvolutionCard, IndicationDayCard } from './ClinicalPanelSections';
 import { ClinicalPanelHistoryPrintButton } from './ClinicalPanelHistoryPrintButton';
@@ -22,7 +22,6 @@ import { RayenEncounterButton } from './RayenEncounterButton';
 import { PatientDocumentManagerButton } from './PatientDocumentManagerButton';
 import { useClinicalPanelSnapshot } from './useClinicalPanelSnapshot';
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
-import { ClinicalPanelAntecedents } from './ClinicalPanelAntecedents';
 import { ClinicalPanelPrescriptionButton } from './ClinicalPanelPrescriptionButton';
 import { ClinicalPanelProfessionTabs } from './ClinicalPanelProfessionTabs';
 import { ClinicalPanelLoadingContent } from './ClinicalPanelLoadingContent';
@@ -30,6 +29,12 @@ import { ClinicalPanelLoadingContent } from './ClinicalPanelLoadingContent';
 const PatientDocumentManagerDialog = React.lazy(() =>
   import('./PatientDocumentManagerDialog').then(module => ({
     default: module.PatientDocumentManagerDialog,
+  }))
+);
+
+const ClinicalPanelAntecedents = React.lazy(() =>
+  import('./ClinicalPanelAntecedents').then(module => ({
+    default: module.ClinicalPanelAntecedents,
   }))
 );
 
@@ -285,19 +290,25 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
           data-testid="clinical-panel-content"
           className="min-h-0 flex-1 cursor-text select-text space-y-2 overflow-y-auto overscroll-contain break-words bg-white p-3"
         >
-          {state.phase === 'loading' && tab !== 'antecedents' && (
-            <ClinicalPanelLoadingContent />
-          )}
+          {state.phase === 'loading' && tab !== 'antecedents' && <ClinicalPanelLoadingContent />}
           {state.phase === 'error' && tab !== 'antecedents' && (
             <ClinicalPanelUnavailable message={state.message} onRetry={reload} />
           )}
 
           {(tab === 'antecedents' || antecedentsEpisode === clinicalEpisodeId) && (
             <div className={tab === 'antecedents' ? '' : 'hidden'}>
-              <ClinicalPanelAntecedents
-                key={clinicalEpisodeId}
-                clinicalEpisodeId={clinicalEpisodeId}
-              />
+              <React.Suspense
+                fallback={
+                  <p role="status" className="py-8 text-center text-xs text-slate-500">
+                    Cargando antecedentes…
+                  </p>
+                }
+              >
+                <ClinicalPanelAntecedents
+                  key={clinicalEpisodeId}
+                  clinicalEpisodeId={clinicalEpisodeId}
+                />
+              </React.Suspense>
             </div>
           )}
           {state.phase === 'ready' && tab === 'evolutions' && (

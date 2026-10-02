@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { requestClinicalAction, type ClinicalActionResult } from '@/features/rayen-import';
+import {
+  requestClinicalAction,
+  type ClinicalActionResult,
+} from '@/features/rayen-import/clinical-panel';
 import { ClinicalPanelUnavailable } from './ClinicalPanelUnavailable';
 import { ClinicalAntecedentCard } from './ClinicalAntecedentCard';
 import { formatClinicalAntecedentDate } from './clinicalAntecedentDate';

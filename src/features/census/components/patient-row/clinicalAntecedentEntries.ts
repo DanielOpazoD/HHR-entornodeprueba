@@ -1,4 +1,4 @@
-import type { ClinicalAntecedentEntry } from '@/features/rayen-import';
+import type { ClinicalAntecedentEntry } from '@/features/rayen-import/clinical-panel';
 
 export const clinicalAntecedentEntryKey = (
   entry: Pick<ClinicalAntecedentEntry, 'source' | 'id'>

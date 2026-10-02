@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Printer, Loader2 } from 'lucide-react';
-import { requestClinicalAction } from '@/features/rayen-import';
+import { requestClinicalAction } from '@/features/rayen-import/clinical-panel';
 
 export const ClinicalPanelPrescriptionButton: React.FC<{ clinicalEpisodeId: string }> = ({
   clinicalEpisodeId,
