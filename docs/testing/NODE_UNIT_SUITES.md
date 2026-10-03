@@ -96,3 +96,22 @@ node node_modules/vitest/vitest.mjs run src/tests/hooks/controllers/bedManagemen
 Keep homogeneous migrations in one reviewable cohort with a shared rationale and
 paired measurements; do not create one PR per annotation or merge unrelated suites
 solely to reduce file count.
+
+## Handoff controller cohort — 2026-10-03
+
+The ten handoff controller suites under `src/tests/hooks/controllers/` use Node:
+`handoffLogicViewStateController`, `handoffManagementMutationController`,
+`handoffManagementOutcomeController`, `handoffManagementPersistenceController`,
+`handoffNursingNoteController`, `handoffShareLinkController`, `handoffVisibilityController`,
+`manualMedicalHandoffMessageController`, `medicalHandoffHandlersController` and
+`medicalHandoffMutationRunner`. All 43 cases and their assertions are unchanged;
+no browser mocks or shared-setup changes were introduced. React hooks, components
+and browser integration tests remain in their existing environments.
+
+Three alternating pairs on Node 22.22.2 with two workers passed identical test
+identities and outcomes. jsdom runs: 3.523, 3.521, 3.341 s; Node runs: 1.387,
+1.360, 1.399 s. Median fell from 3.521 to 1.387 s (60.6%) for this local cohort;
+this is not a CI-wide or application speed claim. On the parent revision, run
+`node node_modules/vitest/vitest.mjs run src/tests/hooks/controllers/handoff*.test.ts src/tests/hooks/controllers/*Handoff*.test.ts --maxWorkers=2 --environment=jsdom`,
+then the same command with `--environment=node`, alternating three pairs. On the
+annotated revision, per-file directives take precedence over the CLI environment.
