@@ -56,6 +56,55 @@ describe('useWoundCarePhotoCount', () => {
     vi.restoreAllMocks();
   });
 
+  it('skips hidden polling and refreshes once when visible again', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const { result, unmount } = renderHook(() => useWoundCarePhotoCount('episode-a'));
+    await act(async () => {});
+    expect(result.current).toBe(1);
+
+    visibility.mockReturnValue('hidden');
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(90_000);
+    });
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(1);
+
+    const pending = deferred();
+    vi.mocked(WoundCarePhotoRepository.listByEpisode).mockReturnValueOnce(pending.promise);
+    visibility.mockReturnValue('visible');
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      pending.resolve([]);
+    });
+    expect(result.current).toBe(0);
+    unmount();
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledTimes(2);
+  });
+
+  it('defers an initially hidden episode until visible, using the latest selection', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    const { result, rerender } = renderHook(({ episode }) => useWoundCarePhotoCount(episode), {
+      initialProps: { episode: 'episode-a' },
+    });
+    rerender({ episode: 'episode-b' });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(WoundCarePhotoRepository.listByEpisode).not.toHaveBeenCalled();
+    expect(result.current).toBe(0);
+    visibility.mockReturnValue('visible');
+    await act(async () => document.dispatchEvent(new Event('visibilitychange')));
+    expect(WoundCarePhotoRepository.listByEpisode).toHaveBeenCalledExactlyOnceWith('episode-b');
+    expect(result.current).toBe(1);
+  });
+
   it('does not query without an episode', async () => {
     const { result } = renderHook(() => useWoundCarePhotoCount(undefined));
     await vi.advanceTimersByTimeAsync(60_000);

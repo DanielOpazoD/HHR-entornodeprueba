@@ -21,7 +21,7 @@ export const useWoundCarePhotoCount = (episodeKey: string | undefined): number =
     let pending = false;
 
     const fetch = () => {
-      if (pending || cancelled) return;
+      if (pending || cancelled || document.visibilityState === 'hidden') return;
       pending = true;
       WoundCarePhotoRepository.listByEpisode(episodeKey)
         .then(photos => {
@@ -37,12 +37,14 @@ export const useWoundCarePhotoCount = (episodeKey: string | undefined): number =
 
     fetch();
 
-    // Re-check every 30 seconds while mounted (lightweight polling for badge freshness)
+    // Keep visible badges fresh; hidden tabs resume immediately on return.
     const interval = setInterval(fetch, 30_000);
+    document.addEventListener('visibilitychange', fetch);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', fetch);
     };
   }, [episodeKey]);
 
