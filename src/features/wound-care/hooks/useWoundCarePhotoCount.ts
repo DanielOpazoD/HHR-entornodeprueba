@@ -1,6 +1,6 @@
 /**
  * Hook: Lightweight check if a patient episode has wound care photos.
- * Returns just the count — no subscription, single fetch with cache.
+ * Polls the active episode without overlapping reads.
  */
 
 import { useState, useEffect } from 'react';
@@ -9,23 +9,29 @@ import { logger } from '@/services/utils/loggerService';
 
 /**
  * Lightweight check for whether a patient episode has wound care photos.
- * Returns the count and a refresh function.
+ * Returns zero until a count for the selected episode is available.
  */
 export const useWoundCarePhotoCount = (episodeKey: string | undefined): number => {
-  const [count, setCount] = useState(0);
+  const [result, setResult] = useState<{ episodeKey: string; count: number } | null>(null);
 
   useEffect(() => {
     if (!episodeKey) return;
 
     let cancelled = false;
+    let pending = false;
 
     const fetch = () => {
+      if (pending || cancelled) return;
+      pending = true;
       WoundCarePhotoRepository.listByEpisode(episodeKey)
         .then(photos => {
-          if (!cancelled) setCount(photos.length);
+          if (!cancelled) setResult({ episodeKey, count: photos.length });
         })
         .catch(error => {
           if (!cancelled) logger.warn('Failed to refresh wound-care photo count', error);
+        })
+        .finally(() => {
+          pending = false;
         });
     };
 
@@ -40,5 +46,5 @@ export const useWoundCarePhotoCount = (episodeKey: string | undefined): number =
     };
   }, [episodeKey]);
 
-  return count;
+  return result && result.episodeKey === episodeKey ? result.count : 0;
 };
