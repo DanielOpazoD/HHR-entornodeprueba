@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateDailyRecordTruthContract } from '../../../scripts/dailyRecordTruthContractSupport.mjs';
+import {
+  evaluateDailyRecordTruthContract,
+  formatDailyRecordTruthContractReport,
+} from '../../../scripts/dailyRecordTruthContractSupport.mjs';
 
 describe('daily record truth contract support', () => {
   it('accepts the release-critical truth contract docs, tests and gate markers', () => {
     const result = evaluateDailyRecordTruthContract(process.cwd());
 
-    expect(result.ok).toBe(true);
+    expect(result.ok, formatDailyRecordTruthContractReport(result)).toBe(true);
     expect(result.checks.map(check => check.id)).toEqual([
       'truth-contract-adr',
       'last-write-wins-prohibited',
