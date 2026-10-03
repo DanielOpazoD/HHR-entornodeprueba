@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useSharedCensusFiles } from '@/hooks/useSharedCensusFiles';
+import type { CensusAccessUser } from '@/types/censusAccess';
 import type { StoredCensusFile } from '@/types/backupArtifacts';
 import {
   executeLoadSharedCensusFiles,
@@ -176,4 +177,28 @@ describe('useSharedCensusFiles', () => {
 
     expect(result.current.filteredFiles[0]?.fullPath).toBe('/censo/2026/02/new-file.xlsx');
   });
+  it.each(['success', 'failed'] as const)(
+    'discards a pending %s response after access is removed',
+    async status => {
+      let resolveLoad!: (value: Awaited<ReturnType<typeof executeLoadSharedCensusFiles>>) => void;
+      vi.mocked(executeLoadSharedCensusFiles).mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            resolveLoad = resolve;
+          })
+      );
+      const { result, rerender } = renderHook(
+        ({ user }: { user: CensusAccessUser | null }) => useSharedCensusFiles(user),
+        { initialProps: { user: accessUser as CensusAccessUser | null } }
+      );
+      rerender({ user: null });
+      await act(async () => {
+        resolveLoad({ status, data: [sampleFile], issues: [] });
+      });
+      expect(result.current.files).toEqual([]);
+      expect(result.current.loadError).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(executeLogSharedCensusAccess).not.toHaveBeenCalled();
+    }
+  );
 });
