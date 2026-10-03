@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { useModalFormFlow } from '@/features/census/hooks/useModalFormFlow';
+import { useModalFormFlow } from '@/hooks/useModalFormFlow';
 
 interface TestFormState {
   time: string;
