@@ -324,3 +324,12 @@ Cada incidencia ofrece un código copiable `HHR-SYNC-1/<fuente>/<causa>` para co
 o una IA. Copiar entrega sólo categorías del contrato existente; excluye fecha, cama, operador,
 identificadores de ejecución/paciente y valores clínicos. El código clasifica la incidencia y no
 prueba por sí mismo su causa raíz. Si el portapapeles está bloqueado, queda seleccionable.
+
+### Conciliación de egresos de días previos
+
+La liberación de una copia conserva `location` y `bedMode` de cada cama autoritativa;
+se verifica por separado el día de egreso y el censo seleccionado. Una ocupación histórica
+incompatible con su alta puede bloquear el lote CUDYR de ese día: se concilia antes del
+enriquecimiento clínico, sin relajar la autoridad. Una nueva captura no debe repetir la
+corrección una vez confirmadas ambas liberaciones. El estado explícito del egreso y un
+fallecimiento ya registrado para el episodio exacto se conservan en la propuesta.

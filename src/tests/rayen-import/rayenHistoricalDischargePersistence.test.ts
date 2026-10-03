@@ -29,6 +29,8 @@ const setup = async (emptyCrib = false) => {
   const departed: PatientData = {
     ...buildPatient('R3', 'Paciente histórico sintético'),
     clinicalEpisodeId: 'episode-departed',
+    location: 'HOSPITALIZACION',
+    bedMode: 'Cuna',
     ...(emptyCrib ? { clinicalCrib: { ...EMPTY_PATIENT, bedId: 'R3-crib' } } : {}),
   };
   const active = {
@@ -126,8 +128,14 @@ const setup = async (emptyCrib = false) => {
         departed.clinicalEpisodeId
       );
       expect(Object.keys(value)).toEqual(['beds.R3']);
+      const target = targetDate === history.date ? history : remote;
+      expect(value['beds.R3']).toMatchObject({
+        bedMode: target.beds.R3.bedMode,
+        location: target.beds.R3.location,
+        patientName: '',
+      });
       if (targetDate === history.date) {
-        history.beds.R3 = { ...EMPTY_PATIENT, bedId: 'R3' };
+        history.beds.R3 = value['beds.R3'] as PatientData;
         history.lastUpdated = '2026-09-28T03:01:30.000Z';
         return {
           date: history.date,
@@ -138,7 +146,7 @@ const setup = async (emptyCrib = false) => {
       }
       remote = {
         ...remote,
-        beds: { ...remote.beds, R3: { ...EMPTY_PATIENT, bedId: 'R3' } },
+        beds: { ...remote.beds, R3: value['beds.R3'] as PatientData },
         lastUpdated: '2026-09-28T03:02:00.000Z',
       };
       return { date, outcome: 'clean', updatedRemotely: true, confirmedRecord: remote };
@@ -179,6 +187,7 @@ describe('historical discharge structural-to-clinical handoff', () => {
     );
     expect(x.patch).toHaveBeenCalledOnce();
     expect(finished.record.beds.R3.patientName).toBe('');
+    expect(finished.record.beds.R3).toMatchObject({ location: 'HOSPITALIZACION', bedMode: 'Cuna' });
     expect(finished.record.beds.R2.clinicalEpisodeId).toBe('episode-active');
     expect(finished.record.discharges).toEqual([]);
     expect(x.history.discharges).toHaveLength(1);
@@ -267,7 +276,9 @@ describe('historical discharge structural-to-clinical handoff', () => {
       true
     );
     expect(plan.edits).toMatchObject([{ day: '2026-09-26', reason: 'discharge-day-correction' }]);
-    expect(plan.recordedDischargeBedIds).toEqual(['R3']);
+    expect(plan.recordedDischarges).toEqual([
+      { bedId: 'R3', status: 'Vivo', encounterId: 'episode-departed', correctedDay: '2026-09-26' },
+    ]);
     const finished = await finalizeRayenHistoricalDischarges(
       x.applied,
       x.repository as never,
@@ -290,6 +301,20 @@ describe('historical discharge structural-to-clinical handoff', () => {
       source: 'Eloísa · Gestión de Camas',
     });
     expect(operation?.target).toMatchObject({ censusDate: '2026-09-26', bedId: 'R2' });
+    const replay = await computePreviousDayEdits(
+      {
+        ...x.repository,
+        getLocalForDateWithMeta: async () => ({
+          record: x.history,
+          hasPendingWrites: false,
+          writeState: 'none',
+        }),
+      } as never,
+      x.diff,
+      x.applied.record.date,
+      true
+    );
+    expect(replay.edits).toEqual([]);
   });
 
   it('preserves a historical bed reused by another episode and does not clear signed days', async () => {

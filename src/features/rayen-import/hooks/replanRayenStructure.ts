@@ -174,11 +174,19 @@ export const replanRayenStructure = async (
   const planned = {
     ...diff,
     reportEgresos: previousDayPlan.reportEgresos,
-    discharges: diff.discharges.map(entry => ({
-      ...entry,
-      historicalMovementRecorded:
-        previousDayPlan.recordedDischargeBedIds?.includes(entry.bedId) === true,
-    })),
+    discharges: diff.discharges.map(entry => {
+      const recorded = previousDayPlan.recordedDischarges?.find(
+        item =>
+          item.bedId === entry.bedId &&
+          item.encounterId === entry.encounterId &&
+          item.correctedDay === entry.correctedDay
+      );
+      return {
+        ...entry,
+        status: recorded?.status ?? entry.status,
+        historicalMovementRecorded: Boolean(recorded),
+      };
+    }),
   };
   return previousDayPlan.edits.length > 0
     ? { ...planned, previousDayEdits: previousDayPlan.edits }
