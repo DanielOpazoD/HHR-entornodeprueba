@@ -243,3 +243,13 @@ un fallo de actualización conserva los datos ya cargados. Los resultados parcia
 y los fallos de actualización comparten una sola acción `Reintentar antecedentes`.
 Cada episodio mantiene su propio estado y aborta el interés en respuestas anteriores
 al cambiar de paciente; el reintento no modifica datos clínicos ni el protocolo de la extensión.
+
+### Fuentes para copiar un día vacío
+
+El recorrido activo es `useCensusViewModel` → `src/hooks/useCensusLogic.ts` →
+`src/hooks/useCensusPromptState.ts` → `src/hooks/controllers/censusPromptController.ts`.
+Este flujo histórico conserva su owner actual; no requiere otra API pública ni una
+segunda implementación dentro de la feature. Las copias antiguas `hooks/useCensusPromptState`
+y `controllers/censusLogicController` de esta feature no tenían consumidores productivos
+y se retiraron. Sus pruebas ahora ejercitan el owner activo: el hook con los lectores
+como puertos simulados, y el controller puro en su suite propia.

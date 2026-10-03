@@ -264,7 +264,7 @@ Al pasar a un día vacío vuelven a ejecutarse ambos lectores existentes; se con
 sus fallbacks, límites y controles de acceso. Una lectura ya iniciada no se cancela
 en el repositorio, pero su respuesta se descarta si deja de ser pertinente.
 
-La regresión `src/tests/hooks/useCensusPromptState.demand.test.ts` reprodujo cinco
+La regresión `src/tests/hooks/useCensusPromptState.test.ts` reprodujo cinco
 invocaciones del lector de día previo durante montaje, cambio de día, remontaje
 (equivalente al ciclo del hook tras F5) y eventos de almacenamiento, aun sin necesitar
 el cuadro. Después del cambio exige cero invocaciones de ambos lectores en ese
