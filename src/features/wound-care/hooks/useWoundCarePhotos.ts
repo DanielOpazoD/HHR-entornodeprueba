@@ -1,13 +1,10 @@
 /**
  * Hook: Subscribe to wound care photos for an episode.
  *
- * Uses the standard subscription-in-effect pattern. The setIsLoading(true)
- * call triggers a React 19 lint warning (react-hooks/set-state-in-effect)
- * but is intentional — it resets loading state when the episodeKey changes
- * before the new subscription emits.
+ * Results belong to the current episode, hospital and subscription port.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { WoundCarePhoto } from '@/types/domain/woundCare';
 import {
   defaultWoundCarePhotoPort,
@@ -43,24 +40,31 @@ export const useWoundCarePhotos = ({
   hospitalId,
   photoPort = defaultWoundCarePhotoPort,
 }: UseWoundCarePhotosOptions): UseWoundCarePhotosReturn => {
-  const [photos, setPhotos] = useState<WoundCarePhoto[]>([]);
-  const [isLoading, setIsLoading] = useState(Boolean(episodeKey));
-
-  const handlePhotosUpdate = useCallback((updatedPhotos: WoundCarePhoto[]) => {
-    setPhotos(updatedPhotos);
-    setIsLoading(false);
-  }, []);
-
+  const scope = useMemo(
+    () => ({ episodeKey, hospitalId, photoPort }),
+    [episodeKey, hospitalId, photoPort]
+  );
+  const [result, setResult] = useState<{ scope: typeof scope; value: WoundCarePhoto[] } | null>(
+    null
+  );
   useEffect(() => {
-    if (!episodeKey) return;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset loading on subscription change
-    setIsLoading(true);
-    return photoPort.subscribeByEpisode(episodeKey, handlePhotosUpdate, hospitalId);
-  }, [episodeKey, hospitalId, photoPort, handlePhotosUpdate]);
-
+    if (!scope.episodeKey) return;
+    let active = true;
+    const unsubscribe = scope.photoPort.subscribeByEpisode(
+      scope.episodeKey,
+      value => {
+        if (active) setResult({ scope, value });
+      },
+      scope.hospitalId
+    );
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [scope]);
+  const isCurrent = result?.scope === scope;
   return {
-    photos: episodeKey ? photos : [],
-    isLoading: episodeKey ? isLoading : false,
+    photos: episodeKey && isCurrent ? result.value : [],
+    isLoading: Boolean(episodeKey) && !isCurrent,
   };
 };
