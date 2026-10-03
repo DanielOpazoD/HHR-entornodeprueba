@@ -132,7 +132,7 @@ botón IEEH
 | `components/patient-row/nameInputController.ts`                 | Contrato puro de display/edición del nombre del paciente        |
 | `src/hooks/useDischargeModalForm.ts`                            | Form flow de altas                                              |
 | `src/hooks/useTransferModalForm.ts`                             | Form flow de traslados                                          |
-| `hooks/useBedManagerModalModel.ts`                              | Orquestación UI vs dominio del modal de camas                   |
+| `src/hooks/useBedManagerModalModel.ts`                          | Orquestación UI vs dominio del modal de camas                   |
 | `hooks/useCensusMovementActionsCellModel.ts`                    | View-model para celda de acciones de movimientos                |
 | `hooks/useCensusViewScreenModel.ts`                             | Fachada de pantalla para ramas `empty/register`                 |
 | `hooks/useCensusTableRuntime.ts`                                | Runtime unificado de tabla (dependencias + resize + activación) |
@@ -279,3 +279,11 @@ los auxiliares de movimientos de `src/hooks`: registro vigente, feedback, audito
 y ejecutores de creación, modificación y deshacer. Las pruebas importan esos mismos
 owners. No se mantienen copias ni reexports locales en esta feature para los tests;
 los controllers y contratos de aplicación conservan sus responsabilidades actuales.
+
+### Estado de los modales de camas
+
+`BedManagerModal` y `MoveCopyModal` mantienen su estado en
+`src/hooks/useBedManagerModalModel.ts` y `src/hooks/useMoveCopyModalState.ts`.
+Los tests del modelo apuntan a esas mismas implementaciones, junto con las pruebas
+del modal. Los controllers de transición y las reglas de bloqueo, selección y
+confirmación permanecen en sus capas actuales.
