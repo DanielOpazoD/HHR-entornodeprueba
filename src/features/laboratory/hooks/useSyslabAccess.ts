@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   openSyslabLoginWindow,
   requestSyslabExtensionStatus,
@@ -23,29 +23,56 @@ export const useSyslabAccess = (isOpen: boolean): SyslabAccessModel => {
   const [isOpening, setIsOpening] = useState(false);
   const [isAwaitingLogin, setIsAwaitingLogin] = useState(false);
 
-  const refresh = useCallback(async () => {
-    const status = await requestSyslabExtensionStatus();
-    if (!status.bridgeAvailable) {
-      setState('unavailable');
-      setMessage(status.message);
-      setIsAwaitingLogin(false);
-      return;
-    }
-    if (status.connected) {
-      setState('connected');
-      setMessage(status.message);
-      setIsAwaitingLogin(false);
-      return;
-    }
-    setState(status.loginRequired ? 'login-required' : 'unavailable');
-    setMessage(status.message);
-    if (!status.loginRequired) setIsAwaitingLogin(false);
+  const sessionRef = useRef<{
+    active: boolean;
+    pending: Promise<void> | null;
+    opening: boolean;
+  }>({ active: false, pending: null, opening: false });
+
+  const refresh = useCallback((): Promise<void> => {
+    const session = sessionRef.current;
+    if (!session.active) return Promise.resolve();
+    if (session.pending) return session.pending;
+    session.pending = (async () => {
+      try {
+        const status = await requestSyslabExtensionStatus();
+        if (!session.active) return;
+        const nextState = !status.bridgeAvailable
+          ? 'unavailable'
+          : status.connected
+            ? 'connected'
+            : status.loginRequired
+              ? 'login-required'
+              : 'unavailable';
+        setState(nextState);
+        setMessage(status.message);
+        if (nextState !== 'login-required') setIsAwaitingLogin(false);
+      } catch {
+        if (!session.active) return;
+        setState('unavailable');
+        setMessage('No se pudo comprobar la sesión de Syslab. Reintenta.');
+        setIsAwaitingLogin(false);
+      } finally {
+        session.pending = null;
+      }
+    })();
+    return session.pending;
   }, []);
 
   useEffect(() => {
+    const session = { active: isOpen, pending: null, opening: false };
+    sessionRef.current = session;
     if (!isOpen) return;
-    const timeout = window.setTimeout(() => void refresh(), 0);
-    return () => window.clearTimeout(timeout);
+    const timeout = window.setTimeout(() => {
+      setState('checking');
+      setIsOpening(false);
+      setIsAwaitingLogin(false);
+      void refresh();
+    }, 0);
+    return () => {
+      session.active = false;
+      window.clearTimeout(timeout);
+    };
   }, [isOpen, refresh]);
 
   useEffect(() => {
@@ -55,18 +82,30 @@ export const useSyslabAccess = (isOpen: boolean): SyslabAccessModel => {
   }, [isAwaitingLogin, isOpen, refresh]);
 
   const openLogin = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session.active || session.opening) return;
+    session.opening = true;
     setIsOpening(true);
-    const result = await openSyslabLoginWindow();
-    setIsOpening(false);
-    if (!result.bridgeAvailable || !result.opened || result.error) {
+    try {
+      const result = await openSyslabLoginWindow();
+      if (!session.active) return;
+      if (!result.bridgeAvailable || !result.opened || result.error) {
+        setState('login-required');
+        setMessage(result.error || 'No se pudo abrir el acceso a Syslab.');
+        return;
+      }
+      setIsAwaitingLogin(true);
+      setMessage(
+        'Completa el acceso en la ventana de la extensión. Esta pantalla se actualizará automáticamente.'
+      );
+    } catch {
+      if (!session.active) return;
       setState('login-required');
-      setMessage(result.error || 'No se pudo abrir el acceso a Syslab.');
-      return;
+      setMessage('No se pudo abrir el acceso a Syslab.');
+    } finally {
+      session.opening = false;
+      if (session.active) setIsOpening(false);
     }
-    setIsAwaitingLogin(true);
-    setMessage(
-      'Completa el acceso en la ventana de la extensión. Esta pantalla se actualizará automáticamente.'
-    );
   }, []);
 
   return { state, message, isOpening, isAwaitingLogin, refresh, openLogin };
