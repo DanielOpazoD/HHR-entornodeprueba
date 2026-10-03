@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { formatWorktreeState, getGitReportState } from './gitReportState.mjs';
@@ -142,6 +144,7 @@ export const buildClinicalReleaseValidationReport = root => {
   return {
     generatedAt: new Date().toISOString(),
     ...gitState,
+    generatedFor: buildEvidenceProvenance({ root, reportId: 'clinical-release-validation', gitState }),
     overall: issues.length === 0 ? 'ok' : 'degraded',
     counts: {
       scenarioCount: scenarios.length,

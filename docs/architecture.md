@@ -136,3 +136,11 @@ con clave exacta de runner, arquitectura, Node, manifests, lockfile, `.npmrc` y
 acción. Un miss/fallo mantiene `npm ci`; Functions conserva instalación separada.
 No compartir emuladores ni builds de escenarios distintos ni alterar la política
 de gates al simplificar el código.
+
+### Caminos internos de camas y entrega
+
+El dispatch de camas llama a `bedManagementReducer` en `useBedManagementReducer.ts`.
+Ese único reducer puro conserva el rechazo de un registro nulo y delega las reglas
+clínicas a los builders existentes, sin el antiguo controller intermediario.
+`HandoffRow` importa cada celda de su módulo propietario; el antiguo barrel
+`HandoffRowCells` no define una frontera pública ni debe recrearse.

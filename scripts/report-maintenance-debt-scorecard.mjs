@@ -23,7 +23,7 @@ const WATCHLIST_FILES = [
   'src/services/repositories/dailyRecordPatchPersistenceController.ts',
   'src/hooks/useCensusEmailRecipientLists.ts',
   'src/hooks/useBedManagementReducer.ts',
-  'src/features/handoff/components/HandoffRowCells.tsx',
+  'src/features/handoff/components/HandoffMedicalObservationsCell.tsx',
   'src/features/laboratory/controllers/labAnalyticsController.ts',
 ];
 

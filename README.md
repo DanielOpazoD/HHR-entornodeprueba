@@ -199,7 +199,7 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [ADR clinical-documents workspace contract](docs/ADR_CLINICAL_DOCUMENT_WORKSPACE_CONTRACT.md)
 - [ADR handoff runtime surfaces](docs/ADR_HANDOFF_RUNTIME_SURFACES.md)
 - [Mapa de código fuente](src/README.md)
-- [Tracker de cimientos](docs/FOUNDATION_TRACKER.md)
+- [Historial de cimientos](docs/FOUNDATION_TRACKER.md)
 
 ### Documentación existente relevante
 

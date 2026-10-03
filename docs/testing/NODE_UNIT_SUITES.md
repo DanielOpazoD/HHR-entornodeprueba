@@ -67,3 +67,32 @@ then with `--environment=node`, alternating three pairs. On the annotated revisi
 the per-file environment directives take precedence; a CLI `--environment=jsdom`
 alone does not restore the original comparison. Confirm all test identities and
 outcomes match, and run `npm run check:critical-coverage` after an environment change.
+
+## Bed-management cohort — 2026-10-02
+
+The ten `src/tests/hooks/controllers/bedManagement*.test.ts` suites and the two
+`src/tests/hooks/useBedManagementReducer*.test.ts` suites run in Node together.
+All 84 cases, assertions, shared setup and critical coverage remain unchanged.
+These exercise patch construction, identity, specialty intent, crib actions and
+dispatch ports; they do not render hooks or depend on DOM behavior. Integration
+and component tests keep their browser environment. No browser mocks were added.
+
+Three alternating pairs on Node 22.22.2, two workers and the same checkout passed
+identical test identities and outcomes:
+
+| Environment | Wall times (seconds)  | Median |
+| ----------- | --------------------- | ------ |
+| jsdom       | 4.355 / 4.034 / 4.519 | 4.355  |
+| Node        | 1.721 / 1.717 / 1.794 | 1.721  |
+
+This is a local cohort measurement (60.5% lower median), not a CI-wide or clinical
+application speed claim. Reproduce on the parent revision, before the directives:
+
+```sh
+node node_modules/vitest/vitest.mjs run src/tests/hooks/controllers/bedManagement*.test.ts src/tests/hooks/useBedManagementReducer*.test.ts --maxWorkers=2 --environment=jsdom
+node node_modules/vitest/vitest.mjs run src/tests/hooks/controllers/bedManagement*.test.ts src/tests/hooks/useBedManagementReducer*.test.ts --maxWorkers=2 --environment=node
+```
+
+Keep homogeneous migrations in one reviewable cohort with a shared rationale and
+paired measurements; do not create one PR per annotation or merge unrelated suites
+solely to reduce file count.
