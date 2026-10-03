@@ -284,12 +284,12 @@ export const reportPredatesActiveAdmission = (
   if (reportedEpisode && activeEpisode && reportedEpisode !== activeEpisode) return false;
   return reportPredatesAdmission(stamp, evidence);
 };
-
 export const resolveReportDischarge = (
   row: EgresoReportRow,
   evidence: CmaOriginEvidence = {}
 ) => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
+  mapped.status = row.dischargeStatus ?? mapped.status;
   const dischargeDay = correctedStamp(
     row.fechaEgreso,
     row.correctedDay,
