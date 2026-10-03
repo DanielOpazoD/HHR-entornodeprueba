@@ -326,6 +326,42 @@ test.describe('Production Preview Bootstrap', () => {
         expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(geometry.bottom);
       }
 
+      // Full hit targets and panels must remain usable, not just their icons.
+      const utility = topBar.getByRole('button', { name: 'Abrir módulos utilitarios' });
+      await expect(utility).toBeInViewport({ ratio: 1 });
+      await utility.click();
+      const utilityPanel = page.getByRole('group', { name: 'Módulos adicionales' });
+      await expect(utilityPanel).toBeInViewport({ ratio: 1 });
+      await utilityPanel.getByRole('button', { name: 'Estadísticas' }).focus();
+      await page.keyboard.press('Escape');
+      await expect(utilityPanel).toBeHidden();
+      await expect(utility).toBeFocused();
+
+      const help = topBar.getByRole('button', { name: 'Ayuda de Moa', exact: true });
+      await expect(help).toBeInViewport({ ratio: 1 });
+      await utility.click();
+      await help.click();
+      await expect(utilityPanel).toBeHidden();
+      const helpPanel = page.getByRole('region', { name: 'Moa · Ayuda de HHR' });
+      await expect(helpPanel).toBeInViewport({ ratio: 1 });
+      await expect(helpPanel.getByRole('heading', { name: 'Censo diario' })).toBeVisible();
+      // Reading a non-interactive paragraph must not dismiss the guide on blur.
+      await helpPanel.getByText('Guardado y conexión', { exact: true }).click();
+      await expect(helpPanel).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(helpPanel).toBeHidden();
+      await expect(help).toBeFocused();
+      await page.keyboard.press('Enter');
+      await test.info().attach(`moa-help-${width}px`, {
+        body: await page.screenshot(),
+        contentType: 'image/png',
+      });
+      await page.keyboard.press('Tab');
+      await expect(helpPanel.getByRole('button', { name: 'Cerrar ayuda de Moa' })).toBeFocused();
+      await page.keyboard.press('Tab');
+      await expect(helpPanel).toBeHidden();
+      await expectSeededPatientVisible(page);
+
       const options = page.getByRole('button', { name: 'Más opciones del censo' });
       const bounds = await options.boundingBox();
       expect(bounds!.y).toBeGreaterThanOrEqual(geometry.bottom);
@@ -342,6 +378,52 @@ test.describe('Production Preview Bootstrap', () => {
       runtimeCollector.detach();
     });
   }
+
+  test('keeps Moa scrollable on a short viewport and excludes it from print', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 340 });
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    const help = page.getByRole('button', { name: 'Ayuda de Moa', exact: true });
+    await help.click();
+    const panel = page.getByRole('region', { name: 'Moa · Ayuda de HHR' });
+    await expect(panel).toBeInViewport({ ratio: 1 });
+    const closeButton = panel.getByRole('button', { name: 'Cerrar ayuda de Moa' });
+    const initialCloseBounds = await closeButton.boundingBox();
+    await panel.evaluate(element => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect.poll(() => panel.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+    await expect(panel.getByText(/Esta ayuda no consulta pacientes/)).toBeInViewport({ ratio: 1 });
+    // The close control must remain visible before Playwright can scroll it into view.
+    await expect(closeButton).toBeInViewport({ ratio: 1 });
+    const scrolledCloseBounds = await closeButton.boundingBox();
+    expect(scrolledCloseBounds!.y).toBeCloseTo(initialCloseBounds!.y, 0);
+    expect(
+      await closeButton.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return element.contains(
+          document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+        );
+      })
+    ).toBe(true);
+    await test.info().attach('moa-help-short-scroll', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+    await closeButton.click();
+    await expect(panel).toBeHidden();
+    await expect(help).toBeFocused();
+    await help.click();
+    await expect(panel).toBeVisible();
+    await page.emulateMedia({ media: 'print' });
+    await expect(panel).toBeHidden();
+    await page.emulateMedia({ media: 'screen' });
+    await help.focus();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect(help).toBeFocused();
+  });
 
   test('loads persisted census state without falling into empty state after initial bootstrap', async ({
     page,
