@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { PatientData } from '@/hooks/contracts/patientHookContracts';
 import { buildNursingNoteChangePlan } from '@/hooks/controllers/handoffNursingNoteController';

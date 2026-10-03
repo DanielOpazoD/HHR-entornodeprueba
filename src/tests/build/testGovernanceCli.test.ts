@@ -21,6 +21,24 @@ const fixture = (files: Record<string, string>) => {
 const run = (root: string) =>
   spawnSync(process.execPath, [script], { cwd: root, encoding: 'utf8' });
 
+const qualityConfigs = [
+  'release-confidence-matrix',
+  'release-confidence-pack',
+  'critical-smoke-pack',
+  'flow-performance-budgets',
+  'critical-coverage-thresholds',
+  'technical-ownership-map',
+];
+
+const runQualityReport = (root: string) => {
+  const result = spawnSync(process.execPath, [path.resolve('scripts/report-quality-metrics.mjs')], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  expect(result.status, result.stderr).toBe(0);
+  return JSON.parse(fs.readFileSync(path.join(root, 'reports/quality-metrics.json'), 'utf8'));
+};
+
 afterEach(() => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
@@ -94,17 +112,9 @@ describe('test governance CLI', () => {
   });
 
   it('reports executable modifiers consistently without counting fixture text', () => {
-    const configs = [
-      'release-confidence-matrix',
-      'release-confidence-pack',
-      'critical-smoke-pack',
-      'flow-performance-budgets',
-      'critical-coverage-thresholds',
-      'technical-ownership-map',
-    ];
     const root = fixture({
       'package.json': JSON.stringify({ scripts: {} }),
-      ...Object.fromEntries(configs.map(name => [`scripts/config/${name}.json`, '{}'])),
+      ...Object.fromEntries(qualityConfigs.map(name => [`scripts/config/${name}.json`, '{}'])),
       'src/tests/report.test.ts': `
         const example = "it.only('fixture')";
         // test.skip('fixture');
@@ -112,20 +122,27 @@ describe('test governance CLI', () => {
         test.concurrent.skip('case', () => {});
       `,
     });
-    const result = spawnSync(
-      process.execPath,
-      [path.resolve('scripts/report-quality-metrics.mjs')],
-      {
-        cwd: root,
-        encoding: 'utf8',
-      }
-    );
-    expect(result.status, result.stderr).toBe(0);
-    const report = JSON.parse(
-      fs.readFileSync(path.join(root, 'reports/quality-metrics.json'), 'utf8')
-    );
+    const report = runQualityReport(root);
     expect(report.tests.onlyMarkers).toBe(1);
     expect(report.tests.skippedMarkers).toBe(1);
+  });
+
+  it('observes new and removed source files on each quality-report invocation', () => {
+    const root = fixture({
+      'package.json': JSON.stringify({ scripts: {} }),
+      ...Object.fromEntries(qualityConfigs.map(name => [`scripts/config/${name}.json`, '{}'])),
+      'src/utils/first.ts': 'export const first = 1;',
+    });
+    expect(runQualityReport(root).source.fileCount).toBe(1);
+    fs.mkdirSync(path.join(root, 'src/components'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'src/components/second.ts'), 'export const second = 2;');
+    const expanded = runQualityReport(root);
+    expect(expanded.source.fileCount).toBe(2);
+    expect(expanded.source.zones).toContainEqual({ zone: 'components', fileCount: 1 });
+    fs.unlinkSync(path.join(root, 'src/utils/first.ts'));
+    const reduced = runQualityReport(root);
+    expect(reduced.source.fileCount).toBe(1);
+    expect(reduced.source.zones).toEqual([{ zone: 'components', fileCount: 1 }]);
   });
 
   it('retains the existing behavior when a workspace has no test tree', () => {

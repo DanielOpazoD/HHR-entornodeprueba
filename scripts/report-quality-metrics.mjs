@@ -104,6 +104,9 @@ const walkFiles = dirPath => {
   return files;
 };
 
+// Collect the source inventory once per CLI run; metric-specific filters stay unchanged.
+const sourceFiles = walkFiles(SRC_ROOT);
+
 const countLines = text => (text.length === 0 ? 0 : text.split('\n').length);
 
 const isTestFile = relative =>
@@ -140,7 +143,7 @@ const getStaticImportPaths = source => {
 };
 
 const getSourceMetrics = () => {
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     if (!SOURCE_EXTENSIONS.has(extension)) return false;
     if (filePath.endsWith('.d.ts')) return false;
@@ -180,7 +183,7 @@ const getModuleSizeMetrics = () => {
     ([, limit]) => typeof limit === 'number' && limit > globalMax
   );
 
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     if (!['.ts', '.tsx'].includes(extension)) return false;
     if (filePath.endsWith('.d.ts')) return false;
@@ -253,7 +256,7 @@ const getFolderDependencyDebtMetrics = () => {
   }
 
   const knownZones = new Set(Object.keys(matrix.zones));
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     if (!SOURCE_EXTENSIONS.has(extension)) return false;
     if (filePath.endsWith('.d.ts')) return false;
@@ -397,7 +400,7 @@ const getTestMetrics = () => {
 };
 
 const getTypeSafetySignals = () => {
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     return extension === '.ts' || extension === '.tsx';
   });
@@ -451,7 +454,7 @@ const getConvergenceSignals = () => {
       ];
     })
   );
-  const files = walkFiles(SRC_ROOT).filter(filePath => {
+  const files = sourceFiles.filter(filePath => {
     const extension = path.extname(filePath);
     if (!SOURCE_EXTENSIONS.has(extension)) return false;
     if (filePath.endsWith('.d.ts')) return false;

@@ -9,54 +9,15 @@ Modelo de acceso:
 
 ## Quick Start
 
-### Requisitos
+Seguir [Preparar el entorno](CONTRIBUTING.md#preparar-el-entorno) para instalar con
+el lockfile vigente y configurar el entorno local autorizado. No copiar datos
+clínicos ni credenciales a ejemplos, commits o evidencia de PR.
 
-- Node.js 22.x
-- npm 10+
-- Firebase project (variables de entorno en `.env`)
-
-### Política de versiones de Node
-
-- El workspace principal (`package.json`) usa Node.js `22.x` para desarrollo local, tests, lint, typecheck y build.
-- `functions/package.json` mantiene runtime Node.js `20` porque ese sigue siendo el target actual de Firebase Functions para este proyecto.
-- Si se cambia alguno de esos targets, esta sección debe actualizarse junto con ambos `package.json`.
-
-### Instalación
-
-```bash
-npm install
-```
-
-### Desarrollo
-
-```bash
-npm run dev
-```
-
-Por defecto Vite inicia en `http://localhost:3000`.
-
-Si necesitas `3005`:
-
-```bash
-npm run dev -- --port 3005
-```
-
-### Variables de entorno
-
-- `VITE_FIREBASE_*`: configuración cliente de Firebase para desarrollo local.
-- `VITE_FIREBASE_API_KEY_B64`: alternativa opcional a la API key plana.
-- `VITE_LEGACY_COMPATIBILITY_MODE=disabled`: mantiene apagadas las lecturas legacy desde este repo de pruebas.
-- `VITE_FUNCTIONS_EMULATOR_HOST`, `VITE_AUTH_EMULATOR_HOST`, `VITE_FIRESTORE_EMULATOR_HOST`: solo para emuladores locales.
-- `VITE_LOCAL_GEMINI_API_KEY`: solo fallback local de CIE-10 en `localhost`.
-- `GEMINI_API_KEY`, `API_KEY`, `GMAIL_*`: uso server-side en Netlify Functions, nunca como `VITE_*`.
-- `VITE_ALLOW_DEV_EMAIL_SEND`: habilita pruebas reales de email solo en desarrollo local.
-
-### Build y preview
-
-```bash
-npm run build
-npm run preview
-```
+Las versiones de runtime se declaran en [package.json](package.json) y
+[functions/package.json](functions/package.json); Functions conserva su propio
+manifest y lockfile. Los comandos de desarrollo, validación y cierre se eligen en
+[Developer Commands](docs/DEVELOPER_COMMANDS.md). La configuración de Vite está en
+[vite.config.ts](vite.config.ts).
 
 ## Tech Stack
 
@@ -102,19 +63,10 @@ El PIN local es un bloqueo rápido de privacidad visual en el navegador/disposit
 
 ## Comandos Principales
 
-| Comando                   | Objetivo                                               |
-| ------------------------- | ------------------------------------------------------ |
-| `npm run dev`             | Levantar app en modo desarrollo                        |
-| `npm run typecheck`       | Verificación TypeScript                                |
-| `npm run lint`            | Lint global con tolerancia cero a warnings             |
-| `npm run test:ci:unit`    | Suite unitaria/integración base sin reglas ni emulador |
-| `npm run check:quality`   | Guardrails estructurales y de gobernanza               |
-| `npm run ci:inner-loop`   | Ruta rápida para trabajo local                         |
-| `npm run ci:pre-merge`    | Gate compacto obligatorio antes de merge               |
-| `npm run ci:merge-gate`   | Gate blocking ampliado para cambios sensibles          |
-| `npm run ci:release-gate` | Validación final con Firestore/emuladores/E2E críticos |
-
-El resto de `check:*`, `report:*` y `test:*` especializados siguen soportados, pero se consideran herramientas focalizadas. Catálogo curado: [docs/DEVELOPER_COMMANDS.md](docs/DEVELOPER_COMMANDS.md)
+El [catálogo de comandos](docs/DEVELOPER_COMMANDS.md) es la referencia operativa:
+explica qué ejecutar durante la edición, antes del merge y antes de un release.
+`package.json` conserva las definiciones ejecutables; no encadenar gates que ya
+incluyen los mismos controles.
 
 ## Estructura del Proyecto
 
@@ -239,60 +191,15 @@ import { useDailyRecord } from '@/hooks/useDailyRecord';
 - [src/services/repositories/README.md](src/services/repositories/README.md)
 - [src/services/storage/README.md](src/services/storage/README.md)
 
-## Testing
+## Testing y cierre de cambios
 
-### Validación rápida recomendada
+- [Contribuir](CONTRIBUTING.md): ciclo completo desde la instalación hasta el PR.
+- [Tests](src/tests/README.md): estructura y convenciones de las pruebas.
+- [Developer Commands](docs/DEVELOPER_COMMANDS.md): selección de comandos por escenario.
+- [Safe Change Checklist](docs/SAFE_CHANGE_CHECKLIST.md): controles exigidos por alcance.
+- [CI y recuperación](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md): diagnóstico de fallos.
 
-```bash
-npm run typecheck
-npm run check:quality
-npm run test:risk:admin-health
-npm run test:sync-load
-```
-
-### Suite completa
-
-```bash
-npm run test
-```
-
-### Cobertura
-
-```bash
-npm run test:coverage
-```
-
-### End-to-end
-
-```bash
-npm run test:e2e
-npm run test:e2e:critical
-E2E_CRITICAL_BROWSERS=chromium,firefox npm run test:e2e:critical
-```
-
-## Gates de CI (actual)
-
-Mapa operativo resumido:
-
-- `npm run ci:inner-loop`
-- `npm run ci:pre-merge`
-- `npm run ci:merge-gate`
-- `npm run ci:release-gate`
-
-Runbook detallado:
-
-- [docs/CI_GATES_AND_FAILURE_RUNBOOKS.md](docs/CI_GATES_AND_FAILURE_RUNBOOKS.md)
-
-Artifacts operativos publicados por CI:
-
-- `quality-metrics`
-- `operational-health`
-- `runtime-contracts`
-- `critical-coverage`
-- `governance-snapshot-profile`
-- `postmerge-release-evidence` (solo `push` a `main`)
-- `release-evidence-runtime` (manifiesto validado que se incorpora al build)
-- `flow-performance-budget`
+Las pruebas focalizadas ayudan a iterar; no sustituyen los controles del SHA final.
 
 ## Baseline de Calidad
 
@@ -320,67 +227,11 @@ Ejemplos de snapshots versionados (excepción al `.gitignore`; verificar vigenci
 - [reports/legacy-bridge-governance.md](reports/legacy-bridge-governance.md)
 - [reports/runtime-contracts.md](reports/runtime-contracts.md)
 
-Flujo local canónico antes de decidir un release o citar `reports/*.md` como evidencia:
-
-```bash
-git status --short
-npm run release:evidence:refresh
-```
-
-El inventario, orden, freshness, transporte CI y recuperación se documentan en
-[docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md).
-
-Flujo local rapido cuando `reports/critical-coverage.*` ya fue generado para el mismo `gitSha` y el mismo estado clean/dirty:
-
-```bash
-git status --short
-npm run report:governance-snapshots
-npm run check:report-freshness:strict
-```
-
-`check:report-freshness:strict` acepta evidencia generada para `HEAD`. Si un reporte fue generado para un padre directo de un merge commit, solo se acepta como evidencia transitoria cuando declara `generatedFor.dependencyFingerprint` y ese fingerprint coincide con las dependencias transitivas actuales del reporte. Si falla por `stale by commit ancestry`, hay que regenerar el reporte para el commit actual. Si falla por `stale by real dependency fingerprint`, cambió una entrada real del grafo y corresponde correr el comando sugerido por el guardrail o `npm run postmerge:evidence` en `main`.
-
-`report:release-readiness-scorecard` reutiliza `reports/critical-coverage.*` solo si:
-
-- `reports/critical-coverage.json` declara el `gitSha` actual.
-- El estado `gitDirty` coincide con el worktree actual.
-- `reports/critical-coverage.json` y `.md` existen.
-- Las dependencias de cobertura critica (`scripts/config/critical-coverage-thresholds.json`, runner, soporte y config Vitest) no son mas nuevas que el artifact.
-
-Si cualquiera de esas condiciones falla, el runner recalcula `npm run report:critical-coverage`. Esta politica evita cache opaco: el artifact es descargable desde CI y la razon de reuso o recalculo queda visible en consola y en `reports/ci-governance-snapshot-profile.*`.
-
-Si `check:report-freshness` falla o el árbol está sucio, los reportes dejan de ser fuente confiable para describir el estado actual.
-
-Riesgos residuales:
-
-- Si cambia la matriz clinica de tests sin tocar los archivos gobernados de cobertura critica, hay que forzar `npm run report:critical-coverage` antes de publicar evidencia.
-- `critical-coverage-report` corre en paralelo con lint/typecheck para bajar tiempo de pared, pero sigue siendo un gate completo; no elimina cobertura ni relaja `check:report-freshness:strict`.
-
-## Notas Operativas Recientes
-
-- **Auth por entorno:** el acceso alternativo de Google se valida contra la configuración real de Firebase antes de intentarse. En `localhost` queda desactivado por defecto para evitar bucles y la app muestra advertencias tempranas si faltan variables críticas de Firebase.
-- **Fallback local:** si IndexedDB falla tras borrar datos del sitio o por un problema del navegador, la app intenta una recuperación automática antes de mostrar avisos al usuario.
-- `0` archivos marcados con flake-risk
-
-Validación usada para esta línea base:
-
-```bash
-npm run typecheck
-npm run lint -- --max-warnings 0
-npm run check:quality
-npm run test:ci:unit
-npm run report:quality-metrics
-```
-
-### Próximo hotspot recomendado
-
-Hotspots secundarios:
-
-- `src/services/integrations/whatsapp/whatsappService.ts`
-- `src/hooks/useAuthState.ts`
-- `src/features/auth/components/LoginPage.tsx`
-- `src/services/cudyr/cudyrWorkbookBuilder.ts`
-- `src/features/handoff/components/HandoffCudyrPrint.tsx`
+Para regenerar evidencia, seguir el
+[runbook de release](docs/RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md). Para una evaluación
+periódica y elegir el siguiente cambio, seguir la
+[cadencia de mantenimiento](docs/FOUNDATION_MAINTENANCE_CADENCE.md).
+No trasladar cifras de un snapshot histórico a una afirmación sobre el estado actual.
 
 ## Convenciones de Calidad (resumen)
 
