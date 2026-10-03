@@ -147,15 +147,12 @@ export const createDailyRecordSubscription = (
   queryClient: QueryClient
 ) => {
   let isSubscriptionActive = true;
-  if (!dailyRecord.subscribe) {
-    if (!dailyRecord.subscribeDetailed) {
-      return null;
-    }
-  }
+  let realtimeRevision = 0;
+  const queryKey = getDailyRecordQueryKey(date);
+  if (!dailyRecord.subscribe && !dailyRecord.subscribeDetailed) return null;
 
-  const applyResolvedQueryResult = (result: DailyRecordQueryResult) => {
-    queryClient.setQueryData(getDailyRecordQueryKey(date), result);
-  };
+  const applyResolvedQueryResult = (result: DailyRecordQueryResult) =>
+    queryClient.setQueryData(queryKey, result);
 
   const applyResolvedRecord = (
     result: DailyRecordQueryResult,
@@ -178,6 +175,14 @@ export const createDailyRecordSubscription = (
   };
 
   const reconcileNullRealtimeRecord = (previousResult: DailyRecordQueryResult) => {
+    const recoveryRevision = realtimeRevision;
+    const recoveryQuery = queryClient.getQueryCache().find({ queryKey, exact: true });
+    const recoveryState = recoveryQuery?.state;
+    const ownsRecovery = () =>
+      isSubscriptionActive &&
+      recoveryRevision === realtimeRevision &&
+      queryClient.getQueryCache().find({ queryKey, exact: true }) === recoveryQuery &&
+      recoveryQuery?.state === recoveryState;
     const read =
       typeof dailyRecord.getForDateWithMeta === 'function'
         ? dailyRecord.getForDateWithMeta(date)
@@ -199,7 +204,7 @@ export const createDailyRecordSubscription = (
 
     void read
       .then(reconciledResult => {
-        if (!isSubscriptionActive) {
+        if (!ownsRecovery()) {
           return;
         }
         const recovered = createDailyRecordQueryResult(
@@ -220,7 +225,7 @@ export const createDailyRecordSubscription = (
               availabilityState: recovered.runtime.availabilityState,
             },
           });
-          applyResolvedQueryResult(recovered);
+          applyResolvedRecord(recovered, previousResult);
           return;
         }
 
@@ -242,7 +247,7 @@ export const createDailyRecordSubscription = (
         applyResolvedQueryResult(recovered);
       })
       .catch(error => {
-        if (!isSubscriptionActive) {
+        if (!ownsRecovery()) {
           return;
         }
         dailyRecordObservability.recordError(
@@ -273,9 +278,8 @@ export const createDailyRecordSubscription = (
       return;
     }
 
-    const previousResult = queryClient.getQueryData<DailyRecordQueryResult>(
-      getDailyRecordQueryKey(date)
-    );
+    realtimeRevision += 1;
+    const previousResult = queryClient.getQueryData<DailyRecordQueryResult>(queryKey);
     if (result.record) {
       const reconciled = reconcileDailyRecordQueryResult(previousResult, result);
       if (reconciled === previousResult) {

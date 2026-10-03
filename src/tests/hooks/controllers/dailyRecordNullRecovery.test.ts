@@ -1,0 +1,188 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient } from '@tanstack/react-query';
+import { DataFactory } from '@/tests/factories/DataFactory';
+import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
+import {
+  createDailyRecordSubscription,
+  getDailyRecordQueryKey,
+  setDailyRecordQueryData,
+} from '@/hooks/controllers/dailyRecordQueryController';
+import {
+  clearPendingDailyRecordPatchesForTests,
+  registerPendingDailyRecordPatch,
+} from '@/hooks/controllers/dailyRecordPendingPatchController';
+
+vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
+  dailyRecordObservability: { recordEvent: vi.fn(), recordError: vi.fn() },
+}));
+
+const date = '2025-01-08';
+const recordAt = (hour: string) => ({
+  ...DataFactory.createMockDailyRecord(date),
+  lastUpdated: `${date}T${hour}:00:00.000Z`,
+});
+const settle = async () => {
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+};
+
+function setup() {
+  const client = new QueryClient();
+  const read = Promise.withResolvers<DailyRecord | null>();
+  let emit!: (record: DailyRecord | null, pending: boolean) => void;
+  setDailyRecordQueryData(client, date, recordAt('10'));
+  const stop = createDailyRecordSubscription(
+    {
+      getForDate: () => read.promise,
+      subscribe: (_date, callback) => {
+        emit = callback;
+        return vi.fn();
+      },
+    },
+    date,
+    client
+  );
+  return {
+    client,
+    read,
+    emit,
+    stop,
+    value: () => client.getQueryData(getDailyRecordQueryKey(date)),
+  };
+}
+
+describe('null realtime recovery ownership', () => {
+  afterEach(clearPendingDailyRecordPatchesForTests);
+
+  it.each(['record', 'missing', 'error'] as const)(
+    'does not overwrite a newer snapshot with delayed %s',
+    async outcome => {
+      const s = setup();
+      s.emit(null, false);
+      s.emit(recordAt('12'), false);
+      const current = s.value();
+      if (outcome === 'error') s.read.reject(new Error('read failed'));
+      else s.read.resolve(outcome === 'missing' ? null : recordAt('11'));
+      await settle();
+      expect(s.value()).toBe(current);
+      s.stop?.();
+    }
+  );
+
+  it('preserves an edit published while the recovery is pending', async () => {
+    const s = setup();
+    s.emit(null, false);
+    setDailyRecordQueryData(s.client, date, recordAt('13'));
+    const current = s.value();
+    s.read.resolve(null);
+    await settle();
+    expect(s.value()).toBe(current);
+    s.stop?.();
+  });
+
+  it('lets only the latest null emission reconcile an unchanged cache', async () => {
+    const client = new QueryClient();
+    const first = Promise.withResolvers<DailyRecord | null>();
+    const second = Promise.withResolvers<DailyRecord | null>();
+    let emit!: (record: DailyRecord | null, pending: boolean) => void;
+    setDailyRecordQueryData(client, date, recordAt('10'));
+    const stop = createDailyRecordSubscription(
+      {
+        getForDate: vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise),
+        subscribe: (_date, callback) => {
+          emit = callback;
+          return vi.fn();
+        },
+      },
+      date,
+      client
+    );
+    emit(null, false);
+    emit(null, false);
+    first.resolve(null);
+    await settle();
+    expect(client.getQueryData(getDailyRecordQueryKey(date))).toMatchObject({
+      record: recordAt('10'),
+    });
+    second.resolve(recordAt('12'));
+    await settle();
+    expect(client.getQueryData(getDailyRecordQueryKey(date))).toMatchObject({
+      record: recordAt('12'),
+    });
+    stop?.();
+  });
+
+  it('projects pending edits on the recovered record', async () => {
+    const s = setup();
+    const previous = recordAt('10');
+    previous.beds.R1.clinicalEpisodeId = 'episode-test';
+    setDailyRecordQueryData(s.client, date, previous);
+    const unregister = registerPendingDailyRecordPatch(date, {
+      'beds.R1.pathology': 'Pending synthetic diagnosis',
+    });
+    s.emit(null, false);
+    s.read.resolve({ ...previous, lastUpdated: `${date}T11:00:00.000Z` });
+    await settle();
+    expect(s.value()).toMatchObject({
+      record: { beds: { R1: { pathology: 'Pending synthetic diagnosis' } } },
+    });
+    unregister();
+    s.stop?.();
+  });
+
+  it('invalidates recovery even when an optimistic rollback restores the same object', async () => {
+    const s = setup();
+    const original = s.value();
+    s.emit(null, false);
+    setDailyRecordQueryData(s.client, date, recordAt('13'));
+    s.client.setQueryData(getDailyRecordQueryKey(date), original);
+    s.read.resolve(null);
+    await settle();
+    expect(s.value()).toEqual(original);
+    s.stop?.();
+  });
+
+  it.each(['remove', 'reset'] as const)(
+    'discards recovery after cache %s and replacement',
+    async action => {
+      const s = setup();
+      s.emit(null, false);
+      const filters = { queryKey: getDailyRecordQueryKey(date), exact: true };
+      if (action === 'remove') s.client.removeQueries(filters);
+      else await s.client.resetQueries(filters);
+      setDailyRecordQueryData(s.client, date, recordAt('13'));
+      const current = s.value();
+      s.read.resolve(null);
+      await settle();
+      expect(s.value()).toBe(current);
+      s.stop?.();
+    }
+  );
+
+  it('preserves a newer invalidation while recovery is pending', async () => {
+    const s = setup();
+    s.emit(null, false);
+    await s.client.invalidateQueries({
+      queryKey: getDailyRecordQueryKey(date),
+      exact: true,
+      refetchType: 'none',
+    });
+    const current = s.value();
+    s.read.resolve(null);
+    await settle();
+    expect(s.value()).toBe(current);
+    expect(s.client.getQueryState(getDailyRecordQueryKey(date))?.isInvalidated).toBe(true);
+    s.stop?.();
+  });
+
+  it('allows an owned confirmation of absence', async () => {
+    const s = setup();
+    s.emit(null, false);
+    s.read.resolve(null);
+    await settle();
+    expect(s.value()).toMatchObject({
+      record: null,
+      runtime: { availabilityState: 'confirmed_missing' },
+    });
+    s.stop?.();
+  });
+});
