@@ -63,11 +63,11 @@ const recordedSubjects = (record: DailyRecord): Subject[] =>
 const plannedPatient = (patient: PatientData): Subject => ({ ...patient, scope: 'principal' });
 
 /** Absence is a review requirement, NEVER evidence authorizing an administrative discharge. */
-export const previousCensusContinuityConflicts = (
+export const unexplainedPreviousCensusOccupants = (
   previous: DailyRecord,
   current: DailyRecord,
   diff: CensusImportDiff
-): ConflictEntry[] => {
+): Subject[] => {
   const prior = occupants(previous);
   const explained: Subject[] = [
     ...occupants(current),
@@ -101,8 +101,15 @@ export const previousCensusContinuityConflicts = (
       scope: entry.fromClinicalCrib ? ('crib' as const) : ('principal' as const),
     })),
   ];
-  return prior.flatMap((patient, index) => {
-    if (isExplained(patient, prior, explained)) return [];
+  return prior.filter(patient => !isExplained(patient, prior, explained));
+};
+
+export const previousCensusContinuityConflicts = (
+  previous: DailyRecord,
+  current: DailyRecord,
+  diff: CensusImportDiff
+): ConflictEntry[] =>
+  unexplainedPreviousCensusOccupants(previous, current, diff).flatMap((patient, index) => {
     return [
       {
         // Yesterday's bed may now belong to somebody else: do not isolate to that bed.
@@ -121,4 +128,3 @@ export const previousCensusContinuityConflicts = (
       },
     ];
   });
-};
