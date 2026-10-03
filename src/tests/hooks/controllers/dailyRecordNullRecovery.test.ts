@@ -1,3 +1,4 @@
+import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -17,6 +18,8 @@ vi.mock('@/services/repositories/dailyRecordOperationalTelemetry', () => ({
 }));
 
 const date = '2025-01-08';
+const readResult = (record: DailyRecord | null) =>
+  createDailyRecordReadResult(date, record, record ? 'indexeddb' : 'not_found');
 const recordAt = (hour: string) => ({
   ...DataFactory.createMockDailyRecord(date),
   lastUpdated: `${date}T${hour}:00:00.000Z`,
@@ -32,7 +35,7 @@ function setup() {
   setDailyRecordQueryData(client, date, recordAt('10'));
   const stop = createDailyRecordSubscription(
     {
-      getForDate: () => read.promise,
+      getForDateWithMeta: () => read.promise.then(readResult),
       subscribe: (_date, callback) => {
         emit = callback;
         return vi.fn();
@@ -87,7 +90,10 @@ describe('null realtime recovery ownership', () => {
     setDailyRecordQueryData(client, date, recordAt('10'));
     const stop = createDailyRecordSubscription(
       {
-        getForDate: vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise),
+        getForDateWithMeta: vi
+          .fn()
+          .mockImplementationOnce(() => first.promise.then(readResult))
+          .mockImplementationOnce(() => second.promise.then(readResult)),
         subscribe: (_date, callback) => {
           emit = callback;
           return vi.fn();

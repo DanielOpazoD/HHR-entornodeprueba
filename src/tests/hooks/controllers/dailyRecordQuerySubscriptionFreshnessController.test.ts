@@ -55,7 +55,7 @@ describe('dailyRecordQueryController subscription freshness', () => {
     expect(getDailyRecordFreshnessStatus('2025-01-08')).toBe('stale_due_to_inactivity');
 
     createDailyRecordSubscription(
-      { getForDate: vi.fn(), subscribeDetailed },
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
       '2025-01-08',
       queryClient
     );
@@ -143,7 +143,7 @@ describe('dailyRecordQueryController subscription freshness', () => {
     markDailyRecordTabVisible(6 * 60 * 1000);
 
     createDailyRecordSubscription(
-      { getForDate: vi.fn(), subscribeDetailed },
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
       '2025-01-08',
       queryClient
     );

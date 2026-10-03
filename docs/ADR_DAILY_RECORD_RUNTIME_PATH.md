@@ -37,6 +37,8 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 
 ## Invariants
 
+- Query, prefetch and null-realtime recovery require `getForDateWithMeta`. The repository owns availability and provenance; consumers must not fabricate metadata from a bare record or interpret an unavailable read as confirmed absence. The production repository port already requires this method.
+
 - UI must not decide by itself whether a day is really missing.
 - A null-realtime recovery may publish only while its subscription emission and captured query instance and state remain current. Later snapshots or cache edits invalidate its result and error fallback; recovered records retain pending explicit patches.
 - Realtime `null` must not evict a valid local record unless repository reconciliation confirms absence.

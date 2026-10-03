@@ -80,7 +80,11 @@ describe('dailyRecordConfirmedCacheController', () => {
       return vi.fn();
     });
 
-    createDailyRecordSubscription({ getForDate: vi.fn(), subscribeDetailed }, date, queryClient);
+    createDailyRecordSubscription(
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
+      date,
+      queryClient
+    );
 
     expect(
       queryClient.getQueryData<{
@@ -199,7 +203,7 @@ describe('dailyRecordConfirmedCacheController', () => {
     };
     createDailyRecordSubscription(
       {
-        getForDate: vi.fn(),
+        getForDateWithMeta: vi.fn(),
         subscribe: vi.fn((_date, callback) => {
           callback(laterRemoteRecord, false);
           return vi.fn();
@@ -252,7 +256,7 @@ describe('dailyRecordConfirmedCacheController', () => {
     };
     createDailyRecordSubscription(
       {
-        getForDate: vi.fn(),
+        getForDateWithMeta: vi.fn(),
         subscribe: vi.fn((_date, callback) => {
           callback(intermediateRemoteRecord, false);
           return vi.fn();

@@ -1,3 +1,4 @@
+import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -65,7 +66,7 @@ describe('confirmed cache ordering across query and subscription', () => {
     queryClient.setQueryData(getDailyRecordQueryKey(date), queryResult(previous, 'remote'));
     createDailyRecordSubscription(
       {
-        getForDate: vi.fn(),
+        getForDateWithMeta: vi.fn(),
         subscribeDetailed: vi.fn((_date, callback) => {
           callback(
             {
@@ -109,7 +110,10 @@ describe('confirmed cache ordering across query and subscription', () => {
       finishRead = resolve;
     });
     const queryFn = createReconciledDailyRecordQueryFn(
-      { getForDate: () => read },
+      {
+        getForDateWithMeta: () =>
+          read.then(record => createDailyRecordReadResult(date, record, 'indexeddb')),
+      },
       date,
       queryClient
     );
@@ -155,7 +159,7 @@ describe('confirmed cache ordering across query and subscription', () => {
     ) => void;
     createDailyRecordSubscription(
       {
-        getForDate: vi.fn(),
+        getForDateWithMeta: vi.fn(),
         subscribeDetailed: vi.fn((_date, callback) => {
           publishDelayedSubscription = callback;
           return vi.fn();
@@ -168,7 +172,6 @@ describe('confirmed cache ordering across query and subscription', () => {
 
     const postAckRead = createReconciledDailyRecordQueryFn(
       {
-        getForDate: vi.fn(),
         getForDateWithMeta: vi.fn().mockResolvedValue({
           date,
           record: confirmedRecord,
