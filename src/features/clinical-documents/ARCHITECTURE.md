@@ -45,3 +45,19 @@
 3. ¿El flujo crítico `crear -> editar -> guardar -> imprimir -> exportar` sigue cubierto?
 4. ¿Se agregó test del caso nuevo en `clinical-documents`?
 5. ¿La documentación del feature quedó actualizada?
+
+## Archivos adjuntos y selección
+
+- La carga automática de `useClinicalAttachments` es el único recorrido de lectura.
+  Sus resultados pertenecen al hospital, paciente y episodio consultados; mientras
+  cambia ese contexto no se muestran archivos del anterior.
+- Cambiar entre documentos del mismo episodio no repite las lecturas. Las acciones
+  pendientes sí conservan su documento de origen: al cambiarlo, sus respuestas no
+  insertan imágenes ni notificaciones en el editor nuevo. Las listas compartidas
+  sí reciben el resultado de una escritura si continúa seleccionado el mismo
+  hospital, paciente y episodio.
+- Una escritura iniciada conserva su destino original. Descartar su respuesta en
+  una vista obsoleta no cancela ni repite la escritura remota.
+- Si una lectura sigue pendiente, los cambios de escrituras completadas se reaplican
+  a su respuesta. Ese registro sólo vive durante la lectura; las subidas se
+  incorporan por ID, sin duplicar un archivo que la respuesta ya incluya.
