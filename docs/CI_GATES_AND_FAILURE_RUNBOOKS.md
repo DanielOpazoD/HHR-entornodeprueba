@@ -391,6 +391,37 @@ El reporte `reports/security/dependency-audit.md` debe conservar comandos de rep
    - dividir use cases/UI por flujo
 5. no subir el threshold como primera respuesta
 
+### El presupuesto pasa en CI y falla localmente
+
+Comparar primero el mismo SHA y lockfile, versión de Node 22 y comando de build.
+Vite incorpora la configuración `VITE_*` al artefacto: el build del job
+`build-budget` no recibe los archivos personales `.env.local`, mientras que el
+build habitual del desarrollador sí puede cargarlos. `CI=true` no desactiva dotenv.
+Además, `validateClientEnv` consume el objeto completo `import.meta.env`; por eso
+la configuración puede modificar el shell aunque el código sea idéntico.
+
+Para aislar esta diferencia, usar una copia temporal del commit (por ejemplo,
+`git archive HEAD`) con el mismo lockfile y una instalación `npm ci`; construir
+sin copiar archivos dotenv personales ni heredar variables `VITE_*` exportadas
+en la shell (tienen precedencia sobre dotenv). Suministrar explícitamente sólo las
+variables declaradas por el job de CI y ejecutar `check:bundle-budget` allí.
+Mantener modo `production`: `VITE_E2E_MODE=true` cambia el contrato de ejecución y
+no sirve como sustituto de esta comparación. Contrastar luego con el build local
+configurado y registrar ambos resultados. No borrar ni renombrar los dotenv del
+checkout activo; no imprimir valores ni adjuntar bundles configurados al PR.
+
+La comprobación del 03-10-2026 sobre `2c96af17`, con Node 22.22.2 y las mismas
+dependencias, produjo 630.379 bytes de shell con el entorno local y 628.073 sin él
+(límite: 630.000). Una copia del commit cargando únicamente el directorio de
+entorno local reprodujo 630.379 bytes. Esto explica aquella divergencia, no un
+fallo del contador ni una autorización para ignorar el exceso local. Son medidas
+históricas: repetir la comparación si cambia el código, las dependencias o la
+configuración. No atribuir la diferencia a rendimiento de usuario.
+
+El build limpio que pasa acredita ese entorno. Un build configurado que falla
+sigue fallando y debe conservarse como pendiente para ese destino; no declarar
+aprobado el gate local completo ni aumentar el límite para igualarlo a CI.
+
 ### Falla `check:chunk-graph`
 
 1. correr `npm run build`
