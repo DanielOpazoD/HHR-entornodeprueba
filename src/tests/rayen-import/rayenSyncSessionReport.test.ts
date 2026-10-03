@@ -32,6 +32,22 @@ describe('aggregate synchronization session report', () => {
       completedAt: 'PRIVATE-TIME',
       issues: [{ bedId: 'PRIVATE-BED', source: 'vitals', reason: 'PRIVATE-DIAGNOSIS' }],
     } as unknown as RayenSyncEvent['coverage'];
+    event.structuralReview = {
+      isolatedConflicts: 1,
+      historicalCorrectionsPending: false,
+      historicalCorrectionsRequireFreshCapture: false,
+      issues: [
+        {
+          bedId: null,
+          reason: 'previous-census-continuity',
+          caseContext: {
+            patientName: 'PRIVATE-PATIENT',
+            bedId: 'PRIVATE-BED',
+            censusDate: '2026-09-29',
+          },
+        },
+      ],
+    };
     Object.assign(event.performance!, { extra: 'PRIVATE-TOKEN' });
     Object.assign(event.performance!.stagesMs, { extra: 'PRIVATE-HISTORY' });
     const json = JSON.stringify(buildRayenSyncSessionReport([event]));

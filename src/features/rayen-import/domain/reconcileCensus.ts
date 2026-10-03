@@ -147,6 +147,21 @@ export const reconcileCensus = (
     occupiedBedIds
   );
   const retainedClosedCribs: typeof activeMapped = [];
+  const trackClinicalClosure = (bedId: string, patient: PatientData, encounter: RayenEncounter) => {
+    diff.pendingAdministrativeDischarges.push({
+      bedId,
+      rut: patient.rut,
+      patientName: patient.patientName,
+      signal: 'clinical-closure',
+      encounterId: encounter.encounterId,
+      verification: {
+        medicalEpicrisis: stateFromBoolean(encounter.hasMedicalDischarge),
+        nursingEpicrisis: stateFromBoolean(encounter.hasNurseDischarge),
+        hospitalDischarge: 'unknown',
+      },
+      source: encounter,
+    });
+  };
   for (const { encounter, mapped } of principalPlacements) {
     const { patient, bedId } = mapped;
     const match = findCurrent(encounter);
@@ -258,19 +273,11 @@ export const reconcileCensus = (
             },
           };
           retainedClosedCribs.push({ encounter, mapped: retainedMapped });
-          diff.pendingAdministrativeDischarges.push({
-            bedId: parentBedId,
-            rut: existingCribMatch?.patient.rut ?? mapped.patient.rut,
-            patientName: existingCribMatch?.patient.patientName ?? mapped.patient.patientName,
-            signal: 'clinical-closure',
-            encounterId: encounter.encounterId,
-            verification: {
-              medicalEpicrisis: stateFromBoolean(encounter.hasMedicalDischarge),
-              nursingEpicrisis: stateFromBoolean(encounter.hasNurseDischarge),
-              hospitalDischarge: 'unknown',
-            },
-            source: encounter,
-          });
+          trackClinicalClosure(
+            parentBedId,
+            existingCribMatch?.patient ?? mapped.patient,
+            encounter
+          );
         }
         continue;
       }
@@ -304,19 +311,7 @@ export const reconcileCensus = (
       if (!mapped.bedId || mapped.bedId === match.bedId) {
         confirmedPrincipalBedIds.add(match.bedId);
       }
-      diff.pendingAdministrativeDischarges.push({
-        bedId: placement.retainedBedId,
-        rut: match.patient.rut,
-        patientName: match.patient.patientName,
-        signal: 'clinical-closure',
-        encounterId: encounter.encounterId,
-        verification: {
-          medicalEpicrisis: stateFromBoolean(encounter.hasMedicalDischarge),
-          nursingEpicrisis: stateFromBoolean(encounter.hasNurseDischarge),
-          hospitalDischarge: 'unknown',
-        },
-        source: encounter,
-      });
+      trackClinicalClosure(placement.retainedBedId, match.patient, encounter);
       continue;
     }
     // A movement already recorded in HHR remains an explicit local decision. Otherwise, restore
@@ -324,8 +319,10 @@ export const reconcileCensus = (
     // later replace that provisional admission with the definitive statistical movement.
     if (wasDischargedInHhr(encounter)) continue;
     const { patient, bedId } = mapped;
-    if (bedId && tryAdmit(encounter, patient, bedId, mapped.isCma)) {
-      confirmedPrincipalBedIds.add(bedId);
+    if (bedId) {
+      // Evidence belongs to the episode even when a replacement already occupies its old bed.
+      trackClinicalClosure(bedId, patient, encounter);
+      if (tryAdmit(encounter, patient, bedId, mapped.isCma)) confirmedPrincipalBedIds.add(bedId);
     }
   }
   const finalizedAdmissions = finalizeAdmissionsAgainstAcceptedMoves(

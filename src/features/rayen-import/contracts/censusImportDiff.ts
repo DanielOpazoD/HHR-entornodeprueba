@@ -6,6 +6,7 @@
  * it does not persist anything.
  */
 
+import type { RayenSyncCaseContext } from '@/types/domain/rayenSync';
 import type { PatientData } from './rayenDomainContracts';
 import type { DischargeData } from '@/types/domain/movements';
 import type { RayenEncounter } from './rayenSnapshot';
@@ -179,6 +180,8 @@ export interface PendingAdministrativeDischargeEntry {
 export interface ConflictEntry {
   /** Transient, episode-aware identity for prior-census continuity review (not a source capture). */
   continuityKey?: string;
+  /** Original case location, separate from the current bed used for conflict isolation. */
+  caseContext?: RayenSyncCaseContext;
   bedId: string | null;
   rut?: string;
   patientName?: string;
