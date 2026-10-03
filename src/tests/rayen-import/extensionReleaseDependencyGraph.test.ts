@@ -45,6 +45,47 @@ describe('Rayen extension release dependency graph', () => {
     expect(result.stdout).toContain('dependencias verificadas');
   });
 
+  it('reports structural failures before inspecting script syntax', () => {
+    const root = createPackageFixture();
+    const manifestPath = path.join(root, 'extension/manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest.minimum_chrome_version = '111';
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest), 'utf8');
+    fs.appendFileSync(path.join(root, 'extension/print-pdf.js'), '\nconst invalidFixture = ;\n');
+
+    const result = runChecker(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('minimum_chrome_version 118');
+    expect(result.stderr).not.toContain('Sintaxis inválida');
+  });
+
+  it('rejects all script syntax errors in an otherwise valid package', () => {
+    const root = createPackageFixture();
+    for (const file of ['print-pdf.js', 'background.js']) {
+      fs.appendFileSync(path.join(root, 'extension', file), '\nconst invalidFixture = ;\n');
+    }
+
+    const result = runChecker(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Sintaxis inválida en extension/print-pdf.js');
+    expect(result.stderr).toContain('Sintaxis inválida en extension/background.js');
+  });
+
+  it('validates syntax without executing packaged scripts', () => {
+    const root = createPackageFixture();
+    fs.appendFileSync(
+      path.join(root, 'extension/print-pdf.js'),
+      "\nthrow new Error('Packaged scripts must not execute during validation');\n"
+    );
+
+    const result = runChecker(root);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('paquete válido');
+  });
+
   it('rejects a Chrome minimum below the supported PDF.js legacy baseline', () => {
     const root = createPackageFixture();
     const manifestPath = path.join(root, 'extension/manifest.json');

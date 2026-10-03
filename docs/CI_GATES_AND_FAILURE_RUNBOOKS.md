@@ -899,3 +899,13 @@ Doce suites críticas de políticas de persistencia/sincronización declaran Nod
 Conservan autoridad de escritura, reparación heredada, intención de patch,
 contratos de tareas, presupuestos operacionales y recuperación IndexedDB.
 Los tests de integración que necesitan el navegador mantienen jsdom.
+
+## Fases del chequeo de paquete de extensión
+
+`check:rayen-extension-release` valida primero manifiesto, protocolo, integridad
+de vendors, rutas y referencias. Si esa fase falla, devuelve sus errores con código
+1 sin iniciar un proceso de sintaxis por cada script de un paquete ya rechazado.
+Tras corregir la estructura, una nueva ejecución comprueba la sintaxis de todos
+los scripts operativos con `node --check`, sin ejecutarlos. Cualquier error de
+sintaxis mantiene el rechazo; no se permite publicar con una fase pendiente.
+No hay cache entre ejecuciones ni cambios en la política de versiones o permisos.

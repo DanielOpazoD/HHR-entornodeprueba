@@ -390,11 +390,15 @@ for (const htmlFile of extensionFiles.filter(candidate => /\.html?$/i.test(candi
 for (const file of extensionFiles.filter(candidate => candidate.endsWith('.map'))) {
   fail(`No se permiten source maps en el paquete clínico: ${relative(file)}`);
 }
-for (const file of extensionFiles.filter(
-  candidate => candidate.endsWith('.js') && !candidate.endsWith('.min.js')
-)) {
-  const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
-  if (check.status !== 0) fail(`Sintaxis inválida en ${relative(file)}: ${check.stderr.trim()}`);
+// A structurally invalid package is already rejected. Avoid launching a Node process
+// per script until integrity and references pass; valid packages still check every script.
+if (errors.length === 0) {
+  for (const file of extensionFiles.filter(
+    candidate => candidate.endsWith('.js') && !candidate.endsWith('.min.js')
+  )) {
+    const check = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+    if (check.status !== 0) fail(`Sintaxis inválida en ${relative(file)}: ${check.stderr.trim()}`);
+  }
 }
 
 if (errors.length) {
