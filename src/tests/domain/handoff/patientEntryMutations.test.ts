@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest';
 import type { MedicalHandoffAuditActor, PatientData } from '@/types/domain/patient';
 import { Specialty } from '@/types/domain/patientClassification';

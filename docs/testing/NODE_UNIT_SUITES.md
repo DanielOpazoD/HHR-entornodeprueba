@@ -115,3 +115,19 @@ this is not a CI-wide or application speed claim. On the parent revision, run
 `node node_modules/vitest/vitest.mjs run src/tests/hooks/controllers/handoff*.test.ts src/tests/hooks/controllers/*Handoff*.test.ts --maxWorkers=2 --environment=jsdom`,
 then the same command with `--environment=node`, alternating three pairs. On the
 annotated revision, per-file directives take precedence over the CLI environment.
+
+## Handoff domain ownership — 2026-10-03
+
+`management.test.ts` and `patientEntryMutations.test.ts` now live under
+`src/tests/domain/handoff`, matching their existing production imports. Their seven
+cases and assertions are unchanged, and both run in Node without browser mocks.
+Three alternating pairs before adding annotations, on Node 22.22.2 with two workers,
+passed identical test identities: jsdom 1.408 / 1.172 / 1.412 s; Node 1.224 / 0.715 /
+0.701 s. Local medians were 1.408 s and 0.715 s; this is not an application or
+CI-wide speed claim. Reproduce on the parent revision using the old view-suite
+paths with `vitest run <paths> --maxWorkers=2 --environment=jsdom` and `--environment=node`.
+
+The former `medicalPatientHandoffRenderController.test.ts` repeated three domain
+`patientView.test.ts` scenarios: same-author metadata, different-author continuity
+and current/legacy-confirmed validity. Its sole additional assertion, the printable
+`Vigente por` label, is retained in the domain suite. Component tests remain intact.
