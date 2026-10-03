@@ -4,19 +4,13 @@ import vm from 'node:vm';
 
 import { describe, expect, it, vi } from 'vitest';
 
-const runtimeSource = readFileSync(path.resolve('extension/clinical-report-runtime.js'), 'utf8');
-const hospitalizationReportSearchSource = readFileSync(
-  path.resolve('extension/hospitalization-report-search-runtime.js'),
-  'utf8'
+const extensionSource = (file: string) => readFileSync(path.resolve('extension', file), 'utf8');
+const runtimeSource = extensionSource('clinical-report-runtime.js');
+const hospitalizationReportSearchSource = extensionSource(
+  'hospitalization-report-search-runtime.js'
 );
-const hospitalizationReportsSource = readFileSync(
-  path.resolve('extension/hospitalization-reports-runtime.js'),
-  'utf8'
-);
-const epicrisisDownloadSource = readFileSync(
-  path.resolve('extension/epicrisis-download-runtime.js'),
-  'utf8'
-);
+const hospitalizationReportsSource = extensionSource('hospitalization-reports-runtime.js');
+const epicrisisDownloadSource = extensionSource('epicrisis-download-runtime.js');
 type RuntimeDependencies = Record<string, unknown>;
 
 const loadFactory = () => {
@@ -33,11 +27,9 @@ const loadFactory = () => {
   vm.runInContext(hospitalizationReportsSource, context, {
     filename: 'hospitalization-reports-runtime.js',
   });
-  vm.runInContext(
-    readFileSync(path.resolve('extension/epicrisis-pdf-download.js'), 'utf8'),
-    context,
-    { filename: 'epicrisis-pdf-download.js' }
-  );
+  vm.runInContext(extensionSource('epicrisis-pdf-download.js'), context, {
+    filename: 'epicrisis-pdf-download.js',
+  });
   vm.runInContext(epicrisisDownloadSource, context, { filename: 'epicrisis-download-runtime.js' });
   vm.runInContext(runtimeSource, context, { filename: 'clinical-report-runtime.js' });
   return (
