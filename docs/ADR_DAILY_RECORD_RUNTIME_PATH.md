@@ -38,6 +38,7 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
 ## Invariants
 
 - UI must not decide by itself whether a day is really missing.
+- A null-realtime recovery may publish only while its subscription emission and captured query instance and state remain current. Later snapshots or cache edits invalidate its result and error fallback; recovered records retain pending explicit patches.
 - Realtime `null` must not evict a valid local record unless repository reconciliation confirms absence.
 - Recovery policy belongs in repository/query contracts, not duplicated across hooks and views.
 - Remote cache hydration checks the outbox and writes IndexedDB in one transaction. It preserves the local projection while any unresolved daily write exists; only command acknowledgement/reconciliation may replace that projection. This prevents a realtime echo arriving before the command response from invalidating its own acknowledgement.
