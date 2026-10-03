@@ -236,3 +236,20 @@ mejora de latencia ni un resultado equivalente en cada navegador o despliegue.
 Las regresiones automatizadas comprueban identidad DOM, conservación de un
 borrador, actualización de recordatorios, fallo del chunk y las barreras de
 admisión/cierre de sesión.
+
+## Revisión del coste de CI — 2026-10-02 (America/Santiago)
+
+Se revisaron tres ejecuciones de `main`:
+[37081755881](https://github.com/DanielOpazoD/HHR-entornodeprueba/actions/runs/37081755881),
+[37081345404](https://github.com/DanielOpazoD/HHR-entornodeprueba/actions/runs/37081345404) y
+[37078273780](https://github.com/DanielOpazoD/HHR-entornodeprueba/actions/runs/37078273780).
+La etapa de medición en development duró respectivamente 471, 698 y 898 segundos;
+fue el principal coste observado. Son observaciones históricas, no un presupuesto
+nuevo ni el tiempo esperado de cada ejecución futura.
+
+El banco conserva un solo servidor, un calentamiento excluido y navegaciones
+secuenciales con 30 muestras por escenario en pushes. No hay una espera fija ni
+un build repetido por muestra que retirar. No se cambió el banco para reducir su
+tiempo: paralelizar muestras, activar HTTP cache o reducirlas alteraría el contrato.
+Una optimización posterior debe investigar el arranque de la aplicación con
+mediciones comparables; no atribuir al CI un ahorro obtenido cambiando la prueba.

@@ -52,6 +52,13 @@ release.
 - `npm run check:ci-artifact-contracts`: comprueba productor, orden, ruta y consumidor
   del manifiesto, cobertura crítica, preview y build.
 
+Que el `gitSha` del reporte coincida con `HEAD` no basta: para todos los commits
+aceptados por la política de ancestry, el control exige
+`generatedFor.dependencyFingerprint` y lo compara con las entradas actuales.
+Una entrada modificada o eliminada invalida el reporte aunque conserve su fecha
+de modificación. Los reportes sin huella utilizable deben regenerarse; no añadir
+la huella manualmente ni usar el modo advisory como aprobación de release.
+
 ## Flujo de CI
 
 1. `critical-coverage-report` produce cobertura crítica una sola vez.
