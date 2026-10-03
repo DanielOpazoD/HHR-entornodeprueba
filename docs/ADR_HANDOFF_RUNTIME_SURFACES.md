@@ -31,6 +31,9 @@
 - Screen `.tsx` files should consume read models/bindings, not recreate policy decisions.
 - Day restrictions and specialist restrictions must be enforced both in visible UI flow and mutation layer.
 - Audit-compatible payload shape must be preserved while legacy consumers still exist.
+- Record changes and persistence use `application/handoff/handoffManagementUseCases.ts`;
+  `handoffManagementPersistenceController.ts` only builds audit payloads. Do not
+  restore test-only persistence builders alongside the canonical use cases.
 
 ## How To Change Safely
 
