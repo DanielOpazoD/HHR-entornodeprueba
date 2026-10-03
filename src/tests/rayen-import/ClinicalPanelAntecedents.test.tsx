@@ -371,4 +371,64 @@ describe('ClinicalPanelAntecedents', () => {
       vi.useRealTimers();
     }
   });
+
+  it('offers the same retry action after a failed background refresh without losing data', async () => {
+    vi.useFakeTimers();
+    try {
+      const normal = requestClinicalAction.getMockImplementation()!;
+      let listCalls = 0;
+      requestClinicalAction.mockImplementation((...args: unknown[]) => {
+        if (args[1] === 'list' && ++listCalls === 2)
+          return Promise.resolve({ ok: false, error: 'Actualización interrumpida' });
+        return normal(...args);
+      });
+      render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+      await act(async () => undefined);
+      expect(screen.getByText('Evolución sintética')).toBeInTheDocument();
+      await act(async () => vi.advanceTimersByTimeAsync(300000));
+      expect(screen.getByText(/Actualización interrumpida/)).toBeInTheDocument();
+      expect(screen.getByText('Evolución sintética')).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Reintentar antecedentes' })).toHaveLength(1);
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Reintentar antecedentes' }));
+      });
+      expect(listCalls).toBe(3);
+      expect(screen.queryByText(/Actualización interrumpida/)).not.toBeInTheDocument();
+      expect(screen.getByText('Evolución sintética')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('presents a failed initial result without a message as retryable, not as empty history', async () => {
+    requestClinicalAction.mockResolvedValue({ ok: false });
+    render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+    expect(
+      await screen.findByText('No se pudieron consultar los antecedentes.')
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    expect(screen.queryByText(/No se encontraron atenciones/)).not.toBeInTheDocument();
+  });
+
+  it('ignores a pending retry when switching episodes', async () => {
+    let finish!: (value: unknown) => void;
+    const pending = new Promise(resolve => {
+      finish = resolve;
+    });
+    let firstCalls = 0;
+    requestClinicalAction.mockImplementation((episode: string, operation: string) => {
+      if (operation !== 'list') return Promise.resolve({ ok: true });
+      if (episode === '13') return Promise.resolve({ ok: true, entries: [], warnings: [] });
+      if (++firstCalls === 1) return Promise.resolve({ ok: false, error: 'Fallo temporal' });
+      return pending;
+    });
+    const view = render(<ClinicalPanelAntecedents clinicalEpisodeId="12" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reintentar' }));
+    await waitFor(() => expect(firstCalls).toBe(2));
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="13" />);
+    await screen.findByText(/No se encontraron atenciones/);
+    await act(async () => finish({ ok: false, error: 'Error del episodio anterior' }));
+    expect(screen.queryByText('Error del episodio anterior')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+  });
 });

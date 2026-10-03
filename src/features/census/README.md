@@ -234,3 +234,22 @@ Una vez cargada la tabla del día solicitado, se enfoca y centra la fila (ocupad
 con un contorno, sin activar sus acciones ni colorear toda la fila. El parámetro `focusBed`
 se consume para no repetir el desplazamiento. Si una cama conocida no tiene fila visible,
 se informa sin enfocar otra cama ni modificar el censo.
+
+### Recuperación de antecedentes
+
+`ClinicalPanelAntecedents` usa `ok` como resultado de la consulta, incluso cuando
+la extensión no acompaña el fallo con un mensaje. Un fallo inicial ofrece reintento;
+un fallo de actualización conserva los datos ya cargados. Los resultados parciales
+y los fallos de actualización comparten una sola acción `Reintentar antecedentes`.
+Cada episodio mantiene su propio estado y aborta el interés en respuestas anteriores
+al cambiar de paciente; el reintento no modifica datos clínicos ni el protocolo de la extensión.
+
+### Fuentes para copiar un día vacío
+
+El recorrido activo es `useCensusViewModel` → `src/hooks/useCensusLogic.ts` →
+`src/hooks/useCensusPromptState.ts` → `src/hooks/controllers/censusPromptController.ts`.
+Este flujo histórico conserva su owner actual; no requiere otra API pública ni una
+segunda implementación dentro de la feature. Las copias antiguas `hooks/useCensusPromptState`
+y `controllers/censusLogicController` de esta feature no tenían consumidores productivos
+y se retiraron. Sus pruebas ahora ejercitan el owner activo: el hook con los lectores
+como puertos simulados, y el controller puro en su suite propia.

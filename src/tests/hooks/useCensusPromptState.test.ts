@@ -95,4 +95,43 @@ describe('census prompt reads on demand', () => {
     });
     await waitFor(() => expect(view.result.current.previousRecordDate).toBe('2026-02-15'));
   });
+
+  it('defaults to enabled, ignores current-day writes and refreshes after another day changes', async () => {
+    const view = renderHook(() => useCensusPromptState('2026-02-15'));
+    await waitFor(() => expect(view.result.current.previousRecordAvailable).toBe(true));
+    expect(previous).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent(DAILY_RECORD_STORE_CHANGED_EVENT, {
+          detail: { operation: 'save', dates: ['2026-02-15'] },
+        })
+      );
+    });
+    expect(previous).toHaveBeenCalledTimes(1);
+    previous.mockResolvedValueOnce(null);
+    dates.mockResolvedValueOnce([]);
+    await act(async () => {
+      changed();
+    });
+    await waitFor(() => expect(view.result.current.previousRecordAvailable).toBe(false));
+    expect(previous).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores an older date response that arrives after the new date is already ready', async () => {
+    const old = deferred<{ date: string }>();
+    previous
+      .mockImplementationOnce(() => old.promise)
+      .mockResolvedValueOnce({ date: '2026-02-15' });
+    const view = renderHook(({ date }) => useCensusPromptState(date), {
+      initialProps: { date: '2026-02-15' },
+    });
+    dates.mockResolvedValueOnce(['2026-02-15']);
+    view.rerender({ date: '2026-02-16' });
+    await waitFor(() => expect(view.result.current.previousRecordDate).toBe('2026-02-15'));
+    await act(async () => {
+      old.resolve({ date: '2026-02-14' });
+    });
+    expect(view.result.current.previousRecordDate).toBe('2026-02-15');
+    expect(view.result.current.availableDates).toEqual(['2026-02-15']);
+  });
 });

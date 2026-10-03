@@ -5,10 +5,10 @@ import {
   filterAvailableDates,
   INITIAL_CENSUS_PROMPT_STATE,
   resolvePreviousDayState,
-} from '@/features/census/controllers/censusLogicController';
+} from '@/hooks/controllers/censusPromptController';
 import { DataFactory } from '@/tests/factories/DataFactory';
 
-describe('censusLogicController', () => {
+describe('censusPromptController', () => {
   it('exposes stable initial prompt state', () => {
     expect(INITIAL_CENSUS_PROMPT_STATE).toEqual({
       previousRecordAvailable: false,
