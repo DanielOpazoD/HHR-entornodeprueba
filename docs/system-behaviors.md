@@ -465,3 +465,13 @@ La verificación vigente conserva su estado, telemetría y avisos habituales.
 ---
 
 _Última actualización: 4 de Abril 2026_
+
+### Migración local y repetición de efectos
+
+`useStorageMigration` puede esperar la autenticación antes de habilitarse. La limpieza
+de un efecto invalida únicamente su respuesta; no bloquea los montajes posteriores.
+Si React repite el efecto o se vuelve a habilitar durante una migración pendiente,
+se comparte esa operación hasta que termine, sin duplicar escrituras. Una operación
+ya terminada no se conserva como caché: el servicio mantiene su indicador persistente
+de migración y sus contratos de recuperación. Las regresiones viven en
+`useStorageMigration.test.ts`; `indexedDBService.test.ts` verifica los datos migrados.
