@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ScoresCell } from '@/features/census/components/patient-row/ScoresCell';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -67,9 +67,13 @@ describe('ScoresCell', () => {
       </table>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de escalas de enfermería' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Ver detalle de escalas de enfermería' }));
+      // Wait for the real lazy module, not a wall-clock-dependent query timeout.
+      await import('@/features/census/components/patient-row/ScoresDetailModal');
+    });
 
-    expect(await screen.findByText('Riesgo alto')).toBeInTheDocument();
+    expect(screen.getByText('Riesgo alto')).toBeInTheDocument();
     expect(screen.getByText('Faltan 2 días para repetir la escala')).toBeInTheDocument();
     expect(screen.getByText(/Cada 3 días/)).toBeInTheDocument();
   });
