@@ -7,10 +7,6 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const readJson = (file: string) => JSON.parse(readFileSync(path.resolve(file), 'utf8'));
-const sha256 = (file: string) =>
-  createHash('sha256')
-    .update(readFileSync(path.resolve(file)))
-    .digest('hex');
 
 describe('PDF.js extension Chrome compatibility contract', () => {
   it('vendors the exact PDF.js 5.5.207 legacy artifacts and declares Chrome 118+', () => {
@@ -36,13 +32,16 @@ describe('PDF.js extension Chrome compatibility contract', () => {
         variant: 'legacy',
         source,
       });
-      expect(sha256(`extension/${file}`)).toBe(vendor.sha256);
-      expect(readFileSync(path.resolve(`extension/${file}`))).toEqual(
-        readFileSync(path.resolve(`node_modules/${source}`))
-      );
-      expect(readFileSync(path.resolve(`extension/${file}`))).not.toEqual(
-        readFileSync(path.resolve(`node_modules/pdfjs-dist/build/${file}`))
-      );
+      const packaged = readFileSync(path.resolve(`extension/${file}`));
+      expect(createHash('sha256').update(packaged).digest('hex')).toBe(vendor.sha256);
+      expect(
+        packaged.equals(readFileSync(path.resolve(`node_modules/${source}`))),
+        `${file} must exactly match the legacy artifact`
+      ).toBe(true);
+      expect(
+        packaged.equals(readFileSync(path.resolve(`node_modules/pdfjs-dist/build/${file}`))),
+        `${file} must not match the modern artifact`
+      ).toBe(false);
     }
   });
 
