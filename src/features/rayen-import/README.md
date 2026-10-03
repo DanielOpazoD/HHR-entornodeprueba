@@ -109,8 +109,9 @@ clínicos en esa telemetría.
   es reemplazado, cualquier respuesta tardía queda inerte y no puede abrir ni aplicar un diff.
 
 - **Autoridad de egreso:** epicrisis médica, epicrisis de enfermería y ausencia desde Ficha Médico son
-  señales informativas; nunca vacían la cama por sí solas. Solo el reporte masivo de **Alta
-  Administrativa** de Gestión de Camas crea el alta, traslado o CMA estadístico.
+  señales informativas; nunca vacían la cama por sí solas. El reporte masivo de **Alta
+  Administrativa** o la consulta administrativa del episodio exacto en Gestión de Camas
+  pueden confirmar el alta, traslado o CMA estadístico.
 - **Filas repetidas por diagnóstico:** si identidad, ubicación, fecha/hora y destino del alta
   coinciden y sólo cambia el diagnóstico, se comparte la consulta de episodio. Sigue siendo
   obligatorio resolver un único episodio en origen y verificar su informe estadístico individual.
@@ -120,6 +121,14 @@ clínicos en esa telemetría.
   ingresar. Limpiar una cama no demuestra un egreso: si Eloísa aún presenta ese episodio con cierre
   clínico, se consulta su alta administrativa antes de confirmar la propuesta de reingreso. Sólo
   la evidencia administrativa permite liberar la cama y registrar un único movimiento.
+- **Episodios ausentes del censo anterior:** al sincronizar el día vigente, si D−1 contiene un episodio sin continuidad
+  ni movimiento vigente en D, se consulta por RUN + episodio aunque ya no figure en Ficha Médico
+  ni en el informe masivo. Una respuesta única, sin error, con alta administrativa explícita,
+  identidad coincidente y fecha/hora oficial en D−1/D permite proponer su movimiento en el día
+  clínico correspondiente. El usuario lo confirma por el flujo habitual. Un movimiento eliminado
+  no cuenta como alta vigente: se conserva su tombstone y la propuesta puede registrar el egreso
+  confirmado. No se toca un ocupante nuevo ni se repite un movimiento activo del mismo episodio.
+  Ante identidad ambigua, timeout o falta de alta explícita, el conflicto identificado permanece.
 - **Contexto de conflictos de continuidad:** el historial clínico conserva nombre, cama de origen
   y día del censo anterior, con enlace a esa fila histórica; esa cama no se usa para aislar al
   ocupante actual. El código copiable y el resumen de rendimiento excluyen ese contexto clínico,

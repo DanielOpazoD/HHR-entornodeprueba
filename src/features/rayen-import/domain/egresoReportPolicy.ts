@@ -7,6 +7,7 @@ import { toTitleCaseName } from '../mapping/rayenToPatientData';
 import { parseStatisticalEgresoStamp } from '../mapping/reportEgresoDateTime';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import { normalizeRut } from '@/utils/rutUtils';
+import { recordedOutcomeEpisodeId } from './censusDischargeHistory';
 export interface OccupiedBedEvidence {
   bedId: string;
   patientName: string;
@@ -227,7 +228,6 @@ export const collectRecordedMovementRuns = (record: DailyRecord): Set<string> =>
   }
   return runs;
 };
-
 export const hasRecordedMovement = (
   record: DailyRecord,
   run: string,
@@ -238,9 +238,9 @@ export const hasRecordedMovement = (
     ...(record.discharges ?? []),
     ...(record.cma ?? []),
     ...(record.transfers ?? []),
-  ].some(movement => encounterId
-    ? movement.clinicalEpisodeId === encounterId
-    : normalizeRut(movement.rut) === normalizedRun);
+  ].some(movement => !movement.deletedAt && (encounterId
+    ? recordedOutcomeEpisodeId(movement) === encounterId
+    : normalizeRut(movement.rut) === normalizedRun));
 };
 
 export const toIsoDay = (raw: string): string => {
