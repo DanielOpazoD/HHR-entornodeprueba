@@ -43,6 +43,11 @@ los callbacks de registro de `clinicalFillRunner` / `collectNursingStaffingPropo
 
 ## 1. Auto-Detección de Versión
 
+`useVersionCheck` crea temporizadores y suscripciones por montaje del efecto y los
+retira al limpiarlo. Si React vuelve a montar el efecto (incluido StrictMode),
+restablece la comprobación sin acumular listeners. No se conserva una bandera de
+“ya iniciado” después de destruir esos recursos.
+
 ### Descripción
 
 El sistema detecta automáticamente cuando hay una nueva versión desplegada y actualiza el navegador del usuario sin intervención manual.
