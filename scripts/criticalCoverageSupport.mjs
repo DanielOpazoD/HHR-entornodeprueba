@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
+
 import fs from 'node:fs';
 import path from 'node:path';
 import istanbulCoverage from 'istanbul-lib-coverage';
@@ -281,6 +283,7 @@ export const buildCriticalCoverageReport = root => {
   return {
     generatedAt: new Date().toISOString(),
     ...gitState,
+    generatedFor: buildEvidenceProvenance({ root, reportId: 'critical-coverage', gitState }),
     mode: 'dual-gated',
     coverageArtifact: COVERAGE_FINAL_PATH,
     coverageArtifactPresent: coverageMap !== null,
