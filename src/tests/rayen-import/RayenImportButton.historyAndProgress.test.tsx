@@ -110,7 +110,7 @@ describe('RayenImportButton history and progress', () => {
       pulse
     );
     if (progress.running) {
-      expect(screen.getByRole('progressbar')).toHaveClass('absolute');
+      expect(screen.getByRole('progressbar')).toHaveClass('sr-only');
       expect(screen.getByRole('button', { name: 'Sincronizando…' })).toBeDisabled();
     }
   });
@@ -228,7 +228,7 @@ describe('RayenImportButton history and progress', () => {
 
     render(<RayenImportButton />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Todo al día');
+    expect(screen.getByRole('status')).toHaveTextContent('Actualizado');
     expect(screen.queryByTestId('rayen-sync-history-indicator')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
     await screen.findByTestId('rayen-sync-history-modal');
@@ -322,9 +322,8 @@ describe('RayenImportButton history and progress', () => {
     });
     expect(progress).toHaveAttribute('aria-valuenow', '4');
     expect(progress).toHaveAttribute('aria-valuemax', '8');
-    expect(screen.getByTestId('rayen-sync-pulse')).toHaveTextContent(
-      'Datos clínicos · 4 de 8 pacientes'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Actualizando');
+    expect(progress).toHaveAttribute('aria-valuetext', 'Datos clínicos · 4 de 8 pacientes');
     expect(screen.getByTestId('rayen-sync-pulse')).not.toHaveTextContent('%');
   });
 
@@ -344,9 +343,7 @@ describe('RayenImportButton history and progress', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByTestId('rayen-import-button')).toBeDisabled();
-    expect(screen.getByTestId('rayen-sync-pulse')).toHaveTextContent(
-      'Datos clínicos · 2 de 5 pacientes'
-    );
+    expect(screen.getByRole('status')).toHaveTextContent('Actualizando');
     const progress = screen.getByRole('progressbar', {
       name: 'Progreso de sincronización con Eloísa',
     });

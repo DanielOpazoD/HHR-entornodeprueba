@@ -16,9 +16,6 @@
     "rayen-import": [
       "src/application/census/eloisaAdmissionInput.ts -> @/features/rayen-import/census-status",
       "src/features/census/components/StatisticalDischargeProvenanceBadge.tsx -> @/features/rayen-import/census-status",
-      "src/features/census/components/patient-row/DevicesCell.tsx -> @/features/rayen-import/census-status",
-      "src/features/census/components/patient-row/ScoresCell.tsx -> @/features/rayen-import/census-status",
-      "src/features/census/components/patient-row/VitalsCell.tsx -> @/features/rayen-import/census-status",
       "src/features/census/components/usePatientHospitalizationReports.ts -> @/features/rayen-import/census-status",
       "src/features/census/components/patient-row/ClinicalAntecedentCard.tsx -> @/features/rayen-import/clinical-panel",
       "src/features/census/components/patient-row/ClinicalAntecedentContent.tsx -> @/features/rayen-import/clinical-panel",

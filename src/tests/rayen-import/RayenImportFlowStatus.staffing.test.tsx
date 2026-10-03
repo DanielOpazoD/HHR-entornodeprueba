@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import type { ComponentProps } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { RayenImportFlowStatus } from '@/features/rayen-import/components/RayenImportFlowStatus';
 import type { RayenFillProgress } from '@/features/rayen-import/hooks/useRayenFillStatus';
 
@@ -90,5 +90,54 @@ describe('RayenImportFlowStatus staffing observations', () => {
     expect(screen.getByText('Todo al día').parentElement).toHaveClass('sr-only');
     expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.queryByText('Última sincronización con observaciones')).not.toBeInTheDocument();
+  });
+});
+
+describe('compact synchronization presentation', () => {
+  it('delays the single slow indicator and clears it immediately on completion', () => {
+    vi.useFakeTimers();
+    try {
+      const base = {
+        diff: null,
+        error: null,
+        hasPersistedSync: false,
+        compactFallback: 'Sin sincronizar',
+      };
+      const view = render(
+        <RayenImportFlowStatus {...base} fill={fill({ running: true, done: 1, total: 2 })} />
+      );
+      expect(screen.getByRole('status')).toHaveTextContent('Actualizando');
+      const arc = view.container.querySelector('svg')!;
+      expect(arc).toHaveClass('invisible', 'motion-reduce:animate-none', '[animation-duration:2s]');
+      act(() => vi.advanceTimersByTime(300));
+      expect(arc).not.toHaveClass('invisible');
+      view.rerender(
+        <RayenImportFlowStatus
+          {...base}
+          fill={fill({ lastCompletedAt: '2026-07-21T17:00:00.000Z' })}
+          executionStage={{ type: 'complete' }}
+        />
+      );
+      expect(screen.getByRole('status')).toHaveTextContent('Actualizado · 11:00');
+      expect(view.container.querySelector('svg')).toBeNull();
+      expect(view.container.querySelector('section')).toHaveClass('h-4');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('does not label a partial result as updated and retains accessible detail', () => {
+    render(
+      <RayenImportFlowStatus
+        diff={null}
+        error="Una fuente no respondió"
+        fill={fill()}
+        hasPersistedSync={false}
+        compactFallback="Anterior"
+        executionStage={{ type: 'partial', retry: 'clinical_only' }}
+      />
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Actualización parcial');
+    expect(screen.getByText('Ver detalle')).toBeInTheDocument();
+    expect(screen.getByText('Una fuente no respondió')).toBeInTheDocument();
   });
 });

@@ -40,11 +40,16 @@ describe('census startup payload', () => {
     );
   });
 
+  it('keeps clinical cells independent of synchronization status subscriptions', () => {
+    for (const cell of ['VitalsCell', 'DevicesCell', 'ScoresCell']) {
+      const source = read(`${rowDir}/${cell}.tsx`);
+      expect(source).not.toContain('@/features/rayen-import');
+      expect(source).not.toContain('useRayenFillStatus');
+    }
+  });
+
   it('reaches the light Rayen helpers through the narrow surface, not the feature barrel', () => {
     const consumers = [
-      'patient-row/VitalsCell.tsx',
-      'patient-row/DevicesCell.tsx',
-      'patient-row/ScoresCell.tsx',
       'StatisticalDischargeProvenanceBadge.tsx',
       'usePatientHospitalizationReports.ts',
     ].map(file => `src/features/census/components/${file}`);
@@ -67,7 +72,6 @@ describe('census startup payload', () => {
     const publicApi = JSON.parse(read('scripts/feature-public-api-allowlist.json'));
     expect(publicApi.exceptionsByFeature['rayen-import']).toEqual(
       expect.arrayContaining([
-        'src/features/census/components/patient-row/VitalsCell.tsx -> @/features/rayen-import/census-status',
         'src/application/census/eloisaAdmissionInput.ts -> @/features/rayen-import/census-status',
       ])
     );

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { formatRayenSyncIslandTime, formatRayenSyncTargetDate } from './rayenSyncPresentation';
 import { Check, Circle, LoaderCircle, TriangleAlert } from 'lucide-react';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
@@ -27,8 +28,44 @@ const toneClass: Record<RayenSyncBarTone, string> = {
   warning: 'text-amber-700',
 };
 
+const CompactSyncSpinner = () => {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <LoaderCircle
+      size={12}
+      strokeWidth={1.5}
+      className={`animate-spin text-teal-600 [animation-duration:2s] motion-reduce:animate-none ${visible ? '' : 'invisible'}`}
+    />
+  );
+};
+
 export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props => {
   const viewModel = buildRayenSyncBarViewModel(props);
+  const compact = props.compactFallback !== undefined;
+  const completedAt =
+    props.executionStage?.type === 'complete'
+      ? props.fill.lastCompletedAt
+      : props.persistedSync?.at;
+  const completedTime =
+    completedAt && Number.isFinite(Date.parse(completedAt))
+      ? formatRayenSyncIslandTime(completedAt)
+      : null;
+  const label = !compact
+    ? viewModel.label
+    : viewModel.ariaBusy
+      ? 'Actualizando'
+      : viewModel.phase === 'complete'
+        ? `Actualizado${props.targetDate ? ` · ${formatRayenSyncTargetDate(props.targetDate)}` : ''}${completedTime ? ` · ${completedTime}` : ''}`
+        : props.executionStage?.type === 'partial'
+          ? 'Actualización parcial'
+          : viewModel.label;
+  const visuallyHidden = viewModel.visuallyHidden && !(compact && viewModel.phase === 'complete');
+  const detail =
+    viewModel.detail ?? (compact && viewModel.tone === 'warning' ? viewModel.label : undefined);
   const progressPercent =
     viewModel.progress?.kind === 'determinate'
       ? Math.round((viewModel.progress.done / viewModel.progress.total) * 100)
@@ -54,27 +91,35 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
       title={props.compactFallback}
     >
       {props.compactFallback !== undefined && (
-        <p className={viewModel.visuallyHidden ? 'truncate' : 'sr-only'}>{props.compactFallback}</p>
+        <p className={visuallyHidden ? 'truncate' : 'sr-only'}>{props.compactFallback}</p>
       )}
-      <div className={viewModel.visuallyHidden ? 'sr-only' : 'flex min-w-0 items-center gap-2'}>
-        <StatusIcon
-          size={props.compactFallback !== undefined ? 11 : 15}
-          className={
-            viewModel.tone === 'progress'
-              ? 'shrink-0 animate-spin text-teal-600 motion-reduce:animate-none'
-              : `shrink-0 ${toneClass[viewModel.tone]}`
-          }
-          aria-hidden="true"
-        />
+      <div className={visuallyHidden ? 'sr-only' : 'flex min-w-0 items-center gap-2'}>
+        <span className="inline-flex w-4 shrink-0 items-center justify-center" aria-hidden="true">
+          {compact && viewModel.tone === 'progress' ? (
+            <CompactSyncSpinner />
+          ) : (
+            (!compact || viewModel.tone === 'warning') && (
+              <StatusIcon
+                size={compact ? 12 : 15}
+                strokeWidth={compact ? 1.5 : 2}
+                className={
+                  viewModel.tone === 'progress'
+                    ? 'animate-spin text-teal-600 motion-reduce:animate-none'
+                    : toneClass[viewModel.tone]
+                }
+              />
+            )
+          )}
+        </span>
         <p
-          className={`min-w-0 font-semibold leading-snug ${props.compactFallback !== undefined ? 'truncate text-[10px]' : 'text-xs'} ${toneClass[viewModel.tone]}`}
+          className={`min-w-0 font-semibold leading-snug ${props.compactFallback !== undefined ? 'truncate text-[10px]' : 'text-xs'} ${compact && viewModel.tone === 'success' ? 'text-slate-500' : toneClass[viewModel.tone]}`}
           title={viewModel.label}
           role="status"
           aria-live="polite"
         >
-          {viewModel.label}
+          {label}
         </p>
-        {viewModel.detail && (
+        {detail && (
           <details
             className="group ml-auto shrink-0 text-[11px] text-amber-800"
             data-testid="rayen-import-error"
@@ -85,7 +130,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
               Ver detalle
             </summary>
             <p className="absolute left-0 top-[calc(100%+0.45rem)] z-30 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-[11px] font-medium leading-relaxed text-amber-900 shadow-lg">
-              {viewModel.detail}
+              {detail}
             </p>
           </details>
         )}
@@ -93,7 +138,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
 
       {viewModel.progress && (
         <div
-          className={`${props.compactFallback !== undefined ? 'absolute -bottom-0.5 left-0 right-0 h-0.5' : 'relative mt-1.5 h-[3px]'} min-w-0 overflow-hidden rounded-full bg-slate-200`}
+          className={`${compact ? 'sr-only' : 'relative mt-1.5 h-[3px]'} min-w-0 overflow-hidden rounded-full bg-slate-200`}
           role="progressbar"
           aria-label="Progreso de sincronización con Eloísa"
           aria-valuemin={viewModel.progress.kind === 'determinate' ? 0 : undefined}

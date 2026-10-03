@@ -4,9 +4,7 @@ import { BaseCellProps, DeviceHandlers } from './inputCellTypes';
 import { History } from 'lucide-react';
 import { DeviceHistoryModal } from './DeviceHistoryModal';
 import { useDevicesCellController } from '@/features/census/components/patient-row/useDevicesCellController';
-import { useRayenFillStatus } from '@/features/rayen-import/census-status';
 import { PatientEmptyCell } from './PatientEmptyCell';
-import { CellSyncIndicator } from './CellSyncIndicator';
 
 interface DevicesCellProps extends BaseCellProps, DeviceHandlers {
   currentDateString: string;
@@ -43,7 +41,6 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
     onDeviceHistoryChange,
     onDeviceBundleChange,
   });
-  const isFilling = useRayenFillStatus();
 
   if (isEmpty && !isSubRow) {
     return <PatientEmptyCell tdClassName="py-0.5 px-1 border-r border-slate-200 relative" />;
@@ -51,7 +48,6 @@ export const DevicesCell: React.FC<DevicesCellProps> = ({
 
   return (
     <td className="min-w-0 py-0.5 px-1 border-r border-slate-200 relative group">
-      {isFilling && <CellSyncIndicator />}
       <DeviceSelector
         devices={devices}
         deviceDetails={deviceDetails}

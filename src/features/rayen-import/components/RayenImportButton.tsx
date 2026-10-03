@@ -287,7 +287,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
             {recovery && (
               <span
                 className={`absolute -right-0.5 -top-0.5 size-2 rounded-full border border-white ${
-                  working ? 'animate-pulse bg-slate-300' : 'bg-amber-500'
+                  working ? 'bg-slate-300' : 'bg-amber-500'
                 }`}
                 data-testid="rayen-sync-history-indicator"
                 aria-hidden="true"
@@ -350,7 +350,7 @@ export const RayenImportButton: React.FC<RayenImportButtonProps> = ({
             data-testid="rayen-import-button"
             className="inline-flex h-7 w-28 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md bg-teal-700 px-1.5 py-0 text-[10px] font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-progress disabled:opacity-70"
           >
-            <RefreshCw size={13} strokeWidth={2.5} className={mainWorking ? 'animate-spin' : ''} />
+            <RefreshCw size={13} strokeWidth={1.5} aria-hidden="true" />
             {primaryActionLabel}
             {mode === 'auto' && (
               <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
