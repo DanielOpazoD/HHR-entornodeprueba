@@ -439,6 +439,14 @@ La interfaz se adapta dinámicamente según el rol del usuario y el contexto cl�
 **Causa posible:** Primera vez que se abre ese día sin datos previos.
 **Acción:** Usar "Copiar del día anterior" o "Registro en blanco".
 
+### Verificación de respaldo al cambiar de vista
+
+La consulta diferida de respaldo pertenece a la fecha, módulo y turno que la
+iniciaron. Si ese contexto cambia o la vista se desmonta mientras carga el módulo,
+no se inicia la consulta remota. Las respuestas y avisos tardíos del contexto
+anterior se descartan, también si el presentador del aviso aún estaba cargando.
+La verificación vigente conserva su estado, telemetría y avisos habituales.
+
 ### "El botón de respaldo aparece en verde"
 
 **Causa:** El sistema ya realizó un respaldo automático exitoso para esa fecha.
