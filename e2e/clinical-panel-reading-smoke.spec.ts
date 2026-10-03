@@ -25,6 +25,11 @@ const seedClinicalPanel = async (page: Page) => {
         pathology: 'DIAGNÓSTICO PREVIEW',
         age: '44',
         admissionDate: '2026-03-29',
+        dischargeVerification: {
+          medicalEpicrisis: 'confirmed',
+          nursingEpicrisis: 'confirmed',
+          encounterId: '123',
+        },
       },
     },
   });
@@ -59,7 +64,35 @@ const seedClinicalPanel = async (page: Page) => {
           reqId?: string;
           operation?: string;
           entryId?: string;
+          encId?: string;
+          documentType?: string;
         };
+        if (request.type === 'HHR_RAYEN_EPICRISIS_DOWNLOAD_REQUEST' && request.reqId) {
+          const reportWindow = window as Window & { reportRequests?: unknown[] };
+          (reportWindow.reportRequests ||= []).push(request);
+          window.postMessage(
+            {
+              type: 'HHR_RAYEN_EPICRISIS_DOWNLOAD_RESULT',
+              reqId: request.reqId,
+              ok: true,
+              ...(request.operation === 'list'
+                ? {
+                    episodes: [
+                      { encId: '123', startDate: '2026-03-29', endDate: '' },
+                      {
+                        encId: '100',
+                        startDate: '2025-01-01',
+                        endDate: '2025-01-03',
+                        active: false,
+                      },
+                    ],
+                  }
+                : {}),
+            },
+            window.location.origin
+          );
+          return;
+        }
         if (request.type === 'HHR_RAYEN_CLINICAL_ACTION_REQUEST' && request.reqId) {
           const emergency = request.entryId === 'Primaria:9';
           window.postMessage(
@@ -220,6 +253,56 @@ test('keeps the patient identity fixed above a calm chronological clinical list'
   expect(mobileBounds?.width).toBe(overlayBounds?.width);
   await expect(drawer.getByRole('navigation', { name: 'Secciones clínicas' })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath('clinical-panel-mobile.png') });
+});
+
+test('downloads distinct epicrises from census badges and current/historical report actions', async ({
+  page,
+}) => {
+  await seedClinicalPanel(page);
+  await page.goto(`/?date=${DATE}`);
+  const medical = page.getByRole('button', { name: /^Descargar epicrisis médica/ });
+  const nursing = page.getByRole('button', { name: /^Descargar epicrisis de enfermería/ });
+  await expect(medical).toBeVisible();
+  for (const button of [medical, nursing]) {
+    const bounds = await button.boundingBox();
+    expect(bounds?.width).toBeGreaterThanOrEqual(24);
+    expect(bounds?.height).toBeGreaterThanOrEqual(24);
+    await button.press('Enter');
+    await expect(button).toBeEnabled();
+  }
+  const downloads = () =>
+    page.evaluate(() =>
+      (
+        (
+          window as Window & {
+            reportRequests?: { operation: string; encId: string; documentType: string }[];
+          }
+        ).reportRequests || []
+      )
+        .filter(request => request.operation === 'download')
+        .map(({ encId, documentType }) => ({ encId, documentType }))
+    );
+  await expect.poll(downloads).toEqual([
+    { encId: '123', documentType: 'epicrisis' },
+    { encId: '123', documentType: 'nursing-epicrisis' },
+  ]);
+  await page.getByTestId('clinical-panel-trigger-R1').click();
+  const drawer = page.getByTestId('clinical-panel-drawer-R1');
+  await drawer
+    .getByRole('button', { name: `Abrir informes de hospitalización de ${PATIENT}` })
+    .click();
+  const reports = page.getByTestId('patient-hospitalization-reports-dialog');
+  await expect(reports.getByText('Episodio del censo')).toBeVisible();
+  await reports.getByRole('button', { name: 'Epicrisis enfermería' }).first().click();
+  await expect(reports.getByRole('button', { name: 'Epicrisis médica' }).last()).toBeEnabled();
+  await reports.getByRole('button', { name: 'Epicrisis médica' }).last().click();
+  await expect.poll(downloads).toEqual([
+    { encId: '123', documentType: 'epicrisis' },
+    { encId: '123', documentType: 'nursing-epicrisis' },
+    { encId: '123', documentType: 'nursing-epicrisis' },
+    { encId: '100', documentType: 'epicrisis' },
+  ]);
+  await page.screenshot({ path: test.info().outputPath('current-episode-reports.png') });
 });
 
 test.describe('failed clinical panel chunks', () => {

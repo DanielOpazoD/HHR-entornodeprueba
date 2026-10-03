@@ -29,7 +29,7 @@ importScripts(
   'clinical-score-write-model.js',
   'clinical-score-write-runtime.js',
   'hospitalization-report-search-runtime.js', 'hospitalization-reports-runtime.js',
-  'epicrisis-download-runtime.js',
+  'epicrisis-pdf-download.js', 'epicrisis-download-runtime.js',
   'clinical-report-runtime.js',
   'clinical-batch-print-runtime.js',
   'prescription-print.js',

@@ -65,7 +65,11 @@ export const PatientHospitalizationReportsDialog: React.FC<
           <div role="status" className="space-y-2" data-testid="reports-loading-content">
             <span className="sr-only">Buscando hospitalizaciones en Eloísa…</span>
             {[0, 1].map(index => (
-              <div key={index} aria-hidden="true" className="min-h-[60px] rounded-lg border border-slate-200 bg-white px-4 py-3">
+              <div
+                key={index}
+                aria-hidden="true"
+                className="min-h-[60px] rounded-lg border border-slate-200 bg-white px-4 py-3"
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div className="space-y-2">
                     <div className="h-3 w-40 rounded bg-slate-100" />
@@ -133,19 +137,22 @@ export const PatientHospitalizationReportsDialog: React.FC<
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void download(context, episode, 'epicrisis')}
-                      disabled={downloadingKey !== null}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 disabled:cursor-progress disabled:opacity-60"
-                    >
-                      {downloadingKey === `${episode.encId}:epicrisis` ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <Download size={14} />
-                      )}
-                      Epicrisis
-                    </button>
+                    {(['epicrisis', 'nursing-epicrisis'] as const).map(documentType => (
+                      <button
+                        key={documentType}
+                        type="button"
+                        onClick={() => void download(context, episode, documentType)}
+                        disabled={downloadingKey !== null}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 disabled:cursor-progress disabled:opacity-60"
+                      >
+                        {downloadingKey === `${episode.encId}:${documentType}` ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Download size={14} />
+                        )}
+                        {documentType === 'epicrisis' ? 'Epicrisis médica' : 'Epicrisis enfermería'}
+                      </button>
+                    ))}
                     <button
                       type="button"
                       onClick={() => void download(context, episode, 'history')}
