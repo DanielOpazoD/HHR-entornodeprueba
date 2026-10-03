@@ -146,3 +146,11 @@ import {
 ```bash
 npx vitest run src/tests/services/laboratory/ src/tests/hooks/laboratory/ src/tests/components/laboratory/ src/tests/features/laboratory/
 ```
+
+### Vigencia del análisis y del portapapeles
+
+Cambiar de paciente, reiniciar la búsqueda, cerrar el análisis o desmontar el visor
+invalida el trabajo pendiente. Una respuesta obsoleta no inicia el siguiente
+enriquecimiento PDF, no publica resultados ni errores y no comienza un guardado
+o una copia al portapapeles. Una operación externa ya iniciada no se revierte.
+El análisis más reciente es el único que puede finalizar su indicador de progreso.
