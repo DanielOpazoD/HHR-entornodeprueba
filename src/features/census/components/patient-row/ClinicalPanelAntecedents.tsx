@@ -50,8 +50,13 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
   useEffect(() => {
     const controller = new AbortController();
     let refreshing = false;
+    let timer: number | undefined;
+    let lastRefreshStarted = Number.NEGATIVE_INFINITY;
     const refresh = (): void => {
-      if (refreshing) return;
+      if (refreshing || document.visibilityState === 'hidden') return;
+      lastRefreshStarted = Date.now();
+      window.clearInterval(timer);
+      timer = window.setInterval(refresh, 300000);
       refreshing = true;
       void requestClinicalAction(clinicalEpisodeId, 'list', undefined, controller.signal)
         .then(value => {
@@ -74,11 +79,14 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
         });
     };
     refresh();
-    // El historial rara vez cambia durante una ficha abierta: refrescar en segundo plano,
-    // sin desmontar la vista ni repetir el recorrido completo al cambiar de pestaña.
-    const timer = window.setInterval(refresh, 300000);
+    // Avoid hidden-tab work and only refresh on return when the five-minute period elapsed.
+    const onVisibilityChange = (): void => {
+      if (Date.now() - lastRefreshStarted >= 300000) refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       controller.abort();
     };
   }, [clinicalEpisodeId, attempt]);
