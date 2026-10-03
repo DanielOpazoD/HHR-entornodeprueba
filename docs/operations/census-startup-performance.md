@@ -253,3 +253,21 @@ un build repetido por muestra que retirar. No se cambió el banco para reducir s
 tiempo: paralelizar muestras, activar HTTP cache o reducirlas alteraría el contrato.
 Una optimización posterior debe investigar el arranque de la aplicación con
 mediciones comparables; no atribuir al CI un ahorro obtenido cambiando la prueba.
+
+## Lecturas del cuadro de copia bajo demanda — 2026-10-03
+
+`useCensusLogic` habilita `useCensusPromptState` solamente cuando no existe un objeto
+`beds`, la misma condición que selecciona `EmptyDayPrompt`. Con un registro cargado
+no se consultan el día previo ni las fechas recientes para un cuadro invisible, y
+no se escuchan cambios de almacenamiento destinados a refrescar ese cuadro.
+Al pasar a un día vacío vuelven a ejecutarse ambos lectores existentes; se conservan
+sus fallbacks, límites y controles de acceso. Una lectura ya iniciada no se cancela
+en el repositorio, pero su respuesta se descarta si deja de ser pertinente.
+
+La regresión `src/tests/hooks/useCensusPromptState.demand.test.ts` reprodujo cinco
+invocaciones del lector de día previo durante montaje, cambio de día, remontaje
+(equivalente al ciclo del hook tras F5) y eventos de almacenamiento, aun sin necesitar
+el cuadro. Después del cambio exige cero invocaciones de ambos lectores en ese
+recorrido, y verifica reactivación y aislamiento por fecha. Es evidencia de trabajo
+eliminado en el hook, no una medida de segundos ahorrados en F5 ni de latencia remota.
+Los bancos de navegador mantienen sus escenarios y presupuestos sin cambios.
