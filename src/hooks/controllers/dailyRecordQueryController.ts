@@ -25,8 +25,7 @@ import { didDailyRecordFreshnessHydrateNewerRemote } from '@/hooks/controllers/d
 import { reconcileDailyRecordQueryResult } from '@/hooks/controllers/dailyRecordQueryResultPrecedence';
 
 interface DailyRecordReader {
-  getForDate: (date: string) => Promise<DailyRecord | null>;
-  getForDateWithMeta?: (date: string, syncFromRemote?: boolean) => Promise<DailyRecordReadResult>;
+  getForDateWithMeta: (date: string, syncFromRemote?: boolean) => Promise<DailyRecordReadResult>;
   subscribe?: (
     date: string,
     callback: (record: DailyRecord | null, hasPendingWrites: boolean) => void
@@ -105,13 +104,8 @@ export const createDailyRecordQueryFn =
   (dailyRecord: DailyRecordReader, date: string, syncFromRemote: boolean = true) =>
   async (): Promise<DailyRecordQueryResult> => {
     const query = createGetDailyRecordQuery(date, syncFromRemote);
-    if (typeof dailyRecord.getForDateWithMeta === 'function') {
-      const result = await dailyRecord.getForDateWithMeta(query.date, query.syncFromRemote);
-      return createDailyRecordQueryResult(result.record, createRuntimeFromReadResult(result));
-    }
-
-    const record = await dailyRecord.getForDate(query.date);
-    return createQueryResultFromRecord(query.date, record);
+    const result = await dailyRecord.getForDateWithMeta(query.date, query.syncFromRemote);
+    return createDailyRecordQueryResult(result.record, createRuntimeFromReadResult(result));
   };
 
 export const createReconciledDailyRecordQueryFn = (
@@ -183,24 +177,7 @@ export const createDailyRecordSubscription = (
       recoveryRevision === realtimeRevision &&
       queryClient.getQueryCache().find({ queryKey, exact: true }) === recoveryQuery &&
       recoveryQuery?.state === recoveryState;
-    const read =
-      typeof dailyRecord.getForDateWithMeta === 'function'
-        ? dailyRecord.getForDateWithMeta(date)
-        : dailyRecord.getForDate(date).then<DailyRecordReadResult>(record => ({
-            date,
-            record,
-            consistencyState: record ? 'local_only' : 'missing',
-            sourceOfTruth: record ? 'local' : 'none',
-            retryability: 'not_applicable',
-            recoveryAction: 'none',
-            conflictSummary: null,
-            observabilityTags: ['daily_record', 'read'],
-            repairApplied: false,
-            compatibilityTier: 'none',
-            compatibilityIntensity: 'none',
-            migrationRulesApplied: [],
-            source: record ? 'indexeddb' : 'not_found',
-          }));
+    const read = dailyRecord.getForDateWithMeta(date);
 
     void read
       .then(reconciledResult => {

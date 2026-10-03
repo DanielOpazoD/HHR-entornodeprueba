@@ -67,7 +67,11 @@ describe('daily record pending status episode hydration', () => {
       return vi.fn();
     });
 
-    createDailyRecordSubscription({ getForDate: vi.fn(), subscribe }, '2025-01-08', queryClient);
+    createDailyRecordSubscription(
+      { getForDateWithMeta: vi.fn(), subscribe },
+      '2025-01-08',
+      queryClient
+    );
 
     expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
       record: {
@@ -140,7 +144,11 @@ describe('daily record pending status episode hydration', () => {
       return vi.fn();
     });
 
-    createDailyRecordSubscription({ getForDate: vi.fn(), subscribe }, '2025-01-08', queryClient);
+    createDailyRecordSubscription(
+      { getForDateWithMeta: vi.fn(), subscribe },
+      '2025-01-08',
+      queryClient
+    );
 
     expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
       record: {

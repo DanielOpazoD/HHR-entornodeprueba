@@ -1,3 +1,4 @@
+import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -7,7 +8,6 @@ import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts'
 import {
   applyOptimisticDailyRecordPatch,
   buildPreviousDayDate,
-  createDailyRecordQueryFn,
   createDailyRecordSubscription,
   getDailyRecordQueryKey,
   invalidateDailyRecordQuery,
@@ -45,53 +45,6 @@ describe('dailyRecordQueryController', () => {
     });
   });
 
-  it('builds query functions and cache keys consistently', async () => {
-    const record = DataFactory.createMockDailyRecord('2025-01-08');
-    const repository = { getForDate: vi.fn().mockResolvedValue(record) };
-
-    await expect(createDailyRecordQueryFn(repository, '2025-01-08')()).resolves.toMatchObject({
-      record,
-      runtime: {
-        availabilityState: 'resolved',
-        consistencyState: 'local_only',
-      },
-    });
-    expect(repository.getForDate).toHaveBeenCalledWith('2025-01-08');
-    expect(getDailyRecordQueryKey('2025-01-08')).toEqual(['dailyRecord', '2025-01-08']);
-  });
-
-  it('builds query functions without forcing remote sync before the runtime is ready', async () => {
-    const record = DataFactory.createMockDailyRecord('2025-01-08');
-    const repository = {
-      getForDate: vi.fn(),
-      getForDateWithMeta: vi.fn().mockResolvedValue({
-        date: '2025-01-08',
-        record,
-        source: 'indexeddb',
-        compatibilityTier: 'none',
-        compatibilityIntensity: 'none',
-        migrationRulesApplied: [],
-        consistencyState: 'local_only',
-        sourceOfTruth: 'local',
-        retryability: 'not_applicable',
-        recoveryAction: 'none',
-        conflictSummary: null,
-        observabilityTags: ['daily_record', 'read'],
-        repairApplied: false,
-      }),
-    };
-
-    await expect(
-      createDailyRecordQueryFn(repository, '2025-01-08', false)()
-    ).resolves.toMatchObject({
-      record,
-      runtime: {
-        sourceOfTruth: 'local',
-      },
-    });
-    expect(repository.getForDateWithMeta).toHaveBeenCalledWith('2025-01-08', false);
-  });
-
   it('applies optimistic patches and stamps lastUpdated', () => {
     const previous = DataFactory.createMockDailyRecord('2025-01-08');
     const updated = applyOptimisticDailyRecordPatch(previous, {
@@ -112,7 +65,7 @@ describe('dailyRecordQueryController', () => {
     });
 
     const unsubscribe = createDailyRecordSubscription(
-      { getForDate: vi.fn(), subscribe },
+      { getForDateWithMeta: vi.fn(), subscribe },
       '2025-01-08',
       queryClient
     );
@@ -154,7 +107,14 @@ describe('dailyRecordQueryController', () => {
     });
 
     const unsubscribe = createDailyRecordSubscription(
-      { getForDate: vi.fn().mockResolvedValue(recoveredRecord), subscribe },
+      {
+        getForDateWithMeta: vi
+          .fn()
+          .mockResolvedValue(
+            createDailyRecordReadResult(recoveredRecord.date, recoveredRecord, 'indexeddb')
+          ),
+        subscribe,
+      },
       '2025-01-08',
       queryClient
     );
@@ -216,7 +176,11 @@ describe('dailyRecordQueryController', () => {
       return vi.fn();
     });
 
-    createDailyRecordSubscription({ getForDate: vi.fn(), subscribe }, '2025-01-08', queryClient);
+    createDailyRecordSubscription(
+      { getForDateWithMeta: vi.fn(), subscribe },
+      '2025-01-08',
+      queryClient
+    );
 
     expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
       record: previousRecord,
@@ -272,7 +236,7 @@ describe('dailyRecordQueryController', () => {
     });
 
     createDailyRecordSubscription(
-      { getForDate: vi.fn(), subscribeDetailed },
+      { getForDateWithMeta: vi.fn(), subscribeDetailed },
       '2025-01-08',
       queryClient
     );
@@ -343,7 +307,11 @@ describe('dailyRecordQueryController', () => {
       return vi.fn();
     });
 
-    createDailyRecordSubscription({ getForDate: vi.fn(), subscribe }, '2025-01-08', queryClient);
+    createDailyRecordSubscription(
+      { getForDateWithMeta: vi.fn(), subscribe },
+      '2025-01-08',
+      queryClient
+    );
 
     expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
       record: {
@@ -405,7 +373,11 @@ describe('dailyRecordQueryController', () => {
       return vi.fn();
     });
 
-    createDailyRecordSubscription({ getForDate: vi.fn(), subscribe }, '2025-01-08', queryClient);
+    createDailyRecordSubscription(
+      { getForDateWithMeta: vi.fn(), subscribe },
+      '2025-01-08',
+      queryClient
+    );
 
     expect(queryClient.getQueryData(getDailyRecordQueryKey('2025-01-08'))).toMatchObject({
       record: {
@@ -449,7 +421,16 @@ describe('dailyRecordQueryController', () => {
     });
 
     const unsubscribe = createDailyRecordSubscription(
-      { getForDate: vi.fn().mockReturnValue(deferred.promise), subscribe },
+      {
+        getForDateWithMeta: vi
+          .fn()
+          .mockImplementation(() =>
+            deferred.promise.then(record =>
+              createDailyRecordReadResult('2025-01-08', record, record ? 'indexeddb' : 'not_found')
+            )
+          ),
+        subscribe,
+      },
       '2025-01-08',
       queryClient
     );
