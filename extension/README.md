@@ -6,6 +6,24 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## Epicrisis del episodio actual (0.48.43)
+
+Los iconos de alta del censo descargan por separado el PDF médico y el de enfermería.
+Ambos están también disponibles en **Informes de hospitalización** del panel clínico.
+Cuando el índice de informes por RUN omite el episodio del censo, se consulta su cabecera
+oficial y se comprueba el RUN antes de incorporarlo o descargarlo. No se sustituye por
+una hospitalización anterior ni se afirma que siga vigente sin evidencia del origen.
+Los episodios ya presentes conservan sus fechas; los RN sin RUN mantienen la consulta
+por identificador exacto de episodio.
+
+El PDF médico usa `Reporte_Epicrisis.pdf` y el de enfermería
+`Alta_Enfermeria_Blank_A4.pdf`, con `enc_id`, `fac_id`, `pat_id` y `hcp_id` para este último.
+Contrato comprobado en el módulo oficial **Informes → Informe Alta de Enfermería**
+de Eloísa (02-10-2026); no se reconstruye ni modifica el contenido del PDF.
+La descarga sigue pasando por la validación de PDF y sesión del runtime de informes.
+Si Eloísa no autoriza o no entrega un PDF válido, HHR muestra el error y permite reintentar.
+Actualizar/recargar manualmente la extensión a **0.48.43** para utilizar estos cambios.
+
 ## Cómo funciona
 
 ```

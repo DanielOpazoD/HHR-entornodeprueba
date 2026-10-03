@@ -90,7 +90,7 @@ describe('PatientHospitalizationReportsDialog', () => {
       censusDate: '2026-07-19',
     });
 
-    const epicrisisButtons = screen.getAllByRole('button', { name: 'Epicrisis' });
+    const epicrisisButtons = screen.getAllByRole('button', { name: 'Epicrisis médica' });
     fireEvent.click(epicrisisButtons[1]);
     await waitFor(() =>
       expect(mocks.download).toHaveBeenCalledWith({
@@ -100,6 +100,23 @@ describe('PatientHospitalizationReportsDialog', () => {
         clinicalEpisodeId: '100',
         documentType: 'epicrisis',
       })
+    );
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Epicrisis enfermería' })[0]).toBeEnabled()
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Epicrisis enfermería' })[0]);
+    await waitFor(() =>
+      expect(mocks.download).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clinicalEpisodeId: '200',
+          documentType: 'nursing-epicrisis',
+          admissionDate: '2026-07-18',
+        })
+      )
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Ficha completa' })[0]).toBeEnabled()
     );
 
     const historyButtons = screen.getAllByRole('button', { name: 'Ficha completa' });
@@ -148,7 +165,7 @@ describe('PatientHospitalizationReportsDialog', () => {
 
     expect(await screen.findByText('Fecha de ingreso no disponible')).toBeInTheDocument();
     expect(screen.queryByText('Vigente')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Epicrisis' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Epicrisis médica' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Ficha completa' })).toBeDisabled();
   });
 
@@ -210,7 +227,7 @@ describe('PatientHospitalizationReportsDialog', () => {
     expect(historyButtons[0]).toBeEnabled();
     expect(historyButtons[1]).toBeDisabled();
 
-    const epicrisisButtons = screen.getAllByRole('button', { name: 'Epicrisis' });
+    const epicrisisButtons = screen.getAllByRole('button', { name: 'Epicrisis médica' });
     fireEvent.click(epicrisisButtons[1]);
     await waitFor(() =>
       expect(mocks.download).toHaveBeenCalledWith({

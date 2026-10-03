@@ -712,6 +712,10 @@
     "clinical-antecedents-cache.js": {
       "maxLines": 27,
       "hotspots": {}
+    },
+    "epicrisis-pdf-download.js": {
+      "maxLines": 39,
+      "hotspots": {}
     }
   }
 }

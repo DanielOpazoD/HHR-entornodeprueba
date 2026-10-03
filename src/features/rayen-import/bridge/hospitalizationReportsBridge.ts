@@ -15,7 +15,7 @@ export interface RayenHospitalizationEpisode {
   active?: boolean;
 }
 
-export type RayenHospitalizationDocumentType = 'epicrisis' | 'history';
+export type RayenHospitalizationDocumentType = 'epicrisis' | 'nursing-epicrisis' | 'history';
 
 export interface RayenHospitalizationReportResult {
   ok: boolean;

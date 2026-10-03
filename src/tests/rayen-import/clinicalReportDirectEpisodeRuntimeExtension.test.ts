@@ -4,19 +4,13 @@ import vm from 'node:vm';
 
 import { describe, expect, it, vi } from 'vitest';
 
-const runtimeSource = readFileSync(path.resolve('extension/clinical-report-runtime.js'), 'utf8');
-const hospitalizationReportSearchSource = readFileSync(
-  path.resolve('extension/hospitalization-report-search-runtime.js'),
-  'utf8'
+const extensionSource = (file: string) => readFileSync(path.resolve('extension', file), 'utf8');
+const runtimeSource = extensionSource('clinical-report-runtime.js');
+const hospitalizationReportSearchSource = extensionSource(
+  'hospitalization-report-search-runtime.js'
 );
-const hospitalizationReportsSource = readFileSync(
-  path.resolve('extension/hospitalization-reports-runtime.js'),
-  'utf8'
-);
-const epicrisisDownloadSource = readFileSync(
-  path.resolve('extension/epicrisis-download-runtime.js'),
-  'utf8'
-);
+const hospitalizationReportsSource = extensionSource('hospitalization-reports-runtime.js');
+const epicrisisDownloadSource = extensionSource('epicrisis-download-runtime.js');
 type RuntimeDependencies = Record<string, unknown>;
 
 const loadFactory = () => {
@@ -32,6 +26,9 @@ const loadFactory = () => {
   });
   vm.runInContext(hospitalizationReportsSource, context, {
     filename: 'hospitalization-reports-runtime.js',
+  });
+  vm.runInContext(extensionSource('epicrisis-pdf-download.js'), context, {
+    filename: 'epicrisis-pdf-download.js',
   });
   vm.runInContext(epicrisisDownloadSource, context, { filename: 'epicrisis-download-runtime.js' });
   vm.runInContext(runtimeSource, context, { filename: 'clinical-report-runtime.js' });
@@ -104,6 +101,122 @@ const createDependencies = (overrides: RuntimeDependencies = {}) => ({
 });
 
 describe('clinical report runtime direct episodes and history', () => {
+  it.each([
+    ['list', 'epicrisis'],
+    ['download', 'epicrisis'],
+    ['download', 'nursing-epicrisis'],
+  ])(
+    'verifies the ongoing episode omitted by the RUN index before %s',
+    async (operation, documentType) => {
+      const getClinicalReportContext = vi.fn(async () => ({
+        patient: { run: '12345678-5' },
+        patientId: '300',
+        info: { facId: '2', practitionerId: '400' },
+      }));
+      const fetchWithTimeout = vi.fn(async (url: string) =>
+        url.includes('/api/report/')
+          ? new Response(new TextEncoder().encode('%PDF-current'), {
+              headers: { 'content-type': 'application/pdf' },
+            })
+          : new Response(
+              JSON.stringify([
+                {
+                  encounterId: 100,
+                  patientIdentifier: '12345678-5',
+                  startPeriod: '2025-01-01',
+                  endPeriod: '2025-01-03',
+                },
+              ])
+            )
+      );
+      const runtime = loadFactory().create(
+        createDependencies({
+          getClinicalReportContext,
+          fetchWithTimeout,
+          getFichaFetchInfo: vi.fn(async () => ({
+            info: {
+              apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+              token: 'testing',
+              facId: '2',
+            },
+          })),
+        })
+      );
+      const result = await runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '200',
+        patientRun: '12.345.678-5',
+        admissionDate: '2026-10-01',
+        delivery: 'download',
+        operation,
+        documentType,
+      });
+      expect(getClinicalReportContext).toHaveBeenCalledWith(
+        '200',
+        expect.any(Object),
+        null,
+        undefined
+      );
+      if (operation === 'list') {
+        expect(result).toEqual({
+          ok: true,
+          episodes: [
+            { encId: '200', startDate: '2026-10-01', endDate: '' },
+            { encId: '100', startDate: '2025-01-01', endDate: '2025-01-03', active: false },
+          ],
+        });
+      } else {
+        expect(result).toMatchObject({ ok: true, encId: '200' });
+        const url = new URL(fetchWithTimeout.mock.calls.at(-1)![0]);
+        expect(url.searchParams.get('enc_id')).toBe('200');
+        expect(url.pathname).toBe(
+          documentType === 'epicrisis'
+            ? '/api/report/Reporte_Epicrisis.pdf'
+            : '/api/report/Alta_Enfermeria_Blank_A4.pdf'
+        );
+        if (documentType === 'nursing-epicrisis') {
+          expect(Object.fromEntries(url.searchParams)).toEqual({
+            enc_id: '200',
+            pat_id: '300',
+            fac_id: '2',
+            hcp_id: '400',
+          });
+          expect(getClinicalReportContext).toHaveBeenCalledTimes(1);
+        }
+      }
+    }
+  );
+
+  it.each([{ patient: { run: '87654321-0' } }, { error: 'Sesión vencida' }, { patient: {} }])(
+    'does not download an omitted episode without a verified patient identity: %j',
+    async context => {
+      const fetchWithTimeout = vi.fn(async () => new Response('[]'));
+      const runtime = loadFactory().create(
+        createDependencies({
+          fetchWithTimeout,
+          getClinicalReportContext: vi.fn(async () => context),
+          getFichaFetchInfo: vi.fn(async () => ({
+            info: {
+              apiOrigin: 'https://fichamedicoback.rayensalud.cl',
+              token: 'testing',
+              facId: '2',
+            },
+          })),
+        })
+      );
+      const result = await runtime.handleNursingMedicalEpicrisisPrintRequest({
+        encId: '200',
+        patientRun: '12345678-5',
+        delivery: 'download',
+      });
+      expect(result.error).toBeTruthy();
+      expect(
+        fetchWithTimeout.mock.calls.every(
+          ([url]: unknown[]) => !String(url).includes('/api/report/')
+        )
+      ).toBe(true);
+    }
+  );
+
   it('lists the synced episode for a newborn without RUN and does not perform a RUN search', async () => {
     const fetchWithTimeout = vi.fn();
     const runtime = loadFactory().create(
