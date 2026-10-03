@@ -90,6 +90,14 @@ todas las muestras. Si output existe se falla, no se reutiliza ni borra automát
 
 Scripts integrados: `npm run test:e2e:census-performance` y `npm run test:census-performance-report`.
 
+El comando oficial de interacciones pasa también el proceso de Playwright por
+`scripts/config/criticalE2EEnvironment.mjs`: las variables frontend heredadas se
+sustituyen por valores demo. El servidor ya aislaba su entorno, pero aislar sólo
+ese proceso dejaba al lector de configuración del test expuesto a dotenv locales.
+Usar el comando npm, no invocar directamente su configuración de Playwright desde
+una shell personal. Se mantienen el rechazo de proyectos no demo y el bloqueo de
+red externa; no se borra ni modifica la configuración del desarrollador.
+
 El banco complementario `npm run test:e2e:census-interactions` usa el mismo servidor aislado
 con un censo sintético de 18 camas regulares ocupadas, una cama extra activa y dos cunas clínicas.
 Verifica los 21 pacientes renderizados antes de cada muestra, incluyendo filas con y sin signos
@@ -271,3 +279,25 @@ el cuadro. Después del cambio exige cero invocaciones de ambos lectores en ese
 recorrido, y verifica reactivación y aislamiento por fecha. Es evidencia de trabajo
 eliminado en el hook, no una medida de segundos ahorrados en F5 ni de latencia remota.
 Los bancos de navegador mantienen sus escenarios y presupuestos sin cambios.
+
+## Observación local del 03-10-2026
+
+Referencia histórica, no estado vigente ni comparación antes/después de velocidad.
+Node 22.22.2, Chromium 143.0.7499.4, macOS arm64, un worker y cero reintentos:
+
+- Arranque sobre `f936e28e`: 30 muestras por escenario, p95 de navegación a
+  oportunidad de pintura de 611,6 ms en `warm_reload` y 751,2 ms en `cold_context`.
+  Ambos cumplieron el presupuesto de 2.000 ms. Este fixture no mide autenticación
+  real ni confirmación remota de Firestore.
+- Interacciones sobre el código de aplicación de `a3cf5463`, con el comando aislado:
+  19 camas y dos cunas, cinco muestras por acción. Diagnóstico p50/p95: 25/33 ms;
+  panel clínico: 322/324 ms. Se ejecutó con variables `VITE_FIREBASE_*` externas
+  sintéticas y el comando las sustituyó por su entorno demo.
+- El comando anterior se detenía antes de navegar al encontrar la configuración
+  personal desde el proceso del test; el servidor ya estaba aislado. Reutilizar el
+  runner existente resolvió esa incompatibilidad sin retirar la protección.
+
+Estas muestras no demuestran un cuello de botella de red ni justifican otra caché,
+precarga o reorganización de módulos. El siguiente diagnóstico de lentitud real
+requiere sesiones autorizadas que midan la etapa remota; no extrapolar estos
+resultados sintéticos ni presentar la variación entre ejecuciones como una mejora.
