@@ -222,4 +222,39 @@ describe('MoveCopyModal', () => {
       expect(onConfirm).toHaveBeenCalledWith('2026-02-14');
     });
   });
+
+  it('refreshes same-day occupancy and blocks confirmation when the selected bed becomes occupied', () => {
+    const onConfirm = vi.fn();
+    const props = {
+      isOpen: true,
+      type: 'move' as const,
+      sourceBedId: 'R1',
+      targetBedId: 'R2',
+      onClose: vi.fn(),
+      onSetTarget: vi.fn(),
+      onConfirm,
+    };
+    const view = render(<MoveCopyModal {...props} />);
+    expect(screen.getByRole('button', { name: /R2.*Libre/i })).toBeEnabled();
+    mockedUseDailyRecordData.mockReturnValue({
+      record: {
+        date: '2026-02-13',
+        activeExtraBeds: [],
+        beds: { R2: { patientName: 'Synthetic patient' } },
+      },
+    });
+    view.rerender(<MoveCopyModal {...props} />);
+    expect(screen.getByRole('button', { name: /R2.*Ocupada/i })).toBeDisabled();
+    const confirm = screen.getByRole('button', { name: /Confirmar Movimiento/i });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+    mockedUseDailyRecordData.mockReturnValue({
+      record: { date: '2026-02-13', activeExtraBeds: [], beds: {} },
+    });
+    view.rerender(<MoveCopyModal {...props} />);
+    expect(screen.getByRole('button', { name: /R2.*Libre/i })).toBeEnabled();
+    expect(confirm).toBeEnabled();
+    expect(mockedGetForDate).not.toHaveBeenCalled();
+  });
 });
