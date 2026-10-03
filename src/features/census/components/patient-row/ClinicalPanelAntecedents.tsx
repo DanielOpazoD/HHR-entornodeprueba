@@ -138,9 +138,9 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
           <Loader2 size={16} className="animate-spin" />
           Consultando antecedentes…
         </p>
-      ) : result.error ? (
+      ) : !result.ok ? (
         <ClinicalPanelUnavailable
-          message={result.error}
+          message={result.error || 'No se pudieron consultar los antecedentes.'}
           onRetry={() => setAttempt(value => value + 1)}
         />
       ) : (
@@ -168,14 +168,16 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
                   </p>
                 ))}
               </details>
-              <button
-                type="button"
-                onClick={() => setAttempt(value => value + 1)}
-                className="mt-2 font-semibold text-teal-700"
-              >
-                Reintentar antecedentes
-              </button>
             </aside>
+          )}
+          {(refreshError || !!result.warnings?.length) && (
+            <button
+              type="button"
+              onClick={() => setAttempt(value => value + 1)}
+              className="text-xs font-semibold text-teal-700"
+            >
+              Reintentar antecedentes
+            </button>
           )}
           {olderPages.flatMap(page =>
             (page.data.warnings ?? []).map(warning => (
