@@ -130,8 +130,8 @@ botón IEEH
 | `controllers/bedManagerGridItemsController.ts`                  | Mapeo puro de `DailyRecord` a props de grillas de camas         |
 | `controllers/censusMovementActionIconController.ts`             | Resolución de iconografía para acciones de movimientos          |
 | `components/patient-row/nameInputController.ts`                 | Contrato puro de display/edición del nombre del paciente        |
-| `hooks/useDischargeModalForm.ts`                                | Form flow de altas                                              |
-| `hooks/useTransferModalForm.ts`                                 | Form flow de traslados                                          |
+| `src/hooks/useDischargeModalForm.ts`                            | Form flow de altas                                              |
+| `src/hooks/useTransferModalForm.ts`                             | Form flow de traslados                                          |
 | `hooks/useBedManagerModalModel.ts`                              | Orquestación UI vs dominio del modal de camas                   |
 | `hooks/useCensusMovementActionsCellModel.ts`                    | View-model para celda de acciones de movimientos                |
 | `hooks/useCensusViewScreenModel.ts`                             | Fachada de pantalla para ramas `empty/register`                 |
@@ -262,3 +262,12 @@ las camas ni consulta almacenamiento. Para otra fecha mantiene la lectura asínc
 y descarta respuestas obsoletas. Los cambios del objeto del día actual no vuelven
 a consultar un destino externo. Si la cama seleccionada pasa a estar ocupada o deja
 de ser visible, Confirmar se deshabilita; las protecciones de persistencia se conservan.
+
+### Formularios de alta y traslado
+
+Las pantallas `DischargeModal` y `TransferModal` usan los hooks de `src/hooks`, que
+comparten `src/hooks/useModalFormFlow.ts`. Las reglas de validación y payload siguen
+en los controllers existentes, a través de sus superficies actuales. Las pruebas de
+formulario importan esos mismos hooks productivos; no se mantiene una segunda copia
+en esta feature. Se conserva la inicialización al abrir, limpieza de errores por
+campo, callbacks actualizados y validación de fecha/turno antes de confirmar.
