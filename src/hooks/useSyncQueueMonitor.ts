@@ -37,6 +37,7 @@ export const useSyncQueueMonitor = (
   const [operations, setOperations] = useState<SyncQueueOperation[]>([]);
   const isMountedRef = useRef(true);
   const refreshRequestIdRef = useRef(0);
+  const pendingRefreshIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     // Re-armar en cada montaje: StrictMode monta→desmonta→remonta con los
@@ -51,6 +52,7 @@ export const useSyncQueueMonitor = (
 
   const refresh = useCallback(async () => {
     const requestId = ++refreshRequestIdRef.current;
+    pendingRefreshIdRef.current = requestId;
 
     try {
       const [telemetryResult, operationsResult] = await Promise.allSettled([
@@ -88,6 +90,8 @@ export const useSyncQueueMonitor = (
       }
 
       syncQueueMonitorLogger.warn('Failed to refresh queue monitor', error);
+    } finally {
+      if (pendingRefreshIdRef.current === requestId) pendingRefreshIdRef.current = null;
     }
   }, [operationLimit]);
 
@@ -97,7 +101,7 @@ export const useSyncQueueMonitor = (
     let active = true;
 
     const run = async () => {
-      if (!active) return;
+      if (!active || pendingRefreshIdRef.current !== null) return;
       await refresh();
     };
 
@@ -108,6 +112,8 @@ export const useSyncQueueMonitor = (
 
     return () => {
       active = false;
+      refreshRequestIdRef.current += 1;
+      pendingRefreshIdRef.current = null;
       clearInterval(intervalId);
     };
   }, [enabled, pollIntervalMs, refresh]);
