@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { useMoveCopyTargetRecord } from '@/features/census/hooks/useMoveCopyTargetRecord';
+import { useMoveCopyTargetRecord } from '@/hooks/useMoveCopyTargetRecord';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
 
@@ -253,5 +253,28 @@ describe('useMoveCopyTargetRecord', () => {
       expect(result.current.targetRecord?.date).toBe('2026-02-15');
     });
     expect(getRecordForDate).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses updated same-day bed data without reading storage', () => {
+    const initial = DataFactory.createMockDailyRecord('2026-02-14');
+    const read = vi.fn();
+    const view = renderHook(
+      ({ currentRecord }) =>
+        useMoveCopyTargetRecord({
+          isOpen: true,
+          selectedDate: '2026-02-14',
+          currentRecord,
+          getRecordForDate: read,
+        }),
+      { initialProps: { currentRecord: initial } }
+    );
+    const updated = {
+      ...initial,
+      beds: { ...initial.beds, R2: { ...initial.beds.R2, patientName: 'Synthetic patient' } },
+    };
+    view.rerender({ currentRecord: updated });
+    expect(view.result.current.targetRecord).toBe(updated);
+    expect(view.result.current.isLoading).toBe(false);
+    expect(read).not.toHaveBeenCalled();
   });
 });

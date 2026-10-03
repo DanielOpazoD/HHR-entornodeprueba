@@ -253,3 +253,12 @@ segunda implementación dentro de la feature. Las copias antiguas `hooks/useCens
 y `controllers/censusLogicController` de esta feature no tenían consumidores productivos
 y se retiraron. Sus pruebas ahora ejercitan el owner activo: el hook con los lectores
 como puertos simulados, y el controller puro en su suite propia.
+
+### Disponibilidad al mover o copiar
+
+El modal usa `src/hooks/useMoveCopyTargetRecord.ts` como único owner. Para el día
+actual proyecta directamente el registro vigente: no conserva una copia local de
+las camas ni consulta almacenamiento. Para otra fecha mantiene la lectura asíncrona
+y descarta respuestas obsoletas. Los cambios del objeto del día actual no vuelven
+a consultar un destino externo. Si la cama seleccionada pasa a estar ocupada o deja
+de ser visible, Confirmar se deshabilita; las protecciones de persistencia se conservan.
