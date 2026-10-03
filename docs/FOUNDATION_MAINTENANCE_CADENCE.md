@@ -1,36 +1,50 @@
-# Foundation Maintenance Cadence
+# Cadencia de mantenimiento
 
-Cadencia operativa para sostener la convergencia estructural sin refactors masivos.
+Revisar mensualmente o al cerrar un bloque, y antes si aparece un problema real.
+Esta cadencia aplica la [política de cambios](ENGINEERING_CHANGE_DECISION_POLICY.md);
+no impone una cuota de shims retirados, tests divididos ni PR creados.
 
-## Frecuencia
+## Elegir un bloque
 
-- Una vez por mes, o en la primera iteración disponible de cada release cycle.
+1. Partir del [estado verificable](../PROJECT_STATUS.md), el commit vigente y
+   evidencia reproducible del problema.
+2. Elegir pocos frentes con reducción demostrable de riesgo, coste de validación o
+   acoplamiento. Antes de añadir algo, considerar eliminar, unificar o simplificar.
+3. Agrupar cambios homogéneos por responsabilidad y validación compartida. Una
+   migración mecánica de tests puede ser un solo PR; conservar los casos críticos.
+4. Separar cambios que tengan riesgos, contratos o rollback diferentes. No partir
+   ni fusionar archivos solamente para alcanzar una cifra.
+5. Si una brecha ya está cubierta, registrar la evidencia y continuar. Cerrar el
+   bloque cuando no quede beneficio demostrado, aunque haya menos cambios previstos.
 
-## Cuota mínima por ciclo
+## Evidencia vigente
 
-1. Retirar al menos un shim, reexport transitorio o import legacy que ya no sea necesario.
-2. Bajar un hotspot real: fan-in, deep import o seam ambigua.
-3. Partir un megatest prioritario o reducir una suite que ya pasó el umbral de mantenimiento.
-4. Regenerar reportes afectados y actualizar tracker/debt register.
+Preferir los artefactos de CI del commit evaluado. Para regenerar localmente el
+paquete canónico de gobernanza, primero producir la cobertura que ese paquete consume:
 
-## Orden de ejecución
+```sh
+npm run check:critical-coverage
+npm run report:governance-snapshots
+npm run check:report-freshness:strict
+```
 
-1. Revisar `docs/FOUNDATION_TRACKER.md` y `docs/TECHNICAL_DEBT_REGISTER.md`.
-2. Elegir solo `2-3` frentes pequeños de alto retorno.
-3. Ejecutar cambios con boundaries y ownership explícitos.
-4. Correr `check:repo-hygiene`, `lint`, `typecheck` y tests focalizados.
-5. Regenerar `reports/quality-metrics.md` y `reports/technical-execution-baseline.md` si cambió la señal estructural.
+`report:governance-snapshots` usa el grafo de dependencias existente; no mantener
+otra lista manual de generadores. Los controles pueden señalar evidencia runtime
+o de preview ausente: ejecutar el gate pertinente del
+[checklist](SAFE_CHANGE_CHECKLIST.md), no inventar métricas ni rebajar el control.
+Una ejecución local parcial no sustituye al CI completo del PR.
 
-## Señales que deben bajar con el tiempo
+Los informes versionados pueden ser antiguos. Verificar commit, worktree, huellas
+de entradas y origen antes de usar sus valores. Conservar la evidencia con el PR o
+como artefacto de la ejecución; evitar copiar cifras en varios documentos de estado.
 
-- imports profundos fuera de la API pública de features;
-- imports a shims o aliases de compatibilidad;
-- megatests de más de `500` líneas;
-- drift entre ownership documentado y ownership real;
-- fallos de `typecheck` por contratos antiguos no migrados.
+## Cerrar una iteración
 
-## Regla de contención
-
-- No abrir una nueva capa transitoria sin owner, fecha de salida y criterio de cierre.
-- No introducir un shim nuevo si el cambio puede resolverse migrando consumers en la misma iteración.
-- Si un guardrail necesita bypass, debe quedar anotado en `docs/TECHNICAL_DEBT_REGISTER.md`.
+- Documentar problema, beneficio observado, alcance, validación y rollback.
+- Ejecutar los gates de la categoría del cambio según el checklist; no repetir
+  componentes ya aprobados para el mismo código y entorno.
+- Revisar el head definitivo, CI y observaciones pendientes antes de integrar.
+- Actualizar instrucciones o enlaces que hayan cambiado. Los trackers cerrados
+  permanecen históricos; no reescribir sus resultados como si fueran actuales.
+- Conservar compatibilidad clínica hasta cumplir sus criterios de retiro. No crear
+  nuevas capas transitorias sin una responsabilidad y una condición de salida.
