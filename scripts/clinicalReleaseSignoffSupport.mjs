@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { formatWorktreeState, getGitReportState } from './gitReportState.mjs';
@@ -129,6 +131,7 @@ export const buildClinicalReleaseSignoffReport = (root, { requirePassed = false 
   return {
     generatedAt: new Date().toISOString(),
     ...gitState,
+    generatedFor: buildEvidenceProvenance({ root, reportId: 'clinical-release-signoff', gitState }),
     releaseCandidate: signoffConfig.releaseCandidate,
     overall: issues.length === 0 ? 'ok' : pendingScenarioCount > 0 && structuralIssueCount === 0 ? 'pending' : 'degraded',
     counts: {

@@ -1,5 +1,10 @@
 # Foundation Tracker
 
+> **Histórico:** cierre documentado al 2026-04-05. Los porcentajes, estados y
+> recomendaciones siguientes pertenecen a ese ciclo; no describen el commit actual.
+> Consultar [estado verificable](../PROJECT_STATUS.md) y
+> [cadencia vigente](FOUNDATION_MAINTENANCE_CADENCE.md) para nuevas decisiones.
+
 Última actualización: 2026-04-05
 
 ## Resumen

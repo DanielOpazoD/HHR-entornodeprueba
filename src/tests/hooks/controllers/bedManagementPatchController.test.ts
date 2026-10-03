@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildUpdatePatientPatches } from '@/hooks/controllers/bedManagementPatchController';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -10,21 +11,29 @@ describe('bedManagementPatchController', () => {
   it('keeps an explicit specialty on admission only while the episode pilot is off', () => {
     const record = DataFactory.createMockDailyRecord('2026-05-14');
     record.beds.R1 = DataFactory.createMockPatient('R1', {
-      patientName: 'Paciente Antiguo', rut: '11.111.111-1',
-      clinicalEpisodeId: 'old-episode', specialty: Specialty.MEDICINA,
-    });
-    const updates = { patientName: 'Paciente Nuevo', rut: '22.222.222-2',
-      specialty: Specialty.CIRUGIA };
-    featureFlags.disable('SPECIALTY_EPISODE_ASSIGNMENT');
-    expect(buildUpdatePatientPatches(record, 'R1', updates)['beds.R1.specialty'])
-      .toBe(Specialty.CIRUGIA);
-    expect(buildUpdatePatientPatches(record, 'R1', {
-      patientName: 'Paciente Nuevo', rut: '22.222.222-2',
+      patientName: 'Paciente Antiguo',
+      rut: '11.111.111-1',
+      clinicalEpisodeId: 'old-episode',
       specialty: Specialty.MEDICINA,
-    })['beds.R1.specialty']).toBe('');
+    });
+    const updates = {
+      patientName: 'Paciente Nuevo',
+      rut: '22.222.222-2',
+      specialty: Specialty.CIRUGIA,
+    };
+    featureFlags.disable('SPECIALTY_EPISODE_ASSIGNMENT');
+    expect(buildUpdatePatientPatches(record, 'R1', updates)['beds.R1.specialty']).toBe(
+      Specialty.CIRUGIA
+    );
+    expect(
+      buildUpdatePatientPatches(record, 'R1', {
+        patientName: 'Paciente Nuevo',
+        rut: '22.222.222-2',
+        specialty: Specialty.MEDICINA,
+      })['beds.R1.specialty']
+    ).toBe('');
     featureFlags.enable('SPECIALTY_EPISODE_ASSIGNMENT');
-    expect(buildUpdatePatientPatches(record, 'R1', updates)['beds.R1.specialty'])
-      .toBe('');
+    expect(buildUpdatePatientPatches(record, 'R1', updates)['beds.R1.specialty']).toBe('');
   });
   it('persists a custom free-text specialty in the daily census bed patch', () => {
     const record = DataFactory.createMockDailyRecord('2026-05-11');
