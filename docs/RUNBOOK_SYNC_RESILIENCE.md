@@ -9,6 +9,41 @@ Guía rápida para soporte ante incidentes de datos/sincronización:
 - Errores de permisos (`permission-denied`).
 - Conflictos de concurrencia (`ConcurrencyError`).
 
+## Antes de recargar o limpiar
+
+Este es el procedimiento canónico para soporte. Recargar, cerrar sesión y borrar
+almacenamiento son acciones distintas; ninguna acredita que una escritura haya llegado al remoto.
+
+1. Confirmar entorno, usuario y fecha afectados. Detener nuevas ediciones en las pestañas
+   implicadas y preservar texto aún sin guardar antes de cerrarlas o recargar. No usar logout
+   o cierre de pestañas para intentar eliminar tareas de otra sesión.
+2. Revisar el outbox y las señales de salud de esta sesión: pendientes, procesando,
+   reintentando, fallidas, en conflicto y tareas huérfanas. Comparar los cambios afectados
+   con su confirmación remota por los flujos de lectura autorizados; que el panel remoto
+   muestre un censo no demuestra que todas las modificaciones locales estén confirmadas.
+3. Si hay trabajo sin resolver, conservar IndexedDB y el perfil original. Usar los
+   procedimientos de cola/conflictos de esta guía. No borrar tareas, datos del sitio ni
+   almacenamiento desde DevTools. Un lease vencido no autoriza descartar su mutación.
+4. Si no se puede leer la cola o el almacenamiento, registrar estado **desconocido** y
+   escalar a ingeniería antes de recargar repetidamente o ejecutar limpieza. Preservar
+   cualquier copia recuperable mediante el procedimiento autorizado por soporte; no
+   inventar exportaciones por consola ni asumir que un CSV de diagnóstico respalda el outbox.
+5. Solo considerar una limpieza destructiva con revisión explícita del responsable: cola
+   legible y sin trabajo pendiente, fallido, en conflicto, procesando o reintentando;
+   cambios afectados confirmados remotamente; contenido local no sincronizado preservado
+   y restauración comprobada cuando corresponda. Si no se puede demostrar, no limpiar.
+6. Tras una recuperación autorizada, verificar fecha, camas, altas, traslados, CMA y campos
+   afectados, además de cola y errores. Que desaparezca un banner no acredita recuperación.
+
+Para aislar un problema del perfil puede comprobarse el arranque en otro perfil con la
+cuenta y entorno autorizados, sin nuevas escrituras clínicas. Conservar el perfil original:
+la prueba no respalda ni recupera sus cambios locales. No compartir HAR, tokens ni datos
+clínicos identificables en reportes técnicos externos; usar códigos y metadatos mínimos.
+
+**Límite:** esta guía no incorpora una protección automática nueva. Las herramientas de
+reset existentes pueden borrar almacenamiento; no invocarlas como comprobación diagnóstica
+ni prometer que Firestore reconstruirá cambios que nunca recibió.
+
 ## Señales clave en dashboard
 
 Revisar `Admin > System Health` por usuario:
@@ -110,8 +145,8 @@ Acciones:
 
 1. Pedir al usuario cerrar pestañas duplicadas de la app.
 2. En la alerta usar `Reintentar`.
-3. Si persiste, usar `Limpieza Dura` (pierde cache local no sincronizada).
-4. Forzar recarga y validar que desaparezca el banner.
+3. Si persiste, aplicar [Antes de recargar o limpiar](#antes-de-recargar-o-limpiar). Una cola ilegible exige escalar, no limpiar.
+4. Verificar datos y confirmaciones tras la recuperación autorizada; el banner por sí solo no basta.
 
 Verificación:
 
@@ -142,7 +177,7 @@ Verificación:
 
 - `pendingSyncTasks` desciende.
 - `retryingSyncTasks` retorna a 0.
-- `orphanedTasks` queda en 0 tras cambio de usuario/logout manual.
+- Las tareas huérfanas se atribuyen y concilian con la sesión autorizada. No exigir que desaparezcan mediante logout o borrado local.
 
 ## Procedimiento 2.2: estados del outbox y accion humana
 
@@ -271,10 +306,10 @@ Síntomas:
 
 Acciones:
 
-1. Forzar logout manual del usuario actual.
-2. Confirmar que el cliente limpie estado sensible local de sesión.
-3. Reingresar con el usuario correcto.
-4. Si el problema persiste, ejecutar limpieza dura y escalar como incidente de aislamiento de sesión.
+1. Suspender el uso de la sesión incorrecta y escalar sin exponer contenido sensible a otro usuario. Aplicar [Antes de recargar o limpiar](#antes-de-recargar-o-limpiar) para preservar trabajo.
+2. Cambiar sesión mediante el flujo autorizado; no borrar outbox ni datos del sitio para eliminar tareas ajenas.
+3. Reingresar con el usuario correcto y comprobar el aislamiento de sus tareas.
+4. Si el problema persiste, escalar como incidente de aislamiento de sesión. Conservar el almacenamiento y aplicar [Antes de recargar o limpiar](#antes-de-recargar-o-limpiar); no ejecutar limpieza dura como prueba.
 
 Verificación:
 
