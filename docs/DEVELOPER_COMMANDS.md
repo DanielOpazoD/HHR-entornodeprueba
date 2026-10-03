@@ -64,14 +64,15 @@ en `dist/`. Puede ejecutarse por separado para diagnosticar sólo esa etapa. Ver
 
 ### Antes de auditoría técnica o revisión ejecutiva
 
-1. `git status --short`
-2. `npm run check:report-freshness`
-3. Si necesitas snapshots actualizados: `npm run report:governance-snapshots`
-4. Recién después usar `reports/*` como evidencia del checkout actual
+Seguir la sección [Evidencia vigente de la cadencia](./FOUNDATION_MAINTENANCE_CADENCE.md#evidencia-vigente):
+identifica los insumos necesarios y el comando para regenerar el paquete canónico.
+Preferir los artefactos del CI del SHA evaluado antes de repetir generación local.
 
-`check:report-freshness` es advisory para uso diario: muestra drift de reportes sin bloquear ramas operativas. Para release real, usar `npm run check:release-evidence`: ejecuta `check:report-freshness:strict` y además bloquea reportes generados desde un checkout con cambios locales significativos.
-La evidencia de release también exige el artefacto dedicado del smoke visual clínico en `reports/e2e/clinical-visual-release-report.json`; `npm run release:evidence:refresh` lo genera antes de refrescar los reportes ejecutivos. La variante `report:release-evidence` sólo sirve en CI o diagnóstico cuando ese insumo ya existe.
-`check:report-freshness:strict` considera frescos los reportes generados para `HEAD`. Los reportes generados para un padre directo de un merge commit solo pasan si incluyen `generatedFor.dependencyFingerprint` y el fingerprint coincide con las dependencias transitivas actuales; esto distingue un drift inocuo de merge commit de un cambio real en la evidencia. Ancestros antiguos, padres de commits lineales normales y fingerprints divergentes bloquean el gate con un comando de recuperación concreto.
+`check:report-freshness` es advisory para uso diario. Para aprobar evidencia de
+release, aplicar los [contratos bloqueantes del runbook](./RUNBOOK_RELEASE_EVIDENCE_CONTRACT.md#contratos-bloqueantes),
+que incluyen freshness estricta. Compartir SHA con `HEAD` no basta: también se
+comprueban las huellas de las entradas. La política y su recuperación se documentan
+allí, sin mantener otra copia de sus condiciones en este catálogo.
 
 Después de un merge a `main`, usar `npm run postmerge:evidence` para generar `reports/postmerge-evidence.{json,md}`. En GitHub Actions, el job `postmerge-evidence` lo ejecuta solo en `push` a `main` y sube el artifact `postmerge-release-evidence`.
 
