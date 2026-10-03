@@ -81,6 +81,12 @@ describe('chunkingPolicy', () => {
     expect(chunkForModule('/repo/src/components/layout/app-content/useAppContentRuntime.ts')).toBe(
       'app-authenticated-shell'
     );
+    expect(
+      chunkForModule('/repo/src/components/layout/date-strip/DateStripButtonControls.tsx')
+    ).toBe('date-strip-controls');
+    expect(
+      chunkForModule('/repo/src/components/layout/date-strip/DateStripPeriodControl.tsx')
+    ).toBe('date-strip-controls');
   });
 
   it('keeps non-critical global overlays outside the authenticated shell manual chunk', () => {

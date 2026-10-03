@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { DateStripPeriodControl } from './DateStripPeriodControl';
 import { MONTH_NAMES } from '@/constants/export';
 import { useDropdownMenu } from '@/hooks/useDropdownMenu';
 
@@ -18,29 +18,14 @@ export const DateStripMonthNavigator: React.FC<DateStripMonthNavigatorProps> = (
   const currentMonth = new Date().getMonth();
 
   return (
-    <div
-      className="relative flex h-[30px] items-center shrink-0 rounded-lg bg-slate-50 border border-slate-200/80 px-0 py-0.5"
-      ref={menuRef}
+    <DateStripPeriodControl
+      kind="month"
+      label={MONTH_NAMES[selectedMonth]}
+      onPrevious={() => onChangeMonth(-1)}
+      onNext={() => onChangeMonth(1)}
+      onToggle={toggle}
+      containerRef={menuRef}
     >
-      <button
-        onClick={() => onChangeMonth(-1)}
-        className="p-0.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-white transition-colors"
-      >
-        <ChevronLeft size={12} />
-      </button>
-      <button
-        onClick={toggle}
-        className="mx-0.5 uppercase text-[11px] font-semibold text-slate-600 tracking-wide hover:text-slate-900 hover:bg-white rounded px-0.5 py-0.5 transition-colors min-w-[46px] text-center"
-      >
-        {MONTH_NAMES[selectedMonth]}
-      </button>
-      <button
-        onClick={() => onChangeMonth(1)}
-        className="p-0.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-white transition-colors"
-      >
-        <ChevronRight size={12} />
-      </button>
-
       {isOpen && (
         <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-slate-200 ring-1 ring-black/[0.04] z-50 overflow-hidden py-1 grid grid-cols-2 gap-0.5 px-1">
           {MONTH_NAMES.map((name, index) => (
@@ -67,6 +52,6 @@ export const DateStripMonthNavigator: React.FC<DateStripMonthNavigatorProps> = (
           ))}
         </div>
       )}
-    </div>
+    </DateStripPeriodControl>
   );
 };

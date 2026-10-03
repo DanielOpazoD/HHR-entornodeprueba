@@ -1,3 +1,4 @@
+import { CensusConflictToolbarFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import React from 'react';
 import { Navbar } from '@/components/layout/Navbar';
 import { DateStrip } from '@/components/layout/DateStrip';
@@ -116,7 +117,7 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
                   <div ref={setHandoffTarget} />
                 </CensusOptionsMenu>
                 {auth.role === 'admin' && (
-                  <React.Suspense fallback={null}>
+                  <React.Suspense fallback={<CensusConflictToolbarFallback />}>
                     <CensusConflictQuickAction />
                   </React.Suspense>
                 )}

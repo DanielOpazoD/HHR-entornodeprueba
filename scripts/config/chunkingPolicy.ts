@@ -3,6 +3,16 @@ export const chunkForModule = (moduleId: string): string | undefined => {
   const inNodeModules = normalizedId.includes('/node_modules/');
   const has = (fragment: string): boolean => normalizedId.includes(fragment);
 
+  // These visual controls are shared by bootstrap fallbacks and lazy menu owners.
+  // Keep their small reusable module separate from the authenticated data runtime.
+  if (
+    has('/src/components/layout/date-strip/DateStripButtonControls.tsx') ||
+    has('/src/components/layout/date-strip/DateStripPeriodControl.tsx') ||
+    has('/src/components/layout/date-strip/actions/dateStripActionStateController.ts')
+  ) {
+    return 'date-strip-controls';
+  }
+
   if (
     has('/src/components/layout/app-content/AppContentOverlays.tsx') ||
     has('/src/components/layout/app-content/appContentOverlaysController.ts') ||

@@ -11,6 +11,14 @@ import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medical
 import { useDateStripWheelNavigation } from '@/components/layout/date-strip/useDateStripWheelNavigation';
 import type { CensusAccessProfile } from '@/shared/access/censusAccessProfile';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
+import {
+  SaveButton,
+  EmailButton,
+  BookmarkButton,
+  PdfButton,
+} from './date-strip/DateStripButtonControls';
+import { DateStripPeriodControl } from './date-strip/DateStripPeriodControl';
+import { MONTH_NAMES } from '@/constants/export';
 import type { ModuleType } from '@/constants/navigationConfig';
 
 const SaveDropdown = React.lazy(() =>
@@ -123,11 +131,13 @@ export interface DateStripProps
   renderFeatureQuickActions?: (patients: MedicalIndicationsPatientOption[]) => React.ReactNode;
   onOpenPatientSearch?: () => void;
   hideQuickActions?: boolean;
+  isLoading?: boolean;
   trailingActions?: React.ReactNode;
 }
 
 export const DateStrip: React.FC<DateStripProps> = ({
   hideQuickActions = false,
+  isLoading = false,
   trailingActions,
   selectedYear,
   setSelectedYear,
@@ -201,6 +211,8 @@ export const DateStrip: React.FC<DateStripProps> = ({
   return (
     <div
       data-app-top-bar
+      inert={isLoading || undefined}
+      aria-busy={isLoading || undefined}
       className="bg-white border-b border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.06)] sticky top-[56px] z-40 print:hidden h-[40px] flex items-center"
       style={{ transform: 'translateZ(0)' }}
     >
@@ -208,7 +220,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
         <div className="flex min-w-0 flex-1 items-center justify-center gap-2 max-md:justify-start max-md:overflow-x-auto">
           <div className="flex items-center gap-1 shrink-0 min-w-0">
             {!isGuest && onToggleBookmarks && (
-              <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[30px]" />}>
+              <React.Suspense fallback={<BookmarkButton disabled showBookmarks={showBookmarks} />}>
                 <DateStripBookmarkToggle
                   onToggleBookmarks={onToggleBookmarks}
                   showBookmarks={showBookmarks}
@@ -230,7 +242,13 @@ export const DateStrip: React.FC<DateStripProps> = ({
             )}
 
             {currentModule === 'CENSUS' && canShowRoleRestrictedActions && (
-              <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[34px]" />}>
+              <React.Suspense
+                fallback={
+                  onExportExcel || onBackupExcel ? (
+                    <SaveButton disabled isArchived={isArchived} isBackingUp={isBackingUp} />
+                  ) : null
+                }
+              >
                 <SaveDropdown
                   onExportExcel={onExportExcel}
                   onBackupExcel={onBackupExcel}
@@ -242,7 +260,17 @@ export const DateStrip: React.FC<DateStripProps> = ({
             )}
 
             {canShowRoleRestrictedActions && (
-              <React.Suspense fallback={<DateStripActionFallback widthClassName="min-w-[116px]" />}>
+              <React.Suspense
+                fallback={
+                  onSendEmail ? (
+                    <EmailButton
+                      disabled
+                      emailStatus={emailStatus}
+                      emailErrorMessage={emailErrorMessage}
+                    />
+                  ) : null
+                }
+              >
                 <EmailDropdown
                   onSendEmail={onSendEmail}
                   onCopyShareLink={onCopyShareLink}
@@ -255,7 +283,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
             )}
 
             {currentModule === 'CENSUS' && (
-              <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[54px]" />}>
+              <React.Suspense fallback={onExportPDF ? <PdfButton disabled /> : null}>
                 <PdfButtons onExportPDF={onExportPDF} />
               </React.Suspense>
             )}
@@ -263,13 +291,19 @@ export const DateStrip: React.FC<DateStripProps> = ({
 
           <div className="h-4 w-px bg-slate-200/70" />
 
-          <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[78px]" />}>
+          <React.Suspense
+            fallback={<DateStripPeriodControl disabled kind="year" label={selectedYear} />}
+          >
             <DateStripYearNavigator selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
           </React.Suspense>
 
           <div className="h-4 w-px bg-slate-200/70" />
 
-          <React.Suspense fallback={<DateStripActionFallback widthClassName="w-[104px]" />}>
+          <React.Suspense
+            fallback={
+              <DateStripPeriodControl disabled kind="month" label={MONTH_NAMES[selectedMonth]} />
+            }
+          >
             <DateStripMonthNavigator
               selectedMonth={selectedMonth}
               onChangeMonth={changeMonth}

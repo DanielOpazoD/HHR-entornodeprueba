@@ -1,13 +1,15 @@
+import { SpecialtyRoundLoadingTrigger } from '@/features/census/components/specialty-round/SpecialtyRoundTrigger';
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpecialtyRoundEntry } from '@/features/census/components/specialty-round/SpecialtyRoundEntry';
 
 const role = vi.hoisted(() => ({ value: 'admin' }));
+const enabled = vi.hoisted(() => ({ value: true }));
 const candidates = vi.hoisted(() => ({ count: 1 }));
 vi.mock('@/context/DailyRecordContext', () => ({ useDailyRecordBeds: () => ({}) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ role: role.value }) }));
-vi.mock('@/hooks/useFeatureFlag', () => ({ useFeatureFlag: () => true }));
+vi.mock('@/hooks/useFeatureFlag', () => ({ useFeatureFlag: () => enabled.value }));
 vi.mock('@/utils/clinicalTimeZone', () => ({ getClinicalCalendarDateISO: () => '2026-09-24' }));
 vi.mock('@/features/census/components/specialty-round/specialtyRoundModel', () => ({
   buildSpecialtyRoundCandidates: () => Array.from({ length: candidates.count }),
@@ -15,8 +17,17 @@ vi.mock('@/features/census/components/specialty-round/specialtyRoundModel', () =
 
 describe('SpecialtyRoundEntry', () => {
   beforeEach(() => {
+    enabled.value = true;
     role.value = 'admin';
     candidates.count = 1;
+  });
+
+  it('reserves a disabled specialty trigger only when the feature is enabled', () => {
+    const { rerender } = render(<SpecialtyRoundLoadingTrigger />);
+    expect(screen.getByRole('button', { name: 'Especialidades' })).toBeDisabled();
+    enabled.value = false;
+    rerender(<SpecialtyRoundLoadingTrigger />);
+    expect(screen.queryByText('Especialidades')).not.toBeInTheDocument();
   });
 
   it('shows one quiet menu with rules and round actions for an administrator', () => {

@@ -40,6 +40,24 @@ describe('DateStrip', () => {
     vi.clearAllMocks();
   });
 
+  it('renders the same real controls synchronously while bootstrap makes the bar inert', () => {
+    const { container, rerender } = render(
+      <DateStrip {...defaultProps} hideQuickActions isLoading onExportPDF={undefined} />
+    );
+    const bar = container.querySelector('[data-app-top-bar]');
+    expect(bar).toHaveAttribute('inert');
+    expect(bar).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByTitle('Enviar censo')).toBeVisible();
+    expect(screen.getByTitle('Opciones de guardado')).toBeVisible();
+    expect(screen.getByText('Febrero')).toBeVisible();
+    expect(screen.queryByTitle('Descargar PDF (rápido)')).not.toBeInTheDocument();
+    const labels = screen.getAllByRole('button', { hidden: true }).map(button => button.outerHTML);
+    rerender(<DateStrip {...defaultProps} hideQuickActions onExportPDF={undefined} />);
+    expect(bar).not.toHaveAttribute('inert');
+    expect(bar).not.toHaveAttribute('aria-busy');
+    expect(screen.getAllByRole('button').map(button => button.outerHTML)).toEqual(labels);
+  });
+
   it('renders date selection components', async () => {
     render(<DateStrip {...defaultProps} />);
     expect(await screen.findByText('Febrero')).toBeInTheDocument();

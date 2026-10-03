@@ -1,3 +1,4 @@
+import { CensusConflictToolbarFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
@@ -8,7 +9,8 @@ export const CensusConflictQuickAction: React.FC = () => {
   const { role } = useAuth();
   const { record } = useDailyRecordData();
 
-  if (role !== 'admin' || !record?.date) return null;
+  if (role !== 'admin') return null;
+  if (!record?.date) return <CensusConflictToolbarFallback />;
 
   return (
     <ClinicalConflictCenterControl
