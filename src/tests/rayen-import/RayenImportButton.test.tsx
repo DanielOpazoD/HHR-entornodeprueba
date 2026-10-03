@@ -227,7 +227,7 @@ describe('RayenImportButton', () => {
 
     render(<RayenImportButton selectedDate="2026-08-08" />);
 
-    expect(screen.getByText('Todo al día · 07-08-2026')).toBeInTheDocument();
+    expect(screen.getByText('Actualizado · 07-08-2026')).toBeInTheDocument();
   });
 
   it('does not recreate legacy provenance outside the versioned history', async () => {

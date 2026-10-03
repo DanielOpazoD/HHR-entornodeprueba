@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { formatRayenSyncIslandTime } from './rayenSyncPresentation';
+import { formatRayenSyncIslandTime, formatRayenSyncTargetDate } from './rayenSyncPresentation';
 import { Check, Circle, LoaderCircle, TriangleAlert } from 'lucide-react';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
 import type { RayenSyncMeta } from '../contracts/rayenDomainContracts';
@@ -59,7 +59,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
     : viewModel.ariaBusy
       ? 'Actualizando'
       : viewModel.phase === 'complete'
-        ? `Actualizado${completedTime ? ` · ${completedTime}` : ''}`
+        ? `Actualizado${props.targetDate ? ` · ${formatRayenSyncTargetDate(props.targetDate)}` : ''}${completedTime ? ` · ${completedTime}` : ''}`
         : props.executionStage?.type === 'partial'
           ? 'Actualización parcial'
           : viewModel.label;
