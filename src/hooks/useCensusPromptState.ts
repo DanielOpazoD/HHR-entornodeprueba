@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   executeLoadCensusPromptDataController,
   INITIAL_CENSUS_PROMPT_STATE,
@@ -11,13 +11,21 @@ import {
   isDailyRecordStoreChangeRelevantToCensusPrompt,
 } from '@/services/storage/indexeddb/indexedDbRecordEvents';
 
-export const useCensusPromptState = (currentDateString: string): CensusPromptState => {
-  const [promptState, setPromptState] = useState(INITIAL_CENSUS_PROMPT_STATE);
+export const useCensusPromptState = (
+  currentDateString: string,
+  enabled = true
+): CensusPromptState => {
+  // A new demand interval must not expose results cached before it was disabled.
+  const scope = useMemo(() => ({ currentDateString, enabled }), [currentDateString, enabled]);
+  const [loaded, setLoaded] = useState<{
+    scope: object;
+    state: CensusPromptState;
+  } | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
   const requestIdRef = useRef(0);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (!enabled || typeof window === 'undefined') {
       return;
     }
 
@@ -32,11 +40,12 @@ export const useCensusPromptState = (currentDateString: string): CensusPromptSta
 
     window.addEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
     return () => window.removeEventListener(DAILY_RECORD_STORE_CHANGED_EVENT, handleStoreChanged);
-  }, [currentDateString]);
+  }, [currentDateString, enabled]);
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
     let isDisposed = false;
+    if (!enabled) return;
 
     void (async () => {
       const nextPromptState = await executeLoadCensusPromptDataController({
@@ -51,13 +60,13 @@ export const useCensusPromptState = (currentDateString: string): CensusPromptSta
         return;
       }
 
-      setPromptState(nextPromptState);
+      setLoaded({ scope, state: nextPromptState });
     })();
 
     return () => {
       isDisposed = true;
     };
-  }, [currentDateString, reloadVersion]);
+  }, [currentDateString, enabled, reloadVersion, scope]);
 
-  return promptState;
+  return enabled && loaded?.scope === scope ? loaded.state : INITIAL_CENSUS_PROMPT_STATE;
 };
