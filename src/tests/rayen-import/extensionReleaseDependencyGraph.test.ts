@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -73,11 +74,20 @@ describe('Rayen extension release dependency graph', () => {
     expect(result.stderr).toContain('Sintaxis inválida en extension/background.js');
   });
 
-  it('validates syntax without executing packaged scripts', () => {
+  it('accepts inline scripts and commented references without executing packaged scripts', () => {
     const root = createPackageFixture();
     fs.appendFileSync(
       path.join(root, 'extension/print-pdf.js'),
       "\nthrow new Error('Packaged scripts must not execute during validation');\n"
+    );
+    const htmlPath = path.join(root, 'extension/print-pdf.html');
+    const html = fs.readFileSync(htmlPath, 'utf8');
+    fs.writeFileSync(
+      htmlPath,
+      html
+        .replace('<body>', '<body>\n<!-- <script src="missing-comment.js"></script> -->')
+        .replace('</body>', '<script>globalThis.inlineFixture = true;</script>\n</body>'),
+      'utf8'
     );
 
     const result = runChecker(root);
@@ -201,21 +211,6 @@ describe('Rayen extension release dependency graph', () => {
     );
   });
 
-  it('does not treat an inline script as a packaged file reference', () => {
-    const root = createPackageFixture();
-    const htmlPath = path.join(root, 'extension/print-pdf.html');
-    const html = fs.readFileSync(htmlPath, 'utf8');
-    fs.writeFileSync(
-      htmlPath,
-      html.replace('</body>', '<script>globalThis.inlineFixture = true;</script>\n</body>'),
-      'utf8'
-    );
-
-    const result = runChecker(root);
-
-    expect(result.status, result.stderr).toBe(0);
-  });
-
   it('parses script sources after a quoted greater-than sign', () => {
     const root = createPackageFixture();
     const htmlPath = path.join(root, 'extension/print-pdf.html');
@@ -235,21 +230,6 @@ describe('Rayen extension release dependency graph', () => {
     expect(result.stderr).toContain(
       'Falta la dependencia de print-pdf.html <script src>: extension/missing-after-quote.js'
     );
-  });
-
-  it('ignores script-looking text inside HTML comments', () => {
-    const root = createPackageFixture();
-    const htmlPath = path.join(root, 'extension/print-pdf.html');
-    const html = fs.readFileSync(htmlPath, 'utf8');
-    fs.writeFileSync(
-      htmlPath,
-      html.replace('<body>', '<body>\n<!-- <script src="missing-comment.js"></script> -->'),
-      'utf8'
-    );
-
-    const result = runChecker(root);
-
-    expect(result.status, result.stderr).toBe(0);
   });
 
   it('does not accept a src-like decoy inside another quoted attribute', () => {
