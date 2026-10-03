@@ -1,14 +1,8 @@
 /**
- * Previous-day discharge corrections (Capability A of "conciliar contra el egreso oficial"), extracted
- * from the sync hook so the hook stays lean. A discharge whose clinical census day (`correctedDay`) is
- * earlier than the census day being synced belongs to that previous day's record:
- *   - `computePreviousDayEdits` lists the affected days (with existence / signed / editing-window
- *     flags) for the confirmation shown in the preview, and
- *   - `fileCrossDayCorrections` writes each movement onto its real day via a granular patch.
- * Both stay within the Firestore ~48h nurse editing window (admin bypasses), and only run after the
- * user's explicit acknowledgment in the preview.
+ * Plans and files reviewed corrections on their official historical day.
+ * Reads authoritative records, preserves existing outcomes and nurse/admin editing limits,
+ * and applies idempotent movement/admission patches only after explicit acknowledgment.
  */
-
 import { planPreviousDayEdits } from './planPreviousDayEdits';
 import {
   buildHistoricalAdmissionPatch,
@@ -74,16 +68,16 @@ export interface CrossDayCorrectionResult {
 const normalizeRut = (rut?: string): string => (rut ?? '').replace(/[^0-9kK]/g, '').toUpperCase();
 
 /** Exact episodes never deduplicate by a shared maternal RUN; legacy rows still use RUN. */
-const recordHasEgreso = (
+const findRecordedEgreso = (
   record: DailyRecord | null | undefined,
   rut: string,
   encounterId?: string
-): boolean => {
+) => {
   const norm = normalizeRut(rut);
-  if (!record || (!norm && !encounterId)) return false;
+  if (!record || (!norm && !encounterId)) return undefined;
   const episode = encounterId?.trim();
   const movements = [...record.discharges, ...record.transfers, ...record.cma];
-  return movements.some(
+  return movements.find(
     movement =>
       !movement.deletedAt &&
       (episode
@@ -92,13 +86,11 @@ const recordHasEgreso = (
   );
 };
 
-/** Result of planning the previous-day corrections: the affected days + the report egresos that
- * still need to be filed (ones already consigned on their real day are dropped so the preview
- * doesn't nag about an egreso that is already there). */
+/** Planned corrections and exact outcomes already filed on their official day. */
 export interface PreviousDayPlan {
   edits: PreviousDayEdit[];
   reportEgresos: ReportEgreso[];
-  recordedDischargeBedIds?: string[];
+  recordedDischarges?: Array<Pick<DischargeEntry, 'bedId' | 'encounterId' | 'correctedDay' | 'status'>>;
 }
 
 const previousDays = (diff: CensusImportDiff, censusDay: string): string[] => [
@@ -137,8 +129,10 @@ export const computePreviousDayEdits = async (
     })
   );
   const alreadyDischarged = (day: string, rut: string, encounterId?: string): boolean =>
-    recordHasEgreso(records.get(day), rut, encounterId) ||
-    recordHasEgreso(pendingLocalRecords.get(day), rut, encounterId);
+    Boolean(
+      findRecordedEgreso(records.get(day), rut, encounterId) ||
+      findRecordedEgreso(pendingLocalRecords.get(day), rut, encounterId)
+    );
 
   const dischargeEdits = planPreviousDayEdits(diff, censusDay, {
     recordExists: day => !!records.get(day),
@@ -181,18 +175,29 @@ export const computePreviousDayEdits = async (
       )
   );
 
-  const recordedDischargeBedIds = diff.discharges
-    .filter(
-      entry =>
-        entry.correctedDay &&
-        entry.correctedDay < censusDay &&
-        recordHasEgreso(records.get(entry.correctedDay), entry.rut, entry.encounterId)
-    )
-    .map(entry => entry.bedId);
+  const recordedDischarges = diff.discharges.flatMap(entry => {
+    const recorded =
+      entry.correctedDay && entry.correctedDay < censusDay
+        ? findRecordedEgreso(records.get(entry.correctedDay), entry.rut, entry.encounterId)
+        : undefined;
+    return recorded
+      ? [
+          {
+            bedId: entry.bedId,
+            encounterId: entry.encounterId,
+            correctedDay: entry.correctedDay,
+            status:
+              entry.encounterId && 'status' in recorded && recorded.status === 'Fallecido'
+                ? ('Fallecido' as const)
+                : entry.status,
+          },
+        ]
+      : [];
+  });
   return {
     edits,
     reportEgresos: cleanedReportEgresos,
-    ...(recordedDischargeBedIds.length ? { recordedDischargeBedIds } : {}),
+    ...(recordedDischarges.length ? { recordedDischarges } : {}),
   };
 };
 

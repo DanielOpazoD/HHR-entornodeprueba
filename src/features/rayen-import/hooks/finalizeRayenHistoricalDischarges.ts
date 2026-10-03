@@ -105,7 +105,12 @@ export const finalizeRayenHistoricalDischarges = async (
           )
             throw conflict();
           const patch: DailyRecordPatch = {};
-          patch[`beds.${bedId}`] = { ...EMPTY_PATIENT, bedId };
+          patch[`beds.${bedId}`] = {
+            ...EMPTY_PATIENT,
+            bedId,
+            bedMode: patient.bedMode,
+            location: patient.location,
+          };
           const write = await repository.updatePartialDetailed(fresh.date, patch, {
             baseRecord: fresh,
             intentionalBedClear: {
@@ -163,7 +168,12 @@ export const finalizeRayenHistoricalDischarges = async (
       };
       if (!canRebaseIntentionalBedClear(intent, current)) throw conflict();
       const patch: DailyRecordPatch = {};
-      patch[`beds.${entry.bedId}`] = { ...EMPTY_PATIENT, bedId: entry.bedId };
+      patch[`beds.${entry.bedId}`] = {
+        ...EMPTY_PATIENT,
+        bedId: entry.bedId,
+        bedMode: currentBed.bedMode,
+        location: currentBed.location,
+      };
       const write = await repository.updatePartialDetailed(current.date, patch, {
         baseRecord: current,
         intentionalBedClear: intent,

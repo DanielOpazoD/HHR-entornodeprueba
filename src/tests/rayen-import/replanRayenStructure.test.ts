@@ -6,6 +6,7 @@ import type {
   RayenCensusSnapshot,
   RayenEncounter,
 } from '@/features/rayen-import/contracts/rayenSnapshot';
+import { buildDischarge } from '@/features/rayen-import/domain/applyCensusImportDiff';
 import { replanRayenStructure } from '@/features/rayen-import/hooks/replanRayenStructure';
 
 const encounter: RayenEncounter = {
@@ -53,6 +54,81 @@ const dependencies = {
 };
 
 describe('replanRayenStructure', () => {
+  it.each(['recorded', 'deleted', 'other-episode'] as const)(
+    'keeps death only for the exact active historical episode (%s)',
+    async outcome => {
+      const deleted = outcome === 'deleted';
+      const patient = { ...rayenToPatientData(encounter).patient, admissionDate: '2026-07-26' };
+      const current = makeRecord({ H1C2: patient });
+      const previous = { ...makeRecord({}), date: '2026-07-27' };
+      previous.discharges = [
+        {
+          ...buildDischarge(
+            patient,
+            {
+              bedId: 'H1C2',
+              rut: patient.rut,
+              patientName: patient.patientName,
+              encounterId: patient.clinicalEpisodeId,
+              kind: 'alta',
+              status: 'Fallecido',
+              reason: 'administrative-discharge',
+              correctedDay: previous.date,
+              correctedTime: '18:00',
+            },
+            previous,
+            {
+              idFactory: () => 'synthetic-death',
+              now: new Date('2026-07-27T23:00:00Z'),
+              syncRunId: 'synthetic-run',
+            }
+          ),
+          ...(deleted ? { deletedAt: '2026-07-28T01:00:00Z' } : {}),
+          ...(outcome === 'other-episode' ? { clinicalEpisodeId: 'previous-episode' } : {}),
+        },
+      ];
+      const result = await replanRayenStructure(
+        current,
+        {
+          sourceSnapshot: { ...snapshot, encounters: [] },
+          reportDate: current.date,
+          isHistoricalDay: false,
+          egresoRows: [
+            {
+              run: patient.rut,
+              patientName: patient.patientName,
+              encounterId: patient.clinicalEpisodeId,
+              bedLabel: 'H1C2',
+              destino: 'Domicilio',
+              fechaEgreso: '27-07-2026 18:00',
+              servicio: '',
+              edad: '',
+              motivo: '',
+              exactEpisodeVerification: 'verified',
+            },
+          ],
+        },
+        {
+          ...dependencies,
+          dailyRecord: {
+            ...repository,
+            getAuthoritativeForDate: vi.fn().mockResolvedValue(previous),
+            getLocalForDateWithMeta: vi
+              .fn()
+              .mockResolvedValue({ record: previous, hasPendingWrites: false, writeState: 'none' }),
+          },
+        }
+      );
+      expect(result.discharges).toMatchObject([
+        {
+          status: outcome === 'recorded' ? 'Fallecido' : 'Vivo',
+          historicalMovementRecorded: outcome === 'recorded',
+        },
+      ]);
+      expect(result.previousDayEdits ?? []).toHaveLength(outcome === 'recorded' ? 0 : 1);
+    }
+  );
+
   it('rebuilds the plan against the fresh HHR revision using the same Rayen capture', async () => {
     const evidence = {
       sourceSnapshot: snapshot,
