@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ClinicalAttachmentsPanel } from '@/features/clinical-documents/components/ClinicalAttachmentsPanel';
@@ -109,7 +109,11 @@ describe('ClinicalAttachmentsPanel', () => {
   });
 
   it('allows manual renaming and AI name suggestion for an attachment', async () => {
-    const onRenameAttachment = vi.fn(async () => undefined);
+    let finishSave!: () => void;
+    const save = new Promise<void>(resolve => {
+      finishSave = resolve;
+    });
+    const onRenameAttachment = vi.fn(() => save);
     const onSuggestAttachmentName = vi.fn(async () => 'Eco abdominal ingreso.pdf');
 
     render(
@@ -144,7 +148,14 @@ describe('ClinicalAttachmentsPanel', () => {
       )
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /renombrar informe externo.pdf/i }));
+    expect(screen.getByRole('button', { name: /guardar nombre/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /renombrar informe externo.pdf/i })).toBeNull();
+    await act(async () => {
+      finishSave();
+      await save;
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /renombrar informe externo.pdf/i }));
     fireEvent.click(screen.getByRole('button', { name: /sugerir nombre con ia/i }));
 
     await waitFor(() =>
