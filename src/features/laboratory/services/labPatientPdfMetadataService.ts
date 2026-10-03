@@ -7,7 +7,8 @@ const toIsoBirthDate = (day: string, month: string, year: string): string | null
   const dd = day.padStart(2, '0');
   const mm = month.padStart(2, '0');
   const yyyy = fullYear.padStart(4, '0');
-  const date = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+  // Validate a calendar date in the same UTC frame used by the component checks below.
+  const date = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
 
   if (
     Number.isNaN(date.getTime()) ||
