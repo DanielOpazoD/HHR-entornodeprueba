@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { fetchSyslabExamDetails } from '@/services/laboratory/syslabService';
 import type { SyslabExamItem } from '@/types/domain/labExamTypes';
@@ -48,13 +48,20 @@ export const useLabViewerAnalysis = ({
   const [analysisView, setAnalysisView] = useState<AnalysisViewTab>('trends');
   const progressRef = useRef<ProgressState | null>(null);
   const mountedRef = useRef(true);
+  const selectionVersion = useRef(0);
+  const analysisVersion = useRef(0);
 
-  useEffect(() => {
+  // Invalidate at commit time, before a stale promise can resume after selection changes.
+  useLayoutEffect(() => {
     mountedRef.current = true;
+    setIsAnalyzing(false);
+    setAnalysisData(null);
+    setAnalysisView('trends');
     return () => {
       mountedRef.current = false;
+      selectionVersion.current += 1;
     };
-  }, []);
+  }, [selectedRut]);
 
   useEffect(() => {
     progressRef.current = progress;
@@ -103,13 +110,19 @@ export const useLabViewerAnalysis = ({
       return;
     }
 
+    const selection = selectionVersion.current;
+    const analysis = ++analysisVersion.current;
+    const isCurrent = () =>
+      mountedRef.current &&
+      selection === selectionVersion.current &&
+      analysis === analysisVersion.current;
     setIsAnalyzing(true);
     setAnalysisData(null);
     setError(null);
 
     try {
       const data = await fetchSyslabExamDetails(links);
-      if (!mountedRef.current) {
+      if (!isCurrent()) {
         return;
       }
 
@@ -122,11 +135,12 @@ export const useLabViewerAnalysis = ({
         data.data,
         examList
       );
+      if (!isCurrent()) return;
       const enrichedDetails = await enrichUrineRatioDetailsFromPdf(
         microbiologyEnrichedDetails,
         examList
       );
-      if (!mountedRef.current) {
+      if (!isCurrent()) {
         return;
       }
 
@@ -136,13 +150,13 @@ export const useLabViewerAnalysis = ({
       const patientName = examList[0]?.patientName || '';
       saveLabResults(selectedRut, patientName, enrichedDetails, examList);
     } catch (error) {
-      if (!mountedRef.current) {
+      if (!isCurrent()) {
         return;
       }
 
       setError(resolveLabViewerAnalysisErrorMessage(error));
     } finally {
-      if (mountedRef.current) {
+      if (isCurrent()) {
         setIsAnalyzing(false);
       }
     }
@@ -155,11 +169,13 @@ export const useLabViewerAnalysis = ({
         return false;
       }
 
+      const selection = selectionVersion.current;
+      const isCurrent = () => mountedRef.current && selection === selectionVersion.current;
       setError(null);
 
       try {
         const data = await fetchSyslabExamDetails([exam.link]);
-        if (!mountedRef.current) {
+        if (!isCurrent()) {
           return false;
         }
 
@@ -184,7 +200,7 @@ export const useLabViewerAnalysis = ({
         await writeClipboardText(summary);
         return true;
       } catch (error) {
-        if (!mountedRef.current) {
+        if (!isCurrent()) {
           return false;
         }
 
@@ -196,6 +212,7 @@ export const useLabViewerAnalysis = ({
   );
 
   const resetAnalysis = useCallback(() => {
+    selectionVersion.current += 1;
     setProgress(null);
     setIsAnalyzing(false);
     setAnalysisData(null);
@@ -203,6 +220,8 @@ export const useLabViewerAnalysis = ({
   }, []);
 
   const closeAnalysis = useCallback(() => {
+    selectionVersion.current += 1;
+    setIsAnalyzing(false);
     setAnalysisData(null);
     setAnalysisView('trends');
   }, []);
