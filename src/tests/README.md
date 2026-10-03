@@ -43,3 +43,7 @@ npx vitest run src/tests/components/InitialLoadingScreen.test.tsx src/tests/comp
 2. Priorizar tests de comportamiento observable.
 3. Mockear integración externa (Firebase, browser runtime) cuando corresponda.
 4. Evitar acoplar tests a detalles internos no estables.
+
+Pure controller suites may opt into Node when their behavior needs no DOM.
+Keep browser tests in their browser environment; see the
+[measured cohorts and reproduction commands](../../docs/testing/NODE_UNIT_SUITES.md).

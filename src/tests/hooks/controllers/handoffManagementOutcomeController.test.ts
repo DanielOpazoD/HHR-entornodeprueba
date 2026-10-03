@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { createApplicationFailed } from '@/shared/contracts/applicationOutcomeFactories';
 import { presentHandoffManagementFailure } from '@/hooks/controllers/handoffManagementOutcomeController';

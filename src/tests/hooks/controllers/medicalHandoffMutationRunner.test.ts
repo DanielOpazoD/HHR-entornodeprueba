@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { runMedicalHandoffMutation } from '@/hooks/controllers/medicalHandoffMutationRunner';
 import type { ApplicationOutcome } from '@/shared/contracts/applicationOutcomeTypes';
