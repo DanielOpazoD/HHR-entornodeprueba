@@ -9,7 +9,7 @@ import type {
   ClinicalDocumentRecord,
   ClinicalDocumentSection,
 } from '@/features/clinical-documents/domain/entities';
-import { createHash } from '@/features/clinical-documents/utils/hash';
+import { createClinicalDocumentHash } from '@/domain/clinical-documents/hash';
 import {
   normalizeClinicalDocumentAiImportText,
   type ClinicalDocumentAiImportPayload,
@@ -130,7 +130,7 @@ export const buildClinicalDocumentAiImportedRecord = ({
   return {
     ...recordWithSections,
     renderedText,
-    integrityHash: createHash(renderedText),
+    integrityHash: createClinicalDocumentHash(renderedText),
     versionHistory: recordWithSections.versionHistory.map(version =>
       version.version === 1
         ? {

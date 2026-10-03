@@ -1,4 +1,4 @@
-import { createHash } from '@/features/clinical-documents/utils/hash';
+import { createClinicalDocumentHash } from '@/domain/clinical-documents/hash';
 import type {
   ClinicalDocumentAuditActor,
   ClinicalDocumentEpisodeContext,
@@ -89,7 +89,7 @@ export const restoreClinicalDocumentDraftTemplate = (
   return {
     ...restoredRecord,
     renderedText,
-    integrityHash: createHash(renderedText),
+    integrityHash: createClinicalDocumentHash(renderedText),
   };
 };
 
@@ -221,7 +221,7 @@ export const createClinicalDocumentDraft = ({
         : version
     ),
     renderedText,
-    integrityHash: createHash(renderedText),
+    integrityHash: createClinicalDocumentHash(renderedText),
   };
 };
 
@@ -274,6 +274,6 @@ export const duplicateClinicalDocumentDraft = (
         : version
     ),
     renderedText,
-    integrityHash: createHash(renderedText),
+    integrityHash: createClinicalDocumentHash(renderedText),
   };
 };
