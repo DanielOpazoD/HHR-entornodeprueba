@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenConnectionMonitor } from '@/features/rayen-import/components/RayenConnectionMonitor';
 import {
@@ -248,8 +248,27 @@ describe('RayenConnectionMonitor', () => {
       report: null,
       message: 'Extensión sin respuesta.',
     });
+    let finishRefresh!: (value: RayenExtensionHealthState) => void;
+    extension.refresh.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishRefresh = resolve;
+        })
+    );
     renderMonitor(extension);
-    await waitFor(() => expect(extension.refresh).toHaveBeenCalledTimes(1));
+    expect(extension.refresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('rayen-monitor-refresh')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
+    expect(extension.refresh).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finishRefresh({
+        connection: 'offline',
+        canSync: false,
+        report: null,
+        message: extension.message,
+      });
+    });
+    expect(screen.getByTestId('rayen-monitor-refresh')).toBeEnabled();
     fireEvent.click(screen.getByTestId('rayen-monitor-refresh'));
     await waitFor(() => expect(extension.refresh).toHaveBeenCalledTimes(2));
   });

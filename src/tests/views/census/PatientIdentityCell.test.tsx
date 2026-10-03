@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { PatientIdentityCell } from '@/features/census/components/patient-row/PatientIdentityCell';
 import { UIProvider } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -332,17 +332,26 @@ describe('PatientIdentityCell', () => {
   });
 
   it('copies the RUT to clipboard when clicked', async () => {
+    vi.useFakeTimers();
     const writeClipboardTextSpy = vi
       .spyOn(browserClipboardRuntime, 'writeClipboardText')
       .mockResolvedValue(undefined);
-    const data = DataFactory.createMockPatient('R1', { rut: '12.345.678-5' });
+    try {
+      const data = DataFactory.createMockPatient('R1', { rut: '12.345.678-5' });
+      renderCell({ data });
 
-    renderCell({ data });
-
-    fireEvent.click(screen.getByText('12.345.678-5'));
-
-    await waitFor(() => expect(writeClipboardTextSpy).toHaveBeenCalledWith('12.345.678-5'));
-    expect(screen.getByTitle('RUT copiado')).toBeInTheDocument();
+      await act(async () => {
+        fireEvent.click(screen.getByText('12.345.678-5'));
+      });
+      expect(writeClipboardTextSpy).toHaveBeenCalledWith('12.345.678-5');
+      expect(screen.getByTitle('RUT copiado')).toBeInTheDocument();
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
+      expect(screen.queryByTitle('RUT copiado')).not.toBeInTheDocument();
+      expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
+    } finally {
+      writeClipboardTextSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('shows the PAS marker instead of RUT validation for passports', () => {

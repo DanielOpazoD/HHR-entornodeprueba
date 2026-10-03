@@ -16,6 +16,11 @@ Esta entrada remite al procedimiento canónico de
 4. Si hay altas, traslados, CMA o movimientos afectados, continuar en
    [Recuperación del censo diario](../RUNBOOK_DAILY_CENSUS_RECOVERY.md).
 
+La sincronización no debe resolver por "last-write-wins": la autoridad transaccional
+conserva la intención clínica y verifica invariantes. Ante versiones en conflicto,
+seguir el procedimiento de recuperación del censo; no seleccionar automáticamente
+la última escritura del navegador.
+
 ## Almacenamiento local ilegible o presuntamente corrupto
 
 No usar `Delete database`, `Limpieza Dura` ni borrar datos del sitio como primer paso.
