@@ -473,6 +473,27 @@ aprobado el gate local completo ni aumentar el límite para igualarlo a CI.
 3. si falla `emulator:sync/ui`, revisar sync queue, repositorios, IndexedDB o adapters Firestore
 4. regenerar snapshots/reportes operativos si el cambio modificó budgets o recovery policies
 
+### Timeouts locales del emulador con CI verde
+
+Antes de cambiar límites, conservar SHA, versión de Node/Java, comando, puerto y
+log de la ejecución fallida. Separar un fallo de arranque/reglas (`beforeAll`) de
+una aserción clínica o transacción fallida; no atribuir ambos automáticamente a CPU.
+
+1. Repetir `npm run test:emulator:sync:ci` sin otros gates iniciados por esta tarea.
+   No detener procesos ajenos. Conservar también los fallos de las repeticiones.
+2. Comprobar el aislamiento de proyectos y la limpieza de cada suite. Las suites
+   actuales usan distintos IDs `demo-hhr-*`; no compartir un proyecto para eliminar
+   el aviso de `singleProjectMode` del emulador.
+3. Como contraste diagnóstico, ejecutar las mismas suites con `--maxWorkers=1`
+   dentro del mismo runner de emulador. Un pase aislado no sustituye el gate normal
+   ni demuestra por sí solo contención de CPU: revisar readiness, reglas, recursos
+   y estado compartido antes de seleccionar una corrección.
+4. Mantener intactos timeouts, aserciones y escenarios de escritores concurrentes.
+   No añadir reintentos, skips ni serialización global para ocultar el fallo.
+5. Validar cualquier corrección repetidamente con el comando original y registrar
+   duración y fallos, no sólo la ejecución más rápida. Si no se reproduce, declarar
+   la causa pendiente en vez de presentar una optimización como demostrada.
+
 ### Falla `test:e2e:critical`
 
 1. validar primero que no sea un locator frágil o contrato de pantalla roto
