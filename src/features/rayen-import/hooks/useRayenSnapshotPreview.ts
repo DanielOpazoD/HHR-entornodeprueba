@@ -14,7 +14,6 @@ import {
 } from './rayenSnapshotPlanningDecision';
 import type { UseRayenSnapshotPreviewInput } from './rayenSnapshotPreviewContracts';
 import { applyConfirmedRayenImport } from './confirmRayenImport';
-import { prepareRayenStructuralPlan } from './prepareRayenStructuralPlan';
 import type { RayenStructuralCommitSummary } from './rayenStructuralCommitOutcome';
 import { runRayenStructuralPersistenceLifecycle } from './rayenSnapshotPersistenceExecution';
 import {
@@ -118,6 +117,7 @@ export const useRayenSnapshotPreview = ({
         }));
         return;
       }
+      const { prepareRayenStructuralPlan } = await import('./prepareRayenStructuralPlan');
       const structuralPlan = await prepareRayenStructuralPlan({
         baseRecord: authoritativeBaseRecord,
         planningSnapshot,
