@@ -81,6 +81,7 @@ describe('handoff patient view domain', () => {
     const metadata = resolveMedicalEntryMetadataViewModel(entry, '2026-03-03');
 
     expect(metadata.primaryLabel).toContain('Nota base: Daniel Opazo');
+    expect(metadata.printLabel).toContain('Vigente por: Admin Test');
     expect(metadata.showInfoButton).toBe(true);
     expect(metadata.detailLines).toEqual([
       expect.stringContaining('Nota original: Daniel Opazo'),
