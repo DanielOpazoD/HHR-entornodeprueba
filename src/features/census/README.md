@@ -271,3 +271,11 @@ en los controllers existentes, a través de sus superficies actuales. Las prueba
 formulario importan esos mismos hooks productivos; no se mantiene una segunda copia
 en esta feature. Se conserva la inicialización al abrir, limpieza de errores por
 campo, callbacks actualizados y validación de fecha/turno antes de confirmar.
+
+### Ejecución de movimientos
+
+`src/hooks/usePatientDischarges.ts`, `usePatientTransfers.ts` y `useCMA.ts` usan
+los auxiliares de movimientos de `src/hooks`: registro vigente, feedback, auditoría
+y ejecutores de creación, modificación y deshacer. Las pruebas importan esos mismos
+owners. No se mantienen copias ni reexports locales en esta feature para los tests;
+los controllers y contratos de aplicación conservan sus responsabilidades actuales.
