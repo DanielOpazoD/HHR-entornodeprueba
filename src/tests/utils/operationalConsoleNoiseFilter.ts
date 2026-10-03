@@ -48,7 +48,6 @@ export const ALLOWED_OPERATIONAL_CONSOLE_NOISE_PATTERNS = [
   '[BootstrapRuntime] Detected local browser storage corruption during bootstrap',
   '[DailyRecordReadRepository] Remote fetch failed',
   '[SingleFlightAsyncCommand] Single-flight async command failed',
-  '[usePatientAutocomplete] Error fetching patient suggestion',
   '[RoleManagement] Legacy role claim sync warning',
   '[RoleManagement] Role claim sync warning',
   '[DailyRecordRepositorySyncService] Sync failed',
