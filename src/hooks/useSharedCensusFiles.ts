@@ -47,6 +47,9 @@ export const useSharedCensusFiles = (
   );
 
   const fetchFiles = useCallback(async () => {
+    const requestSequence = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestSequence;
+
     if (!accessUser) {
       if (mountedRef.current) {
         setFiles([]);
@@ -55,9 +58,6 @@ export const useSharedCensusFiles = (
       }
       return;
     }
-
-    const requestSequence = requestSequenceRef.current + 1;
-    requestSequenceRef.current = requestSequence;
 
     setIsLoading(true);
     try {
