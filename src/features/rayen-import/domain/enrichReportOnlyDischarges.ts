@@ -69,6 +69,29 @@ const candidateKey = (row: EgresoReportRow, reportDate: string): string => {
   return run && stamp.correctedDay === reportDate ? `${run}|${reportDate}` : '';
 };
 
+// Jasper repeats one administrative event for each principal diagnosis. This only groups
+// lookup work: a unique source episode and the official PDF must still verify every row.
+const sameDischargeEvent = (left: EgresoReportRow, right: EgresoReportRow): boolean =>
+  (
+    [
+      'run',
+      'patientName',
+      'bedLabel',
+      'servicio',
+      'edad',
+      'destino',
+      'motivo',
+      'fechaEgreso',
+      'encounterId',
+      'correctedDay',
+      'correctedTime',
+      'admissionDay',
+      'admissionTime',
+      'dischargeStatus',
+      'fromClinicalCrib',
+    ] as const
+  ).every(key => left[key] === right[key]);
+
 /**
  * Resolves report-only discharges to an exact episode and replaces the bulk report's shifted
  * timestamp with the official admission/discharge interval. The bulk report is discovery only.
@@ -105,7 +128,7 @@ export const enrichReportOnlyDischarges = async (
     if (exactCandidateByRow.has(row)) continue;
     const key = candidateKey(row, reportDate);
     if (!key || ambiguousKeys.has(key) || dependencies.alreadyApplied?.(row)) continue;
-    if (keys.has(key)) {
+    if (keys.has(key) && !sameDischargeEvent(keys.get(key)!, row)) {
       keys.delete(key);
       ambiguousKeys.add(key);
     } else {
@@ -120,7 +143,10 @@ export const enrichReportOnlyDischarges = async (
     }
     const key = candidateKey(row, reportDate);
     if (!key) return row;
-    return enrichedByKey.get(key) ?? { ...row, exactEpisodeVerification: 'unverified' };
+    const enriched = enrichedByKey.get(key);
+    return enriched
+      ? { ...enriched, diagnostico: row.diagnostico }
+      : { ...row, exactEpisodeVerification: 'unverified' };
   };
 
   const keyedTargets = [...keys.entries()].map(([key, row]) => ({

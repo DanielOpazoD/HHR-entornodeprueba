@@ -84,10 +84,19 @@ export type RayenSyncStructuralIssueReason =
   | 'crib-conflict-blocks-discharge'
   | 'unclassified';
 
-/** Privacy-safe structural diagnostic. It deliberately omits patient and episode identifiers. */
+/** Clinical case displayed only in the protected census history, never in copied diagnostics. */
+export interface RayenSyncCaseContext {
+  patientName: string;
+  censusDate: string;
+  bedId: string;
+  isClinicalCrib?: boolean;
+}
+
+/** Structured diagnostic; optional clinical context is separate from the technical code. */
 export interface RayenSyncStructuralIssue {
   bedId: string | null;
   reason: RayenSyncStructuralIssueReason;
+  caseContext?: RayenSyncCaseContext;
 }
 
 /** Sanitized patient-scoped diagnostic. Raw Eloísa/Firestore errors are never persisted. */

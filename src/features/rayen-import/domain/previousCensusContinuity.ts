@@ -15,13 +15,14 @@ type Subject = {
   admissionDate?: string;
   admissionTime?: string;
   scope: 'principal' | 'crib';
+  bedId?: string;
 };
 
 const occupants = (record: DailyRecord): Subject[] =>
-  Object.values(record.beds).flatMap(patient => [
-    ...(patient.patientName?.trim() ? [{ ...patient, scope: 'principal' as const }] : []),
+  Object.entries(record.beds).flatMap(([bedId, patient]) => [
+    ...(patient.patientName?.trim() ? [{ ...patient, bedId, scope: 'principal' as const }] : []),
     ...(patient.clinicalCrib?.patientName?.trim()
-      ? [{ ...patient.clinicalCrib, scope: 'crib' as const }]
+      ? [{ ...patient.clinicalCrib, bedId, scope: 'crib' as const }]
       : []),
   ]);
 
@@ -106,6 +107,12 @@ export const previousCensusContinuityConflicts = (
       {
         // Yesterday's bed may now belong to somebody else: do not isolate to that bed.
         bedId: null,
+        caseContext: {
+          patientName: patient.patientName ?? '',
+          censusDate: previous.date,
+          bedId: patient.bedId ?? '',
+          isClinicalCrib: patient.scope === 'crib',
+        },
         code: 'previous-census-continuity' as const,
         continuityKey: `${previous.date}|${identityKey(patient)}|${patient.scope}|${patient.clinicalEpisodeId ? '' : index}`,
         rut: patient.rut,

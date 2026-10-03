@@ -111,6 +111,19 @@ clínicos en esa telemetría.
 - **Autoridad de egreso:** epicrisis médica, epicrisis de enfermería y ausencia desde Ficha Médico son
   señales informativas; nunca vacían la cama por sí solas. Solo el reporte masivo de **Alta
   Administrativa** de Gestión de Camas crea el alta, traslado o CMA estadístico.
+- **Filas repetidas por diagnóstico:** si identidad, ubicación, fecha/hora y destino del alta
+  coinciden y sólo cambia el diagnóstico, se comparte la consulta de episodio. Sigue siendo
+  obligatorio resolver un único episodio en origen y verificar su informe estadístico individual.
+  Dos episodios posibles (incluidos RN que comparten RUN) mantienen el bloqueo.
+- **Movimientos manuales y limpieza:** altas, traslados y CMA ya registrados se reconocen por
+  episodio, incluida la identidad histórica en `originalData`. Un episodio nuevo sigue pudiendo
+  ingresar. Limpiar una cama no demuestra un egreso: si Eloísa aún presenta ese episodio con cierre
+  clínico, se consulta su alta administrativa antes de confirmar la propuesta de reingreso. Sólo
+  la evidencia administrativa permite liberar la cama y registrar un único movimiento.
+- **Contexto de conflictos de continuidad:** el historial clínico conserva nombre, cama de origen
+  y día del censo anterior, con enlace a esa fila histórica; esa cama no se usa para aislar al
+  ocupante actual. El código copiable y el resumen de rendimiento excluyen ese contexto clínico,
+  RUT e identificadores de episodio. Los eventos antiguos sin contexto conservan su aviso genérico.
 - **Recambio secuencial de una cama:** si el reporte administrativo identifica el alta del ocupante
   local y un ingreso distinto reclama esa misma cama, el diff aplica primero el alta y después el
   ingreso. Una fila todavía no vinculada por las fuentes masivas solo puede resolver el bloqueo si

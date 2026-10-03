@@ -154,6 +154,17 @@ const RayenSyncStructuralReviewSchema = z.object({
           // Legacy null normalization removes explicit nulls. A bed-less structural conflict
           // must still survive the daily-record read as a nullable, privacy-safe issue.
           bedId: z.string().nullable().default(null),
+          caseContext: nullableOptional(
+            z
+              .object({
+                patientName: z.string().min(1).max(240),
+                censusDate: z.string().regex(DATE_REGEX),
+                bedId: z.string().min(1).max(32),
+                isClinicalCrib: z.boolean().optional(),
+              })
+              .optional()
+              .catch(undefined)
+          ),
           reason: z
             .enum([
               'unconfirmed-principal-bed',

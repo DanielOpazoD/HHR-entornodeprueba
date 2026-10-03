@@ -307,7 +307,7 @@ describe('reconcileCensus', () => {
     expect(diff.admissions).toHaveLength(1);
     expect(diff.admissions[0].bedId).toBe('R2');
     expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(1);
   });
 
   it('does not restore a patient already represented by an HHR movement', () => {
@@ -366,7 +366,7 @@ describe('reconcileCensus', () => {
     const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), { reference: REFERENCE });
     expect(diff.admissions).toHaveLength(1);
     expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(1);
   });
 
   it('restores an absent patient with nursing closure until the administrative report confirms it', () => {
@@ -379,7 +379,7 @@ describe('reconcileCensus', () => {
     const diff = reconcileCensus(makeRecord({}), snapshotOf([enc], true), { reference: REFERENCE });
     expect(diff.admissions).toHaveLength(1);
     expect(diff.discharges).toHaveLength(0);
-    expect(diff.pendingAdministrativeDischarges).toHaveLength(0);
+    expect(diff.pendingAdministrativeDischarges).toHaveLength(1);
   });
 
   it('NEVER infers a discharge from a partial snapshot (isComplete omitted/false)', () => {

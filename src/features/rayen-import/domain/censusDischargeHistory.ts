@@ -58,7 +58,7 @@ export const createRecordedOutcomeMatcher = (
     if (record.deletedAt) continue;
     const recordRut = normalizePatientRut(record.rut);
     outcomes.push({
-      clinicalEpisodeId: record.clinicalEpisodeId,
+      clinicalEpisodeId: recordedOutcomeEpisodeId(record),
       rut: recordRut,
       admissionDay:
         ('admissionDate' in record ? record.admissionDate : undefined) ||

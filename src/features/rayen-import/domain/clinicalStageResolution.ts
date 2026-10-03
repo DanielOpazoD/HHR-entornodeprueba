@@ -106,6 +106,16 @@ export const buildStructuralReviewEvidence = (
     .map(conflict => ({
       bedId: conflict.bedId,
       reason: conflict.code ?? ('unclassified' as const),
+      ...(conflict.caseContext
+        ? {
+            caseContext: {
+              patientName: conflict.caseContext.patientName,
+              censusDate: conflict.caseContext.censusDate,
+              bedId: conflict.caseContext.bedId,
+              isClinicalCrib: conflict.caseContext.isClinicalCrib === true,
+            },
+          }
+        : {}),
     }));
   const deferredHistoricalAdmissionBedIds = handoff.deferredHistoricalAdmissionBedIds?.slice(
     0,
