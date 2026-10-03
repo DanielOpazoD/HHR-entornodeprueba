@@ -33,28 +33,17 @@ export const useStorageMigration = (options: UseStorageMigrationOptions = {}): M
     didMigrate: false,
     error: null,
   });
-  const isMountedRef = useRef(true);
-  const migrationRequestIdRef = useRef(0);
-
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
+  const pendingMigrationRef = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
     if (!enabled) {
       return;
     }
 
-    const requestId = ++migrationRequestIdRef.current;
     let cancelled = false;
 
-    const isStale = () =>
-      cancelled || !isMountedRef.current || requestId !== migrationRequestIdRef.current;
-
     const runMigration = async () => {
-      if (isStale()) {
+      if (cancelled) {
         return;
       }
 
@@ -68,7 +57,7 @@ export const useStorageMigration = (options: UseStorageMigrationOptions = {}): M
       // Check if IndexedDB is available
       if (!isIndexedDBAvailable()) {
         storageMigrationLogger.warn('IndexedDB not available, using localStorage only');
-        if (isStale()) {
+        if (cancelled) {
           return;
         }
         setState({
@@ -80,11 +69,14 @@ export const useStorageMigration = (options: UseStorageMigrationOptions = {}): M
         return;
       }
 
+      let migration: Promise<boolean> | null = null;
       try {
-        // Run migration (will skip if already done)
-        const didMigrate = await migrateFromLocalStorage();
+        // Effect replay and re-enabling share an unfinished migration.
+        migration = pendingMigrationRef.current ?? migrateFromLocalStorage();
+        pendingMigrationRef.current = migration;
+        const didMigrate = await migration;
 
-        if (isStale()) {
+        if (cancelled) {
           return;
         }
 
@@ -95,16 +87,18 @@ export const useStorageMigration = (options: UseStorageMigrationOptions = {}): M
           error: null,
         });
       } catch (error) {
-        storageMigrationLogger.error('Storage migration failed', error);
-        if (isStale()) {
+        if (cancelled) {
           return;
         }
+        storageMigrationLogger.error('Storage migration failed', error);
         setState({
           isComplete: true,
           isMigrating: false,
           didMigrate: false,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
+      } finally {
+        if (pendingMigrationRef.current === migration) pendingMigrationRef.current = null;
       }
     };
 
