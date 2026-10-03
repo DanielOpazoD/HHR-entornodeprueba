@@ -66,6 +66,9 @@ El sistema detecta automáticamente cuando hay una nueva versión desplegada y a
    - al recuperar foco;
    - al volver la pestaña a estado visible;
    - y en un polling liviano periódico.
+     Las comprobaciones simultáneas comparten una única reconciliación en curso por pestaña,
+     incluido el arranque. Al resolverse o rechazarse, la siguiente comprobación puede volver
+     a consultar la versión; no se conserva una caché indefinida ni se añaden reintentos automáticos.
 4. Si el deploy es compatible, la reconciliación sigue siendo silenciosa.
 5. Si el contrato runtime o el schema remoto quedan por delante del cliente:
    - se bloquea escritura sensible;

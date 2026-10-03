@@ -187,7 +187,7 @@ const performRecoveryReload = async (
   };
 };
 
-export const prepareClientBootstrap = async (): Promise<ClientBootstrapRecoveryResult> => {
+const runClientBootstrapRecovery = async (): Promise<ClientBootstrapRecoveryResult> => {
   if (!canUseBrowser()) {
     return {
       status: 'continue',
@@ -261,6 +261,19 @@ export const prepareClientBootstrap = async (): Promise<ClientBootstrapRecoveryR
     status: 'continue',
     reason: null,
   };
+};
+
+let pendingRecovery: Promise<ClientBootstrapRecoveryResult> | null = null;
+
+export const prepareClientBootstrap = (): Promise<ClientBootstrapRecoveryResult> => {
+  if (pendingRecovery) return pendingRecovery;
+  const recovery = runClientBootstrapRecovery();
+  pendingRecovery = recovery;
+  const release = () => {
+    if (pendingRecovery === recovery) pendingRecovery = null;
+  };
+  void recovery.then(release, release);
+  return recovery;
 };
 
 export const getClientBootstrapRecoveryConstants = () => ({
