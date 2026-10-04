@@ -985,3 +985,18 @@ Tras corregir la estructura, una nueva ejecución comprueba la sintaxis de todos
 los scripts operativos con `node --check`, sin ejecutarlos. Cualquier error de
 sintaxis mantiene el rechazo; no se permite publicar con una fase pendiente.
 No hay cache entre ejecuciones ni cambios en la política de versiones o permisos.
+
+### Contratos de reportes sin DOM (04-10-2026)
+
+Doce suites de `src/tests/build` sobre frescura/procedencia de reportes, contratos
+de release/preview, dependencias de evidencia, auditoría npm, Git y resultados
+Playwright usan Node por archivo. Sus imports y operaciones son de filesystem,
+procesos y datos; no requieren DOM. El setup global conserva sus fixtures para
+Node y la UI sigue en jsdom. No extender la migración solo por ubicación.
+
+Con dos workers y los mismos 133 tests, tres ejecuciones por variante dieron
+medianas de 6,28 s en jsdom y 4,60 s en Node; el entorno pasó de unos 3 s agregados
+a cero. Se midió primero la base y luego el cambio, sin aislamiento de la carga
+del equipo: es evidencia de esta cohorte, no una ganancia del pipeline completo.
+Rollback: retirar solo las doce anotaciones de entorno, sin cambiar tests,
+workers, timeouts ni umbrales.
