@@ -26,13 +26,14 @@
  *  - API key NUNCA se commitea a Git (.env.local está en .gitignore)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { aiRequestManager } from '@/services/ai/aiRequestManager';
 import * as cie10Module from '@/services/terminology/cie10AISearch';
 
 // Mock AI Request Manager — simula el rate limiter
-vi.mock('../ai/aiRequestManager', () => ({
+vi.mock('@/services/ai/aiRequestManager', () => ({
   aiRequestManager: {
-    enqueue: vi.fn((_id, fn) => fn()),
+    enqueue: vi.fn((_id, fn, signal) => fn(signal)),
   },
 }));
 
@@ -43,8 +44,7 @@ vi.mock('@/services/auth/authRequestHeaders', () => ({
 }));
 
 // Mock fetch — simula el endpoint serverless de Netlify
-global.fetch = vi.fn();
-const mockFetch = vi.mocked(global.fetch);
+const mockFetch = vi.fn<typeof fetch>();
 
 // Mock @google/genai — simula respuesta de Gemini API
 vi.mock('@google/genai', () => {
@@ -63,6 +63,12 @@ vi.mock('@google/genai', () => {
 describe('Búsqueda IA CIE-10 (cie10AISearch)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   // ── Validaciones de entrada ──
@@ -70,6 +76,7 @@ describe('Búsqueda IA CIE-10 (cie10AISearch)', () => {
     it('retorna [] si la consulta tiene menos de 2 caracteres', async () => {
       const result = await cie10Module.searchCIE10WithAI('a');
       expect(result).toEqual([]);
+      expect(aiRequestManager.enqueue).not.toHaveBeenCalled();
     });
   });
 
@@ -97,7 +104,17 @@ describe('Búsqueda IA CIE-10 (cie10AISearch)', () => {
         }),
       } as Response);
 
-      const results = await cie10Module.searchCIE10WithAI('varicela');
+      const controller = new AbortController();
+      const results = await cie10Module.searchCIE10WithAI('varicela', controller.signal);
+      expect(aiRequestManager.enqueue).toHaveBeenCalledExactlyOnceWith(
+        'cie10-varicela',
+        expect.any(Function),
+        controller.signal
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ signal: controller.signal })
+      );
 
       expect(results).toEqual([{ code: 'B01', description: 'Varicela' }]);
     });
