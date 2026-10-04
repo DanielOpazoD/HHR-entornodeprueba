@@ -152,7 +152,9 @@ Salida esperada:
 
 ### `ci:pre-merge`
 
-Usar como verificación compacta obligatoria antes de merge.
+Usar como gate base para cambios habituales de código; los gates ampliados lo
+contienen y no deben ejecutarse después de repetirlo. Para documentación pura,
+ver la selección local en [SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md).
 
 Incluye:
 
@@ -186,11 +188,13 @@ Incluye:
 
 - `npm run check:bundle-budget`
 - `npm run check:chunk-graph`
-- `npm run test:e2e:preview:census-bootstrap:built`
+- `npm run check:runtime-asset-margin`
+- `npm run ci:preview-smoke:built` (censo, biblioteca clínica, lectura del panel
+  e historial de sincronización sobre el build existente)
 
 Salida esperada:
 
-- cobertura crítica instrumentada sin regresión;
+- grafo y margen de assets dentro de sus controles;
 - build productivo válido;
 - budgets de bundle dentro de los límites vigentes;
 - preview local del bundle montando `root` sin blank page silenciosa.
@@ -209,6 +213,7 @@ Usar antes de release o para validar cambios con impacto en Firestore, emuladore
 Incluye:
 
 - `npm run ci:merge-gate`
+- `npm run check:daily-record-authority-release-gate`
 - `npm run release:evidence:refresh`
 - `npm run check:release-evidence`
 - `npm run test:firestore:release:ci`
