@@ -23,8 +23,9 @@ const result = spawnSync(
   }
 );
 
-if (typeof result.status === 'number') {
-  process.exit(result.status);
+if (result.error || result.signal) {
+  console.error(
+    `[critical-coverage] Runner did not complete: ${result.error?.message || result.signal}`
+  );
 }
-
-process.exit(1);
+process.exit(result.status ?? 1);
