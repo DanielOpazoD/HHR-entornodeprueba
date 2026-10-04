@@ -1000,3 +1000,25 @@ a cero. Se midió primero la base y luego el cambio, sin aislamiento de la carga
 del equipo: es evidencia de esta cohorte, no una ganancia del pipeline completo.
 Rollback: retirar solo las doce anotaciones de entorno, sin cambiar tests,
 workers, timeouts ni umbrales.
+
+### Separar transporte y planificación en los tests de IA
+
+`cie10AISearch.test.ts` sustituye el gestor mediante su ruta canónica y verifica
+que la búsqueda pase por él con su señal de cancelación. Sus seis casos siguen
+cubriendo serverless y fallback; no deben pagar las pausas reales del planificador.
+`aiRequestManager.test.ts` prueba ese planificador real con reloj controlado e
+instancia aislada: intervalo de 1.500 ms, aborto, error y backoff de 2/4/8 s para
+429/503. Mantener ambas responsabilidades; quitar el mock no aumenta la cobertura
+del transporte y vuelve a introducir esperas entre casos.
+
+### Evidencia incompleta: controles existentes verificados (04-10-2026)
+
+La revisión del bloque 6 no requiere otro validador: `previewBootstrapEvidenceSupport.test.ts`
+rechaza reportes ausentes/corruptos, interrumpidos, omitidos o de otro workflow/run/SHA;
+`releaseEvidenceContract.test.ts` rechaza inventarios incompletos y paquetes dirty;
+`reportFreshness.test.ts` y `evidenceDependencyGraph.test.ts` verifican procedencia,
+dependencias y frescura antes de reutilizar resultados. `ciFinalConfidenceWorkflow.test.ts`
+comprueba la dependencia del consumidor respecto a sus productores de la misma ejecución.
+Conservar estos contratos y sus casos negativos al optimizar CI. El benchmark de
+arranque también rechaza sobrescribir evidencia: para repetir, usar una ruta nueva
+con `CENSUS_PERF_OUTPUT`, sin borrar el resultado anterior para hacerlo parecer vigente.
