@@ -3253,3 +3253,20 @@ entre first-paint agresivo y pacing estable.
 _Generado desde `HHR 2026 tracker versión MacBookAir` — código estáticamente
 analizado + runtime instrumentado con `performance.mark()`. Revisar el repo
 fuente como ground truth si algo no compila después del port._
+
+## Build environment and startup size
+
+Compare the same commit, lockfile, Node version and environment profile before
+attributing a bundle-size change to code. A normal local build reads personal
+dotenv files; CI has no such files. Never include their values in reports.
+
+Client configuration readers must use explicit `import.meta.env.VITE_*` accesses.
+Reading the whole object makes Vite embed unrelated settings in that consumer,
+including optional feature configuration that belongs outside startup. Keep the
+validator schema and legacy Firebase safety checks intact when narrowing reads.
+
+On the 2026-10-03 baseline (`a303c302`), identical local dependencies produced a
+630,040-byte authenticated shell with the local environment versus 627,734 bytes
+without dotenv. Narrowing the two full-object readers reduced the configured
+local shell to 629,561 bytes, below the unchanged 630,000-byte limit. This measures
+bundle bytes, not a demonstrated improvement in user-visible startup latency.

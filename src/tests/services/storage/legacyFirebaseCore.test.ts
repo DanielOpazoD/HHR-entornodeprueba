@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getMissingLegacyFirebaseConfigKeys,
   resolveLegacyFirebaseConfig,
@@ -17,6 +17,15 @@ const buildLegacyEnv = (
 });
 
 describe('legacyFirebaseCore config resolution', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('reads the explicit legacy settings when no environment is injected', () => {
+    const env = buildLegacyEnv();
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    expect(resolveLegacyFirebaseConfig()).toEqual(resolveLegacyFirebaseConfig(env));
+    expect(getMissingLegacyFirebaseConfigKeys()).toEqual([]);
+  });
+
   it('resolves the read-only legacy config from env when all required values exist', () => {
     const config = resolveLegacyFirebaseConfig(buildLegacyEnv());
 
