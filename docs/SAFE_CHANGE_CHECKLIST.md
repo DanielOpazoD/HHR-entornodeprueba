@@ -27,15 +27,37 @@ y validaciones de preview. Si el código cambia después, revalidar lo afectado 
 que CI compruebe el head definitivo. Registrar comando, SHA/diff y resultado; nunca
 tratar un resultado anterior a una modificación como evidencia del nuevo código.
 
+### Selección local del gate
+
+`package.json` define las etapas ejecutadas; la política de
+`scripts/config/sustainable-change-policy.json` conserva los requisitos adicionales
+por tipo de cambio. Esta tabla orienta la selección, no sustituye esa política.
+
+| Alcance                                                            | Validación local de cierre                                                               |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Solo documentación operativa, sin scripts, código ni configuración | `check:docs-drift` y `check:operational-runbooks`; comprobar enlaces y comandos editados |
+| Código habitual                                                    | `ci:pre-merge`                                                                           |
+| Runtime clínico, auth, storage, bundle o contratos de arquitectura | `ci:merge-gate` y controles adicionales exigidos por la política                         |
+| Release o reglas persistentes                                      | `ci:release-gate` y controles adicionales exigidos por la política                       |
+
+Durante edición bastan pruebas focalizadas para obtener feedback; no acreditan
+el cierre. `ci:inner-loop` sirve para iterar y para los cambios locales de UI que
+la política clasifica expresamente como `safe_local_ui`.
+
+No encadenar gates completos: `ci:release-gate` contiene `ci:merge-gate`, que
+contiene `ci:pre-merge`. Un check fallido sigue pendiente aunque el resto pase.
+El CI del SHA final y la revisión independiente deben aprobarse antes del merge.
+La clasificación remota `docs-only` se decide en CI; no forzar ni omitir checks.
+
 ### Checklist de cierre
 
 1. Clasificar la change según `scripts/config/sustainable-change-policy.json`.
 2. Actualizar tests unitarios e integración afectados por la change.
 3. Si la change es upgrade o excepción, documentar owner, riesgo, rollback y criterio de cierre.
 4. Revisar si la change toca reglas clínicas de fecha/turno, sync o identidad paciente.
-5. Correr `npm run typecheck`.
-6. Correr `npm run check:quality`.
-7. Elegir y ejecutar el gate correcto:
+5. Seleccionar el gate según el alcance y la política; ver [Selección local del gate](#selección-local-del-gate).
+6. No ejecutar por separado tipos/calidad si ya están incluidos en ese gate.
+7. Ejecutar el gate elegido:
    `npm run ci:inner-loop`, `npm run ci:pre-merge`, `npm run ci:merge-gate` o `npm run ci:release-gate`.
 8. Verificar límites de tamaño/hotspots si el cambio toca archivos grandes.
 9. Revisar contratos runtime si la change toca repositorios, Firestore, templates o serialización.
