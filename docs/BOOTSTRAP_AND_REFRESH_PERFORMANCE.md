@@ -3270,3 +3270,18 @@ On the 2026-10-03 baseline (`a303c302`), identical local dependencies produced a
 without dotenv. Narrowing the two full-object readers reduced the configured
 local shell to 629,561 bytes, below the unchanged 630,000-byte limit. This measures
 bundle bytes, not a demonstrated improvement in user-visible startup latency.
+
+The focused regression check compiles the real configuration readers with Vite,
+without personal dotenv files or the application build configuration:
+
+```sh
+npx vitest run src/tests/build/clientEnvironmentBundle.test.ts
+```
+
+It preserves both reader entry points, asserts that their synthetic consumed
+settings remain in the output, and rejects an unrelated synthetic setting. This
+protects against accidental whole-environment serialization without snapshots of
+configuration values, another CI job, or a full application build per test. The
+existing unit suite discovers it automatically. Continue to use the full build
+budget and flow-performance gates for bundle size and user-visible timings;
+this narrow regression check does not replace either one.
