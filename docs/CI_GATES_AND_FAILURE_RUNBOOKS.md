@@ -453,6 +453,25 @@ aprobado el gate local completo ni aumentar el límite para igualarlo a CI.
 
 ### Falla `check:critical-coverage`
 
+Si Vitest informa `Failed to start forks worker` o `Timeout waiting for worker to
+respond`, la ejecución no acredita cobertura completa, aunque los tests iniciados
+hayan pasado. Registrar el fallo antes de reintentar. Una señal que termina el
+proceso se informa como `[critical-coverage] Runner did not complete` y conserva
+un resultado fallido; no se reintenta automáticamente.
+
+Para reducir la presión local de recursos, Vitest ya permite limitar los workers:
+
+```sh
+VITEST_MAX_WORKERS=2 npm run check:critical-coverage
+```
+
+Esta opción conserva todos los targets, cobertura, umbrales y timeouts; no cambia
+el valor predeterminado del repositorio ni la configuración de CI. Puede tardar
+más. No usarla como justificación para ignorar errores de assertions. Después de
+resolver una etapa fallida, continuar las etapas restantes del gate; no presentar
+la primera ejecución agregada como aprobada ni repetir las etapas ya aprobadas
+sobre el mismo código y entorno.
+
 1. correr `npm run test:coverage:critical`
 2. revisar [reports/critical-coverage.md](./../reports/critical-coverage.md)
 3. ubicar la zona degradada en `scripts/config/critical-coverage-thresholds.json`
