@@ -93,14 +93,6 @@ vi.mock('@/hooks/useShiftPanel', () => ({
   })),
 }));
 
-vi.mock('@/shared/runtime/browserWindowRuntime', async () => {
-  const { createMockBrowserWindowRuntime } = await import('@/tests/utils/browserWindowRuntimeMock');
-
-  return {
-    defaultBrowserWindowRuntime: createMockBrowserWindowRuntime(),
-  };
-});
-
 vi.mock('@/utils/dateFormattingUtils', () => ({
   formatDateDDMMYYYY: (d: string) => d,
 }));
@@ -267,6 +259,29 @@ describe('ShiftPanelView', () => {
 });
 
 describe('StaffCard extended', () => {
+  it.each([
+    ['Llamar', 'tel:+56900000000', '_self'],
+    ['WhatsApp', 'https://wa.me/56900000000', '_blank'],
+  ])('opens the %s action through the browser adapter', (label, url, target) => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    try {
+      render(
+        <StaffCard
+          member={{
+            role: 'EU',
+            name: 'Persona de prueba',
+            phone: '+56900000000',
+            whatsappUrl: 'https://wa.me/56900000000',
+          }}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: label }));
+      expect(openSpy).toHaveBeenCalledExactlyOnceWith(url, target);
+    } finally {
+      openSpy.mockRestore();
+    }
+  });
+
   it('renders member role, name and phone', () => {
     const member = {
       role: 'Anestesista',
