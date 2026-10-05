@@ -8,7 +8,6 @@
 
 import { CIE10Entry } from './cie10SpanishDatabase';
 import { aiRequestManager } from '../ai/aiRequestManager';
-import { GoogleGenAI } from '@google/genai';
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import { resolveCurrentUserAuthHeaders } from '@/services/auth/authRequestHeaders';
 import {
@@ -159,12 +158,16 @@ Ejemplo:
 `;
 
 async function searchWithLocalDevAPI(query: string, signal?: AbortSignal): Promise<CIE10Entry[]> {
+  // A build-time guard also removes the local SDK import from production assets.
+  if (!import.meta.env.DEV) return [];
   signal?.throwIfAborted();
   const providerConfig = getLocalDevProviderConfig();
   if (!providerConfig) return [];
 
   try {
     if (providerConfig.provider === 'gemini') {
+      const { GoogleGenAI } = await import('@google/genai');
+      signal?.throwIfAborted();
       const ai = new GoogleGenAI({ apiKey: providerConfig.apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
