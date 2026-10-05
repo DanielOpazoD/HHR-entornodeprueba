@@ -74,6 +74,16 @@ export const createGoldenPathReadResult = (
   localCandidate: LocalRuntimeReadCandidate | null,
   remoteReadResult?: DailyRecordRemoteLoadResult
 ): DailyRecordReadResult => {
+  const metadata = {
+    consistencyState: goldenPath.consistencyState,
+    sourceOfTruth: goldenPath.sourceOfTruth,
+    retryability: goldenPath.retryability,
+    recoveryAction: goldenPath.recoveryAction,
+    conflictSummary: goldenPath.conflictSummary,
+    observabilityTags: goldenPath.observabilityTags,
+    userSafeMessage: goldenPath.userSafeMessage,
+    repairApplied: goldenPath.repairApplied,
+  };
   if (goldenPath.selectedStore === 'remote' && remoteReadResult?.record) {
     return createDailyRecordReadResult(
       date,
@@ -83,14 +93,7 @@ export const createGoldenPathReadResult = (
         compatibilityTier: remoteReadResult.compatibilityTier,
         compatibilityIntensity: remoteReadResult.compatibilityIntensity,
         migrationRulesApplied: remoteReadResult.migrationRulesApplied,
-        consistencyState: goldenPath.consistencyState,
-        sourceOfTruth: goldenPath.sourceOfTruth,
-        retryability: goldenPath.retryability,
-        recoveryAction: goldenPath.recoveryAction,
-        conflictSummary: goldenPath.conflictSummary,
-        observabilityTags: goldenPath.observabilityTags,
-        userSafeMessage: goldenPath.userSafeMessage,
-        repairApplied: goldenPath.repairApplied,
+        ...metadata,
       }
     );
   }
@@ -104,28 +107,12 @@ export const createGoldenPathReadResult = (
         compatibilityTier: 'local_runtime',
         compatibilityIntensity: localCandidate.compatibilityIntensity,
         migrationRulesApplied: localCandidate.migrationRulesApplied,
-        consistencyState: goldenPath.consistencyState,
-        sourceOfTruth: goldenPath.sourceOfTruth,
-        retryability: goldenPath.retryability,
-        recoveryAction: goldenPath.recoveryAction,
-        conflictSummary: goldenPath.conflictSummary,
-        observabilityTags: goldenPath.observabilityTags,
-        userSafeMessage: goldenPath.userSafeMessage,
-        repairApplied: goldenPath.repairApplied,
+        ...metadata,
       }
     );
   }
 
-  return createDailyRecordReadResult(date, null, 'not_found', {
-    consistencyState: goldenPath.consistencyState,
-    sourceOfTruth: goldenPath.sourceOfTruth,
-    retryability: goldenPath.retryability,
-    recoveryAction: goldenPath.recoveryAction,
-    conflictSummary: goldenPath.conflictSummary,
-    observabilityTags: goldenPath.observabilityTags,
-    userSafeMessage: goldenPath.userSafeMessage,
-    repairApplied: goldenPath.repairApplied,
-  });
+  return createDailyRecordReadResult(date, null, 'not_found', metadata);
 };
 
 export const createNotFoundDailyRecordReadResult = (

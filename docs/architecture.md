@@ -49,6 +49,10 @@ no requiere un constructor que vuelva a copiar el mismo objeto. La validación d
 cama de origen y el destino por defecto de la copia viven en
 `useDailyRecordCopyActions`, junto a la única operación que los consume.
 
+`dailyRecordReadResultController` proyecta una sola vez los metadatos de consistencia
+del golden path. Cada rama conserva el registro y la compatibilidad de su fuente;
+una lectura indisponible sigue siendo distinta de una ausencia confirmada.
+
 Firestore es la autoridad remota. IndexedDB conserva persistencia local y la
 proyección de cambios pendientes; TanStack Query publica el estado que consume la
 interfaz. Son responsabilidades distintas, no tres autoridades intercambiables.
