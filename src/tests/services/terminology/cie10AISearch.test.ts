@@ -27,8 +27,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { aiRequestManager } from '@/services/ai/aiRequestManager';
-import * as cie10Module from '@/services/terminology/cie10AISearch';
+let aiRequestManager: typeof import('@/services/ai/aiRequestManager').aiRequestManager;
+let cie10Module: typeof import('@/services/terminology/cie10AISearch');
 
 // Mock AI Request Manager — simula el rate limiter
 vi.mock('@/services/ai/aiRequestManager', () => ({
@@ -61,9 +61,13 @@ vi.mock('@google/genai', () => {
 });
 
 describe('Búsqueda IA CIE-10 (cie10AISearch)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.resetModules();
     vi.clearAllMocks();
+    mockFetch.mockReset();
     vi.stubGlobal('fetch', mockFetch);
+    ({ aiRequestManager } = await import('@/services/ai/aiRequestManager'));
+    cie10Module = await import('@/services/terminology/cie10AISearch');
   });
 
   afterEach(() => {
@@ -90,6 +94,91 @@ describe('Búsqueda IA CIE-10 (cie10AISearch)', () => {
 
       const available = await cie10Module.checkAIAvailability();
       expect(available).toBe(true);
+    });
+  });
+
+  describe('availability recovery', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-04T12:00:00Z'));
+      vi.stubEnv('DEV', false);
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const response = (available: boolean) =>
+      ({ ok: true, json: async () => ({ available }) }) as Response;
+
+    it('shares one in-flight probe across concurrent callers', async () => {
+      let finish!: (value: Response) => void;
+      const pending = new Promise<Response>(resolve => {
+        finish = resolve;
+      });
+      mockFetch.mockReturnValue(pending);
+      const first = cie10Module.checkAIAvailability();
+      const second = cie10Module.checkAIAvailability();
+      await vi.advanceTimersByTimeAsync(0);
+      finish(response(true));
+      await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['network', 'unconfigured'])(
+      'recovers after a %s result without a page reload',
+      async failure => {
+        if (failure === 'network') mockFetch.mockRejectedValueOnce(new Error('offline'));
+        else mockFetch.mockResolvedValueOnce(response(false));
+        await expect(cie10Module.checkAIAvailability()).resolves.toBe(false);
+        await expect(cie10Module.checkAIAvailability()).resolves.toBe(false);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(30_000);
+        mockFetch.mockResolvedValueOnce(response(true));
+        await expect(cie10Module.checkAIAvailability()).resolves.toBe(true);
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+      }
+    );
+
+    it('rechecks a successful probe after its bounded cache expires', async () => {
+      mockFetch.mockResolvedValueOnce(response(true));
+      await expect(cie10Module.checkAIAvailability()).resolves.toBe(true);
+      await vi.advanceTimersByTimeAsync(59_999);
+      await expect(cie10Module.checkAIAvailability()).resolves.toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      mockFetch.mockResolvedValueOnce(response(false));
+      await expect(cie10Module.checkAIAvailability()).resolves.toBe(false);
+    });
+
+    it('releases a stalled probe at the deadline and permits a later retry', async () => {
+      mockFetch.mockReturnValueOnce(new Promise<Response>(() => {}));
+      const pending = cie10Module.checkAIAvailability();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(pending).resolves.toBe(false);
+      const signal = mockFetch.mock.calls[0][1]?.signal;
+      expect(signal?.aborted).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+      await vi.advanceTimersByTimeAsync(30_000);
+      mockFetch.mockResolvedValueOnce(response(true));
+      await expect(cie10Module.checkAIAvailability()).resolves.toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('does not let an older probe overwrite a newer successful search', async () => {
+      let finish!: (value: Response) => void;
+      mockFetch.mockReturnValueOnce(
+        new Promise<Response>(resolve => {
+          finish = resolve;
+        })
+      );
+      const probe = cie10Module.checkAIAvailability();
+      await vi.advanceTimersByTimeAsync(0);
+      mockFetch.mockResolvedValueOnce(response(true));
+      await cie10Module.searchCIE10WithAI('synthetic');
+      finish(response(false));
+      await expect(probe).resolves.toBe(true);
+      expect(cie10Module.isAIAvailable()).toBe(true);
     });
   });
 

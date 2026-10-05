@@ -37,10 +37,15 @@ export const useTerminologySuggestor = ({
 
   // Check AI availability when modal opens
   useEffect(() => {
-    if (isModalOpen && aiEnabled === null) {
-      checkAIAvailability().then(setAiEnabled);
-    }
-  }, [isModalOpen, aiEnabled]);
+    if (!isModalOpen) return;
+    let active = true;
+    checkAIAvailability().then(available => {
+      if (active) setAiEnabled(available);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isModalOpen]);
 
   // Auto-load cached AI results when modal opens
   useEffect(() => {

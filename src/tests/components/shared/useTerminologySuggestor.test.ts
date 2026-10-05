@@ -6,6 +6,7 @@ import {
   type TerminologyConcept,
 } from '@/services/terminology/terminologyService';
 import { cacheAIResults } from '@/services/terminology/aiResultsCache';
+import { checkAIAvailability } from '@/services/terminology/cie10AISearch';
 import { useTerminologySuggestor } from '@/components/shared/hooks/useTerminologySuggestor';
 
 vi.mock('@/services/terminology/terminologyService', () => ({
@@ -25,6 +26,23 @@ vi.mock('@/services/terminology/aiResultsCache', () => ({
 describe('useTerminologySuggestor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('checks availability again when reopening after a failed probe', async () => {
+    vi.mocked(checkAIAvailability).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const { result } = renderHook(() => useTerminologySuggestor({ value: '', onChange: vi.fn() }));
+    await act(async () => {
+      result.current.actions.setIsModalOpen(true);
+    });
+    expect(result.current.state.aiEnabled).toBe(false);
+    await act(async () => {
+      result.current.actions.setIsModalOpen(false);
+    });
+    await act(async () => {
+      result.current.actions.setIsModalOpen(true);
+    });
+    expect(result.current.state.aiEnabled).toBe(true);
+    expect(checkAIAvailability).toHaveBeenCalledTimes(2);
   });
 
   it('preserves the selected cie10 text when reopening the modal', async () => {
