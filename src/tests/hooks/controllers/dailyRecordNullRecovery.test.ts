@@ -1,6 +1,11 @@
-import { createDailyRecordReadResult } from '@/services/repositories/contracts/dailyRecordQueries';
+import {
+  createDailyRecordReadResult,
+  type DailyRecordReadResult,
+  type DailyRecordQueryResult,
+} from '@/services/repositories/contracts/dailyRecordQueries';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
+import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
 import {
@@ -9,6 +14,7 @@ import {
   setDailyRecordQueryData,
 } from '@/hooks/controllers/dailyRecordQueryController';
 import {
+  applyPendingExplicitCensusPatch,
   clearPendingDailyRecordPatchesForTests,
   registerPendingDailyRecordPatch,
 } from '@/hooks/controllers/dailyRecordPendingPatchController';
@@ -190,5 +196,122 @@ describe('null realtime recovery ownership', () => {
       runtime: { availabilityState: 'confirmed_missing' },
     });
     s.stop?.();
+  });
+  it.each([
+    'unavailable',
+    'unavailable_older',
+    'older',
+    'confirmed_missing',
+    'newer',
+    'authoritative',
+  ] as const)('uses the read precedence contract for %s recovery', async outcome => {
+    const client = new QueryClient();
+    const record = recordAt('12');
+    record.beds.R1.clinicalEpisodeId = 'synthetic-episode';
+    record.beds.R1.pathology = 'Pending synthetic diagnosis';
+    const previous: DailyRecordQueryResult = {
+      record,
+      runtime: {
+        date,
+        availabilityState: 'resolved',
+        consistencyState: outcome === 'authoritative' ? 'local_only' : 'remote_authoritative',
+        sourceOfTruth: outcome === 'authoritative' ? 'local' : 'remote',
+        retryability: 'not_applicable',
+        recoveryAction: 'none',
+        conflictSummary: null,
+        observabilityTags: ['daily_record', 'read'],
+        repairApplied: false,
+      },
+    };
+    client.setQueryData(getDailyRecordQueryKey(date), previous);
+    const recovery = Promise.withResolvers<DailyRecordReadResult>();
+    let emit!: (record: DailyRecord | null, pending: boolean) => void;
+    const stop = createDailyRecordSubscription(
+      {
+        getForDateWithMeta: () => recovery.promise,
+        subscribe: (_date, callback) => {
+          emit = callback;
+          return vi.fn();
+        },
+      },
+      date,
+      client
+    );
+    vi.mocked(dailyRecordObservability.recordEvent).mockClear();
+    const isUnavailable = outcome.startsWith('unavailable');
+    const mustKeepPrevious = isUnavailable || outcome === 'older';
+    const unregister = mustKeepPrevious
+      ? registerPendingDailyRecordPatch(date, {
+          'beds.R1.pathology': 'Pending synthetic diagnosis',
+        })
+      : () => {};
+    try {
+      emit(null, false);
+      const recoveredRecord =
+        outcome === 'confirmed_missing' || outcome === 'unavailable'
+          ? null
+          : { ...record, lastUpdated: `${date}T${outcome === 'newer' ? '13' : '11'}:00:00.000Z` };
+      recovery.resolve(
+        createDailyRecordReadResult(
+          date,
+          recoveredRecord,
+          recoveredRecord ? 'firestore' : 'not_found',
+          isUnavailable
+            ? {
+                consistencyState: 'unavailable',
+                sourceOfTruth: recoveredRecord ? 'local' : 'none',
+                retryability: 'automatic_retry',
+                recoveryAction: 'defer_remote_sync',
+                userSafeMessage: 'Synthetic unavailable',
+              }
+            : {}
+        )
+      );
+      await settle();
+      const current = client.getQueryData<DailyRecordQueryResult>(getDailyRecordQueryKey(date));
+      expect(current?.record?.lastUpdated ?? null).toBe(
+        mustKeepPrevious ? record.lastUpdated : (recoveredRecord?.lastUpdated ?? null)
+      );
+      if (isUnavailable)
+        expect(current?.runtime).toMatchObject({
+          availabilityState:
+            outcome === 'unavailable' ? 'temporarily_unavailable' : 'recoverable_local',
+          consistencyState: 'unavailable',
+          sourceOfTruth: 'remote',
+          userSafeMessage: 'Synthetic unavailable',
+        });
+      if (outcome === 'older') {
+        expect(dailyRecordObservability.recordEvent).toHaveBeenCalledWith(
+          'recovered_null_realtime_record',
+          'degraded',
+          expect.objectContaining({
+            context: expect.objectContaining({
+              previousLastUpdated: record.lastUpdated,
+              recoveredLastUpdated: recoveredRecord?.lastUpdated,
+              retainedPreviousRecord: true,
+            }),
+          })
+        );
+      }
+      if (outcome === 'confirmed_missing')
+        expect(current?.runtime.availabilityState).toBe('confirmed_missing');
+      if (outcome === 'authoritative') expect(current?.runtime.sourceOfTruth).toBe('remote');
+      if (mustKeepPrevious) {
+        const next = {
+          ...record,
+          beds: {
+            ...record.beds,
+            R1: { ...record.beds.R1, pathology: 'Older server diagnosis' },
+          },
+        };
+        expect(applyPendingExplicitCensusPatch(date, next, record).beds.R1.pathology).toBe(
+          'Pending synthetic diagnosis'
+        );
+      }
+    } finally {
+      unregister();
+      stop?.();
+      client.clear();
+    }
   });
 });

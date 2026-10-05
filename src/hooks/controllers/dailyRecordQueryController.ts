@@ -188,6 +188,7 @@ export const createDailyRecordSubscription = (
           reconciledResult.record,
           createRuntimeFromReadResult(reconciledResult)
         );
+        const resolved = reconcileDailyRecordQueryResult(previousResult, recovered);
         if (recovered.record) {
           dailyRecordObservability.recordEvent('recovered_null_realtime_record', 'degraded', {
             date,
@@ -198,11 +199,18 @@ export const createDailyRecordSubscription = (
             context: {
               previousLastUpdated: previousResult.record?.lastUpdated,
               recoveredLastUpdated: recovered.record.lastUpdated,
+              retainedPreviousRecord: resolved.record === previousResult.record,
               consistencyState: recovered.runtime.consistencyState,
               availabilityState: recovered.runtime.availabilityState,
             },
           });
-          applyResolvedRecord(recovered, previousResult);
+          if (resolved === previousResult) return;
+          if (resolved.record === previousResult.record) {
+            // Retaining cached data is not an acknowledgement of pending edits.
+            applyResolvedQueryResult(resolved);
+          } else {
+            applyResolvedRecord(resolved, previousResult);
+          }
           return;
         }
 
@@ -221,7 +229,7 @@ export const createDailyRecordSubscription = (
             availabilityState: recovered.runtime.availabilityState,
           },
         });
-        applyResolvedQueryResult(recovered);
+        applyResolvedQueryResult(resolved);
       })
       .catch(error => {
         if (!ownsRecovery()) {
