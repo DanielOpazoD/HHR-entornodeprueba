@@ -271,7 +271,7 @@ Objetivo: que el pack blocking siga siendo chico, pero con cobertura explícita 
 ## 6. Buenas prácticas
 
 1. Usar mocks compartidos de `src/tests/setup.ts` cuando exista una variante oficial.
-2. Evitar `any` en tests; preferir fixtures tipadas y `ApplicationOutcome` explícito.
+2. Evitar `any` en tests; preferir fixtures tipadas y `ApplicationOutcome` explícito. Para `DailyRecord` y pacientes reutilizar `DataFactory` de `src/tests/factories/DataFactory.ts` antes de crear otro builder o forzar `as unknown as DailyRecord`. Sobrescribir `beds: {}` cuando el escenario requiere un censo vacío y preservar explícitamente ausencias relevantes (por ejemplo, UPC heredado sin checklist). Los valores por defecto no deben completar el dato cuya ausencia se está probando.
 3. Si aparece una falla E2E, migrar el spec a contratos estables (`data-testid`, ready states, errores visibles) antes de relajar assertions.
 4. Si cambia el estándar operativo, actualizar [docs/CI_GATES_AND_FAILURE_RUNBOOKS.md](../CI_GATES_AND_FAILURE_RUNBOOKS.md).
 5. Si cambia el smoke de preview o el grafo de chunks de arranque, actualizar también `scripts/config/guardrail-governance.json` para que CI, reportes y documentación sigan alineados.
