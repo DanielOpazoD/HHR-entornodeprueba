@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildClinicalReleaseSignoffReport,
   collectClinicalReleaseSignoffIssues,
+  formatClinicalReleaseSignoffMarkdown,
 } from '../../../scripts/clinicalReleaseSignoffSupport.mjs';
 
 const scenarioIds = ['census_reload_remote_reconcile', 'clinical_documents_pdf_print'];
@@ -47,10 +48,17 @@ describe('clinical release signoff support', () => {
     expect(issues).toEqual([]);
   });
 
-  it('keeps the current branch signoff closed only after human clinical validation is recorded', () => {
+  it('preserves the historical record without approving the current candidate', () => {
     const report = buildClinicalReleaseSignoffReport(process.cwd(), { requirePassed: true });
 
     expect(report.overall).toBe('ok');
+    expect(report.approvalScope).toBe('historical_record');
+    expect(report.currentCandidateApproved).toBe(false);
+    const markdown = formatClinicalReleaseSignoffMarkdown(report);
+    expect(markdown).toContain('Current candidate approval: not verified');
+    expect(markdown).toContain('Record completeness: ok');
+    expect(markdown).toContain('Recorded release candidate: codex/release-readiness-blocks');
+    expect(markdown).not.toContain('Overall: ok');
     expect(report.counts.scenarioCount).toBeGreaterThanOrEqual(6);
     expect(report.counts.pendingScenarioCount).toBe(0);
     expect(report.issues).toEqual([]);
