@@ -1,11 +1,13 @@
 // @vitest-environment node
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { collectReleaseEvidenceIssues } from '../../../scripts/check-release-evidence.mjs';
 
-vi.mock('../../../scripts/gitReportState.mjs', () => ({
+vi.mock('../../../scripts/gitReportState.mjs', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../../scripts/gitReportState.mjs')>()),
   formatWorktreeState: (gitDirty: boolean) => (gitDirty ? 'dirty' : 'clean'),
   getGitReportState: () => ({ gitSha: 'abc123', gitDirty: false }),
 }));
@@ -98,7 +100,7 @@ const makeRoot = (reportPayload: Record<string, unknown>) => {
         status: 'passed',
         validatedBy: 'QA Clinico',
         validatedAt: '2026-05-16T12:00:00.000Z',
-        evidence: [{ type: 'manual', reference: `evidence/${scenarioId}.md` }],
+        evidence: [{ type: 'manual_signoff', reference: `evidence/${scenarioId}.md` }],
       })),
     }),
     'utf8'
@@ -113,10 +115,36 @@ const makeRoot = (reportPayload: Record<string, unknown>) => {
     'utf8'
   );
 
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  execFileSync('git', ['add', '.'], { cwd: root });
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.name=Test',
+      '-c',
+      'user.email=test@example.invalid',
+      'commit',
+      '-qm',
+      'Synthetic release candidate',
+    ],
+    { cwd: root }
+  );
+  const candidate = JSON.parse(
+    fs.readFileSync(path.join(root, 'scripts/config/clinical-release-signoff.json'), 'utf8')
+  );
+  candidate.releaseCandidate = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  const signoffPath = path.join(root, '.git/clinical-signoff.json');
+  fs.writeFileSync(signoffPath, JSON.stringify(candidate));
+  vi.stubEnv('CLINICAL_RELEASE_SIGNOFF_FILE', signoffPath);
   return root;
 };
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const root of tmpRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -172,7 +200,7 @@ describe('release evidence guardrail', () => {
   it('blocks release evidence while clinical signoff is pending', () => {
     const root = makeRoot({ gitSha: 'abc123', gitDirty: false });
     fs.writeFileSync(
-      path.join(root, 'scripts/config/clinical-release-signoff.json'),
+      process.env.CLINICAL_RELEASE_SIGNOFF_FILE!,
       JSON.stringify({
         version: 1,
         releaseCandidate: 'test',
