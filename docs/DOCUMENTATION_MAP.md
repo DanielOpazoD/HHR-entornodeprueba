@@ -156,3 +156,14 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 - `reports/` se mantiene versionado mientras siga siendo parte del flujo local de gobernanza.
 - Cada reporte es un snapshot generado, no un documento narrativo de arquitectura.
 - Las decisiones activas deben resumirse en documentación canónica, no delegarse a un reporte.
+
+### Aprobaciones clínicas históricas
+
+`report:clinical-release-signoff` regenera la representación del registro de
+`scripts/config/clinical-release-signoff.json`; no registra una nueva revisión humana.
+El commit y la fecha de generación pertenecen al informe, no a las aprobaciones.
+`Record completeness` describe la integridad del registro histórico.
+`currentCandidateApproved: false` indica que ese registro no acredita el candidato
+actual. Conservar autores, fechas y referencias originales sin sustituirlos por
+el agente o por la fecha de ejecución. Los nombres genéricos tampoco constituyen
+una identidad de revisor verificada.
