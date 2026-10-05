@@ -202,4 +202,16 @@ describe('Servicio de Terminología CIE-10 (terminologyService)', () => {
       expect(cache.cacheAIResults).not.toHaveBeenCalled();
     });
   });
+  it('does not cache an AI response that completes after cancellation', async () => {
+    const controller = new AbortController();
+    vi.mocked(db.searchCIE10).mockResolvedValue([]);
+    vi.mocked(ai.searchCIE10WithAI).mockImplementationOnce(async () => {
+      controller.abort();
+      return [{ code: 'I10', description: 'Synthetic' }];
+    });
+    await expect(forceAISearch('synthetic', controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(cache.cacheAIResults).not.toHaveBeenCalled();
+  });
 });

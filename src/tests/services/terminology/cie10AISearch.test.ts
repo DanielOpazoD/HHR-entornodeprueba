@@ -163,4 +163,15 @@ describe('Búsqueda IA CIE-10 (cie10AISearch)', () => {
       expect(results).toEqual([{ code: 'A00', description: 'Cólera', category: 'Infecciosas' }]);
     });
   });
+  it('propaga la cancelación del transporte sin devolver resultados ni activar fallback', async () => {
+    const controller = new AbortController();
+    mockFetch.mockImplementationOnce(async () => {
+      controller.abort();
+      throw controller.signal.reason;
+    });
+    await expect(
+      cie10Module.searchCIE10WithAI('synthetic', controller.signal)
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
 });
