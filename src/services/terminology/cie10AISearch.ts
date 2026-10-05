@@ -84,6 +84,7 @@ async function searchWithServerlessFunction(
 ): Promise<{ available: boolean; results: CIE10Entry[] }> {
   try {
     const authHeaders = await resolveCurrentUserAuthHeaders();
+    signal?.throwIfAborted();
     const requestBody: Cie10SearchRequest = Cie10SearchRequestSchema.parse({ query });
     const response = await fetch('/.netlify/functions/cie10-ai-search', {
       method: 'POST',
@@ -102,6 +103,7 @@ async function searchWithServerlessFunction(
       results: data.results || [],
     };
   } catch {
+    signal?.throwIfAborted();
     return { available: false, results: [] };
   }
 }
@@ -145,8 +147,9 @@ Ejemplo:
 `;
 
 async function searchWithLocalDevAPI(query: string, signal?: AbortSignal): Promise<CIE10Entry[]> {
+  signal?.throwIfAborted();
   const providerConfig = getLocalDevProviderConfig();
-  if (!providerConfig || signal?.aborted) return [];
+  if (!providerConfig) return [];
 
   try {
     if (providerConfig.provider === 'gemini') {
@@ -154,6 +157,7 @@ async function searchWithLocalDevAPI(query: string, signal?: AbortSignal): Promi
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: buildLocalPrompt(query),
+        config: { abortSignal: signal },
       });
 
       return parseAIResults(response.text || '');
@@ -229,6 +233,7 @@ async function searchWithLocalDevAPI(query: string, signal?: AbortSignal): Promi
         .trim() || '';
     return parseAIResults(text);
   } catch (error) {
+    signal?.throwIfAborted();
     recordOperationalErrorTelemetry('integration', 'cie10_ai_local_fallback', error, {
       code: 'cie10_ai_local_fallback_failed',
       message: 'Fallo el fallback local de IA para CIE-10.',
@@ -255,6 +260,7 @@ export async function searchCIE10WithAI(
     async innerSignal => {
       const joinedSignal = innerSignal || signal;
       const serverlessResult = await searchWithServerlessFunction(query, joinedSignal);
+      joinedSignal?.throwIfAborted();
 
       if (serverlessResult.available) {
         aiAvailabilityChecked = true;
@@ -263,6 +269,7 @@ export async function searchCIE10WithAI(
       }
 
       const localResults = await searchWithLocalDevAPI(query, joinedSignal);
+      joinedSignal?.throwIfAborted();
       if (localResults.length > 0) {
         aiAvailabilityChecked = true;
         aiIsAvailable = true;

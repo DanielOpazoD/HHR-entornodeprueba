@@ -73,4 +73,62 @@ describe('AIRequestManager', () => {
     await vi.runAllTimersAsync();
     expect(recipe).toHaveBeenCalledTimes(4);
   });
+  it('cancels the throttle wait without delaying the next useful request', async () => {
+    await manager.enqueue('first', async () => 'done');
+    await vi.advanceTimersByTimeAsync(0);
+    const controller = new AbortController();
+    const recipe = vi.fn().mockResolvedValue('unused');
+    const result = expect(
+      manager.enqueue('waiting', recipe, controller.signal)
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(100);
+    const nextRecipe = vi.fn().mockResolvedValue('next');
+    const next = manager.enqueue('next', nextRecipe);
+    controller.abort();
+    await result;
+    await vi.advanceTimersByTimeAsync(1399);
+    expect(nextRecipe).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(next).resolves.toBe('next');
+    expect(recipe).not.toHaveBeenCalled();
+  });
+
+  it('cancels backoff without retrying and leaves queued work accounted for', async () => {
+    const controller = new AbortController();
+    const recipe = vi.fn().mockRejectedValue(Object.assign(new Error('busy'), { status: 429 }));
+    const result = expect(
+      manager.enqueue('retry', recipe, controller.signal)
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.advanceTimersByTimeAsync(10);
+    const next = manager.enqueue('next', async () => 'next');
+    controller.abort();
+    await result;
+    const { aiTelemetryService } = await import('@/services/ai/aiTelemetryService');
+    expect(aiTelemetryService.getMetrics()).toMatchObject({
+      queuedRequests: 1,
+      canceledCount: 1,
+      failedCount: 0,
+    });
+    await vi.runAllTimersAsync();
+    await expect(next).resolves.toBe('next');
+    expect(recipe).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a response returned after cancellation', async () => {
+    const controller = new AbortController();
+    let finish!: (value: string) => void;
+    const result = expect(
+      manager.enqueue(
+        'late',
+        () =>
+          new Promise<string>(resolve => {
+            finish = resolve;
+          }),
+        controller.signal
+      )
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    controller.abort();
+    finish('obsolete');
+    await result;
+  });
 });
