@@ -44,6 +44,11 @@ UI / contexto de día
   -> caché de consulta -> hooks/contextos derivados -> UI
 ```
 
+`useDailyRecord` compone directamente su contrato público dentro del `useMemo`;
+no requiere un constructor que vuelva a copiar el mismo objeto. La validación de
+cama de origen y el destino por defecto de la copia viven en
+`useDailyRecordCopyActions`, junto a la única operación que los consume.
+
 Firestore es la autoridad remota. IndexedDB conserva persistencia local y la
 proyección de cambios pendientes; TanStack Query publica el estado que consume la
 interfaz. Son responsabilidades distintas, no tres autoridades intercambiables.
