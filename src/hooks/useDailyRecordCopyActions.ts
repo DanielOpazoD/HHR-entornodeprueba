@@ -1,6 +1,5 @@
 import { useCallback } from 'react';
 import type { DailyRecord } from '@/application/shared/dailyRecordCoreContracts';
-import { resolveCopyPatientRequest } from '@/hooks/controllers/dailyRecordController';
 import { hasCriticalLegacyRepairSignal } from '@/hooks/controllers/legacyRepairWarningController';
 import { buildCopyPatientNotifications } from '@/hooks/controllers/persistenceFeedbackController';
 import { createScopedLogger } from '@/services/utils/loggerScope';
@@ -43,20 +42,14 @@ export const useDailyRecordCopyActions = ({
 }: UseDailyRecordCopyActionsOptions) =>
   useCallback(
     async (bedId: string, targetDate: string, targetBedId?: string) => {
-      const copyRequest = resolveCopyPatientRequest({
-        record,
-        bedId,
-        targetDate,
-        targetBedId,
-      });
-      if (!copyRequest) return;
+      if (!record?.beds[bedId]?.patientName) return;
 
       try {
         const copyResult = await dailyRecord.copyPatientToDateDetailed(
-          copyRequest.sourceDate,
-          copyRequest.sourceBedId,
-          copyRequest.targetDate,
-          copyRequest.targetBedId
+          record.date,
+          bedId,
+          targetDate,
+          targetBedId || bedId
         );
         const notifications = buildCopyPatientNotifications({
           outcome: copyResult.outcome,
