@@ -33,6 +33,7 @@ export const useTerminologySuggestor = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const modalJustClosedRef = useRef(false);
+  const activeSearchRef = useRef<AbortController | null>(null);
 
   // Check AI availability when modal opens
   useEffect(() => {
@@ -132,16 +133,20 @@ export const useTerminologySuggestor = ({
   // Debounced search - waits for user to stop typing
   useEffect(() => {
     const controller = new AbortController();
+    activeSearchRef.current = controller;
+    setIsLoading(false);
+    if (query.length < 2) setSuggestions([]);
 
     const timer = setTimeout(async () => {
+      if (controller.signal.aborted) return;
       if (query.length >= 2 && isModalOpen) {
         setIsLoading(true);
 
         try {
           const results = await searchDiagnoses(query, controller.signal);
-          setSuggestions(results);
+          if (!controller.signal.aborted) setSuggestions(results);
         } catch (err: unknown) {
-          if (err instanceof Error && err.name !== 'AbortError') {
+          if (!controller.signal.aborted && err instanceof Error && err.name !== 'AbortError') {
             terminologySuggestorLogger.error(`Search failed for "${query}"`, err);
           }
         } finally {
@@ -149,16 +154,16 @@ export const useTerminologySuggestor = ({
             setIsLoading(false);
           }
         }
-      } else if (query.length < 2) {
-        setSuggestions([]);
       }
     }, 250);
 
     return () => {
       clearTimeout(timer);
       controller.abort();
+      activeSearchRef.current?.abort();
+      activeSearchRef.current = null;
     };
-  }, [query, isModalOpen]);
+  }, [query, isModalOpen, cie10Code, freeTextValue]);
 
   const handleSelect = (concept: TerminologyConcept) => {
     if (onChangeTimerRef.current) {
@@ -178,11 +183,14 @@ export const useTerminologySuggestor = ({
 
   const handleForceAI = async () => {
     const searchTerm = cie10Code || query || freeTextValue;
-    if (!searchTerm) return;
+    if (!searchTerm || !isModalOpen) return;
+    activeSearchRef.current?.abort();
     const controller = new AbortController();
+    activeSearchRef.current = controller;
     setIsLoading(true);
     try {
       const results = await forceAISearch(searchTerm, controller.signal);
+      if (controller.signal.aborted) return;
 
       if (query && query.length >= 3 && query !== searchTerm) {
         const aiEntries = results
@@ -200,11 +208,11 @@ export const useTerminologySuggestor = ({
 
       setSuggestions(results);
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
+      if (!controller.signal.aborted && err instanceof Error && err.name !== 'AbortError') {
         terminologySuggestorLogger.error(`Force AI search failed for "${searchTerm}"`, err);
       }
     } finally {
-      setIsLoading(false);
+      if (!controller.signal.aborted) setIsLoading(false);
     }
   };
 
