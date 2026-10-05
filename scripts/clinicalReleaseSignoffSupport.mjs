@@ -3,8 +3,13 @@
 import { buildEvidenceProvenance } from './evidenceProvenanceSupport.mjs';
 
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { formatWorktreeState, getGitReportState } from './gitReportState.mjs';
+import {
+  formatWorktreeState,
+  getGitReportState,
+  hasMeaningfulWorktreeChanges,
+} from './gitReportState.mjs';
 import { loadClinicalReleaseValidationConfig } from './clinicalReleaseValidationSupport.mjs';
 
 const SIGNOFF_PATH = path.join('scripts', 'config', 'clinical-release-signoff.json');
@@ -22,8 +27,8 @@ const normalizeEvidence = value =>
       }))
     : [];
 
-export const loadClinicalReleaseSignoffConfig = root => {
-  const absolutePath = path.join(root, SIGNOFF_PATH);
+export const loadClinicalReleaseSignoffConfig = (root, signoffPath = SIGNOFF_PATH) => {
+  const absolutePath = path.resolve(root, signoffPath);
   if (!fs.existsSync(absolutePath)) {
     return {
       version: 1,
@@ -53,7 +58,9 @@ export const collectClinicalReleaseSignoffIssues = ({ scenarioIds, signoffs, req
   const issues = [];
   const scenarioIdSet = new Set(scenarioIds);
   const signoffIds = signoffs.map(signoff => signoff.scenarioId).filter(Boolean);
-  const duplicateIds = signoffIds.filter((id, index, collection) => collection.indexOf(id) !== index);
+  const duplicateIds = signoffIds.filter(
+    (id, index, collection) => collection.indexOf(id) !== index
+  );
 
   for (const duplicateId of [...new Set(duplicateIds)]) {
     issues.push(`Duplicate signoff entry for scenario ${duplicateId}.`);
@@ -82,7 +89,9 @@ export const collectClinicalReleaseSignoffIssues = ({ scenarioIds, signoffs, req
     }
 
     if (requirePassed && signoff.status !== 'passed') {
-      issues.push(`${signoff.scenarioId} is ${signoff.status || 'missing'}; release signoff requires passed.`);
+      issues.push(
+        `${signoff.scenarioId} is ${signoff.status || 'missing'}; release signoff requires passed.`
+      );
     }
 
     if (signoff.status === 'passed') {
@@ -106,6 +115,74 @@ export const collectClinicalReleaseSignoffIssues = ({ scenarioIds, signoffs, req
   return issues;
 };
 
+// Release closeout validates a separately supplied record against an immutable checkout.
+// It does not authenticate the reviewer or create/renew their clinical approval.
+export const collectClinicalReleaseCandidateIssues = (
+  root,
+  { signoffPath = process.env.CLINICAL_RELEASE_SIGNOFF_FILE } = {}
+) => {
+  if (!signoffPath)
+    return [
+      'Current candidate requires CLINICAL_RELEASE_SIGNOFF_FILE; historical signoffs do not approve this release.',
+    ];
+  try {
+    const candidate = loadClinicalReleaseSignoffConfig(root, signoffPath);
+    const validation = loadClinicalReleaseValidationConfig(root);
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    const scenarioIds = validation.scenarios.map(scenario => scenario.id).filter(Boolean);
+    const issues = collectClinicalReleaseSignoffIssues({
+      scenarioIds,
+      signoffs: candidate.signoffs,
+      requirePassed: true,
+    });
+    if (candidate.version !== 1 || validation.version !== 1 || scenarioIds.length === 0) {
+      issues.push(
+        'Candidate signoff requires version 1 and a non-empty clinical scenario contract.'
+      );
+    }
+    if (
+      !/^[a-f0-9]{40}$/i.test(candidate.releaseCandidate) ||
+      candidate.releaseCandidate.toLowerCase() !== head.toLowerCase()
+    ) {
+      issues.push('Clinical signoff releaseCandidate must equal the full current HEAD SHA.');
+    }
+    const status = execFileSync('git', ['status', '--short'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (hasMeaningfulWorktreeChanges(status))
+      issues.push('Candidate signoff requires a clean checkout.');
+    for (const signoff of candidate.signoffs) {
+      if (signoff.status !== 'passed') continue;
+      if (/nombre apellido|placeholder|pendiente/i.test(signoff.validatedBy)) {
+        issues.push(`${signoff.scenarioId} has a placeholder reviewer.`);
+      }
+      const timestamp = Date.parse(signoff.validatedAt);
+      const canonicalDate = Number.isFinite(timestamp)
+        ? new Date(timestamp).toISOString().replace('.000Z', 'Z')
+        : '';
+      if (
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(signoff.validatedAt) ||
+        canonicalDate !== signoff.validatedAt.replace('.000Z', 'Z') ||
+        timestamp > Date.now()
+      ) {
+        issues.push(`${signoff.scenarioId} requires a valid, non-future UTC validation timestamp.`);
+      }
+      if (!signoff.evidence.some(item => item.type === 'manual_signoff' && item.reference)) {
+        issues.push(`${signoff.scenarioId} requires manual_signoff evidence for this candidate.`);
+      }
+    }
+    return issues;
+  } catch (error) {
+    return [`Candidate clinical signoff could not be validated: ${error.message}`];
+  }
+};
+
 export const buildClinicalReleaseSignoffReport = (root, { requirePassed = false } = {}) => {
   const validationConfig = loadClinicalReleaseValidationConfig(root);
   const signoffConfig = loadClinicalReleaseSignoffConfig(root);
@@ -114,7 +191,9 @@ export const buildClinicalReleaseSignoffReport = (root, { requirePassed = false 
   const issues = [];
 
   if (signoffConfig.version !== 1) {
-    issues.push(`Expected clinical release signoff version 1, received ${String(signoffConfig.version || 'unknown')}`);
+    issues.push(
+      `Expected clinical release signoff version 1, received ${String(signoffConfig.version || 'unknown')}`
+    );
   }
 
   issues.push(
@@ -125,8 +204,12 @@ export const buildClinicalReleaseSignoffReport = (root, { requirePassed = false 
     })
   );
 
-  const pendingScenarioCount = signoffConfig.signoffs.filter(signoff => signoff.status !== 'passed').length;
-  const structuralIssueCount = issues.filter(issue => !issue.includes('release signoff requires passed')).length;
+  const pendingScenarioCount = signoffConfig.signoffs.filter(
+    signoff => signoff.status !== 'passed'
+  ).length;
+  const structuralIssueCount = issues.filter(
+    issue => !issue.includes('release signoff requires passed')
+  ).length;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -135,7 +218,12 @@ export const buildClinicalReleaseSignoffReport = (root, { requirePassed = false 
     releaseCandidate: signoffConfig.releaseCandidate,
     approvalScope: 'historical_record',
     currentCandidateApproved: false,
-    overall: issues.length === 0 ? 'ok' : pendingScenarioCount > 0 && structuralIssueCount === 0 ? 'pending' : 'degraded',
+    overall:
+      issues.length === 0
+        ? 'ok'
+        : pendingScenarioCount > 0 && structuralIssueCount === 0
+          ? 'pending'
+          : 'degraded',
     counts: {
       scenarioCount: scenarioIds.length,
       signoffCount: signoffConfig.signoffs.length,
