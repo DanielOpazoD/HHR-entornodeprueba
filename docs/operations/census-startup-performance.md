@@ -92,6 +92,9 @@ Scripts integrados: `npm run test:e2e:census-performance` y `npm run test:census
 
 El banco complementario `npm run test:e2e:census-interactions` usa el mismo servidor aislado
 con un censo sintético de 18 camas regulares ocupadas, una cama extra activa y dos cunas clínicas.
+Su configuración Firebase también es sintética y explícita: no lee credenciales de archivos
+`.env` ni requiere sobrescribirlas para ejecutar la medición local. Navega por `/census` y
+conserva el bloqueo de tráfico externo, escrituras HTTP y WebSockets externos.
 Verifica los 21 pacientes renderizados antes de cada muestra, incluyendo filas con y sin signos
 vitales y dispositivos. Mide cinco aperturas del editor de diagnóstico y del panel clínico;
 `test-results/census-interactions/summary.json` conserva tiempos, nombres de acción y recuentos
@@ -162,7 +165,7 @@ La etiqueta runner no verifica hardware/carga/configuración: el operador debe i
 Recolectar baseline genuino y estabilizar runner antes de imponer este gate adicional.
 Cualquier tolerancia futura necesita datos y revisión, no umbrales inventados.
 
-## Evidencia de implementación
+## Evidencia histórica de implementación inicial
 
 - 32 tests del validador pasan, incluyendo muestras faltantes, NaN, scopes/IDs duplicados,
   incomplete, mismatch de entorno/baseline, smoke y lectura de budgets existentes.
@@ -172,9 +175,9 @@ Cualquier tolerancia futura necesita datos y revisión, no umbrales inventados.
 - Playwright discovery identifica 1 test de medición con 30 muestras por escenario.
 - Smoke development intentado: servidor arrancó, pero Chromium no pudo iniciar por
   `MachPortRendezvousServer: Permission denied (1100)` del entorno de ejecución.
-- **No hay ejecución integrada válida ni cifras p50/p95 reales de la aplicación.** No se
-  inventan reportes ni mejoras. Ejecutar en runner con permiso para lanzar Chromium una
-  vez integrada la instrumentación.
+- En aquella ejecución no se obtuvieron cifras integradas: el arranque de Chromium quedó
+  bloqueado por el entorno. Este resultado histórico no describe las ejecuciones posteriores
+  ni permite inferir mejoras de latencia.
 
 ## Captura en la aplicación real
 
