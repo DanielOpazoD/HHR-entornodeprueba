@@ -167,3 +167,11 @@ Ese único reducer puro conserva el rechazo de un registro nulo y delega las reg
 clínicas a los builders existentes, sin el antiguo controller intermediario.
 `HandoffRow` importa cada celda de su módulo propietario; el antiguo barrel
 `HandoffRowCells` no define una frontera pública ni debe recrearse.
+
+### Antecedentes conservados al cambiar de pestaña
+
+El drawer conserva la sección de antecedentes montada para mantener historia y
+paginación, pero comunica si está activa. La consulta periódica se pausa cuando
+la sección o el documento están ocultos. Al volver se conserva el plazo desde
+el último inicio; una solicitud pendiente no se cancela por cambiar de pestaña
+ni se duplica. Cambiar episodio o reintentar conserva su cancelación existente.
