@@ -59,7 +59,7 @@ describe('MedicalHandoffSpreadsheetAction', () => {
 
     await waitFor(() => expect(openSpreadsheet).toHaveBeenCalledWith({ date: '2026-08-07', rows }));
     expect(replace).toHaveBeenCalledWith('https://docs.google.com/spreadsheets/d/sheet-id/edit');
-    fireEvent.click(screen.getByRole('button', { name: /abrir entrega de turno médica/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /abrir entrega de turno médica/i }));
     expect(openWindow).toHaveBeenLastCalledWith(
       'https://docs.google.com/spreadsheets/d/sheet-id/edit',
       '_blank',
