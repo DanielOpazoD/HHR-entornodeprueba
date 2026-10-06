@@ -175,3 +175,10 @@ paginación, pero comunica si está activa. La consulta periódica se pausa cuan
 la sección o el documento están ocultos. Al volver se conserva el plazo desde
 el último inicio; una solicitud pendiente no se cancela por cambiar de pestaña
 ni se duplica. Cambiar episodio o reintentar conserva su cancelación existente.
+
+### Apertura de documentos a través de la extensión
+
+El puente conserva el ID opaco y el protocolo existente. Solo acepta respuestas
+del mismo window, origen e identificador de solicitud. Respuesta, fallo de envío
+y timeout terminan por el mismo camino idempotente y liberan listener y timer.
+Un timeout no cancela una apertura ya enviada a la extensión ni autoriza reenviarla.

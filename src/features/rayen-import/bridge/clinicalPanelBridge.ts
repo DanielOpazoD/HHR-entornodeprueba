@@ -171,38 +171,43 @@ export const requestPatientDocumentOpen = (
     }
     const reqId = `patient-document-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
     let settled = false;
-    // eslint-disable-next-line prefer-const -- assigned after listener setup, read by cleanup()
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const cleanup = (): void => {
+    const finish = (result: RayenPatientDocumentOpenResult): void => {
       if (settled) return;
       settled = true;
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
       window.removeEventListener('message', onMessage);
+      resolve(result);
     };
     const onMessage = (event: MessageEvent): void => {
-      if (event.origin !== window.location.origin) return;
+      if (event.origin !== window.location.origin || event.source !== window) return;
       const data = event.data;
       if (!data || data.type !== RAYEN_PATIENT_DOCUMENT_OPEN_RESULT_TYPE || data.reqId !== reqId) {
         return;
       }
-      cleanup();
-      resolve({
+      finish({
         ok: data.ok === true,
         opened: data.opened === true,
         error: typeof data.error === 'string' ? data.error : undefined,
       });
     };
-    window.addEventListener('message', onMessage);
-    window.postMessage(
-      { type: RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE, reqId, encId, documentId },
-      window.location.origin
-    );
-    timeoutId = setTimeout(() => {
-      cleanup();
-      resolve({
+    const timeoutId = setTimeout(() => {
+      finish({
         ok: false,
         opened: false,
         error: 'La extensión no respondió al abrir el archivo.',
       });
     }, timeoutMs);
+    window.addEventListener('message', onMessage);
+    try {
+      window.postMessage(
+        { type: RAYEN_PATIENT_DOCUMENT_OPEN_REQUEST_TYPE, reqId, encId, documentId },
+        window.location.origin
+      );
+    } catch {
+      finish({
+        ok: false,
+        opened: false,
+        error: 'No se pudo abrir el archivo mediante la extensión.',
+      });
+    }
   });
