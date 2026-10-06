@@ -1,6 +1,7 @@
 import type { ControllerConfirmDescriptor } from '@/shared/contracts/controllers/confirmDescriptor';
 import type { CensusMovementSectionModel } from '@/features/census/types/censusMovementSectionModelTypes';
-import { useMovementSectionRuntime } from './useMovementSectionRuntime';
+import { resolveMovementSectionState } from '../controllers/censusMovementSectionController';
+import { useMovementSectionActions } from './useMovementSectionActions';
 
 interface UseMovementSectionModelParams<TItem> {
   items: TItem[] | null | undefined;
@@ -26,8 +27,8 @@ export const useMovementSectionModel = <TItem>({
   deleteErrorTitle,
   onDelete,
 }: UseMovementSectionModelParams<TItem>): UseMovementSectionModelResult<TItem> => {
-  const runtime = useMovementSectionRuntime({
-    items,
+  const sectionState = resolveMovementSectionState(items);
+  const actions = useMovementSectionActions({
     undoDialog,
     undoErrorTitle,
     onUndo,
@@ -36,11 +37,5 @@ export const useMovementSectionModel = <TItem>({
     onDelete,
   });
 
-  return {
-    isRenderable: runtime.isRenderable,
-    isEmpty: runtime.isEmpty,
-    items: runtime.items,
-    handleUndo: runtime.handleUndo,
-    handleDelete: runtime.handleDelete,
-  };
+  return { ...sectionState, ...actions };
 };
