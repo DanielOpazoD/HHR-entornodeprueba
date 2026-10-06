@@ -21,6 +21,9 @@ Las escrituras clínicas tienen controles propios que sí deben conservarse:
 - Los efectos del navegador usan `shared/runtime/browserWindowRuntimeCore`; el
   portapapeles usa `browserClipboardRuntime`. No recrear la fachada agregadora
   `browserWindowRuntime` retirada. Los adaptadores y sus fallbacks permanecen.
+- Altas, traslados y undo usan los controladores canónicos del censo y la API
+  pública existente. No recrear los aliases huérfanos retirados de
+  `hooks/controllers`; los demás aliases se conservan hasta migrar sus consumidores.
 - Unificar reglas repetidas en su dueño; evitar utilidades transversales de un solo uso.
 - Separar efectos de decisiones cuando permita verificar un comportamiento real.
 - Mantener entrypoints públicos acotados. Dentro de una feature, usar sus módulos
