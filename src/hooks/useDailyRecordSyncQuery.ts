@@ -1,9 +1,4 @@
 import { useCensusBootstrapPerf, useCensusRecordPerf } from '@/hooks/useCensusRecordPerf';
-/**
- * useDailyRecordSyncQuery Hook
- * Replaces useDailyRecordSync logic with TanStack Query.
- * Provides the same interface for compatibility.
- */
 
 import { useCallback, useMemo, useEffect, useRef } from 'react';
 import {
