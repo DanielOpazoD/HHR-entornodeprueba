@@ -106,6 +106,12 @@ captura completa no equivale a persistencia confirmada. Consultar el
 [runbook de sync](RUNBOOK_SYNC_RESILIENCE.md) para diagnosticar captura,
 propuesta, persistencia y estado visible sin mezclarlos.
 
+`useMovementSectionModel` compone el estado derivado y las acciones sin un
+wrapper de runtime. `useMovementSectionActions` conserva un único
+`useConfirmedMovementAction` para deshacer y eliminar: la exclusión cubre la
+confirmación y la mutación de ambas acciones. `null` sigue siendo distinto de
+una colección ausente o vacía.
+
 ## Estado, errores y efectos
 
 | Responsabilidad                       | Dueño                                               |
