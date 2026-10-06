@@ -1,12 +1,4 @@
 import type { DailyRecordDateRef } from '@/application/shared/dailyRecordCoreContracts';
-import type { SyncStatus } from '@/context/dailyRecordContextContracts';
-import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
-
-interface MutationLike {
-  isPending: boolean;
-  isError: boolean;
-  isSuccess: boolean;
-}
 
 interface PreviousDayReader {
   getPreviousDay: (date: string) => Promise<DailyRecordDateRef | null>;
@@ -15,9 +7,6 @@ interface PreviousDayReader {
 interface WarningNotifier {
   (title: string, message: string): void;
 }
-
-export const resolveMutationSyncStatus = (mutations: MutationLike[]): SyncStatus =>
-  resolveDailyRecordSyncStatus(mutations);
 
 export const resolveCreateDaySourceDate = async (
   dailyRecord: PreviousDayReader,
