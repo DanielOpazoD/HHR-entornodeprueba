@@ -18,6 +18,12 @@ This note captures the runtime contracts that keep the `clinical-documents` edit
 4. Toolbar commands are wiring, not business logic.
    Toolbar dialogs may build HTML, but they delegate the actual insertion to the active editor API.
 
+5. Re-seeding history discards snapshots pending from the previous buffer.
+   External content becomes the single undo baseline; a delayed local snapshot
+   must not reappear after that replacement. Flush, re-seed and unmount share
+   the same cancellation path. Content changes still publish eagerly through
+   `onChange`; cancelling a history snapshot does not discard the draft.
+
 ## Draft / Sync Invariants
 
 1. Local dirty state wins over equivalent remote reloads.

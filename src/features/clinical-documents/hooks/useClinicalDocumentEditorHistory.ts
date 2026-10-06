@@ -46,13 +46,22 @@ export const useClinicalDocumentEditorHistory = (): ClinicalDocumentEditorHistor
     setHistoryState({ canUndo: index > 0, canRedo: index >= 0 && index < length - 1 });
   }, []);
 
+  const discardPendingHistorySnapshot = useCallback(() => {
+    if (historyDebounceTimerRef.current) {
+      clearTimeout(historyDebounceTimerRef.current);
+    }
+    historyDebounceTimerRef.current = null;
+    pendingHistoryHtmlRef.current = null;
+  }, []);
+
   const seedHistory = useCallback(
     (html: string) => {
+      discardPendingHistorySnapshot();
       historyRef.current = [html];
       historyIndexRef.current = 0;
       updateHistoryState();
     },
-    [updateHistoryState]
+    [discardPendingHistorySnapshot, updateHistoryState]
   );
 
   const consumeApplyingFlag = useCallback(() => {
@@ -92,16 +101,12 @@ export const useClinicalDocumentEditorHistory = (): ClinicalDocumentEditorHistor
   );
 
   const flushPendingHistorySnapshot = useCallback(() => {
-    if (historyDebounceTimerRef.current) {
-      clearTimeout(historyDebounceTimerRef.current);
-      historyDebounceTimerRef.current = null;
-    }
     const pending = pendingHistoryHtmlRef.current;
+    discardPendingHistorySnapshot();
     if (pending !== null) {
-      pendingHistoryHtmlRef.current = null;
       pushHistorySnapshot(pending);
     }
-  }, [pushHistorySnapshot]);
+  }, [discardPendingHistorySnapshot, pushHistorySnapshot]);
 
   const debouncedPushHistorySnapshot = useCallback(
     (html: string) => {
@@ -124,16 +129,7 @@ export const useClinicalDocumentEditorHistory = (): ClinicalDocumentEditorHistor
   // React, a setState-after-unmount warning). We DISCARD rather than flush: this
   // instance's history is about to be thrown away, and content is never lost
   // because the controller's `onChange` already runs eagerly on every edit.
-  useEffect(
-    () => () => {
-      if (historyDebounceTimerRef.current) {
-        clearTimeout(historyDebounceTimerRef.current);
-        historyDebounceTimerRef.current = null;
-      }
-      pendingHistoryHtmlRef.current = null;
-    },
-    []
-  );
+  useEffect(() => discardPendingHistorySnapshot, [discardPendingHistorySnapshot]);
 
   return {
     historyState,
