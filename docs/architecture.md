@@ -49,6 +49,11 @@ no requiere un constructor que vuelva a copiar el mismo objeto. La validación d
 cama de origen y el destino por defecto de la copia viven en
 `useDailyRecordCopyActions`, junto a la única operación que los consume.
 
+`useCensusActionsProviderModel` compone los parámetros de los comandos y del
+contexto en el mismo hook. `useCensusActionCommandsController` conserva su
+`useMemo` y las referencias actuales; no necesita constructores intermedios que
+sólo vuelvan a copiar campos. Las reglas y facades de movimientos permanecen.
+
 `dailyRecordReadResultController` proyecta una sola vez los metadatos de consistencia
 del golden path. Cada rama conserva el registro y la compatibilidad de su fuente;
 una lectura indisponible sigue siendo distinta de una ausencia confirmada.
