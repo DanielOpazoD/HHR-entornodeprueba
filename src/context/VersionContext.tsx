@@ -5,6 +5,7 @@ import React, {
   useCallback,
   ReactNode,
   useEffect,
+  useRef,
 } from 'react';
 import { CURRENT_SCHEMA_VERSION } from '@/constants/version';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
@@ -42,6 +43,9 @@ export const VersionProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [remoteVersion, setRemoteVersion] = useState<number | null>(null);
   const [runtimeContract, setRuntimeContract] = useState<RemoteRuntimeContract | null>(null);
   const [updateReason, setUpdateReason] = useState<VersionUpdateReason>('current');
+  const mounted = useRef(true);
+  const schemaAhead = useRef(false);
+  const checkInFlight = useRef<Promise<void> | null>(null);
 
   const checkVersion = useCallback((remoteVersionValue: number) => {
     if (remoteVersionValue > CURRENT_SCHEMA_VERSION) {
@@ -49,84 +53,80 @@ export const VersionProvider: React.FC<{ children: ReactNode }> = ({ children })
         localVersion: CURRENT_SCHEMA_VERSION,
         remoteVersion: remoteVersionValue,
       });
+      schemaAhead.current = true;
       setIsOutdated(true);
-      setRemoteVersion(remoteVersionValue);
+      setRemoteVersion(previous => Math.max(previous ?? 0, remoteVersionValue));
       setUpdateReason('schema_ahead_of_client');
     }
   }, []);
 
-  const checkRuntimeContract = useCallback(async () => {
-    try {
-      const contract = await fetchRemoteRuntimeContract();
-      if (!contract) {
-        return;
-      }
+  const checkRuntimeContract = useCallback((): Promise<void> => {
+    if (!mounted.current) return Promise.resolve();
+    if (checkInFlight.current) return checkInFlight.current;
 
-      setRuntimeContract(contract);
-      const assessment = assessRemoteRuntimeContract(contract);
-      if (!assessment.ok) {
-        setIsOutdated(true);
-        setUpdateReason(
-          assessment.disposition === 'runtime_contract_mismatch'
-            ? 'runtime_contract_mismatch'
-            : 'schema_ahead_of_client'
-        );
-        if (assessment.disposition === 'schema_ahead_of_client') {
-          setRemoteVersion(contract.supportedSchemaVersion);
+    return (checkInFlight.current = Promise.resolve()
+      .then(async () => {
+        if (!mounted.current) return;
+        try {
+          const contract = await fetchRemoteRuntimeContract();
+          if (!mounted.current || !contract) return;
+
+          setRuntimeContract(contract);
+          const assessment = assessRemoteRuntimeContract(contract);
+          if (!assessment.ok) {
+            setIsOutdated(true);
+            setUpdateReason(
+              assessment.disposition === 'runtime_contract_mismatch'
+                ? 'runtime_contract_mismatch'
+                : 'schema_ahead_of_client'
+            );
+            if (assessment.disposition === 'schema_ahead_of_client') {
+              schemaAhead.current = true;
+              setRemoteVersion(previous =>
+                Math.max(previous ?? 0, contract.supportedSchemaVersion)
+              );
+            }
+            versionLogger.error('Runtime contract mismatch detected', {
+              localVersion: CURRENT_SCHEMA_VERSION,
+              contract,
+              disposition: assessment.disposition,
+            });
+            return;
+          }
+
+          setIsOutdated(schemaAhead.current);
+          setUpdateReason(schemaAhead.current ? 'schema_ahead_of_client' : 'current');
+        } catch (error) {
+          if (mounted.current) versionLogger.warn('Runtime contract check failed', error);
         }
-        versionLogger.error('Runtime contract mismatch detected', {
-          localVersion: CURRENT_SCHEMA_VERSION,
-          contract,
-          disposition: assessment.disposition,
-        });
-        return;
-      }
-
-      setRuntimeContract(contract);
-      setIsOutdated(prev => (updateReason === 'schema_ahead_of_client' ? prev : false));
-      setUpdateReason(prev => (prev === 'schema_ahead_of_client' ? prev : 'current'));
-    } catch (error) {
-      versionLogger.warn('Runtime contract check failed', error);
-    }
-  }, [updateReason]);
+      })
+      .finally(() => {
+        checkInFlight.current = null;
+      }));
+  }, []);
 
   const forceUpdate = useCallback(() => {
     defaultBrowserWindowRuntime.reload();
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const runCheck = async () => {
-      if (cancelled) {
-        return;
-      }
-
-      await checkRuntimeContract();
-    };
-
-    void runCheck();
-    const interval = window.setInterval(() => {
-      void runCheck();
-    }, RUNTIME_CONTRACT_CHECK_INTERVAL_MS);
-
-    const handleFocus = () => {
-      void runCheck();
-    };
+    mounted.current = true;
+    void checkRuntimeContract();
+    const interval = window.setInterval(checkRuntimeContract, RUNTIME_CONTRACT_CHECK_INTERVAL_MS);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        void runCheck();
+        void checkRuntimeContract();
       }
     };
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', checkRuntimeContract);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      cancelled = true;
+      mounted.current = false;
       window.clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('focus', checkRuntimeContract);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [checkRuntimeContract]);
