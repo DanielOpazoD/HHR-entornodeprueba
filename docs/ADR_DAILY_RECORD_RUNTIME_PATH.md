@@ -74,3 +74,13 @@ The most fragile boundary in the app is the intersection of TanStack Query cache
   - `src/tests/hooks/controllers/dailyRecordQueryController.test.ts`
   - `src/tests/hooks/useDailyRecordSyncQuery.test.tsx`
   - relevant census empty-state tests
+
+## Fallos de módulos durante desconexión
+
+Un fallo de carga diferida no autoriza recargar automáticamente una sesión editable.
+`lazyWithRetry` conserva la espera y el reintento al recuperar conectividad; si el
+módulo sigue fallando, presenta un aviso dentro de esa sección. La recarga completa
+requiere una acción explícita y confirmación de que puede perder cambios sin guardar.
+Los errores ajenos a carga de módulos siguen llegando al error boundary existente.
+Esto conserva las mutaciones pausadas y el censo durante una desconexión; no confirma
+que un cambio esté persistido ni reemplaza las protecciones de escritura.
