@@ -293,6 +293,20 @@ describe('null realtime recovery ownership', () => {
           })
         );
       }
+      if (outcome === 'unavailable' || outcome === 'confirmed_missing') {
+        const confirmedMissing = outcome === 'confirmed_missing';
+        expect(dailyRecordObservability.recordEvent).toHaveBeenCalledWith(
+          confirmedMissing ? 'confirmed_null_realtime_record' : 'unavailable_null_realtime_record',
+          'degraded',
+          expect.objectContaining({ runtimeState: confirmedMissing ? 'retryable' : 'blocked' })
+        );
+        if (!confirmedMissing)
+          expect(dailyRecordObservability.recordEvent).not.toHaveBeenCalledWith(
+            'confirmed_null_realtime_record',
+            expect.anything(),
+            expect.anything()
+          );
+      }
       if (outcome === 'confirmed_missing')
         expect(current?.runtime.availabilityState).toBe('confirmed_missing');
       if (outcome === 'authoritative') expect(current?.runtime.sourceOfTruth).toBe('remote');
