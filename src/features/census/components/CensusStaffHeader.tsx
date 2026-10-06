@@ -3,7 +3,11 @@ import { createPortal } from 'react-dom';
 import type { Statistics } from '@/types/domain/statistics';
 import { NurseSelector } from './NurseSelector';
 import { TensSelector } from './TensSelector';
-import { StaffShiftDetailsModal } from './StaffShiftDetailsModal';
+import { BaseModal } from '@/components/shared/BaseModal';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+const StaffShiftDetailsModal = lazyWithRetry(() =>
+  import('./StaffShiftDetailsModal').then(module => ({ default: module.StaffShiftDetailsModal }))
+);
 import { CombinedSummaryCard } from '@/components/layout/SummaryCard';
 import {
   useDailyRecordData,
@@ -75,9 +79,15 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
 
   const { updateNurse, updateTens, updateDetailedStaffing } = useDailyRecordStaffActions();
   const { nursesList, tensList, professionalsCatalog = [] } = useStaffContext();
-  const [activeDetailedRole, setActiveDetailedRole] = React.useState<DetailedStaffingRole | null>(
-    null
-  );
+  const [activeDetail, setActiveDetail] = React.useState<{
+    role: DetailedStaffingRole;
+    date: string;
+  } | null>(null);
+  const recordDate = dailyRecordData.record?.date;
+  const openDetail = (role: DetailedStaffingRole) => {
+    if (recordDate && canEditDetail) setActiveDetail({ role, date: recordDate });
+  };
+  const closeDetail = () => setActiveDetail(null);
   const readModel = buildCensusStaffHeaderReadModel({
     readOnly,
     stats,
@@ -87,6 +97,11 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
     staffData,
     movementsData,
   });
+  const canEditDetail = !readOnly && !readModel.specialistAccess;
+  React.useEffect(() => {
+    // Discard the edit intent when its date or edit access changes.
+    setActiveDetail(previous => (canEditDetail && previous?.date === recordDate ? previous : null));
+  }, [canEditDetail, recordDate]);
 
   return (
     // animate-fade-in crea un stacking context propio (z auto), así que los
@@ -109,7 +124,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               nursesList={nursesList}
               onUpdateNurse={updateNurse}
               shiftIndicators={readModel.staffIndicatorsState.nurseIndicators}
-              onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('nurse')}
+              onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('nurse')}
               className={`self-stretch ${readModel.selectorsClassName}`}
             />
           )}
@@ -121,7 +136,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
               tensList={tensList}
               onUpdateTens={updateTens}
               shiftIndicators={readModel.staffIndicatorsState.tensIndicators}
-              onOpenDetailedStaffing={readOnly ? undefined : () => setActiveDetailedRole('tens')}
+              onOpenDetailedStaffing={readOnly ? undefined : () => openDetail('tens')}
               className={`self-stretch ${readModel.selectorsClassName}`}
             />
           )}
@@ -180,19 +195,36 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )
         : null}
 
-      {activeDetailedRole && dailyRecordData.record?.date && readModel.staffDetailsState && (
-        <StaffShiftDetailsModal
-          isOpen={true}
-          onClose={() => setActiveDetailedRole(null)}
-          role={activeDetailedRole}
-          initialShift="day"
-          recordDate={dailyRecordData.record.date}
-          detail={readModel.staffDetailsState}
-          nursesList={nursesList}
-          tensList={tensList}
-          onSave={updateDetailedStaffing}
-        />
-      )}
+      {canEditDetail &&
+        activeDetail &&
+        activeDetail.date === recordDate &&
+        readModel.staffDetailsState && (
+          <Suspense
+            fallback={
+              <BaseModal
+                isOpen
+                onClose={closeDetail}
+                title={`Configuración detallada ${activeDetail.role === 'nurse' ? 'Enfermería' : 'TENS'}`}
+                size="3xl"
+                variant="white"
+              >
+                <p role="status">Cargando dotación…</p>
+              </BaseModal>
+            }
+          >
+            <StaffShiftDetailsModal
+              isOpen={true}
+              onClose={closeDetail}
+              role={activeDetail.role}
+              initialShift="day"
+              recordDate={activeDetail.date}
+              detail={readModel.staffDetailsState}
+              nursesList={nursesList}
+              tensList={tensList}
+              onSave={updateDetailedStaffing}
+            />
+          </Suspense>
+        )}
     </div>
   );
 };
