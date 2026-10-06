@@ -6,6 +6,20 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## Diagnóstico de fallos del panel (0.48.44)
+
+Cuando una fuente impide cargar el panel, «Detalle de la conexión» conserva el error
+original y añade un código `HHR_PANEL_V1` con estado y duración en milisegundos de
+historial, cuidados, medicamentos activos/inactivos y validación. El bloque técnico
+incluye sólo categorías fijas, estados y tiempos; se puede copiar para diagnosticar
+la demora sin compartir identificadores, URLs ni contenido clínico.
+
+Las cinco fuentes siguen consultándose en paralelo. Un fallo conserva el cierre
+seguro del panel: no se presenta una lista de medicamentos incompleta como válida.
+Las duraciones incluyen todas las páginas de cada consulta de medicamentos; no
+miden renderizado ni explican por sí solas un problema del servidor.
+Actualizar/recargar manualmente a **0.48.44** para obtener este diagnóstico.
+
 ## Epicrisis del episodio actual (0.48.43)
 
 Los iconos de alta del censo descargan por separado el PDF médico y el de enfermería.
