@@ -38,8 +38,8 @@ import {
 import {
   buildCreateDaySuccessMessage,
   resolveCreateDaySourceDate,
-  resolveMutationSyncStatus,
 } from '@/hooks/controllers/dailyRecordSyncController';
+import { resolveDailyRecordSyncStatus } from '@/hooks/controllers/dailyRecordSyncStatusController';
 import { presentDailyRecordRefreshOutcome } from '@/hooks/controllers/dailyRecordRefreshOutcomeController';
 import { dailyRecordSyncLogger } from '@/hooks/hookLoggers';
 import { dailyRecordObservability } from '@/services/repositories/dailyRecordOperationalTelemetry';
@@ -156,7 +156,7 @@ export const useDailyRecordSyncQuery = (
   // 3. Status Mapping
   const syncStatus = useMemo(
     (): SyncStatus =>
-      resolveMutationSyncStatus([
+      resolveDailyRecordSyncStatus([
         {
           isPending: saveMutation.isPending,
           isError: saveMutation.isError,
@@ -248,7 +248,9 @@ export const useDailyRecordSyncQuery = (
     async (partial: DailyRecordPatch, options?: ApplyDailyRecordPatchOptions) => {
       try {
         const payload = await patchMutation.mutateAsync(
-          options?.consistency === 'remote_confirmed' || options?.intentionalBedClear || options?.specialtyIntent
+          options?.consistency === 'remote_confirmed' ||
+            options?.intentionalBedClear ||
+            options?.specialtyIntent
             ? {
                 partial,
                 options: {
