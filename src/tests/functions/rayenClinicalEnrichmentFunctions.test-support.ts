@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 
 vi.mock('firebase-functions/v1', () => ({
   region: (...regions: string[]) => ({
@@ -101,6 +101,67 @@ export const digestPayload = (payload: unknown): string => {
 export const makeContext = () => ({
   auth: { token: { email: 'nurse@example.com' } },
 });
+
+// Successful one-target fixtures may emit any numeric timing. Clinical fields,
+// identifiers and arbitrary nested objects are not part of the telemetry contract.
+export const expectClinicalTelemetryMetadata = (telemetry: unknown) => {
+  expect(telemetry).toEqual({
+    service: 'rayenClinicalEnrichment',
+    operation: 'applyRayenClinicalEnrichmentBatch',
+    hospitalId: 'hanga_roa',
+    durationMs: expect.any(Number),
+    attempt: 1,
+    totalAttempts: 1,
+    status: 'success',
+    errorCode: null,
+    timestamp: '2026-10-06T18:19:20.120Z',
+    context: {
+      date: '2026-07-28',
+      mode: expect.stringMatching(/^(shadow|enforced)$/),
+      dryRun: expect.any(Boolean),
+      targetCount: 1,
+      clinicalTargetCount: 1,
+      checkpointTargetCount: 1,
+      checkpointOnlyTargetCount: 0,
+      fieldCount: 3,
+      clinicalCribCount: 0,
+      hasExpectedVersion: true,
+      hasBaseRevision: true,
+      fieldContractVersion: 2,
+      versionGuardEnforced: expect.any(Boolean),
+      targetScope: 'current',
+      runCorrelationId: expect.stringMatching(/^[a-f0-9]{16}$/),
+      mutationCorrelationId: expect.stringMatching(/^[a-f0-9]{16}$/),
+      serverTimingsMs: {
+        authorizationMs: expect.any(Number),
+        transactionMs: expect.any(Number),
+      },
+      transactionTimingsMs: {
+        callbackMs: expect.any(Number),
+        documentReadMs: expect.any(Number),
+        specialtyAuditMs: expect.any(Number),
+        otherCallbackMs: expect.any(Number),
+        outsideCallbackMs: expect.any(Number),
+      },
+      authorityStatus: expect.stringMatching(/^(ok|idempotent)$/),
+      resultParity: expect.stringMatching(/^(matched|mismatch)$/),
+      parityContractVersion: 2,
+      mismatchTargetCount: expect.any(Number),
+      mismatchFieldCount: expect.any(Number),
+      mismatchDeviceFieldCount: expect.any(Number),
+      mismatchScoreFieldCount: expect.any(Number),
+      mismatchVitalFieldCount: expect.any(Number),
+      mismatchCheckpointFieldCount: expect.any(Number),
+      revision: expect.any(Number),
+      policyRevision: 7,
+      transactionAttempts: 1,
+      transactionRetries: 0,
+    },
+  });
+  expect(JSON.stringify(telemetry)).not.toMatch(
+    /H2C1|episode-secret|Paciente reservado|11\.111|evaluationScores|vitalSigns|braden|run-1|mutation-1/
+  );
+};
 
 interface ClinicalAdminMockOptions {
   clinicalBatchMode?: 'shadow' | 'enforced';
