@@ -198,3 +198,224 @@ describe('FonasaSearchInput — selected code view', () => {
     expect(baseProps.onClear).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('FonasaSearchInput — stale results', () => {
+  it('keeps the latest query results when an earlier search resolves last', async () => {
+    let resolveOld!: (entries: FonasaEntry[]) => void;
+    searchFonasaMock.mockReturnValueOnce(
+      new Promise<FonasaEntry[]>(resolve => {
+        resolveOld = resolve;
+      })
+    );
+    searchFonasaMock.mockResolvedValueOnce([{ code: 'NEW', description: 'Resultado vigente' }]);
+    render(<FonasaSearchInput {...baseProps} />);
+    const input = screen.getByPlaceholderText(/Buscar por nombre/);
+    fireEvent.change(input, { target: { value: 'consulta' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    fireEvent.change(input, { target: { value: 'radiografia' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(screen.getByText('Resultado vigente')).toBeInTheDocument();
+    await act(async () => {
+      resolveOld([{ code: 'OLD', description: 'Resultado obsoleto' }]);
+    });
+    expect(screen.getByText('Resultado vigente')).toBeInTheDocument();
+    expect(screen.queryByText('Resultado obsoleto')).not.toBeInTheDocument();
+  });
+  it('ignores an AI response after switching to free text and back', async () => {
+    isFonasaAIAvailableMock.mockReturnValue(true);
+    let resolveAI!: (entries: FonasaEntry[]) => void;
+    searchFonasaAIMock.mockReturnValueOnce(
+      new Promise<FonasaEntry[]>(resolve => {
+        resolveAI = resolve;
+      })
+    );
+    render(<FonasaSearchInput {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Buscar por nombre/), {
+      target: { value: 'consulta' },
+    });
+    fireEvent.click(screen.getByLabelText('Buscar con inteligencia artificial'));
+    fireEvent.click(screen.getByRole('button', { name: 'Texto libre' }));
+    fireEvent.click(screen.getByText('Buscar en catálogo FONASA'));
+    await act(async () => {
+      resolveAI([{ code: 'OLD-AI', description: 'Sugerencia obsoleta' }]);
+    });
+    expect(screen.queryByText('Sugerencia obsoleta')).not.toBeInTheDocument();
+  });
+  it('keeps AI single-flight after changing query and allows a new request once it settles', async () => {
+    isFonasaAIAvailableMock.mockReturnValue(true);
+    let rejectOld!: (error: Error) => void;
+    let resolveNew!: (entries: FonasaEntry[]) => void;
+    searchFonasaAIMock.mockReturnValueOnce(
+      new Promise<FonasaEntry[]>((_, reject) => {
+        rejectOld = reject;
+      })
+    );
+    searchFonasaAIMock.mockReturnValueOnce(
+      new Promise<FonasaEntry[]>(resolve => {
+        resolveNew = resolve;
+      })
+    );
+    render(<FonasaSearchInput {...baseProps} />);
+    const input = screen.getByPlaceholderText(/Buscar por nombre/);
+    const aiButton = screen.getByLabelText('Buscar con inteligencia artificial');
+    fireEvent.change(input, { target: { value: 'consulta' } });
+    fireEvent.click(aiButton);
+    fireEvent.change(input, { target: { value: 'radiografia' } });
+    fireEvent.click(aiButton);
+    expect(aiButton).toBeDisabled();
+    expect(searchFonasaAIMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      rejectOld(new Error('Respuesta anterior fallida'));
+    });
+    expect(aiButton).toBeEnabled();
+    fireEvent.click(aiButton);
+    expect(searchFonasaAIMock).toHaveBeenCalledTimes(2);
+    expect(aiButton).toBeDisabled();
+    await act(async () => {
+      resolveNew([{ code: 'NEW-AI', description: 'Sugerencia vigente' }]);
+    });
+    expect(aiButton).toBeEnabled();
+    expect(screen.getByText('Sugerencia vigente')).toBeInTheDocument();
+  });
+
+  it('does not reopen results when AI completes after selecting a catalog entry', async () => {
+    isFonasaAIAvailableMock.mockReturnValue(true);
+    let resolveAI!: (entries: FonasaEntry[]) => void;
+    searchFonasaAIMock.mockReturnValueOnce(
+      new Promise<FonasaEntry[]>(resolve => {
+        resolveAI = resolve;
+      })
+    );
+    render(<FonasaSearchInput {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Buscar por nombre/), {
+      target: { value: 'radio' },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    fireEvent.click(screen.getByLabelText('Buscar con inteligencia artificial'));
+    fireEvent.click(screen.getByText('Radiografía de tórax'));
+    await act(async () => {
+      resolveAI([{ code: 'OLD-AI', description: 'Sugerencia obsoleta' }]);
+    });
+    expect(baseProps.onSelect).toHaveBeenCalledWith(baseEntries[1]);
+    expect(screen.queryByText('Sugerencia obsoleta')).not.toBeInTheDocument();
+  });
+
+  it.each(['empty', 'failure'] as const)(
+    'keeps catalog matches when early AI returns %s',
+    async outcome => {
+      isFonasaAIAvailableMock.mockReturnValue(true);
+      if (outcome === 'empty') searchFonasaAIMock.mockResolvedValueOnce([]);
+      else searchFonasaAIMock.mockRejectedValueOnce(new Error('AI unavailable'));
+      render(<FonasaSearchInput {...baseProps} />);
+      fireEvent.change(screen.getByPlaceholderText(/Buscar por nombre/), {
+        target: { value: 'radio' },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText('Buscar con inteligencia artificial'));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      expect(searchFonasaMock).toHaveBeenCalledWith('interventions', 'radio');
+      expect(screen.getByText('Radiografía de tórax')).toBeInTheDocument();
+    }
+  );
+
+  it('keeps successful AI matches when the same-query catalog responds later', async () => {
+    isFonasaAIAvailableMock.mockReturnValue(true);
+    let resolveCatalog!: (entries: FonasaEntry[]) => void;
+    searchFonasaMock.mockReturnValueOnce(
+      new Promise<FonasaEntry[]>(resolve => {
+        resolveCatalog = resolve;
+      })
+    );
+    searchFonasaAIMock.mockResolvedValueOnce([
+      { code: 'NEW-AI', description: 'Sugerencia vigente' },
+    ]);
+    render(<FonasaSearchInput {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Buscar por nombre/), {
+      target: { value: 'radio' },
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Buscar con inteligencia artificial'));
+    });
+    await act(async () => {
+      resolveCatalog(baseEntries);
+    });
+    expect(screen.getByText('Sugerencia vigente')).toBeInTheDocument();
+    expect(screen.queryByText('Radiografía de tórax')).not.toBeInTheDocument();
+  });
+
+  it.each(['catalog', 'clear'] as const)(
+    'invalidates the pending search after external %s change',
+    async change => {
+      let resolveOld!: (entries: FonasaEntry[]) => void;
+      searchFonasaMock.mockReturnValueOnce(
+        new Promise<FonasaEntry[]>(resolve => {
+          resolveOld = resolve;
+        })
+      );
+      const { rerender } = render(<FonasaSearchInput {...baseProps} description="Texto inicial" />);
+      fireEvent.change(screen.getByPlaceholderText(/Buscar por nombre/), {
+        target: { value: 'consulta' },
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      rerender(
+        <FonasaSearchInput
+          {...baseProps}
+          catalog={change === 'catalog' ? 'procedures' : 'interventions'}
+          description={change === 'clear' ? '' : 'Texto inicial'}
+        />
+      );
+      await act(async () => {
+        resolveOld([{ code: 'OLD', description: 'Resultado obsoleto' }]);
+      });
+      expect(screen.queryByText('Resultado obsoleto')).not.toBeInTheDocument();
+    }
+  );
+});
+
+describe('FonasaSearchInput — controlled reset', () => {
+  it('preserves manual choice for unchanged empty values and resets when a changed value is cleared', () => {
+    const ControlledInput = () => {
+      const [selection, setSelection] = React.useState({
+        code: '0401005',
+        description: 'Radiografía de tórax',
+      });
+      return (
+        <>
+          <FonasaSearchInput
+            {...baseProps}
+            {...selection}
+            onClear={() => setSelection({ code: '', description: '' })}
+            onManualChange={description => setSelection({ code: '', description })}
+          />
+          <button onClick={() => setSelection({ code: '', description: '' })}>
+            Restablecer desde el formulario
+          </button>
+        </>
+      );
+    };
+    render(<ControlledInput />);
+    fireEvent.click(screen.getByText('Cambiar a texto libre'));
+    const manual = screen.getByPlaceholderText(/Descripción libre/);
+    expect(manual).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Restablecer desde el formulario' }));
+    expect(screen.getByPlaceholderText(/Descripción libre/)).toBeInTheDocument();
+    fireEvent.change(manual, { target: { value: 'Descripción manual' } });
+    expect(screen.getByDisplayValue('Descripción manual')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Restablecer desde el formulario' }));
+    expect(screen.getByPlaceholderText(/Buscar por nombre/)).toBeInTheDocument();
+  });
+});
