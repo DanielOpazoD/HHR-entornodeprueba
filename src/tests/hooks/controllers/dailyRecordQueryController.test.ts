@@ -81,7 +81,10 @@ describe('dailyRecordQueryController', () => {
 
   it('reconciles null realtime payloads against the repository before clearing cache', async () => {
     const queryClient = new QueryClient();
-    const previousRecord = DataFactory.createMockDailyRecord('2025-01-08');
+    const previousRecord = {
+      ...DataFactory.createMockDailyRecord('2025-01-08'),
+      lastUpdated: '2025-01-08T10:00:00.000Z',
+    };
     const recoveredRecord = {
       ...previousRecord,
       lastUpdated: '2025-01-08T10:10:00.000Z',
