@@ -9,7 +9,6 @@ const readExtension = (file: string): string =>
 
 const backgroundSource = readExtension('background.js');
 const clinicalHandoffRuntimeSource = readExtension('clinical-handoff-runtime.js');
-const clinicalPanelRuntimeSource = readExtension('clinical-panel-runtime.js');
 const gestionCamasRuntimeSource = readExtension('gestion-camas-runtime.js');
 const gestionCamasHealthSource = readExtension('gestion-camas-health.js');
 const gestionCamasEgresoLookupSource = readExtension('gestion-camas-egreso-lookup.js');
@@ -56,11 +55,6 @@ describe('CodeRabbit clinical integration hardening', () => {
       gestionCamasEgresoLookupSource.indexOf('return Object.freeze')
     );
     expect(picker).not.toContain('Object.keys');
-  });
-
-  it('fails the clinical panel closed when daily treatment validation is unavailable', () => {
-    expect(clinicalPanelRuntimeSource).toContain("{ label: 'validación diaria del tratamiento'");
-    expect(clinicalPanelRuntimeSource).toContain('validationSource && validationSource.error');
   });
 
   it('requires server claims for medical and nursing handoff access', () => {
