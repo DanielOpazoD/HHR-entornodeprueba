@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { createPortal } from 'react-dom';
@@ -49,6 +49,12 @@ vi.mock('@/components/modals/DemographicsModal', () => ({
 }));
 
 describe('PatientRow crib and demographics', () => {
+  beforeAll(async () => {
+    // These assertions cover crib permissions and confirmation. Lazy-loading feedback
+    // is covered separately by PatientActionMenu.test.tsx; load the real panel here.
+    await import('@/features/census/components/patient-row/PatientActionMenuPanel');
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
