@@ -80,6 +80,7 @@ describe('useSharedCensusFiles', () => {
       await result.current.handlers.handleDownload(sampleFile);
     });
 
+    expect(alert).not.toHaveBeenCalled();
     expect(open).toHaveBeenCalledWith('https://example.com/file.xlsx', '_blank');
     expect(executeLogSharedCensusAccess).toHaveBeenCalledWith(
       expect.objectContaining({
