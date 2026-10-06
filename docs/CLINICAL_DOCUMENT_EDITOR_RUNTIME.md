@@ -53,3 +53,19 @@ When touching this module, manually verify at least:
 - `npm run typecheck`
 - `npm run check:quality`
 - focused clinical-documents tests covering editor + draft sync
+
+## FONASA field searches
+
+Catalog and AI responses belong to the active query, catalog, input mode and
+controlled selection. A superseded response (including its failure/finally path)
+cannot replace current results or clear the current catalog loading state. Selection, external replacement and
+unmount invalidate pending work inside `FonasaSearchInput`. An explicit switch
+to free text survives the parent's own clear; clearing a later changed controlled value
+returns the field to catalog mode. A rerender with identical empty values does not
+represent a reset event or change the local mode preference, as in the existing
+empty-field flow. A form that needs an explicit same-value mode reset must remount
+the field; this component does not infer hidden intent from unchanged props.
+The same-query catalog request remains a fallback if AI fails or returns no
+entries; a successful AI result takes precedence over a later catalog response.
+AI stays single-flight until its actual request settles, even if that query is
+superseded: invalidating a response is not cancellation of the provider call.
