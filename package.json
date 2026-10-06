@@ -144,7 +144,7 @@
     "check:report-freshness:strict": "node scripts/check-report-freshness.mjs --strict",
     "check:test-failure-catalog": "node scripts/check-test-failure-catalog.mjs",
     "check:flaky-quarantine": "node scripts/check-flaky-quarantine.mjs",
-    "check:critical-coverage": "npm run test:coverage:critical && node scripts/check-critical-coverage.mjs",
+    "check:critical-coverage": "npm run report:critical-coverage && node scripts/check-critical-coverage.mjs",
     "check:critical-any": "node scripts/check-critical-any.mjs",
     "check:source-any": "node scripts/check-source-any.mjs",
     "check:repo-hygiene": "node scripts/check-repo-hygiene.mjs",

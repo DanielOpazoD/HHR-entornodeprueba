@@ -68,6 +68,14 @@ la política anterior; no modifica aplicación, datos clínicos ni umbrales de p
 
 El job `critical-coverage-report` genera el artefacto una sola vez y ejecuta después
 `check-critical-coverage.mjs`, bloqueando el PR si alguna zona queda bajo su baseline.
+El comando local `check:critical-coverage` usa esa misma secuencia: ejecuta la suite
+mediante `report:critical-coverage`, genera el informe y comprueba los umbrales.
+Así, un cierre posterior con `report:release-readiness-scorecard` puede reutilizar
+el informe vigente sin volver a ejecutar la suite. La reutilización sigue
+exigiendo el mismo SHA, estado del árbol y dependencias vigentes; un informe
+ausente, corrupto o desactualizado se vuelve a calcular. No regenerar informes
+desde cobertura antigua para hacerlos pasar por evidencia del código actual.
+
 Los baselines son un ratchet del estado validado; no deben conservar valores ya
 incumplidos ni rebajarse para ocultar una regresión nueva.
 
@@ -477,7 +485,7 @@ resolver una etapa fallida, continuar las etapas restantes del gate; no presenta
 la primera ejecución agregada como aprobada ni repetir las etapas ya aprobadas
 sobre el mismo código y entorno.
 
-1. correr `npm run test:coverage:critical`
+1. correr `npm run check:critical-coverage`
 2. revisar [reports/critical-coverage.md](./../reports/critical-coverage.md)
 3. ubicar la zona degradada en `scripts/config/critical-coverage-thresholds.json`
 4. decidir si la regresión es:
