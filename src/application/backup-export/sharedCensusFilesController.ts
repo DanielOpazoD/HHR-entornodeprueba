@@ -4,7 +4,7 @@ import {
   type ControllerResult,
   failWithCode,
   ok,
-} from '@/features/census/controllers/controllerResult';
+} from '@/shared/contracts/controllerResult';
 
 export interface SharedCensusMonthWindow {
   currentYear: string;
