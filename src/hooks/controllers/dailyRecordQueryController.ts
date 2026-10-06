@@ -214,21 +214,25 @@ export const createDailyRecordSubscription = (
           return;
         }
 
-        dailyRecordObservability.recordEvent('confirmed_null_realtime_record', 'degraded', {
-          date,
-          runtimeState:
-            recovered.runtime.availabilityState === 'temporarily_unavailable'
-              ? 'blocked'
-              : 'retryable',
-          issues: [
-            'La suscripción realtime emitió null y el repositorio confirmó ausencia o indisponibilidad del registro.',
-          ],
-          context: {
-            previousLastUpdated: previousResult.record?.lastUpdated,
-            consistencyState: recovered.runtime.consistencyState,
-            availabilityState: recovered.runtime.availabilityState,
-          },
-        });
+        const confirmedMissing = recovered.runtime.availabilityState === 'confirmed_missing';
+        dailyRecordObservability.recordEvent(
+          confirmedMissing ? 'confirmed_null_realtime_record' : 'unavailable_null_realtime_record',
+          'degraded',
+          {
+            date,
+            runtimeState: confirmedMissing ? 'retryable' : 'blocked',
+            issues: [
+              confirmedMissing
+                ? 'El repositorio confirmó la ausencia del registro después de una suscripción realtime nula.'
+                : 'No se pudo confirmar la existencia del registro después de una suscripción realtime nula.',
+            ],
+            context: {
+              previousLastUpdated: previousResult.record?.lastUpdated,
+              consistencyState: recovered.runtime.consistencyState,
+              availabilityState: recovered.runtime.availabilityState,
+            },
+          }
+        );
         applyResolvedQueryResult(resolved);
       })
       .catch(error => {

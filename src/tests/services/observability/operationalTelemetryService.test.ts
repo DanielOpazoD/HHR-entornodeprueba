@@ -247,7 +247,24 @@ describe('operationalTelemetryService', () => {
       operation: 'bootstrap_timeout',
     });
 
+    // Old producers used the confirmed operation even when reading was blocked.
+    recordOperationalTelemetry({
+      category: 'daily_record',
+      status: 'degraded',
+      runtimeState: 'blocked',
+      operation: 'confirmed_null_realtime_record',
+    });
+    recordOperationalTelemetry({
+      category: 'daily_record',
+      status: 'degraded',
+      runtimeState: 'blocked',
+      operation: 'unavailable_null_realtime_record',
+    });
+    expect(getOperationalTelemetryEvents().at(-1)?.operation).toBe(
+      'unavailable_null_realtime_record'
+    );
     const summary = buildOperationalTelemetrySummary(getOperationalTelemetryEvents());
+    expect(summary.recentBlockedCount).toBe(3);
     expect(summary.dailyRecordRecoveredRealtimeNullCount).toBe(1);
     expect(summary.dailyRecordConfirmedRealtimeNullCount).toBe(1);
     expect(summary.syncReadUnavailableCount).toBe(1);

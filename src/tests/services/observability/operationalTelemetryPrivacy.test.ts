@@ -45,6 +45,8 @@ describe('operational telemetry privacy: operations', () => {
     for (const operation of [
       'rayen_sync_run',
       'refresh_daily_record',
+      'confirmed_null_realtime_record',
+      'unavailable_null_realtime_record',
       'sync_queue_task_failure',
       'export_clinical_document_pdf',
       OPERATIONAL_TELEMETRY_PROBE_OPERATION,
