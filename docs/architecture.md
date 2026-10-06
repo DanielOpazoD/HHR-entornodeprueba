@@ -182,3 +182,13 @@ El puente conserva el ID opaco y el protocolo existente. Solo acepta respuestas
 del mismo window, origen e identificador de solicitud. Respuesta, fallo de envío
 y timeout terminan por el mismo camino idempotente y liberan listener y timer.
 Un timeout no cancela una apertura ya enviada a la extensión ni autoriza reenviarla.
+
+### Comprobación de compatibilidad del runtime
+
+VersionProvider comparte una sola comprobación en curso entre montaje, foco,
+visibilidad, intervalo y solicitud explícita. Cambiar su estado no reinicia
+el efecto ni dispara otra consulta. Una observación de esquema más nuevo no
+se borra por una respuesta compatible que estaba pendiente; los errores liberan
+la petición para reintentar. Al desmontar, no se aplican respuestas tardías ni
+se inicia trabajo mediante callbacks anteriores. El endpoint y sus contratos
+permanecen intactos; no se añade caché ni se cancela el bootstrap de la sesión.
