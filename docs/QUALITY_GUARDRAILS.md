@@ -109,6 +109,42 @@ Además de tamaño, lint y coverage, la base debe vigilar:
 
 La referencia reportable de estas señales vive en `reports/quality-metrics.md` y el backlog operativo en `docs/FOUNDATION_TRACKER.md`.
 
+### Leer evidencia de deuda sin confundir un snapshot con el estado actual
+
+Los archivos versionados en `reports/` son snapshots: su fecha y `gitSha` indican
+qué código se midió. Un merge posterior no los vuelve actuales automáticamente.
+Para evaluar un PR, consultar los artifacts de su SHA: `quality-metrics` contiene
+el inventario estructural; `confidence-and-readiness` incluye la deuda de
+mantenimiento regenerada por CI. La cobertura y los resultados de runtime siguen
+siendo evidencia separada; un inventario sin hallazgos no acredita esos controles.
+
+Para una revisión local de deuda, reutilizar los productores existentes, en orden:
+
+```sh
+npm run report:quality-metrics
+npm run report:legacy-bridge
+npm run report:compatibility-governance
+npm run report:legacy-retirement-debt
+npm run report:maintenance-debt-scorecard
+npm run report:dependency-debt
+```
+
+El scorecard de mantenimiento consume `quality-metrics.json` y
+`legacy-retirement-debt.json`; el reporte de carpetas es una medición independiente
+y no es un input del scorecard.
+
+Comprobar fecha, SHA y estado del checkout antes de comparar resultados. El reporte
+de dependencias de carpetas sólo conserva fecha; registrar también el SHA de origen
+en la evaluación. Sus señales se contrastan con la gobernanza de compatibilidad:
+un reexport legacy hacia el dueño canónico requiere revisar consumidores y criterio
+de retiro, no mover la implementación ni flexibilizar la matriz para obtener cero.
+
+El snapshot de dependencias de este ciclo, medido sobre `4c381d76` el 6 de octubre
+de 2026, reemplaza el de febrero: identifica nueve reexports de controllers de
+`hooks` a sus dueños en `features/census`. Son señales de compatibilidad pendientes
+de evaluación, no fallos clínicos demostrados. Regenerar al cerrar otro ciclo si el
+código de origen cambia; evitar una ronda de CI por cada snapshot derivado.
+
 ## Cuándo abrir una excepción
 
 Solo cuando se cumplan las dos condiciones:
