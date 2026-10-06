@@ -73,35 +73,10 @@ const CensusViewContent: React.FC<CensusViewProps> = ({
     );
   }, [currentDateString]);
 
-  // Show loader briefly on every date change so the empty-day prompt
-  // never flashes before Firestore has a chance to deliver the record.
-  const [settledDate, setSettledDate] = useState('');
-  const prevDateRef = useRef(currentDateString);
-  useEffect(() => {
-    if (prevDateRef.current !== currentDateString) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset when the navigated date changes; cannot be derived during render
-      setSettledDate('');
-      prevDateRef.current = currentDateString;
-    }
-  }, [currentDateString]);
-
-  useEffect(() => {
-    if (branch === 'register') {
-      // Data arrived — settle immediately.
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- we must commit the settled date only after Firestore delivers a record
-      setSettledDate(currentDateString);
-      return;
-    }
-    // For empty branch, wait a grace period before committing.
-    const id = window.setTimeout(() => setSettledDate(currentDateString), 800);
-    return () => window.clearTimeout(id);
-  }, [branch, currentDateString]);
-
-  const isDateSettled = settledDate === currentDateString;
   const isEmptyBranchPending =
     branch === 'empty' &&
-    (!isDateSettled ||
-      (shouldDeferTodayEmptyState && resolvedTodayEmptyDate !== currentDateString));
+    shouldDeferTodayEmptyState &&
+    resolvedTodayEmptyDate !== currentDateString;
   const loadingOperationalState = resolveCensusOperationalState({
     branch,
     bootstrapPhase: isEmptyBranchPending
