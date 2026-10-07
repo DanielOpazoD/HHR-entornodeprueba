@@ -239,4 +239,81 @@ describeEmulator('permanent CUDYR observations in Firestore', () => {
         .size
     ).toBe(1);
   });
+
+  it('preserves bed intervals and reads all episode pages even when captured after the report day', async () => {
+    const fns = createCudyrHistoryFunctions({
+      firestore: db,
+      resolveRoleForEmail: async () => 'nurse_hospital',
+      hasCallableClinicalAccess: async () => true,
+    });
+    const sourcePlacements = [
+      {
+        clinicalEpisodeId: evaluation.clinicalEpisodeId,
+        sourceMappingId: 'mapping-test',
+        sourceBedId: 'source-bed',
+        sourceBedLabel: 'CH1C1',
+        sourceDepartmentId: 'department',
+        sourceDepartmentLabel: 'Cuna',
+        sourceVersion: 'opaque',
+        sourceStartAt: '2026-10-01T10:00:00-05:00',
+        sourceEndAt: '2026-10-03T15:00:00-05:00',
+        currentAssignment: false,
+        isDeleted: false,
+        bedId: 'H1C1',
+        modality: 'cuna',
+      },
+    ];
+    const result = await fns.archiveCudyrHistory.run(
+      {
+        ...payload,
+        capture: {
+          id: '00000000-0000-4000-8000-000000000004',
+          clinicalEpisodeId: evaluation.clinicalEpisodeId,
+          sourceRunId: payload.runId,
+          observedAt: '2026-10-06T20:00:00.000Z',
+          status: 'observed',
+          metadataStatus: 'partial',
+          part: 0,
+          totalParts: 1,
+          totalEvaluations: 1,
+          sourcePlacements,
+        },
+      },
+      context
+    );
+    const read = {
+      kind: 'episode-captures',
+      clinicalEpisodeIds: [evaluation.clinicalEpisodeId],
+      limit: 1,
+    };
+    const captures: ReadCudyrCapturesResult['captures'] = [];
+    let cursor: CudyrHistoryCursor | null = null;
+    do {
+      const page: ReadCudyrCapturesResult = await fns.readCudyrHistory.run(
+        { ...read, ...(cursor ? { cursor } : {}) },
+        context
+      );
+      captures.push(...page.captures);
+      cursor = page.nextCursor;
+    } while (cursor);
+    expect(new Set(captures.map(item => item.id)).size).toBe(captures.length);
+    expect(
+      captures.find(item => item.id === result.captureReceiptId)?.capture.sourcePlacements
+    ).toEqual(sourcePlacements);
+    expect(
+      (await fns.readCudyrHistory.run({ ...read, clinicalEpisodeIds: ['other-episode'] }, context))
+        .captures
+    ).toEqual([]);
+    await expect(fns.readCudyrHistory.run(read, {})).rejects.toMatchObject({
+      code: 'unauthenticated',
+    });
+    const denied = createCudyrHistoryFunctions({
+      firestore: db,
+      resolveRoleForEmail: async () => 'viewer',
+      hasCallableClinicalAccess: async () => false,
+    });
+    await expect(denied.readCudyrHistory.run(read, context)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
 });

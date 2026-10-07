@@ -47,7 +47,8 @@ de Apps Script configurada en el backend. El secreto compartido nunca se expone 
 
 `archiveCudyrHistory` conserva observaciones oficiales por episodio/evaluación con
 los roles existentes de escritura clínica y autoridad de sincronización verificada
-en transacción. `readCudyrHistory` exige acceso clínico callable y pagina por período.
+en transacción. `readCudyrHistory` exige acceso clínico callable y pagina por período
+o por un conjunto de hasta 30 episodios (100 recibos por página) para el contexto temporal.
 Ambos fijan el establecimiento en el servidor y viven en `southamerica-east1`.
 No alteran censos históricos ni habilitan acceso directo a la colección.
 Contrato, límites y validación: [CUDYR_HISTORY.md](./CUDYR_HISTORY.md).

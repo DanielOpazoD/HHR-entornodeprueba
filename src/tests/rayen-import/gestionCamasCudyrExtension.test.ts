@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import '../../../extension/cudyr-capture-support.js';
+import '../../../extension/gestion-camas-active-beds.js';
+import '../../../extension/gestion-camas-clinical-cribs.js';
+import '../../../extension/cudyr-placement-support.js';
 import '../../../extension/gestion-camas-cudyr.js';
 
 const cudyr = (

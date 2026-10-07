@@ -14,6 +14,7 @@ const {
 const { episodeContext } = require('./cudyrHistoryContext');
 const { captureKey } = require('./cudyrCaptureContract');
 const { prepareCaptureManifest } = require('./cudyrCaptureManifest');
+const { readEpisodeCaptures } = require('./cudyrPlacementContract');
 
 const createCudyrHistoryFunctions = ({
   firestore,
@@ -170,6 +171,7 @@ const createCudyrHistoryFunctions = ({
       if (!(await hasCallableClinicalAccess(context))) {
         throw new functions.https.HttpsError('permission-denied', 'Clinical access is required.');
       }
+      if (data?.kind === 'episode-captures') return readEpisodeCaptures(captures, data);
       const { from, to, limit, cursor, kind } = parseHistoryQuery(data);
       let query = (kind === 'captures' ? captures : history)
         .where('censusDate', '>=', from)

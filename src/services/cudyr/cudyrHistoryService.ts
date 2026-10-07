@@ -10,6 +10,7 @@ import type {
 import type {
   ReadCudyrCapturesRequest,
   ReadCudyrCapturesResult,
+  ReadCudyrEpisodeCapturesRequest,
 } from '@/types/domain/cudyrCapture';
 
 const callHistory = async <Request, Response>(
@@ -37,3 +38,9 @@ export const readCudyrHistory = (payload: ReadCudyrHistoryRequest) =>
 
 export const readCudyrCaptures = (payload: ReadCudyrCapturesRequest) =>
   callHistory<ReadCudyrCapturesRequest, ReadCudyrCapturesResult>('readCudyrHistory', payload);
+
+export const readCudyrEpisodeCaptures = (payload: ReadCudyrEpisodeCapturesRequest) =>
+  callHistory<ReadCudyrEpisodeCapturesRequest, ReadCudyrCapturesResult>(
+    'readCudyrHistory',
+    payload
+  );

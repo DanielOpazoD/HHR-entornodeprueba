@@ -1,11 +1,18 @@
 const functions = require('firebase-functions/v1');
+const { movementContext, epicrisisContext } = require('./cudyrMovementContext');
 
 /** Capture context is server-owned. It is not evidence of the bed at the time of evaluation. */
 const episodeContext = (record, clinicalEpisodeId) => {
   const candidates = [];
-  const add = (patient, bedId, section) => {
+  const add = (patient, bedId, section, movement) => {
     if (patient?.clinicalEpisodeId === clinicalEpisodeId) {
-      const snapshot = { section, bedId, clinicalEpisodeId };
+      const snapshot = {
+        section,
+        bedId,
+        clinicalEpisodeId,
+        ...epicrisisContext(patient),
+        ...(movement ? movementContext(movement) : {}),
+      };
       for (const key of [
         'patientName',
         'firstName',
@@ -48,9 +55,13 @@ const episodeContext = (record, clinicalEpisodeId) => {
           rut: movement.rut ?? original?.rut,
           pathology: movement.diagnosis ?? original?.pathology,
           bedName: movement.bedName ?? original?.bedName,
+          bedMode: movement.isNested ? 'Cuna' : original?.bedMode,
+          admissionDate: movement.admissionDate ?? original?.admissionDate,
+          specialty: movement.specialty ?? original?.specialty,
         },
         movement.bedId || movement.originalBedId || original?.bedId || '',
-        section
+        section,
+        movement
       );
     }
   }

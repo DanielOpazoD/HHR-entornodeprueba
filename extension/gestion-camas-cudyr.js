@@ -106,6 +106,7 @@
   const buildSnapshot = ({ beds, practitioners, definitions, includeObservations = false }) => {
     const definitionById = definitionMap(definitions);
     const practitionerById = practitionerMap(practitioners);
+    const placements = includeObservations ? root.HhrCudyrPlacementSupport.buildPlacements(beds) : [];
     const items = [];
     for (const encounter of root.HhrCudyrCaptureSupport.encountersFromBeds(beds)) {
       const encId = String(encounter && encounter.id || '');
@@ -123,7 +124,8 @@
         authorRole: latest ? latest.authorRole : '',
         source: 'gestion_camas',
         history,
-        ...(includeObservations ? { observations, metadataComplete } : {}),
+        ...(includeObservations ? { observations, metadataComplete,
+          sourcePlacements: placements.filter(value => value.clinicalEpisodeId === encId) } : {}),
       });
     }
     return items;

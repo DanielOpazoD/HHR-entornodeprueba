@@ -136,3 +136,33 @@ válida. Las advertencias de completitud del archivo sólo afectan el modo `enfo
 El encolado genérico se carga a demanda desde `enqueueStandaloneSyncTask`: conserva el motor
 y la política de ownership/backpressure existentes, pero evita incorporar ese recorrido a
 la carga inicial del censo. No se aumentaron los límites de bundle para habilitar CUDYR.
+
+## Contexto temporal y agrupación estadística
+
+Desde la extensión 0.48.47, la misma respuesta de camas conserva los intervalos
+`bedEncounterMapping.startDateTime/endDateTime`, la cama y el servicio originales,
+el ID de asignación y el token de versión, dentro del recibo de captura por episodio.
+Se diferencia la ocupación superior de la cama de una asignación anidada antigua.
+Un fin con año 0001 es desconocido; no acredita alta. Tampoco lo acredita una epicrisis.
+Los movimientos HHR conservan fecha/hora informada y momento de clasificación separados.
+
+`readCudyrHistory` admite `kind: episode-captures`, hasta 30 episodios y 100 recibos por
+página, bajo los mismos permisos clínicos. Permite cotejar una evaluación anterior con
+un intervalo capturado después, sin consultar Eloísa. Debe agotarse la paginación.
+
+La política del reporte agrupa NEO 1–2 y H1C1–H6C2 como **medias**, y R1–R4 como
+**intermedias**. No depende de UPC ni de overrides de tipo de cama. Cuna y cualquier
+modalidad CMA son exclusiones temporales; se conservan en el detalle. La proyección
+resuelve la cama con la fecha original de la evaluación, o el corte HHR de 01:00 del
+siguiente día cuando falta evaluación. No extrapola un intervalo más allá de su captura.
+Ante falta de intervalo, identifica explícitamente el contexto como censo diario HHR.
+
+La regla de 8 horas se conserva. Ingreso sin hora suficiente para resolver el día,
+modalidades contradictorias y cambios de cuna/CMA a hospitalización cuyo inicio de horas
+requiere decisión quedan por revisar. Una transferencia posterior no reclasifica días
+anteriores ni convierte un CUDYR del tramo excluido en computable. La política de reporte
+no modifica la grilla clínica heredada; se comparte entre el Excel contextual y el visor.
+
+Rollback: revertir el consumidor de contexto, preservando recibos anteriores. Los campos
+nuevos son opcionales y las capturas antiguas siguen legibles. No se añaden endpoints,
+permisos ni consultas a Eloísa al explorar o exportar.

@@ -208,3 +208,37 @@ describe('archive metadata warnings in compatible sync modes', () => {
     ).toContain('incompleta');
   });
 });
+
+it('carries source placement evidence unchanged in every archived part', () => {
+  const sourcePlacements = [
+    {
+      clinicalEpisodeId: 'episode-test',
+      sourceMappingId: 'mapping',
+      sourceBedId: 'bed',
+      sourceBedLabel: 'CH1C1',
+      sourceDepartmentId: 'department',
+      sourceDepartmentLabel: 'Cuna',
+      sourceVersion: 'opaque',
+      sourceStartAt: '2026-10-01T10:00:00-05:00',
+      sourceEndAt: '0001-01-01T00:00:00Z',
+      currentAssignment: true,
+      isDeleted: false,
+      bedId: 'H1C1',
+      modality: 'cuna' as const,
+    },
+  ];
+  const row = {
+    ...source.map.get('episode-test')!,
+    sourcePlacements,
+    observations: Array.from({ length: 33 }, (_, index) => ({
+      ...history[0],
+      id: `event-${index}`,
+    })),
+  };
+  const parts = buildCudyrCaptureParts({
+    ...input,
+    source: { ...source, map: new Map([['episode-test', row]]) },
+  });
+  expect(parts).toHaveLength(2);
+  expect(parts.every(part => part.capture?.sourcePlacements === sourcePlacements)).toBe(true);
+});

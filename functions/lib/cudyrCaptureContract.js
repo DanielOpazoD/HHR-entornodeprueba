@@ -1,5 +1,6 @@
 const functions = require('firebase-functions/v1');
 const { createHash } = require('node:crypto');
+const { parseSourcePlacements } = require('./cudyrPlacementContract');
 
 const invalid = () => {
   throw new functions.https.HttpsError('invalid-argument', 'Invalid CUDYR capture receipt.');
@@ -48,6 +49,7 @@ const parseCapture = (value, evaluations) => {
     )
   )
     invalid();
+  const sourcePlacements = parseSourcePlacements(value.sourcePlacements, value.clinicalEpisodeId);
   return {
     id: value.id,
     clinicalEpisodeId: value.clinicalEpisodeId,
@@ -58,6 +60,7 @@ const parseCapture = (value, evaluations) => {
     part: value.part,
     totalParts: value.totalParts,
     totalEvaluations: value.totalEvaluations,
+    ...(sourcePlacements !== undefined ? { sourcePlacements } : {}),
   };
 };
 
