@@ -43,6 +43,15 @@ control optimista de versión; conserva las demás escalas y guarda historia y a
 arbitrarias, valida claves estables y envía la carga únicamente a una URL institucional
 de Apps Script configurada en el backend. El secreto compartido nunca se expone al navegador.
 
+## Historial CUDYR
+
+`archiveCudyrHistory` conserva observaciones oficiales por episodio/evaluación con
+los roles existentes de escritura clínica y autoridad de sincronización verificada
+en transacción. `readCudyrHistory` exige acceso clínico callable y pagina por período.
+Ambos fijan el establecimiento en el servidor y viven en `southamerica-east1`.
+No alteran censos históricos ni habilitan acceso directo a la colección.
+Contrato, límites y validación: [CUDYR_HISTORY.md](./CUDYR_HISTORY.md).
+
 ## Convergencia obligatoria de rol
 
 Para `syslab-proxy` y `mmrad-search`:
