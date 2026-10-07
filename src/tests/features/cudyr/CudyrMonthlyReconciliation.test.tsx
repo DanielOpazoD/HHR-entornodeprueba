@@ -7,6 +7,10 @@ import { reportInput } from '../../services/cudyr/reportFixtures';
 vi.mock('@/services/cudyr/cudyrReconciliationFile', () => ({
   readCudyrReconciliationFile: vi.fn(),
 }));
+// These tests own file/period lifecycle. Persistence is covered by CudyrReviewPersistence.test.tsx.
+vi.mock('@/features/cudyr/components/CudyrReviewWorkspace', () => ({
+  CudyrReviewWorkspace: () => <div data-testid="review-workspace" />,
+}));
 const renderPanel = () =>
   render(
     <CudyrMonthlyReconciliation
@@ -17,6 +21,23 @@ const renderPanel = () =>
     />
   );
 describe('monthly preview lifecycle', () => {
+  it('never mounts the persistence workspace for a range spanning months', () => {
+    const data = buildCudyrReport(reportInput());
+    render(
+      <CudyrMonthlyReconciliation
+        data={{ ...data, to: '2026-11-01' }}
+        reports={[]}
+        ready
+        canReview
+        onView={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText('Consulte un solo mes para comparar informes históricos.')
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('review-workspace')).not.toBeInTheDocument();
+  });
+
   it('is closed by default and has no save or apply action', () => {
     renderPanel();
     expect(screen.getByTestId('cudyr-monthly-reconciliation')).not.toHaveAttribute('open');
@@ -30,7 +51,7 @@ describe('monthly preview lifecycle', () => {
       report: { from: '2026-10-03', to: '2026-10-04', generatedLabel: '', rows: [] },
     });
     renderPanel();
-    fireEvent.click(screen.getByText('Conciliar histórico · solo lectura'));
+    fireEvent.click(screen.getByText('Conciliar histórico · revisión complementaria'));
     fireEvent.change(screen.getByLabelText('Altas administrativas locales'), {
       target: { files: [new File(['fixture'], 'synthetic.xls')] },
     });
