@@ -1,10 +1,11 @@
+import { utils, write } from 'xlsx';
 import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
-import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import type { App } from 'firebase-admin/app';
+import type { Firestore } from 'firebase-admin/firestore';
 import ExcelJS from 'exceljs';
 import {
   bootstrapSeededRecord,
@@ -13,6 +14,14 @@ import {
 } from './fixtures/auth';
 
 const require = createRequire(import.meta.url);
+// Use the same Admin SDK instance as the callable implementation after separate npm installs.
+const requireFunctions = createRequire(new URL('../functions/package.json', import.meta.url));
+const { initializeApp, deleteApp } = requireFunctions(
+  'firebase-admin/app'
+) as typeof import('firebase-admin/app');
+const { getFirestore } = requireFunctions(
+  'firebase-admin/firestore'
+) as typeof import('firebase-admin/firestore');
 const { Workbook } = ExcelJS;
 const { createCudyrHistoryFunctions } = require('../functions/lib/cudyrHistoryFunctions.js');
 const DATE = '2026-02-20';
@@ -29,7 +38,7 @@ const patient = (bedId: string, id = episode, bedMode = 'Cama') => ({
   firstName: 'PACIENTE',
   lastName: 'SINTÉTICO',
   secondLastName: bedId,
-  rut: 'synthetic-' + bedId,
+  rut: bedId === 'R1' ? '11111111-1' : 'synthetic-' + bedId,
   documentType: 'RUT',
   pathology: 'Diagnóstico sintético para reporte',
   specialty: 'Medicina',
@@ -103,6 +112,12 @@ test.afterAll(async () => {
 });
 
 const open = async (page: Page, role: 'admin' | 'viewer' = 'admin') => {
+  for (const collection of [
+    'cudyrMonthlySupplements',
+    'cudyrSupplementFiles',
+    'cudyrSupplementImports',
+  ])
+    await db.recursiveDelete(db.collection(hospital + '/' + collection));
   await db.recursiveDelete(db.collection(hospital + '/cudyrDischargeCorrections'));
   await db.recursiveDelete(db.collection(hospital + '/cudyrDischargeAudit'));
   await db.doc(hospital + '/dailyRecords/' + DATE).set(record());
@@ -214,12 +229,34 @@ test('explores the saved period, preserves group totals in Excel and audits a co
   await expect(page.getByText('PACIENTE SINTÉTICO R1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Limpiar filtros' }).click();
   const downloadEvent = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Excel completo del período' }).click();
+  await page.getByRole('button', { name: 'Excel para Estadística' }).click();
   const download = await downloadEvent;
   const file = await download.path();
   const workbook = new Workbook();
   await workbook.xlsx.readFile(file!);
   expect(workbook.getWorksheet('Detalle diario')!.rowCount).toBe(5);
+  expect(workbook.getWorksheet('Detalle diario')!.columnCount).toBe(30);
+  expect(workbook.getWorksheet('Capturas')).toBeUndefined();
+  expect(download.suggestedFilename()).toContain('CUDYR_Estadistica_');
+  if (process.env.CUDYR_QA_OUTPUT)
+    await download.saveAs(
+      path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Estadistica_EJEMPLO_SINTETICO.xlsx')
+    );
+  const auditEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Excel de auditoría' }).click();
+  const auditDownload = await auditEvent;
+  const audit = new Workbook();
+  await audit.xlsx.readFile((await auditDownload.path())!);
+  expect(auditDownload.suggestedFilename()).toContain('CUDYR_Auditoria_');
+  expect(audit.getWorksheet('Detalle diario')!.columnCount).toBe(54);
+  expect(audit.getWorksheet('Capturas')).toBeDefined();
+  expect(audit.getWorksheet('20-02-2026')!.getSheetValues()).toEqual(
+    workbook.getWorksheet('20-02-2026')!.getSheetValues()
+  );
+  if (process.env.CUDYR_QA_OUTPUT)
+    await auditDownload.saveAs(
+      path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Auditoria_EJEMPLO_SINTETICO.xlsx')
+    );
   expect(workbook.getWorksheet('20-02-2026')!.getCell('B11').value).toBe(1);
   expect(workbook.getWorksheet('20-02-2026')!.getCell('C15').value).toBe(1);
   expect(calls.filter(call => call === 'archiveCudyrHistory')).toHaveLength(0);
@@ -261,5 +298,114 @@ test('supports a narrow viewport, detail focus and bounded table scrolling', asy
   await screenshot(page, 'cudyr-explorador-movil');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(calls.filter(call => call === 'archiveCudyrHistory')).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
+
+test('imports monthly XLS as passive evidence, persists it and exports it without changing the main report', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  const { calls, errors } = await open(page);
+  const totals = page.getByRole('region', { name: 'Totales de la vista filtrada' });
+  const before = await totals.textContent();
+  const panel = page.getByTestId('cudyr-supplement-panel');
+  await expect(panel).not.toHaveAttribute('open');
+  await panel.locator('summary').click();
+  const book = utils.book_new();
+  const patientRow: unknown[] = [
+    1,
+    'Paciente Sintético fuente',
+    'FICHA-TEST',
+    '11.111.111-1',
+    'Diagnóstico fuente',
+    3,
+    'MQ',
+    'Vivo',
+  ];
+  patientRow[8 + 19] = 'C3';
+  utils.book_append_sheet(
+    book,
+    utils.aoa_to_sheet([
+      ['MINISTERIO DE SALUD', 'Fecha Hora Impresión: 21-02-2026 02:35'],
+      ['Hospital Hanga Roa (Isla De Pascua)', 'Categorización Riesgo Dependencia'],
+      ['Mes consultado: Febrero de 2026'],
+      [
+        'N°',
+        'Nombre Paciente',
+        'Ficha Clínica',
+        'RUN o Nro. Ident.',
+        'Diagnóstico de Ingreso',
+        'Días Hosp.',
+        'Servicio Clínico',
+        'Condición Alta',
+        ...Array.from({ length: 31 }, (_, i) => `Día ${i + 1}`),
+      ],
+      patientRow,
+    ]),
+    'Synthetic'
+  );
+  const buffer = write(book, { type: 'buffer', bookType: 'biff8' });
+  await page.getByLabel('Agregar informe mensual de Eloísa').setInputFiles({
+    name: 'respaldo-sintetico.xls',
+    mimeType: 'application/vnd.ms-excel',
+    buffer,
+  });
+  await expect(page.getByRole('button', { name: 'Guardar respaldo' })).toBeDisabled({
+    timeout: 15_000,
+  });
+  await expect(panel).toContainText('1 celdas con categoría');
+  await panel.getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Guardar respaldo' }).click();
+  await expect(panel).toContainText('Respaldo guardado.');
+  await expect(panel).toContainText('2026-02-20: C3');
+  expect(await totals.textContent()).toBe(before);
+  await page
+    .getByRole('button', { name: 'Ver detalle de PACIENTE SINTÉTICO R1 del ' + DATE })
+    .click();
+  await page
+    .getByRole('dialog')
+    .getByText('Evidencia del informe mensual (1 coincidencias)', { exact: true })
+    .click();
+  await expect(page.getByRole('dialog')).toContainText('2026-02-20: C3');
+  await expect(page.getByRole('dialog')).toContainText('AUTORA SINTÉTICA');
+  await screenshot(page, 'cudyr-complemento-detalle');
+  await page.keyboard.press('Escape');
+  const downloaded = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Excel para Estadística' }).click();
+  const download = await downloaded;
+  const workbook = new Workbook();
+  await workbook.xlsx.readFile((await download.path())!);
+  expect(workbook.getWorksheet('20-02-2026')!.getCell('B11').value).toBe(1);
+  expect(workbook.getWorksheet('Respaldo mensual Eloísa')!.getCell('I2').value).toBe('C3');
+  expect(workbook.getWorksheet('Detalle diario')!.rowCount).toBe(5);
+  expect(workbook.getWorksheet('Detalle diario')!.columnCount).toBe(30);
+  expect(workbook.getWorksheet('Capturas')).toBeUndefined();
+  expect(download.suggestedFilename()).toContain('CUDYR_Estadistica_');
+  if (process.env.CUDYR_QA_OUTPUT)
+    await download.saveAs(
+      path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Estadistica_EJEMPLO_SINTETICO.xlsx')
+    );
+  const auditEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Excel de auditoría' }).click();
+  const auditDownload = await auditEvent;
+  const audit = new Workbook();
+  await audit.xlsx.readFile((await auditDownload.path())!);
+  expect(auditDownload.suggestedFilename()).toContain('CUDYR_Auditoria_');
+  expect(audit.getWorksheet('Detalle diario')!.columnCount).toBe(54);
+  expect(audit.getWorksheet('Capturas')).toBeDefined();
+  expect(audit.getWorksheet('20-02-2026')!.getSheetValues()).toEqual(
+    workbook.getWorksheet('20-02-2026')!.getSheetValues()
+  );
+  if (process.env.CUDYR_QA_OUTPUT)
+    await auditDownload.saveAs(
+      path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Auditoria_EJEMPLO_SINTETICO.xlsx')
+    );
+  await screenshot(page, 'cudyr-complemento-escritorio');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await screenshot(page, 'cudyr-complemento-movil');
+  expect((await db.collection(hospital + '/cudyrMonthlySupplements').get()).size).toBe(1);
+  expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()?.discharges).toEqual([]);
+  expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(1);
   expect(errors).toEqual([]);
 });

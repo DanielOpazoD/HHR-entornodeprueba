@@ -207,6 +207,8 @@ export default defineConfig(({ mode }) => {
             '**/vendor/exceljs.bare.min.js',
             '**/assets/exceljs.min-*.js',
             '**/assets/pdf.worker-*.mjs',
+            // Optional monthly XLS import; loaded only when a file is selected.
+            '**/assets/cudyrSupplement.worker-*.js',
             '**/assets/vendor-pdfjs-*.js',
             '**/assets/pdf-*.js',
             '**/assets/vendor-pdf-*.js',
@@ -353,6 +355,8 @@ export default defineConfig(({ mode }) => {
         'firebase/app',
         'firebase/auth',
         'firebase/firestore',
+        // The optional CUDYR worker is discovered late; avoid a dev reload on its first XLS.
+        'xlsx',
       ],
     },
     test: {
