@@ -1,9 +1,17 @@
 import { createRequire } from 'node:module';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
-import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import type { App } from 'firebase-admin/app';
+import type { Firestore } from 'firebase-admin/firestore';
 
 const require = createRequire(import.meta.url);
+// Use the same Admin SDK instance as the callable implementation after separate npm installs.
+const requireFunctions = createRequire(new URL('../../../functions/package.json', import.meta.url));
+const { initializeApp, deleteApp } = requireFunctions(
+  'firebase-admin/app'
+) as typeof import('firebase-admin/app');
+const { getFirestore } = requireFunctions(
+  'firebase-admin/firestore'
+) as typeof import('firebase-admin/firestore');
 const { createCudyrHistoryFunctions } = require('../../../functions/lib/cudyrHistoryFunctions.js');
 const { dischargeKey } = require('../../../functions/lib/cudyrDischargeContract.js');
 const describeEmulator =

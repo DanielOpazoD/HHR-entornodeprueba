@@ -4,8 +4,8 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { initializeApp, deleteApp, type App } from 'firebase-admin/app';
-import { getFirestore, type Firestore } from 'firebase-admin/firestore';
+import type { App } from 'firebase-admin/app';
+import type { Firestore } from 'firebase-admin/firestore';
 import ExcelJS from 'exceljs';
 import {
   bootstrapSeededRecord,
@@ -14,6 +14,14 @@ import {
 } from './fixtures/auth';
 
 const require = createRequire(import.meta.url);
+// Use the same Admin SDK instance as the callable implementation after separate npm installs.
+const requireFunctions = createRequire(new URL('../functions/package.json', import.meta.url));
+const { initializeApp, deleteApp } = requireFunctions(
+  'firebase-admin/app'
+) as typeof import('firebase-admin/app');
+const { getFirestore } = requireFunctions(
+  'firebase-admin/firestore'
+) as typeof import('firebase-admin/firestore');
 const { Workbook } = ExcelJS;
 const { createCudyrHistoryFunctions } = require('../functions/lib/cudyrHistoryFunctions.js');
 const DATE = '2026-02-20';
