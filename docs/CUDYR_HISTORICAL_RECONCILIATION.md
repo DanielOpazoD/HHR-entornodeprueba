@@ -27,6 +27,13 @@ cotejar contra ese otro informe; este bloque no combina automáticamente dos mes
 Las celdas vacías no prueban ausencia de CUDYR. Los resultados manuales permanecen
 visibles como evidencia HHR aunque no tengan contraparte Eloísa.
 
+El lector de categorización conserva también texto partido por Jasper entre
+páginas: solo admite una continuación inmediatamente posterior a un encabezado
+repetido, limitada a nombre/diagnóstico/servicio y entre ordinales consecutivos.
+No rellena documentos, categorías ni episodios desde esas líneas. La fila fuente
+identifica el comienzo del paciente; el archivo original conserva los fragmentos.
+Las demás filas sin ordinal siguen siendo errores, no se omiten silenciosamente.
+
 Las altas se preservan por fila original; se omiten encabezados repetidos, no
 pacientes repetidos. El formato observado no declara establecimiento ni episodio.
 Sus filas se muestran como provisionales; la cama al alta no se proyecta al resto
