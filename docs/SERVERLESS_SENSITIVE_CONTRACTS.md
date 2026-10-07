@@ -69,3 +69,18 @@ Para `syslab-proxy` y `mmrad-search`:
 Referencia:
 
 - [docs/architecture/NETLIFY_AUTH_ROLE_CONVERGENCE.md](./architecture/NETLIFY_AUTH_ROLE_CONVERGENCE.md)
+
+## Complemento mensual CUDYR (documental)
+
+`archiveCudyrHistory`, operación `import-monthly-supplement`, admite únicamente
+`admin` o `nurse_hospital`, sesión y confirmación. Valida estructura normalizada,
+período, establecimiento, límite de 500 pacientes/500 KB y archivo XLS/XLSX de
+hasta 256 KiB. Conserva bytes, SHA-256, versión y recibo idempotente por usuario y
+operación. No decodifica el binario en el servidor: la evidencia queda rotulada
+`user_imported`, nunca aplicación clínica verificada. No acepta hospital del cliente.
+
+`readCudyrHistory`, operación `monthly-supplements`, conserva el guard clínico,
+filtra un mes y pagina hasta cinco versiones. No devuelve los bytes del original.
+Las tres colecciones documentales quedan inaccesibles por las reglas cliente;
+ninguna operación escribe censos, evaluaciones, altas ni categorías estadísticas.
+No se añaden endpoints o permisos IAM. El importador no es autor del CUDYR fuente.
