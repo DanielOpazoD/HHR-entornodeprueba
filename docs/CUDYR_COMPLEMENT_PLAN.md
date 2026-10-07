@@ -22,7 +22,7 @@ según contratos y pruebas, dejando aquí el motivo antes de ampliar un PR.
 
 | Bloque | Alcance                                                                     | Cierre                                                                                             | Estado                               |
 | ------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| A      | Contrato de informe/celda y normalizador de matriz XLS                      | Rechaza formatos ambiguos; reconoce encabezados repetidos y días no contiguos; fixtures sintéticos | En ejecución                         |
+| A      | Contrato de informe/celda y normalizador de matriz XLS                      | Rechaza formatos ambiguos; reconoce encabezados repetidos y días no contiguos; fixtures sintéticos | Integrado: PR #762                   |
 | B      | Archivo persistente complementario, versiones y lectura autorizada          | Idempotencia, permisos, límites, pruebas de servidor/emulador; no escritura clínica                | Pendiente                            |
 | C      | Lector XLS, previsualización/importación y consulta discreta con hoja Excel | Navegador escritorio/móvil; principal antes/después idéntico; consulta sin Eloísa                  | Pendiente                            |
 | D      | Captura mensual automatizada como adquisición separada                      | Respuesta real validada; identidad de establecimiento/período, completitud y reintentos            | Condicionado a evidencia de descarga |
@@ -43,3 +43,23 @@ coincidencias, sin asignación automática de episodio/día estadístico.
 
 La publicación de los sitios fijados de Netlify se verifica por separado del merge;
 no deducir disponibilidad en vivo a partir de un PR aprobado.
+
+## Actualización de ejecución
+
+- A: integrado en PR #762 (`bc26076a`); 17 casos de normalización y lectura local
+  del XLS original (23 pacientes, 68 categorías). Revisión independiente limpia.
+- B: servidor documental implementado; pruebas locales de permisos, idempotencia
+  concurrente y ausencia de cambios clínicos aprobadas. PR separado.
+- C: consulta desplegable, importación confirmada, lectura XLS en worker y hojas
+  complementarias. Lector oficial SheetJS 0.20.3 fijado con integridad; worker
+  sólo al elegir archivo y fuera del precache, sin aumentar presupuesto global.
+- D: los HAR aportados permiten ver la solicitud del informe mensual, pero la
+  descarga figura con estado 0 y sin cuerpo de respuesta. Falta verificar una
+  respuesta exitosa y su integridad para automatizarla. La importación del archivo
+  descargado funciona independientemente; no se simula una captura automática.
+
+Las coincidencias de RUT se muestran como candidatas, nunca como vínculo de
+hospitalización. Otros documentos permanecen consultables en el archivo fuente.
+La lectura complementaria debe completarse antes de ofrecer el Excel completo;
+si falla, se muestra el error y la opción de reintentar. No se oculta una omisión
+bajo el nombre de descarga completa.

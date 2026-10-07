@@ -34,7 +34,8 @@
     "^assets/SystemHealthReporterBridge-.*\\.js$",
     "^assets/healthService-.*\\.js$",
     "^assets/DiagnosisCie10Cell-.*\\.js$",
-    "^assets/RayenImportButton-.*\\.js$"
+    "^assets/RayenImportButton-.*\\.js$",
+    "^assets/cudyrSupplement\\.worker-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [

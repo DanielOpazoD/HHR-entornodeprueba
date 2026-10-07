@@ -1,3 +1,5 @@
+import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
+import { addCudyrSupplementWorkbook } from './cudyrSupplementWorkbook';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
 import { cudyrReportTotals } from './cudyrReportModel';
@@ -9,7 +11,10 @@ import { addCudyrDataSheet } from './cudyrDataSheet';
 import { XLSX_MIME_TYPE, validateExcelExport } from '@/services/exporters/excelValidation';
 import { recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
 
-export const buildCudyrReportWorkbook = async (data: CudyrReportDataset) => {
+export const buildCudyrReportWorkbook = async (
+  data: CudyrReportDataset,
+  supplements?: ArchivedCudyrSupplement[]
+) => {
   const [year, month] = data.from.split('-').map(Number);
   const dates = [
     ...new Set([
@@ -159,17 +164,24 @@ export const buildCudyrReportWorkbook = async (data: CudyrReportDataset) => {
       ...data.issues.map(issue => ['Incidencia de lectura', issue]),
     ]
   );
+  if (supplements) addCudyrSupplementWorkbook(workbook, supplements, data.from, data.to);
   return { workbook, fileName: `CUDYR_Contextual_${data.from}_a_${data.to}.xlsx` };
 };
-export const cudyrReportExcelBlob = async (data: CudyrReportDataset) => {
-  const { workbook, fileName } = await buildCudyrReportWorkbook(data);
+export const cudyrReportExcelBlob = async (
+  data: CudyrReportDataset,
+  supplements?: ArchivedCudyrSupplement[]
+) => {
+  const { workbook, fileName } = await buildCudyrReportWorkbook(data, supplements);
   const buffer = await workbook.xlsx.writeBuffer();
   const result = validateExcelExport(buffer, fileName);
   if (!result.valid) throw new Error('No se pudo validar el Excel CUDYR.');
   return { blob: new Blob([buffer], { type: XLSX_MIME_TYPE }), fileName };
 };
-export const downloadCudyrReport = async (data: CudyrReportDataset) => {
-  const { blob, fileName } = await cudyrReportExcelBlob(data);
+export const downloadCudyrReport = async (
+  data: CudyrReportDataset,
+  supplements?: ArchivedCudyrSupplement[]
+) => {
+  const { blob, fileName } = await cudyrReportExcelBlob(data, supplements);
   const { saveAs } = await import('file-saver');
   recordE2EDownloadArtifact({ filename: fileName, blobSize: blob.size, blobType: blob.type });
   saveAs(blob, fileName);

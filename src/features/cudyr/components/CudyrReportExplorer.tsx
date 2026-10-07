@@ -1,3 +1,5 @@
+import { useCudyrSupplements } from '../hooks/useCudyrSupplements';
+import { CudyrSupplementPanel } from './CudyrSupplementPanel';
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -31,6 +33,7 @@ export default function CudyrReportExplorer({
   const { role } = useAuth();
   const canEdit = canCorrectCudyrDischarge({ role, readOnly });
   const { data, busy, error, load } = useCudyrReport(initialDate);
+  const supplements = useCudyrSupplements(data);
   const [from, setFrom] = useState(initialDate.slice(0, 7) + '-01');
   const [to, setTo] = useState(initialDate);
   const [filters, setFilters] = useState({ ...EMPTY_CUDYR_REPORT_FILTERS });
@@ -44,11 +47,13 @@ export default function CudyrReportExplorer({
   const currentPage = Math.min(page, Math.max(0, Math.ceil(rows.length / 50) - 1));
   const selectedRow = data?.rows.find(row => row.key === selected);
   const exportExcel = async () => {
-    if (!data || exporting) return;
+    if (!data || exporting || !supplements.ready) return;
     setExporting(true);
     setExportError('');
     try {
-      await (await import('@/services/cudyr/cudyrReportWorkbook')).downloadCudyrReport(data);
+      await (
+        await import('@/services/cudyr/cudyrReportWorkbook')
+      ).downloadCudyrReport(data, supplements.reports);
     } catch {
       setExportError('No se pudo generar el Excel. Intente nuevamente.');
     } finally {
@@ -82,7 +87,7 @@ export default function CudyrReportExplorer({
           </div>
           <button
             type="button"
-            disabled={!data || busy || exporting}
+            disabled={!data || busy || exporting || !supplements.ready}
             onClick={() => void exportExcel()}
             className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-teal-950 disabled:opacity-50"
           >
@@ -172,6 +177,21 @@ export default function CudyrReportExplorer({
               </p>
             </div>
           )}
+          {!supplements.ready && (
+            <p role="status" className="text-sm text-amber-800">
+              {supplements.error ||
+                'Completando la lectura del respaldo antes de habilitar el Excel completo…'}
+            </p>
+          )}
+          <CudyrSupplementPanel
+            reports={supplements.reports}
+            ready={supplements.ready}
+            error={supplements.error}
+            from={data.from}
+            to={data.to}
+            canImport={canEdit}
+            onReload={supplements.reload}
+          />
           <CudyrReportFilters
             rows={data.rows}
             filters={filters}
@@ -318,6 +338,8 @@ export default function CudyrReportExplorer({
             <CudyrReportDetail
               row={selectedRow}
               data={data}
+              supplementsReady={supplements.ready}
+              supplements={supplements.reports}
               canEdit={canEdit}
               onClose={() => setSelected('')}
               onCorrect={() => setCorrecting(true)}

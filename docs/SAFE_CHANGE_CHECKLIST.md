@@ -151,3 +151,16 @@ y el despliegue no forman parte de esta alineación del tooling local/CI.
 - **RollbackPlan:** revertir el PR y ejecutar `npm ci`; no modificar datos ni colas.
 - **VerificationGate:** tipos, lint, audit, exportación PDF, comparación del grafo
   retenido y CSS, build/preview, revisión independiente y CI del head final.
+
+### Lector del respaldo mensual CUDYR (2026-10-07)
+
+- **Owner:** módulo CUDYR de HHR.
+- **Reason:** leer los informes BIFF/XLS de Eloísa como evidencia consultiva.
+- **TargetVersion:** SheetJS 0.20.3, tarball oficial fijado con integridad en lockfile.
+- **RiskLevel:** medio: archivo externo; tamaño 256 KiB, firma, expansión ZIP declarada,
+  filas/columnas acotadas, fórmulas rechazadas y worker terminable a los 10 segundos.
+- **RollbackPlan:** revertir este PR; el archivo documental de servidor permanece
+  conservado y el reporte principal mantiene su contrato.
+- **VerificationGate:** tipo `dependency_upgrade`, controles estáticos, unitarios,
+  build/presupuesto, navegador sintético y revisión independiente. Worker opcional
+  fuera del precache; no se amplían los presupuestos de arranque o tamaño.

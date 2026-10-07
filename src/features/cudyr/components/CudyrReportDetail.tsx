@@ -1,3 +1,5 @@
+import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
+import { CudyrSupplementDetail } from './CudyrSupplementDetail';
 import { BaseModal } from '@/components/shared/BaseModal';
 import type { CudyrReportDataset, CudyrReportRow } from '@/types/domain/cudyrReport';
 import {
@@ -25,12 +27,16 @@ export const CudyrReportDetail = ({
   row,
   data,
   canEdit,
+  supplements = [],
+  supplementsReady = true,
   onClose,
   onCorrect,
 }: {
   row: CudyrReportRow;
   data: CudyrReportDataset;
   canEdit: boolean;
+  supplements?: ArchivedCudyrSupplement[];
+  supplementsReady?: boolean;
   onClose: () => void;
   onCorrect: () => void;
 }) => {
@@ -167,6 +173,7 @@ export const CudyrReportDetail = ({
             </ul>
           </div>
         )}
+        <CudyrSupplementDetail reports={supplements} document={row.rut} ready={supplementsReady} />
         {!row.evaluation?.observationId && Boolean(row.evaluation?.items?.length) && (
           <details className="rounded-lg border p-3">
             <summary className="cursor-pointer font-medium">Ítems de la evaluación diaria</summary>
