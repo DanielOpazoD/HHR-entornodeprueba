@@ -14,7 +14,7 @@ importScripts(
   'gestion-camas-runtime.js',
   'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-query-runtime.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
-  'cudyr-capture-support.js', 'gestion-camas-cudyr.js',
+  'cudyr-capture-support.js', 'cudyr-placement-support.js', 'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
   'runtime-generation-recovery.js', 'runtime-generation.js', 'connection-repair-runtime.js',
   'health-report-cache-runtime.js', 'health-push-ordering-runtime.js', 'health-heartbeat-runtime.js', 'health-tab-events-runtime.js', 'health-relay-self-repair.js',

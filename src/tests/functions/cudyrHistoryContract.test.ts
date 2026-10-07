@@ -169,3 +169,82 @@ describe('permanent CUDYR source contract', () => {
     expect(context).not.toHaveProperty('pathology');
   });
 });
+
+describe('CUDYR captured discharge context', () => {
+  it('does not publish the containing census date as a missing effective movement date', () => {
+    const result = episodeContext(
+      {
+        date: '2026-10-06',
+        transfers: [
+          {
+            id: 'movement-test',
+            clinicalEpisodeId: 'episode-test',
+            bedId: 'R1',
+            movementProvenance: { source: 'manual', classifiedAt: '2026-10-06T15:00:00Z' },
+          },
+        ],
+      },
+      'episode-test'
+    )[0];
+    expect(result).not.toHaveProperty('movementDate');
+    expect(result.movementRecordedAt).toBe('2026-10-06T15:00:00Z');
+  });
+  it('keeps the system movement, classification time and epicrisis as separate evidence', () => {
+    const result = episodeContext(
+      {
+        date: '2026-10-06',
+        discharges: [
+          {
+            id: 'movement-test',
+            clinicalEpisodeId: 'episode-test',
+            bedId: 'H2C2',
+            movementDate: '2026-10-05',
+            time: '11:30',
+            isNested: true,
+            movementProvenance: {
+              source: 'gestion_camas',
+              classifiedAt: '2026-10-06T15:00:00Z',
+              syncRunId: 'source-run',
+              lineageId: 'lineage-test',
+            },
+            originalData: {
+              clinicalEpisodeId: 'episode-test',
+              admissionDate: '2026-10-01',
+              dischargeVerification: {
+                encounterId: 'episode-test',
+                medicalEpicrisis: 'confirmed',
+                nursingEpicrisis: 'not-detected',
+                registeredAt: '2026-10-04T10:00:00-05:00',
+              },
+            },
+          },
+        ],
+      },
+      'episode-test'
+    )[0];
+    expect(result).toMatchObject({
+      movementDate: '2026-10-05',
+      movementTime: '11:30',
+      movementRecordedAt: '2026-10-06T15:00:00Z',
+      movementSource: 'gestion_camas',
+      bedMode: 'Cuna',
+      epicrisisRegisteredAt: '2026-10-04T10:00:00-05:00',
+    });
+    expect(result).not.toHaveProperty('actualDischargeDate');
+  });
+  it('does not attach epicrisis from a different episode', () => {
+    expect(
+      episodeContext(
+        {
+          beds: {
+            R1: {
+              clinicalEpisodeId: 'new-episode',
+              dischargeVerification: { encounterId: 'old-episode', medicalEpicrisis: 'confirmed' },
+            },
+          },
+        },
+        'new-episode'
+      )[0]
+    ).not.toHaveProperty('medicalEpicrisisStatus');
+  });
+});

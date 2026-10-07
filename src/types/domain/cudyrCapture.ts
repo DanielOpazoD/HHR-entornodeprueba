@@ -18,6 +18,12 @@ export interface CudyrCaptureReceipt {
 }
 
 export type ReadCudyrCapturesRequest = ReadCudyrHistoryRequest & { kind: 'captures' };
+export interface ReadCudyrEpisodeCapturesRequest {
+  kind: 'episode-captures';
+  clinicalEpisodeIds: string[];
+  limit?: number;
+  cursor?: CudyrHistoryCursor;
+}
 export interface ReadCudyrCapturesResult {
   captures: CudyrCaptureReceipt[];
   nextCursor: CudyrHistoryCursor | null;

@@ -1,3 +1,5 @@
+import type { CudyrSourcePlacement } from '@/types/domain/cudyrPlacement';
+
 export interface RayenCudyrHistoryEntry {
   id?: string;
   category: string;
@@ -25,6 +27,7 @@ export interface RayenCudyrCategory {
   /** Includes source tombstones; never used as the current clinical result. */
   observations?: RayenCudyrHistoryEntry[];
   metadataComplete?: boolean;
+  sourcePlacements?: CudyrSourcePlacement[];
 }
 
 export type RayenCudyrSource = 'gestion_camas' | 'gestion_camas+ficha_medico' | 'ficha_medico';

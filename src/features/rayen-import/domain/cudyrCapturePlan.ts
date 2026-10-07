@@ -78,6 +78,9 @@ export const buildCudyrCaptureParts = ({
       part,
       totalParts,
       totalEvaluations: evaluations.length,
+      ...(official && row.sourcePlacements !== undefined
+        ? { sourcePlacements: row.sourcePlacements }
+        : {}),
     },
   }));
 };

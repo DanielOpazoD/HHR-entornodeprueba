@@ -541,3 +541,10 @@ como cobertura desconocida. No acredita recuperación histórica completa.
 El módulo `cudyr-capture-support.js` concentra el historial y lectura de metadatos
 opcionales. Owner: sincronización HHR/Eloísa. Su registro nuevo en el ratchet de
 extensión no aumenta límites de archivos existentes ni admite hotspots nuevos.
+
+### CUDYR 0.48.47: cama y modalidad observadas
+
+El historial captura además la asignación original de cama/servicio con su intervalo,
+ID y versión. Los mapeos anidados antiguos se conservan como evidencia, sin anunciar
+ocupación vigente. La fecha centinela de término no se interpreta como alta. El nuevo
+helper `cudyr-placement-support.js` carga después de los normalizadores de camas/cunas.

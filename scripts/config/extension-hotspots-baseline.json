@@ -1,5 +1,5 @@
 {
-  "$schemaNote": "Ratchet para JavaScript propio de extension/. maxLines y cada hotspot s\u00f3lo pueden mantenerse o disminuir mediante npm run update:extension-hotspots-baseline. Los vendors son una whitelist exacta.",
+  "$schemaNote": "Ratchet para JavaScript propio de extension/. maxLines y cada hotspot sólo pueden mantenerse o disminuir mediante npm run update:extension-hotspots-baseline. Los vendors son una whitelist exacta.",
   "schemaVersion": 1,
   "extensionRoot": "extension",
   "complexityThreshold": 15,
@@ -720,6 +720,12 @@
     "cudyr-capture-support.js": {
       "maxLines": 68,
       "hotspots": {}
+    },
+    "cudyr-placement-support.js": {
+      "maxLines": 40,
+      "hotspots": {
+        "iife>variable:buildPlacements": 16
+      }
     }
   }
 }

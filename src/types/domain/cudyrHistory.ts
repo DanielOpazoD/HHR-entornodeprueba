@@ -1,3 +1,5 @@
+import type { CudyrSourcePlacement } from './cudyrPlacement';
+
 export interface CudyrCapturePart {
   id: string;
   clinicalEpisodeId: string;
@@ -9,6 +11,8 @@ export interface CudyrCapturePart {
   part: number;
   totalParts: number;
   totalEvaluations: number;
+  /** Bed-assignment source intervals observed in the same response, including stale mappings. */
+  sourcePlacements?: CudyrSourcePlacement[];
 }
 
 /** An observed source version, not a selected daily result or evidence of clinical eligibility. */
@@ -83,6 +87,16 @@ export interface CudyrHistoryObservation {
     bedMode?: string;
     location?: string;
     specialty?: string;
+    movementId?: string;
+    movementDate?: string;
+    movementTime?: string;
+    movementRecordedAt?: string;
+    movementSource?: string;
+    movementRunId?: string;
+    movementLineageId?: string;
+    medicalEpicrisisStatus?: string;
+    nursingEpicrisisStatus?: string;
+    epicrisisRegisteredAt?: string;
   }>;
 }
 
