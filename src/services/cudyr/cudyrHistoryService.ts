@@ -7,6 +7,10 @@ import type {
   ReadCudyrHistoryRequest,
   ReadCudyrHistoryResult,
 } from '@/types/domain/cudyrHistory';
+import type {
+  ReadCudyrCapturesRequest,
+  ReadCudyrCapturesResult,
+} from '@/types/domain/cudyrCapture';
 
 const callHistory = async <Request, Response>(
   name: string,
@@ -30,3 +34,6 @@ export const archiveCudyrHistory = (payload: ArchiveCudyrHistoryRequest) =>
 /** One bounded page. Callers must exhaust nextCursor before claiming period coverage. */
 export const readCudyrHistory = (payload: ReadCudyrHistoryRequest) =>
   callHistory<ReadCudyrHistoryRequest, ReadCudyrHistoryResult>('readCudyrHistory', payload);
+
+export const readCudyrCaptures = (payload: ReadCudyrCapturesRequest) =>
+  callHistory<ReadCudyrCapturesRequest, ReadCudyrCapturesResult>('readCudyrHistory', payload);

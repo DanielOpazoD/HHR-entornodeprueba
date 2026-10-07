@@ -29,6 +29,10 @@ export const clearSyncTaskRuntimeState = () => ({
 });
 
 export const getSyncTaskKey = (type: SyncTask['type'], payload: unknown): string | undefined => {
+  if (type === 'ARCHIVE_CUDYR') {
+    const id = (payload as { id?: string })?.id;
+    return id && /^[a-f0-9-]{36}$/.test(id) ? `cudyr:${id}` : undefined;
+  }
   if (type === 'UPDATE_DAILY_RECORD') {
     const record = payload as DailyRecord;
     return record?.date ? `daily:${record.date}` : undefined;

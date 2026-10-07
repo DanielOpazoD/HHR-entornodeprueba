@@ -1,3 +1,16 @@
+export interface CudyrCapturePart {
+  id: string;
+  clinicalEpisodeId: string;
+  sourceRunId: string;
+  /** Time HHR received the source response, distinct from the CUDYR authoring time. */
+  observedAt: string;
+  status: 'observed' | 'not_observed' | 'unavailable' | 'legacy_extension';
+  metadataStatus: 'complete' | 'partial' | 'unknown';
+  part: number;
+  totalParts: number;
+  totalEvaluations: number;
+}
+
 /** An observed source version, not a selected daily result or evidence of clinical eligibility. */
 export interface CudyrSourceEvaluation {
   clinicalEpisodeId: string;
@@ -22,11 +35,18 @@ export interface ArchiveCudyrHistoryRequest {
   authorityDate: string;
   runId: string;
   evaluations: CudyrSourceEvaluation[];
+  capture?: CudyrCapturePart;
+}
+
+export interface CudyrArchiveOutboxPayload {
+  id: string;
+  request: ArchiveCudyrHistoryRequest;
 }
 
 export interface ArchiveCudyrHistoryResult {
   success: true;
   persisted: true;
+  captureReceiptId?: string;
   results: Array<{ id: string; eventKey: string; status: 'recorded' | 'already-recorded' }>;
 }
 

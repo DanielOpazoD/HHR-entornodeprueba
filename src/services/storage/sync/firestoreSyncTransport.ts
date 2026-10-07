@@ -292,6 +292,11 @@ export const createFirestoreSyncTransport = (
 ): SyncTransportPort => ({
   async run(task: SyncTask) {
     switch (task.type) {
+      case 'ARCHIVE_CUDYR':
+        await import('./cudyrArchiveTransport').then(({ replayCudyrArchive }) =>
+          replayCudyrArchive(task, runtime)
+        );
+        return;
       case 'UPDATE_DAILY_RECORD':
         await syncDailyRecord(task, task.payload as DailyRecord, runtime);
         return;

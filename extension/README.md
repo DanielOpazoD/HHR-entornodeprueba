@@ -527,3 +527,17 @@ Los detalles pueden reutilizar durante esos 30 segundos un listado parcial ya
 verificado: no vuelven a bloquearse por la fuente que falló. Un reintento explícito
 del listado vuelve a consultar las fuentes pendientes, manteniendo la información
 previa visible. Las lecturas simultáneas continúan compartiendo la solicitud en vuelo.
+
+## Captura permanente CUDYR (0.48.46)
+
+La respuesta compartida agrega IDs de autor/rol, token de versión y observaciones
+anuladas (`isDeleted`), separadas del resultado clínico vigente. Conserva episodios
+observados sin evaluaciones y distingue metadatos incompletos. HHR archiva estas
+capturas durante la sincronización; abrir el reporte o descargar Excel no consulta
+Eloísa. Recargar manualmente la extensión y las pestañas conectadas para utilizar
+el nuevo contrato; una extensión anterior conserva compatibilidad y se identifica
+como cobertura desconocida. No acredita recuperación histórica completa.
+
+El módulo `cudyr-capture-support.js` concentra el historial y lectura de metadatos
+opcionales. Owner: sincronización HHR/Eloísa. Su registro nuevo en el ratchet de
+extensión no aumenta límites de archivos existentes ni admite hotspots nuevos.

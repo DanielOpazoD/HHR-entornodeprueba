@@ -34,8 +34,9 @@ import {
 } from './domain/clinicalHistoryReadPolicy';
 import { buildClinicalPatientPatch } from './domain/clinicalPatientPatch';
 import { createClinicalCudyrCoordinator } from './domain/clinicalCudyrCoordinator';
-import { captureClinicalCudyrSource } from './domain/clinicalCudyrPreflight';
 import { buildClinicalFillError } from './observability/rayenSyncDiagnostics';
+import { collectCudyrCaptureEpisodes } from './domain/cudyrCapturePlan';
+import { startCudyrSyncCapture } from './domain/startCudyrSyncCapture';
 
 export type {
   ClinicalFillDeps,
@@ -66,6 +67,7 @@ export const runClinicalFill = async (
   onProgress?: (progress: ClinicalFillProgress) => void
 ): Promise<ClinicalFillSummary> => {
   const eligible = collectClinicalFillCandidates(record, deps.allowedClinicalEpisodeIds);
+  const captureEpisodes = deps.archiveCudyrCapture ? collectCudyrCaptureEpisodes(record) : [];
   const summary = createClinicalFillSummary(eligible.length);
   const needs = (encId: string, source: Parameters<typeof needsClinicalRead>[2]) =>
     needsClinicalRead(deps.pendingReads, encId, source);
@@ -78,28 +80,25 @@ export const runClinicalFill = async (
     needs(patient.clinicalEpisodeId!, 'history')
   );
   const performance = createClinicalFillPerformance(deps.monotonicNow);
-  if (eligible.length === 0) {
+  if (eligible.length === 0 && captureEpisodes.length === 0) {
     if (!deps.pendingReads)
       summary.staffingProposal = inferNursingShifts([], fecha, deps.nurseCatalog, deps.tensCatalog);
     summary.performance = performance.finish(summary.incremental!);
     return summary;
   }
-  // Start the shared capture now; independent patient reads may proceed while it is pending.
-  const cudyrPreflight = cudyrEpisodeIds.length
-    ? captureClinicalCudyrSource({
-        fetch: deps.fetchCudyrCategories,
-        trackRequest: performance.trackRequest,
-        recordTimeout: performance.recordTimeout,
-      })
-    : Promise.resolve({
-        source: { map: new Map(), historyAvailable: false },
-        unavailableError: undefined,
-      });
+  const { preflight: cudyrPreflight, archive: permanentArchive } = startCudyrSyncCapture({
+    record,
+    censusDate: fecha,
+    deps,
+    captureEpisodes,
+    needsRead: Boolean(cudyrEpisodeIds.length || captureEpisodes.length),
+    trackRequest: performance.trackRequest,
+    recordTimeout: performance.recordTimeout,
+  });
   const nursingObservations: NursingActivityObservation[] = [];
   const gate = () => createConcurrencyGate(READ_CONCURRENCY, deps.signal);
   const [withDeviceReadSlot, withHistoryReadSlot] = [gate(), gate()];
   const [withFormsReadSlot, withBundleReadSlot] = [gate(), gate()];
-  // Reads are concurrent; writes are serialized to preserve the census revision contract.
   const writes = createClinicalWriteCoordinator(
     summary.incremental!,
     performance.writeObserver,
@@ -392,6 +391,7 @@ export const runClinicalFill = async (
     if (staffing.error) summary.errors.push(staffing.error);
   }
   const cudyrSource = (await cudyrPreflight).source;
+  summary.errors.push(...(await permanentArchive));
   const cudyrCacheHits = cudyrSource.historyAvailable ? Math.max(0, cudyrEpisodeIds.length - 1) : 0;
   summary.performance = performance.finish(summary.incremental!, cudyrCacheHits);
 
