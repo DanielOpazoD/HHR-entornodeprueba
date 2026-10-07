@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { BarChart3, Loader2, RotateCcw, Save } from 'lucide-react';
 import { CudyrHeader } from './CudyrHeader';
 import { CudyrRow, VerticalHeader } from './CudyrRow';
@@ -9,12 +9,16 @@ import { adminCudyrTargetKey } from '@/domain/cudyr/adminCudyrResult';
 import { AdminCudyrBulkRemovalToolbar } from './AdminCudyrBulkRemovalToolbar';
 import { useAdminCudyrBulkRemoval } from '../hooks/useAdminCudyrBulkRemoval';
 import { useNotification } from '@/context/UIContext';
+import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+
+const CudyrReportExplorer = lazy(() => import('./CudyrReportExplorer'));
 
 interface CudyrViewProps {
   readOnly?: boolean;
 }
 
 export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
+  const [reportDate, setReportDate] = useState('');
   const { error: notifyError } = useNotification();
   const {
     record,
@@ -48,10 +52,34 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
       ),
   });
 
+  if (reportDate)
+    return (
+      <Suspense
+        fallback={
+          <p role="status" className="p-8">
+            Abriendo explorador CUDYR…
+          </p>
+        }
+      >
+        <CudyrReportExplorer
+          initialDate={reportDate}
+          readOnly={readOnly}
+          onBack={() => setReportDate('')}
+        />
+      </Suspense>
+    );
+
   if (!record) {
     return (
       <div className="p-8 text-center text-slate-500">
         Seleccione una fecha con registros para ver el CUDYR.
+        <button
+          type="button"
+          onClick={() => setReportDate(getClinicalCalendarDateISO())}
+          className="ml-3 rounded-lg border px-3 py-2"
+        >
+          Explorar reporte estadístico
+        </button>
       </div>
     );
   }
@@ -77,6 +105,15 @@ export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
 
   return (
     <div className="space-y-4 animate-fade-in pb-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:px-0 print:space-y-2 print:pb-0 print:break-inside-avoid">
+      <div className="flex justify-end print:hidden">
+        <button
+          type="button"
+          onClick={() => setReportDate(record?.date || getClinicalCalendarDateISO())}
+          className="rounded-lg border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-900"
+        >
+          Explorar reporte estadístico
+        </button>
+      </div>
       {/* Print-only Header */}
       <div className="hidden print:block mb-2 pb-2 border-b border-slate-300">
         <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">

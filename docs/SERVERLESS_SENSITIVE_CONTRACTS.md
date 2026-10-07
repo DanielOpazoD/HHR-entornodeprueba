@@ -51,6 +51,10 @@ en transacción. `readCudyrHistory` exige acceso clínico callable y pagina por 
 o por un conjunto de hasta 30 episodios (100 recibos por página) para el contexto temporal.
 Ambos fijan el establecimiento en el servidor y viven en `southamerica-east1`.
 No alteran censos históricos ni habilitan acceso directo a la colección.
+La operación `correct-discharge` exige `admin` o `nurse_hospital`, confirmación, motivo,
+identidad exacta del episodio y revisión optimista. Persiste alta real y auditoría atómicamente,
+sin modificar el egreso fuente ni el censo. Las lecturas `discharge-corrections` y
+`discharge-audit` conservan el guard clínico. No se añaden endpoints ni permisos IAM.
 Contrato, límites y validación: [CUDYR_HISTORY.md](./CUDYR_HISTORY.md).
 
 ## Convergencia obligatoria de rol

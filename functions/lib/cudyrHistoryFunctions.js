@@ -15,6 +15,8 @@ const { episodeContext } = require('./cudyrHistoryContext');
 const { captureKey } = require('./cudyrCaptureContract');
 const { prepareCaptureManifest } = require('./cudyrCaptureManifest');
 const { readEpisodeCaptures } = require('./cudyrPlacementContract');
+const { saveDischargeCorrection } = require('./cudyrDischargeStore');
+const { readDischargeCorrections, readDischargeAudit } = require('./cudyrDischargeRead');
 
 const createCudyrHistoryFunctions = ({
   firestore,
@@ -38,7 +40,29 @@ const createCudyrHistoryFunctions = ({
   const archiveCudyrHistory = functions
     .region('southamerica-east1')
     .https.onCall(async (data, context) => {
-      const { email } = await assertAuthorizedDailyRecordWriter({ context, resolveRoleForEmail });
+      const { email, role } = await assertAuthorizedDailyRecordWriter({
+        context,
+        resolveRoleForEmail,
+      });
+      if (data?.kind === 'correct-discharge') {
+        if (!['admin', 'nurse_hospital'].includes(role))
+          throw new functions.https.HttpsError(
+            'permission-denied',
+            'Discharge editing permission is required.'
+          );
+        return saveDischargeCorrection({
+          firestore,
+          hospital,
+          data,
+          runTransaction: runArchiveTransaction,
+          actor: {
+            uid: context.auth.uid,
+            email,
+            role,
+            name: String(context.auth.token.name || email).slice(0, 200),
+          },
+        });
+      }
       const payload = parseArchiveRequest(data);
       const entries = payload.evaluations.map(evaluation => ({
         evaluation,
@@ -172,6 +196,8 @@ const createCudyrHistoryFunctions = ({
         throw new functions.https.HttpsError('permission-denied', 'Clinical access is required.');
       }
       if (data?.kind === 'episode-captures') return readEpisodeCaptures(captures, data);
+      if (data?.kind === 'discharge-corrections') return readDischargeCorrections(hospital, data);
+      if (data?.kind === 'discharge-audit') return readDischargeAudit(hospital, data);
       const { from, to, limit, cursor, kind } = parseHistoryQuery(data);
       let query = (kind === 'captures' ? captures : history)
         .where('censusDate', '>=', from)
