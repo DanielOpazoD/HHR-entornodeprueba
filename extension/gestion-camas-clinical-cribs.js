@@ -3,23 +3,21 @@
  *
  * The backend models them as independent beds (for example CH5C1 or C-R2),
  * while HHR models the newborn as `clinicalCrib` nested under the associated
- * principal bed. Only the installed HHR inventory is accepted here.
+ * principal bed. A newly created crib can belong to any recognized physical bed;
+ * its relation is verified by episode against Gestión de Camas.
  */
 (function (root) {
   'use strict';
-  const PARENT_BEDS = new Set([
-    'R1', 'R2', 'R3', 'R4',
-    'H4C1', 'H4C2', 'H5C1', 'H5C2', 'H6C1', 'H6C2',
-    'NEO1', 'NEO2',
-  ]);
   const normalize = value => String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
   const parentBedIdFromLabel = value => {
-    const match = /^(?:CUNA|C)(H[456]C[12]|R[1-4]|NEO[12])$/.exec(normalize(value));
-    if (match && PARENT_BEDS.has(match[1])) return match[1];
+    const match = /^(?:CUNA|C)(.+)$/.exec(normalize(value));
+    if (!match) return null;
+    const parentBedId = root.HhrGestionCamasActiveBeds.bedIdFromLabel(match[1]);
+    if (parentBedId === match[1]) return parentBedId;
     return null;
   };
   const parentBedIdFromRecord = record => {
@@ -45,7 +43,7 @@
     const assignmentByEncounter = new Map(
       (Array.isArray(assignments) ? assignments : [])
         .map(item => [String(item.encounterId || ''), item])
-        .filter(([encounterId, item]) => /^\d+$/.test(encounterId) && PARENT_BEDS.has(item.parentBedId))
+        .filter(([encounterId, item]) => /^\d+$/.test(encounterId) && parentBedIdFromLabel(`Cuna ${item.parentBedId}`) === item.parentBedId)
     );
     if (assignmentByEncounter.size === 0) return snapshot;
     return {
