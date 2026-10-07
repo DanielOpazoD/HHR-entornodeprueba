@@ -4,7 +4,8 @@ import type { CudyrReconciliationFile } from '@/types/domain/cudyrReconciliation
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 import { compareCudyrMonth, cudyrMonthlyInventory } from '@/services/cudyr/cudyrMonthlyComparison';
 import { readCudyrReconciliationFile } from '@/services/cudyr/cudyrReconciliationFile';
-import { CudyrComparisonRows } from './CudyrComparisonRows';
+import { CudyrReviewWorkspace } from './CudyrReviewWorkspace';
+import type { CudyrReviewSource } from '@/types/domain/cudyrReview';
 
 export const CudyrMonthlyReconciliation = ({
   data,
@@ -34,6 +35,19 @@ export const CudyrMonthlyReconciliation = ({
   const items = useMemo(
     () => compareCudyrMonth(data, categories, discharges),
     [data, categories, discharges]
+  );
+  const sources = useMemo<CudyrReviewSource[]>(
+    () => [
+      ...(categoryFile
+        ? [{ kind: 'categories' as const, sha256: categoryFile.sha256, name: categoryFile.name }]
+        : archive
+          ? [{ kind: 'categories' as const, sha256: archive.file.sha256, name: archive.file.name }]
+          : []),
+      ...(dischargeFile
+        ? [{ kind: 'discharges' as const, sha256: dischargeFile.sha256, name: dischargeFile.name }]
+        : []),
+    ],
+    [categoryFile, archive, dischargeFile]
   );
   const singleMonth = data.from.slice(0, 7) === data.to.slice(0, 7);
   const read = async (file: File, kind: CudyrReconciliationFile['kind']) => {
@@ -69,7 +83,7 @@ export const CudyrMonthlyReconciliation = ({
       data-testid="cudyr-monthly-reconciliation"
     >
       <summary className="cursor-pointer font-semibold text-teal-900">
-        Conciliar histórico · solo lectura
+        Conciliar histórico · revisión complementaria
       </summary>
       <p className="mt-3 text-slate-600">
         Período {data.from} a {data.to}. Compara todo el período consultado, independientemente de
@@ -195,20 +209,14 @@ export const CudyrMonthlyReconciliation = ({
               no reclasifica otros días.
             </p>
           )}
-          {categories || discharges ? (
-            <CudyrComparisonRows
-              key={`${categoryFile?.sha256 || archive?.id}:${dischargeFile?.sha256}`}
-              canReview={canReview}
-              items={items}
-              data={data}
-              onView={onView}
-            />
-          ) : (
-            <p className="text-slate-500">
-              Seleccione un informe para identificar coincidencias y pendientes. No se consultará
-              Eloísa al comparar.
-            </p>
-          )}
+          <CudyrReviewWorkspace
+            key={`${categoryFile?.sha256 || archive?.id}:${dischargeFile?.sha256}`}
+            sources={sources}
+            canReview={canReview}
+            items={items}
+            data={data}
+            onView={onView}
+          />
         </>
       )}
     </details>

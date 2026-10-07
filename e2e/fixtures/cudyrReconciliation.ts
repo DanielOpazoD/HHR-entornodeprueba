@@ -1,6 +1,6 @@
 import { utils, write } from 'xlsx';
 /** All fields are synthetic; these files never contain actual hospital data. */
-export const reconciliationUpload = (kind: 'categories' | 'discharges') => {
+export const reconciliationUpload = (kind: 'categories' | 'discharges', july = false) => {
   const rows =
     kind === 'categories'
       ? [
@@ -52,7 +52,16 @@ export const reconciliationUpload = (kind: 'categories' | 'discharges') => {
           ],
         ];
   const book = utils.book_new();
-  utils.book_append_sheet(book, utils.aoa_to_sheet(rows), 'Synthetic');
+  const content = july
+    ? rows.map(row =>
+        row.map(value =>
+          typeof value === 'string'
+            ? value.replaceAll('-02-2026', '-07-2026').replace('Febrero', 'Julio')
+            : value
+        )
+      )
+    : rows;
+  utils.book_append_sheet(book, utils.aoa_to_sheet(content), 'Synthetic');
   return {
     name: `synthetic-${kind}.xls`,
     mimeType: 'application/vnd.ms-excel',
