@@ -192,3 +192,11 @@ son observaciones de una ejecución, no una reducción garantizada del pipeline.
 Sus contratos de caché verifican también nombre, scope, permisos, generación y
 publicación del artefacto. Functions conserva sus instalaciones independientes.
 No añadir un escritor de caché ni una barrera hacia `quality-static-base`.
+
+### Parches transitivos HTTP de octubre de 2026
+
+La actualización compatible de los lockfiles se documenta en
+[Safe Change Checklist](./SAFE_CHANGE_CHECKLIST.md#parches-transitivos-de-http-2026-10-06).
+Se conserva el audit completo de dependencias de producción y desarrollo; la
+reducción de hallazgos no acredita un resultado aprobado mientras persistan
+vulnerabilidades altas. No se introducen excepciones para `braces`.

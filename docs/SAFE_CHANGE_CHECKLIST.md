@@ -151,3 +151,23 @@ y el despliegue no forman parte de esta alineación del tooling local/CI.
 - **RollbackPlan:** revertir el PR y ejecutar `npm ci`; no modificar datos ni colas.
 - **VerificationGate:** tipos, lint, audit, exportación PDF, comparación del grafo
   retenido y CSS, build/preview, revisión independiente y CI del head final.
+
+### Parches transitivos de HTTP (2026-10-06)
+
+- **Owner:** plataforma Firebase/Functions y tooling HHR.
+- **Reason:** corregir versiones vulnerables detectadas por el audit de ambos
+  paquetes; no se ha demostrado explotación en HHR.
+- **TargetVersion:** `proxy-addr` 2.0.8 y `@fastify/busboy` 3.2.2 en raíz y
+  Functions; `compression` 1.8.2, `http-cache-semantics` 4.3.0 y `source-map-js`
+  1.2.2 en raíz. Sólo resoluciones compatibles con los manifests existentes.
+- **RiskLevel:** medio: cambia procesamiento HTTP y tooling transitivo; no cambia
+  el SDK Firebase, permisos, contratos clínicos ni configuración de proxies.
+- **RollbackPlan:** revertir los dos lockfiles y ejecutar `npm ci` en raíz y
+  Functions; reaparecerían las versiones vulnerables. No modificar datos ni colas.
+- **VerificationGate:** `dependency_upgrade`: instalación, auditoría de ambos
+  paquetes, `ci:merge-gate`, suites Functions, runtime PDF, revisión independiente
+  y CI del head definitivo. Un fallo de audit impide el merge.
+
+La auditoría posterior conserva hallazgos altos en la cadena de desarrollo de
+`braces` 3.0.3, sin versión corregida publicada al comprobarla. Estos parches no
+resuelven ese bloqueo ni autorizan excepciones o rebajas del umbral.
