@@ -1,3 +1,4 @@
+import { CudyrMonthlyReconciliation } from './CudyrMonthlyReconciliation';
 import { useCudyrSupplements } from '../hooks/useCudyrSupplements';
 import { CudyrSupplementPanel } from './CudyrSupplementPanel';
 import { useMemo, useState } from 'react';
@@ -31,7 +32,7 @@ export default function CudyrReportExplorer({
   readOnly: boolean;
   onBack: () => void;
 }) {
-  const { role } = useAuth();
+  const { role, currentUser } = useAuth();
   const canEdit = canCorrectCudyrDischarge({ role, readOnly });
   const { data, busy, error, load } = useCudyrReport(initialDate);
   const supplements = useCudyrSupplements(data);
@@ -203,6 +204,13 @@ export default function CudyrReportExplorer({
             to={data.to}
             canImport={canEdit}
             onReload={supplements.reload}
+          />
+          <CudyrMonthlyReconciliation
+            key={`${currentUser?.uid}:${role}:${data.from}:${data.to}:${data.generatedAt}`}
+            data={data}
+            reports={supplements.reports}
+            ready={supplements.ready}
+            onView={setSelected}
           />
           <CudyrReportFilters
             rows={data.rows}
