@@ -205,3 +205,10 @@ La recuperación incorpora también Sharp 0.35.5 y SDK MCP 1.32.1 mediante
 resoluciones oficiales verificadas por SHA-512. Los artefactos de diagnóstico no
 sustituyen el audit requerido del PR; la cadena braces sigue siendo bloqueante.
 No se mantiene un workflow diagnóstico ni un fork de dependencias en main.
+
+### Aceptación temporal de braces (2026-10-07)
+
+Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
+de desarrollo aprobados, con vencimiento 2026-10-15T00:00:00Z. Se conservan
+los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
+Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).

@@ -217,3 +217,10 @@ La auditoría del árbol resuelto conserva siete paquetes altos en una misma cad
 de braces 3.0.3; el registro fresco sigue publicando esa versión como latest.
 Esta evidencia no autoriza una excepción ni un downgrade del plugin de límites
 arquitectónicos. Sharp: GHSA-wq5f-xc86-pv6w. SDK MCP: GHSA-6qxp-vccf-f47h.
+
+### Aceptación temporal de braces (2026-10-07)
+
+Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
+de desarrollo aprobados, con vencimiento 2026-10-15T00:00:00Z. Se conservan
+los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
+Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).
