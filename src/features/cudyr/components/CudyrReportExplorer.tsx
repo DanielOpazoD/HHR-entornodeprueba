@@ -206,6 +206,7 @@ export default function CudyrReportExplorer({
             onReload={supplements.reload}
           />
           <CudyrMonthlyReconciliation
+            canReview={canEdit}
             key={`${currentUser?.uid}:${role}:${data.from}:${data.to}:${data.generatedAt}`}
             data={data}
             reports={supplements.reports}

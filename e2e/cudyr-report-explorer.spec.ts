@@ -427,9 +427,23 @@ test('reconciles local monthly sources without writes and keeps context usable o
     .getByRole('article')
     .filter({ hasText: 'Categoría diferente' })
     .locator('summary')
+    .first()
     .click();
   await expect(panel).toContainText('AUTORA SINTÉTICA');
   await expect(panel).toContainText('Censo 2026-02-20');
+  expect(await totals.textContent()).toBe(before);
+  expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(0);
+  expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()).toEqual(original);
+  const review = panel.getByRole('article').filter({ hasText: 'Categoría diferente' });
+  await review.getByText('Revisar vínculo · borrador').click();
+  await review.getByLabel('Decisión de revisión').selectOption('link');
+  await review.getByLabel('Episodio HHR a revisar').selectOption({ index: 1 });
+  await review
+    .getByLabel('Motivo y respaldo de la revisión')
+    .fill('Episodio cotejado con evidencia sintética de la ficha.');
+  await review.getByRole('checkbox').check();
+  await review.getByRole('button', { name: 'Anotar decisión en borrador' }).click();
+  await expect(panel).toContainText('1 decisiones en borrador');
   expect(await totals.textContent()).toBe(before);
   expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(0);
   expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()).toEqual(original);
@@ -438,10 +452,13 @@ test('reconciles local monthly sources without writes and keeps context usable o
   await panel.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await screenshot(page, 'cudyr-conciliacion-movil');
+  await review.locator('details').last().scrollIntoViewIfNeeded();
+  await screenshot(page, 'cudyr-vinculo-movil');
   await page.getByLabel('Desde', { exact: true }).fill('2026-02-19');
   await page.getByRole('button', { name: 'Consultar período' }).click();
   await expect(page.getByRole('button', { name: 'Consultar período' })).toBeEnabled();
   await panel.locator('summary').first().click();
   await expect(panel).not.toContainText('synthetic-categories.xls');
+  await expect(panel).not.toContainText('1 decisiones en borrador');
   expect(errors).toEqual([]);
 });

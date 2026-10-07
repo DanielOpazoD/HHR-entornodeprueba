@@ -66,3 +66,27 @@ persistidos. No añade funciones remotas, permisos ni sincronización. Riesgo pr
 confundir una coincidencia provisional con evidencia clínica definitiva; se evita
 manteniendo estados explícitos y sin acción de aplicar/guardar. Reversión: revertir
 el PR; no hay migración ni datos escritos que revertir.
+
+## Bloque 2: borrador de vínculos revisados
+
+La revisión manual está disponible para los mismos permisos operativos que las
+correcciones del explorador. Cada fila Eloísa puede quedar pendiente con observación,
+descartada del cotejo o con un vínculo propuesto a un episodio. Siempre exige motivo;
+proponer un vínculo exige seleccionar el episodio y confirmar revisión de identidad,
+episodio y fechas con evidencia adicional. No hay aceptación automática ni por lote.
+
+Se ofrecen todos los episodios consistentes de ese documento en el período leído,
+incluidos RN con documento compartido y reingresos. Las filas del episodio muestran
+su contexto diario; seleccionar el episodio no proyecta cama, modalidad o elegibilidad
+a toda la estancia. Los episodios sin ID o con identidades contradictorias no se
+pueden seleccionar. La lectura puede ser incompleta y no equivale al historial total.
+
+Las decisiones son borradores en memoria, revisables y retirables, no vínculos
+clínicos aceptados. Se conservan al filtrar/paginar y se descartan al cambiar fuentes,
+lectura o permisos, o al salir. No hay localStorage, escrituras remotas, nuevas
+solicitudes Eloísa ni inclusión en el Excel. El aviso de pérdida permanece visible.
+La decisión de descarte tampoco elimina la fila fuente ni prueba incumplimiento.
+
+El cotejo de meses adyacentes, persistencia con autor/fecha/versiones y aceptación
+final quedan para el siguiente bloque. Propiedad: CUDYR. Reversión: revertir este PR;
+no hay migración ni registros clínicos que restaurar.
