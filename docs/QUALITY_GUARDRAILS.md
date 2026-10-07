@@ -192,3 +192,16 @@ son observaciones de una ejecución, no una reducción garantizada del pipeline.
 Sus contratos de caché verifican también nombre, scope, permisos, generación y
 publicación del artefacto. Functions conserva sus instalaciones independientes.
 No añadir un escritor de caché ni una barrera hacia `quality-static-base`.
+
+## Recuperación de auditoría CUDYR (#764)
+
+Se reutilizan únicamente las resoluciones transitivas compatibles del PR #738.
+El umbral sigue bloqueando altos y críticos en raíz y Functions, incluidas
+dependencias de desarrollo. Instalación local desde caché no equivale a auditoría
+fresca; se exige el resultado remoto del head definitivo antes de integrar.
+La conciliación #765 y los borradores #766 siguen dependiendo de ese cierre.
+
+La recuperación incorpora también Sharp 0.35.5 y SDK MCP 1.32.1 mediante
+resoluciones oficiales verificadas por SHA-512. Los artefactos de diagnóstico no
+sustituyen el audit requerido del PR; la cadena braces sigue siendo bloqueante.
+No se mantiene un workflow diagnóstico ni un fork de dependencias en main.
