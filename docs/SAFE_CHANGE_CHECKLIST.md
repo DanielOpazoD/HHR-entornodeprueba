@@ -191,3 +191,29 @@ es el PR #738; no se incorporan otros cambios de ese PR. La auditoría remota de
 head actualizado determinará los hallazgos restantes. Las consultas locales
 frescas al registro npm están bloqueadas por la cadena TLS de la red; resultados
 en caché no acreditan disponibilidad actual de versiones. No se desactiva TLS.
+
+### Parches de Sharp y SDK MCP para #764 (2026-10-07)
+
+- **Owner:** plataforma de imágenes y tooling Firebase HHR.
+- **Reason:** completar las actualizaciones disponibles de la auditoría; no se ha
+  demostrado explotación en HHR.
+- **TargetVersion:** Sharp 0.35.5, sus binarios 0.35.5 y libvips 1.3.4; SDK MCP
+  transitivo 1.32.1. Se conservan los rangos de los manifests y el SDK Firebase.
+- **RiskLevel:** medio: dependencias nativas de imagen y cliente MCP del tooling.
+- **RollbackPlan:** revertir este commit y ejecutar npm ci; reaparecen los avisos.
+  No modificar censos, credenciales ni permisos.
+- **VerificationGate:** instalación limpia, runtime Sharp, carga del tooling,
+  ci:merge-gate, navegador/emulador sintético, revisión independiente y auditoría
+  remota del head definitivo. No integrar mientras existan altos/críticos activos.
+
+El diagnóstico aislado de GitHub Actions, run 37685292433, resolvió los paquetes
+con TLS validado, scripts de instalación deshabilitados y token de sólo lectura.
+Se verificaron los SHA-512 de 28 tarballs oficiales en el runner y localmente.
+Únicamente esas 28 entradas se trasladan al lockfile; se descartan 16 cambios de
+metadatos libc ajenos. La instalación local usa caché por integridad, sin rebajar
+TLS. El workflow diagnóstico no se incorpora a este PR ni a main.
+
+La auditoría del árbol resuelto conserva siete paquetes altos en una misma cadena
+de braces 3.0.3; el registro fresco sigue publicando esa versión como latest.
+Esta evidencia no autoriza una excepción ni un downgrade del plugin de límites
+arquitectónicos. Sharp: GHSA-wq5f-xc86-pv6w. SDK MCP: GHSA-6qxp-vccf-f47h.

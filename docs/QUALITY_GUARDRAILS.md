@@ -200,3 +200,8 @@ El umbral sigue bloqueando altos y críticos en raíz y Functions, incluidas
 dependencias de desarrollo. Instalación local desde caché no equivale a auditoría
 fresca; se exige el resultado remoto del head definitivo antes de integrar.
 La conciliación #765 y los borradores #766 siguen dependiendo de ese cierre.
+
+La recuperación incorpora también Sharp 0.35.5 y SDK MCP 1.32.1 mediante
+resoluciones oficiales verificadas por SHA-512. Los artefactos de diagnóstico no
+sustituyen el audit requerido del PR; la cadena braces sigue siendo bloqueante.
+No se mantiene un workflow diagnóstico ni un fork de dependencias en main.
