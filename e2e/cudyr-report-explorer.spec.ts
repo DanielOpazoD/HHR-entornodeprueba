@@ -409,3 +409,47 @@ test('imports monthly XLS as passive evidence, persists it and exports it withou
   expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(1);
   expect(errors).toEqual([]);
 });
+
+test('reconciles local monthly sources without writes and keeps context usable on mobile', async ({
+  page,
+}) => {
+  const { reconciliationUpload } = await import('./fixtures/cudyrReconciliation');
+  const { calls, errors } = await open(page);
+  const original = (await db.doc(hospital + '/dailyRecords/' + DATE).get()).data();
+  const totals = page.getByRole('region', { name: 'Totales de la vista filtrada' });
+  const before = await totals.textContent();
+  const panel = page.getByTestId('cudyr-monthly-reconciliation');
+  await expect(panel).not.toHaveAttribute('open');
+  await panel.locator('summary').first().click();
+  await panel
+    .getByLabel('Categorización Eloísa local')
+    .setInputFiles(reconciliationUpload('categories'));
+  await expect(panel.getByRole('article').filter({ hasText: 'Categoría diferente' })).toHaveCount(
+    1
+  );
+  await panel
+    .getByLabel('Altas administrativas locales')
+    .setInputFiles(reconciliationUpload('discharges'));
+  await expect(panel.getByRole('article').filter({ hasText: 'Alta por cotejar' })).toHaveCount(1);
+  await panel
+    .getByRole('article')
+    .filter({ hasText: 'Categoría diferente' })
+    .locator('summary')
+    .click();
+  await expect(panel).toContainText('AUTORA SINTÉTICA');
+  await expect(panel).toContainText('Censo 2026-02-20');
+  expect(await totals.textContent()).toBe(before);
+  expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(0);
+  expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()).toEqual(original);
+  await screenshot(page, 'cudyr-conciliacion-escritorio');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await panel.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await screenshot(page, 'cudyr-conciliacion-movil');
+  await page.getByLabel('Desde', { exact: true }).fill('2026-02-19');
+  await page.getByRole('button', { name: 'Consultar período' }).click();
+  await expect(page.getByRole('button', { name: 'Consultar período' })).toBeEnabled();
+  await panel.locator('summary').first().click();
+  await expect(panel).not.toContainText('synthetic-categories.xls');
+  expect(errors).toEqual([]);
+});

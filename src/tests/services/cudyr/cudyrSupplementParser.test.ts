@@ -74,6 +74,51 @@ describe('monthly CUDYR documentary evidence parser', () => {
     const result = parseCudyrSupplementMatrix(input);
     expect(result.ok && result.report.patients).toHaveLength(2);
   });
+  it('retains text split across a page header without creating another patient or losing cells', () => {
+    const input = matrix();
+    const continuation = [
+      '',
+      'Apellido Final',
+      '',
+      '',
+      '',
+      'continuación diagnóstico',
+      '',
+      '',
+      'continuación servicio',
+    ];
+    input.rows.push(header(), continuation, patient(2));
+    const result = parseCudyrSupplementMatrix(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.report.patients).toHaveLength(2);
+    expect(result.report.patients[0]).toMatchObject({
+      sourceRow: 5,
+      ordinal: 1,
+      patientName: 'Paciente Sintético Apellido Final',
+      diagnosis: 'Diagnóstico sintético continuación diagnóstico',
+      service: 'Área Médico Quirúrgica Indiferenciada continuación servicio',
+      document: 'ID-SINTETICO',
+    });
+    expect(result.report.patients[0].days[0].category).toBe('C2');
+    expect(result.report.patients[1].sourceRow).toBe(8);
+  });
+  it.each([
+    'no header',
+    'nonsequential ordinal',
+    'document in fragment',
+    'category in fragment',
+    'no next row',
+  ])('rejects unsupported unnumbered rows: %s', kind => {
+    const input = matrix();
+    const fragment = ['', 'Unnumbered text'];
+    if (kind === 'document in fragment') fragment[3] = 'ANOTHER-ID';
+    if (kind === 'category in fragment') fragment[11] = 'C2';
+    if (kind !== 'no header') input.rows.push(header());
+    input.rows.push(fragment);
+    if (kind !== 'no next row') input.rows.push(patient(kind === 'nonsequential ordinal' ? 3 : 2));
+    expect(parseCudyrSupplementMatrix(input).ok).toBe(false);
+  });
   it('does not interpret clinical content as document identity', () => {
     const input = matrix();
     input.rows[4][5] = 'Hospital Distinto';

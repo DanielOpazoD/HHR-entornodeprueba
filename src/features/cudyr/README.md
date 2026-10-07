@@ -59,3 +59,11 @@ Feature de categorización CUDYR para enfermería, con vista web, exportación y
   referencias legibles hacia Archivos complementarios; en Auditoría conserva sus
   22 columnas y huellas/IDs. Las versiones nunca se suman al resumen principal.
 - Exportar no sincroniza Eloísa ni modifica los registros guardados en HHR.
+
+## Conciliación histórica en lectura
+
+El explorador incluye una sección plegable para inventariar HHR y cotejar una versión
+mensual de categorización y altas administrativas locales. La selección se descarta
+al cambiar sesión/período; no modifica registros, elegibilidad, totales ni Excel.
+Los estados se resuelven en `cudyrMonthlyComparison`, sin vinculación clínica implícita
+por RUT o categoría. Ver [flujo y bloques](../../../docs/CUDYR_HISTORICAL_RECONCILIATION.md).

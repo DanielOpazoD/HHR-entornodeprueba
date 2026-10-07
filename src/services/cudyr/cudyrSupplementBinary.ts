@@ -29,7 +29,7 @@ const validateZip = (bytes: Uint8Array) => {
       view.getUint16(offset + 32, true);
   }
 };
-export const parseCudyrSupplementBinary = (buffer: ArrayBuffer) => {
+export const readCudyrWorkbookMatrix = (buffer: ArrayBuffer) => {
   if (buffer.byteLength > 262144 || buffer.byteLength < 8)
     throw new Error('Use un XLS/XLSX de hasta 256 KiB.');
   const signature = Array.from(new Uint8Array(buffer, 0, 8))
@@ -59,5 +59,8 @@ export const parseCudyrSupplementBinary = (buffer: ArrayBuffer) => {
     defval: '',
     blankrows: true,
   });
-  return parseCudyrSupplementMatrix({ sheet: names[0], rows });
+  return { sheet: names[0], rows };
 };
+
+export const parseCudyrSupplementBinary = (buffer: ArrayBuffer) =>
+  parseCudyrSupplementMatrix(readCudyrWorkbookMatrix(buffer));

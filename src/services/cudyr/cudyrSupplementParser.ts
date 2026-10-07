@@ -119,6 +119,8 @@ export const parseCudyrSupplementMatrix = ({
   const month = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
   const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   let header: number[] | null = null;
+  let headerRow = -1;
+  let headerCount = 0;
   let dayColumns: Array<{ day: number; index: number }> = [];
   const patients: CudyrSupplementPatient[] = [];
   const ordinals = new Set<number>();
@@ -126,6 +128,8 @@ export const parseCudyrSupplementMatrix = ({
     const row = values[r];
     const folded = row.map(fold);
     if (folded.includes(fold('Nombre Paciente'))) {
+      headerRow = r;
+      headerCount += 1;
       header = columns.map(label => folded.indexOf(fold(label)));
       dayColumns = folded.flatMap((value, index) => {
         const match = value.match(/^dia (\d+)$/);
@@ -146,6 +150,35 @@ export const parseCudyrSupplementMatrix = ({
     if (!header || !row.some(Boolean)) continue;
     const ordinalText = row[header[0]] || '';
     if (isMetadataRow(row)) continue;
+    // Jasper can split textual cells across a repeated page header. Accept only the
+    // observed continuation shape, bounded by sequential numbered patient rows.
+    const previous = patients[patients.length - 1];
+    const textColumns = new Set([header[1], header[4], header[6]]);
+    const next = values[r + 1];
+    if (
+      !ordinalText &&
+      previous &&
+      headerCount > 1 &&
+      r === headerRow + 1 &&
+      row.every((value, index) => !value || textColumns.has(index)) &&
+      next &&
+      /^\d+$/.test(next[header[0]] || '') &&
+      Number(next[header[0]]) === previous.ordinal + 1
+    ) {
+      const continuations = [
+        ['patientName', header[1]],
+        ['diagnosis', header[4]],
+        ['service', header[6]],
+      ] as const;
+      for (const [field, index] of continuations) {
+        if (!row[index]) continue;
+        const joined = [previous[field], row[index]].filter(Boolean).join(' ');
+        if (joined.length > 3000)
+          issue(r + 1, index + 1, 'value', 'Texto continuado demasiado largo.');
+        else previous[field] = joined;
+      }
+      continue;
+    }
     const ordinal = Number(ordinalText);
     if (
       !/^\d+$/.test(ordinalText) ||
