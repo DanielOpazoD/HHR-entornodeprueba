@@ -223,6 +223,11 @@ export default defineConfig(({ mode }) => {
             // Callable Functions always require network access. Keep their runtime
             // on demand instead of charging every offline installation for it.
             '**/assets/vendor-firebase-functions-*.js',
+            // Contextual CUDYR reports read server-authoritative history and cannot
+            // load offline. Keep the new explorer and workbook on demand as well.
+            '**/assets/CudyrReportExplorer-*.js',
+            '**/assets/cudyrReportWorkbook-*.js',
+            '**/assets/cudyrReportLoader-*.js',
             // Rayen enrichment only runs while Eloisa is connected, so it is
             // an on-demand online workflow rather than PWA install payload.
             '**/assets/applyClinicalEnrichmentBatch-*.js',

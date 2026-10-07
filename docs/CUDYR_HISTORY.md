@@ -166,3 +166,62 @@ no modifica la grilla clínica heredada; se comparte entre el Excel contextual y
 Rollback: revertir el consumidor de contexto, preservando recibos anteriores. Los campos
 nuevos son opcionales y las capturas antiguas siguen legibles. No se añaden endpoints,
 permisos ni consultas a Eloísa al explorar o exportar.
+
+## Reporte contextual y explorador
+
+En CUDYR → **Explorar reporte estadístico**, la consulta acotada a 32 días lee censos
+persistidos, observaciones, recibos y correcciones desde HHR. `cudyrReportModel` es el
+único cálculo de filas y totales para el Excel y el explorador. No invoca la extensión,
+no inicia sincronización ni drena la cola. Los pendientes se leen sólo para el propietario
+actual del dispositivo; un cambio de sesión o período invalida respuestas anteriores.
+
+La unidad computable es episodio/día, nunca RUT. Nombres, apellidos, documento,
+diagnóstico y fecha/origen de esa identidad permanecen en el detalle. Cuando la identidad
+procede de una captura posterior, se etiqueta esa fecha y no se utiliza como prueba de
+la cama del día previo. Los registros legados del censo sin episodio no se unen por aproximación. Contextos de archivo
+sin episodio verificable se conservan en **Contextos capturados**, versiones y recibos, con
+una incidencia de cobertura; no generan pacientes-día desde un vínculo incierto.
+
+Las versiones de un mismo evento no multiplican pacientes-día. Se selecciona la última
+aplicación diaria por su hora original; versiones contradictorias sin orden verificable
+quedan por revisar. Un token opaco no es un reloj. Una anulación impide reutilizar la
+instantánea anterior del evento. Los ajustes administrativos HHR conservan precedencia.
+El guardado general del censo no se atribuye como autor ni hora de una evaluación manual.
+
+El resumen mantiene las categorías y posiciones de las tablas del Excel original,
+con columnas **INTERMEDIAS / MEDIAS**. El denominador explícito pasa a pacientes-día
+**elegibles conocidos**: no incluye cunas, CMA ni elegibilidad sin resolver. Se agregan
+detalle diario, todas las versiones e ítems, capturas, intervalos de cama, movimientos,
+auditoría de altas, cobertura y metodología. El explorador filtra los mismos datos y
+muestra ese alcance; su botón Excel descarga el período completo consultado.
+
+Lecturas fallidas, censos ausentes y pendientes no se convierten en cero de cumplimiento.
+El resultado queda marcado para revisión si su cobertura es parcial. «Sin registro
+observado» no prueba incumplimiento: la respuesta de origen puede contener sólo una
+parte del historial. No se fabrican pacientes-día para fechas sin evidencia. Las fechas
+ISO conservan sus offsets; la presentación horaria usa Pacific/Easter. El archivo usa
+celdas de texto literales para identificadores y contenido clínico, nunca fórmulas del usuario.
+
+## Alta física verificada
+
+El mismo callable de archivo admite `kind: correct-discharge` **sólo para admin y
+nurse_hospital**, coherente con la edición de egresos. Exige confirmación explícita,
+episodio presente en el censo de autoridad, fecha entre ingreso y ahora, motivo, UUID
+idempotente y revisión esperada. La fecha y hora originales del sistema y la epicrisis
+no se editan. Una hora desconocida queda vacía; si impide resolver el día, queda por revisar.
+
+La transacción actualiza `cudyrDischargeCorrections/{sha256(episode)}` y crea una entrada
+inmutable en `cudyrDischargeAudit/{sha256(episode,operation)}`, con actor verificado por
+el servidor, valor anterior, razón y hora. Reintentar la misma operación conserva el acuse;
+una edición concurrente requiere volver a consultar. Retirar una fecha también crea
+revisión y auditoría. No modifica el censo ni Eloísa.
+
+`readCudyrHistory` expone `discharge-corrections` (hasta 30 episodios) y `discharge-audit`
+(un episodio, páginas de hasta 100, cursor de documento), tras el guard clínico existente.
+Las colecciones no tienen acceso directo de cliente. No se crean endpoints ni se amplía IAM.
+
+Validación: fixtures sintéticas de transición RN, grupos independientes de UPC, conteo por
+episodio, versiones/anulaciones, alta real, paginación y cancelación; roundtrip de un XLSX
+real; autoridad/CAS/idempotencia con Firestore local; navegación, filtros, exportación y
+corrección en navegador de escritorio y móvil. El navegador usa autenticación sintética
+del repositorio; los permisos callable se prueban en el emulador, no con pacientes reales.

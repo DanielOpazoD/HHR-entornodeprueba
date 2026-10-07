@@ -1,0 +1,259 @@
+import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
+import type {
+  CudyrReportDataset,
+  CudyrReportRow,
+  CudyrReportTotals,
+} from '@/types/domain/cudyrReport';
+import {
+  cudyrReferenceInstant,
+  resolveCudyrDailyPlacement,
+} from '@/domain/cudyr/cudyrDailyPlacement';
+import {
+  collectCudyrDailyFacts,
+  collectCudyrArchiveFacts,
+  cudyrFactEpicrisis,
+  type CudyrReportFact,
+} from './cudyrReportFacts';
+import { selectCudyrReportEvaluation } from './cudyrReportEvaluations';
+import { cudyrCaptureState, reconcileCudyrDischarge } from './cudyrReportReconciliation';
+
+export interface CudyrReportInput extends Omit<CudyrReportDataset, 'schemaVersion' | 'rows'> {
+  records: DailyRecordCudyrExportState[];
+  pending: Array<{ clinicalEpisodeId: string; dates: string[] }>;
+}
+export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset => {
+  const facts = input.records.flatMap(collectCudyrDailyFacts);
+  const known = new Set(facts.map(fact => fact.key));
+  const archived = collectCudyrArchiveFacts(input.observations, input.captures);
+  facts.push(...archived.filter(fact => !known.has(fact.key)));
+  const groups = new Map<string, CudyrReportFact[]>();
+  facts
+    .filter(fact => fact.date >= input.from && fact.date <= input.to)
+    .forEach(fact => groups.set(fact.key, [...(groups.get(fact.key) || []), fact]));
+  const placements = input.captures.flatMap(receipt =>
+    (receipt.capture.sourcePlacements || []).map(placement => ({
+      placement,
+      observedAt: receipt.capture.observedAt,
+      censusDate: receipt.censusDate,
+      captureId: receipt.id,
+    }))
+  );
+  const cutoffs = new Map(
+    [...new Set(facts.map(fact => fact.date))].map(date => [date, cudyrReferenceInstant(date)])
+  );
+  const rows = [...groups.entries()]
+    .map(([key, entries]): CudyrReportRow => {
+      // Prefer the daily census identity. Conflicting snapshots remain visible as a review warning.
+      const daily = entries.filter(item => item.contextIsDaily);
+      const contexts = daily.length ? daily : entries;
+      const first =
+        contexts.find(
+          item => item.placement.section === 'census' || item.placement.section === 'crib'
+        ) || contexts[0];
+      const p = first.patient;
+      const episode = p.clinicalEpisodeId || '';
+      const record = input.records.find(item => item.date === first.date);
+      const selected = selectCudyrReportEvaluation(
+        first.date,
+        episode,
+        contexts.map(item => item.patient),
+        input.observations
+      );
+      const observation = input.observations.find(
+        item => item.id === selected.evaluation?.observationId
+      );
+      const relatedIds = new Set(
+        input.observations
+          .filter(
+            item => item.censusDate === first.date && item.evaluation.clinicalEpisodeId === episode
+          )
+          .map(item => item.id)
+      );
+      const capture = cudyrCaptureState(
+        input.captures.filter(
+          item =>
+            Boolean(episode) &&
+            item.capture.clinicalEpisodeId === episode &&
+            (item.censusDate === first.date || item.observationIds.some(id => relatedIds.has(id)))
+        )
+      );
+      const latest = capture.latest;
+      const placement = resolveCudyrDailyPlacement({
+        date: first.date,
+        patientName: p.patientName,
+        admissionDate: p.admissionDate,
+        admissionTime: p.admissionTime,
+        isBlocked: contexts.some(item => item.patient.isBlocked),
+        clinicalEpisodeId: episode,
+        sourcePlacements: episode ? placements : [],
+        placements: daily.map(item => item.placement),
+        evaluationAt:
+          selected.referenceAt ||
+          selected.evaluation?.recordedAt ||
+          cutoffs.get(first.date) ||
+          undefined,
+      });
+      const identityConflict =
+        new Set(contexts.map(item => item.patient.rut).filter(Boolean)).size > 1 ||
+        new Set(contexts.map(item => item.patient.admissionDate).filter(Boolean)).size > 1 ||
+        new Set(contexts.map(item => item.patient.admissionTime).filter(Boolean)).size > 1;
+      const pending = input.pending.some(
+        item =>
+          Boolean(episode) && item.clinicalEpisodeId === episode && item.dates.includes(first.date)
+      );
+      const warnings = [...selected.warnings, ...capture.warnings];
+      if (!episode)
+        warnings.push(
+          'Registro legado sin identificador de episodio; no se cruza por nombre ni RUT.'
+        );
+      if (identityConflict)
+        warnings.push('Identidad o ingreso contradictorio para el mismo episodio y día.');
+      if (!first.contextIsDaily)
+        warnings.push('Identidad y diagnóstico proceden de una captura de otro día.');
+      if (selected.evaluation?.metadataWarning) warnings.push(selected.evaluation.metadataWarning);
+      const movementFacts = [...facts, ...archived].filter(item =>
+        episode ? item.patient.clinicalEpisodeId === episode : item.key === key
+      );
+      const movements = [
+        ...new Map(
+          movementFacts
+            .filter(item => item.movement)
+            .map(item => [JSON.stringify(item.movement), item.movement!])
+        ).values(),
+      ];
+      const verified = cudyrFactEpicrisis(p);
+      const conflict = selected.conflict || identityConflict;
+      const row: CudyrReportRow = {
+        key,
+        date: first.date,
+        clinicalEpisodeId: episode,
+        authorityDate: first.authorityDate,
+        patientName: p.patientName || '',
+        firstName: p.firstName || '',
+        lastName: p.lastName || '',
+        secondLastName: p.secondLastName || '',
+        rut: p.rut || '',
+        documentType: p.documentType || '',
+        diagnosis: p.pathology || '',
+        diagnosisCode: p.cie10Code || '',
+        identitySource: first.identitySource,
+        identitySourceDate: first.identitySourceDate,
+        admissionDate: p.admissionDate || '',
+        admissionTime: p.admissionTime || '',
+        bedId: [...new Set(placement.contexts.map(item => item.bedId))].join(' / '),
+        bedName: [...new Set(placement.contexts.map(item => item.bedName || item.bedId))].join(
+          ' / '
+        ),
+        service: [...new Set(placement.contexts.map(item => item.location).filter(Boolean))].join(
+          ' / '
+        ),
+        specialty: p.specialty || '',
+        group: placement.group,
+        modality: placement.modality,
+        eligibility: identityConflict ? 'por_revisar' : placement.eligibility,
+        eligibilityReason: identityConflict
+          ? 'Datos contradictorios requieren revisión.'
+          : placement.reason,
+        contextSource: placement.contextSource,
+        referenceAt: placement.referenceAt || '',
+        cudyrStatus: conflict
+          ? 'por_revisar'
+          : pending
+            ? 'guardado_pendiente'
+            : ['captura_incompleta', 'fuente_no_disponible'].includes(capture.status)
+              ? capture.status
+              : selected.evaluation
+                ? 'registrado'
+                : capture.status,
+        evaluation: selected.evaluation,
+        evaluationCount: selected.count,
+        lastCaptureAt: latest?.capture.observedAt || '',
+        lastPersistedAt: latest?.receivedAt || observation?.firstCapturedAt || '',
+        captureActor: latest?.receivedBy || observation?.firstCapturedBy || '',
+        captureId: latest?.capture.id || '',
+        sourceRunId: latest?.capture.sourceRunId || '',
+        dailyCudyrSavedAt: record?.cudyrUpdatedAt || '',
+        dailyCudyrSavedBy: record?.cudyrUpdatedBy || '',
+        medicalEpicrisisStatus:
+          verified?.medicalEpicrisis || first.archivedEpicrisis?.medicalEpicrisisStatus || '',
+        nursingEpicrisisStatus:
+          verified?.nursingEpicrisis || first.archivedEpicrisis?.nursingEpicrisisStatus || '',
+        epicrisisRegisteredAt:
+          verified?.registeredAt || first.archivedEpicrisis?.epicrisisRegisteredAt || '',
+        movements,
+        correction: input.corrections.find(
+          item => Boolean(episode) && item.clinicalEpisodeId === episode
+        ),
+        warnings,
+      };
+      return reconcileCudyrDischarge(row);
+    })
+    .sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) || a.bedId.localeCompare(b.bedId) || a.key.localeCompare(b.key)
+    );
+  const { records: _records, pending: _pending, ...data } = input;
+  const unlinkedArchive =
+    input.observations.some(
+      item =>
+        !item.evaluation.clinicalEpisodeId ||
+        item.captureContexts.some(
+          context => context.clinicalEpisodeId !== item.evaluation.clinicalEpisodeId
+        )
+    ) ||
+    input.captures.some(
+      item =>
+        !item.capture.clinicalEpisodeId ||
+        item.captureContexts.some(
+          context => context.clinicalEpisodeId !== item.capture.clinicalEpisodeId
+        )
+    );
+  return {
+    ...data,
+    schemaVersion: 1,
+    rows,
+    issues: unlinkedArchive
+      ? [
+          ...data.issues,
+          'Archivo con episodio ausente o contradictorio: se conserva en versiones/capturas, sin crear pacientes-día desde ese contexto.',
+        ]
+      : data.issues,
+  };
+};
+
+export const cudyrReportTotals = (rows: CudyrReportRow[]): CudyrReportTotals => {
+  const totals: CudyrReportTotals = {
+    rows: rows.length,
+    eligible: 0,
+    categorized: 0,
+    withoutConfirmedResult: 0,
+    excluded: 0,
+    review: 0,
+    categories: Object.fromEntries(
+      ['A', 'B', 'C', 'D'].flatMap(risk =>
+        [1, 2, 3].map(dep => [risk + dep, { media: 0, intermedia: 0 }])
+      )
+    ),
+  };
+  for (const row of rows) {
+    if (row.eligibility === 'no_elegible') {
+      totals.excluded++;
+      continue;
+    }
+    if (row.eligibility === 'por_revisar') {
+      totals.review++;
+      continue;
+    }
+    totals.eligible++;
+    if (row.cudyrStatus === 'registrado' && row.evaluation && row.group !== 'sin_grupo') {
+      const category = totals.categories[row.evaluation.category];
+      if (category) {
+        totals.categorized++;
+        category[row.group]++;
+        continue;
+      }
+    }
+    totals.withoutConfirmedResult++;
+  }
+  return totals;
+};

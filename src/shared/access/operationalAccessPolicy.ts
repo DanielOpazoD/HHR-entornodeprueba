@@ -161,6 +161,15 @@ export const canEditCudyrForDate = ({
   );
 };
 
+/** Actual departure is an audited statistical correction; it does not edit the historical census. */
+export const canCorrectCudyrDischarge = ({
+  role,
+  readOnly,
+}: {
+  role: SupportedRole;
+  readOnly: boolean;
+}): boolean => !readOnly && (role === 'admin' || role === 'nurse_hospital');
+
 export const canOpenClinicalDocumentsFromCensus = ({
   role,
   isBlocked,
