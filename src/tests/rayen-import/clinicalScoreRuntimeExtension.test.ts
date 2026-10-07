@@ -22,6 +22,10 @@ type RuntimeApi = {
 
 const loadFactory = () => {
   const context = vm.createContext({ URL, Date, Set, Map, Promise, encodeURIComponent });
+  vm.runInContext(
+    readFileSync(path.resolve('extension/cudyr-capture-support.js'), 'utf8'),
+    context
+  );
   vm.runInContext(runtimeSource, context, { filename: 'clinical-score-runtime.js' });
   return (
     context as unknown as {

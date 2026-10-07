@@ -142,82 +142,14 @@ export const createSyncQueueEngine = ({
     meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,
     options: SyncQueueEnqueueOptions = {}
   ): Promise<SyncQueueEnqueueResult> => {
-    const key = getSyncTaskKey(type, payload);
-    const ownerKey = runtime.getOwnerKey();
-    const taskOwnerKey = ownerKey ?? undefined;
-    const now = Date.now();
-    const contextMeta = buildSyncQueueTaskContextMeta({
-      contexts: meta?.contexts,
-      recoveryPolicy: meta?.recoveryPolicy,
-    });
-    const syncContract = buildSyncTaskContract(type, payload, meta?.syncContract);
-
-    if (key) {
-      const existing = await store.findReusableTask(type, key, ownerKey);
-      if (existing?.id) {
-        const mergedSyncContract = mergeSyncTaskContracts(existing.syncContract, syncContract);
-        await store.update(existing.id, {
-          payload,
-          timestamp: now,
-          retryCount: 0,
-          key,
-          ownerKey: taskOwnerKey,
-          contexts: contextMeta.contexts,
-          origin: meta?.origin || existing.origin || 'direct_queue',
-          recoveryPolicy: contextMeta.recoveryPolicy,
-          syncContract: mergedSyncContract,
-          ...clearSyncTaskRuntimeState(),
-          nextAttemptAt: resolveSyncTaskNextAttemptAt(now, options),
-          ...resolvePreOutboxHoldState(now, options),
-        });
-        if (!options.deferProcessing) {
-          triggerProcessing();
-        }
-        const pendingTasks = await countActiveTasks(ownerKey);
-        return {
-          accepted: true,
-          mode: 'reused',
-          pendingTasks,
-          maxPendingTasks,
-        };
-      }
-    }
-
-    const pendingTasks = await countActiveTasks(ownerKey);
-    if (pendingTasks >= maxPendingTasks) {
-      return {
-        accepted: false,
-        mode: 'rejected_backpressure',
-        pendingTasks,
-        maxPendingTasks,
-      };
-    }
-
-    await store.add({
-      opId: `${type}:${key ?? 'global'}:${now}`,
+    const { enqueueStandaloneSyncTask } = await import('./enqueueStandaloneSyncTask');
+    return enqueueStandaloneSyncTask(
+      { store, runtime, maxPendingTasks, triggerProcessing },
       type,
       payload,
-      timestamp: now,
-      retryCount: 0,
-      key,
-      ownerKey: taskOwnerKey,
-      contexts: contextMeta.contexts,
-      origin: meta?.origin || 'direct_queue',
-      recoveryPolicy: contextMeta.recoveryPolicy,
-      syncContract,
-      ...clearSyncTaskRuntimeState(),
-      nextAttemptAt: resolveSyncTaskNextAttemptAt(now, options),
-      ...resolvePreOutboxHoldState(now, options),
-    });
-    if (!options.deferProcessing) {
-      triggerProcessing();
-    }
-    return {
-      accepted: true,
-      mode: 'created',
-      pendingTasks: pendingTasks + 1,
-      maxPendingTasks,
-    };
+      meta,
+      options
+    );
   };
 
   const queueDailyRecordTaskWithLocalRecord = async (

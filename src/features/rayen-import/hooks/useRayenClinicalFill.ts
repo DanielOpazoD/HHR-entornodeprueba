@@ -283,6 +283,17 @@ export const useRayenClinicalFill = ({
                 },
                 persistenceStrategy,
                 ...historicalCudyrPersistence,
+                ...(batchMode === 'enforced'
+                  ? {
+                      archiveCudyrCapture: (
+                        request: import('@/types/domain/cudyrHistory').ArchiveCudyrHistoryRequest
+                      ) =>
+                        import('@/services/cudyr/cudyrArchiveQueue').then(
+                          ({ persistCudyrArchivePart }) =>
+                            persistCudyrArchivePart(request, watchdog.signal)
+                        ),
+                    }
+                  : {}),
                 now: () => new Date(),
                 createId,
                 nurseCatalog,

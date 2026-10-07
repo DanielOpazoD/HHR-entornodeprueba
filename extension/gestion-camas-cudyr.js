@@ -92,48 +92,38 @@
       category,
       recordedAt,
       author: practitioners.get(practitionerId) || '',
+      authorId: practitionerId,
+      authorRoleId: practitionerRoleId,
       authorRole: roleLabel(practitionerRoleId),
+      sourceVersion: cleanText(summary.timeStamp),
+      isDeleted: summary.isDeleted === true || summary.deleted === true,
       dependencyScore,
       riskScore,
       items,
     };
   };
 
-  const extractEncounter = bed => bed && bed.bedEncounterMapping &&
-    bed.bedEncounterMapping.encounterMapping && bed.bedEncounterMapping.encounterMapping.encounter;
-
-  const buildSnapshot = ({ beds, practitioners, definitions }) => {
+  const buildSnapshot = ({ beds, practitioners, definitions, includeObservations = false }) => {
     const definitionById = definitionMap(definitions);
     const practitionerById = practitionerMap(practitioners);
     const items = [];
-    for (const bed of Array.isArray(beds) ? beds : []) {
-      const encounter = extractEncounter(bed);
+    for (const encounter of root.HhrCudyrCaptureSupport.encountersFromBeds(beds)) {
       const encId = String(encounter && encounter.id || '');
       if (!encId) continue;
-      const seen = new Set();
-      const history = (Array.isArray(encounter.formRegistrationSummaryList)
-        ? encounter.formRegistrationSummaryList
-        : [])
-        .filter(summary => summary && [1, 2].includes(Number(summary.formId)) && !summary.deleted)
-        .map(summary => normalizeHistoryEntry(summary, definitionById, practitionerById))
-        .filter(Boolean)
-        .sort((a, b) => timestampValue(b.recordedAt) - timestampValue(a.recordedAt))
-        .filter(entry => {
-          const key = entry.id || [entry.recordedAt, entry.category, entry.author].join('|');
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+      const { history, observations, metadataComplete } = root.HhrCudyrCaptureSupport.prepareHistory(
+        encounter, summary => normalizeHistoryEntry(summary, definitionById, practitionerById)
+      );
       const latest = history[0];
-      if (!latest) continue;
+      if (!latest && !includeObservations) continue;
       items.push({
         encId,
-        crdValue: latest.category,
-        crdDateTime: latest.recordedAt,
-        author: latest.author,
-        authorRole: latest.authorRole,
+        crdValue: latest ? latest.category : '',
+        crdDateTime: latest ? latest.recordedAt : '',
+        author: latest ? latest.author : '',
+        authorRole: latest ? latest.authorRole : '',
         source: 'gestion_camas',
         history,
+        ...(includeObservations ? { observations, metadataComplete } : {}),
       });
     }
     return items;

@@ -9,7 +9,7 @@ import type {
 export interface SyncTask {
   id?: number;
   opId: string;
-  type: 'UPDATE_DAILY_RECORD' | 'UPDATE_PATIENT';
+  type: 'UPDATE_DAILY_RECORD' | 'UPDATE_PATIENT' | 'ARCHIVE_CUDYR';
   payload: unknown;
   timestamp: number;
   retryCount: number;

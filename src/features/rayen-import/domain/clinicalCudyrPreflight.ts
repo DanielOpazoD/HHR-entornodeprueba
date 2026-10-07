@@ -8,6 +8,9 @@ import {
 export interface ClinicalCudyrSource {
   map: Map<string, RayenCudyrCategory>;
   historyAvailable: boolean;
+  captureContract?: 1;
+  observedEpisodeIds?: string[];
+  metadataStatus?: 'complete' | 'partial';
 }
 
 interface ClinicalCudyrPreflightResult {
@@ -19,6 +22,7 @@ interface ClinicalCudyrPreflightDependencies {
   fetch: () => Promise<RayenCudyrCategoriesResponse>;
   trackRequest: <T>(operation: () => Promise<T>) => Promise<T>;
   recordTimeout: (value: unknown) => void;
+  requireCompleteMetadata?: boolean;
 }
 
 const message = (error: unknown): string =>
@@ -48,12 +52,22 @@ export const captureClinicalCudyrSource = async ({
   fetch,
   trackRequest,
   recordTimeout,
+  requireCompleteMetadata = false,
 }: ClinicalCudyrPreflightDependencies): Promise<ClinicalCudyrPreflightResult> => {
   try {
     const response = await trackRequest(fetch);
     const historyAvailable = isOfficialHistory(response);
     const detail =
       response.error ||
+      (requireCompleteMetadata &&
+      response.items.some(
+        item => item.source === 'gestion_camas' && item.metadataComplete === false
+      )
+        ? 'faltan datos de autor, identidad de evaluación o detalle CUDYR'
+        : undefined) ||
+      (requireCompleteMetadata && response.metadataStatus === 'partial'
+        ? response.warning || 'metadatos CUDYR incompletos'
+        : undefined) ||
       (!historyAvailable
         ? !hasUnambiguousMixedProvenance(response)
           ? 'la extensión no informó la procedencia CUDYR de cada episodio'
@@ -64,6 +78,9 @@ export const captureClinicalCudyrSource = async ({
       source: {
         map: new Map(normalizeItems(response).map(item => [item.encId, item])),
         historyAvailable,
+        captureContract: response.captureContract,
+        observedEpisodeIds: response.observedEpisodeIds,
+        metadataStatus: response.metadataStatus,
       },
       ...(detail
         ? {
@@ -71,7 +88,9 @@ export const captureClinicalCudyrSource = async ({
               bedId: '*',
               source: 'cudyr',
               reason: classifyRayenSyncIssueReason('cudyr', detail),
-              error: unavailableMessage(detail),
+              error: historyAvailable
+                ? `CUDYR se consultó con información incompleta: ${detail}`
+                : unavailableMessage(detail),
             }),
           }
         : {}),

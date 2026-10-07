@@ -24,6 +24,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // legacy fallback when an older movement lacks clinicalEpisodeId.
   'src/features/rayen-import/domain/applyCensusImportDiff.ts',
   'src/features/rayen-import/domain/censusDischargeHistory.ts',
+  // Capture ownership: legacy movements may preserve the episode ID only in their snapshot.
+  // This read discovers an archive target; the server revalidates it against the census.
+  'src/features/rayen-import/domain/cudyrCapturePlan.ts',
   // Continuity D-1 reads the preserved pre-discharge identity only to prove that an
   // episode missing from today's census already has an explicit clinical outcome.
   'src/features/rayen-import/domain/previousCensusContinuity.ts',

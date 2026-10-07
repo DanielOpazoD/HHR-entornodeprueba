@@ -1,4 +1,5 @@
 const functions = require('firebase-functions/v1');
+const { isDeepStrictEqual } = require('node:util');
 const { FieldPath } = require('firebase-admin/firestore');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { assertAuthorizedDailyRecordWriter } = require('./dailyRecordWriteAuthorityFunctions');
@@ -11,6 +12,8 @@ const {
   owningCensusDate,
 } = require('./cudyrHistoryContract');
 const { episodeContext } = require('./cudyrHistoryContext');
+const { captureKey } = require('./cudyrCaptureContract');
+const { prepareCaptureManifest } = require('./cudyrCaptureManifest');
 
 const createCudyrHistoryFunctions = ({
   firestore,
@@ -19,6 +22,18 @@ const createCudyrHistoryFunctions = ({
 }) => {
   const hospital = firestore.collection('hospitals').doc(HOSPITAL_ID);
   const history = hospital.collection('cudyrHistory');
+  const captures = hospital.collection('cudyrCaptures');
+  const runArchiveTransaction = async write => {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await firestore.runTransaction(write);
+      } catch (error) {
+        // Concurrent creates of an absent content-addressed document can surface as gRPC 6.
+        // Reread the entire authority and archive; never turn this error into an assumed ack.
+        if (error.code !== 6 || attempt >= 2) throw error;
+      }
+    }
+  };
   const archiveCudyrHistory = functions
     .region('southamerica-east1')
     .https.onCall(async (data, context) => {
@@ -29,7 +44,10 @@ const createCudyrHistoryFunctions = ({
         id: observationKey(HOSPITAL_ID, evaluation),
         eventKey: evaluationKey(HOSPITAL_ID, evaluation),
       }));
-      const results = await firestore.runTransaction(async transaction => {
+      const receiptRef = payload.capture
+        ? captures.doc(captureKey(HOSPITAL_ID, payload.authorityDate, payload.capture))
+        : null;
+      const results = await runArchiveTransaction(async transaction => {
         const recordRef = hospital.collection('dailyRecords').doc(payload.authorityDate);
         const recordSnapshot = await transaction.get(recordRef);
         const policySnapshot = await transaction.get(
@@ -58,7 +76,49 @@ const createCudyrHistoryFunctions = ({
         const existing = await Promise.all(
           entries.map(entry => transaction.get(history.doc(entry.id)))
         );
+        const receiptSnapshot = receiptRef ? await transaction.get(receiptRef) : null;
+        const receiptContext = payload.capture
+          ? episodeContext(record, payload.capture.clinicalEpisodeId)
+          : null;
+        const observationIds = entries.map(entry => entry.id);
+        const writeManifest = await prepareCaptureManifest(
+          transaction,
+          hospital,
+          HOSPITAL_ID,
+          payload,
+          observationIds
+        );
+        if (
+          receiptSnapshot?.exists &&
+          (!isDeepStrictEqual(receiptSnapshot.data().capture, payload.capture) ||
+            JSON.stringify(receiptSnapshot.data().observationIds) !==
+              JSON.stringify(observationIds))
+        )
+          throw new functions.https.HttpsError(
+            'already-exists',
+            'Capture identity has different content.'
+          );
         const now = new Date().toISOString();
+        if (receiptRef && !receiptSnapshot.exists) {
+          const receipt = {
+            schemaVersion: 1,
+            id: receiptRef.id,
+            censusDate: payload.authorityDate,
+            capture: payload.capture,
+            observationIds,
+            captureContexts: receiptContext,
+            receivedAt: now,
+            receivedBy: email,
+            verifiedRunId: payload.runId,
+          };
+          if (Buffer.byteLength(JSON.stringify(receipt), 'utf8') > 40_000)
+            throw new functions.https.HttpsError(
+              'resource-exhausted',
+              'CUDYR receipt exceeds its size limit.'
+            );
+          transaction.create(receiptRef, receipt);
+        }
+        writeManifest();
         return entries.map(({ evaluation, id, eventKey }, index) => {
           const ref = history.doc(id);
           if (existing[index].exists) {
@@ -94,7 +154,12 @@ const createCudyrHistoryFunctions = ({
           return { id, eventKey, status: 'recorded' };
         });
       });
-      return { success: true, persisted: true, results };
+      return {
+        success: true,
+        persisted: true,
+        results,
+        ...(receiptRef ? { captureReceiptId: receiptRef.id } : {}),
+      };
     });
 
   const readCudyrHistory = functions
@@ -105,8 +170,8 @@ const createCudyrHistoryFunctions = ({
       if (!(await hasCallableClinicalAccess(context))) {
         throw new functions.https.HttpsError('permission-denied', 'Clinical access is required.');
       }
-      const { from, to, limit, cursor } = parseHistoryQuery(data);
-      let query = history
+      const { from, to, limit, cursor, kind } = parseHistoryQuery(data);
+      let query = (kind === 'captures' ? captures : history)
         .where('censusDate', '>=', from)
         .where('censusDate', '<=', to)
         .orderBy('censusDate')
@@ -116,7 +181,7 @@ const createCudyrHistoryFunctions = ({
       const page = snapshot.docs.slice(0, limit).map(doc => doc.data());
       const last = page.at(-1);
       return {
-        observations: page,
+        ...(kind === 'captures' ? { captures: page } : { observations: page }),
         nextCursor: snapshot.size > limit && last ? { date: last.censusDate, id: last.id } : null,
       };
     });

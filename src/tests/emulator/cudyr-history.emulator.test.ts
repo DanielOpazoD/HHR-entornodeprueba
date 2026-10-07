@@ -8,6 +8,8 @@ import type {
   ReadCudyrHistoryResult,
 } from '@/types/domain/cudyrHistory';
 
+import type { ReadCudyrCapturesResult } from '@/types/domain/cudyrCapture';
+
 const require = createRequire(import.meta.url);
 const { createCudyrHistoryFunctions } = require('../../../functions/lib/cudyrHistoryFunctions.js');
 const describeEmulator =
@@ -132,5 +134,109 @@ describeEmulator('permanent CUDYR observations in Firestore', () => {
       fns.archiveCudyrHistory.run({ ...payload, runId: 'unconfirmed-run' }, context)
     ).rejects.toMatchObject({ code: 'failed-precondition' });
     expect((await db.collection(`${hospital}/cudyrHistory`).get()).size).toBe(5);
+  });
+
+  it('stores idempotent capture receipts, keeps empty/unavailable distinct and reads every page', async () => {
+    const fns = createCudyrHistoryFunctions({
+      firestore: db,
+      resolveRoleForEmail: async () => 'nurse_hospital',
+      hasCallableClinicalAccess: async () => true,
+    });
+    const capture = {
+      id: '00000000-0000-4000-8000-000000000001',
+      clinicalEpisodeId: evaluation.clinicalEpisodeId,
+      sourceRunId: payload.runId,
+      observedAt: '2026-10-06T20:00:00.000Z',
+      status: 'observed',
+      metadataStatus: 'partial',
+      part: 0,
+      totalParts: 1,
+      totalEvaluations: 1,
+    };
+    const replies = await Promise.all(
+      [1, 2].map(() => fns.archiveCudyrHistory.run({ ...payload, capture }, context))
+    );
+    expect(replies[0].captureReceiptId).toBe(replies[1].captureReceiptId);
+    await fns.archiveCudyrHistory.run(
+      {
+        ...payload,
+        evaluations: [],
+        capture: {
+          ...capture,
+          id: '00000000-0000-4000-8000-000000000002',
+          status: 'unavailable',
+          totalEvaluations: 0,
+          metadataStatus: 'unknown',
+        },
+      },
+      context
+    );
+    const first: ReadCudyrCapturesResult = await fns.readCudyrHistory.run(
+      { ...query, kind: 'captures' },
+      context
+    );
+    const second: ReadCudyrCapturesResult = await fns.readCudyrHistory.run(
+      { ...query, kind: 'captures', cursor: first.nextCursor },
+      context
+    );
+    const receipts = [...first.captures, ...second.captures];
+    expect(receipts).toHaveLength(2);
+    expect(second.nextCursor).toBeNull();
+    expect(receipts.map(row => row.capture.status).sort()).toEqual(['observed', 'unavailable']);
+    const observed = receipts.find(row => row.capture.status === 'observed')!;
+    expect(observed.observationIds).toEqual([replies[0].results[0].id]);
+    expect(observed.captureContexts[0].section).toBe('discharges');
+    await expect(
+      fns.archiveCudyrHistory.run(
+        { ...payload, capture: { ...capture, metadataStatus: 'unknown' } },
+        context
+      )
+    ).rejects.toMatchObject({ code: 'already-exists' });
+    expect((await db.collection(`${hospital}/cudyrCaptures`).get()).size).toBe(2);
+  });
+  it('serializes competing sibling manifests in a real transaction', async () => {
+    const fns = createCudyrHistoryFunctions({
+      firestore: db,
+      resolveRoleForEmail: async () => 'admin',
+      hasCallableClinicalAccess: async () => true,
+    });
+    const capture = {
+      id: '00000000-0000-4000-8000-000000000003',
+      clinicalEpisodeId: evaluation.clinicalEpisodeId,
+      sourceRunId: payload.runId,
+      observedAt: '2026-10-06T20:00:00.000Z',
+      status: 'observed',
+      metadataStatus: 'partial',
+    };
+    const evaluations = Array.from({ length: 32 }, (_, index) => ({
+      ...evaluation,
+      sourceEvaluationId: `multipart-${index}`,
+    }));
+    const outcomes = await Promise.allSettled([
+      fns.archiveCudyrHistory.run(
+        {
+          ...payload,
+          evaluations,
+          capture: { ...capture, part: 0, totalEvaluations: 65, totalParts: 3 },
+        },
+        context
+      ),
+      fns.archiveCudyrHistory.run(
+        {
+          ...payload,
+          evaluations: [{ ...evaluation, sourceEvaluationId: 'multipart-last' }],
+          capture: { ...capture, part: 1, totalEvaluations: 33, totalParts: 2 },
+        },
+        context
+      ),
+    ]);
+    expect(outcomes.filter(outcome => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.find(outcome => outcome.status === 'rejected')).toMatchObject({
+      reason: { code: 'already-exists' },
+    });
+    expect(
+      (await db.collection(`${hospital}/cudyrCaptures`).where('capture.id', '==', capture.id).get())
+        .size
+    ).toBe(1);
   });
 });

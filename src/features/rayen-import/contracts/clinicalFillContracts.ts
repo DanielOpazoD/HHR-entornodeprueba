@@ -68,6 +68,9 @@ export interface ClinicalFillDeps {
   ) => Promise<import('./patientClinicalBundle').RayenPatientClinicalBundle | null>;
   /** One shared capture, resolved before CUDYR enrichment and historical writes. */
   fetchCudyrCategories: () => Promise<RayenCudyrCategoriesResponse>;
+  archiveCudyrCapture?: (
+    request: import('@/types/domain/cudyrHistory').ArchiveCudyrHistoryRequest
+  ) => Promise<'persisted' | 'queued' | 'failed'>;
   applyHistoricalCudyr?: (
     encId: string,
     censusDay: string,

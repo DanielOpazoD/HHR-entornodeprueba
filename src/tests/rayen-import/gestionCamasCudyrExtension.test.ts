@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import '../../../extension/cudyr-capture-support.js';
 import '../../../extension/gestion-camas-cudyr.js';
 
 const cudyr = (
@@ -24,6 +25,10 @@ const clinicalScoreRuntimeSource = readFileSync(
 
 const loadClinicalScoreRuntime = () => {
   const context = vm.createContext({ URL, Date, Set, Map, Promise, encodeURIComponent });
+  vm.runInContext(
+    readFileSync(new URL('../../../extension/cudyr-capture-support.js', import.meta.url), 'utf8'),
+    context
+  );
   vm.runInContext(clinicalScoreRuntimeSource, context, { filename: 'clinical-score-runtime.js' });
   return (
     context as unknown as {
@@ -60,31 +65,147 @@ const createRuntimeDependencies = (overrides: Record<string, unknown> = {}) => (
 });
 
 describe('Gestión de Camas CUDYR normalizer', () => {
+  const sourceVersion = {
+    id: 91,
+    formId: 1,
+    value: 'C2',
+    creationDate: '2026-10-06T03:00:00-05:00',
+    healthCarePractitionerId: 7,
+    healthCarePractitionerRoleId: 2,
+    timeStamp: 'opaque-v1',
+    formRegistrationDetailList: Array.from({ length: 14 }, (_, i) => ({
+      fieldFormId: i + 1,
+      value: 1,
+    })),
+  };
+  const bedWith = (entries: unknown[]) => ({
+    bedEncounterMapping: {
+      encounterMapping: { encounter: { id: 901, formRegistrationSummaryList: entries } },
+    },
+  });
+  it('keeps conflicting versions and tombstones across duplicate bed mappings out of the live projection', () => {
+    const rows = cudyr.buildSnapshot({
+      includeObservations: true,
+      practitioners: [{ id: 7, fullName: 'Autor sintético' }],
+      definitions: [],
+      beds: [
+        bedWith([sourceVersion]),
+        bedWith([{ ...sourceVersion, isDeleted: true, timeStamp: 'opaque-v2' }]),
+      ],
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].observations).toHaveLength(2);
+    expect(rows[0].history).toEqual([]);
+    expect(rows[0].crdValue).toBe('');
+  });
+  it('deduplicates identical versions but does not order different opaque tokens', () => {
+    const build = (entries: unknown[]) =>
+      cudyr.buildSnapshot({
+        includeObservations: true,
+        practitioners: [],
+        definitions: [],
+        beds: [bedWith(entries)],
+      })[0];
+    expect(build([sourceVersion, sourceVersion]).history).toHaveLength(1);
+    expect(
+      build([sourceVersion, { ...sourceVersion, value: 'D3', timeStamp: 'opaque-v0' }]).history
+    ).toEqual([]);
+  });
+  it.each(['timeStamp', 'healthCarePractitionerRoleId'])(
+    'marks missing %s as incomplete provenance',
+    field => {
+      const rows = cudyr.buildSnapshot({
+        includeObservations: true,
+        practitioners: [{ id: 7, fullName: 'Autor sintético' }],
+        definitions: [],
+        beds: [bedWith([{ ...sourceVersion, [field]: '' }])],
+      });
+      expect(rows[0].metadataComplete).toBe(false);
+      expect(rows[0].observations).toHaveLength(1);
+    }
+  );
+
+  it('captures source identity and tombstones without promoting deleted evaluations to current CUDYR', () => {
+    const rows = cudyr.buildSnapshot({
+      includeObservations: true,
+      beds: [
+        {
+          bedEncounterMapping: {
+            encounterMapping: {
+              encounter: {
+                id: 901,
+                formRegistrationSummaryList: [
+                  {
+                    id: 21,
+                    formId: 1,
+                    value: 'C2',
+                    isDeleted: true,
+                    creationDate: '2026-10-06T03:53:00-05:00',
+                    timeStamp: 'opaque-version',
+                    healthCarePractitionerId: 44,
+                    healthCarePractitionerRoleId: 2,
+                    formRegistrationDetailList: Array.from({ length: 14 }, (_, index) => ({
+                      fieldFormId: index + 1,
+                      value: 1,
+                    })),
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+      practitioners: [{ id: 44, fullName: 'Profesional sintético' }],
+      definitions: [],
+    });
+    expect(rows).toMatchObject([
+      {
+        encId: '901',
+        crdValue: '',
+        history: [],
+        metadataComplete: true,
+        observations: [
+          {
+            id: '21',
+            authorId: '44',
+            authorRoleId: '2',
+            sourceVersion: 'opaque-version',
+            isDeleted: true,
+            author: 'Profesional sintético',
+            recordedAt: '2026-10-06T03:53:00-05:00',
+          },
+        ],
+      },
+    ]);
+  });
+
   it('preserves official bed history when optional author and definition metadata fail', async () => {
     const beds = [{ bedEncounterMapping: { encounterMapping: { encounter: { id: 901 } } } }];
-    const runtime = loadClinicalScoreRuntime().create(createRuntimeDependencies({
-      getFichaFetchInfo: async () => ({ error: 'Ficha Médico no disponible.' }),
-      resolveGestionCamasSession: async () => ({
-        record: {
-          apiBase: 'https://hospbackend.rayensalud.cl/api',
-          facId: '1342',
-          token: 'fixture',
+    const runtime = loadClinicalScoreRuntime().create(
+      createRuntimeDependencies({
+        getFichaFetchInfo: async () => ({ error: 'Ficha Médico no disponible.' }),
+        resolveGestionCamasSession: async () => ({
+          record: {
+            apiBase: 'https://hospbackend.rayensalud.cl/api',
+            facId: '1342',
+            token: 'fixture',
+          },
+        }),
+        fetchWithTimeout: async (url: string) => {
+          if (url.endsWith('/beds')) {
+            return { ok: true, status: 200, json: async () => beds };
+          }
+          if (url.includes('/healthCarePractitioners')) {
+            return { ok: false, status: 503, json: async () => [] };
+          }
+          throw new Error('Definitions unavailable');
         },
-      }),
-      fetchWithTimeout: async (url: string) => {
-        if (url.endsWith('/beds')) {
-          return { ok: true, status: 200, json: async () => beds };
-        }
-        if (url.includes('/healthCarePractitioners')) {
-          return { ok: false, status: 503, json: async () => [] };
-        }
-        throw new Error('Definitions unavailable');
-      },
-      gestionCamasCudyr: {
-        buildSnapshot: (input: Record<string, unknown>) => [input],
-        mergeEncounterSnapshots: cudyr.mergeEncounterSnapshots,
-      },
-    }));
+        gestionCamasCudyr: {
+          buildSnapshot: (input: Record<string, unknown>) => [input],
+          mergeEncounterSnapshots: cudyr.mergeEncounterSnapshots,
+        },
+      })
+    );
     const result = await runtime.handleCudyrCategoriesRequest();
 
     expect(result).toMatchObject({
@@ -97,19 +218,22 @@ describe('Gestión de Camas CUDYR normalizer', () => {
   });
 
   it('keeps official metadata warnings when Ficha Médico is unavailable', async () => {
-    const runtime = loadClinicalScoreRuntime().create(createRuntimeDependencies({
-      getFichaFetchInfo: async () => ({ error: 'Ficha Médico no disponible.' }),
-      resolveGestionCamasSession: async () => ({
-        record: {
-          apiBase: 'https://hospbackend.rayensalud.cl/api',
-          facId: '1342',
-          token: 'fixture',
-        },
-      }),
-      fetchWithTimeout: async (url: string) => url.endsWith('/beds')
-        ? { ok: true, status: 200, json: async () => [] }
-        : { ok: false, status: 503, json: async () => [] },
-    }));
+    const runtime = loadClinicalScoreRuntime().create(
+      createRuntimeDependencies({
+        getFichaFetchInfo: async () => ({ error: 'Ficha Médico no disponible.' }),
+        resolveGestionCamasSession: async () => ({
+          record: {
+            apiBase: 'https://hospbackend.rayensalud.cl/api',
+            facId: '1342',
+            token: 'fixture',
+          },
+        }),
+        fetchWithTimeout: async (url: string) =>
+          url.endsWith('/beds')
+            ? { ok: true, status: 200, json: async () => [] }
+            : { ok: false, status: 503, json: async () => [] },
+      })
+    );
     const result = await runtime.handleCudyrCategoriesRequest();
 
     expect(result).toMatchObject({ ok: true, source: 'gestion_camas', historyAvailable: true });

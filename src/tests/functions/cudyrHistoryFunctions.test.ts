@@ -31,6 +31,7 @@ const harness = () => {
   const writes: Array<{ path: string; value: Record<string, unknown> }> = [];
   const ref = (path: string) => ({
     path,
+    id: path.split('/').at(-1),
     collection: (name: string) => ref(`${path}/${name}`),
     doc: (id: string) => ref(`${path}/${id}`),
   });
@@ -39,7 +40,7 @@ const harness = () => {
       ? record
       : path.endsWith('/rayenImportPolicy')
         ? policy
-        : null;
+        : ([...writes].reverse().find(write => write.path === path)?.value ?? null);
     return { exists: !!value, data: () => value };
   });
   const firestore = {
@@ -50,6 +51,14 @@ const harness = () => {
         get,
         create: (reference: { path: string }, value: Record<string, unknown>) =>
           pending.push({ path: reference.path, value }),
+        update: (reference: { path: string }, value: Record<string, unknown>) =>
+          pending.push({
+            path: reference.path,
+            value: {
+              ...[...writes].reverse().find(write => write.path === reference.path)?.value,
+              ...value,
+            },
+          }),
       });
       writes.push(...pending);
       return result;
@@ -74,6 +83,160 @@ const harness = () => {
 };
 
 describe('CUDYR archive callable boundaries', () => {
+  it('rereads the full transaction after a concurrent create, but never assumes it succeeded', async () => {
+    const h = harness();
+    h.firestore.runTransaction.mockRejectedValueOnce(
+      Object.assign(new Error('concurrent create'), { code: 6 })
+    );
+    expect(await h.archiveCudyrHistory.run(payload, context)).toMatchObject({ persisted: true });
+    expect(h.firestore.runTransaction).toHaveBeenCalledTimes(2);
+    expect(h.writes).toHaveLength(1);
+  });
+
+  const capture = {
+    id: '00000000-0000-4000-8000-000000000001',
+    clinicalEpisodeId: 'episode-test',
+    sourceRunId: 'run-test',
+    observedAt: '2026-10-06T20:00:00.000Z',
+    status: 'observed',
+    metadataStatus: 'partial',
+    part: 0,
+    totalParts: 1,
+    totalEvaluations: 1,
+  };
+
+  it('commits source observations and their capture receipt together', async () => {
+    const h = harness();
+    const result = await h.archiveCudyrHistory.run({ ...payload, capture }, context);
+    expect(result.captureReceiptId).toMatch(/^[a-f0-9]{64}$/);
+    expect(h.writes).toHaveLength(3);
+    const receipt = h.writes.find((write: { path: string; value: Record<string, unknown> }) =>
+      write.path.includes('/cudyrCaptures/')
+    )!.value;
+    expect(receipt).toMatchObject({
+      censusDate: payload.authorityDate,
+      capture,
+      observationIds: [result.results[0].id],
+      captureContexts: [{ patientName: 'Paciente prueba' }],
+    });
+    await h.archiveCudyrHistory.run({ ...payload, capture }, context);
+    expect(
+      h.writes.filter((write: { path: string }) => write.path.includes('/cudyrCaptures/'))
+    ).toHaveLength(1);
+  });
+
+  it('records an empty or failed source observation without inventing a CUDYR evaluation', async () => {
+    const h = harness();
+    await h.archiveCudyrHistory.run(
+      {
+        ...payload,
+        evaluations: [],
+        capture: {
+          ...capture,
+          status: 'unavailable',
+          metadataStatus: 'unknown',
+          totalEvaluations: 0,
+        },
+      },
+      context
+    );
+    expect(h.writes).toHaveLength(2);
+    expect(h.writes[0].path).toContain('/cudyrCaptures/');
+    expect(h.writes[0].value).toMatchObject({
+      observationIds: [],
+      capture: { status: 'unavailable' },
+    });
+  });
+
+  it('rejects conflicting content under the same source capture identity', async () => {
+    const h = harness();
+    await h.archiveCudyrHistory.run({ ...payload, capture }, context);
+    await expect(
+      h.archiveCudyrHistory.run(
+        { ...payload, evaluations: [{ ...evaluation, category: 'D3' }], capture },
+        context
+      )
+    ).rejects.toMatchObject({ code: 'already-exists' });
+    expect(h.writes).toHaveLength(3);
+  });
+
+  it.each([
+    { totalParts: 2 },
+    { part: 1 },
+    { totalEvaluations: 2 },
+    { status: 'not_observed' },
+    { clinicalEpisodeId: 'foreign' },
+    { observedAt: '2026-02-30T20:00:00.000Z' },
+  ])('rejects an inconsistent capture without storing a partial receipt: %j', async invalid => {
+    const h = harness();
+    await expect(
+      h.archiveCudyrHistory.run({ ...payload, capture: { ...capture, ...invalid } }, context)
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(h.writes).toHaveLength(0);
+  });
+
+  it('rejects contradictory sibling manifests and repeated observations across parts', async () => {
+    const h = harness();
+    const evaluations = Array.from({ length: 32 }, (_, index) => ({
+      ...evaluation,
+      sourceEvaluationId: `event-${index}`,
+    }));
+    await h.archiveCudyrHistory.run(
+      { ...payload, evaluations, capture: { ...capture, totalEvaluations: 65, totalParts: 3 } },
+      context
+    );
+    const before = h.writes.length;
+    await expect(
+      h.archiveCudyrHistory.run(
+        { ...payload, capture: { ...capture, part: 1, totalEvaluations: 33, totalParts: 2 } },
+        context
+      )
+    ).rejects.toMatchObject({ code: 'already-exists' });
+    await expect(
+      h.archiveCudyrHistory.run(
+        {
+          ...payload,
+          evaluations,
+          capture: { ...capture, part: 1, totalEvaluations: 65, totalParts: 3 },
+        },
+        context
+      )
+    ).rejects.toMatchObject({ code: 'already-exists' });
+    expect(h.writes).toHaveLength(before);
+    await h.archiveCudyrHistory.run(
+      {
+        ...payload,
+        evaluations: evaluations.map(item => ({
+          ...item,
+          sourceEvaluationId: `${item.sourceEvaluationId}-next`,
+        })),
+        capture: { ...capture, part: 1, totalEvaluations: 65, totalParts: 3 },
+      },
+      context
+    );
+  });
+
+  it('validates complete metadata server-side while allowing a genuinely empty observation', async () => {
+    const h = harness();
+    await expect(
+      h.archiveCudyrHistory.run(
+        { ...payload, capture: { ...capture, metadataStatus: 'complete' } },
+        context
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(h.writes).toHaveLength(0);
+    expect(
+      await h.archiveCudyrHistory.run(
+        {
+          ...payload,
+          evaluations: [],
+          capture: { ...capture, metadataStatus: 'complete', totalEvaluations: 0 },
+        },
+        context
+      )
+    ).toMatchObject({ persisted: true });
+  });
+
   it('binds capture to an authoritative run and episode without modifying the daily census', async () => {
     const h = harness();
     const before = structuredClone(h.record);

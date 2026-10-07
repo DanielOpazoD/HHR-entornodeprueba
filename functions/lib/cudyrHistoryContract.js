@@ -1,5 +1,6 @@
 const functions = require('firebase-functions/v1');
 const { createHash } = require('node:crypto');
+const { parseCapture } = require('./cudyrCaptureContract');
 
 const fail = message => {
   throw new functions.https.HttpsError('invalid-argument', message);
@@ -89,12 +90,13 @@ const parseArchiveRequest = value => {
   if (value.hospitalId !== undefined) fail('hospitalId cannot be supplied.');
   if (
     !Array.isArray(value.evaluations) ||
-    !value.evaluations.length ||
+    (!value.evaluations.length && !value.capture) ||
     value.evaluations.length > 32 ||
     Buffer.byteLength(JSON.stringify(value), 'utf8') > 500_000
   )
     fail('Invalid CUDYR history batch.');
   const evaluations = value.evaluations.map(parseEvaluation);
+  const capture = parseCapture(value.capture, evaluations);
   if (new Set(evaluations.map(item => digest(item))).size !== evaluations.length)
     fail('Duplicate observation.');
   return {
@@ -102,6 +104,7 @@ const parseArchiveRequest = value => {
     authorityDate: isoDate(value.authorityDate),
     runId: text(value.runId, 'runId', 120),
     evaluations,
+    ...(capture ? { capture } : {}),
   };
 };
 
@@ -112,6 +115,8 @@ const parseHistoryQuery = value => {
   if (from > to || (Date.parse(to) - Date.parse(from)) / 86_400_000 > 31)
     fail('Query up to 32 calendar days.');
   const limit = value.limit ?? 100;
+  const kind = value.kind ?? 'observations';
+  if (!['observations', 'captures'].includes(kind)) fail('Invalid history kind.');
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) fail('Invalid page size.');
   let cursor;
   if (value.cursor) {
@@ -120,7 +125,7 @@ const parseHistoryQuery = value => {
     if (!/^[a-f0-9]{64}$/.test(id) || date < from || date > to) fail('Invalid cursor.');
     cursor = { date, id };
   }
-  return { from, to, limit, cursor };
+  return { from, to, limit, cursor, kind };
 };
 
 /** Same owning-night convention as importedCudyr.ts; original source time remains untouched. */

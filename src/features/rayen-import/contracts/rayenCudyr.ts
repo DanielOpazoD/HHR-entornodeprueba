@@ -3,7 +3,11 @@ export interface RayenCudyrHistoryEntry {
   category: string;
   recordedAt: string;
   author?: string;
+  authorId?: string;
+  authorRoleId?: string;
   authorRole?: string;
+  sourceVersion?: string;
+  isDeleted?: boolean;
   dependencyScore?: number | null;
   riskScore?: number | null;
   items?: Array<{ fieldId: string; label: string; typeId: number; value: string }>;
@@ -18,6 +22,9 @@ export interface RayenCudyrCategory {
   authorRole?: string;
   source?: 'gestion_camas' | 'ficha_medico';
   history?: RayenCudyrHistoryEntry[];
+  /** Includes source tombstones; never used as the current clinical result. */
+  observations?: RayenCudyrHistoryEntry[];
+  metadataComplete?: boolean;
 }
 
 export type RayenCudyrSource = 'gestion_camas' | 'gestion_camas+ficha_medico' | 'ficha_medico';
@@ -28,6 +35,9 @@ export interface RayenCudyrCategoriesResponse {
   source?: RayenCudyrSource;
   /** True only when Gestión de Camas supplied the official per-episode history. */
   historyAvailable?: boolean;
+  captureContract?: 1;
+  observedEpisodeIds?: string[];
+  metadataStatus?: 'complete' | 'partial';
   warning?: string;
   error?: string;
 }
