@@ -377,112 +377,56 @@ describe('previous clinical-day admission evidence and safety', () => {
     expect(patchDailyRecordWithCompatibility).not.toHaveBeenCalled();
   });
 
-  it('backfills a new crib when the current-day reconciliation represents it as a mother update', async () => {
-    const mother = {
-      ...motherAndNewbornDiff.admissions[0].patient,
-      admissionDate: '2026-07-25',
-      admissionTime: '18:00',
-      clinicalCrib: undefined,
-    };
-    const crib = motherAndNewbornDiff.admissions[0].patient.clinicalCrib as NonNullable<
-      (typeof motherAndNewbornDiff.admissions)[number]['patient']['clinicalCrib']
-    >;
-    const updateDiff: CensusImportDiff = {
-      ...motherAndNewbornDiff,
-      admissions: [],
-      updates: [
-        {
-          bedId: 'H4C1',
-          rut: mother.rut,
-          patientName: mother.patientName,
-          patient: mother,
-          changes: [{ field: 'clinicalCrib', from: undefined, to: crib }],
-          source: motherAndNewbornDiff.admissions[0].source,
-        },
-      ],
-    };
-    const recordWithMother: DailyRecord = {
-      ...historicalRecord,
-      beds: { H4C1: mother },
-    };
-    vi.mocked(repository.getForDate).mockImplementation(async day =>
-      day === '2026-07-25' ? recordWithMother : null
-    );
-
-    const verified = await verifyPreviousDayAdmissionPlacements(updateDiff, '2026-07-26', {
-      fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
-      extractText: vi
-        .fn()
-        .mockResolvedValue(['RUN: 17.059.646-3', '26/07/2026 03:30:00 Habitación 4 C1'].join('\n')),
-    });
-    const plan = await computePreviousDayEdits(repository, verified, '2026-07-26', false);
-
-    expect(plan.edits).toEqual([
-      expect.objectContaining({
-        patientNames: ['RN de Maeva Tuki Garcia'],
-        admissionSubjects: [expect.objectContaining({ kind: 'clinical-crib' })],
-      }),
-    ]);
-
-    await fileCrossDayCorrections(
-      repository,
-      { ...historicalRecord, date: '2026-07-26' },
-      { ...verified, previousDayEdits: plan.edits },
-      '2026-07-26',
-      false,
-      () => 'movement-id',
-      { actor: 'Enfermera prueba', syncRunId: 'sync-run' }
-    );
-
-    expect(patchDailyRecordWithCompatibility).toHaveBeenCalledWith(
-      repository,
-      '2026-07-25',
-      expect.objectContaining({
-        'beds.H4C1.clinicalCrib.clinicalEpisodeId': '143101',
-      }),
-      { baseRecord: recordWithMother }
-    );
-  });
-
-  it.each(['H2C2', 'H3C1', 'H7C1'])(
-    'only offers a crib backfill for a recognized historical physical parent %s',
+  it.each(['H4C1', 'H2C2', 'H3C1', 'H7C1'])(
+    'backfills a new crib on verified historical parent %s from a mother update',
     async bedId => {
-      const historicalBedDiff: CensusImportDiff = {
-        ...motherAndNewbornDiff,
-        admissions: motherAndNewbornDiff.admissions.map(admission => ({
-          ...admission,
-          source: admission.source
-            ? {
-                ...admission.source,
-                verifiedBedPlacement: {
-                  source: 'patient-flow-report',
-                  bedId,
-                  changedAt: '2026-07-26T03:30:00',
-                },
-              }
-            : undefined,
-        })),
+      const mother = {
+        ...motherAndNewbornDiff.admissions[0].patient,
+        bedId: 'H4C2',
+        admissionDate: '2026-07-25',
+        admissionTime: '18:00',
+        clinicalCrib: undefined,
       };
-      const motherInHistoricalBed: DailyRecord = {
-        ...historicalRecord,
-        beds: {
-          [bedId]: {
-            ...historicalBedDiff.admissions[0].patient,
-            bedId,
-            clinicalCrib: undefined,
+      const crib = motherAndNewbornDiff.admissions[0].patient.clinicalCrib as NonNullable<
+        (typeof motherAndNewbornDiff.admissions)[number]['patient']['clinicalCrib']
+      >;
+      const updateDiff: CensusImportDiff = {
+        ...motherAndNewbornDiff,
+        admissions: [],
+        updates: [
+          {
+            bedId: 'H4C2',
+            rut: mother.rut,
+            patientName: mother.patientName,
+            patient: mother,
+            changes: [{ field: 'clinicalCrib', from: undefined, to: crib }],
+            source: {
+              ...motherAndNewbornDiff.admissions[0].source!,
+              verifiedBedPlacement: undefined,
+            },
           },
-        },
+        ],
+      };
+      const recordWithMother: DailyRecord = {
+        ...historicalRecord,
+        beds: { [bedId]: { ...mother, bedId } },
       };
       vi.mocked(repository.getForDate).mockImplementation(async day =>
-        day === '2026-07-25' ? motherInHistoricalBed : null
+        day === '2026-07-25' ? recordWithMother : null
       );
 
-      const plan = await computePreviousDayEdits(
-        repository,
-        historicalBedDiff,
-        '2026-07-26',
-        false
-      );
+      const verified = await verifyPreviousDayAdmissionPlacements(updateDiff, '2026-07-26', {
+        fetchReport: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+        extractText: vi
+          .fn()
+          .mockResolvedValue(
+            [
+              'RUN: 17.059.646-3',
+              `26/07/2026 03:30:00 ${bedId.replace(/^H(\d+)C(\d+)$/, 'Habitación $1 C$2')}`,
+            ].join('\n')
+          ),
+      });
+      const plan = await computePreviousDayEdits(repository, verified, '2026-07-26', false);
 
       if (bedId === 'H7C1') {
         expect(plan.edits).toEqual([]);
@@ -490,26 +434,65 @@ describe('previous clinical-day admission evidence and safety', () => {
       }
       expect(plan.edits).toEqual([
         expect.objectContaining({
+          patientNames: ['RN de Maeva Tuki Garcia'],
           admissionSubjects: [expect.objectContaining({ kind: 'clinical-crib', bedId })],
         }),
       ]);
+
       await fileCrossDayCorrections(
         repository,
         { ...historicalRecord, date: '2026-07-26' },
-        { ...historicalBedDiff, previousDayEdits: plan.edits },
+        { ...verified, previousDayEdits: plan.edits },
         '2026-07-26',
         false,
-        () => 'synthetic-movement',
-        { actor: 'Profesional prueba', syncRunId: 'new-historical-crib' }
+        () => 'movement-id',
+        { actor: 'Enfermera prueba', syncRunId: 'sync-run' }
       );
+
       expect(patchDailyRecordWithCompatibility).toHaveBeenCalledWith(
         repository,
         '2026-07-25',
         expect.objectContaining({
           [`beds.${bedId}.clinicalCrib.clinicalEpisodeId`]: '143101',
         }),
-        { baseRecord: motherInHistoricalBed }
+        { baseRecord: recordWithMother }
       );
     }
   );
+
+  it('does not offer a crib backfill for a historical bed that cannot hold a clinical crib', async () => {
+    const unsupportedBedDiff: CensusImportDiff = {
+      ...motherAndNewbornDiff,
+      admissions: motherAndNewbornDiff.admissions.map(admission => ({
+        ...admission,
+        source: admission.source
+          ? {
+              ...admission.source,
+              verifiedBedPlacement: {
+                source: 'patient-flow-report',
+                bedId: 'H7C1',
+                changedAt: '2026-07-26T03:30:00',
+              },
+            }
+          : undefined,
+      })),
+    };
+    const motherInUnsupportedBed: DailyRecord = {
+      ...historicalRecord,
+      beds: {
+        H7C1: {
+          ...unsupportedBedDiff.admissions[0].patient,
+          bedId: 'H7C1',
+          clinicalCrib: undefined,
+        },
+      },
+    };
+    vi.mocked(repository.getForDate).mockImplementation(async day =>
+      day === '2026-07-25' ? motherInUnsupportedBed : null
+    );
+
+    const plan = await computePreviousDayEdits(repository, unsupportedBedDiff, '2026-07-26', false);
+
+    expect(plan.edits).toEqual([]);
+  });
 });
