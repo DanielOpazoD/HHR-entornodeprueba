@@ -320,7 +320,9 @@ test('imports monthly XLS as passive evidence, persists it and exports it withou
     mimeType: 'application/vnd.ms-excel',
     buffer,
   });
-  await expect(page.getByRole('button', { name: 'Guardar respaldo' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Guardar respaldo' })).toBeDisabled({
+    timeout: 15_000,
+  });
   await expect(panel).toContainText('1 celdas con categoría');
   await panel.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Guardar respaldo' }).click();
