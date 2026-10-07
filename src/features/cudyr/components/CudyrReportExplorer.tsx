@@ -3,6 +3,7 @@ import { CudyrSupplementPanel } from './CudyrSupplementPanel';
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import type { CudyrReportExportMode } from '@/types/domain/cudyrReport';
 import { canCorrectCudyrDischarge } from '@/shared/access/operationalAccessPolicy';
 import { useCudyrReport } from '../hooks/useCudyrReport';
 import { CudyrReportFilters } from './CudyrReportFilters';
@@ -46,14 +47,14 @@ export default function CudyrReportExplorer({
   const totals = useMemo(() => cudyrReportTotals(rows), [rows]);
   const currentPage = Math.min(page, Math.max(0, Math.ceil(rows.length / 50) - 1));
   const selectedRow = data?.rows.find(row => row.key === selected);
-  const exportExcel = async () => {
+  const exportExcel = async (mode: CudyrReportExportMode) => {
     if (!data || exporting || !supplements.ready) return;
     setExporting(true);
     setExportError('');
     try {
       await (
         await import('@/services/cudyr/cudyrReportWorkbook')
-      ).downloadCudyrReport(data, supplements.reports);
+      ).downloadCudyrReport(data, supplements.reports, mode);
     } catch {
       setExportError('No se pudo generar el Excel. Intente nuevamente.');
     } finally {
@@ -85,15 +86,25 @@ export default function CudyrReportExplorer({
               en HHR.
             </p>
           </div>
-          <button
-            type="button"
-            disabled={!data || busy || exporting || !supplements.ready}
-            onClick={() => void exportExcel()}
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-teal-950 disabled:opacity-50"
-          >
-            {exporting ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
-            Excel completo del período
-          </button>
+          <div className="flex flex-col items-start gap-2">
+            <button
+              type="button"
+              disabled={!data || busy || exporting || !supplements.ready}
+              onClick={() => void exportExcel('statistics')}
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-teal-950 disabled:opacity-50"
+            >
+              {exporting ? <Loader2 size={17} className="animate-spin" /> : <Download size={17} />}
+              Excel para Estadística
+            </button>
+            <button
+              type="button"
+              disabled={!data || busy || exporting || !supplements.ready}
+              onClick={() => void exportExcel('audit')}
+              className="rounded-lg border border-teal-200 px-3 py-2 text-sm text-teal-100 disabled:opacity-50"
+            >
+              Excel de auditoría
+            </button>
+          </div>
         </div>
       </header>
       <form
@@ -158,7 +169,8 @@ export default function CudyrReportExplorer({
               {data.from} a {data.to}
             </strong>{' '}
             · Lectura {cudyrMomentLabel(data.generatedAt)}. El Excel incluye todo el período; los
-            filtros se aplican a esta vista.
+            filtros se aplican a esta vista. Estadística incluye el detalle simplificado y los
+            respaldos; Auditoría añade identificadores, versiones y hojas técnicas.
           </p>
           {(data.issues.length > 0 || data.coverage.some(day => day.state !== 'disponible')) && (
             <div
@@ -180,7 +192,7 @@ export default function CudyrReportExplorer({
           {!supplements.ready && (
             <p role="status" className="text-sm text-amber-800">
               {supplements.error ||
-                'Completando la lectura del respaldo antes de habilitar el Excel completo…'}
+                'Completando la lectura del respaldo antes de habilitar las descargas…'}
             </p>
           )}
           <CudyrSupplementPanel

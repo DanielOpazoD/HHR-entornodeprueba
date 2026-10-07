@@ -41,3 +41,21 @@ Feature de categorización CUDYR para enfermería, con vista web, exportación y
 
 - `Ver Instrumento CUDYR` abre el PDF dentro de un visor modal interno.
 - No debe abrirse en una ventana externa salvo que cambie explícitamente el contrato de UX.
+
+## Exportación contextual del explorador
+
+- **Excel para Estadística** es el perfil habitual: detalle de 30 columnas, nombre
+  completo, cama en una celda y fecha/hora de ingreso y alta real unificadas. Las
+  horas desconocidas se indican, nunca se completan con medianoche.
+- Conserva autor del CUDYR, sincronizador, fechas de evaluación y captura, egreso
+  del sistema y alta física como hechos separados. Los instantes se presentan en
+  Rapa Nui; el perfil de auditoría conserva los valores ISO originales.
+- **Excel de auditoría** conserva las 54 columnas originales y todas las hojas de
+  versiones, capturas, contextos, asignaciones, movimientos, ítems y correcciones.
+- Ambos usan el mismo dataset y los mismos resúmenes mensual/diarios, con exclusión
+  diaria de cunas/CMA y medias/intermedias independientes de UPC. Los filtros web
+  no reducen el período exportado.
+- El respaldo mensual sigue siendo consultivo. En Estadística usa 10 columnas y
+  referencias legibles hacia Archivos complementarios; en Auditoría conserva sus
+  22 columnas y huellas/IDs. Las versiones nunca se suman al resumen principal.
+- Exportar no sincroniza Eloísa ni modifica los registros guardados en HHR.

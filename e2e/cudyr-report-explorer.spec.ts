@@ -221,12 +221,34 @@ test('explores the saved period, preserves group totals in Excel and audits a co
   await expect(page.getByText('PACIENTE SINTÉTICO R1', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Limpiar filtros' }).click();
   const downloadEvent = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Excel completo del período' }).click();
+  await page.getByRole('button', { name: 'Excel para Estadística' }).click();
   const download = await downloadEvent;
   const file = await download.path();
   const workbook = new Workbook();
   await workbook.xlsx.readFile(file!);
   expect(workbook.getWorksheet('Detalle diario')!.rowCount).toBe(5);
+  expect(workbook.getWorksheet('Detalle diario')!.columnCount).toBe(30);
+  expect(workbook.getWorksheet('Capturas')).toBeUndefined();
+  expect(download.suggestedFilename()).toContain('CUDYR_Estadistica_');
+  if (process.env.CUDYR_QA_OUTPUT)
+    await download.saveAs(
+      path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Estadistica_EJEMPLO_SINTETICO.xlsx')
+    );
+  const auditEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Excel de auditoría' }).click();
+  const auditDownload = await auditEvent;
+  const audit = new Workbook();
+  await audit.xlsx.readFile((await auditDownload.path())!);
+  expect(auditDownload.suggestedFilename()).toContain('CUDYR_Auditoria_');
+  expect(audit.getWorksheet('Detalle diario')!.columnCount).toBe(54);
+  expect(audit.getWorksheet('Capturas')).toBeDefined();
+  expect(audit.getWorksheet('20-02-2026')!.getSheetValues()).toEqual(
+    workbook.getWorksheet('20-02-2026')!.getSheetValues()
+  );
+  if (process.env.CUDYR_QA_OUTPUT)
+    await auditDownload.saveAs(
+      path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Auditoria_EJEMPLO_SINTETICO.xlsx')
+    );
   expect(workbook.getWorksheet('20-02-2026')!.getCell('B11').value).toBe(1);
   expect(workbook.getWorksheet('20-02-2026')!.getCell('C15').value).toBe(1);
   expect(calls.filter(call => call === 'archiveCudyrHistory')).toHaveLength(0);
@@ -341,13 +363,35 @@ test('imports monthly XLS as passive evidence, persists it and exports it withou
   await screenshot(page, 'cudyr-complemento-detalle');
   await page.keyboard.press('Escape');
   const downloaded = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Excel completo del período' }).click();
+  await page.getByRole('button', { name: 'Excel para Estadística' }).click();
   const download = await downloaded;
   const workbook = new Workbook();
   await workbook.xlsx.readFile((await download.path())!);
   expect(workbook.getWorksheet('20-02-2026')!.getCell('B11').value).toBe(1);
-  expect(workbook.getWorksheet('Respaldo mensual Eloísa')!.getCell('J2').value).toBe('C3');
+  expect(workbook.getWorksheet('Respaldo mensual Eloísa')!.getCell('I2').value).toBe('C3');
   expect(workbook.getWorksheet('Detalle diario')!.rowCount).toBe(5);
+  expect(workbook.getWorksheet('Detalle diario')!.columnCount).toBe(30);
+  expect(workbook.getWorksheet('Capturas')).toBeUndefined();
+  expect(download.suggestedFilename()).toContain('CUDYR_Estadistica_');
+  if (process.env.CUDYR_QA_OUTPUT)
+    await download.saveAs(
+      path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Estadistica_EJEMPLO_SINTETICO.xlsx')
+    );
+  const auditEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Excel de auditoría' }).click();
+  const auditDownload = await auditEvent;
+  const audit = new Workbook();
+  await audit.xlsx.readFile((await auditDownload.path())!);
+  expect(auditDownload.suggestedFilename()).toContain('CUDYR_Auditoria_');
+  expect(audit.getWorksheet('Detalle diario')!.columnCount).toBe(54);
+  expect(audit.getWorksheet('Capturas')).toBeDefined();
+  expect(audit.getWorksheet('20-02-2026')!.getSheetValues()).toEqual(
+    workbook.getWorksheet('20-02-2026')!.getSheetValues()
+  );
+  if (process.env.CUDYR_QA_OUTPUT)
+    await auditDownload.saveAs(
+      path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Auditoria_EJEMPLO_SINTETICO.xlsx')
+    );
   await screenshot(page, 'cudyr-complemento-escritorio');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

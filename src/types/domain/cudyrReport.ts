@@ -2,6 +2,8 @@ import type { CudyrHistoryObservation } from './cudyrHistory';
 import type { CudyrCaptureReceipt } from './cudyrCapture';
 import type { CudyrDischargeCorrection, CudyrDischargeAudit } from './cudyrDischarge';
 
+export type CudyrReportExportMode = 'statistics' | 'audit';
+
 export type CudyrReportGroup = 'media' | 'intermedia' | 'sin_grupo';
 export type CudyrReportModality = 'hospitalizacion' | 'cuna' | 'cma' | 'desconocida';
 export type CudyrReportEligibility = 'elegible' | 'no_elegible' | 'por_revisar';

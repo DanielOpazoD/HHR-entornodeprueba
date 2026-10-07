@@ -100,17 +100,31 @@ describe('monthly binary reader and passive export', () => {
     expect(supplementCandidates([a], 'SIN RUT')).toHaveLength(0);
     expect(supplementCandidates([a, { ...a, id: 'second-version' }], '11111111-1')).toHaveLength(2);
   });
-  it('adds documentary worksheets while leaving every original worksheet and dataset unchanged', async () => {
-    const data = buildCudyrReport(reportInput());
-    const before = structuredClone(data);
-    const original = await buildCudyrReportWorkbook(data);
-    const added = await buildCudyrReportWorkbook(data, [archive()]);
-    for (const sheet of original.workbook.worksheets)
-      expect(added.workbook.getWorksheet(sheet.name)?.model).toEqual(sheet.model);
-    expect(data).toEqual(before);
-    const sheet = added.workbook.getWorksheet('Respaldo mensual Eloísa')!;
-    expect(sheet.getCell('E2').value).toBe('=texto literal');
-    expect(sheet.getCell('Q2').value).toBe('Importador sintético');
-    expect(sheet.getCell('V2').value).toContain('No suma');
-  });
+  it.each(['statistics', 'audit'] as const)(
+    'adds passive worksheets to %s without changing originals or the dataset',
+    async mode => {
+      const data = buildCudyrReport(reportInput());
+      const before = structuredClone(data);
+      const original = await buildCudyrReportWorkbook(data, undefined, mode);
+      const added = await buildCudyrReportWorkbook(data, [archive()], mode);
+      for (const sheet of original.workbook.worksheets)
+        expect(added.workbook.getWorksheet(sheet.name)?.model).toEqual(sheet.model);
+      expect(data).toEqual(before);
+      const sheet = added.workbook.getWorksheet('Respaldo mensual Eloísa')!;
+      expect(sheet.getCell('E2').value).toBe('=texto literal');
+      if (mode === 'audit') {
+        expect(sheet.getCell('Q2').value).toBe('Importador sintético');
+        expect(sheet.getCell('V2').value).toContain('No suma');
+      } else {
+        expect(sheet.columnCount).toBe(10);
+        expect(sheet.getCell('A2').value).toBe('Respaldo 1');
+        expect(sheet.getCell('J3').value).toBe('Celda vacía');
+        expect(sheet.getCell('J4').value).toBe('S/C explícito');
+        const files = added.workbook.getWorksheet('Archivos complementarios')!;
+        expect(files.getCell('A2').value).toBe('Respaldo 1');
+        expect(files.getCell('E2').value).toBe('Importador sintético');
+        expect(files.getCell('G2').value).toContain('No suma');
+      }
+    }
+  );
 });

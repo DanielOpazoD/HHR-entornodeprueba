@@ -1,19 +1,21 @@
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
 import { addCudyrSupplementWorkbook } from './cudyrSupplementWorkbook';
-import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
+import type { CudyrReportDataset, CudyrReportExportMode } from '@/types/domain/cudyrReport';
 import { buildCudyrWorkbook } from './cudyrWorkbookBuilder';
 import { cudyrReportTotals } from './cudyrReportModel';
 import { CATEGORIES } from './cudyrWorkbookSections';
 import type { CategoryCounts } from './cudyrSummary';
 import { addCudyrReportContextTable } from './cudyrReportContextTable';
 import { addCudyrReportTables } from './cudyrReportWorkbookTables';
+import { addCudyrStatisticsTables } from './cudyrStatisticsWorkbook';
 import { addCudyrDataSheet } from './cudyrDataSheet';
 import { XLSX_MIME_TYPE, validateExcelExport } from '@/services/exporters/excelValidation';
 import { recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
 
 export const buildCudyrReportWorkbook = async (
   data: CudyrReportDataset,
-  supplements?: ArchivedCudyrSupplement[]
+  supplements?: ArchivedCudyrSupplement[],
+  mode: CudyrReportExportMode = 'statistics'
 ) => {
   const [year, month] = data.from.split('-').map(Number);
   const dates = [
@@ -98,8 +100,12 @@ export const buildCudyrReportWorkbook = async (
     sheet.getCell('A2').font = { bold: true, color: { argb: 'FF92400E' } };
   });
   workbook.worksheets[0].getCell('A1').value = `CUDYR · ${data.from} a ${data.to}`;
-  addCudyrReportTables(workbook, data);
-  addCudyrReportContextTable(workbook, data);
+  if (mode === 'audit') {
+    addCudyrReportTables(workbook, data);
+    addCudyrReportContextTable(workbook, data);
+  } else {
+    addCudyrStatisticsTables(workbook, data);
+  }
   const totals = cudyrReportTotals(data.rows);
   addCudyrDataSheet(
     workbook,
@@ -108,6 +114,7 @@ export const buildCudyrReportWorkbook = async (
     [
       ['Generado en HHR (ISO)', data.generatedAt],
       ['Período', data.from + ' a ' + data.to],
+      ['Exportación', mode === 'audit' ? 'Auditoría completa' : 'Estadística simplificada'],
       ['Estado', preliminary ? 'Revisión pendiente' : 'Lectura completa'],
       ['Filas', totals.rows],
       ['Elegibles conocidos', totals.eligible],
@@ -164,14 +171,16 @@ export const buildCudyrReportWorkbook = async (
       ...data.issues.map(issue => ['Incidencia de lectura', issue]),
     ]
   );
-  if (supplements) addCudyrSupplementWorkbook(workbook, supplements, data.from, data.to);
-  return { workbook, fileName: `CUDYR_Contextual_${data.from}_a_${data.to}.xlsx` };
+  if (supplements) addCudyrSupplementWorkbook(workbook, supplements, data.from, data.to, mode);
+  const label = mode === 'audit' ? 'Auditoria' : 'Estadistica';
+  return { workbook, fileName: `CUDYR_${label}_${data.from}_a_${data.to}.xlsx` };
 };
 export const cudyrReportExcelBlob = async (
   data: CudyrReportDataset,
-  supplements?: ArchivedCudyrSupplement[]
+  supplements?: ArchivedCudyrSupplement[],
+  mode: CudyrReportExportMode = 'statistics'
 ) => {
-  const { workbook, fileName } = await buildCudyrReportWorkbook(data, supplements);
+  const { workbook, fileName } = await buildCudyrReportWorkbook(data, supplements, mode);
   const buffer = await workbook.xlsx.writeBuffer();
   const result = validateExcelExport(buffer, fileName);
   if (!result.valid) throw new Error('No se pudo validar el Excel CUDYR.');
@@ -179,9 +188,10 @@ export const cudyrReportExcelBlob = async (
 };
 export const downloadCudyrReport = async (
   data: CudyrReportDataset,
-  supplements?: ArchivedCudyrSupplement[]
+  supplements?: ArchivedCudyrSupplement[],
+  mode: CudyrReportExportMode = 'statistics'
 ) => {
-  const { blob, fileName } = await cudyrReportExcelBlob(data, supplements);
+  const { blob, fileName } = await cudyrReportExcelBlob(data, supplements, mode);
   const { saveAs } = await import('file-saver');
   recordE2EDownloadArtifact({ filename: fileName, blobSize: blob.size, blobType: blob.type });
   saveAs(blob, fileName);

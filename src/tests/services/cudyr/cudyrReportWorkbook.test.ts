@@ -28,7 +28,7 @@ describe('contextual CUDYR Excel', () => {
       captures: [reportCapture()],
     });
     const data = buildCudyrReport(input);
-    const { workbook } = await buildCudyrReportWorkbook(data);
+    const { workbook } = await buildCudyrReportWorkbook(data, undefined, 'audit');
     const reopened = new Workbook();
     await reopened.xlsx.load(await workbook.xlsx.writeBuffer());
     const summary = reopened.getWorksheet('Resumen CUDYR Mensual')!;
@@ -62,7 +62,7 @@ describe('contextual CUDYR Excel', () => {
         ],
       })
     );
-    const { workbook } = await buildCudyrReportWorkbook(data);
+    const { workbook } = await buildCudyrReportWorkbook(data, undefined, 'audit');
     expect(workbook.getWorksheet('01-10-2026')).toBeUndefined();
     expect(workbook.getWorksheet('02-10-2026')).toBeUndefined();
     expect(workbook.getWorksheet('Cobertura')!.rowCount).toBe(3);
@@ -77,7 +77,7 @@ describe('contextual CUDYR Excel', () => {
         observations: [observation, { ...observation, id: 'version-two' }],
       })
     );
-    const { workbook } = await buildCudyrReportWorkbook(data);
+    const { workbook } = await buildCudyrReportWorkbook(data, undefined, 'audit');
     expect(data.rows).toHaveLength(0);
     expect(workbook.getWorksheet('Contextos capturados')!.getCell('F2').value).toBe(
       'Paciente Sintético'
@@ -89,7 +89,7 @@ describe('contextual CUDYR Excel', () => {
     const data = buildCudyrReport(
       reportInput({ records: [], coverage: [], issues: ['Lectura incompleta'] })
     );
-    const { workbook } = await buildCudyrReportWorkbook(data);
+    const { workbook } = await buildCudyrReportWorkbook(data, undefined, 'audit');
     expect(workbook.worksheets[0].getCell('A2').value).toContain('REVISIÓN PENDIENTE');
     workbook.eachSheet(sheet =>
       sheet.eachRow(row =>

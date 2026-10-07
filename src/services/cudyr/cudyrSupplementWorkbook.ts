@@ -1,12 +1,92 @@
 import type { Workbook } from 'exceljs';
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
 import { addCudyrDataSheet } from './cudyrDataSheet';
-export const addCudyrSupplementWorkbook = (
+import type { CudyrReportExportMode } from '@/types/domain/cudyrReport';
+import { cudyrMomentLabel } from './cudyrReportPresentation';
+
+const cellState = (state: string) =>
+  state === 'category'
+    ? 'Categoría informada'
+    : state === 'uncategorized'
+      ? 'S/C explícito'
+      : 'Celda vacía';
+
+const addSupplementSummary = (
   workbook: Workbook,
   reports: ArchivedCudyrSupplement[],
   from: string,
   to: string
 ) => {
+  // References identify each source version within this workbook, even for identical filenames.
+  const reference = (index: number) => `Respaldo ${index + 1}`;
+  addCudyrDataSheet(
+    workbook,
+    'Respaldo mensual Eloísa',
+    [
+      'Respaldo',
+      'Día fuente (sin ajuste HHR)',
+      'Nombre completo fuente',
+      'RUT o documento fuente',
+      'Diagnóstico fuente',
+      'Servicio fuente',
+      'Condición alta fuente',
+      'Días hospitalización fuente',
+      'Valor original',
+      'Estado de celda',
+    ],
+    reports.flatMap((archive, index) =>
+      archive.report.patients.flatMap(patient =>
+        patient.days
+          .filter(day => day.sourceDate >= from && day.sourceDate <= to)
+          .map(day => [
+            reference(index),
+            day.sourceDate,
+            patient.patientName,
+            patient.document,
+            patient.diagnosis,
+            patient.service,
+            patient.dischargeCondition,
+            patient.hospitalDays,
+            day.originalValue,
+            cellState(day.state),
+          ])
+      )
+    )
+  );
+  addCudyrDataSheet(
+    workbook,
+    'Archivos complementarios',
+    [
+      'Respaldo',
+      'Archivo',
+      'Mes',
+      'Fecha impresión literal',
+      'Importador (no autor CUDYR)',
+      'Importado · Rapa Nui',
+      'Uso',
+    ],
+    reports.length
+      ? reports.map((archive, index) => [
+          reference(index),
+          archive.file.name,
+          archive.month,
+          archive.report.generatedLabel,
+          archive.importedBy.name,
+          cudyrMomentLabel(archive.importedAt),
+          'Evidencia complementaria; sin episodio, cama, autor ni hora acreditados. No suma al reporte principal.',
+        ])
+      : [['', 'Sin archivos guardados', from.slice(0, 7), '', '', '', 'Lectura completada en HHR']]
+  );
+};
+
+export const addCudyrSupplementWorkbook = (
+  workbook: Workbook,
+  reports: ArchivedCudyrSupplement[],
+  from: string,
+  to: string,
+  mode: CudyrReportExportMode = 'audit'
+) => {
+  if (mode === 'statistics') return addSupplementSummary(workbook, reports, from, to);
   addCudyrDataSheet(
     workbook,
     'Respaldo mensual Eloísa',
@@ -49,11 +129,7 @@ export const addCudyrSupplementWorkbook = (
             p.dischargeCondition,
             p.hospitalDays,
             d.originalValue,
-            d.state === 'category'
-              ? 'Categoría informada'
-              : d.state === 'uncategorized'
-                ? 'S/C explícito'
-                : 'Celda vacía',
+            cellState(d.state),
             a.file.name,
             a.report.sheet,
             p.sourceRow,
