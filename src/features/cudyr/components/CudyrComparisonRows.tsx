@@ -1,4 +1,10 @@
 import { useState } from 'react';
+import { CudyrLinkReviewForm } from './CudyrLinkReviewForm';
+import {
+  CUDYR_LINK_LABELS,
+  isReviewableCudyrSource,
+  type CudyrLinkDraft,
+} from '@/services/cudyr/cudyrLinkReview';
 import type {
   CudyrComparisonItem,
   CudyrComparisonStatus,
@@ -16,17 +22,36 @@ export const CudyrComparisonRows = ({
   items,
   data,
   onView,
+  canReview = false,
 }: {
+  canReview?: boolean;
   items: CudyrComparisonItem[];
   data: CudyrReportDataset;
   onView: (key: string) => void;
 }) => {
+  const [reviewFilter, setReviewFilter] = useState('');
+  const [session, setSession] = useState<{
+    data: CudyrReportDataset;
+    items: CudyrComparisonItem[];
+    drafts: Record<string, CudyrLinkDraft>;
+    canReview: boolean;
+    revision: number;
+  }>({ data, items, canReview, revision: 0, drafts: {} });
+  const sameRead =
+    session.data === data && session.items === items && session.canReview === canReview;
+  if (!sameRead) setSession({ data, items, canReview, revision: session.revision + 1, drafts: {} });
+  const drafts = sameRead && canReview ? session.drafts : {};
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const rows = items.filter(
     r =>
       (!filter || r.status === filter) &&
+      (!canReview ||
+        !reviewFilter ||
+        (reviewFilter === 'unreviewed'
+          ? isReviewableCudyrSource(r) && !drafts[r.key]
+          : drafts[r.key]?.action === reviewFilter)) &&
       `${r.patientName} ${r.document}`
         .toLocaleLowerCase('es')
         .includes(search.toLocaleLowerCase('es'))
@@ -34,7 +59,34 @@ export const CudyrComparisonRows = ({
   const currentPage = Math.min(page, Math.max(0, Math.ceil(rows.length / 20) - 1));
   return (
     <div className="space-y-3">
+      {canReview && (
+        <p className="rounded bg-teal-50 p-3 text-xs" role="status">
+          {Object.keys(drafts).length} decisiones en borrador · se pierden al cambiar la fuente,
+          volver a consultar el período o salir. No se guardan en HHR ni en el Excel.
+        </p>
+      )}
       <div className="flex flex-wrap gap-3">
+        {canReview && (
+          <label>
+            Revisión manual
+            <select
+              className="mt-1 block rounded border p-2"
+              value={reviewFilter}
+              onChange={e => {
+                setReviewFilter(e.target.value);
+                setPage(0);
+              }}
+            >
+              <option value="">Todas las entradas</option>
+              <option value="unreviewed">Filas fuente sin revisar</option>
+              {Object.entries(CUDYR_LINK_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label} ({Object.values(drafts).filter(d => d.action === value).length})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           Resultado del cotejo
           <select
@@ -130,6 +182,21 @@ export const CudyrComparisonRows = ({
                 })}
               </ul>
             </details>
+            {canReview && isReviewableCudyrSource(item) && (
+              <CudyrLinkReviewForm
+                key={`${item.key}:${session.revision}`}
+                item={item}
+                rows={data.rows}
+                draft={drafts[item.key]}
+                onView={onView}
+                onChange={draft => {
+                  const next = { ...drafts };
+                  if (draft) next[item.key] = draft;
+                  else delete next[item.key];
+                  setSession({ data, items, canReview, revision: session.revision, drafts: next });
+                }}
+              />
+            )}
           </article>
         ))}
       </div>

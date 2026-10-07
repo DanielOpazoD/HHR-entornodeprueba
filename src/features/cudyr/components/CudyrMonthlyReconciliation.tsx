@@ -11,7 +11,9 @@ export const CudyrMonthlyReconciliation = ({
   reports,
   ready,
   onView,
+  canReview = false,
 }: {
+  canReview?: boolean;
   data: CudyrReportDataset;
   reports: ArchivedCudyrSupplement[];
   ready: boolean;
@@ -196,6 +198,7 @@ export const CudyrMonthlyReconciliation = ({
           {categories || discharges ? (
             <CudyrComparisonRows
               key={`${categoryFile?.sha256 || archive?.id}:${dischargeFile?.sha256}`}
+              canReview={canReview}
               items={items}
               data={data}
               onView={onView}
