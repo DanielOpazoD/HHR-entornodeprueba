@@ -4,11 +4,8 @@ import { CensusAccessUser } from '@/types/censusAccess';
 import {
   filterSharedCensusFilesByTerm,
   resolveSharedCensusDownloadPermission,
-} from '@/hooks/controllers/sharedCensusFilesController';
-import {
-  defaultSharedCensusBrowserRuntime,
-  SharedCensusBrowserRuntime,
-} from '@/hooks/controllers/sharedCensusBrowserRuntimeController';
+} from '@/application/backup-export/sharedCensusFilesController';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import {
   executeLoadSharedCensusFiles,
   executeLogSharedCensusAccess,
@@ -20,7 +17,10 @@ const sharedCensusFilesLogger = logger.child('useSharedCensusFiles');
 
 export const useSharedCensusFiles = (
   accessUser: CensusAccessUser | null,
-  runtime: SharedCensusBrowserRuntime = defaultSharedCensusBrowserRuntime
+  runtime: {
+    alert: (message: string) => void;
+    open: (url: string, target?: string) => void;
+  } = defaultBrowserWindowRuntime
 ) => {
   const [files, setFiles] = useState<StoredCensusFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
