@@ -6,6 +6,19 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## Cunas creadas en Gestión de Camas (0.48.45)
+
+Las cunas no requieren un catálogo separado: `CH2C2`, `Cuna H2C2` y las demás
+cunas de las 18 camas físicas se reconocen cuando Gestión de Camas confirma el
+mismo episodio y la misma ubicación de Ficha Médico. HHR conserva al paciente
+principal y agrega el RN como `clinicalCrib`, con Pediatría como valor inicial;
+una especialidad modificada manualmente sigue respetándose. Repetir la
+sincronización no crea otra cuna. Ubicaciones desconocidas, relaciones no
+verificadas y colisiones entre RN siguen requiriendo revisión.
+
+Actualizar/recargar manualmente la extensión a **0.48.45** y recargar las pestañas
+de Eloísa abiertas para aplicar este reconocimiento.
+
 ## Diagnóstico de fallos del panel (0.48.44)
 
 Cuando una fuente impide cargar el panel, «Detalle de la conexión» conserva el error

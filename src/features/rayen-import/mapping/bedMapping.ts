@@ -1,3 +1,5 @@
+import { REGULAR_BEDS } from '@/constants/beds';
+
 /**
  * Maps a Rayen bed/room/service location to an HHR `bedId`.
  *
@@ -81,20 +83,8 @@ export interface RayenBedLocation {
   clinicalCribParentBedId?: string;
 }
 
-export const CLINICAL_CRIB_PARENT_BEDS = new Set([
-  'R1',
-  'R2',
-  'R3',
-  'R4',
-  'H4C1',
-  'H4C2',
-  'H5C1',
-  'H5C2',
-  'H6C1',
-  'H6C2',
-  'NEO1',
-  'NEO2',
-]);
+// Cribs are dynamic children of physical beds, not a separate installed crib catalog.
+export const CLINICAL_CRIB_PARENT_BEDS = new Set(REGULAR_BEDS.map(bed => bed.id));
 
 export const mapRayenBed = (location: RayenBedLocation): BedMappingResult => {
   const roomRaw = normalize(location.room);
