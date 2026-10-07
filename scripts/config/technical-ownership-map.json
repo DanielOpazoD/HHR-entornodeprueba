@@ -17,7 +17,11 @@
         "test:emulator:sync:ci",
         "check:flow-performance-budget"
       ],
-      "runbooks": ["docs/RUNBOOK_SYNC_RESILIENCE.md", "docs/RUNBOOK_OPERATIONAL_BUDGETS.md"]
+      "runbooks": [
+        "docs/RUNBOOK_SYNC_RESILIENCE.md",
+        "docs/RUNBOOK_OPERATIONAL_BUDGETS.md",
+        "docs/CUDYR_HISTORY.md"
+      ]
     },
     {
       "id": "repositories",

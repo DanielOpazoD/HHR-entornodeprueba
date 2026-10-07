@@ -3,6 +3,18 @@
   "contractsDoc": "docs/SERVERLESS_SENSITIVE_CONTRACTS.md",
   "entries": [
     {
+      "id": "cudyr_permanent_history",
+      "functionFile": "functions/lib/cudyrHistoryFunctions.js",
+      "endpoint": "archiveCudyrHistory",
+      "testFiles": ["src/tests/functions/cudyrHistoryFunctions.test.ts"]
+    },
+    {
+      "id": "cudyr_permanent_history_read",
+      "functionFile": "functions/lib/cudyrHistoryFunctions.js",
+      "endpoint": "readCudyrHistory",
+      "testFiles": ["src/tests/functions/cudyrHistoryFunctions.test.ts"]
+    },
+    {
       "id": "send_census_email",
       "functionFile": "netlify/functions/send-census-email.ts",
       "endpoint": "send-census-email",
