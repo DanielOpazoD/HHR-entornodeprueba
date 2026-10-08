@@ -1,3 +1,4 @@
+import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
 import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
 import type {
@@ -79,6 +80,13 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         )
       );
       const latest = capture.latest;
+      if (
+        selected.evaluation &&
+        ['captura_incompleta', 'fuente_no_disponible'].includes(capture.status)
+      )
+        capture.warnings.push(
+          'Resultado confirmado conservado; la última consulta no pudo completarse.'
+        );
       const placement = resolveCudyrDailyPlacement({
         date: first.date,
         patientName: p.patientName,
@@ -127,6 +135,8 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
       const row: CudyrReportRow = {
         key,
         date: first.date,
+        applicationPending:
+          resolveCudyrPendingStatus(first.date, new Date(input.generatedAt)).phase !== 'overdue',
         clinicalEpisodeId: episode,
         authorityDate: first.authorityDate,
         patientName: p.patientName || '',
@@ -161,11 +171,9 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
           ? 'por_revisar'
           : pending
             ? 'guardado_pendiente'
-            : ['captura_incompleta', 'fuente_no_disponible'].includes(capture.status)
-              ? capture.status
-              : selected.evaluation
-                ? 'registrado'
-                : capture.status,
+            : selected.evaluation
+              ? 'registrado'
+              : capture.status,
         evaluation: selected.evaluation,
         evaluationCount: selected.count,
         lastCaptureAt: latest?.capture.observedAt || '',
@@ -250,6 +258,7 @@ export const cudyrReportTotals = (rows: CudyrReportRow[]): CudyrReportTotals => 
     ),
   };
   for (const row of rows) {
+    if (row.applicationPending) continue;
     if (row.eligibility === 'no_elegible') {
       totals.excluded++;
       continue;

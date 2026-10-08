@@ -1,3 +1,4 @@
+import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
 import { createWorkbook } from '@/services/exporters/excelUtils';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
@@ -16,17 +17,32 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
   addCudyrDataSheet(
     workbook,
     'Resumen',
-    ['Fecha', 'Elegibles', 'CUDYR confirmados', 'Cumplimiento %', 'Excluidos', 'Por revisar'],
+    [
+      'Fecha',
+      'Elegibles',
+      'CUDYR confirmados',
+      'Cumplimiento %',
+      'Excluidos',
+      'Por revisar',
+      'Estado del día',
+    ],
     [
       ...data.coverage.map(day => {
         const t = cudyrReportTotals(data.rows.filter(row => row.date === day.date));
         return [
           day.date,
-          t.eligible,
+          resolveCudyrPendingStatus(day.date, new Date(data.generatedAt)).phase === 'overdue'
+            ? t.eligible
+            : null,
           t.categorized,
           t.eligible ? Math.round((100 * t.categorized) / t.eligible) : null,
           t.excluded,
           t.review,
+          resolveCudyrPendingStatus(day.date, new Date(data.generatedAt)).phase !== 'overdue'
+            ? 'Pendiente de aplicación · fuera del cumplimiento'
+            : day.state === 'disponible'
+              ? 'Evaluable'
+              : 'Sin censo · provisional',
         ];
       }),
       [
@@ -36,6 +52,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
         totals.eligible ? Math.round((100 * totals.categorized) / totals.eligible) : null,
         totals.excluded,
         totals.review,
+        'Solo días con ventana de aplicación terminada',
       ],
     ]
   );
@@ -60,7 +77,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
       'Criterio de elegibilidad',
     ],
     data.rows
-      .filter(row => row.eligibility === 'elegible')
+      .filter(row => row.eligibility === 'elegible' && !row.applicationPending)
       .map(row => [
         row.date,
         row.patientName,
@@ -93,7 +110,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
   ]);
   summary.addRow([
     'Exclusiones',
-    'No se incluyen pacientes excluidos ni por revisar en el detalle. Sus motivos se conservan en HHR.',
+    'No se incluyen excluidos, casos por revisar ni días pendientes de aplicación. Los antecedentes se conservan en HHR.',
   ]);
   summary.addRow([
     'Datos ausentes',

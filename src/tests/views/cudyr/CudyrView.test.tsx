@@ -42,7 +42,9 @@ describe('CUDYR daily control', () => {
   });
   it('shows cumulative eligible compliance and read-only totals without entry or bulk deletion controls', () => {
     render(<CudyrView />);
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.getAllByText('100%')).toHaveLength(2);
+    expect(screen.getByText('Cumplimiento del día')).toBeInTheDocument();
+    expect(screen.queryByText('RN sintético')).not.toBeInTheDocument();
     expect(
       screen.getByText(/1 CUDYR confirmados \/ 1 pacientes-día elegibles/)
     ).toBeInTheDocument();
@@ -74,10 +76,26 @@ describe('CUDYR daily control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar vista' }));
     expect(mocks.load).toHaveBeenCalledWith('2026-10-01', '2026-10-02');
   });
+  it('keeps today outside daily and monthly compliance while preserving past days', () => {
+    const data = buildCudyrReport(
+      reportInput({
+        generatedAt: '2026-10-03T20:00:00-05:00',
+        records: [reportRecord('2026-10-02'), reportRecord('2026-10-03')],
+      })
+    );
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+    render(<CudyrView currentDate="2026-10-03" />);
+    expect(screen.getAllByText('100%')).toHaveLength(1);
+    expect(screen.getAllByText('Pendiente de aplicación').length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/1 CUDYR confirmados \/ 1 pacientes-día elegibles/)
+    ).toBeInTheDocument();
+  });
   it('shows missing component scores as unknown instead of zero', () => {
     const data = fixture();
-    data.rows[0].evaluation = {
-      ...data.rows[0].evaluation!,
+    const patient = data.rows.find(row => row.eligibility === 'elegible')!;
+    patient.evaluation = {
+      ...patient.evaluation!,
       dependencyScore: null,
       riskScore: undefined,
     };

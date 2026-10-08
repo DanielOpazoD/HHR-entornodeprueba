@@ -335,7 +335,7 @@ describe('CUDYR canonical report', () => {
     expect(pending.rows[0].cudyrStatus).toBe('guardado_pendiente');
     expect(cudyrReportTotals(pending.rows).categorized).toBe(0);
   });
-  it('retains the observed evaluation without confirming totals when the latest capture is inconclusive', () => {
+  it('retains confirmed results when a later capture fails without changing clinical evidence', () => {
     for (const patch of [
       { totalParts: 2 },
       { status: 'unavailable' as const },
@@ -350,9 +350,12 @@ describe('CUDYR canonical report', () => {
       );
       const row = data.rows[0];
       expect(row.evaluation?.category).toBe('C2');
-      expect(row.cudyrStatus).not.toBe('registrado');
-      expect(cudyrReportTotals([row]).categorized).toBe(0);
-      expect(cudyrReportTotals([row]).withoutConfirmedResult).toBe(1);
+      expect(row.cudyrStatus).toBe('registrado');
+      expect(row.warnings).toContain(
+        'Resultado confirmado conservado; la última consulta no pudo completarse.'
+      );
+      expect(cudyrReportTotals([row]).categorized).toBe(1);
+      expect(cudyrReportTotals([row]).withoutConfirmedResult).toBe(0);
     }
   });
   it('keeps a distinct undated egreso unresolved even when another egreso has a date', () => {
@@ -394,7 +397,7 @@ describe('CUDYR canonical report', () => {
       expect(rows[0].cudyrStatus).toBe(rows[1].cudyrStatus);
       expect(rows[0].captureId).toBe('other-capture');
       expect(rows[1].captureId).toBe('other-capture');
-      expect(cudyrReportTotals(rows).categorized).toBe(0);
+      expect(cudyrReportTotals(rows).categorized).toBe(2);
     }
   });
   it('uses actual departure without overwriting the system egreso and flags unknown time on the cutoff day', () => {

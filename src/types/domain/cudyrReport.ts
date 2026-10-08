@@ -53,6 +53,8 @@ export interface CudyrReportMovement {
 
 /** Exactly one computable row per source episode and census day; unidentified legacy rows stay separate. */
 export interface CudyrReportRow {
+  /** Derived from report generation time; an open application window is not a compliance failure. */
+  applicationPending?: boolean;
   key: string;
   date: string;
   clinicalEpisodeId: string;

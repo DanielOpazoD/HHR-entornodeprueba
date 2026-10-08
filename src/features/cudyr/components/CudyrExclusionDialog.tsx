@@ -3,7 +3,7 @@ import { BaseModal } from '@/components/shared/BaseModal';
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
 import { CUDYR_EXCLUSION_LABELS, type CudyrExclusionReason } from '@/types/domain/cudyrExclusion';
 import { saveCudyrExclusion } from '@/services/cudyr/cudyrExclusionService';
-import { cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import { cudyrControlStatus, cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
 import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 
 export const CudyrExclusionDialog = ({
@@ -89,6 +89,25 @@ export const CudyrExclusionDialog = ({
           {row.patientName} · {row.date} · {row.bedName || row.bedId}
         </p>
         <div className="rounded-lg bg-slate-50 p-3">
+          <p>
+            {row.rut} · {row.diagnosis || 'Diagnóstico no informado'}
+          </p>
+          <p className="mt-2">
+            {cudyrControlStatus(row)} · {row.evaluation?.category || 'Sin categoría'}
+          </p>
+          <p className="text-xs text-slate-500">
+            {row.evaluation?.author || 'Autor no informado'} ·{' '}
+            {cudyrMomentLabel(row.evaluation?.recordedAt || '')}
+            <br />
+            Origen: {row.evaluation?.source || 'Sin resultado confirmado'}
+            <br />
+            Última consulta: {cudyrMomentLabel(row.lastCaptureAt)}
+          </p>
+          {row.warnings.map(warning => (
+            <p key={warning} className="mt-1 text-xs text-amber-800">
+              {warning}
+            </p>
+          ))}
           <p>{row.eligibilityReason}</p>
           <p className="mt-1 text-xs text-slate-500">{cudyrEligibilityOrigin(row)}</p>
           {row.exclusion && (
