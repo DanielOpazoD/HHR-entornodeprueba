@@ -161,6 +161,9 @@ Se pueden seleccionar hasta 20 casos y descargar una lista de trabajo separada,
 con identidad, diagnóstico, cama, grupo, día, campos conservados y siguiente paso.
 La descarga no consulta fuentes. «Abrir ficha del episodio» reutiliza la navegación
 explícita de la extensión; se bloquea ante un episodio internamente contradictorio.
+La dependencia usa la superficie estrecha `rayen-import/clinical-panel`, registrada
+para este único consumidor en el control de límites; evita cargar los ejecutores
+de importación censal de la superficie general. No admite imports internos libres.
 Abrir una ficha no importa aplicaciones ni modifica el censo. La selección dura
 esta consulta y no equivale a una decisión guardada ni a cumplimiento estadístico.
 
