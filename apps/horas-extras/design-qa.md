@@ -1,119 +1,40 @@
-# Design QA — Hospitalizados, horas extras
+# Validación del diseño mínimo
 
-**Final result: passed**
+El usuario pidió priorizar ingreso, clave libre, turnos propios y descarga mensual
+por ADMIN. La propuesta anterior de aprobación/cierre queda sustituida.
 
-Revisión del prototipo local en `http://127.0.0.1:8799`, con datos ficticios.
-No acredita un servicio productivo ni autenticación real.
+## Decisiones visuales
 
-## Fuentes y evidencia
+Blanco `#ffffff`, texto `#203246`, secundario `#607080`, líneas `#dce3e7`, acento
+`#17687b`. Inter como única familia. Encabezado HHR discreto y contenido centrado;
+sin barra lateral, tarjetas de estados o panel de actividad. Año/mes antes del
+calendario; calendario a la izquierda y registros a la derecha en PC, apilados en
+móvil. El único acento fuerte marca el día elegido y el botón Registrar turno.
 
-Diseño combinado seleccionado: `exec-be83a1a7-12a9-4202-be3d-e27a4ab598c3.png`.
-Referencias de detalle: `exec-74c1320b-f0ec-4a27-a3e5-13c99aa531c4.png`
-(registro), `exec-df836688-184e-4263-9aa4-a83aca520e38.png` (calendario) y
-`exec-8c3db56f-98ad-46d5-96b8-d29b2fd00e2d.png` (administración).
-Directorio de fuentes local:
-la carpeta de imágenes generadas adjunta al chat.
+ADMIN: dos secciones visibles (TENS/Enfermería), cada una con descarga y tabla simple.
+Trabajador: calendario, tres totales y registros editables. Ingreso: RUT/clave y
+selector de perfiles ficticios plegado. Cambio inicial y posterior sin requisitos
+de longitud/complejidad, solo presencia y confirmación.
 
-Capturas definitivas, desde el navegador de Codex sobre el build de Vite:
-la carpeta de entregables del chat:
+## Comprobación
 
-- `prototipo-calendario-movil.png`: 390 × 844 px, calendario personal en borrador.
-- `prototipo-registro-movil.png`: 390 px de ancho, documento completo, noche del
-  viernes 4 al sábado 5, 13 h = 1 diurna + 12 nocturnas/festivas.
-- `prototipo-administracion.png`: 1440 × 1263 px, documento completo, revisión
-  mensual con Luis Ejemplo seleccionado, enviado, 13 h = 1 + 12.
+Las pruebas de dominio cubren cambios directos sin estados, restricciones de
+pertenencia, superposición, separación por período, cálculo y exportación. Las
+acciones de cierre/aprobación anteriores se rechazan por no estar disponibles.
+Las pruebas de clave cubren un carácter y cambios posteriores en la sesión.
+La exportación enumera personas sin registros sin atribuirles declaración de cero.
 
-Viewport móvil 390 × 844 CSS px; escritorio 1440 × 1000 CSS px. Densidad efectiva
-1 px/CSS px en las capturas. Referencias móviles 853 × 1844, reducidas a 390 × 843
-sin alterar proporciones; referencia desktop 1487 × 1058, comparada a la misma
-escala horizontal. Se compararon contenido y estados equivalentes, sin confundir
-la mayor longitud del documento funcional con desbordamiento del viewport.
+La evidencia de navegador se entrega en el chat. No se ha probado hardware móvil
+real ni lectores de pantalla. No es un servicio productivo: estado solo en memoria.
 
-Comparaciones conjuntas en el directorio local `work/` de la misma sesión:
-`comparacion-registro.png` (primera pasada), `comparacion-registro-final.png`,
-`comparacion-calendario.png`, `comparacion-admin.png` y
-`comparacion-admin-detalle.png`. La última contiene recortes a 424 px de ancho
-para revisar tipografía, números, etiqueta nocturna y acciones del panel.
+Validación en navegador completada a 390 y 1440 px: primer acceso con clave de un
+carácter, cambio posterior y reingreso (la clave anterior se rechaza), alta/edición/
+eliminación sin envío ni aprobación, cambio de mes conservando registros y ADMIN
+con ambas descargas separadas. Sin errores de consola ni desborde horizontal.
+Las capturas finales muestran calendario/registro móvil y administración en ambos
+anchos. El aviso de descarga se comprobó; el contenido XLSX se valida por round-trip.
 
-## Hallazgos y correcciones
-
-- **P2, resuelto:** navegación y enlace de regreso redundantes desplazaban el
-  formulario móvil. Se ocultan al registrar en celular, conservando Cancelar;
-  superficie blanca y etiqueta de observación en una sola línea.
-- **P2, resuelto:** Registrar turno quedaba fuera de la primera pantalla del
-  calendario. Ahora permanece visible en celular; posición comprobada entre
-  y=782 e y=830 en viewport de 844. Se reserva espacio al final para acceder a
-  envío y descarga sin que el botón los tape.
-- **P2, resuelto:** cambiar de pantalla podía conservar el desplazamiento de la
-  anterior. El cambio de vista/formulario/acceso vuelve al inicio; comprobado
-  `scrollY=0` al abrir el registro.
-- **Comportamiento corregido:** fecha y hora usan el evento de entrada para
-  recalcular inmediatamente también en el navegador integrado. Se probó el
-  cambio del 4 al 17 y un intervalo de 17:30–21:30: 4 h = 3,5 + 0,5.
-
-Las capturas posteriores a los ajustes eliminan los problemas anteriores.
-No quedan diferencias P0/P1/P2 accionables dentro del alcance del prototipo.
-
-## Superficies de fidelidad
-
-- **Tipografía:** Outfit para títulos y cifras, Inter para controles; fuentes
-  locales. Jerarquía y pesos conservados, sin truncar horarios o totales.
-- **Espaciado:** tarjetas, separadores, selección de turno en tres columnas y
-  revisión en tabla + detalle. El formulario incorpora un campo editable de
-  fecha; la aprobación, el motivo de devolución y el cierre agregan contenido
-  que no estaba desarrollado en los bocetos. No hay scroll horizontal del
-  documento a 390 ni 1440 px. La tabla móvil tiene desplazamiento propio.
-- **Color:** cabecera azul oscuro, acentos azul/cian y estados diferenciados con
-  texto además de color. Botón principal algo más oscuro que el boceto para
-  favorecer legibilidad; diferencia intencional.
-- **Imágenes e iconos:** logo vectorial HHR suministrado por el repositorio,
-  nítido y proporcional. Iconos coherentes de Lucide (sol/luna/reloj y acciones),
-  sin reconstrucciones del logo ni imágenes de sustitución.
-- **Texto:** unidad Hospitalizados, grupos TENS/Enfermería; aprobación de mes
-  completo, no de turno. Totales coherentes con los datos reales del ejemplo.
-  El aviso de demostración y el cambio de perfil son controles de esta etapa.
-
-## Interacciones verificadas
-
-Primer ingreso y cambio obligatorio simulado, rechazo posterior de la contraseña
-inicial, calendario/lista, alta y edición, conflicto de horarios, víspera de
-festivo, intervalos parciales, envío que retira edición, aprobación, declaración
-sin extras, cierre rechazado con pendientes, cierre por Enfermera Diurna,
-reapertura con motivo, devolución que recupera edición, exportación individual y
-por grupo. Descargas XLSX verificadas en disco, abiertas de nuevo y renderizadas
-con LibreOffice: hoja individual en una página con 38 / 14 / 24 horas en el caso
-probado, noche en E, sin pie de página adicional ni cálculos auxiliares visibles.
-
-Consola del navegador revisada: sin errores ni avisos en la prueba final.
-Botones móviles de al menos 44 px en las acciones principales, etiquetas de
-formulario, estados de error/éxito, foco visible y reducción de movimiento.
-
-## Límites y continuación
-
-Faltan pruebas en hardware iOS/Android real y auditoría exhaustiva con lector de
-pantalla. El prototipo usa estado en memoria y calendarios 2026/2027. El encabezado de demo,
-selector de perfiles, formulario de motivo y cierre explican las diferencias de
-contenido respecto de las imágenes; no se declara equivalencia píxel a píxel.
-El calendario mensual queda limitado al período validado y no muestra flechas
-que aparenten navegar meses todavía no implementados.
-
-## Ajuste de perfiles y calendario
-
-Trabajador TENS y trabajador de Enfermería tienen acceso exclusivamente a Mis horas.
-El administrador tiene además Gestión del equipo y conserva sus propios registros.
-La gestión presenta pestañas TENS y Enfermería, con resumen imprimible individual.
-Año/mes preceden al calendario diario; cambiar el período no borra los registros.
-Los tests cubren períodos independientes, permisos de cuenta, solapamiento entre
-meses, feriados trasladados, febrero y suma del día 31 en Excel.
-La corrección documental retira rutas locales para cumplir higiene del repositorio.
-
-Verificación del ajuste: perfiles TENS y Enfermería sin botón de gestión; ADMIN
-registra y envía su turno del 31 de octubre, cambia a gestión y filtra el grupo.
-Febrero 2027 termina en 28; la noche cruza al 1 de marzo con 12 h. Cambiar de
-período conserva septiembre. Noche del 16 de septiembre de 2027 llega a las 09:00
-del feriado adicional del 17. Sin desborde horizontal a 390 px. El comando de
-impresión abrió el diálogo; no se envió nada a una impresora física.
-
-Revisión del ajuste: se descartó un hallazgo sobre A44 tras comprobar que
-`src/export.mjs` conserva explícitamente su limpieza y el round-trip XLSX la
-comprueba. No se alteró ese comportamiento.
+La revisión independiente detectó que el primer cambio aceptaba reutilizar la clave
+inicial. Se corrigió: ese paso exige una clave distinta, sin longitud ni complejidad
+mínima adicional. Los cambios posteriores conservan la elección libre. Prueba de
+regresión específica incluida.

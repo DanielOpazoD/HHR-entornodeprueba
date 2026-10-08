@@ -1,23 +1,5 @@
-import { CheckCircle2, Clock3, Moon, Send, Sun, AlertCircle } from 'lucide-react';
+import { Clock3, Moon, Sun } from 'lucide-react';
 import { hours, shiftLabel, dateLabel, calculate } from '../domain/overtime.mjs';
-import { STATUS } from '../domain/month.mjs';
-
-export function Badge({ status, closed }) {
-  const Icon =
-    closed || status === 'approved'
-      ? CheckCircle2
-      : status === 'submitted'
-        ? Send
-        : status === 'observed'
-          ? AlertCircle
-          : Clock3;
-  return (
-    <span className={`badge ${closed ? 'approved' : status}`}>
-      <Icon size={14} />
-      {closed ? 'Mes cerrado' : STATUS[status]}
-    </span>
-  );
-}
 export function Totals({ value, compact = false }) {
   return (
     <div className={`totals ${compact ? 'compact' : ''}`}>

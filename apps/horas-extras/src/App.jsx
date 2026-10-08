@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarDays, ClipboardCheck, LogOut } from 'lucide-react';
+import { CalendarDays, Download, KeyRound, LogOut } from 'lucide-react';
 import { initialMonth, transition } from './domain/month.mjs';
 import { downloadWorkbook } from './export.mjs';
 import { Login, ChangePassword } from './components/Login.jsx';
@@ -35,23 +35,15 @@ export function App() {
   }
   function act(action, propagate = false) {
     try {
-      const actor =
-        view === 'admin' && sheet.adminRole
-          ? { id: userId, role: 'admin', name: `${sheet.name} · ${sheet.adminRole}` }
-          : { id: userId, role: 'staff', name: sheet.name };
-      const target = ['close', 'reopen'].includes(action.type)
-        ? action
-        : { sheetId: userId, ...action };
+      const actor = { id: userId };
+      const target = { ...action, sheetId: userId };
       const adjacentShifts = Object.values(months)
         .filter(item => item.period !== period)
         .flatMap(item => item.sheets.find(person => person.id === userId)?.shifts || []);
       setMonths({ ...months, [period]: transition(month, { ...target, adjacentShifts }, actor) });
       setNotice({
         type: 'success',
-        text:
-          action.type === 'submit'
-            ? 'Mes enviado a revisión en esta demostración.'
-            : 'Cambio aplicado en esta demostración.',
+        text: action.type === 'save' ? 'Turno guardado.' : 'Turno eliminado.',
       });
     } catch (cause) {
       if (propagate) throw cause;
@@ -62,7 +54,7 @@ export function App() {
     setBusy(true);
     setNotice(null);
     try {
-      await downloadWorkbook(sheets, month.closed, group, period);
+      await downloadWorkbook(sheets, group, period);
       setNotice({ type: 'success', text: 'Archivo Excel preparado para descargar.' });
     } catch (cause) {
       setNotice({ type: 'error', text: cause.message || 'No se pudo preparar la descarga.' });
@@ -91,14 +83,22 @@ export function App() {
             <small>Hospitalizados · Horas extras</small>
           </span>
         </a>
-        {gate === 'ready' && (
+        {(gate === 'ready' || gate === 'password') && (
           <div className="header-user">
             <span>
               {sheet.name}
-              <small>
-                {sheet.adminRole ? `ADMIN · ${sheet.adminRole}` : `Trabajador · ${sheet.group}`}
-              </small>
+              <small>{sheet.adminRole ? 'Administrador' : sheet.group}</small>
             </span>
+            <button
+              onClick={() => {
+                setGate('password');
+                setForm(null);
+                setNotice(null);
+              }}
+              aria-label="Cambiar clave"
+            >
+              <KeyRound size={18} />
+            </button>
             <button onClick={logout} aria-label="Cerrar sesión de demostración">
               <LogOut size={19} />
             </button>
@@ -115,9 +115,11 @@ export function App() {
           }}
         />
       )}
-      {gate === 'change' && (
+      {(gate === 'change' || gate === 'password') && (
         <ChangePassword
-          onCancel={logout}
+          first={gate === 'change'}
+          initialPassword={gate === 'change' ? sheet.rut.split('-')[0] : undefined}
+          onCancel={gate === 'change' ? logout : () => setGate('ready')}
           onChange={password => {
             setPasswords({ ...passwords, [userId]: password });
             setGate('ready');
@@ -128,40 +130,34 @@ export function App() {
         <div
           className={`workspace ${view === 'admin' ? 'admin-workspace' : ''} ${form ? 'has-form' : ''}`}
         >
-          <nav className="main-nav" aria-label="Navegación del perfil">
-            <span className="nav-caption">
-              {sheet.adminRole ? 'PERFIL ADMINISTRADOR' : `TRABAJADOR · ${sheet.group}`}
-            </span>
-            <button
-              className={view === 'staff' ? 'active' : ''}
-              onClick={() => {
-                setView('staff');
-                setForm(null);
-                setNotice(null);
-              }}
-            >
-              <CalendarDays size={19} />
-              Mis horas
-            </button>
-            {sheet.adminRole && (
+          {sheet.adminRole && (
+            <nav className="main-nav" aria-label="Navegación del perfil">
               <button
-                className={view === 'admin' ? 'active' : ''}
+                className={view === 'staff' ? 'active' : ''}
                 onClick={() => {
-                  setView('admin');
+                  setView('staff');
                   setForm(null);
                   setNotice(null);
                 }}
               >
-                <ClipboardCheck size={19} />
-                Gestión del equipo
+                <CalendarDays size={19} />
+                Mis horas
               </button>
-            )}
-            <p>
-              {sheet.adminRole
-                ? 'Gestiona al equipo y registra tus propias horas en Mis horas.'
-                : 'Tu calendario, registros y planillas personales.'}
-            </p>
-          </nav>
+              {sheet.adminRole && (
+                <button
+                  className={view === 'admin' ? 'active' : ''}
+                  onClick={() => {
+                    setView('admin');
+                    setForm(null);
+                    setNotice(null);
+                  }}
+                >
+                  <Download size={19} />
+                  Planillas del equipo
+                </button>
+              )}
+            </nav>
+          )}
           <main id="main-content">
             {!form && (
               <PeriodPicker
@@ -195,9 +191,7 @@ export function App() {
               <Admin
                 key={period}
                 month={month}
-                role={sheet.adminRole}
                 busy={busy}
-                onAction={act}
                 onExport={group =>
                   exportSheets(
                     month.sheets.filter(item => item.group === group),

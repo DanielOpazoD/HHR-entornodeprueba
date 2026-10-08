@@ -8,13 +8,13 @@ export async function buildWorkbook(templateModel, sheets, ExcelJS, period = PER
   template.addWorksheet('Plantilla').model = structuredClone(templateModel);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Hospital Hanga Roa';
-  const zero = workbook.addWorksheet('Sin horas extras');
+  const zero = workbook.addWorksheet('Sin registros');
   zero.addRows([
     [`HOSPITALIZADOS · ${calendar.label.toLocaleUpperCase('es')}`],
-    ['Funcionarios que declararon no realizar horas extras'],
+    ['Funcionarios sin turnos registrados en este mes'],
     ['Nombre', 'RUT', 'Cargo'],
     ...sheets
-      .filter(sheet => sheet.noExtras && !sheet.shifts.length)
+      .filter(sheet => !sheet.shifts.length)
       .map(sheet => [sheet.name, sheet.rut, sheet.group]),
   ]);
   zero.columns = [{ width: 48 }, { width: 20 }, { width: 24 }];
@@ -93,7 +93,7 @@ export async function buildWorkbook(templateModel, sheets, ExcelJS, period = PER
   return workbook;
 }
 
-export async function downloadWorkbook(sheets, closed, group, period = PERIOD) {
+export async function downloadWorkbook(sheets, group, period = PERIOD) {
   const [module, response] = await Promise.all([
     import('exceljs'),
     fetch(`${import.meta.env.BASE_URL}assets/planilla-hospitalizados.json`),
@@ -106,7 +106,7 @@ export async function downloadWorkbook(sheets, closed, group, period = PERIOD) {
   );
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `${closed ? 'CERRADO' : 'BORRADOR'}_${group}_hospitalizados_${period}_DEMO.xlsx`;
+  anchor.download = `HORAS_EXTRAS_${group}_hospitalizados_${period}_DEMO.xlsx`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
