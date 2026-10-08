@@ -30,3 +30,6 @@ Mantener `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build
 y `tests/sites-worker.test.mjs` para posible handoff. Validar con build y test:sites.
 Registrar aquí futuras decisiones duraderas de diseño, sin reintroducir funciones
 administrativas retiradas hasta que el usuario las solicite.
+
+Compactación del 8 de octubre: descargar Excel personal junto al título; reducir
+separaciones; observación del turno opcional y plegada; guardar/cancelar en una fila.

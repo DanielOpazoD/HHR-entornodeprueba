@@ -17,7 +17,9 @@ export function ShiftForm({ initial, initialDate, period, onSave, onCancel }) {
   const [end, setEnd] = useState(initial?.end || '20:00');
   const [nextDay, setNextDay] = useState(initial ? initial.endDate !== initial.date : false);
   const [note, setNote] = useState(initial?.note || '');
+  const [noteOpen, setNoteOpen] = useState(Boolean(initial?.note));
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   let shift, validation;
   try {
     if (date.slice(0, 7) !== period) throw new Error('Selecciona un día del mes elegido.');
@@ -28,16 +30,17 @@ export function ShiftForm({ initial, initialDate, period, onSave, onCancel }) {
   const total = shift && calculate(shift);
   return (
     <div className="form-page">
-      <button className="back text-button" onClick={onCancel}>
+      <button className="back text-button" disabled={saving} onClick={onCancel}>
         <ArrowLeft size={18} /> Volver a mis horas
       </button>
       <h1>{initial ? 'Editar turno' : 'Registrar horas extras'}</h1>
       <form
-        onSubmit={event => {
+        onSubmit={async event => {
           event.preventDefault();
-          if (!shift) return;
+          if (!shift || saving) return;
+          setSaving(true);
           try {
-            onSave({
+            await onSave({
               date,
               kind,
               start,
@@ -48,6 +51,8 @@ export function ShiftForm({ initial, initialDate, period, onSave, onCancel }) {
             });
           } catch (cause) {
             setError(cause.message);
+          } finally {
+            setSaving(false);
           }
         }}
       >
@@ -118,7 +123,7 @@ export function ShiftForm({ initial, initialDate, period, onSave, onCancel }) {
           </div>
         )}
         {shift && (
-          <>
+          <div className="shift-summary">
             <div className="time-preview">
               <span>Horario del turno</span>
               <strong>
@@ -140,32 +145,41 @@ export function ShiftForm({ initial, initialDate, period, onSave, onCancel }) {
                 {hours(total.diurnal)} h diurnas · {hours(total.nocturnal)} h nocturnas/festivas
               </p>
             </div>
-          </>
+          </div>
         )}
-        <label>
-          <span>
-            Motivo u observación <span className="muted">(opcional)</span>
-          </span>
-          <textarea
-            value={note}
-            maxLength={200}
-            rows={3}
-            placeholder="Ej. Reemplazo de turno, necesidad de servicio…"
-            onChange={event => setNote(event.target.value)}
-          />
-          <small className="counter">{note.length}/200</small>
-        </label>
+        <details
+          className="optional-note"
+          open={noteOpen}
+          onToggle={event => setNoteOpen(event.currentTarget.open)}
+        >
+          <summary>Agregar observación (opcional)</summary>
+          <label>
+            <span>
+              Motivo u observación <span className="muted">(opcional)</span>
+            </span>
+            <textarea
+              value={note}
+              maxLength={200}
+              rows={3}
+              placeholder="Ej. Reemplazo de turno, necesidad de servicio…"
+              onChange={event => setNote(event.target.value)}
+            />
+            <small className="counter">{note.length}/200</small>
+          </label>
+        </details>
         {(error || validation) && (
           <p className="error" role="alert">
             {error || validation}
           </p>
         )}
-        <button className="primary wide" disabled={!shift}>
-          Guardar turno
-        </button>
-        <button type="button" className="text-button wide" onClick={onCancel}>
-          Cancelar
-        </button>
+        <div className="form-actions">
+          <button className="primary" disabled={!shift || saving}>
+            {saving ? 'Guardando…' : 'Guardar turno'}
+          </button>
+          <button type="button" className="text-button" disabled={saving} onClick={onCancel}>
+            Cancelar
+          </button>
+        </div>
       </form>
     </div>
   );

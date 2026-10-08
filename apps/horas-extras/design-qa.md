@@ -38,3 +38,10 @@ La revisión independiente detectó que el primer cambio aceptaba reutilizar la 
 inicial. Se corrigió: ese paso exige una clave distinta, sin longitud ni complejidad
 mínima adicional. Los cambios posteriores conservan la elección libre. Prueba de
 regresión específica incluida.
+
+## Compactación — 8 de octubre de 2026
+
+Se comprobaron las vistas de trabajador, registro y ADMIN a 390 y 1440 px.
+La descarga personal conserva el mismo generador institucional; ADMIN mantiene
+archivos separados para TENS y Enfermería. La observación opcional se pliega para
+dejar Guardar turno visible. Este PR conserva la demo en memoria.
