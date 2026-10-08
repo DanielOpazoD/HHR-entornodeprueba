@@ -19,16 +19,28 @@ export const CudyrLinkReviewForm = ({
   draft,
   onChange,
   onView,
+  onSave,
+  saveDisabled = false,
+  saving = false,
+  initialDecision,
+  savedDecision,
 }: {
   item: CudyrComparisonItem;
   rows: CudyrReportRow[];
   draft?: CudyrLinkDraft;
   onChange: (draft?: CudyrLinkDraft) => void;
   onView: (key: string) => void;
+  onSave?: (draft: CudyrLinkDraft) => void;
+  saveDisabled?: boolean;
+  saving?: boolean;
+  initialDecision?: CudyrLinkDraft;
+  savedDecision?: CudyrLinkDraft;
 }) => {
-  const [action, setAction] = useState<CudyrLinkDraft['action']>(draft?.action || 'pending');
-  const [episodeId, setEpisodeId] = useState(draft?.episodeId || '');
-  const [reason, setReason] = useState(draft?.reason || '');
+  const [action, setAction] = useState<CudyrLinkDraft['action']>(
+    draft?.action || initialDecision?.action || 'pending'
+  );
+  const [episodeId, setEpisodeId] = useState(draft?.episodeId || initialDecision?.episodeId || '');
+  const [reason, setReason] = useState(draft?.reason || initialDecision?.reason || '');
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState('');
   const candidates = cudyrLinkCandidates(item, rows);
@@ -36,11 +48,20 @@ export const CudyrLinkReviewForm = ({
   return (
     <details className="mt-3 rounded border border-teal-200 bg-white p-3">
       <summary className="cursor-pointer font-medium text-teal-900">
-        {draft ? `${CUDYR_LINK_LABELS[draft.action]} · borrador` : 'Revisar vínculo · borrador'}
+        {onSave
+          ? initialDecision
+            ? 'Editar revisión'
+            : 'Revisar y guardar'
+          : draft
+            ? `${CUDYR_LINK_LABELS[draft.action]} · borrador`
+            : 'Revisar vínculo · borrador'}
       </summary>
       <p className="my-2 text-xs text-slate-600">
-        Esta decisión queda solo en esta consulta. No confirma una aplicación CUDYR ni cambia
-        autoría, fecha, categoría, elegibilidad o alta. No se incluye en el Excel.
+        {onSave
+          ? 'Guardar conserva la decisión, su revisor y fecha en HHR.'
+          : 'Esta decisión queda solo en esta consulta.'}{' '}
+        No confirma una aplicación CUDYR ni cambia autoría, fecha, categoría, elegibilidad o alta.
+        No se incluye en el Excel.
       </p>
       {draft && (
         <p role="status" className="my-2 break-words text-xs">
@@ -139,7 +160,15 @@ export const CudyrLinkReviewForm = ({
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
-          className="rounded bg-teal-800 px-3 py-2 text-white"
+          disabled={Boolean(
+            onSave &&
+            (saveDisabled ||
+              (savedDecision &&
+                savedDecision.action === action &&
+                savedDecision.episodeId === (action === 'link' ? episodeId : '') &&
+                savedDecision.reason === reason.trim()))
+          )}
+          className="rounded bg-teal-800 px-3 py-2 text-white disabled:opacity-50"
           onClick={() => {
             const next = {
               action,
@@ -148,10 +177,17 @@ export const CudyrLinkReviewForm = ({
             };
             const issue = validateCudyrLinkDraft(item, rows, next, acknowledged);
             setError(issue);
-            if (!issue) onChange(next);
+            if (!issue) {
+              onChange(next);
+              onSave?.(next);
+            }
           }}
         >
-          Anotar decisión en borrador
+          {onSave
+            ? saving
+              ? 'Guardando revisión…'
+              : 'Guardar revisión en HHR'
+            : 'Anotar decisión en borrador'}
         </button>
         {draft && (
           <button

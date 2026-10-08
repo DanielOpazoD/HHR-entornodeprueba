@@ -1,3 +1,5 @@
+import { resolveCudyrReviewSources } from '@/services/cudyr/cudyrReviewResume';
+import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrReconciliationFile } from '@/types/domain/cudyrReconciliation';
@@ -22,6 +24,7 @@ export const CudyrMonthlyReconciliation = ({
 }) => {
   const [files, setFiles] = useState<CudyrReconciliationFile[]>([]);
   const [selection, setSelection] = useState('');
+  const [resumeSources, setResumeSources] = useState<CudyrReviewSource[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const active = useRef<AbortController | null>(null);
@@ -68,6 +71,15 @@ export const CudyrMonthlyReconciliation = ({
         (parsed.report.from > data.from || parsed.report.to < data.to)
       )
         throw new Error('El informe de altas debe cubrir todo el período consultado.');
+      const expected = resumeSources.find(source => source.kind === kind);
+      if (resumeSources.length && !expected)
+        throw new Error(
+          'Este tipo de archivo no pertenece a la revisión guardada. Salga de la revisión retomada para agregar otra fuente.'
+        );
+      if (expected && expected.sha256 !== parsed.sha256)
+        throw new Error(
+          `El archivo no corresponde a la versión guardada: ${expected.name}. Seleccione el original o salga de la revisión retomada.`
+        );
       setFiles(previous => [...previous.filter(f => f.kind !== kind), parsed]);
       if (kind === 'categories') setSelection('');
     } catch (caught) {
@@ -120,6 +132,7 @@ export const CudyrMonthlyReconciliation = ({
               value={archive?.id || ''}
               className="mt-1 block w-full rounded border p-2"
               onChange={e => {
+                setResumeSources([]);
                 setSelection(e.target.value);
                 setFiles(f => f.filter(x => x.kind !== 'categories'));
               }}
@@ -129,8 +142,8 @@ export const CudyrMonthlyReconciliation = ({
                 .filter(r => r.month === data.from.slice(0, 7))
                 .map(r => (
                   <option key={r.id} value={r.id}>
-                    {r.file.name} · {r.report.generatedLabel} · guardado {r.importedAt} ·{' '}
-                    {r.id.slice(0, 8)}
+                    {r.file.name} · {r.report.generatedLabel} · guardado{' '}
+                    {cudyrMomentLabel(r.importedAt)} · {r.id.slice(0, 8)}
                   </option>
                 ))}
             </select>
@@ -140,6 +153,31 @@ export const CudyrMonthlyReconciliation = ({
               Respaldo guardado pendiente de lectura. Puede cotejar archivos locales sin presentarlo
               como lectura completa del archivo HHR.
             </p>
+          )}
+          {resumeSources.length > 0 && (
+            <div role="status" className="my-3 rounded bg-teal-50 p-3 text-xs">
+              <p>
+                Revisión retomada con versiones exactas. Fechas de guardado en hora de Rapa Nui.
+              </p>
+              {resolveCudyrReviewSources(
+                resumeSources,
+                ready ? reports : [],
+                files,
+                data.from.slice(0, 7)
+              ).missing.map(source => (
+                <p key={source.kind} className="mt-1 font-semibold">
+                  Falta adjuntar el archivo original: {source.name}. Se comprobará su huella.
+                </p>
+              ))}
+              <button
+                type="button"
+                className="mt-2 underline"
+                disabled={busy}
+                onClick={() => setResumeSources([])}
+              >
+                Salir de la revisión retomada
+              </button>
+            </div>
           )}
           <div className="my-4 grid gap-4 sm:grid-cols-2">
             {(['categories', 'discharges'] as const).map(kind => (
@@ -212,7 +250,30 @@ export const CudyrMonthlyReconciliation = ({
           <CudyrReviewWorkspace
             key={`${categoryFile?.sha256 || archive?.id}:${dischargeFile?.sha256}`}
             sources={sources}
-            canReview={canReview}
+            onResume={
+              busy
+                ? undefined
+                : target => {
+                    const resolved = resolveCudyrReviewSources(
+                      target,
+                      ready ? reports : [],
+                      files,
+                      data.from.slice(0, 7)
+                    );
+                    setResumeSources(target);
+                    setSelection(resolved.archiveId);
+                    setFiles(resolved.files);
+                  }
+            }
+            canReview={
+              canReview &&
+              !resolveCudyrReviewSources(
+                resumeSources,
+                ready ? reports : [],
+                files,
+                data.from.slice(0, 7)
+              ).missing.length
+            }
             items={items}
             data={data}
             onView={onView}

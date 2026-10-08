@@ -34,11 +34,10 @@ const props = () => ({
   onView: vi.fn(),
 });
 const annotate = () => {
-  fireEvent.click(screen.getByText('Revisar vínculo · borrador'));
+  fireEvent.click(screen.getByText('Revisar y guardar'));
   fireEvent.change(screen.getByLabelText('Motivo y respaldo de la revisión'), {
     target: { value: 'Revisar la ficha original de julio.' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Anotar decisión en borrador' }));
 };
 describe('resume monthly review without modifying clinical data', () => {
   let stored: SavedCudyrReview[];
@@ -82,6 +81,11 @@ describe('resume monthly review without modifying clinical data', () => {
     const refreshed = { ...input, data: { ...input.data, generatedAt: '2026-10-08T20:00:00Z' } };
     view = render(<CudyrReviewWorkspace {...refreshed} />);
     await screen.findByText(/Revisión guardada/);
+    fireEvent.click(screen.getByText('Editar revisión'));
+    expect(screen.getByLabelText('Motivo y respaldo de la revisión')).toHaveValue(
+      'Revisar la ficha original de julio.'
+    );
+    expect(screen.getByRole('button', { name: 'Guardar revisión en HHR' })).toBeDisabled();
     const changed = structuredClone(refreshed.data);
     changed.rows[0].modality = 'cuna';
     view.rerender(<CudyrReviewWorkspace {...refreshed} data={changed} />);
@@ -124,10 +128,10 @@ describe('resume monthly review without modifying clinical data', () => {
     await screen.findByText(/Revisión guardada/);
     await waitFor(() =>
       expect(
-        screen.queryByRole('button', { name: 'Guardar revisión en HHR' })
-      ).not.toBeInTheDocument()
+        screen.getByRole('button', { name: 'Guardar revisión en HHR', hidden: true })
+      ).toBeDisabled()
     );
-    expect(screen.getByText(/0 decisiones en borrador/)).toBeInTheDocument();
+    expect(screen.queryByText(/Decisión anotada/)).not.toBeInTheDocument();
     expect(api.save).toHaveBeenCalledTimes(1);
   });
   it('allows authorized readers to see saved decisions and history without editing controls', async () => {

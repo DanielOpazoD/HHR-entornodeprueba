@@ -9,7 +9,17 @@ vi.mock('@/services/cudyr/cudyrReconciliationFile', () => ({
 }));
 // These tests own file/period lifecycle. Persistence is covered by CudyrReviewPersistence.test.tsx.
 vi.mock('@/features/cudyr/components/CudyrReviewWorkspace', () => ({
-  CudyrReviewWorkspace: () => <div data-testid="review-workspace" />,
+  CudyrReviewWorkspace: ({ onResume }: { onResume: (sources: unknown[]) => void }) => (
+    <div data-testid="review-workspace">
+      <button
+        onClick={() =>
+          onResume([{ kind: 'categories', sha256: 'a'.repeat(64), name: 'Original.xls' }])
+        }
+      >
+        Retomar fixture
+      </button>
+    </div>
+  ),
 }));
 const renderPanel = () =>
   render(
@@ -57,6 +67,25 @@ describe('monthly preview lifecycle', () => {
     });
     expect(await screen.findByRole('alert')).toHaveTextContent('debe cubrir todo el período');
     expect(screen.queryByText('synthetic.xls')).not.toBeInTheDocument();
+  });
+  it('requires the original hash and rejects extra source kinds while resuming', async () => {
+    const view = renderPanel();
+    fireEvent.click(screen.getByText('Retomar fixture'));
+    expect(screen.getByText(/Falta adjuntar el archivo original/)).toBeInTheDocument();
+    vi.mocked(readCudyrReconciliationFile).mockResolvedValueOnce({
+      name: 'extra.xls',
+      sha256: 'b'.repeat(64),
+      kind: 'discharges',
+      report: { from: '2026-10-01', to: '2026-10-04', generatedLabel: '', rows: [] },
+    });
+    fireEvent.change(screen.getByLabelText('Altas administrativas locales'), {
+      target: { files: [new File(['fixture'], 'extra.xls')] },
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'no pertenece a la revisión guardada'
+    );
+    expect(screen.queryByText('extra.xls')).not.toBeInTheDocument();
+    view.unmount();
   });
   it('aborts pending local reads on period/session unmount', async () => {
     let signal: AbortSignal | undefined;

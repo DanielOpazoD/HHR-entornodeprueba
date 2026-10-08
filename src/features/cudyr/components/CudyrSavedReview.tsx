@@ -1,3 +1,4 @@
+import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import { useEffect } from 'react';
 import { CudyrReviewHistory } from './CudyrReviewHistory';
 import type { CudyrReviewController } from '../hooks/useCudyrReviews';
@@ -10,11 +11,13 @@ export const CudyrSavedReview = ({
   entryKey,
   draft,
   onSaved,
+  inlineSave = false,
 }: {
   review: CudyrReviewController;
   entryKey: string;
   draft?: CudyrLinkDraft;
   onSaved: () => void;
+  inlineSave?: boolean;
 }) => {
   const saved = review.records.find(r => r.entryKey === entryKey);
   const current = saved && isCurrentCudyrReview(saved, review.evidence[entryKey]);
@@ -40,7 +43,8 @@ export const CudyrSavedReview = ({
             {CUDYR_LINK_LABELS[saved.decision.action]} · {saved.decision.reason}
           </p>
           <p>
-            Revisor: {saved.reviewedBy.name} · {saved.updatedAt}. No es el autor clínico del CUDYR.
+            Revisor: {saved.reviewedBy.name} · {cudyrMomentLabel(saved.updatedAt)} (hora de Rapa
+            Nui). No es el autor clínico del CUDYR.
           </p>
           <details className="mt-1">
             <summary className="cursor-pointer underline">Evidencia de esta decisión</summary>
@@ -61,7 +65,7 @@ export const CudyrSavedReview = ({
           <CudyrReviewHistory key={`${saved.id}:${saved.revision}`} review={saved} />
         </>
       )}
-      {draft && (
+      {draft && !inlineSave && (
         <button
           type="button"
           disabled={!review.ready || review.busy}
@@ -75,7 +79,7 @@ export const CudyrSavedReview = ({
           Guardar revisión en HHR
         </button>
       )}
-      {!saved && !draft && <p>Sin revisión guardada. Anote una decisión para guardarla.</p>}
+      {!saved && !draft && <p>Sin revisión guardada.</p>}
     </div>
   );
 };
