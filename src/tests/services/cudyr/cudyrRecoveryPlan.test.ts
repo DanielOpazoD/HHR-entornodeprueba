@@ -98,7 +98,7 @@ describe('targeted historical recovery worklist', () => {
     data.rows[0].evaluation.author = '  ';
     expect(buildCudyrRecoveryPlan(data)[0].needs).toEqual(['metadata']);
   });
-  it('retains original application dates across month boundaries and exports only the selected cases', () => {
+  it('retains original application dates across month boundaries and exports only the selected cases', async () => {
     const data = buildCudyrReport(reportInput());
     const row = data.rows[0];
     row.evaluation = {
@@ -112,7 +112,7 @@ describe('targeted historical recovery worklist', () => {
     };
     data.rows.push({ ...row, key: 'other', clinicalEpisodeId: 'other', rut: 'other' });
     const plan = buildCudyrRecoveryPlan(data);
-    const workbook = buildCudyrRecoveryWorkbook(data, [plan[0]]);
+    const workbook = await buildCudyrRecoveryWorkbook(data, [plan[0]]);
     const sheet = workbook.getWorksheet('Búsqueda dirigida')!;
     expect(sheet.rowCount).toBe(2);
     expect(sheet.getCell('N2').value).toBe('2026-11-01T03:00:00-05:00');
@@ -120,6 +120,6 @@ describe('targeted historical recovery worklist', () => {
     expect(workbook.getWorksheet('Alcance')!.getCell('B2').value).toContain(
       'No es el reporte para Estadística'
     );
-    expect(() => buildCudyrRecoveryWorkbook(data, Array(21).fill(plan[0]))).toThrow('20 casos');
+    await expect(buildCudyrRecoveryWorkbook(data, Array(21).fill(plan[0]))).rejects.toThrow('20 casos');
   });
 });

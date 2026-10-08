@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+import { createWorkbook } from '@/services/exporters/excelUtils';
 import { saveAs } from 'file-saver';
 import { addCudyrDataSheet } from './cudyrDataSheet';
 import {
@@ -13,12 +13,12 @@ import {
 } from './cudyrReportPresentation';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 
-export const buildCudyrRecoveryWorkbook = (
+export const buildCudyrRecoveryWorkbook = async (
   data: CudyrReportDataset,
   selected: CudyrRecoveryCase[]
 ) => {
   if (!selected.length || selected.length > 20) throw new Error('Seleccione entre 1 y 20 casos.');
-  const workbook = new ExcelJS.Workbook();
+  const workbook = await createWorkbook();
   addCudyrDataSheet(
     workbook,
     'Alcance',
@@ -99,7 +99,7 @@ export const downloadCudyrRecoveryPlan = async (
   data: CudyrReportDataset,
   selected: CudyrRecoveryCase[]
 ) => {
-  const workbook = buildCudyrRecoveryWorkbook(data, selected);
+  const workbook = await buildCudyrRecoveryWorkbook(data, selected);
   const buffer = await workbook.xlsx.writeBuffer();
   saveAs(
     new Blob([buffer], {
