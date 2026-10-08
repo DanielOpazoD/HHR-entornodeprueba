@@ -100,8 +100,12 @@ lectura requiere acceso clínico. Firestore directo permanece denegado.
 
 Cada decisión conserva motivo, episodio propuesto (si corresponde), revisor y fecha
 del servidor, período, huellas SHA-256 de los archivos y del contexto observado.
-El contexto incluye las filas diarias completas, cobertura e incertidumbres; un
-cambio invalida conservadoramente la revisión. `generatedAt` no afecta la huella.
+El contexto se calcula por caso: filas del mismo documento, episodios relacionados
+y posibles identidades en conflicto. Cambios de otros pacientes y marcas de
+recaptura no invalidan la revisión. Se conservan fechas clínicas, autores, contexto
+diario, cobertura e incertidumbres globales. Cambiar la versión de un archivo
+fuente sigue exigiendo cotejo. Las revisiones previas a `case-v1` requieren una
+única nueva revisión; no se reescriben ni se validan retrospectivamente.
 El archivo original debe seleccionarse de nuevo para cotejar una decisión al volver;
 las decisiones fuera de las filas seleccionadas permanecen visibles, nunca se
 trasladan automáticamente a otra persona. El contenido se declara `user_review`:
