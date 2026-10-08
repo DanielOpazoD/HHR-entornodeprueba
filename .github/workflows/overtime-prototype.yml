@@ -1,0 +1,34 @@
+name: Overtime prototype
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+on:
+  pull_request:
+    paths:
+      - 'apps/horas-extras/**'
+      - '.github/workflows/overtime-prototype.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/horas-extras/**'
+      - '.github/workflows/overtime-prototype.yml'
+permissions:
+  contents: read
+jobs:
+  prototype:
+    name: Overtime calculation, Excel and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/horas-extras
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/horas-extras/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:sites
+      - run: npm audit --audit-level=high
