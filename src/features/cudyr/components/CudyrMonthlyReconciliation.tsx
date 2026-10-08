@@ -1,3 +1,4 @@
+import { CudyrRecoveryPanel } from './CudyrRecoveryPanel';
 import { resolveCudyrReviewSources } from '@/services/cudyr/cudyrReviewResume';
 import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -125,6 +126,7 @@ export const CudyrMonthlyReconciliation = ({
         <p role="status">Consulte un solo mes para comparar informes históricos.</p>
       ) : (
         <>
+          <CudyrRecoveryPanel key={data.generatedAt} data={data} onView={onView} />
           <label className="block">
             Categorización ya guardada
             <select
