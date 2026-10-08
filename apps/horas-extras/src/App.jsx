@@ -5,16 +5,19 @@ import { downloadWorkbook } from './export.mjs';
 import { Login, ChangePassword } from './components/Login.jsx';
 import { Staff } from './components/Staff.jsx';
 import { ShiftForm } from './components/ShiftForm.jsx';
-import { Admin, ADMIN_ROLES } from './components/Admin.jsx';
+import { Admin } from './components/Admin.jsx';
+
+import { PeriodPicker } from './components/PeriodPicker.jsx';
 
 export function App() {
-  const [month, setMonth] = useState(initialMonth);
+  const [period, setPeriod] = useState('2026-09');
+  const [months, setMonths] = useState(() => ({ '2026-09': initialMonth() }));
+  const month = months[period];
   const [userId, setUserId] = useState(null);
   const [passwords, setPasswords] = useState({});
   const [gate, setGate] = useState('login');
   const [view, setView] = useState('staff');
   const [form, setForm] = useState(null);
-  const [role, setRole] = useState(ADMIN_ROLES[0]);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
   const sheet = month.sheets.find(item => item.id === userId);
@@ -33,13 +36,16 @@ export function App() {
   function act(action, propagate = false) {
     try {
       const actor =
-        view === 'admin'
-          ? { id: 'admin-demo', role: 'admin', name: role }
+        view === 'admin' && sheet.adminRole
+          ? { id: userId, role: 'admin', name: `${sheet.name} · ${sheet.adminRole}` }
           : { id: userId, role: 'staff', name: sheet.name };
       const target = ['close', 'reopen'].includes(action.type)
         ? action
         : { sheetId: userId, ...action };
-      setMonth(transition(month, target, actor));
+      const adjacentShifts = Object.values(months)
+        .filter(item => item.period !== period)
+        .flatMap(item => item.sheets.find(person => person.id === userId)?.shifts || []);
+      setMonths({ ...months, [period]: transition(month, { ...target, adjacentShifts }, actor) });
       setNotice({
         type: 'success',
         text:
@@ -56,7 +62,7 @@ export function App() {
     setBusy(true);
     setNotice(null);
     try {
-      await downloadWorkbook(sheets, month.closed, group);
+      await downloadWorkbook(sheets, month.closed, group, period);
       setNotice({ type: 'success', text: 'Archivo Excel preparado para descargar.' });
     } catch (cause) {
       setNotice({ type: 'error', text: cause.message || 'No se pudo preparar la descarga.' });
@@ -89,7 +95,9 @@ export function App() {
           <div className="header-user">
             <span>
               {sheet.name}
-              <small>{sheet.group}</small>
+              <small>
+                {sheet.adminRole ? `ADMIN · ${sheet.adminRole}` : `Trabajador · ${sheet.group}`}
+              </small>
             </span>
             <button onClick={logout} aria-label="Cerrar sesión de demostración">
               <LogOut size={19} />
@@ -120,8 +128,10 @@ export function App() {
         <div
           className={`workspace ${view === 'admin' ? 'admin-workspace' : ''} ${form ? 'has-form' : ''}`}
         >
-          <nav className="main-nav" aria-label="Vistas de demostración">
-            <span className="nav-caption">EXPLORAR DEMO</span>
+          <nav className="main-nav" aria-label="Navegación del perfil">
+            <span className="nav-caption">
+              {sheet.adminRole ? 'PERFIL ADMINISTRADOR' : `TRABAJADOR · ${sheet.group}`}
+            </span>
             <button
               className={view === 'staff' ? 'active' : ''}
               onClick={() => {
@@ -133,20 +143,39 @@ export function App() {
               <CalendarDays size={19} />
               Mis horas
             </button>
-            <button
-              className={view === 'admin' ? 'active' : ''}
-              onClick={() => {
-                setView('admin');
-                setForm(null);
-                setNotice(null);
-              }}
-            >
-              <ClipboardCheck size={19} />
-              Administración
-            </button>
-            <p>El cambio de vista simula los perfiles. No concede permisos reales.</p>
+            {sheet.adminRole && (
+              <button
+                className={view === 'admin' ? 'active' : ''}
+                onClick={() => {
+                  setView('admin');
+                  setForm(null);
+                  setNotice(null);
+                }}
+              >
+                <ClipboardCheck size={19} />
+                Gestión del equipo
+              </button>
+            )}
+            <p>
+              {sheet.adminRole
+                ? 'Gestiona al equipo y registra tus propias horas en Mis horas.'
+                : 'Tu calendario, registros y planillas personales.'}
+            </p>
           </nav>
           <main id="main-content">
+            {!form && (
+              <PeriodPicker
+                period={period}
+                onChange={value => {
+                  setMonths(current =>
+                    current[value] ? current : { ...current, [value]: initialMonth(value) }
+                  );
+                  setPeriod(value);
+                  setForm(null);
+                  setNotice(null);
+                }}
+              />
+            )}
             {notice && (
               <div
                 role={notice.type === 'error' ? 'alert' : 'status'}
@@ -162,11 +191,11 @@ export function App() {
                 </button>
               </div>
             )}
-            {view === 'admin' ? (
+            {view === 'admin' && sheet.adminRole ? (
               <Admin
+                key={period}
                 month={month}
-                role={role}
-                onRole={setRole}
+                role={sheet.adminRole}
                 busy={busy}
                 onAction={act}
                 onExport={group =>
@@ -181,6 +210,7 @@ export function App() {
                 key={form.id || form.date}
                 initial={form.id ? form : undefined}
                 initialDate={form.date}
+                period={period}
                 onCancel={() => setForm(null)}
                 onSave={shift => {
                   act({ type: 'save', shift }, true);
@@ -189,6 +219,7 @@ export function App() {
               />
             ) : (
               <Staff
+                key={`${period}-${userId}`}
                 month={month}
                 sheet={sheet}
                 onAdd={date => setForm({ date })}

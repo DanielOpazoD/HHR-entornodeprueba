@@ -58,7 +58,7 @@ test('partial shift touching a night is allowed, overlapping night is rejected',
   assert.equal(overlaps([night], night), false);
 });
 test('invalid dates, times, unsupported calendar and zero duration fail closed', () => {
-  for (const date of ['2026-09-31', '2026-08-31', '2026-10-02', '2026-9-01'])
+  for (const date of ['2026-09-31', '2025-12-31', '2028-01-02', '2026-9-01'])
     assert.throws(() => dayNumber(date));
   for (const [start, end] of [
     ['25:00', '08:00'],
@@ -67,7 +67,7 @@ test('invalid dates, times, unsupported calendar and zero duration fail closed',
     ['07:61', '08:00'],
   ])
     assert.throws(() => makeShift({ date: '2026-09-01', kind: 'custom', start, end }));
-  assert.throws(() => makeShift({ date: '2026-10-01', kind: 'long' }));
+  assert.throws(() => makeShift({ date: '2028-01-01', kind: 'long' }));
 });
 test('classification agrees with independent minute-by-minute reference throughout the month', () => {
   const nonbusiness = new Set([5, 6, 12, 13, 18, 19, 20, 26, 27]);
@@ -92,4 +92,21 @@ test('RUT accepts formatting and verifies the digit', () => {
   assert.equal(normalizeRut('11.111.111-1'), '11111111-1');
   assert.equal(normalizeRut('11.111.111-2'), null);
   assert.equal(normalizeRut('abc'), null);
+});
+
+test('other months and years classify holidays and midnight transitions', () => {
+  for (const date of ['2026-04-02', '2026-12-31', '2027-09-16', '2027-06-27', '2027-12-31']) {
+    const shift = makeShift({ date, kind: 'night' });
+    assert.equal(shift.end, '09:00');
+    assert.equal(calculate(shift).total, 780);
+  }
+  for (const date of ['2026-04-03', '2027-03-26', '2027-06-28', '2027-09-17', '2027-10-11']) {
+    assert.deepEqual(calculate(makeShift({ date, kind: 'long' })), {
+      total: 660,
+      diurnal: 0,
+      nocturnal: 660,
+    });
+  }
+  assert.equal(makeShift({ date: '2027-02-28', kind: 'night' }).endDate, '2027-03-01');
+  assert.throws(() => makeShift({ date: '2027-02-29', kind: 'long' }));
 });

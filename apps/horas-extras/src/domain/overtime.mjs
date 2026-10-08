@@ -1,6 +1,7 @@
 // Nominal local wall-clock minutes. No browser/UTC timezone or DST arithmetic.
 export const PERIOD = '2026-09';
-export const HOLIDAYS = new Set(['2026-09-18', '2026-09-19']);
+import { HOLIDAYS, periodInfo } from './calendar.mjs';
+export { HOLIDAYS, periodInfo };
 const DAY = 1440;
 
 export function dayNumber(date) {
@@ -10,8 +11,8 @@ export function dayNumber(date) {
     throw new Error('Fecha inválida.');
   }
   // This prototype deliberately fails closed outside its verified calendar.
-  if (date < '2026-09-01' || date > '2026-10-01') {
-    throw new Error('El prototipo tiene calendario validado para septiembre de 2026.');
+  if (date < '2026-01-01' || date > '2028-01-01') {
+    throw new Error('El calendario de demostración cubre 2026 y 2027.');
   }
   return value / 86400000;
 }
@@ -32,7 +33,7 @@ export function timeMinutes(time) {
 
 export function makeShift({ date, kind, start = '', end = '', nextDay = false, note = '', id }) {
   dayNumber(date);
-  if (!date.startsWith(`${PERIOD}-`)) throw new Error('Selecciona un día de septiembre de 2026.');
+  periodInfo(date.slice(0, 7));
   if (!['long', 'night', 'custom'].includes(kind)) throw new Error('Selecciona el tipo de turno.');
   if (kind === 'long') {
     start = isNonBusiness(date) ? '09:00' : '08:00';

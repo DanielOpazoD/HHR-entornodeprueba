@@ -12,8 +12,15 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 
 Responsive website for phones and PCs, not a native mobile app. Combine rapid shift entry,
 personal monthly calendar/list and administration review. Navy HHR header, cyan primary
-controls, yellow supplied logo, Outfit headings and Inter UI. September 2026 synthetic demo
-only. Keep it isolated from the clinical root build, Firebase, real accounts and real staff
+controls, yellow supplied logo, Outfit headings and Inter UI. Synthetic demo covering calendar years 2026 and 2027. Keep it isolated from the clinical root build, Firebase, real accounts and real staff
 identifiers. Do not expose it in the HHR login until independent hosting and production
 security are explicitly implemented. Grade and employment quality remain blank in Excel;
 night labels belong in column E; no extra footer; all admins may close/reopen with reason.
+
+## Profile and calendar decisions (7 October 2026)
+
+Worker accounts (TENS or Enfermería) only access their own records. Admin is an
+additional account permission, separate from professional group: administrators
+have Mis horas and Gestión del equipo. Team management must visibly separate TENS
+and Enfermería. Select calendar year/month before days; records and approval/closure
+are independent per period. Preserve institutional Excel for 28/30/31-day months.

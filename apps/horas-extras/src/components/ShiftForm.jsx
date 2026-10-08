@@ -1,9 +1,17 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Clock3, Moon, Sun } from 'lucide-react';
-import { calculate, dateLabel, isNonBusiness, makeShift, hours } from '../domain/overtime.mjs';
+import {
+  calculate,
+  dateLabel,
+  isNonBusiness,
+  makeShift,
+  hours,
+  periodInfo,
+} from '../domain/overtime.mjs';
 
-export function ShiftForm({ initial, initialDate, onSave, onCancel }) {
-  const [date, setDate] = useState(initial?.date || initialDate || '2026-09-04');
+export function ShiftForm({ initial, initialDate, period, onSave, onCancel }) {
+  const calendar = periodInfo(period);
+  const [date, setDate] = useState(initial?.date || initialDate || calendar.first);
   const [kind, setKind] = useState(initial?.kind || 'night');
   const [start, setStart] = useState(initial?.start || '17:00');
   const [end, setEnd] = useState(initial?.end || '20:00');
@@ -12,6 +20,7 @@ export function ShiftForm({ initial, initialDate, onSave, onCancel }) {
   const [error, setError] = useState('');
   let shift, validation;
   try {
+    if (date.slice(0, 7) !== period) throw new Error('Selecciona un día del mes elegido.');
     shift = makeShift({ date, kind, start, end, nextDay, note, id: initial?.id });
   } catch (cause) {
     validation = cause.message;
@@ -46,8 +55,8 @@ export function ShiftForm({ initial, initialDate, onSave, onCancel }) {
           Fecha del turno
           <input
             type="date"
-            min="2026-09-01"
-            max="2026-09-30"
+            min={calendar.first}
+            max={calendar.last}
             value={date}
             onInput={event => {
               setDate(event.currentTarget.value);

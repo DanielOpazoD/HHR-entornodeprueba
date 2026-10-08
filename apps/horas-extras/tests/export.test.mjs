@@ -45,3 +45,24 @@ test('unreported empty staff never appears as having declared zero; duplicate na
   assert.equal(book.worksheets.length, 4);
   assert.equal(new Set(book.worksheets.map(sheet => sheet.name)).size, 4);
 });
+
+test('calendar-sized exports keep day 31 in totals and hide invalid February dates', async () => {
+  const { makeShift } = await import('../src/domain/overtime.mjs');
+  for (const [period, count] of [
+    ['2026-10', 31],
+    ['2027-02', 28],
+  ]) {
+    const person = initialMonth(period).sheets[0];
+    person.shifts = [makeShift({ date: `${period}-${count}`, kind: 'night' })];
+    const book = await buildWorkbook(template, [person], ExcelJS, period);
+    const roundTrip = new ExcelJS.Workbook();
+    await roundTrip.xlsx.load(await book.xlsx.writeBuffer());
+    const sheet = roundTrip.worksheets[1];
+    assert.equal(sheet.getCell(`A${count + 8}`).value, count);
+    assert.match(sheet.getCell(`E${count + 8}`).value, /Turno noche/);
+    assert.equal(sheet.getCell('C40').formula, 'SUM(N9:N39)');
+    assert.equal(sheet.getCell('C40').result, count === 31 ? 13 : 12);
+    if (count === 28) for (const row of [37, 38, 39]) assert.equal(sheet.getRow(row).hidden, true);
+  }
+  await assert.rejects(buildWorkbook(template, initialMonth().sheets, ExcelJS, '2027-02'));
+});

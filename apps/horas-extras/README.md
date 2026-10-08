@@ -23,13 +23,22 @@ contraseña inicial `11111111`. El selector ofrece otras tres cuentas ficticias.
 El primer ingreso obliga a crear una contraseña de demostración de al menos
 12 caracteres. Usar una inventada: **no es autenticación real**. Contraseñas,
 turnos, estados y actividad viven solo en memoria y desaparecen al recargar.
-El selector Mis horas / Administración simula perfiles y no concede permisos.
+Ana y María son trabajadoras TENS; Pedro es trabajador de Enfermería; Luis es
+enfermero con permiso ADMIN (coordinación). Solo Luis ve Gestión del equipo; todas
+tienen Mis horas. La autorización del prototipo valida el permiso asignado a la cuenta,
+además del rol del actor; aún no constituye seguridad de servidor. La política de
+autoaprobación sigue pendiente institucionalmente; la demo permite aprobar la propia
+planilla enviada, al igual que otra planilla, sin excepción de permisos.
 
 ## Contrato implementado
 
-- Únicamente septiembre de 2026; rechaza fechas fuera del calendario cubierto.
-  El 1 de octubre está cubierto exclusivamente para la noche del 30 de septiembre.
-- Inhábiles: sábados, domingos, 18 y 19 de septiembre según el calendario acordado.
+- Selector de año (2026/2027) y los doce meses; cada período conserva sus registros,
+  estado y cierre en memoria. Datos precargados solo en septiembre de 2026.
+- Inhábiles: sábados, domingos y feriados nacionales de `calendar-sources.md`.
+  Se rechazan años fuera de cobertura; 1 de enero de 2028 solo como fin de turno.
+- Gestión separada en pestañas TENS y Enfermería, exportación por grupo e impresión
+  del resumen seleccionado (rotulado DEMO/BORRADOR o CERRADO). Excel conserva la
+  plantilla institucional para impresión formal.
 - Largo: 08:00–20:00 hábil; 09:00–20:00 inhábil.
 - Noche: 20:00–08:00 si el día siguiente es hábil, hasta 09:00 si es inhábil.
 - Diurnas: 07:00 inclusive a 21:00 exclusive en días hábiles. Las demás son
@@ -39,7 +48,7 @@ El selector Mis horas / Administración simula perfiles y no concede permisos.
   El criterio de nómina frente a cambios de hora debe ratificarse antes de producción.
 - Cada turno completo se atribuye al mes de inicio en esta demostración. Ese
   criterio de cierre cruzando meses queda pendiente de ratificación institucional.
-- No hay solapamientos por funcionario; dos intervalos que se tocan sí se admiten.
+- No hay solapamientos por funcionario, incluso entre meses cargados; dos intervalos que se tocan sí se admiten.
 - Borrador/observado → enviado → aprobado → cierre manual. Devolver una planilla
   exige motivo. Reabrir exige motivo y conserva las aprobaciones: una corrección
   posterior requiere devolver el mes y someterlo nuevamente a aprobación.
@@ -84,13 +93,13 @@ inicial predecible elegida por el usuario no prueba identidad: la habilitación 
 cuentas reales requiere definir cómo verificar el primer acceso.
 
 Pendientes antes de habilitar personal: URL/subdominio HHR, responsables variables,
-política de autoaprobación, validación institucional del calendario de otros meses,
+política de autoaprobación, ratificación institucional y mantenimiento de feriados excepcionales/locales,
 regla de cambio de hora y criterio de atribución entre meses. El protocolo de
 integración/hosting se define entonces; este PR no modifica HHR clínico ni su login.
 
 ## Verificación
 
-`npm test` ejecuta cálculo, calendario de todo septiembre con referencia independiente,
+`npm test` ejecuta cálculo, referencia independiente de septiembre y casos de otros meses/años,
 flujo de mes, permisos simulados y exportación Excel. El workflow dedicado ejecuta
 los mismos tests y build en cada cambio de la aplicación. La revisión de navegador
 móvil/escritorio y comparación visual se documenta en `design-qa.md`.

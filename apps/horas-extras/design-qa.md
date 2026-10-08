@@ -12,10 +12,10 @@ Referencias de detalle: `exec-74c1320b-f0ec-4a27-a3e5-13c99aa531c4.png`
 (registro), `exec-df836688-184e-4263-9aa4-a83aca520e38.png` (calendario) y
 `exec-8c3db56f-98ad-46d5-96b8-d29b2fd00e2d.png` (administración).
 Directorio de fuentes local:
-`/Users/daniel/.codex/generated_images/01a118b0-d17d-7110-917b-661c80150d0c/`.
+la carpeta de imágenes generadas adjunta al chat.
 
 Capturas definitivas, desde el navegador de Codex sobre el build de Vite:
-`/Users/daniel/Documents/Codex/2026-10-07/n/outputs/`:
+la carpeta de entregables del chat:
 
 - `prototipo-calendario-movil.png`: 390 × 844 px, calendario personal en borrador.
 - `prototipo-registro-movil.png`: 390 px de ancho, documento completo, noche del
@@ -91,8 +91,29 @@ formulario, estados de error/éxito, foco visible y reducción de movimiento.
 ## Límites y continuación
 
 Faltan pruebas en hardware iOS/Android real y auditoría exhaustiva con lector de
-pantalla. El prototipo usa septiembre y estado en memoria. El encabezado de demo,
+pantalla. El prototipo usa estado en memoria y calendarios 2026/2027. El encabezado de demo,
 selector de perfiles, formulario de motivo y cierre explican las diferencias de
 contenido respecto de las imágenes; no se declara equivalencia píxel a píxel.
 El calendario mensual queda limitado al período validado y no muestra flechas
 que aparenten navegar meses todavía no implementados.
+
+## Ajuste de perfiles y calendario
+
+Trabajador TENS y trabajador de Enfermería tienen acceso exclusivamente a Mis horas.
+El administrador tiene además Gestión del equipo y conserva sus propios registros.
+La gestión presenta pestañas TENS y Enfermería, con resumen imprimible individual.
+Año/mes preceden al calendario diario; cambiar el período no borra los registros.
+Los tests cubren períodos independientes, permisos de cuenta, solapamiento entre
+meses, feriados trasladados, febrero y suma del día 31 en Excel.
+La corrección documental retira rutas locales para cumplir higiene del repositorio.
+
+Verificación del ajuste: perfiles TENS y Enfermería sin botón de gestión; ADMIN
+registra y envía su turno del 31 de octubre, cambia a gestión y filtra el grupo.
+Febrero 2027 termina en 28; la noche cruza al 1 de marzo con 12 h. Cambiar de
+período conserva septiembre. Noche del 16 de septiembre de 2027 llega a las 09:00
+del feriado adicional del 17. Sin desborde horizontal a 390 px. El comando de
+impresión abrió el diálogo; no se envió nada a una impresora física.
+
+Revisión del ajuste: se descartó un hallazgo sobre A44 tras comprobar que
+`src/export.mjs` conserva explícitamente su limpieza y el round-trip XLSX la
+comprueba. No se alteró ese comportamiento.

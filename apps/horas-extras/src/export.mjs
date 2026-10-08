@@ -1,13 +1,16 @@
-import { shiftLabel, totals } from './domain/overtime.mjs';
+import { shiftLabel, totals, periodInfo, PERIOD } from './domain/overtime.mjs';
 
-export async function buildWorkbook(templateModel, sheets, ExcelJS) {
+export async function buildWorkbook(templateModel, sheets, ExcelJS, period = PERIOD) {
+  const calendar = periodInfo(period);
+  if (sheets.some(person => person.shifts.some(shift => shift.date.slice(0, 7) !== period)))
+    throw new Error('La planilla contiene turnos de otro mes.');
   const template = new ExcelJS.Workbook();
   template.addWorksheet('Plantilla').model = structuredClone(templateModel);
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Hospital Hanga Roa';
   const zero = workbook.addWorksheet('Sin horas extras');
   zero.addRows([
-    ['HOSPITALIZADOS · SEPTIEMBRE 2026'],
+    [`HOSPITALIZADOS · ${calendar.label.toLocaleUpperCase('es')}`],
     ['Funcionarios que declararon no realizar horas extras'],
     ['Nombre', 'RUT', 'Cargo'],
     ...sheets
@@ -27,7 +30,7 @@ export async function buildWorkbook(templateModel, sheets, ExcelJS) {
     const name = `${index + 1} ${person.name}`.replace(/[\\/*?:\[\]]/g, '').slice(0, 31);
     const sheet = workbook.addWorksheet(name);
     sheet.model = { ...structuredClone(template.worksheets[0].model), name, id: sheet.id };
-    sheet.getCell('D1').value = 'SEPTIEMBRE 2026';
+    sheet.getCell('D1').value = calendar.label.toLocaleUpperCase('es');
     sheet.getCell('D2').value = person.group === 'TENS' ? 'TENS' : 'ENFERMERÍA';
     sheet.getCell('D3').value = null;
     sheet.getCell('D4').value = 'HOSPITALIZADOS';
@@ -35,9 +38,10 @@ export async function buildWorkbook(templateModel, sheets, ExcelJS) {
     sheet.getCell('A6').value = `NOMBRE: ${person.name}`;
     sheet.getCell('E6').value = person.rut;
     sheet.getCell('A44').value = null;
-    sheet.getCell('A39').value = null;
-    for (let day = 1; day <= 30; day++) {
+    for (let day = 1; day <= 31; day++) {
       const row = day + 8;
+      sheet.getRow(row).hidden = day > calendar.count;
+      sheet.getCell(`A${row}`).value = day <= calendar.count ? day : null;
       const shifts = person.shifts.filter(shift => Number(shift.date.slice(-2)) === day);
       const sum = totals(shifts);
       const other = shifts.filter(shift => shift.kind !== 'night');
@@ -67,7 +71,7 @@ export async function buildWorkbook(templateModel, sheets, ExcelJS) {
     ['C', 'D', 'E'].forEach((column, i) => {
       const helper = ['N', 'O', 'P'][i];
       sheet.getCell(`${column}40`).value = {
-        formula: `SUM(${helper}9:${helper}38)`,
+        formula: `SUM(${helper}9:${helper}39)`,
         result: [sum.total, sum.diurnal, sum.nocturnal][i] / 60,
       };
       sheet.getCell(`C${41 + i}`).value = {
@@ -89,20 +93,20 @@ export async function buildWorkbook(templateModel, sheets, ExcelJS) {
   return workbook;
 }
 
-export async function downloadWorkbook(sheets, closed, group) {
+export async function downloadWorkbook(sheets, closed, group, period = PERIOD) {
   const [module, response] = await Promise.all([
     import('exceljs'),
     fetch(`${import.meta.env.BASE_URL}assets/planilla-hospitalizados.json`),
   ]);
   if (!response.ok) throw new Error('No se pudo cargar la plantilla. Inténtalo de nuevo.');
-  const workbook = await buildWorkbook(await response.json(), sheets, module.default);
+  const workbook = await buildWorkbook(await response.json(), sheets, module.default, period);
   const bytes = await workbook.xlsx.writeBuffer();
   const url = URL.createObjectURL(
     new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   );
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `${closed ? 'CERRADO' : 'BORRADOR'}_${group}_hospitalizados_septiembre_2026_DEMO.xlsx`;
+  anchor.download = `${closed ? 'CERRADO' : 'BORRADOR'}_${group}_hospitalizados_${period}_DEMO.xlsx`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

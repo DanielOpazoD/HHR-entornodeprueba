@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { CalendarDays, Download, List, Plus, Send } from 'lucide-react';
-import { dateLabel, HOLIDAYS, isNonBusiness, totals } from '../domain/overtime.mjs';
+import { dateLabel, HOLIDAYS, isNonBusiness, totals, periodInfo } from '../domain/overtime.mjs';
 import { editable } from '../domain/month.mjs';
 import { Badge, ShiftList, Totals } from './Shared.jsx';
 
 export function Staff({ month, sheet, onAdd, onEdit, onAction, onExport, busy }) {
   const [tab, setTab] = useState('calendar');
-  const [day, setDay] = useState('2026-09-04');
+  const calendar = periodInfo(month.period);
+  const [day, setDay] = useState(calendar.first);
   const canEdit = editable(month, sheet);
   const selected = sheet.shifts.filter(shift => shift.date === day);
   return (
@@ -15,7 +16,7 @@ export function Staff({ month, sheet, onAdd, onEdit, onAction, onExport, busy })
         <div>
           <span className="eyebrow">HOSPITALIZADOS · {sheet.group}</span>
           <h1>Mis horas</h1>
-          <p>Septiembre 2026</p>
+          <p>{calendar.label}</p>
         </div>
         <Badge status={sheet.status} closed={month.closed} />
       </header>
@@ -56,15 +57,17 @@ export function Staff({ month, sheet, onAdd, onEdit, onAction, onExport, busy })
           </div>
           {tab === 'calendar' ? (
             <>
-              <div className="calendar" aria-label="Septiembre de 2026">
+              <div className="calendar" aria-label={calendar.label}>
                 {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((label, i) => (
                   <span key={`h${i}`} className="weekday">
                     {label}
                   </span>
                 ))}
-                <span />
-                {Array.from({ length: 30 }, (_, i) => {
-                  const date = `2026-09-${String(i + 1).padStart(2, '0')}`;
+                {Array.from({ length: calendar.offset }, (_, i) => (
+                  <span key={`empty${i}`} />
+                ))}
+                {Array.from({ length: calendar.count }, (_, i) => {
+                  const date = `${month.period}-${String(i + 1).padStart(2, '0')}`;
                   const hasShifts = sheet.shifts.some(shift => shift.date === date);
                   return (
                     <button
@@ -86,7 +89,14 @@ export function Staff({ month, sheet, onAdd, onEdit, onAction, onExport, busy })
                 </span>
                 <span>Fondo suave: inhábiles</span>
               </div>
-              <p className="hint">Festivos del mes: 18 y 19 de septiembre.</p>
+              <p className="hint">
+                Festivos del mes:{' '}
+                {[...HOLIDAYS]
+                  .filter(date => date.startsWith(month.period))
+                  .map(date => Number(date.slice(-2)))
+                  .join(', ') || 'ninguno'}
+                .
+              </p>
               <div className="selected-day">
                 <h3>{dateLabel(day)}</h3>
                 {selected.length ? (

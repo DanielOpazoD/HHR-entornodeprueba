@@ -34,7 +34,7 @@ export function Login({ people, passwords, onLogin }) {
       <form className="card login-card" onSubmit={submit}>
         <LockKeyhole className="accent" size={26} />
         <h2>Iniciar sesión</h2>
-        <p className="muted">Acceso de demostración · septiembre 2026</p>
+        <p className="muted">Acceso de demostración · perfiles separados</p>
         <label>
           Funcionario de ejemplo
           <select
@@ -51,7 +51,7 @@ export function Login({ people, passwords, onLogin }) {
             </option>
             {people.map(person => (
               <option key={person.id} value={person.id}>
-                {person.name} · {person.group}
+                {person.name} · {person.adminRole ? 'ADMIN' : 'Trabajador'} · {person.group}
               </option>
             ))}
           </select>

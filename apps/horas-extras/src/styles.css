@@ -1286,3 +1286,79 @@ td .badge svg {
       0 5px 18px #23354d26;
   }
 }
+
+.period-picker {
+  display: flex;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.period-picker label {
+  min-width: 110px;
+  flex: 0 1 170px;
+}
+.period-picker select {
+  width: 100%;
+}
+.period-picker p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+.group-tabs {
+  margin: 0;
+  min-width: 260px;
+}
+@media (max-width: 600px) {
+  .period-picker {
+    gap: 12px;
+  }
+  .period-picker label {
+    flex: 1;
+  }
+  .period-picker p {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+.print-only {
+  display: none;
+}
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 18mm;
+  }
+  .demo-bar,
+  .app-header,
+  .main-nav,
+  .period-picker,
+  .notice[role],
+  .admin-page > :not(.admin-grid),
+  .admin-grid > :not(.detail),
+  .detail .review-actions,
+  .print-button {
+    display: none !important;
+  }
+  .workspace,
+  main,
+  .admin-page,
+  .admin-grid,
+  .detail {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+  .detail .shift-row {
+    break-inside: avoid;
+  }
+}

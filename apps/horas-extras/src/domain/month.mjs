@@ -1,4 +1,4 @@
-import { makeShift, overlaps } from './overtime.mjs';
+import { makeShift, overlaps, periodInfo, PERIOD } from './overtime.mjs';
 
 export const STATUS = {
   draft: 'En borrador',
@@ -9,8 +9,10 @@ export const STATUS = {
 export const editable = (month, sheet) =>
   !month.closed && ['draft', 'observed'].includes(sheet.status);
 
-export function initialMonth() {
-  return {
+export function initialMonth(period = PERIOD) {
+  periodInfo(period);
+  const result = {
+    period,
     closed: false,
     audit: [],
     sheets: [
@@ -28,6 +30,7 @@ export function initialMonth() {
       },
       {
         id: 'luis',
+        adminRole: 'Enfermera Coordinadora',
         name: 'Luis Ejemplo',
         rut: '22222222-2',
         group: 'Enfermería',
@@ -58,13 +61,22 @@ export function initialMonth() {
       },
     ],
   };
+  if (period !== PERIOD)
+    result.sheets = result.sheets.map(({ reason, ...person }) => ({
+      ...person,
+      status: 'draft',
+      noExtras: false,
+      shifts: [],
+    }));
+  return result;
 }
 
 // Demo-only workflow. Production authorization must run in the isolated server.
 export function transition(month, action, actor, timestamp = new Date().toISOString()) {
   const copy = structuredClone(month);
   const sheet = copy.sheets.find(item => item.id === action.sheetId);
-  const admin = actor.role === 'admin';
+  const admin =
+    actor.role === 'admin' && Boolean(copy.sheets.find(item => item.id === actor.id)?.adminRole);
   const requireAdmin = () => {
     if (!admin) throw new Error('Esta acción requiere administración.');
   };
@@ -101,6 +113,10 @@ export function transition(month, action, actor, timestamp = new Date().toISOStr
           throw new Error('Este mes no admite cambios del funcionario.');
         if (action.type === 'save') {
           const shift = makeShift(action.shift);
+          if (!shift.date.startsWith(`${copy.period}-`))
+            throw new Error('El turno debe pertenecer al mes seleccionado.');
+          if (overlaps(action.adjacentShifts || [], shift))
+            throw new Error('Este horario se superpone con un turno de otro mes.');
           if (!shift.id) throw new Error('Falta el identificador del turno.');
           if (overlaps(sheet.shifts, shift))
             throw new Error(

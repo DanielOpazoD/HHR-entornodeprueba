@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Check, Download, LockKeyhole, RotateCcw, Search } from 'lucide-react';
-import { hours, totals } from '../domain/overtime.mjs';
+import { Check, Download, Printer, LockKeyhole, RotateCcw, Search } from 'lucide-react';
+import { hours, totals, periodInfo } from '../domain/overtime.mjs';
 import { Badge, ShiftList, Totals } from './Shared.jsx';
 
 export const ADMIN_ROLES = [
@@ -21,26 +21,27 @@ const ACTION_LABELS = {
   'no-extras': 'Sin horas extras declarado',
 };
 
-export function Admin({ month, role, onRole, onAction, onExport, busy }) {
-  const [group, setGroup] = useState('Todos');
+export function Admin({ month, role, onAction, onExport, busy }) {
+  const [group, setGroup] = useState('TENS');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState('ana');
   const [reason, setReason] = useState('');
   const [reopenReason, setReopenReason] = useState('');
   const visible = month.sheets.filter(
     sheet =>
-      (group === 'Todos' || sheet.group === group) &&
+      sheet.group === group &&
       sheet.name.toLocaleLowerCase('es').includes(query.toLocaleLowerCase('es'))
   );
   const selected = visible.find(sheet => sheet.id === selectedId) || visible[0];
-  const approved = month.sheets.filter(sheet => sheet.status === 'approved').length;
+  const groupSheets = month.sheets.filter(sheet => sheet.group === group);
+  const approved = groupSheets.filter(sheet => sheet.status === 'approved').length;
   return (
     <div className="admin-page">
       <header className="page-heading">
         <div>
           <span className="eyebrow">ADMINISTRACIÓN</span>
           <h1>Revisión mensual</h1>
-          <p>Hospitalizados · Septiembre 2026</p>
+          <p>Hospitalizados · {periodInfo(month.period).label}</p>
         </div>
         <span className={`badge ${month.closed ? 'approved' : 'draft'}`}>
           {month.closed ? 'Mes cerrado' : 'Cierre del mes abierto'}
@@ -60,21 +61,21 @@ export function Admin({ month, role, onRole, onAction, onExport, busy }) {
             }}
           />
         </label>
-        <label className="sr-only" htmlFor="group">
-          Grupo
-        </label>
-        <select
-          id="group"
-          value={group}
-          onChange={event => {
-            setGroup(event.target.value);
-            setReason('');
-          }}
-        >
-          <option>Todos</option>
-          <option>TENS</option>
-          <option>Enfermería</option>
-        </select>
+        <div className="tabs group-tabs" role="group" aria-label="Estamento del equipo">
+          {['TENS', 'Enfermería'].map(item => (
+            <button
+              key={item}
+              className={group === item ? 'active' : ''}
+              aria-pressed={group === item}
+              onClick={() => {
+                setGroup(item);
+                setReason('');
+              }}
+            >
+              {item} · {month.sheets.filter(sheet => sheet.group === item).length}
+            </button>
+          ))}
+        </div>
         <div className="export-actions">
           {['TENS', 'Enfermería'].map(item => (
             <button className="secondary" disabled={busy} key={item} onClick={() => onExport(item)}>
@@ -87,9 +88,9 @@ export function Admin({ month, role, onRole, onAction, onExport, busy }) {
       <div className="admin-grid">
         <section className="card roster">
           <div className="section-heading">
-            <h2>Funcionarios</h2>
+            <h2>{group}</h2>
             <span>
-              {approved} de {month.sheets.length} aprobados
+              {approved} de {groupSheets.length} aprobados
             </span>
           </div>
           <div className="table-scroll">
@@ -142,11 +143,23 @@ export function Admin({ month, role, onRole, onAction, onExport, busy }) {
           {selected ? (
             <>
               <h2>{selected.name}</h2>
-              <p className="muted">{selected.group} · Hospitalizados</p>
+              <p className="muted">
+                {selected.group} · Hospitalizados · {periodInfo(month.period).label}
+              </p>
+              <p className="print-only">
+                {month.closed ? 'CERRADO' : 'BORRADOR'} · DEMOSTRACIÓN · RUT {selected.rut}
+              </p>
+              <button className="secondary print-button" onClick={() => window.print()}>
+                <Printer size={17} />
+                Imprimir resumen
+              </button>
               <Badge status={selected.status} closed={month.closed} />
               <Totals compact value={totals(selected.shifts)} />
               {selected.noExtras ? (
-                <p className="notice">Declaración: no realizó horas extras en septiembre.</p>
+                <p className="notice">
+                  Declaración: no realizó horas extras en{' '}
+                  {periodInfo(month.period).label.toLocaleLowerCase('es')}.
+                </p>
               ) : (
                 <ShiftList shifts={selected.shifts} />
               )}
@@ -196,14 +209,7 @@ export function Admin({ month, role, onRole, onAction, onExport, busy }) {
           <p>
             Todos los administradores, incluida Enfermería Diurna, pueden cerrar y reabrir el mes.
           </p>
-          <label>
-            Rol que estás probando
-            <select value={role} onChange={event => onRole(event.target.value)}>
-              {ADMIN_ROLES.map(item => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
+          <p className="hint">Perfil activo: {role}</p>
         </div>
         <div>
           {month.closed ? (
@@ -234,7 +240,7 @@ export function Admin({ month, role, onRole, onAction, onExport, busy }) {
               <p className="hint">El cierre requiere todas las planillas aprobadas.</p>
               <button className="primary wide" onClick={() => onAction({ type: 'close' })}>
                 <LockKeyhole size={18} />
-                Cerrar septiembre
+                Cerrar {periodInfo(month.period).label.toLocaleLowerCase('es')}
               </button>
             </>
           )}
