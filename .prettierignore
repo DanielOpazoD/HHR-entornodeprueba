@@ -2,3 +2,5 @@
 # minified xlsx lib untouched by the repo's prettier.
 extension/
 scripts/config/extension-hotspots-baseline.json
+# Generated, serialized blank ExcelJS model; preserve its original compact representation.
+apps/horas-extras/public/assets/planilla-hospitalizados.json
