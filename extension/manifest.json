@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "118",
   "name": "Rayen → HHR · Puente de censo",
-  "version": "0.48.47",
+  "version": "0.48.48",
   "description": "Conecta Eloísa con HHR e incorpora un centro de operaciones clínicas extensible.",
   "permissions": [
     "tabs",
@@ -23,7 +23,8 @@
     "http://10.4.69.90/syslab/*",
     "http://localhost:3000/*",
     "http://localhost:3001/*",
-    "https://testinghhr.netlify.app/*"
+    "https://testinghhr.netlify.app/*",
+    "https://hhr-entorno-prueba.netlify.app/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -181,7 +182,8 @@
       "matches": [
         "http://localhost:3000/*",
         "http://localhost:3001/*",
-        "https://testinghhr.netlify.app/*"
+        "https://testinghhr.netlify.app/*",
+        "https://hhr-entorno-prueba.netlify.app/*"
       ],
       "js": [
         "message-contract.js",

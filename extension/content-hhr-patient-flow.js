@@ -7,7 +7,7 @@
   const trustedOrigins = new Set([
     'http://localhost:3000',
     'http://localhost:3001',
-    'https://testinghhr.netlify.app',
+    'https://testinghhr.netlify.app', 'https://hhr-entorno-prueba.netlify.app',
   ]);
   if (!runtimeMessages || !trustedOrigins.has(window.location.origin)) return;
 
