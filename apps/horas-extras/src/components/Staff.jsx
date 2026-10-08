@@ -8,11 +8,16 @@ export function Staff({ month, sheet, onAdd, onEdit, onAction, onExport, busy })
   const [day, setDay] = useState(calendar.first);
   return (
     <section className="staff-page">
-      <header className="page-heading">
-        <h1>Mis turnos extras</h1>
-        <p>
-          {sheet.name} · {sheet.group}
-        </p>
+      <header className="page-heading staff-heading">
+        <div>
+          <h1>Mis turnos extras</h1>
+          <p>
+            {sheet.name} · {sheet.group}
+          </p>
+        </div>
+        <button className="secondary" disabled={busy} onClick={onExport}>
+          <Download size={17} /> Descargar mi Excel
+        </button>
       </header>
       <Totals value={totals(sheet.shifts)} />
       <div className="staff-grid">
@@ -45,7 +50,7 @@ export function Staff({ month, sheet, onAdd, onEdit, onAction, onExport, busy })
             })}
           </div>
           <p className="hint">Fondo suave: fines de semana y festivos.</p>
-          <button className="primary wide" onClick={() => onAdd(day)}>
+          <button className="primary wide" disabled={busy} onClick={() => onAdd(day)}>
             <Plus size={18} />
             Registrar turno · {Number(day.slice(-2))}
           </button>
@@ -53,18 +58,10 @@ export function Staff({ month, sheet, onAdd, onEdit, onAction, onExport, busy })
         <section className="records-section" aria-label="Turnos del mes">
           <div className="section-heading">
             <h2>Registros del mes</h2>
-            <button
-              className="text-button"
-              disabled={busy}
-              onClick={onExport}
-              aria-label="Descargar mi Excel"
-            >
-              <Download size={17} />
-              Excel
-            </button>
           </div>
           <ShiftList
             shifts={sheet.shifts}
+            disabled={busy}
             onEdit={onEdit}
             onDelete={id => onAction({ type: 'delete', id })}
           />

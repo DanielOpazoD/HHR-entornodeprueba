@@ -22,7 +22,7 @@ export function Totals({ value, compact = false }) {
     </div>
   );
 }
-export function ShiftList({ shifts, onEdit, onDelete }) {
+export function ShiftList({ shifts, onEdit, onDelete, disabled }) {
   if (!shifts.length)
     return (
       <div className="empty">
@@ -51,10 +51,14 @@ export function ShiftList({ shifts, onEdit, onDelete }) {
               </small>
               {onEdit && (
                 <div className="inline-actions">
-                  <button className="text-button" onClick={() => onEdit(shift)}>
+                  <button disabled={disabled} className="text-button" onClick={() => onEdit(shift)}>
                     Editar
                   </button>
-                  <button className="text-button danger-text" onClick={() => onDelete(shift.id)}>
+                  <button
+                    disabled={disabled}
+                    className="text-button danger-text"
+                    onClick={() => onDelete(shift.id)}
+                  >
                     Eliminar
                   </button>
                 </div>
