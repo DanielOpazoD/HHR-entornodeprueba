@@ -7,13 +7,13 @@ import { initialMonth } from '../src/domain/month.mjs';
 const template = JSON.parse(
   await readFile(new URL('../public/assets/planilla-hospitalizados.json', import.meta.url), 'utf8')
 );
-test('Excel round trip preserves template, night column, cached totals, print and no-extra summary', async () => {
+test('Excel round trip preserves template, night column, cached totals, print and empty-record summary', async () => {
   const sheets = initialMonth().sheets.filter(sheet => sheet.group === 'TENS');
   const book = await buildWorkbook(template, sheets, ExcelJS);
   const decoded = new ExcelJS.Workbook();
   await decoded.xlsx.load(await book.xlsx.writeBuffer());
   assert.equal(decoded.worksheets.length, 2);
-  assert.equal(decoded.worksheets[0].name, 'Sin horas extras');
+  assert.equal(decoded.worksheets[0].name, 'Sin registros');
   assert.equal(decoded.worksheets[0].getCell('A4').value, 'María Ejemplo');
   const sheet = decoded.worksheets[1];
   assert.equal(sheet.getCell('E12').value, 'Turno noche (20:00–09:00)');
@@ -36,12 +36,12 @@ test('Excel round trip preserves template, night column, cached totals, print an
   assert.equal(sheet.pageSetup.fitToWidth, 1);
   assert.equal(sheet.pageSetup.fitToHeight, 1);
 });
-test('unreported empty staff never appears as having declared zero; duplicate names keep separate forms', async () => {
+test('empty staff are identified as without records; duplicate names keep separate forms', async () => {
   const sheets = initialMonth().sheets;
-  sheets[2].noExtras = false;
   sheets[1].name = sheets[0].name;
   const book = await buildWorkbook(template, sheets, ExcelJS);
-  assert.equal(book.worksheets[0].rowCount, 3);
+  assert.equal(book.worksheets[0].rowCount, 4);
+  assert.match(book.worksheets[0].getCell('A2').value, /sin turnos registrados/);
   assert.equal(book.worksheets.length, 4);
   assert.equal(new Set(book.worksheets.map(sheet => sheet.name)).size, 4);
 });

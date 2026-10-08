@@ -1,26 +1,32 @@
-# Prototype Instructions
+# Horas extras: decisiones del prototipo
 
-Run the local server yourself and open the preview in the browser available to this environment. Do not give the user server-start instructions when you can run it.
+Aplicación web responsive para Hospitalizados, TENS y Enfermería. Mantenerla aislada
+del runtime clínico, Firebase, identidades reales y login HHR hasta implementar la
+etapa de servicio real. Ejecutar y comprobar el servidor local, sin pedir al usuario
+que lo arranque si puedes hacerlo.
 
-Before making substantial visual changes, use the Product Design plugin's `get-context` skill when the visual source is unclear or no longer matches the current goal. When the user gives durable prototype-specific design feedback, preferences, or decisions, record them in `AGENTS.md`.
+## Alcance vigente: simplificación solicitada el 7 de octubre de 2026
 
-When implementing from a selected generated mock, treat that image as the source of truth for layout, component anatomy, density, spacing, color, typography, visible content, and hierarchy.
+Priorizar únicamente ingreso, cambio de clave, registro propio de turnos y descarga
+mensual por grupo para ADMIN. Clave libre: sin longitud mínima adicional ni reglas
+de complejidad; campo escrito y confirmación coincidente. Cambio obligatorio inicial
+(debe ser distinta a la inicial) y opción de volver a cambiarla después del ingreso.
 
-Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`, and `tests/sites-worker.test.mjs` intact so the same local prototype can be handed to Sites. Before a Sites handoff, run `npm run build` and `npm run test:sites`; the build must leave `dist/client/index.html`, `dist/server/index.js`, and `dist/.openai/hosting.json`.
+Eliminar envío, aprobación, observaciones de revisión, cierres/reaperturas,
+bloqueos, declaraciones y actividad administrativa. El permiso ADMIN se suma a
+Mis turnos; no otorga edición de turnos ajenos. TENS/Enfermería deben aparecer
+separados en la descarga. Año/mes preceden a días, con registros independientes.
 
-## Approved scope and visual decisions
+Diseño mínimo: fondo blanco, Inter, encabezado discreto HHR, un acento azul petróleo,
+navegación horizontal y sin barra lateral. Calendario y registros, sin paneles de
+estados. Conservar nombre/horario de turnos y totales legibles en móvil.
 
-Responsive website for phones and PCs, not a native mobile app. Combine rapid shift entry,
-personal monthly calendar/list and administration review. Navy HHR header, cyan primary
-controls, yellow supplied logo, Outfit headings and Inter UI. Synthetic demo covering calendar years 2026 and 2027. Keep it isolated from the clinical root build, Firebase, real accounts and real staff
-identifiers. Do not expose it in the HHR login until independent hosting and production
-security are explicitly implemented. Grade and employment quality remain blank in Excel;
-night labels belong in column E; no extra footer; all admins may close/reopen with reason.
+Excel institucional: noche en E, calidad/grado vacíos, sin nota al pie, 28/30/31 días.
+Primera hoja identifica personas sin registros; no generarles hoja individual ni
+atribuirles una declaración de cero. Demostración explícita, datos sintéticos,
+estado solo en memoria. Años cubiertos 2026/2027.
 
-## Profile and calendar decisions (7 October 2026)
-
-Worker accounts (TENS or Enfermería) only access their own records. Admin is an
-additional account permission, separate from professional group: administrators
-have Mis horas and Gestión del equipo. Team management must visibly separate TENS
-and Enfermería. Select calendar year/month before days; records and approval/closure
-are independent per period. Preserve institutional Excel for 28/30/31-day months.
+Mantener `.openai/hosting.json`, `worker/index.js`, `scripts/prepare-sites-build.mjs`
+y `tests/sites-worker.test.mjs` para posible handoff. Validar con build y test:sites.
+Registrar aquí futuras decisiones duraderas de diseño, sin reintroducir funciones
+administrativas retiradas hasta que el usuario las solicite.
