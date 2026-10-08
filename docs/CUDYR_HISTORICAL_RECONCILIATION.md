@@ -90,3 +90,38 @@ La decisión de descarte tampoco elimina la fila fuente ni prueba incumplimiento
 El cotejo de meses adyacentes, persistencia con autor/fecha/versiones y aceptación
 final quedan para el siguiente bloque. Propiedad: CUDYR. Reversión: revertir este PR;
 no hay migración ni registros clínicos que restaurar.
+
+## Bloque 3: revisión mensual que se puede retomar
+
+Se guardan decisiones documentales por mes y fila fuente en `cudyrMonthlyReviews`,
+con revisiones inmutables. Se reutilizan `archiveCudyrHistory` y `readCudyrHistory`:
+no hay endpoints ni permisos nuevos. Admin y enfermería hospitalaria pueden guardar;
+lectura requiere acceso clínico. Firestore directo permanece denegado.
+
+Cada decisión conserva motivo, episodio propuesto (si corresponde), revisor y fecha
+del servidor, período, huellas SHA-256 de los archivos y del contexto observado.
+El contexto incluye las filas diarias completas, cobertura e incertidumbres; un
+cambio invalida conservadoramente la revisión. `generatedAt` no afecta la huella.
+El archivo original debe seleccionarse de nuevo para cotejar una decisión al volver;
+las decisiones fuera de las filas seleccionadas permanecen visibles, nunca se
+trasladan automáticamente a otra persona. El contenido se declara `user_review`:
+no acredita una aplicación CUDYR ni autentica por sí solo una fuente Eloísa.
+
+Guardar requiere una acción explícita. La revisión usa control de versión para
+rechazar sobreescrituras concurrentes e idempotencia por operación. Ante error o
+resultado desconocido conserva el borrador y exige recargar. La interfaz separa
+pendientes, revisados y decisiones que requieren nueva revisión; permite consultar
+versiones anteriores, con su evidencia y revisor. Este último nunca sustituye al
+autor clínico. Los borradores sin guardar se descartan al cambiar la lectura.
+
+No cambia censos, aplicaciones, camas, elegibilidad diaria, altas ni estadísticas/
+Excel. No recupera automáticamente fichas ni combina meses. El piloto automatizado
+usa un informe sintético de julio, guardado, salida de la consulta, reapertura y
+lectura de auditoría. El piloto con información real se verifica por separado.
+
+Owner: CUDYR. Riesgos: atribución indebida y pérdida de trabajo concurrente; se
+mitigan con estados explícitos, evidencia versionada y comparación de revisión.
+Rollback: revertir interfaz y despacho de estos kinds; conservar los documentos
+como respaldo, sin alterar datos clínicos. Requiere publicar la versión de las
+funciones existentes para habilitarlo en un entorno remoto; el merge por sí solo
+no acredita disponibilidad en producción.

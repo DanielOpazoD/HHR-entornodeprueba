@@ -18,6 +18,7 @@ const { readEpisodeCaptures } = require('./cudyrPlacementContract');
 const { saveDischargeCorrection } = require('./cudyrDischargeStore');
 const { readDischargeCorrections, readDischargeAudit } = require('./cudyrDischargeRead');
 const { saveCudyrSupplement, readCudyrSupplements } = require('./cudyrSupplementStore');
+const { saveCudyrReview, readCudyrReviews } = require('./cudyrReviewStore');
 
 const createCudyrHistoryFunctions = ({
   firestore,
@@ -45,6 +46,24 @@ const createCudyrHistoryFunctions = ({
         context,
         resolveRoleForEmail,
       });
+      if (data?.kind === 'save-monthly-review') {
+        if (!['admin', 'nurse_hospital'].includes(role))
+          throw new functions.https.HttpsError(
+            'permission-denied',
+            'Review permission is required.'
+          );
+        return saveCudyrReview({
+          hospital,
+          data,
+          runTransaction: runArchiveTransaction,
+          actor: {
+            uid: context.auth.uid,
+            email,
+            role,
+            name: String(context.auth.token.name || email).slice(0, 200),
+          },
+        });
+      }
       if (data?.kind === 'import-monthly-supplement') {
         if (!['admin', 'nurse_hospital'].includes(role))
           throw new functions.https.HttpsError(
@@ -217,6 +236,7 @@ const createCudyrHistoryFunctions = ({
       if (data?.kind === 'episode-captures') return readEpisodeCaptures(captures, data);
       if (data?.kind === 'discharge-corrections') return readDischargeCorrections(hospital, data);
       if (data?.kind === 'discharge-audit') return readDischargeAudit(hospital, data);
+      if (data?.kind === 'monthly-reviews') return readCudyrReviews(hospital, data);
       if (data?.kind === 'monthly-supplements') return readCudyrSupplements(hospital, data);
       const { from, to, limit, cursor, kind } = parseHistoryQuery(data);
       let query = (kind === 'captures' ? captures : history)

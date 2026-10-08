@@ -113,6 +113,7 @@ test.afterAll(async () => {
 
 const open = async (page: Page, role: 'admin' | 'viewer' = 'admin') => {
   for (const collection of [
+    'cudyrMonthlyReviews',
     'cudyrMonthlySupplements',
     'cudyrSupplementFiles',
     'cudyrSupplementImports',
@@ -468,5 +469,48 @@ test('reconciles local monthly sources without writes and keeps context usable o
   await panel.locator('summary').first().click();
   await expect(panel).not.toContainText('synthetic-categories.xls');
   await expect(panel).not.toContainText('1 decisiones en borrador');
+  expect(errors).toEqual([]);
+});
+
+test('resumes a saved July review after leaving and preserves its audit trail', async ({
+  page,
+}) => {
+  const { reconciliationUpload } = await import('./fixtures/cudyrReconciliation');
+  const { errors } = await open(page);
+  const original = (await db.doc(hospital + '/dailyRecords/' + DATE).get()).data();
+  await page.getByLabel('Desde', { exact: true }).fill('2026-07-01');
+  await page.getByLabel('Hasta', { exact: true }).fill('2026-07-31');
+  await page.getByRole('button', { name: 'Consultar período' }).click();
+  await expect(page.getByRole('button', { name: 'Consultar período' })).toBeEnabled();
+  const panel = page.getByTestId('cudyr-monthly-reconciliation');
+  await panel.locator('summary').first().click();
+  await panel
+    .getByLabel('Categorización Eloísa local')
+    .setInputFiles(reconciliationUpload('categories', true));
+  const row = panel.getByRole('article').filter({ hasText: 'PACIENTE SINTÉTICO R1' });
+  await row.getByText('Revisar vínculo · borrador').click();
+  await row
+    .getByLabel('Motivo y respaldo de la revisión')
+    .fill('Pendiente cotejar episodio cerrado de julio con su ficha original.');
+  await row.getByRole('button', { name: 'Anotar decisión en borrador' }).click();
+  await row.getByRole('button', { name: 'Guardar revisión en HHR' }).click();
+  await expect(row).toContainText('Revisión guardada');
+  await page.getByRole('button', { name: 'Consultar período' }).click();
+  await expect(page.getByRole('button', { name: 'Consultar período' })).toBeEnabled();
+  await panel.locator('summary').first().click();
+  await expect(panel).toContainText('1 decisiones guardadas fuera');
+  await panel
+    .getByLabel('Categorización Eloísa local')
+    .setInputFiles(reconciliationUpload('categories', true));
+  await expect(row).toContainText('Revisión guardada');
+  await expect(row).toContainText('Pendiente cotejar episodio cerrado de julio');
+  await row.getByText('Historial de revisiones').click();
+  await row.getByRole('button', { name: 'Consultar versiones guardadas' }).click();
+  await expect(row).toContainText('Versión 1');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await panel.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await screenshot(page, 'cudyr-revision-guardada-movil');
+  expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()).toEqual(original);
   expect(errors).toEqual([]);
 });

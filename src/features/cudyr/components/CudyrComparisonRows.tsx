@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import type { CudyrReviewController } from '../hooks/useCudyrReviews';
+import { isCurrentCudyrReview } from '@/services/cudyr/cudyrReviewEvidence';
+import { CudyrSavedReview } from './CudyrSavedReview';
 import { CudyrLinkReviewForm } from './CudyrLinkReviewForm';
 import {
   CUDYR_LINK_LABELS,
@@ -23,8 +26,10 @@ export const CudyrComparisonRows = ({
   data,
   onView,
   canReview = false,
+  review,
 }: {
   canReview?: boolean;
+  review?: CudyrReviewController;
   items: CudyrComparisonItem[];
   data: CudyrReportDataset;
   onView: (key: string) => void;
@@ -41,6 +46,15 @@ export const CudyrComparisonRows = ({
     session.data === data && session.items === items && session.canReview === canReview;
   if (!sameRead) setSession({ data, items, canReview, revision: session.revision + 1, drafts: {} });
   const drafts = sameRead && canReview ? session.drafts : {};
+  const saved = review?.records || [];
+  const currentSaved = saved.filter(r => isCurrentCudyrReview(r, review?.evidence[r.entryKey]));
+  const decisions = {
+    ...Object.fromEntries(currentSaved.map(r => [r.entryKey, r.decision])),
+    ...drafts,
+  };
+  const needsReview = new Set(
+    saved.filter(r => !isCurrentCudyrReview(r, review?.evidence[r.entryKey])).map(r => r.entryKey)
+  );
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -50,8 +64,10 @@ export const CudyrComparisonRows = ({
       (!canReview ||
         !reviewFilter ||
         (reviewFilter === 'unreviewed'
-          ? isReviewableCudyrSource(r) && !drafts[r.key]
-          : drafts[r.key]?.action === reviewFilter)) &&
+          ? isReviewableCudyrSource(r) && !decisions[r.key] && !needsReview.has(r.key)
+          : reviewFilter === 'stale'
+            ? needsReview.has(r.key)
+            : decisions[r.key]?.action === reviewFilter)) &&
       `${r.patientName} ${r.document}`
         .toLocaleLowerCase('es')
         .includes(search.toLocaleLowerCase('es'))
@@ -61,8 +77,10 @@ export const CudyrComparisonRows = ({
     <div className="space-y-3">
       {canReview && (
         <p className="rounded bg-teal-50 p-3 text-xs" role="status">
-          {Object.keys(drafts).length} decisiones en borrador · se pierden al cambiar la fuente,
-          volver a consultar el período o salir. No se guardan en HHR ni en el Excel.
+          {Object.keys(drafts).length} decisiones en borrador ·{' '}
+          {review
+            ? 'use Guardar revisión en HHR para conservarlas. Cambiar fuentes o salir descarta solo los borradores.'
+            : 'se pierden al cambiar la fuente, volver a consultar el período o salir. No se guardan en HHR ni en el Excel.'}
         </p>
       )}
       <div className="flex flex-wrap gap-3">
@@ -79,9 +97,12 @@ export const CudyrComparisonRows = ({
             >
               <option value="">Todas las entradas</option>
               <option value="unreviewed">Filas fuente sin revisar</option>
+              {review && (
+                <option value="stale">Requieren nueva revisión ({needsReview.size})</option>
+              )}
               {Object.entries(CUDYR_LINK_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
-                  {label} ({Object.values(drafts).filter(d => d.action === value).length})
+                  {label} ({Object.values(decisions).filter(d => d.action === value).length})
                 </option>
               ))}
             </select>
@@ -182,20 +203,48 @@ export const CudyrComparisonRows = ({
                 })}
               </ul>
             </details>
-            {canReview && isReviewableCudyrSource(item) && (
-              <CudyrLinkReviewForm
-                key={`${item.key}:${session.revision}`}
-                item={item}
-                rows={data.rows}
-                draft={drafts[item.key]}
-                onView={onView}
-                onChange={draft => {
-                  const next = { ...drafts };
-                  if (draft) next[item.key] = draft;
-                  else delete next[item.key];
-                  setSession({ data, items, canReview, revision: session.revision, drafts: next });
+            {review && isReviewableCudyrSource(item) && (
+              <CudyrSavedReview
+                review={review}
+                entryKey={item.key}
+                draft={canReview ? drafts[item.key] : undefined}
+                onSaved={() => {
+                  setSession(previous => {
+                    if (
+                      previous.data !== data ||
+                      previous.items !== items ||
+                      previous.drafts[item.key] !== drafts[item.key]
+                    )
+                      return previous;
+                    const next = { ...previous.drafts };
+                    delete next[item.key];
+                    return { ...previous, drafts: next };
+                  });
                 }}
               />
+            )}
+            {canReview && isReviewableCudyrSource(item) && (
+              <fieldset disabled={review?.busy}>
+                <CudyrLinkReviewForm
+                  key={`${item.key}:${session.revision}:${saved.find(r => r.entryKey === item.key)?.revision || 0}`}
+                  item={item}
+                  rows={data.rows}
+                  draft={drafts[item.key]}
+                  onView={onView}
+                  onChange={draft => {
+                    const next = { ...drafts };
+                    if (draft) next[item.key] = draft;
+                    else delete next[item.key];
+                    setSession({
+                      data,
+                      items,
+                      canReview,
+                      revision: session.revision,
+                      drafts: next,
+                    });
+                  }}
+                />
+              </fieldset>
             )}
           </article>
         ))}
