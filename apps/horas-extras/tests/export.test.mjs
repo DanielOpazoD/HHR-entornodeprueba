@@ -46,6 +46,15 @@ test('empty staff are identified as without records; duplicate names keep separa
   assert.equal(new Set(book.worksheets.map(sheet => sheet.name)).size, 4);
 });
 
+test('personal Excel preserves the profession of a medical administrator', async () => {
+  const person = { ...initialMonth().sheets[1], group: 'Médico', adminRole: 'Jefatura' };
+  const book = await buildWorkbook(template, [person], ExcelJS);
+  const decoded = new ExcelJS.Workbook();
+  await decoded.xlsx.load(await book.xlsx.writeBuffer());
+  assert.equal(decoded.worksheets[1].getCell('D2').value, 'MÉDICO');
+  assert.equal(decoded.worksheets[1].getCell('C40').result, 13);
+});
+
 test('calendar-sized exports keep day 31 in totals and hide invalid February dates', async () => {
   const { makeShift } = await import('../src/domain/overtime.mjs');
   for (const [period, count] of [

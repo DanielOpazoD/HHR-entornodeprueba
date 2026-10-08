@@ -2,16 +2,30 @@ import { useState } from 'react';
 import { normalizeRut } from '../domain/overtime.mjs';
 import { validatePassword, demoPassword, needsPasswordChange } from '../domain/password.mjs';
 
-export function Login({ people, passwords, onLogin }) {
-  const [rut, setRut] = useState('11.111.111-1');
-  const [password, setPassword] = useState('11111111');
+export function Login({ people, passwords, onLogin, onAuthenticate }) {
+  const [rut, setRut] = useState(onAuthenticate ? '' : '11.111.111-1');
+  const [password, setPassword] = useState(onAuthenticate ? '' : '11111111');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   return (
     <div className="auth-wrap">
       <form
         className="login-card"
-        onSubmit={event => {
+        onSubmit={async event => {
           event.preventDefault();
+          if (busy) return;
+          setError('');
+          if (onAuthenticate) {
+            setBusy(true);
+            try {
+              await onAuthenticate(rut, password);
+            } catch (cause) {
+              setError(cause.message);
+            } finally {
+              setBusy(false);
+            }
+            return;
+          }
           const person = people.find(item => item.rut === normalizeRut(rut));
           if (!person || password !== demoPassword(person, passwords)) {
             setError('RUT o clave incorrectos.');
@@ -47,33 +61,37 @@ export function Login({ people, passwords, onLogin }) {
             {error}
           </p>
         )}
-        <button className="primary wide">Ingresar</button>
-        <details className="demo-profiles">
-          <summary>Probar otro perfil de ejemplo</summary>
-          <label>
-            Funcionario de ejemplo
-            <select
-              value={people.find(item => item.rut === normalizeRut(rut))?.id || ''}
-              onChange={event => {
-                const person = people.find(item => item.id === event.target.value);
-                setRut(person.rut);
-                setPassword(
-                  needsPasswordChange(person.id, passwords) ? demoPassword(person, passwords) : ''
-                );
-                setError('');
-              }}
-            >
-              <option value="" disabled>
-                Seleccionar
-              </option>
-              {people.map(person => (
-                <option key={person.id} value={person.id}>
-                  {person.name} · {person.adminRole ? 'ADMIN' : person.group}
+        <button className="primary wide" disabled={busy}>
+          {busy ? 'Ingresando…' : 'Ingresar'}
+        </button>
+        {!onAuthenticate && (
+          <details className="demo-profiles">
+            <summary>Probar otro perfil de ejemplo</summary>
+            <label>
+              Funcionario de ejemplo
+              <select
+                value={people.find(item => item.rut === normalizeRut(rut))?.id || ''}
+                onChange={event => {
+                  const person = people.find(item => item.id === event.target.value);
+                  setRut(person.rut);
+                  setPassword(
+                    needsPasswordChange(person.id, passwords) ? demoPassword(person, passwords) : ''
+                  );
+                  setError('');
+                }}
+              >
+                <option value="" disabled>
+                  Seleccionar
                 </option>
-              ))}
-            </select>
-          </label>
-        </details>
+                {people.map(person => (
+                  <option key={person.id} value={person.id}>
+                    {person.name} · {person.adminRole ? 'ADMIN' : person.group}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </details>
+        )}
       </form>
     </div>
   );
@@ -82,18 +100,27 @@ export function ChangePassword({ first = true, initialPassword, onChange, onCanc
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   return (
     <div className="auth-wrap">
       <form
         className="login-card"
-        onSubmit={event => {
+        onSubmit={async event => {
           event.preventDefault();
           const message = validatePassword(password, confirm, first ? initialPassword : undefined);
           if (message) {
             setError(message);
             return;
           }
-          onChange(password);
+          if (busy) return;
+          setBusy(true);
+          try {
+            await onChange(password);
+          } catch (cause) {
+            setError(cause.message);
+          } finally {
+            setBusy(false);
+          }
         }}
       >
         <h1>{first ? 'Elige tu nueva clave' : 'Cambiar clave'}</h1>
@@ -125,8 +152,10 @@ export function ChangePassword({ first = true, initialPassword, onChange, onCanc
             {error}
           </p>
         )}
-        <button className="primary wide">Guardar clave</button>
-        <button type="button" className="text-button wide" onClick={onCancel}>
+        <button className="primary wide" disabled={busy}>
+          {busy ? 'Guardando…' : 'Guardar clave'}
+        </button>
+        <button type="button" className="text-button wide" disabled={busy} onClick={onCancel}>
           {first ? 'Volver al inicio' : 'Cancelar'}
         </button>
       </form>

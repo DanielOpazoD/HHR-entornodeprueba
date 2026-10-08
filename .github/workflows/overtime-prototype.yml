@@ -29,6 +29,14 @@ jobs:
           cache-dependency-path: apps/horas-extras/package-lock.json
       - run: npm ci
       - run: npm test
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Firestore persistence and transactions
+        env:
+          OVERTIME_FIREBASE_PROJECT_ID: demo-overtime
+        run: npx --yes --package firebase-tools@15.15.0 firebase emulators:exec --only firestore --config firebase.emulator.json --project demo-overtime "npm run test:firestore"
       - run: npm run build
       - run: npm run test:sites
       - run: npm audit --audit-level=high
