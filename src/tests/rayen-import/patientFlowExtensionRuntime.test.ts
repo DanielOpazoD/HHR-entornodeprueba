@@ -78,6 +78,31 @@ describe('Ficha Médico patient-flow runtime', () => {
       Promise.resolve({ snapshot: { encounters: [{ encounterId: '142040' }] } })
     );
 
+  it('authorizes the published HHR origin only for its verified tab and episode', async () => {
+    const runtime = createRuntime();
+    const origin = 'https://hhr-entorno-prueba.netlify.app';
+    const publishedSender = { origin, tab: { id: 90, url: `${origin}/census` } };
+    expect(runtime.isAuthorized(publishedSender, '142040')).toBe(false);
+    await runtime.authorizeSnapshotResponse(
+      publishedSender,
+      Promise.resolve({ snapshot: { encounters: [{ encounterId: '142040' }] } })
+    );
+    expect(runtime.isAuthorized(publishedSender, '142040')).toBe(true);
+    expect(runtime.isAuthorized(publishedSender, '999999')).toBe(false);
+    expect(
+      runtime.isAuthorized(
+        { ...publishedSender, tab: { ...publishedSender.tab, id: 91 } },
+        '142040'
+      )
+    ).toBe(false);
+    expect(
+      runtime.isAuthorized({ ...publishedSender, origin: `${origin}.evil.example` }, '142040')
+    ).toBe(false);
+    await expect(runtime.route.handle({ encId: '142040' }, publishedSender)).resolves.toMatchObject(
+      { ok: true }
+    );
+  });
+
   it('reads the official report for one validated encounter through the shared client', async () => {
     const buffer = Uint8Array.from([0x25, 0x50, 0x44, 0x46]).buffer;
     readBuffer.mockResolvedValue({ data: buffer });

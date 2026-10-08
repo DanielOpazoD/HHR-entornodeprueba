@@ -16,7 +16,7 @@
     const readBuffer = assertFunction(clinicalClient && clinicalClient.readBuffer, 'readBuffer');
     const bufferToBase64 = assertFunction(dependencies && dependencies.bufferToBase64, 'bufferToBase64');
     const trustedOrigins = new Set(['http://localhost:3000', 'http://localhost:3001',
-      'https://testinghhr.netlify.app']);
+      'https://testinghhr.netlify.app', 'https://hhr-entorno-prueba.netlify.app']);
     const authorization = root.HhrTabEncounterAuthorization.create({ trustedOrigins });
     const authorizeResponse = async (sender, responsePromise, includeReport) => {
       return authorization.authorizeResponse(

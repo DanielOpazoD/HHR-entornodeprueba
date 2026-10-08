@@ -1,7 +1,7 @@
 /**
  * content-hhr.js  (ISOLATED world)
  *
- * Runs on the HHR app (localhost + testinghhr.netlify.app). Bridges the page's
+ * Runs on the HHR app (the exact origins declared in manifest.json). Bridges the page's
  * postMessage protocol (the `rayen-import` bridge inside the app) and the background.
  *
  * Guarded sync bundle (Ficha Médico + Gestión de Camas):
