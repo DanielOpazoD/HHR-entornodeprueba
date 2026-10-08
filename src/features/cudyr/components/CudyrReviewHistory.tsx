@@ -1,3 +1,4 @@
+import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import { useEffect, useRef, useState } from 'react';
 import { loadCudyrReviews } from '@/services/cudyr/cudyrReviewService';
 import { CUDYR_LINK_LABELS } from '@/services/cudyr/cudyrLinkReview';
@@ -36,7 +37,8 @@ export const CudyrReviewHistory = ({ review }: { review: SavedCudyrReview }) => 
         records.map(record => (
           <div key={record.revision} className="my-2 rounded border p-2">
             <p>
-              Versión {record.revision} · {record.reviewedBy.name} · {record.updatedAt}
+              Versión {record.revision} · {record.reviewedBy.name} ·{' '}
+              {cudyrMomentLabel(record.updatedAt)} (hora de Rapa Nui)
             </p>
             <p>
               {CUDYR_LINK_LABELS[record.decision.action]} · {record.decision.reason}

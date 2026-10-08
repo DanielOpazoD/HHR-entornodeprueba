@@ -411,7 +411,7 @@ test('imports monthly XLS as passive evidence, persists it and exports it withou
   expect(errors).toEqual([]);
 });
 
-test('reconciles local monthly sources without writes and keeps context usable on mobile', async ({
+test('reconciles local sources and saves only documentary review without changing the census', async ({
   page,
 }) => {
   const { reconciliationUpload } = await import('./fixtures/cudyrReconciliation');
@@ -444,17 +444,17 @@ test('reconciles local monthly sources without writes and keeps context usable o
   expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(0);
   expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()).toEqual(original);
   const review = panel.getByRole('article').filter({ hasText: 'Categoría diferente' });
-  await review.getByText('Revisar vínculo · borrador').click();
+  await review.getByText('Revisar y guardar').click();
   await review.getByLabel('Decisión de revisión').selectOption('link');
   await review.getByLabel('Episodio HHR a revisar').selectOption({ index: 1 });
   await review
     .getByLabel('Motivo y respaldo de la revisión')
     .fill('Episodio cotejado con evidencia sintética de la ficha.');
   await review.getByRole('checkbox').check();
-  await review.getByRole('button', { name: 'Anotar decisión en borrador' }).click();
-  await expect(panel).toContainText('1 decisiones en borrador');
+  await review.getByRole('button', { name: 'Guardar revisión en HHR' }).click();
+  await expect(review).toContainText('Revisión guardada');
   expect(await totals.textContent()).toBe(before);
-  expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(0);
+  expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(1);
   expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()).toEqual(original);
   await screenshot(page, 'cudyr-conciliacion-escritorio');
   await page.setViewportSize({ width: 390, height: 844 });
@@ -467,7 +467,8 @@ test('reconciles local monthly sources without writes and keeps context usable o
   await page.getByRole('button', { name: 'Consultar período' }).click();
   await expect(page.getByRole('button', { name: 'Consultar período' })).toBeEnabled();
   await panel.locator('summary').first().click();
-  await expect(panel).not.toContainText('synthetic-categories.xls');
+  await expect(panel.getByRole('button', { name: 'Quitar de la comparación' })).toHaveCount(0);
+  await expect(panel).toContainText('1 decisiones guardadas fuera');
   await expect(panel).not.toContainText('1 decisiones en borrador');
   expect(errors).toEqual([]);
 });
@@ -488,22 +489,25 @@ test('resumes a saved July review after leaving and preserves its audit trail', 
     .getByLabel('Categorización Eloísa local')
     .setInputFiles(reconciliationUpload('categories', true));
   const row = panel.getByRole('article').filter({ hasText: 'PACIENTE SINTÉTICO R1' });
-  await row.getByText('Revisar vínculo · borrador').click();
+  await row.getByText('Revisar y guardar').click();
   await row
     .getByLabel('Motivo y respaldo de la revisión')
     .fill('Pendiente cotejar episodio cerrado de julio con su ficha original.');
-  await row.getByRole('button', { name: 'Anotar decisión en borrador' }).click();
   await row.getByRole('button', { name: 'Guardar revisión en HHR' }).click();
   await expect(row).toContainText('Revisión guardada');
   await page.getByRole('button', { name: 'Consultar período' }).click();
   await expect(page.getByRole('button', { name: 'Consultar período' })).toBeEnabled();
   await panel.locator('summary').first().click();
   await expect(panel).toContainText('1 decisiones guardadas fuera');
+  await panel.getByRole('button', { name: 'Continuar revisión de 2026-07' }).click();
+  await expect(panel).toContainText('Falta adjuntar el archivo original:');
   await panel
     .getByLabel('Categorización Eloísa local')
     .setInputFiles(reconciliationUpload('categories', true));
   await expect(row).toContainText('Revisión guardada');
   await expect(row).toContainText('Pendiente cotejar episodio cerrado de julio');
+  await expect(panel).not.toContainText('Falta adjuntar el archivo original:');
+  await expect(row).toContainText('hora de Rapa Nui');
   await row.getByText('Historial de revisiones').click();
   await row.getByRole('button', { name: 'Consultar versiones guardadas' }).click();
   await expect(row).toContainText('Versión 1');

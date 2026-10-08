@@ -129,3 +129,21 @@ Rollback: revertir interfaz y despacho de estos kinds; conservar los documentos
 como respaldo, sin alterar datos clínicos. Requiere publicar la versión de las
 funciones existentes para habilitarlo en un entorno remoto; el merge por sí solo
 no acredita disponibilidad en producción.
+
+## Bloque 4: continuidad y guardado directo
+
+Al volver al período, «Continuar revisión» ofrece los conjuntos de fuentes usados
+por las decisiones guardadas. Recupera una versión archivada únicamente si su
+SHA-256 coincide. No selecciona la más nueva por nombre. Los archivos locales
+faltantes se solicitan por nombre y huella; mientras falte alguno no se permite
+guardar nuevas decisiones en esa revisión. «Salir de la revisión retomada» permite
+iniciar un cotejo distinto de forma explícita.
+
+La edición valida motivo, episodio y confirmación y guarda con un solo botón.
+Se conservan borradores ante errores y se reconoce un guardado cuya respuesta se
+perdió al recargar, sin duplicar la revisión. El revisor y el historial muestran
+horario de Rapa Nui, conservando los instantes originales en los datos guardados.
+No hay guardado automático, nuevas escrituras clínicas ni cambios de permisos.
+
+Owner: CUDYR. Reversión: revertir este bloque de interfaz; las decisiones y fuentes
+archivadas conservan el contrato anterior y no requieren migración.

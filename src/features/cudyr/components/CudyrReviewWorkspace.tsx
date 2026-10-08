@@ -1,3 +1,5 @@
+import { CudyrReviewResume } from './CudyrReviewResume';
+import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import type { CudyrComparisonItem } from '@/types/domain/cudyrReconciliation';
 import type { CudyrReportDataset } from '@/types/domain/cudyrReport';
 import type { CudyrReviewSource } from '@/types/domain/cudyrReview';
@@ -13,6 +15,7 @@ export const CudyrReviewWorkspace = ({
   canReview,
   canRead = true,
   onView,
+  onResume,
 }: {
   data: CudyrReportDataset;
   items: CudyrComparisonItem[];
@@ -20,6 +23,7 @@ export const CudyrReviewWorkspace = ({
   canReview: boolean;
   canRead?: boolean;
   onView: (key: string) => void;
+  onResume?: (sources: CudyrReviewSource[]) => void;
 }) => {
   const review = useCudyrReviews(data, items, sources, canReview, canRead);
   const current = review.records.filter(r => isCurrentCudyrReview(r, review.evidence[r.entryKey]));
@@ -59,6 +63,14 @@ export const CudyrReviewWorkspace = ({
           >
             Recargar revisiones guardadas
           </button>
+          {review.ready && !sources.length && onResume && (
+            <CudyrReviewResume
+              records={review.records}
+              from={data.from}
+              to={data.to}
+              onResume={onResume}
+            />
+          )}
           {outside.length > 0 && (
             <details className="mt-2">
               <summary className="cursor-pointer">
@@ -71,7 +83,7 @@ export const CudyrReviewWorkspace = ({
               {outside.map(r => (
                 <p key={r.id} className="my-2">
                   {r.evidence.patientName} · {r.evidence.sourceDate} · {r.decision.reason} · Revisor{' '}
-                  {r.reviewedBy.name} · {r.updatedAt} ·{' '}
+                  {r.reviewedBy.name} · {cudyrMomentLabel(r.updatedAt)} (hora de Rapa Nui) ·{' '}
                   {r.evidence.sources.map(s => s.name).join(', ')}
                 </p>
               ))}

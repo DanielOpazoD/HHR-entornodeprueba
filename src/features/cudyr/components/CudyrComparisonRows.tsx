@@ -75,7 +75,7 @@ export const CudyrComparisonRows = ({
   const currentPage = Math.min(page, Math.max(0, Math.ceil(rows.length / 20) - 1));
   return (
     <div className="space-y-3">
-      {canReview && (
+      {canReview && (!review || Object.keys(drafts).length > 0) && (
         <p className="rounded bg-teal-50 p-3 text-xs" role="status">
           {Object.keys(drafts).length} decisiones en borrador ·{' '}
           {review
@@ -206,6 +206,7 @@ export const CudyrComparisonRows = ({
             {review && isReviewableCudyrSource(item) && (
               <CudyrSavedReview
                 review={review}
+                inlineSave
                 entryKey={item.key}
                 draft={canReview ? drafts[item.key] : undefined}
                 onSaved={() => {
@@ -230,6 +231,26 @@ export const CudyrComparisonRows = ({
                   item={item}
                   rows={data.rows}
                   draft={drafts[item.key]}
+                  initialDecision={saved.find(r => r.entryKey === item.key)?.decision}
+                  savedDecision={currentSaved.find(r => r.entryKey === item.key)?.decision}
+                  saveDisabled={review ? !review.ready || review.busy : false}
+                  saving={review?.busy && Boolean(drafts[item.key])}
+                  onSave={
+                    review
+                      ? next => {
+                          void review.save(item.key, next).then(persisted => {
+                            if (persisted)
+                              setSession(previous => {
+                                if (previous.data !== data || previous.items !== items)
+                                  return previous;
+                                const remaining = { ...previous.drafts };
+                                delete remaining[item.key];
+                                return { ...previous, drafts: remaining };
+                              });
+                          });
+                        }
+                      : undefined
+                  }
                   onView={onView}
                   onChange={draft => {
                     const next = { ...drafts };
