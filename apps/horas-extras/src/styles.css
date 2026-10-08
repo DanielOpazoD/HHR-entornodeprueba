@@ -674,7 +674,11 @@ td:last-child {
 .form-actions .primary {
   flex: 1;
 }
-
+.cloud-state {
+  margin: 24px auto;
+  max-width: 500px;
+  padding: 20px;
+}
 @media (max-width: 640px) {
   .staff-heading {
     flex-wrap: wrap;

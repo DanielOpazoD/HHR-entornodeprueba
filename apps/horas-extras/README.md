@@ -1,7 +1,7 @@
 # Horas extras de Hospitalizados
 
-Prototipo mínimo para TENS y Enfermería, utilizable en celular y PC. Aplicación
-independiente en esta carpeta, sin cambios al runtime clínico, Firebase o login de HHR.
+Aplicación mínima para TENS y Enfermería, utilizable en celular y PC. Aplicación
+independiente en esta carpeta, sin cambios al runtime clínico ni al Firebase o login de HHR.
 
 ## Flujo actual
 
@@ -20,10 +20,10 @@ La demo incluye Ana/María (TENS), Pedro (Enfermería) y Luis (Enfermería con p
 ADMIN). El selector de ejemplos está plegado debajo del ingreso. La clave inicial
 precargada de Ana es `11111111`, asociada al RUT sintético `11111111-1`.
 
-**Solo demostración:** claves, turnos y cambios viven en memoria y desaparecen al
-recargar. No usar información real. Los controles de perfil del navegador no
-constituyen autorización de servidor. El backend, cuentas, almacenamiento y
-subdominio productivos quedan para la siguiente etapa.
+**Dos modos separados:** la demo mantiene cuentas ficticias en memoria. El modo
+nube utiliza API propia y Firestore en un proyecto independiente, con sesiones,
+claves protegidas y permisos comprobados en el servidor. Ver [cloud-setup.md](cloud-setup.md).
+Un error de conexión no activa la demo ni confirma un guardado.
 
 ## Calendario y cálculo
 
@@ -47,7 +47,7 @@ Modelo revisable de la plantilla vacía: `public/assets/planilla-hospitalizados.
 - Hospitalizados; calidad/grado vacíos; sin CONTRATA ni nota al pie.
 - Auxiliares G:P ocultos; carta vertical, área A1:E47 y firmas originales.
 - Nombre `HORAS_EXTRAS_<grupo o persona>_hospitalizados_<año-mes>_DEMO.xlsx`.
-  Sin etiquetas de aprobación o cierre.
+  En modo nube se omite DEMO. Sin etiquetas de aprobación o cierre.
 
 La exportación usa el mismo cálculo que la pantalla. ExcelJS se carga al descargar.
 

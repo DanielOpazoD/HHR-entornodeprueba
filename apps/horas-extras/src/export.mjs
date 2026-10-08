@@ -31,7 +31,7 @@ export async function buildWorkbook(templateModel, sheets, ExcelJS, period = PER
     const sheet = workbook.addWorksheet(name);
     sheet.model = { ...structuredClone(template.worksheets[0].model), name, id: sheet.id };
     sheet.getCell('D1').value = calendar.label.toLocaleUpperCase('es');
-    sheet.getCell('D2').value = person.group === 'TENS' ? 'TENS' : 'ENFERMERÍA';
+    sheet.getCell('D2').value = person.group.toLocaleUpperCase('es');
     sheet.getCell('D3').value = null;
     sheet.getCell('D4').value = 'HOSPITALIZADOS';
     sheet.getCell('D5').value = null;
@@ -93,7 +93,7 @@ export async function buildWorkbook(templateModel, sheets, ExcelJS, period = PER
   return workbook;
 }
 
-export async function downloadWorkbook(sheets, group, period = PERIOD) {
+export async function downloadWorkbook(sheets, group, period = PERIOD, { demo = true } = {}) {
   const [module, response] = await Promise.all([
     import('exceljs'),
     fetch(`${import.meta.env.BASE_URL}assets/planilla-hospitalizados.json`),
@@ -106,7 +106,7 @@ export async function downloadWorkbook(sheets, group, period = PERIOD) {
   );
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `HORAS_EXTRAS_${group}_hospitalizados_${period}_DEMO.xlsx`;
+  anchor.download = `HORAS_EXTRAS_${group}_hospitalizados_${period}${demo ? '_DEMO' : ''}.xlsx`;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -45,3 +45,17 @@ Se comprobaron las vistas de trabajador, registro y ADMIN a 390 y 1440 px.
 La descarga personal conserva el mismo generador institucional; ADMIN mantiene
 archivos separados para TENS y Enfermería. La observación opcional se pliega para
 dejar Guardar turno visible. Este PR conserva la demo en memoria.
+
+## Compactación y servicio en nube — 8 de octubre de 2026
+
+- Encabezado y separaciones reducidos; descarga personal visible junto al título.
+- Formulario con horario y total en una fila, observación plegada y acciones juntas.
+- ADMIN conserva Mis horas y Planillas del equipo, con archivos por grupo separados.
+- API con Firestore independiente: sesiones, cambio de clave, lectura mensual y
+  escritura transaccional propia. Demo y modo nube explícitos y sin fallback.
+- Verificación local: clave de un carácter, turno previo a festivo, recarga con
+  lectura persistente, exportación personal y consulta de ambos grupos como ADMIN.
+- Pruebas de servidor: permisos, cambio inicial, conflictos de revisión, solapamiento
+  entre meses, sesión caducada, cierre de sesión y bloqueo de intentos repetidos.
+- Integración con Firestore Emulator: escritura concurrente, nueva instancia de API,
+  lectura posterior y conjunto ADMIN, usando exclusivamente perfiles sintéticos.
