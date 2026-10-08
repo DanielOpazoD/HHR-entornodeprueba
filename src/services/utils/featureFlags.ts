@@ -142,6 +142,11 @@ class FeatureFlagsService {
   }
 
   private applyEnvironmentOverrides(): void {
+    // Match the backend's episode authority without enabling the optional AI pilot.
+    if (import.meta.env.MODE !== 'test' &&
+        import.meta.env.VITE_HHR_SPECIALTY_EPISODE_ASSIGNMENT === 'enabled') {
+      this.overrides.SPECIALTY_EPISODE_ASSIGNMENT = true;
+    }
     // This public build flag is set only for the hhr-pruebas pilot builds.
     // The Jev client independently verifies the Firebase project before consulting.
     if (import.meta.env.MODE !== 'test' &&
