@@ -147,3 +147,33 @@ No hay guardado automático, nuevas escrituras clínicas ni cambios de permisos.
 
 Owner: CUDYR. Reversión: revertir este bloque de interfaz; las decisiones y fuentes
 archivadas conservan el contrato anterior y no requieren migración.
+
+## Bloque 5: búsqueda dirigida a los vacíos observados
+
+El panel plegado «Preparar búsqueda dirigida» parte de los días HHR ya leídos.
+Agrupa por episodio e identidad, conservando separados los reingresos, RN con RUT
+compartido y filas sin episodio. Excluye por día cunas/CMA; pide resolver primero
+la elegibilidad desconocida. Distingue evaluación no observada de autor/fecha
+faltantes, preservando las categorías manuales y orientando a su respaldo HHR.
+El ID original se conserva en el detalle; su ausencia aislada no genera una tarea.
+
+Se pueden seleccionar hasta 20 casos y descargar una lista de trabajo separada,
+con identidad, diagnóstico, cama, grupo, día, campos conservados y siguiente paso.
+La descarga no consulta fuentes. «Abrir ficha del episodio» reutiliza la navegación
+explícita de la extensión; se bloquea ante un episodio internamente contradictorio.
+Abrir una ficha no importa aplicaciones ni modifica el censo. La selección dura
+esta consulta y no equivale a una decisión guardada ni a cumplimiento estadístico.
+
+Límite comprobado del piloto: el HAR local de julio aporta 12 aplicaciones para
+episodios presentes en HHR, todas con autor resoluble. Siete coinciden también en
+marca original y categoría con el respaldo diario; ninguna completa un autor
+faltante en ese respaldo. No se ha verificado una consulta general de todas las
+aplicaciones de episodios cerrados. No se agrega un importador clínico automático
+ni se relajan las validaciones del archivo oficial para forzar esa recuperación.
+Una fuente incompleta y un resultado vacío no acreditan «no aplicado».
+
+La lista recuerda cotejar la mañana del mes siguiente para el turno de cierre;
+conserva las fechas originales y censales sin desplazarlas al exportar. La evidencia
+nueva debe guardarse por su flujo autorizado antes de generar Estadística. No se
+reemplaza una aplicación ni se completa autoría por coincidencia de RUT/categoría.
+Owner: CUDYR. Reversión: revertir panel/lista; sin migración ni cambios de permisos.

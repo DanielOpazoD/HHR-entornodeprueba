@@ -518,3 +518,39 @@ test('resumes a saved July review after leaving and preserves its audit trail', 
   expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()).toEqual(original);
   expect(errors).toEqual([]);
 });
+
+test('prepares a bounded recovery list without querying Eloisa or changing statistics', async ({
+  page,
+}) => {
+  const { calls, errors } = await open(page);
+  const totals = page.getByRole('region', { name: 'Totales de la vista filtrada' });
+  const before = await totals.textContent();
+  const original = (await db.doc(hospital + '/dailyRecords/' + DATE).get()).data();
+  const panel = page.getByTestId('cudyr-monthly-reconciliation');
+  await panel.locator('summary').first().click();
+  const recovery = page.getByTestId('cudyr-recovery-plan');
+  await expect(recovery).not.toHaveAttribute('open');
+  await recovery.locator('summary').first().click();
+  await expect(recovery).toContainText('respaldo manual HHR');
+  await expect(recovery.getByRole('article')).toHaveCount(1);
+  await recovery.getByRole('checkbox').check();
+  const downloaded = page.waitForEvent('download');
+  await recovery.getByRole('button', { name: 'Descargar lista de búsqueda (1/20)' }).click();
+  const download = await downloaded;
+  const workbook = new Workbook();
+  await workbook.xlsx.readFile((await download.path())!);
+  expect(workbook.getWorksheet('Búsqueda dirigida')!.rowCount).toBe(2);
+  expect(workbook.getWorksheet('Búsqueda dirigida')!.getCell('A2').value).toBe(
+    'PACIENTE SINTÉTICO NEO1'
+  );
+  expect(workbook.getWorksheet('Búsqueda dirigida')!.getCell('F2').value).toBe('Media');
+  expect(download.suggestedFilename()).toContain('CUDYR_Busqueda_');
+  expect(await totals.textContent()).toBe(before);
+  expect(calls.filter(c => c === 'archiveCudyrHistory')).toHaveLength(0);
+  expect((await db.doc(hospital + '/dailyRecords/' + DATE).get()).data()).toEqual(original);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await recovery.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await screenshot(page, 'cudyr-busqueda-dirigida-movil');
+  expect(errors).toEqual([]);
+});
