@@ -13,6 +13,8 @@ No se utiliza el proyecto ni las identidades clínicas de HHR.
   como base; publicar `dist/client`, Functions en `netlify/functions`.
 - `VITE_OVERTIME_MODE=cloud` al construir. Sin esta variable se mantiene la demo
   ficticia en memoria; nunca se cambia a demo automáticamente si falla la API.
+- Las vistas usan estado local sobre `/`. No añadir una reescritura SPA global:
+  interceptaría las rutas personalizadas `/api/overtime/*` antes de la función.
 
 ## Configuración del servidor
 

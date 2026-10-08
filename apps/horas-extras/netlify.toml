@@ -12,10 +12,7 @@ directory = "netlify/functions"
 node_bundler = "esbuild"
 external_node_modules = ["firebase-admin"]
 
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+# Views use local state at /. A catch-all rewrite would shadow /api/overtime/*.
 
 [[headers]]
 for = "/*"
