@@ -1,379 +1,216 @@
-import React, { lazy, Suspense, useState } from 'react';
-import { BarChart3, Loader2, RotateCcw, Save } from 'lucide-react';
-import { CudyrHeader } from './CudyrHeader';
-import { CudyrRow, VerticalHeader } from './CudyrRow';
-import { useCudyrLogic } from '../hooks/useCudyrLogic';
-import { resolveNightShiftNurses } from '@/services/staff/dailyRecordStaffing';
-import { buildCudyrViewShellModel } from '@/features/cudyr/controllers/cudyrViewController';
-import { adminCudyrTargetKey } from '@/domain/cudyr/adminCudyrResult';
-import { AdminCudyrBulkRemovalToolbar } from './AdminCudyrBulkRemovalToolbar';
-import { useAdminCudyrBulkRemoval } from '../hooks/useAdminCudyrBulkRemoval';
-import { useNotification } from '@/context/UIContext';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
+import { useDailyRecordData } from '@/context/DailyRecordContext';
+import { useAuth } from '@/context/AuthContext';
+import { useUIState } from '@/hooks/useUIState';
+import { canCorrectCudyrDischarge } from '@/shared/access/operationalAccessPolicy';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
-
+import { cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
+import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
+import { useCudyrReport } from '../hooks/useCudyrReport';
+import { CudyrDailyTable } from './CudyrDailyTable';
+import { CudyrExclusionDialog } from './CudyrExclusionDialog';
 const CudyrReportExplorer = lazy(() => import('./CudyrReportExplorer'));
 
-interface CudyrViewProps {
+export const CudyrView = ({
+  readOnly = false,
+  currentDate,
+}: {
   readOnly?: boolean;
-}
-
-export const CudyrView: React.FC<CudyrViewProps> = ({ readOnly = false }) => {
-  const [reportDate, setReportDate] = useState('');
-  const { error: notifyError } = useNotification();
-  const {
-    record,
-    visibleBeds,
-    stats,
-    cudyrSummary,
-    isEditingLocked,
-    isCompletionLocked,
-    persistedCompletion,
-    pendingCudyrChangeCount,
-    isSavingCudyrChanges,
-    handleScoreChange,
-    handleCribScoreChange,
-    saveCudyrChanges,
-    discardCudyrChanges,
-    saveAdminCudyrResult,
-    saveAdminCudyrResults,
-    canAdminAdjustCudyrResult,
-    adminCudyrMutationKey,
-    resolveCudyrEligibility,
-  } = useCudyrLogic(readOnly);
-
-  const adminBulkRemoval = useAdminCudyrBulkRemoval({
-    record,
-    visibleBeds,
-    saveResults: saveAdminCudyrResults,
-    onSelectionInvalidated: () =>
-      notifyError(
-        'La selección CUDYR cambió',
-        'El censo recibió información nueva. La selección se canceló para evitar eliminar un resultado distinto.'
-      ),
-  });
-
-  if (reportDate)
+  currentDate?: string;
+}) => {
+  const { record } = useDailyRecordData();
+  const { role, currentUser } = useAuth();
+  const ui = useUIState();
+  const date = currentDate || record?.date || getClinicalCalendarDateISO();
+  const { data, busy, error, load } = useCudyrReport(date);
+  const [exploring, setExploring] = useState(false);
+  const [selected, setSelected] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const sync = record?.rayenSync?.at || '';
+  const lastSync = useRef({ date, sync });
+  useEffect(() => {
+    if (lastSync.current.date === date && lastSync.current.sync !== sync)
+      void load(date.slice(0, 7) + '-01', date);
+    lastSync.current = { date, sync };
+  }, [date, sync, load]);
+  const rows = data?.rows.filter(row => row.date === date) || [];
+  const visible = rows.filter(row => filter === 'all' || row.eligibility === filter);
+  const totals = cudyrReportTotals(data?.rows || []);
+  const daily = cudyrReportTotals(rows);
+  const percentage = totals.eligible
+    ? Math.round((100 * totals.categorized) / totals.eligible) + '%'
+    : '—';
+  const partial = Boolean(
+    data &&
+    (data.issues.length || data.coverage.some(day => day.state !== 'disponible') || totals.review)
+  );
+  const canExport = Boolean(
+    data && !busy && !data.issues.length && !data.coverage.some(day => day.state === 'error')
+  );
+  const selectedRow = !busy && data?.rows.find(row => row.key === selected && row.date === date);
+  const refresh = () => {
+    setSelected('');
+    setExportError('');
+    void load(date.slice(0, 7) + '-01', date);
+  };
+  const download = async () => {
+    if (!canExport || !data || exporting) return;
+    setExporting(true);
+    setExportError('');
+    try {
+      const { downloadCudyrEssential } = await import('@/services/cudyr/cudyrEssentialWorkbook');
+      await downloadCudyrEssential(data);
+    } catch (caught) {
+      setExportError(caught instanceof Error ? caught.message : 'No se pudo generar el Excel.');
+    } finally {
+      setExporting(false);
+    }
+  };
+  if (exploring)
     return (
       <Suspense
         fallback={
           <p role="status" className="p-8">
-            Abriendo explorador CUDYR…
+            Abriendo explorador…
           </p>
         }
       >
         <CudyrReportExplorer
-          initialDate={reportDate}
+          initialDate={date}
           readOnly={readOnly}
-          onBack={() => setReportDate('')}
+          onBack={() => {
+            setExploring(false);
+            refresh();
+          }}
         />
       </Suspense>
     );
-
-  if (!record) {
-    return (
-      <div className="p-8 text-center text-slate-500">
-        Seleccione una fecha con registros para ver el CUDYR.
-        <button
-          type="button"
-          onClick={() => setReportDate(getClinicalCalendarDateISO())}
-          className="ml-3 rounded-lg border px-3 py-2"
-        >
-          Explorar reporte estadístico
-        </button>
-      </div>
-    );
-  }
-
-  const isCalculatedComplete = Boolean(persistedCompletion?.isComplete);
-  const completionTimestamp = record.cudyrCompletedAt;
-  const completionOwner = record.cudyrCompletedBy;
-  const hasConfirmedCompletion = Boolean(
-    isCalculatedComplete &&
-    record.cudyrLocked &&
-    completionTimestamp &&
-    !Number.isNaN(Date.parse(completionTimestamp)) &&
-    completionOwner?.trim()
-  );
-
-  const responsibleNurses = resolveNightShiftNurses(record).filter(n => n && n.trim() !== '');
-  const shellModel = buildCudyrViewShellModel({
-    recordDate: record.date,
-    responsibleNurses,
-    occupiedCount: stats.occupiedCount,
-    categorizedCount: stats.categorizedCount,
-  });
-
   return (
-    <div className="space-y-4 animate-fade-in pb-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:px-0 print:space-y-2 print:pb-0 print:break-inside-avoid">
-      <div className="flex justify-end print:hidden">
+    <section className="mx-auto max-w-6xl space-y-5 px-4 pb-16 sm:px-6" aria-label="Control CUDYR">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <button
+            type="button"
+            onClick={() => ui.setCurrentModule('CENSUS')}
+            className="mb-2 inline-flex items-center gap-1 text-sm text-slate-500"
+          >
+            <ArrowLeft size={14} />
+            Volver al censo
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900">CUDYR · control diario</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Turno noche {date.split('-').reverse().join('-')} · Horario de Rapa Nui
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={busy}
+            className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-40"
+          >
+            <RefreshCw size={15} />
+            Actualizar vista
+          </button>
+          <button
+            type="button"
+            onClick={() => void download()}
+            disabled={!canExport || exporting}
+            className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            <Download size={16} />
+            {exporting ? 'Preparando…' : 'Excel mensual'}
+          </button>
+        </div>
+      </header>
+      <div className="rounded-xl border border-teal-200 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-slate-600">
+              Cumplimiento acumulado · {date.slice(0, 7)}
+            </p>
+            <p className="mt-1 text-3xl font-bold text-teal-800">{busy ? '…' : percentage}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Hasta el {date.split('-').reverse().join('-')} · {totals.categorized} CUDYR
+              confirmados / {totals.eligible} pacientes-día elegibles
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-6 text-sm">
+            <p>
+              <strong className="block text-xl">{daily.eligible}</strong>Elegibles del día
+            </p>
+            <p>
+              <strong className="block text-xl">{daily.categorized}</strong>Confirmados del día
+            </p>
+            <p>
+              <strong className="block text-xl">{daily.excluded}</strong>Excluidos del día
+            </p>
+          </div>
+        </div>
+        {partial && (
+          <p role="status" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+            Acumulado provisional: hay días sin censo, lecturas incompletas o casos por revisar.{' '}
+            {totals.review} pacientes-día por revisar.
+          </p>
+        )}
+      </div>
+      {(error || exportError) && (
+        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
+          {error || exportError}
+        </p>
+      )}
+      {data?.issues.map(issue => (
+        <p key={issue} role="alert" className="text-sm text-amber-900">
+          {issue}
+        </p>
+      ))}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <label className="text-sm text-slate-600">
+          Mostrar{' '}
+          <select
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            className="ml-2 rounded-lg border bg-white p-2"
+          >
+            <option value="all">Todos los casos</option>
+            <option value="elegible">Elegibles</option>
+            <option value="no_elegible">Excluidos</option>
+            <option value="por_revisar">Por revisar</option>
+          </select>
+        </label>
         <button
           type="button"
-          onClick={() => setReportDate(record?.date || getClinicalCalendarDateISO())}
-          className="rounded-lg border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-900"
+          onClick={() => setExploring(true)}
+          className="text-sm font-medium text-teal-800 underline underline-offset-4"
         >
           Explorar reporte estadístico
         </button>
       </div>
-      {/* Print-only Header */}
-      <div className="hidden print:block mb-2 pb-2 border-b border-slate-300">
-        <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
-          <BarChart3 size={20} className="text-medical-600" />
-          Instrumento CUDYR del último registro disponible
-        </h1>
-        <div className="flex items-center gap-4 text-sm text-slate-700">
-          <span className="font-semibold">Fecha: {shellModel.formattedPrintDate}</span>
-          <span className="text-slate-400">|</span>
-          <span>
-            <span className="font-semibold">Enfermeros/as: </span>
-            {shellModel.hasResponsibleNurses ? (
-              shellModel.responsibleNursesLabel
-            ) : (
-              <span className="italic text-slate-400">No registrados</span>
-            )}
-          </span>
-        </div>
-        <div className="flex items-center gap-4 text-xs text-slate-600 mt-1">
-          <span>
-            Ocupadas: <strong>{stats.occupiedCount}</strong>
-          </span>
-          <span className="text-slate-400">|</span>
-          <span>
-            Categorizados: <strong>{stats.categorizedCount}</strong>
-          </span>
-          <span className="text-slate-400">|</span>
-          <span>
-            Índice: <strong>{shellModel.categorizationIndex}%</strong>
-          </span>
-        </div>
-      </div>
-
-      {/* Screen header — title, stats bar, actions (replaces old separate summary) */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 overflow-hidden print:shadow-none print:border-none print:p-0 print:break-inside-avoid">
-        <div className="print:hidden">
-          <CudyrHeader
-            occupiedCount={stats.occupiedCount}
-            categorizedCount={stats.categorizedCount}
-            currentDate={record.date}
-            updatedAt={record.cudyrUpdatedAt}
-            updatedBy={record.cudyrUpdatedBy}
-            completedAt={hasConfirmedCompletion ? completionTimestamp : undefined}
-            completedBy={hasConfirmedCompletion ? completionOwner : undefined}
-            isCompletionLocked={hasConfirmedCompletion}
-            completedCount={persistedCompletion?.completedCount ?? 0}
-            eligibleCount={persistedCompletion?.eligibleCount ?? 0}
-            categoryCounts={cudyrSummary?.counts}
-            currentRecord={record}
-          />
-        </div>
-
-        {canAdminAdjustCudyrResult && (
-          <AdminCudyrBulkRemovalToolbar
-            availableCount={adminBulkRemoval.targets.length}
-            selectedCount={adminBulkRemoval.selected.size}
-            isActive={adminBulkRemoval.isActive}
-            isBusy={Boolean(adminCudyrMutationKey)}
-            onStart={adminBulkRemoval.start}
-            onCancel={adminBulkRemoval.cancel}
-            onSelectAll={adminBulkRemoval.selectAll}
-            onClearSelection={adminBulkRemoval.clearSelection}
-            onConfirmRemoval={adminBulkRemoval.confirm}
-          />
-        )}
-
-        {isCompletionLocked && hasConfirmedCompletion && (
-          <div
-            className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 print:hidden"
-            data-testid="cudyr-completion-lock-notice"
-          >
-            <strong>CUDYR cerrado.</strong> Los resultados del turno noche {record.date} están
-            sincronizados y en modo lectura para enfermería.
-          </div>
-        )}
-
-        {isCompletionLocked && !hasConfirmedCompletion && (
-          <div
-            className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 print:hidden"
-            data-testid="cudyr-legacy-lock-notice"
-          >
-            <strong>
-              {isCalculatedComplete
-                ? 'CUDYR completo sin cierre atribuido (registro legado).'
-                : 'CUDYR bloqueado incompleto (registro legado).'}
-            </strong>{' '}
-            La planilla permanece en solo lectura y registra{' '}
-            {persistedCompletion?.completedCount ?? 0} de {persistedCompletion?.eligibleCount ?? 0}{' '}
-            pacientes elegibles completos.
-          </div>
-        )}
-
-        <div className="overflow-x-auto print:overflow-visible">
-          <table className="w-full text-left text-xs border-collapse border border-slate-300 min-w-[900px] print:table-auto print:min-w-0 print:text-[7px]">
-            <thead>
-              <tr>
-                <th
-                  colSpan={2}
-                  className="bg-slate-100 border border-slate-300 p-2 text-center font-bold text-slate-700 print:bg-white print:p-1"
-                >
-                  PACIENTE
-                </th>
-                <th
-                  colSpan={6}
-                  className="bg-blue-50 border border-blue-200 p-2 text-center font-bold text-blue-800 print:bg-white print:text-black print:border-slate-300 print:p-1"
-                >
-                  PUNTOS DEPENDENCIA (0-3)
-                </th>
-                <th
-                  colSpan={8}
-                  className="bg-red-50 border border-red-200 p-2 text-center font-bold text-red-800 print:bg-white print:text-black print:border-slate-300 print:p-1"
-                >
-                  PUNTOS DE RIESGO (0-3)
-                </th>
-                <th
-                  colSpan={3}
-                  className="bg-slate-100 border border-slate-300 p-2 text-center font-bold text-slate-700 print:hidden"
-                >
-                  RESULTADOS
-                </th>
-                <th className="bg-slate-100 border border-slate-300 p-2 text-center font-bold text-slate-700 hidden print:table-cell print:bg-white print:p-1">
-                  CAT
-                </th>
-              </tr>
-              <tr className="text-center">
-                <th className="border border-slate-300 p-1 w-10 bg-slate-50 align-middle print:w-auto">
-                  CAMA
-                </th>
-                <th className="border border-slate-300 p-1 w-[100px] max-w-[100px] bg-slate-50 align-middle print:w-[88px] print:max-w-[88px]">
-                  <span className="print:hidden">NOMBRE</span>
-                  <span className="hidden print:inline">RUT</span>
-                </th>
-                <VerticalHeader text="Cuidados Cambio Ropa" colorClass="bg-blue-50/50" />
-                <VerticalHeader text="Cuidados de Movilización" colorClass="bg-blue-50/50" />
-                <VerticalHeader text="Cuidados de Alimentación" colorClass="bg-blue-50/50" />
-                <VerticalHeader text="Cuidados de Eliminación" colorClass="bg-blue-50/50" />
-                <VerticalHeader text="Apoyo Psicosocial y Emocional" colorClass="bg-blue-50/50" />
-                <VerticalHeader text="Vigilancia" colorClass="bg-blue-50/50" />
-                <VerticalHeader text="Medicición Signos Vitales" colorClass="bg-red-50/50" />
-                <VerticalHeader text="Balance Hìdrico" colorClass="bg-red-50/50" />
-                <VerticalHeader text="Cuidados de Oxigenoterapia" colorClass="bg-red-50/50" />
-                <VerticalHeader text="Cuidados diarios de Vía Aérea" colorClass="bg-red-50/50" />
-                <VerticalHeader text="Intervenciones Profesionales" colorClass="bg-red-50/50" />
-                <VerticalHeader text="Cuidados de la Piel y Curaciones" colorClass="bg-red-50/50" />
-                <VerticalHeader text="Administración Tto Farmacológico" colorClass="bg-red-50/50" />
-                <VerticalHeader text="Presencia Elem. Invasivos" colorClass="bg-red-50/50" />
-                <th className="border border-slate-300 p-1 w-12 bg-slate-50 text-blue-800 align-middle print:hidden">
-                  P.DEP
-                </th>
-                <th className="border border-slate-300 p-1 w-12 bg-slate-50 text-red-800 align-middle print:hidden">
-                  P.RIES
-                </th>
-                <th className="border border-slate-300 p-1 w-14 bg-slate-50 align-middle print:w-auto print:p-0.5 print:bg-white">
-                  CAT
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingCudyrChangeCount > 0 && (
-                <tr data-testid="cudyr-pending-save-row" className="print:hidden">
-                  <td colSpan={19} className="border border-amber-200 bg-amber-50/70 px-3 py-2">
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="rounded-md border border-amber-200 bg-white/80 px-3 py-1.5 text-sm font-bold text-amber-800">
-                        {pendingCudyrChangeCount}{' '}
-                        {pendingCudyrChangeCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}
-                      </span>
-                      <div className="flex-1" />
-                      <button
-                        type="button"
-                        onClick={discardCudyrChanges}
-                        disabled={isSavingCudyrChanges}
-                        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-[13px] font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
-                      >
-                        <RotateCcw size={14} />
-                        Descartar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={saveCudyrChanges}
-                        disabled={isSavingCudyrChanges}
-                        className="flex shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-1.5 text-[13px] font-extrabold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 disabled:cursor-wait disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        {isSavingCudyrChanges ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <Save size={14} />
-                        )}
-                        {isSavingCudyrChanges ? 'Guardando...' : 'Guardar CUDYR'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {visibleBeds.map(bed => {
-                const patient = record.beds[bed.id];
-                const patientEligibility = resolveCudyrEligibility(patient);
-                const hasCrib = !!patient?.clinicalCrib?.patientName;
-                const cribPatient = patient?.clinicalCrib;
-                const cribEligibility = resolveCudyrEligibility(cribPatient);
-                const patientAdminTargetKey = adminCudyrTargetKey({
-                  bedId: bed.id,
-                  clinicalCrib: false,
-                });
-                const cribAdminTargetKey = adminCudyrTargetKey({
-                  bedId: bed.id,
-                  clinicalCrib: true,
-                });
-
-                return (
-                  <React.Fragment key={bed.id}>
-                    <CudyrRow
-                      bed={bed}
-                      patient={patient}
-                      censusDate={record.date}
-                      onScoreChange={handleScoreChange}
-                      readOnly={isEditingLocked || patientEligibility.isBlocked}
-                      eligibilityBlocked={patientEligibility.isBlocked}
-                      eligibilityBlockedReason={patientEligibility.blockedReason}
-                      adminBedId={bed.id}
-                      canAdminAdjustResult={canAdminAdjustCudyrResult}
-                      adminCudyrBusy={Boolean(adminCudyrMutationKey)}
-                      adminBulkSelectionEnabled={adminBulkRemoval.isActive}
-                      adminBulkSelectable={adminBulkRemoval.targetMap.has(patientAdminTargetKey)}
-                      adminBulkSelected={adminBulkRemoval.selected.has(patientAdminTargetKey)}
-                      onAdminBulkSelectionChange={selected =>
-                        adminBulkRemoval.setTargetSelected(patientAdminTargetKey, selected)
-                      }
-                      onAdminCudyrResultSave={saveAdminCudyrResult}
-                    />
-                    {hasCrib && cribPatient && (
-                      <CudyrRow
-                        bed={{ ...bed, id: `${bed.id}-crib`, name: `${bed.name} (CC)` }}
-                        patient={cribPatient}
-                        censusDate={record.date}
-                        onScoreChange={(_, field, value) =>
-                          handleCribScoreChange(bed.id, field, value)
-                        }
-                        readOnly={isEditingLocked || cribEligibility.isBlocked}
-                        eligibilityBlocked={cribEligibility.isBlocked}
-                        eligibilityBlockedReason={cribEligibility.blockedReason}
-                        isCrib={true}
-                        adminBedId={bed.id}
-                        canAdminAdjustResult={canAdminAdjustCudyrResult}
-                        adminCudyrBusy={Boolean(adminCudyrMutationKey)}
-                        adminBulkSelectionEnabled={adminBulkRemoval.isActive}
-                        adminBulkSelectable={adminBulkRemoval.targetMap.has(cribAdminTargetKey)}
-                        adminBulkSelected={adminBulkRemoval.selected.has(cribAdminTargetKey)}
-                        onAdminBulkSelectionChange={selected =>
-                          adminBulkRemoval.setTargetSelected(cribAdminTargetKey, selected)
-                        }
-                        onAdminCudyrResultSave={saveAdminCudyrResult}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+      {busy ? (
+        <p role="status" className="rounded-xl bg-white p-8 text-slate-500">
+          Leyendo información guardada en HHR…
+        </p>
+      ) : (
+        data && <CudyrDailyTable rows={visible} onReview={setSelected} />
+      )}
+      <p className="text-xs leading-relaxed text-slate-500">
+        El CUDYR se registra en Eloísa. Actualizar y descargar solo leen lo guardado en HHR. «Sin
+        CUDYR encontrado» no confirma que no se haya realizado. Los excluidos permanecen aquí y no
+        se incluyen en el Excel sencillo.{' '}
+        {data && <>Última lectura: {cudyrMomentLabel(data.generatedAt)}.</>}
+      </p>
+      {selectedRow && (
+        <CudyrExclusionDialog
+          key={`${currentUser?.uid}:${role}:${selectedRow.key}:${selectedRow.exclusion?.revision || 0}`}
+          row={selectedRow}
+          canEdit={canCorrectCudyrDischarge({ role, readOnly }) && !data?.issues.length}
+          onClose={() => setSelected('')}
+          onSaved={refresh}
+        />
+      )}
+    </section>
   );
 };

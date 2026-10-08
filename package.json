@@ -40,7 +40,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:authenticated-clinical-smoke": "unset NO_COLOR; playwright test -c playwright.emulator-critical.config.ts e2e/authenticated-clinical-smoke.spec.ts",
     "test:e2e:clinical-document-ai-import": "unset NO_COLOR; playwright test -c playwright.emulator-critical.config.ts e2e/clinical-document-ai-import.spec.ts",
-    "test:e2e:clinical-visual-release": "unset NO_COLOR; PLAYWRIGHT_JSON_OUTPUT=reports/e2e/clinical-visual-release-report.json playwright test -c playwright.emulator-critical.config.ts e2e/clinical-release-visual-smoke.spec.ts --project=chromium",
+    "test:e2e:clinical-visual-release": "bash scripts/run-clinical-visual-release-ci.sh",
     "test:e2e:clinical-stability": "unset NO_COLOR; PLAYWRIGHT_JSON_OUTPUT=reports/e2e/clinical-stability-report.json playwright test -c playwright.emulator-critical.config.ts e2e/authenticated-clinical-smoke.spec.ts e2e/admit-edit-discharge-smoke.spec.ts e2e/census-persistence-reload.spec.ts e2e/sync-conflict-resolution.spec.ts e2e/clinical-document-ai-import.spec.ts e2e/handoff-shift-export-smoke.spec.ts e2e/backup-restore-export-smoke.spec.ts --project=chromium",
     "test:e2e:clinical-stability:ci": "bash scripts/run-e2e-clinical-stability-ci.sh",
     "test:e2e:laboratory-smoke": "unset NO_COLOR; playwright test -c playwright.emulator-critical.config.ts e2e/laboratory-flow-smoke.spec.ts",

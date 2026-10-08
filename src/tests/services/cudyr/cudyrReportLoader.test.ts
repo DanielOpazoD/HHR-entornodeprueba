@@ -31,6 +31,20 @@ vi.mock('@/services/cudyr/cudyrDischargeService', () => ({
 vi.mock('@/services/storage/sync/cudyrPendingRead', () => ({ readPendingCudyrEpisodes: vi.fn() }));
 
 describe('persisted-only report loader', () => {
+  it('reads decisions for each month and marks failed exclusion reads as incomplete', async () => {
+    const readExclusions = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error('unavailable'));
+    const result = await loadCudyrReport('2026-09-30', '2026-10-02', undefined, {
+      ...ports(),
+      readExclusions,
+    });
+    expect(readExclusions.mock.calls.map(call => call[0])).toEqual(['2026-09', '2026-10']);
+    expect(result.issues).toContain(
+      'Exclusiones diarias: lectura incompleta. Vuelva a cargar el período.'
+    );
+  });
   it('bounds periods, rejects impossible dates and crosses months in calendar days', () => {
     expect(cudyrReportDates('2026-09-30', '2026-10-02')).toEqual([
       '2026-09-30',

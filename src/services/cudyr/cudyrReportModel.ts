@@ -1,3 +1,4 @@
+import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
 import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
 import type {
   CudyrReportDataset,
@@ -186,7 +187,20 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         ),
         warnings,
       };
-      return reconcileCudyrDischarge(row);
+      const reconciled = reconcileCudyrDischarge(row);
+      const exclusion = input.exclusions?.find(
+        item => item.date === row.date && Boolean(episode) && item.clinicalEpisodeId === episode
+      );
+      return {
+        ...reconciled,
+        exclusion,
+        ...(exclusion?.reason
+          ? {
+              eligibility: 'no_elegible' as const,
+              eligibilityReason: CUDYR_EXCLUSION_LABELS[exclusion.reason] + ': ' + exclusion.note,
+            }
+          : {}),
+      };
     })
     .sort(
       (a, b) =>

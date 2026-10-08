@@ -1,3 +1,4 @@
+const { saveCudyrExclusion, readCudyrExclusions } = require('./cudyrExclusionStore');
 const functions = require('firebase-functions/v1');
 const { isDeepStrictEqual } = require('node:util');
 const { FieldPath } = require('firebase-admin/firestore');
@@ -46,6 +47,24 @@ const createCudyrHistoryFunctions = ({
         context,
         resolveRoleForEmail,
       });
+      if (data?.kind === 'save-daily-exclusion') {
+        if (!['admin', 'nurse_hospital'].includes(role))
+          throw new functions.https.HttpsError(
+            'permission-denied',
+            'Review permission is required.'
+          );
+        return saveCudyrExclusion({
+          hospital,
+          data,
+          runTransaction: runArchiveTransaction,
+          actor: {
+            uid: context.auth.uid,
+            email,
+            role,
+            name: String(context.auth.token.name || email).slice(0, 200),
+          },
+        });
+      }
       if (data?.kind === 'save-monthly-review') {
         if (!['admin', 'nurse_hospital'].includes(role))
           throw new functions.https.HttpsError(
@@ -233,6 +252,7 @@ const createCudyrHistoryFunctions = ({
       if (!(await hasCallableClinicalAccess(context))) {
         throw new functions.https.HttpsError('permission-denied', 'Clinical access is required.');
       }
+      if (data?.kind === 'daily-exclusions') return readCudyrExclusions(hospital, data);
       if (data?.kind === 'episode-captures') return readEpisodeCaptures(captures, data);
       if (data?.kind === 'discharge-corrections') return readDischargeCorrections(hospital, data);
       if (data?.kind === 'discharge-audit') return readDischargeAudit(hospital, data);

@@ -1,3 +1,4 @@
+import { readCudyrExclusions } from './cudyrExclusionService';
 import { getRecordFromFirestoreDetailed } from '@/services/storage/firestore';
 import {
   readCudyrHistory,
@@ -40,6 +41,7 @@ export interface CudyrReportLoaderPorts {
   readDischarges: typeof readCudyrDischarges;
   readAudit: typeof readCudyrDischargeAudit;
   readPending: typeof readPendingCudyrEpisodes;
+  readExclusions?: typeof readCudyrExclusions;
 }
 export const cudyrReportLoaderPorts: CudyrReportLoaderPorts = {
   readRecord: getRecordFromFirestoreDetailed,
@@ -49,6 +51,7 @@ export const cudyrReportLoaderPorts: CudyrReportLoaderPorts = {
   readDischarges: readCudyrDischarges,
   readAudit: readCudyrDischargeAudit,
   readPending: readPendingCudyrEpisodes,
+  readExclusions: readCudyrExclusions,
 };
 
 /** Only HHR persisted data is read. No extension, Eloísa request or write is available to this loader. */
@@ -198,6 +201,13 @@ export const loadCudyrReport = async (
   await collect('Pendientes de este dispositivo', async () => {
     input.pending = await ports.readPending();
   });
+  if (ports.readExclusions) {
+    input.exclusions = [];
+    for (const month of new Set(dates.map(date => date.slice(0, 7))))
+      await collect('Exclusiones diarias', async () => {
+        input.exclusions!.push(...(await ports.readExclusions!(month, signal)));
+      });
+  }
   check();
   input.generatedAt = new Date().toISOString();
   return buildCudyrReport(input);

@@ -1,3 +1,4 @@
+import type { CudyrDailyExclusion } from './cudyrExclusion';
 import type { CudyrHistoryObservation } from './cudyrHistory';
 import type { CudyrCaptureReceipt } from './cudyrCapture';
 import type { CudyrDischargeCorrection, CudyrDischargeAudit } from './cudyrDischarge';
@@ -93,6 +94,7 @@ export interface CudyrReportRow {
   epicrisisRegisteredAt: string;
   movements: CudyrReportMovement[];
   correction?: CudyrDischargeCorrection;
+  exclusion?: CudyrDailyExclusion;
   warnings: string[];
 }
 
@@ -112,6 +114,7 @@ export interface CudyrReportDataset {
   captures: CudyrCaptureReceipt[];
   corrections: CudyrDischargeCorrection[];
   dischargeAudit: CudyrDischargeAudit[];
+  exclusions?: CudyrDailyExclusion[];
   coverage: CudyrReportDayCoverage[];
   issues: string[];
 }

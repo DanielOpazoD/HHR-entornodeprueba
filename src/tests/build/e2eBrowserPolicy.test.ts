@@ -32,7 +32,8 @@ describe('e2e browser policy', () => {
 
     expect(visualSmokeSource).toContain('clinical-release-cudyr');
     expect(visualSmokeSource).toContain('clinical-release-census-after-refresh');
-    expect(visualSmokeSource).toContain('/cudyr?date=');
+    expect(visualSmokeSource).toContain('Más opciones del censo');
+    expect(visualSmokeSource).toContain('CUDYR · control diario');
     expect(visualSmokeSource).toContain('verifyCensusExcelDownload');
     expect(visualSmokeSource).toContain('verifyCudyrExcelDownload');
     expect(visualSmokeSource).toContain('__HHR_DOWNLOAD_CAPTURE__');

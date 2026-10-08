@@ -1,3 +1,4 @@
+import { cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
 import type { ArchivedCudyrSupplement } from '@/services/cudyr/cudyrSupplementService';
 import { CudyrSupplementDetail } from './CudyrSupplementDetail';
 import { BaseModal } from '@/components/shared/BaseModal';
@@ -74,6 +75,13 @@ export const CudyrReportDetail = ({
         </div>
         <Facts
           values={[
+            ['Origen de elegibilidad', cudyrEligibilityOrigin(row)],
+            ['Revisión manual de elegibilidad', row.exclusion?.note],
+            ['Revisado por', row.exclusion?.updatedBy.name],
+            [
+              'Fecha revisión',
+              row.exclusion ? cudyrMomentLabel(row.exclusion.updatedAt) : undefined,
+            ],
             ['Diagnóstico', row.diagnosis],
             ['CIE-10', row.diagnosisCode],
             ['Episodio', row.clinicalEpisodeId],

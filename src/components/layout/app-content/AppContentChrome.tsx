@@ -1,3 +1,4 @@
+import { canAccessAppModuleRoute } from '@/shared/access/operationalAccessPolicy';
 import { CensusConflictToolbarFallback } from '@/components/layout/date-strip/CensusToolbarLoadingActions';
 import React from 'react';
 import { Navbar } from '@/components/layout/Navbar';
@@ -5,7 +6,7 @@ import { DateStrip } from '@/components/layout/DateStrip';
 import { CensusStaleDayBanner } from '@/components/layout/app-content/CensusStaleDayBanner';
 import { lazyWithRetry } from '@/utils/lazyWithRetry';
 import { AppRouter } from '@/components/AppRouter';
-import { Search } from 'lucide-react';
+import { Search, BarChart3 } from 'lucide-react';
 import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusOptionsMenu } from '@/components/layout/date-strip/CensusOptionsMenu';
 import { isSpecialistCensusAccessProfile } from '@/shared/access/censusAccessProfile';
@@ -114,6 +115,17 @@ export const AppContentChrome: React.FC<AppContentChromeProps> = ({
                       renderFeatureQuickActions={renderFeatureQuickActions}
                     />
                   </React.Suspense>
+                  {canAccessAppModuleRoute({ role: auth.role, module: 'CUDYR' }) && (
+                    <button
+                      type="button"
+                      data-census-menu-action
+                      onClick={() => ui.setCurrentModule('CUDYR')}
+                      className="flex items-center gap-2 rounded-md text-teal-800"
+                    >
+                      <BarChart3 size={14} />
+                      CUDYR · control diario
+                    </button>
+                  )}
                   <div ref={setHandoffTarget} />
                 </CensusOptionsMenu>
                 {auth.role === 'admin' && (
