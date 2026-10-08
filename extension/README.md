@@ -548,3 +548,17 @@ El historial captura además la asignación original de cama/servicio con su int
 ID y versión. Los mapeos anidados antiguos se conservan como evidencia, sin anunciar
 ocupación vigente. La fecha centinela de término no se interpreta como alta. El nuevo
 helper `cudyr-placement-support.js` carga después de los normalizadores de camas/cunas.
+
+### Puente 0.48.48: dominio publicado de HHR de pruebas
+
+Se habilita `https://hhr-entorno-prueba.netlify.app` en los permisos, los content
+scripts y las validaciones internas de origen. Se conservan localhost:3000,
+localhost:3001 y testinghhr.netlify.app; no se habilitan otros sitios Netlify ni
+previews. La autorización de cada episodio sigue ligada a su pestaña y snapshot.
+
+Para aplicar: reemplazar el contenido de la carpeta de la extensión con el ZIP
+0.48.48, recargar la extensión en Chrome y recargar HHR y las pestañas Eloísa.
+El ingreso Google y el reconocimiento de la extensión son comprobaciones distintas.
+Owner: integración HHR/Eloísa. Rollback: volver al paquete anterior; el dominio
+hhr-entorno-prueba dejaría de enlazarse. Cierre: release gate, pruebas de los cuatro
+orígenes y rechazo de dominios ajenos, smoke MV3 sintético y reconocimiento en Chrome.

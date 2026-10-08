@@ -365,6 +365,7 @@ describe('shared Rayen runtime-message contract', () => {
       'http://localhost:3000/*',
       'http://localhost:3001/*',
       'https://testinghhr.netlify.app/*',
+      'https://hhr-entorno-prueba.netlify.app/*',
     ]);
     expect(background).toContain('const readAuthorizedSnapshot = sender =>');
     expect(background).toContain('patientFlowRuntime.authorizeSnapshotResponse(');
