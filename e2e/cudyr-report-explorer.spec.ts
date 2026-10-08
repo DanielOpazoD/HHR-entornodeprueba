@@ -111,8 +111,9 @@ test.afterAll(async () => {
   if (rules) await rules.cleanup();
 });
 
-const open = async (page: Page, role: 'admin' | 'viewer' = 'admin') => {
+const open = async (page: Page, role: 'admin' | 'viewer' = 'admin', daily = false) => {
   for (const collection of [
+    'cudyrDailyExclusions',
     'cudyrMonthlyReviews',
     'cudyrMonthlySupplements',
     'cudyrSupplementFiles',
@@ -189,6 +190,12 @@ const open = async (page: Page, role: 'admin' | 'viewer' = 'admin') => {
   });
   await page.goto('/cudyr?date=' + DATE);
   await ensureAuthenticated(page);
+  if (daily) {
+    await expect(page.getByText('PACIENTE SINTÉTICO R1', { exact: true })).toBeVisible({
+      timeout: 30000,
+    });
+    return { calls, errors };
+  }
   await page.getByRole('button', { name: 'Explorar reporte estadístico' }).click();
   await expect(page.getByRole('heading', { name: 'Explorador CUDYR' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Consultar período' })).toBeEnabled({
@@ -552,5 +559,48 @@ test('prepares a bounded recovery list without querying Eloisa or changing stati
   await recovery.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await screenshot(page, 'cudyr-busqueda-dirigida-movil');
+  expect(errors).toEqual([]);
+});
+
+// Replaces the retired batch-entry screen: CUDYR values are now read-only in this view.
+test('reviews a daily exclusion, persists it after reload and omits it from the essential Excel', async ({
+  page,
+}) => {
+  test.setTimeout(90000);
+  const { errors } = await open(page, 'admin', true);
+  await expect(page.getByRole('heading', { name: 'CUDYR · control diario' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Guardar CUDYR|Eliminar varios resultados/ })
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'Revisar elegibilidad de PACIENTE SINTÉTICO R1' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Motivo de exclusión').selectOption('not_hospitalized');
+  await dialog
+    .getByLabel('Observación que respalda la decisión')
+    .fill('Salida física verificada para este día; pendiente de regularización.');
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Guardar revisión' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Decisión manual', { exact: true })).toBeVisible();
+  // Full navigation reloads the app and explicitly reopens the reviewed day.
+  await page.goto('/cudyr?date=' + DATE);
+  await ensureAuthenticated(page);
+  await expect(page.getByText('Decisión manual', { exact: true })).toBeVisible({ timeout: 30000 });
+  await screenshot(page, 'cudyr-control-diario');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true
+  );
+  await screenshot(page, 'cudyr-control-diario-movil');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const event = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Excel mensual', exact: true }).click();
+  const file = await (await event).path();
+  const book = new Workbook();
+  await book.xlsx.readFile(file!);
+  expect(book.worksheets.map(sheet => sheet.name)).toEqual(['Resumen', 'Pacientes elegibles']);
+  const detail = book.getWorksheet('Pacientes elegibles')!;
+  expect(detail.rowCount).toBe(2);
+  expect(detail.getCell('B2').value).toBe('PACIENTE SINTÉTICO NEO1');
   expect(errors).toEqual([]);
 });

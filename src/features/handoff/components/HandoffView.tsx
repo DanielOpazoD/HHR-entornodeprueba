@@ -1,7 +1,6 @@
 import React from 'react';
 import { HandoffChecklistSection } from './HandoffChecklistSection';
 import { HandoffCudyrPrint } from './HandoffCudyrPrint';
-import { HandoffNightCudyrActionButton } from './HandoffNightCudyrActionButton';
 import { HandoffPrintHeader } from './HandoffPrintHeader';
 import { HandoffMedicalContent } from './HandoffMedicalContent';
 import { HandoffNursingContent } from './HandoffNursingContent';
@@ -38,7 +37,6 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     medicalScope,
   });
   const {
-    ui,
     record,
     isMedical,
     role,
@@ -75,7 +73,6 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
     tableHeaderClass,
     Icon,
   } = screenModel;
-  const handleOpenCudyr = () => ui.setCurrentModule('CUDYR');
   if (!record) {
     return (
       <div className="p-8 text-center text-slate-500 font-sans">
@@ -152,16 +149,7 @@ const HandoffViewContent: React.FC<HandoffViewContentProps> = ({
       hideButtonLabel={!isMedical}
     />
   );
-  const nursingHeaderAction =
-    !isMedical &&
-    (medicalCapabilities.canOpenNightCudyr && headerBindings.showNightCudyrAction ? (
-      <div className="flex items-center gap-2">
-        {clinicalConflictAction}
-        <HandoffNightCudyrActionButton onClick={handleOpenCudyr} />
-      </div>
-    ) : (
-      clinicalConflictAction
-    ));
+  const nursingHeaderAction = !isMedical && clinicalConflictAction;
   return (
     <div className="space-y-3 print:space-y-2 animate-fade-in pb-20 font-sans max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 print:max-w-none print:w-full print:px-0 print:pb-0">
       <HandoffPrintHeader

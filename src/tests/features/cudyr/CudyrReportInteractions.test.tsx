@@ -107,4 +107,17 @@ describe('CUDYR report interactions', () => {
     unmount();
     expect(loader.mock.calls[1][2].aborted).toBe(true);
   });
+  it('loads month-to-date on first render and when the selected census day changes', async () => {
+    const loader = vi.fn().mockResolvedValue(buildCudyrReport(reportInput()));
+    const { rerender } = renderHook(({ date }) => useCudyrReport(date, loader), {
+      initialProps: { date: '2026-10-07' },
+    });
+    await waitFor(() =>
+      expect(loader).toHaveBeenCalledWith('2026-10-01', '2026-10-07', expect.any(AbortSignal))
+    );
+    rerender({ date: '2026-09-30' });
+    await waitFor(() =>
+      expect(loader).toHaveBeenLastCalledWith('2026-09-01', '2026-09-30', expect.any(AbortSignal))
+    );
+  });
 });

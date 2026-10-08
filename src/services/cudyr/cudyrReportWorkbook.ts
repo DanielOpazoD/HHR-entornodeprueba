@@ -100,6 +100,32 @@ export const buildCudyrReportWorkbook = async (
     sheet.getCell('A2').font = { bold: true, color: { argb: 'FF92400E' } };
   });
   workbook.worksheets[0].getCell('A1').value = `CUDYR · ${data.from} a ${data.to}`;
+  if (mode === 'audit' && data.exclusions?.length) {
+    addCudyrDataSheet(
+      workbook,
+      'Revisión elegibilidad',
+      [
+        'Fecha',
+        'Episodio',
+        'Motivo',
+        'Observación',
+        'Origen',
+        'Autor',
+        'Fecha revisión',
+        'Versión',
+      ],
+      data.exclusions.map(item => [
+        item.date,
+        item.clinicalEpisodeId,
+        item.reason || 'Exclusión retirada',
+        item.note,
+        item.source,
+        item.updatedBy.name,
+        item.updatedAt,
+        item.revision,
+      ])
+    );
+  }
   if (mode === 'audit') {
     addCudyrReportTables(workbook, data);
     addCudyrReportContextTable(workbook, data);
