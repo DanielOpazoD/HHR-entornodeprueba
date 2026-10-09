@@ -1,3 +1,5 @@
+import { probeOfficialCudyrReport, saveOfficialCudyrReport } from './cudyrOfficialReport';
+import { applyCudyrCensusApprovals } from './cudyrCensusApproval';
 import { applyCudyrFirstNightRecovery } from './cudyrFirstNightRecovery';
 import { applyCudyrCensusContinuity } from './cudyrCensusContinuity';
 import { loadCudyrVerifiedContexts } from './cudyrVerifiedContextService';
@@ -86,6 +88,22 @@ export const loadCudyrReport = async (
       throw new Error('La sesión cambió; vuelva a abrir el reporte.');
   };
   const records: DailyRecordCudyrExportState[] = [];
+  const native = ports === cudyrReportLoaderPorts;
+  const month = from.slice(0, 7);
+  const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0))
+    .toISOString()
+    .slice(0, 10);
+  let sourceVersion = '';
+  if (native && from === month + '-01' && to === last) {
+    try {
+      sourceVersion = (await probeOfficialCudyrReport(month)).sourceVersion;
+    } catch {
+      check();
+      // The saved artifact is optional; ordinary Firebase reads remain available.
+    }
+  }
+
+  check();
   const input: CudyrReportInput = {
     from,
     to,
@@ -153,7 +171,12 @@ export const loadCudyrReport = async (
   };
   await collect('Historial CUDYR', async () => {
     input.observations = await pages(async (cursor?: CudyrHistoryCursor) => {
-      const page = await ports.readHistory({ from, to, limit: 100, ...(cursor ? { cursor } : {}) });
+      const page = await ports.readHistory({
+        from,
+        to,
+        limit: 100,
+        ...(cursor ? { cursor } : {}),
+      });
       return { rows: page.observations, next: page.nextCursor };
     });
   });
@@ -278,6 +301,28 @@ export const loadCudyrReport = async (
     ),
     censusSources
   );
+  const approved = await applyCudyrCensusApprovals(dataset, reviews);
   check();
-  return dataset;
+  if (native && sourceVersion) {
+    try {
+      const saved = await saveOfficialCudyrReport(approved, sourceVersion, signal);
+      check();
+      return saved;
+    } catch (error) {
+      check();
+      if (
+        error &&
+        typeof error === 'object' &&
+        (('code' in error && String(error.code).endsWith('aborted')) ||
+          ('name' in error && error.name === 'AbortError'))
+      )
+        throw error;
+      // Clinical reads remain usable if this account cannot publish a derived report.
+      console.warn(
+        'CUDYR: no se pudo guardar la copia mensual oficial.',
+        error instanceof Error ? error.name : 'error'
+      );
+    }
+  }
+  return approved;
 };

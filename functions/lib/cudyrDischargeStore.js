@@ -140,6 +140,10 @@ const saveDischargeCorrection = async ({
         'Discharge correction context exceeds its limit.'
       );
     transaction.set(currentRef, correction);
+    // One atomic revision marker invalidates saved official months without scanning history.
+    transaction.set(hospital.collection('cudyrArchiveVersions').doc('dischargeCorrections'), {
+      operation: auditRef.id,
+    });
     transaction.create(auditRef, {
       ...correction,
       id: auditRef.id,
