@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { App } from 'firebase-admin/app';
 import type { Firestore } from 'firebase-admin/firestore';
-import { supplementRequest } from '@/tests/fixtures/cudyrSupplementFixture';
+import { supplementRequest, supplementBytes } from '@/tests/fixtures/cudyrSupplementFixture';
 const require = createRequire(import.meta.url);
 // Use the same Admin SDK instance as the callable implementation after separate npm installs.
 const requireFunctions = createRequire(new URL('../../../functions/package.json', import.meta.url));
@@ -102,7 +102,8 @@ describeEmulator('passive monthly supplement archive', () => {
     const duplicate = await fns.archiveCudyrHistory.run(r, context);
     expect(duplicate.status).toBe('already-recorded');
     r.operationId = '00000000-0000-4000-8000-000000000003';
-    r.report.generatedLabel = 'Later printing';
+    r.report.generatedLabel = 'Fecha Hora Impresión: 08-10-2026 02:35';
+    r.file.base64 = supplementBytes(r.report);
     const later = await fns.archiveCudyrHistory.run(r, context);
     expect(later.contentId).toBe(duplicate.contentId);
     expect(later.id).not.toBe(duplicate.id);

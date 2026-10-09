@@ -3,7 +3,14 @@
     {
       "source": "functions",
       "codebase": "default",
-      "ignore": ["node_modules", ".git", ".secret.local", "firebase-debug.log", "firebase-debug.*.log"]
+      "ignore": [
+        "node_modules",
+        ".git",
+        ".secret.local",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ],
+      "predeploy": ["node scripts/build-cudyr-source-parser.mjs"]
     }
   ],
   "firestore": {

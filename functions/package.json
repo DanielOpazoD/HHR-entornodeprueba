@@ -20,7 +20,8 @@
     "firebase-functions": "^7.4.0",
     "googleapis": "^181.0.0",
     "pdf-lib": "^1.17.1",
-    "puppeteer-core": "25.11.0"
+    "puppeteer-core": "25.11.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "overrides": {
     "basic-ftp": "5.3.1",
