@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { resolveShiftedMonthYear } from '@/components/layout/date-strip/dateStripNavigationController';
+import {
+  resolveShiftedMonthYear,
+  resolveMonthLandingDay,
+} from '@/components/layout/date-strip/dateStripNavigationController';
 
 describe('dateStripNavigationController', () => {
   it('shifts months inside same year', () => {
@@ -34,4 +37,13 @@ describe('dateStripNavigationController', () => {
       year: 2025,
     });
   });
+});
+
+it('lands CUDYR on the last calendar day of completed months, independent of missing census days', () => {
+  const now = new Date('2026-10-08T18:00:00Z');
+  expect(resolveMonthLandingDay(2026, 7, 'CUDYR', now)).toBe(31);
+  expect(resolveMonthLandingDay(2026, 8, 'CUDYR', now)).toBe(30);
+  expect(resolveMonthLandingDay(2024, 1, 'CUDYR', now)).toBe(29);
+  expect(resolveMonthLandingDay(2026, 9, 'CUDYR', now)).toBe(8);
+  expect(resolveMonthLandingDay(2026, 8, 'CENSUS', now)).toBe(1);
 });

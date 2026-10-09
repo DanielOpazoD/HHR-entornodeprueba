@@ -1,3 +1,4 @@
+import { confirmedReportInput } from './reportFixtures';
 import { Workbook } from 'exceljs';
 import { describe, expect, it, vi } from 'vitest';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
@@ -22,7 +23,7 @@ describe('contextual CUDYR Excel', () => {
       clinicalEpisodeId: 'second',
       patientName: '=HYPERLINK("test")',
     });
-    const input = reportInput({
+    const input = confirmedReportInput({
       records: [record],
       observations: [reportObservation()],
       captures: [reportCapture()],

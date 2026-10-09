@@ -1,45 +1,43 @@
-# Control diario CUDYR y Excel esencial
+# CUDYR: control diario e informe mensual
 
-## Alcance
+## Lectura
 
-CUDYR se registra en Eloísa. En HHR se consultan resultados, cobertura y elegibilidad; la pantalla principal ya no permite llenar ítems ni guardar/eliminar resultados individuales o en lote. El acceso está en Censo diario → Más opciones → CUDYR · control diario. El explorador detallado permanece como complemento.
+El registro CUDYR proviene exclusivamente de Eloísa. HHR conserva los resultados y
+sus fuentes; no permite inventar escalas, autores ni horas. Abrir la vista y descargar
+Excel lee Firebase o una copia local de la sesión. Sólo «Completar y verificar mes»
+consulta los informes de Eloísa mediante la extensión.
 
-## Bloques de implementación
+Un mes aprobado se lee como una proyección oficial guardada, sin reconstruir cada día.
+La navegación reutiliza el caché por cuenta y sesión. La verificación remota comprueba
+la versión de fuentes; un fallo conserva la última copia e informa la falta de conexión.
+El cambio de cuenta no reutiliza los datos clínicos de la sesión anterior.
 
-1. **Decisiones diarias persistentes:** exclusiones por episodio y fecha censal; callable existente, autor/hora del servidor, revisión optimista, idempotencia y registro de revisiones. No modifica pacientes, altas ni resultados fuente.
-2. **Control diario:** tabla de resultados de solo lectura; P. dependencia, P. riesgo y categoría. Revisar muestra motivos automáticos y permite excluir o retirar una exclusión manual. Cumplimiento acumulado hasta la fecha seleccionada, con cobertura parcial explícita.
-3. **Excel esencial:** dos hojas, Resumen y Pacientes elegibles; 15 columnas de identificación, contexto de cama, resultado y trazabilidad. Excluidos y casos por revisar no entran al detalle. Los elegibles sin CUDYR sí entran para no ocultar brechas. Auditoría conserva el contexto amplio.
+## Interpretación
 
-Los bloques forman una sola capacidad: se revisan juntos para evitar una pantalla que no pueda guardar o una descarga que ignore exclusiones. Pueden ajustarse durante las pruebas sin ampliar el alcance a la captura de Eloísa.
+- **Registrado:** existe una categorización en Eloísa; no implica elegibilidad.
+- **No registrado:** la fuente final completa no contiene una categorización para ese caso.
+- **Verificación pendiente:** falta completar una consulta o resolver una discrepancia.
+- **No elegible:** el caso permanece visible, pero queda fuera del cumplimiento y del Excel de elegibles.
+- **Oficial:** población reconstruida y resultados aprobados con trazabilidad, no cumplimiento del 100%.
 
-## Reglas
+Los días abiertos muestran progreso; no penalizan el acumulado cerrado. La aplicación
+puede registrarse hasta las 11:59 del día siguiente. La 01:00 es la referencia fija para
+calcular ocho horas, no la hora obligatoria de registro del instrumento.
 
-- Exclusiones automáticas: cunas y toda modalidad CMA según contexto diario; menos de 8 horas según corte HHR de 01:00 del día siguiente; egreso efectivo comprobado. Las contradicciones y horas desconocidas quedan por revisar.
-- Exclusiones manuales: CMA, cuna RN sano, paciente fuera del hospital pendiente de regularización, hospitalización menor de 8 horas. Motivo, nota y confirmación obligatorios. Falta de epicrisis por sí sola no acredita egreso.
-- Cada decisión corresponde a un episodio y un día. El servidor exige que ese episodio exista en el censo persistido de ese día o sus movimientos. Un caso histórico únicamente documental sin censo debe reconciliarse antes.
-- Retirar una exclusión no fuerza elegibilidad: vuelve a las reglas automáticas. No se borran revisiones. Una sincronización posterior no borra la decisión manual.
-- R1–R4 son intermedias; NEO 1–2 y H1C1–H6C2 medias. UPC no interviene.
-- Cumplimiento: confirmados elegibles / pacientes-día elegibles conocidos. No promedio de porcentajes ni denominador de camas ocupadas. Sin denominador se muestra —. Cobertura incompleta o casos por revisar hacen provisional el resultado.
-- Sin registro observado, sin consulta confirmada, fuente no disponible y captura incompleta son estados diferentes. No encontrar un registro no acredita que no fue realizado.
-- Puntajes ausentes se muestran — y celdas vacías, nunca cero inventado.
-- Consultar/descargar sólo lee HHR persistido; no sincroniza Eloísa. Cambios en la sincronización del censo recargan la lectura. La descarga esencial se bloquea si hubo errores de lectura, incluidas exclusiones.
+## Vista y exportación
 
-## Persistencia y despliegue
+La tabla conserva cama Eloísa, tipo de cama, paciente, puntajes, categoría, primer ingreso
+hospitalario, registro y estado. Los movimientos, origen histórico y motivos de exclusión
+se consultan en detalles. Una excepción manual cambia elegibilidad, nunca el CUDYR.
+Altas, traslados externos y fallecimientos resueltos se consultan en el explorador.
 
-`cudyrDailyExclusions/{hash(fecha,episodio)}` contiene la decisión vigente y `revisions` recibos inmutables de cada operación. Lectura/escritura a través de `readCudyrHistory` y `archiveCudyrHistory`; lectura clínica autorizada y escritura admin/enfermería hospital. No se agregan permisos directos de Firestore ni endpoints públicos nuevos.
+El desglose mensual de exclusiones separa personas de pacientes-día y permite abrir los
+casos. El Excel usa el mismo conjunto de datos y las mismas reglas de días cerrados que
+la pantalla. Al cambiar de mes se selecciona el último día disponible.
 
-Orden: validar emulador y navegador con datos sintéticos; actualizar ambas Functions existentes en **hhr-pruebas**; publicar frontend en **hhr-entorno-prueba**. Sin cambios en testinghhr ni datos clínicos reales para probar. Rollback del frontend conserva las decisiones; la versión anterior del explorador no sabe interpretarlas y no debe utilizarse para un cierre estadístico con exclusiones vigentes.
+Ver [cierre oficial](CUDYR_OFFICIAL_MONTH.md), [recuperación de fuentes](CUDYR_MONTHLY_RECOVERY.md)
+y [conciliación clínica](CUDYR_CLINICAL_DAY_RECONCILIATION.md).
 
-## Validación
-
-Pruebas de identidad/día, autorización, replay, conflicto de revisión, retiro conservando auditoría, no modificación del censo, exclusión del detalle Excel, porcentajes y puntajes ausentes. El E2E de captura por lotes se retira porque la interfaz ya no ofrece esa operación; lo sustituye el flujo de exclusión y Excel en `e2e/cudyr-report-explorer.spec.ts`.
-
-El hook existente `src/features/cudyr/hooks/useCudyrReport.ts` inicializa desde el primer día del mes hasta `initialDate` en su efecto de montaje/cambio de fecha; pasar un día al hook no significa leer sólo ese día. Se conserva ese contrato y se verifica explícitamente con una fecha intermedia y un cambio de mes en `CudyrReportInteractions.test.tsx`.
-
-## Corrección de días y control compacto
-
-- Toda alta, fallecimiento (sección altas) o traslado externo con fecha efectiva igual o anterior al día censal queda excluido, aunque el CUDYR se hubiera registrado antes de esa salida. El egreso de un día posterior no elimina retrospectivamente un día elegible; durante la madrugada se conserva la comparación con la hora de evaluación. Egresos sin fecha o contradictorios siguen por revisar, sin inventar datos.
-- El día actual/futuro no entra al cumplimiento. Se reutiliza la ventana nocturna HHR existente: el día previo tampoco se declara incumplido mientras su ventana sigue abierta, hasta las 12:00 del día siguiente en Rapa Nui. El instante de generación del reporte fija el estado de cada día, de forma reproducible. La descarga excluye esos días del detalle y los identifica como pendientes en Resumen.
-- Un resultado de Eloísa archivado o sincronizado en el censo se conserva aunque una consulta esté incompleta; la existencia del resultado individual y la cobertura de la consulta son independientes. La advertencia no acredita resultados ausentes ni convierte puntajes manuales legados en resultados de Eloísa. Conflictos, anulaciones y guardados pendientes mantienen sus protecciones.
-- La vista abre con elegibles, filas compactas y porcentajes diario y acumulado. Revisar conserva identidad, diagnóstico, autor, hora, origen y motivos; Excluidos/Todos permiten cotejar sin incorporarlos a la descarga esencial.
-- Esta revisión no autoriza publicar. Los builds de Netlify de hhr-entorno-prueba se detuvieron a pedido de Daniel; la versión publicada se conserva hasta una publicación manual autorizada.
+El modelo de reconstrucción histórico se descarga bajo demanda, igual que el explorador
+y su cargador. Se excluye del precaché de instalación; el límite global no aumenta.
+La copia de datos por sesión y la proyección oficial siguen disponibles tras abrir el módulo.

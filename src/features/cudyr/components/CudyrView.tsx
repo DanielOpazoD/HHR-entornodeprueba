@@ -1,16 +1,26 @@
-import { CudyrArchiveStatus } from './CudyrArchiveStatus';
-import { CudyrMonthlyRecovery } from './CudyrMonthlyRecovery';
+import { CudyrExclusionSummary } from './CudyrExclusionSummary';
+import { cudyrCensusAccepted } from '@/services/cudyr/cudyrCensusApproval';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
+import { lazy, Suspense, useState } from 'react';
+import {
+  ArrowLeft,
+  Download,
+  RefreshCw,
+  Info,
+  FileSpreadsheet,
+  CircleMinus,
+  Database,
+} from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
 import { useAuth } from '@/context/AuthContext';
 import { useUIState } from '@/hooks/useUIState';
 import { canCorrectCudyrDischarge } from '@/shared/access/operationalAccessPolicy';
 import { getClinicalCalendarDateISO } from '@/utils/clinicalTimeZone';
+import { cudyrArchiveCoverage } from '@/services/cudyr/cudyrArchiveCoverage';
 import { cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
-import { cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
 import { useCudyrReport } from '../hooks/useCudyrReport';
+import { CudyrArchiveStatus } from './CudyrArchiveStatus';
+import { CudyrMonthlyRecovery } from './CudyrMonthlyRecovery';
 import { CudyrDailyTable } from './CudyrDailyTable';
 import { CudyrExclusionDialog } from './CudyrExclusionDialog';
 const CudyrReportExplorer = lazy(() => import('./CudyrReportExplorer'));
@@ -22,35 +32,58 @@ export const CudyrView = ({
   readOnly?: boolean;
   currentDate?: string;
 }) => {
-  const { record } = useDailyRecordData();
+  const { record, bootstrapPhase } = useDailyRecordData();
   const { role, currentUser } = useAuth();
   const ui = useUIState();
   const date = currentDate || record?.date || getClinicalCalendarDateISO();
-  const { data, busy, error, load } = useCudyrReport(date);
+  const { data, busy, error, load } = useCudyrReport(
+    date,
+    undefined,
+    {
+      date,
+      version:
+        record?.date === date
+          ? `present:${record.lastUpdated || ''}:${record.rayenSync?.at || ''}:${record.cudyrUpdatedAt || ''}`
+          : !record && bootstrapPhase === 'confirmed_empty'
+            ? 'missing'
+            : '',
+    },
+    true
+  );
   const [exploring, setExploring] = useState(false);
   const [selected, setSelected] = useState('');
-  const [filter, setFilter] = useState('elegible');
+  const [filter, setFilter] = useState('all');
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
-  const sync = record?.rayenSync?.at || '';
-  const lastSync = useRef({ date, sync });
-  useEffect(() => {
-    if (lastSync.current.date === date && lastSync.current.sync !== sync)
-      void load(date.slice(0, 7) + '-01', date);
-    lastSync.current = { date, sync };
-  }, [date, sync, load]);
-  const rows = data?.rows.filter(row => row.date === date) || [];
+  const rows = data?.rows.filter(row => row.date === date && !row.resolvedSystemDeparture) || [];
   const visible = rows.filter(row => filter === 'all' || row.eligibility === filter);
   const totals = cudyrReportTotals(data?.rows || []);
-  const daily = cudyrReportTotals(rows);
   const asOf = new Date(data?.generatedAt || Date.now());
+  const archiveDays = data ? cudyrArchiveCoverage(data, asOf) : [];
+  const archivePending = archiveDays.filter(day => day.state === 'pending').length;
+  const censusPending = archiveDays.filter(
+    day =>
+      day.state !== 'open' && !cudyrCensusAccepted(data?.coverage.find(d => d.date === day.date))
+  ).length;
   const dayPending = resolveCudyrPendingStatus(date, asOf).phase !== 'overdue';
+  const dayHasEnded = date < getClinicalCalendarDateISO(asOf);
+  const daily = cudyrReportTotals(rows, { includePendingApplication: dayHasEnded });
+  const dailyProvisional =
+    dayHasEnded &&
+    Boolean(
+      dayPending ||
+      !cudyrCensusAccepted(data?.coverage.find(day => day.date === date)) ||
+      archiveDays.find(day => day.date === date)?.state === 'pending' ||
+      daily.review ||
+      data?.issues.length ||
+      data?.coverage.find(day => day.date === date)?.state !== 'disponible'
+    );
   const evaluatedCoverage =
     data?.coverage.filter(day => resolveCudyrPendingStatus(day.date, asOf).phase === 'overdue') ||
     [];
   const lastEvaluated = evaluatedCoverage.at(-1)?.date;
   const dailyPercentage =
-    !dayPending && daily.eligible
+    dayHasEnded && daily.eligible
       ? Math.round((100 * daily.categorized) / daily.eligible) + '%'
       : '—';
   const percentage = totals.eligible
@@ -58,12 +91,18 @@ export const CudyrView = ({
     : '—';
   const partial = Boolean(
     data &&
-    (data.issues.length ||
+    (archivePending ||
+      censusPending ||
+      data.issues.length ||
       evaluatedCoverage.some(day => day.state !== 'disponible') ||
       totals.review)
   );
   const canExport = Boolean(
-    data && !busy && !data.issues.length && !evaluatedCoverage.some(day => day.state === 'error')
+    data &&
+    !busy &&
+    !error &&
+    !data.issues.length &&
+    !evaluatedCoverage.some(day => day.state === 'error')
   );
   const selectedRow = !busy && data?.rows.find(row => row.key === selected && row.date === date);
   const refresh = () => {
@@ -123,7 +162,7 @@ export const CudyrView = ({
         <div className="flex flex-wrap gap-2">
           {canCorrectCudyrDischarge({ role, readOnly }) && (
             <CudyrMonthlyRecovery
-              key={date.slice(0, 7)}
+              key={`${currentUser?.uid}:${date.slice(0, 7)}`}
               month={date.slice(0, 7)}
               compact
               onSaved={refresh}
@@ -151,46 +190,59 @@ export const CudyrView = ({
       </header>
       <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-          <div>
+          <div role="group" aria-label="Cumplimiento del día">
             <p className="text-xs text-slate-500">Cumplimiento del día</p>
             <p className="text-2xl font-semibold tabular-nums text-teal-800">
-              {busy ? '…' : dailyPercentage}
+              {busy && !data ? '…' : dailyPercentage}
             </p>
             <p className="text-xs text-slate-500">
-              {dayPending
-                ? 'Pendiente de aplicación'
-                : `${daily.categorized} / ${daily.eligible} elegibles`}
+              {busy && !data
+                ? 'Cargando…'
+                : !dayHasEnded
+                  ? 'Pendiente de aplicación'
+                  : `${daily.categorized} / ${daily.eligible} elegibles${dailyProvisional ? ' · Provisional' : ''}`}
             </p>
           </div>
           <div className="border-l pl-6">
             <p className="text-xs text-slate-500">Cumplimiento acumulado · {date.slice(0, 7)}</p>
             <p className="text-xl font-semibold tabular-nums text-slate-800">
-              {busy ? '…' : percentage}
+              {busy && !data ? '…' : percentage}
+              {!partial &&
+              data?.coverage.length &&
+              data.coverage.every(d => d.reconstructionApproval) ? (
+                <span className="ml-2 rounded bg-teal-50 px-1.5 py-0.5 align-middle text-[10px] font-medium text-teal-800">
+                  Oficial · reparado
+                </span>
+              ) : null}
+              {partial && (
+                <span
+                  className="ml-2 rounded bg-amber-50 px-1.5 py-0.5 align-middle text-[10px] font-medium text-amber-800"
+                  title="Falta confirmar el censo o completar verificaciones. Consulte el detalle de verificación."
+                >
+                  Provisional
+                </span>
+              )}
             </p>
             <p className="text-xs text-slate-500">
               {lastEvaluated
                 ? `Hasta el ${lastEvaluated.split('-').reverse().join('-')}`
                 : 'Sin días evaluables'}{' '}
-              · {totals.categorized} CUDYR confirmados / {totals.eligible} pacientes-día elegibles
+              · {totals.categorized} CUDYR disponibles / {totals.eligible} pacientes-día elegibles
             </p>
           </div>
           <p className="text-xs text-slate-500">
-            {rows.filter(row => row.eligibility === 'no_elegible').length} excluidos ·{' '}
-            {rows.filter(row => row.eligibility === 'por_revisar').length} por revisar
+            {daily.excluded} {daily.excluded === 1 ? 'excluido' : 'excluidos'}
+            {daily.review > 0 && <> · {daily.review} por revisar</>}
           </p>
         </div>
         {dayPending && (
           <p role="status" className="mt-2 text-xs text-slate-600">
-            Este día no entra al cumplimiento ni al Excel de elegibles. Su ventana de aplicación
-            termina al mediodía siguiente, en horario de Rapa Nui.
+            {dayHasEnded
+              ? 'En plazo hasta las 11:59 de hoy. Aún no se incluye en el acumulado ni en el Excel.'
+              : 'Pendiente de aplicación: cierra a las 11:59 del día siguiente, hora de Rapa Nui.'}
           </p>
         )}
-        {partial && (
-          <p role="status" className="mt-2 text-xs text-amber-800">
-            Acumulado provisional · {totals.review} por revisar; compruebe los días sin censo o las
-            lecturas incompletas en el explorador.
-          </p>
-        )}
+        {data && <CudyrExclusionSummary data={data} />}
       </div>
       {data && (
         <CudyrArchiveStatus
@@ -233,19 +285,49 @@ export const CudyrView = ({
           Explorar reporte estadístico
         </button>
       </div>
-      {busy ? (
+      {busy && !data ? (
         <p role="status" className="rounded-xl bg-white p-8 text-slate-500">
           Leyendo información guardada en HHR…
         </p>
       ) : (
         data && <CudyrDailyTable rows={visible} onReview={setSelected} />
       )}
-      <p className="text-xs leading-relaxed text-slate-500">
-        El CUDYR se registra en Eloísa. Actualizar y descargar solo leen lo guardado en HHR. «Sin
-        CUDYR encontrado» no confirma que no se haya realizado. Los excluidos permanecen aquí y no
-        se incluyen en el Excel sencillo.{' '}
-        {data && <>Última lectura: {cudyrMomentLabel(data.generatedAt)}.</>}
-      </p>
+      <footer className="flex flex-wrap items-start gap-x-5 gap-y-2 text-[11px] text-slate-500">
+        <ul className="flex flex-wrap gap-x-5 gap-y-1">
+          <li className="inline-flex items-center gap-1">
+            <Database size={12} aria-hidden="true" />
+            Registro en Eloísa · consulta en HHR
+          </li>
+          <li className="inline-flex items-center gap-1">
+            <FileSpreadsheet size={12} aria-hidden="true" />
+            Excel: solo elegibles
+          </li>
+          <li className="inline-flex items-center gap-1">
+            <CircleMinus size={12} aria-hidden="true" />
+            Egresos: ver explorador
+          </li>
+        </ul>
+        <details>
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-teal-800 [&::-webkit-details-marker]:hidden">
+            <Info size={13} aria-hidden="true" />
+            Guía breve
+          </summary>
+          <ul className="mt-2 max-w-lg list-disc space-y-1 pl-4">
+            <li>
+              <strong>No registrado:</strong> consulta completa sin CUDYR.
+            </li>
+            <li>
+              <strong>Verificación pendiente:</strong> falta completar la consulta.
+            </li>
+            <li>Las excepciones manuales solo se usan si falta una exclusión automática.</li>
+            <li>
+              CMA y cunas permanecen visibles. Altas, traslados externos y fallecimientos se
+              consultan en el explorador.
+            </li>
+            <li>Actualizar y descargar leen HHR; no inician una sincronización con Eloísa.</li>
+          </ul>
+        </details>
+      </footer>
       {selectedRow && (
         <CudyrExclusionDialog
           key={`${currentUser?.uid}:${role}:${selectedRow.key}:${selectedRow.exclusion?.revision || 0}`}
