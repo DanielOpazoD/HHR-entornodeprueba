@@ -581,11 +581,16 @@ test('reviews a daily exclusion, persists it after reload and omits it from the 
   await dialog.getByRole('checkbox').check();
   await dialog.getByRole('button', { name: 'Guardar revisión' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText('Decisión manual', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Revisar elegibilidad de PACIENTE SINTÉTICO R1' })
+  ).toHaveCount(0);
   // Full navigation reloads the app and explicitly reopens the reviewed day.
   await page.goto('/cudyr?date=' + DATE);
   await ensureAuthenticated(page);
-  await expect(page.getByText('Decisión manual', { exact: true })).toBeVisible({ timeout: 30000 });
+  await page.getByRole('combobox').selectOption('no_elegible');
+  await page.getByRole('button', { name: 'Revisar elegibilidad de PACIENTE SINTÉTICO R1' }).click();
+  await expect(page.getByRole('dialog')).toContainText('Decisión manual');
+  await page.keyboard.press('Escape');
   await screenshot(page, 'cudyr-control-diario');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
@@ -602,5 +607,41 @@ test('reviews a daily exclusion, persists it after reload and omits it from the 
   const detail = book.getWorksheet('Pacientes elegibles')!;
   expect(detail.rowCount).toBe(2);
   expect(detail.getCell('B2').value).toBe('PACIENTE SINTÉTICO NEO1');
+  expect(errors).toEqual([]);
+});
+
+test('fits eighteen eligible patients in a compact desktop table with daily compliance', async ({
+  page,
+}) => {
+  const { errors } = await open(page, 'admin', true);
+  const beds = [
+    'R1',
+    'R2',
+    'R3',
+    'R4',
+    'NEO1',
+    'NEO2',
+    ...Array.from({ length: 6 }, (_, i) => [`H${i + 1}C1`, `H${i + 1}C2`]).flat(),
+  ];
+  const full = buildCanonicalE2ERecord(DATE, {
+    beds: Object.fromEntries(
+      beds.map(id => [id, patient(id, id === 'R1' ? episode : 'synthetic-' + id)])
+    ),
+    discharges: [],
+    transfers: [],
+    cma: [],
+  });
+  await db.doc(hospital + '/dailyRecords/' + DATE).set(full);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('button', { name: 'Actualizar vista' }).click();
+  await expect(page.getByRole('button', { name: /Revisar elegibilidad de/ })).toHaveCount(18);
+  await expect(page.getByText('Cumplimiento del día', { exact: true })).toBeVisible();
+  const bounds = await page.getByRole('table').boundingBox();
+  expect(bounds!.height).toBeLessThan(620);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1000);
+  await screenshot(page, 'cudyr-compacto-18-pacientes');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await screenshot(page, 'cudyr-compacto-movil');
   expect(errors).toEqual([]);
 });

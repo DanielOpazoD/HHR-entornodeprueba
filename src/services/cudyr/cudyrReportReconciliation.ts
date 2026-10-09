@@ -70,8 +70,10 @@ export const cudyrCaptureState = (
 /** Source egreso, its later entry timestamp, epicrisis and verified physical departure are distinct facts. */
 export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => {
   if (row.eligibility === 'no_elegible') return row;
-  if (!row.referenceAt || !Number.isFinite(Date.parse(row.referenceAt))) return row;
-  const reference = calendarStampInClinicalTimeZone(new Date(row.referenceAt));
+  const reference =
+    row.referenceAt && Number.isFinite(Date.parse(row.referenceAt))
+      ? calendarStampInClinicalTimeZone(new Date(row.referenceAt))
+      : null;
   const actual = row.correction?.actualDischarge;
   // HHR transfers are external evacuations/egresos (receivingCenter + evacuationMethod).
   // Internal bed/service changes live in placement intervals, not this movement collection.
@@ -103,6 +105,16 @@ export const reconcileCudyrDischarge = (row: CudyrReportRow): CudyrReportRow => 
   if (!dateValid) return review('Fecha de egreso inválida.');
   const timeValid = /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(departure.time || '');
   const source = actual ? 'Alta real verificada' : 'Egreso del sistema';
+  // The census night excludes all effective departures on/before its calendar day,
+  // even if an evaluation was recorded earlier that day. Later days stay independent.
+  if (departure.date <= row.date)
+    return {
+      ...row,
+      eligibility: 'no_elegible',
+      eligibilityReason: source + ': salida en el día censal o antes.',
+      warnings,
+    };
+  if (!reference) return row;
   if (departure.date === reference.iso && !timeValid)
     return review(source + ': falta hora para resolver el día.');
   if (

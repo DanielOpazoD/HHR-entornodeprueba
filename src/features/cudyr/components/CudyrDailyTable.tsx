@@ -1,6 +1,6 @@
 import type { CudyrReportRow } from '@/types/domain/cudyrReport';
-import { CUDYR_GROUP_LABELS, cudyrMomentLabel } from '@/services/cudyr/cudyrReportPresentation';
-import { cudyrControlStatus, cudyrEligibilityOrigin } from '@/services/cudyr/cudyrDailyControl';
+import { CUDYR_GROUP_LABELS } from '@/services/cudyr/cudyrReportPresentation';
+import { cudyrControlStatus } from '@/services/cudyr/cudyrDailyControl';
 
 export const CudyrDailyTable = ({
   rows,
@@ -9,24 +9,24 @@ export const CudyrDailyTable = ({
   rows: CudyrReportRow[];
   onReview: (key: string) => void;
 }) => (
-  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-    <table className="w-full min-w-[780px] text-left text-sm">
-      <caption className="p-4 text-left text-xs text-slate-500">
-        Resultados de solo lectura · Medias: NEO 1–2 y H1C1–H6C2 · Intermedias: R1–R4 ·
-        Independiente de UPC
+  <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <table className="w-full min-w-[660px] table-fixed text-left text-xs">
+      <caption className="px-3 py-2 text-left text-[11px] text-slate-500">
+        Medias: NEO 1–2 y H1C1–H6C2 · Intermedias: R1–R4 · Seleccione Revisar para ver los
+        antecedentes.
       </caption>
-      <thead className="border-y bg-slate-50 text-xs text-slate-600">
+      <thead className="border-y bg-slate-50 text-[11px] text-slate-500">
         <tr>
           {[
-            'Cama',
-            'Paciente',
-            'P. DEP',
-            'P. RIESGO',
-            'Categoría',
-            'Estado / última consulta',
-            'Revisión',
-          ].map(label => (
-            <th key={label} scope="col" className="px-3 py-3">
+            ['Cama', 'w-20'],
+            ['Paciente', 'w-auto'],
+            ['P. DEP', 'w-14'],
+            ['P. RIESGO', 'w-16'],
+            ['Categoría', 'w-16'],
+            ['Estado', 'w-44'],
+            ['Revisión', 'w-20'],
+          ].map(([label, width]) => (
+            <th key={label} scope="col" className={`px-2 py-2 font-medium ${width}`}>
               {label}
             </th>
           ))}
@@ -34,67 +34,41 @@ export const CudyrDailyTable = ({
       </thead>
       <tbody>
         {rows.map(row => (
-          <tr key={row.key} className="border-b border-slate-100 align-top hover:bg-teal-50/30">
-            <td className="px-3 py-4">
-              <p className="font-semibold">{row.bedName || row.bedId || '—'}</p>
-              <p className="text-xs text-slate-500">{CUDYR_GROUP_LABELS[row.group]}</p>
+          <tr
+            key={row.key}
+            className="h-7 border-b border-slate-100 last:border-0 hover:bg-teal-50/40"
+          >
+            <td className="truncate px-2 py-1 font-medium" title={CUDYR_GROUP_LABELS[row.group]}>
+              {row.bedName || row.bedId || '—'}
             </td>
-            <td className="max-w-64 px-3 py-4">
-              <p className="font-semibold text-slate-900">{row.patientName}</p>
-              <p className="text-xs text-slate-500">{row.rut}</p>
-              <p className="mt-1 text-xs text-slate-600">
-                {row.diagnosis || 'Diagnóstico no informado'}
-              </p>
+            <td
+              className="truncate px-2 py-1 text-slate-900"
+              title={`${row.patientName} · ${row.rut} · ${row.diagnosis}`}
+            >
+              {row.patientName}
             </td>
-            <td className="px-3 py-4 font-semibold text-blue-700">
+            <td className="px-2 py-1 tabular-nums text-blue-700">
               {row.evaluation?.dependencyScore ?? '—'}
             </td>
-            <td className="px-3 py-4 font-semibold text-rose-700">
+            <td className="px-2 py-1 tabular-nums text-rose-700">
               {row.evaluation?.riskScore ?? '—'}
             </td>
-            <td className="px-3 py-4">
-              <span className="rounded-md bg-teal-50 px-2 py-1 font-bold text-teal-900">
-                {row.evaluation?.category || '—'}
-              </span>
-              <p className="mt-2 text-xs text-slate-500">
-                {row.evaluation?.author || 'Autor no informado'}
-              </p>
-              {row.evaluation?.source && (
-                <p className="text-xs text-slate-500">Origen: {row.evaluation.source}</p>
-              )}
-              {row.evaluation?.recordedAt && (
-                <p className="text-xs text-slate-500">
-                  {cudyrMomentLabel(row.evaluation.recordedAt)}
-                </p>
-              )}
+            <td className="px-2 py-1 font-semibold text-teal-800">
+              {row.evaluation?.category || '—'}
             </td>
-            <td className="max-w-64 px-3 py-4">
-              <p
-                className={
-                  row.eligibility === 'no_elegible'
-                    ? 'font-medium text-slate-600'
-                    : 'font-medium text-teal-800'
-                }
-              >
-                {row.eligibility === 'no_elegible'
-                  ? 'Excluido'
-                  : row.eligibility === 'por_revisar'
-                    ? 'Elegibilidad por revisar'
-                    : 'Elegible'}
-              </p>
-              <p className="mt-1 text-xs">{row.eligibilityReason}</p>
-              <p className="mt-1 text-xs text-slate-500">{cudyrEligibilityOrigin(row)}</p>
-              <p className="mt-2 text-xs font-medium">{cudyrControlStatus(row)}</p>
-              {row.lastCaptureAt && (
-                <p className="text-xs text-slate-500">{cudyrMomentLabel(row.lastCaptureAt)}</p>
-              )}
+            <td className="truncate px-2 py-1 text-slate-600" title={row.eligibilityReason}>
+              {row.eligibility === 'no_elegible'
+                ? 'Excluido'
+                : row.eligibility === 'por_revisar'
+                  ? 'Por revisar'
+                  : cudyrControlStatus(row)}
             </td>
-            <td className="px-3 py-4">
+            <td className="px-2 py-1">
               <button
                 type="button"
                 onClick={() => onReview(row.key)}
                 aria-label={`Revisar elegibilidad de ${row.patientName}`}
-                className="rounded-lg border border-teal-200 px-3 py-2 text-xs font-semibold text-teal-800 hover:bg-teal-50"
+                className="rounded px-2 py-0.5 text-xs font-medium text-teal-800 hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700"
               >
                 Revisar
               </button>
@@ -104,7 +78,9 @@ export const CudyrDailyTable = ({
       </tbody>
     </table>
     {!rows.length && (
-      <p className="p-8 text-center text-slate-500">No hay pacientes para este día y filtro.</p>
+      <p className="p-4 text-center text-xs text-slate-500">
+        No hay pacientes para este día y filtro.
+      </p>
     )}
   </div>
 );
