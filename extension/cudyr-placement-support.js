@@ -24,7 +24,7 @@
       placements.push({
         clinicalEpisodeId,
         sourceMappingId: text(mapping.id), sourceBedId: text(bed.id),
-        sourceBedLabel: text(bed.shortName || bed.name),
+        sourceBedLabel: text(bed.name || bed.shortName),
         sourceDepartmentId: text(mapping.hospitalDepartmentId || bed.hospitalDepartmentId),
         sourceDepartmentLabel: text(bed.hospitalDepartmentName),
         sourceVersion: text(mapping.timeStamp),

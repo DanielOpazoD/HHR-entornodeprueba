@@ -68,6 +68,12 @@ export interface ClinicalFillDeps {
   ) => Promise<import('./patientClinicalBundle').RayenPatientClinicalBundle | null>;
   /** One shared capture, resolved before CUDYR enrichment and historical writes. */
   fetchCudyrCategories: () => Promise<RayenCudyrCategoriesResponse>;
+  /** Recover missing bed history during sync, never while displaying/exporting the report. */
+  recoverCudyrPlacements?: (
+    episode: string,
+    rut: string,
+    observedAt: string
+  ) => Promise<import('@/types/domain/cudyrPlacement').CudyrSourcePlacement[]>;
   archiveCudyrCapture?: (
     request: import('@/types/domain/cudyrHistory').ArchiveCudyrHistoryRequest
   ) => Promise<'persisted' | 'queued' | 'failed'>;

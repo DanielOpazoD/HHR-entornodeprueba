@@ -1,3 +1,4 @@
+import { confirmedReportInput } from './reportFixtures';
 import { describe, expect, it } from 'vitest';
 import { buildCudyrRecoveryPlan, cudyrRecoveryGuidance } from '@/services/cudyr/cudyrRecoveryPlan';
 import { buildCudyrReport } from '@/services/cudyr/cudyrReportModel';
@@ -77,7 +78,7 @@ describe('targeted historical recovery worklist', () => {
     expect(buildCudyrRecoveryPlan(data)[0].needs).toEqual(['eligibility']);
   });
   it('preserves manual HHR results and points to their original source', () => {
-    const data = buildCudyrReport(reportInput());
+    const data = buildCudyrReport(confirmedReportInput());
     const plan = buildCudyrRecoveryPlan(data);
     expect(plan[0].needs).toEqual(['metadata']);
     expect(cudyrRecoveryGuidance(plan[0])).toContain('respaldo manual HHR');
@@ -86,7 +87,7 @@ describe('targeted historical recovery worklist', () => {
     expect(buildCudyrRecoveryPlan(data)).toEqual([]);
   });
   it('does not prioritize a missing technical ID when the author and original date are known', () => {
-    const data = buildCudyrReport(reportInput());
+    const data = buildCudyrReport(confirmedReportInput());
     data.rows[0].evaluation = {
       ...data.rows[0].evaluation!,
       source: 'Eloísa · Gestión de Camas',
@@ -120,6 +121,8 @@ describe('targeted historical recovery worklist', () => {
     expect(workbook.getWorksheet('Alcance')!.getCell('B2').value).toContain(
       'No es el reporte para Estadística'
     );
-    await expect(buildCudyrRecoveryWorkbook(data, Array(21).fill(plan[0]))).rejects.toThrow('20 casos');
+    await expect(buildCudyrRecoveryWorkbook(data, Array(21).fill(plan[0]))).rejects.toThrow(
+      '20 casos'
+    );
   });
 });

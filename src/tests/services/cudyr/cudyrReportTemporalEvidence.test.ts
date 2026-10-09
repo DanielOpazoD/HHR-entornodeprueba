@@ -43,10 +43,12 @@ describe('CUDYR independent temporal evidence', () => {
       expect(row).toMatchObject({
         group: 'intermedia',
         modality: 'hospitalizacion',
-        eligibility: 'elegible',
+        eligibility: 'por_revisar',
         cudyrStatus: 'por_revisar',
       });
-      expect(cudyrReportTotals([row])).toMatchObject({ eligible: 1, categorized: 0 });
+      // Bed context belongs to the evaluation; the eight-hour stay belongs to the 01:00 cutoff.
+      // This episode moved to a crib before that cutoff, so the earlier evaluation cannot prove a hospital stay.
+      expect(cudyrReportTotals([row])).toMatchObject({ eligible: 0, categorized: 0, review: 1 });
     }
   });
   it('does not choose between contradictory admission times around the eight-hour cutoff', () => {

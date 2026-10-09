@@ -18,10 +18,11 @@ export interface PatientFlowTimeWindow {
   notAfter?: string;
 }
 
-interface PatientFlowRow {
+export interface PatientFlowRow {
   changedAt: string;
   bedId: string | null;
   sourceBedLabel: string;
+  sourceLocation: string;
 }
 
 interface PatientFlowParseResult {
@@ -67,6 +68,7 @@ const parsePatientFlowRows = (text: string): PatientFlowParseResult => {
         bed: sourceBedLabel,
       }).bedId,
       sourceBedLabel,
+      sourceLocation,
     });
   }
 
@@ -117,7 +119,9 @@ export const latestPatientFlowPlacement = (
       row.bedId ? `bed:${row.bedId}` : `external:${row.sourceBedLabel.trim().toUpperCase()}`
     )
   );
-  return distinctPlacements.size === 1 ? latestRows[0] : null;
+  if (distinctPlacements.size !== 1) return null;
+  const { changedAt, bedId, sourceBedLabel } = latestRows[0];
+  return { changedAt, bedId, sourceBedLabel };
 };
 
 export const latestPatientFlowMovement = (
@@ -149,4 +153,11 @@ export const patientRunFromFlowReport = (text: string): string => {
       .filter(Boolean)
   );
   return runs.size === 1 ? [...runs][0] : '';
+};
+
+/** Complete movement rows, including excluded/unknown locations: never bridge across them. */
+export const parsePatientFlowTimeline = (text: string): PatientFlowRow[] => {
+  const parsed = parsePatientFlowRows(text);
+  if (parsed.hasMalformedMovementRow) return [];
+  return parsed.rows;
 };

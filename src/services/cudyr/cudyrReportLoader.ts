@@ -1,3 +1,13 @@
+import { applyCudyrFirstNightRecovery } from './cudyrFirstNightRecovery';
+import { applyCudyrCensusContinuity } from './cudyrCensusContinuity';
+import { loadCudyrVerifiedContexts } from './cudyrVerifiedContextService';
+import { applyCudyrVerifiedContexts } from './cudyrVerifiedContext';
+import { applyCudyrMonthlyAbsenceLinks } from './cudyrMonthlyAbsenceLinks';
+import { loadCudyrCensusSources } from './cudyrCensusSourceService';
+import { applyCudyrCensusEvidence } from './cudyrCensusSource';
+import { loadCudyrSupplements } from './cudyrSupplementService';
+import { applyCudyrMonthlySources } from './cudyrMonthlyProjection';
+import { getNextDay } from '@/utils/clinicalDayUtils';
 import { readCudyrExclusions } from './cudyrExclusionService';
 import { getRecordFromFirestoreDetailed } from '@/services/storage/firestore';
 import {
@@ -42,6 +52,9 @@ export interface CudyrReportLoaderPorts {
   readAudit: typeof readCudyrDischargeAudit;
   readPending: typeof readPendingCudyrEpisodes;
   readExclusions?: typeof readCudyrExclusions;
+  readSupplements?: typeof loadCudyrSupplements;
+  readVerifiedContexts?: typeof loadCudyrVerifiedContexts;
+  readCensusSources?: typeof loadCudyrCensusSources;
 }
 export const cudyrReportLoaderPorts: CudyrReportLoaderPorts = {
   readRecord: getRecordFromFirestoreDetailed,
@@ -52,6 +65,9 @@ export const cudyrReportLoaderPorts: CudyrReportLoaderPorts = {
   readAudit: readCudyrDischargeAudit,
   readPending: readPendingCudyrEpisodes,
   readExclusions: readCudyrExclusions,
+  readSupplements: loadCudyrSupplements,
+  readCensusSources: loadCudyrCensusSources,
+  readVerifiedContexts: loadCudyrVerifiedContexts,
 };
 
 /** Only HHR persisted data is read. No extension, Eloísa request or write is available to this loader. */
@@ -75,6 +91,7 @@ export const loadCudyrReport = async (
     to,
     generatedAt: new Date().toISOString(),
     records,
+    sourcePolicy: 'eloisa_only',
     observations: [],
     captures: [],
     corrections: [],
@@ -100,6 +117,9 @@ export const loadCudyrReport = async (
         state: result.status === 'failed' ? 'error' : result.record ? 'disponible' : 'sin_censo',
         lastSyncedAt: result.record?.rayenSync?.at || '',
         runId: result.record?.rayenSync?.runId || '',
+        recordVersion: result.record
+          ? `present:${result.record.lastUpdated || ''}:${result.record.rayenSync?.at || ''}:${result.record.cudyrUpdatedAt || ''}`
+          : 'missing',
       });
     }
   }
@@ -209,6 +229,55 @@ export const loadCudyrReport = async (
       });
   }
   check();
+  let supplements: Awaited<ReturnType<typeof loadCudyrSupplements>> = [];
+  if (ports.readSupplements)
+    await collect('Informes mensuales Eloísa', async () => {
+      supplements = await ports.readSupplements!(
+        from,
+        getNextDay(to),
+        signal || new AbortController().signal
+      );
+    });
+  check();
+  let censusSources: Awaited<ReturnType<typeof loadCudyrCensusSources>> = [];
+  if (ports.readCensusSources)
+    await collect('Censo histórico Eloísa', async () => {
+      censusSources = await ports.readCensusSources!(
+        from,
+        getNextDay(to),
+        signal || new AbortController().signal
+      );
+    });
+  check();
+  let reviews: Awaited<ReturnType<typeof loadCudyrVerifiedContexts>> = [];
+  if (ports.readVerifiedContexts)
+    await collect('Conciliaciones documentales', async () => {
+      reviews = await ports.readVerifiedContexts!(from, to, signal || new AbortController().signal);
+    });
+  check();
   input.generatedAt = new Date().toISOString();
-  return buildCudyrReport(input);
+  const dataset = applyCudyrCensusEvidence(
+    applyCudyrMonthlyAbsenceLinks(
+      applyCudyrVerifiedContexts(
+        applyCudyrFirstNightRecovery(
+          applyCudyrMonthlySources(
+            applyCudyrCensusContinuity(
+              buildCudyrReport(input),
+              new Set(
+                reviews.flatMap(review => review.reconstructedDays?.map(day => day.date) || [])
+              )
+            ),
+            supplements
+          ),
+          supplements.map(source => source.report)
+        ),
+        supplements,
+        reviews
+      ),
+      supplements
+    ),
+    censusSources
+  );
+  check();
+  return dataset;
 };

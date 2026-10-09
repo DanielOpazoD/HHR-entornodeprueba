@@ -9,6 +9,12 @@ import {
 } from '@/domain/evaluationScales/importedCudyr';
 
 describe('buildImportedCudyr', () => {
+  it.each(['00:05', '03:00', '11:59'])(
+    'assigns an application at %s to the same preceding night',
+    time => {
+      expect(resolveCudyrOwningCensusDay(`2026-10-03T${time}:00-05:00`)).toBe('2026-10-02');
+    }
+  );
   it('imports the composite category when categorized on the census day (Rapa Nui)', () => {
     // Carina's real data: crdValue D3, crdDateTime 2026-07-10T23:12:04Z → 17:12 Rapa Nui = 2026-07-10.
     const result = buildImportedCudyr(

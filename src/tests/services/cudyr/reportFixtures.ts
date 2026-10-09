@@ -135,3 +135,48 @@ export const reportInput = (patch: Partial<CudyrReportInput> = {}): CudyrReportI
   })),
   ...patch,
 });
+
+/** Eligibility-focused tests explicitly include independent, confirmed source bed intervals. */
+export const confirmedReportInput = (patch: Partial<CudyrReportInput> = {}): CudyrReportInput => {
+  const input = reportInput(patch);
+  const evidence = new Map<string, CudyrCaptureReceipt>();
+  for (const record of input.records)
+    for (const patient of Object.values(record.beds)) {
+      const episode = patient.clinicalEpisodeId;
+      if (
+        !episode ||
+        evidence.has(episode) ||
+        !patient.admissionDate ||
+        !patient.admissionTime ||
+        input.captures.some(receipt =>
+          receipt.capture.sourcePlacements?.some(p => p.clinicalEpisodeId === episode)
+        )
+      )
+        continue;
+      const receipt = reportCapture({
+        id: 'admission-' + episode,
+        censusDate: patient.admissionDate,
+        observationIds: [],
+        captureContexts: [],
+      });
+      receipt.capture = {
+        ...receipt.capture,
+        id: receipt.id,
+        clinicalEpisodeId: episode,
+        observedAt: input.generatedAt,
+        sourcePlacements: [
+          reportPlacement({
+            clinicalEpisodeId: episode,
+            sourceMappingId: 'admission-' + episode,
+            bedId: patient.bedId,
+            sourceBedLabel: patient.bedId,
+            sourceDepartmentLabel: patient.location || 'Médico quirúrgico',
+            modality: patient.bedMode === 'Cuna' ? 'cuna' : 'hospitalizacion',
+            sourceStartAt: patient.admissionDate + 'T' + patient.admissionTime + ':00-05:00',
+          }),
+        ],
+      };
+      evidence.set(episode, receipt);
+    }
+  return { ...input, captures: [...input.captures, ...evidence.values()] };
+};

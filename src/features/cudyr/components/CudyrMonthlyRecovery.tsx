@@ -83,8 +83,8 @@ export const CudyrMonthlyRecovery = ({
         {period.next}. Reutiliza los respaldos confirmados en Firebase.
       </p>
       <p className="mt-2 text-amber-800">
-        Este paso conserva las fuentes originales. Autor y hora se conservan cuando existen. La
-        conciliación de pacientes y el cierre oficial del mes se comprueban por separado.
+        Concilia pacientes y turnos con los datos guardados. Autor y hora se conservan cuando
+        existen. La aprobación oficial del mes se realiza por separado.
       </p>
       <button
         type="button"
@@ -132,14 +132,67 @@ export const CudyrMonthlyRecovery = ({
       {result && (
         <p className="mt-2 text-slate-600">
           {result.recovered} informes guardados · {result.reused} reutilizados ·{' '}
-          {result.failures.length} consultas pendientes. Respaldos guardados; la elegibilidad se
-          conserva.
+          {result.failures.length} consultas pendientes. Resultados y elegibilidad se informan por
+          separado.
         </p>
       )}
       {error && (
         <p role="alert" className="mt-2 text-red-800">
           {error}
         </p>
+      )}
+      {result?.verificationError && (
+        <p role="status" className="text-amber-800">
+          {result.verificationError}
+        </p>
+      )}
+      {result?.verificationResult && (
+        <div className="mt-3 space-y-2">
+          <p>
+            Informes CUDYR verificados: {result.reports.length}/2 · Censos HHR disponibles:{' '}
+            {result.verificationResult.daysAvailable}/{result.verificationResult.expectedDays}.
+            Censos cotejados con Eloísa: {result.verificationResult.censusVerified}/
+            {result.verificationResult.expectedDays}.
+          </p>
+          <p>
+            {result.verificationResult.checks.filter(c => c.state === 'found').length} categorías en
+            fuente · {result.verificationResult.checks.filter(c => c.state === 'empty').length}{' '}
+            celdas consultadas sin categoría · {result.verificationResult.unresolved} casos por
+            cotejar.
+          </p>
+          {result.verificationResult.censusIncomplete && (
+            <p className="text-amber-800">
+              Faltan censos o hubo lecturas incompletas. No se acredita el universo del mes.
+            </p>
+          )}
+          <details>
+            <summary className="cursor-pointer text-teal-800">
+              Ver comprobaciones del informe
+            </summary>
+            <div className="mt-2 max-h-80 overflow-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr>
+                    <th>Fecha Eloísa</th>
+                    <th>Paciente</th>
+                    <th>Categoría</th>
+                    <th>Comprobación</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.verificationResult.checks.map(c => (
+                    <tr key={c.key} className="border-t">
+                      <td className="p-1 whitespace-nowrap">{c.date}</td>
+                      <td className="p-1">{c.patientName}</td>
+                      <td className="p-1">{c.result}</td>
+                      <td className="p-1">{c.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
       )}
     </>
   );
