@@ -235,7 +235,13 @@ describe('collaborative medical handoff template', () => {
     });
     expect(sheet.validations.get('2:5')?.options).toEqual(SPECIALTY_OPTIONS);
     expect(sheet.value(5, 1)).toContain('evaluación y validación');
-    expect(sheet.value(6, 1)).toContain('Notas compartidas');
+    expect(sheet.value(6, 1)).toContain('Nuevos ingresos');
+    expect(sheet.value(7, 1)).toBe('Cama');
+    expect(sheet.value(7, 2)).toBe('Paciente');
+    expect(sheet.value(7, 3)).toBe('Fecha de ingreso');
+    expect(sheet.value(7, 4)).toBe('Diagnóstico');
+    expect(sheet.value(7, 7)).toBe('Entrega de turno');
+    expect(sheet.value(14, 1)).toContain('Notas compartidas');
     expect(sheet.filter?.rowCount).toBe(2);
   });
 
@@ -245,7 +251,10 @@ describe('collaborative medical handoff template', () => {
 
     for (const column of [5, 7, 8, 9]) expect(sheet.isProtected(2, column)).toBe(false);
     for (const column of [1, 2, 3, 4, 6, 10]) expect(sheet.isProtected(2, column)).toBe(true);
-    for (const column of [1, 4, 5, 8, 9]) expect(sheet.isProtected(7, column)).toBe(false);
+    for (const column of [1, 2, 3, 4, 7]) expect(sheet.isProtected(8, column)).toBe(false);
+    for (const column of [1, 4, 5, 8, 9]) expect(sheet.isProtected(15, column)).toBe(false);
+    expect(sheet.isProtected(7, 1)).toBe(true);
+    expect(sheet.isProtected(14, 1)).toBe(true);
     expect(sheet.isProtected(5, 1)).toBe(true);
   });
 
@@ -256,7 +265,7 @@ describe('collaborative medical handoff template', () => {
     sheet.getRange(2, 7).setValue('Entrega escrita por el equipo');
     sheet.getRange(2, 8).setValue('Observación añadida manualmente');
     sheet.getRange(2, 9).setValue('Especialista');
-    sheet.getRange(7, 1).setValue('Acuerdo del equipo que debe conservarse');
+    sheet.getRange(15, 1).setValue('Acuerdo del equipo que debe conservarse');
     sheet.operations = [];
 
     refresh(sheet, [{ ...incoming(), diagnosis: 'Diagnóstico actualizado', specialty: 'Cirugía' }]);
@@ -266,25 +275,67 @@ describe('collaborative medical handoff template', () => {
     expect(sheet.value(2, 7)).toBe('Entrega escrita por el equipo');
     expect(sheet.value(2, 8)).toBe('Observación añadida manualmente');
     expect(sheet.value(2, 9)).toBe('Especialista');
-    expect(sheet.value(7, 1)).toBe('Acuerdo del equipo que debe conservarse');
+    expect(sheet.value(15, 1)).toBe('Acuerdo del equipo que debe conservarse');
     expect(sheet.operations.some(p => p.row === 2 && p.column >= 5 && p.column <= 9)).toBe(false);
   });
 
   it('moves the shared notes below additional patients without making them census rows or duplicating the footer', () => {
     const sheet = new SheetDouble();
     refresh(sheet);
-    sheet.getRange(7, 1).setValue('Información nueva del equipo');
+    sheet
+      .getRange(8, 1, 1, 4)
+      .setValues([
+        ['H1C1', 'Ingreso escrito por el equipo', '10/10/2026 02:00', 'Diagnóstico nuevo'],
+      ]);
+    sheet.getRange(8, 7).setValue('Pendientes del nuevo ingreso');
+    sheet.getRange(15, 1).setValue('Información nueva del equipo');
 
     refresh(sheet, [incoming(), { ...incoming('two'), bed: 'R2' }]);
     refresh(sheet, [incoming(), { ...incoming('two'), bed: 'R2' }]);
 
-    expect(sheet.insertions).toEqual([[5, 1]]);
+    expect(sheet.insertions).toEqual([
+      [6, 8],
+      [5, 1],
+    ]);
     expect(sheet.value(3, 2)).toBe('Paciente de prueba (40a)');
     expect(sheet.value(6, 10)).toBe('__hhr_shared_notes__');
-    expect(sheet.value(8, 1)).toBe('Información nueva del equipo');
+    expect(sheet.value(9, 1)).toBe('H1C1');
+    expect(sheet.value(9, 2)).toBe('Ingreso escrito por el equipo');
+    expect(sheet.value(9, 3)).toBe('10/10/2026 02:00');
+    expect(sheet.value(9, 4)).toBe('Diagnóstico nuevo');
+    expect(sheet.value(9, 7)).toBe('Pendientes del nuevo ingreso');
+    expect(sheet.value(16, 1)).toBe('Información nueva del equipo');
     expect(sheet.cells.filter(row => row[9] === '__hhr_shared_notes__')).toHaveLength(1);
+    expect(sheet.cells.filter(row => row[9] === '__hhr_new_admissions__')).toHaveLength(1);
     expect(sheet.filter?.rowCount).toBe(3);
-    expect(sheet.isProtected(8, 1)).toBe(false);
+    expect(sheet.isProtected(9, 1)).toBe(false);
+    expect(sheet.isProtected(16, 1)).toBe(false);
+  });
+
+  it('inserts the new admissions table without losing notes from the published template', () => {
+    const sheet = new SheetDouble();
+    const runtime = loadRuntime();
+    runtime.configureHhrSheet_(sheet, runtime.upsertHhrRows_(sheet, [incoming()]));
+    // Simulate the published layout, which only had a legend and shared notes.
+    sheet.cells.splice(5, 8);
+    sheet.getRange(2, 7).setValue('Entrega ya escrita en la planilla del día');
+    sheet.getRange(2, 8).setValue('Observaciones ya escritas antes del nuevo formato');
+    sheet.getRange(2, 9).setValue('EDF');
+    sheet.getRange(7, 1).setValue('Nota existente antes de agregar nuevos ingresos');
+    sheet.getRange(18, 1).setValue('Última línea de notas existentes');
+    sheet.insertions = [];
+
+    refresh(sheet);
+    refresh(sheet);
+
+    expect(sheet.insertions).toEqual([[6, 8]]);
+    expect(sheet.value(2, 7)).toBe('Entrega ya escrita en la planilla del día');
+    expect(sheet.value(2, 8)).toBe('Observaciones ya escritas antes del nuevo formato');
+    expect(sheet.value(2, 9)).toBe('EDF');
+    expect(sheet.value(15, 1)).toBe('Nota existente antes de agregar nuevos ingresos');
+    expect(sheet.value(26, 1)).toBe('Última línea de notas existentes');
+    expect(sheet.cells.filter(row => row[9] === '__hhr_new_admissions__')).toHaveLength(1);
+    expect(sheet.filter?.rowCount).toBe(2);
   });
 
   it('migrates the previous layout without losing historical indications or handoff notes', () => {

@@ -32,10 +32,14 @@ Los editores pueden seleccionar cualquiera de las ocho especialidades de HHR: **
 médicas** son editables. La elección **EDF / Especialista** identifica quién se hace cargo de la
 evaluación y validación de las indicaciones; no confirma que esa evaluación ya se haya realizado.
 
-Debajo de la tabla aparece esa explicación y un espacio de **Notas compartidas** con doce líneas
-libres. Quienes ya tienen permiso de edición pueden agregar información allí. HHR conserva las
-notas al actualizar y desplaza el espacio hacia abajo cuando incorpora más pacientes. El filtro
-incluye únicamente la tabla de pacientes. No se amplían los permisos de acceso.
+Debajo de la tabla aparece esa explicación y una tabla pequeña de **Nuevos ingresos** con cinco
+filas editables y las columnas **Cama**, **Paciente**, **Fecha de ingreso**, **Diagnóstico** y
+**Entrega de turno**. Después aparece **Notas compartidas**, con doce líneas libres. Quienes ya
+tienen permiso de edición pueden escribir en ambas secciones. Los nuevos ingresos escritos en
+la planilla no se incorporan automáticamente al censo de HHR. Al actualizar, se conservan los
+ingresos manuales y las notas; ambas secciones se desplazan juntas hacia abajo si crece la tabla
+sincronizada. La migración de planillas anteriores inserta la tabla nueva sin borrar sus notas.
+El filtro incluye únicamente la tabla sincronizada. No se amplían los permisos de acceso.
 
 HHR no exporta RUT. Un identificador técnico estable queda oculto para reutilizar filas sin borrar
 lo escrito por los médicos.
@@ -106,7 +110,7 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
 3. Confirmar que el archivo quedó en la carpeta indicada por `HHR_HANDOFF_FOLDER_ID`; si esa
    configuración está ausente, verificar la carpeta privada `Entrega de turno médicos` creada
    automáticamente.
-4. Escribir texto de prueba en **Entrega de turno**, **Observaciones** y **Notas compartidas**.
+4. Escribir texto de prueba en **Entrega de turno**, **Observaciones**, **Nuevos ingresos** y **Notas compartidas**.
    Seleccionar **EDF** o **Especialista** en **Indicaciones médicas** y una **Especialidad**.
    Corregir temporalmente **Médico tratante** desde la cuenta propietaria.
 5. Volver a pulsar **Abrir planilla** y confirmar que:
@@ -114,7 +118,7 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
    - los datos censales se actualizan;
    - la especialidad, el médico tratante y la selección EDF / Especialista se conservan;
    - ninguno de los textos de prueba se borra;
-   - al agregar pacientes, las notas compartidas quedan debajo de la tabla;
+   - al agregar pacientes, los nuevos ingresos manuales y las notas quedan debajo de la tabla;
    - cualquier columna oficial faltante se recrea y no quedan columnas ajenas al formato;
    - columnas A–D, F y el identificador oculto J no son editables para un especialista;
    - columnas E, G, H e I y las notas compartidas sí son editables;

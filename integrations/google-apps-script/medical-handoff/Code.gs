@@ -20,6 +20,8 @@ const HHR_HANDOFF_ERROR_CODES = {
 const HHR_HANDOFF_HASHED_EPISODE_KEY_PATTERN = /^episode-h1:[a-f0-9]{96}$/;
 const HHR_HANDOFF_NOTES_KEY = '__hhr_shared_notes__';
 const HHR_HANDOFF_NOTES_ROWS = 12;
+const HHR_HANDOFF_ADMISSIONS_KEY = '__hhr_new_admissions__';
+const HHR_HANDOFF_ADMISSIONS_ROWS = 5;
 const HHR_HANDOFF_SPECIALTIES = [
   'Med Interna',
   'Cirugía',
@@ -689,7 +691,12 @@ function configureHhrSheet_(sheet, dataLastRow) {
   protectHhrRange_(sheet.getRange(2, 1, lastRow - 1, 4), 'HHR_DATOS_CENSO');
   protectHhrRange_(sheet.getRange(2, 6, lastRow - 1, 1), 'HHR_MEDICO_TRATANTE');
   protectHhrRange_(sheet.getRange(2, 10, sheet.getMaxRows() - 1, 1), 'HHR_IDENTIFICADOR');
-  protectHhrRange_(sheet.getRange(notesRow, 1, 2, 9), 'HHR_NOTAS_CABECERA');
+  protectHhrRange_(sheet.getRange(notesRow, 1, 1, 9), 'HHR_LEYENDA');
+  protectHhrRange_(sheet.getRange(notesRow + 1, 1, 2, 9), 'HHR_INGRESOS_CABECERA');
+  protectHhrRange_(
+    sheet.getRange(notesRow + HHR_HANDOFF_ADMISSIONS_ROWS + 4, 1, 1, 9),
+    'HHR_NOTAS_CABECERA'
+  );
 }
 
 function configureHhrDropdown_(range, options) {
@@ -736,12 +743,47 @@ function configureHhrSharedNotes_(sheet, dataLastRow) {
     .setFontColor('#475569')
     .setWrap(true);
   sheet.setRowHeight(notesRow, 36);
+  configureHhrNewAdmissions_(sheet, notesRow);
   sheet
-    .getRange(notesRow + 1, 1)
+    .getRange(notesRow + HHR_HANDOFF_ADMISSIONS_ROWS + 4, 1)
     .setValue('Notas compartidas · espacio libre para el equipo')
     .setFontWeight('bold')
     .setBackground('#f1f5f9');
   return notesRow;
+}
+
+function configureHhrNewAdmissions_(sheet, notesRow) {
+  const admissionsRow = notesRow + 1;
+  // Insert above existing notes: never replace text written in the earlier template.
+  if (sheet.getRange(admissionsRow, 10).getValues()[0][0] !== HHR_HANDOFF_ADMISSIONS_KEY) {
+    sheet.insertRowsBefore(admissionsRow, HHR_HANDOFF_ADMISSIONS_ROWS + 3);
+    sheet.getRange(admissionsRow, 10).setValue(HHR_HANDOFF_ADMISSIONS_KEY);
+    sheet.getRange(admissionsRow, 1, 1, 9).merge();
+    for (let offset = 1; offset <= HHR_HANDOFF_ADMISSIONS_ROWS + 1; offset += 1) {
+      sheet.getRange(admissionsRow + offset, 4, 1, 3).merge();
+      sheet.getRange(admissionsRow + offset, 7, 1, 3).merge();
+    }
+    sheet
+      .getRange(admissionsRow + 2, 1, HHR_HANDOFF_ADMISSIONS_ROWS, 9)
+      .setBackground('#ffffff')
+      .setWrap(true)
+      .setVerticalAlignment('top');
+    sheet.setRowHeights(admissionsRow + 2, HHR_HANDOFF_ADMISSIONS_ROWS, 30);
+  }
+  sheet
+    .getRange(admissionsRow, 1)
+    .setValue('Nuevos ingresos · registro del equipo')
+    .setFontWeight('bold')
+    .setBackground('#f1f5f9');
+  sheet
+    .getRange(admissionsRow + 1, 1, 1, 9)
+    .setValues([
+      ['Cama', 'Paciente', 'Fecha de ingreso', 'Diagnóstico', '', '', 'Entrega de turno', '', ''],
+    ])
+    .setFontWeight('bold')
+    .setBackground('#eefaf5')
+    .setWrap(true);
+  sheet.setRowHeight(admissionsRow + 1, 36);
 }
 
 function applyHhrColumnWidths_(sheet) {
