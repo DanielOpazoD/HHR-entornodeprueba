@@ -23,7 +23,9 @@ class SheetDouble {
   cells: unknown[][] = Array.from({ length: 120 }, () => Array(10).fill(''));
   operations: Operation[] = [];
   validations = new Map<string, ValidationRule>();
-  protections: Array<Operation & { description: string }> = [];
+  protections: Array<
+    Operation & { description: string; type: string; editors: string[]; unprotected: Operation[] }
+  > = [];
   filter: { rowCount: number; remove: () => void } | null = null;
   insertions: Array<[number, number]> = [];
 
@@ -69,13 +71,15 @@ class SheetDouble {
     this.cells.splice(row, 0, ...Array.from({ length: count }, () => Array(10).fill('')));
   }
 
-  getProtections() {
-    return this.protections.map(item => ({
-      getDescription: () => item.description,
-      remove: () => {
-        this.protections = this.protections.filter(p => p !== item);
-      },
-    }));
+  getProtections(type = 'RANGE') {
+    return this.protections
+      .filter(p => p.type === type)
+      .map(item => ({
+        getDescription: () => item.description,
+        remove: () => {
+          this.protections = this.protections.filter(p => p !== item);
+        },
+      }));
   }
 
   getRange(rowOrA1: number | string, column = 1, rows = 1, columns = 1) {
@@ -88,6 +92,7 @@ class SheetDouble {
     } else row = rowOrA1;
     const operation = (kind: string) => ({ kind, row, column, rows, columns });
     const range = {
+      bounds: operation('range'),
       getValues: () =>
         Array.from({ length: rows }, (_, r) =>
           Array.from({ length: columns }, (_, c) => this.cells[row + r - 1][column + c - 1])
@@ -134,33 +139,73 @@ class SheetDouble {
           },
         };
       },
-      protect: () => ({
-        setDescription: (description: string) => {
-          this.protections.push({ ...operation('protect'), description });
-          return {
-            getEditors: () => [],
-            removeEditors: () => {},
-            canDomainEdit: () => false,
-            setDomainEdit: () => {},
-          };
-        },
-      }),
+      protect: () => this.makeProtection(operation('protect'), 'RANGE'),
     };
     return range;
   }
 
+  protect() {
+    return this.makeProtection(
+      { kind: 'protect', row: 1, column: 1, rows: this.getMaxRows(), columns: 10 },
+      'SHEET'
+    );
+  }
+  makeProtection(operation: Operation, type: string) {
+    const item = {
+      ...operation,
+      type,
+      description: '',
+      editors: [] as string[],
+      unprotected: [] as Operation[],
+    };
+    this.protections.push(item);
+    const protection = {
+      setDescription: (description: string) => {
+        item.description = description;
+        return protection;
+      },
+      setWarningOnly: (warning: boolean) => {
+        if (warning) throw new Error('Warning is not a restriction');
+        return protection;
+      },
+      addEditor: (email: string) => {
+        item.editors.push(email);
+        return protection;
+      },
+      addEditors: (emails: string[]) => {
+        item.editors.push(...emails);
+        return protection;
+      },
+      getEditors: () => item.editors,
+      removeEditors: () => {
+        item.editors = [];
+        return protection;
+      },
+      canDomainEdit: () => true,
+      setDomainEdit: (enabled: boolean) => {
+        if (enabled) throw new Error('Domain access must stay disabled');
+        return protection;
+      },
+      setUnprotectedRanges: (ranges: Array<{ bounds: Operation }>) => {
+        item.unprotected = ranges.map(r => r.bounds);
+        return protection;
+      },
+    };
+    return protection;
+  }
   value(row: number, column: number) {
     return this.cells[row - 1][column - 1];
   }
-  isProtected(row: number, column: number) {
+  isProtected(row: number, column: number, email = 'general@example.org') {
+    const contains = (p: Operation) =>
+      row >= p.row && row < p.row + p.rows && column >= p.column && column < p.column + p.columns;
     return this.protections.some(
-      p =>
-        row >= p.row && row < p.row + p.rows && column >= p.column && column < p.column + p.columns
+      p => contains(p) && !p.editors.includes(email) && !p.unprotected.some(contains)
     );
   }
 }
 
-const loadRuntime = () => {
+const loadRuntime = (specialists = 'specialist@example.org') => {
   const source = readFileSync(
     path.join(process.cwd(), 'integrations/google-apps-script/medical-handoff/Code.gs'),
     'utf8'
@@ -174,8 +219,10 @@ const loadRuntime = () => {
           byte > 127 ? byte - 256 : byte
         ),
     },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: () => specialists }) },
+    Session: { getEffectiveUser: () => 'owner@example.org' },
     SpreadsheetApp: {
-      ProtectionType: { RANGE: 'RANGE' },
+      ProtectionType: { SHEET: 'SHEET', RANGE: 'RANGE' },
       newDataValidation: () => {
         const rule: ValidationRule = { options: [], dropdown: false, allowInvalid: false };
         const builder = {
@@ -245,17 +292,31 @@ describe('collaborative medical handoff template', () => {
     expect(sheet.filter?.rowCount).toBe(2);
   });
 
-  it('allows editors to select specialties and write observations and shared notes while protecting census fields', () => {
+  it('allows specialists to edit every main field and general physicians only shared admissions and notes', () => {
     const sheet = new SheetDouble();
     refresh(sheet);
 
-    for (const column of [5, 7, 8, 9]) expect(sheet.isProtected(2, column)).toBe(false);
-    for (const column of [1, 2, 3, 4, 6, 10]) expect(sheet.isProtected(2, column)).toBe(true);
+    for (let column = 1; column <= 9; column += 1) {
+      expect(sheet.isProtected(2, column)).toBe(true);
+      expect(sheet.isProtected(2, column, 'specialist@example.org')).toBe(false);
+    }
+    expect(sheet.isProtected(2, 10, 'specialist@example.org')).toBe(true);
     for (const column of [1, 2, 3, 4, 7]) expect(sheet.isProtected(8, column)).toBe(false);
     for (const column of [1, 4, 5, 8, 9]) expect(sheet.isProtected(15, column)).toBe(false);
     expect(sheet.isProtected(7, 1)).toBe(true);
     expect(sheet.isProtected(14, 1)).toBe(true);
     expect(sheet.isProtected(5, 1)).toBe(true);
+  });
+
+  it('fails closed when no specialist roster is configured and replaces protections without duplication', () => {
+    const sheet = new SheetDouble();
+    refresh(sheet);
+    const runtime = loadRuntime('');
+    runtime.configureHhrSheet_(sheet, 2);
+    expect(sheet.isProtected(2, 7, 'specialist@example.org')).toBe(true);
+    expect(sheet.isProtected(8, 7)).toBe(false);
+    expect(sheet.isProtected(15, 1)).toBe(false);
+    expect(sheet.protections.filter(p => p.type === 'SHEET')).toHaveLength(1);
   });
 
   it('preserves manual specialty, responsibility, observations, handoff and shared notes across repeated exports', () => {

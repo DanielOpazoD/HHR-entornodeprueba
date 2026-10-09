@@ -5,6 +5,7 @@
  * - HHR_HANDOFF_SHARED_SECRET (required)
  * - HHR_HANDOFF_FOLDER_ID (optional; resolved automatically when absent)
  * - HHR_HANDOFF_EDITOR_EMAILS (optional comma-separated users or Google Groups)
+ * - HHR_HANDOFF_SPECIALIST_EMAILS (frozen specialist roster, independent of Drive roles)
  */
 
 const HHR_HANDOFF_PROPERTY_PREFIX = 'HHR_MEDICAL_HANDOFF_';
@@ -681,6 +682,7 @@ function configureHhrSheet_(sheet, dataLastRow) {
 
   sheet
     .getProtections(SpreadsheetApp.ProtectionType.RANGE)
+    .concat(sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET))
     .filter(function (protection) {
       return String(protection.getDescription() || '').indexOf('HHR_') === 0;
     })
@@ -688,8 +690,6 @@ function configureHhrSheet_(sheet, dataLastRow) {
       protection.remove();
     });
   protectHhrRange_(sheet.getRange(1, 1, 1, 10), 'HHR_CABECERA');
-  protectHhrRange_(sheet.getRange(2, 1, lastRow - 1, 4), 'HHR_DATOS_CENSO');
-  protectHhrRange_(sheet.getRange(2, 6, lastRow - 1, 1), 'HHR_MEDICO_TRATANTE');
   protectHhrRange_(sheet.getRange(2, 10, sheet.getMaxRows() - 1, 1), 'HHR_IDENTIFICADOR');
   protectHhrRange_(sheet.getRange(notesRow, 1, 1, 9), 'HHR_LEYENDA');
   protectHhrRange_(sheet.getRange(notesRow + 1, 1, 2, 9), 'HHR_INGRESOS_CABECERA');
@@ -697,6 +697,48 @@ function configureHhrSheet_(sheet, dataLastRow) {
     sheet.getRange(notesRow + HHR_HANDOFF_ADMISSIONS_ROWS + 4, 1, 1, 9),
     'HHR_NOTAS_CABECERA'
   );
+  const specialists = getHhrSpecialistEmails_();
+  const protection = sheet.protect().setDescription('HHR_TABLA_ESPECIALISTAS');
+  restrictHhrProtection_(protection, specialists);
+  const notesStart = notesRow + HHR_HANDOFF_ADMISSIONS_ROWS + 5;
+  protection.setUnprotectedRanges([
+    sheet.getRange(notesRow + 3, 1, HHR_HANDOFF_ADMISSIONS_ROWS, 9),
+    sheet.getRange(notesStart, 1, sheet.getMaxRows() - notesStart + 1, 9),
+  ]);
+}
+
+function getHhrSpecialistEmails_() {
+  // Never infer specialists from current file editors: general physicians also
+  // have file-level editing rights so they can use the two shared sections.
+  const raw = PropertiesService.getScriptProperties().getProperty('HHR_HANDOFF_SPECIALIST_EMAILS');
+  return Array.from(new Set(String(raw || '').split(',').map(function (email) {
+    return email.trim().toLowerCase();
+  }).filter(function (email) {
+    return /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(email);
+  })));
+}
+
+/** Owner-run migration: applies the template to existing handoffs, without a new census export. */
+function applyHhrMedicalTeamPermissions() {
+  if (getHhrSpecialistEmails_().length === 0) throw new Error('Configura la lista de especialistas primero.');
+  const lock = acquireHhrScriptLock_();
+  let updated = 0;
+  try {
+    const files = resolveHhrHandoffFolder_().folder.getFilesByType(MimeType.GOOGLE_SHEETS);
+    while (files.hasNext()) {
+      const file = files.next();
+      const spreadsheet = SpreadsheetApp.openById(file.getId());
+      const sheet = spreadsheet.getSheetByName(HHR_HANDOFF_SHEET_NAME);
+      if (!sheet) continue;
+      ensureHhrSheetColumnCapacity_(sheet);
+      configureHhrSheet_(sheet, upsertHhrRows_(sheet, []));
+      updated += 1;
+    }
+    SpreadsheetApp.flush();
+    console.log('Entrega médica: ' + updated + ' planillas configuradas.');
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function configureHhrDropdown_(range, options) {
@@ -794,9 +836,17 @@ function applyHhrColumnWidths_(sheet) {
 
 function protectHhrRange_(range, description) {
   const protection = range.protect().setDescription(description);
+  restrictHhrProtection_(protection, []);
+}
+
+function restrictHhrProtection_(protection, allowedEditors) {
+  protection.setWarningOnly(false);
+  // Keep the executing owner explicitly before removing inherited/group access.
+  protection.addEditor(Session.getEffectiveUser());
   const editors = protection.getEditors();
   if (editors.length > 0) protection.removeEditors(editors);
   if (protection.canDomainEdit()) protection.setDomainEdit(false);
+  if (allowedEditors.length > 0) protection.addEditors(allowedEditors);
 }
 
 function jsonHhrResponse_(payload) {
