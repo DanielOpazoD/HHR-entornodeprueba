@@ -266,7 +266,7 @@ test('explores the saved period, preserves group totals in Excel and audits a co
       path.join(process.env.CUDYR_QA_OUTPUT, 'CUDYR_Auditoria_EJEMPLO_SINTETICO.xlsx')
     );
   expect(workbook.getWorksheet('20-02-2026')!.getCell('B11').value).toBe(1);
-  expect(workbook.getWorksheet('20-02-2026')!.getCell('C15').value).toBe(1);
+  expect(workbook.getWorksheet('20-02-2026')!.getCell('C15').value).toBe(0);
   expect(calls.filter(call => call === 'archiveCudyrHistory')).toHaveLength(0);
   await page
     .getByRole('button', { name: 'Ver detalle de PACIENTE SINTÉTICO R1 del ' + DATE })
@@ -538,7 +538,7 @@ test('prepares a bounded recovery list without querying Eloisa or changing stati
   const recovery = page.getByTestId('cudyr-recovery-plan');
   await expect(recovery).not.toHaveAttribute('open');
   await recovery.locator('summary').first().click();
-  await expect(recovery).toContainText('respaldo manual HHR');
+  await expect(recovery).toContainText('Buscar evaluación no observada');
   await expect(recovery.getByRole('article')).toHaveCount(1);
   await recovery.getByRole('checkbox').check();
   const downloaded = page.waitForEvent('download');

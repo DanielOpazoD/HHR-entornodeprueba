@@ -2,6 +2,7 @@ import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
 import { captureClinicalCudyrSource } from './clinicalCudyrPreflight';
 import { persistCudyrSyncCapture } from './persistCudyrSyncCapture';
+import { collectCudyrDailyFacts } from '@/services/cudyr/cudyrReportFacts';
 
 /** One source fetch supplies both the daily projection and the independent permanent archive. */
 export const startCudyrSyncCapture = (input: {
@@ -27,17 +28,34 @@ export const startCudyrSyncCapture = (input: {
       });
   const archive =
     deps.archiveCudyrCapture && input.captureEpisodes.length
-      ? preflight.then(({ source }) =>
-          persistCudyrSyncCapture({
+      ? preflight.then(({ source }) => {
+          const observedAt = deps.now().toISOString();
+          return persistCudyrSyncCapture({
             censusDate: input.censusDate,
             runId: deps.diagnosticRunId ?? record.rayenSync?.runId ?? '',
             captureId: deps.createId(),
-            observedAt: deps.now().toISOString(),
+            observedAt,
             episodes: input.captureEpisodes,
             source,
             write: deps.archiveCudyrCapture!,
-          })
-        )
+            signal: deps.signal,
+            ...(deps.recoverCudyrPlacements
+              ? {
+                  recoverPlacements: (episode: string) => {
+                    const identities = new Set(
+                      collectCudyrDailyFacts(record)
+                        .filter(f => f.patient.clinicalEpisodeId === episode)
+                        .map(f => (f.patient.rut || '').replace(/[^0-9kK]/g, '').toUpperCase())
+                        .filter(Boolean)
+                    );
+                    if (identities.size !== 1)
+                      return Promise.reject(new Error('Identidad de episodio ambigua.'));
+                    return deps.recoverCudyrPlacements!(episode, [...identities][0], observedAt);
+                  },
+                }
+              : {}),
+          });
+        })
       : Promise.resolve([]);
   return { preflight, archive };
 };

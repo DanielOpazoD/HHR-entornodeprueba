@@ -66,7 +66,7 @@ describe('explicit monthly documentary action', () => {
     fireEvent.click(screen.getByText('Completar y verificar mes'));
     await waitFor(() => expect(saved).toHaveBeenCalledOnce());
     expect(screen.getByText(/1 informes guardados · 1 reutilizados/)).toHaveTextContent(
-      'la elegibilidad se conserva'
+      'Resultados y elegibilidad se informan por separado.'
     );
   });
   it('aborts on unmount and never refreshes another screen after an in-flight read', async () => {

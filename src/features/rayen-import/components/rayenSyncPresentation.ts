@@ -233,7 +233,7 @@ const issueReasonLabel: Record<RayenSyncCoverageIssue['reason'], string> = {
   concurrent_write: 'el censo cambió mientras se guardaba; reintenta para completar este dato',
   source_unavailable: 'no se pudo leer esta información; comprueba la ficha y reintenta',
   source_timeout: 'la fuente demoró demasiado; comprueba la conexión y reintenta',
-  historical_archive_failed: 'no se pudo asociar el CUDYR al turno correcto; reintenta',
+  historical_archive_failed: 'no se pudo confirmar el guardado histórico del CUDYR; reintenta',
   historical_census_write_failed:
     'las correcciones de días previos quedaron pendientes; reintenta la sincronización',
   structural_conflict:

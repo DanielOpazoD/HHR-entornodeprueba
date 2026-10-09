@@ -1,3 +1,4 @@
+import { recoverCudyrHospitalHistory } from './cudyrHospitalHistoryRecovery';
 import type { ClinicalFillDeps } from '../contracts/clinicalFillContracts';
 import {
   requestCudyrCategories,
@@ -16,6 +17,8 @@ export const createClinicalFillReaders = (signal: AbortSignal) =>
     fetchScalesForms: encId => requestScalesReport(encId, undefined, signal),
     fetchPatientClinicalBundle: (encId, date, options) =>
       requestPatientClinicalBundle(encId, date, options, undefined, signal),
+    recoverCudyrPlacements: (episode, rut, observedAt) =>
+      recoverCudyrHospitalHistory(episode, rut, signal, observedAt),
     fetchCudyrCategories: () => requestCudyrCategories(undefined, signal),
   }) satisfies Pick<
     ClinicalFillDeps,
@@ -24,4 +27,5 @@ export const createClinicalFillReaders = (signal: AbortSignal) =>
     | 'fetchScalesForms'
     | 'fetchPatientClinicalBundle'
     | 'fetchCudyrCategories'
+    | 'recoverCudyrPlacements'
   >;

@@ -4,11 +4,12 @@ import { cudyrSourceInstant } from './cudyrPlacementTimeline';
 
 /** Statistical grouping from the original HHR report. Independent of UPC and bed-type overrides. */
 export type CudyrStatisticalGroup = 'media' | 'intermedia' | 'sin_grupo';
-export type CudyrModality = 'hospitalizacion' | 'cuna' | 'cma' | 'desconocida';
+export type CudyrModality = 'hospitalizacion' | 'cuna' | 'cma' | 'uea' | 'desconocida';
 export type CudyrEligibility = 'elegible' | 'no_elegible' | 'por_revisar';
 
 export interface CudyrPlacement {
   bedId: string;
+  sourceBedId?: string;
   bedName?: string;
   bedMode?: string;
   location?: string;
@@ -33,14 +34,13 @@ export const cudyrStatisticalGroup = (bedId: string): CudyrStatisticalGroup => {
 
 /** All explicitly labelled CMA modalities are excluded, including operating/recovery locations. */
 export const cudyrModality = (placement: CudyrPlacement): CudyrModality => {
-  if (placement.modality) return placement.modality;
   if (
     placement.isClinicalCrib ||
     placement.section === 'crib' ||
     fold(placement.bedMode ?? '') === 'CUNA'
   )
     return 'cuna';
-  const labels = [placement.location, placement.bedName, placement.bedId]
+  const labels = [placement.location, placement.bedName, placement.bedId, placement.sourceBedId]
     .filter(Boolean)
     .join(' / ');
   const normalized = fold(labels);
@@ -52,6 +52,14 @@ export const cudyrModality = (placement: CudyrPlacement): CudyrModality => {
       .some(part => part.includes('QUIRURGICA INDIFERENCIADA') && !part.includes('MEDICO'))
   )
     return 'cma';
+  if (
+    /(?:^|[^A-Z])(?:B[1-3])?UEA(?:$|[^A-Z])/.test(normalized) ||
+    [placement.bedId, placement.bedName, placement.sourceBedId, placement.location].some(value =>
+      /^BOX[1-3]$/.test(fold(value || '').replace(/\s/g, ''))
+    )
+  )
+    return 'uea';
+  if (placement.modality) return placement.modality;
   if (cudyrStatisticalGroup(placement.bedId) !== 'sin_grupo') return 'hospitalizacion';
   return 'desconocida';
 };
@@ -91,6 +99,7 @@ export const resolveCudyrDailyEligibility = (
   if (input.unresolvedTransition)
     return result('por_revisar', 'Cambio de modalidad sin hora efectiva comprobada.');
   if (modality === 'cuna') return result('no_elegible', 'Cuna: exclusión diaria CUDYR.');
+  if (modality === 'uea') return result('no_elegible', 'UEA: cama de Urgencias excluida de CUDYR.');
   if (modality === 'cma') return result('no_elegible', 'CMA: excluida en todas sus modalidades.');
   if (modalities.size !== 1 || groups.size !== 1)
     return result('por_revisar', 'Cambio de cama o modalidad sin vigencia diaria resuelta.');

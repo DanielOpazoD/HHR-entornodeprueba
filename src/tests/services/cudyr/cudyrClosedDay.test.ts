@@ -1,3 +1,4 @@
+import { confirmedReportInput } from './reportFixtures';
 import { describe, expect, it } from 'vitest';
 import { buildCudyrReport, cudyrReportTotals } from '@/services/cudyr/cudyrReportModel';
 import { buildCudyrEssentialWorkbook } from '@/services/cudyr/cudyrEssentialWorkbook';
@@ -29,6 +30,7 @@ describe('CUDYR closed census days', () => {
         reportInput({ records: [record], observations: [observation] })
       );
       expect(data.rows[0].eligibility).toBe('no_elegible');
+      expect(data.rows[0].resolvedSystemDeparture).toBe(true);
       expect(data.rows[0].evaluation?.category).toBe('C2');
       expect(cudyrReportTotals(data.rows)).toMatchObject({
         eligible: 0,
@@ -39,6 +41,44 @@ describe('CUDYR closed census days', () => {
       expect(workbook.getWorksheet('Pacientes elegibles')!.rowCount).toBe(1);
     }
   );
+  it('allows daily provisional progress without changing closed-day statistics or the source rows', () => {
+    const data = buildCudyrReport(
+      confirmedReportInput({ generatedAt: '2026-10-03T09:00:00-05:00' })
+    );
+    expect(data.rows[0].applicationPending).toBe(true);
+    expect(cudyrReportTotals(data.rows)).toMatchObject({ eligible: 0, categorized: 0 });
+    expect(cudyrReportTotals(data.rows, { includePendingApplication: true })).toMatchObject({
+      eligible: 1,
+      categorized: 1,
+    });
+    expect(data.rows[0].applicationPending).toBe(true);
+    expect(cudyrReportTotals(data.rows)).toMatchObject({ eligible: 0, categorized: 0 });
+  });
+  it('keeps a manual physical departure visible until a formal system departure also resolves the case', () => {
+    const record = reportRecord();
+    const correction = {
+      schemaVersion: 1 as const,
+      clinicalEpisodeId: 'synthetic-episode',
+      revision: 1,
+      operationId: 'synthetic-op',
+      actualDischarge: { date: record.date, time: '23:00', timeZone: 'Pacific/Easter' as const },
+      reason: 'Salida física confirmada',
+      authorityDate: record.date,
+      admissionDate: '2026-10-01',
+      sourceContexts: [],
+      updatedAt: '2026-10-03T18:00:00Z',
+      updatedBy: { uid: 'synthetic', email: '', name: 'Prueba', role: 'admin' },
+    };
+    const manual = buildCudyrReport(reportInput({ records: [record], corrections: [correction] }))
+      .rows[0];
+    expect(manual.eligibility).toBe('no_elegible');
+    expect(manual.resolvedSystemDeparture).toBe(false);
+    record.discharges = [discharge(record.date)];
+    expect(
+      buildCudyrReport(reportInput({ records: [record], corrections: [correction] })).rows[0]
+        .resolvedSystemDeparture
+    ).toBe(true);
+  });
   it('excludes external transfer on the census day, without excluding earlier days of the episode', () => {
     const record = reportRecord('2026-10-03');
     record.transfers = [
@@ -52,7 +92,7 @@ describe('CUDYR closed census days', () => {
     const observation = reportObservation({ censusDate: '2026-10-03' });
     observation.evaluation.recordedAt = '2026-10-03T20:00:00-05:00';
     const data = buildCudyrReport(
-      reportInput({ records: [reportRecord(), record], observations: [observation] })
+      confirmedReportInput({ records: [reportRecord(), record], observations: [observation] })
     );
     expect(data.rows.map(row => [row.date, row.eligibility])).toEqual([
       ['2026-10-02', 'elegible'],
@@ -71,13 +111,13 @@ describe('CUDYR closed census days', () => {
     ['2026-10-03T11:59:00-05:00', true],
     ['2026-10-03T12:00:00-05:00', false],
   ] as const)('respects the existing Rapa Nui application window at %s', (generatedAt, pending) => {
-    const data = buildCudyrReport(reportInput({ generatedAt }));
+    const data = buildCudyrReport(confirmedReportInput({ generatedAt }));
     expect(data.rows[0].applicationPending).toBe(pending);
     expect(cudyrReportTotals(data.rows).eligible).toBe(pending ? 0 : 1);
   });
   it('omits the current and future census days from totals and essential detail even if they have results', async () => {
     const data = buildCudyrReport(
-      reportInput({
+      confirmedReportInput({
         generatedAt: '2026-10-03T20:00:00-05:00',
         records: [reportRecord(), reportRecord('2026-10-03'), reportRecord('2026-10-04')],
       })
