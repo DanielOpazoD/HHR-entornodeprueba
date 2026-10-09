@@ -723,6 +723,7 @@ function applyHhrMedicalTeamPermissions() {
   if (getHhrSpecialistEmails_().length === 0) throw new Error('Configura la lista de especialistas primero.');
   const lock = acquireHhrScriptLock_();
   let updated = 0;
+  let restricted = 0;
   try {
     const files = resolveHhrHandoffFolder_().folder.getFilesByType(MimeType.GOOGLE_SHEETS);
     while (files.hasNext()) {
@@ -730,15 +731,26 @@ function applyHhrMedicalTeamPermissions() {
       const spreadsheet = SpreadsheetApp.openById(file.getId());
       const sheet = spreadsheet.getSheetByName(HHR_HANDOFF_SHEET_NAME);
       if (!sheet) continue;
+      // Preflight before any writes: older workbooks can belong to another owner.
+      if (!canMigrateHhrSheet_(sheet)) {
+        restricted += 1;
+        continue;
+      }
       ensureHhrSheetColumnCapacity_(sheet);
       configureHhrSheet_(sheet, upsertHhrRows_(sheet, []));
       updated += 1;
     }
     SpreadsheetApp.flush();
-    console.log('Entrega médica: ' + updated + ' planillas configuradas.');
+    console.log('Entrega médica: ' + updated + ' planillas configuradas; ' + restricted + ' requieren permiso del propietario.');
   } finally {
     lock.releaseLock();
   }
+}
+
+function canMigrateHhrSheet_(sheet) {
+  return sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE)
+    .concat(sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET))
+    .every(function (protection) { return protection.canEdit(); });
 }
 
 function configureHhrDropdown_(range, options) {

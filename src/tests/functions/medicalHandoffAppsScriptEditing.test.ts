@@ -76,6 +76,7 @@ class SheetDouble {
       .filter(p => p.type === type)
       .map(item => ({
         getDescription: () => item.description,
+        canEdit: () => true,
         remove: () => {
           this.protections = this.protections.filter(p => p !== item);
         },
@@ -246,6 +247,7 @@ const loadRuntime = (specialists = 'specialist@example.org') => {
   return context as unknown as {
     upsertHhrRows_: (sheet: SheetDouble, rows: Record<string, string>[]) => number;
     configureHhrSheet_: (sheet: SheetDouble, dataLastRow: number) => void;
+    canMigrateHhrSheet_: (sheet: Pick<SheetDouble, 'getProtections'>) => boolean;
   };
 };
 
@@ -306,6 +308,15 @@ describe('collaborative medical handoff template', () => {
     expect(sheet.isProtected(7, 1)).toBe(true);
     expect(sheet.isProtected(14, 1)).toBe(true);
     expect(sheet.isProtected(5, 1)).toBe(true);
+  });
+
+  it('detects inaccessible legacy protections before allowing any migration writes', () => {
+    const runtime = loadRuntime();
+    const sheet = new SheetDouble();
+    refresh(sheet);
+    expect(runtime.canMigrateHhrSheet_(sheet)).toBe(true);
+    const blocked = { getProtections: () => [{ canEdit: () => false }] };
+    expect(runtime.canMigrateHhrSheet_(blocked as unknown as SheetDouble)).toBe(false);
   });
 
   it('fails closed when no specialist roster is configured and replaces protections without duplication', () => {
