@@ -15,14 +15,32 @@ La planilla contiene únicamente:
 5. especialidad;
 6. médico tratante;
 7. **Entrega de turno**;
-8. **Indicaciones médicas**.
+8. **Observaciones**;
+9. **Indicaciones médicas**, con un selector **EDF / Especialista**.
 
 Al actualizar una planilla existente, HHR reconoce las columnas por su encabezado. Para el mismo
-episodio conserva cualquier corrección manual de **Médico tratante** y los contenidos de **Entrega
-de turno** e **Indicaciones médicas**. Sólo completa el médico desde HHR cuando la celda continúa
-vacía. Si falta una columna oficial, la recrea; después de rescatar los valores reconocidos, elimina
-las columnas ajenas al formato actual. **Entrega de turno** e **Indicaciones médicas** permanecen
-editables.
+episodio conserva la **Especialidad**, cualquier corrección manual de **Médico tratante** y los
+contenidos de **Entrega de turno**, **Observaciones** e **Indicaciones médicas**. Sólo completa la
+especialidad o el médico desde HHR cuando su celda continúa vacía. Si falta una columna oficial,
+la recrea; después de rescatar los valores reconocidos, elimina las columnas ajenas al formato
+actual. Las indicaciones escritas en versiones anteriores se conservan, aunque no sean una de las
+opciones del nuevo selector.
+
+Los editores pueden seleccionar cualquiera de las ocho especialidades de HHR: **Med Interna**,
+**Cirugía**, **Traumatología**, **Ginecobstetricia**, **Psiquiatría**, **Pediatría**, **Odontología** y
+**Otro**. Los especialistas pueden editar todas las celdas visibles de la tabla principal (A–I). Los médicos
+generales sólo pueden editar la tabla de nuevos ingresos y las notas compartidas. Los encabezados y
+el identificador técnico quedan protegidos para ambos grupos. La elección **EDF / Especialista** identifica quién se hace cargo de la
+evaluación y validación de las indicaciones; no confirma que esa evaluación ya se haya realizado.
+
+Debajo de la tabla aparece esa explicación y una tabla pequeña de **Nuevos ingresos** con cinco
+filas editables y las columnas **Cama**, **Paciente**, **Fecha de ingreso**, **Diagnóstico** y
+**Entrega de turno**. Después aparece **Notas compartidas**, con doce líneas libres. Quienes ya
+tienen permiso de edición pueden escribir en ambas secciones. Los nuevos ingresos escritos en
+la planilla no se incorporan automáticamente al censo de HHR. Al actualizar, se conservan los
+ingresos manuales y las notas; ambas secciones se desplazan juntas hacia abajo si crece la tabla
+sincronizada. La migración de planillas anteriores inserta la tabla nueva sin borrar sus notas.
+El filtro incluye únicamente la tabla sincronizada. No se amplían los permisos de acceso.
 
 HHR no exporta RUT. Un identificador técnico estable queda oculto para reutilizar filas sin borrar
 lo escrito por los médicos.
@@ -34,7 +52,10 @@ lo escrito por los médicos.
 3. El callable valida rol, fecha y campos permitidos y contacta al Apps Script institucional. El
    secreto nunca llega al navegador.
 4. Apps Script crea una planilla para esa fecha o reutiliza la existente.
-5. Los datos censales se actualizan, pero las columnas médicas libres se conservan.
+5. Los datos censales A–D se actualizan desde HHR, pero las columnas médicas libres se conservan.
+   Una corrección de A–D hecha en Sheets no vuelve al censo y puede ser reemplazada en el siguiente
+   envío; las entregas, observaciones, indicaciones, especialidad, médico y secciones compartidas
+   se conservan.
 6. Google Sheets se abre en una pestaña nueva para los especialistas autorizados.
 
 Si la carpeta guardada en `HHR_HANDOFF_FOLDER_ID` está en la papelera, Apps Script restaura esa misma
@@ -61,7 +82,15 @@ No existe sincronización inversa: lo escrito en Google Sheets no modifica HHR.
    - `HHR_HANDOFF_FOLDER_ID`: opcional. Si se omite, el script crea automáticamente una carpeta
      privada `Entrega de turno médicos` en el Drive de la cuenta institucional y guarda allí su ID
      para las ejecuciones siguientes. No reutiliza carpetas sólo por coincidencia de nombre;
-   - `HHR_HANDOFF_EDITOR_EMAILS`: correos o Google Groups autorizados, separados por coma.
+   - `HHR_HANDOFF_EDITOR_EMAILS`: correos o Google Groups autorizados, separados por coma;
+   - `HHR_HANDOFF_SPECIALIST_EMAILS`: lista fija de especialistas, separada por comas. Se obtiene
+     de los permisos anteriores al cambio (editores = especialistas, lectores = generales). No
+     se vuelve a inferir de los permisos actuales de Drive. Si falta, la tabla principal queda
+     editable sólo para el propietario. Los correos se guardan en propiedades, fuera del código.
+   - Todos los participantes necesitan edición del archivo para escribir en las dos zonas
+     compartidas; las protecciones de la hoja limitan las celdas disponibles por grupo.
+   - Después de configurar la lista, ejecutar `applyHhrMedicalTeamPermissions` como propietario
+     para actualizar las planillas existentes sin exportar un nuevo censo ni borrar textos.
 5. Desplegar como **Aplicación web**:
    - ejecutar como: **yo** (cuenta institucional);
    - acceso: **cualquiera**. El endpoint no entrega archivos y exige el secreto que sólo posee el
@@ -93,16 +122,19 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
 3. Confirmar que el archivo quedó en la carpeta indicada por `HHR_HANDOFF_FOLDER_ID`; si esa
    configuración está ausente, verificar la carpeta privada `Entrega de turno médicos` creada
    automáticamente.
-4. Escribir texto de prueba en **Entrega de turno**.
-   Escribir también una indicación de prueba en **Indicaciones médicas**.
+4. Escribir texto de prueba en **Entrega de turno**, **Observaciones**, **Nuevos ingresos** y **Notas compartidas**.
+   Seleccionar **EDF** o **Especialista** en **Indicaciones médicas** y una **Especialidad**.
    Corregir temporalmente **Médico tratante** desde la cuenta propietaria.
 5. Volver a pulsar **Abrir planilla** y confirmar que:
    - se abre el mismo archivo;
    - los datos censales se actualizan;
-   - la corrección manual del médico tratante se conserva;
-   - ninguno de los dos textos de prueba se borra;
+   - la especialidad, el médico tratante y la selección EDF / Especialista se conservan;
+   - ninguno de los textos de prueba se borra;
+   - al agregar pacientes, los nuevos ingresos manuales y las notas quedan debajo de la tabla;
    - cualquier columna oficial faltante se recrea y no quedan columnas ajenas al formato;
-   - columnas A–F no son editables para un especialista;
+   - un especialista puede editar A–I, pero no los encabezados ni el identificador oculto J;
+   - un médico general no puede editar A–I de la tabla principal;
+   - ambos grupos pueden escribir nuevos ingresos y notas compartidas;
    - el archivo no está compartido públicamente.
 
 ### Smoke de recuperación posterior al despliegue
