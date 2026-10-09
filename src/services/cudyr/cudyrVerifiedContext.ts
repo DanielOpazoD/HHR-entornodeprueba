@@ -28,6 +28,7 @@ export interface CudyrVerifiedContextEntry {
   evidenceHashes: string[];
 }
 export interface CudyrVerifiedContext {
+  censusApproval?: import('./cudyrCensusApproval').CudyrCensusApproval;
   schemaVersion: 1;
   month: string;
   revision: number;

@@ -1,3 +1,4 @@
+import { CudyrArchiveStatus } from './CudyrArchiveStatus';
 import { CudyrMonthlyRecovery } from './CudyrMonthlyRecovery';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
@@ -191,6 +192,15 @@ export const CudyrView = ({
           </p>
         )}
       </div>
+      {data && (
+        <CudyrArchiveStatus
+          data={data}
+          busy={busy}
+          error={error}
+          canApprove={canCorrectCudyrDischarge({ role, readOnly })}
+          onApproved={refresh}
+        />
+      )}
       {(error || exportError) && (
         <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
           {error || exportError}

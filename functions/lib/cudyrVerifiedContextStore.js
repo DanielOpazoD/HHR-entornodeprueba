@@ -202,6 +202,13 @@ const parseVerifiedContext = data => {
 
 /** Reviewed census context only; original scores/censuses are never overwritten. */
 const saveCudyrVerifiedContext = async ({ hospital, data, actor, runTransaction }) => {
+  if (data?.action === 'approve_census')
+    return require('./cudyrCensusApprovalStore').saveCudyrCensusApproval({
+      hospital,
+      data,
+      actor,
+      runTransaction,
+    });
   const input = parseVerifiedContext(data);
   const ref = hospital.collection('cudyrVerifiedContexts').doc(input.month);
   const audit = ref.collection('revisions').doc(digest([actor.uid, input.operationId]));
@@ -282,4 +289,8 @@ const readCudyrVerifiedContext = async (hospital, data) => {
   const snapshot = await ref.get();
   return { review: snapshot.exists ? snapshot.data() : null };
 };
-module.exports = { parseVerifiedContext, saveCudyrVerifiedContext, readCudyrVerifiedContext };
+module.exports = {
+  parseVerifiedContext,
+  saveCudyrVerifiedContext,
+  readCudyrVerifiedContext,
+};

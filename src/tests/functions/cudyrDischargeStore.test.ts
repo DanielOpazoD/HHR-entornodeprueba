@@ -82,7 +82,12 @@ describe('audited actual discharge correction', () => {
     const h = harness();
     const original = structuredClone(h.record);
     const first = await h.save();
+    const marker = h.data.get('hospitals/hanga_roa/cudyrArchiveVersions/dischargeCorrections');
+    expect(marker?.operation).toBeTruthy();
     const retry = await h.save();
+    expect(h.data.get('hospitals/hanga_roa/cudyrArchiveVersions/dischargeCorrections')).toBe(
+      marker
+    );
     expect(retry).toEqual(first);
     expect(first.correction).toMatchObject({
       revision: 1,
@@ -115,6 +120,11 @@ describe('audited actual discharge correction', () => {
       actualDischarge: null,
       reason: 'Fecha pendiente de verificación.',
     });
+    expect(
+      h.data.get('hospitals/hanga_roa/cudyrArchiveVersions/dischargeCorrections')?.operation
+    ).toEqual(
+      [...h.data.entries()].filter(([key]) => key.includes('/cudyrDischargeAudit/')).at(-1)?.[1].id
+    );
     expect(cleared.correction).toMatchObject({ revision: 2, actualDischarge: null });
     const audit = [...h.data.entries()]
       .filter(([key]) => key.includes('/cudyrDischargeAudit/'))

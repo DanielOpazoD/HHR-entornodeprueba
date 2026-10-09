@@ -1,3 +1,4 @@
+const { saveOfficialReport, readOfficialReport } = require('./cudyrOfficialReportStore');
 const {
   saveCudyrVerifiedContext,
   readCudyrVerifiedContext,
@@ -52,6 +53,17 @@ const createCudyrHistoryFunctions = ({
         context,
         resolveRoleForEmail,
       });
+      if (data?.kind === 'save-official-report')
+        return saveOfficialReport({
+          hospital,
+          data,
+          actor: {
+            uid: context.auth.uid,
+            email,
+            role,
+            name: String(context.auth.token.name || email).slice(0, 200),
+          },
+        });
       if (data?.kind === 'save-daily-exclusion') {
         if (!['admin', 'nurse_hospital'].includes(role))
           throw new functions.https.HttpsError(
@@ -218,7 +230,10 @@ const createCudyrHistoryFunctions = ({
           if (existing[index].exists) {
             // Identical source content is immutable. Updating verification cannot erase its author.
             if (now >= existing[index].data().lastVerifiedAt) {
-              transaction.update(ref, { lastVerifiedAt: now, lastVerifiedRunId: payload.runId });
+              transaction.update(ref, {
+                lastVerifiedAt: now,
+                lastVerifiedRunId: payload.runId,
+              });
             }
             return { id, eventKey, status: 'already-recorded' };
           }
@@ -264,6 +279,7 @@ const createCudyrHistoryFunctions = ({
       if (!(await hasCallableClinicalAccess(context))) {
         throw new functions.https.HttpsError('permission-denied', 'Clinical access is required.');
       }
+      if (data?.kind === 'official-report') return readOfficialReport(hospital, data);
       if (data?.kind === 'daily-exclusions') return readCudyrExclusions(hospital, data);
       if (data?.kind === 'episode-captures') return readEpisodeCaptures(captures, data);
       if (data?.kind === 'discharge-corrections') return readDischargeCorrections(hospital, data);
