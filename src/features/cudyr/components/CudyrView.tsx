@@ -1,3 +1,4 @@
+import { CudyrMonthlyRecovery } from './CudyrMonthlyRecovery';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
@@ -118,7 +119,15 @@ export const CudyrView = ({
             Turno noche {date.split('-').reverse().join('-')} · Horario de Rapa Nui
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {canCorrectCudyrDischarge({ role, readOnly }) && (
+            <CudyrMonthlyRecovery
+              key={date.slice(0, 7)}
+              month={date.slice(0, 7)}
+              compact
+              onSaved={refresh}
+            />
+          )}
           <button
             type="button"
             onClick={refresh}

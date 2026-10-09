@@ -10,10 +10,6 @@
  * Egreso lookup (Gestión de Camas, for late-sync patients absent from Ficha Médico):
  *   Page → us:  { type: 'HHR_RAYEN_EGRESO_LOOKUP_REQUEST', reqId, runs }
  *   us  → page: { type: 'HHR_RAYEN_EGRESO_LOOKUP_RESULT', reqId, results }
- * Egreso report (bulk "Alta Administrativa" list by date — enumerates the day's egresos,
- * including patients HHR never synced; parsed to rows in the background):
- *   Page → us:  { type: 'HHR_RAYEN_EGRESO_REPORT_REQUEST', reqId, dateStart, dateEnd }
- *   us  → page: { type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, ok, rows }
  * Patient navigation (read-only handoff to the exact Ficha Médico encounter):
  *   Page → us:  { type: 'HHR_RAYEN_OPEN_ENCOUNTER_REQUEST', reqId, encId }
  *   us  → page: { type: 'HHR_RAYEN_OPEN_ENCOUNTER_RESULT', reqId, ok, reused, error? }
@@ -89,6 +85,21 @@
     console.warn('[Rayen→HHR] ' + type + ' error:', error);
     post({ type, reqId, ...fallback, error: String(error) });
   };
+  const reportRoutes = new Map(Object.entries({
+    HHR_RAYEN_MONTHLY_CUDYR_REPORT_REQUEST: {
+      reply: 'HHR_RAYEN_MONTHLY_CUDYR_REPORT_RESULT',
+      request: data => ({ type: runtimeMessages.MONTHLY_CUDYR_REPORT_REQUEST, month: data.month, censusDate: data.censusDate }),
+      result: response => response,
+    },
+    HHR_RAYEN_EGRESO_REPORT_REQUEST: {
+      reply: 'HHR_RAYEN_EGRESO_REPORT_RESULT',
+      request: data => ({ type: runtimeMessages.EGRESO_REPORT_REQUEST, dateStart: data.dateStart, dateEnd: data.dateEnd }),
+      result: response => {
+        const ok = Boolean(response && response.ok === true && Array.isArray(response.rows));
+        return { ok, rows: ok ? response.rows : [] };
+      },
+    },
+  }));
   const onPageMessage = event => {
     if (!isOwnMessage(event)) return;
     const data = event.data;
@@ -179,23 +190,12 @@
       return;
     }
 
-    if (data.type === 'HHR_RAYEN_EGRESO_REPORT_REQUEST') {
+    const reportRoute = reportRoutes.get(data.type);
+    if (reportRoute) {
       const reqId = data.reqId;
-      chrome.runtime
-        .sendMessage({
-          type: runtimeMessages.EGRESO_REPORT_REQUEST,
-          dateStart: data.dateStart,
-          dateEnd: data.dateEnd,
-        })
-        .then(response => {
-          const ok = Boolean(response && response.ok === true && Array.isArray(response.rows));
-          const rows = ok ? response.rows : [];
-          post({ type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, ok, rows });
-        })
-        .catch(error => {
-          console.warn('[Rayen→HHR] Egreso report error:', error);
-          post({ type: 'HHR_RAYEN_EGRESO_REPORT_RESULT', reqId, ok: false, rows: [] });
-        });
+      chrome.runtime.sendMessage(reportRoute.request(data))
+        .then(response => post({ ...reportRoute.result(response), type: reportRoute.reply, reqId }))
+        .catch(() => post({ ...reportRoute.result(null), type: reportRoute.reply, reqId, error: 'Extensión no disponible.' }));
       return;
     }
 

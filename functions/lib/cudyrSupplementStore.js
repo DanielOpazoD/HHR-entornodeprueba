@@ -1,8 +1,14 @@
 const functions = require('firebase-functions/v1');
-const { parseSupplementImport, digest, monthValue, invalid } = require('./cudyrSupplementContract');
+const {
+  parseSupplementImport,
+  verifySupplementBytes,
+  digest,
+  monthValue,
+  invalid,
+} = require('./cudyrSupplementContract');
 const { FieldPath } = require('firebase-admin/firestore');
 
-/** Documentary archive only; this module has no references to censuses or clinical evaluations. */
+/** Immutable source archive; official projection is rebuilt from verified source bytes. */
 const saveCudyrSupplement = async ({ hospital, data, actor, runTransaction }) => {
   const input = parseSupplementImport(data);
   const versionRef = hospital.collection('cudyrMonthlySupplements').doc(input.versionId);
@@ -33,6 +39,7 @@ const saveCudyrSupplement = async ({ hospital, data, actor, runTransaction }) =>
         importedAt,
         importedBy: actor,
         verification: 'user_imported',
+        ...(input.capture ? { capture: input.capture } : {}),
         file: { name: input.fileName, sha256: input.fileHash, byteLength: input.byteLength },
       });
     if (!file.exists)
@@ -47,6 +54,7 @@ const saveCudyrSupplement = async ({ hospital, data, actor, runTransaction }) =>
       persisted: true,
       id: input.versionId,
       contentId: input.contentId,
+      ...(input.capture ? { captureStored: true } : {}),
       status: version.exists ? 'already-recorded' : 'recorded',
     };
     transaction.create(receiptRef, {
@@ -77,6 +85,14 @@ const readCudyrSupplements = async (hospital, data) => {
   }
   const snapshot = await query.limit(limit + 1).get();
   const reports = snapshot.docs.slice(0, limit).map(doc => doc.data());
+  for (const report of reports) {
+    const file = await hospital.collection('cudyrSupplementFiles').doc(report.file.sha256).get();
+    if (!file.exists) invalid();
+    const bytes = Buffer.from(file.data().base64, 'base64');
+    if (digest(bytes) !== report.file.sha256) invalid();
+    verifySupplementBytes(bytes, report.report);
+    report.bytesVerified = true;
+  }
   return { reports, nextCursor: snapshot.size > limit ? reports.at(-1).id : null };
 };
 module.exports = { saveCudyrSupplement, readCudyrSupplements };

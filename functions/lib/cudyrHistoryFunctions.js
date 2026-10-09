@@ -1,3 +1,4 @@
+const { saveCudyrCensusSource, readCudyrCensusSources } = require('./cudyrCensusSourceStore');
 const { saveCudyrExclusion, readCudyrExclusions } = require('./cudyrExclusionStore');
 const functions = require('firebase-functions/v1');
 const { isDeepStrictEqual } = require('node:util');
@@ -83,13 +84,18 @@ const createCudyrHistoryFunctions = ({
           },
         });
       }
-      if (data?.kind === 'import-monthly-supplement') {
+      if (
+        data?.kind === 'import-monthly-supplement' ||
+        data?.kind === 'import-daily-census-source'
+      ) {
         if (!['admin', 'nurse_hospital'].includes(role))
           throw new functions.https.HttpsError(
             'permission-denied',
             'Monthly import permission is required.'
           );
-        return saveCudyrSupplement({
+        return (
+          data.kind === 'import-daily-census-source' ? saveCudyrCensusSource : saveCudyrSupplement
+        )({
           hospital,
           data,
           runTransaction: runArchiveTransaction,
@@ -257,6 +263,7 @@ const createCudyrHistoryFunctions = ({
       if (data?.kind === 'discharge-corrections') return readDischargeCorrections(hospital, data);
       if (data?.kind === 'discharge-audit') return readDischargeAudit(hospital, data);
       if (data?.kind === 'monthly-reviews') return readCudyrReviews(hospital, data);
+      if (data?.kind === 'daily-census-sources') return readCudyrCensusSources(hospital, data);
       if (data?.kind === 'monthly-supplements') return readCudyrSupplements(hospital, data);
       const { from, to, limit, cursor, kind } = parseHistoryQuery(data);
       let query = (kind === 'captures' ? captures : history)

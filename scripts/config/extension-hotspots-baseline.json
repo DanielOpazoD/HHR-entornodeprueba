@@ -726,6 +726,12 @@
       "hotspots": {
         "iife>variable:buildPlacements": 16
       }
+    },
+    "gestion-camas-monthly-cudyr-runtime.js": {
+      "maxLines": 54,
+      "hotspots": {
+        "iife": 18
+      }
     }
   }
 }

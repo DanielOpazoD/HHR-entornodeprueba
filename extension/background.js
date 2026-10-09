@@ -12,7 +12,7 @@ importScripts(
   'patient-document-manager-runtime.js',
   'gestion-camas-session.js', 'gestion-camas-health.js',
   'gestion-camas-runtime.js',
-  'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-query-runtime.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
+  'gestion-camas-egreso-lookup.js', 'gestion-camas-egreso-query-runtime.js', 'gestion-camas-egreso-report-runtime.js', 'gestion-camas-monthly-cudyr-runtime.js', 'gestion-camas-active-beds.js', 'gestion-camas-clinical-cribs.js',
   'gestion-camas-statistical-report-fetcher.js', 'gestion-camas-discharge-report-runtime.js', 'gestion-camas-statistical-evidence-runtime.js',
   'cudyr-capture-support.js', 'cudyr-placement-support.js', 'gestion-camas-cudyr.js',
   'patient-clinical-bundle-runtime.js',
@@ -370,6 +370,10 @@ const egresoReportRuntime = self.HhrGestionCamasEgresoReportRuntime.create({
   bufferToBase64,
 });
 const { request: handleReportRequest, save: handleReportSave } = egresoReportRuntime;
+
+const monthlyCudyrReports = self.HhrGestionCamasMonthlyCudyrRuntime.create({
+  resolveSession: resolveGestionCamasSession, fetchWithTimeout, markSessionVerified: markGestionCamasSessionVerified, bufferToBase64,
+});
 
 const syncBundleCancellation = self.HhrSyncBundleCancellationRuntime.create();
 const handleSyncBundleRequest = (message, sender) =>
@@ -1226,14 +1230,10 @@ const runtimeMessageRoutes = Object.freeze({
     async (message, sender) => ({ ...(await handleEgresoLookup(message.runs, message.targets, sender)), reqId: message.reqId }),
     'No se pudo consultar el egreso.'
   ),
-  [RUNTIME_MESSAGES.EGRESO_REPORT_REQUEST]: runtimeRoute(
-    message => handleReportRequest({ dateStart: message.dateStart, dateEnd: message.dateEnd }),
-    'No se pudo leer el reporte de egresos.'
-  ),
-  [RUNTIME_MESSAGES.EGRESO_REPORT_SAVE]: runtimeRoute(
-    message => handleReportSave({ dateStart: message.dateStart, dateEnd: message.dateEnd }),
-    'No se pudo guardar el reporte de egresos.'
-  ),
+  ...self.HhrGestionCamasMonthlyCudyrRuntime.routes({
+    types: RUNTIME_MESSAGES, route: runtimeRoute, monthly: monthlyCudyrReports,
+    readDischarges: handleReportRequest, saveDischarges: handleReportSave,
+  }),
   [RUNTIME_MESSAGES.STATISTICAL_DISCHARGE_REPORT_REQUEST]: runtimeRoute(
     message => handleStatisticalDischargeReportDownload({ encId: message.encId }),
     'No se pudo descargar el informe estadístico de egreso.'

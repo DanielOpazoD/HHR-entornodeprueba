@@ -1,3 +1,5 @@
+const { isDeepStrictEqual } = require('node:util');
+const { parseCudyrSupplementBinary } = require('./generated/cudyrSourceParser.cjs');
 const functions = require('firebase-functions/v1');
 const { createHash } = require('node:crypto');
 const invalid = () => {
@@ -100,6 +102,16 @@ const parseReport = value => {
   };
 };
 
+const verifySupplementBytes = (bytes, report) => {
+  try {
+    const result = parseCudyrSupplementBinary(Uint8Array.from(bytes).buffer);
+    if (!result.ok || !isDeepStrictEqual(parseReport(result.report), parseReport(report)))
+      invalid();
+  } catch {
+    invalid();
+  }
+};
+
 const parseSupplementImport = data => {
   if (
     data?.schemaVersion !== 1 ||
@@ -121,7 +133,21 @@ const parseSupplementImport = data => {
   const isXls = bytes.subarray(0, 8).equals(Buffer.from('d0cf11e0a1b11ae1', 'hex'));
   const isXlsx = bytes.subarray(0, 4).equals(Buffer.from('504b0304', 'hex'));
   if (/\.xls$/i.test(fileName) ? !isXls : !isXlsx) invalid();
+  let capture;
+  if (data.capture !== undefined) {
+    const observedAt = data.capture?.observedAt;
+    if (
+      data.capture?.source !== 'extension_monthly_report' ||
+      typeof observedAt !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}T.*Z$/.test(observedAt) ||
+      !Number.isFinite(Date.parse(observedAt)) ||
+      Date.parse(observedAt) > Date.now() + 60000
+    )
+      invalid();
+    capture = { source: 'extension_monthly_report', observedAt };
+  }
   const report = parseReport(data.report);
+  verifySupplementBytes(bytes, report);
   const semanticPatients = report.patients
     .map(({ sourceRow: _row, ordinal: _ordinal, days, ...patient }) => ({
       ...patient,
@@ -130,9 +156,10 @@ const parseSupplementImport = data => {
     .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b), 'en'));
   const contentId = digest([report.month, report.establishment, semanticPatients]);
   const fileHash = digest(bytes);
-  const versionId = digest([contentId, fileHash, report]);
+  const versionId = digest([contentId, fileHash, report, ...(capture ? [capture] : [])]);
   return {
     report,
+    ...(capture ? { capture } : {}),
     contentId,
     versionId,
     fileHash,
@@ -140,8 +167,15 @@ const parseSupplementImport = data => {
     base64,
     byteLength: bytes.length,
     operationId: data.operationId,
-    requestHash: digest([report, fileHash, fileName]),
+    requestHash: digest([report, fileHash, fileName, ...(capture ? [capture] : [])]),
   };
 };
 
-module.exports = { parseSupplementImport, parseReport, monthValue, digest, invalid };
+module.exports = {
+  verifySupplementBytes,
+  parseSupplementImport,
+  parseReport,
+  monthValue,
+  digest,
+  invalid,
+};
