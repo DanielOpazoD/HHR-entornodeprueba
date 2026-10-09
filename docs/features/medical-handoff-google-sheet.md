@@ -15,14 +15,27 @@ La planilla contiene únicamente:
 5. especialidad;
 6. médico tratante;
 7. **Entrega de turno**;
-8. **Indicaciones médicas**.
+8. **Observaciones**;
+9. **Indicaciones médicas**, con un selector **EDF / Especialista**.
 
 Al actualizar una planilla existente, HHR reconoce las columnas por su encabezado. Para el mismo
-episodio conserva cualquier corrección manual de **Médico tratante** y los contenidos de **Entrega
-de turno** e **Indicaciones médicas**. Sólo completa el médico desde HHR cuando la celda continúa
-vacía. Si falta una columna oficial, la recrea; después de rescatar los valores reconocidos, elimina
-las columnas ajenas al formato actual. **Entrega de turno** e **Indicaciones médicas** permanecen
-editables.
+episodio conserva la **Especialidad**, cualquier corrección manual de **Médico tratante** y los
+contenidos de **Entrega de turno**, **Observaciones** e **Indicaciones médicas**. Sólo completa la
+especialidad o el médico desde HHR cuando su celda continúa vacía. Si falta una columna oficial,
+la recrea; después de rescatar los valores reconocidos, elimina las columnas ajenas al formato
+actual. Las indicaciones escritas en versiones anteriores se conservan, aunque no sean una de las
+opciones del nuevo selector.
+
+Los editores pueden seleccionar cualquiera de las ocho especialidades de HHR: **Med Interna**,
+**Cirugía**, **Traumatología**, **Ginecobstetricia**, **Psiquiatría**, **Pediatría**, **Odontología** y
+**Otro**. Las columnas **Especialidad**, **Entrega de turno**, **Observaciones** e **Indicaciones
+médicas** son editables. La elección **EDF / Especialista** identifica quién se hace cargo de la
+evaluación y validación de las indicaciones; no confirma que esa evaluación ya se haya realizado.
+
+Debajo de la tabla aparece esa explicación y un espacio de **Notas compartidas** con doce líneas
+libres. Quienes ya tienen permiso de edición pueden agregar información allí. HHR conserva las
+notas al actualizar y desplaza el espacio hacia abajo cuando incorpora más pacientes. El filtro
+incluye únicamente la tabla de pacientes. No se amplían los permisos de acceso.
 
 HHR no exporta RUT. Un identificador técnico estable queda oculto para reutilizar filas sin borrar
 lo escrito por los médicos.
@@ -93,16 +106,18 @@ El segundo valor debe coincidir exactamente con `HHR_HANDOFF_SHARED_SECRET` en A
 3. Confirmar que el archivo quedó en la carpeta indicada por `HHR_HANDOFF_FOLDER_ID`; si esa
    configuración está ausente, verificar la carpeta privada `Entrega de turno médicos` creada
    automáticamente.
-4. Escribir texto de prueba en **Entrega de turno**.
-   Escribir también una indicación de prueba en **Indicaciones médicas**.
+4. Escribir texto de prueba en **Entrega de turno**, **Observaciones** y **Notas compartidas**.
+   Seleccionar **EDF** o **Especialista** en **Indicaciones médicas** y una **Especialidad**.
    Corregir temporalmente **Médico tratante** desde la cuenta propietaria.
 5. Volver a pulsar **Abrir planilla** y confirmar que:
    - se abre el mismo archivo;
    - los datos censales se actualizan;
-   - la corrección manual del médico tratante se conserva;
-   - ninguno de los dos textos de prueba se borra;
+   - la especialidad, el médico tratante y la selección EDF / Especialista se conservan;
+   - ninguno de los textos de prueba se borra;
+   - al agregar pacientes, las notas compartidas quedan debajo de la tabla;
    - cualquier columna oficial faltante se recrea y no quedan columnas ajenas al formato;
-   - columnas A–F no son editables para un especialista;
+   - columnas A–D, F y el identificador oculto J no son editables para un especialista;
+   - columnas E, G, H e I y las notas compartidas sí son editables;
    - el archivo no está compartido públicamente.
 
 ### Smoke de recuperación posterior al despliegue

@@ -21,6 +21,7 @@ const currentHeaders = [
   'Especialidad',
   'Médico tratante',
   'Entrega de turno',
+  'Observaciones',
   'Indicaciones médicas',
   '_hhr_key',
 ];
@@ -60,10 +61,11 @@ describe('medical handoff Apps Script row reconciliation', () => {
       [2, 138],
       [3, 92],
       [4, 140],
-      [5, 99],
+      [5, 120],
       [6, 133],
       [7, 354],
-      [8, 161],
+      [8, 210],
+      [9, 161],
     ]);
   });
 
@@ -78,6 +80,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         'Medicina',
         '',
         'Texto médico',
+        '',
         'Mantener hidratación',
         hashEpisodeStableKey('1'),
       ],
@@ -89,6 +92,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         'Cirugía',
         '',
         'Entrega histórica',
+        '',
         '',
         'episode:2',
       ],
@@ -126,6 +130,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         'Medicina',
         'Dra. Aravena',
         'Texto médico',
+        '',
         'Mantener hidratación',
         hashEpisodeStableKey('1'),
       ],
@@ -138,6 +143,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         '',
         'Entrega histórica',
         '',
+        '',
         hashEpisodeStableKey('2'),
       ],
       [
@@ -146,6 +152,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         '07-08-2026',
         'Diagnóstico nuevo',
         'Cirugía',
+        '',
         '',
         '',
         '',
@@ -166,6 +173,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         'Medicina',
         '',
         'Nota en edición',
+        '',
         'Indicaciones en edición',
         stableKey,
       ],
@@ -190,7 +198,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
     );
     const { upsertHhrRows_ } = loadAppsScriptRowsContext();
 
-    upsertHhrRows_({ getLastRow: () => 2, getLastColumn: () => 9, getRange }, [
+    upsertHhrRows_({ getLastRow: () => 2, getLastColumn: () => 10, getRange }, [
       {
         stableKey,
         bed: 'H1C1',
@@ -204,14 +212,13 @@ describe('medical handoff Apps Script row reconciliation', () => {
     ]);
 
     expect(rangeOperations).toEqual([
-      { row: 2, column: 1, rowCount: 1, columnCount: 6, operation: 'clear' },
-      { row: 2, column: 9, rowCount: 1, columnCount: 1, operation: 'clear' },
-      { row: 2, column: 1, rowCount: 1, columnCount: 6, operation: 'setValues' },
-      { row: 2, column: 9, rowCount: 1, columnCount: 1, operation: 'setValues' },
+      { row: 2, column: 1, rowCount: 1, columnCount: 4, operation: 'clear' },
+      { row: 2, column: 10, rowCount: 1, columnCount: 1, operation: 'clear' },
+      { row: 2, column: 1, rowCount: 1, columnCount: 4, operation: 'setValues' },
+      { row: 2, column: 10, rowCount: 1, columnCount: 1, operation: 'setValues' },
+      { row: 2, column: 6, rowCount: 1, columnCount: 1, operation: 'setValue' },
     ]);
-    expect(
-      rangeOperations.some(operation => operation.column === 7 || operation.column === 8)
-    ).toBe(false);
+    expect(rangeOperations.some(operation => [7, 8, 9].includes(operation.column))).toBe(false);
   });
 
   it('preserves a manually corrected physician and fills it only when the sheet is blank', () => {
@@ -227,6 +234,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         'Medicina',
         'Dra. Corrección Manual',
         'Entrega existente',
+        '',
         'Indicaciones existentes',
         manuallyCorrected,
       ],
@@ -236,6 +244,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         '07-08-2026',
         'Diagnóstico',
         'Cirugía',
+        '',
         '',
         '',
         '',
@@ -268,7 +277,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
 
     expect(result[0][5]).toBe('Dra. Corrección Manual');
     expect(result[0][6]).toBe('Entrega existente');
-    expect(result[0][7]).toBe('Indicaciones existentes');
+    expect(result[0][8]).toBe('Indicaciones existentes');
     expect(result[1][5]).toBe('Dr. Valor desde HHR');
   });
 
@@ -285,8 +294,8 @@ describe('medical handoff Apps Script row reconciliation', () => {
       insertColumnsAfter,
     });
 
-    expect(insertColumnsAfter).toHaveBeenCalledWith(7, 2);
-    expect(shortSheetColumns).toBe(9);
+    expect(insertColumnsAfter).toHaveBeenCalledWith(7, 3);
+    expect(shortSheetColumns).toBe(10);
 
     let wideSheetColumns = 12;
     const deleteColumns = vi.fn((_start: number, count: number) => {
@@ -298,8 +307,8 @@ describe('medical handoff Apps Script row reconciliation', () => {
       deleteColumns,
     });
 
-    expect(deleteColumns).toHaveBeenCalledWith(10, 3);
-    expect(wideSheetColumns).toBe(9);
+    expect(deleteColumns).toHaveBeenCalledWith(11, 2);
+    expect(wideSheetColumns).toBe(10);
   });
 
   it('migrates an existing manually added indications column without duplicating or erasing it', () => {
@@ -352,6 +361,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         'Medicina',
         'Dra. Aravena',
         'Nota médica existente',
+        '',
         'No borrar esta indicación',
         hashEpisodeStableKey('1'),
       ],
@@ -375,7 +385,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
     const first = mergeHhrRows_([], [incomingRow]);
     const second = mergeHhrRows_(first, [{ ...incomingRow, diagnosis: 'Actualizado' }]);
 
-    expect(first[0][8]).toBe("'-episode");
+    expect(first[0][9]).toBe("'-episode");
     expect(second).toHaveLength(1);
     expect(second[0][3]).toBe('Actualizado');
   });
@@ -393,6 +403,7 @@ describe('medical handoff Apps Script row reconciliation', () => {
         'Medicina',
         '',
         'Entrega que debe conservarse',
+        '',
         '',
         `episode:${episodeId}`,
       ],
@@ -415,10 +426,10 @@ describe('medical handoff Apps Script row reconciliation', () => {
 
     expect(migrated).toHaveLength(1);
     expect(migrated[0][6]).toBe('Entrega que debe conservarse');
-    expect(migrated[0][8]).toBe(hashedKey);
+    expect(migrated[0][9]).toBe(hashedKey);
     expect(refreshedByLegacyClient).toHaveLength(1);
     expect(refreshedByLegacyClient[0][3]).toBe('Segundo cambio');
-    expect(refreshedByLegacyClient[0][8]).toBe(hashedKey);
+    expect(refreshedByLegacyClient[0][9]).toBe(hashedKey);
   });
 
   it('collapses legacy and versioned aliases without losing either handoff note', () => {
@@ -426,8 +437,8 @@ describe('medical handoff Apps Script row reconciliation', () => {
     const episodeId = 'episode-with-two-existing-aliases';
     const hashedKey = hashEpisodeStableKey(episodeId);
     const existingRows = [
-      ['R1', 'Paciente Uno', '', '', '', '', 'Nota antigua', '', `episode:${episodeId}`],
-      ['H1C1', 'Paciente Uno', '', '', '', '', 'Nota reciente', '', hashedKey],
+      ['R1', 'Paciente Uno', '', '', '', '', 'Nota antigua', '', '', `episode:${episodeId}`],
+      ['H1C1', 'Paciente Uno', '', '', '', '', 'Nota reciente', '', '', hashedKey],
     ];
 
     const result = mergeHhrRows_(existingRows, [
@@ -445,6 +456,6 @@ describe('medical handoff Apps Script row reconciliation', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0][6]).toBe('Nota antigua\n\n---\n\nNota reciente');
-    expect(result[0][8]).toBe(hashedKey);
+    expect(result[0][9]).toBe(hashedKey);
   });
 });

@@ -18,6 +18,18 @@ const HHR_HANDOFF_ERROR_CODES = {
   SHEET_UPDATE_FAILED: 'sheet_update_failed',
 };
 const HHR_HANDOFF_HASHED_EPISODE_KEY_PATTERN = /^episode-h1:[a-f0-9]{96}$/;
+const HHR_HANDOFF_NOTES_KEY = '__hhr_shared_notes__';
+const HHR_HANDOFF_NOTES_ROWS = 12;
+const HHR_HANDOFF_SPECIALTIES = [
+  'Med Interna',
+  'Cirugía',
+  'Traumatología',
+  'Ginecobstetricia',
+  'Psiquiatría',
+  'Pediatría',
+  'Odontología',
+  'Otro',
+];
 const HHR_HANDOFF_HEADERS = [
   'Cama',
   'Paciente',
@@ -26,10 +38,11 @@ const HHR_HANDOFF_HEADERS = [
   'Especialidad',
   'Médico tratante',
   'Entrega de turno',
+  'Observaciones',
   'Indicaciones médicas',
   '_hhr_key',
 ];
-const HHR_HANDOFF_COLUMN_WIDTHS_PX = [63, 138, 92, 140, 99, 133, 354, 161];
+const HHR_HANDOFF_COLUMN_WIDTHS_PX = [63, 138, 92, 140, 120, 133, 354, 210, 161];
 
 function doPost(event) {
   try {
@@ -236,8 +249,8 @@ function openOrCreateHhrHandoff_(request) {
 
   const sheet = resolveHhrSheet_(spreadsheet);
   ensureHhrSheetColumnCapacity_(sheet);
-  upsertHhrRows_(sheet, request.rows);
-  configureHhrSheet_(sheet);
+  const dataLastRow = upsertHhrRows_(sheet, request.rows);
+  configureHhrSheet_(sheet, dataLastRow);
 
   return {
     ok: true,
@@ -410,46 +423,69 @@ function upsertHhrRows_(sheet, incomingRows) {
   const schemaIsCurrent = isCurrentHhrSchema_(existingHeaders);
   const rawExistingRows =
     lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues() : [];
-  const existingRows = normalizeExistingHhrRows_(existingHeaders, rawExistingRows);
+  const keyColumnIndex = findHhrHeaderIndex_(existingHeaders, '_hhr_key');
+  const notesIndex = rawExistingRows.findIndex(function (row) {
+    return keyColumnIndex >= 0 && row[keyColumnIndex] === HHR_HANDOFF_NOTES_KEY;
+  });
+  const patientRows = (
+    notesIndex >= 0 ? rawExistingRows.slice(0, notesIndex) : rawExistingRows
+  ).slice();
+  // Blank separator rows belong to the shared notes area, not the patient table.
+  while (
+    patientRows.length &&
+    patientRows[patientRows.length - 1].every(function (value) {
+      return value === '' || value === null;
+    })
+  ) {
+    patientRows.pop();
+  }
+  const existingRows = normalizeExistingHhrRows_(existingHeaders, patientRows);
   const mergedRows = mergeHhrRows_(existingRows, incomingRows);
 
-  const rowsToClear = Math.max(lastRow - 1, mergedRows.length);
+  if (notesIndex >= 0) {
+    const notesRow = notesIndex + 2;
+    const extraRows = mergedRows.length + 4 - notesRow;
+    if (extraRows > 0) sheet.insertRowsBefore(notesRow, extraRows);
+  }
+
+  const rowsToClear = Math.max(existingRows.length, mergedRows.length);
   if (rowsToClear > 0) {
-    sheet.getRange(2, 1, rowsToClear, 6).clearContent();
-    sheet.getRange(2, 9, rowsToClear, 1).clearContent();
+    sheet.getRange(2, 1, rowsToClear, 4).clearContent();
+    sheet.getRange(2, 10, rowsToClear, 1).clearContent();
   }
   if (mergedRows.length > 0) {
-    sheet.getRange(2, 1, mergedRows.length, 6).setValues(
+    sheet.getRange(2, 1, mergedRows.length, 4).setValues(
       mergedRows.map(function (row) {
-        return row.slice(0, 6);
+        return row.slice(0, 4);
       })
     );
-    sheet.getRange(2, 9, mergedRows.length, 1).setValues(
+    sheet.getRange(2, 10, mergedRows.length, 1).setValues(
       mergedRows.map(function (row) {
-        return [row[8]];
+        return [row[9]];
       })
     );
 
     mergedRows.forEach(function (row, index) {
       const existingRow = existingRows[index];
       const keepsSameEpisode =
-        existingRow && canonicalHhrStableKey_(existingRow[8]) === canonicalHhrStableKey_(row[8]);
-      const keepsSameNote = existingRow && String(existingRow[6] || '') === String(row[6] || '');
-      if (!schemaIsCurrent || !keepsSameEpisode || !keepsSameNote) {
-        sheet.getRange(index + 2, 7, 1, 1).setValue(row[6]);
-      }
-      const keepsSameInstructions =
-        existingRow && String(existingRow[7] || '') === String(row[7] || '');
-      if (!schemaIsCurrent || !keepsSameEpisode || !keepsSameInstructions) {
-        sheet.getRange(index + 2, 8, 1, 1).setValue(row[7]);
+        existingRow && canonicalHhrStableKey_(existingRow[9]) === canonicalHhrStableKey_(row[9]);
+      // Do not rewrite editable cells for a stable episode: someone may be typing
+      // in Sheets while the census request is in flight.
+      for (let columnIndex = 4; columnIndex <= 8; columnIndex += 1) {
+        const keepsSameValue =
+          existingRow && String(existingRow[columnIndex] || '') === String(row[columnIndex] || '');
+        if (!schemaIsCurrent || !keepsSameEpisode || !keepsSameValue) {
+          sheet.getRange(index + 2, columnIndex + 1, 1, 1).setValue(row[columnIndex]);
+        }
       }
     });
   }
 
   const surplusRows = rowsToClear - mergedRows.length;
   if (surplusRows > 0) {
-    sheet.getRange(mergedRows.length + 2, 7, surplusRows, 2).clearContent();
+    sheet.getRange(mergedRows.length + 2, 5, surplusRows, 5).clearContent();
   }
+  return Math.max(mergedRows.length + 1, 2);
 }
 
 function normalizeHhrHeader_(value) {
@@ -483,6 +519,7 @@ function normalizeExistingHhrRows_(headers, rows) {
     specialty: findHhrHeaderIndex_(headers, 'Especialidad'),
     treatingPhysician: findHhrHeaderIndex_(headers, 'Médico tratante'),
     handoff: findHhrHeaderIndex_(headers, 'Entrega de turno'),
+    observations: findHhrHeaderIndex_(headers, 'Observaciones'),
     instructions: findHhrHeaderIndex_(headers, 'Indicaciones médicas'),
     stableKey: findHhrHeaderIndex_(headers, '_hhr_key'),
   };
@@ -499,6 +536,7 @@ function normalizeExistingHhrRows_(headers, rows) {
         row[5],
         row[6],
         '',
+        '',
         row[7],
       ];
     }
@@ -513,6 +551,7 @@ function normalizeExistingHhrRows_(headers, rows) {
       valueAt(indexes.specialty),
       valueAt(indexes.treatingPhysician),
       valueAt(indexes.handoff),
+      valueAt(indexes.observations),
       valueAt(indexes.instructions),
       valueAt(indexes.stableKey),
     ];
@@ -531,13 +570,13 @@ function mergeHhrRows_(existingRows, incomingRows) {
   const rowIndexByKey = {};
   existingRows.forEach(function (existingRow) {
     const row = existingRow.slice();
-    const stableKey = canonicalHhrStableKey_(row[8]);
+    const stableKey = canonicalHhrStableKey_(row[9]);
     if (!stableKey) {
       mergedRows.push(row);
       return;
     }
 
-    row[8] = safeHhrCell_(stableKey);
+    row[9] = safeHhrCell_(stableKey);
     const duplicateIndex = rowIndexByKey[stableKey];
     if (duplicateIndex === undefined) {
       rowIndexByKey[stableKey] = mergedRows.length;
@@ -547,6 +586,7 @@ function mergeHhrRows_(existingRows, incomingRows) {
 
     row[6] = mergeHhrHandoffText_(mergedRows[duplicateIndex][6], row[6]);
     row[7] = mergeHhrHandoffText_(mergedRows[duplicateIndex][7], row[7]);
+    row[8] = mergeHhrHandoffText_(mergedRows[duplicateIndex][8], row[8]);
     mergedRows[duplicateIndex] = row;
   });
 
@@ -561,6 +601,7 @@ function mergeHhrRows_(existingRows, incomingRows) {
       safeHhrCell_(row.treatingPhysician),
       '',
       '',
+      '',
       safeHhrCell_(stableKey),
     ];
     const existingIndex = rowIndexByKey[stableKey];
@@ -573,9 +614,11 @@ function mergeHhrRows_(existingRows, incomingRows) {
     // A populated physician cell is owned by the sheet for this episode. HHR cannot
     // distinguish an institutional correction from an earlier export, so only an
     // explicitly cleared cell opts back into the physician supplied by HHR.
+    nextValues[4] = preserveHhrManualValue_(mergedRows[existingIndex][4], nextValues[4]);
     nextValues[5] = preserveHhrManualValue_(mergedRows[existingIndex][5], nextValues[5]);
     nextValues[6] = mergedRows[existingIndex][6];
     nextValues[7] = mergedRows[existingIndex][7];
+    nextValues[8] = mergedRows[existingIndex][8];
     mergedRows[existingIndex] = nextValues;
   });
 
@@ -599,28 +642,40 @@ function safeHhrCell_(value) {
   return /^[=+\-@]/.test(text) ? "'" + text : text;
 }
 
-function configureHhrSheet_(sheet) {
+function configureHhrSheet_(sheet, dataLastRow) {
   trimHhrSheetToCurrentSchema_(sheet);
-  sheet.getRange(1, 1, 1, 9).setValues([HHR_HANDOFF_HEADERS]);
+  sheet.getRange(1, 1, 1, 10).setValues([HHR_HANDOFF_HEADERS]);
   sheet.setFrozenRows(1);
   applyHhrColumnWidths_(sheet);
-  sheet.showColumns(8);
-  sheet.hideColumns(9);
+  sheet.showColumns(8, 2);
+  sheet.hideColumns(10);
 
-  const lastRow = Math.max(sheet.getLastRow(), 2);
-  sheet.getRange(1, 1, 1, 9).setBackground('#0f766e').setFontColor('#ffffff').setFontWeight('bold');
+  const lastRow = Math.max(dataLastRow, 2);
   sheet
-    .getRange(2, 1, lastRow - 1, 8)
+    .getRange(1, 1, 1, 10)
+    .setBackground('#0f766e')
+    .setFontColor('#ffffff')
+    .setFontWeight('bold');
+  sheet
+    .getRange(2, 1, lastRow - 1, 9)
     .setVerticalAlignment('top')
     .setWrap(true);
   sheet.getRange('G1').setNote('Espacio libre para la entrega de turno del equipo médico.');
-  sheet.getRange('H1').setNote('Espacio libre para indicaciones médicas.');
+  sheet.getRange('H1').setNote('Observaciones del equipo médico.');
+  sheet
+    .getRange('I1')
+    .setNote('Selecciona quién se hace cargo de evaluar y validar las indicaciones médicas.');
+  sheet.getRange('E1').setNote('Selecciona la especialidad si falta o necesita corrección.');
   sheet.getRange(2, 7, lastRow - 1, 1).setBackground('#fffceb');
   sheet.getRange(2, 8, lastRow - 1, 1).setBackground('#eff6ff');
+  sheet.getRange(2, 9, lastRow - 1, 1).setBackground('#eefaf5');
+  configureHhrDropdown_(sheet.getRange(2, 5, lastRow - 1, 1), HHR_HANDOFF_SPECIALTIES);
+  configureHhrDropdown_(sheet.getRange(2, 9, lastRow - 1, 1), ['EDF', 'Especialista']);
+  const notesRow = configureHhrSharedNotes_(sheet, lastRow);
 
   const existingFilter = sheet.getFilter();
   if (existingFilter) existingFilter.remove();
-  sheet.getRange(1, 1, lastRow, 8).createFilter();
+  sheet.getRange(1, 1, lastRow, 9).createFilter();
 
   sheet
     .getProtections(SpreadsheetApp.ProtectionType.RANGE)
@@ -630,9 +685,63 @@ function configureHhrSheet_(sheet) {
     .forEach(function (protection) {
       protection.remove();
     });
-  protectHhrRange_(sheet.getRange(1, 1, 1, 9), 'HHR_CABECERA');
-  protectHhrRange_(sheet.getRange(2, 1, sheet.getMaxRows() - 1, 6), 'HHR_DATOS_CENSO');
-  protectHhrRange_(sheet.getRange(2, 9, sheet.getMaxRows() - 1, 1), 'HHR_IDENTIFICADOR');
+  protectHhrRange_(sheet.getRange(1, 1, 1, 10), 'HHR_CABECERA');
+  protectHhrRange_(sheet.getRange(2, 1, lastRow - 1, 4), 'HHR_DATOS_CENSO');
+  protectHhrRange_(sheet.getRange(2, 6, lastRow - 1, 1), 'HHR_MEDICO_TRATANTE');
+  protectHhrRange_(sheet.getRange(2, 10, sheet.getMaxRows() - 1, 1), 'HHR_IDENTIFICADOR');
+  protectHhrRange_(sheet.getRange(notesRow, 1, 2, 9), 'HHR_NOTAS_CABECERA');
+}
+
+function configureHhrDropdown_(range, options) {
+  range.setDataValidation(
+    SpreadsheetApp.newDataValidation()
+      .requireValueInList(options, true)
+      // Preserve free text already written in older daily workbooks.
+      .setAllowInvalid(true)
+      .build()
+  );
+}
+
+function configureHhrSharedNotes_(sheet, dataLastRow) {
+  const lastRow = sheet.getLastRow();
+  const keys = lastRow > 1 ? sheet.getRange(2, 10, lastRow - 1, 1).getValues() : [];
+  const existingIndex = keys.findIndex(function (row) {
+    return row[0] === HHR_HANDOFF_NOTES_KEY;
+  });
+  const isNew = existingIndex < 0;
+  const notesRow = isNew ? dataLastRow + 3 : existingIndex + 2;
+  const requiredRows = notesRow + HHR_HANDOFF_NOTES_ROWS + 1;
+  if (sheet.getMaxRows() < requiredRows) {
+    sheet.insertRowsAfter(sheet.getMaxRows(), requiredRows - sheet.getMaxRows());
+  }
+
+  if (isNew) {
+    sheet.getRange(notesRow, 10).setValue(HHR_HANDOFF_NOTES_KEY);
+    sheet.getRange(notesRow, 1, 1, 9).merge();
+    sheet.getRange(notesRow + 1, 1, 1, 9).merge();
+    sheet
+      .getRange(notesRow + 2, 1, HHR_HANDOFF_NOTES_ROWS, 9)
+      .mergeAcross()
+      .setBackground('#ffffff')
+      .setWrap(true)
+      .setVerticalAlignment('top');
+    sheet.setRowHeights(notesRow + 2, HHR_HANDOFF_NOTES_ROWS, 30);
+  }
+  sheet
+    .getRange(notesRow, 1)
+    .setValue(
+      'EDF: evaluación y validación de indicaciones a cargo del médico EDF. Especialista: evaluación y validación a cargo del especialista.'
+    )
+    .setFontSize(10)
+    .setFontColor('#475569')
+    .setWrap(true);
+  sheet.setRowHeight(notesRow, 36);
+  sheet
+    .getRange(notesRow + 1, 1)
+    .setValue('Notas compartidas · espacio libre para el equipo')
+    .setFontWeight('bold')
+    .setBackground('#f1f5f9');
+  return notesRow;
 }
 
 function applyHhrColumnWidths_(sheet) {
