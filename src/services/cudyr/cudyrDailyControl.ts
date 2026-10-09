@@ -8,8 +8,10 @@ export const cudyrEligibilityOrigin = (row: CudyrReportRow): string => {
   return row.contextSource === 'eloisa_interval' ? 'Automático · Eloísa' : 'Automático · censo HHR';
 };
 export const cudyrControlStatus = (row: CudyrReportRow): string =>
-  row.cudyrStatus === 'sin_registro_observado'
-    ? 'Consultado · sin CUDYR encontrado'
-    : row.cudyrStatus === 'sin_captura'
-      ? 'Sin consulta confirmada'
-      : CUDYR_STATUS_LABELS[row.cudyrStatus];
+  row.applicationPending
+    ? 'Pendiente de aplicación'
+    : row.cudyrStatus === 'sin_registro_observado'
+      ? 'Consultado · sin CUDYR encontrado'
+      : row.cudyrStatus === 'sin_captura'
+        ? 'Sin consulta confirmada'
+        : CUDYR_STATUS_LABELS[row.cudyrStatus];

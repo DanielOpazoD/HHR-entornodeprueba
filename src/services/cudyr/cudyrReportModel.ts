@@ -1,3 +1,8 @@
+import {
+  CUDYR_IMPORT_SOURCE,
+  CUDYR_FALLBACK_SOURCE,
+} from '@/domain/evaluationScales/importedCudyr';
+import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { CUDYR_EXCLUSION_LABELS } from '@/types/domain/cudyrExclusion';
 import type { DailyRecordCudyrExportState } from '@/services/contracts/dailyRecordServiceContracts';
 import type {
@@ -79,6 +84,20 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
         )
       );
       const latest = capture.latest;
+      const captureInconclusive = ['captura_incompleta', 'fuente_no_disponible'].includes(
+        capture.status
+      );
+      // An archived source result proves its own existence even if another capture part failed.
+      // Legacy local scores do not provide that evidence of an Eloísa result.
+      const sourceResultAvailable = Boolean(
+        observation ||
+        (selected.evaluation &&
+          [CUDYR_IMPORT_SOURCE, CUDYR_FALLBACK_SOURCE].includes(selected.evaluation.source))
+      );
+      if (sourceResultAvailable && captureInconclusive)
+        capture.warnings.push(
+          'Resultado de Eloísa disponible; la última consulta no pudo completarse.'
+        );
       const placement = resolveCudyrDailyPlacement({
         date: first.date,
         patientName: p.patientName,
@@ -127,6 +146,8 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
       const row: CudyrReportRow = {
         key,
         date: first.date,
+        applicationPending:
+          resolveCudyrPendingStatus(first.date, new Date(input.generatedAt)).phase !== 'overdue',
         clinicalEpisodeId: episode,
         authorityDate: first.authorityDate,
         patientName: p.patientName || '',
@@ -161,7 +182,7 @@ export const buildCudyrReport = (input: CudyrReportInput): CudyrReportDataset =>
           ? 'por_revisar'
           : pending
             ? 'guardado_pendiente'
-            : ['captura_incompleta', 'fuente_no_disponible'].includes(capture.status)
+            : captureInconclusive && !sourceResultAvailable
               ? capture.status
               : selected.evaluation
                 ? 'registrado'
@@ -250,6 +271,7 @@ export const cudyrReportTotals = (rows: CudyrReportRow[]): CudyrReportTotals => 
     ),
   };
   for (const row of rows) {
+    if (row.applicationPending) continue;
     if (row.eligibility === 'no_elegible') {
       totals.excluded++;
       continue;

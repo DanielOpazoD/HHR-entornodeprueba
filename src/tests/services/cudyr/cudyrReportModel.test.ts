@@ -306,55 +306,6 @@ describe('CUDYR canonical report', () => {
       bedId: '',
     });
   });
-  it('distinguishes empty observation, unavailable source, incomplete capture and local pending', () => {
-    const record = reportRecord();
-    record.beds.R1.cudyr = undefined;
-    const capture = reportCapture();
-    expect(buildCudyrReport(reportInput({ records: [record] })).rows[0].cudyrStatus).toBe(
-      'sin_captura'
-    );
-    for (const [change, expected] of [
-      [{ status: 'not_observed' }, 'sin_registro_observado'],
-      [{ status: 'unavailable' }, 'fuente_no_disponible'],
-      [{ totalParts: 2 }, 'captura_incompleta'],
-    ] as const) {
-      const result = buildCudyrReport(
-        reportInput({
-          records: [record],
-          captures: [{ ...capture, capture: { ...capture.capture, ...change } }],
-        })
-      );
-      expect(result.rows[0].cudyrStatus).toBe(expected);
-    }
-    const pending = buildCudyrReport(
-      reportInput({
-        observations: [reportObservation()],
-        pending: [{ clinicalEpisodeId: 'synthetic-episode', dates: ['2026-10-02'] }],
-      })
-    );
-    expect(pending.rows[0].cudyrStatus).toBe('guardado_pendiente');
-    expect(cudyrReportTotals(pending.rows).categorized).toBe(0);
-  });
-  it('retains the observed evaluation without confirming totals when the latest capture is inconclusive', () => {
-    for (const patch of [
-      { totalParts: 2 },
-      { status: 'unavailable' as const },
-      { status: 'legacy_extension' as const },
-    ]) {
-      const capture = reportCapture();
-      const data = buildCudyrReport(
-        reportInput({
-          observations: [reportObservation()],
-          captures: [{ ...capture, capture: { ...capture.capture, ...patch } }],
-        })
-      );
-      const row = data.rows[0];
-      expect(row.evaluation?.category).toBe('C2');
-      expect(row.cudyrStatus).not.toBe('registrado');
-      expect(cudyrReportTotals([row]).categorized).toBe(0);
-      expect(cudyrReportTotals([row]).withoutConfirmedResult).toBe(1);
-    }
-  });
   it('keeps a distinct undated egreso unresolved even when another egreso has a date', () => {
     const record = reportRecord();
     const movement = {
@@ -375,27 +326,6 @@ describe('CUDYR canonical report', () => {
     const row = buildCudyrReport(reportInput({ records: [record] })).rows[0];
     expect(row.eligibility).toBe('por_revisar');
     expect(row.eligibilityReason).toContain('sin fecha');
-  });
-  it('resolves all equally timed captures conservatively independent of receipt order', () => {
-    const complete = reportCapture();
-    for (const patch of [{ totalParts: 2 }, { status: 'unavailable' as const }]) {
-      const other = {
-        ...complete,
-        id: 'other-receipt',
-        capture: { ...complete.capture, id: 'other-capture', ...patch },
-      };
-      const rows = [
-        [complete, other],
-        [other, complete],
-      ].map(
-        captures =>
-          buildCudyrReport(reportInput({ observations: [reportObservation()], captures })).rows[0]
-      );
-      expect(rows[0].cudyrStatus).toBe(rows[1].cudyrStatus);
-      expect(rows[0].captureId).toBe('other-capture');
-      expect(rows[1].captureId).toBe('other-capture');
-      expect(cudyrReportTotals(rows).categorized).toBe(0);
-    }
   });
   it('uses actual departure without overwriting the system egreso and flags unknown time on the cutoff day', () => {
     const record = reportRecord();

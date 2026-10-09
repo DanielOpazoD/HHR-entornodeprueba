@@ -1,3 +1,4 @@
+import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 import { useDailyRecordData } from '@/context/DailyRecordContext';
@@ -26,7 +27,7 @@ export const CudyrView = ({
   const { data, busy, error, load } = useCudyrReport(date);
   const [exploring, setExploring] = useState(false);
   const [selected, setSelected] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('elegible');
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
   const sync = record?.rayenSync?.at || '';
@@ -40,15 +41,27 @@ export const CudyrView = ({
   const visible = rows.filter(row => filter === 'all' || row.eligibility === filter);
   const totals = cudyrReportTotals(data?.rows || []);
   const daily = cudyrReportTotals(rows);
+  const asOf = new Date(data?.generatedAt || Date.now());
+  const dayPending = resolveCudyrPendingStatus(date, asOf).phase !== 'overdue';
+  const evaluatedCoverage =
+    data?.coverage.filter(day => resolveCudyrPendingStatus(day.date, asOf).phase === 'overdue') ||
+    [];
+  const lastEvaluated = evaluatedCoverage.at(-1)?.date;
+  const dailyPercentage =
+    !dayPending && daily.eligible
+      ? Math.round((100 * daily.categorized) / daily.eligible) + '%'
+      : '—';
   const percentage = totals.eligible
     ? Math.round((100 * totals.categorized) / totals.eligible) + '%'
     : '—';
   const partial = Boolean(
     data &&
-    (data.issues.length || data.coverage.some(day => day.state !== 'disponible') || totals.review)
+    (data.issues.length ||
+      evaluatedCoverage.some(day => day.state !== 'disponible') ||
+      totals.review)
   );
   const canExport = Boolean(
-    data && !busy && !data.issues.length && !data.coverage.some(day => day.state === 'error')
+    data && !busy && !data.issues.length && !evaluatedCoverage.some(day => day.state === 'error')
   );
   const selectedRow = !busy && data?.rows.find(row => row.key === selected && row.date === date);
   const refresh = () => {
@@ -89,7 +102,7 @@ export const CudyrView = ({
       </Suspense>
     );
   return (
-    <section className="mx-auto max-w-6xl space-y-5 px-4 pb-16 sm:px-6" aria-label="Control CUDYR">
+    <section className="mx-auto max-w-7xl space-y-3 px-3 pb-6 sm:px-5" aria-label="Control CUDYR">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <button
@@ -100,7 +113,7 @@ export const CudyrView = ({
             <ArrowLeft size={14} />
             Volver al censo
           </button>
-          <h1 className="text-2xl font-bold text-slate-900">CUDYR · control diario</h1>
+          <h1 className="text-xl font-semibold text-slate-900">CUDYR · control diario</h1>
           <p className="mt-1 text-sm text-slate-500">
             Turno noche {date.split('-').reverse().join('-')} · Horario de Rapa Nui
           </p>
@@ -126,34 +139,46 @@ export const CudyrView = ({
           </button>
         </div>
       </header>
-      <div className="rounded-xl border border-teal-200 bg-white p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
           <div>
-            <p className="text-sm font-medium text-slate-600">
-              Cumplimiento acumulado · {date.slice(0, 7)}
+            <p className="text-xs text-slate-500">Cumplimiento del día</p>
+            <p className="text-2xl font-semibold tabular-nums text-teal-800">
+              {busy ? '…' : dailyPercentage}
             </p>
-            <p className="mt-1 text-3xl font-bold text-teal-800">{busy ? '…' : percentage}</p>
-            <p className="mt-1 text-xs text-slate-500">
-              Hasta el {date.split('-').reverse().join('-')} · {totals.categorized} CUDYR
-              confirmados / {totals.eligible} pacientes-día elegibles
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-6 text-sm">
-            <p>
-              <strong className="block text-xl">{daily.eligible}</strong>Elegibles del día
-            </p>
-            <p>
-              <strong className="block text-xl">{daily.categorized}</strong>Confirmados del día
-            </p>
-            <p>
-              <strong className="block text-xl">{daily.excluded}</strong>Excluidos del día
+            <p className="text-xs text-slate-500">
+              {dayPending
+                ? 'Pendiente de aplicación'
+                : `${daily.categorized} / ${daily.eligible} elegibles`}
             </p>
           </div>
+          <div className="border-l pl-6">
+            <p className="text-xs text-slate-500">Cumplimiento acumulado · {date.slice(0, 7)}</p>
+            <p className="text-xl font-semibold tabular-nums text-slate-800">
+              {busy ? '…' : percentage}
+            </p>
+            <p className="text-xs text-slate-500">
+              {lastEvaluated
+                ? `Hasta el ${lastEvaluated.split('-').reverse().join('-')}`
+                : 'Sin días evaluables'}{' '}
+              · {totals.categorized} CUDYR confirmados / {totals.eligible} pacientes-día elegibles
+            </p>
+          </div>
+          <p className="text-xs text-slate-500">
+            {rows.filter(row => row.eligibility === 'no_elegible').length} excluidos ·{' '}
+            {rows.filter(row => row.eligibility === 'por_revisar').length} por revisar
+          </p>
         </div>
+        {dayPending && (
+          <p role="status" className="mt-2 text-xs text-slate-600">
+            Este día no entra al cumplimiento ni al Excel de elegibles. Su ventana de aplicación
+            termina al mediodía siguiente, en horario de Rapa Nui.
+          </p>
+        )}
         {partial && (
-          <p role="status" className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-            Acumulado provisional: hay días sin censo, lecturas incompletas o casos por revisar.{' '}
-            {totals.review} pacientes-día por revisar.
+          <p role="status" className="mt-2 text-xs text-amber-800">
+            Acumulado provisional · {totals.review} por revisar; compruebe los días sin censo o las
+            lecturas incompletas en el explorador.
           </p>
         )}
       </div>
@@ -173,7 +198,7 @@ export const CudyrView = ({
           <select
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="ml-2 rounded-lg border bg-white p-2"
+            className="ml-2 rounded-md border bg-white px-2 py-1 text-xs"
           >
             <option value="all">Todos los casos</option>
             <option value="elegible">Elegibles</option>
