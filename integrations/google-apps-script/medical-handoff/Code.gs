@@ -841,8 +841,8 @@ function protectHhrRange_(range, description) {
 
 function restrictHhrProtection_(protection, allowedEditors) {
   protection.setWarningOnly(false);
-  // Keep the executing owner explicitly before removing inherited/group access.
-  protection.addEditor(Session.getEffectiveUser());
+  // The deployment and migration execute as the spreadsheet owner. Google keeps
+  // that owner implicitly; no additional account-profile OAuth scope is needed.
   const editors = protection.getEditors();
   if (editors.length > 0) protection.removeEditors(editors);
   if (protection.canDomainEdit()) protection.setDomainEdit(false);
