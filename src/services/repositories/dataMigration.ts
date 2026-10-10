@@ -250,11 +250,7 @@ export const migrateLegacyDataWithReport = (
     T extends DailyRecord['discharges'][number] | DailyRecord['transfers'][number],
   >(
     movement: T
-  ): T => {
-    const recovered = recoverImportedMovementCalendarDate(movement, date);
-    if (recovered !== movement) pushRule(appliedRules, 'imported_movement_calendar_date_recovered');
-    return recovered;
-  };
+  ): T => recoverImportedMovementCalendarDate(movement, date);
   migrated.discharges = migrated.discharges.map(recoverMovement);
   migrated.transfers = migrated.transfers.map(recoverMovement);
 

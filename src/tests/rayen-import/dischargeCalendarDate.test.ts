@@ -97,7 +97,6 @@ describe('discharge calendar date versus nursing census', () => {
     expect(result.record.discharges[0].time).toBe('01:42');
     expect(result.record.date).toBe(censusDate);
     expect(record.discharges[0].movementDate).toBe(censusDate);
-    expect(result.appliedRules).toContain('imported_movement_calendar_date_recovered');
     expect(migrateLegacyDataWithReport(result.record, censusDate).record.discharges[0]).toEqual(
       result.record.discharges[0]
     );

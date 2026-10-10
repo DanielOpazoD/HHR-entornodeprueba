@@ -1,6 +1,6 @@
 /** Applies a reviewed census diff without overwriting occupied beds; pure and deterministic. */
 import { buildMovementUndoSnapshot } from '@/utils/movementUndoSnapshot';
-import { calendarDateForMovement } from '@/utils/movementCalendarDate';
+import { buildImportedMovementStamp } from './buildImportedMovementStamp';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { normalizePatientUpcForBed } from '@/shared/census/upcBedPolicy';
 import { CensusManager } from '@/domain/CensusManager';
@@ -92,13 +92,9 @@ export const buildDischarge = (
   provenanceSource: 'manual' | 'gestion_camas' = 'gestion_camas'
 ): DischargeData => {
   const id = ctx.idFactory();
-  const time = entry.correctedTime || hhmm(ctx.now);
   return {
     id,
-    movementDate:
-      provenanceSource === 'gestion_camas'
-        ? calendarDateForMovement(entry.correctedDay || record.date, time)
-        : record.date,
+    ...buildImportedMovementStamp(entry, record.date, ctx.now, provenanceSource),
     admissionDate: patient.admissionDate || undefined,
     bedName: isNested
       ? `${BED_NAME.get(entry.bedId) ?? entry.bedId} (Cuna RN)`
@@ -109,7 +105,6 @@ export const buildDischarge = (
     rut: patient.rut,
     diagnosis: patient.pathology,
     specialty: asSpecialty(patient.specialty),
-    time,
     status: entry.status,
     dischargeType: !isNested && entry.status === 'Vivo' ? 'Domicilio (Habitual)' : undefined,
     age: patient.age || undefined,
@@ -136,13 +131,9 @@ export const buildTransfer = (
   provenanceSource: 'manual' | 'gestion_camas' = 'gestion_camas'
 ): TransferData => {
   const id = ctx.idFactory();
-  const time = entry.correctedTime || hhmm(ctx.now);
   return {
     id,
-    movementDate:
-      provenanceSource === 'gestion_camas'
-        ? calendarDateForMovement(entry.correctedDay || record.date, time)
-        : record.date,
+    ...buildImportedMovementStamp(entry, record.date, ctx.now, provenanceSource),
     admissionDate: patient.admissionDate || undefined,
     bedName: BED_NAME.get(entry.bedId) ?? entry.bedId,
     bedId: entry.bedId,
@@ -151,7 +142,6 @@ export const buildTransfer = (
     rut: patient.rut,
     diagnosis: patient.pathology,
     specialty: asSpecialty(patient.specialty),
-    time,
     evacuationMethod: '',
     receivingCenter: '',
     age: patient.age || undefined,

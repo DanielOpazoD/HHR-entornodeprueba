@@ -20,7 +20,5 @@ export const recoverImportedMovementCalendarDate = <T extends DischargeData | Tr
   )
     return movement;
   const calendarDate = calendarDateForMovement(censusDate, movement.time);
-  return calendarDate === movement.movementDate
-    ? movement
-    : { ...movement, movementDate: calendarDate };
+  return calendarDate === censusDate ? movement : { ...movement, movementDate: calendarDate };
 };

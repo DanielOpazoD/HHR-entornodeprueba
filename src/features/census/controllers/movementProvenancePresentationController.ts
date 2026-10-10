@@ -13,14 +13,11 @@ const formatStamp = (iso?: string): string => {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   const { iso: calendarDate, hhmm } = calendarStampInClinicalTimeZone(date);
-  const [year, month, day] = calendarDate.split('-');
-  return `${day}-${month}-${year} ${hhmm}`;
+  return `${calendarDate.split('-').reverse().join('-')} ${hhmm}`;
 };
 
-const withDetails = (base: string, provenance: MovementProvenance): string => {
-  const details = [provenance.classifiedBy, formatStamp(provenance.classifiedAt)].filter(Boolean);
-  return details.length > 0 ? `${base} · ${details.join(' · ')}` : base;
-};
+const withDetails = (base: string, provenance: MovementProvenance): string =>
+  [base, provenance.classifiedBy, formatStamp(provenance.classifiedAt)].filter(Boolean).join(' · ');
 
 const classificationLabel = (value?: MovementProvenance['previousClassification']): string => {
   if (value === 'discharge') return 'alta domicilio';
