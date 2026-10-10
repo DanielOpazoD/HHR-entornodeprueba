@@ -228,6 +228,9 @@ export default defineConfig(({ mode }) => {
             // Contextual CUDYR reports read server-authoritative history and cannot
             // load offline. Keep the new explorer and workbook on demand as well.
             '**/assets/CudyrReportExplorer-*.js',
+            // Optional census indicator uses the same on-demand historical reader.
+            '**/assets/CudyrMonthlyIndicator-*.js',
+            '**/assets/useCudyrReport-*.js',
             '**/assets/cudyrReportWorkbook-*.js',
             '**/assets/cudyrReportLoader-*.js',
             // Shared historical reconstruction split from the report loader; same on-demand policy.

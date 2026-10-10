@@ -273,6 +273,10 @@ test.describe('Production Preview Bootstrap', () => {
     await admission.blur();
     await expect(admission).toHaveCSS('opacity', '0');
 
+    await page
+      .locator('[data-testid="patient-row"][data-bed-id="R1"]')
+      .getByTitle('Asignar especialidad', { exact: true })
+      .click();
     const specialty = page.getByTestId('specialty-actions').locator('summary');
     await specialty.click();
     const rules = page.getByRole('button', { name: 'Reglas automáticas', exact: true });
@@ -285,6 +289,7 @@ test.describe('Production Preview Bootstrap', () => {
     });
     expect(hitTest).toBe(true);
     await specialty.click();
+    await page.getByRole('button', { name: 'Cerrar selector de especialidad' }).click();
 
     await page.evaluate(() => window.scrollTo(0, 360));
     const header = page.getByTestId('census-table').locator('thead');

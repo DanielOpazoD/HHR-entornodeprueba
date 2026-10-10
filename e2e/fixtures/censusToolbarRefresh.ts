@@ -106,7 +106,13 @@ export const checkCensusToolbarRefresh = async (page: Page, date: string) => {
     );
     await expect(bar).not.toHaveAttribute('inert');
     await expect(page.getByTestId('rayen-operations-loading')).toBeVisible();
-    await expect(page.getByTestId('specialty-actions')).toBeVisible();
+    await expect(
+      page.getByTestId('census-table').locator('thead').getByTestId('census-attention-filter-scale')
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Mostrar cumplimiento CUDYR mensual' })
+    ).toBeVisible();
+    await expect(page.getByTestId('specialty-actions')).toHaveCount(0);
     const staff = page.getByTestId('census-staff-and-sync');
     const loading = await staff.boundingBox();
     const loadingSync = await page

@@ -38,11 +38,11 @@ export const CensusSummarySwitcher = ({
           <ChartNoAxesCombined size={14} aria-hidden="true" />
         )}
       </button>
-      <div hidden={monthly} className="[&>div]:pr-9 [&>div]:h-full">
+      <div hidden={monthly} className="h-full [&>div]:pr-9 [&>div]:h-full">
         <CombinedSummaryCard {...summary} />
       </div>
       {opened && (
-        <div hidden={!monthly}>
+        <div hidden={!monthly} className="h-full">
           <SectionErrorBoundary sectionName="Cumplimiento CUDYR" fallbackHeight="80px">
             <Suspense
               fallback={
