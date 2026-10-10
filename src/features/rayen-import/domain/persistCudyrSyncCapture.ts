@@ -32,6 +32,7 @@ export const persistCudyrSyncCapture = async (input: {
         let detail = '';
         let failed = false;
         let reason: ClinicalFillError['reason'] = 'historical_archive_failed';
+        const recoveryErrors: ClinicalFillError[] = [];
         try {
           input.signal?.throwIfAborted();
           let recoveredPlacements;
@@ -41,9 +42,16 @@ export const persistCudyrSyncCapture = async (input: {
               recoveredPlacements = recovered;
             } catch (error) {
               input.signal?.throwIfAborted();
-              reason = classifyRayenSyncIssueReason('cudyr', error);
-              detail =
-                'No se pudo recuperar el historial de movimientos de camas. El guardado del CUDYR se verifica por separado. Reintente la sincronización.';
+              recoveryErrors.push(
+                buildClinicalFillError({
+                  bedId: '*',
+                  clinicalEpisodeId,
+                  source: 'bed_history',
+                  reason: classifyRayenSyncIssueReason('bed_history', error),
+                  error:
+                    'No se pudo recuperar el historial de movimientos de camas. El guardado del CUDYR se verifica por separado. Reintente la sincronización.',
+                })
+              );
             }
           }
           const parts = buildCudyrCaptureParts({
@@ -69,21 +77,24 @@ export const persistCudyrSyncCapture = async (input: {
           }
         } catch {
           // The coordinator owns cancellation; no archive failure occurred for skipped work.
-          if (input.signal?.aborted) return null;
+          if (input.signal?.aborted) return [];
           reason = 'historical_archive_failed';
           detail = 'No se pudo confirmar el archivo permanente CUDYR de este episodio.';
         }
         return detail
-          ? buildClinicalFillError({
-              bedId: '*',
-              clinicalEpisodeId,
-              source: 'cudyr',
-              reason,
-              error: detail,
-            })
-          : null;
+          ? [
+              ...recoveryErrors,
+              buildClinicalFillError({
+                bedId: '*',
+                clinicalEpisodeId,
+                source: 'cudyr',
+                reason,
+                error: detail,
+              }),
+            ]
+          : recoveryErrors;
       })
     )
   );
-  return errors.filter((error): error is ClinicalFillError => error !== null);
+  return errors.flat();
 };

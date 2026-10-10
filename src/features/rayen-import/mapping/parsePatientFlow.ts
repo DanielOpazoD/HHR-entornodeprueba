@@ -161,3 +161,13 @@ export const parsePatientFlowTimeline = (text: string): PatientFlowRow[] => {
   if (parsed.hasMalformedMovementRow) return [];
   return parsed.rows;
 };
+
+/** Parental RUN is a separate identity, valid only for an explicitly known newborn episode. */
+export const maternalRunFromFlowReport = (text: string): string => {
+  const runs = new Set(
+    [...String(text || '').matchAll(/\bRUN\s+Materno\/progenitor\(a\)\s*:\s*([0-9.kK-]+)/gi)]
+      .map(match => match[1].replace(/[^0-9kK]/g, '').toUpperCase())
+      .filter(Boolean)
+  );
+  return runs.size === 1 ? [...runs][0] : '';
+};

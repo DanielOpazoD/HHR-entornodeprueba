@@ -219,7 +219,7 @@ describe('historical hospital admission from the official flow report', () => {
       write,
     });
     expect(write).toHaveBeenCalledOnce();
-    expect(errors).toMatchObject([{ reason: 'source_unavailable' }]);
+    expect(errors).toMatchObject([{ source: 'bed_history', reason: 'source_unavailable' }]);
     expect(write.mock.calls[0][0].capture.sourcePlacements).toBeUndefined();
   });
   it.each(['queued', 'failed'])(
@@ -237,7 +237,10 @@ describe('historical hospital admission from the official flow report', () => {
         },
         write: vi.fn().mockResolvedValue(outcome),
       });
-      expect(errors).toMatchObject([{ reason: 'historical_archive_failed' }]);
+      expect(errors).toMatchObject([
+        { source: 'bed_history', reason: 'source_unavailable' },
+        { source: 'cudyr', reason: 'historical_archive_failed' },
+      ]);
     }
   );
   it('reads all archived pages before fetching a PDF and skips it once flow is persisted', async () => {

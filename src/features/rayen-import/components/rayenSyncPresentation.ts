@@ -226,6 +226,7 @@ const issueSourceLabel: Record<RayenSyncCoverageIssue['source'], string> = {
   vitals: 'Signos vitales',
   staffing: 'Enfermería / TENS',
   cudyr: 'CUDYR',
+  bed_history: 'Movimientos de camas',
   patch: 'Guardado del censo',
 };
 

@@ -52,6 +52,7 @@ export const RAYEN_SYNC_ISSUE_SOURCES = [
   'vitals',
   'staffing',
   'cudyr',
+  'bed_history',
   'patch',
 ] as const;
 export type RayenSyncIssueSource = (typeof RAYEN_SYNC_ISSUE_SOURCES)[number];

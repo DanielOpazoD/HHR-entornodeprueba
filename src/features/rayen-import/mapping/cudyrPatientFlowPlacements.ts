@@ -2,7 +2,11 @@ import type { CudyrSourcePlacement } from '@/types/domain/cudyrPlacement';
 import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { normalizeRut } from '@/utils/rutUtils';
 import { isCmaBedLabel, mapRayenBed } from './bedMapping';
-import { parsePatientFlowTimeline, patientRunFromFlowReport } from './parsePatientFlow';
+import {
+  maternalRunFromFlowReport,
+  parsePatientFlowTimeline,
+  patientRunFromFlowReport,
+} from './parsePatientFlow';
 
 export const CUDYR_PATIENT_FLOW_SOURCE = 'eloisa-patient-flow-v1';
 
@@ -23,13 +27,16 @@ export const cudyrPlacementsFromPatientFlow = (
   text: string,
   episode: string,
   rut: string,
-  observedAt: string
+  observedAt: string,
+  identityKind: 'patient' | 'maternal' = 'patient'
 ): CudyrSourcePlacement[] => {
-  if (
-    !/^\d+$/.test(episode) ||
-    !normalizeRut(rut) ||
-    patientRunFromFlowReport(text) !== normalizeRut(rut)
-  )
+  const personalRun = patientRunFromFlowReport(text);
+  // A personal RUN, if printed, must match; never override it with a parental identifier.
+  const reportRun =
+    identityKind === 'maternal' && !/\bRUN\s*:/i.test(text)
+      ? maternalRunFromFlowReport(text)
+      : personalRun;
+  if (!/^\d+$/.test(episode) || !normalizeRut(rut) || reportRun !== normalizeRut(rut))
     throw new Error('El informe no corresponde al paciente del episodio solicitado.');
   const rows = parsePatientFlowTimeline(text);
   if (!rows.length) throw new Error('Historial de camas incompleto.');

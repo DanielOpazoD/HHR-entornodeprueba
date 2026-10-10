@@ -72,7 +72,8 @@ export interface ClinicalFillDeps {
   recoverCudyrPlacements?: (
     episode: string,
     rut: string,
-    observedAt: string
+    observedAt: string,
+    identityKind?: 'patient' | 'maternal'
   ) => Promise<import('@/types/domain/cudyrPlacement').CudyrSourcePlacement[]>;
   archiveCudyrCapture?: (
     request: import('@/types/domain/cudyrHistory').ArchiveCudyrHistoryRequest

@@ -333,3 +333,14 @@ incompatible con su alta puede bloquear el lote CUDYR de ese día: se concilia a
 enriquecimiento clínico, sin relajar la autoridad. Una nueva captura no debe repetir la
 corrección una vez confirmadas ambas liberaciones. El estado explícito del egreso y un
 fallecimiento ya registrado para el episodio exacto se conservan en la propuesta.
+
+### Identidad de RN en la recuperación de movimientos para CUDYR
+
+El PDF «Flujo del Paciente» puede identificar un RN mediante «RUN Materno/progenitor(a)».
+La recuperación CUDYR acepta ese encabezado únicamente si el episodio corresponde a una
+cuna en todos sus contextos locales y el identificador coincide. La autorización del PDF
+sigue ligada al episodio; el RUN materno no convierte al RN en el episodio de su madre.
+Si el informe imprime un RUN personal, ese identificador prevalece y debe coincidir.
+Los fallos de movimientos se registran como `bed_history`, separados de la lectura y el
+guardado del CUDYR. El archivo de resultados continúa aunque la recuperación falle;
+los reintentos conservan la selección de lectura CUDYR sin repetir otros datos clínicos.
