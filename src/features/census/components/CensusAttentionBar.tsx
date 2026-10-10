@@ -10,6 +10,7 @@ import {
 import type { PatientData } from '@/features/census/contracts/censusPatientContracts';
 
 interface CensusAttentionBarProps {
+  compact?: boolean;
   beds: Record<string, PatientData>;
   censusIsoDay: string;
   activeFilter?: CensusAttentionFilter;
@@ -20,6 +21,7 @@ const scaleLabel = (count: number): string => `${count} ${count === 1 ? 'escala'
 
 export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
   beds,
+  compact = false,
   censusIsoDay,
   activeFilter = 'all',
   onFilterChange,
@@ -29,7 +31,7 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
     [beds, censusIsoDay]
   );
 
-  if (summary.scale === 0 && activeFilter !== 'scale') return null;
+  if (!compact && summary.scale === 0 && activeFilter !== 'scale') return null;
   const active = activeFilter === 'scale';
 
   return (
@@ -44,8 +46,9 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
         aria-pressed={active}
         aria-label={`${scaleLabel(summary.scale)} por reaplicar. ${active ? 'Mostrar censo completo' : 'Mostrar solo pacientes con escalas por reaplicar'}`}
         data-testid="census-attention-filter-scale"
+        title={`${scaleLabel(summary.scale)} por reaplicar`}
         onClick={() => onFilterChange?.(active ? 'all' : 'scale')}
-        className={`inline-flex min-h-8 items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${
+        className={`inline-flex items-center gap-1 rounded-md border ${compact ? 'min-h-7 px-1.5 py-0.5 text-[10px]' : 'min-h-8 px-2 py-1 text-[11px]'} font-semibold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${
           active
             ? 'border-amber-400 bg-amber-100 text-amber-800'
             : 'border-slate-200 bg-white text-slate-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
@@ -57,7 +60,7 @@ export const CensusAttentionBar: React.FC<CensusAttentionBarProps> = ({
           className={active ? 'text-amber-700' : 'text-amber-600'}
           aria-hidden="true"
         />
-        {scaleLabel(summary.scale)}
+        {compact ? (summary.scale > 0 ? summary.scale : null) : scaleLabel(summary.scale)}
         <span className="sr-only">por reaplicar</span>
       </button>
     </div>

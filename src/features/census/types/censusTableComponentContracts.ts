@@ -13,6 +13,7 @@ import type { PatientActionMenuIndicators } from '@/features/census/components/p
 import type { HydratedRemoteClinicalFieldLocksByBedId } from '@/hooks/controllers/dailyRecordHydratedRemotePatchRiskController';
 
 export interface CensusTableHeaderProps {
+  scoresAction?: import('react').ReactNode;
   readOnly: boolean;
   columns: TableColumnConfig;
   isEditMode: boolean;

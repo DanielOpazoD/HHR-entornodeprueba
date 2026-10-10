@@ -46,6 +46,20 @@ describe('PWA precache policy', () => {
     expect(viteConfig).toContain('**/assets/ClinicalPanelDrawer-*.js');
   });
 
+  it('loads the optional census monthly indicator on demand, like its historical reader', () => {
+    expect(readViteConfig()).toContain('**/assets/CudyrMonthlyIndicator-*.js');
+    expect(readViteConfig()).toContain('**/assets/useCudyrReport-*.js');
+    expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
+      '^assets/CudyrMonthlyIndicator-.*\\.js$'
+    );
+    expect(readBundleBudgetConfig().precacheIgnoredAssetPatterns).toContain(
+      '^assets/useCudyrReport-.*\\.js$'
+    );
+    const publicApi = fs.readFileSync('src/features/cudyr/public.ts', 'utf8');
+    expect(publicApi).toContain("import('./components/CudyrMonthlyIndicator')");
+    expect(publicApi).toContain("import('./components/CudyrView')");
+  });
+
   it('keeps callable Functions on demand because every invocation requires network access', () => {
     const viteConfig = readViteConfig();
     const bundleBudgetConfig = readBundleBudgetConfig();

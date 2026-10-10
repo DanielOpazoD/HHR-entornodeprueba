@@ -1,6 +1,6 @@
 import { SpecialtyRoundLoadingTrigger } from '@/features/census/components/specialty-round/SpecialtyRoundTrigger';
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpecialtyRoundEntry } from '@/features/census/components/specialty-round/SpecialtyRoundEntry';
 
@@ -15,11 +15,38 @@ vi.mock('@/features/census/components/specialty-round/specialtyRoundModel', () =
   buildSpecialtyRoundCandidates: () => Array.from({ length: candidates.count }),
 }));
 
+vi.mock('@/features/census/components/specialty-round/SpecialtyRulesWindow', () => ({
+  SpecialtyRulesWindow: ({ onClose }: { onClose: () => void }) => (
+    <div role="dialog" aria-label="Reglas de especialidades">
+      <button onClick={onClose}>Cerrar reglas</button>
+    </div>
+  ),
+}));
+
 describe('SpecialtyRoundEntry', () => {
   beforeEach(() => {
     enabled.value = true;
     role.value = 'admin';
     candidates.count = 1;
+  });
+
+  it('offers the same admin actions as an icon and reports window lifetime', async () => {
+    const onWindowChange = vi.fn();
+    render(
+      <SpecialtyRoundEntry
+        date="2026-09-24"
+        disabled={false}
+        compact
+        onWindowChange={onWindowChange}
+      />
+    );
+    expect(screen.queryByText('Especialidades')).toBeNull();
+    fireEvent.click(screen.getByTitle('Opciones de especialidades del censo'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reglas automáticas' }));
+    expect(await screen.findByRole('dialog', { name: 'Reglas de especialidades' })).toBeVisible();
+    expect(onWindowChange).toHaveBeenCalledWith(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar reglas' }));
+    await waitFor(() => expect(onWindowChange).toHaveBeenLastCalledWith(false));
   });
 
   it('reserves a disabled specialty trigger only when the feature is enabled', () => {
