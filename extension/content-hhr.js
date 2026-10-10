@@ -318,14 +318,12 @@
       chrome.runtime
         .sendMessage({ type: runtimeMessages.CUDYR_CATEGORIES_REQUEST })
         .then(response => {
+          const { source, historyAvailable, captureContract, observedEpisodeIds, metadataStatus, warning, error } = response || {};
           post({
             type: 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT',
             reqId,
             items: (response && Array.isArray(response.items) && response.items) || [],
-            source: response && response.source,
-            historyAvailable: response && response.historyAvailable,
-            warning: response && response.warning,
-            error: response && response.error,
+            source, historyAvailable, captureContract, observedEpisodeIds, metadataStatus, warning, error,
           });
         })
         .catch(error => {

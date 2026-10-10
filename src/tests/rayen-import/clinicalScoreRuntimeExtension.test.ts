@@ -127,6 +127,83 @@ describe('clinical Scores read runtime owner', () => {
     );
   });
 
+  it.each(['network', 'beds', 'authors', 'definitions'])(
+    'recovers one transient official %s read without degrading the source',
+    async failingSource => {
+      const attempts = new Map<string, number>();
+      const fetchWithTimeout = vi.fn(async (url: string) => {
+        const source = url.endsWith('/beds')
+          ? 'beds'
+          : url.includes('healthCarePractitioners')
+            ? 'authors'
+            : 'definitions';
+        const attempt = (attempts.get(source) ?? 0) + 1;
+        attempts.set(source, attempt);
+        if (
+          attempt === 1 &&
+          (source === failingSource || (failingSource === 'network' && source === 'beds'))
+        ) {
+          if (failingSource === 'network') throw new TypeError('Failed to fetch');
+          return { ok: false, status: 503, json: async () => [] };
+        }
+        return { ok: true, status: 200, json: async () => [] };
+      });
+      const result = await loadFactory()
+        .create(
+          createDependencies({
+            resolveGestionCamasSession: vi.fn(async () => ({ record: gestionCamasRecord })),
+            fetchWithTimeout,
+          })
+        )
+        .handleCudyrCategoriesRequest();
+      expect(result).toMatchObject({
+        historyAvailable: true,
+        metadataStatus: 'complete',
+        warning: 'Ficha Médico no disponible.',
+      });
+      expect([...attempts.values()].sort()).toEqual([1, 1, 2]);
+    }
+  );
+
+  it.each([401, 403, 404, 422])(
+    'does not repeat a rejected official HTTP %s read',
+    async status => {
+      const fetchWithTimeout = vi.fn(async (url: string) => ({
+        ok: !url.endsWith('/beds'),
+        status: url.endsWith('/beds') ? status : 200,
+        json: async () => [],
+      }));
+      const result = await loadFactory()
+        .create(
+          createDependencies({
+            resolveGestionCamasSession: vi.fn(async () => ({ record: gestionCamasRecord })),
+            fetchWithTimeout,
+          })
+        )
+        .handleCudyrCategoriesRequest();
+      expect(result.error).toBeTruthy();
+      expect(fetchWithTimeout.mock.calls.filter(([url]) => url.endsWith('/beds'))).toHaveLength(1);
+    }
+  );
+
+  it('limits a persistent transient failure to two reads and retains the error', async () => {
+    const fetchWithTimeout = vi.fn(async (url: string) => ({
+      ok: !url.endsWith('/beds'),
+      status: url.endsWith('/beds') ? 503 : 200,
+      json: async () => [],
+    }));
+    const result = await loadFactory()
+      .create(
+        createDependencies({
+          resolveGestionCamasSession: vi.fn(async () => ({ record: gestionCamasRecord })),
+          fetchWithTimeout,
+        })
+      )
+      .handleCudyrCategoriesRequest();
+    expect(String(result.error)).toContain('HTTP 503');
+    expect(fetchWithTimeout.mock.calls.filter(([url]) => url.endsWith('/beds'))).toHaveLength(2);
+  });
+
   it('falls back to all three Ficha Médico lists when the official CUDYR source fails', async () => {
     const info = {
       apiOrigin: 'https://fichamedicoback.rayensalud.cl',
