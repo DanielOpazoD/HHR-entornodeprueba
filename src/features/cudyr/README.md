@@ -77,9 +77,9 @@ por RUT o categoría. Ver [flujo y bloques](../../../docs/CUDYR_HISTORICAL_RECON
   consultar Eloísa. Los meses oficiales usan la proyección mensual ya guardada.
 - El acumulado anual suma CUDYR registrados y pacientes-día elegibles del año
   hasta el mes elegido. Es una tasa ponderada, no el promedio de porcentajes.
-  En 2026 empieza en agosto y lo indica expresamente.
+  En 2026 empieza en agosto; el período y los conteos se consultan al pasar sobre el acumulado.
 - Se conservan las exclusiones de días actuales y ventanas de aplicación abiertas.
   Un mes que falta leer impide mostrar el porcentaje anual; copias sin verificar
-  y períodos provisionales conservan su etiqueta.
+  conservan una indicación compacta de lectura local. El resumen no añade etiquetas de provisionalidad.
 - Se lee primero el mes elegido y como máximo un mes adicional en segundo plano;
   los lectores cargados permanecen montados al recorrer el historial.

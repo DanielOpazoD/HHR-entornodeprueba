@@ -19,6 +19,7 @@ import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
 import { formatAge } from '@/utils/ageDisplayUtils';
+import { parseTimeMinutes } from '@/utils/clinicalDayUtils';
 import { writeClipboardText } from '@/shared/runtime/browserClipboardRuntime';
 import { useStaffContext } from '@/context/StaffContext';
 import {
@@ -98,6 +99,12 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
   const isRutValid = isRutMode && hasRutValue && isValidRut(rutValue);
   const isRutInvalid = isRutMode && hasRutValue && !isRutValid;
   const admissionShort = formatAdmissionShort(data.admissionDate);
+  const admissionMinutes = parseTimeMinutes(data.admissionTime);
+  const admissionTime =
+    admissionMinutes === null
+      ? 'Hora no informada'
+      : `${String(Math.floor(admissionMinutes / 60)).padStart(2, '0')}:${String(admissionMinutes % 60).padStart(2, '0')}`;
+  const admissionDetail = `Ingreso: ${admissionShort} · ${admissionTime} (Rapa Nui)`;
   // Especialidad como etiqueta de texto (rediseño 2026): ya no tiene columna propia; se muestra
   // junto a la fecha de ingreso y se edita desde el editor de Diagnóstico.
   const specialtyLabel = (data.specialty || '').trim();
@@ -291,7 +298,8 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             {admissionShort && (
               <span
                 className="flex shrink-0 items-center gap-0.5 tabular-nums text-slate-400"
-                title="Fecha de ingreso"
+                title={admissionDetail}
+                aria-label={admissionDetail}
               >
                 {hasRutValue && <span className="text-slate-300">/</span>}
                 <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400/90">

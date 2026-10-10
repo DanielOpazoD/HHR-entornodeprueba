@@ -55,7 +55,7 @@ describe('Interactive census CUDYR card', () => {
     render(<CudyrMonthlyIndicator date="2026-10-10" />);
     await waitFor(() => expect(screen.getByText(/Acum\. 2026/)).toHaveTextContent('56%'));
     expect(screen.getByText('50/100 elegibles')).toBeVisible();
-    expect(screen.getByText(/Acum\. 2026/)).toHaveTextContent('desde ago.');
+    expect(screen.queryByText(/Provisional|desde ago\./i)).not.toBeInTheDocument();
     expect(screen.getAllByRole('option').map(option => option.getAttribute('value'))).toEqual([
       '2026-08',
       '2026-09',
@@ -78,6 +78,20 @@ describe('Interactive census CUDYR card', () => {
     expect(screen.getByText('50/100 elegibles')).toBeVisible();
     expect(loadCudyrReport).toHaveBeenCalledTimes(3);
   });
+  it('keeps a cached read visibly local with compact footer wording', async () => {
+    const view = render(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await screen.findByText('50/100 elegibles');
+    view.unmount();
+    vi.mocked(loadCudyrReport).mockRejectedValue(new Error('Lectura fallida'));
+    render(<CudyrMonthlyIndicator date="2026-10-10" />);
+    await waitFor(() =>
+      expect(screen.getByTestId('cudyr-indicator-footer')).toHaveTextContent('Local')
+    );
+    expect(screen.getByText('50/100 elegibles')).toBeVisible();
+    expect(screen.getByTestId('cudyr-indicator-footer')).not.toHaveTextContent('Copia local');
+    expect(screen.queryByText(/Provisional|desde ago\./i)).not.toBeInTheDocument();
+  });
+
   it('does not publish an annual percentage when a monthly read fails', async () => {
     vi.mocked(loadCudyrReport).mockImplementation(async (from, to) => {
       if (from.startsWith('2026-09')) throw new Error('No se pudo leer');

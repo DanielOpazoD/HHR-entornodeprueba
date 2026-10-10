@@ -142,17 +142,6 @@ const History = ({ initial, months, now }: { initial: string; months: string[]; 
               style={{ width: `${summary.percentage ?? 0}%` }}
             />
           </div>
-          <p className="mt-1 text-[10px] text-slate-500">
-            {summary.through
-              ? `Hasta ${summary.through.slice(8)}/${summary.through.slice(5, 7)}`
-              : 'Sin días cerrados'}{' '}
-            ·{' '}
-            {current.error
-              ? 'Copia local · sin verificar'
-              : current.busy
-                ? 'Verificando…'
-                : summary.quality}
-          </p>
         </div>
       ) : (
         <p role="status" className="mt-2 text-xs text-slate-500">
@@ -163,28 +152,32 @@ const History = ({ initial, months, now }: { initial: string; months: string[]; 
               : 'Sin días cerrados'}
         </p>
       )}
-      <p
-        className="mt-0.5 text-[9px] tabular-nums text-slate-500"
-        title={`CUDYR registrados / pacientes-día elegibles. Desde ${annual.from ? monthLabel(annual.from) : 'inicio del año'} hasta ${monthLabel(month)}. ${annual.categorized}/${annual.eligible}.`}
+      <div
+        className="mt-1 flex items-center justify-between gap-2 whitespace-nowrap text-[9px] tabular-nums text-slate-500"
+        data-testid="cudyr-indicator-footer"
       >
-        Acum. {month.slice(0, 4)} ·{' '}
-        {annual.missing
-          ? annual.error
-            ? 'No disponible'
-            : 'Leyendo…'
-          : annual.percentage === null
-            ? '—'
-            : `${annual.percentage}%`}
-        {!annual.missing &&
-          (annual.error
-            ? ' · Copia local'
-            : annual.busy
-              ? ' · Verificando…'
-              : annual.provisional
-                ? ' · Provisional'
-                : ' · Oficial')}
-        {annual.from?.startsWith('2026') ? ' · desde ago.' : ''}
-      </p>
+        {summary && (
+          <span>
+            {summary.through
+              ? `Hasta ${summary.through.slice(8)}/${summary.through.slice(5, 7)}`
+              : 'Sin días cerrados'}
+            {current.error ? ' · Local' : current.busy ? ' · Leyendo…' : ''}
+          </span>
+        )}
+        <p
+          title={`Período: ${annual.from ? monthLabel(annual.from) : 'inicio del año'} a ${monthLabel(month)}. CUDYR registrados / pacientes-día elegibles: ${annual.categorized}/${annual.eligible}.`}
+        >
+          Acum. {month.slice(0, 4)} ·{' '}
+          {annual.missing
+            ? annual.error
+              ? 'No disponible'
+              : 'Leyendo…'
+            : annual.percentage === null
+              ? '—'
+              : `${annual.percentage}%`}
+          {!annual.missing && annual.error ? ' · Local' : ''}
+        </p>
+      </div>
       {[...reading].map(value => {
         const range = cudyrMonthlyIndicatorRange(value + '-01', now);
         return range ? (

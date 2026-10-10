@@ -57,7 +57,15 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
   const label = !compact
     ? viewModel.label
     : viewModel.ariaBusy
-      ? 'Actualizando'
+      ? viewModel.phase === 'clinical'
+        ? viewModel.progress?.kind === 'determinate'
+          ? `Lectura clínica · ${viewModel.progress.done}/${viewModel.progress.total}`
+          : props.fill.total > 0 && props.fill.done >= props.fill.total
+            ? 'Confirmando datos clínicos'
+            : 'Leyendo datos clínicos'
+        : viewModel.phase === 'apply'
+          ? 'Guardando censo'
+          : 'Leyendo Eloísa'
       : viewModel.phase === 'complete'
         ? `Actualizado${props.targetDate ? ` · ${formatRayenSyncTargetDate(props.targetDate)}` : ''}${completedTime ? ` · ${completedTime}` : ''}`
         : props.executionStage?.type === 'partial'
@@ -138,7 +146,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
 
       {viewModel.progress && (
         <div
-          className={`${compact ? 'sr-only' : 'relative mt-1.5 h-[3px]'} min-w-0 overflow-hidden rounded-full bg-slate-200`}
+          className={`rayen-sync-track ${compact ? 'absolute -bottom-1 left-0 right-0' : 'relative mt-1.5'} h-[3px] min-w-0 overflow-hidden rounded-full bg-teal-100`}
           role="progressbar"
           aria-label="Progreso de sincronización con Eloísa"
           aria-valuemin={viewModel.progress.kind === 'determinate' ? 0 : undefined}
@@ -158,7 +166,7 @@ export const RayenImportFlowStatus: React.FC<RayenImportFlowStatusProps> = props
             />
           ) : (
             <span
-              className="absolute inset-0 animate-[pulse_1.2s_ease-in-out_infinite] rounded-full bg-teal-500 motion-reduce:animate-none"
+              className="rayen-sync-scan absolute inset-y-0 w-1/3 rounded-full bg-teal-600"
               aria-hidden="true"
             />
           )}

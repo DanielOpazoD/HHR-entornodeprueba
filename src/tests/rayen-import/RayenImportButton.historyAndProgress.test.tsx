@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RayenImportButton } from '@/features/rayen-import/components/RayenImportButton';
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
@@ -110,7 +110,7 @@ describe('RayenImportButton history and progress', () => {
       pulse
     );
     if (progress.running) {
-      expect(screen.getByRole('progressbar')).toHaveClass('sr-only');
+      expect(screen.getByRole('progressbar')).toBeVisible();
       expect(screen.getByRole('button', { name: 'Sincronizando…' })).toBeDisabled();
     }
   });
@@ -138,7 +138,10 @@ describe('RayenImportButton history and progress', () => {
       },
     });
     render(<RayenImportButton />);
-    fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('rayen-sync-history-button'));
+      await import('@/features/rayen-import/components/RayenSyncHistoryModal');
+    });
     await screen.findByTestId('rayen-sync-history-modal');
     expect(screen.getByText('Gestión de Camas no disponible')).toBeInTheDocument();
     expect(screen.getByText('Cobertura clínica: 11/11 completa')).toHaveClass('text-emerald-700');
@@ -322,7 +325,7 @@ describe('RayenImportButton history and progress', () => {
     });
     expect(progress).toHaveAttribute('aria-valuenow', '4');
     expect(progress).toHaveAttribute('aria-valuemax', '8');
-    expect(screen.getByRole('status')).toHaveTextContent('Actualizando');
+    expect(screen.getByRole('status')).toHaveTextContent('Lectura clínica');
     expect(progress).toHaveAttribute('aria-valuetext', 'Datos clínicos · 4 de 8 pacientes');
     expect(screen.getByTestId('rayen-sync-pulse')).not.toHaveTextContent('%');
   });
@@ -343,7 +346,7 @@ describe('RayenImportButton history and progress', () => {
     render(<RayenImportButton />);
 
     expect(screen.getByTestId('rayen-import-button')).toBeDisabled();
-    expect(screen.getByRole('status')).toHaveTextContent('Actualizando');
+    expect(screen.getByRole('status')).toHaveTextContent('Lectura clínica');
     const progress = screen.getByRole('progressbar', {
       name: 'Progreso de sincronización con Eloísa',
     });

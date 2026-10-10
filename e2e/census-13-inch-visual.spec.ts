@@ -300,3 +300,52 @@ test('keeps the census and movement sections complete in the printable view', as
     expect(pages[headingPage]).toContain(emptyMessage);
   }
 });
+
+test('keeps toolbar cards at their own height when opening monthly CUDYR', async ({ page }) => {
+  await seedCensus(page);
+  await page.goto(`/?date=${DATE}`);
+  await expect(page.getByText(PATIENT, { exact: true })).toBeVisible();
+  await expect(page.getByTestId('rayen-operations-bar')).toBeVisible();
+  const cards = page
+    .getByTestId('census-staff-and-sync')
+    .locator(':scope > :not(.census-toolbar-summary)');
+  for (const width of [1280, 1024, 390]) {
+    await page.setViewportSize({ width, height: 832 });
+    const before = await cards.evaluateAll(elements =>
+      elements.map(el => el.getBoundingClientRect().height)
+    );
+    await page.getByRole('button', { name: 'Mostrar cumplimiento CUDYR mensual' }).click();
+    await expect(page.getByRole('region', { name: 'Cumplimiento CUDYR mensual' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Mes de CUDYR' })).toBeVisible();
+    const after = await cards.evaluateAll(elements =>
+      elements.map(el => el.getBoundingClientRect().height)
+    );
+    expect(
+      await page
+        .getByTestId('census-summary-switcher')
+        .evaluate(el => el.getBoundingClientRect().height)
+    ).toBe(84);
+    expect(after).toEqual([84, 84, 84]);
+    const footer = page.getByTestId('cudyr-indicator-footer');
+    await expect(footer).toBeVisible();
+    expect(
+      await footer.evaluate(el => {
+        const bounds = el.getBoundingClientRect();
+        return (
+          el.scrollWidth <= el.clientWidth + 1 &&
+          Array.from(el.children).every(child => {
+            const rect = child.getBoundingClientRect();
+            return rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1;
+          })
+        );
+      })
+    ).toBe(true);
+    await expect(page.getByTestId('census-summary-switcher')).not.toContainText(
+      /Provisional|desde ago\./i
+    );
+    after.forEach((height, index) =>
+      expect(Math.abs(height - before[index])).toBeLessThanOrEqual(1)
+    );
+    await page.getByRole('button', { name: 'Mostrar camas y movimientos' }).click();
+  }
+});
