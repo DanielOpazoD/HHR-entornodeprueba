@@ -15,7 +15,9 @@ export const cudyrControlStatus = (row: CudyrReportRow): string =>
     : row.cudyrStatus === 'registrado'
       ? CUDYR_STATUS_LABELS.registrado
       : row.applicationPending
-        ? 'Pendiente de aplicación'
+        ? row.eligibility === 'no_elegible'
+          ? 'No aplica'
+          : 'Pendiente de aplicación'
         : row.cudyrStatus === 'sin_registro_observado'
           ? 'No registrado'
           : row.cudyrStatus === 'sin_captura'

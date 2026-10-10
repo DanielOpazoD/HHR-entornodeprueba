@@ -99,6 +99,42 @@ describe('CUDYR daily control', () => {
       within(screen.getByRole('row', { name: /RN sintético/ })).getByText('Verificación pendiente')
     ).toBeInTheDocument();
   });
+  it('shows No aplica for an excluded open-window case without hiding recorded results', () => {
+    const data = fixture();
+    const crib = data.rows.find(row => row.patientName === 'RN sintético')!;
+    crib.applicationPending = true;
+    crib.evaluation = null;
+    crib.cudyrStatus = 'sin_captura';
+    const eligible = data.rows.find(row => row.patientName === 'Paciente Sintético')!;
+    eligible.applicationPending = true;
+    eligible.evaluation = null;
+    eligible.cudyrStatus = 'sin_captura';
+    data.rows.push({
+      ...crib,
+      key: 'recorded-crib',
+      patientName: 'RN registrado',
+      cudyrStatus: 'registrado',
+      evaluation: fixture().rows[0].evaluation,
+    });
+    mocks.report.mockReturnValue({ data, busy: false, error: '', load: mocks.load });
+    render(<CudyrView />);
+    expect(
+      within(screen.getByRole('row', { name: /RN sintético/ })).getByText('No aplica')
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /RN sintético/ })).queryByText(
+        'Pendiente de aplicación'
+      )
+    ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /Paciente Sintético/ })).getByText(
+        'Pendiente de aplicación'
+      )
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('row', { name: /RN registrado/ })).getByText('Registrado')
+    ).toBeInTheDocument();
+  });
   it('shows cumulative eligible compliance and read-only totals without entry or bulk deletion controls', () => {
     render(<CudyrView />);
     expect(screen.getAllByText('100%')).toHaveLength(2);
