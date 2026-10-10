@@ -1,7 +1,13 @@
-import { probeOfficialCudyrReport, saveOfficialCudyrReport } from './cudyrOfficialReport';
-import { applyCudyrCensusApprovals } from './cudyrCensusApproval';
+import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { applyCudyrFirstNightRecovery } from './cudyrFirstNightRecovery';
 import { applyCudyrCensusContinuity } from './cudyrCensusContinuity';
+import {
+  probeOfficialCudyrReport,
+  decodeOfficialCudyrReport,
+  saveOfficialCudyrReport,
+} from './cudyrOfficialReport';
+import { cudyrReportCache } from './cudyrReportCache';
+import { applyCudyrCensusApprovals } from './cudyrCensusApproval';
 import { loadCudyrVerifiedContexts } from './cudyrVerifiedContextService';
 import { applyCudyrVerifiedContexts } from './cudyrVerifiedContext';
 import { applyCudyrMonthlyAbsenceLinks } from './cudyrMonthlyAbsenceLinks';
@@ -87,23 +93,55 @@ export const loadCudyrReport = async (
     if (generation !== getSessionGeneration() || owner !== getStoredSessionOwnerKey())
       throw new Error('La sesión cambió; vuelva a abrir el reporte.');
   };
-  const records: DailyRecordCudyrExportState[] = [];
+  // A closed official month is served as one saved projection. No Eloísa request is made.
   const native = ports === cudyrReportLoaderPorts;
+  const scope = owner && generation ? `${owner}:${generation}` : '';
   const month = from.slice(0, 7);
   const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0))
     .toISOString()
     .slice(0, 10);
   let sourceVersion = '';
-  if (native && from === month + '-01' && to === last) {
+  if (
+    native &&
+    from === month + '-01' &&
+    to <= last &&
+    resolveCudyrPendingStatus(last).phase === 'overdue'
+  ) {
+    const cached = scope
+      ? cudyrReportCache(loadCudyrReport, scope, true).get(from, last)
+      : undefined;
+    let reply;
     try {
-      sourceVersion = (await probeOfficialCudyrReport(month)).sourceVersion;
-    } catch {
+      reply = await probeOfficialCudyrReport(month, cached);
+    } catch (error) {
       check();
-      // The saved artifact is optional; ordinary Firebase reads remain available.
+      // The hook retains the last good copy and reports failed remote verification.
+      if (cached?.officialSnapshot) throw error;
+      // An unavailable optional archive must not block ordinary Firebase reads.
+    }
+    check();
+    sourceVersion = reply?.sourceVersion || '';
+    if (reply && reply.state !== 'missing') {
+      let saved;
+      try {
+        saved = await decodeOfficialCudyrReport(reply, cached);
+      } catch (error) {
+        if (reply.state !== 'unchanged') throw error;
+        const authoritative = await probeOfficialCudyrReport(month);
+        check();
+        if (authoritative.state === 'missing')
+          throw new Error('El informe cambió; vuelva a cargar el mes.');
+        saved = await decodeOfficialCudyrReport(authoritative);
+      }
+      check();
+      if (saved) {
+        const cache = cudyrReportCache(loadCudyrReport, scope, Boolean(scope));
+        cache.put(saved);
+        return cache.get(from, to)!;
+      }
     }
   }
-
-  check();
+  const records: DailyRecordCudyrExportState[] = [];
   const input: CudyrReportInput = {
     from,
     to,
@@ -171,12 +209,7 @@ export const loadCudyrReport = async (
   };
   await collect('Historial CUDYR', async () => {
     input.observations = await pages(async (cursor?: CudyrHistoryCursor) => {
-      const page = await ports.readHistory({
-        from,
-        to,
-        limit: 100,
-        ...(cursor ? { cursor } : {}),
-      });
+      const page = await ports.readHistory({ from, to, limit: 100, ...(cursor ? { cursor } : {}) });
       return { rows: page.observations, next: page.nextCursor };
     });
   });

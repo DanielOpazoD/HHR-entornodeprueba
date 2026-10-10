@@ -230,6 +230,8 @@ export default defineConfig(({ mode }) => {
             '**/assets/CudyrReportExplorer-*.js',
             '**/assets/cudyrReportWorkbook-*.js',
             '**/assets/cudyrReportLoader-*.js',
+            // Shared historical reconstruction split from the report loader; same on-demand policy.
+            '**/assets/cudyrReportModel-*.js',
             // Rayen enrichment only runs while Eloisa is connected, so it is
             // an on-demand online workflow rather than PWA install payload.
             '**/assets/applyClinicalEnrichmentBatch-*.js',

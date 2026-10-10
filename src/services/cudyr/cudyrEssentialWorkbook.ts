@@ -1,3 +1,6 @@
+import { cudyrCensusAccepted } from './cudyrCensusApproval';
+import { cudyrResultOrigin } from './cudyrReportPresentation';
+import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
 import { resolveCudyrPendingStatus } from '@/domain/cudyr/cudyrPending';
 import { recordE2EDownloadArtifact } from '@/shared/runtime/e2eRuntime';
 import { createWorkbook } from '@/services/exporters/excelUtils';
@@ -14,6 +17,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
     throw new Error('No se completó la lectura. Actualice antes de descargar.');
   const workbook = await createWorkbook();
   const totals = cudyrReportTotals(data.rows);
+  const verification = cudyrArchiveCoverage(data, new Date(data.generatedAt));
   addCudyrDataSheet(
     workbook,
     'Resumen',
@@ -41,7 +45,13 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
           resolveCudyrPendingStatus(day.date, new Date(data.generatedAt)).phase !== 'overdue'
             ? 'Pendiente de aplicación · fuera del cumplimiento'
             : day.state === 'disponible'
-              ? 'Evaluable'
+              ? cudyrCensusAccepted(day) &&
+                verification.find(d => d.date === day.date)?.state === 'complete' &&
+                !t.review
+                ? day.reconstructionApproval
+                  ? 'Oficial · censo reconstruido aprobado'
+                  : 'Verificado con Eloísa'
+                : 'Provisional · censo o CUDYR por verificar'
               : 'Sin censo · provisional',
         ];
       }),
@@ -75,6 +85,8 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
       'Fecha y hora CUDYR · Rapa Nui',
       'Última consulta · Rapa Nui',
       'Criterio de elegibilidad',
+      'Ingreso a hospitalización confirmado',
+      'Resultado recibido desde Eloísa',
     ],
     data.rows
       .filter(row => row.eligibility === 'elegible' && !row.applicationPending)
@@ -89,11 +101,13 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
         row.evaluation?.riskScore,
         row.evaluation?.category,
         cudyrControlStatus(row),
-        row.evaluation?.source,
+        cudyrResultOrigin(row),
         row.evaluation?.author,
         cudyrMomentLabel(row.evaluation?.recordedAt || ''),
         cudyrMomentLabel(row.lastCaptureAt),
         cudyrEligibilityOrigin(row),
+        cudyrMomentLabel(row.hospitalAdmissionAt || ''),
+        cudyrMomentLabel(row.evaluationCapturedAt || ''),
       ])
   );
   const summary = workbook.getWorksheet('Resumen')!;
@@ -114,7 +128,7 @@ export const buildCudyrEssentialWorkbook = async (data: CudyrReportDataset) => {
   ]);
   summary.addRow([
     'Datos ausentes',
-    'Sin CUDYR encontrado no demuestra que no se realizó. Puntajes vacíos no equivalen a cero.',
+    'No registrado: ausencia comprobada. Verificación pendiente: consulta incompleta. Puntajes vacíos no equivalen a cero.',
   ]);
   summary.addRow([
     'Grupos',

@@ -19,8 +19,8 @@ export const CudyrReportSummary = ({ totals }: { totals: CudyrReportTotals }) =>
       ))}
     </section>
     <p className="text-sm text-slate-600">
-      {totals.withoutConfirmedResult} elegibles sin resultado confirmado. “Sin registro observado”
-      no acredita por sí solo incumplimiento.
+      {totals.withoutConfirmedResult} elegibles sin CUDYR disponible. «No registrado» indica
+      ausencia comprobada; «Verificación pendiente» indica una consulta aún incompleta.
     </p>
     <details className="rounded-xl border bg-white p-4">
       <summary className="cursor-pointer text-sm font-medium">

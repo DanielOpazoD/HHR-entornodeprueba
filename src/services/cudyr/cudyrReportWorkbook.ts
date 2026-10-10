@@ -1,3 +1,5 @@
+import { cudyrCensusAccepted } from './cudyrCensusApproval';
+import { cudyrArchiveCoverage } from './cudyrArchiveCoverage';
 import type { ArchivedCudyrSupplement } from './cudyrSupplementService';
 import { addCudyrSupplementWorkbook } from './cudyrSupplementWorkbook';
 import type { CudyrReportDataset, CudyrReportExportMode } from '@/types/domain/cudyrReport';
@@ -65,11 +67,13 @@ export const buildCudyrReportWorkbook = async (
   workbook.created = new Date(data.generatedAt);
   const preliminary =
     data.issues.length > 0 ||
-    data.coverage.some(day => day.state !== 'disponible') ||
+    data.coverage.some(day => day.state !== 'disponible' || !cudyrCensusAccepted(day)) ||
+    cudyrArchiveCoverage(data, new Date(data.generatedAt)).some(day => day.state !== 'complete') ||
     data.rows.some(
       row =>
         row.eligibility === 'por_revisar' ||
-        !['registrado', 'sin_registro_observado'].includes(row.cudyrStatus)
+        (row.eligibility !== 'no_elegible' &&
+          !['registrado', 'sin_registro_observado'].includes(row.cudyrStatus))
     );
   workbook.worksheets.forEach(sheet => {
     sheet.pageSetup = {
@@ -141,7 +145,14 @@ export const buildCudyrReportWorkbook = async (
       ['Generado en HHR (ISO)', data.generatedAt],
       ['Período', data.from + ' a ' + data.to],
       ['Exportación', mode === 'audit' ? 'Auditoría completa' : 'Estadística simplificada'],
-      ['Estado', preliminary ? 'Revisión pendiente' : 'Lectura completa'],
+      [
+        'Estado',
+        preliminary
+          ? 'Revisión pendiente'
+          : data.coverage.every(day => day.reconstructionApproval)
+            ? 'Oficial · censo reconstruido aprobado'
+            : 'Lectura completa',
+      ],
       ['Filas', totals.rows],
       ['Elegibles conocidos', totals.eligible],
       ['Categorizados elegibles', totals.categorized],

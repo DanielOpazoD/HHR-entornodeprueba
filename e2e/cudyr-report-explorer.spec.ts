@@ -75,6 +75,51 @@ const record = () =>
     transfers: [],
     cma: [],
   });
+const seedHospitalAdmissions = async (beds: unknown) => {
+  const patients = beds as Record<string, ReturnType<typeof patient> & { location?: string }>;
+  for (const p of Object.values(patients)) {
+    if (!p.patientName || !p.clinicalEpisodeId) continue;
+    const id = 'admission-' + p.clinicalEpisodeId;
+    await db.doc(hospital + '/cudyrCaptures/' + id).set({
+      schemaVersion: 1,
+      id,
+      censusDate: p.admissionDate,
+      observationIds: [],
+      captureContexts: [],
+      receivedAt: '2026-02-21T15:00:00Z',
+      receivedBy: 'synthetic@example.com',
+      verifiedRunId: 'run',
+      capture: {
+        id,
+        clinicalEpisodeId: p.clinicalEpisodeId,
+        sourceRunId: 'run',
+        observedAt: '2026-02-21T15:00:00Z',
+        status: 'observed',
+        metadataStatus: 'complete',
+        part: 0,
+        totalParts: 1,
+        totalEvaluations: 0,
+        sourcePlacements: [
+          {
+            clinicalEpisodeId: p.clinicalEpisodeId,
+            sourceMappingId: id,
+            sourceBedId: p.bedId,
+            sourceBedLabel: p.bedId + ' Hospitalizados',
+            bedId: p.bedId,
+            sourceDepartmentId: 'hospital',
+            sourceDepartmentLabel: p.location || 'Médico quirúrgico',
+            sourceVersion: 'synthetic',
+            sourceStartAt: p.admissionDate + 'T' + p.admissionTime + ':00-05:00',
+            sourceEndAt: '',
+            currentAssignment: true,
+            isDeleted: false,
+            modality: p.bedMode === 'Cuna' ? 'cuna' : 'hospitalizacion',
+          },
+        ],
+      },
+    });
+  }
+};
 const context = {
   auth: {
     uid: 'synthetic-cudyr-editor',
@@ -113,6 +158,7 @@ test.afterAll(async () => {
 
 const open = async (page: Page, role: 'admin' | 'viewer' = 'admin', daily = false) => {
   for (const collection of [
+    'cudyrCaptures',
     'cudyrDailyExclusions',
     'cudyrMonthlyReviews',
     'cudyrMonthlySupplements',
@@ -123,6 +169,7 @@ const open = async (page: Page, role: 'admin' | 'viewer' = 'admin', daily = fals
   await db.recursiveDelete(db.collection(hospital + '/cudyrDischargeCorrections'));
   await db.recursiveDelete(db.collection(hospital + '/cudyrDischargeAudit'));
   await db.doc(hospital + '/dailyRecords/' + DATE).set(record());
+  await seedHospitalAdmissions(record().beds);
   await db.doc(hospital + '/cudyrHistory/synthetic-observation').set({
     schemaVersion: 1,
     id: 'synthetic-observation',
@@ -572,23 +619,38 @@ test('reviews a daily exclusion, persists it after reload and omits it from the 
   await expect(
     page.getByRole('button', { name: /Guardar CUDYR|Eliminar varios resultados/ })
   ).toHaveCount(0);
-  await page.getByRole('button', { name: 'Revisar elegibilidad de PACIENTE SINTÉTICO R1' }).click();
+  await page
+    .getByRole('button', { name: /(?:Agregar|Editar) excepción manual de PACIENTE SINTÉTICO R1$/ })
+    .click();
   const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Excepción CUDYR' })).toBeVisible();
+  await expect(dialog.getByText(/Última consulta:/)).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Guardar excepción' })).toBeVisible();
+  await screenshot(page, 'cudyr-excepcion-compacta');
+  await dialog.getByRole('button', { name: 'Información del caso' }).click();
+  await expect(dialog.getByText(/Última consulta:/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Información del caso' }).click();
+  await expect(dialog.getByText(/Última consulta:/)).toHaveCount(0);
   await dialog.getByLabel('Motivo de exclusión').selectOption('not_hospitalized');
   await dialog
-    .getByLabel('Observación que respalda la decisión')
+    .getByLabel('Observación breve')
     .fill('Salida física verificada para este día; pendiente de regularización.');
   await dialog.getByRole('checkbox').check();
-  await dialog.getByRole('button', { name: 'Guardar revisión' }).click();
+  await dialog.getByRole('button', { name: 'Guardar excepción' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: 'Revisar elegibilidad de PACIENTE SINTÉTICO R1' })
-  ).toHaveCount(0);
+    page.getByRole('button', {
+      name: /(?:Agregar|Editar) excepción manual de PACIENTE SINTÉTICO R1$/,
+    })
+  ).toHaveCount(1);
   // Full navigation reloads the app and explicitly reopens the reviewed day.
   await page.goto('/cudyr?date=' + DATE);
   await ensureAuthenticated(page);
   await page.getByRole('combobox').selectOption('no_elegible');
-  await page.getByRole('button', { name: 'Revisar elegibilidad de PACIENTE SINTÉTICO R1' }).click();
+  await page
+    .getByRole('button', { name: /(?:Agregar|Editar) excepción manual de PACIENTE SINTÉTICO R1$/ })
+    .click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Información del caso' }).click();
   await expect(page.getByRole('dialog')).toContainText('Decisión manual');
   await page.keyboard.press('Escape');
   await screenshot(page, 'cudyr-control-diario');
@@ -613,7 +675,7 @@ test('reviews a daily exclusion, persists it after reload and omits it from the 
 test('fits eighteen eligible patients in a compact desktop table with daily compliance', async ({
   page,
 }) => {
-  const { errors } = await open(page, 'admin', true);
+  const { calls, errors } = await open(page, 'admin', true);
   const beds = [
     'R1',
     'R2',
@@ -632,16 +694,82 @@ test('fits eighteen eligible patients in a compact desktop table with daily comp
     cma: [],
   });
   await db.doc(hospital + '/dailyRecords/' + DATE).set(full);
+  await seedHospitalAdmissions(full.beds);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('button', { name: 'Actualizar vista' }).click();
-  await expect(page.getByRole('button', { name: /Revisar elegibilidad de/ })).toHaveCount(18);
+  await expect(page.getByRole('button', { name: /excepción manual de/ })).toHaveCount(18);
   await expect(page.getByText('Cumplimiento del día', { exact: true })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Ingreso hosp.' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Captura Eloísa' })).toHaveCount(0);
+  await expect(page.getByRole('cell', { name: 'R1 Hospitalizados', exact: true })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Registro CUDYR' })).toBeVisible();
+  await page.getByRole('button', { name: 'jueves, 19 de febrero de 2026', exact: true }).click();
+  await expect(page.getByText('Turno noche 19-02-2026 · Horario de Rapa Nui')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Actualizar vista' })).toBeEnabled();
+  const readsBeforeReturn = calls.filter(call => call === 'readCudyrHistory').length;
+  await page.getByRole('button', { name: 'viernes, 20 de febrero de 2026', exact: true }).click();
+  await expect(page.getByRole('button', { name: /excepción manual de/ })).toHaveCount(18);
+  expect(calls.filter(call => call === 'readCudyrHistory').length).toBe(readsBeforeReturn);
   const bounds = await page.getByRole('table').boundingBox();
   expect(bounds!.height).toBeLessThan(620);
   expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1000);
   await screenshot(page, 'cudyr-compacto-18-pacientes');
+  const readsBeforeMovements = calls.filter(call => call === 'readCudyrHistory').length;
+  await page
+    .getByRole('button', { name: 'Movimientos de PACIENTE SINTÉTICO R1', exact: true })
+    .click();
+  await expect(page.getByRole('dialog')).toContainText(
+    'Primer ingreso registrado a Hospitalizados'
+  );
+  await expect(
+    page.getByRole('dialog').getByRole('cell', { name: 'R1 Hospitalizados' })
+  ).toBeVisible();
+  await screenshot(page, 'cudyr-movimientos-camas');
+  await page.keyboard.press('Escape');
+  expect(calls.filter(call => call === 'readCudyrHistory').length).toBe(readsBeforeMovements);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await screenshot(page, 'cudyr-compacto-movil');
+  expect(errors).toEqual([]);
+});
+
+test('shows first hospital bed entry even when episode time differs and both assignments have no closure', async ({
+  page,
+}) => {
+  const { errors } = await open(page, 'admin', true);
+  const ref = db.doc(hospital + '/cudyrCaptures/admission-' + episode);
+  const receipt = (await ref.get()).data()!;
+  const base = receipt.capture.sourcePlacements[0];
+  await ref.update({
+    'capture.sourcePlacements': [
+      {
+        ...base,
+        sourceMappingId: 'first-bed',
+        bedId: 'H1C1',
+        sourceBedId: 'H1C1',
+        sourceBedLabel: 'H1C1',
+        sourceStartAt: DATE + 'T16:17:30-05:00',
+      },
+      {
+        ...base,
+        sourceMappingId: 'second-bed',
+        bedId: 'H6C2',
+        sourceBedId: 'H6C2',
+        sourceBedLabel: 'H6C2',
+        sourceStartAt: DATE + 'T20:41:08-05:00',
+      },
+    ],
+  });
+  await page.getByRole('button', { name: 'Actualizar vista' }).click();
+  const row = page.getByRole('row').filter({ hasText: 'PACIENTE SINTÉTICO R1' });
+  await expect(row.getByText(/16:17/)).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Movimientos de PACIENTE SINTÉTICO R1', exact: true })
+    .click();
+  await expect(page.getByRole('dialog')).toContainText(
+    'Primera'.toLowerCase() + ' asignación registrada'
+  );
+  await expect(page.getByRole('dialog').getByText('Por confirmar', { exact: true })).toHaveCount(0);
+  await screenshot(page, 'cudyr-primer-ingreso-corregido');
   expect(errors).toEqual([]);
 });
