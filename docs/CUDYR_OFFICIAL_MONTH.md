@@ -24,6 +24,10 @@ Las diferencias con el censo local original permanecen como respaldo, sin reescr
 
 La interfaz ofrece el cierre dentro del detalle del archivo mensual. Los meses
 oficiales se leen directamente desde Firebase y usan caché local por sesión.
+Al navegar entre días, un cambio del censo local no descarta esa copia oficial.
+Se conservan la comprobación de Firebase al abrir la vista, la vigencia de dos
+minutos y el botón de actualización explícita. Los meses sin cierre oficial
+siguen comprobándose cuando cambia el censo local.
 Las pruebas automatizadas usan datos sintéticos y Firebase Emulator; no certifican
 un despliegue ni sustituyen la aceptación de un mes real en la versión desplegada.
 

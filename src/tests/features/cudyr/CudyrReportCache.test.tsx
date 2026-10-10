@@ -22,6 +22,40 @@ beforeEach(() => {
   session.generation = 'a';
 });
 describe('CUDYR navigation cache', () => {
+  it('reuses an official month across live census revisions but still verifies on refresh and expiry', async () => {
+    const loader = vi.fn().mockImplementation(async (from, to) => ({
+      ...dataset(from, to, 'approved-census'),
+      officialSnapshot: { version: 'official-v1', savedAt: '2026-10-09T20:00:00Z' },
+    }));
+    const { result, rerender } = renderHook(
+      ({ date, version }) => useCudyrReport(date, loader, { date, version }),
+      { initialProps: { date: '2026-10-07', version: 'live-v1' } }
+    );
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    for (const [date, version] of [
+      ['2026-10-06', 'live-v2'],
+      ['2026-10-07', 'live-v3'],
+      ['2026-10-07', 'live-v4'],
+    ]) {
+      rerender({ date, version });
+      await waitFor(() => expect(result.current.data?.to).toBe(date));
+      expect(result.current.busy).toBe(false);
+    }
+    expect(loader).toHaveBeenCalledTimes(1);
+    expect(result.current.data?.officialSnapshot?.version).toBe('official-v1');
+    await act(async () => result.current.load('2026-10-01', '2026-10-07'));
+    expect(loader).toHaveBeenCalledTimes(2);
+    const clock = vi
+      .spyOn(Date, 'now')
+      .mockReturnValue(Date.parse(result.current.data!.loadedAt!) + 120_001);
+    try {
+      rerender({ date: '2026-10-07', version: 'live-v5' });
+      await waitFor(() => expect(loader).toHaveBeenCalledTimes(3));
+      await waitFor(() => expect(result.current.busy).toBe(false));
+    } finally {
+      clock.mockRestore();
+    }
+  });
   it('returns to a loaded day without another server read, while explicit refresh reloads', async () => {
     const loader = vi.fn().mockImplementation(async (from, to) => dataset(from, to));
     const { result, rerender } = renderHook(({ date }) => useCudyrReport(date, loader), {

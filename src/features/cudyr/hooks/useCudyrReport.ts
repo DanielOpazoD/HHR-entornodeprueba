@@ -97,9 +97,13 @@ export const useCudyrReport = (
     const store = cudyrReportCache(loader, scope, Boolean(scope) && loader === loadCudyrReport);
     if (revisionDate && revisionVersion) {
       const previous = revisions.current.get(revisionDate);
+      // Approved months freeze the repaired census. Their documentary revisions
+      // are checked by the server probe, not by later dailyRecord refreshes.
+      const official = store.get(revisionDate.slice(0, 7) + '-01', revisionDate)?.officialSnapshot;
       if (
-        (previous !== undefined && previous !== revisionVersion) ||
-        store.hasDifferentRevision(revisionDate, revisionVersion)
+        !official &&
+        ((previous !== undefined && previous !== revisionVersion) ||
+          store.hasDifferentRevision(revisionDate, revisionVersion))
       )
         store.requireVerification();
       revisions.current.set(revisionDate, revisionVersion);
