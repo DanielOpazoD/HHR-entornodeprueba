@@ -1,11 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 import { MovementProvenanceBadge } from '@/features/census/components/MovementProvenanceBadge';
 import { resolveMovementProvenancePresentation } from '@/features/census/controllers/movementProvenancePresentationController';
 
 const localStamp = (iso: string): string => {
-  const date = new Date(iso);
-  return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const stamp = calendarStampInClinicalTimeZone(new Date(iso));
+  return `${stamp.iso.split('-').reverse().join('-')} ${stamp.hhmm}`;
 };
 
 describe('movement provenance presentation', () => {
@@ -21,10 +22,11 @@ describe('movement provenance presentation', () => {
 
     expect(presentation).toEqual({
       label: 'Egreso estad.',
-      title: `Confirmado por el informe de Alta Administrativa de Gestión de Camas de Eloísa · ${localStamp(classifiedAt)}`,
+      title: 'Egreso estadístico confirmado en Eloísa',
       tone: 'teal',
       icon: 'verified',
     });
+    expect(JSON.stringify(presentation)).not.toContain(classifiedAt);
     expect(JSON.stringify(presentation)).not.toContain('run-1');
     expect(JSON.stringify(presentation)).not.toContain('Enfermera Uno');
   });
@@ -67,6 +69,7 @@ describe('movement provenance presentation', () => {
     );
 
     const action = screen.getByRole('button', { name: /Descargar PDF del egreso/i });
+    expect(action).not.toHaveAttribute('title');
     action.click();
     expect(onClick).toHaveBeenCalledOnce();
   });

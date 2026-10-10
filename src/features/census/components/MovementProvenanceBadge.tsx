@@ -42,7 +42,7 @@ export const MovementProvenanceBadge: React.FC<MovementProvenanceBadgeProps> = (
       <button
         type="button"
         className={`${className} transition-colors hover:border-teal-400 hover:bg-teal-100 disabled:cursor-progress disabled:opacity-60`}
-        title={title}
+        title={provenance?.source === 'gestion_camas' ? undefined : title}
         aria-label={title}
         data-testid="movement-provenance"
         disabled={isBusy}
@@ -55,7 +55,7 @@ export const MovementProvenanceBadge: React.FC<MovementProvenanceBadgeProps> = (
   return (
     <span
       className={className}
-      title={presentation.title}
+      title={provenance?.source === 'gestion_camas' ? undefined : presentation.title}
       aria-label={presentation.title}
       data-testid="movement-provenance"
     >

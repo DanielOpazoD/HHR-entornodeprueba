@@ -1,4 +1,5 @@
 import type { MovementProvenance } from '@/types/domain/movements';
+import { calendarStampInClinicalTimeZone } from '@/utils/clinicalTimeZone';
 
 export interface MovementProvenancePresentation {
   label: string;
@@ -11,22 +12,14 @@ const formatStamp = (iso?: string): string => {
   if (!iso) return '';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${day}-${month}-${year} ${hours}:${minutes}`;
+  const { iso: calendarDate, hhmm } = calendarStampInClinicalTimeZone(date);
+  const [year, month, day] = calendarDate.split('-');
+  return `${day}-${month}-${year} ${hhmm}`;
 };
 
 const withDetails = (base: string, provenance: MovementProvenance): string => {
   const details = [provenance.classifiedBy, formatStamp(provenance.classifiedAt)].filter(Boolean);
   return details.length > 0 ? `${base} · ${details.join(' · ')}` : base;
-};
-
-const withTimestamp = (base: string, provenance: MovementProvenance): string => {
-  const stamp = formatStamp(provenance.classifiedAt);
-  return stamp ? `${base} · ${stamp}` : base;
 };
 
 const classificationLabel = (value?: MovementProvenance['previousClassification']): string => {
@@ -50,10 +43,7 @@ export const resolveMovementProvenancePresentation = (
   if (provenance.source === 'gestion_camas') {
     return {
       label: 'Egreso estad.',
-      title: withTimestamp(
-        'Confirmado por el informe de Alta Administrativa de Gestión de Camas de Eloísa',
-        provenance
-      ),
+      title: 'Egreso estadístico confirmado en Eloísa',
       tone: 'teal',
       icon: 'verified',
     };

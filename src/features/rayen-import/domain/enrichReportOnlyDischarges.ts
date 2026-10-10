@@ -1,5 +1,6 @@
 import { extractPdfTextFromBuffer } from '@/services/pdf/pdfTextExtractionRuntime';
 import { normalizeRut } from '@/utils/rutUtils';
+import { resolveClinicalDayForDateTime } from '@/utils/clinicalDayAdmissionUtils';
 import type {
   EgresoLookupResult,
   EgresoLookupTarget,
@@ -36,6 +37,8 @@ interface ReportOnlyDischargeDependencies {
 
 const exactDay = (timestamp: string): string => timestamp.slice(0, 10);
 const exactTime = (timestamp: string): string => timestamp.slice(11, 16);
+const censusDay = (timestamp: string): string | undefined =>
+  resolveClinicalDayForDateTime(exactDay(timestamp), exactTime(timestamp));
 
 const exactLookupDischargeStamp = (egreso: EgresoRecord) => {
   if (egreso.hasAdministrativeDischarge === false) return null;
@@ -206,7 +209,7 @@ export const enrichReportOnlyDischarges = async (
         if (
           evidence &&
           (evidence.run !== normalizeRut(row.run) ||
-            exactDay(evidence.dischargeAt) !== target.dischargeDay)
+            censusDay(evidence.dischargeAt) !== target.dischargeDay)
         ) {
           return;
         }
@@ -227,7 +230,7 @@ export const enrichReportOnlyDischarges = async (
             ? {
                 admissionDay: exactDay(exactPdf.admissionAt),
                 admissionTime: exactTime(exactPdf.admissionAt),
-                correctedDay: exactDay(exactPdf.dischargeAt),
+                correctedDay: censusDay(exactPdf.dischargeAt),
                 correctedTime: exactTime(exactPdf.dischargeAt),
               }
             : lookupStamp

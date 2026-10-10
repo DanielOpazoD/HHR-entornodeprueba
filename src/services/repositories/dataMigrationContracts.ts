@@ -7,6 +7,7 @@ export type LegacyMigrationRule =
   | 'legacy_nulls_normalized'
   | 'salvage_patient_fallback_applied'
   | 'record_invariants_normalized'
+  | 'imported_movement_calendar_date_recovered'
   | 'legacy_nurses_promoted_to_day_shift'
   | 'legacy_single_nurse_promoted'
   | 'legacy_tens_promoted_to_day_shift'

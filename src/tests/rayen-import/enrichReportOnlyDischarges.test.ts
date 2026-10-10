@@ -24,6 +24,28 @@ Informe Estadístico de Egreso Hospitalario
 `;
 
 describe('report-only short-stay enrichment', () => {
+  it('keeps an exact next-morning PDF discharge in the prior nursing census', async () => {
+    const nextMorningText = statisticalText.replace(
+      '29 EGRESO 2 0 - 2 9 1 3 - 0 8 - 2 6',
+      '29 EGRESO 0 1 - 4 2 1 4 - 0 8 - 2 6'
+    );
+    const result = await enrichReportOnlyDischarges(
+      [{ ...row, fechaEgreso: '14-08-2026 03:42' }],
+      '2026-08-13',
+      {
+        lookupEgresos: vi
+          .fn()
+          .mockResolvedValue([{ run: row.run, encounterId: '143322', egreso: { id: 143322 } }]),
+        fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
+        extractText: vi.fn().mockResolvedValue(nextMorningText),
+      }
+    );
+    expect(result[0]).toMatchObject({
+      exactEpisodeVerification: 'verified',
+      correctedDay: '2026-08-13',
+      correctedTime: '01:42',
+    });
+  });
   it('uses the range report only for discovery and persists the exact episode interval', async () => {
     const lookupEgresos = vi
       .fn()
