@@ -67,3 +67,19 @@ mensual de categorización y altas administrativas locales. La selección se des
 al cambiar sesión/período; no modifica registros, elegibilidad, totales ni Excel.
 Los estados se resuelven en `cudyrMonthlyComparison`, sin vinculación clínica implícita
 por RUT o categoría. Ver [flujo y bloques](../../../docs/CUDYR_HISTORICAL_RECONCILIATION.md).
+
+## Indicador compacto del censo
+
+- El selector ofrece meses desde agosto de 2026 hasta el mes actual de Rapa Nui.
+  Cambiarlo no cambia el día del censo. El mes del censo vuelve a seleccionarse al
+  cambiar de mes en la navegación principal.
+- Reutiliza `useCudyrReport`: copia de sesión y datos guardados en Firebase, sin
+  consultar Eloísa. Los meses oficiales usan la proyección mensual ya guardada.
+- El acumulado anual suma CUDYR registrados y pacientes-día elegibles del año
+  hasta el mes elegido. Es una tasa ponderada, no el promedio de porcentajes.
+  En 2026 empieza en agosto y lo indica expresamente.
+- Se conservan las exclusiones de días actuales y ventanas de aplicación abiertas.
+  Un mes que falta leer impide mostrar el porcentaje anual; copias sin verificar
+  y períodos provisionales conservan su etiqueta.
+- Se lee primero el mes elegido y como máximo un mes adicional en segundo plano;
+  los lectores cargados permanecen montados al recorrer el historial.
