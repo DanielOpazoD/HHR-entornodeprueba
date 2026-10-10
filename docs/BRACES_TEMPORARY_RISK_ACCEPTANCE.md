@@ -6,7 +6,9 @@ no se renueva automáticamente. Responsable: mantenedor de HHR (Daniel Opazo).
 
 Se acepta únicamente GHSA-vfj7-8cjw-p6xm en la cadena de desarrollo del
 lockfile raíz aprobado, cuya SHA-256 es
-`19d8a51f8377c466ca1f5e12d69719b4a81d5058cce07f120ba987e260e9652e`.
+`78f0237c8fec6efa06b4e4ddb1135386c933ac7e148c8b4431f7adeeb0a12f06`.
+Huella actualizada con autorización explícita de Daniel el 9 de octubre de 2026
+para el parche transitivo Handlebars 4.7.10. Se mantienen alcance, controles y vencimiento.
 Las siete entradas son braces 3.0.3, micromatch 4.0.8, chokidar 3.6.0,
 lint-staged 16.2.7, firebase-tools 15.15.0, eslint-plugin-boundaries 6.0.2
 y @boundaries/elements 2.0.1; todas tienen `dev: true`. Functions no contiene
