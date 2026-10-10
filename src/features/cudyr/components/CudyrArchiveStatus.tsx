@@ -84,9 +84,7 @@ export const CudyrArchiveStatus = ({
             {approved
               ? `reconstrucción aprobada por ${approval?.approvedBy} el ${cudyrMomentLabel(approval?.approvedAt || '')}.`
               : 'población aún sin aprobación de reconstrucción.'}
-            {censusPending > 0 && (
-              <> {censusPending} días sin cierre; el porcentaje es provisional.</>
-            )}
+            {censusPending > 0 && <> {censusPending} días pendientes de cierre.</>}
           </li>
         </ul>
         {originalDifferences > 0 && (
