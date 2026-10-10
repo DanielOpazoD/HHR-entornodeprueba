@@ -140,8 +140,13 @@ const saveDischargeCorrection = async ({
         'Discharge correction context exceeds its limit.'
       );
     transaction.set(currentRef, correction);
-    // One atomic revision marker invalidates saved official months without scanning history.
-    transaction.set(hospital.collection('cudyrArchiveVersions').doc('dischargeCorrections'), {
+    // Only official reports containing this episode must be checked again.
+    transaction.set(hospital.collection('cudyrArchiveVersions').doc('discharge-' + currentRef.id), {
+      clinicalEpisodeId: payload.clinicalEpisodeId,
+      operation: auditRef.id,
+    });
+    // This guard protects a reconstruction whose episodes are not known yet.
+    transaction.set(hospital.collection('cudyrArchiveVersions').doc('dischargePublication'), {
       operation: auditRef.id,
     });
     transaction.create(auditRef, {

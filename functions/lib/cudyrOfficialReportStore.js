@@ -25,7 +25,7 @@ const stamp = doc => [
     : String(doc.updateTime?.seconds) + ':' + String(doc.updateTime?.nanoseconds),
 ];
 /** Server-side metadata check: no source bytes, parsers or report reconstruction on the read path. */
-const sourceVersion = async (hospital, month, _episodes = [], transaction) => {
+const sourceVersion = async (hospital, month, episodes = [], transaction) => {
   const b = bounds(month);
   const reviewRef = hospital.collection('cudyrVerifiedContexts').doc(month);
   const review = transaction ? await transaction.get(reviewRef) : await reviewRef.get();
@@ -54,10 +54,39 @@ const sourceVersion = async (hospital, month, _episodes = [], transaction) => {
   const correctionVersion = transaction
     ? await transaction.get(correctionVersionRef)
     : await correctionVersionRef.get();
-  const stamps = [review, correctionVersion, ...pages.flatMap(p => p.docs)]
+  // Keep the legacy hospital marker frozen in the fingerprint: upgrading does not
+  // reopen existing official months. Legacy writers still invalidate safely.
+  // Query only changed episode markers, in bounded Firestore `in` batches.
+  const ids = [...new Set(episodes)];
+  const correctionPages = await Promise.all(
+    Array.from({ length: Math.ceil(ids.length / 30) }, (_, index) => {
+      const q = hospital
+        .collection('cudyrArchiveVersions')
+        .where('clinicalEpisodeId', 'in', ids.slice(index * 30, (index + 1) * 30))
+        .select()
+        .limit(31);
+      return transaction ? transaction.get(q) : q.get();
+    })
+  );
+  if (correctionPages.some(p => p.size > 30)) fail('Too many episode revision markers.');
+  const stamps = [
+    review,
+    correctionVersion,
+    ...pages.flatMap(p => p.docs),
+    ...correctionPages.flatMap(p => p.docs),
+  ]
     .map(stamp)
     .sort((a, b) => a[0].localeCompare(b[0]));
   return hash([POLICY, stamps]);
+};
+// A reconstruction starts before its full episode set is known. Keep a separate
+// publication guard so any correction during that read aborts stale publication,
+// while an already saved official report checks only its own episodes.
+const publicationVersion = async (hospital, month, transaction) => {
+  const base = await sourceVersion(hospital, month, [], transaction);
+  const ref = hospital.collection('cudyrArchiveVersions').doc('dischargePublication');
+  const progress = transaction ? await transaction.get(ref) : await ref.get();
+  return progress.exists ? hash([base, stamp(progress)]) : base;
 };
 const fingerprint = (report, date) => {
   const coverage = report.coverage.find(d => d.date === date);
@@ -149,7 +178,7 @@ const saveOfficialReport = async ({ hospital, data, actor }) => {
     ]);
     validateReport(report, review.data()?.censusApproval, month);
     const version = await sourceVersion(hospital, month, episodes, tx);
-    if (data.sourceVersion !== version)
+    if (data.sourceVersion !== (await publicationVersion(hospital, month, tx)))
       fail('Las fuentes cambiaron; vuelva a cargar el mes.', 'aborted');
     // Concurrent publishers reuse the same authoritative artifact; no last-writer replacement.
     if (
@@ -222,7 +251,7 @@ const readOfficialReport = async (hospital, data) => {
       fail('Invalid episodes.', 'invalid-argument');
     const version = await sourceVersion(hospital, month, episodes, tx);
     if (!snapshot || snapshot.policyVersion !== POLICY || snapshot.sourceVersion !== version)
-      return { state: 'missing', sourceVersion: version };
+      return { state: 'missing', sourceVersion: await publicationVersion(hospital, month, tx) };
     return {
       state: data.knownVersion === snapshot.version ? 'unchanged' : 'ready',
       sourceVersion: version,
