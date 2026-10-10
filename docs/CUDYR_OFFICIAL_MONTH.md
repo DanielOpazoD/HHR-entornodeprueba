@@ -26,3 +26,9 @@ La interfaz ofrece el cierre dentro del detalle del archivo mensual. Los meses
 oficiales se leen directamente desde Firebase y usan caché local por sesión.
 Las pruebas automatizadas usan datos sintéticos y Firebase Emulator; no certifican
 un despliegue ni sustituyen la aceptación de un mes real en la versión desplegada.
+
+Las copias oficiales anteriores a los marcadores de egreso siguen siendo válidas
+si coinciden exactamente las huellas de sus fuentes y no existe ninguna marca
+de corrección hospitalaria antigua o de sus episodios. Se devuelve la versión y
+el contenido originales, sin reaprobar, migrar ni recalcular el mes. Los cambios
+documentales o una primera corrección real siguen invalidando esa copia.

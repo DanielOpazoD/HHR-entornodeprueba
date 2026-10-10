@@ -122,3 +122,86 @@ it('rejects changed documentary census evidence after approval', () => {
   });
   expect(() => validateReport(report, approval, '2026-08')).toThrow(/contenido cambió/);
 });
+
+it.each(['unchanged', 'documentary-change', 'legacy-correction', 'episode-correction'])(
+  'preserves a pre-marker snapshot only with its exact original sources: %s',
+  async change => {
+    const { createHash } = require('node:crypto');
+    const sourceVersion = createHash('sha256')
+      .update(JSON.stringify([2, [['cudyrVerifiedContexts/2026-08', '10:0']]]))
+      .digest('hex');
+    const snapshot = {
+      policyVersion: 2,
+      sourceVersion,
+      version: 'original-version',
+      savedAt: '2026-10-08T12:00:00Z',
+      episodes: ['synthetic-episode'],
+      report: 'original-payload',
+    };
+    const collection = (name: string) => ({
+      doc: (id: string) => {
+        const path = name + '/' + id;
+        return {
+          path,
+          get: async () => ({
+            ref: { path },
+            exists:
+              name === 'cudyrOfficialReports' ||
+              name === 'cudyrVerifiedContexts' ||
+              (name === 'cudyrArchiveVersions' && change === 'legacy-correction'),
+            updateTime: { seconds: change === 'documentary-change' ? 11 : 10, nanoseconds: 0 },
+            data: () => (name === 'cudyrOfficialReports' ? snapshot : undefined),
+          }),
+        };
+      },
+      where() {
+        return this;
+      },
+      select() {
+        return this;
+      },
+      limit() {
+        return this;
+      },
+      get: async () => {
+        const docs =
+          name === 'cudyrArchiveVersions' && change === 'episode-correction'
+            ? [
+                {
+                  ref: { path: name + '/synthetic-marker' },
+                  updateTime: { seconds: 12, nanoseconds: 0 },
+                },
+              ]
+            : [];
+        return { size: docs.length, docs };
+      },
+    });
+    const hospital = {
+      collection,
+      firestore: {
+        runTransaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({
+            get: async (ref: { get: () => Promise<unknown> }) => ref.get(),
+          }),
+      },
+    };
+    const result = await readOfficialReport(hospital, { month: '2026-08' });
+    if (change === 'unchanged') {
+      expect(result).toMatchObject({
+        state: 'ready',
+        sourceVersion,
+        version: 'original-version',
+        report: 'original-payload',
+      });
+      const cached = await readOfficialReport(hospital, {
+        month: '2026-08',
+        knownVersion: result.version,
+      });
+      expect(cached.state).toBe('unchanged');
+      expect(cached.report).toBeUndefined();
+    } else {
+      expect(result.state).toBe('missing');
+      expect(result.report).toBeUndefined();
+    }
+  }
+);
