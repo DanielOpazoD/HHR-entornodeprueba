@@ -12,10 +12,17 @@ concurrentes reutilizan el mismo resultado. Sólo roles de revisión pueden publ
 El cierre conserva el estado clínico aprobado. Una actualización rutinaria del censo
 no lo invalida. Nuevos informes históricos, revisiones documentales o excepciones
 diarias y correcciones explícitas de egresos sí invalidan la proyección.
-Las correcciones de egreso se vigilan mediante un marcador actualizado en la misma transacción del egreso;
-pueden invalidar también otros meses cerrados, de forma conservadora. Una lectura fallida no declara el mes completo.
+Cada corrección de egreso actualiza un marcador del episodio en la misma transacción.
+Sólo se invalidan los informes oficiales que contienen ese episodio, incluidos los
+meses consecutivos de una misma hospitalización. Se consultan los marcadores cambiados
+en lotes de hasta 30 episodios, sin leer historias clínicas ni reconstruir el censo.
+Una marca separada impide publicar una reconstrucción si hubo una corrección durante
+su lectura. No invalida los meses oficiales ajenos al caso. El marcador hospitalario
+anterior se conserva para detectar cambios de escritores antiguos, sin migrar ni
+reaprobar los informes guardados. Una lectura fallida no declara el mes completo.
 Las diferencias con el censo local original permanecen como respaldo, sin reescribirlo.
 
-La interfaz ofrece el cierre dentro del detalle del archivo mensual. Este PR prepara
-la persistencia oficial; la lectura directa y el caché de navegación se completan en el
-siguiente bloque. Las pruebas usan datos sintéticos y Firebase Emulator.
+La interfaz ofrece el cierre dentro del detalle del archivo mensual. Los meses
+oficiales se leen directamente desde Firebase y usan caché local por sesión.
+Las pruebas automatizadas usan datos sintéticos y Firebase Emulator; no certifican
+un despliegue ni sustituyen la aceptación de un mes real en la versión desplegada.
