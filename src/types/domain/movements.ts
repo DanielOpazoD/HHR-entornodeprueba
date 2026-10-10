@@ -73,7 +73,7 @@ export type MovementProvenance =
 
 export interface DischargeData extends MovementTombstoneFields, MovementEpisodeFields {
   id: string;
-  movementDate?: string; // YYYY-MM-DD
+  movementDate?: string; // Actual calendar date (YYYY-MM-DD), distinct from the owning census day
   admissionDate?: string; // Explicit episode admission date for reporting
   bedName: string;
   bedId: string; // Needed for undo
@@ -97,7 +97,7 @@ export interface DischargeData extends MovementTombstoneFields, MovementEpisodeF
 
 export interface TransferData extends MovementTombstoneFields, MovementEpisodeFields {
   id: string;
-  movementDate?: string; // YYYY-MM-DD
+  movementDate?: string; // Actual calendar date (YYYY-MM-DD), distinct from the owning census day
   admissionDate?: string; // Explicit episode admission date for reporting
   bedName: string;
   bedId: string; // Needed for undo

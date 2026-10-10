@@ -3,6 +3,10 @@ import { BEDS } from '@/constants/beds';
 import { PatientDataSchema } from '@/schemas/zod/patient';
 import { getActiveDischarges } from '@/application/census/movementTombstonePolicy';
 import { normalizeRut } from '@/utils/rutUtils';
+import {
+  calendarDateForMovement,
+  recoverImportedMovementCalendarDate,
+} from '@/utils/movementCalendarDate';
 import type { DischargeData } from '@/types/domain/movements';
 import { resolveReportBedId } from '../mapping/resolveReportBed';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
@@ -147,7 +151,8 @@ const sparseSnapshotFields = new Set([
 ]);
 const isImportedCribDeparture = (row: DischargeData, date: string): boolean =>
   row.isNested === true &&
-  row.movementDate === date &&
+  recoverImportedMovementCalendarDate(row, date).movementDate ===
+    calendarDateForMovement(date, row.time) &&
   row.movementProvenance?.source === 'gestion_camas' &&
   Boolean(row.clinicalEpisodeId?.trim()) &&
   row.originalData?.clinicalEpisodeId === row.clinicalEpisodeId &&

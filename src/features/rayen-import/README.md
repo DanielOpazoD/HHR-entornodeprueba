@@ -1,5 +1,16 @@
 # `src/features/rayen-import`
 
+## Fecha del egreso y día del censo
+
+La fecha/hora del alta corresponde al egreso estadístico de Gestión de Camas
+(liberación de cama por Enfermería), no a la emisión de la epicrisis ni a la
+confirmación de HHR. `correctedDay` identifica el censo del turno; `movementDate`
+conserva la fecha calendario real en Rapa Nui. Un egreso de madrugada D+1 se
+archiva en D y muestra D+1. Los lectores de Firebase y caché local recuperan las
+fechas de importaciones antiguas que guardaron D como fecha del movimiento,
+sin consultar Eloísa ni escribir el documento remoto al abrirlo. Los ajustes
+manuales y las fechas ya correctas se conservan.
+
 ## Propósito
 
 Importar el censo y los movimientos de camas desde **Rayen / Ficha Médico** (sistema
