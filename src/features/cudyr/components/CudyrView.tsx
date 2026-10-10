@@ -222,12 +222,13 @@ export const CudyrView = ({
                 </span>
               ) : null}
               {partial && (
-                <Info
-                  size={12}
-                  className="ml-2 inline text-amber-700"
-                  aria-label="Verificación pendiente"
-                  title="Falta confirmar el censo o completar verificaciones. Consulte el detalle de verificación."
-                />
+                <span title="Falta confirmar el censo o completar verificaciones. Consulte el detalle de verificación.">
+                  <Info
+                    size={12}
+                    className="ml-2 inline text-amber-700"
+                    aria-label="Verificación pendiente"
+                  />
+                </span>
               )}
             </p>
             <p className="text-xs text-slate-500">
