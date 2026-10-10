@@ -42,15 +42,28 @@ export const startCudyrSyncCapture = (input: {
             ...(deps.recoverCudyrPlacements
               ? {
                   recoverPlacements: (episode: string) => {
+                    const facts = collectCudyrDailyFacts(record).filter(
+                      f => f.patient.clinicalEpisodeId === episode
+                    );
                     const identities = new Set(
-                      collectCudyrDailyFacts(record)
-                        .filter(f => f.patient.clinicalEpisodeId === episode)
+                      facts
                         .map(f => (f.patient.rut || '').replace(/[^0-9kK]/g, '').toUpperCase())
                         .filter(Boolean)
                     );
                     if (identities.size !== 1)
                       return Promise.reject(new Error('Identidad de episodio ambigua.'));
-                    return deps.recoverCudyrPlacements!(episode, [...identities][0], observedAt);
+                    const maternal = facts.every(
+                      f =>
+                        f.placement.section === 'crib' ||
+                        f.placement.isClinicalCrib ||
+                        f.patient.bedMode === 'Cuna'
+                    );
+                    return deps.recoverCudyrPlacements!(
+                      episode,
+                      [...identities][0],
+                      observedAt,
+                      maternal ? 'maternal' : 'patient'
+                    );
                   },
                 }
               : {}),

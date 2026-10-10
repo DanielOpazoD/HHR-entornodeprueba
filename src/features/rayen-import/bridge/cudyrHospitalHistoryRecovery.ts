@@ -12,7 +12,8 @@ export const recoverCudyrHospitalHistory = async (
   episode: string,
   rut: string,
   signal: AbortSignal,
-  observedAt: string
+  observedAt: string,
+  identityKind: 'patient' | 'maternal' = 'patient'
 ) => {
   signal.throwIfAborted();
   let cursor;
@@ -45,5 +46,5 @@ export const recoverCudyrHospitalHistory = async (
   if (report.error || !report.base64) throw new Error('Informe de movimientos no disponible.');
   const text = await extractPdfTextFromBuffer(decodePdfBase64(report.base64));
   signal.throwIfAborted();
-  return cudyrPlacementsFromPatientFlow(text, episode, rut, observedAt);
+  return cudyrPlacementsFromPatientFlow(text, episode, rut, observedAt, identityKind);
 };
