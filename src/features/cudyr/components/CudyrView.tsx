@@ -200,7 +200,14 @@ export const CudyrView = ({
                 ? 'Cargando…'
                 : !dayHasEnded
                   ? 'Pendiente de aplicación'
-                  : `${daily.categorized} / ${daily.eligible} elegibles${dailyProvisional ? ' · Provisional' : ''}`}
+                  : `${daily.categorized} / ${daily.eligible} elegibles`}
+              {dailyProvisional && (
+                <Info
+                  size={12}
+                  className="ml-1 inline text-amber-700"
+                  aria-label="Verificación pendiente"
+                />
+              )}
             </p>
           </div>
           <div className="border-l pl-6">
@@ -215,11 +222,12 @@ export const CudyrView = ({
                 </span>
               ) : null}
               {partial && (
-                <span
-                  className="ml-2 rounded bg-amber-50 px-1.5 py-0.5 align-middle text-[10px] font-medium text-amber-800"
-                  title="Falta confirmar el censo o completar verificaciones. Consulte el detalle de verificación."
-                >
-                  Provisional
+                <span title="Falta confirmar el censo o completar verificaciones. Consulte el detalle de verificación.">
+                  <Info
+                    size={12}
+                    className="ml-2 inline text-amber-700"
+                    aria-label="Verificación pendiente"
+                  />
                 </span>
               )}
             </p>

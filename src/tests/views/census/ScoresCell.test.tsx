@@ -40,6 +40,59 @@ describe('ScoresCell', () => {
     expect(status).not.toHaveClass('border-amber-200', 'bg-amber-50', 'text-amber-700');
   });
 
+  it.each([false, true])('does not schedule CUDYR for a crib (attached: %s)', isSubRow => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <ScoresCell
+              data={DataFactory.createMockPatient('H2C1', {
+                bedMode: 'Cuna',
+                admissionDate: '2026-07-15',
+                evaluationScores: undefined,
+                cudyr: undefined,
+              })}
+              isSubRow={isSubRow}
+              currentDateString="2026-07-16"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+    expect(screen.queryByTestId('cudyr-pending-status')).not.toBeInTheDocument();
+  });
+
+  it('keeps a synchronized CUDYR visible even for an excluded crib', () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <ScoresCell
+              data={DataFactory.createMockPatient('H2C1', {
+                bedMode: 'Cuna',
+                admissionDate: '2026-07-15',
+                evaluationScores: {
+                  cudyr: {
+                    category: 'C2',
+                    dependencyScore: 9,
+                    riskScore: 7,
+                    recordedDate: '2026-07-16',
+                    recordedAt: '2026-07-17T04:00:00-06:00',
+                    source: 'gestión camas',
+                  },
+                },
+              })}
+              isSubRow
+              currentDateString="2026-07-16"
+            />
+          </tr>
+        </tbody>
+      </table>
+    );
+    expect(screen.getByText('C2')).toBeVisible();
+    expect(screen.queryByTestId('cudyr-pending-status')).not.toBeInTheDocument();
+  });
+
   it('shows Eloísa risk wording without changing the local Braden cadence', async () => {
     render(
       <table>

@@ -68,6 +68,30 @@ describe('PatientIdentityCell', () => {
     expect(screen.getByRole('button', { name: 'Abrir MMRAD de Juana Rapu' })).toBeVisible();
   });
 
+  it('includes the stored calendar date and admission time without timezone conversion', () => {
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        admissionDate: '2026-10-10',
+        admissionTime: '01:47',
+      }),
+    });
+    expect(screen.getByTitle('Ingreso: 10-10-2026 · 01:47 (Rapa Nui)')).toHaveTextContent(
+      '10-10-2026'
+    );
+  });
+
+  it('states when the admission time is unavailable instead of inventing midnight', () => {
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        admissionDate: '2026-10-10',
+        admissionTime: undefined,
+      }),
+    });
+    expect(
+      screen.getByTitle('Ingreso: 10-10-2026 · Hora no informada (Rapa Nui)')
+    ).toBeInTheDocument();
+  });
+
   it('shows the specialty as a small chip next to the admission date', () => {
     const data = DataFactory.createMockPatient('R1', {
       patientName: 'Juana Rapu',

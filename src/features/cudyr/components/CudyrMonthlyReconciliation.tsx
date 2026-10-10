@@ -245,8 +245,8 @@ export const CudyrMonthlyReconciliation = ({
           {discharges && (
             <p className="mb-3 rounded bg-amber-50 p-3 text-xs text-amber-950">
               El formato de altas examinado no identifica explícitamente el establecimiento. Sus
-              filas son evidencia provisional para cotejo; la cama informada corresponde al egreso y
-              no reclasifica otros días.
+              filas requieren cotejo; la cama informada corresponde al egreso y no reclasifica otros
+              días.
             </p>
           )}
           <CudyrReviewWorkspace

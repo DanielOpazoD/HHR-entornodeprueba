@@ -281,7 +281,7 @@ describe('PatientRow crib and demographics', () => {
       </table>
     );
 
-    expect(screen.getByText('CUNA', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.getByText('C-R1', { selector: 'span' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Sub Patient')).toBeInTheDocument();
     expect(screen.getByTitle('Acciones')).toBeInTheDocument();
   });

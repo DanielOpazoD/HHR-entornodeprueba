@@ -301,7 +301,9 @@ describe('CUDYR daily control', () => {
     render(<CudyrView currentDate="2026-10-02" />);
     const daily = within(screen.getByRole('group', { name: 'Cumplimiento del día' }));
     expect(daily.getByText('50%')).toBeInTheDocument();
-    expect(daily.getByText('1 / 2 elegibles · Provisional')).toBeInTheDocument();
+    expect(daily.getByText('1 / 2 elegibles')).toBeInTheDocument();
+    expect(daily.getByLabelText('Verificación pendiente')).toBeInTheDocument();
+    expect(screen.queryByText(/provisional/i)).not.toBeInTheDocument();
     expect(
       screen.getByText(/0 CUDYR disponibles \/ 0 pacientes-día elegibles/)
     ).toBeInTheDocument();

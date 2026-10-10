@@ -69,6 +69,8 @@
   .census-toolbar .census-toolbar-card,
   .census-toolbar [data-testid='rayen-operations-bar'],
   .census-toolbar [data-testid='rayen-operations-loading'] {
+    height: 84px;
+    min-height: 84px;
     border-radius: 10px;
     border-color: #e2e8f0;
     box-shadow: none;
@@ -76,7 +78,7 @@
 
   .census-toolbar > *,
   .census-toolbar-summary > * {
-    align-self: stretch;
+    align-self: flex-start;
   }
 
   .census-toolbar-quick-actions:empty {
@@ -245,5 +247,26 @@
   .census-table-scroll > table > tbody > tr,
   .census-movement-section tr {
     break-inside: avoid;
+  }
+}
+
+/* One moving reading window; only measured patient counts determine completion. */
+.rayen-sync-scan {
+  animation: rayen-reading-window 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes rayen-reading-window {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(200%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rayen-sync-scan {
+    animation: none;
+    left: 33%;
   }
 }

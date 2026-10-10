@@ -48,7 +48,7 @@ export const CensusSummarySwitcher = ({
               fallback={
                 <div
                   role="status"
-                  className="min-h-20 rounded-xl border bg-white p-3 text-xs text-slate-500"
+                  className="census-toolbar-card min-h-20 rounded-xl border bg-white p-3 text-xs text-slate-500"
                 >
                   Leyendo CUDYR…
                 </div>

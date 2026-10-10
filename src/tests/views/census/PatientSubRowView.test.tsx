@@ -53,6 +53,18 @@ describe('PatientSubRowView', () => {
     expect(screen.getByTestId('sub-input-cells')).toHaveAttribute('data-diagnosis-mode', 'cie10');
   });
 
+  it.each(['R1', 'H2C2'])('shows the containing bed in the quiet crib label: %s', parentBedId => {
+    render(
+      <table>
+        <tbody>
+          <PatientSubRowView {...baseProps} parentBedId={parentBedId} readOnly />
+        </tbody>
+      </table>
+    );
+    expect(screen.getByTitle('Cuna vinculada a la cama')).toHaveTextContent(`C-${parentBedId}`);
+    expect(screen.queryByText('CUNA')).not.toBeInTheDocument();
+  });
+
   it('passes the containing bed ID to clinical-crib inputs', () => {
     render(
       <table>
