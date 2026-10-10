@@ -49,6 +49,7 @@ interface CensusTableProps {
   accessProfile?: CensusAccessProfile;
   attentionFilter?: CensusAttentionFilter;
   onClearAttentionFilter?: () => void;
+  scoresAction?: React.ReactNode;
 }
 
 export const CensusTable: React.FC<CensusTableProps> = ({
@@ -57,6 +58,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
   accessProfile = 'default',
   attentionFilter = 'all',
   onClearAttentionFilter,
+  scoresAction,
 }) => {
   const [activeEmptyBedId, setActiveEmptyBedId] = useState<string | null>(null);
   const [isEloisaCodeImportOpen, setIsEloisaCodeImportOpen] = useState(false);
@@ -303,7 +305,7 @@ export const CensusTable: React.FC<CensusTableProps> = ({
             className="text-left border-collapse print:text-xs relative text-[12px] leading-tight table-fixed"
             style={tableStyle}
           >
-            <CensusTableHeader {...headerProps} />
+            <CensusTableHeader {...headerProps} scoresAction={scoresAction} />
             <CensusTableBody
               {...bodyProps}
               recordLastUpdated={record?.lastUpdated}

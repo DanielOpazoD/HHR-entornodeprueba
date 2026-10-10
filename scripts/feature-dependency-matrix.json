@@ -6,6 +6,7 @@
     "backup": [],
     "census": [
       "analytics",
+      "cudyr",
       "clinical-documents",
       "rayen-import",
       "rayen-manual-import",

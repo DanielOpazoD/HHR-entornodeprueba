@@ -8,7 +8,15 @@
  * server confirms an explicit, episode-bound decision before it is durable.
  */
 
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
@@ -22,7 +30,14 @@ import {
   SPECIALTY_CHIP_FALLBACK,
 } from '@/constants/clinicalSpecialtyConstants';
 
+const SpecialtyRoundEntry = lazy(() =>
+  import('../specialty-round/SpecialtyRoundEntry').then(module => ({
+    default: module.SpecialtyRoundEntry,
+  }))
+);
+
 interface SpecialtyChipProps {
+  censusDate?: string;
   specialty: string;
   decision?: SpecialtyDecisionMeta;
   readOnly?: boolean;
@@ -36,6 +51,7 @@ const styleFor = (specialty: string): string =>
 
 export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   specialty,
+  censusDate,
   decision,
   readOnly = false,
   onAssign,
@@ -43,6 +59,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
   cie10Code,
 }) => {
   const [open, setOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const episodeMode = useFeatureFlag('SPECIALTY_EPISODE_ASSIGNMENT');
   const memoryMode = useFeatureFlag('SPECIALTY_RULES_MEMORY');
   const [canPublish, setCanPublish] = useState(false);
@@ -61,6 +78,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     operationGenerationRef.current += 1;
     if (popoverRef.current?.contains(document.activeElement)) anchorRef.current?.focus();
     setOpen(false);
+    setToolsOpen(false);
     setMessage('');
     setConfirmMemory(false);
     setBusy(false);
@@ -119,6 +137,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
     };
   }, [memoryMode, open]);
 
+  const toolsDate = scope?.date || censusDate;
   const trimmed = specialty.trim();
   const assigned = trimmed.length > 0;
   const canChoose = !episodeMode || Boolean(scope?.episodeId);
@@ -181,7 +200,7 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
       >
         <SpecialtyBadge specialty={trimmed} decision={episodeMode ? decision : undefined} />
       </button>
-      {open &&
+      {(open || toolsOpen) &&
         createPortal(
           <div
             ref={popoverRef}
@@ -189,21 +208,37 @@ export const SpecialtyChip: React.FC<SpecialtyChipProps> = ({
             aria-label="Asignar especialidad"
             tabIndex={-1}
             className="fixed z-[110] max-h-[calc(100vh-16px)] w-72 max-w-[calc(100vw-16px)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 text-left shadow-xl print:hidden"
-            style={position}
+            style={{ ...position, display: open ? undefined : 'none' }}
             onClick={event => event.stopPropagation()}
             onMouseDown={event => event.stopPropagation()}
           >
             <div className="mb-2 border-b border-slate-100 px-1 pb-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-slate-800">Especialidad del episodio</p>
-                <button
-                  type="button"
-                  onClick={closePopover}
-                  className="rounded px-1 text-xs text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-                  aria-label="Cerrar selector de especialidad"
-                >
-                  Cerrar
-                </button>
+                <div className="flex items-center gap-1">
+                  {toolsDate && (
+                    <Suspense fallback={null}>
+                      <SpecialtyRoundEntry
+                        date={toolsDate}
+                        disabled={readOnly}
+                        compact
+                        onWindowChange={active => {
+                          setToolsOpen(active);
+                          if (active) closePopover();
+                          else setOpen(true);
+                        }}
+                      />
+                    </Suspense>
+                  )}
+                  <button
+                    type="button"
+                    onClick={closePopover}
+                    className="rounded px-1 text-xs text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                    aria-label="Cerrar selector de especialidad"
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </div>
               <p className="mt-0.5 text-[11px] text-slate-500">
                 {decision?.source === 'rule'

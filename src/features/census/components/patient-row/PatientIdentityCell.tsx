@@ -303,6 +303,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
             <span className="flex min-w-0 items-center gap-1">
               {(hasRutValue || admissionShort) && <span className="text-slate-300">/</span>}
               <SpecialtyChip
+                censusDate={currentDateString}
                 specialty={specialtyLabel}
                 decision={data.specialtyAssignment}
                 cie10Code={data.cie10Code}

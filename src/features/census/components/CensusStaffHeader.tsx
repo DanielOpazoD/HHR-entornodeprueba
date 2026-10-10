@@ -8,7 +8,7 @@ import { lazyWithRetry } from '@/utils/lazyWithRetry';
 const StaffShiftDetailsModal = lazyWithRetry(() =>
   import('./StaffShiftDetailsModal').then(module => ({ default: module.StaffShiftDetailsModal }))
 );
-import { CombinedSummaryCard } from '@/components/layout/SummaryCard';
+import { CensusSummarySwitcher } from './CensusSummarySwitcher';
 import {
   useDailyRecordData,
   useDailyRecordBeds,
@@ -27,17 +27,8 @@ const RayenImportButton = lazy(() =>
     default: module.RayenImportButton,
   }))
 );
-import { SpecialtyRoundLoadingTrigger } from './specialty-round/SpecialtyRoundTrigger';
-const SpecialtyRoundEntry = lazy(() =>
-  import('./specialty-round/SpecialtyRoundEntry').then(module => ({
-    default: module.SpecialtyRoundEntry,
-  }))
-);
-
 import { RayenOperationsLoadingCard } from './RayenOperationsLoadingCard';
 import { useCensusToolbarMenuTarget } from '@/shared/ui/CensusToolbarMenuTargetContext';
-import { CensusAttentionBar } from './CensusAttentionBar';
-import type { CensusAttentionFilter } from '@/features/census/controllers/rowAcuityController';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
 import type { RenderCensusMedicalHandoffAction } from '@/features/census/contracts/censusMedicalHandoffAction';
 
@@ -46,8 +37,6 @@ interface CensusStaffHeaderProps {
   readOnly?: boolean;
   stats: Statistics | null;
   accessProfile?: CensusAccessProfile;
-  attentionFilter?: CensusAttentionFilter;
-  onAttentionFilterChange?: (filter: CensusAttentionFilter) => void;
   visibleBeds?: readonly BedDefinition[];
   renderMedicalHandoffAction?: RenderCensusMedicalHandoffAction;
   rayenBootstrapRequestId?: number;
@@ -64,8 +53,6 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
   readOnly = false,
   stats,
   accessProfile = 'default',
-  attentionFilter = 'all',
-  onAttentionFilterChange,
   visibleBeds = [],
   renderMedicalHandoffAction,
   rayenBootstrapRequestId,
@@ -156,7 +143,8 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           {/* Combined Stats Summary Card */}
           <div className="census-toolbar-summary flex min-w-0 shrink-0 items-stretch justify-center gap-2">
             {readModel.showSummary && stats && (
-              <CombinedSummaryCard
+              <CensusSummarySwitcher
+                date={recordDate ?? selectedDate ?? ''}
                 stats={stats}
                 discharges={readModel.movementSummaryState.discharges}
                 transfers={readModel.movementSummaryState.transfers}
@@ -164,22 +152,6 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 newAdmissions={readModel.movementSummaryState.admissionsCount}
               />
             )}
-            <div className="census-toolbar-quick-actions flex items-center gap-2 border-l border-slate-200 pl-2">
-              <CensusAttentionBar
-                beds={beds ?? {}}
-                censusIsoDay={dailyRecordData.record?.date ?? ''}
-                activeFilter={attentionFilter}
-                onFilterChange={onAttentionFilterChange}
-              />
-              {dailyRecordData.record?.date && (
-                <Suspense fallback={<SpecialtyRoundLoadingTrigger />}>
-                  <SpecialtyRoundEntry
-                    date={dailyRecordData.record.date}
-                    disabled={Boolean(readOnly)}
-                  />
-                </Suspense>
-              )}
-            </div>
           </div>
         </div>
       </div>

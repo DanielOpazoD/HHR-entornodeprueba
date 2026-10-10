@@ -7,6 +7,7 @@ import { buildCensusHeaderCellModels } from '@/features/census/controllers/censu
 import type { CensusTableHeaderProps } from '@/features/census/types/censusTableComponentContracts';
 
 export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
+  scoresAction,
   readOnly,
   columns,
   isEditMode,
@@ -65,7 +66,14 @@ export const CensusTableHeader: React.FC<CensusTableHeaderProps> = ({
               ariaLabel={cell.key === 'status' ? 'Estado clínico' : undefined}
               minWidth={cell.key === 'status' ? 32 : undefined}
             >
-              {cell.label}
+              {cell.key === 'scores' && scoresAction ? (
+                <span className="inline-flex items-center justify-center gap-1">
+                  <span>{cell.label}</span>
+                  {scoresAction}
+                </span>
+              ) : (
+                cell.label
+              )}
             </ResizableHeader>
           )
         )}

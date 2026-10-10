@@ -202,8 +202,8 @@ botón IEEH
 - Las camas vacías siguen despejadas: el ingreso aparece al pasar el cursor o recibir foco.
 - Signos usan una cuadrícula estable; los valores alterados conservan su color, detalle textual y
   un subrayado punteado. Las escalas alinean resultado y vencimiento sin colorear todo el control.
-- Enfermería, TENS, Eloísa y estadísticas comparten contornos discretos; Escalas y Especialidades
-  son controles compactos centrados. El estado inicial de Eloísa conserva su espacio reservado.
+- Enfermería, TENS, Eloísa y estadísticas comparten contornos discretos. El estado inicial de
+  Eloísa conserva su espacio reservado. Escalas y Especialidades se ubican en sus superficies de edición.
 - `CensusTableViewport` observa el ancho real de tabla y contenedor. Si cabe, permite al encabezado
   permanecer bajo navegación y fechas (96 px); si no, conserva desplazamiento horizontal con
   teclado. No oculta columnas ni modifica preferencias de ancho. Impresión mantiene proporciones.
@@ -287,3 +287,9 @@ los controllers y contratos de aplicación conservan sus responsabilidades actua
 Los tests del modelo apuntan a esas mismas implementaciones, junto con las pruebas
 del modal. Los controllers de transición y las reglas de bloqueo, selección y
 confirmación permanecen en sus capas actuales.
+
+### Controles compactos del censo
+
+- El reloj del encabezado de Scores filtra escalas por reaplicar y permite volver al censo completo.
+- El selector de especialidad del paciente incorpora el icono de opciones del censo: conserva los permisos, reglas automáticas y asignación asistida existentes.
+- La esquina del resumen alterna camas/movimientos y cumplimiento CUDYR del mes seleccionado. La vista mensual se carga sólo al abrirla, reutiliza el reporte guardado de HHR y su caché por sesión, sin consultar Eloísa. Excluye hoy y días futuros en Rapa Nui; las ventanas de aplicación abiertas tampoco contribuyen al consolidado. Una lectura pendiente o fallida nunca se presenta como oficial.
