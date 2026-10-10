@@ -25,7 +25,7 @@ const stamp = doc => [
     : String(doc.updateTime?.seconds) + ':' + String(doc.updateTime?.nanoseconds),
 ];
 /** Server-side metadata check: no source bytes, parsers or report reconstruction on the read path. */
-const sourceVersion = async (hospital, month, episodes = [], transaction) => {
+const sourceVersions = async (hospital, month, episodes = [], transaction) => {
   const b = bounds(month);
   const reviewRef = hospital.collection('cudyrVerifiedContexts').doc(month);
   const review = transaction ? await transaction.get(reviewRef) : await reviewRef.get();
@@ -77,8 +77,19 @@ const sourceVersion = async (hospital, month, episodes = [], transaction) => {
   ]
     .map(stamp)
     .sort((a, b) => a[0].localeCompare(b[0]));
-  return hash([POLICY, stamps]);
+  return {
+    current: hash([POLICY, stamps]),
+    // Before revision markers existed, official snapshots omitted this missing
+    // document. Accept that exact metadata fingerprint only while no legacy or
+    // relevant episode correction marker exists. Never rewrite the artifact.
+    legacy:
+      correctionVersion.exists === false && correctionPages.every(p => p.size === 0)
+        ? hash([POLICY, stamps.filter(([path]) => path !== correctionVersionRef.path)])
+        : undefined,
+  };
 };
+const sourceVersion = async (hospital, month, episodes = [], transaction) =>
+  (await sourceVersions(hospital, month, episodes, transaction)).current;
 // A reconstruction starts before its full episode set is known. Keep a separate
 // publication guard so any correction during that read aborts stale publication,
 // while an already saved official report checks only its own episodes.
@@ -249,9 +260,15 @@ const readOfficialReport = async (hospital, data) => {
       episodes.some(id => typeof id !== 'string' || id.length > 120)
     )
       fail('Invalid episodes.', 'invalid-argument');
-    const version = await sourceVersion(hospital, month, episodes, tx);
-    if (!snapshot || snapshot.policyVersion !== POLICY || snapshot.sourceVersion !== version)
+    const versions = await sourceVersions(hospital, month, episodes, tx);
+    if (
+      !snapshot ||
+      snapshot.policyVersion !== POLICY ||
+      (snapshot.sourceVersion !== versions.current &&
+        (!versions.legacy || snapshot.sourceVersion !== versions.legacy))
+    )
       return { state: 'missing', sourceVersion: await publicationVersion(hospital, month, tx) };
+    const version = snapshot.sourceVersion;
     return {
       state: data.knownVersion === snapshot.version ? 'unchanged' : 'ready',
       sourceVersion: version,
