@@ -324,6 +324,9 @@
             items: (response && Array.isArray(response.items) && response.items) || [],
             source: response && response.source,
             historyAvailable: response && response.historyAvailable,
+            captureContract: response && response.captureContract,
+            observedEpisodeIds: response && response.observedEpisodeIds,
+            metadataStatus: response && response.metadataStatus,
             warning: response && response.warning,
             error: response && response.error,
           });

@@ -562,3 +562,16 @@ El ingreso Google y el reconocimiento de la extensión son comprobaciones distin
 Owner: integración HHR/Eloísa. Rollback: volver al paquete anterior; el dominio
 hhr-entorno-prueba dejaría de enlazarse. Cierre: release gate, pruebas de los cuatro
 orígenes y rechazo de dominios ajenos, smoke MV3 sintético y reconocimiento en Chrome.
+
+### Puente 0.48.49: lectura CUDYR y evidencia de captura
+
+El relé HHR conserva `captureContract`, `observedEpisodeIds` y `metadataStatus`;
+una captura moderna no debe archivarse como una extensión antigua por perder esos campos.
+Las lecturas de camas, autores y definiciones reintentan una vez errores de red,
+HTTP 408/429 o 5xx. Un rechazo de autorización o una respuesta inválida siguen
+informándose; un fallo persistente no se convierte en ausencia de CUDYR.
+
+A las 22:41 del día D se recupera el historial previo: el CUDYR del turno D
+corresponde a la mañana D+1. Una captura vacía válida no es un error y no
+inventa un resultado para hoy. El archivo conserva la trazabilidad por episodio.
+Actualizar la extensión cargada en Chrome y recargar HHR para activar este relé.

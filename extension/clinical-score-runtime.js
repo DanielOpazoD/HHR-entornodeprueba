@@ -105,6 +105,18 @@
       return { items: [...byEnc.values()] };
     };
 
+    // Retry one transient read only. Authorization and schema errors stay actionable.
+    // This reads source history; an empty history before tomorrow's shift is valid.
+    const readOfficialCudyr = async (url, options) => {
+      try {
+        const response = await fetchWithTimeout(url, options);
+        if (response.status !== 408 && response.status !== 429 && response.status < 500) return response;
+      } catch (error) {
+        if (!(error instanceof TypeError) && !/fetch|network|tiempo de espera|timeout/i.test(String(error && error.message || error))) throw error;
+      }
+      return fetchWithTimeout(url, options);
+    };
+
     const fetchGestionCamasCudyrCategories = async () => {
       const session = await resolveGestionCamasSession();
       if (!session.record) {
@@ -119,7 +131,7 @@
         `${info.apiBase}/facility/${encodeURIComponent(info.facId)}/healthCarePractitioners?tid=${now()}`,
         `${info.apiBase}/formCategorizationOfRisk?tid=${now()}`,
       ];
-      const requests = requestUrls.map(url => fetchWithTimeout(url, {
+      const requests = requestUrls.map(url => readOfficialCudyr(url, {
         headers: { Authorization: info.token, Accept: 'application/json' },
         credentials: 'omit',
         cache: 'no-store',

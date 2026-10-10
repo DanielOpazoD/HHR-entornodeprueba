@@ -47,6 +47,34 @@ const expectCheckpointOnlyPatch = (applyPatch: ClinicalFillDeps['applyPatch']): 
 };
 
 describe('runClinicalFill historical CUDYR batch', () => {
+  it('at 22:41 reads the previous night without requiring a result for tonight', async () => {
+    const applyHistoricalCudyr = vi.fn().mockResolvedValue({ persisted: true, changed: false });
+    const deps = singleDeps({
+      now: () => new Date('2026-10-09T22:41:00-05:00'),
+      fetchCudyrCategories: vi.fn().mockResolvedValue({
+        source: 'gestion_camas',
+        historyAvailable: true,
+        items: [
+          {
+            encId: 'E1',
+            source: 'gestion_camas',
+            crdValue: 'C2',
+            crdDateTime: '2026-10-09T04:00:00-05:00',
+          },
+        ],
+      }),
+      applyHistoricalCudyr,
+    });
+    const summary = await runClinicalFill(singleRecord('2026-10-09'), '2026-10-09', deps);
+    expect(summary.errors).toEqual([]);
+    expect(applyHistoricalCudyr).toHaveBeenCalledWith(
+      'E1',
+      '2026-10-08',
+      expect.objectContaining({ category: 'C2' })
+    );
+    expectCheckpointOnlyPatch(deps.applyPatch);
+  });
+
   it('consolidates several patients into one persistence operation', async () => {
     const applyHistoricalCudyr = vi.fn();
     const applyHistoricalCudyrBatch = vi.fn().mockImplementation(async (_day, items) =>
