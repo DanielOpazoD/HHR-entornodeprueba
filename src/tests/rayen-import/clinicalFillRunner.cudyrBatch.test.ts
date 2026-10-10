@@ -67,11 +67,9 @@ describe('runClinicalFill historical CUDYR batch', () => {
     });
     const summary = await runClinicalFill(singleRecord('2026-10-09'), '2026-10-09', deps);
     expect(summary.errors).toEqual([]);
-    expect(applyHistoricalCudyr).toHaveBeenCalledWith(
-      'E1',
-      '2026-10-08',
-      expect.objectContaining({ category: 'C2' })
-    );
+    expect(applyHistoricalCudyr.mock.calls).toMatchObject([
+      ['E1', '2026-10-08', { category: 'C2' }],
+    ]);
     expectCheckpointOnlyPatch(deps.applyPatch);
   });
 
