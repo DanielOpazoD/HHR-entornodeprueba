@@ -31,15 +31,18 @@ const retireObsoleteChecks = createObsoleteCudyrCaptureRecovery({
   },
 });
 
+// Keep one selective dynamic import: duplicate namespace imports retain unrelated queue APIs.
+async function processRecoveredArchives(): Promise<void> {
+  const { processSyncQueue } = await import('./publicSyncQueue');
+  await processSyncQueue();
+}
+
 const recoverPolicyBlockedArchives = createCudyrPolicyBlockedRecovery({
   ensureReady: ensureDbReady,
   store: createDexieSyncQueueStore(),
   getOwner: getStoredSessionOwnerKey,
   getGeneration: getSessionGeneration,
-  process: async () => {
-    const { processSyncQueue } = await import('./publicSyncQueue');
-    await processSyncQueue();
-  },
+  process: processRecoveredArchives,
 });
 export const recoverPolicyBlockedCudyrArchives = async (
   authorized: boolean,
@@ -52,10 +55,7 @@ export const recoverPolicyBlockedCudyrArchives = async (
       ? await repairMisdatedArchives(expectedGeneration, isAuthorized)
       : 0;
     const count = await recoverPolicyBlockedArchives(authorized, expectedGeneration, isAuthorized);
-    if (repaired && !count) {
-      const { processSyncQueue } = await import('./publicSyncQueue');
-      await processSyncQueue();
-    }
+    if (repaired && !count) await processRecoveredArchives();
     if (authorized && isAuthorized()) await retireObsoleteChecks(expectedGeneration, isAuthorized);
     return count + repaired;
   } catch {
