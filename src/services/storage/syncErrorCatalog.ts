@@ -69,20 +69,8 @@ const getCategory = (code: string, messageLower: string, name: string): SyncErro
   return 'unknown';
 };
 
-const getSeverity = (category: SyncErrorCategory): ErrorSeverity => {
-  switch (category) {
-    case 'authorization':
-      return 'high';
-    case 'validation':
-      return 'medium';
-    case 'network':
-      return 'medium';
-    case 'conflict':
-      return 'medium';
-    default:
-      return 'medium';
-  }
-};
+const getSeverity = (category: SyncErrorCategory): ErrorSeverity =>
+  category === 'authorization' ? 'high' : 'medium';
 
 const getRecommendedAction = (category: SyncErrorCategory): string => {
   switch (category) {

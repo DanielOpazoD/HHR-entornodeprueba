@@ -15,21 +15,13 @@ const matchesRestoredPatient = (
   movement: MovementIdentity,
   patient: PatientEpisodeContract
 ): boolean => {
-  const movementEpisodeId = normalizeIdentityValue(movement.clinicalEpisodeId);
-  const restoredEpisodeId = normalizeIdentityValue(patient.clinicalEpisodeId);
-  if (movementEpisodeId && restoredEpisodeId) {
-    return movementEpisodeId === restoredEpisodeId;
+  // Compare the first available identity pair; different known episodes never collapse.
+  for (const field of ['clinicalEpisodeId', 'rut', 'patientName'] as const) {
+    const left = normalizeIdentityValue(movement[field]);
+    const right = normalizeIdentityValue(patient[field]);
+    if (left && right) return left === right;
   }
-
-  const movementRut = normalizeIdentityValue(movement.rut);
-  const restoredRut = normalizeIdentityValue(patient.rut);
-  if (movementRut && restoredRut) {
-    return movementRut === restoredRut;
-  }
-
-  const movementName = normalizeIdentityValue(movement.patientName);
-  const restoredName = normalizeIdentityValue(patient.patientName);
-  return Boolean(movementName && restoredName && movementName === restoredName);
+  return false;
 };
 
 export const matchesRestoredPatientDestination = (

@@ -32,23 +32,24 @@ const hasActivePatientIdentity = (patient: PatientData | undefined): boolean =>
 
 const hasResidualClinicalState = (patient: PatientData | undefined): boolean =>
   Boolean(
-    normalizeIdentity(patient?.pathology) ||
-    normalizeIdentity(patient?.admissionDate) ||
-    normalizeIdentity(patient?.clinicalEpisodeId) ||
-    normalizeIdentity(patient?.handoffNoteDayShift) ||
-    normalizeIdentity(patient?.handoffNoteNightShift) ||
-    normalizeIdentity(patient?.medicalHandoffNote) ||
-    normalizeIdentity(patient?.deliveryRoute) ||
-    normalizeIdentity(patient?.deliveryDate) ||
-    normalizeIdentity(patient?.surgicalComplication) ||
-    Boolean(patient?.upcChecklist) ||
-    Boolean(patient?.cudyr) ||
-    Boolean(patient?.medicalHandoffAudit) ||
-    (patient?.devices || []).length > 0 ||
-    Object.keys(patient?.deviceDetails || {}).length > 0 ||
-    (patient?.deviceInstanceHistory || []).length > 0 ||
-    (patient?.clinicalEvents || []).length > 0 ||
-    (patient?.medicalHandoffEntries || []).length > 0
+    (
+      [
+        'pathology',
+        'admissionDate',
+        'clinicalEpisodeId',
+        'handoffNoteDayShift',
+        'handoffNoteNightShift',
+        'medicalHandoffNote',
+        'deliveryRoute',
+        'deliveryDate',
+        'surgicalComplication',
+      ] as const
+    ).some(field => normalizeIdentity(patient?.[field])) ||
+    [patient?.upcChecklist, patient?.cudyr, patient?.medicalHandoffAudit].some(Boolean) ||
+    (['devices', 'deviceInstanceHistory', 'clinicalEvents', 'medicalHandoffEntries'] as const).some(
+      field => (patient?.[field] || []).length > 0
+    ) ||
+    Object.keys(patient?.deviceDetails || {}).length > 0
   );
 
 const isCmaMovement = (movement: ConfirmedMovementRecord): movement is CmaMovementRecord =>
@@ -77,33 +78,14 @@ const matchesMovementPatient = (
 
   const patientRut = normalizeIdentity(patient?.rut);
   const movementRut = normalizeIdentity(movement.rut);
-  if (patientRut && movementRut) {
-    if (patientRut !== movementRut) {
-      return false;
-    }
-
-    const patientAdmissionDate = normalizeIdentity(patient?.admissionDate);
-    const movementAdmissionDate = normalizeIdentity(resolveMovementAdmissionDate(movement));
-    if (
-      patientAdmissionDate &&
-      movementAdmissionDate &&
-      patientAdmissionDate !== movementAdmissionDate
-    ) {
-      return false;
-    }
-
-    return true;
-  }
-
-  const patientName = normalizeIdentity(patient?.patientName);
-  const movementName = normalizeIdentity(movement.patientName);
-  if (!patientName || !movementName || patientName !== movementName) {
-    return false;
-  }
+  const hasBothDocuments = Boolean(patientRut && movementRut);
+  const left = hasBothDocuments ? patientRut : normalizeIdentity(patient?.patientName);
+  const right = hasBothDocuments ? movementRut : normalizeIdentity(movement.patientName);
+  if (!left || !right || left !== right) return false;
 
   const patientAdmissionDate = normalizeIdentity(patient?.admissionDate);
   const movementAdmissionDate = normalizeIdentity(resolveMovementAdmissionDate(movement));
-  if (isCmaMovement(movement)) {
+  if (!hasBothDocuments && isCmaMovement(movement)) {
     return Boolean(
       patientAdmissionDate &&
       movementAdmissionDate &&
