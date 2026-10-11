@@ -19,6 +19,7 @@ import { matchesDischargeSubject } from './dischargeSubjectIdentity';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { ReportEgreso } from '../contracts/egresoReport';
 import { extractTime } from '../mapping/rayenToPatientData';
+import { encounterWallClockInRapaNui } from '../mapping/encounterWallClock';
 import { normalizePatientRut } from './censusPatientIdentityIndex';
 
 interface RecordedOutcomeSubject {
@@ -104,7 +105,7 @@ export const createDischargedEncounterMatcher = (
     hasRecordedOutcome({
       clinicalEpisodeId: encounter.encounterId,
       rut: encounter.run,
-      admissionDay: encounter.admissionDatetime?.slice(0, 10),
+      admissionDay: encounterWallClockInRapaNui(encounter.admissionDatetime)?.slice(0, 10),
       admissionTime: extractTime(encounter.admissionDatetime),
     });
 };

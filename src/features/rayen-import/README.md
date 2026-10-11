@@ -11,6 +11,12 @@ fechas de importaciones antiguas que guardaron D como fecha del movimiento,
 sin consultar Eloísa ni escribir el documento remoto al abrirlo. Los ajustes
 manuales y las fechas ya correctas se conservan.
 
+El ingreso conserva su fecha calendario y hora reales en Rapa Nui: los instantes UTC/con offset
+se convierten con `encounterWallClockInRapaNui`, igual que la selección del día clínico y el
+fallback de identidad de movimientos legacy. Los valores ya locales no se convierten de nuevo.
+El día clínico puede ser el anterior durante la madrugada; no reemplaza la fecha del evento.
+`birthDate` sigue siendo una fecha calendario, sin desplazamiento de zona horaria.
+
 ## Propósito
 
 Importar el censo y los movimientos de camas desde **Rayen / Ficha Médico** (sistema
