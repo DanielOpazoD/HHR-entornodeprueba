@@ -1113,3 +1113,21 @@ despliegue. No omitir el control ni ampliar permisos. **Rollback:** revertir est
 bloque restaura el workflow anterior; no modifica datos clínicos ni IAM.
 
 Referencia de cola: [concurrencia de GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
+## Transacción cerrada en el emulador CUDYR
+
+Los runs `38166306055` y `38169209959` fallaron en la prueba concurrente de
+recibos CUDYR con `3 INVALID_ARGUMENT: Transaction is invalid or closed.`.
+El emulador Firestore 1.20.4 devuelve ese mensaje para una transacción que ya
+no está activa; el SDK reintenta otro mensaje de expiración, pero no éste.
+
+El archivo CUDYR admite hasta dos reintentos adicionales únicamente ante ese
+mensaje exacto y con `FIRESTORE_EMULATOR_HOST` apuntando a `localhost` o
+`127.0.0.1`. Cada intento abre una transacción nueva y vuelve a comprobar la
+autoridad. No reconoce un guardado sin confirmación. Los errores de argumentos
+distintos y el comportamiento fuera del emulador local permanecen intactos.
+
+Validar con `npx vitest run src/tests/functions/cudyrHistoryFunctions.test.ts`
+y `npm run test:emulator:sync:ci`. Conservar los escenarios concurrentes y sus
+asserts; no añadir reintentos de suite ni serializarlos. Rollback: revertir el
+parche y repetir esas pruebas, sin modificar datos, permisos ni umbrales.
