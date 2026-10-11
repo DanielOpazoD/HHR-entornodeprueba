@@ -87,6 +87,14 @@ El consumo externo a la feature debe entrar por `@/features/handoff`. Los import
 `components/`, `controllers/`, `hooks/` o bridges internos quedan reservados para implementación
 interna del feature.
 
+## CUDYR registrado y elegibilidad
+
+La impresión CUDYR conserva una categoría importada válida del censo/turno aun
+cuando el paciente no sea elegible: muestra «Registrado» y la exclusión juntos.
+`isEligible` sigue controlando los puntajes manuales visibles y el denominador de
+`buildCudyrPrintMetrics`; ni un resultado desfasado ni una categoría inválida se
+presentan como registro válido. Esto aplica CUD-02/CUD-07 sólo en el límite de handoff.
+
 ## Checks recomendados
 
 - `npm exec -- vitest run src/tests/application/handoff src/tests/domain/handoff src/tests/hooks/controllers`

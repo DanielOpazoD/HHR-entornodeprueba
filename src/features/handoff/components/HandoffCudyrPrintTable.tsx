@@ -93,7 +93,7 @@ export const HandoffCudyrPrintTable: React.FC<{
               const cudyr = display.visibleScores || {};
               const rowName = display.isEligible
                 ? rowPatient?.patientName
-                : `${rowPatient?.patientName || ''} (Bloq. CUDYR)`;
+                : `${rowPatient?.patientName || ''} (Excluido CUDYR)`;
 
               if (!rowPatient?.patientName) {
                 return (
@@ -196,6 +196,9 @@ export const HandoffCudyrPrintTable: React.FC<{
                     >
                       {display.categorization.finalCat || '-'}
                     </span>
+                    {display.hasValidImportedCudyr && (
+                      <span className="block text-[9px] print:text-[7px]">Registrado</span>
+                    )}
                   </td>
                 </tr>
               );
