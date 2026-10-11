@@ -11,6 +11,9 @@ import { useNavbarNavigation } from '@/hooks/useNavbarNavigation';
 import { useNavbarDisclosure } from './navbar/useNavbarDisclosure';
 import { resolveIsNavbarItemActive } from '@/components/layout/navbar/navbarTabsController';
 
+const controlInteractionClass =
+  'transition-colors focus-visible:outline focus-visible:outline-2 motion-reduce:transition-none';
+
 interface NavTabProps {
   label: string;
   icon: LucideIcon;
@@ -28,7 +31,8 @@ const NavTab: React.FC<NavTabProps> = ({ label, icon: Icon, isActive, onClick, t
     aria-label={label}
     title={label}
     className={clsx(
-      'flex shrink-0 items-center gap-2 whitespace-nowrap px-2 lg:px-4 py-1.5 transition-all duration-200 text-[13px] tracking-tight rounded-lg ring-1 ring-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none',
+      controlInteractionClass,
+      'flex shrink-0 items-center gap-2 whitespace-nowrap px-2 lg:px-4 py-1.5 duration-200 text-[13px] tracking-tight rounded-lg ring-1 ring-transparent focus-visible:outline-offset-2 focus-visible:outline-white',
       isActive
         ? 'text-white font-semibold bg-white/[0.16] ring-white/18 underline underline-offset-4 decoration-2'
         : 'text-white/85 hover:text-white hover:bg-white/[0.08] hover:ring-white/12 font-medium'
@@ -61,7 +65,8 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
     onClick={onClick}
     disabled={disabled}
     className={clsx(
-      'flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-slate-700 motion-reduce:transition-none',
+      controlInteractionClass,
+      'flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium focus-visible:-outline-offset-2 focus-visible:outline-slate-700',
       disabled
         ? 'text-slate-400 cursor-not-allowed'
         : isActive
@@ -156,7 +161,8 @@ export const NavbarTabs: React.FC<NavbarTabsProps> = ({
             aria-label="Abrir módulos utilitarios"
             data-testid="navbar-utility-menu-button"
             className={clsx(
-              'flex items-center justify-center gap-1.5 min-w-8 h-8 px-2 rounded-lg transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none',
+              controlInteractionClass,
+              'flex items-center justify-center gap-1.5 min-w-8 h-8 px-2 rounded-lg duration-200 focus-visible:outline-offset-2 focus-visible:outline-white',
               isUtilityActive || currentModule === 'CUDYR'
                 ? 'bg-white/[0.16] text-white ring-1 ring-white/20 shadow-sm shadow-black/10'
                 : 'text-white/85 hover:bg-white/[0.08] hover:text-white'

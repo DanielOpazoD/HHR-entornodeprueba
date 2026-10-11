@@ -25,7 +25,7 @@ export const getMoaHelpContext = (module?: ModuleType) => {
       return {
         title: 'Categorización CUDYR',
         description:
-          'Comprueba la fecha y el paciente antes de revisar la categorización. La edición depende de tu perfil y del día seleccionado.',
+          'Comprueba la fecha y el paciente al revisar la categorización. CUDYR se registra en Eloísa; HHR consulta los resultados guardados.',
       };
     default:
       return {

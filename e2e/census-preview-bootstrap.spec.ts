@@ -569,4 +569,37 @@ test.describe('Production Preview Bootstrap', () => {
       runtimeCollector.detach();
     });
   }
+  test('keeps the census usable after a real failed help chunk and recovers by confirmed reload', async ({
+    page,
+  }) => {
+    const helpChunk = /\/assets\/MoaHelpPanel-[^/]+\.js$/;
+    await page.route(helpChunk, route => route.abort());
+    await seedPersistedSessionAndRecord(page);
+    await page.goto(`/?date=${PREVIEW_BOOTSTRAP_DATE}`);
+    await expectSeededPatientVisible(page);
+    const help = page.getByRole('button', { name: 'Ayuda de Moa', exact: true });
+    await help.click();
+    await expect(
+      page.getByRole('region', { name: 'Ayuda de Moa no disponible' }).getByRole('alert')
+    ).toHaveText('No se pudo abrir la ayuda.');
+    await expectSeededPatientVisible(page);
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: 'Recargar aplicación', exact: true }).click();
+    await expectSeededPatientVisible(page);
+    await page.getByRole('button', { name: 'Cerrar ayuda de Moa' }).click();
+    await expect(help).toBeFocused();
+    await help.click();
+    await expect(
+      page.getByRole('region', { name: 'Ayuda de Moa no disponible' }).getByRole('alert')
+    ).toHaveText('No se pudo abrir la ayuda.');
+    await page.unroute(helpChunk);
+    page.once('dialog', dialog => dialog.accept());
+    await Promise.all([
+      page.waitForEvent('domcontentloaded'),
+      page.getByRole('button', { name: 'Recargar aplicación', exact: true }).click(),
+    ]);
+    await expectSeededPatientVisible(page);
+    await page.getByRole('button', { name: 'Ayuda de Moa', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Moa · Ayuda de HHR' })).toBeVisible();
+  });
 });

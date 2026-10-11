@@ -4,11 +4,12 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { BellRing, WifiOff } from 'lucide-react';
+import { BellRing, CircleHelp, WifiOff } from 'lucide-react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { reloadMoaHelp } from './navbar/moaHelpRecovery';
 import { useAuth } from '@/context/AuthContext';
 import { NavbarMenu } from './NavbarMenu';
 import { NavbarTabs } from './NavbarTabs';
-import { MoaHelpButton } from './navbar/MoaHelpButton';
 import { UserMenu } from './UserMenu';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 import { getVisibleAppModules } from '@/shared/access/operationalAccessPolicy';
@@ -22,6 +23,8 @@ import {
 
 import { ModuleType } from '@/constants/navigationConfig';
 type ViewMode = 'REGISTER' | 'ANALYTICS';
+
+const MoaHelpButton = React.lazy(() => import('./navbar/MoaHelpButton'));
 
 const ReminderBadge = lazyWithRetry(() =>
   import('@/components/reminders/ReminderBadge').then(module => ({
@@ -144,10 +147,36 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex shrink-0 items-center gap-2 sm:gap-4 py-2 ml-auto">
           {runtimeIndicatorSlot}
           {!hideRuntimeIndicators && (
-            <MoaHelpButton
-              key={`${currentUser?.uid ?? 'anonymous'}:${role ?? 'unknown'}`}
-              currentModule={currentModule}
-            />
+            <ErrorBoundary
+              fallbackRender={() => (
+                <button
+                  type="button"
+                  className="h-8 w-8"
+                  aria-label="Recargar ayuda de Moa"
+                  title="Guarda tus cambios antes de recargar"
+                  onClick={reloadMoaHelp}
+                >
+                  <CircleHelp size={16} />
+                </button>
+              )}
+            >
+              <React.Suspense
+                fallback={
+                  <span
+                    role="status"
+                    aria-label="Cargando ayuda de Moa"
+                    className="flex h-8 w-8 items-center justify-center"
+                  >
+                    <CircleHelp size={16} aria-hidden="true" />
+                  </span>
+                }
+              >
+                <MoaHelpButton
+                  key={`${currentUser?.uid ?? 'anonymous'}:${role ?? 'unknown'}`}
+                  currentModule={currentModule}
+                />
+              </React.Suspense>
+            </ErrorBoundary>
           )}
 
           {userEmail && onLogout && (
