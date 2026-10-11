@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { evaluateSyncInvariants } from '../../../scripts/syncInvariantsSupport.mjs';
 
 describe('sync invariants support', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('summarizes the release-critical local Firebase sync invariants', () => {
     const result = evaluateSyncInvariants(process.cwd());
 
@@ -17,5 +20,30 @@ describe('sync invariants support', () => {
       'sync-contract-coalescing',
       'idempotent-mutation-drain',
     ]);
+  });
+
+  it.each([
+    ['firestoreSyncTransport.ts', 'if (hasRemoteAppliedMutation(', 'if (missingMutationCheck('],
+    ['firestoreSyncTransport.ts', 'record: docToRecord(remoteData, record.date)', 'record: null'],
+    ['firestoreSyncTransport.ts', 'return { authoritativeRecord: resolved.record }', 'return'],
+    [
+      'syncQueueEngine.ts',
+      'store.deleteClaimed(task.id, claim, result.authoritativeRecord)',
+      'store.deleteClaimed(task.id, claim)',
+    ],
+  ])('rejects broken idempotent ACK evidence in %s: %s', (file, before, after) => {
+    const readFileSync = fs.readFileSync;
+    vi.spyOn(fs, 'readFileSync').mockImplementation((path, options) => {
+      const value = readFileSync(path, options);
+      return typeof value === 'string' && String(path).endsWith(file)
+        ? value.replace(before, after)
+        : value;
+    });
+
+    const result = evaluateSyncInvariants(process.cwd());
+
+    expect(
+      result.invariants.find(invariant => invariant.id === 'idempotent-mutation-drain')
+    ).toMatchObject({ ok: false });
   });
 });
