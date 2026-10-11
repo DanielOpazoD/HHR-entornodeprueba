@@ -281,3 +281,17 @@ Reglas operativas:
 Para soporte operativo rápido:
 
 - [Runbook Auth Access Incidents](./RUNBOOK_AUTH_ACCESS_INCIDENTS.md)
+
+## 14. Metadatos temporales del censo
+
+Las actualizaciones directas de enfermería y especialista requieren que `date`, el ID
+del documento y la fecha UTC de `dateTimestamp` coincidan. Un timestamp persistido no
+se reemplaza; si falta o es null, sólo puede repararse con un entero coherente con
+esa fecha y dentro de la ventana de edición del rol. El cliente conserva timestamps
+válidos al normalizar, aunque difieran de la medianoche de la zona horaria del dispositivo.
+Metadatos existentes inconsistentes requieren reparación administrativa antes de editar;
+no se debe corregirlos asignando la hora actual a un registro histórico.
+
+La escritura productiva del especialista usa el callable con día clínico del calendario
+compartido: `Pacific/Easter`, cambio a las 08:00 hábiles y 09:00 fines de semana/feriados.
+Las reglas de escritura directa conservan sus ventanas rolling, no el calendario completo.
