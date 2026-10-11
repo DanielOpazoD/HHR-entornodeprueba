@@ -66,28 +66,60 @@ Fuentes de la revisión representada: [arquitectura](https://github.com/DanielOp
 [Functions](https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/fd06b55824194ad0f8fc5f6d04c31e1c8608c1d3/functions/index.js)
 y [Netlify](https://github.com/DanielOpazoD/HHR-entornodeprueba/blob/fd06b55824194ad0f8fc5f6d04c31e1c8608c1d3/netlify.toml).
 
-## Regenerar sin servidor externo
+## Regenerar localmente
 
-Necesarios: Python 3, Java y Graphviz (`brew install graphviz` en macOS;
+Necesarios: Java y Graphviz (`brew install graphviz` en macOS;
 `sudo apt install graphviz` en Linux). No se añaden dependencias a la aplicación.
 Descargar [PlantUML 1.2024.5](https://github.com/plantuml/plantuml/releases/download/v1.2024.5/plantuml-1.2024.5.jar)
-y, desde la raíz del repositorio, ejecutar:
+y guardar el JAR en la ruta indicada por `PLANTUML_JAR`. No se incorpora un
+renderer ejecutable ni configuración nueva: la regeneración es un procedimiento
+manual de documentación.
 
-```sh
-python3 docs/architecture/c4/render.py --jar "$HOME/tools/plantuml-1.2024.5.jar" --check
-python3 docs/architecture/c4/render.py --jar "$HOME/tools/plantuml-1.2024.5.jar"
-```
+1. Desde la raíz del repo, comprobar los cinco hashes de C4/licencia contra
+   [provenance.json](vendor/provenance.json):
 
-También se admite la variable `PLANTUML_JAR` en lugar de `--jar`.
-Los SVG se versionan para que GitHub los muestre sin ejecutar herramientas.
-Los PNG y fuentes temporales de `build/` se ignoran. No se suben JAR, PDF, ZIP,
-entornos Python ni logs.
+   ```sh
+   shasum -a 256 docs/architecture/c4/vendor/*.puml docs/architecture/c4/vendor/LICENSE
+   ```
 
-Los fuentes conservan los includes C4 remotos del playbook; el renderer los cambia
-**solo en `build/`** por las copias locales. Verifica sus SHA-256 contra
-[provenance.json](vendor/provenance.json); [LICENSE](vendor/LICENSE) conserva MIT.
-No envía código ni diagramas a un servidor PlantUML. Fonts/Graphviz pueden cambiar
-el layout entre plataformas; se verificó Java 17 y Graphviz 16.1.0 en macOS.
+2. Copiar los fuentes, estilo y librería a una carpeta de trabajo fuera del repo:
+
+   ```sh
+   mkdir -p "$HOME/hhr-c4-workspace/sources" "$HOME/hhr-c4-workspace/vendor" "$HOME/hhr-c4-workspace/diagrams"
+   cp docs/architecture/c4/[0-9][0-9]-*.puml docs/architecture/c4/style.puml "$HOME/hhr-c4-workspace/sources/"
+   cp docs/architecture/c4/vendor/*.puml docs/architecture/c4/vendor/LICENSE "$HOME/hhr-c4-workspace/vendor/"
+   ```
+
+3. En cada una de las cuatro **copias** numeradas, reemplazar con un editor los
+   dos includes remotos por:
+
+   ```plantuml
+   !include ../vendor/C4_Container.puml
+   !include ../vendor/C4_Component.puml
+   ```
+
+   Conservar `!include style.puml`: el estilo se copió a la misma carpeta.
+   Los fuentes versionados mantienen los includes remotos exigidos por el playbook;
+   las copias de trabajo usan exclusivamente la librería local fijada por hash.
+
+4. Validar sintaxis y generar SVG con las copias locales:
+
+   ```sh
+   export PLANTUML_JAR="$HOME/tools/plantuml-1.2024.5.jar"
+   java -Djava.awt.headless=true -jar "$PLANTUML_JAR" -charset UTF-8 -DRELATIVE_INCLUDE=1 -failfast2 -checkonly "$HOME/hhr-c4-workspace/sources/"[0-9][0-9]-*.puml
+   java -Djava.awt.headless=true -jar "$PLANTUML_JAR" -charset UTF-8 -DRELATIVE_INCLUDE=1 -failfast2 -tsvg -o "$HOME/hhr-c4-workspace/diagrams" "$HOME/hhr-c4-workspace/sources/"[0-9][0-9]-*.puml
+   ```
+
+5. Revisar visualmente las cuatro vistas y copiar solo los SVG al repo:
+
+   ```sh
+   cp "$HOME/hhr-c4-workspace/diagrams/"*.svg docs/architecture/c4/diagrams/
+   ```
+
+GitHub muestra los SVG versionados sin ejecutar herramientas. No se suben JAR,
+carpetas de trabajo, PNG, PDF, ZIP ni logs. [LICENSE](vendor/LICENSE) conserva MIT.
+El procedimiento local no envía fuentes a un servidor PlantUML. Fonts/Graphviz
+pueden cambiar el layout; se verificó Java 17 y Graphviz 16.1.0 en macOS.
 
 ## Mantenimiento
 
