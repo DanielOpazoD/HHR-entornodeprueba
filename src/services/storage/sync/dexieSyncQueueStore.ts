@@ -9,6 +9,7 @@ import { localPersistence } from '@/services/storage/localpersistence/localPersi
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import { shouldAdoptDailyRecordAck } from '@/services/storage/sync/syncQueueAuthorityAckPolicy';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
   discardQuarantinedTask,
@@ -324,15 +325,36 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async delete(taskId) {
     await hospitalDB.syncQueue.delete(taskId);
   },
-  async deleteClaimed(taskId, claim) {
-    return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
-      const task = await hospitalDB.syncQueue.get(taskId);
-      if (!matchesClaim(task, claim)) {
-        return false;
+  async deleteClaimed(taskId, claim, authoritativeRecord) {
+    let adoptedRecord: DailyRecord | undefined;
+    const deleted = await hospitalDB.transaction(
+      'rw',
+      hospitalDB.syncQueue,
+      hospitalDB.dailyRecords,
+      async () => {
+        const task = await hospitalDB.syncQueue.get(taskId);
+        if (!task || !matchesClaim(task, claim)) return false;
+        if (authoritativeRecord) {
+          const unresolved = (
+            await hospitalDB.syncQueue.where('type').equals(task.type).toArray()
+          ).some(
+            candidate =>
+              candidate.id !== taskId &&
+              candidate.key === task.key &&
+              UNRESOLVED_DAILY_RECORD_STATES.has(candidate.status)
+          );
+          const local = await hospitalDB.dailyRecords.get(authoritativeRecord.date);
+          if (shouldAdoptDailyRecordAck(task, authoritativeRecord, local, unresolved)) {
+            await hospitalDB.dailyRecords.put(authoritativeRecord);
+            adoptedRecord = authoritativeRecord;
+          }
+        }
+        await hospitalDB.syncQueue.delete(taskId);
+        return true;
       }
-      await hospitalDB.syncQueue.delete(taskId);
-      return true;
-    });
+    );
+    if (adoptedRecord) mirrorTransactionalDailyRecordWrite(adoptedRecord);
+    return deleted;
   },
   async deleteAll() {
     await hospitalDB.syncQueue.clear();
