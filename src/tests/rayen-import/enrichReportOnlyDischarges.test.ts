@@ -29,7 +29,7 @@ describe('report-only short-stay enrichment', () => {
       .fn()
       .mockResolvedValue([{ run: row.run, encounterId: '143322', egreso: { id: 143322 } }]);
     const result = await enrichReportOnlyDischarges([row], '2026-08-12', {
-      includeOtherReportDays: true,
+      allReportDays: true,
       lookupEgresos,
       fetchStatisticalDischarge: vi.fn().mockResolvedValue({ base64: 'cGRm' }),
       extractText: vi.fn().mockResolvedValue(statisticalText),
@@ -294,6 +294,38 @@ describe('report-only short-stay enrichment', () => {
     });
 
     expect(result).toEqual([{ ...row, exactEpisodeVerification: 'unverified' }]);
+  });
+
+  it.each([
+    { run: '11.111.111-1' },
+    { encounterId: '143323' },
+    { egreso: { id: '143323', endPeriod: '2026-08-13T22:29:00-03:00' } },
+    { error: 'source unavailable' },
+  ])('rejects mismatching exact lookup before an unparseable PDF fallback: %j', async change => {
+    const fetchStatisticalDischarge = vi.fn().mockResolvedValue({ base64: 'cGRm' });
+    const result = await enrichReportOnlyDischarges([row], '2026-08-13', {
+      lookupEgresos: vi.fn().mockResolvedValue([
+        {
+          run: row.run,
+          encounterId: '143322',
+          egreso: { id: '143322', endPeriod: '2026-08-13T22:29:00-03:00' },
+          ...change,
+        },
+      ]),
+      fetchStatisticalDischarge,
+      extractText: vi.fn().mockResolvedValue('Formato no parseable'),
+      previousCensusCandidates: [
+        {
+          run: row.run,
+          patientName: row.patientName,
+          encounterId: '143322',
+          dischargeDay: '2026-08-13',
+          fromClinicalCrib: false,
+        },
+      ],
+    });
+    expect(result).toEqual([{ ...row, exactEpisodeVerification: 'unverified' }]);
+    expect(fetchStatisticalDischarge).not.toHaveBeenCalled();
   });
 
   it('rejects a parsed PDF that contradicts the expected RUN instead of falling back', async () => {
