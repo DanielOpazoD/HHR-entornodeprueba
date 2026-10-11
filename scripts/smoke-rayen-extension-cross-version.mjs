@@ -355,6 +355,15 @@ try {
   assert.deepEqual(interrupted.history.events, []);
   assert.deepEqual(interrupted.forms.forms, []);
 
+  // A replacement worker needs a fresh snapshot to authorize this tab's clinical episode.
+  await newWorker.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ url: 'http://localhost:3001/*' });
+    if (!tab) throw new Error('Synthetic HHR tab is unavailable');
+    await patientFlowRuntime.authorizeSnapshotResponse(
+      { tab, url: tab.url, origin: new URL(tab.url).origin },
+      Promise.resolve({ snapshot: { encounters: [{ encounterId: '141121' }] } })
+    );
+  });
   await holdClinicalBackend(newWorker);
   const retryRead = clinicalBundle(hhr, day, 'retry');
   await expectHeldRead(newWorker);

@@ -641,9 +641,13 @@ try {
   assert.match(syntheticClinicalDate || '', /^20\d\d-\d\d-\d\d$/);
   const unauthorizedBundle = await requestClinicalBundle(hhrPage, syntheticClinicalDate);
   assert.match(unauthorizedBundle.forms?.error || '', /no fueron autorizadas/);
-  assert.equal(await reloadedWorker.evaluate(() =>
-    globalThis.__hhrSyntheticClinicalRequests.some(url => url.includes('/encounterFormEntry/'))
-  ), false, 'Unauthorized scales must not reach the clinical backend');
+  assert.equal(
+    await reloadedWorker.evaluate(() =>
+      globalThis.__hhrSyntheticClinicalRequests.some(url => url.includes('/encounterFormEntry/'))
+    ),
+    false,
+    'Unauthorized scales must not reach the clinical backend'
+  );
   await reloadedWorker.evaluate(async url => {
     const [tab] = await chrome.tabs.query({ url });
     if (!tab) throw new Error('Synthetic HHR tab is unavailable');
