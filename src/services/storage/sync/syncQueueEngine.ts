@@ -2,6 +2,7 @@ import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts
 import type { ErrorSeverity } from '@/services/logging/errorLogTypes';
 import { logError } from '@/services/utils/errorService';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import type { SyncTransportResult } from '@/services/storage/sync/syncQueuePorts';
 import type { SyncErrorCategory } from '@/services/storage/syncErrorCatalog';
 import type {
   CreateSyncQueueEngineOptions,
@@ -285,7 +286,7 @@ export const createSyncQueueEngine = ({
                   continue;
                 }
                 task.leaseUntil = leaseUntil;
-                const result = (await transport.run(task)) || {};
+                const result: SyncTransportResult = (await transport.run(task)) || {};
                 const claim = buildTaskClaim(task);
                 if (claim) {
                   const deleted = await store.deleteClaimed(
