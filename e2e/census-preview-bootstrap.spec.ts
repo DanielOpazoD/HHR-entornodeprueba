@@ -209,6 +209,123 @@ const assertPreviewBootCompleted = async (page: Page, runtimeFailures: PreviewRu
 test.describe('Production Preview Bootstrap', () => {
   test.describe.configure({ timeout: 60_000 });
 
+  test('aligns newborn identity with normal beds and preserves the new chrome on reload', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1672, height: 941 });
+    const base = buildCanonicalE2ERecord(PREVIEW_BOOTSTRAP_DATE);
+    const beds = base.beds as Record<string, Record<string, unknown>>;
+    const newborn = {
+      ...beds.R1,
+      bedId: 'R1',
+      patientName: 'RN DE PACIENTE VALIDACION',
+      firstName: '',
+      lastName: '',
+      secondLastName: '',
+      age: '1d',
+      rut: '',
+      identityStatus: 'provisional',
+      clinicalEpisodeId: 'synthetic-newborn-episode',
+      admissionDate: PREVIEW_BOOTSTRAP_DATE,
+      specialty: 'Pediatría',
+      bedMode: 'Cuna',
+    };
+    await seedPersistedSessionAndRecord(page, {
+      beds: {
+        ...beds,
+        R1: {
+          ...beds.R1,
+          patientName: SEEDED_PATIENT_NAME,
+          firstName: '',
+          lastName: '',
+          secondLastName: '',
+          age: '28',
+          clinicalEpisodeId: 'synthetic-mother-episode',
+          admissionDate: PREVIEW_BOOTSTRAP_DATE,
+          specialty: 'Ginecobstetricia',
+          clinicalCrib: newborn,
+        },
+      },
+    });
+    let releaseApp!: () => void;
+    const appReady = new Promise<void>(resolve => {
+      releaseApp = resolve;
+    });
+    await page.route(/\/assets\/index-[^/]+\.js$/, async route => {
+      await appReady;
+      await route.continue();
+    });
+    try {
+      await page.goto(`/census?date=${PREVIEW_BOOTSTRAP_DATE}`, { waitUntil: 'commit' });
+      await expect(page.locator('html')).toHaveAttribute('data-preboot-surface', 'app');
+      const background = await page.locator('html').evaluate(element => {
+        const style = getComputedStyle(element);
+        return { image: style.backgroundImage, size: style.backgroundSize };
+      });
+      expect(background.image).toContain('rapa-nui-coast.webp');
+      expect(background.image).toContain('rgb(63, 116, 165)');
+      expect(background.size).toContain('64px');
+      expect(background.size).toContain('56px');
+      // Capture the actual preboot paint while the app chunk is held. Playwright's
+      // screenshot waits for document.fonts.ready, which depends on releasing it.
+      const cdp = await page.context().newCDPSession(page);
+      const preboot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+      await cdp.detach();
+      await test.info().attach('new-navbar-preboot', {
+        body: Buffer.from(preboot.data, 'base64'),
+        contentType: 'image/png',
+      });
+    } finally {
+      releaseApp();
+    }
+    await expectSeededPatientVisible(page);
+    await page.evaluate(() => document.fonts.ready);
+    const parent = page.locator('[data-bed-id="R1"][data-testid="patient-row"]');
+    const crib = page.locator('tr[data-testid="patient-row"]').filter({ hasText: 'C-R1' });
+    await expect(crib.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+    await expect(crib.locator('.lucide-arrow-right')).toHaveCount(0);
+    await expect(crib.locator('[data-testid^="patient-laboratory-trigger"]')).toHaveCount(0);
+    await expect(crib.locator('[data-testid^="patient-radiology-trigger"]')).toHaveCount(0);
+    const geometry = async (row: ReturnType<Page['locator']>) =>
+      row.evaluate(element => {
+        const cell = element.querySelector('.census-identity-cell')!;
+        const name = cell.querySelector('.census-identity-name')!;
+        const age = cell.querySelector(
+          '[aria-label="Edad del paciente, abre datos demográficos"]'
+        )!;
+        const clinical = cell.querySelector('[data-testid^="clinical-panel-trigger"]')!;
+        const origin = element.getBoundingClientRect();
+        const relative = (node: Element) => {
+          const box = node.getBoundingClientRect();
+          return { x: box.x - origin.x, y: box.y - origin.y };
+        };
+        return { name: relative(name), age: relative(age), clinical: relative(clinical) };
+      });
+    const motherGeometry = await geometry(parent);
+    const newbornGeometry = await geometry(crib);
+    for (const part of ['name', 'age', 'clinical'] as const) {
+      expect(Math.abs(newbornGeometry[part].y - motherGeometry[part].y), part).toBeLessThanOrEqual(
+        1
+      );
+    }
+    expect(newbornGeometry.age.x).toBeLessThan(newbornGeometry.clinical.x);
+    const nav = page.getByRole('navigation', { name: 'Navegación principal HHR' });
+    await expect(nav).toHaveCSS('background-color', 'rgb(63, 116, 165)');
+    await expect(nav.locator('.hhr-navbar-landscape')).toBeVisible();
+    await test.info().attach('new-navbar-and-newborn', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+    await page.reload();
+    await expectSeededPatientVisible(page);
+    await expect(nav).toHaveCSS('background-color', 'rgb(63, 116, 165)');
+    await expect(crib.getByTestId('clinical-panel-trigger-R1-clinical-crib')).toBeVisible();
+    await test.info().attach('new-navbar-after-reload', {
+      body: await page.screenshot(),
+      contentType: 'image/png',
+    });
+  });
+
   for (const width of [768, 1440]) {
     test(`preserves toolbar controls and geometry during refresh at ${width}px`, async ({
       page,
@@ -293,7 +410,10 @@ test.describe('Production Preview Bootstrap', () => {
 
     await page.evaluate(() => window.scrollTo(0, 360));
     const header = page.getByTestId('census-table').locator('thead');
-    await expect.poll(async () => (await header.boundingBox())?.y).toBeCloseTo(96, 0);
+    const chromeHeight = await page
+      .locator('.hhr-date-strip')
+      .evaluate(element => element.getBoundingClientRect().bottom);
+    await expect.poll(async () => (await header.boundingBox())?.y).toBeCloseTo(chromeHeight, 0);
     await expect(header).toBeInViewport({ ratio: 1 });
     await assertPreviewBootCompleted(page, runtimeCollector.failures);
     runtimeCollector.detach();
@@ -314,8 +434,9 @@ test.describe('Production Preview Bootstrap', () => {
         bottom: element.getBoundingClientRect().bottom,
         scrollHeight: element.scrollHeight,
       }));
-      expect(geometry.height).toBe(56);
-      expect(geometry.scrollHeight).toBeLessThanOrEqual(56);
+      const expectedHeight = width < 640 ? 56 : 64;
+      expect(geometry.height).toBe(expectedHeight);
+      expect(geometry.scrollHeight).toBeLessThanOrEqual(expectedHeight);
       for (const name of ['Censo Diario', 'Entrega Turno Enfermería']) {
         const tab = topBar.getByRole('button', { name, exact: true });
         if (width === 768) {
@@ -341,6 +462,32 @@ test.describe('Production Preview Bootstrap', () => {
       await page.keyboard.press('Escape');
       await expect(utilityPanel).toBeHidden();
       await expect(utility).toBeFocused();
+
+      if (width >= 768) {
+        const save = page.getByTitle('Opciones de guardado');
+        await save.click();
+        await page.getByRole('button', { name: /Descargar Excel/ }).click({ trial: true });
+        await save.click();
+        const email = page.getByTitle('Enviar censo');
+        await email.click();
+        // The synthetic session has no configured recipients. Validate the menu
+        // placement without enabling or sending a real census email.
+        const sendItem = page.getByRole('button', { name: /Enviar Archivo Excel/ });
+        await expect(sendItem).toBeInViewport({ ratio: 1 });
+        expect(
+          await sendItem.evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return element.contains(
+              document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+            );
+          })
+        ).toBe(true);
+        await email.click();
+        const year = page.getByRole('button', { name: '2026', exact: true });
+        await year.click();
+        await page.getByRole('button', { name: '2025', exact: true }).click({ trial: true });
+        await year.first().click();
+      }
 
       const help = topBar.getByRole('button', { name: 'Ayuda de Moa', exact: true });
       await expect(help).toBeInViewport({ ratio: 1 });
@@ -518,7 +665,14 @@ test.describe('Production Preview Bootstrap', () => {
     const statusHeader = page.getByRole('columnheader', { name: 'Estado clínico' });
     await expect(statusHeader).toBeEmpty();
     expect(await statusHeader.evaluate(element => element.clientWidth)).toBeLessThanOrEqual(40);
-    await expect(page.getByRole('button', { name: /viernes.*3 de abril de 2026/i })).toBeVisible();
+    const selectedDateLabel = new Intl.DateTimeFormat('es-CL', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${PREVIEW_BOOTSTRAP_DATE}T12:00:00Z`));
+    await expect(page.getByRole('button', { name: selectedDateLabel })).toBeVisible();
     await expect(page.getByTitle('Opciones de guardado')).toHaveClass(/bg-white/);
     await expect(page.getByTitle('Enviar censo')).toHaveClass(/bg-teal-600/);
     runtimeCollector.detach();

@@ -45,14 +45,12 @@
   };
   var APP_SURFACE_BACKGROUND = {
     color: '#eef4f8',
-    image: [
-      'linear-gradient(90deg, #0c4a6e 0%, #0369a1 50%, #0c4a6e 100%)',
-      'linear-gradient(180deg, #ffffff 0%, #ffffff 100%)',
-      'linear-gradient(180deg, #eef4f8 0%, #e8eef5 100%)',
-    ].join(','),
-    position: 'top left, left 56px, left 100px',
-    repeat: 'no-repeat, no-repeat, no-repeat',
-    size: '100% 56px, 100% 44px, 100% calc(100vh - 100px)',
+    // The stylesheet is loaded before this script, so preboot and React share
+    // the same responsive dimensions, blue surface and decorative asset.
+    image: 'var(--hhr-preboot-background)',
+    position: 'var(--hhr-preboot-position)',
+    repeat: 'no-repeat',
+    size: 'var(--hhr-preboot-size)',
   };
   var normalizedPath = window.location.pathname.replace(/^\/+|\/+$/g, '');
   var isLoginSurfacePath = normalizedPath === '' || normalizedPath === 'login';

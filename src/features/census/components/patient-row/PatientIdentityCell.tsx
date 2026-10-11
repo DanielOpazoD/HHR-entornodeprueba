@@ -14,7 +14,7 @@
 
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { ArrowRight, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { DebouncedInput } from '@/components/ui/DebouncedInput';
 import { PatientInputSchema } from '@/schemas/inputSchemas';
 import { isValidRut } from '@/utils/rutUtils';
@@ -171,20 +171,15 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           isEmpty ? 'grid-cols-1' : 'grid-cols-[minmax(0,1fr)_84px]'
         )}
       >
-        {isSubRow && (
-          <div className="absolute left-[-15px] top-2 text-slate-300">
-            <ArrowRight size={14} />
-          </div>
-        )}
         <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-1">
           {canEditInlineName ? (
             <div
               className={clsx(
-                'census-identity-name flex min-h-7 w-full min-w-0 flex-1 items-start gap-1 rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
+                'census-identity-name flex w-full min-w-0 flex-1 items-start gap-1 rounded border border-slate-200 bg-slate-50 p-0.5 text-[13px] font-semibold text-slate-700 transition-all duration-200 focus-within:border-medical-400 focus-within:ring-2 focus-within:ring-medical-100',
                 hasNameValidationError && 'border-red-400 bg-red-50/50 text-red-700'
               )}
             >
-              <div className="group/name relative min-h-6 min-w-0 flex-1">
+              <div className="group/name relative min-h-4 min-w-0">
                 <DebouncedInput
                   type="text"
                   name="patientName"
@@ -371,15 +366,19 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
               admissionDate={data.admissionDate}
               censusDate={currentDateString}
             />
-            <PatientLaboratoryTrigger
-              patient={data}
-              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-              censusDate={currentDateString}
-            />
-            <PatientRadiologyTrigger
-              patient={data}
-              triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
-            />
+            {!isSubRow && (
+              <PatientLaboratoryTrigger
+                patient={data}
+                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+                censusDate={currentDateString}
+              />
+            )}
+            {!isSubRow && (
+              <PatientRadiologyTrigger
+                patient={data}
+                triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}
+              />
+            )}
           </span>
         )}
       </div>

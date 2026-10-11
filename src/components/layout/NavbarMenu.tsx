@@ -84,7 +84,7 @@ export const NavbarMenu: React.FC<NavbarMenuProps> = ({
       <button
         onClick={toggle}
         className={clsx(
-          'flex items-center gap-2 sm:gap-3 py-2 px-2 sm:px-3 rounded-xl transition-all duration-200',
+          'hhr-navbar-brand flex items-center gap-2 sm:gap-3 py-2 px-2 sm:px-3 rounded-xl transition-all duration-200',
           'hover:bg-white/[0.07]'
         )}
       >

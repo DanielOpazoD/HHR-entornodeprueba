@@ -46,7 +46,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
     <div className="relative" ref={menuRef}>
       <button
         onClick={toggle}
-        className="relative w-9 h-9 overflow-hidden rounded-full bg-white/[0.08] backdrop-blur-sm border border-white/[0.12] flex items-center justify-center text-white/90 font-bold text-sm uppercase shadow-glass transition-transform active:scale-90"
+        className="relative w-10 h-10 overflow-hidden rounded-full bg-white/[0.16] backdrop-blur-sm border border-white/[0.12] flex items-center justify-center text-white/90 font-semibold text-base uppercase shadow-glass transition-transform active:scale-90"
         title={userEmail}
         aria-label={`Usuario ${userEmail}. Rol ${roleLabel}. Firebase ${connectionLabel}`}
         data-testid="authenticated-user-menu-button"
@@ -68,7 +68,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
           />
         )}
         <span
-          className={`absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border border-[#0a1628] ${isRemoteReady ? 'bg-emerald-400' : 'bg-rose-400'}`}
+          className={`absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border border-[#3f74a5] ${isRemoteReady ? 'bg-emerald-400' : 'bg-rose-400'}`}
           aria-hidden="true"
         />
       </button>

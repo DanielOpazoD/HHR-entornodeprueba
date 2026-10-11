@@ -25,7 +25,7 @@ export const SaveButton = ({
       onClick={onClick}
       disabled={disabled || isBackingUp}
       className={clsx(
-        'btn h-[30px] !px-0 !py-0 text-[10px] flex items-center justify-center transition-all',
+        'hhr-toolbar-control hhr-toolbar-save btn h-[30px] !px-0 !py-0 text-[10px] flex items-center justify-center transition-all',
         uiState.buttonClassName,
         uiState.widthClassName
       )}
@@ -61,7 +61,7 @@ export const EmailButton = ({
       onClick={onClick}
       disabled={disabled || emailStatus === 'loading'}
       className={clsx(
-        'btn h-[30px] !py-0 text-[10px] flex items-center justify-center gap-1',
+        'hhr-toolbar-control btn h-[30px] !py-0 text-[10px] flex items-center justify-center gap-1',
         '!px-2 rounded-lg border-r',
         uiState.buttonClassName,
         uiState.widthClassName
@@ -116,7 +116,7 @@ export const PdfButton = ({
     <button
       disabled={disabled}
       onClick={onExportPDF}
-      className="btn btn-secondary h-[30px] bg-teal-600 text-white hover:bg-teal-700 border-none !px-2.5 !py-0 text-[10px] rounded-lg"
+      className="hhr-toolbar-control btn btn-secondary h-[30px] bg-teal-600 text-white hover:bg-teal-700 border-none !px-2.5 !py-0 text-[10px] rounded-lg"
       title="Descargar PDF (rápido)"
     >
       <Printer size={13} />

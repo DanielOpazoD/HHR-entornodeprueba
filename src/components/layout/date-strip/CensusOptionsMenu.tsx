@@ -73,7 +73,7 @@ export const CensusOptionsMenu: React.FC<{ children?: React.ReactNode; disabled?
         aria-controls={panelId}
         aria-label="Más opciones del censo"
         title="Más opciones del censo"
-        className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
+        className="hhr-toolbar-control hhr-toolbar-options inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600"
       >
         <MoreHorizontal size={17} aria-hidden="true" />
       </button>
