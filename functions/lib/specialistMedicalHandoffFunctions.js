@@ -2,6 +2,7 @@ const functions = require('firebase-functions/v1');
 const { HOSPITAL_ID } = require('./runtime/runtimeConfig');
 const { requireAuthenticatedEmail } = require('./auth/authPolicies');
 const { sanitizeLogValue } = require('./logging/redaction');
+const { isCurrentRapaNuiDay } = require('./specialtyRules');
 
 /**
  * Productive write path for specialist medical handoff notes.
@@ -158,7 +159,11 @@ const parseSpecialistPatch = rawPatch => {
   };
 };
 
-const createSpecialistMedicalHandoffFunctions = ({ firestore, Timestamp, resolveRoleForEmail }) => ({
+const createSpecialistMedicalHandoffFunctions = ({
+  firestore,
+  Timestamp,
+  resolveRoleForEmail,
+}) => ({
   updateSpecialistMedicalHandoff: functions.https.onCall(async (data, context) => {
     const email = requireAuthenticatedEmail(context);
     const resolvedRole = await resolveRoleForEmail(email);
@@ -171,6 +176,22 @@ const createSpecialistMedicalHandoffFunctions = ({ firestore, Timestamp, resolve
     }
 
     const date = assertStringField(data?.date, 'date');
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      !Number.isFinite(Date.parse(`${date}T00:00:00Z`)) ||
+      new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date
+    ) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invalid daily record date.');
+    }
+    const assertEditingDay = () => {
+      if (resolvedRole === 'doctor_specialist' && !isCurrentRapaNuiDay(date)) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Specialists can only update the current clinical day.'
+        );
+      }
+    };
+    assertEditingDay();
     const { bedId, patch } = parseSpecialistPatch(data?.patch);
 
     const docRef = firestore
@@ -184,7 +205,19 @@ const createSpecialistMedicalHandoffFunctions = ({ firestore, Timestamp, resolve
       throw new functions.https.HttpsError('not-found', 'Daily record not found.');
     }
 
-    const existingBed = snapshot.data()?.beds?.[bedId];
+    const record = snapshot.data();
+    if (record?.date != null && record.date !== date) {
+      throw new functions.https.HttpsError('failed-precondition', 'Daily record date mismatch.');
+    }
+    if (
+      patch.dateTimestamp !== undefined &&
+      record?.dateTimestamp != null &&
+      patch.dateTimestamp !== record.dateTimestamp
+    ) {
+      throw new functions.https.HttpsError('permission-denied', 'Record timestamp is immutable.');
+    }
+    delete patch.dateTimestamp;
+    const existingBed = record?.beds?.[bedId];
     if (!existingBed || typeof existingBed !== 'object') {
       throw new functions.https.HttpsError(
         'failed-precondition',
@@ -192,6 +225,7 @@ const createSpecialistMedicalHandoffFunctions = ({ firestore, Timestamp, resolve
       );
     }
 
+    assertEditingDay();
     try {
       await docRef.update({
         ...patch,
