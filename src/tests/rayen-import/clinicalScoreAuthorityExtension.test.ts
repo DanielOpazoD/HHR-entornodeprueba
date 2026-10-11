@@ -16,6 +16,18 @@ import {
 
 describe('Scores tab and clinical identity authority', () => {
   it.each([
+    { identityVerified: false, practitionerId: '77', practitionerRoleId: '88' },
+    { identityVerified: true, practitionerId: '', practitionerRoleId: '88' },
+    { identityVerified: true, practitionerId: '77', practitionerRoleId: 'bad' },
+  ])('rejects unverified or incomplete identity before opening a batch: %j', async info => {
+    const dependencies = createDependencies({ getFichaFetchInfo: vi.fn(async () => ({ info })) });
+    const result = await loadFactory().create(dependencies).handleOptionsRequest({ sender });
+    expect(result.error).toContain('verificar una sesión');
+    expect(dependencies.fetchFichaClaims).not.toHaveBeenCalled();
+    expect(dependencies.chrome.storage.session.set).not.toHaveBeenCalled();
+  });
+
+  it.each([
     ['practitionerId', '78'],
     ['practitionerRoleId', '89'],
     ['facId', '1343'],

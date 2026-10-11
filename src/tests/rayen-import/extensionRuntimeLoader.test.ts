@@ -112,14 +112,24 @@ describe('extension heavy runtime loading', () => {
       ),
     ].map(match => match[1]);
 
-    expect(identityGuards).toHaveLength(3);
+    expect(identityGuards).toHaveLength(2);
     identityGuards.forEach(guard => {
       expect(guard).toContain('info.identityVerified');
       expect(guard).not.toContain('info.isNursing');
       expect(guard).not.toContain('info.listSource');
     });
     expect(identityGuards.filter(guard => guard.includes('&& handoffKind'))).toHaveLength(2);
-    expect(identityGuards.some(guard => guard.includes('&& clinicalRoleKind'))).toBe(true);
+    const scoresGuard = clinicalScoreRuntimeSource.match(
+      /const scoresIdentityReady = info => Boolean\(([\s\S]*?)\n {2}\);/
+    )?.[1];
+    expect(scoresGuard).toContain('info.identityVerified');
+    expect(scoresGuard).toContain('info.practitionerId');
+    expect(scoresGuard).toContain('info.practitionerRoleId');
+    expect(scoresGuard).not.toContain('info.isNursing');
+    expect(scoresGuard).not.toContain('info.listSource');
+    expect(clinicalScoreRuntimeSource).toContain(
+      'if (!scoresIdentityReady(info) || !clinicalRoleKind)'
+    );
     expect(clinicalHandoffRuntimeSource).toContain('batch.batch.handoffKind !== handoffKind');
   });
 
