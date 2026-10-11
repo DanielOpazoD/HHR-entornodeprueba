@@ -9,13 +9,14 @@ import { localPersistence } from '@/services/storage/localpersistence/localPersi
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
-import { shouldAdoptDailyRecordAck } from '@/services/storage/sync/syncQueueAuthorityAckPolicy';
+import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
   discardQuarantinedTask,
   matchesOwner,
   requeueQuarantinedTask,
   REUSABLE_TASK_STATES,
+  listUnresolvedDailyRecordTasks,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
 const isReadyForClaim = (task: SyncTask, now: number): boolean => {
@@ -34,23 +35,8 @@ const isReadyForClaim = (task: SyncTask, now: number): boolean => {
   return task.status === 'PROCESSING' && Boolean(task.leaseUntil && task.leaseUntil <= now);
 };
 
-const matchesClaim = (task: SyncTask | undefined, claim: SyncQueueLeaseClaim): boolean =>
-  Boolean(
-    task &&
-    task.status === 'PROCESSING' &&
-    task.leaseOwner === claim.leaseOwner &&
-    task.attemptId === claim.attemptId
-  );
-
 const matchesMutation = (task: SyncTask, mutationId?: string): boolean =>
   !mutationId || task.syncContract?.mutationId === mutationId;
-
-const UNRESOLVED_DAILY_RECORD_STATES = new Set<SyncTask['status']>([
-  'PENDING',
-  'PROCESSING',
-  'FAILED',
-  'CONFLICT',
-]);
 
 const mirrorTransactionalDailyRecordWrite = (record: DailyRecord): void => {
   if (isE2ERuntimeEnabled() && typeof window !== 'undefined' && window.__HHR_E2E_OVERRIDE__) {
@@ -197,15 +183,9 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       hospitalDB.dailyRecords,
       hospitalDB.syncQueue,
       async () => {
-        const key = `daily:${authoritativeRecord.date}`;
         const unresolvedTasks = (
-          await hospitalDB.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray()
-        ).filter(
-          task =>
-            task.key === key &&
-            matchesOwner(ownerKey, task.ownerKey) &&
-            UNRESOLVED_DAILY_RECORD_STATES.has(task.status)
-        );
+          await listUnresolvedDailyRecordTasks(authoritativeRecord.date)
+        ).filter(task => matchesOwner(ownerKey, task.ownerKey));
         if (unresolvedTasks.length === 0) {
           await hospitalDB.dailyRecords.put(authoritativeRecord);
           return { status: 'adopted' as const, record: authoritativeRecord };
@@ -315,7 +295,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   async updateClaimed(taskId, patch, claim) {
     return hospitalDB.transaction('rw', hospitalDB.syncQueue, async () => {
       const task = await hospitalDB.syncQueue.get(taskId);
-      if (!matchesClaim(task, claim)) {
+      if (!matchesTaskClaim(task, claim)) {
         return false;
       }
       await hospitalDB.syncQueue.update(taskId, patch);
@@ -326,35 +306,11 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
     await hospitalDB.syncQueue.delete(taskId);
   },
   async deleteClaimed(taskId, claim, authoritativeRecord) {
-    let adoptedRecord: DailyRecord | undefined;
-    const deleted = await hospitalDB.transaction(
-      'rw',
-      hospitalDB.syncQueue,
-      hospitalDB.dailyRecords,
-      async () => {
-        const task = await hospitalDB.syncQueue.get(taskId);
-        if (!task || !matchesClaim(task, claim)) return false;
-        if (authoritativeRecord) {
-          const unresolved = (
-            await hospitalDB.syncQueue.where('type').equals(task.type).toArray()
-          ).some(
-            candidate =>
-              candidate.id !== taskId &&
-              candidate.key === task.key &&
-              UNRESOLVED_DAILY_RECORD_STATES.has(candidate.status)
-          );
-          const local = await hospitalDB.dailyRecords.get(authoritativeRecord.date);
-          if (shouldAdoptDailyRecordAck(task, authoritativeRecord, local, unresolved)) {
-            await hospitalDB.dailyRecords.put(authoritativeRecord);
-            adoptedRecord = authoritativeRecord;
-          }
-        }
-        await hospitalDB.syncQueue.delete(taskId);
-        return true;
-      }
-    );
-    if (adoptedRecord) mirrorTransactionalDailyRecordWrite(adoptedRecord);
-    return deleted;
+    const { completeClaimedSyncTask } = await import('./dexieSyncQueueAuthorityAck');
+    const result = await completeClaimedSyncTask(taskId, claim, authoritativeRecord);
+    if (result.adopted && authoritativeRecord)
+      mirrorTransactionalDailyRecordWrite(authoritativeRecord);
+    return result.deleted;
   },
   async deleteAll() {
     await hospitalDB.syncQueue.clear();

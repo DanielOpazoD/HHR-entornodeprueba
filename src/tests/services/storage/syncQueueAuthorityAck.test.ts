@@ -178,7 +178,7 @@ describe('transactional outbox authority ACK', () => {
 
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(newer());
     expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-      { status: 'CONFLICT', lastErrorCode: 'sync_ack_projection_conflict', payload: first() },
+      { status: 'CONFLICT', lastErrorCategory: 'conflict', payload: first() },
     ]);
   });
 
@@ -195,8 +195,8 @@ describe('transactional outbox authority ACK', () => {
     const tasks = await hospitalDB.syncQueue.toArray();
     expect(tasks).toHaveLength(2);
     expect(tasks[0]).toMatchObject({
-      status: 'FAILED',
-      lastErrorCode: 'sync_ack_missing_projection',
+      status: 'CONFLICT',
+      lastErrorCategory: 'conflict',
     });
     expect(tasks[1].payload).toEqual(newer());
     expect(await hospitalDB.dailyRecords.get(date)).toBeUndefined();
@@ -210,7 +210,7 @@ describe('transactional outbox authority ACK', () => {
 
     expect(await hospitalDB.dailyRecords.get(date)).toEqual(first());
     expect(await hospitalDB.syncQueue.toArray()).toMatchObject([
-      { status: 'FAILED', lastErrorCode: 'sync_ack_invalid_record' },
+      { status: 'CONFLICT', lastErrorCategory: 'conflict' },
     ]);
   });
 

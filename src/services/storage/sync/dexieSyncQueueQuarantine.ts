@@ -29,6 +29,12 @@ export const matchesOwner = (
  */
 export const REUSABLE_TASK_STATES = new Set<SyncTask['status']>(['PENDING', 'FAILED', 'CONFLICT']);
 
+// Completed writes leave the queue; every retained task is unresolved.
+export const listUnresolvedDailyRecordTasks = async (date: string): Promise<SyncTask[]> =>
+  (await hospitalDB.syncQueue.where('type').equals('UPDATE_DAILY_RECORD').toArray()).filter(
+    task => task.key === `daily:${date}`
+  );
+
 const QUARANTINED_TASK_STATES = new Set<SyncTask['status']>(['FAILED', 'CONFLICT']);
 
 /** Revive una tarea FAILED/CONFLICT como PENDING limpia (acción explícita del usuario). */

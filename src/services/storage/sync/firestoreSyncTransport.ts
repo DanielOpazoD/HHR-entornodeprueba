@@ -30,10 +30,7 @@ import {
   resolveEffectiveDailyRecordAuthorityMode,
 } from '@/services/storage/firestore/firestoreRayenClinicalAuthorityMode';
 import { saveDailyRecordWithClinicalAuthorityCallable } from '@/services/storage/firestore/dailyRecordAuthorityCallableClient';
-import {
-  recordSyncQueueTruthSelectionTelemetry,
-  type SyncQueueSelectedTruth,
-} from '@/services/storage/sync/syncQueueTelemetryController';
+import { recordSyncQueueTruthSelectionTelemetry } from '@/services/storage/sync/syncQueueTelemetryController';
 import {
   assertNoSamePathRemoteMutation,
   hasRemoteAppliedMutation,
@@ -99,11 +96,9 @@ const shouldRevalidateAgainstRemote = (
 };
 
 interface ResolvedSyncRecordForTask {
-  record: DailyRecord | null;
-  authoritativeRecord?: DailyRecord;
+  record: DailyRecord;
   resolution: NonNullable<SyncTask['syncContract']>['resolution'];
   acceptedVersion?: string;
-  selectedTruth?: SyncQueueSelectedTruth;
 }
 
 const resolveRecordForSyncTask = async (
@@ -125,11 +120,9 @@ const resolveRecordForSyncTask = async (
   const remoteLastUpdated = getRemoteLastUpdated(remoteData);
   if (hasRemoteAppliedMutation(task, remoteData.meta as Record<string, unknown> | undefined)) {
     return {
-      record: null,
-      authoritativeRecord: docToRecord(remoteData, record.date),
+      record: docToRecord(remoteData, record.date),
       resolution: 'already_applied',
       acceptedVersion: remoteLastUpdated,
-      selectedTruth: 'remote_already_applied',
     };
   }
 
@@ -193,15 +186,13 @@ const syncDailyRecord = async (
     'syncQueue.writeDailyRecord',
     async () => {
       const resolved = await resolveRecordForSyncTask(task, record, runtime);
-      if (!resolved.record) {
+      if (resolved.resolution === 'already_applied') {
         recordSyncQueueTruthSelectionTelemetry(task, {
           resolution: resolved.resolution,
           acceptedVersion: resolved.acceptedVersion,
-          selectedTruth: resolved.selectedTruth || 'remote_already_applied',
+          selectedTruth: 'remote_already_applied',
         });
-        return resolved.authoritativeRecord
-          ? { authoritativeRecord: resolved.authoritativeRecord }
-          : undefined;
+        return { authoritativeRecord: resolved.record };
       }
       const recordToWrite = resolved.record;
 
