@@ -10,6 +10,7 @@ import { PatientStatus } from '@/types/domain/patientClassification';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import { mapRayenBed } from './bedMapping';
+import { encounterWallClockInRapaNui } from './encounterWallClock';
 
 /** Format a RUN as "14.470.055-4" from raw ("144700554") or already-formatted input. */
 export const formatRun = (raw?: string): string => {
@@ -125,11 +126,10 @@ export {
   normalizeOptionalPersonName,
 } from '@/utils/eloisaPersonName';
 
-/** Extract "HH:MM" from an ISO datetime, if present. */
+/** Rayen admission time in the hospital wall clock; date-only values have no known time. */
 export const extractTime = (isoDatetime?: string): string => {
-  if (!isoDatetime) return '';
-  const match = /T(\d{2}:\d{2})/.exec(isoDatetime);
-  return match ? match[1] : '';
+  if (!/[T\s]\d{1,2}:\d{2}/.test(isoDatetime ?? '')) return '';
+  return encounterWallClockInRapaNui(isoDatetime)?.slice(11, 16) ?? '';
 };
 
 const toIsoDate = (isoDatetime?: string): string => (isoDatetime ? isoDatetime.slice(0, 10) : '');
@@ -165,6 +165,7 @@ export const rayenToPatientData = (
   const firstFamily = toTitleCaseName(encounter.firstFamilyName);
   const secondFamily = normalizeOptionalPersonName(encounter.secondFamilyName);
   const fullName = [givenNames, firstFamily, secondFamily].filter(Boolean).join(' ').trim();
+  const admission = encounterWallClockInRapaNui(encounter.admissionDatetime);
 
   const patient: PatientData = {
     ...EMPTY_PATIENT,
@@ -188,7 +189,7 @@ export const rayenToPatientData = (
       ? encounter.treatingPhysicianName?.trim() || undefined
       : undefined,
     specialty: encounter.treatingPhysicianSpecialty?.trim() || EMPTY_PATIENT.specialty,
-    admissionDate: toIsoDate(encounter.admissionDatetime),
+    admissionDate: admission?.slice(0, 10) ?? '',
     admissionTime: extractTime(encounter.admissionDatetime),
     // A synced patient defaults to "Estable"; `status` is not in SYNCABLE_FIELDS, so a re-sync
     // never overwrites the nurse's manual classification (Grave / De cuidado).
