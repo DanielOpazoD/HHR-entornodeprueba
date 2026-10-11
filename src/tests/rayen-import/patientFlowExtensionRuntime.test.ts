@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import '../../../extension/tab-encounter-authorization.js';
@@ -28,6 +30,7 @@ type RuntimeFactory = {
       sender: { origin?: string; url?: string; tab: { id: number; url: string } },
       encounterId: string
     ) => boolean;
+    canRequestClinicalEpisode: (sender: object | undefined, encId: string) => boolean;
     route: {
       handle: (
         message: { encId?: string },
@@ -121,6 +124,83 @@ describe('Ficha Médico patient-flow runtime', () => {
       cache: 'no-store',
     });
     expect(runtime.route.fallback).toBe('No se pudo leer la trazabilidad de camas.');
+  });
+
+  const scalesHandler = (
+    runtime: ReturnType<RuntimeFactory['create']>,
+    resolve: unknown,
+    fetch: unknown
+  ) => {
+    const source = readFileSync('extension/background.js', 'utf8');
+    const start = source.indexOf('const handleScalesReportRequest =');
+    const end = source.indexOf('\n};', start) + 3;
+    const context = vm.createContext({
+      patientFlowRuntime: runtime,
+      resolveFichaClinicalSession: resolve,
+      fetchScalesReportWithInfo: fetch,
+    });
+    return vm.runInContext(source.slice(start, end) + '\nhandleScalesReportRequest;', context);
+  };
+
+  it('blocks scales for unknown, other-tab, expired and invalid HHR episodes before any session or read', async () => {
+    vi.useFakeTimers();
+    try {
+      const runtime = createRuntime();
+      const fetchForms = vi.fn(async () => ({ forms: [] }));
+      const handle = scalesHandler(runtime, resolveSession, fetchForms);
+      const request = { encId: '142040', sender };
+      expect((await handle(request)).error).toContain('no fueron autorizadas');
+      await authorize(runtime);
+      expect((await handle({ ...request, encId: '999999' })).error).toContain(
+        'no fueron autorizadas'
+      );
+      expect(
+        (await handle({ ...request, sender: { ...sender, tab: { ...sender.tab, id: 45 } } })).error
+      ).toContain('no fueron autorizadas');
+      expect((await handle({ ...request, encId: '../otro' })).error).toContain(
+        'no fueron autorizadas'
+      );
+      expect((await handle({ encId: '142040' })).error).toContain('no fueron autorizadas');
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1);
+      expect((await handle(request)).error).toContain('no fueron autorizadas');
+      expect(resolveSession).not.toHaveBeenCalled();
+      expect(fetchForms).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reads authorized HHR scales and preserves the authenticated Ficha Médico panel', async () => {
+    const runtime = createRuntime();
+    await authorize(runtime);
+    const fetchForms = vi.fn(async () => ({ forms: [{ synthetic: true }] }));
+    const resolve = vi.fn(async () => ({ info: session }));
+    const handle = scalesHandler(runtime, resolve, fetchForms);
+    await expect(handle({ encId: '142040', sender })).resolves.toEqual({
+      forms: [{ synthetic: true }],
+    });
+    const fichaSender = {
+      origin: 'https://fichamedico.rayensalud.cl',
+      tab: { id: 10, url: 'https://fichamedico.rayensalud.cl/' },
+    };
+    await expect(handle({ encId: '142040', sender: fichaSender })).resolves.toEqual({
+      forms: [{ synthetic: true }],
+    });
+    expect(resolve).toHaveBeenLastCalledWith({ sender: fichaSender });
+    expect(fetchForms).toHaveBeenCalledTimes(2);
+    expect(
+      (
+        await handle({
+          encId: '142040',
+          sender: { ...fichaSender, origin: 'https://fichamedico.rayensalud.cl.evil.invalid' },
+        })
+      ).error
+    ).toContain('no fueron autorizadas');
+    resolve.mockResolvedValueOnce({ error: 'Sin sesión.' } as unknown as { info: typeof session });
+    await expect(handle({ encId: '142040', sender: fichaSender })).resolves.toEqual({
+      error: 'Sin sesión.',
+    });
+    expect(fetchForms).toHaveBeenCalledTimes(2);
   });
 
   it('rejects non-numeric episodes before consulting the session', async () => {
