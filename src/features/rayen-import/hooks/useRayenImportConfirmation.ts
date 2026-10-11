@@ -1,3 +1,6 @@
+import { assertNeonatalSourceChangesReviewed } from '../domain/reviewedNeonatalSourcePlacement';
+import { resolveNeonatalPlacements } from '../domain/neonatalPlacementReview';
+import type { NeonatalPlacementResolution } from '../contracts/neonatalPlacementReview';
 import { useCallback, type RefObject } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { finalizeRayenHistoricalDischarges } from './finalizeRayenHistoricalDischarges';
@@ -90,12 +93,33 @@ export const useRayenImportConfirmation = ({
     async (
       applyPreviousDays: boolean = true,
       bedCollisionResolutions: BedOccupancyCollisionResolution[] = [],
-      cmaAdmissionResolutions: CmaAdmissionResolution[] = []
+      cmaAdmissionResolutions: CmaAdmissionResolution[] = [],
+      neonatalResolutions: NeonatalPlacementResolution[] = [],
+      neonatalSourceAcknowledgements: string[] = []
     ) => {
       const base =
         preparedSyncContextRef.current?.record ?? currentRecordRef.current ?? currentRecord;
       if (!base || !state.diff) return;
-      const diff = resolveBedOccupancyCollisions(state.diff, bedCollisionResolutions);
+      const reviewedAt = new Date().toISOString();
+      let diff;
+      try {
+        assertNeonatalSourceChangesReviewed(state.diff, neonatalSourceAcknowledgements);
+        diff = resolveNeonatalPlacements(
+          base,
+          resolveBedOccupancyCollisions(state.diff, bedCollisionResolutions),
+          neonatalResolutions,
+          reviewedAt,
+          ensureRun().by ?? ''
+        );
+      } catch (error) {
+        setState(previous => ({
+          ...previous,
+          isBusy: false,
+          isSyncing: false,
+          error: getRayenImportErrorMessage(error),
+        }));
+        return;
+      }
       const unresolvedBedCollision = (diff.bedOccupancyCollisions ?? []).some(
         collision =>
           !(diff.bedOccupancyCollisionResolutions ?? []).some(
@@ -135,6 +159,7 @@ export const useRayenImportConfirmation = ({
           dispatchExecution({
             type: 'record_outcome',
             ...executionIdentity,
+            committed: true,
             structuralConflicts: outcome.commit.structuralConflicts,
             skippedItems: outcome.commit.skippedItems,
           });
@@ -275,11 +300,17 @@ export const useRayenImportConfirmation = ({
                   applyPreviousDays
                 ),
               getFreshRecord: () => loadAuthoritativeStructuralRecord(base.date),
-              replanDiff: async record =>
-                resolveBedOccupancyCollisions(
-                  await structuralReplan.replan(record),
-                  bedCollisionResolutions
-                ),
+              replanDiff: async record => {
+                const replanned = await structuralReplan.replan(record);
+                assertNeonatalSourceChangesReviewed(replanned, neonatalSourceAcknowledgements);
+                return resolveNeonatalPlacements(
+                  record,
+                  resolveBedOccupancyCollisions(replanned, bedCollisionResolutions),
+                  neonatalResolutions,
+                  reviewedAt,
+                  run.by ?? ''
+                );
+              },
               clinicalDay: structuralReplan.clinicalDay,
               createId: () => crypto.randomUUID(),
               onRetry: () =>

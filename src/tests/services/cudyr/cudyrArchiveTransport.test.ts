@@ -59,6 +59,11 @@ describe('CUDYR replay authority and ownership', () => {
     expect(h.archive).toHaveBeenCalledWith({ ...request, runId: 'new-run' });
     expect(request.runId).toBe('old-run');
   });
+  it('replays a durable capture after the same owner signs in with a new admitted generation', async () => {
+    h.generation = 'new-admitted-session';
+    await replayCudyrArchive(task, runtime);
+    expect(h.archive).toHaveBeenCalledWith({ ...request, runId: 'new-run' });
+  });
   it('does not dispatch another owner’s capture', async () => {
     h.owner = 'user:other';
     await expect(replayCudyrArchive(task, runtime)).rejects.toThrow('sesión cambió');

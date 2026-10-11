@@ -208,7 +208,7 @@ describe('clinical crib discharge promotion', () => {
     });
     expect(repeated.conflicts).toHaveLength(0);
     expect(repeated.admissions).toHaveLength(0);
-    expect(repeated.updates).toHaveLength(0);
+    expect(repeated.updates).toEqual([]);
     expect(repeated.summary.unchanged).toBe(1);
   });
 

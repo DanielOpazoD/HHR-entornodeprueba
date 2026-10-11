@@ -1,3 +1,4 @@
+import { isPolicyBlockedCudyrArchive } from '@/services/storage/sync/cudyrPolicyBlockedRecovery';
 import type { SyncQueueOperation, SyncQueueStats } from '@/hooks/useSyncQueueMonitor';
 
 /**
@@ -73,7 +74,9 @@ export interface QuarantinedOperationView {
   attemptsLabel: string | null;
 }
 
-const targetLabelFromKey = (key: string | undefined): string => {
+const targetLabelFromKey = (key: string | undefined, type: SyncQueueOperation['type']): string => {
+  if (type === 'ARCHIVE_CUDYR') return 'Archivo CUDYR';
+  if (type === 'UPDATE_PATIENT') return 'Datos del paciente';
   const date = key?.startsWith('daily:') ? key.slice('daily:'.length) : null;
   if (!date) return 'Registro del censo';
   const [year, month, day] = date.split('-');
@@ -88,10 +91,13 @@ export const listQuarantinedOperations = (
     .filter(operation => typeof operation.id === 'number')
     .map(operation => ({
       id: operation.id as number,
-      targetLabel: targetLabelFromKey(operation.key),
+      targetLabel: targetLabelFromKey(operation.key, operation.type),
       statusLabel: STATUS_LABELS[operation.status] ?? operation.status,
-      categoryLabel:
-        CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido',
-      actionHint: operation.lastErrorAction ?? null,
+      categoryLabel: isPolicyBlockedCudyrArchive(operation)
+        ? 'Autorización anterior'
+        : (CATEGORY_LABELS[operation.lastErrorCategory ?? 'unknown'] ?? 'Error desconocido'),
+      actionHint: isPolicyBlockedCudyrArchive(operation)
+        ? 'Se reintenta al completar la sincronización habitual.'
+        : (operation.lastErrorAction ?? null),
       attemptsLabel: operation.retryCount > 0 ? `${operation.retryCount + 1} intentos` : null,
     }));

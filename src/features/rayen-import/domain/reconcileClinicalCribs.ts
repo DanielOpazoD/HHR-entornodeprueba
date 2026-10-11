@@ -11,6 +11,9 @@ import {
 interface ClinicalCribCandidate {
   encounter: RayenEncounter;
   mapped: MappedPatient;
+  maternalAssociationConflict?: 'ambiguous' | 'unmatched' | 'location-mismatch';
+  usesMaternalRun?: boolean;
+  maternalAssociationBedId?: string;
 }
 
 interface CurrentClinicalCribRef {
@@ -34,20 +37,27 @@ const preserveExistingCribIdentity = (
   firstName: current.firstName,
   lastName: current.lastName,
   secondLastName: current.secondLastName,
-  identityStatus: current.identityStatus,
+  identityStatus: hasRegisteredClinicalCribRut(current) ? current.identityStatus : 'provisional',
 });
 
 const diffClinicalCribFields = (current: PatientData, incoming: PatientData) => {
   const changes = diffSyncablePatientFields(current, incoming);
-  if (hasRegisteredClinicalCribRut(incoming) && current.identityStatus !== 'official') {
-    changes.push({ field: 'identityStatus', from: current.identityStatus, to: 'official' });
+  if (current.bedId !== incoming.bedId)
+    changes.push({ field: 'bedId', from: current.bedId, to: incoming.bedId });
+  if (incoming.identityStatus && current.identityStatus !== incoming.identityStatus) {
+    changes.push({
+      field: 'identityStatus',
+      from: current.identityStatus,
+      to: incoming.identityStatus,
+    });
   }
   return changes;
 };
 
 const mergeClinicalCrib = (current: PatientData, incoming: PatientData): PatientData => ({
   ...mergeSyncablePatient(current, incoming),
-  ...(hasRegisteredClinicalCribRut(incoming) ? { identityStatus: 'official' as const } : {}),
+  bedId: incoming.bedId,
+  ...(incoming.identityStatus ? { identityStatus: incoming.identityStatus } : {}),
 });
 
 const indexCurrentClinicalCribs = (current: DailyRecord) => {
@@ -82,18 +92,46 @@ export const reconcileClinicalCribs = (
   }
   const reportedDuplicateParents = new Set<string>();
 
-  for (const { encounter, mapped } of candidates) {
+  for (const {
+    encounter,
+    mapped,
+    maternalAssociationConflict,
+    usesMaternalRun,
+    maternalAssociationBedId,
+  } of candidates) {
+    if (maternalAssociationConflict) {
+      diff.conflicts.push({
+        bedId: mapped.bedId ?? '',
+        rut: mapped.patient.rut,
+        patientName: mapped.patient.patientName,
+        scope: 'clinical-crib',
+        neonatalAssociationReview: true,
+        reason:
+          maternalAssociationConflict === 'location-mismatch'
+            ? `Eloísa: cuna C-${mapped.bedId}. Madre: cama ${maternalAssociationBedId}. Confirma la ubicación del RN.`
+            : maternalAssociationConflict === 'ambiguous'
+              ? 'Identidad materna ambigua; no se modificó la asociación del RN.'
+              : 'Sin coincidencia materna; se conserva la asociación del RN para revisión.',
+        source: encounter,
+      });
+      continue;
+    }
     const rawIncomingCrib = withClinicalCribDefaults(mapped.patient);
     const existingRef =
       currentCribs.byEpisode.get(encounter.encounterId) ??
-      currentCribs.byRut.get(normalizeRut(rawIncomingCrib.rut));
+      (usesMaternalRun ? undefined : currentCribs.byRut.get(normalizeRut(rawIncomingCrib.rut)));
     // While the RN has no RUN, HHR preserves the locally curated provisional name. Once Eloísa
     // provides a RUN, Registro Civil identity becomes authoritative and all syncable demographics
     // (including names and surnames) are refreshed from the official record.
-    const incomingCrib =
-      existingRef && !hasRegisteredClinicalCribRut(rawIncomingCrib)
+    const preserved =
+      existingRef && (usesMaternalRun || !hasRegisteredClinicalCribRut(rawIncomingCrib))
         ? preserveExistingCribIdentity(existingRef.patient, rawIncomingCrib)
         : rawIncomingCrib;
+    const incomingCrib =
+      usesMaternalRun &&
+      (!existingRef || normalizeRut(existingRef.patient.rut) === normalizeRut(encounter.run))
+        ? { ...preserved, rut: '', identityStatus: 'provisional' as const }
+        : preserved;
     const retainedParentMove =
       !encounter.clinicalCribParentBedId && existingRef?.parentBedId === mapped.bedId
         ? diff.moves.find(entry => entry.fromBedId === mapped.bedId)
@@ -139,9 +177,7 @@ export const reconcileClinicalCribs = (
         source: encounter,
       });
     };
-    const existingCrib =
-      currentCribs.byEpisode.get(encounter.encounterId) ??
-      currentCribs.byRut.get(normalizeRut(encounter.run));
+    const existingCrib = existingRef;
     const cribMovesWithParent = !!parentMove && existingCrib?.parentBedId === parentMove.fromBedId;
     if (existingCrib && existingCrib.parentBedId !== parentBedId && !cribMovesWithParent) {
       diff.conflicts.push({
@@ -149,6 +185,7 @@ export const reconcileClinicalCribs = (
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
         scope: 'clinical-crib',
+        neonatalAssociationReview: true,
         reason: `La cuna RN ya está asociada a ${existingCrib.parentBedId}; el cambio requiere revisión.`,
         source: encounter,
       });
@@ -296,6 +333,7 @@ export const reconcileClinicalCribs = (
         rut: incomingCrib.rut,
         patientName: incomingCrib.patientName,
         scope: 'clinical-crib',
+        neonatalAssociationReview: true,
         reason: `La cuna RN de ${parentBedId} ya está ocupada por ${effectiveParent.clinicalCrib.patientName}.`,
         source: encounter,
       });

@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { buildStructuralReviewEvidence } from '@/features/rayen-import/domain/clinicalStageResolution';
+import { createEmptyCensusImportDiff } from '@/features/rayen-import/domain/censusImportDiffFactory';
+import { RayenSyncEventSchema } from '@/schemas/zod/dailyRecord';
 import {
   assertRayenCensusPersistenceConfirmed,
   isConfirmedRayenCensusHandoff,
@@ -58,6 +61,27 @@ const buildRecord = (runId = 'run-1', overrides: Partial<DailyRecord> = {}): Dai
   }) as DailyRecord;
 
 describe('rayenCensusPersistenceGuard', () => {
+  it.each([true, false, undefined])(
+    'persists explicit source completeness through the handoff and event schema (%s)',
+    complete => {
+      const record = buildRecord();
+      const handoff = resolveConfirmedRayenCensusHandoff(
+        { record, result: buildResult() },
+        {
+          date: record.date,
+          runId: 'run-1',
+          diff: { ...createEmptyCensusImportDiff(complete === true), snapshotComplete: complete },
+        }
+      );
+      const structuralReview = buildStructuralReviewEvidence(handoff);
+      expect(structuralReview?.snapshotComplete).toBe(complete === true);
+      const event = RayenSyncEventSchema.parse({
+        ...record.rayenSyncHistory![0],
+        structuralReview,
+      });
+      expect(event.structuralReview?.snapshotComplete).toBe(complete === true);
+    }
+  );
   it('stops enrichment when the persistence adapter returns no confirmation', () => {
     expect(() =>
       assertRayenCensusPersistenceConfirmed({ record: buildRecord(), result: null })

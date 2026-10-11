@@ -58,7 +58,7 @@ export const createRayenSyncAcceptanceScenario = (): RayenSyncAcceptanceScenario
   const newborn = fixtureEncounter('Recien Nacido', {
     encounterId: 'fixture-episode-newborn',
     run: '000000001',
-    firstGivenName: 'Rn Fixture',
+    firstGivenName: 'RN de Fixture',
     firstFamilyName: 'Materna',
     birthDate: '2026-07-31',
     administrativeSex: 'Hombre',

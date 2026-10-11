@@ -30,7 +30,7 @@ const newborn = (encounterId = 'NEWBORN'): RayenEncounter =>
   encounter({
     encounterId,
     run: '222222222',
-    firstGivenName: 'Bebe',
+    firstGivenName: 'RN de Ana',
     birthDate: '2026-07-08',
     room: 'Cunas',
     bed: 'CH5C1',
@@ -232,7 +232,7 @@ describe('clinical crib egreso accounting', () => {
     );
     expect(applied.record.beds.H5C1.clinicalCrib).toMatchObject({
       clinicalEpisodeId: 'NEWBORN-READMISSION',
-      patientName: 'Bebe Perez',
+      patientName: 'Rn De Ana Perez',
     });
   });
 

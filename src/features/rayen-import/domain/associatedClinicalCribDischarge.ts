@@ -1,3 +1,5 @@
+import { clinicalCribConflictBeds } from './clinicalCribConflictBeds';
+
 import type { DailyRecord } from '../contracts/rayenDomainContracts';
 import type { CensusImportDiff, DischargeEntry } from '../contracts/censusImportDiff';
 import { hasRecordedMovement } from './egresoReportPolicy';
@@ -102,11 +104,7 @@ export const attachAssociatedClinicalCribDischarges = (
   if (diff.snapshotComplete !== true) return independentDischarges;
 
   const activeEpisodes = activeClinicalEpisodes(diff);
-  const conflictedParentBeds = new Set(
-    diff.conflicts
-      .filter(entry => entry.scope === 'clinical-crib')
-      .flatMap(entry => entry.bedId ?? [])
-  );
+  const conflictedParentBeds = clinicalCribConflictBeds(diff, record);
 
   return independentDischarges.map(entry => {
     const candidateBeds = parentBedCandidates(diff, entry, record);

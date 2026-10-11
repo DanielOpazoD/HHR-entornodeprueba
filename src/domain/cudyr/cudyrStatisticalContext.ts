@@ -1,3 +1,4 @@
+import type { NeonatalPlacementDecision } from '@/types/domain/neonatalPlacementDecision';
 import { resolveCudyrEligibility } from './cudyrEligibility';
 import { normalizeDateOnly, parseTimeMinutes } from '@/utils/clinicalDayUtils';
 import { cudyrSourceInstant } from './cudyrPlacementTimeline';
@@ -9,6 +10,7 @@ export type CudyrEligibility = 'elegible' | 'no_elegible' | 'por_revisar';
 
 export interface CudyrPlacement {
   bedId: string;
+  neonatalPlacementDecision?: NeonatalPlacementDecision;
   sourceBedId?: string;
   bedName?: string;
   bedMode?: string;

@@ -177,6 +177,23 @@ export const PatientDataSchema: z.ZodType<PatientData, z.ZodTypeDef, unknown> = 
       isBlocked: z.boolean().default(false),
       blockedReason: nullableOptional(z.string()),
       bedMode: z.enum(['Cama', 'Cuna']).default('Cama'),
+      neonatalMaternalRut: nullableOptional(z.string()).catch(undefined),
+      neonatalPlacementDecision: nullableOptional(
+        z.object({
+          clinicalEpisodeId: z.string().min(1),
+          kind: z.enum(['mother', 'independent']),
+          bedId: z.string().min(1),
+          parentEpisodeId: z.string().optional(),
+          effectiveAt: z.string().datetime({ offset: true }),
+          reviewedAt: z.string().datetime({ offset: true }),
+          reviewedBy: z.string(),
+          sourcePlacementKey: z.string().optional(),
+          sourceService: z.string().optional(),
+          sourceRun: z.string().optional(),
+          sourceRunIsMaternal: z.boolean().optional(),
+          maternalRut: z.string().optional(),
+        })
+      ).catch(undefined),
       hasCompanionCrib: z.boolean().default(false),
       clinicalCrib: z
         .lazy(() => PatientDataSchema)

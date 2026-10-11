@@ -141,6 +141,7 @@ const RayenSyncStaffingObservationSchema = z.object({
 
 const RayenSyncStructuralReviewSchema = z.object({
   structureConfirmed: nullableOptional(z.boolean()),
+  snapshotComplete: nullableOptional(z.boolean()),
   historicalCorrectionsPending: z.boolean(),
   historicalCorrectionsRequireFreshCapture: z.boolean(),
   isolatedConflicts: z.number().int().nonnegative(),

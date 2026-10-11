@@ -83,6 +83,40 @@ const harness = () => {
 };
 
 describe('CUDYR archive callable boundaries', () => {
+  it.each(['complete', 'partial'])('archives under an already settled %s run', async status => {
+    const h = harness();
+    h.record.rayenSyncHistory[0].status = status;
+    expect(await h.archiveCudyrHistory.run(payload, context)).toMatchObject({ persisted: true });
+    expect(h.writes).toHaveLength(1);
+  });
+
+  it.each(['complete', 'partial'])(
+    'still rejects a changed policy after a %s run',
+    async status => {
+      const h = harness();
+      h.record.rayenSyncHistory[0].status = status;
+      h.policy.revision = 2;
+      // The persisted run policy is independent of the current settings document.
+      h.record.rayenSyncHistory[0].policy = { ...h.policy, revision: 1 };
+      await expect(h.archiveCudyrHistory.run(payload, context)).rejects.toMatchObject({
+        code: 'failed-precondition',
+      });
+      expect(h.writes).toHaveLength(0);
+    }
+  );
+
+  it.each(['failed', 'cancelled', 'needs_review'])(
+    'does not archive under a %s run',
+    async status => {
+      const h = harness();
+      h.record.rayenSyncHistory[0].status = status;
+      await expect(h.archiveCudyrHistory.run(payload, context)).rejects.toMatchObject({
+        code: 'failed-precondition',
+      });
+      expect(h.writes).toHaveLength(0);
+    }
+  );
+
   it('rereads the full transaction after a concurrent create, but never assumes it succeeded', async () => {
     const h = harness();
     h.firestore.runTransaction.mockRejectedValueOnce(

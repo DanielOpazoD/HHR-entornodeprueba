@@ -44,6 +44,129 @@ const input = {
 };
 
 describe('daily CUDYR context projection', () => {
+  it('uses a reviewed crib correction but respects a later Eloísa hospital transfer', () => {
+    const placements = [
+      {
+        bedId: 'NEO1',
+        section: 'census' as const,
+        bedMode: 'Cama' as const,
+        neonatalPlacementDecision: {
+          clinicalEpisodeId: 'episode',
+          kind: 'independent' as const,
+          bedId: 'NEO1',
+          effectiveAt: '2026-10-02T14:00:00-05:00',
+          reviewedAt: '2026-10-02T16:00:00-05:00',
+          reviewedBy: 'Nurse',
+          sourceService: 'Cirugía',
+          sourcePlacementKey: 'H1C1:cuna',
+        },
+      },
+    ];
+    const crib = evidence('H1C1', 'cuna', '2026-10-01T10:00:00-05:00');
+    crib.placement.sourceDepartmentLabel = 'Cirugía';
+    const corrected = resolveCudyrDailyPlacement({
+      ...input,
+      date: '2026-10-02',
+      placements,
+      sourcePlacements: [crib],
+    });
+    expect(corrected.eligibility).toBe('elegible');
+    expect(corrected.contextSource).toBe('hhr_daily');
+    for (const changes of [{ bedId: 'H2C2' }, { sourceDepartmentLabel: 'Otra área' }]) {
+      const unaccepted = resolveCudyrDailyPlacement({
+        ...input,
+        date: '2026-10-02',
+        placements,
+        sourcePlacements: [{ ...crib, placement: { ...crib.placement, ...changes } }],
+      });
+      expect(unaccepted.contextSource).toBe('eloisa_interval');
+      expect(unaccepted.eligibility).toBe('no_elegible');
+    }
+    const matching = resolveCudyrDailyPlacement({
+      ...input,
+      date: '2026-10-04',
+      placements,
+      sourcePlacements: [
+        {
+          ...sourcePlacements[1],
+          placement: { ...sourcePlacements[1].placement, sourceDepartmentLabel: 'Cirugía' },
+        },
+      ],
+    });
+    expect(matching.hospitalStayAdmissionAt).toBe('2026-10-02T14:00:00-05:00');
+    const otherService = resolveCudyrDailyPlacement({
+      ...input,
+      date: '2026-10-04',
+      placements,
+      sourcePlacements: [
+        {
+          ...sourcePlacements[1],
+          placement: { ...sourcePlacements[1].placement, sourceDepartmentLabel: 'Otra área' },
+        },
+      ],
+    });
+    expect(otherService.contextSource).toBe('eloisa_interval');
+    expect(otherService.contexts[0].location).toBe('Otra área');
+    expect(otherService.hospitalStayAdmissionAt).toBe('2026-10-02T14:00:00-05:00');
+    for (const label of ['Urgencias / UEA', 'CMA Pabellón']) {
+      const excluded = resolveCudyrDailyPlacement({
+        ...input,
+        date: '2026-10-04',
+        placements,
+        sourcePlacements: [
+          {
+            ...sourcePlacements[1],
+            placement: { ...sourcePlacements[1].placement, sourceDepartmentLabel: label },
+          },
+        ],
+      });
+      expect(excluded.eligibility).toBe('no_elegible');
+      expect(excluded.contextSource).toBe('eloisa_interval');
+    }
+    const before = resolveCudyrDailyPlacement({
+      ...input,
+      date: '2026-10-01',
+      admissionDate: '2026-09-25',
+      admissionTime: '12:00',
+      useCensusAdmission: true,
+      placements,
+      sourcePlacements: [],
+    });
+    expect(before.eligibility).toBe('por_revisar');
+    const transferred = resolveCudyrDailyPlacement({
+      ...input,
+      date: '2026-10-04',
+      placements,
+      sourcePlacements: [evidence('R3', 'hospitalizacion', '2026-10-03T15:00:00-05:00')],
+    });
+    expect(transferred.contextSource).toBe('eloisa_interval');
+    expect(transferred.hospitalStayAdmissionAt).toBe('2026-10-02T14:00:00-05:00');
+    for (const prior of [
+      evidence('BOX1', 'hospitalizacion', '2026-10-03T14:00:00-05:00', '2026-10-03T20:00:00-05:00'),
+      evidence('NEO1', 'hospitalizacion', '2026-10-02T14:00:00-05:00', '2026-10-03T18:00:00-05:00'),
+    ]) {
+      const history = [prior, evidence('R3', 'hospitalizacion', '2026-10-03T20:00:00-05:00')];
+      const original = JSON.stringify(history);
+      const newStay = resolveCudyrDailyPlacement({
+        ...input,
+        date: '2026-10-03',
+        placements,
+        sourcePlacements: history,
+      });
+      expect(newStay.hospitalStayAdmissionAt).toBe('2026-10-03T20:00:00-05:00');
+      expect(newStay.eligibility).toBe('no_elegible');
+      expect(JSON.stringify(history)).toBe(original);
+    }
+    expect(transferred.reason).not.toContain('Ubicación RN confirmada');
+    const conflict = resolveCudyrDailyPlacement({
+      ...input,
+      date: '2026-10-04',
+      placements,
+      sourcePlacements: [crib, ...sourcePlacements],
+    });
+    expect(conflict.eligibility).toBe('por_revisar');
+  });
+
   it.each([
     ['2026-10-05', '2026-10-06', '01:17', 'no_elegible'],
     ['2026-10-05', '2026-10-06', '07:59', 'no_elegible'],
