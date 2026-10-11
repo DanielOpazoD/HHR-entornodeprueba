@@ -289,6 +289,8 @@ del documento y la fecha UTC de `dateTimestamp` coincidan. Un timestamp persisti
 se reemplaza; si falta o es null, sólo puede repararse con un entero coherente con
 esa fecha y dentro de la ventana de edición del rol. El cliente conserva timestamps
 válidos al normalizar, aunque difieran de la medianoche de la zona horaria del dispositivo.
+Los timestamps nuevos o reparados se generan a medianoche UTC de la fecha del documento,
+independientemente de la zona horaria del dispositivo.
 Metadatos existentes inconsistentes requieren reparación administrativa antes de editar;
 no se debe corregirlos asignando la hora actual a un registro histórico.
 
