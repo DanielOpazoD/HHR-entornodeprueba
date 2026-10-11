@@ -1,5 +1,5 @@
 import { mapRayenBed } from '../mapping/bedMapping';
-import { isValidRut } from '@/utils/rutUtils';
+import { isValidRut, normalizeRut } from '@/utils/rutUtils';
 import type { RayenEncounter } from '../contracts/rayenSnapshot';
 import type { PatientData } from '../contracts/rayenDomainContracts';
 import type { MappedPatient } from '../mapping/rayenToPatientData';
@@ -13,7 +13,6 @@ export interface MappedClinicalEncounter {
   maternalAssociationBedId?: string;
 }
 
-const identifier = (value: string): string => value.replace(/[^0-9kK]/g, '').toUpperCase();
 const nameKey = (value: string): string =>
   value
     .normalize('NFD')
@@ -70,13 +69,13 @@ export const associateClinicalCribsWithMothers = (
     if (reviewedMother?.parentConflict)
       return { ...candidate, maternalAssociationConflict: 'ambiguous' };
     const byRun = isValidRut(run)
-      ? mothers.filter(mother => identifier(mother.encounter.run) === identifier(run))
+      ? mothers.filter(mother => normalizeRut(mother.encounter.run) === normalizeRut(run))
       : [];
     if (reviewedMother?.reviewed) {
       const foreignMother = byRun.some(
         mother => mother.encounter.encounterId !== reviewedMother.episodeId
       );
-      if (foreignMother && identifier(reviewedMother.sourceRun ?? '') !== identifier(run))
+      if (foreignMother && normalizeRut(reviewedMother.sourceRun ?? '') !== normalizeRut(run))
         return { ...candidate, maternalAssociationConflict: 'ambiguous' };
       const mother = mothers.find(m => m.encounter.encounterId === reviewedMother.episodeId);
       const bedId = mother?.mapped.bedId ?? reviewedMother.bedId;
@@ -96,9 +95,9 @@ export const associateClinicalCribsWithMothers = (
         ...candidate,
         usesMaternalRun:
           isValidRut(run) &&
-          (identifier(run) === identifier(reviewedMother.rut) ||
+          (normalizeRut(run) === normalizeRut(reviewedMother.rut) ||
             (reviewedMother.sourceRunIsMaternal === true &&
-              identifier(run) === identifier(reviewedMother.sourceRun ?? ''))),
+              normalizeRut(run) === normalizeRut(reviewedMother.sourceRun ?? ''))),
         mapped: { ...candidate.mapped, bedId, patient: { ...candidate.mapped.patient, bedId } },
       };
     }
@@ -130,7 +129,7 @@ export const associateClinicalCribsWithMothers = (
         };
       return {
         ...candidate,
-        usesMaternalRun: isValidRut(run) && identifier(run) === identifier(knownMother.rut),
+        usesMaternalRun: isValidRut(run) && normalizeRut(run) === normalizeRut(knownMother.rut),
         mapped: { ...candidate.mapped, bedId, patient: { ...candidate.mapped.patient, bedId } },
       };
     }
