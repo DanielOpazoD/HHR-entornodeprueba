@@ -355,7 +355,7 @@ export const PatientIdentityCell: React.FC<PatientIdentityCellProps> = ({
           </div>
         )}
         {!isEmpty && (
-          <span className="census-identity-actions col-start-2 row-span-2 row-start-1 inline-flex w-[84px] shrink-0 items-center justify-end whitespace-nowrap">
+          <span className="census-identity-actions col-start-2 row-start-1 inline-flex w-[84px] shrink-0 self-start items-center justify-start whitespace-nowrap">
             <ClinicalPanelTrigger
               bedId={data.bedId}
               triggerKey={isSubRow ? `${data.bedId}-clinical-crib` : data.bedId}

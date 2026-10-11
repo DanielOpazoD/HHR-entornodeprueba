@@ -103,15 +103,17 @@ remain unchanged. Validate with schema tests, `pwaPrecachePolicy`, `build`,
 Rollback: restore the two precache entries and the repeated field constructors;
 archive payloads and Firebase records require no migration.
 
-## Moa y cabecera compacta (2026-10-11)
+## Moa y cabecera panorámica (2026-10-11)
 
-Owner: app-shell/navbar. La mascota opcional usa un atlas de seis poses de
-37.318 bytes, sin nuevas dependencias. Solo `images/moa/` queda fuera del
-precache de instalación; la ruta de imágenes existente lo almacena al usarlo.
-La ayuda y su icono alternativo siguen en el precache y funcionan cuando la
-imagen falla o se oculta. No se excluyen módulos clínicos ni se elevan límites.
-El paisaje costero se optimiza de 6.634 a 2.538 bytes para reducir la descarga
-inicial; las secuencias CSS usan pasos sobre un único atlas. Comprobar `check:bundle-budget`,
-`check:chunk-graph`, `check:runtime-asset-margin` y las pruebas de ayuda,
-movimiento reducido y recarga. Revertir las imágenes, estilos y componentes
-de Moa juntos para deshacer esta integración.
+Owner: app-shell/navbar. El atlas opcional conserva sus seis poses y 37.318 bytes.
+La costa ampliada mide 430 × 52 px y 6.920 bytes, con URL versionada para F5.
+Se elimina el módulo de ayuda textual y Moa se carga aparte junto al resumen
+cuando está visible. Su código permanece en el precache; solo el atlas sigue
+fuera de la instalación y utiliza la ruta de imágenes existente. No se excluyen
+módulos clínicos, no se amplían límites y no se añaden dependencias ni cachés.
+Los gestos y el parpadeo usan CSS; el área táctil permanece fija. La pausa y
+el movimiento reducido detienen la animación. Una descarga fallida conserva
+el censo y permite ocultar la mascota o recargar con confirmación.
+Comprobar `check:bundle-budget`, `check:chunk-graph`, `check:runtime-asset-margin`
+y las pruebas de visibilidad, gestos, teclado y recarga. Revertir los estilos,
+imágenes y componentes de Moa juntos; no hay migración de datos clínicos.

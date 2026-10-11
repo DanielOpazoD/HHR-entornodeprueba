@@ -9,6 +9,7 @@ const StaffShiftDetailsModal = lazyWithRetry(() =>
   import('./StaffShiftDetailsModal').then(module => ({ default: module.StaffShiftDetailsModal }))
 );
 import { CensusSummarySwitcher } from './CensusSummarySwitcher';
+import { MoaCompanionSlot } from '@/components/layout/MoaCompanionSlot';
 import {
   useDailyRecordData,
   useDailyRecordBeds,
@@ -141,7 +142,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
           )}
 
           {/* Combined Stats Summary Card */}
-          <div className="census-toolbar-summary flex min-w-0 shrink-0 items-stretch justify-center gap-2">
+          <div className="census-toolbar-summary flex min-w-0 max-w-full shrink-0 flex-wrap items-stretch justify-center gap-2 sm:flex-nowrap">
             {readModel.showSummary && stats && (
               <CensusSummarySwitcher
                 date={recordDate ?? selectedDate ?? ''}
@@ -152,6 +153,7 @@ export const CensusStaffHeader: React.FC<CensusStaffHeaderProps> = ({
                 newAdmissions={readModel.movementSummaryState.admissionsCount}
               />
             )}
+            {readModel.showSummary && stats && <MoaCompanionSlot />}
           </div>
         </div>
       </div>

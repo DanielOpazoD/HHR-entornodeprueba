@@ -144,11 +144,11 @@ export const Navbar: React.FC<NavbarProps> = ({
         />
 
         <img
-          src="/images/navbar/rapa-nui-coast-v2.webp"
+          src="/images/navbar/rapa-nui-coast-v3.webp"
           alt=""
           aria-hidden="true"
-          width={270}
-          height={54}
+          width={430}
+          height={52}
           className="hhr-navbar-landscape"
         />
 
@@ -161,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   className="h-8 w-8"
-                  aria-label="Recargar ayuda de Moa"
+                  aria-label="Recargar control de Moa"
                   title="Guarda tus cambios antes de recargar"
                   onClick={reloadMoaHelp}
                 >
@@ -173,7 +173,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 fallback={
                   <span
                     role="status"
-                    aria-label="Cargando ayuda de Moa"
+                    aria-label="Cargando control de Moa"
                     className="flex h-8 w-8 items-center justify-center"
                   >
                     <CircleHelp size={16} aria-hidden="true" />
