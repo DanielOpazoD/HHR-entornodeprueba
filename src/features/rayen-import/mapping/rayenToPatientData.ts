@@ -114,59 +114,16 @@ export const cleanDiagnosis = (diagnosis?: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/**
- * Normalize a person name to "primera letra mayúscula, resto minúscula" per word
- * ("JUAN PÉREZ" or "juan pérez" → "Juan Pérez"). Rayen commonly returns names in
- * uppercase. Capitalizes the first letter after a space, hyphen or apostrophe, and is
- * accent-aware (á → Á).
- */
-export const toTitleCaseName = (value?: string): string =>
-  (value ?? '')
-    .trim()
-    // Colapsa espacios internos: los campos de nombre de Rayen llegan con
-    // relleno y, al unirlos, el censo mostraba «Jorge  Urgencias Aroca».
-    .replace(/\s+/g, ' ')
-    .toLowerCase()
-    .replace(/(^|[\s'’-])(\p{L})/gu, (_match, sep: string, ch: string) => sep + ch.toUpperCase());
-
-/**
- * Marcadores administrativos que Rayen deja dentro de los NOMBRES cuando el
- * paciente se registró en un punto de atención (típicamente un ingreso por
- * urgencias que después se completa con la identidad real). No son identidad
- * clínica y en el censo aparecían como un segundo nombre —«Jorge Urgencias
- * Aroca Benavides» por «Jorge Aroca Benavides» (reportado el 01-09, H2C2).
- *
- * La lista es EXACTA y por palabra completa, igual que el criterio de
- * `normalizeOptionalPersonName`: nunca se recorta una subcadena, para no
- * mutilar un nombre real que contenga estas letras.
- */
-const ADMINISTRATIVE_NAME_TOKENS = new Set(['urgencia', 'urgencias', 'sapu']);
-
-const stripAdministrativeNameTokens = (value: string): string =>
-  value
-    .split(' ')
-    .filter(word => word && !ADMINISTRATIVE_NAME_TOKENS.has(word.toLowerCase()))
-    .join(' ');
-
-/**
- * Nombres de pila ya normalizados (title case, sin relleno ni marcadores).
- * Si TODOS eran marcadores, el resultado es vacío a propósito: el paciente
- * queda identificado por apellidos (y RUT), igual que un nombre de pila no
- * informado. No se inventa un nombre ni se conserva el marcador.
- */
-export const composeRayenGivenNames = (firstGivenName?: string, nextGivenNames?: string): string =>
-  stripAdministrativeNameTokens(
-    toTitleCaseName([firstGivenName, nextGivenNames].filter(Boolean).join(' '))
-  );
-
-/**
- * Rayen sometimes serializes a missing optional surname as a display placeholder.
- * Placeholders are absence, not clinical identity data, so they must never be persisted in HHR.
- */
-export const normalizeOptionalPersonName = (value?: string): string => {
-  const normalized = toTitleCaseName(value);
-  return /^(?:no\s*informad[oa]?|sin\s+informaci[oó]n)$/i.test(normalized) ? '' : normalized;
-};
+import {
+  toTitleCaseName,
+  composeRayenGivenNames,
+  normalizeOptionalPersonName,
+} from '@/utils/eloisaPersonName';
+export {
+  toTitleCaseName,
+  composeRayenGivenNames,
+  normalizeOptionalPersonName,
+} from '@/utils/eloisaPersonName';
 
 /** Extract "HH:MM" from an ISO datetime, if present. */
 export const extractTime = (isoDatetime?: string): string => {

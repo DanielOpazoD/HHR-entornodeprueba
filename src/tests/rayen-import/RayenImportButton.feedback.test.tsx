@@ -5,11 +5,16 @@ import { RayenImportButton } from '@/features/rayen-import/components/RayenImpor
 import { RAYEN_EXTENSION_PROTOCOL_VERSION } from '@/features/rayen-import/bridge/extensionHealthBridge';
 
 const mocks = vi.hoisted(() => ({
+  useSyncQueueMonitor: vi.fn(),
   triggerImport: vi.fn(),
   retryClinicalFill: vi.fn(),
   useDailyRecordData: vi.fn(),
   useRayenImport: vi.fn(),
   useRayenFillProgress: vi.fn(),
+}));
+
+vi.mock('@/hooks/useSyncQueueMonitor', () => ({
+  useSyncQueueMonitor: () => mocks.useSyncQueueMonitor(),
 }));
 
 vi.mock('@/context/DailyRecordContext', () => ({
@@ -36,7 +41,7 @@ vi.mock('@/features/rayen-import/hooks/useRayenExtensionHealth', () => ({
     },
     message: 'Extensión Eloísa v0.6.0 operativa.',
     canSync: true,
-    refresh: vi.fn(),
+    refresh: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 
@@ -47,6 +52,11 @@ vi.mock('@/features/rayen-import/components/RayenImportPreviewModal', () => ({
 describe('RayenImportButton feedback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.useSyncQueueMonitor.mockReturnValue({
+      stats: { pending: 0, failed: 0, conflict: 0, retrying: 0, oldestPendingAgeMs: 0 },
+      operations: [],
+      refresh: vi.fn(),
+    });
     mocks.useDailyRecordData.mockReturnValue({ record: {} });
     mocks.useRayenFillProgress.mockReturnValue({
       running: false,
@@ -73,6 +83,42 @@ describe('RayenImportButton feedback', () => {
     });
   });
 
+  it('consolidates old CUDYR archive failures in the Eloísa panel without a floating queue chip', () => {
+    mocks.useSyncQueueMonitor.mockReturnValue({
+      stats: { pending: 0, failed: 17, conflict: 0, retrying: 0, oldestPendingAgeMs: 0 },
+      operations: Array.from({ length: 12 }, (_, i) => ({
+        id: i,
+        type: 'ARCHIVE_CUDYR',
+        status: 'FAILED',
+        retryCount: 0,
+        timestamp: 1,
+        lastErrorCode: 'functions/failed-precondition',
+        error:
+          '[validation/functions/failed-precondition] Clinical enrichment is not authorized by the current global policy.',
+      })),
+      refresh: vi.fn(),
+    });
+    render(<RayenImportButton />);
+    expect(screen.queryByTestId('sync-queue-status-chip')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
+    expect(screen.getByText('Guardado local · 17 por enviar')).toBeInTheDocument();
+    expect(screen.getAllByText(/CUDYR · autorización anterior/)).toHaveLength(1);
+    expect(screen.queryByText('Registro del censo')).not.toBeInTheDocument();
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+  });
+
+  it('keeps active retries visible in the usual panel without triggering a sync', () => {
+    mocks.useSyncQueueMonitor.mockReturnValue({
+      stats: { pending: 0, failed: 0, conflict: 0, retrying: 2, oldestPendingAgeMs: 0 },
+      operations: [],
+      refresh: vi.fn(),
+    });
+    render(<RayenImportButton />);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardado pendiente · Ver detalle' }));
+    expect(screen.getByText('Guardado local · 2 por enviar')).toBeInTheDocument();
+    expect(screen.getByText('2 reintentando.')).toBeInTheDocument();
+    expect(mocks.triggerImport).not.toHaveBeenCalled();
+  });
   it('keeps a completed-change summary in the history instead of expanding the toolbar', () => {
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',
@@ -97,7 +143,12 @@ describe('RayenImportButton feedback', () => {
     );
   });
 
-  it('keeps an import error compact until its accessible detail is requested', () => {
+  it('keeps a failed import visible even when older local writes need attention', () => {
+    mocks.useSyncQueueMonitor.mockReturnValue({
+      stats: { failed: 17, pending: 0, conflict: 0, oldestPendingAgeMs: 0 },
+      operations: [],
+      refresh: vi.fn(),
+    });
     const error = 'Eloísa no pudo leer la información solicitada. Revisa las pestañas de Rayen.';
     mocks.useRayenImport.mockReturnValue({
       mode: 'preview',

@@ -716,6 +716,22 @@
     "epicrisis-pdf-download.js": {
       "maxLines": 39,
       "hotspots": {}
+    },
+    "cudyr-capture-support.js": {
+      "maxLines": 68,
+      "hotspots": {}
+    },
+    "cudyr-placement-support.js": {
+      "maxLines": 40,
+      "hotspots": {
+        "iife>variable:buildPlacements": 16
+      }
+    },
+    "gestion-camas-monthly-cudyr-runtime.js": {
+      "maxLines": 54,
+      "hotspots": {
+        "iife": 18
+      }
     }
   }
 }

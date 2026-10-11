@@ -35,9 +35,14 @@ const mergePartialResult = (
       }
     : value;
 
-const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }> = ({
+type AntecedentsProps = { clinicalEpisodeId: string; isActive?: boolean };
+
+const ClinicalPanelAntecedentsForEpisode: React.FC<AntecedentsProps> = ({
   clinicalEpisodeId,
+  isActive = true,
 }) => {
+  const active = useRef(isActive);
+  const updateRefreshSchedule = useRef<() => void>(() => undefined);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<ClinicalActionResult | null>(null);
   const [olderPages, setOlderPages] = useState<OlderPage[]>([]);
@@ -53,7 +58,7 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
     let timer: number | undefined;
     let lastRefreshStarted = Number.NEGATIVE_INFINITY;
     const refresh = (): void => {
-      if (refreshing || document.visibilityState === 'hidden') return;
+      if (refreshing || !active.current || document.visibilityState === 'hidden') return;
       lastRefreshStarted = Date.now();
       window.clearInterval(timer);
       timer = window.setInterval(refresh, 300000);
@@ -76,20 +81,35 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
         })
         .finally(() => {
           refreshing = false;
+          if (!controller.signal.aborted && Date.now() - lastRefreshStarted >= 300000) refresh();
         });
     };
     refresh();
-    // Avoid hidden-tab work and only refresh on return when the five-minute period elapsed.
+    // Retain the original deadline and pending request while the panel tab is inactive.
     const onVisibilityChange = (): void => {
-      if (Date.now() - lastRefreshStarted >= 300000) refresh();
+      window.clearInterval(timer);
+      if (!active.current || document.visibilityState === 'hidden') return;
+      const remaining = 300000 - (Date.now() - lastRefreshStarted);
+      if (remaining > 0) {
+        timer = window.setTimeout(refresh, remaining);
+      } else {
+        timer = window.setInterval(refresh, 300000);
+        refresh();
+      }
     };
+    updateRefreshSchedule.current = onVisibilityChange;
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       controller.abort();
+      updateRefreshSchedule.current = () => undefined;
     };
   }, [clinicalEpisodeId, attempt]);
+  useEffect(() => {
+    active.current = isActive;
+    updateRefreshSchedule.current();
+  }, [isActive]);
   const lastOlderPage = olderPages.at(-1);
   const nextBeforeDate = lastOlderPage
     ? lastOlderPage.data.warnings?.length
@@ -236,11 +256,13 @@ const ClinicalPanelAntecedentsForEpisode: React.FC<{ clinicalEpisodeId: string }
   );
 };
 
-export const ClinicalPanelAntecedents: React.FC<{ clinicalEpisodeId: string }> = ({
+export const ClinicalPanelAntecedents: React.FC<AntecedentsProps> = ({
   clinicalEpisodeId,
+  isActive = true,
 }) => (
   <ClinicalPanelAntecedentsForEpisode
     key={clinicalEpisodeId}
     clinicalEpisodeId={clinicalEpisodeId}
+    isActive={isActive}
   />
 );

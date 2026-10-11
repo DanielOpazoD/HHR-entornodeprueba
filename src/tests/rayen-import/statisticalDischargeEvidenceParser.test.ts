@@ -18,6 +18,51 @@ Informe Estadístico de Egreso Hospitalario
 `;
 
 describe('statistical discharge evidence parser', () => {
+  it('accepts a discharge timestamp without a unit on the same visual line', () => {
+    const separateBox = report.replace(' 1. Domicilio. 4 0 4', '');
+    expect(parseStatisticalDischargeEvidence(separateBox)?.dischargeAt).toBe('2026-07-25T14:28:00');
+    expect(
+      parseStatisticalDischargeEvidence(
+        separateBox.replace(' Área Médico Quirúrgico Cuidados Medios 4 0 4', '')
+      )
+    ).toBeNull();
+  });
+  it.each([
+    '25 1er TRASLADO 0 8 - ?? 2 5 - 0 7 - 2 6 Unidad',
+    '25 1er TRASLADO 0 8 - 30 2 6 - 0 7 - 2 6 Unidad',
+    '25 1er TRASLADO 0 8 - 30 2 3 - 0 7 - 2 6 Unidad',
+  ])('does not silently erase a malformed or out-of-stay transfer: %s', transfer => {
+    expect(
+      parseStatisticalDischargeEvidence(report.replace('25 1er TRASLADO - - -', transfer))
+    ).toBeNull();
+  });
+  it('recognizes degree markers normalized by the PDF text runtime', () => {
+    const text = report
+      .replace(
+        '25 1er TRASLADO - - -',
+        '25 1er TRASLADO 0 7 - 3 0 2 5 - 0 7 - 2 6 Cuidados Medios 4 0 4'
+      )
+      .replace(
+        '26 2° TRASLADO - - -',
+        '26 2o TRASLADO 0 8 - 3 0 2 5 - 0 7 - 2 6 Unidad de Paciente Crítico 4 0 5'
+      );
+    expect(parseStatisticalDischargeEvidence(text)?.transfers).toHaveLength(2);
+  });
+  it('rejects a transfer gap or ordinal order contradicting the clocks', () => {
+    const second = report.replace(
+      '26 2° TRASLADO - - -',
+      '26 2° TRASLADO 0 8 - 3 0 2 5 - 0 7 - 2 6 Cuidados Medios 4 0 4'
+    );
+    expect(parseStatisticalDischargeEvidence(second)).toBeNull();
+    expect(
+      parseStatisticalDischargeEvidence(
+        second.replace(
+          '25 1er TRASLADO - - -',
+          '25 1er TRASLADO 0 9 - 3 0 2 5 - 0 7 - 2 6 Cuidados Medios 4 0 4'
+        )
+      )
+    ).toBeNull();
+  });
   it('extracts identity and the admission-discharge interval from the official boxed layout', () => {
     const evidence = parseStatisticalDischargeEvidence(report);
 

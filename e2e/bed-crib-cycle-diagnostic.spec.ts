@@ -139,7 +139,7 @@ const getSecondRow = (page: Page) =>
 const getCribRow = (page: Page) =>
   page
     .locator('tr[data-testid="patient-row"]')
-    .filter({ has: page.getByText('CUNA', { exact: true }) })
+    .filter({ has: page.getByText('C-R1', { exact: true }) })
     .first();
 
 const openCensus = async (

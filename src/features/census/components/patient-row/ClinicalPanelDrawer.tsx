@@ -307,6 +307,7 @@ export const ClinicalPanelDrawer: React.FC<ClinicalPanelDrawerProps> = ({
                 <ClinicalPanelAntecedents
                   key={clinicalEpisodeId}
                   clinicalEpisodeId={clinicalEpisodeId}
+                  isActive={tab === 'antecedents'}
                 />
               </React.Suspense>
             </div>

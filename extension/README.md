@@ -6,6 +6,33 @@ Médico** y lo entrega al **censo local HHR** para importarlo con revisión. Ade
 vigente oficial de Eloísa. Como respaldo sin backend intermedio, cada paciente activo puede copiarse
 como un código versionado que HHR valida antes de una admisión manual y de la elección de cama.
 
+## Cunas creadas en Gestión de Camas (0.48.45)
+
+Las cunas no requieren un catálogo separado: `CH2C2`, `Cuna H2C2` y las demás
+cunas de las 18 camas físicas se reconocen cuando Gestión de Camas confirma el
+mismo episodio y la misma ubicación de Ficha Médico. HHR conserva al paciente
+principal y agrega el RN como `clinicalCrib`, con Pediatría como valor inicial;
+una especialidad modificada manualmente sigue respetándose. Repetir la
+sincronización no crea otra cuna. Ubicaciones desconocidas, relaciones no
+verificadas y colisiones entre RN siguen requiriendo revisión.
+
+Actualizar/recargar manualmente la extensión a **0.48.45** y recargar las pestañas
+de Eloísa abiertas para aplicar este reconocimiento.
+
+## Diagnóstico de fallos del panel (0.48.44)
+
+Cuando una fuente impide cargar el panel, «Detalle de la conexión» conserva el error
+original y añade un código `HHR_PANEL_V1` con estado y duración en milisegundos de
+historial, cuidados, medicamentos activos/inactivos y validación. El bloque técnico
+incluye sólo categorías fijas, estados y tiempos; se puede copiar para diagnosticar
+la demora sin compartir identificadores, URLs ni contenido clínico.
+
+Las cinco fuentes siguen consultándose en paralelo. Un fallo conserva el cierre
+seguro del panel: no se presenta una lista de medicamentos incompleta como válida.
+Las duraciones incluyen todas las páginas de cada consulta de medicamentos; no
+miden renderizado ni explican por sí solas un problema del servidor.
+Actualizar/recargar manualmente a **0.48.44** para obtener este diagnóstico.
+
 ## Epicrisis del episodio actual (0.48.43)
 
 Los iconos de alta del censo descargan por separado el PDF médico y el de enfermería.
@@ -500,3 +527,51 @@ Los detalles pueden reutilizar durante esos 30 segundos un listado parcial ya
 verificado: no vuelven a bloquearse por la fuente que falló. Un reintento explícito
 del listado vuelve a consultar las fuentes pendientes, manteniendo la información
 previa visible. Las lecturas simultáneas continúan compartiendo la solicitud en vuelo.
+
+## Captura permanente CUDYR (0.48.46)
+
+La respuesta compartida agrega IDs de autor/rol, token de versión y observaciones
+anuladas (`isDeleted`), separadas del resultado clínico vigente. Conserva episodios
+observados sin evaluaciones y distingue metadatos incompletos. HHR archiva estas
+capturas durante la sincronización; abrir el reporte o descargar Excel no consulta
+Eloísa. Recargar manualmente la extensión y las pestañas conectadas para utilizar
+el nuevo contrato; una extensión anterior conserva compatibilidad y se identifica
+como cobertura desconocida. No acredita recuperación histórica completa.
+
+El módulo `cudyr-capture-support.js` concentra el historial y lectura de metadatos
+opcionales. Owner: sincronización HHR/Eloísa. Su registro nuevo en el ratchet de
+extensión no aumenta límites de archivos existentes ni admite hotspots nuevos.
+
+### CUDYR 0.48.47: cama y modalidad observadas
+
+El historial captura además la asignación original de cama/servicio con su intervalo,
+ID y versión. Los mapeos anidados antiguos se conservan como evidencia, sin anunciar
+ocupación vigente. La fecha centinela de término no se interpreta como alta. El nuevo
+helper `cudyr-placement-support.js` carga después de los normalizadores de camas/cunas.
+
+### Puente 0.48.48: dominio publicado de HHR de pruebas
+
+Se habilita `https://hhr-entorno-prueba.netlify.app` en los permisos, los content
+scripts y las validaciones internas de origen. Se conservan localhost:3000,
+localhost:3001 y testinghhr.netlify.app; no se habilitan otros sitios Netlify ni
+previews. La autorización de cada episodio sigue ligada a su pestaña y snapshot.
+
+Para aplicar: reemplazar el contenido de la carpeta de la extensión con el ZIP
+0.48.48, recargar la extensión en Chrome y recargar HHR y las pestañas Eloísa.
+El ingreso Google y el reconocimiento de la extensión son comprobaciones distintas.
+Owner: integración HHR/Eloísa. Rollback: volver al paquete anterior; el dominio
+hhr-entorno-prueba dejaría de enlazarse. Cierre: release gate, pruebas de los cuatro
+orígenes y rechazo de dominios ajenos, smoke MV3 sintético y reconocimiento en Chrome.
+
+### Puente 0.48.49: lectura CUDYR y evidencia de captura
+
+El relé HHR conserva `captureContract`, `observedEpisodeIds` y `metadataStatus`;
+una captura moderna no debe archivarse como una extensión antigua por perder esos campos.
+Las lecturas de camas, autores y definiciones reintentan una vez errores de red,
+HTTP 408/429 o 5xx. Un rechazo de autorización o una respuesta inválida siguen
+informándose; un fallo persistente no se convierte en ausencia de CUDYR.
+
+A las 22:41 del día D se recupera el historial previo: el CUDYR del turno D
+corresponde a la mañana D+1. Una captura vacía válida no es un error y no
+inventa un resultado para hoy. El archivo conserva la trazabilidad por episodio.
+Actualizar la extensión cargada en Chrome y recargar HHR para activar este relé.

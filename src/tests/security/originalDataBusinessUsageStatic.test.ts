@@ -24,6 +24,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // legacy fallback when an older movement lacks clinicalEpisodeId.
   'src/features/rayen-import/domain/applyCensusImportDiff.ts',
   'src/features/rayen-import/domain/censusDischargeHistory.ts',
+  // Capture ownership: legacy movements may preserve the episode ID only in their snapshot.
+  // This read discovers an archive target; the server revalidates it against the census.
+  'src/features/rayen-import/domain/cudyrCapturePlan.ts',
   // Continuity D-1 reads the preserved pre-discharge identity only to prove that an
   // episode missing from today's census already has an explicit clinical outcome.
   'src/features/rayen-import/domain/previousCensusContinuity.ts',
@@ -32,6 +35,9 @@ const ALLOWED_ORIGINAL_DATA_REFERENCES = [
   // Read-only historical audit: recover signed UPC evaluations from the patient
   // snapshot preserved in a completed movement, matched by patient and episode.
   'src/services/patient/patientUpcHistoryService.ts',
+  // Read-only CUDYR audit of completed movements; reject snapshots of another episode.
+  // This retained context is never evidence of continuing hospitalization.
+  'src/services/cudyr/cudyrReportFacts.ts',
   // Read-only historical maintenance: discover attributed staff in completed
   // movement snapshots, without changing clinical records or mining free text.
   'src/services/staff/censusStaffDiscovery.ts',

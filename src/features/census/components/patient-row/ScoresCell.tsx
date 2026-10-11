@@ -54,7 +54,11 @@ export const ScoresCell: React.FC<ScoresCellProps> = ({
   const model = buildScoresCellModel(data, currentDateString);
   const hasCompleteManualCudyr = isCudyrScoreComplete(data.cudyr);
   const cudyrPending =
-    !model.cudyr && !hasCompleteManualCudyr && isCudyrPatientEligible(currentDateString, data)
+    !isSubRow &&
+    data.bedMode !== 'Cuna' &&
+    !model.cudyr &&
+    !hasCompleteManualCudyr &&
+    isCudyrPatientEligible(currentDateString, data)
       ? resolveCudyrPendingStatus(currentDateString)
       : null;
   const hasCellContent = model.hasAny || cudyrPending != null;

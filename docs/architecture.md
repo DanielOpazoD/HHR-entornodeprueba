@@ -21,6 +21,17 @@ Las escrituras clínicas tienen controles propios que sí deben conservarse:
 - Los efectos del navegador usan `shared/runtime/browserWindowRuntimeCore`; el
   portapapeles usa `browserClipboardRuntime`. No recrear la fachada agregadora
   `browserWindowRuntime` retirada. Los adaptadores y sus fallbacks permanecen.
+- Las reglas puras de rutas/usuario del acceso al censo compartido viven en
+  `shared/access/sharedCensusAccess`, sin importar la fachada clínica del censo
+  desde el arranque. Las reglas de listado/filtro/permisos de sus archivos viven
+  con su caso de uso en `application/backup-export/sharedCensusFilesController`.
+- Se retiraron los aliases huérfanos y los del acceso/archivos/runtime del censo
+  compartido. Se conservan tres aliases de formularios/fechas/mover-copiar: su
+  migración a la fachada general aumentaba el shell sobre su presupuesto. No
+  ampliar esa fachada desde los consumidores hasta demostrar margen suficiente.
+- El censo compartido usa directamente el runtime de navegador de `shared/runtime`,
+  conservando su dependencia inyectable y reglas de acceso, sin adaptadores que sólo
+  reenvíen `alert` y `open`.
 - Unificar reglas repetidas en su dueño; evitar utilidades transversales de un solo uso.
 - Separar efectos de decisiones cuando permita verificar un comportamiento real.
 - Mantener entrypoints públicos acotados. Dentro de una feature, usar sus módulos
@@ -48,6 +59,11 @@ UI / contexto de día
 no requiere un constructor que vuelva a copiar el mismo objeto. La validación de
 cama de origen y el destino por defecto de la copia viven en
 `useDailyRecordCopyActions`, junto a la única operación que los consume.
+
+`useCensusActionsProviderModel` compone los parámetros de los comandos y del
+contexto en el mismo hook. `useCensusActionCommandsController` conserva su
+`useMemo` y las referencias actuales; no necesita constructores intermedios que
+sólo vuelvan a copiar campos. Las reglas y facades de movimientos permanecen.
 
 `dailyRecordReadResultController` proyecta una sola vez los metadatos de consistencia
 del golden path. Cada rama conserva el registro y la compatibilidad de su fuente;
@@ -100,6 +116,12 @@ operación con sus protecciones de identidad, episodio, fecha y autoridad. Una
 captura completa no equivale a persistencia confirmada. Consultar el
 [runbook de sync](RUNBOOK_SYNC_RESILIENCE.md) para diagnosticar captura,
 propuesta, persistencia y estado visible sin mezclarlos.
+
+`useMovementSectionModel` compone el estado derivado y las acciones sin un
+wrapper de runtime. `useMovementSectionActions` conserva un único
+`useConfirmedMovementAction` para deshacer y eliminar: la exclusión cubre la
+confirmación y la mutación de ambas acciones. `null` sigue siendo distinto de
+una colección ausente o vacía.
 
 ## Estado, errores y efectos
 
@@ -156,3 +178,28 @@ Ese único reducer puro conserva el rechazo de un registro nulo y delega las reg
 clínicas a los builders existentes, sin el antiguo controller intermediario.
 `HandoffRow` importa cada celda de su módulo propietario; el antiguo barrel
 `HandoffRowCells` no define una frontera pública ni debe recrearse.
+
+### Antecedentes conservados al cambiar de pestaña
+
+El drawer conserva la sección de antecedentes montada para mantener historia y
+paginación, pero comunica si está activa. La consulta periódica se pausa cuando
+la sección o el documento están ocultos. Al volver se conserva el plazo desde
+el último inicio; una solicitud pendiente no se cancela por cambiar de pestaña
+ni se duplica. Cambiar episodio o reintentar conserva su cancelación existente.
+
+### Apertura de documentos a través de la extensión
+
+El puente conserva el ID opaco y el protocolo existente. Solo acepta respuestas
+del mismo window, origen e identificador de solicitud. Respuesta, fallo de envío
+y timeout terminan por el mismo camino idempotente y liberan listener y timer.
+Un timeout no cancela una apertura ya enviada a la extensión ni autoriza reenviarla.
+
+### Comprobación de compatibilidad del runtime
+
+VersionProvider comparte una sola comprobación en curso entre montaje, foco,
+visibilidad, intervalo y solicitud explícita. Cambiar su estado no reinicia
+el efecto ni dispara otra consulta. Una observación de esquema más nuevo no
+se borra por una respuesta compatible que estaba pendiente; los errores liberan
+la petición para reintentar. Al desmontar, no se aplican respuestas tardías ni
+se inicia trabajo mediante callbacks anteriores. El endpoint y sus contratos
+permanecen intactos; no se añade caché ni se cancela el bootstrap de la sesión.

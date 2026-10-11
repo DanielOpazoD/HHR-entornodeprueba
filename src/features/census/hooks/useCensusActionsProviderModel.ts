@@ -1,8 +1,4 @@
 import { getCurrentClockTimeHHMM } from '@/features/census/controllers/censusClockController';
-import {
-  buildCensusActionCommandsControllerParams,
-  buildCensusActionContextValuesParams,
-} from '@/features/census/controllers/censusActionsProviderModelController';
 import { buildCensusActionRuntimeRefsParams } from '@/features/census/controllers/censusActionRuntimeRefsController';
 import { useCensusActionCommandsController } from '@/features/census/hooks/useCensusActionCommandsController';
 import { useCensusActionContextValues } from '@/features/census/hooks/useCensusActionContextValues';
@@ -35,24 +31,23 @@ export const useCensusActionsProviderModel = ({
     })
   );
 
-  const { executeMoveOrCopy, executeDischarge, executeTransfer, handleRowAction } =
-    useCensusActionCommandsController(
-      buildCensusActionCommandsControllerParams({
-        runtimeRefs,
-        stateStore,
-        getCurrentTime,
-      })
-    );
+  const commands = useCensusActionCommandsController({
+    ...runtimeRefs,
+    setActionState: stateStore.setActionState,
+    setDischargeState: stateStore.setDischargeState,
+    setTransferState: stateStore.setTransferState,
+    getCurrentTime,
+  });
 
-  return useCensusActionContextValues(
-    buildCensusActionContextValuesParams({
-      stateStore,
-      commands: {
-        executeMoveOrCopy,
-        executeDischarge,
-        executeTransfer,
-        handleRowAction,
-      },
-    })
-  );
+  return useCensusActionContextValues({
+    actionState: stateStore.actionState,
+    setActionState: stateStore.setActionState,
+    dischargeState: stateStore.dischargeState,
+    setDischargeState: stateStore.setDischargeState,
+    transferState: stateStore.transferState,
+    setTransferState: stateStore.setTransferState,
+    ...commands,
+    handleEditDischarge: stateStore.handleEditDischarge,
+    handleEditTransfer: stateStore.handleEditTransfer,
+  });
 };

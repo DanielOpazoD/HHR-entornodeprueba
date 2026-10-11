@@ -151,3 +151,76 @@ y el despliegue no forman parte de esta alineación del tooling local/CI.
 - **RollbackPlan:** revertir el PR y ejecutar `npm ci`; no modificar datos ni colas.
 - **VerificationGate:** tipos, lint, audit, exportación PDF, comparación del grafo
   retenido y CSS, build/preview, revisión independiente y CI del head final.
+
+### Lector del respaldo mensual CUDYR (2026-10-07)
+
+- **Owner:** módulo CUDYR de HHR.
+- **Reason:** leer los informes BIFF/XLS de Eloísa como evidencia consultiva.
+- **TargetVersion:** SheetJS 0.20.3, tarball oficial fijado con integridad en lockfile.
+- **RiskLevel:** medio: archivo externo; tamaño 256 KiB, firma, expansión ZIP declarada,
+  filas/columnas acotadas, fórmulas rechazadas y worker terminable a los 10 segundos.
+- **RollbackPlan:** revertir este PR; el archivo documental de servidor permanece
+  conservado y el reporte principal mantiene su contrato.
+- **VerificationGate:** tipo `dependency_upgrade`, controles estáticos, unitarios,
+  build/presupuesto, navegador sintético y revisión independiente. Worker opcional
+  fuera del precache; no se amplían los presupuestos de arranque o tamaño.
+
+### Parches transitivos de HTTP (2026-10-06)
+
+- **Owner:** plataforma Firebase/Functions y tooling HHR.
+- **Reason:** corregir versiones vulnerables detectadas por el audit de ambos
+  paquetes; no se ha demostrado explotación en HHR.
+- **TargetVersion:** `proxy-addr` 2.0.8 y `@fastify/busboy` 3.2.2 en raíz y
+  Functions; `compression` 1.8.2, `http-cache-semantics` 4.3.0 y `source-map-js`
+  1.2.2 en raíz. Sólo resoluciones compatibles con los manifests existentes.
+- **RiskLevel:** medio: cambia procesamiento HTTP y tooling transitivo; no cambia
+  el SDK Firebase, permisos, contratos clínicos ni configuración de proxies.
+- **RollbackPlan:** revertir los dos lockfiles y ejecutar `npm ci` en raíz y
+  Functions; reaparecerían las versiones vulnerables. No modificar datos ni colas.
+- **VerificationGate:** `dependency_upgrade`: instalación, auditoría de ambos
+  paquetes, `ci:merge-gate`, suites Functions, runtime PDF, revisión independiente
+  y CI del head definitivo. Un fallo de audit impide el merge.
+
+La auditoría posterior conserva hallazgos altos en la cadena de desarrollo de
+`braces` 3.0.3, sin versión corregida publicada al comprobarla. Estos parches no
+resuelven ese bloqueo ni autorizan excepciones o rebajas del umbral.
+
+Estos mismos parches se incorporan al PR CUDYR #764 para reducir su bloqueo de
+auditoría, conservando la dependencia SheetJS y los controles vigentes. El origen
+es el PR #738; no se incorporan otros cambios de ese PR. La auditoría remota del
+head actualizado determinará los hallazgos restantes. Las consultas locales
+frescas al registro npm están bloqueadas por la cadena TLS de la red; resultados
+en caché no acreditan disponibilidad actual de versiones. No se desactiva TLS.
+
+### Parches de Sharp y SDK MCP para #764 (2026-10-07)
+
+- **Owner:** plataforma de imágenes y tooling Firebase HHR.
+- **Reason:** completar las actualizaciones disponibles de la auditoría; no se ha
+  demostrado explotación en HHR.
+- **TargetVersion:** Sharp 0.35.5, sus binarios 0.35.5 y libvips 1.3.4; SDK MCP
+  transitivo 1.32.1. Se conservan los rangos de los manifests y el SDK Firebase.
+- **RiskLevel:** medio: dependencias nativas de imagen y cliente MCP del tooling.
+- **RollbackPlan:** revertir este commit y ejecutar npm ci; reaparecen los avisos.
+  No modificar censos, credenciales ni permisos.
+- **VerificationGate:** instalación limpia, runtime Sharp, carga del tooling,
+  ci:merge-gate, navegador/emulador sintético, revisión independiente y auditoría
+  remota del head definitivo. No integrar mientras existan altos/críticos activos.
+
+El diagnóstico aislado de GitHub Actions, run 37685292433, resolvió los paquetes
+con TLS validado, scripts de instalación deshabilitados y token de sólo lectura.
+Se verificaron los SHA-512 de 28 tarballs oficiales en el runner y localmente.
+Únicamente esas 28 entradas se trasladan al lockfile; se descartan 16 cambios de
+metadatos libc ajenos. La instalación local usa caché por integridad, sin rebajar
+TLS. El workflow diagnóstico no se incorpora a este PR ni a main.
+
+La auditoría del árbol resuelto conserva siete paquetes altos en una misma cadena
+de braces 3.0.3; el registro fresco sigue publicando esa versión como latest.
+Esta evidencia no autoriza una excepción ni un downgrade del plugin de límites
+arquitectónicos. Sharp: GHSA-wq5f-xc86-pv6w. SDK MCP: GHSA-6qxp-vccf-f47h.
+
+### Aceptación temporal de braces (2026-10-07)
+
+Excepción autorizada explícitamente por Daniel Opazo, limitada al aviso y árbol
+de desarrollo aprobados, con vencimiento 2026-10-15T00:00:00Z. Se conservan
+los hallazgos originales y un aviso visible; otros riesgos siguen bloqueando.
+Owner, riesgo residual, rollback y validación: [registro de aceptación](BRACES_TEMPORARY_RISK_ACCEPTANCE.md).

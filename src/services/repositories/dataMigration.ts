@@ -10,6 +10,7 @@
 import { DailyRecord } from '@/types/domain/dailyRecord';
 import { parseDailyRecordWithDefaultsReport } from '@/schemas/zodSchemas';
 import { normalizeDailyRecordInvariants } from '@/utils/recordInvariants';
+import { recoverImportedMovementCalendarDate } from '@/utils/movementCalendarDate';
 import {
   DailyRecordMigrationResult,
   LegacyMigrationRule,
@@ -243,6 +244,15 @@ export const migrateLegacyDataWithReport = (
   // 2. Apply invariants so the current runtime never sees sparse bed maps.
   migrated = normalizeDailyRecordInvariants(migrated).record;
   pushRule(appliedRules, 'record_invariants_normalized');
+
+  // Correct the former import contract on both Firebase and local-cache reads, without remote writes.
+  const recoverMovement = <
+    T extends DailyRecord['discharges'][number] | DailyRecord['transfers'][number],
+  >(
+    movement: T
+  ): T => recoverImportedMovementCalendarDate(movement, date);
+  migrated.discharges = migrated.discharges.map(recoverMovement);
+  migrated.transfers = migrated.transfers.map(recoverMovement);
 
   // 3. Apply explicit legacy compatibility rules that are still supported.
   migrateLegacyNurses(normalizedRecord, migrated, appliedRules);

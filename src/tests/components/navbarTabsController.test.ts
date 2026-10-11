@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveIsNavbarItemActive } from '@/components/layout/navbar/navbarTabsController';
 
 describe('navbarTabsController', () => {
-  it('resolves item active state including CUDYR alias for NURSING_HANDOFF', () => {
+  it('resolves item active state including CUDYR alias for CENSUS', () => {
     expect(
       resolveIsNavbarItemActive({
         currentModule: 'CENSUS',
@@ -15,7 +15,7 @@ describe('navbarTabsController', () => {
     expect(
       resolveIsNavbarItemActive({
         currentModule: 'CUDYR',
-        itemModule: 'NURSING_HANDOFF',
+        itemModule: 'CENSUS',
         censusViewMode: 'REGISTER',
       })
     ).toBe(true);

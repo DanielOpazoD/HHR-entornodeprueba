@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 
 import {
   bootstrapSeededRecord,
@@ -337,14 +338,87 @@ const createMedicalHandoffEvidence = async (page: Page) => {
 };
 
 const createCudyrEvidence = async (page: Page) => {
-  await page.goto(`/cudyr?date=${E2E_DATE}`, { waitUntil: 'domcontentloaded' });
+  const runtimeConfig = {
+    apiKey: 'placeholder',
+    authDomain: 'demo-hhr.firebaseapp.com',
+    projectId: 'demo-hhr-e2e',
+    storageBucket: 'demo-hhr-e2e.firebasestorage.app',
+    messagingSenderId: '1234567890',
+    appId: '1:1234567890:web:abcdef123456',
+  };
+  await page.route('**/.netlify/functions/firebase-config**', route =>
+    route.fulfill({ json: runtimeConfig })
+  );
+  await page.addInitScript(
+    config => localStorage.setItem('hhr_firebase_config', JSON.stringify(config)),
+    runtimeConfig
+  );
+  // Layout/download fixture only. Persistence and callable authorization are covered
+  // by cudyr-report-explorer.spec.ts against the isolated Firestore emulator.
+  await page.route('**/readCudyrHistory', async route => {
+    const headers = {
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': '*',
+      'access-control-allow-methods': 'POST,OPTIONS',
+    };
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers });
+      return;
+    }
+    const kind = route.request().postDataJSON().data.kind || 'history';
+    const patient = (buildVisualReleaseRecord(E2E_DATE).beds as Record<string, object>).R1;
+    const observation = {
+      id: 'visual-cudyr',
+      censusDate: E2E_DATE,
+      captureCensusDate: E2E_DATE,
+      captureContexts: [
+        {
+          ...patient,
+          bedId: 'R1',
+          section: 'census',
+          admissionDate: '2026-02-18',
+          admissionTime: '09:00',
+          clinicalEpisodeId: 'visual-episode',
+        },
+      ],
+      evaluation: {
+        clinicalEpisodeId: 'visual-episode',
+        sourceEvaluationId: 'visual-cudyr',
+        category: 'C2',
+        source: 'gestion_camas',
+        recordedAt: E2E_DATE + 'T20:00:00-05:00',
+        author: 'Autora sintética',
+        dependencyScore: 9,
+        riskScore: 8,
+      },
+      firstCapturedAt: E2E_DATE + 'T23:00:00Z',
+      lastVerifiedAt: E2E_DATE + 'T23:00:00Z',
+    };
+    const responses: Record<string, object> = {
+      history: { observations: [observation], nextCursor: null },
+      captures: { captures: [], nextCursor: null },
+      'episode-captures': { captures: [], nextCursor: null },
+      'discharge-corrections': { corrections: [] },
+      'daily-exclusions': { exclusions: [], nextCursor: null },
+    };
+    if (!responses[kind]) throw new Error('Unexpected CUDYR visual fixture query: ' + kind);
+    await route.fulfill({ headers, json: { result: responses[kind] } });
+  });
+  await page.goto(`/censo?date=${E2E_DATE}`, { waitUntil: 'domcontentloaded' });
+  await ensureAuthenticated(page);
+  await page.getByRole('button', { name: 'Más opciones del censo' }).click();
+  await page.getByRole('button', { name: 'CUDYR · control diario', exact: true }).click();
   await expect(page).toHaveURL(/\/cudyr/, { timeout: 20_000 });
-  await expect(page.getByRole('heading', { name: /instrumento cudyr/i })).toBeVisible({
+  await expect(page.getByRole('heading', { name: /CUDYR · control diario/i })).toBeVisible({
     timeout: 20_000,
   });
   await expect(page.getByRole('button', { name: /excel mensual/i })).toBeVisible({
     timeout: 10_000,
   });
+  await expect(page.getByText('VALIDACION VISUAL BLOQUE 4', { exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+  await expect(page.getByRole('button', { name: /excel mensual/i })).toBeEnabled();
 };
 
 const verifyCudyrExcelDownload = async (page: Page, testInfo: TestInfo) => {
@@ -361,6 +435,25 @@ const verifyCudyrExcelDownload = async (page: Page, testInfo: TestInfo) => {
 
 test.describe('Clinical release visual smoke', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
+  let rules: RulesTestEnvironment;
+  test.beforeAll(async () => {
+    const host = process.env.FIRESTORE_EMULATOR_HOST || '';
+    if (!/^(127\.0\.0\.1|localhost):\d+$/.test(host))
+      throw new Error('Visual CUDYR requires an isolated local Firestore emulator.');
+    const [hostname, port] = host.split(':');
+    rules = await initializeTestEnvironment({
+      projectId: 'demo-hhr-e2e',
+      firestore: {
+        host: hostname,
+        port: Number(port),
+        rules:
+          'rules_version = "2"; service cloud.firestore { match /databases/{database}/documents { match /hospitals/hanga_roa/dailyRecords/{day} { allow read: if true; } } }',
+      },
+    });
+  });
+  test.afterAll(async () => {
+    if (rules) await rules.cleanup();
+  });
 
   test('creates release-critical clinical surfaces without layout overflow', async ({
     page,

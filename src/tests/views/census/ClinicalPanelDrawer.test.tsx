@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -63,7 +63,10 @@ describe('ClinicalPanelDrawer', () => {
     const view = renderDrawer('R1');
     await screen.findByText('Evolución médica estable.');
     expect(mocks.clinicalAction).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Antecedentes' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Antecedentes' }));
+      await vi.dynamicImportSettled();
+    });
     await screen.findByText('Antecedentes de Eloísa');
     await waitFor(() => expect(mocks.clinicalAction).toHaveBeenCalledTimes(1));
     expect(mocks.clinicalAction).toHaveBeenCalledWith(

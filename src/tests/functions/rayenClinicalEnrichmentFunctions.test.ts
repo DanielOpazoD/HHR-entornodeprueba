@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildLegacyClinicalEnrichmentDigest,
   createClinicalAdminMock,
   createRayenClinicalEnrichmentFunctions,
   digestPayload,
+  expectClinicalTelemetryMetadata,
   makeClinicalRecord,
   makeContext,
   makePayload,
@@ -18,7 +19,12 @@ const createApi = (admin: ReturnType<typeof createClinicalAdminMock>, role = 'nu
   });
 
 describe('applyRayenClinicalEnrichmentBatch', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-06T18:19:20.120Z'));
+  });
+  afterEach(() => vi.useRealTimers());
 
   it('applies all allowlisted patient fields with one census read and one run snapshot', async () => {
     const admin = createClinicalAdminMock();
@@ -66,8 +72,7 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
     expect(admin.set.mock.calls[0]?.[1]?.meta?.clinicalEnrichmentReceipts?.[0]?.digest).toBe(
       buildLegacyClinicalEnrichmentDigest(parseClinicalEnrichmentPayload(makePayload()))
     );
-    const telemetry = JSON.stringify(admin.telemetryAdd.mock.calls[0]?.[0]);
-    expect(telemetry).not.toMatch(/H2C1|episode-secret|Paciente reservado|11\.111|braden|120/);
+    expectClinicalTelemetryMetadata(admin.telemetryAdd.mock.calls[0]?.[0]);
   });
   it('recognizes an exact committed retry even after the global policy changes', async () => {
     const payload = makePayload();
@@ -181,7 +186,10 @@ describe('applyRayenClinicalEnrichmentBatch', () => {
   });
 
   it.each([
-    { label: 'omits CUDYR from the canonical score object', evaluationScores: { braden: { total: 18 } } },
+    {
+      label: 'omits CUDYR from the canonical score object',
+      evaluationScores: { braden: { total: 18 } },
+    },
     { label: 'sets CUDYR to null', evaluationScores: { cudyr: null } },
   ])('rejects a canonical patch that $label', async ({ evaluationScores }) => {
     const remote = makeClinicalRecord();

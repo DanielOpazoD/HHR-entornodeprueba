@@ -41,6 +41,11 @@ on:
     paths:
       - 'functions/**'
       - 'firebase.json'
+      - 'scripts/build-cudyr-source-parser.mjs'
+      - 'src/services/cudyr/cudyrSourceServerEntry.ts'
+      - 'src/services/cudyr/cudyrSupplementBinary.ts'
+      - 'src/services/cudyr/cudyrSupplementParser.ts'
+      - 'src/services/cudyr/cudyrCensusParser.ts'
       - '.github/workflows/deploy-functions.yml'
       - 'scripts/check-deployed-firebase-functions.mjs'
       - 'scripts/check-firebase-function-regions.mjs'
@@ -81,6 +86,12 @@ jobs:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: functions/package-lock.json
+
+      - name: Install source parser build dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify shared CUDYR parser
+        run: node scripts/build-cudyr-source-parser.mjs --check
 
       - name: Install function dependencies
         working-directory: functions

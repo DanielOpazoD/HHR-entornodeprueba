@@ -71,25 +71,44 @@ export const FonasaSearchInput: React.FC<FonasaSearchInputProps> = ({
   const [searching, setSearching] = useState(false);
   const [aiSearching, setAiSearching] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchGenerationRef = useRef(0);
+  const aiRequestGenerationRef = useRef<number | null>(null);
+  const preferredAiGenerationRef = useRef<number | null>(null);
+  const manualClearCatalogRef = useRef<FonasaCatalog | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const aiAvailable = isFonasaAIAvailable();
 
-  // Reset internal state when props are cleared externally (e.g. "Eliminar egreso")
-  useEffect(() => {
-    if (!code && !description) {
-      setMode('catalog');
-      setQuery('');
-      setResults([]);
-      setShowDropdown(false);
-    }
-  }, [code, description]);
-
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+  const discardPendingSearch = useCallback(() => {
+    searchGenerationRef.current += 1;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
   }, []);
+
+  const resetSearchActivity = useCallback(() => {
+    discardPendingSearch();
+    setSearching(false);
+  }, [discardPendingSearch]);
+
+  // A response belongs to the current query, catalog and controlled selection.
+  useEffect(() => {
+    resetSearchActivity();
+    setResults(previous => (previous.length ? [] : previous));
+    setShowDropdown(false);
+    const preserveManualChoice = manualClearCatalogRef.current === catalog;
+    manualClearCatalogRef.current = null;
+    if (!code && !description) {
+      if (!preserveManualChoice) setMode('catalog');
+      setQuery('');
+    }
+  }, [code, description, catalog, resetSearchActivity]);
+
+  useEffect(
+    () => () => {
+      discardPendingSearch();
+      aiRequestGenerationRef.current = null;
+    },
+    [discardPendingSearch]
+  );
 
   // Close dropdown when clicking outside the component
   useEffect(() => {
@@ -106,8 +125,10 @@ export const FonasaSearchInput: React.FC<FonasaSearchInputProps> = ({
   /** Debounced catalog search using abbreviation expansion. */
   const handleCatalogSearch = useCallback(
     (value: string) => {
+      resetSearchActivity();
+      const generation = searchGenerationRef.current;
       setQuery(value);
-      if (timerRef.current) clearTimeout(timerRef.current);
+      setResults(previous => (previous.length ? [] : previous));
       if (value.length < 2) {
         setResults([]);
         setShowDropdown(false);
@@ -115,49 +136,67 @@ export const FonasaSearchInput: React.FC<FonasaSearchInputProps> = ({
       }
       setShowDropdown(true);
       timerRef.current = setTimeout(async () => {
+        timerRef.current = null;
         setSearching(true);
         try {
           const res = await searchFonasa(catalog, value);
-          setResults(res);
+          if (
+            generation === searchGenerationRef.current &&
+            preferredAiGenerationRef.current !== generation
+          )
+            setResults(res);
         } catch {
-          setResults([]);
+          if (
+            generation === searchGenerationRef.current &&
+            preferredAiGenerationRef.current !== generation
+          )
+            setResults([]);
         } finally {
-          setSearching(false);
+          if (generation === searchGenerationRef.current) setSearching(false);
         }
       }, FONASA_SEARCH_DEBOUNCE_MS);
     },
-    [catalog]
+    [catalog, resetSearchActivity]
   );
 
   /** On-demand AI search using the shared AI provider. */
   const handleAiSearch = useCallback(async () => {
-    if (query.length < 2 || aiSearching) return;
+    if (query.length < 2 || aiRequestGenerationRef.current !== null) return;
+    const generation = searchGenerationRef.current;
+    aiRequestGenerationRef.current = generation;
     setAiSearching(true);
     try {
       const aiResults = await searchFonasaAI(catalog, query);
-      if (aiResults.length > 0) {
+      if (generation === searchGenerationRef.current && aiResults.length > 0) {
+        preferredAiGenerationRef.current = generation;
         setResults(aiResults);
         setShowDropdown(true);
       }
     } catch {
       // AI unavailable — keep existing results
     } finally {
-      setAiSearching(false);
+      if (aiRequestGenerationRef.current === generation) {
+        aiRequestGenerationRef.current = null;
+        setAiSearching(false);
+      }
     }
-  }, [query, catalog, aiSearching]);
+  }, [query, catalog]);
 
   /** Switch between catalog and manual input modes. */
   const handleSwitchMode = useCallback(
     (newMode: FonasaInputMode) => {
+      resetSearchActivity();
       setMode(newMode);
       if (newMode === 'manual') {
+        // The parent echoes this clear; it must not undo the explicit mode choice.
+        manualClearCatalogRef.current = code || description ? catalog : null;
         onClear();
         setQuery('');
         setResults([]);
         setShowDropdown(false);
       }
     },
-    [onClear]
+    [onClear, code, description, catalog, resetSearchActivity]
   );
 
   // --- Selected code display (catalog mode) ---
@@ -269,6 +308,7 @@ export const FonasaSearchInput: React.FC<FonasaSearchInputProps> = ({
                 type="button"
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => {
+                  resetSearchActivity();
                   onSelect(entry);
                   setQuery('');
                   setShowDropdown(false);

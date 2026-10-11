@@ -54,7 +54,22 @@ export type DailyRecordMedicalHandoffSummaryState = Pick<
 export type DailyRecordCmaState = Pick<DailyRecord, 'cma'>;
 
 export type DailyRecordCudyrState = Pick<DailyRecord, 'date' | 'beds' | 'activeExtraBeds'>;
-export type DailyRecordCudyrExportState = DailyRecordCudyrState & Pick<DailyRecord, 'lastUpdated'>;
+export type DailyRecordCudyrExportState = DailyRecordCudyrState &
+  Pick<DailyRecord, 'lastUpdated'> &
+  Partial<
+    Pick<
+      DailyRecord,
+      | 'discharges'
+      | 'transfers'
+      | 'cma'
+      | 'rayenSync'
+      | 'cudyrUpdatedAt'
+      | 'cudyrUpdatedBy'
+      | 'cudyrUpdatedById'
+      | 'cudyrCompletedAt'
+      | 'cudyrShiftDate'
+    >
+  >;
 
 export type DailyRecordCsvExportState = Pick<
   DailyRecord,

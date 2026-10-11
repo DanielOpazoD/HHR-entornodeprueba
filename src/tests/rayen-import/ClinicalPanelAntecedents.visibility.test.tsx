@@ -103,4 +103,72 @@ describe('antecedent refresh visibility', () => {
     await changeVisibility('visible');
     expect(request).toHaveBeenCalledTimes(2);
   });
+  it('retains history without new requests while the panel tab is inactive', async () => {
+    const view = render(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive />);
+    await act(async () => undefined);
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive={false} />);
+    await act(async () => vi.advanceTimersByTimeAsync(15 * 60_000));
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Historia conservada')).toBeInTheDocument();
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive />);
+    await act(async () => undefined);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the original deadline when returning before the refresh period', async () => {
+    const view = render(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive />);
+    await act(async () => vi.advanceTimersByTimeAsync(120_000));
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive={false} />);
+    await act(async () => vi.advanceTimersByTimeAsync(120_000));
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive />);
+    await act(async () => vi.advanceTimersByTimeAsync(59_999));
+    expect(request).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for the active tab on mount and preserves a pending request on tab changes', async () => {
+    let finish!: (value: typeof response) => void;
+    request.mockReturnValueOnce(
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    const view = render(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive={false} />);
+    await act(async () => vi.advanceTimersByTimeAsync(600_000));
+    expect(request).not.toHaveBeenCalled();
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive />);
+    await act(async () => undefined);
+    expect(request).toHaveBeenCalledTimes(1);
+    const signal = request.mock.calls[0][3] as AbortSignal;
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive={false} />);
+    await act(async () => vi.advanceTimersByTimeAsync(600_000));
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive />);
+    await act(async () => undefined);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(signal.aborted).toBe(false);
+    await act(async () => finish(response));
+    expect(screen.getByText('Historia conservada')).toBeInTheDocument();
+    view.unmount();
+    expect(signal.aborted).toBe(true);
+  });
+  it('resumes an overdue refresh after the retained request completes beyond its deadline', async () => {
+    let finish!: (value: typeof response) => void;
+    request.mockReturnValueOnce(
+      new Promise(resolve => {
+        finish = resolve;
+      })
+    );
+    const view = render(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive />);
+    await act(async () => vi.advanceTimersByTimeAsync(120_000));
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive={false} />);
+    await act(async () => vi.advanceTimersByTimeAsync(120_000));
+    view.rerender(<ClinicalPanelAntecedents clinicalEpisodeId="12" isActive />);
+    await act(async () => vi.advanceTimersByTimeAsync(120_000));
+    expect(request).toHaveBeenCalledTimes(1);
+    await act(async () => finish(response));
+    expect(request).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTimeAsync(300_000));
+    expect(request).toHaveBeenCalledTimes(3);
+  });
 });

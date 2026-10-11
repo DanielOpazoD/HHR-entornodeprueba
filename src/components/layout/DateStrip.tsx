@@ -5,7 +5,10 @@
 
 import React, { useRef } from 'react';
 import { CalendarClock, Search } from 'lucide-react';
-import { resolveShiftedMonthYear } from '@/components/layout/date-strip/dateStripNavigationController';
+import {
+  resolveShiftedMonthYear,
+  resolveMonthLandingDay,
+} from '@/components/layout/date-strip/dateStripNavigationController';
 import { DateStripDayButtons } from '@/components/layout/date-strip/DateStripDayButtons';
 import type { MedicalIndicationsPatientOption } from '@/shared/contracts/medicalIndications';
 import { useDateStripWheelNavigation } from '@/components/layout/date-strip/useDateStripWheelNavigation';
@@ -189,7 +192,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
 
     setSelectedMonth(nextMonthYear.month);
     setSelectedYear(nextMonthYear.year);
-    setSelectedDay(1);
+    setSelectedDay(resolveMonthLandingDay(nextMonthYear.year, nextMonthYear.month, currentModule));
   };
 
   const today = new Date();
@@ -309,7 +312,7 @@ export const DateStrip: React.FC<DateStripProps> = ({
               onChangeMonth={changeMonth}
               onSelectMonth={(month: number) => {
                 setSelectedMonth(month);
-                setSelectedDay(1);
+                setSelectedDay(resolveMonthLandingDay(selectedYear, month, currentModule));
               }}
             />
           </React.Suspense>

@@ -1,5 +1,4 @@
 import React from 'react';
-import { MedicalBadge } from '@/components/ui/base/MedicalBadge';
 import { PatientInputCells } from './PatientInputCells';
 import { shouldShowSubRowDemographicsButton } from '@/features/census/controllers/patientRowSubViewController';
 import type { PatientSubRowViewProps } from '@/features/census/components/patient-row/patientRowContracts';
@@ -66,9 +65,12 @@ export const PatientSubRowView: React.FC<PatientSubRowViewProps> = ({
         </div>
       </td>
       <td className="p-0 border-r border-slate-200 text-center w-16">
-        <MedicalBadge variant="purple" className="w-10 justify-center mx-auto">
-          CUNA
-        </MedicalBadge>
+        <span
+          className="inline-flex whitespace-nowrap rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[10px] font-medium tabular-nums text-slate-600"
+          title="Cuna vinculada a la cama"
+        >
+          {parentBedId ? `C-${parentBedId}` : 'Cuna'}
+        </span>
       </td>
       <PatientInputCells
         data={data}

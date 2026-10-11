@@ -1,0 +1,227 @@
+# Archivo permanente de CUDYR
+
+PR1 del bloque de trazabilidad CUDYR. Agrega contrato, escritor y lector de historia;
+la sincronización habitual y el Excel se conectarán en PR posteriores.
+
+## Identidad y conservación
+
+`hospitals/{HOSPITAL_ID}/cudyrHistory/{observationId}` guarda una observación de una
+evaluación oficial. `eventKey` agrupa observaciones por establecimiento, episodio,
+fuente e identificador de evaluación. `observationId` incluye además el contenido
+normalizado. Repetir exactamente el contenido no crea otra observación; una
+corrección o metadata distinta conserva otra observación del mismo evento.
+
+Una observación NO equivale a un paciente categorizado. El futuro consumidor debe
+agrupar por `eventKey`, conciliar versiones contradictorias y aplicar la regla diaria.
+No elegir automáticamente la última captura como verdad clínica: la fuente puede
+responder con una versión anterior. La ausencia de autor en una captura posterior
+no elimina la observación que conserva su nombre. `sourceVersion` es opaco y no
+acredita fecha de modificación ni orden causal.
+
+No se mantiene un array creciente dentro de `dailyRecords`, ni se modifican sus
+camas, resultados, cierre o revisiones. El archivo acepta evaluaciones anteriores
+a D−1 cuando el episodio está acreditado en el censo de la sincronización o en sus
+egresos, traslados o CMA vigentes. Conserva cunas; la exclusión estadística se resuelve
+por día en otro dominio. La política de modificación de censos D−1 permanece intacta.
+
+## Escritor
+
+`archiveCudyrHistory`, callable regional `southamerica-east1`, recibe versión de
+contrato 1, fecha del censo que autoriza la ejecución, `runId` y hasta 32 evaluaciones
+(500 kB por solicitud, 40 kB por observación con su contexto). Requiere los roles existentes de escritura clínica.
+La transacción valida la política global vigente, una ejecución estructural aplicada
+y cada episodio contra el documento autorizado. No recibe hospital, rutas ni identidad
+de paciente arbitrarios. Los datos identificables del contexto provienen del servidor.
+
+Los campos clínicos de una observación no cambian después de crearla; una repetición
+sólo actualiza la última verificación y su ejecución. Primera captura y responsable
+se conservan. Las respuestas confirman persistencia únicamente después del commit.
+Un error invalida el lote completo. No se registra el contenido clínico en logs.
+
+El tiempo de la fuente conserva el offset. `censusDate` usa la convención nocturna
+existente `hhr-night-v1` en Pacific/Easter: desde 00:01 hasta antes de 12:00 pertenece
+al día anterior. Esto es atribución de la evaluación, no elegibilidad del paciente.
+El contexto de cama pertenece a la primera captura; no prueba la cama al evaluar.
+
+Se exige identificador de evaluación de origen. El HAR validado lo contiene; los
+clientes sin identificador deben informar la limitación y no fabricar uno a partir
+de categoría/nombre. Esta versión admite resultados A1–D3, con o sin anulación
+explícita; un S/C sin evaluación válida es cobertura, no una evaluación archivada.
+
+## Lector
+
+`readCudyrHistory` requiere el acceso clínico callable existente. Lee exclusivamente
+el hospital del runtime, hasta 32 días calendario y 100 observaciones por página.
+Ordena por fecha de censo e ID; devuelve `nextCursor`, que debe agotarse. Las páginas
+reflejan datos disponibles al consultarlas; no constituyen por sí solas un cierre
+estadístico ni acreditan cobertura completa de Eloísa. El reporte debe declarar su
+corte y conciliación. La consulta usa índice de campo simple y desempate por ID.
+
+El cliente usa `cudyrHistoryService`. No hay acceso directo desde el navegador a la
+colección: las reglas conservan denegación por defecto. No se amplían roles ni
+permisos generales de edición.
+
+## Despliegue y validación
+
+Owner: sincronización clínica HHR. Riesgo: persistencia de información clínica;
+verificar autenticación, autoridad por ejecución, asociación de episodio y atomicidad.
+Rollback: revertir el registro de callables/adaptador; conservar el archivo ya escrito.
+No ejecutar borrado de datos como rollback.
+
+Antes de habilitar al cliente: verificar despliegue e invocación regional de ambos
+callables. Un endpoint nuevo puede requerir que un administrador autorizado complete
+su configuración de invocación; este PR no modifica IAM ni hace despliegue manual.
+
+Pruebas: contrato e invariantes, permisos de callables, emulador real con dos escritores
+concurrentes, egresado, versiones divergentes, repetición tardía y lectura paginada.
+Ejecutar además gates de runtime y release requeridos por el repositorio.
+Sólo fixtures sintéticos: no incluir HAR ni datos clínicos reales.
+
+## PR2: captura en la sincronización ordinaria
+
+Cada consulta compartida de Gestión de Camas alimenta tanto la proyección clínica
+como el archivo permanente. Se incluyen episodios del censo, cunas y movimientos
+activos del día; una cama vacía después del egreso no evita guardar historia recibida.
+La extensión 0.48.46 conserva IDs de evaluación/autor/rol, versiones y anulaciones.
+Una anulación no integra la proyección clínica vigente.
+
+El escritor admite una constancia opcional `capture`, incluso sin evaluaciones.
+La constancia y hasta 32 observaciones se guardan en la misma transacción. Un
+historial mayor se divide sin truncar: partes numeradas y total esperado, hasta
+256 evaluaciones por episodio. Sólo todas las partes confirmadas acreditan una
+captura completa. `cudyrCaptures` conserva por episodio y ejecución los estados
+`observed`, `not_observed`, `unavailable` y `legacy_extension`, así como la calidad
+de metadatos. `observed` vacío significa que la respuesta observada estaba vacía;
+no prueba que jamás existió un CUDYR ni cubre por sí solo todo el mes.
+
+`readCudyrHistory` acepta `kind: captures` para leer estas constancias con idénticos
+límites de fecha, paginación y permisos. La ausencia de constancias es desconocida,
+no cumplimiento cero. Abrir reportes usa los datos HHR; no inicia capturas Eloísa.
+
+Antes de enviar, HHR guarda el paquete exacto en la cola IndexedDB existente, con
+propietario de sesión, límites, estados y reintentos existentes. No acepta un
+fallback de memoria como persistencia. Una respuesta ambigua queda pendiente;
+únicamente una confirmación explícita del servidor permite retirar el pendiente.
+En un replay se revalida la autoridad del mismo censo y episodio; se conservan la
+ejecución fuente y el instante original observado. Un cambio de política/episodio
+puede bloquear el replay y exige revisión. La cola respeta la limpieza de sesión
+existente: cerrar sesión o borrar datos locales puede eliminar pendientes; no es
+el archivo compartido hasta confirmar el servidor. Los fallos permanecen visibles
+en el resultado de sync y en la cola, sin anunciar un archivo completo.
+
+Despliegue: primero backend, luego frontend/extensión. Mantener desactivado el
+consumidor si la invocación regional no está verificada. Rollback: revertir el
+consumidor de captura; conservar ambas colecciones y las evaluaciones ya archivadas.
+
+Cuando una respuesta contiene varias versiones distintas de la misma evaluación, se archivan
+todas. El token `timeStamp` es opaco y `creationDate` no fecha la revisión: no se elige una
+versión vigente por orden de llegada. Esa evaluación se excluye de la proyección clínica
+hasta que la fuente sea inequívoca, especialmente si alguna versión está anulada. Las
+asignaciones de cama repetidas de un mismo episodio se concilian antes de proyectar.
+
+La integración se habilita con la autoridad clínica `enforced`; los modos de compatibilidad
+`off`/`shadow` conservan su recorrido anterior y no ofrecen archivo permanente. Promover esa
+política es requisito del despliegue de esta capacidad, ya satisfecho en `hhr-pruebas`.
+
+La entrada pública de cola `queueCudyrArchiveTask` acepta sólo capturas CUDYR completas.
+Su payload conserva toda la observación en la misma escritura IndexedDB: no usa una
+escritura local separada ni habilita la API de cola heredada para censos clínicos.
+
+Las partes de una captura comparten un manifiesto inmutable en `cudyrCaptureManifests`,
+actualizado atómicamente con cada recibo. No se aceptan totales/fechas/estados contradictorios
+ni una misma observación en dos partes. El servidor comprueba autor, ID de autor/rol, token
+y 14 campos únicos antes de admitir metadatos completos; una captura observada vacía es
+válida. Las advertencias de completitud del archivo sólo afectan el modo `enforced`.
+
+El encolado genérico se carga a demanda desde `enqueueStandaloneSyncTask`: conserva el motor
+y la política de ownership/backpressure existentes, pero evita incorporar ese recorrido a
+la carga inicial del censo. No se aumentaron los límites de bundle para habilitar CUDYR.
+
+## Contexto temporal y agrupación estadística
+
+Desde la extensión 0.48.47, la misma respuesta de camas conserva los intervalos
+`bedEncounterMapping.startDateTime/endDateTime`, la cama y el servicio originales,
+el ID de asignación y el token de versión, dentro del recibo de captura por episodio.
+Se diferencia la ocupación superior de la cama de una asignación anidada antigua.
+Un fin con año 0001 es desconocido; no acredita alta. Tampoco lo acredita una epicrisis.
+Los movimientos HHR conservan fecha/hora informada y momento de clasificación separados.
+
+`readCudyrHistory` admite `kind: episode-captures`, hasta 30 episodios y 100 recibos por
+página, bajo los mismos permisos clínicos. Permite cotejar una evaluación anterior con
+un intervalo capturado después, sin consultar Eloísa. Debe agotarse la paginación.
+
+La política del reporte agrupa NEO 1–2 y H1C1–H6C2 como **medias**, y R1–R4 como
+**intermedias**. No depende de UPC ni de overrides de tipo de cama. Cuna y cualquier
+modalidad CMA son exclusiones temporales; se conservan en el detalle. La proyección
+resuelve la cama con la fecha original de la evaluación, o el corte HHR de 01:00 del
+siguiente día cuando falta evaluación. No extrapola un intervalo más allá de su captura.
+Ante falta de intervalo, identifica explícitamente el contexto como censo diario HHR.
+
+La regla de 8 horas se conserva. Ingreso sin hora suficiente para resolver el día,
+modalidades contradictorias y cambios de cuna/CMA a hospitalización cuyo inicio de horas
+requiere decisión quedan por revisar. Una transferencia posterior no reclasifica días
+anteriores ni convierte un CUDYR del tramo excluido en computable. La política de reporte
+no modifica la grilla clínica heredada; se comparte entre el Excel contextual y el visor.
+
+Rollback: revertir el consumidor de contexto, preservando recibos anteriores. Los campos
+nuevos son opcionales y las capturas antiguas siguen legibles. No se añaden endpoints,
+permisos ni consultas a Eloísa al explorar o exportar.
+
+## Reporte contextual y explorador
+
+En CUDYR → **Explorar reporte estadístico**, la consulta acotada a 32 días lee censos
+persistidos, observaciones, recibos y correcciones desde HHR. `cudyrReportModel` es el
+único cálculo de filas y totales para el Excel y el explorador. No invoca la extensión,
+no inicia sincronización ni drena la cola. Los pendientes se leen sólo para el propietario
+actual del dispositivo; un cambio de sesión o período invalida respuestas anteriores.
+
+La unidad computable es episodio/día, nunca RUT. Nombres, apellidos, documento,
+diagnóstico y fecha/origen de esa identidad permanecen en el detalle. Cuando la identidad
+procede de una captura posterior, se etiqueta esa fecha y no se utiliza como prueba de
+la cama del día previo. Los registros legados del censo sin episodio no se unen por aproximación. Contextos de archivo
+sin episodio verificable se conservan en **Contextos capturados**, versiones y recibos, con
+una incidencia de cobertura; no generan pacientes-día desde un vínculo incierto.
+
+Las versiones de un mismo evento no multiplican pacientes-día. Se selecciona la última
+aplicación diaria por su hora original; versiones contradictorias sin orden verificable
+quedan por revisar. Un token opaco no es un reloj. Una anulación impide reutilizar la
+instantánea anterior del evento. Los ajustes administrativos HHR conservan precedencia.
+El guardado general del censo no se atribuye como autor ni hora de una evaluación manual.
+
+El resumen mantiene las categorías y posiciones de las tablas del Excel original,
+con columnas **INTERMEDIAS / MEDIAS**. El denominador explícito pasa a pacientes-día
+**elegibles conocidos**: no incluye cunas, CMA ni elegibilidad sin resolver. Se agregan
+detalle diario, todas las versiones e ítems, capturas, intervalos de cama, movimientos,
+auditoría de altas, cobertura y metodología. El explorador filtra los mismos datos y
+muestra ese alcance; su botón Excel descarga el período completo consultado.
+
+Lecturas fallidas, censos ausentes y pendientes no se convierten en cero de cumplimiento.
+El resultado queda marcado para revisión si su cobertura es parcial. «Sin registro
+observado» no prueba incumplimiento: la respuesta de origen puede contener sólo una
+parte del historial. No se fabrican pacientes-día para fechas sin evidencia. Las fechas
+ISO conservan sus offsets; la presentación horaria usa Pacific/Easter. El archivo usa
+celdas de texto literales para identificadores y contenido clínico, nunca fórmulas del usuario.
+
+## Alta física verificada
+
+El mismo callable de archivo admite `kind: correct-discharge` **sólo para admin y
+nurse_hospital**, coherente con la edición de egresos. Exige confirmación explícita,
+episodio presente en el censo de autoridad, fecha entre ingreso y ahora, motivo, UUID
+idempotente y revisión esperada. La fecha y hora originales del sistema y la epicrisis
+no se editan. Una hora desconocida queda vacía; si impide resolver el día, queda por revisar.
+
+La transacción actualiza `cudyrDischargeCorrections/{sha256(episode)}` y crea una entrada
+inmutable en `cudyrDischargeAudit/{sha256(episode,operation)}`, con actor verificado por
+el servidor, valor anterior, razón y hora. Reintentar la misma operación conserva el acuse;
+una edición concurrente requiere volver a consultar. Retirar una fecha también crea
+revisión y auditoría. No modifica el censo ni Eloísa.
+
+`readCudyrHistory` expone `discharge-corrections` (hasta 30 episodios) y `discharge-audit`
+(un episodio, páginas de hasta 100, cursor de documento), tras el guard clínico existente.
+Las colecciones no tienen acceso directo de cliente. No se crean endpoints ni se amplía IAM.
+
+Validación: fixtures sintéticas de transición RN, grupos independientes de UPC, conteo por
+episodio, versiones/anulaciones, alta real, paginación y cancelación; roundtrip de un XLSX
+real; autoridad/CAS/idempotencia con Firestore local; navegación, filtros, exportación y
+corrección en navegador de escritorio y móvil. El navegador usa autenticación sintética
+del repositorio; los permisos callable se prueban en el emulador, no con pacientes reales.

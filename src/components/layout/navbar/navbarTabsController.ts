@@ -15,7 +15,6 @@ export const resolveIsNavbarItemActive = ({
 }: ResolveIsNavbarItemActiveParams): boolean =>
   Boolean(
     itemModule &&
-    (currentModule === itemModule ||
-      (itemModule === 'NURSING_HANDOFF' && currentModule === 'CUDYR')) &&
+    (currentModule === itemModule || (itemModule === 'CENSUS' && currentModule === 'CUDYR')) &&
     (!itemCensusMode || censusViewMode === itemCensusMode)
   );

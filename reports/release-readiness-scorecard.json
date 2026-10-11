@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-07-05T06:20:05.971Z",
-  "overallStatus": "ok",
+  "generatedAt": "2026-10-07T06:20:24.295Z",
+  "overallStatus": "degraded",
   "indicators": [
     {
       "name": "worktree_state",
-      "status": "ok",
-      "summary": "status=clean"
+      "status": "degraded",
+      "summary": "status=dirty"
     },
     {
       "name": "structural_quality",
@@ -30,12 +30,12 @@
     {
       "name": "release_hotspots",
       "status": "ok",
-      "summary": "vendor-heic2any-ClJ2fQYX.js: 1320.4 KB / 1416.0 KB (near-limit) | app-authenticated-shell-BM1LNf9O.js: 525.3 KB / 585.9 KB (near-limit) | vendor-pdfjs-C4G2Lk1-.js: 455.1 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-CSGvoZjH.js: 383.9 KB / 488.3 KB (ok) | vendor-pdf-lib-BrVFzLGn.js: 381.7 KB / 419.9 KB (near-limit)"
+      "summary": "vendor-heic2any-ClJ2fQYX.js: 1320.4 KB / 1416.0 KB (near-limit) | app-authenticated-shell-db-S1lVy.js: 614.1 KB / 615.2 KB (near-limit) | vendor-pdfjs-DTBrk9zO.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bq9EckP1.js: 388.3 KB / 488.3 KB (ok) | vendor-pdf-lib-COR8hm7M.js: 381.7 KB / 419.9 KB (near-limit)"
     },
     {
       "name": "bundle_risk_ledger",
       "status": "ok",
-      "summary": "surfaces=5, issues=0"
+      "summary": "surfaces=7, issues=0"
     },
     {
       "name": "release_confidence",
@@ -50,7 +50,7 @@
     {
       "name": "guardrail_governance",
       "status": "ok",
-      "summary": "blockingTiers=5, reportOnly=15"
+      "summary": "blockingTiers=5, reportOnly=18"
     },
     {
       "name": "compatibility_governance",
@@ -66,7 +66,7 @@
   "missingReports": [],
   "releaseHotspots": {
     "status": "ok",
-    "summary": "vendor-heic2any-ClJ2fQYX.js: 1320.4 KB / 1416.0 KB (near-limit) | app-authenticated-shell-BM1LNf9O.js: 525.3 KB / 585.9 KB (near-limit) | vendor-pdfjs-C4G2Lk1-.js: 455.1 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-CSGvoZjH.js: 383.9 KB / 488.3 KB (ok) | vendor-pdf-lib-BrVFzLGn.js: 381.7 KB / 419.9 KB (near-limit)",
+    "summary": "vendor-heic2any-ClJ2fQYX.js: 1320.4 KB / 1416.0 KB (near-limit) | app-authenticated-shell-db-S1lVy.js: 614.1 KB / 615.2 KB (near-limit) | vendor-pdfjs-DTBrk9zO.js: 449.7 KB / 507.8 KB (near-limit) | vendor-firebase-firestore-Bq9EckP1.js: 388.3 KB / 488.3 KB (ok) | vendor-pdf-lib-COR8hm7M.js: 381.7 KB / 419.9 KB (near-limit)",
     "assets": [
       {
         "file": "dist/assets/vendor-heic2any-ClJ2fQYX.js",
@@ -79,37 +79,37 @@
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/app-authenticated-shell-BM1LNf9O.js",
-        "sizeBytes": 537942,
-        "maxBytes": 600000,
+        "file": "dist/assets/app-authenticated-shell-db-S1lVy.js",
+        "sizeBytes": 628874,
+        "maxBytes": 630000,
         "budgetLabel": "app-authenticated-shell",
         "budgetSource": "startupChunkBudget",
         "severity": "error",
-        "budgetUtilizationPct": 89.7,
+        "budgetUtilizationPct": 99.8,
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-pdfjs-C4G2Lk1-.js",
-        "sizeBytes": 465976,
+        "file": "dist/assets/vendor-pdfjs-DTBrk9zO.js",
+        "sizeBytes": 460524,
         "maxBytes": 520000,
         "budgetLabel": "vendor-pdfjs",
         "budgetSource": "chunkPatternBudget",
         "severity": "error",
-        "budgetUtilizationPct": 89.6,
+        "budgetUtilizationPct": 88.6,
         "status": "near-limit"
       },
       {
-        "file": "dist/assets/vendor-firebase-firestore-CSGvoZjH.js",
-        "sizeBytes": 393147,
+        "file": "dist/assets/vendor-firebase-firestore-Bq9EckP1.js",
+        "sizeBytes": 397577,
         "maxBytes": 500000,
         "budgetLabel": "vendor-firebase-firestore",
         "budgetSource": "chunkPatternBudget",
         "severity": "error",
-        "budgetUtilizationPct": 78.6,
+        "budgetUtilizationPct": 79.5,
         "status": "ok"
       },
       {
-        "file": "dist/assets/vendor-pdf-lib-BrVFzLGn.js",
+        "file": "dist/assets/vendor-pdf-lib-COR8hm7M.js",
         "sizeBytes": 390824,
         "maxBytes": 430000,
         "budgetLabel": "vendor-pdf",
@@ -147,7 +147,7 @@
     },
     "guardrailGovernance": {
       "file": "reports/guardrail-governance.json",
-      "generatedAt": "2026-07-05T06:17:55.938Z"
+      "generatedAt": "2026-07-06T05:44:53.924Z"
     },
     "compatibilityImportGovernance": {
       "file": "reports/compatibility-import-governance.json",
@@ -158,17 +158,19 @@
       "generatedAt": "stable:legacy-retirement-debt"
     }
   },
-  "issues": [],
-  "gitSha": "126d4b82",
-  "gitDirty": false,
+  "issues": [
+    "worktree_state: status=dirty"
+  ],
+  "gitSha": "f4ba275c",
+  "gitDirty": true,
   "generatedFor": {
-    "gitSha": "126d4b82",
-    "gitDirty": false,
-    "treeHash": "3f2aefdb0f53e13237b97d0ef50fcbbe4a38e71c",
+    "gitSha": "f4ba275c",
+    "gitDirty": true,
+    "treeHash": "4c1b9c3899c231e32e88706ef3706328f613bd5b",
     "reportId": "release-readiness-scorecard",
     "dependencyFingerprint": {
       "algorithm": "sha256:dependency-files-v1",
-      "value": "61c16903130093485690132ddfc478bf3ffc3d599dd7013974e264a4a2d25152",
+      "value": "c6ff6437ae106653e0500d67942725cf345c285906a5625b0eb9d7652c9dc385",
       "files": [
         "reports/bundle-risk-ledger.json",
         "reports/bundle-risk-ledger.md",
@@ -201,9 +203,11 @@
         "scripts/run-critical-coverage.mjs",
         "vitest.critical-coverage.config.ts"
       ],
-      "missingFiles": []
+      "missingFiles": [
+        "reports/e2e/preview-bootstrap/ci-provenance.json"
+      ]
     }
   },
-  "degradedByWorktreeOnly": false,
-  "overallStatusReason": "all indicators ok"
+  "degradedByWorktreeOnly": true,
+  "overallStatusReason": "worktree_state only"
 }

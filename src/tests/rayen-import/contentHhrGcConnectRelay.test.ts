@@ -70,6 +70,7 @@ const createHarness = (
       types: {
         EXTENSION_RUNTIME_CONTEXT_REQUEST: 'RAYEN_EXTENSION_RUNTIME_CONTEXT_REQUEST',
         GC_CONNECT_REQUEST: 'RAYEN_GC_CONNECT_REQUEST',
+        CUDYR_CATEGORIES_REQUEST: 'RAYEN_CUDYR_CATEGORIES_REQUEST',
         CONNECTION_REPAIR_REQUEST: 'RAYEN_CONNECTION_REPAIR_REQUEST',
         EGRESO_LOOKUP_REQUEST: 'RAYEN_EGRESO_LOOKUP_REQUEST',
       },
@@ -96,6 +97,32 @@ const createHarness = (
 };
 
 describe('content-hhr · relé de conexión de Gestión de Camas', () => {
+  it('conserva el contrato y la cobertura de una captura CUDYR oficial', async () => {
+    const capture = {
+      items: [{ encId: '901', metadataComplete: true }],
+      source: 'gestion_camas',
+      historyAvailable: true,
+      captureContract: 1,
+      observedEpisodeIds: ['901'],
+      metadataStatus: 'complete',
+    };
+    const relay = createHarness(vi.fn(async () => capture));
+    relay.onMessage({
+      source: relay.windowObject,
+      data: { type: 'HHR_RAYEN_CUDYR_CATEGORIES_REQUEST', reqId: 'capture-1' },
+    });
+    await vi.waitFor(() =>
+      expect(relay.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...capture,
+          type: 'HHR_RAYEN_CUDYR_CATEGORIES_RESULT',
+          reqId: 'capture-1',
+        }),
+        'http://localhost:3001'
+      )
+    );
+  });
+
   it('al reinyectarse reemplaza al listener anterior sin duplicar solicitudes', async () => {
     const sendMessage = vi.fn().mockResolvedValue({ version: '0.48.27' });
     const relay = createHarness(sendMessage);

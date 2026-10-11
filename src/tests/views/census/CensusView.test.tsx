@@ -126,40 +126,20 @@ describe('CensusView', () => {
     vi.useRealTimers();
   });
 
-  it('renders EmptyDayPrompt when record is missing', async () => {
-    vi.useFakeTimers();
-    vi.mocked(useCensusViewModel).mockReturnValue(
-      buildViewModel({ beds: null, availableDates: ['2024-12-31'] })
-    );
-
-    render(<CensusView {...defaultProps} />);
-
-    expect(screen.queryByTestId('census-operational-state-banner')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
-    await act(async () => {
-      await Promise.resolve();
-    });
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1300);
-    });
-    vi.useRealTimers();
-    expect(await screen.findByTestId('empty-day-prompt')).toBeInTheDocument();
-    expect(vi.mocked(useCensusMigrationBootstrap)).toHaveBeenCalledWith(true);
-  });
-
-  it('shows the empty prompt immediately for dates that are not today', async () => {
-    vi.useFakeTimers();
-    vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: null }));
-
-    render(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_300);
-    });
-    vi.useRealTimers();
-    expect(await screen.findByTestId('empty-day-prompt')).toBeInTheDocument();
-    expect(screen.queryByTestId('view-loader')).not.toBeInTheDocument();
-  });
+  it.each(['2025-01-01', '2025-01-02'])(
+    'shows a confirmed empty date %s without an artificial grace delay',
+    async currentDateString => {
+      vi.useFakeTimers();
+      vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: null }));
+      render(<CensusView {...defaultProps} currentDateString={currentDateString} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.getByTestId('empty-day-prompt')).toBeInTheDocument();
+      expect(screen.queryByTestId('view-loader')).not.toBeInTheDocument();
+      expect(vi.mocked(useCensusMigrationBootstrap)).toHaveBeenCalledWith(true);
+    }
+  );
 
   it('keeps waiting silently while remote sync is still bootstrapping for an authenticated session', async () => {
     vi.useFakeTimers();
@@ -188,6 +168,58 @@ describe('CensusView', () => {
     });
     expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
     vi.useRealTimers();
+  });
+
+  it('restarts the remote grace period on date revisits and cancels it when data arrives', async () => {
+    vi.useFakeTimers();
+    mockUseDailyRecordData.mockReturnValue({ bootstrapPhase: 'remote_record_bootstrapping' });
+    mockUseDailyRecordStatus.mockReturnValue({
+      bootstrapPhase: 'remote_record_bootstrapping',
+      syncStatus: 'idle',
+    });
+    vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: null }));
+    const { rerender } = render(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(screen.getByTestId('empty-day-prompt')).toBeInTheDocument();
+    rerender(<CensusView {...defaultProps} currentDateString="2025-01-03" />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    rerender(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
+    vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: {} }));
+    mockUseDailyRecordData.mockReturnValue({ bootstrapPhase: 'record_ready' });
+    mockUseDailyRecordStatus.mockReturnValue({
+      bootstrapPhase: 'record_ready',
+      syncStatus: 'idle',
+    });
+    rerender(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(screen.getByTestId('census-table')).toBeInTheDocument();
+    expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
+  });
+
+  it('keeps the local-only grace period before offering an empty day', async () => {
+    vi.useFakeTimers();
+    mockUseDailyRecordData.mockReturnValue({ bootstrapPhase: 'local_only' });
+    mockUseDailyRecordStatus.mockReturnValue({ bootstrapPhase: 'local_only', syncStatus: 'idle' });
+    vi.mocked(useCensusViewModel).mockReturnValue(buildViewModel({ beds: null }));
+    render(<CensusView {...defaultProps} currentDateString="2025-01-02" />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(799);
+    });
+    expect(screen.queryByTestId('empty-day-prompt')).not.toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(screen.getByTestId('empty-day-prompt')).toBeInTheDocument();
   });
 
   it('renders main census sections when record is present', async () => {
