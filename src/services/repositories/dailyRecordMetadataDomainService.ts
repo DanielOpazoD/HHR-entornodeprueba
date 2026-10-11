@@ -1,6 +1,6 @@
 import type { DailyRecordMetadataState } from '@/types/domain/dailyRecordSlices';
 
-export const createRecordDateTimestamp = (date: string): number => Date.parse(`${date}T00:00:00`);
+export const createRecordDateTimestamp = (date: string): number => Date.parse(`${date}T00:00:00Z`);
 
 export const ensureDailyRecordDateTimestamp = (record: DailyRecordMetadataState): void => {
   const { date, dateTimestamp } = record;

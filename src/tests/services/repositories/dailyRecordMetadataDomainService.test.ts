@@ -12,8 +12,8 @@ describe('dailyRecordMetadataDomainService', () => {
 
     ensureDailyRecordDateTimestamp(record);
 
-    expect(createRecordDateTimestamp('2026-02-19')).toBe(Date.parse('2026-02-19T00:00:00'));
-    expect(record.dateTimestamp).toBe(Date.parse('2026-02-19T00:00:00'));
+    expect(createRecordDateTimestamp('2026-02-19')).toBe(Date.parse('2026-02-19T00:00:00Z'));
+    expect(record.dateTimestamp).toBe(Date.parse('2026-02-19T00:00:00Z'));
   });
 
   it.each(['2026-02-19T00:00:00.000Z', '2026-02-19T03:00:00.000Z', '2026-02-19T05:00:00.000Z'])(
