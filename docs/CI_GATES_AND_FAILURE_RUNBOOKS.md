@@ -1054,3 +1054,23 @@ comprueba la dependencia del consumidor respecto a sus productores de la misma e
 Conservar estos contratos y sus casos negativos al optimizar CI. El benchmark de
 arranque también rechaza sobrescribir evidencia: para repetir, usar una ruta nueva
 con `CENSUS_PERF_OUTPUT`, sin borrar el resultado anterior para hacerlo parecer vigente.
+
+## Cobertura crítica en dos grupos
+
+El CI ejecuta el mismo selector crítico en dos shards de Vitest. Cada uno debe
+pasar y entregar su blob del mismo run. El job `critical-coverage-report` espera
+ambos, rechaza archivos faltantes o adicionales y utiliza la unión nativa de
+Vitest para generar la cobertura sin repetir las pruebas. Los umbrales y el
+artefacto canónico se conservan; la evidencia de release espera el informe unido.
+La ejecución local sin argumentos conserva la suite completa habitual.
+
+Para reproducir: `node scripts/run-critical-coverage.mjs --shard=1/2`, después
+`--shard=2/2` y `--merge-shards`; finalmente ejecutar los scripts
+`report-critical-coverage.mjs` y `check-critical-coverage.mjs`. Detenerse si falla
+cualquiera de los grupos. No publicar cobertura parcial ni promediar porcentajes.
+
+El smoke visual de release simula explícitamente las consultas nuevas de CUDYR
+(informe oficial, suplementos mensuales, censo y contexto verificado). Conserva
+el rechazo de consultas desconocidas, las comprobaciones de interfaz y las dos
+descargas. Su presupuesto total permite recorrer los seis módulos del escenario;
+los límites de cada comprobación y los controles de rendimiento no cambian.
