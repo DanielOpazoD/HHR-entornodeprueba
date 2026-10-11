@@ -713,14 +713,12 @@ jobs:
         run: npm run test:e2e:census-performance
         env:
           CENSUS_PERF_ENV: ${{ matrix.environment }}
+          CENSUS_PERF_INCLUDE_INTERACTIONS: ${{ matrix.environment == 'production' && '1' || '0' }}
           # Pull requests run a small screening sample for fast feedback. Pushes keep
           # the release-quality 30-sample measurement used as a valid baseline.
           CENSUS_PERF_SAMPLES: ${{ github.event_name == 'pull_request' && '5' || '30' }}
           CENSUS_PERF_SMOKE: ${{ github.event_name == 'pull_request' && '1' || '0' }}
           CENSUS_PERF_RUNNER: github-ubuntu-latest
-      - name: Measure synthetic census interactions
-        if: matrix.environment == 'production'
-        run: npm run test:e2e:census-interactions
       - name: Upload privacy-safe timing evidence
         if: always()
         uses: actions/upload-artifact@v7

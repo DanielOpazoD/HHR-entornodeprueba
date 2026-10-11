@@ -10,7 +10,7 @@
 ## Lectura recomendada
 
 1. [README.md](../README.md)
-2. [Arquitectura y flujos vigentes](architecture.md)
+2. [Contrato operativo](DOMAIN_RULES.md) y [glosario](GLOSSARY.md); después, [arquitectura y flujos vigentes](architecture.md)
 3. [Cómo contribuir y validar](../CONTRIBUTING.md)
 4. [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
 5. README del módulo que vas a tocar en `src/features/*/README.md` o `src/*/README.md`
@@ -38,6 +38,7 @@ Documentos que gobiernan decisiones activas y estructura actual del repo.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — entorno, selección de pruebas y publicación
 - [PROJECT_STATUS.md](../PROJECT_STATUS.md)
 - [docs/CODEBASE_CANON.md](CODEBASE_CANON.md)
+- [docs/DOMAIN_RULES.md](DOMAIN_RULES.md) — intención, invariantes y políticas operativas; leer antes de modificar un flujo
 - [docs/GLOSSARY.md](GLOSSARY.md) — vocabulario canónico del dominio (paciente/cama/alta/traslado/CUDYR/CMA/MINSAL…)
 - [docs/TODO_TRIAGE_PROCESS.md](TODO_TRIAGE_PROCESS.md) — playbook para mantener cero markers `TODO`/`FIXME` en código
 - [docs/QUALITY_GUARDRAILS.md](QUALITY_GUARDRAILS.md)
@@ -156,3 +157,14 @@ Artefactos producidos por tooling o reportes automáticos. Son útiles para cons
 - `reports/` se mantiene versionado mientras siga siendo parte del flujo local de gobernanza.
 - Cada reporte es un snapshot generado, no un documento narrativo de arquitectura.
 - Las decisiones activas deben resumirse en documentación canónica, no delegarse a un reporte.
+
+### Aprobaciones clínicas históricas
+
+`report:clinical-release-signoff` regenera la representación del registro de
+`scripts/config/clinical-release-signoff.json`; no registra una nueva revisión humana.
+El commit y la fecha de generación pertenecen al informe, no a las aprobaciones.
+`Record completeness` describe la integridad del registro histórico.
+`currentCandidateApproved: false` indica que ese registro no acredita el candidato
+actual. Conservar autores, fechas y referencias originales sin sustituirlos por
+el agente o por la fecha de ejecución. Los nombres genéricos tampoco constituyen
+una identidad de revisor verificada.

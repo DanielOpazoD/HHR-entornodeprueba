@@ -129,6 +129,30 @@ describe('dailyRecordReadResultController', () => {
     expect(result.consistencyState).toBe('missing');
   });
 
+  it.each(['missing', 'unavailable'] as const)(
+    'preserves %s when the golden path has no record',
+    remoteAvailability => {
+      const date = '2026-04-15';
+      const goldenPath = resolveDailyRecordPersistenceGoldenPath({
+        localRecord: null,
+        remoteRecord: null,
+        remoteAvailability,
+      });
+      const result = createGoldenPathReadResult(date, goldenPath, null);
+
+      expect(result.record).toBeNull();
+      expect(result.source).toBe('not_found');
+      expect(result.consistencyState).toBe(remoteAvailability);
+      expect(result.sourceOfTruth).toBe('none');
+      expect(result.retryability).toBe(goldenPath.retryability);
+      expect(result.recoveryAction).toBe(goldenPath.recoveryAction);
+      expect(result.userSafeMessage).toBe(goldenPath.userSafeMessage);
+      expect(result.conflictSummary).toEqual(goldenPath.conflictSummary);
+      expect(result).not.toHaveProperty('selectedStore');
+      expect(result).not.toHaveProperty('shouldHydrateLocal');
+    }
+  );
+
   it('creates bridged read results with compatibility metadata intact', () => {
     const bridged = createBridgedDailyRecordReadResult('2026-04-15', {
       record: buildRecord('2026-04-15', '2026-04-15T09:00:00.000Z'),

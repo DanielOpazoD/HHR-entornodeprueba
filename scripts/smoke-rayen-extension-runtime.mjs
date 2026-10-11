@@ -605,6 +605,33 @@ try {
   assert.notEqual(hhrHealthResult.report.fichaMedico.reason, 'outdated_tab');
   assert.equal(hhrHealthResult.report.fichaMedico.status, 'ready');
 
+  // Published sites must receive the real manifest-declared content scripts too.
+  // Fulfill all page traffic locally: never contact the deployed clinical application.
+  for (const origin of [
+    'https://testinghhr.netlify.app',
+    'https://hhr-entorno-prueba.netlify.app',
+  ]) {
+    await context.route(`${origin}/**`, route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: minimalFixtureHtml('HHR publicado sintetico'),
+      })
+    );
+    const publishedPage = await context.newPage();
+    try {
+      await publishedPage.goto(`${origin}/census`);
+      const health = await requestHhrHealth(publishedPage);
+      assert.equal(health.error, undefined, `${origin} health bridge did not respond`);
+      assert.equal(health.report.version, manifest.version);
+      assert.equal(health.report.hhr.status, 'ready');
+      const flow = await requestInvalidPatientFlow(publishedPage);
+      assert.match(flow.error || '', /episodio clínico no es válido/);
+    } finally {
+      await publishedPage.close();
+    }
+  }
+
   // A green relay is insufficient: exercise the entire data path through HHR's page bridge,
   // the replacement MV3 worker, the surviving Ficha session, and all three clinical readers.
   await installSyntheticClinicalBackend(reloadedWorker);

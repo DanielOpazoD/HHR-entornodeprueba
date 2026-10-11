@@ -7,7 +7,7 @@ import {
   resolveSharedCensusDownloadPermission,
   resolveSharedCensusMonthWindow,
   selectLatestSharedCensusFiles,
-} from '@/features/census/controllers/sharedCensusFilesController';
+} from '@/application/backup-export/sharedCensusFilesController';
 
 const buildFile = (date: string): StoredCensusFile => ({
   name: `${date} - Censo Diario.xlsx`,

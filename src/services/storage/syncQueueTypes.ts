@@ -9,12 +9,19 @@ import type {
 export interface SyncTask {
   id?: number;
   opId: string;
-  type: 'UPDATE_DAILY_RECORD' | 'UPDATE_PATIENT';
+  type: 'UPDATE_DAILY_RECORD' | 'UPDATE_PATIENT' | 'ARCHIVE_CUDYR';
   payload: unknown;
   timestamp: number;
   retryCount: number;
   nextAttemptAt?: number;
-  status: 'PENDING' | 'PROCESSING' | 'FAILED' | 'CONFLICT';
+  status: 'PENDING' | 'PROCESSING' | 'FAILED' | 'CONFLICT' | 'RETIRED';
+  /** Preserved locally, never acknowledged as remotely saved or retried automatically. */
+  retirement?: {
+    reason: 'empty_capture_without_census_context';
+    retiredAt: string;
+    authorityDate: string;
+    verifiedRunId: string;
+  };
   error?: string;
   lastErrorCode?: string;
   lastErrorCategory?: 'conflict' | 'authorization' | 'validation' | 'network' | 'unknown';

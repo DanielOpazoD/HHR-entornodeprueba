@@ -24,10 +24,15 @@ describe('RutPassportInput', () => {
     vi.useRealTimers();
   });
 
-  it('copies the RUT to clipboard when the visible RUT is clicked', async () => {
+  it('copies the clicked RUT and resets feedback only after clipboard completion', async () => {
+    vi.useFakeTimers();
+    let resolveCopy!: () => void;
+    const pendingCopy = new Promise<void>(resolve => {
+      resolveCopy = resolve;
+    });
     const writeClipboardTextSpy = vi
       .spyOn(browserClipboardRuntime, 'writeClipboardText')
-      .mockResolvedValue(undefined);
+      .mockReturnValue(pendingCopy);
 
     renderComponent({
       value: '12.345.678-5',
@@ -36,23 +41,11 @@ describe('RutPassportInput', () => {
 
     fireEvent.click(screen.getByRole('textbox'));
 
-    await waitFor(() => expect(writeClipboardTextSpy).toHaveBeenCalledWith('12.345.678-5'));
-    expect(screen.getByTitle('RUT copiado')).toBeInTheDocument();
-  });
-
-  it('returns the indicator to valid state after transient copy feedback', async () => {
-    vi.useFakeTimers();
-    vi.spyOn(browserClipboardRuntime, 'writeClipboardText').mockResolvedValue(undefined);
-
-    renderComponent({
-      value: '12.345.678-5',
-      documentType: 'RUT',
-    });
-
-    fireEvent.click(screen.getByRole('textbox'));
-
+    expect(writeClipboardTextSpy).toHaveBeenCalledWith('12.345.678-5');
+    expect(screen.queryByTitle('RUT copiado')).not.toBeInTheDocument();
     await act(async () => {
-      await Promise.resolve();
+      resolveCopy();
+      await pendingCopy;
     });
 
     expect(screen.getByTitle('RUT copiado')).toBeInTheDocument();

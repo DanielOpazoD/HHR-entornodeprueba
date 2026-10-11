@@ -1,17 +1,45 @@
 /**
  * Lazy component loader with automatic recovery from chunk load errors.
  *
- * After a deploy on Netlify, old chunk filenames may no longer exist. Online
- * failures use a bounded reload budget to fetch the updated bundle. Offline
- * failures wait for connectivity and retry without reloading the workspace.
+ * A missing chunk must not reload an editable workspace automatically. Offline
+ * failures wait for connectivity and retry; persistent failures expose an explicit
+ * recovery action while preserving the surrounding interface.
  */
 
-import { lazy, type ComponentType } from 'react';
+import { createElement, lazy, type ComponentProps, type ComponentType } from 'react';
 import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 import { recordOperationalTelemetry } from '@/services/observability/operationalTelemetryRecorder';
 
-const RELOAD_KEY = 'hhr_chunk_reload_count';
-const MAX_RELOADS = 2;
+const ChunkLoadFailure = () =>
+  createElement(
+    'div',
+    {
+      role: 'alert',
+      className: 'rounded border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900',
+    },
+    createElement(
+      'p',
+      null,
+      'No se pudo cargar esta sección. Guarda tus cambios antes de recargar.'
+    ),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'mt-1 underline',
+        onClick: () => {
+          if (
+            defaultBrowserWindowRuntime.confirm(
+              'Recargar la aplicación puede descartar cambios sin guardar. ¿Quieres continuar?'
+            )
+          ) {
+            defaultBrowserWindowRuntime.reload();
+          }
+        },
+      },
+      'Recargar aplicación'
+    )
+  );
 
 const isBrowserOffline = (): boolean =>
   typeof navigator !== 'undefined' && navigator.onLine === false;
@@ -42,7 +70,7 @@ function isChunkLoadError(error: unknown): boolean {
 export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ) {
-  const load = async (): Promise<{ default: T }> => {
+  const load = async (): Promise<{ default: ComponentType<ComponentProps<T>> }> => {
     try {
       return await factory();
     } catch (error) {
@@ -59,27 +87,14 @@ export function lazyWithRetry<T extends ComponentType<any>>(
           return load();
         }
 
-        const reloadCount = Number(sessionStorage.getItem(RELOAD_KEY) ?? '0');
-
         recordOperationalTelemetry({
           category: 'integration',
           operation: 'chunk_load_recovery',
-          status: reloadCount < MAX_RELOADS ? 'degraded' : 'failed',
+          status: 'failed',
           runtimeState: 'recoverable',
-          issues: [
-            `Chunk load failed (attempt ${reloadCount + 1}/${MAX_RELOADS}): ${error instanceof Error ? error.message : String(error)}`,
-          ],
+          issues: ['Chunk unavailable; automatic reload suppressed to preserve unsaved work.'],
         });
-
-        if (reloadCount < MAX_RELOADS) {
-          sessionStorage.setItem(RELOAD_KEY, String(reloadCount + 1));
-          defaultBrowserWindowRuntime.reload();
-          // Never resolves — page reloads before this returns
-          return new Promise<never>(() => {});
-        }
-
-        // Budget exhausted — clear counter and let the error propagate to the error boundary
-        sessionStorage.removeItem(RELOAD_KEY);
+        return { default: ChunkLoadFailure };
       }
       throw error;
     }

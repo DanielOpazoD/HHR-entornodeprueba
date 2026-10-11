@@ -34,7 +34,13 @@
     "^assets/SystemHealthReporterBridge-.*\\.js$",
     "^assets/healthService-.*\\.js$",
     "^assets/DiagnosisCie10Cell-.*\\.js$",
-    "^assets/RayenImportButton-.*\\.js$"
+    "^assets/RayenImportButton-.*\\.js$",
+    "^assets/cudyrSupplement\\.worker-.*\\.js$",
+    "^assets/cudyrReportModel-.*\\.js$",
+    "^assets/CudyrMonthlyIndicator-.*\\.js$",
+    "^assets/useCudyrReport-.*\\.js$",
+    "^assets/cudyrReportFacts-.*\\.js$",
+    "^assets/publicCudyrPolicyRecovery-.*\\.js$"
   ],
   "forbiddenAssetPatterns": ["^assets/exceljs\\.min-.*\\.js$"],
   "assetPatternBudgets": [

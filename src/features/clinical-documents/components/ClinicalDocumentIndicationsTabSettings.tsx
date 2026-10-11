@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 import type { ClinicalDocumentIndicationCatalogTab } from '@/features/clinical-documents/services/clinicalDocumentIndicationsCatalogService';
-import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntime';
+import { defaultBrowserWindowRuntime } from '@/shared/runtime/browserWindowRuntimeCore';
 
 interface ClinicalDocumentIndicationsTabSettingsProps {
   tabs: ClinicalDocumentIndicationCatalogTab[];

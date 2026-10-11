@@ -89,7 +89,7 @@ describe('closed clinical crib placement', () => {
 
   it('attaches a clinically closed newborn to a mother admitted into an empty bed', () => {
     const mother = encounter();
-    const child = newborn();
+    const child = { ...newborn(), firstGivenName: 'RN de Ana' };
     const { diff, applied } = apply(emptyRecord(), [mother, child]);
 
     expect(diff.conflicts).toHaveLength(0);

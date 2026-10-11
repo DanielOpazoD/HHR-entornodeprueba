@@ -1,7 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { buildCanonicalE2ERecord } from './fixtures/auth';
-import { loadPreviewFirebaseConfig } from './fixtures/previewFirebase';
 
 const origin = 'http://127.0.0.1:4318';
 const date = '2026-02-20';
@@ -68,13 +67,10 @@ for (const bedId of cribBedIds) {
 record.activeExtraBeds = ['E1'];
 
 async function isolate(context: BrowserContext) {
-  const previewConfig = loadPreviewFirebaseConfig();
-  if (!previewConfig.projectId.startsWith('demo-') || !previewConfig.apiKey.startsWith('demo-')) {
-    throw new Error('Census interaction benchmark requires a demo Firebase configuration');
-  }
   const firebase = {
-    ...previewConfig,
+    apiKey: 'demo-api-key',
     projectId: 'demo-census-performance',
+    appId: '1:1234567890:web:synthetic',
     authDomain: 'demo-census-performance.invalid',
   };
   await context.route('**/*', route => {
@@ -187,7 +183,7 @@ test('synthetic census interactions produce a privacy-safe timing baseline', asy
     await isolate(context);
     const page = await context.newPage();
     for (let index = 0; index < samplesPerAction; index++) {
-      await page.goto(`/censo?date=${date}`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`/census?date=${date}`, { waitUntil: 'domcontentloaded' });
       const mainRows = page.locator('[data-testid="patient-row"][data-bed-id]');
       const cribRows = page.locator('[data-testid="patient-row"]:not([data-bed-id])');
       await expect(mainRows).toHaveCount(19, { timeout: 30_000 });

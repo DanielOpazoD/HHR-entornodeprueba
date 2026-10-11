@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const environment = process.env.CENSUS_PERF_ENV ?? 'production';
+const includeInteractions = process.env.CENSUS_PERF_INCLUDE_INTERACTIONS === '1';
+if (includeInteractions && environment !== 'production')
+  throw new Error('Combined census measurements require production');
 // Observation waits, NOT performance budgets. A bench must be able to record a slow
 // startup; failing by timeout would hide the very slowness it exists to quantify.
 // Verdicts still come from p95 vs scripts/config/flow-performance-budgets.json.
@@ -16,7 +19,6 @@ if (!['development', 'production'].includes(environment))
   throw new Error('Invalid CENSUS_PERF_ENV');
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'census-startup.measurement.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -41,7 +43,22 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'off',
   },
-  projects: [{ name: 'census-performance-chromium' }],
+  // One fresh build/server for both projects; dependencies preserve startup first.
+  projects: [
+    { name: 'census-performance-chromium', testMatch: 'census-startup.measurement.ts' },
+    ...(includeInteractions
+      ? [
+          {
+            name: 'census-interactions-chromium',
+            testMatch: 'census-interaction.measurement.ts',
+            dependencies: ['census-performance-chromium'],
+            timeout: 180_000,
+            expect: { timeout: 5000 },
+            outputDir: 'test-results/census-interactions',
+          },
+        ]
+      : []),
+  ],
   webServer: {
     command: `node scripts/census-startup-performance-server.mjs ${environment}`,
     url: 'http://127.0.0.1:4318',

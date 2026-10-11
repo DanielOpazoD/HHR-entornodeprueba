@@ -37,6 +37,7 @@ describe('useSyslabAccess', () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -233,4 +234,70 @@ describe('useSyslabAccess', () => {
     });
     expect(result.current.isAwaitingLogin).toBe(true);
   });
+  it('pauses login polling while hidden and checks immediately when visible again', async () => {
+    vi.useFakeTimers();
+    let visibility: DocumentVisibilityState = 'visible';
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
+    const { result } = renderHook(() => useSyslabAccess(true));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      await result.current.openLogin();
+    });
+    visibility = 'hidden';
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(requestSyslabExtensionStatus).toHaveBeenCalledTimes(1);
+    vi.mocked(requestSyslabExtensionStatus).mockResolvedValue({
+      bridgeAvailable: true,
+      connected: true,
+      loginRequired: false,
+      message: 'Sesión vigente',
+    });
+    visibility = 'visible';
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(requestSyslabExtensionStatus).toHaveBeenCalledTimes(2);
+    expect(result.current.state).toBe('connected');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_000);
+    });
+    expect(requestSyslabExtensionStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['close', 'unmount'] as const)(
+    'does not resume hidden login polling after %s',
+    async finish => {
+      vi.useFakeTimers();
+      let visibility: DocumentVisibilityState = 'hidden';
+      vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
+      const { result, rerender, unmount } = renderHook(({ open }) => useSyslabAccess(open), {
+        initialProps: { open: true },
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        await result.current.openLogin();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+      expect(requestSyslabExtensionStatus).toHaveBeenCalledTimes(1);
+      if (finish === 'close') rerender({ open: false });
+      else unmount();
+      visibility = 'visible';
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        await vi.advanceTimersByTimeAsync(4_000);
+      });
+      expect(requestSyslabExtensionStatus).toHaveBeenCalledTimes(1);
+    }
+  );
 });

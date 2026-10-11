@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { DateStrip } from '@/components/layout/DateStrip';
 import { ModuleType } from '@/constants/navigationConfig';
+
+// Fallback controls share titles with the lazy menus, but cannot handle clicks.
+const clickReadyControl = async (title: string) => {
+  await waitFor(() => expect(screen.getByTitle(title)).toBeEnabled());
+  fireEvent.click(screen.getByTitle(title));
+};
 
 describe('DateStrip', () => {
   const defaultProps = {
@@ -91,11 +97,11 @@ describe('DateStrip', () => {
   it('renders clinical action buttons for admin in CENSUS module', async () => {
     render(<DateStrip {...defaultProps} />);
 
-    expect(await screen.findByTitle('Descargar PDF (rápido)')).toBeInTheDocument();
-    expect(await screen.findByTitle('Opciones de guardado')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTitle('Descargar PDF (rápido)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTitle('Opciones de guardado')).toBeInTheDocument());
     expect(screen.queryByText('Guardar')).not.toBeInTheDocument();
-    expect(await screen.findByTitle('Bloqueo de camas')).toBeInTheDocument();
-    expect(await screen.findByTitle('Enviar censo')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTitle('Bloqueo de camas')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTitle('Enviar censo')).toBeInTheDocument());
   });
 
   it('keeps daily census save immediately before send census in the action order', async () => {
@@ -142,7 +148,7 @@ describe('DateStrip', () => {
   it('blocks Excel email with an explanation, leaves configuration open, and unlocks after review', async () => {
     const reason = 'Envío bloqueado: completa la evaluación UPC del día en R1.';
     const { rerender } = render(<DateStrip {...defaultProps} emailBlockedReason={reason} />);
-    fireEvent.click(await screen.findByTitle('Enviar censo'));
+    await clickReadyControl('Enviar censo');
     const send = screen.getByRole('button', { name: /Enviar Archivo Excel/ });
     expect(send).toBeDisabled();
     fireEvent.click(send);
@@ -171,7 +177,7 @@ describe('DateStrip', () => {
   it('hides firebase backup option in census save menu', async () => {
     render(<DateStrip {...defaultProps} currentModule="CENSUS" />);
 
-    fireEvent.click(await screen.findByTitle('Opciones de guardado'));
+    await clickReadyControl('Opciones de guardado');
 
     expect(screen.getByText('Descargar Excel')).toBeInTheDocument();
     expect(screen.queryByText('Respaldo en Firebase')).not.toBeInTheDocument();
@@ -180,7 +186,7 @@ describe('DateStrip', () => {
   it('hides firebase backup option in nursing handoff save menu', async () => {
     render(<DateStrip {...defaultProps} currentModule="NURSING_HANDOFF" />);
 
-    fireEvent.click(await screen.findByTitle('Opciones de guardado (PDF/Nube)'));
+    await clickReadyControl('Opciones de guardado (PDF/Nube)');
 
     expect(screen.getByText('Descargar PDF')).toBeInTheDocument();
     expect(screen.queryByText('Respaldo en Firebase')).not.toBeInTheDocument();
@@ -189,14 +195,14 @@ describe('DateStrip', () => {
   it('triggers actions when buttons are clicked', async () => {
     render(<DateStrip {...defaultProps} />);
 
-    fireEvent.click(await screen.findByTitle('Descargar PDF (rápido)'));
+    await clickReadyControl('Descargar PDF (rápido)');
     expect(defaultProps.onExportPDF).toHaveBeenCalled();
 
-    fireEvent.click(await screen.findByTitle('Bloqueo de camas'));
+    await clickReadyControl('Bloqueo de camas');
     expect(defaultProps.onOpenBedManager).toHaveBeenCalled();
 
     // Initial showBookmarks is true, so title is "Ocultar Marcadores"
-    fireEvent.click(await screen.findByTitle('Ocultar Marcadores'));
+    await clickReadyControl('Ocultar Marcadores');
     expect(defaultProps.onToggleBookmarks).toHaveBeenCalled();
   });
 

@@ -16,6 +16,8 @@ export interface DailyRecordAuthorityAdoptionResult {
 }
 
 export interface SyncQueueStorePort {
+  /** Serialize standalone capacity checks and writes in the same storage transaction. */
+  withEnqueueTransaction?<T>(operation: () => Promise<T>): Promise<T>;
   listAll(ownerKey?: string | null): Promise<SyncTask[]>;
   listRecent(limit: number, ownerKey?: string | null): Promise<SyncTask[]>;
   claimReadyPending(

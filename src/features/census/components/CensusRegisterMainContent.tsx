@@ -15,6 +15,7 @@ interface CensusRegisterMainContentProps {
   accessProfile: CensusAccessProfile;
   attentionFilter?: CensusAttentionFilter;
   onClearAttentionFilter?: () => void;
+  scoresAction?: React.ReactNode;
 }
 
 export const CensusRegisterMainContent: React.FC<CensusRegisterMainContentProps> = ({
@@ -25,6 +26,7 @@ export const CensusRegisterMainContent: React.FC<CensusRegisterMainContentProps>
   accessProfile,
   attentionFilter = 'all',
   onClearAttentionFilter,
+  scoresAction,
 }) => (
   <SectionErrorBoundary sectionName="Tabla de Pacientes" fallbackHeight="400px">
     <UpcClassificationWindowProvider currentDateString={currentDateString} readOnly={readOnly}>
@@ -34,6 +36,7 @@ export const CensusRegisterMainContent: React.FC<CensusRegisterMainContentProps>
         accessProfile={accessProfile}
         attentionFilter={attentionFilter}
         onClearAttentionFilter={onClearAttentionFilter}
+        scoresAction={scoresAction}
       />
     </UpcClassificationWindowProvider>
   </SectionErrorBoundary>

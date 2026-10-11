@@ -130,33 +130,33 @@
       const carePath = `/api/carePlanAssignedCare/${encodedEncounter}`;
       const medicationPath = `/api/carePlanMedication/${encodedEncounter}`;
 
-      const settledSources = await Promise.allSettled([
-        fetchFichaJson(info, historyPath),
-        fetchFichaJson(info, carePath, { page: 0, limit: 100, showAll: false }),
-        fetchMedicationStates(info, medicationPath, false),
-        fetchMedicationStates(info, medicationPath, true),
-        fetchCurrentValidation(encId, info),
-      ]);
+      const sourceReads = [
+        ['history', 'historial clínico', () => fetchFichaJson(info, historyPath)],
+        ['care', 'plan de cuidados', () => fetchFichaJson(info, carePath, { page: 0, limit: 100, showAll: false })],
+        ['medications_active', 'medicamentos activos', () => fetchMedicationStates(info, medicationPath, false)],
+        ['medications_inactive', 'medicamentos inactivos', () => fetchMedicationStates(info, medicationPath, true)],
+        ['validation', 'validación diaria del tratamiento', () => fetchCurrentValidation(encId, info)],
+      ];
+      const durations = [];
+      const settledSources = await Promise.allSettled(sourceReads.map(async ([,, read], index) => {
+        const started = performance.now();
+        try { return await read(); }
+        finally { durations[index] = Math.max(0, Math.round(performance.now() - started)); }
+      }));
 
       let sources;
       try {
-        sources = unwrapRequiredSources([
-          { label: 'historial clínico', result: settledSources[0] },
-          { label: 'plan de cuidados', result: settledSources[1] },
-          { label: 'medicamentos activos', result: settledSources[2] },
-          { label: 'medicamentos inactivos', result: settledSources[3] },
-          { label: 'validación diaria del tratamiento', result: settledSources[4] },
-        ]);
-        const validationSource = sources[4];
-        if (validationSource && validationSource.error) {
-          throw new Error('validación diaria del tratamiento: ' + validationSource.error);
-        }
+        sources = unwrapRequiredSources(sourceReads.map(([, label], index) => ({ label, result: settledSources[index] })));
+        if (sources[4]?.error) throw new Error('validación diaria del tratamiento: ' + sources[4].error);
       } catch (error) {
-        return {
-          error:
-            'Falló la descarga del panel clínico: ' +
-            String((error && error.message) || error),
-        };
+        // Fixed categories and timings only: never include an episode, URL or clinical payload.
+        const diagnostic = settledSources.map((result, index) => {
+          const failed = result.status === 'rejected'
+            || (index === 4 && result.value && result.value.error);
+          return `${sourceReads[index][0]}:${failed ? 'failed' : 'ok'}:${durations[index]}ms`;
+        }).join(';');
+        const message = String((error && error.message) || error);
+        return { error: `Falló la descarga del panel clínico: ${message} [HHR_PANEL_V1;${diagnostic}]` };
       }
 
       const [

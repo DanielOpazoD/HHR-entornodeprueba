@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 const read = (path: string) => fs.readFileSync(path, 'utf8');
 describe('census measurement release gate', () => {
   it('uses short PR screening, full push measurements, and the aggregate strict CI result', () => {
@@ -61,5 +61,62 @@ describe('census measurement release gate', () => {
       ).maxBytes
     ).toBe(630000);
     expect(bundle.precacheIgnoredAssetPatterns).not.toContain('^assets/censusStartupPerf-.*\\.js$');
+  });
+});
+
+describe('combined census measurement configuration', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it.each(['development', 'production'])(
+    'keeps standalone %s startup measurements',
+    async environment => {
+      vi.stubEnv('CENSUS_PERF_ENV', environment);
+      vi.stubEnv('CENSUS_PERF_INCLUDE_INTERACTIONS', '0');
+      vi.resetModules();
+      const { default: config } = await import('../../../playwright.census-performance.config');
+      expect(config.projects?.map(project => project.name)).toEqual([
+        'census-performance-chromium',
+      ]);
+      expect(config.webServer).toMatchObject({
+        command: `node scripts/census-startup-performance-server.mjs ${environment}`,
+        reuseExistingServer: false,
+      });
+    }
+  );
+
+  it('runs production interactions after startup against the same fresh server', async () => {
+    vi.stubEnv('CENSUS_PERF_ENV', 'production');
+    vi.stubEnv('CENSUS_PERF_INCLUDE_INTERACTIONS', '1');
+    vi.resetModules();
+    const { default: config } = await import('../../../playwright.census-performance.config');
+    expect(config.projects).toHaveLength(2);
+    expect(config.projects?.[0].testMatch).toBe('census-startup.measurement.ts');
+    expect(config.projects?.[1]).toMatchObject({
+      testMatch: 'census-interaction.measurement.ts',
+      dependencies: ['census-performance-chromium'],
+      timeout: 180_000,
+      expect: { timeout: 5000 },
+      outputDir: 'test-results/census-interactions',
+    });
+    expect(Array.isArray(config.webServer)).toBe(false);
+    expect(config.webServer).toMatchObject({ reuseExistingServer: false });
+    expect(config.retries).toBe(0);
+    const workflow = read('.github/workflows/ci-cd.yml');
+    expect(workflow).toContain(
+      "CENSUS_PERF_INCLUDE_INTERACTIONS: ${{ matrix.environment == 'production' && '1' || '0' }}"
+    );
+    expect(workflow).not.toContain('run: npm run test:e2e:census-interactions');
+  });
+
+  it('rejects combined development measurements', async () => {
+    vi.stubEnv('CENSUS_PERF_ENV', 'development');
+    vi.stubEnv('CENSUS_PERF_INCLUDE_INTERACTIONS', '1');
+    vi.resetModules();
+    await expect(import('../../../playwright.census-performance.config')).rejects.toThrow(
+      'Combined census measurements require production'
+    );
   });
 });

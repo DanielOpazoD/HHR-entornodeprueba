@@ -131,3 +131,51 @@ The former `medicalPatientHandoffRenderController.test.ts` repeated three domain
 `patientView.test.ts` scenarios: same-author metadata, different-author continuity
 and current/legacy-confirmed validity. Its sole additional assertion, the printable
 `Vigente por` label, is retained in the domain suite. Component tests remain intact.
+
+## Build policy cohort — 2026-10-05
+
+Six pure policy suites use Node: `bundleBudgetConfig`, `bundleBudgetSupport`,
+`bundleRiskLedger`, `chunkingPolicy`, `pwaPrecachePolicy` and
+`viteReleaseEvidenceRuntime`, all under `src/tests/build/`. They inspect files or
+exercise pure build-policy functions; they do not render UI or require a DOM.
+All 56 test identities, assertions and outcomes are preserved. No browser mocks,
+coverage thresholds, shared setup or shard membership changed.
+
+One warm-up per environment preceded three alternating pairs on the same parent
+checkout, Node 22.22.2 and one worker. Wall times include the Vitest process:
+
+| Environment | Wall times (seconds)  | Median |
+| ----------- | --------------------- | ------ |
+| jsdom       | 4.401 / 4.394 / 4.378 | 4.394  |
+| Node        | 1.815 / 1.834 / 2.228 | 1.834  |
+
+The local subset median fell by 58.3% (2.560 s). This does not measure application
+speed or total CI improvement. Reproduce on the parent revision before annotations:
+
+```sh
+node node_modules/vitest/vitest.mjs run src/tests/build/{bundleBudgetConfig,bundleBudgetSupport,bundleRiskLedger,chunkingPolicy,pwaPrecachePolicy,viteReleaseEvidenceRuntime}.test.ts --maxWorkers=1 --environment=jsdom
+node node_modules/vitest/vitest.mjs run src/tests/build/{bundleBudgetConfig,bundleBudgetSupport,bundleRiskLedger,chunkingPolicy,pwaPrecachePolicy,viteReleaseEvidenceRuntime}.test.ts --maxWorkers=1 --environment=node
+```
+
+Compare identical assertion identities and outcomes across runs. The committed
+per-file directives take precedence over CLI environment flags.
+
+## Extension VM/source cohort — 2026-10-06
+
+Three suites under `src/tests/rayen-import` use Node:
+`clinicalReportDirectEpisodeRuntimeExtension`, `clinicalReportRuntimeExtension`
+and `prescriptionContentStaticExtension`. They read source files or execute them
+in isolated VM contexts with explicit extension fixtures; the ambient DOM is not
+part of their contract. All 24 assertions and existing isolation remain intact.
+
+`cudyrEvidenceContract` and `deviceEvidenceNegotiation` remain in jsdom because
+they exercise `window.postMessage` and browser events. Do not replace that runtime
+with a Node shim to make this cohort larger.
+
+Three alternating pairs on the parent checkout, Node 22.22.2 and two workers passed
+the same 24 tests: jsdom 3.98/2.80/2.85 s; Node 0.962/0.934/1.32 s. Local medians
+were 2.85 s and 0.962 s (~66% less for this subset, about 1.9 s). Other local tasks
+were running; this is neither a clinical runtime nor CI-wide speed measurement.
+Reproduce before adding directives with `vitest run <three-paths> --maxWorkers=2`,
+then `--environment=node`, alternating three pairs. Per-file directives take
+precedence on the annotated revision.

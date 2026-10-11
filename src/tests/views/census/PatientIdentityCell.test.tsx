@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { PatientIdentityCell } from '@/features/census/components/patient-row/PatientIdentityCell';
 import { UIProvider } from '@/context/UIContext';
 import { DataFactory } from '@/tests/factories/DataFactory';
@@ -66,6 +66,30 @@ describe('PatientIdentityCell', () => {
     expect(screen.getByText('12.345.678-5')).toBeInTheDocument();
     expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Abrir MMRAD de Juana Rapu' })).toBeVisible();
+  });
+
+  it('includes the stored calendar date and admission time without timezone conversion', () => {
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        admissionDate: '2026-10-10',
+        admissionTime: '01:47',
+      }),
+    });
+    expect(screen.getByTitle('Ingreso: 10-10-2026 · 01:47 (Rapa Nui)')).toHaveTextContent(
+      '10-10-2026'
+    );
+  });
+
+  it('states when the admission time is unavailable instead of inventing midnight', () => {
+    renderCell({
+      data: DataFactory.createMockPatient('R1', {
+        admissionDate: '2026-10-10',
+        admissionTime: undefined,
+      }),
+    });
+    expect(
+      screen.getByTitle('Ingreso: 10-10-2026 · Hora no informada (Rapa Nui)')
+    ).toBeInTheDocument();
   });
 
   it('shows the specialty as a small chip next to the admission date', () => {
@@ -332,17 +356,26 @@ describe('PatientIdentityCell', () => {
   });
 
   it('copies the RUT to clipboard when clicked', async () => {
+    vi.useFakeTimers();
     const writeClipboardTextSpy = vi
       .spyOn(browserClipboardRuntime, 'writeClipboardText')
       .mockResolvedValue(undefined);
-    const data = DataFactory.createMockPatient('R1', { rut: '12.345.678-5' });
+    try {
+      const data = DataFactory.createMockPatient('R1', { rut: '12.345.678-5' });
+      renderCell({ data });
 
-    renderCell({ data });
-
-    fireEvent.click(screen.getByText('12.345.678-5'));
-
-    await waitFor(() => expect(writeClipboardTextSpy).toHaveBeenCalledWith('12.345.678-5'));
-    expect(screen.getByTitle('RUT copiado')).toBeInTheDocument();
+      await act(async () => {
+        fireEvent.click(screen.getByText('12.345.678-5'));
+      });
+      expect(writeClipboardTextSpy).toHaveBeenCalledWith('12.345.678-5');
+      expect(screen.getByTitle('RUT copiado')).toBeInTheDocument();
+      await act(async () => vi.advanceTimersByTimeAsync(1200));
+      expect(screen.queryByTitle('RUT copiado')).not.toBeInTheDocument();
+      expect(screen.getByTitle('RUT válido')).toBeInTheDocument();
+    } finally {
+      writeClipboardTextSpy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('shows the PAS marker instead of RUT validation for passports', () => {

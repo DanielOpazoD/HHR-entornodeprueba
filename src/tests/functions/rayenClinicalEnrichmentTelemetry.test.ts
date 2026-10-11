@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createClinicalAdminMock,
   createRayenClinicalEnrichmentFunctions,
+  expectClinicalTelemetryMetadata,
   makeClinicalRecord,
   makeContext,
   makePayload,
@@ -19,7 +20,12 @@ const createApi = (
   });
 
 describe('Rayen clinical enrichment telemetry', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-06T18:19:20.120Z'));
+  });
+  afterEach(() => vi.useRealTimers());
 
   it.each([false, true])(
     'measures awaited telemetry separately (transaction failure: %s)',
@@ -113,10 +119,10 @@ describe('Rayen clinical enrichment telemetry', () => {
     } as never;
     const admin = createClinicalAdminMock(remote, { clinicalBatchMode: 'shadow' });
 
-    await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
-      { ...makePayload(), mode: 'shadow' },
-      makeContext()
-    );
+    let clock = 0;
+    await createApi(admin, {
+      monotonicNow: () => (clock += 120),
+    }).applyRayenClinicalEnrichmentBatch.run({ ...makePayload(), mode: 'shadow' }, makeContext());
 
     expect(admin.telemetryAdd).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -133,11 +139,7 @@ describe('Rayen clinical enrichment telemetry', () => {
         }),
       })
     );
-    const telemetry = admin.telemetryAdd.mock.calls[0]?.[0];
-    expect(JSON.stringify(telemetry)).not.toMatch(
-      /H2C1|episode-secret|Paciente reservado|11\.111|braden|run-1|mutation-1/
-    );
-    expect(JSON.stringify(telemetry?.context)).not.toMatch(/120/);
+    expectClinicalTelemetryMetadata(admin.telemetryAdd.mock.calls[0]?.[0]);
   });
 
   it('reports internal Firestore transaction retries truthfully', async () => {
@@ -191,10 +193,10 @@ describe('Rayen clinical enrichment telemetry', () => {
   it('records a mismatch when established persistence differs from the batch', async () => {
     const admin = createClinicalAdminMock(undefined, { clinicalBatchMode: 'shadow' });
 
-    await createApi(admin).applyRayenClinicalEnrichmentBatch.run(
-      { ...makePayload(), mode: 'shadow' },
-      makeContext()
-    );
+    let clock = 0;
+    await createApi(admin, {
+      monotonicNow: () => (clock += 120),
+    }).applyRayenClinicalEnrichmentBatch.run({ ...makePayload(), mode: 'shadow' }, makeContext());
 
     expect(admin.telemetryAdd).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -210,11 +212,7 @@ describe('Rayen clinical enrichment telemetry', () => {
         }),
       })
     );
-    const telemetry = admin.telemetryAdd.mock.calls[0]?.[0];
-    expect(JSON.stringify(telemetry)).not.toMatch(
-      /H2C1|episode-secret|Paciente reservado|11\.111|evaluationScores|vitalSigns|braden/
-    );
-    expect(JSON.stringify(telemetry?.context)).not.toMatch(/120/);
+    expectClinicalTelemetryMetadata(admin.telemetryAdd.mock.calls[0]?.[0]);
   });
 
   it('records unavailable parity when validation fails before comparison', async () => {

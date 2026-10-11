@@ -43,13 +43,13 @@ redujo la memoria del grupo medido, pero tardó más. Usar pruebas focalizadas d
 edición y evitar ejecutar gates duplicados simultáneamente. CI y el modo habitual
 conservan su configuración; no extrapolar el resultado a toda la suite.
 
-Elige el gate que corresponde al alcance según `SAFE_CHANGE_CHECKLIST.md`:
+Elige el gate en la [selección local de SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md#selección-local-del-gate).
+Esa referencia distingue documentación, cambios habituales, runtime y releases,
+y conserva los requisitos adicionales de la política. Las etapas efectivas se
+definen en `package.json`; su explicación está en
+[CI_GATES_AND_FAILURE_RUNBOOKS.md](./CI_GATES_AND_FAILURE_RUNBOOKS.md).
 
-- Cambio habitual: `npm run ci:pre-merge`.
-- Runtime clínico, storage, auth, bundle o boundaries críticos: `npm run ci:merge-gate`, que ya incluye `ci:pre-merge`.
-- Release o reglas persistentes: `npm run ci:release-gate`, que ya incluye `ci:merge-gate`.
-
-No encadenes estos gates completos. Para diagnosticar sólo el bundle productivo ya
+No encadenes gates completos. Para diagnosticar sólo el bundle productivo ya
 construido, usa `npm run ci:preview-gate`. Tras cambiar código, repite los controles
 afectados; el CI del SHA final debe aprobarse antes del merge.
 

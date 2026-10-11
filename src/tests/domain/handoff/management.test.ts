@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 import {
   buildChecklistUpdateRecord,
   buildMedicalNoChangesRecord,
@@ -13,21 +14,15 @@ import {
 } from '@/domain/handoff/management';
 
 const createRecord = (): DailyRecord =>
-  ({
-    date: '2026-03-03',
+  DataFactory.createMockDailyRecord('2026-03-03', {
     beds: {},
     handoffDayChecklist: {},
     handoffNightChecklist: {},
     handoffNovedadesDayShift: '',
     handoffNovedadesNightShift: '',
     medicalHandoffNovedades: '',
-    discharges: [],
-    transfers: [],
-    cma: [],
-    nurses: [],
-    activeExtraBeds: [],
     lastUpdated: '',
-  }) as unknown as DailyRecord;
+  });
 
 describe('handoff management domain', () => {
   it('builds checklist and novedades updates immutably', () => {

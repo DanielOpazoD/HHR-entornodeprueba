@@ -152,7 +152,9 @@ Salida esperada:
 
 ### `ci:pre-merge`
 
-Usar como verificación compacta obligatoria antes de merge.
+Usar como gate base para cambios habituales de código; los gates ampliados lo
+contienen y no deben ejecutarse después de repetirlo. Para documentación pura,
+ver la selección local en [SAFE_CHANGE_CHECKLIST.md](./SAFE_CHANGE_CHECKLIST.md).
 
 Incluye:
 
@@ -186,11 +188,13 @@ Incluye:
 
 - `npm run check:bundle-budget`
 - `npm run check:chunk-graph`
-- `npm run test:e2e:preview:census-bootstrap:built`
+- `npm run check:runtime-asset-margin`
+- `npm run ci:preview-smoke:built` (censo, biblioteca clínica, lectura del panel
+  e historial de sincronización sobre el build existente)
 
 Salida esperada:
 
-- cobertura crítica instrumentada sin regresión;
+- grafo y margen de assets dentro de sus controles;
 - build productivo válido;
 - budgets de bundle dentro de los límites vigentes;
 - preview local del bundle montando `root` sin blank page silenciosa.
@@ -209,6 +213,7 @@ Usar antes de release o para validar cambios con impacto en Firestore, emuladore
 Incluye:
 
 - `npm run ci:merge-gate`
+- `npm run check:daily-record-authority-release-gate`
 - `npm run release:evidence:refresh`
 - `npm run check:release-evidence`
 - `npm run test:firestore:release:ci`
@@ -240,6 +245,11 @@ La política formal de upgrades, excepciones y tipos de cambio vive en `scripts/
 La clasificación compacta de guardrails blocking vs report-only vive en `scripts/config/guardrail-governance.json` y se valida con `npm run check:guardrail-governance`.
 La clasificación de runtime de tests vive en `scripts/config/test-runtime-governance.json` y se valida con `npm run check:test-runtime-governance`.
 El workflow `.github/workflows/nightly-test-runtime.yml` concentra suites largas en `workflow_dispatch`/`schedule`: `test:sync-load`, `test:release-confidence:full` y `test:e2e:clinical-stability:ci`.
+La señal observada de shards conserva la ejecución, fecha y commit del perfil leído.
+Es una observación almacenada: regenerar el informe no vuelve actuales esos tiempos.
+Para evaluar un workflow, usar su artifact `ci-runtime-telemetry`, generado al terminar
+los jobs; sin procedencia verificable no atribuir la medición al run actual.
+
 El artifact `reports/test-runtime-governance.md` muestra budgets, PR vs nightly y señales de fixtures duplicadas para reducir tiempo con datos sin perder cobertura clínica crítica.
 El balance de los 4 `unit-risk-shards` vive en `scripts/config/unit-shard-balance.json`, se valida con `npm run check:unit-shard-balance` y se evidencia en `reports/unit-shard-runtime-profile.md`.
 Si un shard se vuelve dominante, correr `npm run profile:unit-shard-runtime`, revisar los archivos lentos del reporte y ajustar `perFileOverheadMs`, `durationHints`, `affinityGroups` o `lockedAssignments`; no mover tests clínicos PR-critical a nightly para maquillar runtime.
@@ -448,6 +458,25 @@ aprobado el gate local completo ni aumentar el límite para igualarlo a CI.
 
 ### Falla `check:critical-coverage`
 
+Si Vitest informa `Failed to start forks worker` o `Timeout waiting for worker to
+respond`, la ejecución no acredita cobertura completa, aunque los tests iniciados
+hayan pasado. Registrar el fallo antes de reintentar. Una señal que termina el
+proceso se informa como `[critical-coverage] Runner did not complete` y conserva
+un resultado fallido; no se reintenta automáticamente.
+
+Para reducir la presión local de recursos, Vitest ya permite limitar los workers:
+
+```sh
+VITEST_MAX_WORKERS=2 npm run check:critical-coverage
+```
+
+Esta opción conserva todos los targets, cobertura, umbrales y timeouts; no cambia
+el valor predeterminado del repositorio ni la configuración de CI. Puede tardar
+más. No usarla como justificación para ignorar errores de assertions. Después de
+resolver una etapa fallida, continuar las etapas restantes del gate; no presentar
+la primera ejecución agregada como aprobada ni repetir las etapas ya aprobadas
+sobre el mismo código y entorno.
+
 1. correr `npm run test:coverage:critical`
 2. revisar [reports/critical-coverage.md](./../reports/critical-coverage.md)
 3. ubicar la zona degradada en `scripts/config/critical-coverage-thresholds.json`
@@ -472,6 +501,27 @@ aprobado el gate local completo ni aumentar el límite para igualarlo a CI.
 2. si falla `rules`, validar contratos de schema y paths Firestore antes de tocar tests
 3. si falla `emulator:sync/ui`, revisar sync queue, repositorios, IndexedDB o adapters Firestore
 4. regenerar snapshots/reportes operativos si el cambio modificó budgets o recovery policies
+
+### Timeouts locales del emulador con CI verde
+
+Antes de cambiar límites, conservar SHA, versión de Node/Java, comando, puerto y
+log de la ejecución fallida. Separar un fallo de arranque/reglas (`beforeAll`) de
+una aserción clínica o transacción fallida; no atribuir ambos automáticamente a CPU.
+
+1. Repetir `npm run test:emulator:sync:ci` sin otros gates iniciados por esta tarea.
+   No detener procesos ajenos. Conservar también los fallos de las repeticiones.
+2. Comprobar el aislamiento de proyectos y la limpieza de cada suite. Las suites
+   actuales usan distintos IDs `demo-hhr-*`; no compartir un proyecto para eliminar
+   el aviso de `singleProjectMode` del emulador.
+3. Como contraste diagnóstico, ejecutar las mismas suites con `--maxWorkers=1`
+   dentro del mismo runner de emulador. Un pase aislado no sustituye el gate normal
+   ni demuestra por sí solo contención de CPU: revisar readiness, reglas, recursos
+   y estado compartido antes de seleccionar una corrección.
+4. Mantener intactos timeouts, aserciones y escenarios de escritores concurrentes.
+   No añadir reintentos, skips ni serialización global para ocultar el fallo.
+5. Validar cualquier corrección repetidamente con el comando original y registrar
+   duración y fallos, no sólo la ejecución más rápida. Si no se reproduce, declarar
+   la causa pendiente en vez de presentar una optimización como demostrada.
 
 ### Falla `test:e2e:critical`
 
@@ -940,3 +990,40 @@ Tras corregir la estructura, una nueva ejecución comprueba la sintaxis de todos
 los scripts operativos con `node --check`, sin ejecutarlos. Cualquier error de
 sintaxis mantiene el rechazo; no se permite publicar con una fase pendiente.
 No hay cache entre ejecuciones ni cambios en la política de versiones o permisos.
+
+### Contratos de reportes sin DOM (04-10-2026)
+
+Doce suites de `src/tests/build` sobre frescura/procedencia de reportes, contratos
+de release/preview, dependencias de evidencia, auditoría npm, Git y resultados
+Playwright usan Node por archivo. Sus imports y operaciones son de filesystem,
+procesos y datos; no requieren DOM. El setup global conserva sus fixtures para
+Node y la UI sigue en jsdom. No extender la migración solo por ubicación.
+
+Con dos workers y los mismos 133 tests, tres ejecuciones por variante dieron
+medianas de 6,28 s en jsdom y 4,60 s en Node; el entorno pasó de unos 3 s agregados
+a cero. Se midió primero la base y luego el cambio, sin aislamiento de la carga
+del equipo: es evidencia de esta cohorte, no una ganancia del pipeline completo.
+Rollback: retirar solo las doce anotaciones de entorno, sin cambiar tests,
+workers, timeouts ni umbrales.
+
+### Separar transporte y planificación en los tests de IA
+
+`cie10AISearch.test.ts` sustituye el gestor mediante su ruta canónica y verifica
+que la búsqueda pase por él con su señal de cancelación. Sus seis casos siguen
+cubriendo serverless y fallback; no deben pagar las pausas reales del planificador.
+`aiRequestManager.test.ts` prueba ese planificador real con reloj controlado e
+instancia aislada: intervalo de 1.500 ms, aborto, error y backoff de 2/4/8 s para
+429/503. Mantener ambas responsabilidades; quitar el mock no aumenta la cobertura
+del transporte y vuelve a introducir esperas entre casos.
+
+### Evidencia incompleta: controles existentes verificados (04-10-2026)
+
+La revisión del bloque 6 no requiere otro validador: `previewBootstrapEvidenceSupport.test.ts`
+rechaza reportes ausentes/corruptos, interrumpidos, omitidos o de otro workflow/run/SHA;
+`releaseEvidenceContract.test.ts` rechaza inventarios incompletos y paquetes dirty;
+`reportFreshness.test.ts` y `evidenceDependencyGraph.test.ts` verifican procedencia,
+dependencias y frescura antes de reutilizar resultados. `ciFinalConfidenceWorkflow.test.ts`
+comprueba la dependencia del consumidor respecto a sus productores de la misma ejecución.
+Conservar estos contratos y sus casos negativos al optimizar CI. El benchmark de
+arranque también rechaza sobrescribir evidencia: para repetir, usar una ruta nueva
+con `CENSUS_PERF_OUTPUT`, sin borrar el resultado anterior para hacerlo parecer vigente.

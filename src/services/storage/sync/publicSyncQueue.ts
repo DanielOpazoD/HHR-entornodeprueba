@@ -1,3 +1,4 @@
+import { createCudyrArchiveQueue } from './publicCudyrArchiveQueue';
 import { ensureDbReady } from '@/services/storage/indexeddb/indexedDbCore';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
@@ -27,7 +28,6 @@ import { recordSyncQueueBudgetTelemetry } from '@/services/storage/sync/syncQueu
 const syncObservability = createDomainObservability('sync', 'SyncQueue');
 const syncQueueStore = createDexieSyncQueueStore();
 const syncRuntime = createBrowserSyncRuntime();
-
 const getSyncOwnerKey = (): string | null => syncRuntime.getOwnerKey();
 
 const toSyncIssueMessage = (error: unknown, fallback: string): string =>
@@ -115,7 +115,6 @@ export const recordSyncQueueOwnershipTelemetry = (
 
 export const isConflictSyncError = (error: unknown): boolean =>
   classifySyncError(error).category === 'conflict';
-
 export const isRetryableSyncError = (error: unknown): boolean => classifySyncError(error).retryable;
 
 export const getSyncQueueStats = async (): Promise<{
@@ -258,6 +257,7 @@ export const queueSyncTask = async (
   }
 };
 
+export const queueCudyrArchiveTask = createCudyrArchiveQueue(syncQueueEngine.queueTask);
 export const queueDailyRecordSyncTaskWithLocalRecord = async (
   record: DailyRecord,
   meta?: Pick<SyncTask, 'contexts' | 'origin' | 'recoveryPolicy' | 'syncContract'>,

@@ -1,3 +1,5 @@
+import { planReviewedNeonatalSourceChanges } from './reviewedNeonatalSourcePlacement';
+import { prepareNeonatalPlacementReviews } from './neonatalPlacementReviewPlan';
 import type { DailyRecord, PatientData } from '../contracts/rayenDomainContracts';
 import type { RayenCensusSnapshot, RayenEncounter } from '../contracts/rayenSnapshot';
 import type { CensusImportDiff } from '../contracts/censusImportDiff';
@@ -27,7 +29,10 @@ import {
 import { createEmptyCensusImportDiff } from './censusImportDiffFactory';
 import { preparePavilionRecoverySyncScope } from './pavilionRecoverySyncPolicy';
 import { prepareEquivalentBedSourceCollisions } from './bedOccupancyCollisionPolicy';
-import { createDischargedEncounterMatcher } from './censusDischargeHistory';
+import {
+  appendMissingFichaSignals,
+  createDischargedEncounterMatcher,
+} from './censusDischargeHistory';
 export { requiresReview } from './censusReconciliationPredicates';
 export interface ReconcileOptions {
   reference?: Date;
@@ -174,6 +179,7 @@ export const reconcileCensus = (
         rut: patient.rut,
         patientName: patient.patientName,
         scope: 'clinical-crib',
+        neonatalAssociationReview: true,
         reason: `El recién nacido sigue asociado a ${movingNestedCrib.bedId}; su traslado a ${bedId} requiere revisión.`,
         source: encounter,
       });
@@ -238,12 +244,17 @@ export const reconcileCensus = (
     claimTarget,
     confirmedPrincipalBedIds,
   });
-  // ---- Clinically closed encounters (epicrisis médica / enfermería) ----
-  // Ficha Médico is NOT the authority for the statistical discharge. Even when both clinical
-  // closures are complete, the patient stays in the HHR bed until the Gestión de Camas
-  // administrative-discharge report confirms the departure and its destination.
-  for (const encounter of discharged) {
-    const mapped = rayenToPatientData(encounter, reference);
+  // Clinical closure never vacates a bed; Gestión de Camas must confirm statistical discharge.
+  const closedMapped = prepareActiveClinicalPlacements(
+    current,
+    discharged,
+    snapshot.encounters,
+    reference,
+    findCurrent,
+    findCurrentCrib
+  );
+  for (const item of closedMapped) {
+    const { encounter, mapped, maternalAssociationConflict, usesMaternalRun } = item;
     const promotedMatch = findCurrent(encounter);
     const existingCribMatch = findCurrentCrib(encounter);
     const isPromotedPrincipal = promotedMatch?.patient.bedMode === 'Cuna';
@@ -251,6 +262,15 @@ export const reconcileCensus = (
       if (!isPromotedPrincipal) {
         if (wasDischargedInHhr(encounter)) continue;
         if (admittedAfterCensusDay(encounter, censusDay)) continue;
+        if (maternalAssociationConflict) {
+          retainedClosedCribs.push({
+            encounter,
+            mapped,
+            maternalAssociationConflict,
+            usesMaternalRun,
+          });
+          continue;
+        }
         const priorParentBedId = existingCribMatch?.bedId;
         const outgoingParentMove = priorParentBedId
           ? diff.moves.find(entry => entry.fromBedId === priorParentBedId)
@@ -272,7 +292,12 @@ export const reconcileCensus = (
               bedMode: 'Cuna' as const,
             },
           };
-          retainedClosedCribs.push({ encounter, mapped: retainedMapped });
+          retainedClosedCribs.push({
+            encounter,
+            mapped: retainedMapped,
+            maternalAssociationConflict,
+            usesMaternalRun,
+          });
           trackClinicalClosure(
             parentBedId,
             existingCribMatch?.patient ?? mapped.patient,
@@ -352,28 +377,14 @@ export const reconcileCensus = (
     confirmedPrincipalBedIds,
     pendingClinicalCribDischargeIdentities(retainedClosedCribs)
   );
-  // ---- Current patients absent from the snapshot → administrative confirmation pending ----
-  // Absence from Ficha Médico is only a signal. It never creates a movement or vacates a bed;
-  // the authoritative Gestión de Camas report must confirm the statistical discharge.
-  if (snapshot.isComplete === true) {
-    for (const bedId of occupiedBedIds) {
-      if (consumedBedIds.has(bedId)) continue;
-      const patient = current.beds[bedId];
-      if (!isOccupied(patient)) continue;
-      diff.pendingAdministrativeDischarges.push({
-        bedId,
-        rut: patient.rut,
-        patientName: patient.patientName,
-        signal: 'missing-from-ficha',
-        encounterId: patient.clinicalEpisodeId,
-        verification: {
-          medicalEpicrisis: 'unknown',
-          nursingEpicrisis: 'unknown',
-          hospitalDischarge: 'unknown',
-        },
-      });
-    }
-  }
+  // Ficha absence signals a pending check, never a statistical movement.
+  if (snapshot.isComplete === true)
+    appendMissingFichaSignals(current, diff, occupiedBedIds, consumedBedIds);
+  planReviewedNeonatalSourceChanges(current, diff, [...active, ...discharged]);
+  diff.neonatalPlacementReviews = prepareNeonatalPlacementReviews(current, diff, [
+    ...activeMapped,
+    ...closedMapped,
+  ]);
   diff.summary = {
     admissions: diff.admissions.length,
     updates: diff.updates.length,

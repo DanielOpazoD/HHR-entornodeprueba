@@ -28,6 +28,8 @@ const stableStringify = (value: unknown): string => {
 };
 
 const comparableStructuralPlan = (diff: CensusImportDiff) => ({
+  neonatalSourceChanges: diff.neonatalSourceChanges ?? [],
+  neonatalPlacementReviews: diff.neonatalPlacementReviews ?? [],
   admissions: diff.admissions,
   updates: diff.updates,
   moves: diff.moves,

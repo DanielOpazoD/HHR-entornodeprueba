@@ -118,6 +118,7 @@ describe('Rayen import against specialty server authority', () => {
     const mother = encounter();
     const child = encounter({
       encounterId: 'synthetic-child',
+      firstGivenName: 'RN de Synthetic',
       run: '222222222',
       room: 'Cunas',
       bed: 'CH5C1',
@@ -138,6 +139,7 @@ describe('Rayen import against specialty server authority', () => {
     const mother = encounter();
     const child = encounter({
       encounterId: 'synthetic-child',
+      firstGivenName: 'RN de Synthetic',
       run: '222222222',
       room: 'Cunas',
       bed: 'CH5C1',
@@ -162,6 +164,7 @@ describe('Rayen import against specialty server authority', () => {
     const mother = encounter();
     const child = encounter({
       encounterId: 'synthetic-child',
+      firstGivenName: 'RN de Synthetic',
       run: '222222222',
       room: 'Cunas',
       bed: 'CH5C1',
@@ -187,6 +190,7 @@ describe('Rayen import against specialty server authority', () => {
     const mother = encounter();
     const child = encounter({
       encounterId: 'synthetic-child',
+      firstGivenName: 'RN de Synthetic',
       run: '222222222',
       room: 'Cunas',
       bed: 'CH5C1',

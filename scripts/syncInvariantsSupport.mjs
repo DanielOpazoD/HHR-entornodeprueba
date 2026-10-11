@@ -34,6 +34,7 @@ export const evaluateSyncInvariants = root => {
   const packageJson = JSON.parse(readText(root, 'package.json'));
   const ports = readText(root, 'src/services/storage/sync/syncQueuePorts.ts');
   const engine = readText(root, 'src/services/storage/sync/syncQueueEngine.ts');
+  const standaloneEnqueue = readText(root, 'src/services/storage/sync/enqueueStandaloneSyncTask.ts');
   const enqueuePolicy = readText(root, 'src/services/storage/sync/syncQueueEnqueuePolicy.ts');
   const publicQueue = readText(root, 'src/services/storage/sync/publicSyncQueue.ts');
   const contractPolicy = readText(root, 'src/services/storage/sync/syncTaskContractPolicy.ts');
@@ -135,11 +136,13 @@ export const evaluateSyncInvariants = root => {
     buildInvariant(
       'sync-contract-coalescing',
       contractPolicy.includes('mergeSyncTaskContracts') &&
-        engine.includes('mergeSyncTaskContracts(existing.syncContract'),
+        engine.includes("import('./enqueueStandaloneSyncTask')") &&
+        standaloneEnqueue.includes('mergeSyncTaskContracts(existing.syncContract'),
       'Reused sync tasks must merge semantic syncContract paths instead of overwriting them.',
       [
         'src/services/storage/sync/syncTaskContractPolicy.ts',
         'src/services/storage/sync/syncQueueEngine.ts',
+        'src/services/storage/sync/enqueueStandaloneSyncTask.ts',
       ]
     ),
     buildInvariant(

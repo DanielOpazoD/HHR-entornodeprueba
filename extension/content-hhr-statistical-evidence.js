@@ -3,7 +3,7 @@
   const requestType = globalThis.HhrRayenMessageContract?.types
     ?.STATISTICAL_DISCHARGE_EVIDENCE_REQUEST;
   const trustedOrigins = new Set(['http://localhost:3000', 'http://localhost:3001',
-    'https://testinghhr.netlify.app']);
+    'https://testinghhr.netlify.app', 'https://hhr-entorno-prueba.netlify.app']);
   if (!requestType || !trustedOrigins.has(window.location.origin)) return;
   const resultType = 'HHR_RAYEN_STATISTICAL_DISCHARGE_EVIDENCE_RESULT';
   const post = message => chrome.runtime?.id && window.postMessage(message, window.location.origin);

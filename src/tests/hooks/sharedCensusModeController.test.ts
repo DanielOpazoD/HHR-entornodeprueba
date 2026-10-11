@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildAuthorizedSharedAccessUser,
   resolveSharedCensusPathInfo,
-} from '@/features/census/controllers/sharedCensusModeController';
+} from '@/shared/access/sharedCensusAccess';
 
 describe('sharedCensusModeController', () => {
   describe('resolveSharedCensusPathInfo', () => {

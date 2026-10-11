@@ -77,8 +77,24 @@ export const useSyslabAccess = (isOpen: boolean): SyslabAccessModel => {
 
   useEffect(() => {
     if (!isOpen || !isAwaitingLogin) return;
-    const interval = window.setInterval(() => void refresh(), STATUS_POLL_INTERVAL_MS);
-    return () => window.clearInterval(interval);
+    let interval: number | null = null;
+    const stopPolling = () => {
+      if (interval !== null) window.clearInterval(interval);
+      interval = null;
+    };
+    const updatePolling = (checkImmediately: boolean) => {
+      stopPolling();
+      if (document.visibilityState !== 'visible') return;
+      if (checkImmediately) void refresh();
+      interval = window.setInterval(() => void refresh(), STATUS_POLL_INTERVAL_MS);
+    };
+    const handleVisibilityChange = () => updatePolling(true);
+    updatePolling(false);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [isAwaitingLogin, isOpen, refresh]);
 
   const openLogin = useCallback(async () => {

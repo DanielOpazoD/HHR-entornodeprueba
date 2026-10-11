@@ -102,7 +102,7 @@ const assertRayenClinicalRunAuthority = ({ record, payload }) => {
  * A policy change during a run deliberately invalidates the old request so a new run
  * can retry under one coherent authority decision.
  */
-const assertRayenClinicalBatchAuthority = ({ policySnapshot, record, payload }) => {
+const assertRayenClinicalBatchAuthority = ({ policySnapshot, record, payload }, archive = false) => {
   if (payload.legacyAuthorityInference === true) {
     return assertLegacyRayenClinicalBatchAuthority({ policySnapshot, record, payload });
   }
@@ -112,7 +112,7 @@ const assertRayenClinicalBatchAuthority = ({ policySnapshot, record, payload }) 
 
   if (
     globalPolicy.clinicalBatchMode !== payload.mode ||
-    runEvent.status !== 'applied' ||
+    !(archive ? ['applied', 'complete', 'partial'] : ['applied']).includes(runEvent.status) ||
     !runPolicy ||
     runPolicy.mode !== globalPolicy.mode ||
     runPolicy.clinicalBatchMode !== globalPolicy.clinicalBatchMode ||
@@ -127,4 +127,7 @@ const assertRayenClinicalBatchAuthority = ({ policySnapshot, record, payload }) 
 module.exports = {
   assertRayenClinicalBatchAuthority,
   assertRayenClinicalRunAuthority,
+  // Settling the clinical phase must not invalidate durable archive replay. All other
+  // policy, census date and execution checks remain identical to clinical enrichment.
+  assertCudyrArchiveAuthority: input => assertRayenClinicalBatchAuthority(input, true),
 };

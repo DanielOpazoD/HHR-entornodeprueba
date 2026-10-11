@@ -104,13 +104,6 @@ export const indexPrincipalBeds = (
   return result;
 };
 
-export const clinicalCribConflictBeds = (diff: CensusImportDiff): Set<string> =>
-  new Set(diff.conflicts
-    .filter(entry => entry.bedId && (
-      entry.code === 'principal-bed-collision' ||
-      (entry.scope === 'clinical-crib' && entry.code !== 'unconfirmed-principal-bed')
-    ))
-    .map(entry => entry.bedId as string));
 
 export const hasPlannedPatientIdentity = (
   diff: CensusImportDiff,
@@ -284,12 +277,12 @@ export const reportPredatesActiveAdmission = (
   if (reportedEpisode && activeEpisode && reportedEpisode !== activeEpisode) return false;
   return reportPredatesAdmission(stamp, evidence);
 };
-
 export const resolveReportDischarge = (
   row: EgresoReportRow,
   evidence: CmaOriginEvidence = {}
 ) => {
   const mapped = mapDestinoDeAlta(row.destino, row.motivo);
+  mapped.status = row.dischargeStatus ?? mapped.status;
   const dischargeDay = correctedStamp(
     row.fechaEgreso,
     row.correctedDay,

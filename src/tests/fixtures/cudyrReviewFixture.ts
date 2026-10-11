@@ -1,0 +1,20 @@
+export const reviewRequest = () => ({
+  kind: 'save-monthly-review',
+  schemaVersion: 1,
+  confirmed: true,
+  month: '2026-07',
+  entryKey: 'category:5:2',
+  expectedRevision: 0,
+  operationId: 'synthetic-operation-0001',
+  decision: { action: 'pending', episodeId: '', reason: 'Revisar ficha original del episodio' },
+  evidence: {
+    sources: [{ kind: 'categories', name: 'Julio-sintetico.xls', sha256: 'a'.repeat(64) }],
+    from: '2026-07-01',
+    to: '2026-07-31',
+    contextHash: 'b'.repeat(64),
+    patientName: 'Paciente sintético',
+    document: 'synthetic-document',
+    sourceDate: '2026-07-02',
+    sourceValue: 'C2',
+  },
+});

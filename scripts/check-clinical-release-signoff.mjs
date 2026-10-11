@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 
-import { buildClinicalReleaseSignoffReport } from './clinicalReleaseSignoffSupport.mjs';
+import { collectClinicalReleaseCandidateIssues } from './clinicalReleaseSignoffSupport.mjs';
 
-const report = buildClinicalReleaseSignoffReport(process.cwd(), { requirePassed: true });
-
-if (report.issues.length > 0) {
-  console.error('[clinical-release-signoff] Release signoff is incomplete:');
-  for (const issue of report.issues) {
-    console.error(`- ${issue}`);
-  }
+const issues = collectClinicalReleaseCandidateIssues(process.cwd());
+if (issues.length > 0) {
+  console.error('[clinical-release-signoff] Candidate signoff is incomplete:');
+  for (const issue of issues) console.error(`- ${issue}`);
   process.exit(1);
 }
-
-console.log(`[clinical-release-signoff] OK (${report.counts.scenarioCount} scenarios)`);
+console.log(
+  '[clinical-release-signoff] Candidate-bound signoff record valid; reviewer identity is not independently authenticated.'
+);

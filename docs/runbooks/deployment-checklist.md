@@ -85,3 +85,34 @@ El signoff real vive en `scripts/config/clinical-release-signoff.json`. Mientras
 
 1. Netlify dashboard → Deploys → seleccionar deploy anterior → "Publish deploy"
 2. Los datos en Firestore NO se rollbackean (son independientes del deploy)
+
+### Aprobación clínica del candidato exacto
+
+El informe histórico no autoriza la versión que se está preparando. Para cerrar
+una release, la persona responsable debe completar los escenarios de
+`scripts/config/clinical-release-validation.json` sobre el candidato verificado.
+El registro usa el esquema de `scripts/config/clinical-release-signoff.json`, pero
+`releaseCandidate` debe contener el SHA completo obtenido con `git rev-parse HEAD`.
+Cada escenario debe estar `passed`, identificar al responsable real, incluir
+`validatedAt` en UTC ISO (por ejemplo `2026-10-05T10:00:00Z`) y una referencia de
+evidencia con `type: manual_signoff`. No copiar aprobaciones de versiones anteriores.
+
+Guardar ese JSON **fuera del checkout** y proporcionar su ruta absoluta:
+
+```sh
+export CLINICAL_RELEASE_SIGNOFF_FILE=/ruta/externa/aprobacion-clinica.json
+npm run check:clinical-release-signoff
+npm run check:release-evidence
+```
+
+El control rechaza registros ausentes, históricos, de otro SHA, incompletos, con
+fechas inválidas/futuras o un checkout modificado. Si el candidato cambia, se
+necesita una nueva revisión del responsable; regenerar informes no la reemplaza.
+La variable debe apuntar al mismo registro durante el gate de release. No incluir
+datos de pacientes en este archivo ni inventar autores, fechas o aprobaciones.
+
+La validación comprueba el contrato del registro y su vínculo al candidato; no es
+una firma electrónica ni autentica por sí sola la identidad del revisor. Los PR
+de tooling conservan sus controles automáticos normales: su merge no declara
+completada una validación clínica ni autoriza una release. El registro histórico
+y su generador se conservan sin reescribir los signoffs antiguos.

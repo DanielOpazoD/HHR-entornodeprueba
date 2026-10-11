@@ -105,10 +105,13 @@ describe('NavbarTabs', () => {
     const censusButton = screen.getByText('Censo Diario').closest('button');
     expect(censusButton?.className).toContain('bg-white/[0.16]');
 
-    // Test CUDYR alias for NURSING_HANDOFF
+    // CUDYR now belongs to Census.
     rerender(<NavbarTabs {...defaultProps} currentModule="CUDYR" />);
     const nursingButton = screen.getByText('Entrega Turno Enfermería').closest('button');
-    expect(nursingButton?.className).toContain('bg-white/[0.16]');
+    expect(nursingButton?.className).not.toContain('bg-white/[0.16]');
+    expect(screen.getByText('Censo Diario').closest('button')?.className).toContain(
+      'bg-white/[0.16]'
+    );
   });
 
   it('navigates to the standalone analytics module from any current module', () => {

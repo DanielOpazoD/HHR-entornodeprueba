@@ -207,6 +207,8 @@ export default defineConfig(({ mode }) => {
             '**/vendor/exceljs.bare.min.js',
             '**/assets/exceljs.min-*.js',
             '**/assets/pdf.worker-*.mjs',
+            // Optional monthly XLS import; loaded only when a file is selected.
+            '**/assets/cudyrSupplement.worker-*.js',
             '**/assets/vendor-pdfjs-*.js',
             '**/assets/pdf-*.js',
             '**/assets/vendor-pdf-*.js',
@@ -223,6 +225,19 @@ export default defineConfig(({ mode }) => {
             // Callable Functions always require network access. Keep their runtime
             // on demand instead of charging every offline installation for it.
             '**/assets/vendor-firebase-functions-*.js',
+            // Contextual CUDYR reports read server-authoritative history and cannot
+            // load offline. Keep the new explorer and workbook on demand as well.
+            '**/assets/CudyrReportExplorer-*.js',
+            // Optional census indicator uses the same on-demand historical reader.
+            '**/assets/CudyrMonthlyIndicator-*.js',
+            '**/assets/useCudyrReport-*.js',
+            '**/assets/cudyrReportWorkbook-*.js',
+            '**/assets/cudyrReportLoader-*.js',
+            // Shared historical reconstruction split from the report loader; same on-demand policy.
+            '**/assets/cudyrReportModel-*.js',
+            // Shared report facts and recovery require a verified Firebase/Eloisa read.
+            '**/assets/cudyrReportFacts-*.js',
+            '**/assets/publicCudyrPolicyRecovery-*.js',
             // Rayen enrichment only runs while Eloisa is connected, so it is
             // an on-demand online workflow rather than PWA install payload.
             '**/assets/applyClinicalEnrichmentBatch-*.js',
@@ -348,6 +363,8 @@ export default defineConfig(({ mode }) => {
         'firebase/app',
         'firebase/auth',
         'firebase/firestore',
+        // The optional CUDYR worker is discovered late; avoid a dev reload on its first XLS.
+        'xlsx',
       ],
     },
     test: {

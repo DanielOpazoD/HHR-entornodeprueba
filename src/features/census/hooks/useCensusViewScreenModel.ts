@@ -49,7 +49,6 @@ export const useCensusViewScreenModel = ({
     allowAdminCopyOverride,
     accessProfile,
   });
-  const [resolvedTodayEmptyDate, setResolvedTodayEmptyDate] = useState('');
   const { shouldDeferEmptyState: shouldDeferTodayEmptyState, deferMs: emptyStateDeferMs } =
     resolveCensusEmptyStatePolicy({
       branch: routeModel.branch,
@@ -59,6 +58,14 @@ export const useCensusViewScreenModel = ({
       bootstrapPhase:
         auth.remoteSyncStatus === 'bootstrapping' ? 'remote_runtime_bootstrapping' : bootstrapPhase,
     });
+  const emptyPolicyKey = `${currentDateString}:${shouldDeferTodayEmptyState}:${emptyStateDeferMs}`;
+  const [emptyResolution, setEmptyResolution] = useState({ key: emptyPolicyKey, resolved: false });
+  // Reset during render so revisiting a date cannot briefly reuse its old resolution.
+  if (emptyResolution.key !== emptyPolicyKey) {
+    setEmptyResolution({ key: emptyPolicyKey, resolved: false });
+  }
+  const resolvedTodayEmptyDate =
+    emptyResolution.key === emptyPolicyKey && emptyResolution.resolved ? currentDateString : '';
   const emptyStateDiagnostic = resolveCensusEmptyStateDiagnostic({
     branch: routeModel.branch,
     currentDateString,
@@ -82,11 +89,13 @@ export const useCensusViewScreenModel = ({
     }
 
     const timeoutId = window.setTimeout(() => {
-      setResolvedTodayEmptyDate(currentDateString);
+      setEmptyResolution(previous =>
+        previous.key === emptyPolicyKey ? { ...previous, resolved: true } : previous
+      );
     }, emptyStateDeferMs);
 
     return () => window.clearTimeout(timeoutId);
-  }, [currentDateString, emptyStateDeferMs, shouldDeferTodayEmptyState]);
+  }, [emptyPolicyKey, emptyStateDeferMs, shouldDeferTodayEmptyState]);
 
   return {
     ...routeModel,

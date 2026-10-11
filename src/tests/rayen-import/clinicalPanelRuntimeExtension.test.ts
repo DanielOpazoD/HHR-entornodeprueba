@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '../../../extension/clinical-panel-fetch.js';
 import '../../../extension/clinical-panel-runtime.js';
@@ -70,6 +70,7 @@ const createHarness = (overrides: Partial<ClinicalPanelDependencies> = {}) => {
 };
 
 describe('clinical panel read runtime', () => {
+  afterEach(() => vi.restoreAllMocks());
   it('fails closed when any explicit runtime dependency is missing', () => {
     expect(() =>
       globals.HhrClinicalPanelRuntime.create({ timeoutMs: 15_000 } as ClinicalPanelDependencies)
@@ -231,16 +232,50 @@ describe('clinical panel read runtime', () => {
       }),
     }).runtime;
     await expect(rejected.handleRequest({ encId: '141336' })).resolves.toEqual({
-      error: 'Falló la descarga del panel clínico: plan de cuidados: HTTP 503',
+      error: expect.stringContaining(
+        'Falló la descarga del panel clínico: plan de cuidados: HTTP 503'
+      ),
     });
 
     const invalidValidation = createHarness({
       fetchCurrentValidation: vi.fn().mockResolvedValue({ error: 'sesión vencida' }),
     }).runtime;
     await expect(invalidValidation.handleRequest({ encId: '141336' })).resolves.toEqual({
-      error:
-        'Falló la descarga del panel clínico: validación diaria del tratamiento: sesión vencida',
+      error: expect.stringContaining(
+        'Falló la descarga del panel clínico: validación diaria del tratamiento: sesión vencida'
+      ),
     });
+  });
+
+  it('reports only fixed source categories, outcomes and monotonic durations on failure', async () => {
+    let time = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => (time += 10));
+    const { runtime } = createHarness({
+      fetchClinicalJson: vi.fn(async ({ path, query }: FetchInput) => {
+        if (path.includes('carePlanAssignedCare')) throw new Error('HTTP 503');
+        if (path.includes('getPatientEncounterHistoryReportServer')) {
+          return [{ evolutionResume: [{ OBE_NOTES: 'private clinical text' }] }];
+        }
+        return { Medication: [{ id: 'private medication id', suspended: query?.isSuspended }] };
+      }),
+    });
+    const result = await runtime.handleRequest({ encId: 'private-episode' });
+    expect(result).not.toHaveProperty('events');
+    expect(result).not.toHaveProperty('carePlan');
+    const message = String(result.error);
+    const diagnostic = message.slice(message.indexOf('[HHR_PANEL_V1;'));
+    expect(diagnostic).toMatch(
+      /^\[HHR_PANEL_V1;history:ok:\d+ms;care:failed:\d+ms;medications_active:ok:\d+ms;medications_inactive:ok:\d+ms;validation:ok:\d+ms\]$/
+    );
+    expect(diagnostic).not.toMatch(/private|https|fixture-session/);
+  });
+
+  it('marks error-valued validation as failed in the technical code', async () => {
+    const { runtime } = createHarness({
+      fetchCurrentValidation: vi.fn().mockResolvedValue({ error: 'not available' }),
+    });
+    const result = await runtime.handleRequest({ encId: '141336' });
+    expect(result.error).toMatch(/validation:failed:\d+ms/);
   });
 
   it('preserves missing-encounter and unavailable-session failures', async () => {

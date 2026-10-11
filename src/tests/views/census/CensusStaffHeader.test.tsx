@@ -1,10 +1,36 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { CensusToolbarMenuTargetContext } from '@/shared/ui/CensusToolbarMenuTargetContext';
 import { CensusStaffHeader } from '@/features/census/components/CensusStaffHeader';
 import { DataFactory } from '@/tests/factories/DataFactory';
 import type { BedDefinition } from '@/features/census/contracts/censusBedContracts';
+
+const staffModule = vi.hoisted(() => ({ loaded: false, pending: null as Promise<void> | null }));
+
+vi.mock('@/features/census/components/StaffShiftDetailsModal', () => {
+  staffModule.loaded = true;
+  return {
+    StaffShiftDetailsModal: (props: {
+      role: string;
+      recordDate: string;
+      onClose: () => void;
+      detail: unknown;
+      onSave: (detail: unknown) => void;
+    }) => {
+      if (staffModule.pending) throw staffModule.pending;
+      return (
+        <div role="dialog" aria-label="Detalle de dotación">
+          <span>
+            {props.role} {props.recordDate}
+          </span>
+          <button onClick={props.onClose}>Cerrar detalle</button>
+          <button onClick={() => props.onSave(props.detail)}>Guardar detalle</button>
+        </div>
+      );
+    },
+  };
+});
 
 const mockedUseDailyRecordStaffActions = vi.fn();
 const mockedUseDailyRecordStaff = vi.fn();
@@ -33,8 +59,12 @@ vi.mock('@/features/census/components/NurseSelector', () => ({
     nursesDayShift: string[];
     nursesNightShift: string[];
     className?: string;
+    onOpenDetailedStaffing?: () => void;
   }) => (
     <div data-testid="nurse-selector">
+      {props.onOpenDetailedStaffing && (
+        <button onClick={props.onOpenDetailedStaffing}>Detalle enfermería</button>
+      )}
       <span data-testid="nurse-day">{JSON.stringify(props.nursesDayShift)}</span>
       <span data-testid="nurse-night">{JSON.stringify(props.nursesNightShift)}</span>
       <span data-testid="nurse-class">{props.className}</span>
@@ -47,8 +77,12 @@ vi.mock('@/features/census/components/TensSelector', () => ({
     tensDayShift: string[];
     tensNightShift: string[];
     className?: string;
+    onOpenDetailedStaffing?: () => void;
   }) => (
     <div data-testid="tens-selector">
+      {props.onOpenDetailedStaffing && (
+        <button onClick={props.onOpenDetailedStaffing}>Detalle TENS</button>
+      )}
       <span data-testid="tens-day">{JSON.stringify(props.tensDayShift)}</span>
       <span data-testid="tens-night">{JSON.stringify(props.tensNightShift)}</span>
       <span data-testid="tens-class">{props.className}</span>
@@ -87,6 +121,7 @@ describe('CensusStaffHeader', () => {
       updateDetailedStaffing: vi.fn(),
     });
     mockedUseDailyRecordStaff.mockReturnValue({
+      date: '2026-02-15',
       nursesDayShift: ['Nurse A', 'Nurse B'],
       nursesNightShift: ['Nurse C', 'Nurse D'],
       tensDayShift: ['Tens A'],
@@ -156,6 +191,50 @@ describe('CensusStaffHeader', () => {
     expect(screen.queryByTestId('rayen-operations-loading')).not.toBeInTheDocument();
   });
 
+  it('loads detail only on request, allows pending cancellation and binds it to the census date', async () => {
+    const { rerender } = render(<CensusStaffHeader stats={null} />);
+    expect(staffModule.loaded).toBe(false);
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    staffModule.pending = pending;
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle enfermería' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Cargando dotación');
+    rerender(<CensusStaffHeader stats={null} readOnly />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    rerender(<CensusStaffHeader stats={null} />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle enfermería' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Cargando dotación');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar modal' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle TENS' }));
+    mockedUseDailyRecordData.mockReturnValue({ record: { date: '2026-02-16' } });
+    mockedUseDailyRecordStaff.mockReturnValue({ date: '2026-02-16' });
+    rerender(<CensusStaffHeader stats={null} />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await act(async () => {
+      staffModule.pending = null;
+      release();
+      await pending;
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Detalle TENS' }));
+    expect(await screen.findByText('tens 2026-02-16')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar detalle' }));
+    expect(mockedUseDailyRecordStaffActions().updateDetailedStaffing).toHaveBeenCalledTimes(1);
+    expect(mockedUseDailyRecordStaffActions().updateNurse).not.toHaveBeenCalled();
+    rerender(<CensusStaffHeader stats={null} accessProfile="specialist" />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    rerender(<CensusStaffHeader stats={null} />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    rerender(<CensusStaffHeader stats={null} readOnly />);
+    expect(screen.queryByRole('button', { name: 'Detalle TENS' })).not.toBeInTheDocument();
+    rerender(<CensusStaffHeader stats={null} accessProfile="specialist" />);
+    expect(screen.queryByRole('button', { name: 'Detalle enfermería' })).not.toBeInTheDocument();
+  });
+
   it('passes readOnly class to selectors and hides summary when stats are null', () => {
     mockedUseDailyRecordStaff.mockReturnValue(null);
     mockedUseDailyRecordMovements.mockReturnValue(null);
@@ -181,54 +260,11 @@ describe('CensusStaffHeader', () => {
     expect(screen.queryByTestId('summary-card')).not.toBeInTheDocument();
   });
 
-  it('keeps the scale filter beside the census summary without a dedicated row', async () => {
-    mockedUseDailyRecordBeds.mockReturnValue({
-      R1: DataFactory.createMockPatient('R1', {
-        patientName: 'Paciente con escala pendiente',
-        evaluationScores: {
-          braden: {
-            code: 'BRADEN',
-            name: 'Escala de riesgo UPP (Braden)',
-            encounterEventId: 1,
-            total: 17,
-            severity: 'Riesgo bajo',
-            recordedDate: '2026-02-01',
-            recordedAt: '01-02-2026 08:00',
-          },
-        },
-      }),
-    });
-
+  it('keeps specialty and scale controls out of the staffing toolbar', async () => {
     render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} />);
-
-    const rayen = await screen.findByTestId('rayen-operations-bar');
-    const scales = screen.getByTestId('census-attention-bar');
-    expect(rayen).not.toContainElement(scales);
-    expect(screen.getByTestId('census-staff-and-sync')).toContainElement(scales);
-  });
-
-  it('keeps scale surveillance available in read-only mode without showing synchronization', async () => {
-    mockedUseDailyRecordBeds.mockReturnValue({
-      R1: DataFactory.createMockPatient('R1', {
-        patientName: 'Paciente con escala pendiente',
-        evaluationScores: {
-          downton: {
-            code: 'DOWNTON',
-            name: 'Escala de riesgo de caídas (Downton)',
-            encounterEventId: 2,
-            total: 3,
-            severity: 'Riesgo alto',
-            recordedDate: '2026-02-01',
-            recordedAt: '01-02-2026 08:00',
-          },
-        },
-      }),
-    });
-
-    render(<CensusStaffHeader stats={DataFactory.createMockStatistics()} readOnly={true} />);
-
-    expect(await screen.findByTestId('census-attention-bar')).toBeInTheDocument();
-    expect(screen.queryByTestId('rayen-operations-bar')).not.toBeInTheDocument();
+    expect(await screen.findByTestId('rayen-operations-bar')).toBeInTheDocument();
+    expect(screen.queryByTestId('census-attention-bar')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('specialty-actions')).not.toBeInTheDocument();
   });
 
   it('offers the spreadsheet action directly from the selected census day', () => {

@@ -1,0 +1,22 @@
+# Dedicated Horas Extras site; does not modify the HHR clinical site.
+[build]
+command = "npm run build"
+publish = "dist/client"
+
+[build.environment]
+NODE_VERSION = "22"
+VITE_OVERTIME_MODE = "cloud"
+
+[functions]
+directory = "netlify/functions"
+node_bundler = "esbuild"
+external_node_modules = ["firebase-admin"]
+
+# Views use local state at /. A catch-all rewrite would shadow /api/overtime/*.
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "same-origin"
+X-Frame-Options = "DENY"

@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { BedDefinition } from '@/types/domain/beds';
-import type { DailyRecord } from '@/types/domain/dailyRecord';
+import { DataFactory } from '@/tests/factories/DataFactory';
 import { Specialty } from '@/types/domain/patientClassification';
 import {
   buildMedicalHandoffDeepLink,
@@ -20,10 +20,9 @@ const BEDS: BedDefinition[] = [
   { id: 'H1C1', name: 'H1C1', type: 'MEDIA', isCuna: false },
 ] as BedDefinition[];
 
-const RECORD = {
-  date: '2026-03-03',
+const RECORD = DataFactory.createMockDailyRecord('2026-03-03', {
   beds: {
-    R1: {
+    R1: DataFactory.createMockPatient('R1', {
       patientName: 'Paciente UPC',
       specialty: Specialty.MEDICINA,
       isUPC: true,
@@ -33,14 +32,15 @@ const RECORD = {
         classification: 'UPC_UCI',
         evaluatedAt: '2026-04-18T10:00:00Z',
       },
-    },
-    H1C1: {
+    }),
+    H1C1: DataFactory.createMockPatient('H1C1', {
+      upcChecklist: undefined,
       patientName: 'Paciente Sala',
       specialty: Specialty.CIRUGIA,
       isUPC: true,
-    },
+    }),
   },
-} as unknown as DailyRecord;
+});
 
 describe('handoff view domain', () => {
   it('resolves initial scope and specialty from search params', () => {
@@ -99,7 +99,7 @@ describe('handoff view domain', () => {
           isUPC: false,
         },
       },
-    } as unknown as DailyRecord;
+    };
 
     expect(filterBedsByMedicalScope(BEDS, staleRecord, true, 'upc').map(bed => bed.id)).toEqual([
       'R1',
@@ -117,21 +117,22 @@ describe('handoff view with legacy boolean UPC classification', () => {
     { id: 'R2', name: '102', type: 'MEDIA', isCuna: false },
   ] as BedDefinition[];
 
-  const RECORD = {
-    date: '2026-03-03',
+  const RECORD = DataFactory.createMockDailyRecord('2026-03-03', {
     beds: {
-      R1: {
+      R1: DataFactory.createMockPatient('R1', {
+        upcChecklist: undefined,
         patientName: 'Paciente UPC',
         specialty: Specialty.MEDICINA,
         isUPC: true,
-      },
-      R2: {
+      }),
+      R2: DataFactory.createMockPatient('R2', {
+        upcChecklist: undefined,
         patientName: 'Paciente Sala',
         specialty: Specialty.CIRUGIA,
         isUPC: false,
-      },
+      }),
     },
-  } as unknown as DailyRecord;
+  });
 
   it('filters beds by medical scope and selected specialty', () => {
     const upcBeds = filterBedsByMedicalScope(BEDS, RECORD, true, 'upc');
