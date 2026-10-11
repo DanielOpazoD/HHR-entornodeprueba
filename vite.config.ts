@@ -12,6 +12,7 @@ import { minsalSharedInteropPlugin } from './scripts/config/minsalSharedInteropP
 import { netlifyFunctionDevServerPlugin } from './scripts/config/netlifyFunctionDevServer';
 import { bindReleaseEvidenceToBuild } from './scripts/config/releaseEvidenceRuntimeAsset';
 import { versionRuntimePlugin } from './scripts/config/versionRuntimePlugin';
+import { startupPublicAssetsPlugin } from './scripts/config/startupPublicAssetsPlugin';
 
 const RELEASE_EVIDENCE_ASSET = 'release-evidence.json';
 const RELEASE_EVIDENCE_SOURCE = path.resolve(
@@ -176,6 +177,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
+      startupPublicAssetsPlugin(),
       extensionDownloadPlugin(__dirname),
       versionRuntimePlugin(buildVersionInfo),
       releaseEvidenceRuntimePlugin(),
