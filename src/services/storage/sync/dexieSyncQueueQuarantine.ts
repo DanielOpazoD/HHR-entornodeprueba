@@ -33,6 +33,18 @@ export const REUSABLE_TASK_STATES = new Set<SyncTask['status']>(['PENDING', 'FAI
 export const listUnresolvedDailyRecordTasks = async (date: string): Promise<SyncTask[]> =>
   hospitalDB.syncQueue.where('key').equals(`daily:${date}`).toArray();
 
+export const findReusableSyncTask = async (
+  type: SyncTask['type'],
+  key: string,
+  ownerKey?: string | null
+): Promise<SyncTask | null> =>
+  (await hospitalDB.syncQueue.where('key').equals(key).toArray()).find(
+    task =>
+      task.type === type &&
+      matchesOwner(ownerKey, task.ownerKey) &&
+      REUSABLE_TASK_STATES.has(task.status)
+  ) || null;
+
 const QUARANTINED_TASK_STATES = new Set<SyncTask['status']>(['FAILED', 'CONFLICT']);
 
 /** Revive una tarea FAILED/CONFLICT como PENDING limpia (acción explícita del usuario). */

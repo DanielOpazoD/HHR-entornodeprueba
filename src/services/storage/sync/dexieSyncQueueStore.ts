@@ -9,13 +9,14 @@ import { localPersistence } from '@/services/storage/localpersistence/localPersi
 import { recordOperationalErrorTelemetry } from '@/services/observability/operationalTelemetryOutcomeRecorder';
 import type { DailyRecord } from '@/services/storage/storageDailyRecordContracts';
 import type { SyncTask } from '@/services/storage/syncQueueTypes';
+import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 import { matchesTaskClaim } from '@/services/storage/sync/syncQueueTaskFactory';
 import { isE2ERuntimeEnabled } from '@/shared/runtime/e2eRuntime';
 import {
   discardQuarantinedTask,
+  findReusableSyncTask,
   matchesOwner,
   requeueQuarantinedTask,
-  REUSABLE_TASK_STATES,
   listUnresolvedDailyRecordTasks,
 } from '@/services/storage/sync/dexieSyncQueueQuarantine';
 
@@ -98,17 +99,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
       return claimedTasks;
     });
   },
-  async findReusableTask(type, key, ownerKey) {
-    const existing = await hospitalDB.syncQueue.where('type').equals(type).toArray();
-    return (
-      existing.find(
-        task =>
-          matchesOwner(ownerKey, task.ownerKey) &&
-          task.key === key &&
-          REUSABLE_TASK_STATES.has(task.status)
-      ) || null
-    );
-  },
+  findReusableTask: findReusableSyncTask,
   async add(task) {
     await hospitalDB.syncQueue.add(task);
   },
@@ -124,14 +115,7 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
         await hospitalDB.dailyRecords.put(record);
 
         if (task.key) {
-          const existing = (
-            await hospitalDB.syncQueue.where('type').equals(task.type).toArray()
-          ).find(
-            candidate =>
-              matchesOwner(task.ownerKey, candidate.ownerKey) &&
-              candidate.key === task.key &&
-              REUSABLE_TASK_STATES.has(candidate.status)
-          );
+          const existing = await findReusableSyncTask(task.type, task.key, task.ownerKey);
 
           if (existing?.id) {
             await hospitalDB.syncQueue.put({ ...existing, ...task, id: existing.id });
@@ -307,7 +291,17 @@ export const createDexieSyncQueueStore = (): SyncQueueStorePort => ({
   },
   async deleteClaimed(taskId, claim, authoritativeRecord) {
     const { completeClaimedSyncTask } = await import('./dexieSyncQueueAuthorityAck');
-    const result = await completeClaimedSyncTask(taskId, claim, authoritativeRecord);
+    const result = await completeClaimedSyncTask(
+      {
+        db: hospitalDB,
+        matchesClaim: matchesTaskClaim,
+        pending: listUnresolvedDailyRecordTasks,
+        conflict: ConcurrencyError,
+      },
+      taskId,
+      claim,
+      authoritativeRecord
+    );
     if (result.adopted && authoritativeRecord)
       mirrorTransactionalDailyRecordWrite(authoritativeRecord);
     return result.deleted;
