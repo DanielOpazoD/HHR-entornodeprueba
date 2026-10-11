@@ -1101,7 +1101,7 @@ a Firebase Functions; no cambia la configuración externa de publicación de Net
 El CLI de despliegue queda fijado a `firebase-tools` 15.16.0 en manifest y lockfile.
 La versión 15.15.0 compartía el token de fuente entre grupos: el run `38170880023`
 actualizó `us-central1`, pero Firebase rechazó las ocho actualizaciones de
-`southamerica-east1` con `source_token: Invalid source token`.
+`southamerica-east1` con el error `Invalid source token`.
 La [corrección del fabricante](https://github.com/firebase/firebase-tools/pull/10432)
 crea un recolector de tokens por grupo; el test
 `src/tests/build/firebaseSourceTokenIsolation.test.ts` comprueba el aislamiento

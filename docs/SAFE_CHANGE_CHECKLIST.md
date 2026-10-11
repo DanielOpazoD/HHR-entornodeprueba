@@ -4,7 +4,7 @@
 
 - **Owner:** CI/Functions HHR.
 - **Reason:** 15.15.0 comparte tokens de fuente entre grupos; Firebase rechazó
-  el despliegue de la región clínica con `source_token: Invalid source token`.
+  el despliegue de la región clínica con el error `Invalid source token`.
 - **TargetVersion:** `firebase-tools` 15.16.0, fijado en manifest y lockfile raíz.
   Es el único paquete resuelto que cambia; SDK, Functions y overrides se conservan.
 - **RiskLevel:** medio: herramienta de despliegue y emulador, con corrección
