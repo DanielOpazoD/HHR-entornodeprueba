@@ -14,13 +14,9 @@ import { recordOperationalErrorTelemetry } from '@/services/observability/operat
 import { getRecordDocRef } from '@/services/storage/firestore/firestoreShared';
 import { defaultFirestoreServiceRuntime } from '@/services/storage/firestore/firestoreServiceRuntime';
 import type { FirestoreServiceRuntimePort } from '@/services/storage/firestore/ports/firestoreServiceRuntimePort';
+import { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 
-export class ConcurrencyError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ConcurrencyError';
-  }
-}
+export { ConcurrencyError } from '@/services/storage/syncErrorCatalog';
 
 const getRemoteLastUpdatedIso = (data: Record<string, unknown>): string | undefined => {
   const value = data.lastUpdated;
