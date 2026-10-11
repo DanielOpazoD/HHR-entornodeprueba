@@ -204,9 +204,9 @@ const createSpecialistMedicalHandoffFunctions = ({
     }
 
     const date = assertStringField(data?.date, 'date');
-    const { bedId, patch } = parseSpecialistPatch(data?.patch);
     assertRecordDate(date);
     assertSpecialistClinicalDay(date, resolvedRole);
+    const { bedId, patch } = parseSpecialistPatch(data?.patch);
 
     const docRef = firestore
       .collection('hospitals')
@@ -219,7 +219,19 @@ const createSpecialistMedicalHandoffFunctions = ({
       throw new functions.https.HttpsError('not-found', 'Daily record not found.');
     }
 
-    const existingBed = snapshot.data()?.beds?.[bedId];
+    const record = snapshot.data();
+    if (record?.date != null && record.date !== date) {
+      throw new functions.https.HttpsError('failed-precondition', 'Daily record date mismatch.');
+    }
+    if (
+      patch.dateTimestamp !== undefined &&
+      record?.dateTimestamp != null &&
+      patch.dateTimestamp !== record.dateTimestamp
+    ) {
+      throw new functions.https.HttpsError('permission-denied', 'Record timestamp is immutable.');
+    }
+    delete patch.dateTimestamp;
+    const existingBed = record?.beds?.[bedId];
     if (!existingBed || typeof existingBed !== 'object') {
       throw new functions.https.HttpsError(
         'failed-precondition',
