@@ -7,16 +7,14 @@ import {
   nullableOptional,
   nullishDefault,
   resolveLegacyNameParts,
+  StringSchema,
+  OptionalStringSchema,
+  NullableOptionalStringSchema,
+  DefaultEmptyStringSchema,
 } from './helpers';
 
-const StringSchema = z.string();
-const DefaultEmptyStringSchema = StringSchema.default('');
 const DefaultFalseSchema = z.boolean().default(false);
 const CudyrItemSchema = z.number().min(0).max(4).catch(0);
-
-// Zod schemas are immutable; reuse these identical field validators across the patient contract.
-const OptionalStringSchema = StringSchema.optional();
-const NullableOptionalStringSchema = nullableOptional(StringSchema);
 
 export const BedTypeSchema = z.nativeEnum(BedType) as z.ZodType<BedType>;
 export const PatientStatusSchema = z.nativeEnum(PatientStatus);

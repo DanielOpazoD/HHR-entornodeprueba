@@ -92,7 +92,7 @@ restore the 627,000-byte ceiling if the header change regresses startup.
 
 ## RN y recuperación del archivo CUDYR (2026-10-10)
 
-Owner: census/sync. The patient contract reuses immutable optional-string Zod
+Owner: census/sync. The patient, census and movement contracts share immutable string Zod
 validators to avoid duplicating the same validator in the authenticated shell.
 No accepted values or validation behavior change. Server-verified CUDYR archive
 recovery and shared report facts stay available as on-demand assets and are
