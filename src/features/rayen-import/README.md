@@ -59,6 +59,10 @@ En `off` y `shadow`, cada parche individual demuestra atómicamente mediante el 
 revisión congelada sigue vigente antes de tocar la caché local. Una promoción concurrente a
 `enforced` cancela los parches restantes y no deja escrituras antiguas en la cola para un replay
 posterior.
+Antes de cada intento, estos modos también comparan los campos clínicos completos con la base
+original de la lectura y el censo recién obtenido. Un tercer valor concurrente bloquea el parche
+y deja el objetivo reintentable; un valor ya persistido no se vuelve a escribir. El reintento de
+versión conserva esa base original, igual que el rebase de `enforced`.
 En `enforced`, el CUDYR de D−1 usa el mismo callable en un lote separado: modifica el documento
 histórico, pero demuestra autoridad con el `runId` congelado en el día de la sincronización. Sólo se
 admite el día inmediatamente anterior y nunca se degrada al escritor individual. Si cambia la
