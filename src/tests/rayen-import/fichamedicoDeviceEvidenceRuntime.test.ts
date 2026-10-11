@@ -1,5 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 import '../../../extension/fichamedico-device-evidence-runtime.js';
 
@@ -32,6 +34,58 @@ describe('Ficha Médico device evidence runtime', () => {
 
   const create = () =>
     factory.create({ resolveSession, readJson, fetchDeviceReportBuffer, clinicalDayAt });
+
+  const backgroundRoute = () => {
+    const source = readFileSync('extension/background.js', 'utf8');
+    const start = source.indexOf('[RUNTIME_MESSAGES.DEVICE_REPORT_REQUEST]: runtimeRoute(');
+    const end = source.indexOf('[RUNTIME_MESSAGES.PATIENT_FLOW_REPORT_REQUEST]', start);
+    const runtime = create();
+    const context = vm.createContext({
+      RUNTIME_MESSAGES: { DEVICE_REPORT_REQUEST: 'device' },
+      runtimeRoute: (handle: unknown) => handle,
+      handleDeviceReportRequest: runtime.fetchDeviceEvidence,
+    });
+    return vm.runInContext('({' + source.slice(start, end) + '})', context).device;
+  };
+
+  it.each([
+    { acceptEntries: true, fecha: '2026-07-28', source: 'json' },
+    { acceptEntries: false, fecha: '2026-07-28', source: 'pdf' },
+    { acceptEntries: undefined, fecha: '2026-07-28', source: 'pdf' },
+    { acceptEntries: 'true', fecha: '2026-07-28', source: 'pdf' },
+    { acceptEntries: true, fecha: '2026-07-27', source: 'pdf' },
+  ])(
+    'negotiates $source through the actual background route with $acceptEntries on $fecha',
+    async entry => {
+      readJson.mockResolvedValue({ data: [] });
+      const result = await backgroundRoute()({
+        encId: '141336',
+        fecha: entry.fecha,
+        acceptEntries: entry.acceptEntries,
+      });
+      expect(result.source).toBe(entry.source);
+      if (entry.source === 'json') {
+        expect(result.entries).toEqual([]);
+        expect(readJson).toHaveBeenCalledTimes(1);
+        expect(fetchDeviceReportBuffer).not.toHaveBeenCalled();
+      } else {
+        expect(readJson).not.toHaveBeenCalled();
+        expect(fetchDeviceReportBuffer).toHaveBeenCalledTimes(1);
+      }
+    }
+  );
+
+  it('keeps the PDF fallback if a negotiated current-day JSON read fails through background', async () => {
+    readJson.mockRejectedValue(new Error('synthetic offline'));
+    const result = await backgroundRoute()({
+      encId: '141336',
+      fecha: '2026-07-28',
+      acceptEntries: true,
+    });
+    expect(result).toEqual({ buffer, source: 'pdf' });
+    expect(readJson).toHaveBeenCalledTimes(1);
+    expect(fetchDeviceReportBuffer).toHaveBeenCalledTimes(1);
+  });
 
   it('prefers the direct JSON projection without leaking extra patient fields', async () => {
     readJson.mockResolvedValue({

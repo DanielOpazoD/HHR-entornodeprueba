@@ -1242,7 +1242,7 @@ const runtimeMessageRoutes = Object.freeze({
     'No se pudo leer el informe estadístico de egreso.'
   ),
   [RUNTIME_MESSAGES.DEVICE_REPORT_REQUEST]: runtimeRoute(
-    message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha }),
+    message => handleDeviceReportRequest({ encId: message.encId, fecha: message.fecha, acceptEntries: message.acceptEntries === true }),
     'No se pudo leer el reporte de dispositivos.'
   ),
   [RUNTIME_MESSAGES.PATIENT_FLOW_REPORT_REQUEST]: patientFlowRuntime.route,
