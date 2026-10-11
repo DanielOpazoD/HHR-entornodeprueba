@@ -7,7 +7,6 @@ import {
   loadOwner,
   createDependencies,
   sessionInfo,
-  patient,
   cudyrAnswers,
   response,
 } from './clinicalScoreWriteRuntimeExtension.fixture';
