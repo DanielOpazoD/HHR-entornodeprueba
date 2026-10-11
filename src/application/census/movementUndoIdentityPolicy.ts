@@ -1,4 +1,4 @@
-import type { PatientData } from '@/types/domain/patient';
+import type { PatientEpisodeContract } from '@/application/patient-flow/clinicalEpisodeContracts';
 import type { CMAData, DischargeData, TransferData } from '@/types/domain/movements';
 
 type MovementIdentity = Pick<
@@ -11,7 +11,10 @@ type RestoredDestination = MovementIdentity &
 const normalizeIdentityValue = (value: string | undefined): string =>
   value?.trim().toLowerCase() ?? '';
 
-const matchesRestoredPatient = (movement: MovementIdentity, patient: PatientData): boolean => {
+const matchesRestoredPatient = (
+  movement: MovementIdentity,
+  patient: PatientEpisodeContract
+): boolean => {
   const movementEpisodeId = normalizeIdentityValue(movement.clinicalEpisodeId);
   const restoredEpisodeId = normalizeIdentityValue(patient.clinicalEpisodeId);
   if (movementEpisodeId && restoredEpisodeId) {
@@ -32,7 +35,7 @@ const matchesRestoredPatient = (movement: MovementIdentity, patient: PatientData
 export const matchesRestoredPatientDestination = (
   movement: RestoredDestination,
   bedId: string,
-  patient: PatientData
+  patient: PatientEpisodeContract
 ): boolean => {
   const sourceBedId = 'bedId' in movement ? movement.bedId : movement.originalBedId;
   return sourceBedId === bedId && matchesRestoredPatient(movement, patient);
