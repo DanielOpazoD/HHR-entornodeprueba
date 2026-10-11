@@ -7,7 +7,7 @@ export interface WorkflowJob {
   if?: string;
   permissions?: Record<string, string>;
   env?: Record<string, string>;
-  strategy?: { matrix: { group: string[] } };
+  strategy?: { 'fail-fast'?: boolean; matrix: Record<string, string[]> };
   steps: Array<{
     name?: string;
     run?: string;
