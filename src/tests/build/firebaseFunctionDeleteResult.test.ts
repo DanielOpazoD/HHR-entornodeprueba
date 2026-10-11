@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { affectsFunctionDeployment } from '../../../scripts/functionDeploymentSupport.mjs';
 import { isFirebaseFunctionAlreadyAbsent } from '../../../scripts/check-firebase-function-delete-result.mjs';
 
 describe('Firebase retired function deletion', () => {
@@ -57,13 +58,11 @@ describe('Firebase retired function deletion', () => {
   });
 
   it('redeploys functions when a deployment helper changes', () => {
-    const workflow = readFileSync(
-      path.join(process.cwd(), '.github/workflows/deploy-functions.yml'),
-      'utf8'
-    );
-
-    expect(workflow).toContain("- 'scripts/check-deployed-firebase-functions.mjs'");
-    expect(workflow).toContain("- 'scripts/check-firebase-function-delete-result.mjs'");
-    expect(workflow).toContain("- 'scripts/list-firebase-function-targets.mjs'");
+    for (const file of [
+      'scripts/check-deployed-firebase-functions.mjs',
+      'scripts/check-firebase-function-delete-result.mjs',
+      'scripts/list-firebase-function-targets.mjs',
+    ])
+      expect(affectsFunctionDeployment(file)).toBe(true);
   });
 });

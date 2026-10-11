@@ -1074,3 +1074,33 @@ El smoke visual de release simula explícitamente las consultas nuevas de CUDYR
 el rechazo de consultas desconocidas, las comprobaciones de interfaz y las dos
 descargas. Su presupuesto total permite recorrer los seis módulos del escenario;
 los límites de cada comprobación y los controles de rendimiento no cambian.
+
+## Despliegue de Functions después del CI
+
+`ci-summary` valida una revisión antes de que el CI de `main` llame al workflow
+reutilizable de Functions. El filtro conserva los archivos del despliegue anterior
+y añade los manifests/lockfile raíz y el propio verificador. Un cambio exclusivo
+del frontend o documentación no inicia un despliegue de Functions.
+
+El preflight comprueba el SHA, la rama, el workflow y el `ci-summary` del último
+intento de ese CI mediante un token de solo lectura. No se entregan credenciales
+Firebase hasta superar esta comprobación. Si desde entonces `main` tiene cambios
+en Functions, omite la revisión antigua para evitar revertir un despliegue nuevo.
+Los reintentos manuales en `main` deben superar el mismo control; se permite
+reintentar un despliegue fallido si el resumen de validación sí pasó.
+
+El CLI Firebase procede de `npm ci` y del lockfile raíz (`npx --no-install firebase`);
+no se descarga `latest` durante los pasos de borrado, despliegue o verificación.
+La cola `queue: max` conserva hasta 100 despliegues pendientes sin que una revisión
+antigua desplace a una más reciente. El fetch usa autenticación efímera de solo
+lectura y el diff incluye las eliminaciones cuando se renombra un archivo.
+Se conserva la serialización del proyecto `hhr-pruebas`, los destinos explícitos,
+la comprobación regional y la limpieza de credenciales. Este control corresponde
+a Firebase Functions; no cambia la configuración externa de publicación de Netlify.
+
+**Fallo:** revisar el resumen del preflight y el CI indicado antes de reintentar.
+Una API inaccesible, un SHA distinto o un resumen pendiente/fallido detienen el
+despliegue. No omitir el control ni ampliar permisos. **Rollback:** revertir este
+bloque restaura el workflow anterior; no modifica datos clínicos ni IAM.
+
+Referencia de cola: [concurrencia de GitHub Actions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
